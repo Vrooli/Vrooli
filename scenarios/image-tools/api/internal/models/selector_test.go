@@ -1,12 +1,18 @@
 package models
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
 
 	"image-tools/internal/capabilities"
 )
+
+func allowRightsForTest(_ context.Context, _ json.RawMessage, _ string) (RightsDecision, error) {
+	return RightsDecision{Status: "allowed", DecisionSHA256: "test"}, nil
+}
 
 // testRegistry builds a small registry exercising the selector branches:
 // a CPU-capable default and a disabled GPU quality tier for "upscale".
@@ -66,7 +72,7 @@ func unknownVRAMHost() capabilities.Host {
 
 func TestSelectDefaultOnCPUHost(t *testing.T) {
 	r := testRegistry(t)
-	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: cpuHost()}, nil)
+	sel, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: cpuHost()}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,12 +87,19 @@ func TestSelectDefaultOnCPUHost(t *testing.T) {
 	}
 }
 
+func TestSelectFailsClosedWithoutSharedRightsEvaluator(t *testing.T) {
+	r := testRegistry(t)
+	if _, err := r.Select(SelectRequest{Operation: "upscale", Host: cpuHost()}, nil); err == nil || !strings.Contains(err.Error(), "rights decision") {
+		t.Fatalf("selection without shared rights evaluation = %v, want fail-closed rights refusal", err)
+	}
+}
+
 // On a fitting GPU host, an enabled quality tier should be preferred over the
 // CPU default (best-fit per host).
 func TestSelectPrefersEnabledQualityOnGPU(t *testing.T) {
 	r := testRegistry(t)
 	enabled := func(id string) bool { return true } // operator enabled the quality tier
-	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(12)}, enabled)
+	sel, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: gpuHost(12)}, enabled)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,17 +113,17 @@ func TestSelectPrefersEnabledQualityOnGPU(t *testing.T) {
 
 func TestForceCPUSelectsCPUCapableDefaultEvenOnGpuHost(t *testing.T) {
 	r := testRegistry(t)
-	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(12), ForceCPU: true}, func(string) bool { return true })
+	sel, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: gpuHost(12), ForceCPU: true}, func(string) bool { return true })
 	if err != nil {
 		t.Fatal(err)
 	}
 	if sel.Model.ID != "cpu-default" || sel.GPUViable {
 		t.Fatalf("forced CPU selection = %+v, want cpu-default on CPU", sel)
 	}
-	if _, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(12), OverrideID: "gpu-quality", ForceCPU: true}, func(string) bool { return true }); !errors.Is(err, ErrOverrideInvalid) {
+	if _, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: gpuHost(12), OverrideID: "gpu-quality", ForceCPU: true}, func(string) bool { return true }); !errors.Is(err, ErrOverrideInvalid) {
 		t.Fatalf("GPU-only override under forced CPU = %v, want ErrOverrideInvalid", err)
 	}
-	if _, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(12), ForceCPU: true}, func(id string) bool { return id == "gpu-quality" }); !errors.Is(err, ErrNotRunnable) || !strings.Contains(err.Error(), "CPU-capable") {
+	if _, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: gpuHost(12), ForceCPU: true}, func(id string) bool { return id == "gpu-quality" }); !errors.Is(err, ErrNotRunnable) || !strings.Contains(err.Error(), "CPU-capable") {
 		t.Fatalf("no CPU model error = %v, want actionable CPU-capability error", err)
 	}
 }
@@ -121,7 +134,7 @@ func TestForceCPUSelectsCPUCapableDefaultEvenOnGpuHost(t *testing.T) {
 func TestSelectFallsBackWhenFreeVRAMInsufficient(t *testing.T) {
 	r := testRegistry(t)
 	enabled := func(id string) bool { return true }
-	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: busyGPUHost(12, 8)}, enabled)
+	sel, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: busyGPUHost(12, 8)}, enabled)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +172,7 @@ func TestSelectWarnsWhenSelectedCPUModelNeedsMoreFreeVRAM(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
-	sel, err := r.Select(SelectRequest{Operation: "inpaint", Host: busyGPUHost(12, 8)}, nil)
+	sel, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "inpaint", Host: busyGPUHost(12, 8)}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +194,7 @@ func TestSelectWarnsWhenSelectedCPUModelNeedsMoreFreeVRAM(t *testing.T) {
 // big GPU host.
 func TestSelectDefaultWhenQualityDisabled(t *testing.T) {
 	r := testRegistry(t)
-	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(24)}, nil)
+	sel, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: gpuHost(24)}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +205,7 @@ func TestSelectDefaultWhenQualityDisabled(t *testing.T) {
 
 func TestSelectQualityPolicyPrefersBYOKBeforeDefault(t *testing.T) {
 	r := testRegistry(t)
-	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: cpuHost(), QualityPolicy: "quality", AllowBYOK: true}, nil)
+	sel, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: cpuHost(), QualityPolicy: "quality", AllowBYOK: true}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +219,7 @@ func TestSelectQualityPolicyPrefersBYOKBeforeDefault(t *testing.T) {
 func TestSelectPreferRemoteRanksGatewayFirstUnderAnyPolicy(t *testing.T) {
 	r := testRegistry(t)
 	for _, policy := range []string{"", "balanced", "fast", "quality"} {
-		sel, err := r.Select(SelectRequest{Operation: "upscale", Host: cpuHost(), QualityPolicy: policy, AllowBYOK: true, PreferRemote: true}, nil)
+		sel, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: cpuHost(), QualityPolicy: policy, AllowBYOK: true, PreferRemote: true}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -218,7 +231,7 @@ func TestSelectPreferRemoteRanksGatewayFirstUnderAnyPolicy(t *testing.T) {
 
 func TestSelectPreferRemoteNeverOverridesBYOKConsent(t *testing.T) {
 	r := testRegistry(t)
-	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: cpuHost(), PreferRemote: true}, nil)
+	sel, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: cpuHost(), PreferRemote: true}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +242,7 @@ func TestSelectPreferRemoteNeverOverridesBYOKConsent(t *testing.T) {
 
 func TestSelectQualityPolicyExcludesBYOKWhenDisallowed(t *testing.T) {
 	r := testRegistry(t)
-	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: cpuHost(), QualityPolicy: "quality"}, nil)
+	sel, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: cpuHost(), QualityPolicy: "quality"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,7 +256,7 @@ func TestSelectQualityPolicyExcludesBYOKWhenDisallowed(t *testing.T) {
 func TestSelectConservativeOnUnknownVRAM(t *testing.T) {
 	r := testRegistry(t)
 	enabled := func(id string) bool { return true }
-	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: unknownVRAMHost()}, enabled)
+	sel, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: unknownVRAMHost()}, enabled)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +279,7 @@ func TestSelectNotRunnableShortfall(t *testing.T) {
 	r := testRegistry(t)
 	// Only the GPU-required quality tier enabled, host has too little VRAM.
 	onlyQuality := func(id string) bool { return id == "gpu-quality" }
-	_, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(4)}, onlyQuality)
+	_, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: gpuHost(4)}, onlyQuality)
 	if !errors.Is(err, ErrNotRunnable) {
 		t.Fatalf("want ErrNotRunnable, got %v", err)
 	}
@@ -278,7 +291,7 @@ func TestSelectNotRunnableShortfall(t *testing.T) {
 func TestSelectNotRunnableShortfallUsesFreeVRAM(t *testing.T) {
 	r := testRegistry(t)
 	onlyQuality := func(id string) bool { return id == "gpu-quality" }
-	_, err := r.Select(SelectRequest{Operation: "upscale", Host: busyGPUHost(12, 8)}, onlyQuality)
+	_, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: busyGPUHost(12, 8)}, onlyQuality)
 	if !errors.Is(err, ErrNotRunnable) {
 		t.Fatalf("want ErrNotRunnable, got %v", err)
 	}
@@ -289,7 +302,7 @@ func TestSelectNotRunnableShortfallUsesFreeVRAM(t *testing.T) {
 
 func TestSelectUnknownOperation(t *testing.T) {
 	r := testRegistry(t)
-	if _, err := r.Select(SelectRequest{Operation: "teleport", Host: cpuHost()}, nil); !errors.Is(err, ErrUnknownOperation) {
+	if _, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "teleport", Host: cpuHost()}, nil); !errors.Is(err, ErrUnknownOperation) {
 		t.Fatalf("want ErrUnknownOperation, got %v", err)
 	}
 }
@@ -297,7 +310,7 @@ func TestSelectUnknownOperation(t *testing.T) {
 func TestSelectNoEnabledModel(t *testing.T) {
 	r := testRegistry(t)
 	none := func(id string) bool { return false }
-	if _, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(24)}, none); !errors.Is(err, ErrNoEnabledModel) {
+	if _, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: gpuHost(24)}, none); !errors.Is(err, ErrNoEnabledModel) {
 		t.Fatalf("want ErrNoEnabledModel, got %v", err)
 	}
 }
@@ -307,7 +320,7 @@ func TestSelectOverride(t *testing.T) {
 	enabled := func(id string) bool { return true }
 
 	// Valid override on a fitting host.
-	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(12), OverrideID: "gpu-quality"}, enabled)
+	sel, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: gpuHost(12), OverrideID: "gpu-quality"}, enabled)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,22 +329,22 @@ func TestSelectOverride(t *testing.T) {
 	}
 
 	// Override of a disabled model is rejected.
-	if _, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(12), OverrideID: "gpu-quality"}, nil); !errors.Is(err, ErrOverrideInvalid) {
+	if _, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: gpuHost(12), OverrideID: "gpu-quality"}, nil); !errors.Is(err, ErrOverrideInvalid) {
 		t.Fatalf("want ErrOverrideInvalid (disabled), got %v", err)
 	}
 
 	// Override that doesn't serve the op is rejected.
-	if _, err := r.Select(SelectRequest{Operation: "ocr", Host: cpuHost(), OverrideID: "cpu-default"}, enabled); !errors.Is(err, ErrOverrideInvalid) {
+	if _, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "ocr", Host: cpuHost(), OverrideID: "cpu-default"}, enabled); !errors.Is(err, ErrOverrideInvalid) {
 		t.Fatalf("want ErrOverrideInvalid (wrong op), got %v", err)
 	}
 
 	// Unknown override id rejected.
-	if _, err := r.Select(SelectRequest{Operation: "upscale", Host: cpuHost(), OverrideID: "ghost"}, enabled); !errors.Is(err, ErrOverrideInvalid) {
+	if _, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: cpuHost(), OverrideID: "ghost"}, enabled); !errors.Is(err, ErrOverrideInvalid) {
 		t.Fatalf("want ErrOverrideInvalid (unknown), got %v", err)
 	}
 
 	// Override of a GPU-required model that can't fit and isn't CPU-capable.
-	if _, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(4), OverrideID: "gpu-quality"}, enabled); !errors.Is(err, ErrOverrideInvalid) {
+	if _, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: gpuHost(4), OverrideID: "gpu-quality"}, enabled); !errors.Is(err, ErrOverrideInvalid) {
 		t.Fatalf("want ErrOverrideInvalid (shortfall), got %v", err)
 	}
 }
@@ -366,7 +379,7 @@ func TestFitUsesBestGPUAndSeparatesCapacityAdmission(t *testing.T) {
 	if fit := Fit(model, host); fit.GPUViable || fit.Runnable || fit.VRAMShortfallGB != 1 {
 		t.Fatalf("free-memory fit = %+v, want 1 GB shortfall across GPUs", fit)
 	}
-	fit := (SelectRequest{Host: host, CapacityManagedGPU: true}).fit(model)
+	fit := (SelectRequest{RightsEvaluator: allowRightsForTest, Host: host, CapacityManagedGPU: true}).fit(model)
 	if !fit.GPUViable || !fit.Runnable || fit.VRAMShortfallGB != 0 {
 		t.Fatalf("capacity-managed fit = %+v, want viable from the largest GPU total", fit)
 	}
@@ -438,7 +451,8 @@ func TestSupportsHost(t *testing.T) {
 func TestBrokerManagedSelectionDefersContentionButNotHardwareFit(t *testing.T) {
 	r := testRegistry(t)
 	req := SelectRequest{
-		Operation: "upscale", OverrideID: "gpu-quality",
+		RightsEvaluator: allowRightsForTest,
+		Operation:       "upscale", OverrideID: "gpu-quality",
 		Host: capabilities.Host{OS: "linux", Arch: "amd64", GPUs: []capabilities.GPU{{VRAMBytes: 16 << 30, VRAMUsedBytes: 15 << 30}}},
 	}
 	if _, err := r.Select(req, func(string) bool { return true }); err == nil {

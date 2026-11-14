@@ -11,7 +11,7 @@
 //
 // Production wires *sql.DB opened against modernc.org/sqlite (which
 // already satisfies Pinger via its PingContext method). Tests wire
-// testutil/mocks.FakePinger or testutil/db.NewSQLite for real-handle
+// api-core/databasetest.FakePinger or testutil/db.NewSQLite for real-handle
 // repository tests.
 package database
 
@@ -21,7 +21,7 @@ import (
 )
 
 // seam: Pinger is the database-reachability seam (SEAMS.md row "Pinger").
-// Production wires *sql.DB; tests wire mocks.FakePinger.
+// Production wires *sql.DB; tests wire databasetest.FakePinger.
 //
 // Pinger is the minimum surface the health endpoint needs to verify the
 // database is reachable. *sql.DB satisfies it directly.

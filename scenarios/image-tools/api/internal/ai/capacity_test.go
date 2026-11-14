@@ -137,14 +137,15 @@ func newCapacityTestEngine(t *testing.T, op string, fp *fakeProvider, broker Cap
 	store := storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir())
 
 	eng, err := NewEngine(Deps{
-		Registry:       registry,
-		Backends:       backendReg,
-		Probe:          capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8, GPUs: []capabilities.GPU{{Index: 0, UUID: "GPU-test", VRAMBytes: 16 << 30}}}},
-		Store:          store,
-		ModelInstalled: func(string) bool { return true },
-		ModelsRoot:     t.TempDir(),
-		Capacity:       broker,
-		Disk:           &fakeDiskAdmission{},
+		Registry:        registry,
+		Backends:        backendReg,
+		Probe:           capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8, GPUs: []capabilities.GPU{{Index: 0, UUID: "GPU-test", VRAMBytes: 16 << 30}}}},
+		Store:           store,
+		RightsEvaluator: allowRightsForTest,
+		ModelInstalled:  func(string) bool { return true },
+		ModelsRoot:      t.TempDir(),
+		Capacity:        broker,
+		Disk:            &fakeDiskAdmission{},
 	})
 	if err != nil {
 		t.Fatalf("new engine: %v", err)
@@ -361,5 +362,24 @@ func TestSharedCapacityAdapterDenialPermitsCPUButTransportFailureDoesNot(t *test
 				t.Fatal(err)
 			}
 		}
+	}
+}
+
+// The CPU budget charged to the shared broker is only honest if the backend
+// runs with that many threads; the provider must receive the admitted count.
+func TestLocalCPUInferenceBindsProviderToAdmittedCPUBudget(t *testing.T) {
+	provider := &fakeProvider{}
+	engine, store, id := newTestEngine(t, "denoise", provider)
+	storeInput(t, store, "input/source.png", []byte("source"))
+	var admittedMilli int64
+	engine.deps.CPU = func(_ context.Context, _ string, milli int64) (MemoryLease, error) {
+		admittedMilli = milli
+		return &memoryTestLease{}, nil
+	}
+	if _, err := runJob(t, engine, "denoise", Payload{ModelID: id, InputKey: "input/source.png"}); err != nil {
+		t.Fatal(err)
+	}
+	if admittedMilli <= 0 || int64(provider.lastReq.CPUThreads)*1000 != admittedMilli {
+		t.Fatalf("provider threads %d do not match admitted CPU budget %d millicores", provider.lastReq.CPUThreads, admittedMilli)
 	}
 }

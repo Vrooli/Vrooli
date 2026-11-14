@@ -26,7 +26,7 @@
     },
     {
       "statement": "Cost is legible before anything is opened.",
-      "notes": "A tile shows whether its strategy is free (procedural) or metered (model-backed), so the operator understands the consequence of a choice before making it."
+      "notes": "A tile shows whether its strategy is free (procedural) or metered (model-backed), so the operator understands the consequence of a choice before making it. Opening the catalog spends nothing: a model-backed tile shows a specimen already rendered this session, or waits for the operator to ask for one, because the page is also loaded by unattended screenshot sweeps."
     },
     {
       "statement": "Availability is legible alongside cost.",

@@ -1,10 +1,18 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { qualityTierOf, representativeSurface, type Style, type Surface } from "../../api/studio";
+import {
+  qualityTierOf,
+  rendersOnRequest,
+  representativeSurface,
+  type Style,
+  type Surface,
+} from "../../api/studio";
 import { qualityTierString } from "../../consts/qualityTier";
 import { strings } from "../../consts/strings";
 import { useRender, useObjectURL } from "../../hooks/useStudio";
 import { useTranslation } from "../../i18n";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 
 /**
@@ -18,6 +26,11 @@ import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
  * It renders at the style's representative surface — the landing-page hero when
  * the style permits it — because a hero judged cropped to a phone is being
  * judged for something it never claimed to be.
+ *
+ * A model-backed style is the exception to rendering on sight. Its tile shows a
+ * specimen already rendered this session if there is one, and otherwise waits
+ * for the operator to ask: opening the catalog must not start minutes of
+ * diffusion or a metered charge per tile.
  */
 export function StyleSpecimen({
   style,
@@ -34,8 +47,11 @@ export function StyleSpecimen({
   const request = surface
     ? { styleId: style.id, surfaceId: surface.id, placement: style.placements[0], seed }
     : null;
-  const render = useRender(request);
+  const onRequest = rendersOnRequest(style);
+  const [requested, setRequested] = useState(false);
+  const render = useRender(request, { enabled: !onRequest || requested, retain: onRequest });
   const candidate = render.data?.candidates[0];
+  const awaitingRequest = onRequest && !render.data && !render.isFetching && !render.isError;
   const imageURL = useObjectURL(candidate);
 
   const aspect = surface ? `${surface.width} / ${surface.height}` : "16 / 9";
@@ -65,11 +81,35 @@ export function StyleSpecimen({
           <div
             role="status"
             aria-live="polite"
-            className="flex h-full w-full items-center justify-center px-3 text-center text-xs text-app-muted-foreground"
+            className="flex h-full w-full flex-col items-center justify-center gap-2 px-3 text-center text-xs text-app-muted-foreground"
           >
-            {render.isError
-              ? t(strings.pages.catalog.specimenUnavailable)
-              : t(strings.pages.catalog.specimenLoading)}
+            {awaitingRequest ? (
+              <>
+                <span>{t(strings.pages.catalog.specimenOnRequest)}</span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={!request}
+                  onClick={() => setRequested(true)}
+                  aria-label={t(strings.pages.catalog.renderSpecimenFor, { style: style.name })}
+                >
+                  {t(strings.pages.catalog.renderSpecimen)}
+                </Button>
+              </>
+            ) : render.isError ? (
+              <>
+                <span>{t(strings.pages.catalog.specimenUnavailable)}</span>
+                {onRequest ? (
+                  <Button variant="secondary" size="sm" onClick={() => void render.refetch()}>
+                    {t(strings.pages.catalog.retry)}
+                  </Button>
+                ) : null}
+              </>
+            ) : onRequest ? (
+              t(strings.pages.catalog.specimenRenderingModel)
+            ) : (
+              t(strings.pages.catalog.specimenLoading)
+            )}
           </div>
         )}
       </div>

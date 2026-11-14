@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -6,6 +7,9 @@ import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
 import { JobLane, JobQueue, JobState } from "../../api/jobs";
 import { makeApiError } from "../../api/client";
 import { strings } from "../../consts/strings";
+import { i18n, setLocale } from "../../i18n";
+import en from "../../i18n/locales/en.json";
+import { interp } from "../../test-utils/interp";
 import {
   asProgressStream,
   makeCancelJobResponse,
@@ -43,9 +47,10 @@ describe("ActivityCard", () => {
     vi.mocked(jobsClient.watchJob).mockReturnValue(asProgressStream([]));
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     cleanup();
     vi.clearAllMocks();
+    await i18n.changeLanguage("cimode");
   });
 
   it("lists jobs with friendly labels, open-output, and error detail", async () => {
@@ -100,6 +105,7 @@ describe("ActivityCard", () => {
             progress: 40,
             message: "Falling back to CPU…",
             operation: "upscale",
+            startedAt: timestampFromDate(new Date(Date.now() - 20_000)),
           }),
         ],
       }),
@@ -111,9 +117,59 @@ describe("ActivityCard", () => {
     expect(screen.getByTestId(selectors.jobs.lane)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.jobs.lane)).toHaveTextContent(strings.jobs.queue.cpuPool);
     expect(screen.getByTestId(selectors.jobs.progress)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.jobs.progress)).toHaveAttribute("aria-label", strings.jobs.progressLabel);
     expect(screen.getByTestId(selectors.jobs.message)).toHaveTextContent("Falling back to CPU…");
+    expect(screen.getByTestId(selectors.jobs.estimate)).toHaveTextContent(strings.jobs.estimate.running);
     // An active (running) job exposes a cancel control but no open-output.
     expect(screen.getByTestId(selectors.jobs.cancelButton)).toBeInTheDocument();
+  });
+
+  it("separates queue wait from runtime estimates and shows an approximate remaining time after start", async () => {
+    await setLocale("en");
+    vi.mocked(jobsClient.listJobs).mockResolvedValue(
+      makeListJobsResponse({
+        jobs: [
+          makeJob({ id: "queued", state: JobState.QUEUED, estimatedSeconds: 65, startedAt: undefined }),
+          makeJob({
+            id: "running",
+            state: JobState.RUNNING,
+            estimatedSeconds: 30,
+            startedAt: timestampFromDate(new Date(Date.now() - 20_000)),
+          }),
+        ],
+      }),
+    );
+    renderWithProviders(<ActivityCard />);
+    await waitFor(() => expect(screen.getAllByTestId(selectors.jobs.estimate)).toHaveLength(2));
+
+    expect(screen.getByText(interp(en.jobs.estimate.queued, { duration: "2 min" }))).toBeInTheDocument();
+    expect(screen.getByText(interp(en.jobs.estimate.running, { duration: "10 sec" }))).toBeInTheDocument();
+    expect(screen.getAllByTestId(selectors.jobs.progress)).toHaveLength(1);
+    expect(screen.getAllByRole("progressbar", { name: interp(en.jobs.progressLabel, { operation: "Upscale", count: 42 }) })).toHaveLength(1);
+  });
+
+  it("states when an estimate is unavailable or has been exceeded", async () => {
+    await setLocale("en");
+    vi.mocked(jobsClient.listJobs).mockResolvedValue(
+      makeListJobsResponse({
+        jobs: [
+          makeJob({ id: "unknown", state: JobState.RUNNING, estimatedSeconds: 0 }),
+          makeJob({
+            id: "overdue",
+            state: JobState.RUNNING,
+            estimatedSeconds: 30,
+            startedAt: timestampFromDate(new Date(Date.now() - 60_000)),
+          }),
+          makeJob({ id: "failed", state: JobState.FAILED, error: "backend unavailable" }),
+        ],
+      }),
+    );
+    renderWithProviders(<ActivityCard />);
+    await waitFor(() => expect(screen.getAllByTestId(selectors.jobs.estimate)).toHaveLength(2));
+
+    expect(screen.getByText(en.jobs.estimate.unavailable)).toBeInTheDocument();
+    expect(screen.getByText(interp(en.jobs.estimate.overdue, { duration: "30 sec" }))).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.jobs.errorDetail)).toHaveTextContent("backend unavailable");
   });
 
   it("labels a legacy GPU lane as a serialized local queue", async () => {
@@ -185,9 +241,7 @@ describe("ActivityCard", () => {
       expect(screen.getByTestId(selectors.jobs.cancelButton)).toBeInTheDocument();
     });
     await user.click(screen.getByTestId(selectors.jobs.cancelButton));
-    await waitFor(() => {
-      expect(screen.getByTestId(selectors.activity.error)).toBeInTheDocument();
-    });
+    await waitFor(() => expect(screen.getByTestId(selectors.jobs.cancelError)).toBeInTheDocument());
   });
 
   it("open-output reopens a succeeded result in the workspace", async () => {

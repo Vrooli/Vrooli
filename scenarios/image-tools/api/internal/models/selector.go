@@ -1,9 +1,11 @@
 package models
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"image-tools/internal/capabilities"
 )
@@ -49,6 +51,10 @@ type SelectRequest struct {
 	// ForceCPU excludes models without a CPU path and resolves CPU execution even
 	// when the host has a fitting GPU.
 	ForceCPU bool
+	// RightsEvaluator evaluates machine-readable source facts against current
+	// operator-owned business context. Nil is fail-closed for serving paths.
+	RightsEvaluator RightsEvaluator
+	Context         context.Context
 }
 
 // Selection is the selector's verdict for one operation.
@@ -63,6 +69,7 @@ type Selection struct {
 	// Warnings carries non-fatal cautions (CPU time warning, conservative
 	// unknown-VRAM fallback, default not host-optimal, …).
 	Warnings []string
+	Rights   RightsDecision
 }
 
 // HardwareFit assesses how a model fits a host.
@@ -209,6 +216,8 @@ func (r *Registry) SelectCandidates(req SelectRequest, isEnabled EnabledFunc) ([
 	var supportedHostCount int
 	var unsupportedOSArch bool
 	var runnable []Model
+	var rightsRejected []string
+	rightsByModel := make(map[string]RightsDecision, len(candidates))
 	worstShortfall := 0
 	for _, m := range candidates {
 		if m.Backend == BackendOpenRouter && !req.AllowBYOK {
@@ -218,6 +227,19 @@ func (r *Registry) SelectCandidates(req SelectRequest, isEnabled EnabledFunc) ([
 			continue
 		}
 		enabledCount++
+		if req.Context == nil {
+			req.Context = context.Background()
+		}
+		rights, err := EvaluateCurrentModelRights(req.Context, req.RightsEvaluator, m, RightsUseLocalInference)
+		if err != nil || rights.Status != "allowed" {
+			reason := rights.Reason
+			if err != nil && reason == "" {
+				reason = err.Error()
+			}
+			rightsRejected = append(rightsRejected, fmt.Sprintf("%s: %s", m.ID, reason))
+			continue
+		}
+		rightsByModel[m.ID] = rights
 		if !m.SupportsHost(req.Host) {
 			unsupportedOSArch = true
 			continue
@@ -232,6 +254,9 @@ func (r *Registry) SelectCandidates(req SelectRequest, isEnabled EnabledFunc) ([
 	}
 	if enabledCount == 0 {
 		return nil, fmt.Errorf("%w: %q", ErrNoEnabledModel, req.Operation)
+	}
+	if len(runnable) == 0 && len(rightsRejected) > 0 {
+		return nil, fmt.Errorf("no model has an allowed rights decision for %q: %s", req.Operation, strings.Join(rightsRejected, "; "))
 	}
 	if len(runnable) == 0 {
 		if req.ForceCPU {
@@ -250,6 +275,7 @@ func (r *Registry) SelectCandidates(req SelectRequest, isEnabled EnabledFunc) ([
 	out := make([]Selection, 0, len(ranked))
 	for _, m := range ranked {
 		sel := r.buildSelection(m, req)
+		sel.Rights = rightsByModel[m.ID]
 		// A remote model uses no local GPU, so a local VRAM shortfall is not a
 		// caution about it.
 		if !sel.GPUViable && m.Backend != BackendOpenRouter {
@@ -336,6 +362,13 @@ func (r *Registry) selectOverride(req SelectRequest, isEnabled EnabledFunc) (Sel
 	if !r.enabled(m, isEnabled) {
 		return Selection{}, fmt.Errorf("%w: model %q is disabled", ErrOverrideInvalid, req.OverrideID)
 	}
+	if req.Context == nil {
+		req.Context = context.Background()
+	}
+	rights, rightsErr := EvaluateCurrentModelRights(req.Context, req.RightsEvaluator, m, RightsUseLocalInference)
+	if rightsErr != nil || rights.Status != "allowed" {
+		return Selection{}, fmt.Errorf("model %q rights are not allowed: %s", m.ID, rights.Reason)
+	}
 	if !m.SupportsHost(req.Host) {
 		return Selection{}, fmt.Errorf("%w: model %q has no declared build for host %s/%s", ErrOverrideInvalid, req.OverrideID, req.Host.OS, req.Host.Arch)
 	}
@@ -347,6 +380,7 @@ func (r *Registry) selectOverride(req SelectRequest, isEnabled EnabledFunc) (Sel
 		return Selection{}, fmt.Errorf("%w: model %q cannot run on this host", ErrOverrideInvalid, req.OverrideID)
 	}
 	sel := r.buildSelection(m, req)
+	sel.Rights = rights
 	if !sel.GPUViable && !isRemoteBackend(m) {
 		appendFreeVRAMShortfallWarning(&sel, fit.VRAMShortfallGB)
 	}

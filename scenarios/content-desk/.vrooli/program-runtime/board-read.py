@@ -3,8 +3,7 @@ import json
 
 inputs = program.inputs()
 
-envelope = {'program': 'content-desk.board-read', 'version': '1', 'status': 'failed',
-            'phase': 'validate', 'inputs': {}, 'signals': {}, 'errors': [], 'evidence': []}
+envelope = program.envelope('content-desk.board-read', '1', phase="validate", inputs={})
 
 ROW_CAP = 80
 SAMPLE_CAP = 8

@@ -41,15 +41,33 @@ export function useSurfaces(): UseQueryResult<Surface[]> {
  * A render is deterministic in (style, surface, placement, seed, count), which
  * is what makes caching it correct rather than merely convenient: the same key
  * cannot produce different bytes, so a cached result is not stale, it is the
- * answer. `enabled` lets a page hold the request until the operator has chosen
- * a surface.
+ * answer. A null request holds the query until the operator has chosen a
+ * surface.
+ *
+ * `enabled: false` reads the cache without submitting. The key is still the
+ * request's own, so a specimen rendered earlier in the session — on the style
+ * page, or by an earlier click — shows immediately, while nothing new is
+ * spent. The catalog relies on this: a model-backed tile must not start a
+ * render just because the page was opened.
+ *
+ * `retain` keeps a finished render for the rest of the session instead of the
+ * default five minutes. It is for model-backed renders, which cost minutes to
+ * redo; a procedural specimen is cheaper to redraw than to hold.
+ *
+ * The query's abort signal reaches the request, so leaving the page cancels
+ * the render rather than leaving it to finish for nobody — the API passes the
+ * cancellation on to the image-tools job it submitted.
  */
-export function useRender(req: RenderRequest | null): UseQueryResult<RenderJob> {
+export function useRender(
+  req: RenderRequest | null,
+  options: { enabled?: boolean; retain?: boolean } = {},
+): UseQueryResult<RenderJob> {
   return useQuery({
     queryKey: req ? studioKeys.render(req) : ["render", "idle"],
-    queryFn: () => submitRender(req as RenderRequest),
-    enabled: req !== null,
-    // A model-backed render takes tens of seconds and costs real GPU time.
+    queryFn: ({ signal }) => submitRender(req as RenderRequest, signal),
+    enabled: req !== null && (options.enabled ?? true),
+    ...(options.retain ? { gcTime: Infinity } : {}),
+    // A model-backed render takes minutes on a CPU host and costs real compute.
     // Retrying it on failure spends that again to produce the same failure.
     retry: false,
     staleTime: Infinity,

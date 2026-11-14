@@ -155,7 +155,9 @@ func (m *Manager) recover() error {
 	}
 	now := m.clock.Now().UTC()
 	for _, exp := range orphans {
-		exp.Status = StatusFailed
+		if err := exp.Transition(StatusFailed); err != nil {
+			return fmt.Errorf("experiment: recover %q status: %w", exp.ID, err)
+		}
 		exp.Error = "interrupted by server restart"
 		exp.FinishedAt = &now
 		if err := m.service.repo.UpdateExperiment(m.baseCtx, exp); err != nil {
@@ -198,7 +200,10 @@ func (m *Manager) Submit(ctx context.Context, spec SubmitSpec) (Experiment, erro
 	default:
 		m.removeQueued(e)
 		now := m.clock.Now().UTC()
-		saved.Status = StatusFailed
+		if err := saved.Transition(StatusFailed); err != nil {
+			m.logger.Printf("experiment %s: transition queue-full status: %v", saved.ID, err)
+			return Experiment{}, err
+		}
 		saved.Error = "experiment queue is full"
 		saved.FinishedAt = &now
 		if err := m.service.repo.UpdateExperiment(m.baseCtx, saved); err != nil {
@@ -237,7 +242,11 @@ func (m *Manager) execute(e *entry) {
 	}
 	e.cancel = cancel
 	now := m.clock.Now().UTC()
-	e.exp.Status = StatusRunning
+	if err := e.exp.Transition(StatusRunning); err != nil {
+		e.mu.Unlock()
+		m.logger.Printf("experiment %s: transition to running: %v", e.id, err)
+		return
+	}
 	e.exp.StartedAt = &now
 	snapshot := e.exp
 	e.mu.Unlock()
@@ -265,24 +274,32 @@ func (m *Manager) execute(e *entry) {
 	result, err := m.runner(jobCtx, snapshot, emit)
 
 	e.mu.Lock()
+	if e.exp.Status.Terminal() {
+		e.mu.Unlock()
+		return
+	}
 	finished := m.clock.Now().UTC()
 	e.exp.FinishedAt = &finished
+	terminal := StatusSucceeded
 	switch {
 	case errors.Is(jobCtx.Err(), context.DeadlineExceeded):
-		e.exp.Status = StatusFailed
+		terminal = StatusFailed
 		e.exp.Error = fmt.Sprintf("experiment exceeded runtime budget of %s", e.maxRuntime)
 	case err != nil && jobCtx.Err() != nil:
-		e.exp.Status = StatusCanceled
+		terminal = StatusCanceled
 	case err != nil:
-		e.exp.Status = StatusFailed
+		terminal = StatusFailed
 		e.exp.Error = err.Error()
 	case jobCtx.Err() != nil:
-		e.exp.Status = StatusCanceled
-	default:
-		e.exp.Status = StatusSucceeded
+		terminal = StatusCanceled
 	}
-	final := e.exp
-	e.mu.Unlock()
+	base := e.exp
+	final := base
+	if transitionErr := final.Transition(terminal); transitionErr != nil {
+		e.mu.Unlock()
+		m.logger.Printf("experiment %s: transition to %s: %v", e.id, terminal, transitionErr)
+		return
+	}
 
 	if final.Status == StatusSucceeded {
 		if len(result.RecipeJSON) > 0 {
@@ -296,7 +313,13 @@ func (m *Manager) execute(e *entry) {
 			key, storeErr := m.service.storeReportBlob(m.baseCtx, final, result.Report, mime, finished)
 			if storeErr != nil {
 				m.logger.Printf("experiment %s: store report: %v", final.ID, storeErr)
-				final.Status = StatusFailed
+				final = base
+				if transitionErr := final.Transition(StatusFailed); transitionErr != nil {
+					m.logger.Printf("experiment %s: transition report-failure status: %v", final.ID, transitionErr)
+					e.mu.Unlock()
+					return
+				}
+				final.FinishedAt = &finished
 				final.Error = storeErr.Error()
 				final.ResultRef = ""
 				if err := m.service.repo.UpdateExperiment(m.baseCtx, final); err != nil {
@@ -307,7 +330,13 @@ func (m *Manager) execute(e *entry) {
 				if err := m.service.repo.CompleteSucceeded(m.baseCtx, final, result.Runs); err != nil {
 					_ = m.service.blobs.Delete(m.baseCtx, key)
 					m.logger.Printf("experiment %s: persist successful result: %v", final.ID, err)
-					final.Status = StatusFailed
+					final = base
+					if transitionErr := final.Transition(StatusFailed); transitionErr != nil {
+						m.logger.Printf("experiment %s: transition result-failure status: %v", final.ID, transitionErr)
+						e.mu.Unlock()
+						return
+					}
+					final.FinishedAt = &finished
 					final.Error = fmt.Sprintf("persist successful result: %v", err)
 					final.ResultRef = ""
 					if updateErr := m.service.repo.UpdateExperiment(m.baseCtx, final); updateErr != nil {
@@ -320,7 +349,13 @@ func (m *Manager) execute(e *entry) {
 		} else {
 			if err := m.service.repo.CompleteSucceeded(m.baseCtx, final, result.Runs); err != nil {
 				m.logger.Printf("experiment %s: persist successful result: %v", final.ID, err)
-				final.Status = StatusFailed
+				final = base
+				if transitionErr := final.Transition(StatusFailed); transitionErr != nil {
+					m.logger.Printf("experiment %s: transition result-failure status: %v", final.ID, transitionErr)
+					e.mu.Unlock()
+					return
+				}
+				final.FinishedAt = &finished
 				final.Error = fmt.Sprintf("persist successful result: %v", err)
 				if updateErr := m.service.repo.UpdateExperiment(m.baseCtx, final); updateErr != nil {
 					m.logger.Printf("experiment %s: persist result-failure status: %v", final.ID, updateErr)
@@ -334,6 +369,8 @@ func (m *Manager) execute(e *entry) {
 			m.logger.Printf("experiment %s: persist terminal status: %v", final.ID, err)
 		}
 	}
+	e.exp = final
+	e.mu.Unlock()
 	m.finalizeEntry(e, final)
 }
 
@@ -482,7 +519,9 @@ func (m *Manager) Cancel(id string) error {
 			return nil
 		}
 		now := m.clock.Now().UTC()
-		exp.Status = StatusCanceled
+		if err := exp.Transition(StatusCanceled); err != nil {
+			return err
+		}
 		exp.FinishedAt = &now
 		return m.service.repo.UpdateExperiment(m.baseCtx, exp)
 	}
@@ -505,7 +544,10 @@ func (m *Manager) Cancel(id string) error {
 				e.mu.Unlock()
 				return nil
 			}
-			e.exp.Status = StatusCanceled
+			if err := e.exp.Transition(StatusCanceled); err != nil {
+				e.mu.Unlock()
+				return err
+			}
 			e.exp.FinishedAt = &now
 			final := e.exp
 			e.mu.Unlock()
@@ -517,7 +559,10 @@ func (m *Manager) Cancel(id string) error {
 		return nil
 	}
 	now := m.clock.Now().UTC()
-	e.exp.Status = StatusCanceled
+	if err := e.exp.Transition(StatusCanceled); err != nil {
+		e.mu.Unlock()
+		return err
+	}
 	e.exp.FinishedAt = &now
 	final := e.exp
 	e.mu.Unlock()

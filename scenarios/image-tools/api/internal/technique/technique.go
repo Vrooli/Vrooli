@@ -301,6 +301,12 @@ func StableDiffusionCpp(req backends.Request, modelDir string) ([]string, error)
 		// A GPU-capable sd launcher can also serve CPU work. Explicitly pin
 		// compute AND parameter placement; offload-to-cpu alone retains GPU compute.
 		args = append(args, "--backend", "cpu", "--params-backend", "cpu")
+		// sd-cli otherwise sizes its compute pool to every physical core, and
+		// that explicit count overrides OMP_NUM_THREADS, so the admitted CPU
+		// budget must be bound through argv.
+		if req.CPUThreads > 0 {
+			args = append(args, "-t", strconv.Itoa(req.CPUThreads))
+		}
 	}
 	if neg := StrParam(req, "negative_prompt"); neg != "" {
 		args = append(args, "-n", neg)

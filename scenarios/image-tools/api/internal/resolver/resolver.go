@@ -75,6 +75,7 @@ type Resolution struct {
 	// Warnings carries the selection + backend cautions (CPU-slow, VRAM
 	// shortfall, BYOK cost, derived-op caveat, adapter auto-preprocess, …).
 	Warnings []string
+	Rights   models.RightsDecision
 }
 
 // Request drives a resolution. Host is the already-probed hardware snapshot (the
@@ -111,6 +112,7 @@ type Request struct {
 	// installed, so a conditioned request fails honestly until installed).
 	AdapterEnabled   func(id string) bool
 	AdapterInstalled func(id string) bool
+	RightsEvaluator  models.RightsEvaluator
 }
 
 // Resolver composes model selection, technique derivation, backend-tier
@@ -118,13 +120,18 @@ type Request struct {
 type Resolver struct {
 	registry *models.Registry
 	backends *backends.Registry
+	rights   models.RightsEvaluator
 }
 
 // New builds a Resolver over the model registry and backend provider registry.
 // backends may be nil (the resolution then omits tier/backend warnings) — useful
 // for a pure model/technique explanation that needs no host backends.
-func New(registry *models.Registry, be *backends.Registry) *Resolver {
-	return &Resolver{registry: registry, backends: be}
+func New(registry *models.Registry, be *backends.Registry, rights ...models.RightsEvaluator) *Resolver {
+	r := &Resolver{registry: registry, backends: be}
+	if len(rights) > 0 {
+		r.rights = rights[0]
+	}
+	return r
 }
 
 // Resolve produces the Resolution for an operation. It fails (executing nothing)
@@ -133,6 +140,9 @@ func New(registry *models.Registry, be *backends.Registry) *Resolver {
 // message. A derived operation whose technique is not yet proven (Ready=false) is
 // not served and surfaces as a selection error, honestly, never a silent run.
 func (r *Resolver) Resolve(ctx context.Context, req Request) (Resolution, error) {
+	if req.RightsEvaluator == nil {
+		req.RightsEvaluator = r.rights
+	}
 	// The fallback policy is the caller's tier intent; fold it onto AllowBYOK so
 	// model selection and backend selection never disagree about whether a remote
 	// tier is permitted.
@@ -151,7 +161,9 @@ func (r *Resolver) Resolve(ctx context.Context, req Request) (Resolution, error)
 		AllowBYOK:          allowBYOK,
 		PreferRemote:       req.PreferRemote,
 		CapacityManagedGPU: req.CapacityManagedGPU,
-		ForceCPU:          req.ForceCPU,
+		ForceCPU:           req.ForceCPU,
+		RightsEvaluator:    req.RightsEvaluator,
+		Context:            ctx,
 	}, req.IsEnabled)
 	if err != nil {
 		return Resolution{}, err
@@ -212,6 +224,7 @@ func (r *Resolver) resolutionForSelection(sel models.Selection, req Request) (Re
 		Weight:        string(safety.OpWeight(req.Operation)),
 		GPUViable:     sel.GPUViable,
 		Warnings:      append([]string{}, sel.Warnings...),
+		Rights:        sel.Rights,
 	}
 	if dt, derived := sel.Model.DerivesOperation(req.Operation); derived {
 		res.Support = SupportDerived

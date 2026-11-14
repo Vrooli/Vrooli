@@ -36,10 +36,17 @@ func (p *execProvider) SupportsGPUUUID() bool {
 	}
 }
 
+// admittedCPUThreads returns the whole-thread CPU budget Admit reserved for the
+// current job, or zero when the context carries no CPU admission.
+func admittedCPUThreads(ctx context.Context) int {
+	threads, _ := ctx.Value(cpuThreadsContextKey{}).(int)
+	return max(threads, 0)
+}
+
 func inferenceCommand(ctx context.Context, name string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, name, args...)
 	uuid, _ := ctx.Value(gpuDeviceContextKey{}).(string)
-	threads, _ := ctx.Value(cpuThreadsContextKey{}).(int)
+	threads := admittedCPUThreads(ctx)
 	if uuid == "" && threads <= 0 {
 		return cmd
 	}

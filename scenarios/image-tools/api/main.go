@@ -561,7 +561,10 @@ func main() {
 
 	// AI engine: probe → hardware-fit model select → backend select → execute →
 	// persist, with the optional NSFW auto-scan on generated output.
-	aiEngine, err := internalai.NewEngine(internalai.Deps{
+	// The model-rights adapter is an explicit engine-constructor dependency.
+	// SDA admission for ai-provider-go is currently below the host disk
+	// reserve, so nil is fail-closed until the canonical adapter can be passed.
+	aiEngine, err := internalai.NewEngineWithRightsEvaluator(internalai.Deps{
 		Registry:              registry,
 		Backends:              backendReg,
 		Probe:                 probe,
@@ -585,7 +588,7 @@ func main() {
 		Memory:                internalai.AcquireLocalRAM,
 		CPU:                   internalai.AcquireLocalCPU,
 		Logger:                log.Default(),
-	})
+	}, nil)
 	if err != nil {
 		log.Fatalf("ai engine init failed: %v", err)
 	}

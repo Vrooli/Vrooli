@@ -20,6 +20,51 @@ const (
 	StatusCanceled  Status = "canceled"
 )
 
+var statusTransitions = map[Status]map[Status]struct{}{
+	StatusQueued: {
+		StatusRunning:  {},
+		StatusFailed:   {},
+		StatusCanceled: {},
+	},
+	StatusRunning: {
+		StatusSucceeded: {},
+		StatusFailed:    {},
+		StatusCanceled:  {},
+	},
+}
+
+// Valid reports whether s is a persisted experiment lifecycle state.
+func (s Status) Valid() bool {
+	switch s {
+	case StatusQueued, StatusRunning, StatusSucceeded, StatusFailed, StatusCanceled:
+		return true
+	default:
+		return false
+	}
+}
+
+// Transition moves an experiment to a permitted next state. Repeating the
+// current state is idempotent; unknown states and terminal-state revival fail.
+func (e *Experiment) Transition(next Status) error {
+	if e == nil {
+		return fmt.Errorf("experiment: cannot transition a nil record")
+	}
+	if !e.Status.Valid() {
+		return fmt.Errorf("experiment: cannot transition from unknown status %q", e.Status)
+	}
+	if !next.Valid() {
+		return fmt.Errorf("experiment: cannot transition to unknown status %q", next)
+	}
+	if e.Status == next {
+		return nil
+	}
+	if _, ok := statusTransitions[e.Status][next]; !ok {
+		return fmt.Errorf("experiment: invalid status transition %q -> %q", e.Status, next)
+	}
+	e.Status = next
+	return nil
+}
+
 // Terminal reports whether s is a final state.
 func (s Status) Terminal() bool {
 	switch s {

@@ -104,6 +104,31 @@ func TestManager_CancelRunningExperiment(t *testing.T) {
 	require.Equal(t, experiment.StatusCanceled, done.Status)
 }
 
+func TestManager_LateResultCannotOverwriteCancelTimeout(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	runnerReturned := make(chan struct{})
+	mgr, repo, _ := newManager(t, func(context.Context, experiment.Experiment, func(int, string)) (experiment.RunResult, error) {
+		close(started)
+		<-release // Deliberately ignore cancellation until after Cancel's timeout.
+		close(runnerReturned)
+		return experiment.RunResult{Report: []byte(`{"late":true}`)}, nil
+	})
+
+	exp, err := mgr.Submit(context.Background(), experiment.SubmitSpec{Name: "late-cancel-result"})
+	require.NoError(t, err)
+	<-started
+	require.NoError(t, mgr.Cancel(exp.ID))
+	close(release)
+	<-runnerReturned
+	mgr.Close() // Wait for the worker to observe and preserve the terminal winner.
+
+	stored, err := repo.GetExperiment(context.Background(), exp.ID)
+	require.NoError(t, err)
+	require.Equal(t, experiment.StatusCanceled, stored.Status)
+	require.Empty(t, stored.ResultRef)
+}
+
 func TestManager_RuntimeLimitFailsAnOverBudgetExperiment(t *testing.T) {
 	started := make(chan struct{})
 	mgr, _, _ := newManager(t, func(ctx context.Context, _ experiment.Experiment, _ func(int, string)) (experiment.RunResult, error) {

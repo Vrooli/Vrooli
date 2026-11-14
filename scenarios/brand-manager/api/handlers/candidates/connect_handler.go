@@ -133,5 +133,13 @@ func translate(err error) error {
 	if errors.As(err, &nf) {
 		return connect.NewError(connect.CodeNotFound, err)
 	}
+	var invalid candidates.ErrInvalidStatusTransition
+	if errors.As(err, &invalid) {
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	var conflict candidates.ErrStatusConflict
+	if errors.As(err, &conflict) {
+		return connect.NewError(connect.CodeAborted, err)
+	}
 	return connect.NewError(connect.CodeInternal, err)
 }

@@ -5,12 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"math"
 	"os"
 	"runtime"
 	"strconv"
 	"sync"
 
+	"github.com/google/uuid"
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 	"image-tools/internal/adapters"
 	"image-tools/internal/backends"
@@ -117,12 +121,20 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 		if err != nil {
 			return admission, fmt.Errorf("ai: resolve output filesystem for disk admission: %w", err)
 		}
-		outputPeak, tempPeak, err := estimateDiskPeak(pl)
+		inputPixels, err := e.diskInputPixelCounts(ctx, pl)
+		if err != nil {
+			return admission, err
+		}
+		outputPeak, tempPeak, err := estimateDiskPeakForInputs(pl, inputPixels)
 		if err != nil {
 			return admission, err
 		}
 		lease, err := e.deps.Disk.ReserveDiskJob(ctx, sharedcapacity.DiskJobRequest{
-			OwnerID: "image-tools:" + job.ID, JobID: job.ID, FloorBytes: 120 << 30,
+			// The jobs scheduler can re-run admission for the same durable job
+			// after a capacity-busy refusal. Disk receipts are immutable and
+			// owner/job keys are unique, so give each admission attempt a distinct
+			// job key while keeping the owner tied to the durable image job.
+			OwnerID: "image-tools:" + job.ID, JobID: job.ID + "/admission/" + uuid.NewString(), FloorBytes: 120 << 30,
 			Paths: []sharedcapacity.DiskJobPath{
 				{Path: outputRoot, Role: "generated-output-and-publication", PeakBytes: outputPeak},
 				{Path: os.TempDir(), Role: "worker-temporary-files", PeakBytes: tempPeak},
@@ -137,6 +149,7 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 		group.renew("disk job", lease)
 		reservation := lease.Reservation()
 		meta["disk_job_reservation_id"] = reservation.ID
+		meta["disk_job_attempt_id"] = reservation.JobID
 		meta["disk_job_filesystems"] = strconv.Itoa(len(reservation.Filesystems))
 		for i, filesystem := range reservation.Filesystems {
 			prefix := fmt.Sprintf("disk_job_filesystem_%d_", i)
@@ -317,6 +330,10 @@ const imageToolsDiskPlanningCeiling int64 = 25 << 30
 // from the image ingest limits. Unknown input dimensions use the maximum allowed
 // pixel area; all arithmetic is checked before admission.
 func estimateDiskPeak(pl Payload) (outputBytes, tempBytes int64, err error) {
+	return estimateDiskPeakForInputs(pl, nil)
+}
+
+func estimateDiskPeakForInputs(pl Payload, inputPixels []int64) (outputBytes, tempBytes int64, err error) {
 	variations := int64(pl.Variations)
 	if variations < 1 {
 		variations = 1
@@ -354,6 +371,7 @@ func estimateDiskPeak(pl Payload) (outputBytes, tempBytes int64, err error) {
 		return 0, 0, fmt.Errorf("ai: output disk estimate overflow")
 	}
 	outputBytes = outputBytes * 5 / 4
+	inputPixels = append([]int64(nil), inputPixels...)
 	inputCount := int64(0)
 	if pl.InputKey != "" {
 		inputCount++
@@ -366,15 +384,25 @@ func estimateDiskPeak(pl Payload) (outputBytes, tempBytes int64, err error) {
 			inputCount++
 		}
 	}
+	// The caller may supply exact pixel counts for every input. If not, keep
+	// the prior conservative maximum for inputs whose dimensions are unknown.
+	if len(inputPixels) == 0 && inputCount > 0 {
+		inputPixels = make([]int64, inputCount)
+		for i := range inputPixels {
+			inputPixels[i] = maxDiskImagePixels
+		}
+	} else if int64(len(inputPixels)) != inputCount {
+		return 0, 0, fmt.Errorf("ai: input pixel inventory does not match the payload")
+	}
 	if inputCount > math.MaxInt64/(64<<20) {
 		return 0, 0, fmt.Errorf("ai: input count exceeds the bounded disk estimate")
 	}
 	inputBytes := inputCount * (64 << 20)
-	if inputCount > 0 {
-		if maxDiskImagePixels > math.MaxInt64/4/inputCount {
-			return 0, 0, fmt.Errorf("ai: input disk estimate overflow")
+	for _, pixels := range inputPixels {
+		if pixels <= 0 || pixels > maxDiskImagePixels || pixels > math.MaxInt64/4 {
+			return 0, 0, fmt.Errorf("ai: input pixel count exceeds the bounded disk estimate")
 		}
-		decodedInputBytes := inputCount * maxDiskImagePixels * 4
+		decodedInputBytes := pixels * 4
 		if inputBytes > math.MaxInt64-decodedInputBytes {
 			return 0, 0, fmt.Errorf("ai: combined input disk estimate overflow")
 		}
@@ -391,6 +419,45 @@ func estimateDiskPeak(pl Payload) (outputBytes, tempBytes int64, err error) {
 		return 0, 0, fmt.Errorf("ai: generated-output job peak exceeds the %d-byte owner planning ceiling", imageToolsDiskPlanningCeiling)
 	}
 	return outputBytes, tempBytes, nil
+}
+
+func (e *Engine) diskInputPixelCounts(ctx context.Context, pl Payload) ([]int64, error) {
+	keys := make([]string, 0, 2+len(pl.Adapters))
+	if pl.InputKey != "" {
+		keys = append(keys, pl.InputKey)
+	}
+	if pl.MaskKey != "" {
+		keys = append(keys, pl.MaskKey)
+	}
+	for _, adapter := range pl.Adapters {
+		if adapter.ConditioningImageKey != "" {
+			keys = append(keys, adapter.ConditioningImageKey)
+		}
+	}
+	pixels := make([]int64, 0, len(keys))
+	for _, key := range keys {
+		reader, _, err := e.deps.Store.Get(ctx, key)
+		if err != nil {
+			return nil, fmt.Errorf("ai: inspect input %q for disk admission: %w", key, err)
+		}
+		config, _, decodeErr := image.DecodeConfig(reader)
+		closeErr := reader.Close()
+		if closeErr != nil {
+			return nil, fmt.Errorf("ai: close input %q after disk admission inspection: %w", key, closeErr)
+		}
+		if decodeErr != nil {
+			// Formats without a standard-library header decoder retain the
+			// existing worst-case estimate; never treat unknown size as small.
+			pixels = append(pixels, maxDiskImagePixels)
+			continue
+		}
+		width, height := int64(config.Width), int64(config.Height)
+		if width <= 0 || height <= 0 || width > maxDiskImagePixels || height > maxDiskImagePixels || width > maxDiskImagePixels/height {
+			return nil, fmt.Errorf("ai: input %q dimensions exceed the bounded disk estimate", key)
+		}
+		pixels = append(pixels, width*height)
+	}
+	return pixels, nil
 }
 
 func (e *Engine) admitModelMemory(group *leaseGroup, model models.Model, owner string, local bool) error {

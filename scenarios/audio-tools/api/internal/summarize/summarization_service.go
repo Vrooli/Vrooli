@@ -42,14 +42,38 @@ type SummarizeRequest struct {
 	EventID string
 	Path    string
 	Text    string
+	// Level is normally supplied by the persisted config. The evaluation owner
+	// sets it from the already-frozen case while the public handler leaves it
+	// empty.
+	Level string
+	// RuntimeContextTier is reserved for the owner evaluation path. Public
+	// summarize handlers leave it zero, so normal callers continue to use the
+	// persistent resource policy. A nonzero tier is still checked by
+	// resource-ollama before provider execution.
+	RuntimeContextTier int
+	// Rights decision identity is supplied only by an owner-verified evaluation
+	// path. Both values must be present together; resource-ollama rechecks them
+	// at provider execution.
+	RightsDecisionSHA256   string
+	RightsEvaluatedAt      string
+	RightsReceiptSHA256    string
+	PolicyFileSHA256       string
+	ExpectedModel          string
+	ExpectedArtifactDigest string
 }
 
 // SummarizeResult carries the summary and diagnostic fields.
 type SummarizeResult struct {
-	Summary    string
-	Paragraphs []string
-	Config     SummarizeConfig
-	ElapsedMs  int64
+	Summary              string
+	Paragraphs           []string
+	Config               SummarizeConfig
+	ElapsedMs            int64
+	Model                string
+	TotalDurationNS      int64
+	LoadDurationNS       int64
+	PromptEvalCount      int
+	PromptEvalDurationNS int64
+	EvalDurationNS       int64
 	// Diagnostics carried from the underlying Summarizer response so the
 	// unified tts-summarize log line can distinguish real empty responses from
 	// token-budget-exhausted truncation.
@@ -112,6 +136,12 @@ func (s *SummarizationService) Summarize(ctx context.Context, req SummarizeReque
 	}
 
 	cfg := s.getConfig()
+	if strings.TrimSpace(req.Level) != "" {
+		if req.Level != "light" && req.Level != "moderate" && req.Level != "heavy" {
+			return SummarizeResult{Config: cfg}, fmt.Errorf("unsupported summary level %q", req.Level)
+		}
+		cfg.Level = req.Level
+	}
 	if req.Path == "auto" {
 		if blocked := s.autoBackoffUntil(req.EventID); !blocked.IsZero() && s.now().Before(blocked) {
 			return SummarizeResult{Config: cfg}, ErrSummarizeCoolingDown
@@ -176,25 +206,37 @@ func (s *SummarizationService) run(ctx context.Context, req SummarizeRequest, cf
 	defer cancel()
 
 	started := s.now()
-	resp, err := s.summarizer.Summarize(runCtx, normalized, cfg.Model, cfg.Level)
+	resp, err := s.summarizer.SummarizeAtContextTierWithExecutionIdentity(runCtx, normalized, cfg.Model, cfg.Level, req.RuntimeContextTier, req.ExpectedModel, req.ExpectedArtifactDigest, req.RightsDecisionSHA256, req.RightsEvaluatedAt, req.RightsReceiptSHA256, req.PolicyFileSHA256)
 	elapsedMs := s.now().Sub(started).Milliseconds()
 	if err != nil {
 		return SummarizeResult{
-			Config:     cfg,
-			ElapsedMs:  elapsedMs,
-			DoneReason: resp.DoneReason,
-			EvalCount:  resp.EvalCount,
-			RawLen:     len(resp.RawContent),
+			Config:               cfg,
+			ElapsedMs:            elapsedMs,
+			Model:                resp.Model,
+			TotalDurationNS:      resp.TotalDurationNS,
+			LoadDurationNS:       resp.LoadDurationNS,
+			PromptEvalCount:      resp.PromptEvalCount,
+			PromptEvalDurationNS: resp.PromptEvalDurationNS,
+			EvalDurationNS:       resp.EvalDurationNS,
+			DoneReason:           resp.DoneReason,
+			EvalCount:            resp.EvalCount,
+			RawLen:               len(resp.RawContent),
 		}, err
 	}
 
 	summary := strings.TrimSpace(resp.Content)
 	result := SummarizeResult{
-		Config:     cfg,
-		ElapsedMs:  elapsedMs,
-		DoneReason: resp.DoneReason,
-		EvalCount:  resp.EvalCount,
-		RawLen:     len(resp.RawContent),
+		Config:               cfg,
+		ElapsedMs:            elapsedMs,
+		Model:                resp.Model,
+		TotalDurationNS:      resp.TotalDurationNS,
+		LoadDurationNS:       resp.LoadDurationNS,
+		PromptEvalCount:      resp.PromptEvalCount,
+		PromptEvalDurationNS: resp.PromptEvalDurationNS,
+		EvalDurationNS:       resp.EvalDurationNS,
+		DoneReason:           resp.DoneReason,
+		EvalCount:            resp.EvalCount,
+		RawLen:               len(resp.RawContent),
 	}
 	if summary == "" {
 		return result, classifyEmptySummary(resp)

@@ -961,3 +961,34 @@ contract supplies the expected behavior. Focused evidence, catalog, motion,
 scenes, and scaffold checks passed; the integration lane compiled. The Test
 Genie structure run `20260907-203754-cfc42e7c` ended `provider_unavailable`
 with zero observations, so it provides no structure assertion result.
+
+### 2026-11-12 — a model-backed render is one synchronous request
+
+**Symptom:** A model-backed render on a CPU host takes 18-26 minutes, and
+`RenderService/Submit` answers only when it is done. Before this date the
+catalog submitted one per style on page load; a git-control-tower periodic
+screenshot sweep loaded `/` every ~2 h, and the UI proxy's 15 s socket timeout
+cut each request while image-tools kept running the diffusion job for nobody
+(load 87 on a 32-core host).
+
+**Root cause:** Three layers of the same mismatch: the catalog rendered every
+style on mount; the UI proxy (15 s) and API write deadline (30 s) were sized
+for ordinary requests; and the image-tools wait was one WaitJob on the request
+context that never cancelled the job it abandoned.
+
+**Workaround:** None needed locally. Model-backed catalog tiles render on
+request; Submit has a two-hour operation budget, the UI proxy gives it the same,
+the generation wait is sized from image-tools' estimate and re-waits in chunks,
+and every abandoned wait cancels its image-tools job.
+
+**Real fix:** Make a render a job rather than a request: Submit returns a
+pending job, and the UI watches it (a server stream or WatchJob-style RPC).
+Until then a render through a tunnel that cuts idle responses (about 100 s)
+is cancelled when the tunnel drops it, so model-backed renders complete only
+for callers that can hold the request open. This needs a render proto change.
+
+**Owner:** unassigned.
+
+**Refs:** `api/internal/imageengine/wait.go`, `api/handlers/render/module.go`
+(`renderSubmitBudget`), `ui/server.js` (`proxyRender`),
+`ui/src/components/studio/StyleSpecimen.tsx`.

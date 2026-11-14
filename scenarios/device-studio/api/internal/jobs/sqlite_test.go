@@ -100,6 +100,18 @@ func TestSubmitIsDurableAndIdempotentAcrossRepositoryReopen(t *testing.T) { // [
 	}
 }
 
+func TestJobSchemaRejectsUnknownPersistedState(t *testing.T) {
+	db, repo := openRepo(t, filepath.Join(t.TempDir(), "job-invalid-state.db"))
+	job := submit(t, newService(repo))
+	if _, err := db.Exec(`UPDATE render_jobs SET state=? WHERE id=?`, "unrecognized", job.ID); err == nil {
+		t.Fatal("database accepted an unknown job state")
+	}
+	persisted, err := repo.Get(context.Background(), job.ID)
+	if err != nil || persisted.State != jobs.Queued {
+		t.Fatalf("failed state write mutated job: job=%+v err=%v", persisted, err)
+	}
+}
+
 func TestAttemptReadRejectsUnknownPersistedState(t *testing.T) {
 	db, repo := openRepo(t, filepath.Join(t.TempDir(), "attempt-invalid-state.db"))
 	svc := newService(repo)

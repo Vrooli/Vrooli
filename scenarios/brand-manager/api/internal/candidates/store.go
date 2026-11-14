@@ -15,8 +15,8 @@ type Store interface {
 	Create(ctx context.Context, c Candidate) (Candidate, error)
 	Get(ctx context.Context, id string) (Candidate, error)
 	List(ctx context.Context, brandID string, status Status, limit, offset int) ([]Candidate, error)
-	UpdateStatus(ctx context.Context, id string, status Status, note string) (Candidate, error)
-	SupersedePicked(ctx context.Context, brandID, exceptID string) error
+	TransitionStatus(ctx context.Context, id string, expected, to Status, note string) (Candidate, error)
+	Pick(ctx context.Context, id string) (Candidate, error)
 	// FindByAsset returns the brand's oldest candidate for an asset, if any.
 	FindByAsset(ctx context.Context, brandID, assetID string) (Candidate, bool, error)
 }
@@ -28,6 +28,7 @@ func (e ErrNotFound) Error() string { return fmt.Sprintf("candidates: %q not fou
 
 // SQLExecutor is the narrow database surface the store depends on.
 type SQLExecutor interface {
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
@@ -57,6 +58,9 @@ func (s *sqliteStore) Create(ctx context.Context, c Candidate) (Candidate, error
 	}
 	if c.Status == "" {
 		c.Status = StatusProposed
+	}
+	if !ValidStatus(c.Status) || c.Status != StatusProposed {
+		return Candidate{}, ErrInvalidStatus{Status: c.Status}
 	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO logo_candidates (`+candidateColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		c.ID, c.BrandID, c.AssetID, c.MediaType, c.Concept, c.Prompt, c.Role, c.Model, c.Seed,
@@ -103,23 +107,63 @@ func (s *sqliteStore) List(ctx context.Context, brandID string, status Status, l
 	return out, rows.Err()
 }
 
-func (s *sqliteStore) UpdateStatus(ctx context.Context, id string, status Status, note string) (Candidate, error) {
-	res, err := s.db.ExecContext(ctx, `UPDATE logo_candidates SET status=?, note=CASE WHEN ?='' THEN note ELSE ? END WHERE id=?`,
-		string(status), note, note, id)
+func (s *sqliteStore) TransitionStatus(ctx context.Context, id string, expected, status Status, note string) (Candidate, error) {
+	if !CanTransitionStatus(expected, status) {
+		return Candidate{}, ErrInvalidStatusTransition{From: expected, To: status}
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE logo_candidates SET status=?, note=CASE WHEN ?='' THEN note ELSE ? END WHERE id=? AND status=?`,
+		string(status), note, note, id, string(expected))
 	if err != nil {
 		return Candidate{}, err
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
-		return Candidate{}, ErrNotFound{ID: id}
+		current, getErr := s.Get(ctx, id)
+		if getErr != nil {
+			return Candidate{}, getErr
+		}
+		return Candidate{}, ErrStatusConflict{ID: current.ID, Expected: expected}
 	}
 	return s.Get(ctx, id)
 }
 
-func (s *sqliteStore) SupersedePicked(ctx context.Context, brandID, exceptID string) error {
-	_, err := s.db.ExecContext(ctx,
-		`UPDATE logo_candidates SET status='SUPERSEDED' WHERE brand_id=? AND status='PICKED' AND id<>?`,
-		brandID, exceptID)
-	return err
+func (s *sqliteStore) Pick(ctx context.Context, id string) (Candidate, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Candidate{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	candidate, err := scanCandidate(tx.QueryRowContext(ctx, `SELECT `+candidateColumns+` FROM logo_candidates WHERE id = ?`, id))
+	if err != nil {
+		return Candidate{}, err
+	}
+	if candidate.Status != StatusPicked {
+		if !CanTransitionStatus(candidate.Status, StatusPicked) {
+			return Candidate{}, ErrInvalidStatusTransition{From: candidate.Status, To: StatusPicked}
+		}
+		if !CanTransitionStatus(StatusPicked, StatusSuperseded) {
+			return Candidate{}, ErrInvalidStatusTransition{From: StatusPicked, To: StatusSuperseded}
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE logo_candidates SET status=? WHERE brand_id=? AND status=? AND id<>?`,
+			string(StatusSuperseded), candidate.BrandID, string(StatusPicked), candidate.ID); err != nil {
+			return Candidate{}, err
+		}
+		result, err := tx.ExecContext(ctx, `UPDATE logo_candidates SET status=? WHERE id=? AND status=?`,
+			string(StatusPicked), id, string(candidate.Status))
+		if err != nil {
+			return Candidate{}, err
+		}
+		if rows, _ := result.RowsAffected(); rows != 1 {
+			return Candidate{}, ErrStatusConflict{ID: id, Expected: candidate.Status}
+		}
+	}
+	selected, err := scanCandidate(tx.QueryRowContext(ctx, `SELECT `+candidateColumns+` FROM logo_candidates WHERE id = ?`, id))
+	if err != nil {
+		return Candidate{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Candidate{}, err
+	}
+	return selected, nil
 }
 
 func (s *sqliteStore) FindByAsset(ctx context.Context, brandID, assetID string) (Candidate, bool, error) {
@@ -151,6 +195,9 @@ func scanCandidate(sc rowScanner) (Candidate, error) {
 	}
 	c.Origin = Origin(origin)
 	c.Status = Status(status)
+	if !ValidStatus(c.Status) {
+		return Candidate{}, ErrInvalidStatus{Status: c.Status}
+	}
 	c.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
 	return c, nil
 }

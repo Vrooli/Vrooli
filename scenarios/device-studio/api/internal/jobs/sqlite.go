@@ -354,7 +354,9 @@ func (r *sqliteRepository) Start(ctx context.Context, claim ExecutionClaim, now,
 			a.HeartbeatAt = &t
 			j.Attempts = append(j.Attempts, a)
 		}
-		j.State = Running
+		if err := j.Transition(JobStarted); err != nil {
+			return err
+		}
 		j.Failure = ""
 		return nil
 	})
@@ -403,7 +405,9 @@ func (r *sqliteRepository) Checkpoint(ctx context.Context, id, attempt string, c
 		}
 		t := cp.CreatedAt.UTC()
 		a.HeartbeatAt = &t
-		j.State = Checkpointed
+		if err := j.Transition(JobCheckpointed); err != nil {
+			return err
+		}
 		return nil
 	})
 }
@@ -426,7 +430,9 @@ func (r *sqliteRepository) Complete(ctx context.Context, id, attempt string, c C
 		}
 		t := c.CompletedAt.UTC()
 		a.FinishedAt = &t
-		j.State = Succeeded
+		if err := j.Transition(JobSucceeded); err != nil {
+			return err
+		}
 		return nil
 	})
 }
@@ -446,7 +452,9 @@ func (r *sqliteRepository) Fail(ctx context.Context, id, attempt, reason string,
 		a.Failure = reason
 		t := time.Unix(0, now).UTC()
 		a.FinishedAt = &t
-		j.State = Failed
+		if err := j.Transition(JobFailed); err != nil {
+			return err
+		}
 		j.Failure = reason
 		return nil
 	})
@@ -470,7 +478,9 @@ func (r *sqliteRepository) FailBeforeDispatch(ctx context.Context, id, attempt, 
 		a.Failure = reason
 		finished := time.Unix(0, now).UTC()
 		a.FinishedAt = &finished
-		j.State = Failed
+		if err := j.Transition(JobFailed); err != nil {
+			return err
+		}
 		j.Failure = reason
 		return nil
 	})
@@ -499,7 +509,9 @@ func (r *sqliteRepository) RequestCancel(ctx context.Context, id string, now, ex
 				return e
 			}
 			a.FinishedAt = &t
-			j.State = Cancelled
+			if err := j.Transition(JobCancelRequested); err != nil {
+				return err
+			}
 			j.Quiescence = &proof
 			return nil
 		}
@@ -507,7 +519,9 @@ func (r *sqliteRepository) RequestCancel(ctx context.Context, id string, now, ex
 			if a.State != AttemptCheckpointed || a.CheckpointQuiescence == nil || validateQuiescence(*j, *a, *a.CheckpointQuiescence) != nil || a.CheckpointQuiescence.ObservedAt.Before(a.Checkpoint.CreatedAt) {
 				return ErrCheckpointMismatch
 			}
-			j.State = Cancelled
+			if err := j.Transition(JobCancelRequested); err != nil {
+				return err
+			}
 			j.Quiescence = a.CheckpointQuiescence
 			if e := a.Transition(AttemptCancelledEvent); e != nil {
 				return e
@@ -518,7 +532,9 @@ func (r *sqliteRepository) RequestCancel(ctx context.Context, id string, now, ex
 		if j.State != Running {
 			return transitionErr(j, "cancel")
 		}
-		j.State = CancelRequested
+		if err := j.Transition(JobCancelRequested); err != nil {
+			return err
+		}
 		return nil
 	})
 }
@@ -538,7 +554,9 @@ func (r *sqliteRepository) ConfirmCancelled(ctx context.Context, id, attempt str
 		if e = validateQuiescence(*j, *a, p); e != nil {
 			return e
 		}
-		j.State = Cancelled
+		if err := j.Transition(JobCancelled); err != nil {
+			return err
+		}
 		j.Quiescence = &p
 		if e = a.Transition(AttemptCancelledEvent); e != nil {
 			return e
@@ -635,7 +653,9 @@ func (r *sqliteRepository) RetrySourceInspection(ctx context.Context, id string,
 			return ErrInvalidTransition
 		}
 		j.Attempts = append(j.Attempts, Attempt{ID: attemptID, Number: current.Number + 1, RetryFromVersion: expected, State: AttemptQueued, CreatedAt: time.Unix(0, now).UTC()})
-		j.State = Queued
+		if err := j.Transition(JobRetried); err != nil {
+			return err
+		}
 		j.Failure = ""
 		j.CancelRequestedAt = nil
 		j.Quiescence = nil

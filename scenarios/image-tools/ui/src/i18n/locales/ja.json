@@ -125,8 +125,9 @@
     "loading": "ジョブを読み込み中…",
     "empty": "ジョブはまだありません。",
     "stateLabel": "状態:",
-    "progressLabel": "{{count}}% 完了",
+    "progressLabel": "{{operation}}の進捗 {{count}}%",
     "cancel": "キャンセル",
+    "cancelFailed": "ジョブを停止できませんでした。まだ実行中の可能性があります。上の状態を確認してください。",
     "queue": {
       "unspecified": "未指定",
       "localSerial": "ローカル直列キュー",
@@ -145,7 +146,17 @@
       "canceling": "停止中"
     },
     "errorLabel": "エラー:",
-    "liveBadge": "ライブ"
+    "liveBadge": "ライブ",
+    "estimate": {
+      "unavailable": "所要時間の見積もりはありません。進捗は引き続き表示されます。",
+      "queued": "開始後の予想実行時間: 約{{duration}}。待ち時間は別です。",
+      "running": "初回見積もりでは残り約{{duration}}です。",
+      "overdue": "初回の実行時間見積もり（{{duration}}）を超えています。",
+      "seconds": "{{count}}秒",
+      "minutes": "{{count}}分",
+      "hours": "{{count}}時間",
+      "hoursMinutes": "{{hours}}時間{{minutes}}分"
+    }
   },
   "home": {
     "greeting": "何を作りましょうか？",

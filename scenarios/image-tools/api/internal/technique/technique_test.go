@@ -311,6 +311,27 @@ func TestStableDiffusionCppCPUFallbackPinsComputeAndWeights(t *testing.T) {
 	}
 }
 
+// sd-cli defaults to one compute thread per physical core, so a CPU job must
+// pass its admitted thread budget or it runs far beyond the CPU it was granted.
+func TestStableDiffusionCppCPUBindsAdmittedThreadBudget(t *testing.T) {
+	args, err := StableDiffusionCpp(backends.Request{Operation: "text_to_image", CPUThreads: 4}, "/model")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(args, " "); !strings.Contains(got, " -t 4") {
+		t.Fatalf("CPU sd-cli argv does not bind the admitted 4-thread budget: %v", args)
+	}
+	gpuArgs, err := StableDiffusionCpp(backends.Request{Operation: "text_to_image", GPU: true, CPUThreads: 4}, "/model")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, arg := range gpuArgs {
+		if arg == "-t" {
+			t.Fatalf("GPU sd-cli argv must not take the CPU thread budget: %v", gpuArgs)
+		}
+	}
+}
+
 func mustArgs(t *testing.T, b ArgBuilder, req backends.Request) []string {
 	t.Helper()
 	args, err := b(req, req.ModelDir)

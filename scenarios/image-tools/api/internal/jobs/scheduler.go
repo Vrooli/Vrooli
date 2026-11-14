@@ -29,8 +29,9 @@ type Admission struct {
 type Admitter func(context.Context, Job) (Admission, error)
 
 const (
-	admissionRetry = 500 * time.Millisecond
-	priorityAge    = 30 * time.Second
+	admissionRetry    = 500 * time.Millisecond
+	maxAdmissionRetry = 16 * time.Second
+	priorityAge       = 30 * time.Second
 )
 
 func (m *Manager) acquire(ctx context.Context, job Job) (admission Admission, err error) {
@@ -56,7 +57,7 @@ func (m *Manager) signal() {
 // operations and retains separate local/network ceilings, not FIFO lanes.
 func (m *Manager) schedule() {
 	defer m.wg.Done()
-	timer := time.NewTicker(admissionRetry)
+	timer := m.clock.NewTicker(admissionRetry)
 	defer timer.Stop()
 	for {
 		select {
@@ -64,7 +65,7 @@ func (m *Manager) schedule() {
 			m.cancelPending()
 			return
 		case <-m.wake:
-		case <-timer.C:
+		case <-timer.C():
 		}
 		for {
 			entry := m.dequeue()
@@ -120,18 +121,41 @@ func (m *Manager) dequeue() *jobEntry {
 	return entry
 }
 
+// finishedSlot returns a dispatch slot. A local job that reached a terminal
+// state has released its capacity leases, so queued local work is retried now
+// instead of after its capacity backoff. A requeued job freed nothing.
 func (m *Manager) finishedSlot(entry *jobEntry) {
 	m.mu.Lock()
 	entry.mu.Lock()
-	lane := entry.job.Lane
+	lane, released := entry.job.Lane, entry.job.State.Terminal()
 	entry.mu.Unlock()
 	if lane == LaneNetwork {
 		m.networkActive--
 	} else {
 		m.localActive--
+		if released {
+			for _, waiting := range m.pending {
+				waiting.mu.Lock()
+				if waiting.job.Lane != LaneNetwork {
+					waiting.retryAt = time.Time{}
+				}
+				waiting.mu.Unlock()
+			}
+		}
 	}
 	m.mu.Unlock()
 	m.signal()
+}
+
+// capacityBackoff doubles the admission retry delay after each consecutive
+// capacity refusal, up to maxAdmissionRetry. Each attempt consults the shared
+// host broker, so a saturated host must not be polled at a fixed short rate.
+func capacityBackoff(refusals int) time.Duration {
+	delay := admissionRetry
+	for i := 0; i < refusals && delay < maxAdmissionRetry; i++ {
+		delay *= 2
+	}
+	return min(delay, maxAdmissionRetry)
 }
 
 func (m *Manager) requeue(entry *jobEntry, message string) bool {
@@ -149,7 +173,8 @@ func (m *Manager) requeue(entry *jobEntry, message string) bool {
 		return false
 	}
 	entry.cancel = nil
-	entry.retryAt = m.clock.Now().Add(admissionRetry)
+	entry.retryAt = m.clock.Now().Add(capacityBackoff(entry.capacityRefusals))
+	entry.capacityRefusals++
 	m.pending = append(m.pending, entry)
 	return true
 }

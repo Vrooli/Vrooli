@@ -218,6 +218,10 @@ type Model struct {
 	IO               IO               `json:"io"`
 	CapabilityLabels CapabilityLabels `json:"capability_labels"`
 	Source           Source           `json:"source"`
+	// Rights carries the source-backed shared evaluator record. RawMessage keeps
+	// unknown rights facts intact until the scenario can depend on the shared
+	// evaluator package; selection must fail closed when this record is absent.
+	Rights json.RawMessage `json:"rights"`
 	// BuildProfile is a closed, built-in derivation recipe for an artifact that
 	// the installer can deterministically build from pinned Source.Assets. It is
 	// not a general-purpose command runner.

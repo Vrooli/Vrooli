@@ -112,8 +112,11 @@ type jobEntry struct {
 	subs        []*subscriber
 	last        *ProgressEvent
 	retryAt     time.Time
-	persistErr  error
-	runner      Runner
+	// capacityRefusals counts consecutive capacity-busy admissions and sets
+	// the next retry delay.
+	capacityRefusals int
+	persistErr       error
+	runner           Runner
 }
 
 type testPoolPinner interface {

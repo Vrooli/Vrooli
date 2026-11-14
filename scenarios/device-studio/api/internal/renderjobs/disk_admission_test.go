@@ -49,6 +49,9 @@ func (l *fakeDiskJobLease) Observe(context.Context) (sharedcapacity.DiskJobHeadr
 func (l *fakeDiskJobLease) Extend(context.Context, []sharedcapacity.DiskJobPath) (sharedcapacity.DiskJobReceipt, error) {
 	return l.receipt, nil
 }
+func (l *fakeDiskJobLease) SamplePath(context.Context, string, int64, int64) (sharedcapacity.DiskJobReceipt, error) {
+	return l.receipt, l.err
+}
 func (l *fakeDiskJobLease) Complete(context.Context) (sharedcapacity.DiskJobReceipt, error) {
 	l.completions++
 	if l.err != nil {

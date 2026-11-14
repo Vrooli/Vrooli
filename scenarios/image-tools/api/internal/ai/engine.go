@@ -52,6 +52,9 @@ type Deps struct {
 	Registry *models.Registry
 	// Backends is the provider registry (selection ladder + boot invariant).
 	Backends *backends.Registry
+	// RightsEvaluator is the adapter to the shared policy package. It must load
+	// trusted current context itself; nil denies model execution.
+	RightsEvaluator models.RightsEvaluator
 	// Probe reports host hardware for model selection.
 	Probe capabilities.Probe
 	// Store persists input + output blobs.
@@ -125,6 +128,14 @@ type Deps struct {
 // Engine builds and runs AI-op jobs over the configured seams.
 type Engine struct {
 	deps Deps
+}
+
+// NewEngineWithRightsEvaluator is the production constructor for model
+// execution. Callers inject the shared evaluator explicitly; nil preserves the
+// fail-closed behavior while the governed first-party module is unavailable.
+func NewEngineWithRightsEvaluator(deps Deps, evaluator models.RightsEvaluator) (*Engine, error) {
+	deps.RightsEvaluator = evaluator
+	return NewEngine(deps)
 }
 
 // NewEngine validates deps and returns the engine.
@@ -280,7 +291,7 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 	}
 	registry := e.effectiveRegistry(ctx)
 	enabled := registry.EnabledWithOverlay(enabledOverlay)
-	res, err := resolver.New(registry, e.deps.Backends).Resolve(ctx, resolver.Request{
+	res, err := resolver.New(registry, e.deps.Backends, e.deps.RightsEvaluator).Resolve(ctx, resolver.Request{
 		Operation:          req.Operation,
 		ModelOverride:      override,
 		Host:               host,
@@ -291,6 +302,7 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 		CapacityManagedGPU: e.deps.Capacity != nil,
 		ForceCPU:           req.ForceCPU,
 		IsEnabled:          enabled,
+		RightsEvaluator:    e.deps.RightsEvaluator,
 		Adapters:           req.Adapters,
 		AdapterByID:        e.deps.AdapterByID,
 		AdapterEnabled:     adapterEnabled,
@@ -793,6 +805,10 @@ func (e *Engine) fetchToFile(ctx context.Context, dir, name, key string) (string
 }
 
 func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bsel backends.Selection, tmpDir string, in inputFiles, pl Payload, variation int, progress func(frac float64, message string)) (string, map[string]string, error) {
+	rights, rightsErr := models.EvaluateCurrentModelRights(ctx, e.deps.RightsEvaluator, model, models.RightsUseLocalInference)
+	if rightsErr != nil || rights.Status != "allowed" {
+		return "", nil, fmt.Errorf("model %q rights are not allowed at execution: %s", model.ID, rights.Reason)
+	}
 	ext := ".png"
 	if op == "scene_geometry" || op == "image_to_object" {
 		ext = ".zip"
@@ -834,6 +850,7 @@ func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bse
 		SourceProfileDir: sourceProfileDir,
 		GPU:              bsel.Tier == backends.TierLocalGPU,
 		GPUUUID:          pl.GPUUUID,
+		CPUThreads:       admittedCPUThreads(ctx),
 		InputKeys:        collectInputs(in),
 		Output:           storage.OutputTarget{LocalPath: outPath},
 		Params:           params,

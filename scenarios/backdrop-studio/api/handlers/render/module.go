@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"backdrop-studio/internal/brandpalette"
 	"backdrop-studio/internal/catalog"
@@ -16,6 +17,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
+	apiserver "github.com/vrooli/api-core/server"
 	render_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/render"
 	renderconnect "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/render/render_v1connect"
 	shared_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/shared"
@@ -30,8 +32,39 @@ func Module(db *sql.DB, store *internalrender.Store) module.Module {
 	h := &handler{store: store, catalog: catalog.NewStore(db)}
 	return module.Module{Name: "render", Mount: func(r *mux.Router) {
 		path, svc := renderconnect.NewRenderServiceHandler(h)
-		r.PathPrefix(path).Handler(svc)
+		r.PathPrefix(path).Handler(budgetSubmit(svc))
 	}, Endpoints: Endpoints}
+}
+
+// renderSubmitBudget is how long one synchronous render may take.
+//
+// Submit answers when its candidates exist, and a model-backed candidate on a
+// host without a GPU is tens of minutes of CPU diffusion. Under the server's
+// ordinary 30 s write deadline — and the UI proxy's 15 s socket timeout in
+// front of it — every such render was cut off mid-generation, while the
+// image-tools job it had started kept running for nobody. The budget is an
+// upper bound, not an expectation: the generation wait inside it is sized from
+// image-tools' own estimate for the job, and hitting this deadline cancels the
+// job rather than abandoning it.
+const renderSubmitBudget = 2 * time.Hour
+
+// budgetSubmit gives Submit its operation budget and leaves every other render
+// procedure on the server's ordinary deadline. The budget follows the request:
+// a caller that leaves still cancels the render.
+func budgetSubmit(svc http.Handler) http.Handler {
+	submit, err := apiserver.WithOperationBudget(svc, renderSubmitBudget)
+	if err != nil {
+		// Only a nil handler or a non-positive budget can fail, and both are
+		// fixed at compile time here, so this is a programming error.
+		panic(fmt.Sprintf("render: mount submit budget: %v", err))
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == renderconnect.RenderServiceSubmitProcedure {
+			submit.ServeHTTP(w, r)
+			return
+		}
+		svc.ServeHTTP(w, r)
+	})
 }
 
 func (h *handler) Submit(ctx context.Context, req *connect.Request[render_v1.SubmitRequest]) (*connect.Response[render_v1.RenderJob], error) {

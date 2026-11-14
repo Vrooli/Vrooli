@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/vrooli/api-core/discovery"
 )
@@ -310,25 +311,36 @@ type submitGenerationResponse struct {
 	// facts to reconstruct after the fact.
 	ModelID string `json:"model_id"`
 	Tier    string `json:"tier"`
+	// EstimatedSeconds is image-tools' own estimate of the run, which sizes
+	// how long this scenario is prepared to wait for it. Zero means unknown.
+	EstimatedSeconds int `json:"estimated_seconds"`
 }
+
+// jobRecord is image-tools' Job over its Connect edge (camelCase names).
+type jobRecord struct {
+	State     string `json:"state"`
+	ResultRef string `json:"resultRef"`
+	Error     string `json:"error"`
+	// ResultMeta is the backend's own record of the run. `cost_usd` is the
+	// only place a cloud charge is ever stated: it is learned while the job
+	// runs and exists nowhere else afterwards.
+	ResultMeta       map[string]string `json:"resultMeta"`
+	EstimatedSeconds int               `json:"estimatedSeconds"`
+	StartedAt        time.Time         `json:"startedAt"`
+}
+
 type waitGenerationResponse struct {
-	Job struct {
-		State     string `json:"state"`
-		ResultRef string `json:"resultRef"`
-		Error     string `json:"error"`
-		// ResultMeta is the backend's own record of the run. `cost_usd` is the
-		// only place a cloud charge is ever stated: it is learned while the job
-		// runs and exists nowhere else afterwards.
-		ResultMeta map[string]string `json:"resultMeta"`
-	} `json:"job"`
+	Job jobRecord `json:"job"`
 }
 
 // metaCostUSD is image-tools' key for what a route cost. It is image-tools'
 // vocabulary, not this scenario's, which is why it is a named constant here
 // rather than a literal at the read site.
-const metaCostUSD = "cost_usd"
-const metaCostProvenance = "cost_provenance"
-const providerReportedCostProvenance = "provider_reported_v1"
+const (
+	metaCostUSD                    = "cost_usd"
+	metaCostProvenance             = "cost_provenance"
+	providerReportedCostProvenance = "provider_reported_v1"
+)
 
 // Client calls image-tools' synchronous deterministic operation edge. The
 // resolver is injectable so unit tests can exercise the transport without
@@ -336,6 +348,9 @@ const providerReportedCostProvenance = "provider_reported_v1"
 type Client struct {
 	HTTPClient *http.Client
 	Resolve    func(context.Context) (string, error)
+	// Wait bounds how long a generation is waited for. The zero value is the
+	// production policy; tests shrink it.
+	Wait WaitPolicy
 }
 
 func NewClient() *Client {
@@ -474,24 +489,9 @@ func (c *Client) Generate(ctx context.Context, req GenerationRequest) (Generatio
 	if err := json.NewDecoder(response.Body).Decode(&submitted); err != nil || submitted.JobID == "" {
 		return GenerationResult{}, fmt.Errorf("image-tools inference returned no job id")
 	}
-	waitBody, _ := json.Marshal(map[string]string{"id": submitted.JobID})
-	waitReq, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(base, "/")+"/vrooli.image_tools.v1.jobs.JobsService/WaitJob", bytes.NewReader(waitBody))
+	waited, err := c.awaitJob(ctx, client, base, submitted.JobID, submitted.EstimatedSeconds)
 	if err != nil {
 		return GenerationResult{}, err
-	}
-	waitReq.Header.Set("Content-Type", "application/json")
-	waitResp, err := client.Do(waitReq)
-	if err != nil {
-		return GenerationResult{}, fmt.Errorf("image-tools inference wait: %w", err)
-	}
-	defer waitResp.Body.Close()
-	if waitResp.StatusCode < 200 || waitResp.StatusCode >= 300 {
-		detail, _ := io.ReadAll(io.LimitReader(waitResp.Body, 8<<10))
-		return GenerationResult{}, fmt.Errorf("image-tools inference wait failed: %s", strings.TrimSpace(string(detail)))
-	}
-	var waited waitGenerationResponse
-	if err := json.NewDecoder(waitResp.Body).Decode(&waited); err != nil {
-		return GenerationResult{}, fmt.Errorf("image-tools inference wait response: %w", err)
 	}
 	if waited.Job.Error != "" {
 		return GenerationResult{}, fmt.Errorf("image-tools inference failed: %s", waited.Job.Error)

@@ -857,6 +857,7 @@ func TestOptInRenderIPadStarterSupportedHero(t *testing.T) {
 		Exe: func() (string, error) { return apiBin, nil }, PhysicalArtifacts: owners.Library,
 		PhysicalProfile: func(context.Context) ([]byte, *cliv1.BlenderToolProfile, error) { return profileBytes, profile, nil },
 		PhysicalAdapter: rendering.PhysicalAdapterBytes,
+		DiskJobs:        testDiskJobAdmitter{},
 	})
 	if err != nil {
 		t.Fatal(err)

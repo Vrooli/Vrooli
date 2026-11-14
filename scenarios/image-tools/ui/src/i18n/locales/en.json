@@ -128,10 +128,11 @@
     "loading": "Loading jobs…",
     "empty": "No jobs yet.",
     "stateLabel": "State:",
-    "progressLabel": "{{count}}% complete",
+    "progressLabel": "{{operation}} progress, {{count}}% complete",
     "errorLabel": "Error:",
     "liveBadge": "Live",
     "cancel": "Cancel",
+    "cancelFailed": "Could not stop this job. It may still be running; its state is shown above.",
     "queue": {
       "unspecified": "Unspecified",
       "localSerial": "Serialized local queue",
@@ -148,6 +149,16 @@
       "canceled": "Canceled",
       "admitting": "Waiting for capacity",
       "canceling": "Stopping"
+    },
+    "estimate": {
+      "unavailable": "Time estimate unavailable. Live progress is still shown.",
+      "queued": "Expected runtime: about {{duration}} after it starts; queue time is separate.",
+      "running": "About {{duration}} left from the initial estimate.",
+      "overdue": "Past the initial runtime estimate of {{duration}}.",
+      "seconds": "{{count}} sec",
+      "minutes": "{{count}} min",
+      "hours": "{{count}} hr",
+      "hoursMinutes": "{{hours}} hr {{minutes}} min"
     }
   },
   "home": {

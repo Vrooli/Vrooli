@@ -1,7 +1,13 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import { parseProvenance, parseQuality, permittedSurfaces, qualityTierOf } from "../api/studio";
+import {
+  parseProvenance,
+  parseQuality,
+  permittedSurfaces,
+  qualityTierOf,
+  rendersOnRequest,
+} from "../api/studio";
 import { qualityTierString } from "../consts/qualityTier";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
 import { MockupPreview } from "../components/studio/MockupPreview";
@@ -42,6 +48,9 @@ export function StylePage() {
     style && surface
       ? { styleId: style.id, surfaceId: surface.id, placement: style.placements[0], seed }
       : null,
+    // Opening a style is the operator choosing it, so this page renders on
+    // sight; a model-backed result is kept so the catalog tile can show it.
+    { retain: style ? rendersOnRequest(style) : false },
   );
   const candidate = render.data?.candidates[0];
   const imageURL = useObjectURL(candidate);

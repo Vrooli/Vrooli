@@ -337,4 +337,4 @@ def main():
 
 
 main()
-print(json.dumps(envelope, allow_nan=False))
+program.report(envelope)

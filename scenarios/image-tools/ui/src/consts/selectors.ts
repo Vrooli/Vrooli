@@ -37,11 +37,13 @@ const literalSelectors = {
     lane: "jobs-lane",
     state: "jobs-state",
     progress: "jobs-progress",
+    estimate: "jobs-estimate",
     message: "jobs-message",
     result: "jobs-result",
     errorDetail: "jobs-error-detail",
     liveBadge: "jobs-live-badge",
     cancelButton: "jobs-cancel-button",
+    cancelError: "jobs-cancel-error",
   },
   home: {
     root: "home-root",

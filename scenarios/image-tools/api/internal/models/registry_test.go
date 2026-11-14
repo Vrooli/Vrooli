@@ -59,6 +59,25 @@ func TestLoadSeed(t *testing.T) {
 	// Commercial-clean gate across the whole catalog: no outright non-commercial
 	// models, and any "conditional" entry must be opt-in (disabled) + annotated.
 	for _, m := range r.Models() {
+		var rights struct {
+			ArtifactID       string   `json:"artifact_id"`
+			Classification   string   `json:"classification"`
+			UnverifiedReason string   `json:"unverified_reason"`
+			ReviewTriggers   []string `json:"review_triggers"`
+		}
+		if len(m.Rights) == 0 || json.Unmarshal(m.Rights, &rights) != nil {
+			t.Errorf("model %s has no parseable shared rights record", m.ID)
+		} else {
+			if rights.ArtifactID != m.ID || rights.Classification == "" {
+				t.Errorf("model %s rights identity/classification incomplete: %+v", m.ID, rights)
+			}
+			if rights.Classification == "unknown" && rights.UnverifiedReason == "" {
+				t.Errorf("model %s has unknown rights without an explicit reason", m.ID)
+			}
+			if len(rights.ReviewTriggers) == 0 {
+				t.Errorf("model %s rights has no review triggers", m.ID)
+			}
+		}
 		if m.CapabilityLabels.CommercialUse == CommercialUseNo {
 			t.Errorf("model %s is commercial_use=no", m.ID)
 		}

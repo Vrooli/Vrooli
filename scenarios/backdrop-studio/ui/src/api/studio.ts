@@ -74,7 +74,14 @@ export type RenderRequest = {
   brandTokens?: Record<string, string>;
 };
 
-export async function submitRender(req: RenderRequest): Promise<RenderJob> {
+/**
+ * submitRender runs one render and resolves when its candidates exist.
+ *
+ * `signal` is the caller's lifetime. Aborting it closes the request, and the
+ * API treats a closed request as an abandoned render: it cancels the
+ * image-tools job it submitted instead of letting a model run for nobody.
+ */
+export async function submitRender(req: RenderRequest, signal?: AbortSignal): Promise<RenderJob> {
   const job = await render.submit({
     style: { id: req.styleId },
     surfaceId: req.surfaceId,
@@ -82,7 +89,7 @@ export async function submitRender(req: RenderRequest): Promise<RenderJob> {
     seed: req.seed,
     candidateCount: req.candidateCount ?? 1,
     brandTokens: req.brandTokens ?? {},
-  });
+  }, { signal });
   if (!job.id) {
     throw new Error("render returned no job");
   }
@@ -156,6 +163,22 @@ export function parseProvenance(candidate: Candidate): Record<string, unknown> |
  */
 export function isModelBacked(style: Style): boolean {
   return style.strategy === "guided" || style.strategy === "synthesized";
+}
+
+/**
+ * Whether a style's specimen waits for the operator to ask for it.
+ *
+ * A procedural or vector specimen costs a second or two and nothing else, so a
+ * catalog can draw every one of them on sight. A model-backed specimen is
+ * minutes of CPU on a host without a GPU, or a metered charge on a frontier
+ * route — and the catalog is opened by more than operators: a periodic
+ * screenshot sweep loading it every two hours once started four diffusion jobs
+ * at a time and held a 32-core host at load 87. Either half of the test is
+ * enough: a style that declares a model tier is treated as one even if its
+ * strategy is procedural, because the cost of guessing wrong is not symmetric.
+ */
+export function rendersOnRequest(style: Style): boolean {
+  return isModelBacked(style) || qualityTierOf(style) !== "procedural";
 }
 
 /**

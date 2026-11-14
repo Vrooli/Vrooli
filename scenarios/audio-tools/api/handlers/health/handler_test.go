@@ -17,9 +17,9 @@ import (
 	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 	"audio-tools/internal/server"
-	"audio-tools/internal/testutil/mocks"
 
 	"github.com/vrooli/api-core/apihttptest"
+	"github.com/vrooli/api-core/databasetest"
 	apihealth "github.com/vrooli/api-core/health"
 	httpx "github.com/vrooli/api-core/servertest"
 
@@ -82,7 +82,7 @@ func TestHealthHandler(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			pinger := &mocks.FakePinger{PingErr: tc.pingErr}
+			pinger := &databasetest.FakePinger{PingErr: tc.pingErr}
 			reg := capabilities.NewRegistry(
 				[]capabilities.Def{{ID: "whisper-stt", DependencyKind: capabilities.DependencyResource, DependencySlug: "whisper"}},
 				map[string]capabilities.Checker{
@@ -140,7 +140,7 @@ func TestHealthHandler(t *testing.T) {
 // unavailable provider degrades dependencies["providers"] but does NOT
 // flip readiness (the providers dep is registered as non-Critical).
 func TestHealthHandler_ProvidersDownDoesNotFlipReadiness(t *testing.T) {
-	pinger := &mocks.FakePinger{}
+	pinger := &databasetest.FakePinger{}
 	reg := capabilities.NewRegistry(
 		[]capabilities.Def{
 			{ID: "whisper-stt", DependencyKind: capabilities.DependencyResource, DependencySlug: "whisper", Features: []string{"voice-input"}},
@@ -177,7 +177,7 @@ func TestHealthHandler_ProvidersDownDoesNotFlipReadiness(t *testing.T) {
 }
 
 func TestHealthHandler_UsesLivenessTier(t *testing.T) {
-	pinger := &mocks.FakePinger{}
+	pinger := &databasetest.FakePinger{}
 	full := capmocks.NewFakeChecker(capabilities.StatusUnavailable, "full probe must not run")
 	live := capmocks.NewFakeChecker(capabilities.StatusAvailable, "live")
 	reg := capabilities.NewRegistry(
@@ -202,7 +202,7 @@ func TestHealthHandler_UsesLivenessTier(t *testing.T) {
 }
 
 func TestHealthHandler_DoesNotReportUnknownAsDown(t *testing.T) {
-	pinger := &mocks.FakePinger{}
+	pinger := &databasetest.FakePinger{}
 	reg := capabilities.NewRegistry(
 		[]capabilities.Def{
 			{ID: "unreached", DependencyKind: capabilities.DependencyResource, DependencySlug: "missing"},
@@ -230,7 +230,7 @@ func TestHealthHandler_DoesNotReportUnknownAsDown(t *testing.T) {
 
 func TestHealthHandler_ReportsBuildIdentity(t *testing.T) {
 	h := health.NewHandler(health.Deps{
-		Pinger:         &mocks.FakePinger{},
+		Pinger:         &databasetest.FakePinger{},
 		Service:        "audio-tools-api",
 		Version:        "1.0.0",
 		BuildTime:      "2026-08-16T22:00:00Z",

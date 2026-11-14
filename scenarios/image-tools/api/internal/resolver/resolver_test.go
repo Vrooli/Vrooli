@@ -2,6 +2,7 @@ package resolver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -20,6 +21,10 @@ type fakeProvider struct {
 	ops      []string
 	adapters bool // advertises conditioning-adapter support for its ops
 	down     bool
+}
+
+func allowRightsForTest(_ context.Context, _ json.RawMessage, _ string) (models.RightsDecision, error) {
+	return models.RightsDecision{Status: "allowed", DecisionSHA256: "test"}, nil
 }
 
 func (p fakeProvider) Name() string                    { return p.name }
@@ -49,7 +54,7 @@ func TestResolveSkipsGPUOnlyModelWhenBackendCanOnlyUseCPU(t *testing.T) {
 	}
 	host := cpuHost()
 	host.GPUs = []capabilities.GPU{{VRAMBytes: 16 << 30}}
-	resolve := New(reg, be)
+	resolve := New(reg, be, allowRightsForTest)
 	req := Request{Operation: "segment", Host: host, IsEnabled: func(id string) bool { return id == "mobilesam" || id == "sam-2.1-large" }}
 	got, err := resolve.Resolve(context.Background(), req)
 	if err != nil {
@@ -97,7 +102,7 @@ func newResolver(t *testing.T, op string) (*Resolver, string) {
 	if err := be.Register(fakeProvider{name: def.Backend, ops: []string{op}}); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
-	return New(registry, be), def.ID
+	return New(registry, be, allowRightsForTest), def.ID
 }
 
 func cpuHost() capabilities.Host {
@@ -152,7 +157,7 @@ func TestResolveRejectsUnsupportedHostOSArch(t *testing.T) {
 	if err := backends.Register(fakeProvider{name: "onnxruntime", ops: []string{"deblur"}}); err != nil {
 		t.Fatalf("register ONNX provider: %v", err)
 	}
-	resolver := New(registry, backends)
+	resolver := New(registry, backends, allowRightsForTest)
 	host := capabilities.Host{OS: "darwin", Arch: "arm64", Cores: 8}
 
 	t.Run("default selection", func(t *testing.T) {
@@ -197,7 +202,7 @@ func TestResolveQualitySkipsUnavailableBYOKToLocalDefault(t *testing.T) {
 	if err := be.Register(fakeCloudProvider{fakeProvider{name: models.BackendOpenRouter, ops: []string{"text_to_image"}, down: true}}); err != nil {
 		t.Fatalf("register cloud provider: %v", err)
 	}
-	r := New(registry, be)
+	r := New(registry, be, allowRightsForTest)
 
 	res, err := r.Resolve(context.Background(), Request{
 		Operation:     "text_to_image",
@@ -284,7 +289,7 @@ func TestResolveConditioningElevatesWeightAndAttaches(t *testing.T) {
 	if err := be.Register(fakeProvider{name: "diffusers", ops: []string{"text_to_image"}, adapters: true}); err != nil {
 		t.Fatalf("register adapter provider: %v", err)
 	}
-	r := New(registry, be)
+	r := New(registry, be, allowRightsForTest)
 
 	ipa := adapters.Adapter{
 		ID: "test-ipa", Name: "Test IP-Adapter", Kind: adapters.KindIPAdapter,

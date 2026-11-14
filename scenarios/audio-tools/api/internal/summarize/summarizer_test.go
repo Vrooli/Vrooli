@@ -181,6 +181,29 @@ func TestSummarizer_SendsTokenAndTemperatureOptions(t *testing.T) {
 	}
 }
 
+func TestSummarizerPassesOwnerVerifiedExecutionIdentity(t *testing.T) {
+	decisionSHA := strings.Repeat("a", 64)
+	evaluatedAt := "2026-11-11T20:00:00Z"
+	artifactDigest := strings.Repeat("b", 64)
+	s := testSummarizer(t, "summary", func(args []string, _ string) {
+		if got := argValue(args, "--expected-rights-decision-sha256"); got != decisionSHA {
+			t.Errorf("rights decision SHA = %q, want %q", got, decisionSHA)
+		}
+		if got := argValue(args, "--expected-rights-evaluated-at"); got != evaluatedAt {
+			t.Errorf("rights evaluated-at = %q, want %q", got, evaluatedAt)
+		}
+		if got := argValue(args, "--expected-model"); got != "qwen3.5:9b" {
+			t.Errorf("expected model = %q, want qwen3.5:9b", got)
+		}
+		if got := argValue(args, "--expected-artifact-digest"); got != artifactDigest {
+			t.Errorf("expected artifact digest = %q, want %q", got, artifactDigest)
+		}
+	})
+	if _, err := s.SummarizeAtContextTierWithExecutionIdentity(context.Background(), "source", "summarize.default", "moderate", 4096, "qwen3.5:9b", artifactDigest, decisionSHA, evaluatedAt); err != nil {
+		t.Fatalf("summarize with current rights binding: %v", err)
+	}
+}
+
 func TestSummarizer_AddsReasoningHeadroomOnlyForReasoningModels(t *testing.T) {
 	cases := []struct {
 		model string

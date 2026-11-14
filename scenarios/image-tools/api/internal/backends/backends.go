@@ -69,6 +69,10 @@ type Request struct {
 	// GPUUUID pins CUDA execution to the exact physical device reserved by the
 	// capacity owner. Providers must apply it before initializing CUDA.
 	GPUUUID string
+	// CPUThreads is the CPU budget, in whole threads, that capacity admission
+	// reserved for this execution. Providers that size their own compute pool
+	// must bind it explicitly; zero means the caller holds no CPU admission.
+	CPUThreads int
 	// InputKeys are blob-store keys (or local paths) of the operation inputs.
 	InputKeys []string
 	// Params carries op-specific parameters (e.g. prompt, scale, seed).

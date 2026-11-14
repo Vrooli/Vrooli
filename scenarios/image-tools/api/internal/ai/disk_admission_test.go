@@ -1,8 +1,13 @@
 package ai
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"image"
+	"image/color"
+	"image/png"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,13 +19,15 @@ import (
 )
 
 type fakeDiskAdmission struct {
-	leases  []*fakeDiskLease
-	request sharedcapacity.DiskJobRequest
-	fail    bool
+	leases   []*fakeDiskLease
+	requests []sharedcapacity.DiskJobRequest
+	request  sharedcapacity.DiskJobRequest
+	fail     bool
 }
 
 func (f *fakeDiskAdmission) ReserveDiskJob(_ context.Context, request sharedcapacity.DiskJobRequest) (sharedcapacity.DiskJobLease, error) {
 	f.request = request
+	f.requests = append(f.requests, request)
 	if f.fail {
 		return nil, errors.New("disk owner refused")
 	}
@@ -91,6 +98,43 @@ func TestEstimateDiskPeakEnforcesOwnerPlanningCeiling(t *testing.T) {
 	}
 }
 
+type diskAdmissionInputStore struct{ body []byte }
+
+func (s diskAdmissionInputStore) Get(context.Context, string) (io.ReadCloser, string, error) {
+	return io.NopCloser(bytes.NewReader(s.body)), "image/png", nil
+}
+
+func (diskAdmissionInputStore) Put(context.Context, string, io.Reader, string) error { return nil }
+
+func TestDiskAdmissionUsesMeasuredInputDimensions(t *testing.T) {
+	img := image.NewRGBA(image.Rect(0, 0, 512, 512))
+	img.Set(0, 0, color.RGBA{R: 255, A: 255})
+	var encoded bytes.Buffer
+	if err := png.Encode(&encoded, img); err != nil {
+		t.Fatal(err)
+	}
+	engine := &Engine{deps: Deps{Store: diskAdmissionInputStore{body: encoded.Bytes()}}}
+	payload := Payload{InputKey: "input/reference.png", Params: map[string]string{"width": "512", "height": "512"}}
+	pixels, err := engine.diskInputPixelCounts(context.Background(), payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pixels) != 1 || pixels[0] != 512*512 {
+		t.Fatalf("measured input pixels = %v, want [262144]", pixels)
+	}
+	measuredOutput, measuredTemp, err := estimateDiskPeakForInputs(payload, pixels)
+	if err != nil {
+		t.Fatal(err)
+	}
+	worstCaseOutput, worstCaseTemp, err := estimateDiskPeak(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if measuredOutput != worstCaseOutput || measuredTemp >= worstCaseTemp || worstCaseTemp-measuredTemp < 400<<20 {
+		t.Fatalf("measured estimate output=%d temp=%d, conservative output=%d temp=%d", measuredOutput, measuredTemp, worstCaseOutput, worstCaseTemp)
+	}
+}
+
 func TestAdmissionAtomicallyReservesAllDiskPathsAndCompletesLease(t *testing.T) {
 	engine, modelID := newCapacityTestEngine(t, "text_to_image", &fakeProvider{}, &fakeBroker{})
 	disk := &fakeDiskAdmission{}
@@ -114,6 +158,39 @@ func TestAdmissionAtomicallyReservesAllDiskPathsAndCompletesLease(t *testing.T) 
 	}
 	if disk.leases[0].released != 1 || disk.leases[0].reservation.Status != "completed" {
 		t.Fatalf("disk release=%d status=%s", disk.leases[0].released, disk.leases[0].reservation.Status)
+	}
+}
+
+func TestDiskAdmissionUsesUniqueLeaseIdentityAcrossCapacityRetries(t *testing.T) {
+	engine, modelID := newCapacityTestEngine(t, "text_to_image", &fakeProvider{}, &fakeBroker{})
+	disk := &fakeDiskAdmission{}
+	engine.deps.Disk = disk
+	raw, err := marshalPinnedPayload(t, engine, "text_to_image", Payload{Operation: "text_to_image", ModelID: modelID, Params: map[string]string{"width": "512", "height": "512"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job := jobs.Job{ID: "retryable-image-job", Operation: "text_to_image", Payload: raw}
+	for attempt := 0; attempt < 2; attempt++ {
+		admission, err := engine.Admit(context.Background(), job)
+		if err != nil {
+			t.Fatalf("admission attempt %d: %v", attempt+1, err)
+		}
+		if err := admission.Release(context.Background()); err != nil {
+			t.Fatalf("release attempt %d: %v", attempt+1, err)
+		}
+	}
+	if len(disk.requests) != 2 {
+		t.Fatalf("disk reservation attempts = %d, want 2", len(disk.requests))
+	}
+	first, second := disk.requests[0], disk.requests[1]
+	if first.OwnerID != "image-tools:"+job.ID || second.OwnerID != first.OwnerID {
+		t.Fatalf("owner identities = %q, %q; want stable durable-job owner", first.OwnerID, second.OwnerID)
+	}
+	if first.JobID == second.JobID || first.JobID == job.ID || second.JobID == job.ID {
+		t.Fatalf("disk lease IDs must be unique per attempt and distinct from the durable job ID: %q %q durable=%q", first.JobID, second.JobID, job.ID)
+	}
+	if admissionMeta := disk.leases[1].reservation.JobID; admissionMeta != second.JobID {
+		t.Fatalf("second lease job id = %q, want request id %q", admissionMeta, second.JobID)
 	}
 }
 

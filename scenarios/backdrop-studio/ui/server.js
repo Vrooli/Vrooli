@@ -1,3 +1,5 @@
+import http from 'node:http'
+
 import { proxyToApi, startScenarioServer } from '@vrooli/api-base/server'
 
 // Both ports come from the scenario lifecycle. createScenarioServer already
@@ -21,6 +23,37 @@ if (!apiPort) {
 
 const connectRpcPath = /^\/vrooli\.backdrop_studio\.v1\./
 
+// A render answers when its candidates exist, and a model-backed candidate on a
+// CPU host is tens of minutes of diffusion. The proxy's default 15 s socket
+// timeout cut every such request mid-render: the API saw its caller vanish,
+// gave up its wait, and the image-tools job ran to completion for nobody. The
+// render route gets the API's own operation budget (two hours) plus a minute
+// of slack, so the API's deadline — which cancels the job — always fires first.
+const renderSubmitPath = '/vrooli.backdrop_studio.v1.render.RenderService/Submit'
+const renderSubmitTimeoutMs = (2 * 60 + 1) * 60 * 1000
+
+/**
+ * Proxy one render, and close the upstream request when the browser leaves.
+ *
+ * proxyToApi does not watch the downstream connection, so a closed tab would
+ * otherwise hold a render open until it finished. Destroying the request's own
+ * agent closes its upstream socket; the API reads that as an abandoned render
+ * and cancels the image-tools job it submitted.
+ */
+function proxyRender(req, res, next) {
+  const agent = new http.Agent({ keepAlive: false })
+  res.on('close', () => {
+    if (!res.writableFinished) {
+      agent.destroy()
+    }
+  })
+  proxyToApi(req, res, req.originalUrl || req.url, {
+    apiPort,
+    agent,
+    timeout: renderSubmitTimeoutMs,
+  }).catch(next)
+}
+
 startScenarioServer({
   uiPort,
   apiPort,
@@ -31,6 +64,10 @@ startScenarioServer({
     app.use((req, res, next) => {
       if (!connectRpcPath.test(req.path)) {
         next()
+        return
+      }
+      if (req.path === renderSubmitPath) {
+        proxyRender(req, res, next)
         return
       }
 

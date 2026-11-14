@@ -89,6 +89,12 @@ const reasoningHeadroomTokens = 2048
 // SummarizerResponse carries the answer plus the diagnostic signals we need
 // to distinguish a real empty response from a truncated/stripped one.
 type SummarizerResponse struct {
+	Model                string `json:"model"`
+	TotalDurationNS      int64  `json:"total_duration"`
+	LoadDurationNS       int64  `json:"load_duration"`
+	PromptEvalCount      int    `json:"prompt_eval_count"`
+	PromptEvalDurationNS int64  `json:"prompt_eval_duration"`
+	EvalDurationNS       int64  `json:"eval_duration"`
 	// Content is the final post-strip, trimmed summary. May be empty — callers
 	// must inspect RawContent/DoneReason to classify the failure.
 	Content string
@@ -105,8 +111,43 @@ type SummarizerResponse struct {
 // returns the stripped summary plus diagnostic fields. We pass `think: false`
 // through the gateway so reasoning models skip their <think> block entirely.
 func (s *Summarizer) Summarize(ctx context.Context, text, selector, level string) (SummarizerResponse, error) {
+	return s.SummarizeAtContextTier(ctx, text, selector, level, 0)
+}
+
+// SummarizeAtContextTier runs the same caller prompt and model selector with
+// an optional resource-ollama context tier. The zero value preserves ordinary
+// caller behavior. Evaluation code uses a nonzero tier only for a frozen arm;
+// resource-ollama remains the authority that admits or rejects that setting.
+func (s *Summarizer) SummarizeAtContextTier(ctx context.Context, text, selector, level string, contextTier int) (SummarizerResponse, error) {
+	return s.SummarizeAtContextTierWithRights(ctx, text, selector, level, contextTier, "", "")
+}
+
+// SummarizeAtContextTierWithRights binds an owner-verified rights decision to
+// the resource execution check. The ordinary caller leaves both values empty
+// and resource-ollama continues to perform its own current rights check.
+func (s *Summarizer) SummarizeAtContextTierWithRights(ctx context.Context, text, selector, level string, contextTier int, rightsDecisionSHA256, rightsEvaluatedAt string) (SummarizerResponse, error) {
+	return s.SummarizeAtContextTierWithExecutionIdentity(ctx, text, selector, level, contextTier, "", "", rightsDecisionSHA256, rightsEvaluatedAt, "", "")
+}
+
+// SummarizeAtContextTierWithExecutionIdentity binds a call to an owner-verified
+// role/model/artifact and current rights decision. The ordinary caller leaves
+// these values empty and resource-ollama continues to perform its own current
+// rights and identity checks.
+func (s *Summarizer) SummarizeAtContextTierWithExecutionIdentity(ctx context.Context, text, selector, level string, contextTier int, expectedModel, expectedArtifactDigest, rightsDecisionSHA256, rightsEvaluatedAt, rightsReceiptSHA256, policyFileSHA256 string) (SummarizerResponse, error) {
 	if s == nil {
 		return SummarizerResponse{}, fmt.Errorf("summarizer is nil")
+	}
+	if contextTier < 0 {
+		return SummarizerResponse{}, fmt.Errorf("context tier must not be negative")
+	}
+	if (rightsDecisionSHA256 == "") != (rightsEvaluatedAt == "") {
+		return SummarizerResponse{}, fmt.Errorf("rights decision SHA-256 and evaluation timestamp must be supplied together")
+	}
+	if (expectedModel == "") != (expectedArtifactDigest == "") {
+		return SummarizerResponse{}, fmt.Errorf("expected model and artifact digest must be supplied together")
+	}
+	if (rightsReceiptSHA256 == "") != (policyFileSHA256 == "") {
+		return SummarizerResponse{}, fmt.Errorf("expected rights receipt and policy-file SHA-256 must be supplied together")
 	}
 	systemPrompt, ok := summarizeSystemPrompts[level]
 	if !ok {
@@ -135,6 +176,18 @@ func (s *Summarizer) Summarize(ctx context.Context, text, selector, level string
 		"--json",
 		"--prompt-stdin",
 	}
+	if contextTier > 0 {
+		args = append(args, "--num-ctx", strconv.Itoa(contextTier))
+	}
+	if rightsDecisionSHA256 != "" {
+		args = append(args, "--expected-rights-decision-sha256", rightsDecisionSHA256, "--expected-rights-evaluated-at", rightsEvaluatedAt)
+	}
+	if expectedModel != "" {
+		args = append(args, "--expected-model", expectedModel, "--expected-artifact-digest", expectedArtifactDigest)
+	}
+	if rightsReceiptSHA256 != "" {
+		args = append(args, "--expected-rights-receipt-sha256", rightsReceiptSHA256, "--expected-policy-file-sha256", policyFileSHA256)
+	}
 
 	runner := s.Runner
 	if runner == nil {
@@ -155,9 +208,15 @@ func (s *Summarizer) Summarize(ctx context.Context, text, selector, level string
 	}
 
 	var result struct {
-		Response   string `json:"response"`
-		DoneReason string `json:"done_reason"`
-		EvalCount  int    `json:"eval_count"`
+		Model                string `json:"model"`
+		Response             string `json:"response"`
+		DoneReason           string `json:"done_reason"`
+		EvalCount            int    `json:"eval_count"`
+		TotalDurationNS      int64  `json:"total_duration"`
+		LoadDurationNS       int64  `json:"load_duration"`
+		PromptEvalCount      int    `json:"prompt_eval_count"`
+		PromptEvalDurationNS int64  `json:"prompt_eval_duration"`
+		EvalDurationNS       int64  `json:"eval_duration"`
 	}
 	if err := json.Unmarshal(out, &result); err != nil {
 		return SummarizerResponse{}, fmt.Errorf("decode response: %w", err)
@@ -165,10 +224,16 @@ func (s *Summarizer) Summarize(ctx context.Context, text, selector, level string
 
 	raw := strings.TrimSpace(result.Response)
 	return SummarizerResponse{
-		Content:    StripThinkTags(raw),
-		RawContent: raw,
-		DoneReason: result.DoneReason,
-		EvalCount:  result.EvalCount,
+		Model:                strings.TrimSpace(result.Model),
+		TotalDurationNS:      result.TotalDurationNS,
+		LoadDurationNS:       result.LoadDurationNS,
+		PromptEvalCount:      result.PromptEvalCount,
+		PromptEvalDurationNS: result.PromptEvalDurationNS,
+		EvalDurationNS:       result.EvalDurationNS,
+		Content:              StripThinkTags(raw),
+		RawContent:           raw,
+		DoneReason:           result.DoneReason,
+		EvalCount:            result.EvalCount,
 	}, nil
 }
 

@@ -477,6 +477,7 @@ func TestReviewedStarterInitializesOnlyOnMatchingPinnedTestRoutes(t *testing.T) 
 		},
 		PhysicalArtifacts: artifactResolver, PhysicalProfile: profileResolver,
 		PhysicalAdapter: rendering.PhysicalAdapterBytes,
+		DiskJobs:        testDiskJobAdmitter{},
 	})
 	if err != nil {
 		t.Fatalf("construct physical render coordinator: %v", err)

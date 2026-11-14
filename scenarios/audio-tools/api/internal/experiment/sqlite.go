@@ -61,6 +61,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 
 func (s *sqliteRepository) CreateExperiment(ctx context.Context, exp Experiment) (Experiment, error) {
 	exp = s.withExperimentDefaults(exp)
+	if !exp.Status.Valid() {
+		return Experiment{}, fmt.Errorf("experiment: insert %q: unknown status %q", exp.ID, exp.Status)
+	}
 	if _, err := s.db.ExecContext(ctx, insertExperimentSQL,
 		exp.ID, exp.Name, string(exp.Status), string(exp.RecipeJSON), exp.CreatedAt.Format(experimentTimeFormat),
 		formatTimePtr(exp.StartedAt), formatTimePtr(exp.FinishedAt), exp.Error, exp.ResultRef, string(exp.MachineJSON),
@@ -84,6 +87,9 @@ func (s *sqliteRepository) GetExperiment(ctx context.Context, id string) (Experi
 
 func (s *sqliteRepository) UpdateExperiment(ctx context.Context, exp Experiment) error {
 	exp = s.withExperimentDefaults(exp)
+	if !exp.Status.Valid() {
+		return fmt.Errorf("experiment: update %q: unknown status %q", exp.ID, exp.Status)
+	}
 	res, err := s.updateExperiment(ctx, s.db, exp)
 	if err != nil {
 		return err
@@ -100,6 +106,9 @@ func (s *sqliteRepository) UpdateExperiment(ctx context.Context, exp Experiment)
 
 func (s *sqliteRepository) CompleteSucceeded(ctx context.Context, exp Experiment, runs []Run) error {
 	exp = s.withExperimentDefaults(exp)
+	if exp.Status != StatusSucceeded {
+		return fmt.Errorf("experiment: complete %q: status must be %q, got %q", exp.ID, StatusSucceeded, exp.Status)
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("experiment: begin complete %q: %w", exp.ID, err)
@@ -213,6 +222,9 @@ type SQLRunner interface {
 
 func (s *sqliteRepository) updateExperiment(ctx context.Context, db SQLRunner, exp Experiment) (sql.Result, error) {
 	exp = s.withExperimentDefaults(exp)
+	if !exp.Status.Valid() {
+		return nil, fmt.Errorf("experiment: update %q: unknown status %q", exp.ID, exp.Status)
+	}
 	res, err := db.ExecContext(ctx, updateExperimentSQL,
 		exp.Name, string(exp.Status), string(exp.RecipeJSON), formatTimePtr(exp.StartedAt),
 		formatTimePtr(exp.FinishedAt), exp.Error, exp.ResultRef, string(exp.MachineJSON), exp.ID,
@@ -363,6 +375,9 @@ func scanExperiment(sc scanner) (Experiment, error) {
 		return Experiment{}, err
 	}
 	exp.Status = Status(status)
+	if !exp.Status.Valid() {
+		return Experiment{}, fmt.Errorf("experiment: unknown persisted status %q", exp.Status)
+	}
 	exp.RecipeJSON = []byte(recipe)
 	exp.MachineJSON = []byte(machine)
 	created, err := time.Parse(experimentTimeFormat, createdAt)

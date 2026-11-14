@@ -70,6 +70,7 @@ stateDiagram-v2
   rejected --> proposed: restore
   picked --> superseded: another candidate is picked
   superseded --> picked: pick again
+  superseded --> proposed: restore
   picked --> [*]
 ```
 
@@ -77,6 +78,13 @@ A refine always creates a **new** proposed candidate whose `parent_id` points at
 its source; it never mutates the source. Picking stores the mark on the brand. A
 raster pick is vectorized first, and the vectorized SVG becomes a child candidate
 that is the one actually picked.
+
+Candidate status changes use the transition owner in `internal/candidates`. The
+SQLite owner compares the expected status; picking replaces the current picked
+row and promotes the selected row in one transaction. Rejected candidates return
+to proposed through Restore before Pick; a superseded candidate may be picked
+again directly or restored first. Illegal transitions return failed-precondition;
+stale expected-status writes return aborted so the caller can reload.
 
 ## Concept, mark and container
 

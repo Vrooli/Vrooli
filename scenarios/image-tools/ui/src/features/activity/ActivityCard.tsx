@@ -65,6 +65,7 @@ function JobRow({ job, index, onCancel, onOpen, cancelPending }: JobRowProps) {
   const state = live?.state ?? job.state;
   const progress = live?.progress ?? job.progress;
   const message = live?.message || job.message;
+  const estimate = jobEstimate(job, state, Date.now());
   const labelKey = operationLabelKey(job.operation);
   const label = labelKey ? t(labelKey) : job.operation;
   const succeeded = state === JobState.SUCCEEDED && job.resultRef !== "";
@@ -108,14 +109,23 @@ function JobRow({ job, index, onCancel, onOpen, cancelPending }: JobRowProps) {
         <div data-testid={selectors.jobs.state} className="mt-1 text-xs text-app-muted-foreground">
           {t(strings.jobs.stateLabel)} {t(STATE_LABEL[state])}
         </div>
-        {isActive(state) ? (
+        {state === JobState.RUNNING ? (
           <progress
             data-testid={selectors.jobs.progress}
             className="mt-1 h-1.5 w-full overflow-hidden rounded bg-app-surface-muted [&::-webkit-progress-bar]:bg-app-surface-muted [&::-webkit-progress-value]:bg-app-primary"
             value={progress}
             max={100}
-            aria-label={t(strings.jobs.progressLabel, { count: progress })}
+            aria-label={t(strings.jobs.progressLabel, { count: progress, operation: label })}
           />
+        ) : null}
+        {estimate ? (
+          <p data-testid={selectors.jobs.estimate} className="mt-1 text-xs text-app-muted-foreground">
+            {estimate.kind === "unavailable"
+              ? t(strings.jobs.estimate.unavailable)
+              : t(strings.jobs.estimate[estimate.kind], {
+                  duration: formatDuration(estimate.seconds, t),
+                })}
+          </p>
         ) : null}
         {message ? (
           <div data-testid={selectors.jobs.message} className="mt-1 text-xs text-app-muted-foreground">
@@ -212,6 +222,11 @@ export function ActivityCard() {
           {errorMessage(jobsQuery.error, t)}
         </p>
       ) : null}
+      {cancelJobMutation.error ? (
+        <p role="alert" data-testid={selectors.jobs.cancelError} className="text-sm text-app-danger">
+          {t(strings.jobs.cancelFailed)}
+        </p>
+      ) : null}
       {jobsQuery.data && jobs.length === 0 ? (
         <EmptyState
           testId={selectors.activity.empty}
@@ -247,4 +262,46 @@ export function ActivityCard() {
       ) : null}
     </section>
   );
+}
+
+type JobEstimate =
+  | { kind: "queued" | "running" | "overdue"; seconds: number }
+  | { kind: "unavailable" };
+
+function jobEstimate(job: Job, state: JobState, now: number): JobEstimate | null {
+  if (![JobState.QUEUED, JobState.ADMITTING, JobState.RUNNING].includes(state)) {
+    return null;
+  }
+  const estimateSeconds = Number(job.estimatedSeconds);
+  if (!Number.isFinite(estimateSeconds) || estimateSeconds <= 0) {
+    return { kind: "unavailable" };
+  }
+
+  if (state === JobState.QUEUED || state === JobState.ADMITTING) {
+    // The caller's estimate describes execution time; queue and capacity wait
+    // are separate and must not be hidden inside the runtime estimate.
+    return { kind: "queued", seconds: estimateSeconds };
+  }
+
+  const startedAt = job.startedAt;
+  if (!startedAt) return { kind: "unavailable" };
+  const startedMs = Number(startedAt.seconds) * 1000 + Math.floor(startedAt.nanos / 1_000_000);
+  if (!Number.isFinite(startedMs) || startedMs <= 0) return { kind: "unavailable" };
+
+  const elapsedSeconds = Math.max(0, Math.floor((now - startedMs) / 1000));
+  const remainingSeconds = Math.ceil(estimateSeconds - elapsedSeconds);
+  return remainingSeconds > 0
+    ? { kind: "running", seconds: remainingSeconds }
+    : { kind: "overdue", seconds: estimateSeconds };
+}
+
+function formatDuration(seconds: number, t: ReturnType<typeof useTranslation>["t"]): string {
+  if (seconds < 60) return t(strings.jobs.estimate.seconds, { count: Math.max(1, Math.ceil(seconds)) });
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 60) return t(strings.jobs.estimate.minutes, { count: minutes });
+  const hours = Math.floor(minutes / 60);
+  const extraMinutes = minutes % 60;
+  return extraMinutes === 0
+    ? t(strings.jobs.estimate.hours, { count: hours })
+    : t(strings.jobs.estimate.hoursMinutes, { hours, minutes: extraMinutes });
 }

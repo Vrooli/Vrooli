@@ -140,12 +140,27 @@ func (s *Service) Get(ctx context.Context, id string) (Candidate, error) {
 
 // Reject marks a candidate rejected.
 func (s *Service) Reject(ctx context.Context, id, note string) (Candidate, error) {
-	return s.store.UpdateStatus(ctx, id, StatusRejected, note)
+	candidate, err := s.store.Get(ctx, id)
+	if err != nil {
+		return Candidate{}, err
+	}
+	if err := candidate.TransitionStatus(StatusRejected); err != nil {
+		return Candidate{}, err
+	}
+	return s.store.TransitionStatus(ctx, id, StatusProposed, StatusRejected, note)
 }
 
 // Restore returns a rejected/superseded candidate to proposed.
 func (s *Service) Restore(ctx context.Context, id string) (Candidate, error) {
-	return s.store.UpdateStatus(ctx, id, StatusProposed, "")
+	candidate, err := s.store.Get(ctx, id)
+	if err != nil {
+		return Candidate{}, err
+	}
+	expected := candidate.Status
+	if err := candidate.TransitionStatus(StatusProposed); err != nil {
+		return Candidate{}, err
+	}
+	return s.store.TransitionStatus(ctx, id, expected, StatusProposed, "")
 }
 
 // Refine derives a new proposed candidate from a parent without mutating it.
@@ -227,6 +242,11 @@ func (s *Service) Pick(ctx context.Context, candidateID string) (Candidate, stri
 	if err != nil {
 		return Candidate{}, "", false, err
 	}
+	if cand.Status != StatusPicked {
+		if err := cand.TransitionStatus(StatusPicked); err != nil {
+			return Candidate{}, "", false, err
+		}
+	}
 	vectorized := false
 	if !isVector(cand.MediaType) {
 		content, derr := s.assets.Download(ctx, cand.AssetID)
@@ -249,11 +269,7 @@ func (s *Service) Pick(ctx context.Context, candidateID string) (Candidate, stri
 		vectorized = true
 	}
 
-	// Supersede the current pick first so the unique partial index never sees two.
-	if err := s.store.SupersedePicked(ctx, cand.BrandID, cand.ID); err != nil {
-		return Candidate{}, "", false, err
-	}
-	picked, err := s.store.UpdateStatus(ctx, cand.ID, StatusPicked, "")
+	picked, err := s.store.Pick(ctx, cand.ID)
 	if err != nil {
 		return Candidate{}, "", false, err
 	}

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	sttchain "audio-tools/internal/ai/sttchain"
+	summarizechain "audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/audioformat"
 	"audio-tools/internal/blobbytes"
 	"audio-tools/internal/buildidentity"
@@ -217,7 +218,11 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 		},
 	})
 
-	summarizer := intsumm.NewSummarizer(env.OllamaURL, httpc.DefaultDoer())
+	// The production Audio Tools local summarizer submits its task through AI
+	// Gateway, preserving LOCAL_ONLY and the transcript/text privacy basis. The
+	// summary evaluation package keeps its explicit resource-ollama runner as an
+	// experiment owner; it is not the serving caller.
+	summarizer := intsumm.NewSummarizerWithRunner("ai-gateway", summarizechain.NewAIGatewayRunner())
 
 	byokRegistries := byok.NewRegistries()
 	chs := BuildChains(env, voiceSvc, ttsSvc, summarizer, byokRegistries, logger)

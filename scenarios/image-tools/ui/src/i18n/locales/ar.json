@@ -128,8 +128,9 @@
     "loading": "جارٍ تحميل المهام…",
     "empty": "لا توجد مهام بعد.",
     "stateLabel": "الحالة:",
-    "progressLabel": "اكتمل {{count}}%",
+    "progressLabel": "تقدم {{operation}}، اكتمل {{count}}%",
     "cancel": "إلغاء",
+    "cancelFailed": "تعذر إيقاف هذه المهمة. قد تظل قيد التشغيل؛ الحالة ظاهرة أعلاه.",
     "queue": {
       "unspecified": "غير محدد",
       "localSerial": "قائمة انتظار محلية متسلسلة",
@@ -148,7 +149,17 @@
       "canceling": "جارٍ الإيقاف"
     },
     "errorLabel": "خطأ:",
-    "liveBadge": "مباشر"
+    "liveBadge": "مباشر",
+    "estimate": {
+      "unavailable": "الوقت المتوقع غير متاح. سيظل التقدم المباشر ظاهرًا.",
+      "queued": "المدة المتوقعة: نحو {{duration}} بعد البدء؛ وقت الانتظار منفصل.",
+      "running": "نحو {{duration}} متبقية حسب التقدير الأولي.",
+      "overdue": "تجاوزت المدة التقديرية الأولية وهي {{duration}}.",
+      "seconds": "{{count}} ثانية",
+      "minutes": "{{count}} دقيقة",
+      "hours": "{{count}} ساعة",
+      "hoursMinutes": "{{hours}} ساعة و{{minutes}} دقيقة"
+    }
   },
   "home": {
     "greeting": "ماذا سننشئ؟",

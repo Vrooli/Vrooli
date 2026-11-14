@@ -144,6 +144,7 @@ export const strings = {
     errorLabel: "jobs.errorLabel",
     liveBadge: "jobs.liveBadge",
     cancel: "jobs.cancel",
+    cancelFailed: "jobs.cancelFailed",
     queue: {
       unspecified: "jobs.queue.unspecified",
       localSerial: "jobs.queue.localSerial",
@@ -160,6 +161,16 @@ export const strings = {
       canceled: "jobs.state.canceled",
       admitting: "jobs.state.admitting",
       canceling: "jobs.state.canceling",
+    },
+    estimate: {
+      unavailable: "jobs.estimate.unavailable",
+      queued: "jobs.estimate.queued",
+      running: "jobs.estimate.running",
+      overdue: "jobs.estimate.overdue",
+      seconds: "jobs.estimate.seconds",
+      minutes: "jobs.estimate.minutes",
+      hours: "jobs.estimate.hours",
+      hoursMinutes: "jobs.estimate.hoursMinutes",
     },
   },
   home: {

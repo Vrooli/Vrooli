@@ -97,7 +97,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "sd-1.5",
+        "revision": "",
+        "sha256": "",
+        "license_id": "CreativeML OpenRAIL-M",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "instruct-pix2pix",
@@ -167,7 +180,20 @@
         "dtype": "float16",
         "min_runtime": "diffusers>=0.21.0"
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "instruct-pix2pix",
+        "revision": "",
+        "sha256": "",
+        "license_id": "CreativeML OpenRAIL-M",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "qwen-image-edit",
@@ -229,7 +255,20 @@
         "dtype": "bfloat16",
         "min_runtime": "diffusers>=0.36.0"
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "qwen-image-edit",
+        "revision": "d3968ef930e841f4c73640fb8afa3b306a78167e",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "flux-2-klein-4b",
@@ -292,7 +331,20 @@
         "dtype": "bfloat16",
         "min_runtime": "diffusers @ git (Flux2KleinPipeline unreleased as of 2026-06)"
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "flux-2-klein-4b",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "longcat-image-edit-turbo",
@@ -351,7 +403,20 @@
         "dtype": "bfloat16",
         "min_runtime": "diffusers (LongCatImageEditPipeline; recent/custom build)"
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "longcat-image-edit-turbo",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "sdxl-1.0",
@@ -417,7 +482,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "sdxl-1.0",
+        "revision": "",
+        "sha256": "",
+        "license_id": "OpenRAIL++-M",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "flux-1-schnell",
@@ -475,7 +553,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "flux-1-schnell",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "sd-1.5-inpainting",
@@ -543,7 +634,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "sd-1.5-inpainting",
+        "revision": "",
+        "sha256": "",
+        "license_id": "CreativeML OpenRAIL-M",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "sdxl-inpainting-0.1",
@@ -619,7 +723,20 @@
       "runtime": {
         "variant": "fp16"
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "sdxl-inpainting-0.1",
+        "revision": "115134f363124c53c7d878647567d04daf26e41e",
+        "sha256": "",
+        "license_id": "OpenRAIL++-M",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "mi-gan",
@@ -683,7 +800,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "mi-gan",
+        "revision": "",
+        "sha256": "",
+        "license_id": "MIT",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "big-lama",
@@ -744,7 +874,21 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "big-lama",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0 for repository code; pretrained-weight grant unverified",
+        "classification": "unknown",
+        "unverified_reason": "model_weight_or_license_grant_requires_source_review",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "revenue_threshold_crossed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "big-lama-1024-export",
@@ -821,7 +965,21 @@
         "output_filename": "lama_1024.onnx",
         "output_sha256": "ed44a7c0468b633e106078b3e700ed5e2b0187d87efbdf9e6b03e08fe1b7a2b0"
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "big-lama-1024-export",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0 for repository code; pretrained-weight grant unverified",
+        "classification": "unknown",
+        "unverified_reason": "model_weight_or_license_grant_requires_source_review",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "revenue_threshold_crossed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "ic-light-v1",
@@ -874,7 +1032,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "ic-light-v1",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "real-esrgan",
@@ -947,7 +1118,21 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "real-esrgan",
+        "revision": "",
+        "sha256": "",
+        "license_id": "BSD-3-Clause (repository code); pretrained-weight grant unverified",
+        "classification": "unknown",
+        "unverified_reason": "model_weight_or_license_grant_requires_source_review",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "revenue_threshold_crossed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "real-cugan",
@@ -1003,7 +1188,21 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "real-cugan",
+        "revision": "",
+        "sha256": "",
+        "license_id": "MIT for repository code; pretrained-weight grant unverified",
+        "classification": "unknown",
+        "unverified_reason": "model_weight_or_license_grant_requires_source_review",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "revenue_threshold_crossed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "swinir",
@@ -1056,7 +1255,21 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "swinir",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0 (repository code); pretrained-weight grant and training-data terms unverified",
+        "classification": "unknown",
+        "unverified_reason": "model_weight_or_license_grant_requires_source_review",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "revenue_threshold_crossed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "dncnn",
@@ -1120,7 +1333,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "dncnn",
+        "revision": "",
+        "sha256": "",
+        "license_id": "BSD-3-Clause (DnCNN) / MIT (KAIR)",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "scunet",
@@ -1171,7 +1397,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "scunet",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "nafnet",
@@ -1233,7 +1472,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "nafnet",
+        "revision": "",
+        "sha256": "",
+        "license_id": "MIT",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "restormer",
@@ -1282,7 +1534,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "restormer",
+        "revision": "",
+        "sha256": "",
+        "license_id": "MIT",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "ddcolor-tiny",
@@ -1346,7 +1611,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "ddcolor-tiny",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "ddcolor-large",
@@ -1398,7 +1676,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "ddcolor-large",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "restoreformer-plus-plus",
@@ -1457,7 +1748,21 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "restoreformer-plus-plus",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "model_weight_or_license_grant_requires_source_review",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "revenue_threshold_crossed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "ms-bringing-old-photos",
@@ -1506,7 +1811,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "ms-bringing-old-photos",
+        "revision": "",
+        "sha256": "",
+        "license_id": "MIT",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "isnet-general-use",
@@ -1568,7 +1886,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "isnet-general-use",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "u2netp",
@@ -1629,7 +1960,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "u2netp",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "birefnet-general",
@@ -1695,7 +2039,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "birefnet-general",
+        "revision": "",
+        "sha256": "",
+        "license_id": "MIT",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "mobilesam",
@@ -1766,7 +2123,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "mobilesam",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "sam-2.1-tiny",
@@ -1834,7 +2204,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "sam-2.1-tiny",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "sam-2.1-base-plus",
@@ -1901,7 +2284,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "sam-2.1-base-plus",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "sam-2.1-large",
@@ -1951,7 +2347,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "sam-2.1-large",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "hq-sam",
@@ -2004,7 +2413,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "hq-sam",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "triposr-vision-to-mesh",
@@ -2066,7 +2488,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "triposr-vision-to-mesh",
+        "revision": "",
+        "sha256": "",
+        "license_id": "MIT",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "moge-2-vits-normal",
@@ -2127,7 +2562,20 @@
           "status": "pinned"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "moge-2-vits-normal",
+        "revision": "",
+        "sha256": "24eacb5dc7a2c54c7bc98f7de085ffbed79ad006ea5b664c2c2cdc02ff3a52f0",
+        "license_id": "MIT",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "depth-anything-v2-small",
@@ -2189,7 +2637,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "depth-anything-v2-small",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "depth-anything-v1-large",
@@ -2241,7 +2702,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "depth-anything-v1-large",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "normals-from-depth",
@@ -2294,7 +2768,20 @@
           "status": "n/a-computed"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "normals-from-depth",
+        "revision": "",
+        "sha256": "",
+        "license_id": "n/a (own code)",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "marigold-normals-v1-1",
@@ -2343,7 +2830,21 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "marigold-normals-v1-1",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "model_weight_or_license_grant_requires_source_review",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "revenue_threshold_crossed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "tesseract",
@@ -2409,7 +2910,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "tesseract",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0 (Tesseract) / MIT (gosseract)",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "paddleocr",
@@ -2461,7 +2975,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "paddleocr",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "adamcodd-vit-nsfw",
@@ -2524,7 +3051,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "adamcodd-vit-nsfw",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "falconsai-nsfw",
@@ -2575,7 +3115,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "falconsai-nsfw",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "moondream2",
@@ -2643,7 +3196,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "moondream2",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "smolvlm-256m",
@@ -2709,7 +3275,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "smolvlm-256m",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "florence-2",
@@ -2764,7 +3343,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "florence-2",
+        "revision": "",
+        "sha256": "",
+        "license_id": "MIT",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "yolox-tiny",
@@ -2827,7 +3419,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "yolox-tiny",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "nanodet",
@@ -2879,7 +3484,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "nanodet",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "rt-detrv2",
@@ -2931,7 +3549,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "rt-detrv2",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "wd14-vit-v3",
@@ -2990,7 +3621,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "wd14-vit-v3",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "ram-plus-plus",
@@ -3039,7 +3683,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "ram-plus-plus",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "yunet",
@@ -3105,7 +3762,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "yunet",
+        "revision": "",
+        "sha256": "",
+        "license_id": "MIT (code AND weights)",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "laplacian-blur",
@@ -3161,7 +3831,20 @@
           "status": "n/a-library"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "laplacian-blur",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0 (OpenCV) / own code",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "brisque",
@@ -3213,7 +3896,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "brisque",
+        "revision": "",
+        "sha256": "",
+        "license_id": "OpenCV Apache + LIVE academic (attribution)",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "laion-aesthetic",
@@ -3263,7 +3959,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "laion-aesthetic",
+        "revision": "",
+        "sha256": "",
+        "license_id": "MIT (predictor + CLIP)",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "goimagehash",
@@ -3316,7 +4025,20 @@
           "status": "n/a-library"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "goimagehash",
+        "revision": "",
+        "sha256": "",
+        "license_id": "BSD-2-Clause",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "nomic-embed-vision-v1.5",
@@ -3378,7 +4100,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "nomic-embed-vision-v1.5",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "siglip2-base",
@@ -3428,7 +4163,20 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false
+      "enabled": false,
+      "rights": {
+        "artifact_id": "siglip2-base",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "gozxing",
@@ -3481,7 +4229,20 @@
           "status": "n/a-library"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "gozxing",
+        "revision": "",
+        "sha256": "",
+        "license_id": "MIT",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "naturalize-detail-v1",
@@ -3534,7 +4295,20 @@
           "status": "n/a-builtin"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "naturalize-detail-v1",
+        "revision": "",
+        "sha256": "",
+        "license_id": "N/A (deterministic, no model weights)",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "openrouter-image",
@@ -3588,7 +4362,20 @@
           "status": "n/a-cloud"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "openrouter-image",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Provider terms (OpenRouter + upstream model)",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     },
     {
       "id": "mask-fill",
@@ -3639,7 +4426,20 @@
           "status": "n/a-computed"
         }
       },
-      "enabled": true
+      "enabled": true,
+      "rights": {
+        "artifact_id": "mask-fill",
+        "revision": "",
+        "sha256": "",
+        "license_id": "n/a (own code)",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     }
   ],
   "blocklist": [

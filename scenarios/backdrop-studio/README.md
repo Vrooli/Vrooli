@@ -59,7 +59,7 @@ Ten pages, each reading the real catalog:
 
 | Route | What it is for |
 |---|---|
-| `/catalog` | Every style as a rendered specimen, filtered by any taxonomy axis |
+| `/catalog` | Every style as a specimen, filtered by any taxonomy axis. Procedural and vector specimens render on sight; model-backed ones render only when you ask |
 | `/styles/:id` | One style in full: chain, resolved parameters, prompt, regions, perceptual margins, and the candidate behind real page copy |
 | `/sweep` | One style across a seed range — is the style good, or was that a good seed? |
 | `/remix` | Fork a style, change one axis, see it beside its parent, save it with lineage |

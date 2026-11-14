@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"image-tools/internal/adapters"
@@ -19,6 +20,10 @@ import (
 
 	"github.com/vrooli/api-core/blobstore"
 )
+
+func allowRightsForTest(context.Context, json.RawMessage, string) (models.RightsDecision, error) {
+	return models.RightsDecision{Status: "allowed", DecisionSHA256: "test"}, nil
+}
 
 // fakeProvider is a standalone backends.Provider that writes a fixed output and
 // records the request it received, so tests assert the full vertical (select →
@@ -284,7 +289,7 @@ func newTestEngine(t *testing.T, op string, fp *fakeProvider) (*Engine, *storage
 	store := storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir())
 	host := capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}
 
-	eng, err := NewEngine(Deps{
+	eng, err := NewEngineWithRightsEvaluator(Deps{
 		Registry:       registry,
 		Backends:       backendReg,
 		Probe:          capabilities.FakeProbe{Host: host},
@@ -292,7 +297,7 @@ func newTestEngine(t *testing.T, op string, fp *fakeProvider) (*Engine, *storage
 		ModelInstalled: func(string) bool { return true },
 		ModelsRoot:     t.TempDir(),
 		Disk:           &fakeDiskAdmission{},
-	})
+	}, allowRightsForTest)
 	if err != nil {
 		t.Fatalf("new engine: %v", err)
 	}
@@ -384,12 +389,13 @@ func TestRunRejectsPersistedModelUnsupportedOnCurrentHost(t *testing.T) {
 	}
 	store := storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir())
 	eng, err := NewEngine(Deps{
-		Registry:       registry,
-		Backends:       backendReg,
-		Probe:          capabilities.FakeProbe{Host: capabilities.Host{OS: "windows", Arch: "arm64", Cores: 8}},
-		Store:          store,
-		ModelInstalled: func(string) bool { return true },
-		CustomModels:   func(context.Context) ([]models.Model, error) { return []models.Model{restricted}, nil },
+		Registry:        registry,
+		Backends:        backendReg,
+		Probe:           capabilities.FakeProbe{Host: capabilities.Host{OS: "windows", Arch: "arm64", Cores: 8}},
+		Store:           store,
+		RightsEvaluator: allowRightsForTest,
+		ModelInstalled:  func(string) bool { return true },
+		CustomModels:    func(context.Context) ([]models.Model, error) { return []models.Model{restricted}, nil },
 	})
 	if err != nil {
 		t.Fatalf("new engine: %v", err)
@@ -443,6 +449,50 @@ func TestRunJob_PersistsProviderMediaType(t *testing.T) {
 	}
 }
 
+func TestExecutionRechecksRightsAfterPlanBeforeProvider(t *testing.T) {
+	fp := &fakeProvider{out: []byte("image")}
+	eng, _, modelID := newTestEngine(t, "text_to_image", fp)
+	var evaluations atomic.Int32
+	eng.deps.RightsEvaluator = func(context.Context, json.RawMessage, string) (models.RightsDecision, error) {
+		if evaluations.Add(1) == 1 {
+			return models.RightsDecision{Status: "allowed"}, nil
+		}
+		return models.RightsDecision{Status: "denied", Reason: "current_context_changed"}, nil
+	}
+	_, err := runJob(t, eng, "text_to_image", Payload{Operation: "text_to_image", ModelID: modelID, Params: map[string]string{"prompt": "caller image"}})
+	if err == nil || !strings.Contains(err.Error(), "current_context_changed") {
+		t.Fatalf("execution rights after plan = %v, want current-context refusal", err)
+	}
+	if evaluations.Load() != 2 || fp.execN != 0 {
+		t.Fatalf("rights evaluations=%d provider calls=%d; want execution recheck before provider", evaluations.Load(), fp.execN)
+	}
+}
+
+func TestExecutionRechecksRightsBetweenVariations(t *testing.T) {
+	var allowed atomic.Bool
+	allowed.Store(true)
+	fp := &fakeProvider{out: []byte("image"), onExecute: func() { allowed.Store(false) }}
+	eng, _, modelID := newTestEngine(t, "text_to_image", fp)
+	var evaluations atomic.Int32
+	eng.deps.RightsEvaluator = func(context.Context, json.RawMessage, string) (models.RightsDecision, error) {
+		evaluations.Add(1)
+		if allowed.Load() {
+			return models.RightsDecision{Status: "allowed"}, nil
+		}
+		return models.RightsDecision{Status: "denied", Reason: "context_changed_between_variations"}, nil
+	}
+	_, err := runJob(t, eng, "text_to_image", Payload{
+		Operation: "text_to_image", ModelID: modelID, Variations: 2,
+		Params: map[string]string{"prompt": "caller image"},
+	})
+	if err == nil || !strings.Contains(err.Error(), "context_changed_between_variations") {
+		t.Fatalf("second variation after rights change = %v, want refusal", err)
+	}
+	if evaluations.Load() != 3 || fp.execN != 1 {
+		t.Fatalf("rights evaluations=%d provider calls=%d; want initial plan, first call and second-variation recheck", evaluations.Load(), fp.execN)
+	}
+}
+
 func TestPlan_ModelNotInstalled(t *testing.T) {
 	registry, err := models.Load()
 	if err != nil {
@@ -453,11 +503,12 @@ func TestPlan_ModelNotInstalled(t *testing.T) {
 		t.Fatalf("register providers: %v", err)
 	}
 	eng, err := NewEngine(Deps{
-		Registry:       registry,
-		Backends:       backendReg,
-		Probe:          capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}},
-		Store:          storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir()),
-		ModelInstalled: func(string) bool { return false },
+		Registry:        registry,
+		Backends:        backendReg,
+		Probe:           capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}},
+		Store:           storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir()),
+		RightsEvaluator: allowRightsForTest,
+		ModelInstalled:  func(string) bool { return false },
 	})
 	if err != nil {
 		t.Fatalf("new engine: %v", err)
@@ -506,11 +557,12 @@ func TestAdmissionPinsResolvedProviderAndRejectsLegacyPayload(t *testing.T) {
 		t.Fatal(err)
 	}
 	eng, err := NewEngine(Deps{
-		Registry:       registry,
-		Backends:       backendRegistry,
-		Probe:          capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}},
-		Store:          storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir()),
-		ModelInstalled: func(string) bool { return true },
+		Registry:        registry,
+		Backends:        backendRegistry,
+		Probe:           capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}},
+		Store:           storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir()),
+		RightsEvaluator: allowRightsForTest,
+		ModelInstalled:  func(string) bool { return true },
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -565,7 +617,8 @@ func TestPlan_SuccessUsesDefaultOverrideWarningsAndETA(t *testing.T) {
 			OS: "linux", Arch: "amd64", Cores: 8,
 			GPUs: []capabilities.GPU{{Name: "unknown", VRAMBytes: 0}},
 		}},
-		Store: store,
+		Store:           store,
+		RightsEvaluator: allowRightsForTest,
 		Enabled: func(context.Context) (map[string]bool, error) {
 			return map[string]bool{def.ID: true}, nil
 		},
@@ -626,10 +679,11 @@ func TestPlanCustomModelUsesEnabledOverlayAgainstEffectiveRegistry(t *testing.T)
 		t.Fatal(err)
 	}
 	eng, err := NewEngine(Deps{
-		Registry: registry,
-		Backends: backendReg,
-		Probe:    capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}},
-		Store:    storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir()),
+		Registry:        registry,
+		Backends:        backendReg,
+		Probe:           capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}},
+		Store:           storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir()),
+		RightsEvaluator: allowRightsForTest,
 		CustomModels: func(context.Context) ([]models.Model, error) {
 			return []models.Model{custom}, nil
 		},
@@ -666,11 +720,12 @@ func TestPlan_ErrorSurfaces(t *testing.T) {
 		t.Fatalf("register fake provider: %v", err)
 	}
 	base := Deps{
-		Registry:       registry,
-		Backends:       backendReg,
-		Probe:          capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}},
-		Store:          store,
-		ModelInstalled: func(string) bool { return true },
+		Registry:        registry,
+		Backends:        backendReg,
+		Probe:           capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}},
+		Store:           store,
+		RightsEvaluator: allowRightsForTest,
+		ModelInstalled:  func(string) bool { return true },
 	}
 	eng, err := NewEngine(base)
 	if err != nil {
@@ -739,11 +794,12 @@ func TestMaterializeAdapterImages(t *testing.T) {
 		t.Fatalf("load registry: %v", err)
 	}
 	eng, err := NewEngine(Deps{
-		Registry:       registry,
-		Backends:       backends.New(),
-		Probe:          capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}},
-		Store:          store,
-		ModelInstalled: func(string) bool { return true },
+		Registry:        registry,
+		Backends:        backends.New(),
+		Probe:           capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}},
+		Store:           store,
+		RightsEvaluator: allowRightsForTest,
+		ModelInstalled:  func(string) bool { return true },
 	})
 	if err != nil {
 		t.Fatalf("NewEngine: %v", err)
@@ -786,11 +842,12 @@ func TestMaterializeConditioningImagesDerivesPoseMapWithinJob(t *testing.T) {
 	var gotModel string
 	var gotWidth, gotHeight int
 	eng, err := NewEngine(Deps{
-		Registry:       registry,
-		Backends:       backends.New(),
-		Probe:          capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}},
-		Store:          store,
-		ModelInstalled: func(string) bool { return true },
+		Registry:        registry,
+		Backends:        backends.New(),
+		Probe:           capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}},
+		Store:           store,
+		RightsEvaluator: allowRightsForTest,
+		ModelInstalled:  func(string) bool { return true },
 		PosePreprocessor: func(_ context.Context, model, source, output string, width, height int) error {
 			gotModel = model
 			gotSource = source
@@ -836,7 +893,7 @@ func TestMaterializeConditioningImagesFailsClosedWithoutPoseRuntime(t *testing.T
 	if err != nil {
 		t.Fatalf("load registry: %v", err)
 	}
-	eng, err := NewEngine(Deps{Registry: registry, Backends: backends.New(), Probe: capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}}, Store: store, ModelInstalled: func(string) bool { return true }})
+	eng, err := NewEngine(Deps{Registry: registry, Backends: backends.New(), Probe: capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}}, Store: store, RightsEvaluator: allowRightsForTest, ModelInstalled: func(string) bool { return true }})
 	if err != nil {
 		t.Fatalf("NewEngine: %v", err)
 	}

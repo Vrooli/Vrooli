@@ -85,6 +85,10 @@
       "testId": "jobs-progress",
       "selector": "[data-testid=\"jobs-progress\"]"
     },
+    "jobs.estimate": {
+      "testId": "jobs-estimate",
+      "selector": "[data-testid=\"jobs-estimate\"]"
+    },
     "jobs.message": {
       "testId": "jobs-message",
       "selector": "[data-testid=\"jobs-message\"]"
@@ -104,6 +108,10 @@
     "jobs.cancelButton": {
       "testId": "jobs-cancel-button",
       "selector": "[data-testid=\"jobs-cancel-button\"]"
+    },
+    "jobs.cancelError": {
+      "testId": "jobs-cancel-error",
+      "selector": "[data-testid=\"jobs-cancel-error\"]"
     },
     "home.root": {
       "testId": "home-root",
@@ -1814,7 +1822,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "f32319b4f20977779fe5bca6416d524a062d3247d963df70661fc945c716c2ad",
-    "ui/src/consts/selectors.ts": "3851fa248af4a423927cb1026ecd8151efd605cb05b41c64d031bfc6f0b00065",
+    "ui/src/consts/selectors.ts": "27057082f40b3010726774c6287d4964996c70a87fa793617ae863f0a3181bae",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

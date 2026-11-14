@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 func TestLifecycleRejectsTerminalResurrectionAndInvalidEdges(t *testing.T) {
@@ -222,5 +224,129 @@ func TestShutdownFinalizesQueuedAndRunningJobs(t *testing.T) {
 		if err != nil || final.State != StateCanceled {
 			t.Fatalf("shutdown stranded job: %+v %v", final, err)
 		}
+	}
+}
+
+// A capacity refusal must not become a fixed-rate admission loop: every
+// attempt opens the shared broker and reserves disk before refusing. Retries
+// back off exponentially, up to maxAdmissionRetry.
+func TestSchedulerBacksOffRepeatedCapacityRefusals(t *testing.T) {
+	clock := schedule.NewFake(time.Date(2026, 11, 12, 22, 22, 0, 0, time.UTC))
+	attempts := make(chan struct{}, 16)
+	m := startManager(t, Config{
+		Clock: clock,
+		Admit: func(ctx context.Context, _ Job) (Admission, error) {
+			attempts <- struct{}{}
+			return Admission{Context: ctx}, fmt.Errorf("%w: host CPU fully committed", ErrCapacityBusy)
+		},
+		Runner: func(context.Context, Job, func(int, string)) (Result, error) { return Result{}, nil },
+	})
+	job, err := m.Submit(context.Background(), Spec{Operation: "model", Lane: LaneGPU, Priority: PriorityBatch})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectAttempt := func(want bool, step string) {
+		t.Helper()
+		select {
+		case <-attempts:
+			if !want {
+				t.Fatalf("%s: admission retried before its backoff elapsed", step)
+			}
+		case <-time.After(300 * time.Millisecond):
+			if want {
+				t.Fatalf("%s: admission was not retried", step)
+			}
+		}
+	}
+	awaitQueued := func() {
+		t.Helper()
+		deadline := time.Now().Add(2 * time.Second)
+		for {
+			current, _ := m.Get(context.Background(), job.ID)
+			m.mu.Lock()
+			pending := len(m.pending)
+			m.mu.Unlock()
+			if current.State == StateQueued && pending == 1 {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("refused job was not requeued: %+v", current)
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+	advance := func(d time.Duration) { clock.Advance(d); clock.Tick() }
+
+	expectAttempt(true, "first admission")
+	for _, backoff := range []time.Duration{admissionRetry, 2 * admissionRetry, 4 * admissionRetry} {
+		awaitQueued()
+		advance(backoff - time.Millisecond)
+		expectAttempt(false, fmt.Sprintf("before %s", backoff))
+		advance(time.Millisecond)
+		expectAttempt(true, fmt.Sprintf("after %s", backoff))
+	}
+	awaitQueued()
+	advance(24 * time.Hour)
+	expectAttempt(true, "after a long wait")
+	awaitQueued()
+	advance(maxAdmissionRetry)
+	expectAttempt(true, "backoff is capped")
+}
+
+// When a local job ends, its released capacity must reach queued local work
+// immediately rather than after the queued job's backoff.
+func TestSchedulerWakesQueuedLocalWorkWhenLocalJobFinishes(t *testing.T) {
+	clock := schedule.NewFake(time.Date(2026, 11, 12, 22, 22, 0, 0, time.UTC))
+	gate := make(chan struct{})
+	var running atomic.Bool
+	var refusals atomic.Int32
+	m := startManager(t, Config{
+		Clock:      clock,
+		CPUWorkers: 2,
+		Admit: func(ctx context.Context, j Job) (Admission, error) {
+			if j.Operation == "second" && running.Load() {
+				refusals.Add(1)
+				return Admission{Context: ctx}, fmt.Errorf("%w: first job holds the CPU", ErrCapacityBusy)
+			}
+			return Admission{Context: ctx}, nil
+		},
+		Runner: func(ctx context.Context, j Job, _ func(int, string)) (Result, error) {
+			if j.Operation == "first" {
+				defer running.Store(false)
+				select {
+				case <-gate:
+				case <-ctx.Done():
+					return Result{}, ctx.Err()
+				}
+			}
+			return Result{}, nil
+		},
+	})
+	running.Store(true)
+	first, err := m.Submit(context.Background(), Spec{Operation: "first", Lane: LaneGPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := m.Submit(context.Background(), Spec{Operation: "second", Lane: LaneGPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for refusals.Load() == 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("second job was never refused while the first ran")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	close(gate)
+	if _, err := m.Wait(context.Background(), first.ID); err != nil {
+		t.Fatal(err)
+	}
+	// The fake clock never advances, so only the completion wake can admit it.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	final, err := m.Wait(ctx, second.ID)
+	if err != nil || final.State != StateSucceeded {
+		t.Fatalf("queued local job not admitted after capacity was freed: %+v err=%v", final, err)
 	}
 }

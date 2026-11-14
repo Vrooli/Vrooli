@@ -3,7 +3,10 @@
 // raster pick first) to the brand's canonical mark.
 package candidates
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // Origin records how a candidate was produced.
 type Origin string
@@ -16,6 +19,51 @@ const (
 	OriginBackgroundRemoved Origin = "BACKGROUND_REMOVED"
 	OriginVectorized        Origin = "VECTORIZED"
 )
+
+func ValidStatus(status Status) bool {
+	switch status {
+	case StatusProposed, StatusPicked, StatusRejected, StatusSuperseded:
+		return true
+	default:
+		return false
+	}
+}
+
+func CanTransitionStatus(from, to Status) bool {
+	switch {
+	case from == StatusProposed && (to == StatusPicked || to == StatusRejected):
+		return true
+	case from == StatusPicked && to == StatusSuperseded:
+		return true
+	case from == StatusRejected && to == StatusProposed:
+		return true
+	case from == StatusSuperseded && (to == StatusProposed || to == StatusPicked):
+		return true
+	default:
+		return false
+	}
+}
+
+type ErrInvalidStatusTransition struct{ From, To Status }
+
+func (e ErrInvalidStatusTransition) Error() string {
+	return fmt.Sprintf("invalid candidate status transition: %q -> %q", e.From, e.To)
+}
+
+type ErrInvalidStatus struct{ Status Status }
+
+func (e ErrInvalidStatus) Error() string {
+	return fmt.Sprintf("invalid persisted candidate status %q", e.Status)
+}
+
+type ErrStatusConflict struct {
+	ID       string
+	Expected Status
+}
+
+func (e ErrStatusConflict) Error() string {
+	return fmt.Sprintf("candidate %q no longer has expected status %q", e.ID, e.Expected)
+}
 
 // Status is the candidate lifecycle state.
 type Status string
@@ -44,6 +92,18 @@ type Candidate struct {
 	Note          string
 	GenerationRef string
 	CreatedAt     time.Time
+}
+
+func (c *Candidate) TransitionStatus(to Status) error {
+	if c == nil || !CanTransitionStatus(c.Status, to) {
+		from := Status("")
+		if c != nil {
+			from = c.Status
+		}
+		return ErrInvalidStatusTransition{From: from, To: to}
+	}
+	c.Status = to
+	return nil
 }
 
 // RefineAction selects the refinement.

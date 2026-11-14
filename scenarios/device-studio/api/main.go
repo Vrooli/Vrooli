@@ -17,6 +17,7 @@ import (
 	"device-studio/internal/physicalruntime"
 	"device-studio/internal/projects"
 	"device-studio/internal/rendering"
+	renderjobs "device-studio/internal/renderjobs"
 	"device-studio/internal/routedblobstore"
 	"device-studio/internal/server"
 

@@ -36,6 +36,12 @@ func (m *memStore) Create(_ context.Context, c Candidate) (Candidate, error) {
 	if c.ID == "" {
 		c.ID = fmt.Sprintf("cand-%d", m.seq)
 	}
+	if c.Status == "" {
+		c.Status = StatusProposed
+	}
+	if !ValidStatus(c.Status) || c.Status != StatusProposed {
+		return Candidate{}, ErrInvalidStatus{Status: c.Status}
+	}
 	c.CreatedAt = time.Unix(int64(m.seq), 0)
 	m.rows = append(m.rows, c)
 	return c, nil
@@ -68,12 +74,17 @@ func (m *memStore) List(_ context.Context, brandID string, status Status, limit,
 	return out, nil
 }
 
-func (m *memStore) UpdateStatus(_ context.Context, id string, status Status, note string) (Candidate, error) {
+func (m *memStore) TransitionStatus(_ context.Context, id string, expected, status Status, note string) (Candidate, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for i := range m.rows {
 		if m.rows[i].ID == id {
-			m.rows[i].Status = status
+			if m.rows[i].Status != expected {
+				return Candidate{}, ErrStatusConflict{ID: id, Expected: expected}
+			}
+			if err := m.rows[i].TransitionStatus(status); err != nil {
+				return Candidate{}, err
+			}
 			if note != "" {
 				m.rows[i].Note = note
 			}
@@ -83,15 +94,33 @@ func (m *memStore) UpdateStatus(_ context.Context, id string, status Status, not
 	return Candidate{}, ErrNotFound{ID: id}
 }
 
-func (m *memStore) SupersedePicked(_ context.Context, brandID, exceptID string) error {
+func (m *memStore) Pick(_ context.Context, id string) (Candidate, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	target := -1
 	for i := range m.rows {
-		if m.rows[i].BrandID == brandID && m.rows[i].Status == StatusPicked && m.rows[i].ID != exceptID {
-			m.rows[i].Status = StatusSuperseded
+		if m.rows[i].ID == id {
+			target = i
+			break
 		}
 	}
-	return nil
+	if target < 0 {
+		return Candidate{}, ErrNotFound{ID: id}
+	}
+	if m.rows[target].Status == StatusPicked {
+		return m.rows[target], nil
+	}
+	if err := m.rows[target].TransitionStatus(StatusPicked); err != nil {
+		return Candidate{}, err
+	}
+	for i := range m.rows {
+		if m.rows[i].BrandID == m.rows[target].BrandID && m.rows[i].Status == StatusPicked && m.rows[i].ID != id {
+			if err := m.rows[i].TransitionStatus(StatusSuperseded); err != nil {
+				return Candidate{}, err
+			}
+		}
+	}
+	return m.rows[target], nil
 }
 
 func (m *memStore) FindByAsset(_ context.Context, brandID, assetID string) (Candidate, bool, error) {
@@ -344,7 +373,10 @@ func TestExploreMatchesTheRasterAncestorOfAReferenceBrandsPickedMark(t *testing.
 	assetStore.put("aquila-raster", "image/png", approved)
 	assetStore.put("aquila-mark", "image/svg+xml", markSVG)
 	parent, _ := store.Create(ctx, Candidate{BrandID: "b-aquila", AssetID: "aquila-raster", MediaType: "image/png", Status: StatusProposed})
-	_, _ = store.Create(ctx, Candidate{BrandID: "b-aquila", AssetID: "aquila-mark", MediaType: "image/svg+xml", ParentID: parent.ID, Status: StatusPicked})
+	child, _ := store.Create(ctx, Candidate{BrandID: "b-aquila", AssetID: "aquila-mark", MediaType: "image/svg+xml", ParentID: parent.ID})
+	if _, err := store.Pick(ctx, child.ID); err != nil {
+		t.Fatal(err)
+	}
 
 	got, _, err := svc.Explore(ctx, ExploreInput{BrandID: "b-vega", Concepts: []string{"lyre"}, Variations: 2, StyleReferenceBrand: "aquila"})
 	if err != nil {
@@ -374,7 +406,10 @@ func TestExploreComposesTheMarkWhenTheReferenceHasNoRasterAncestor(t *testing.T)
 	svc, store, assetStore := newTestService(backend, testBrands())
 	ctx := context.Background()
 	assetStore.put("aquila-mark", "image/svg+xml", markSVG)
-	_, _ = store.Create(ctx, Candidate{BrandID: "b-aquila", AssetID: "aquila-mark", MediaType: "image/svg+xml", Status: StatusPicked})
+	child, _ := store.Create(ctx, Candidate{BrandID: "b-aquila", AssetID: "aquila-mark", MediaType: "image/svg+xml"})
+	if _, err := store.Pick(ctx, child.ID); err != nil {
+		t.Fatal(err)
+	}
 
 	if _, _, err := svc.Explore(ctx, ExploreInput{BrandID: "b-vega", Concepts: []string{"lyre"}, StyleReferenceBrand: "b-aquila"}); err != nil {
 		t.Fatal(err)
@@ -456,6 +491,68 @@ func TestPickVectorizesWithTheBrandsAccent(t *testing.T) {
 	sort.Strings(keep)
 	if strings.Join(keep, ",") != "#9ec5ff,#ffffff" {
 		t.Fatalf("keep colours = %v, want white and the brand accent", keep)
+	}
+}
+
+func TestCandidateLifecycleRejectRestorePickAndSupersede(t *testing.T) {
+	svc, store, assetStore := newTestService(&fakeBackend{}, testBrands())
+	assetStore.put("mark-one", "image/svg+xml", markSVG)
+	first, err := store.Create(context.Background(), Candidate{BrandID: "b-vega", AssetID: "mark-one", MediaType: "image/svg+xml"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rejected, err := svc.Reject(context.Background(), first.ID, "needs revision")
+	if err != nil || rejected.Status != StatusRejected {
+		t.Fatalf("reject = %+v, err=%v", rejected, err)
+	}
+	if _, _, _, err := svc.Pick(context.Background(), first.ID); err == nil {
+		t.Fatal("rejected candidate was pickable without restore")
+	}
+	first, err = svc.Restore(context.Background(), first.ID)
+	if err != nil || first.Status != StatusProposed {
+		t.Fatalf("restore = %+v, err=%v", first, err)
+	}
+	if _, err := svc.Restore(context.Background(), first.ID); err == nil {
+		t.Fatal("proposed candidate accepted redundant restore")
+	}
+	first, _, _, err = svc.Pick(context.Background(), first.ID)
+	if err != nil || first.Status != StatusPicked {
+		t.Fatalf("pick = %+v, err=%v", first, err)
+	}
+	assetStore.put("mark-two", "image/svg+xml", markSVG)
+	second, err := store.Create(context.Background(), Candidate{BrandID: "b-vega", AssetID: "mark-two", MediaType: "image/svg+xml"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, _, _, err = svc.Pick(context.Background(), second.ID)
+	if err != nil || second.Status != StatusPicked {
+		t.Fatalf("replacement pick = %+v, err=%v", second, err)
+	}
+	first, err = store.Get(context.Background(), first.ID)
+	if err != nil || first.Status != StatusSuperseded {
+		t.Fatalf("former pick = %+v, err=%v", first, err)
+	}
+}
+
+func TestCandidateTransitionGraphRejectsUnknownAndTerminalEdges(t *testing.T) {
+	for _, edge := range [][2]Status{
+		{StatusProposed, StatusSuperseded},
+		{StatusRejected, StatusPicked},
+		{StatusPicked, StatusProposed},
+		{StatusRejected, StatusRejected},
+		{Status("UNKNOWN"), StatusProposed},
+	} {
+		candidate := Candidate{Status: edge[0]}
+		if err := candidate.TransitionStatus(edge[1]); err == nil {
+			t.Errorf("accepted invalid transition %q -> %q", edge[0], edge[1])
+		}
+		if candidate.Status != edge[0] {
+			t.Errorf("invalid transition mutated state to %q", candidate.Status)
+		}
+	}
+	candidate := Candidate{Status: StatusSuperseded}
+	if err := candidate.TransitionStatus(StatusPicked); err != nil {
+		t.Fatalf("superseded candidate should support direct re-pick: %v", err)
 	}
 }
 

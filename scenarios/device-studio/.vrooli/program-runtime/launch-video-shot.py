@@ -16,9 +16,8 @@ envelope = {"program": NAME, "version": VERSION, "status": "failed", "phase": "v
 
 
 def fail(kind, detail, status="partial"):
-    envelope["status"] = status
     envelope["phase"] = "report"
-    envelope["errors"].append({"class": kind, "where": "owner", "detail": str(detail)[:240]})
+    program.fail(status, kind, detail, "owner")
 
 
 def first(handle):
