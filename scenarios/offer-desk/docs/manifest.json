@@ -1359,6 +1359,43 @@
           }
         },
         {
+          "path": "internal/PS2-CHECKOUT-PROPOSAL.md",
+          "docType": "proposal",
+          "title": "PS2 Checkout and Money Ledger Proposal",
+          "aliases": [
+            "sandbox-checkout-contract",
+            "cross-owner-checkout-proposal"
+          ],
+          "description": "Reviewable cross-owner proposal for per-job sandbox authorization, verified capture, and isolated Money Ledger reconciliation",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "sandbox-checkout-contract",
+            "cross-owner-checkout-proposal"
+          ],
+          "maturity": "draft",
+          "requiredBy": [],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Outcome under review",
+              "Owners and paths",
+              "Contract and state transitions",
+              "Isolated Money Ledger fixture",
+              "Persistence, rollback, and replay",
+              "Acceptance evidence for the reviewed implementation",
+              "Scope and boundaries",
+              "Review questions for the owners"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
           "path": "internal/PROBLEMS.md",
           "docType": "problems",
           "title": "Problems",

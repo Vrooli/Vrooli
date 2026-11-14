@@ -12,6 +12,7 @@ import { TriggersPage } from "../pages/TriggersPage";
 import { ProposalsPage } from "../pages/ProposalsPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { ReleaseLadderPage } from "../pages/ReleaseLadderPage";
+import { ServiceOfferPreviewPage } from "../pages/ServiceOfferPreviewPage";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -30,6 +31,7 @@ export const routes: RouteObject[] = [
       { path: "proposals", element: <ProposalsPage /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "release-ladder", element: <ReleaseLadderPage /> },
+      { path: "proposal-preview", element: <ServiceOfferPreviewPage /> },
     ],
   },
 ];

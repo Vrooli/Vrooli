@@ -122,6 +122,10 @@ func Module(db *database.RoutedDB, clock schedule.Clock, logger *log.Logger) mod
 		panic(fmt.Sprintf("configure offer-desk pricing readiness reporter: %v", err))
 	}
 	s.startScheduler()
+	endpoints := append(Endpoints, paidOffersEndpoint)
+	if os.Getenv("OFFER_DESK_CF7_TEST_SECOND_PRICE") == "1" {
+		endpoints = append(endpoints, cf7OverCapPaidOffersEndpoint)
+	}
 	return module.Module{Name: "offers", Mount: func(r *mux.Router) {
 		p, h := offersconnect.NewCatalogServiceHandler(s)
 		r.PathPrefix(p).Handler(h)
@@ -131,9 +135,13 @@ func Module(db *database.RoutedDB, clock schedule.Clock, logger *log.Logger) mod
 		r.PathPrefix(p).Handler(h)
 		p, h = offersconnect.NewReleaseLadderServiceHandler(s)
 		r.PathPrefix(p).Handler(h)
+		r.HandleFunc(paidOffersPath, s.paidOffers).Methods(http.MethodGet)
+		if os.Getenv("OFFER_DESK_CF7_TEST_SECOND_PRICE") == "1" {
+			r.HandleFunc(cf7OverCapOffersPath, s.paidOffersOverCap).Methods(http.MethodGet)
+		}
 		p, h = offersconnect.NewSpaceServiceHandler(s)
 		r.PathPrefix(p).Handler(h)
-	}, Endpoints: Endpoints}
+	}, Endpoints: endpoints}
 }
 
 func (s *Service) startScheduler() {

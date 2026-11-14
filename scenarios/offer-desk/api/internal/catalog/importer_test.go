@@ -484,3 +484,21 @@ func TestCatalogVerifyReportsNotComparableWhenSourcesAreCompressed(t *testing.T)
 	require.False(t, compressed.Comparable, "a compressed source declares no records and cannot be compared")
 	require.NotEmpty(t, compressed.NotComparableReason, "the skipped comparison must state why")
 }
+
+func TestCF4IsolatedOfferVariantFixtureUsesCatalogWriteOwner(t *testing.T) { // [REQ:CF4-OFFER-DESK-METERING]
+	s, ctx := testCatalog(t)
+	offer, err := s.CreateNode(ctx, offerspb.NodeKind_OFFER, "cf4-research-inference", offerspb.Status_ACTIVE, "", "")
+	require.NoError(t, err)
+	variant, err := s.CreateNode(ctx, offerspb.NodeKind_VARIANT, "cf4-research-inference-call", offerspb.Status_ACTIVE, "", "")
+	require.NoError(t, err)
+	offerID, variantID := offer.Id, variant.Id
+	_, err = s.CreateEdge(ctx, &offerspb.Edge{FromId: offerID, ToId: variantID, Kind: "sells_at", IntendedPriceMinor: 1, Currency: "USD", IntendedPriceDeclared: true})
+	require.NoError(t, err)
+	var amount int64
+	var currency string
+	var declared bool
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT intended_price_minor,currency,intended_price_declared FROM edges WHERE from_id=? AND to_id=? AND kind='sells_at'`, offerID, variantID).Scan(&amount, &currency, &declared))
+	require.EqualValues(t, 1, amount)
+	require.Equal(t, "USD", currency)
+	require.True(t, declared)
+}

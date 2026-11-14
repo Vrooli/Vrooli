@@ -27,6 +27,7 @@ import (
 	healthH "offer-desk/handlers/health"
 	offersH "offer-desk/handlers/offers"
 	searchH "offer-desk/handlers/search"
+	serviceOfferPrototypeH "offer-desk/handlers/serviceofferprototype"
 	localdb "offer-desk/internal/database"
 
 	offersv1 "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers"
@@ -42,6 +43,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
 	out = append(out, offersH.Endpoints...)
+	out = append(out, serviceOfferPrototypeH.Endpoints...)
 	out = append(out, searchH.Endpoints...)
 	return out
 }

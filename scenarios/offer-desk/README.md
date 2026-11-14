@@ -1,5 +1,11 @@
 # Offer Desk
 
+Portal is the successor suite chat and app surface for agent-inbox and
+app-monitor. It is already a marketed deliverable in the Vrooli subscription
+lineup: the live catalog places Portal in both Business Bundle and Lifestyle
+Bundle. See [Portal's successor path](../portal/docs/concepts/SUCCESSOR-PATH.md)
+before changing the lineup or planning related product work.
+
 Holds every sellable thing an operator offers as a record with a state, evaluates the conditions that should move it, and refuses the transitions that should not happen.
 
 **The capability in one sentence:** an offer that is waiting on a condition stops being something a human has to remember. The condition is declared once, evaluated on a schedule, and surfaces itself when it fires.

@@ -29,6 +29,7 @@ import (
 	healthH "offer-desk/handlers/health"
 	offersH "offer-desk/handlers/offers"
 	searchH "offer-desk/handlers/search"
+	serviceofferprototypeH "offer-desk/handlers/serviceofferprototype"
 )
 
 // scenarioStorageRoots resolves all filesystem storage classes once at
@@ -100,6 +101,7 @@ func main() {
 		healthH.Module(db, "offer-desk-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
 		offersH.Module(db, clock, log.Default()),
+		serviceofferprototypeH.Module(),
 		searchH.Module(db, clock, searcher),
 	)
 

@@ -255,6 +255,30 @@
       "category": "offers"
     },
     {
+      "id": "service_offer_prototype",
+      "path": "/api/v1/proposal-preview/service-offer",
+      "method": "GET",
+      "summary": "Preview a single staged service offer and its derived purchase/discovery door contracts",
+      "description": "",
+      "category": "proposal",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Read-only, local operator preview for a proposed Offer Desk extension; it does not create an order, publish content, or authorize an external effect."
+      }
+    },
+    {
+      "id": "service_offer_sample",
+      "path": "/api/v1/proposal-preview/service-offer/sample",
+      "method": "GET",
+      "summary": "Read the public-data sample attached to the proposed service offer",
+      "description": "",
+      "category": "proposal",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Read-only, local operator preview for a proposed Offer Desk extension; it does not create an order, publish content, or authorize an external effect."
+      }
+    },
+    {
       "id": "search_query",
       "path": "/vrooli.offer_desk.v1.search.SearchService/Search",
       "method": "POST",
