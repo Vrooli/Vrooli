@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 func TestDo_SucceedsOnFirstAttempt(t *testing.T) {
@@ -34,7 +36,7 @@ func TestDo_RetriesUntilSuccess(t *testing.T) {
 		MaxAttempts: 5,
 		BaseDelay:   100 * time.Millisecond,
 		MaxDelay:    10 * time.Second,
-		Sleeper:     func(d time.Duration) { sleeps = append(sleeps, d) },
+		Clock:       scheduletest.NewImmediate(time.Time{}, func(d time.Duration) { sleeps = append(sleeps, d) }),
 		Rand:        func() float64 { return 0 }, // No jitter for predictable testing
 	}
 
@@ -64,7 +66,7 @@ func TestDo_ExhaustsAllAttempts(t *testing.T) {
 	cfg := Config{
 		MaxAttempts: 3,
 		BaseDelay:   time.Millisecond,
-		Sleeper:     func(d time.Duration) {},
+		Clock:       scheduletest.NewImmediate(time.Time{}, func(d time.Duration) {}),
 	}
 
 	err := Do(context.Background(), cfg, func(attempt int) error {
@@ -86,6 +88,25 @@ func TestDo_ExhaustsAllAttempts(t *testing.T) {
 	}
 }
 
+func TestDo_ReturnsNonRetryableErrorImmediately(t *testing.T) {
+	want := errors.New("invalid configuration")
+	attempts := 0
+	err := Do(context.Background(), Config{
+		MaxAttempts: 5,
+		Retryable:   func(error) bool { return false },
+		Clock:       scheduletest.NewImmediate(time.Time{}, func(d time.Duration) { t.Fatal("non-retryable error must not sleep") }),
+	}, func(int) error {
+		attempts++
+		return want
+	})
+	if !errors.Is(err, want) {
+		t.Fatalf("Do() error = %v, want %v", err, want)
+	}
+	if attempts != 1 {
+		t.Fatalf("attempts = %d, want 1", attempts)
+	}
+}
+
 func TestDo_ExponentialBackoff(t *testing.T) {
 	t.Parallel()
 
@@ -95,7 +116,7 @@ func TestDo_ExponentialBackoff(t *testing.T) {
 		BaseDelay:      100 * time.Millisecond,
 		MaxDelay:       10 * time.Second,
 		JitterFraction: 0, // Disable jitter for exact values
-		Sleeper:        func(d time.Duration) { sleeps = append(sleeps, d) },
+		Clock:          scheduletest.NewImmediate(time.Time{}, func(d time.Duration) { sleeps = append(sleeps, d) }),
 	}
 
 	Do(context.Background(), cfg, func(attempt int) error {
@@ -130,7 +151,7 @@ func TestDo_CapsAtMaxDelay(t *testing.T) {
 		BaseDelay:      100 * time.Millisecond,
 		MaxDelay:       300 * time.Millisecond, // Cap kicks in at attempt 2
 		JitterFraction: 0,
-		Sleeper:        func(d time.Duration) { sleeps = append(sleeps, d) },
+		Clock:          scheduletest.NewImmediate(time.Time{}, func(d time.Duration) { sleeps = append(sleeps, d) }),
 	}
 
 	Do(context.Background(), cfg, func(attempt int) error {
@@ -168,7 +189,7 @@ func TestDo_JitterAddsRandomness(t *testing.T) {
 		BaseDelay:      100 * time.Millisecond,
 		MaxDelay:       10 * time.Second,
 		JitterFraction: 0.25,
-		Sleeper:        func(d time.Duration) { sleeps = append(sleeps, d) },
+		Clock:          scheduletest.NewImmediate(time.Time{}, func(d time.Duration) { sleeps = append(sleeps, d) }),
 		Rand:           func() float64 { return randValue },
 	}
 
@@ -199,7 +220,7 @@ func TestDo_JitterMaxValue(t *testing.T) {
 		BaseDelay:      100 * time.Millisecond,
 		MaxDelay:       10 * time.Second,
 		JitterFraction: 0.25,
-		Sleeper:        func(d time.Duration) { sleeps = append(sleeps, d) },
+		Clock:          scheduletest.NewImmediate(time.Time{}, func(d time.Duration) { sleeps = append(sleeps, d) }),
 		Rand:           func() float64 { return 0.9999 }, // Near max
 	}
 
@@ -224,7 +245,7 @@ func TestDo_ContextCancellation(t *testing.T) {
 	cfg := Config{
 		MaxAttempts: 10,
 		BaseDelay:   time.Millisecond,
-		Sleeper:     func(d time.Duration) {},
+		Clock:       scheduletest.NewImmediate(time.Time{}, func(d time.Duration) {}),
 	}
 
 	err := Do(ctx, cfg, func(attempt int) error {
@@ -279,7 +300,7 @@ func TestDo_OnRetryCallback(t *testing.T) {
 		BaseDelay:      100 * time.Millisecond,
 		MaxDelay:       10 * time.Second,
 		JitterFraction: 0,
-		Sleeper:        func(d time.Duration) {},
+		Clock:          scheduletest.NewImmediate(time.Time{}, func(d time.Duration) {}),
 		OnRetry: func(attempt int, err error, delay time.Duration) {
 			callbacks = append(callbacks, struct {
 				attempt int
@@ -314,7 +335,7 @@ func TestDo_PassesAttemptNumber(t *testing.T) {
 	cfg := Config{
 		MaxAttempts: 3,
 		BaseDelay:   time.Millisecond,
-		Sleeper:     func(d time.Duration) {},
+		Clock:       scheduletest.NewImmediate(time.Time{}, func(d time.Duration) {}),
 	}
 
 	Do(context.Background(), cfg, func(attempt int) error {
@@ -346,7 +367,7 @@ func TestDo_WrapsLastError(t *testing.T) {
 	cfg := Config{
 		MaxAttempts: 3,
 		BaseDelay:   time.Millisecond,
-		Sleeper:     func(d time.Duration) {},
+		Clock:       scheduletest.NewImmediate(time.Time{}, func(d time.Duration) {}),
 	}
 
 	err := Do(context.Background(), cfg, func(attempt int) error {
@@ -385,7 +406,7 @@ func TestDo_AppliesDefaults(t *testing.T) {
 
 	// Empty config should use defaults
 	cfg := Config{
-		Sleeper: func(d time.Duration) {},
+		Clock: scheduletest.NewImmediate(time.Time{}, func(d time.Duration) {}),
 	}
 
 	attempts := 0
@@ -409,7 +430,7 @@ func TestDo_NoSleepAfterLastAttempt(t *testing.T) {
 	cfg := Config{
 		MaxAttempts: 3,
 		BaseDelay:   time.Millisecond,
-		Sleeper:     func(d time.Duration) { sleepCount++ },
+		Clock:       scheduletest.NewImmediate(time.Time{}, func(d time.Duration) { sleepCount++ }),
 	}
 
 	Do(context.Background(), cfg, func(attempt int) error {
@@ -429,7 +450,7 @@ func TestDo_NoSleepOnSuccess(t *testing.T) {
 	cfg := Config{
 		MaxAttempts: 10,
 		BaseDelay:   time.Millisecond,
-		Sleeper:     func(d time.Duration) { sleepCount++ },
+		Clock:       scheduletest.NewImmediate(time.Time{}, func(d time.Duration) { sleepCount++ }),
 	}
 
 	err := Do(context.Background(), cfg, func(attempt int) error {

@@ -1,0 +1,44 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "now",
+    "title": "Now",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Answer in five seconds whether anything needs the operator and whether anything is working: one status line with the newest research write, the needs-you titles, then live, limited and paused supervisors with their topics; what changed in a chosen period with one Caught up; overlaps among commissions open now.",
+    "prd_refs": [
+      "OT-P0-004",
+      "OT-P0-006",
+      "OT-P0-013"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "One status line (live, paused and limited counts and the newest research write); at most three needs-you titles with the count, each opening its item; a group each for live, limited and paused with claims shown apart from observations and an allowance-ended badge; Since with a period choice and a confirmed Caught up; overlapping pairs among open commissions; prepared packets; every state count."
+    },
+    {
+      "id": "loading",
+      "description": "Each section announces that it is reading the research home."
+    },
+    {
+      "id": "empty",
+      "description": "No supervisor window is open: the page says so and offers Launch. With windows open but nothing live, a notice says nothing is working and the paused or limited groups follow."
+    },
+    {
+      "id": "partial",
+      "description": "An optional scenario is down or a research-home file cannot be read; only the values it feeds read unknown with the reason, and a notice names the scenario or lists the files."
+    },
+    {
+      "id": "request-error",
+      "description": "The API cannot be reached or refused the read; the page names which and offers retry, and nothing else on the page pretends to know."
+    },
+    {
+      "id": "stale",
+      "description": "A refresh failed after a good read: the earlier read stays on screen under a 'Not current' notice with its time and the reason."
+    }
+  ]
+}

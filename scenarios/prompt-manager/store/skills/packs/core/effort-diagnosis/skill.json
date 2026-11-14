@@ -1,0 +1,41 @@
+{
+  "createdAt": "2026-11-06T00:00:00Z",
+  "description": "Diagnose why a goal, supervisor, research cohort, hunt or other long-running agent effort under-delivers, starts too small, or decays over time. Measure the effort from its native transcripts (goal injections, compactions, sub-agent trees, worker lifetime, inherited context, changed lines, narrowing narration), test the cataloged mechanisms against their signatures, and route fixes to the goal text, the skills, AGENTS.md or the platform. Use when an operator says an effort is not bold enough, rounds are shrinking, workers do little, or a goal stopped early.",
+  "entry": "SKILL.md",
+  "icon": "activity",
+  "id": "effort-diagnosis",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "effort-diagnosis",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill read",
+      "prompt-manager skill show",
+      "vrooli-memory journal note"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "vrooli-memory"
+    ]
+  },
+  "revision": 3,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "goal",
+    "long-running",
+    "supervision",
+    "sub-agent",
+    "decay",
+    "diagnosis",
+    "orchestration",
+    "research"
+  ],
+  "updatedAt": "2026-11-06T23:45:00Z"
+}

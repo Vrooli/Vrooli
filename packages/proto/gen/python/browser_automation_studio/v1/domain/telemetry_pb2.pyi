@@ -47,9 +47,11 @@ class NetworkEvent(_message.Message):
     def __init__(self, type: _Optional[_Union[_shared_pb2.NetworkEventType, str]] = ..., url: _Optional[str] = ..., method: _Optional[str] = ..., resource_type: _Optional[str] = ..., status: _Optional[int] = ..., ok: _Optional[bool] = ..., failure: _Optional[str] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class ActionTelemetry(_message.Message):
-    __slots__ = ("url", "frame_id", "screenshot", "dom_snapshot", "element_bounding_box", "click_position", "cursor_position", "cursor_trail", "highlight_regions", "mask_regions", "zoom_factor", "console_log_artifact", "network_event_artifact")
+    __slots__ = ("url", "frame_id", "frame_path", "driver_page_id", "screenshot", "dom_snapshot", "element_bounding_box", "click_position", "cursor_position", "cursor_trail", "highlight_regions", "mask_regions", "zoom_factor", "console_log_artifact", "network_event_artifact")
     URL_FIELD_NUMBER: _ClassVar[int]
     FRAME_ID_FIELD_NUMBER: _ClassVar[int]
+    FRAME_PATH_FIELD_NUMBER: _ClassVar[int]
+    DRIVER_PAGE_ID_FIELD_NUMBER: _ClassVar[int]
     SCREENSHOT_FIELD_NUMBER: _ClassVar[int]
     DOM_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_BOUNDING_BOX_FIELD_NUMBER: _ClassVar[int]
@@ -63,6 +65,8 @@ class ActionTelemetry(_message.Message):
     NETWORK_EVENT_ARTIFACT_FIELD_NUMBER: _ClassVar[int]
     url: str
     frame_id: str
+    frame_path: _containers.RepeatedScalarFieldContainer[str]
+    driver_page_id: str
     screenshot: TimelineScreenshot
     dom_snapshot: TelemetryArtifact
     element_bounding_box: _geometry_pb2.BoundingBox
@@ -74,7 +78,7 @@ class ActionTelemetry(_message.Message):
     zoom_factor: float
     console_log_artifact: TelemetryArtifact
     network_event_artifact: TelemetryArtifact
-    def __init__(self, url: _Optional[str] = ..., frame_id: _Optional[str] = ..., screenshot: _Optional[_Union[TimelineScreenshot, _Mapping]] = ..., dom_snapshot: _Optional[_Union[TelemetryArtifact, _Mapping]] = ..., element_bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ..., click_position: _Optional[_Union[_geometry_pb2.Point, _Mapping]] = ..., cursor_position: _Optional[_Union[_geometry_pb2.Point, _Mapping]] = ..., cursor_trail: _Optional[_Iterable[_Union[_geometry_pb2.Point, _Mapping]]] = ..., highlight_regions: _Optional[_Iterable[_Union[_selectors_pb2.HighlightRegion, _Mapping]]] = ..., mask_regions: _Optional[_Iterable[_Union[_selectors_pb2.MaskRegion, _Mapping]]] = ..., zoom_factor: _Optional[float] = ..., console_log_artifact: _Optional[_Union[TelemetryArtifact, _Mapping]] = ..., network_event_artifact: _Optional[_Union[TelemetryArtifact, _Mapping]] = ...) -> None: ...
+    def __init__(self, url: _Optional[str] = ..., frame_id: _Optional[str] = ..., frame_path: _Optional[_Iterable[str]] = ..., driver_page_id: _Optional[str] = ..., screenshot: _Optional[_Union[TimelineScreenshot, _Mapping]] = ..., dom_snapshot: _Optional[_Union[TelemetryArtifact, _Mapping]] = ..., element_bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ..., click_position: _Optional[_Union[_geometry_pb2.Point, _Mapping]] = ..., cursor_position: _Optional[_Union[_geometry_pb2.Point, _Mapping]] = ..., cursor_trail: _Optional[_Iterable[_Union[_geometry_pb2.Point, _Mapping]]] = ..., highlight_regions: _Optional[_Iterable[_Union[_selectors_pb2.HighlightRegion, _Mapping]]] = ..., mask_regions: _Optional[_Iterable[_Union[_selectors_pb2.MaskRegion, _Mapping]]] = ..., zoom_factor: _Optional[float] = ..., console_log_artifact: _Optional[_Union[TelemetryArtifact, _Mapping]] = ..., network_event_artifact: _Optional[_Union[TelemetryArtifact, _Mapping]] = ...) -> None: ...
 
 class TimelineScreenshot(_message.Message):
     __slots__ = ("artifact_id", "url", "thumbnail_url", "width", "height", "content_type", "size_bytes", "path")

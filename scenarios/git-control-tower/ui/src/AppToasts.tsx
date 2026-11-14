@@ -77,27 +77,57 @@ export function WarningToast({ notice, onDismiss, positionClass }: WarningToastP
 export interface PushToastProps {
   notice: PushNotice | null;
   positionClass: string;
+  onDismiss: () => void;
 }
 
-export function PushToast({ notice, positionClass }: PushToastProps) {
-  if (!notice) return null;
+const PUSH_TONE_STYLES: Record<PushNotice["tone"], string> = {
+  error: "bg-red-950 border-red-800 text-red-200",
+  warning: "bg-amber-950 border-amber-800 text-amber-200",
+  info: "bg-sky-950 border-sky-800 text-sky-200",
+  success: "bg-emerald-950 border-emerald-800 text-emerald-200"
+};
 
-  const tone =
-    notice.tone === "warning"
-      ? "bg-amber-950 border-amber-800 text-amber-200"
-      : notice.tone === "info"
-        ? "bg-sky-950 border-sky-800 text-sky-200"
-        : "bg-emerald-950 border-emerald-800 text-emerald-200";
-  const title =
-    notice.tone === "warning" ? "Push verification warning" : "Push status";
+const PUSH_TONE_TITLES: Record<PushNotice["tone"], string> = {
+  error: "Sync failed",
+  warning: "Needs attention",
+  info: "Sync status",
+  success: "Sync status"
+};
+
+export function PushToast({ notice, positionClass, onDismiss }: PushToastProps) {
+  if (!notice) return null;
 
   return (
     <div
-      className={`${positionClass} px-4 py-3 rounded-lg border text-sm ${tone}`}
+      className={`${positionClass} px-4 py-3 rounded-lg border text-sm shadow-lg ${PUSH_TONE_STYLES[notice.tone]}`}
       data-testid="push-toast"
+      role={notice.tone === "error" ? "alert" : "status"}
     >
-      <p className="font-medium">{title}</p>
-      <p className="text-xs mt-1">{notice.message}</p>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-medium">{PUSH_TONE_TITLES[notice.tone]}</p>
+          <p className="text-xs mt-1">{notice.message}</p>
+          {notice.detail && (
+            <pre
+              className="text-[11px] mt-2 whitespace-pre-wrap break-words max-h-32 overflow-y-auto opacity-90"
+              data-testid="push-toast-detail"
+            >
+              {notice.detail}
+            </pre>
+          )}
+        </div>
+        {notice.sticky && (
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="p-1 opacity-70 hover:opacity-100"
+            aria-label="Dismiss"
+            data-testid="push-toast-dismiss"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

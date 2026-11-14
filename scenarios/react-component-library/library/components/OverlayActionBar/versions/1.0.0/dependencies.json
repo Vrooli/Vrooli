@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:OverlayActionBar",
+  "version": "1.0.0",
+  "resolvedAt": "2026-11-13T20:55:00Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    }
+  ]
+}

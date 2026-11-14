@@ -1,0 +1,10 @@
+{
+  "gate": "style-injection",
+  "assetId": "calibration.style-injection",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.style-injection",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "description": "Emits a style element from component output."
+}

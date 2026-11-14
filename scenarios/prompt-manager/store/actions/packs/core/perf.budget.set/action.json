@@ -1,0 +1,85 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "perf.budget.set",
+  "name": "Set a scenario or per-flow performance budget",
+  "description": "Declare a performance budget threshold for a scenario (build/bundle/startup/LCP/component-commit) or, with --flow, for one interaction journey (LCP + component-commit). Add --ratchet to make the budget tighten-only. Budgets gate via baseline-diff: a regression past a declared axis fails the next diff exactly like any other health regression.",
+  "status": "active",
+  "owner": {
+    "type": "scenario",
+    "id": "performance-health"
+  },
+  "command": {
+    "argv": [
+      "performance-health",
+      "budget",
+      "set",
+      "{{scenario}}",
+      "--flow",
+      "{{flow}}",
+      "--lcp-max-ms",
+      "{{lcp_max_ms}}",
+      "--json"
+    ]
+  },
+  "inputs": {
+    "scenario": {
+      "type": "string",
+      "required": true,
+      "description": "Scenario slug."
+    },
+    "flow": {
+      "type": "string",
+      "required": false,
+      "description": "Interaction-flow slug for a per-flow budget; empty = scenario-level."
+    },
+    "lcp_max_ms": {
+      "type": "string",
+      "required": false,
+      "description": "Max Largest Contentful Paint in milliseconds (one axis; see `budget set --help` for the rest)."
+    }
+  },
+  "outputs": {
+    "budget": {
+      "type": "string",
+      "description": "The written budget."
+    }
+  },
+  "permissions": {
+    "filesystemRead": true,
+    "filesystemWrite": true,
+    "externalNetwork": true,
+    "processStart": true
+  },
+  "examples": [
+    {
+      "description": "Set a 2500ms LCP budget on the scroll-library flow.",
+      "input": {
+        "scenario": "image-tools",
+        "flow": "scroll-library",
+        "lcp_max_ms": "2500"
+      }
+    }
+  ],
+  "tags": [
+    "performance",
+    "budget",
+    "ratchet",
+    "lcp",
+    "component",
+    "commit",
+    "gate",
+    "ui"
+  ],
+  "execution": {
+    "timeoutSeconds": 120,
+    "outputMode": "stdout",
+    "runEligible": false
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-06-22T00:00:00Z",
+  "updatedAt": "2026-06-22T00:00:00Z"
+}

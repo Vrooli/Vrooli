@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "patterns.card-grid",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2"
+  ],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2",
+    "1.0.3"
+  ],
+  "latest": "1.0.5",
+  "libraryId": "react-component-library:CardGrid",
+  "displayName": "Card Grid",
+  "description": "A restrained responsive card arrangement that establishes a raised surface context for repeated records without turning every page section into a floating panel.",
+  "tags": []
+}

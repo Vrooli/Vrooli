@@ -1,0 +1,271 @@
+{
+  "metadata": {
+    "name": "e21-permission-denied-dark-phone",
+    "description": "Validate denied browser permission recovery and return to devices on dark phone without invoking a native prompt, enrollment or registration.",
+    "requirement": "NOTIFICA-P0-003",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "e21-permission-denied-dark-phone"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Validate denied browser permission recovery and return to devices on dark phone without invoking a native prompt, enrollment or registration.",
+      "requirement": "NOTIFICA-P0-003",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-settings-theme",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?view=all&vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-permission-denied-dark-phone",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open Settings in the leased disposable owner fixture"
+          }
+        }
+      },
+      {
+        "id": "wait-settings-page",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/layout.main",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the managed Settings page"
+          }
+        }
+      },
+      {
+        "id": "select-theme",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.themeOption(choice=dark)"
+          },
+          "metadata": {
+            "label": "Set dark appearance for permission recovery"
+          }
+        }
+      },
+      {
+        "id": "open-reach",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/reach?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-permission-denied-dark-phone",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open owner-routed Reach with the selected disposable fixture"
+          }
+        }
+      },
+      {
+        "id": "wait-reach-page",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/reach.root",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the Reach route and owner fixture"
+          }
+        }
+      },
+      {
+        "id": "simulate-browser-denial",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const prior=Object.getOwnPropertyDescriptor(window,'Notification');Object.defineProperty(window,'Notification',{configurable:true,writable:true,value:{permission:'denied'}});document.dispatchEvent(new Event('visibilitychange'));window.dispatchEvent(new Event('focus'));return {permission:window.Notification.permission,priorDescriptorConfigurable:prior?.configurable??null,requestPermissionInvoked:false,simulationOnly:true}})()",
+            "store_result": "permissionFixture"
+          },
+          "metadata": {
+            "label": "Set denied browser permission in the isolated browser page without invoking a native prompt"
+          }
+        }
+      },
+      {
+        "id": "refresh-browser-permission-read",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Check again"
+          },
+          "metadata": {
+            "label": "Re-read browser permission through the visible connection status control"
+          }
+        }
+      },
+      {
+        "id": "wait-permission-recovery",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/reach.permissionRecovery",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the no-prompt permission recovery screen"
+          }
+        }
+      },
+      {
+        "id": "assert-denial-recovery",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const recovery=document.querySelector('[data-testid=reach-permission-recovery]');const text=recovery?.textContent||'';for(const expected of ['Notifications weren’t allowed','Your browser did not grant notification permission.','Change permission in browser settings','Back to devices'])if(!text.includes(expected)&&!document.body.innerText.includes(expected))throw new Error('permission recovery missing '+expected);if(document.querySelector('[data-testid=reach-enroll-preflight]'))throw new Error('enrollment preflight unexpectedly visible');return {permission:'denied',recoveryVisible:Boolean(recovery),enrollmentPreflight:false,permissionPromptInvoked:false}})()"
+          },
+          "metadata": {
+            "label": "Assert denied state is recoverable and does not offer or invoke enrollment"
+          }
+        }
+      },
+      {
+        "id": "normalize-capture",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{document.activeElement instanceof HTMLElement&&document.activeElement.blur();const r=document.documentElement;r.style.setProperty('--safe-area-inset-top','0px');r.style.setProperty('--safe-area-inset-bottom','0px');const theme=r.getAttribute('data-theme');if(innerWidth!==390||innerHeight!==844||theme!=='dark')throw new Error('selected viewport/theme mismatch');return {viewport:{width:innerWidth,height:innerHeight},theme,top:0,bottom:0}})()",
+            "store_result": "selectedCaptureState"
+          },
+          "metadata": {
+            "label": "Normalize selected phone viewport and zero insets"
+          }
+        }
+      },
+      {
+        "id": "capture-denied-recovery",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture selected dark phone permission-denied recovery"
+          }
+        }
+      },
+      {
+        "id": "return-to-devices",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/reach.permissionRecoveryBack"
+          },
+          "metadata": {
+            "label": "Return to device management without changing the denied permission"
+          }
+        }
+      },
+      {
+        "id": "assert-returned-to-devices",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=reach-settings]');const text=root?.innerText||'';if(!text.includes('Registered devices')||!text.includes('Browser permission is denied')||root?.querySelector('[data-testid=reach-enroll-preflight]'))throw new Error('device-management recovery state is incomplete');return {deviceManagementVisible:true,permissionStillDenied:true,enrollmentPreflight:false}})()"
+          },
+          "metadata": {
+            "label": "Assert devices return and preserve denied permission with no enrollment preflight"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "permission-denied-dark-00",
+        "source": "open-settings-theme",
+        "target": "wait-settings-page",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "permission-denied-dark-01",
+        "source": "wait-settings-page",
+        "target": "select-theme",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "permission-denied-dark-02",
+        "source": "select-theme",
+        "target": "open-reach",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "permission-denied-dark-03",
+        "source": "open-reach",
+        "target": "wait-reach-page",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "permission-denied-dark-04",
+        "source": "wait-reach-page",
+        "target": "simulate-browser-denial",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "permission-denied-dark-05",
+        "source": "simulate-browser-denial",
+        "target": "refresh-browser-permission-read",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "permission-denied-dark-06",
+        "source": "refresh-browser-permission-read",
+        "target": "wait-permission-recovery",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "permission-denied-dark-07",
+        "source": "wait-permission-recovery",
+        "target": "assert-denial-recovery",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "permission-denied-dark-08",
+        "source": "assert-denial-recovery",
+        "target": "normalize-capture",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "permission-denied-dark-09",
+        "source": "normalize-capture",
+        "target": "capture-denied-recovery",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "permission-denied-dark-10",
+        "source": "capture-denied-recovery",
+        "target": "return-to-devices",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "permission-denied-dark-11",
+        "source": "return-to-devices",
+        "target": "assert-returned-to-devices",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

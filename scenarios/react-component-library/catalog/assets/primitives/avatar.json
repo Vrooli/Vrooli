@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.avatar",
+    "name": "Avatar",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "primitives",
+    "description": "The identity visual with progressive image loading, deterministic fallback, presence and status treatment, shape options, group behavior, and accessible naming.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.progressive-image",
+        "reason": "Image loading, error handling, and layout reservation are shared."
+      },
+      {
+        "asset": "primitives.text",
+        "reason": "The initials fallback is a text style, not bespoke typography."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "contrast-floor",
+    "non-color-status"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "request-error"
+  ]
+}

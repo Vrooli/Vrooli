@@ -1,0 +1,122 @@
+{
+  "_metadata": {
+    "description": "Programmatic application of brand elements into a target scenario (CSS markers, manifest _brand/icons/theme keys, asset + icon-set copy) plus DESIGN.md export.",
+    "last_validated_at": "2026-07-11T19:56:40-04:00",
+    "module": "apply",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "APPLY-001",
+      "title": "Apply colors and typography via marked CSS custom properties",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "apply",
+      "criticality": "P0",
+      "description": "Apply writes brand colors and typography as CSS custom properties delimited by /* brand-manager:\u003celement\u003e */ markers, replacing only the marked region so unrelated CSS is preserved.",
+      "tags": [
+        "apply",
+        "css",
+        "markers"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned unit coverage at api/internal/apply/css_test.go once the marker-based apply engine is ported."
+        }
+      ]
+    },
+    {
+      "id": "APPLY-002",
+      "title": "Apply manifest _brand keys and copy static assets atomically",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "apply",
+      "criticality": "P0",
+      "description": "Apply sets manifest.json _brand keys and favicon paths and copies brand static assets into the target scenario atomically, so a failed apply does not leave the target half-branded.",
+      "tags": [
+        "apply",
+        "manifest",
+        "assets"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned unit coverage at api/internal/apply/manifest_test.go once manifest/asset apply is ported."
+        }
+      ]
+    },
+    {
+      "id": "APPLY-003",
+      "title": "Re-applying an unchanged brand is idempotent",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "apply",
+      "criticality": "P0",
+      "description": "Applying the same brand version twice produces no second diff: marked regions, manifest keys, and copied assets are byte-identical on the second run.",
+      "tags": [
+        "idempotency",
+        "apply"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned unit coverage at api/internal/apply/idempotency_test.go once apply idempotency is ported."
+        }
+      ]
+    },
+    {
+      "id": "APPLY-004",
+      "title": "Export a root-level DESIGN.md during apply",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "apply",
+      "criticality": "P0",
+      "description": "Apply renders a root-level DESIGN.md for the target scenario from structured brand data plus user notes, regenerating it deterministically on each apply.",
+      "tags": [
+        "design-doc",
+        "export"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned unit coverage at api/internal/apply/designdoc_test.go once DESIGN.md export is ported."
+        }
+      ]
+    },
+    {
+      "id": "APPLY-005",
+      "title": "Install the derived PWA/launcher icon set and manifest icon metadata",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "apply",
+      "criticality": "P0",
+      "description": "The 'icons' element copies whichever derived icon assets the brand has (favicon-16/32/196, apple-touch-icon, maskable-icon-192/512) into ui/public and merges the manifest icons array (with purpose 'maskable' where appropriate) plus theme_color/background_color from the brand colors. Each icon copy is a distinct action so a preview reports the full plan; the manifest icons array is rebuilt (never appended) so re-apply is byte-identical with no duplicate entries.",
+      "tags": [
+        "apply",
+        "icons",
+        "manifest",
+        "pwa",
+        "idempotency"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by api/internal/apply/service_test.go (TestApply_InstallsIconSetAndManifestIconsIdempotently)."
+        }
+      ]
+    }
+  ]
+}

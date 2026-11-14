@@ -3,9 +3,9 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "@/test-utils";
 import { PrerequisitesPanel } from "./PrerequisitesPanel";
-import type { ToolDetectionResult } from "../../lib/api";
+import type { ToolDetectionResult } from "../../domain/signing";
 
 describe("PrerequisitesPanel", () => {
   it("renders empty state when no tools provided", () => {
@@ -58,7 +58,9 @@ describe("PrerequisitesPanel", () => {
 
   it("disables refresh button and shows loading state when refreshing", () => {
     const onRefresh = vi.fn();
-    render(<PrerequisitesPanel tools={[]} onRefresh={onRefresh} refreshing={true} />);
+    render(
+      <PrerequisitesPanel tools={[]} onRefresh={onRefresh} refreshing={true} />,
+    );
 
     const refreshButton = screen.getByRole("button", { name: /re-scanning/i });
     expect(refreshButton).toBeDisabled();
@@ -66,7 +68,12 @@ describe("PrerequisitesPanel", () => {
 
   it("renders tools grouped by platform when tools provided", () => {
     const tools: ToolDetectionResult[] = [
-      { tool: "signtool", platform: "windows", installed: true, version: "10.0" },
+      {
+        tool: "signtool",
+        platform: "windows",
+        installed: true,
+        version: "10.0",
+      },
       { tool: "codesign", platform: "macos", installed: true },
       { tool: "gpg", platform: "linux", installed: false },
     ];
@@ -126,7 +133,9 @@ describe("PrerequisitesPanel", () => {
     ];
     render(<PrerequisitesPanel tools={tools} />);
 
-    expect(screen.getByText("Install via apt: apt install osslsigncode")).toBeInTheDocument();
+    expect(
+      screen.getByText("Install via apt: apt install osslsigncode"),
+    ).toBeInTheDocument();
   });
 
   it("shows install hints for missing tools", () => {

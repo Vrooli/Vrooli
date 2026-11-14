@@ -14,9 +14,9 @@
 
 import { useEffect, useState } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { Menu, X, Folder, User, Info, ChevronDown, ChevronUp, MoreHorizontal, Copy, Trash2, Eye, Circle } from 'lucide-react'
+import { Menu, X, Folder, User, Info, ChevronDown, ChevronUp, MoreHorizontal, Copy, Trash2, Eye, Circle, MessageSquare } from 'lucide-react'
 import { TabList, TabTrigger } from '../shared/TabTrigger'
-import { cn } from '@/lib/utils'
+import { cn, compactIdentityLabel } from '@/lib/utils'
 import type { Agent } from '@/types/agent'
 import type { NormalizedAgentFormState } from '@/stores/agentEditorStore'
 import type { ValidationResult } from '@/types/entityEditorStore'
@@ -29,6 +29,10 @@ import type { HighlightRequest } from '@/lib/highlight'
 import { InfoTab, FilesTab, PromptTab } from './tabs'
 import { AgentColorBadge } from '../shared/AgentColorBadge'
 import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
+import { AgentChatTab } from '../chat/AgentChatTab'
+import { MemberChatContextSelector } from '../chat/MemberChatContextSelector'
+import { useAgentPersonaChoices } from '../chat/useAgentPersonaChoices'
+import type { ConversationIdentity, SessionStorage } from '../chat/conversationSession'
 
 interface AgentEditorPanelProps {
   /** Current agent being edited (for read-only metadata) */
@@ -79,6 +83,10 @@ interface AgentEditorPanelProps {
   onHighlightHandled?: () => void
   /** Tab to open initially (e.g. 'prompt' from context menu) */
   initialTab?: string
+  /** Mount the persona conversation surface as a Chat tab (agent-page chat) */
+  enableChat?: boolean
+  /** Optional storage override for chat session tests */
+  chatStorage?: SessionStorage
   /** Additional class names */
   className?: string
 }
@@ -114,13 +122,38 @@ export function AgentEditorPanel({
   highlightRequest,
   onHighlightHandled,
   initialTab,
+  enableChat = false,
+  chatStorage,
   className,
 }: AgentEditorPanelProps) {
   // TODO: Wire up save all button in the actions menu
   void _onSaveAll
   // Active tab state
-  const [activeTab, setActiveTab] = useState(initialTab ?? 'files')
+  const [activeTab, setActiveTab] = useState(initialTab ?? 'info')
   const isCompactHeader = useIsCompactHeader()
+
+  // Shared persona context: one selection drives both the agent-page chat and
+  // the prompt preview, so the preview always matches the selected conversation.
+  const [identity, setIdentity] = useState<ConversationIdentity>(() => ({
+    agentId: agent?.id ?? '',
+  }))
+  useEffect(() => {
+    setIdentity({ agentId: agent?.id ?? '' })
+  }, [agent?.id])
+
+  const personaChoices = useAgentPersonaChoices(agent?.id ?? '')
+  const pageAgentChoices = personaChoices.agents.filter((choice) => choice.id === agent?.id)
+  const pageMemberships = personaChoices.memberships.filter(
+    (membership) => membership.agentId === agent?.id,
+  )
+  const showSharedContext = enableChat && (activeTab === 'prompt' || activeTab === 'chat')
+  const sharedContextProps = enableChat
+    ? {
+        selectedTeamId: identity.teamId,
+        onSelectedTeamIdChange: (teamId: string | undefined) =>
+          setIdentity({ agentId: agent?.id ?? '', teamId }),
+      }
+    : {}
 
   // Sync when initialTab changes (e.g. context menu → prompt tab)
   useEffect(() => {
@@ -150,7 +183,7 @@ export function AgentEditorPanel({
     <div className={cn('h-full flex flex-col bg-card/50', className)}>
       {/* Header */}
       <div
-        className="flex-shrink-0 px-4 py-3 border-b border-border space-y-2"
+        className="flex-shrink-0 space-y-1.5 border-b border-border px-3 py-2 sm:space-y-2 sm:px-4 sm:py-3"
         data-testid={selectors.agentEditor.header}
       >
         {/* Row 1: Close, Name, Status */}
@@ -167,7 +200,7 @@ export function AgentEditorPanel({
           </button>
 
           {/* Agent color badge - uses form state */}
-          <AgentColorBadge appearance={formState.appearance} size="md" />
+          <AgentColorBadge appearance={formState.appearance} size="sm" />
 
           {/* Editable name - uses form state */}
           <div className="flex-1 min-w-0">
@@ -175,7 +208,8 @@ export function AgentEditorPanel({
               value={formState.displayName}
               onChange={(value) => updateField('displayName', value)}
               placeholder="Agent name"
-              className="text-lg font-semibold"
+              displayValue={isCompactHeader ? compactIdentityLabel(formState.displayName) : formState.displayName}
+              className="max-w-[min(48vw,22rem)] overflow-hidden text-base font-semibold leading-tight line-clamp-1 sm:max-w-none sm:text-lg sm:line-clamp-2"
               error={validation.errors.displayName}
             />
           </div>
@@ -244,11 +278,13 @@ export function AgentEditorPanel({
         </div>
 
         {/* Row 2: Expandable description */}
-        <div className="flex items-start gap-2">
+        <div className="flex min-w-0 items-center gap-1.5 sm:items-start sm:gap-2">
           <button
             type="button"
             onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            aria-expanded={isDescriptionExpanded}
+            aria-label={isDescriptionExpanded ? 'Hide agent description' : 'Show full agent description'}
+            className="flex shrink-0 items-center gap-1 rounded px-1 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             {isDescriptionExpanded ? (
               <ChevronUp className="h-4 w-4" />
@@ -264,9 +300,12 @@ export function AgentEditorPanel({
               className="flex-1"
             />
           ) : (
-            <p className="flex-1 text-sm text-muted-foreground truncate">
-              {formState.description || 'No description'}
-            </p>
+            <>
+              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:hidden">About</span>
+              <p className="min-w-0 flex-1 break-words text-xs text-muted-foreground line-clamp-2 sm:text-sm sm:line-clamp-2" title={formState.description || undefined}>
+                {formState.description || 'No description'}
+              </p>
+            </>
           )}
         </div>
       </div>
@@ -279,10 +318,28 @@ export function AgentEditorPanel({
       >
         {/* Tab List */}
         <TabList>
+          <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
           <TabTrigger value="files" icon={<Folder className="h-4 w-4" />} label="Files" />
           <TabTrigger value="prompt" icon={<Eye className="h-4 w-4" />} label="Prompt" />
-          <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
+          {enableChat && (
+            <TabTrigger value="chat" icon={<MessageSquare className="h-4 w-4" />} label="Chat" />
+          )}
         </TabList>
+
+        {/* Shared persona context for the prompt preview and chat */}
+        {showSharedContext && (
+          <div
+            className="flex-shrink-0 border-b border-border px-4 py-3"
+            data-testid={selectors.agentEditor.sharedContext}
+          >
+            <MemberChatContextSelector
+              agents={pageAgentChoices}
+              memberships={pageMemberships}
+              value={identity}
+              onChange={setIdentity}
+            />
+          </div>
+        )}
 
         {/* Tab Content */}
         <div className="flex-1 overflow-y-auto">
@@ -318,8 +375,22 @@ export function AgentEditorPanel({
               agent={agent}
               hasUnsavedChanges={isDirty}
               onNavigateToFile={() => setActiveTab('files')}
+              {...sharedContextProps}
             />
           </Tabs.Content>
+
+          {enableChat && (
+            <Tabs.Content value="chat" className="h-full">
+              <AgentChatTab
+                agentId={agent.id}
+                identity={identity}
+                onIdentityChange={setIdentity}
+                showContextSelector={false}
+                storage={chatStorage}
+                className="h-full p-4"
+              />
+            </Tabs.Content>
+          )}
         </div>
       </Tabs.Root>
     </div>

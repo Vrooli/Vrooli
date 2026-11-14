@@ -1,0 +1,187 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "branding": {
+    "brand": "extraction-range",
+    "targets": [
+      "web-public-v1"
+    ]
+  },
+  "cli": {
+    "enabled": true,
+    "command": "extraction-range",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "extraction-range"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "cwd": "api",
+        "port": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "dependencies": {
+    "resources": {}
+  },
+  "environment": {},
+  "generation": {
+    "content_sha": "1f2a366d096cc8e3c26c90ec963a39b58e20e9faf9240ed2f0d8fcb7f416c2f9",
+    "design": {
+      "adapter": "react-vite-tailwind",
+      "id": "vrooli-default",
+      "version": "0.2.0"
+    },
+    "generated_at": "2026-11-12T20:09:03Z",
+    "manifest_sha": "f25dddd48885fad4d4416d6a25c234080d7c34b42b3b197df6fd3e3a3636f42a",
+    "template": {
+      "id": "react-vite",
+      "version": "6.0.1"
+    }
+  },
+  "hostTools": [],
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "startup_grace_period": 15000,
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "extraction-range",
+    "displayName": "Extraction Range",
+    "description": "Owned graded practice website for website data extraction tools",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/extraction-range"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/extraction-range/SKILL.md"
+    }
+  },
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Conservatively retain lifecycle-generated deployment records under the scenario's data root. They contain no client data; score receipts use the routed database.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "Measured generated deployment state is under 64 KiB; this ceiling provides room for normal report growth while requiring review before expansion."
+        }
+      },
+      "retention-receipts": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "retention",
+        "regenerable": true,
+        "rationale": "Control-plane retention enforcement receipts are small, regenerable operational state.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "Retention receipts are bounded by size and age."
+        }
+      }
+    },
+    "rationale": "The scenario stores no client data. Its deployment report is regenerable operational state; durable score receipts use the routed database."
+  },
+  "version": "1.0.0"
+}

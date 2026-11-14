@@ -11,6 +11,13 @@ type BranchInfo struct {
 	Ahead        int       `json:"ahead,omitempty"`
 	Behind       int       `json:"behind,omitempty"`
 	IsCurrent    bool      `json:"is_current,omitempty"`
+
+	// CheckedOutInWorktree is the absolute path of the linked worktree
+	// that has this branch checked out, when one exists. Empty when the
+	// branch is not claimed by any linked worktree. snake_case JSON key
+	// matches the proto convention so the field can ride forward when
+	// branch is migrated to Connect-RPC.
+	CheckedOutInWorktree string `json:"checked_out_in_worktree,omitempty"`
 }
 
 // RepoBranchesResponse returns branch data for the repository.

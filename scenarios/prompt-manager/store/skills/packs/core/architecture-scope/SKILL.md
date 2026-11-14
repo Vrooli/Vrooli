@@ -1,3 +1,22 @@
+---
+name: "architecture-scope"
+description: "Reducing technical debt without changing functionality"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["scope","architecture","constraints"]
+  modes: ["scope"]
+  status: "draft"
+  revision: 5
+  createdAt: "2026-02-04T12:49:58Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 # Architecture Scope
 
 Session constraints for architectural improvements. These boundaries ensure structural changes enhance the system without destabilizing functionality.

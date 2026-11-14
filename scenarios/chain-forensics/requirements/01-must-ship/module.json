@@ -1,0 +1,55 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "Reconstruct the public 69,370 BTC forfeiture complaint as typed chain events and a trace graph; distinguish court allegations, on-chain observations, interpretations, and gaps; every fact has a source link and capture identity; attribution is graded and does not identify a natural person from an address.",
+      "id": "CF6-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "planned",
+      "title": "Source-linked public case reconstruction",
+      "validation": [
+        {
+          "notes": "Run the published-case vertical slice with source fixtures; verify every occurrence joins to its primary court citation and public BTC transaction/block evidence, and verify the packet separates allegations, observations, interpretations, grades, and gaps.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Create and review local-only cases and redacted tip-ready evidence packets with source citations, counter-explanations, unresolved gaps, and explicit grades; no automatic submission, public publishing, contacting, or accusation is available.",
+      "id": "CF6-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "title": "Private case and packet boundary",
+      "validation": [
+        {
+          "notes": "Inspect the packet export and local-storage boundary; verify redaction defaults, source citations, counter-explanations, unresolved gaps, and the absence of network submission/publishing code paths.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Define versioned chain-neutral case, occurrence, asset, source, flow, bridge-message, cluster, attribution, and packet types plus deterministic graph operations in an importable Go package; the API and CLI consume the same typed model.",
+      "id": "CF6-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "planned",
+      "title": "Reusable typed graph contract",
+      "validation": [
+        {
+          "notes": "Compile and exercise deterministic Go package tests for typed case/event/flow identity, provenance, evidence grading, graph expansion limits, and identical API/CLI serialization.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

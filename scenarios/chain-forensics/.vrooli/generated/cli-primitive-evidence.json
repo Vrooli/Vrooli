@@ -1,0 +1,114 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "chain-forensics",
+  "generator": "v1.0.0",
+  "manifest_hash": "c08c79ffb7f5370aa855553496ac5b71b8610559c3073b2dc5dd917a651de87d",
+  "commands": [
+    {
+      "path": "cases add-label",
+      "group": "cases",
+      "command": "add-label",
+      "binding": "vrooli.chain_forensics.v1.cases.CasesService.AddAnalystLabel",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "cases capture-bitcoin",
+      "group": "cases",
+      "command": "capture-bitcoin",
+      "binding": "vrooli.chain_forensics.v1.cases.CasesService.CaptureBitcoinTransaction",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "cases capture-bitcoin-address",
+      "group": "cases",
+      "command": "capture-bitcoin-address",
+      "binding": "vrooli.chain_forensics.v1.cases.CasesService.CaptureBitcoinAddressPage",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "cases capture-evm",
+      "group": "cases",
+      "command": "capture-evm",
+      "binding": "vrooli.chain_forensics.v1.cases.CasesService.CaptureEVMTransaction",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "cases capture-evm-wallet",
+      "group": "cases",
+      "command": "capture-evm-wallet",
+      "binding": "vrooli.chain_forensics.v1.cases.CasesService.CaptureEVMWalletSnapshot",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "cases capture-solana-address",
+      "group": "cases",
+      "command": "capture-solana-address",
+      "binding": "vrooli.chain_forensics.v1.cases.CasesService.CaptureSolanaAddressPage",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "cases get",
+      "group": "cases",
+      "command": "get",
+      "binding": "vrooli.chain_forensics.v1.cases.CasesService.GetCase",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "cases import",
+      "group": "cases",
+      "command": "import",
+      "binding": "vrooli.chain_forensics.v1.cases.CasesService.ImportCase",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "cases labels",
+      "group": "cases",
+      "command": "labels",
+      "binding": "vrooli.chain_forensics.v1.cases.CasesService.ListAnalystLabels",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "cases list",
+      "group": "cases",
+      "command": "list",
+      "binding": "vrooli.chain_forensics.v1.cases.CasesService.ListCases",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "cases packet",
+      "group": "cases",
+      "command": "packet",
+      "binding": "vrooli.chain_forensics.v1.cases.CasesService.ExportPrivatePacket",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "cases revise",
+      "group": "cases",
+      "command": "revise",
+      "binding": "vrooli.chain_forensics.v1.cases.CasesService.ReviseCase",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "cases revisions",
+      "group": "cases",
+      "command": "revisions",
+      "binding": "vrooli.chain_forensics.v1.cases.CasesService.ListCaseRevisions",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

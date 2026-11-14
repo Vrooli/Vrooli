@@ -1,0 +1,169 @@
+{
+  "purpose": "delivery",
+  "lifetime": "finite",
+  "effortRefs": [
+    "effort:marketing-I16"
+  ],
+  "kind": "team",
+  "schemaVersion": 1,
+  "id": "marketing-i16-delivery",
+  "homePath": ".vrooli/work/delivery/marketing-i16-delivery",
+  "displayName": "Marketing I16 Delivery",
+  "mission": "Deliver the selected Today, Plan, Create, Review, Learn and Content experience across every native format, including Channel Manager and Asset Studio integration.",
+  "enabled": false,
+  "archived": false,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "marketing-i16-orchestrator",
+    "reportingMode": "leader",
+    "messagingMode": "async-inbox",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": true,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": false,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "execution": {
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
+  },
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "marketing-i16-goal",
+          "hub": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/marketing-i16-delivery/CHARTER.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/marketing-i16-delivery/CHARTER.md"
+            },
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/marketing-i16-delivery/archive/v1/TARGETS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/marketing-i16-delivery/selected-state-requirement-map.json"
+            }
+          ],
+          "writePolicy": "Owner-approved source changes; orchestrator maintains goal/queue/epochs under large-effort-orchestration revision 25.",
+          "consumers": [
+            "marketing-i16-delivery",
+            "effort-supervision"
+          ],
+          "useFor": "The full approved destination, exact sources and acceptance; article increment is not completion."
+        },
+        {
+          "id": "delivery-worker-card",
+          "hub": {
+            "base": "repo-root",
+            "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/references/worker.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/references/worker.md"
+            }
+          ],
+          "writePolicy": "Canonical skill owner only.",
+          "consumers": [
+            "marketing-i16-delivery"
+          ],
+          "useFor": "Worker protocol."
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "delivery-status",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/marketing-i16-delivery/STATUS.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "delivery-log",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/marketing-i16-delivery/LOG.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "delivery-feedback",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/marketing-i16-delivery/FEEDBACK.md"
+          },
+          "kind": "operator-input",
+          "required": true
+        }
+      ]
+    },
+    "knowledgeTopics": {},
+    "members": {
+      "marketing-i16-orchestrator": {
+        "lane": "Own the whole product destination, technical strategy, evolving outcome allocation and independent acceptance. Delegate substantial independent implementation to workers; coordinate shared components, API contracts and dependencies within native limits.",
+        "allowedWrites": [
+          {
+            "kind": "handoff"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/marketing-i16-delivery/STATUS.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/marketing-i16-delivery/LOG.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/marketing-i16-delivery/FEEDBACK.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/marketing-i16-delivery/epochs"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/marketing-i16-delivery/evidence"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/marketing-i16-delivery/archive"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Do not enable/admit while AUTH qualification is held.",
+          "Whole accepted outcome includes required specialist/shared contracts; child exclusions return remaining work to native owner.",
+          "Do not implement product work or accept own worker result; use qualified delivery profiles and existing native policy.",
+          "Preserve unrelated authored changes, identities and actual action authority.",
+          "No public posting, purchases, new credentials or grants are authorized by this commission.",
+          "Use bounded independent surface workers under one retained orchestrator. Respect native commission limits and file/resource conflicts.",
+          "At HARD STOP checkpoint truthful accepted, partial and unverified outcomes; the owner clock stops this commission and returns an operator decision. Never manufacture acceptance or silently lower a required gate."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": false,
+          "stillWriteHandoff": true
+        }
+      }
+    }
+  },
+  "revision": 2,
+  "createdAt": "2026-10-04T21:46:45Z",
+  "updatedAt": "2026-10-24T03:15:34.545803Z"
+}

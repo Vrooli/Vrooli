@@ -12,7 +12,7 @@ interface ShortcutCategory {
   shortcuts: ShortcutItem[];
 }
 
-const isMac = typeof navigator !== "undefined" && navigator.platform.includes("Mac");
+const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
 const modKey = isMac ? "Cmd" : "Ctrl";
 
 const shortcutCategories: ShortcutCategory[] = [

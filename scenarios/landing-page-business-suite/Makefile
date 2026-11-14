@@ -1,7 +1,7 @@
-# Scenario Makefile
+# {{SCENARIO_DISPLAY_NAME}} Scenario Makefile
 #
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
-# NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
+# NEVER run scenarios directly (./api/{{SCENARIO_ID}}-api). ALWAYS use these commands.
 #
 # Usage:
 #   make       - Show help
@@ -10,148 +10,80 @@
 #   make test  - Run scenario tests
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
+#
+# This Makefile is a thin wrapper. All user-facing output (status, banners,
+# colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start stop status test logs clean build dev run fmt fmt-go fmt-ui lint lint-go lint-ui check export-variants sync-variants
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints
 
-# Default target - show help
 .DEFAULT_GOAL := help
 
-API_URL ?= http://localhost:3000
-
-# Get scenario name from current directory
 SCENARIO_NAME := $(notdir $(CURDIR))
 
-# Colors for output
-GREEN := \033[1;32m
-YELLOW := \033[1;33m
-BLUE := \033[1;34m
-RED := \033[1;31m
-RESET := \033[0m
+# Shared toolchain floor (mk/toolchain.mk) and build targets (mk/scenario.mk); a custom body for one of them is declared in SCENARIO_CUSTOM_TARGETS.
+-include ../../mk/scenario.mk
 
-help: ## Show this help message
-	@echo "$(BLUE)Scenario Commands$(RESET)"
-	@echo ""
-	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make <command>"
-	@echo ""
-	@echo "$(YELLOW)Commands:$(RESET)"
-	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(RESET) %s\n", $$1, $$2}'
-	@echo ""
-	@echo "$(RED)⚠️  IMPORTANT:$(RESET)"
-	@echo "    Never run ./api/$(SCENARIO_NAME)-api or ./ui/server directly!"
-	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
+help: ## Show the supported scenario entrypoints
+	@printf "Vrooli scenario entrypoints for %s\n\n" "$(SCENARIO_NAME)"
+	@printf "  make setup                      Run scenario setup lifecycle\n"
+	@printf "  make start                      Start the scenario\n"
+	@printf "  make stop                       Stop the scenario\n"
+	@printf "  make restart                    Restart the scenario\n"
+	@printf "  make status                     Show scenario runtime status\n"
+	@printf "  make logs                       Show scenario logs\n"
+	@printf "  make test                       Run scenario tests\n"
+	@printf "  make temporal-models            Check formal temporal-model artifacts\n"
+	@printf "  make open                       Open the scenario in a browser\n"
+	@printf "  make orient                     Show generated-scenario orientation progress\n"
+	@printf "  make endpoints                  Regenerate .vrooli/endpoints.json from API modules\n"
+	@printf "  make run                        Alias for make start\n"
+	@printf "  make dev                        Alias for make start\n"
+	@printf "\n"
+	@printf "For scenario-specific commands, prefer the scenario CLI or 'vrooli scenario ...'.\n"
 
-start: ## Start this scenario (uses Vrooli lifecycle)
-	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario start $(SCENARIO_NAME)
+start: ## Start the scenario
+	@vrooli scenario start "$(SCENARIO_NAME)"
 
-stop: ## Stop this scenario
-	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario stop $(SCENARIO_NAME)
+stop: ## Stop the scenario
+	@vrooli scenario stop "$(SCENARIO_NAME)"
 
-status: ## Show scenario status
-	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
-	@vrooli scenario status $(SCENARIO_NAME)
+restart: ## Restart the scenario
+	@vrooli scenario restart "$(SCENARIO_NAME)"
 
-test: ## Run all tests (API, UI, CLI)
-	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario test $(SCENARIO_NAME)
+status: ## Show scenario runtime status
+	@vrooli scenario status "$(SCENARIO_NAME)"
 
-logs: ## Show recent logs for this scenario
-	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
+logs: ## Show scenario logs
 	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
 
-export-variants: ## Export variant snapshots to .vrooli/variants (requires ADMIN_SESSION cookie)
-	@if [ -z "$(ADMIN_SESSION)" ]; then \
-		echo "$(RED)Missing ADMIN_SESSION cookie value$(RESET)"; \
-		echo "Set ADMIN_SESSION to the admin_session cookie from the admin login response."; \
-		exit 1; \
-	fi
-	@mkdir -p .vrooli/variants
-	@echo "$(BLUE)📦 Exporting variants from $(API_URL)...$(RESET)"
-	@curl -s -H "Cookie: admin_session=$(ADMIN_SESSION)" "$(API_URL)/api/v1/variants" \
-		| jq -r '.variants[].slug' \
-		| while read -r slug; do \
-			if [ -n "$$slug" ]; then \
-				curl -s -H "Cookie: admin_session=$(ADMIN_SESSION)" "$(API_URL)/api/v1/admin/variants/$$slug/export" \
-					| jq 'del(.variant.weight, .variant.status)' \
-					> ".vrooli/variants/$$slug.json"; \
-				echo "  - $$slug"; \
-			fi; \
-		done
-	@echo "$(GREEN)✓ Variant snapshots exported$(RESET)"
-
-sync-variants: ## Re-import variant snapshots into the database (requires ADMIN_SESSION cookie)
-	@if [ -z "$(ADMIN_SESSION)" ]; then \
-		echo "$(RED)Missing ADMIN_SESSION cookie value$(RESET)"; \
-		echo "Set ADMIN_SESSION to the admin_session cookie from the admin login response."; \
-		exit 1; \
-	fi
-	@echo "$(BLUE)🔄 Syncing variants into $(API_URL)...$(RESET)"
-	@curl -s -X POST -H "Cookie: admin_session=$(ADMIN_SESSION)" "$(API_URL)/api/v1/admin/variants/sync"
-	@echo ""
-	@echo "$(GREEN)✓ Variant snapshots synced$(RESET)"
+test: ## Run scenario tests
+	@vrooli scenario test "$(SCENARIO_NAME)"
 
 clean: ## Clean build artifacts
-	@echo "$(YELLOW)🧹 Cleaning $(SCENARIO_NAME) build artifacts...$(RESET)"
-	@rm -rf build/ dist/ *.log
-	@rm -f api/$(SCENARIO_NAME) api/$(SCENARIO_NAME)-api
-	@rm -rf ui/dist ui/build
-	@find . -name "*.pyc" -delete 2>/dev/null || true
-	@find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
-	@echo "$(GREEN)✓ Cleaned$(RESET)"
+	@rm -rf ui/dist 2>/dev/null || true
+	@rm -f api/$(SCENARIO_NAME)-api api/$(SCENARIO_NAME) 2>/dev/null || true
 
-build: ## Build API and UI
-	@echo "$(BLUE)🔨 Building $(SCENARIO_NAME)...$(RESET)"
-	@cd api && GOWORK=off go build -o $(SCENARIO_NAME)-api .
-	@if [ -d ui ]; then cd ui && pnpm run build; fi
-	@echo "$(GREEN)✓ Build complete$(RESET)"
+fmt: fmt-go fmt-ui ## Format all code
 
-dev: ## Start development mode (alias for start)
-	@$(MAKE) start
+lint: lint-go lint-ui ## Lint all code
 
-fmt: fmt-go fmt-ui ## Format all code (Go + UI)
+check: fmt lint test ## Run full quality gates
 
-fmt-go: ## Format Go code
-	@echo "$(BLUE)📝 Formatting Go code...$(RESET)"
-	@if [ -d api ] && [ -n "$$(find api -name '*.go' 2>/dev/null)" ]; then \
-		if command -v gofumpt >/dev/null 2>&1; then \
-			cd api && gofumpt -w .; \
-		else \
-			cd api && go fmt ./...; \
-		fi; \
-		echo "$(GREEN)✓ Go code formatted$(RESET)"; \
-	else \
-		echo "$(YELLOW)No Go sources found, skipping$(RESET)"; \
-	fi
+setup: ## Run scenario setup lifecycle
+	@vrooli scenario setup "$(SCENARIO_NAME)"
 
-fmt-ui: ## Format UI code
-	@echo "$(BLUE)📝 Formatting UI code...$(RESET)"
-	@if [ -d ui ]; then cd ui && pnpm run format 2>/dev/null || echo "No format script in package.json"; fi
-	@echo "$(GREEN)✓ UI code formatted$(RESET)"
+temporal-models: ## Verify formal flow artifacts via the flow-verifier scenario CLI
+	@flow-verifier verify check --root "$(CURDIR)"
 
-lint: lint-go lint-ui ## Lint all code (Go + UI)
+open: ## Open the scenario in a browser
+	@vrooli scenario open "$(SCENARIO_NAME)"
 
-lint-go: ## Lint Go code
-	@echo "$(BLUE)🔍 Linting Go code...$(RESET)"
-	@if [ -d api ] && [ -n "$$(find api -name '*.go' 2>/dev/null)" ]; then \
-		if command -v golangci-lint >/dev/null 2>&1; then \
-			cd api && golangci-lint run; \
-		else \
-			echo "$(YELLOW)golangci-lint not installed, skipping Go linting$(RESET)"; \
-		fi; \
-		echo "$(GREEN)✓ Go linting complete$(RESET)"; \
-	else \
-		echo "$(YELLOW)No Go sources found, skipping$(RESET)"; \
-	fi
+orient: ## Show generated-scenario orientation progress
+	@template-manager orient "$(SCENARIO_NAME)"
 
-lint-ui: ## Lint UI code
-	@echo "$(BLUE)🔍 Linting UI code...$(RESET)"
-	@if [ -d ui ]; then cd ui && pnpm run lint 2>/dev/null || echo "No lint script in package.json"; fi
-	@echo "$(GREEN)✓ UI linting complete$(RESET)"
+endpoints: ## Regenerate .vrooli/endpoints.json from API modules (validated against cli/manifest.json)
+	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json
 
-check: fmt lint test ## Run formatting, linting, and tests
-	@echo "$(GREEN)✓ All checks passed$(RESET)"
-
-# Development shortcuts
 run: start
+
+dev: start

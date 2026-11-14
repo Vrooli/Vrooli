@@ -1,0 +1,853 @@
+[
+  {
+    "id": "C041",
+    "group": "Data",
+    "partition": "development",
+    "provenance": "Retained C041 specification; structured input authored before owner adapter integration",
+    "rationale": "Literal expected values can be the strongest simple oracle.",
+    "input": {
+      "source": "test('price', () => expect(discount(100, 10)).toBe(90));",
+      "claim": "independent expected result"
+    },
+    "expectedOutcome": "checked_clean",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C042",
+    "group": "Data",
+    "partition": "development",
+    "provenance": "Retained C042 specification; structured input authored before owner adapter integration",
+    "rationale": "Stable contract identifiers can be shared incidentally.",
+    "input": {
+      "source": "import { Status } from './protocol'; test('status', () => expect(response.status).toBe(Status.READY));",
+      "claim": "shared protocol identity, not shared calculation"
+    },
+    "expectedOutcome": "checked_clean",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C043",
+    "group": "Data",
+    "partition": "development",
+    "provenance": "Retained C043 specification; structured input authored before owner adapter integration",
+    "rationale": "Review common-mode oracle failure; do not claim complete static detection.",
+    "input": {
+      "source": "test('price', () => expect(discount(100, 10)).toBe(discount(100, 10)));",
+      "claim": "behavioral adequacy",
+      "reviewQuestion": "Would a wrong discount implementation change both sides together?"
+    },
+    "expectedOutcome": "advisory",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C044",
+    "group": "Data",
+    "partition": "development",
+    "provenance": "Retained C044 specification; structured input authored before owner adapter integration",
+    "rationale": "Defaults remove incidental setup without sharing mutable state.",
+    "input": {
+      "source": "const make = (overrides = {}) => ({ title: 'valid', tags: [], ...overrides });",
+      "operations": [
+        {
+          "call": "make",
+          "as": "a"
+        },
+        {
+          "call": "make",
+          "as": "b"
+        },
+        {
+          "mutate": "a.tags.push('x')"
+        }
+      ],
+      "observe": "b.tags"
+    },
+    "expectedOutcome": "checked_clean",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C045",
+    "group": "Data",
+    "partition": "development",
+    "provenance": "Retained C045 specification; structured input authored before owner adapter integration",
+    "rationale": "The invalid-input reference test must detect normalization that hides its case.",
+    "input": {
+      "source": "const make = (overrides = {}) => ({ title: overrides.title || 'valid' });",
+      "overrides": {
+        "title": ""
+      },
+      "expectedValue": {
+        "title": ""
+      }
+    },
+    "expectedOutcome": "reference_failure",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C046",
+    "group": "Data",
+    "partition": "development",
+    "provenance": "Retained C046 specification; structured input authored before owner adapter integration",
+    "rationale": "Mutating one instance must not affect a second instance.",
+    "input": {
+      "source": "const defaults = { tags: [] }; const make = () => ({ ...defaults });",
+      "operations": [
+        {
+          "call": "make",
+          "as": "a"
+        },
+        {
+          "call": "make",
+          "as": "b"
+        },
+        {
+          "mutate": "a.tags.push('x')"
+        }
+      ],
+      "observe": "b.tags",
+      "expectedValue": []
+    },
+    "expectedOutcome": "reference_failure",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C047",
+    "group": "Data",
+    "partition": "development",
+    "provenance": "Retained C047 specification; structured input authored before owner adapter integration",
+    "rationale": "Malformed input is intentionally outside valid generated types.",
+    "input": {
+      "wire": "{\"title\":",
+      "parser": "JSON.parse",
+      "expectedError": "SyntaxError"
+    },
+    "expectedOutcome": "checked_clean",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C048",
+    "group": "Data",
+    "partition": "development",
+    "provenance": "Retained C048 specification; structured input authored before owner adapter integration",
+    "rationale": "Roundtrip tests need independent compatibility cases for shared defects.",
+    "input": {
+      "source": "test('wire', () => expect(decode(encode(value))).toEqual(value));",
+      "independentWireExamples": [],
+      "claim": "external wire compatibility"
+    },
+    "expectedOutcome": "advisory",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C049",
+    "group": "Data",
+    "partition": "development",
+    "provenance": "Retained C049 specification; structured input authored before owner adapter integration",
+    "rationale": "Count is sufficient when cardinality itself is the contract.",
+    "input": {
+      "source": "expect(await repository.countInWindow(from, to)).toBe(2);",
+      "contract": "Count rows in the half-open interval; no row membership is returned."
+    },
+    "expectedOutcome": "checked_clean",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C050",
+    "group": "Data",
+    "partition": "development",
+    "provenance": "Retained C050 specification; structured input authored before owner adapter integration",
+    "rationale": "Membership and order may be the missing behavioral contract.",
+    "input": {
+      "source": "expect(filterOpen(items)).toHaveLength(2);",
+      "items": [
+        {
+          "id": "open-1",
+          "open": true
+        },
+        {
+          "id": "closed-1",
+          "open": false
+        },
+        {
+          "id": "open-2",
+          "open": true
+        }
+      ],
+      "claim": "returns only open items"
+    },
+    "expectedOutcome": "advisory",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C051",
+    "group": "UI",
+    "partition": "development",
+    "provenance": "Retained C051 specification; structured input authored before owner adapter integration",
+    "rationale": "Proves key wiring while remaining copy-independent.",
+    "input": {
+      "locale": "cimode",
+      "query": {
+        "role": "button",
+        "name": "health.refresh"
+      },
+      "renderedName": "health.refresh",
+      "claim": "catalog key wiring, not English editorial copy"
+    },
+    "expectedOutcome": "checked_clean",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C052",
+    "group": "UI",
+    "partition": "development",
+    "provenance": "Retained C052 specification; structured input authored before owner adapter integration",
+    "rationale": "Real translation behavior needs real locale evaluation.",
+    "input": {
+      "locale": "en",
+      "key": "notifications.summary",
+      "catalog": {
+        "summary": "{{count}} notifications",
+        "summary_zero": "No notifications",
+        "summary_one": "1 notification"
+      },
+      "counts": [
+        0,
+        1,
+        3
+      ],
+      "expectedText": [
+        "No notifications",
+        "1 notification",
+        "3 notifications"
+      ]
+    },
+    "expectedOutcome": "reference_pass",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C053",
+    "group": "UI",
+    "partition": "development",
+    "provenance": "Retained C053 specification; structured input authored before owner adapter integration",
+    "rationale": "Semantic queries express user-visible control behavior.",
+    "input": {
+      "markup": "<button type=\"button\">Save</button>",
+      "query": {
+        "role": "button",
+        "name": "Save"
+      },
+      "interaction": "click",
+      "claim": "user can activate Save"
+    },
+    "expectedOutcome": "checked_clean",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C054",
+    "group": "UI",
+    "partition": "development",
+    "provenance": "Retained C054 specification; structured input authored before owner adapter integration",
+    "rationale": "Some surfaces have no suitable semantic query.",
+    "input": {
+      "markup": "<span data-testid=\"connection-state\">ready</span>",
+      "selectorRegistry": {
+        "connectionState": "connection-state"
+      },
+      "query": {
+        "testId": "connection-state"
+      },
+      "claim": "diagnostic state value"
+    },
+    "expectedOutcome": "checked_clean",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C055",
+    "group": "UI",
+    "partition": "development",
+    "provenance": "Retained C055 specification; structured input authored before owner adapter integration",
+    "rationale": "Each test must receive declared locale state independently.",
+    "input": {
+      "initialLocale": "cimode",
+      "firstTest": {
+        "setsLocale": "ar"
+      },
+      "secondTest": {
+        "expectsLocale": "cimode"
+      },
+      "setup": {
+        "resetsLocale": false
+      }
+    },
+    "expectedOutcome": "reference_failure",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C056",
+    "group": "UI",
+    "partition": "development",
+    "provenance": "Retained C056 specification; structured input authored before owner adapter integration",
+    "rationale": "Unexpected errors must remain visible; suppression requires local rationale.",
+    "input": {
+      "source": "beforeEach(() => vi.spyOn(console, 'error').mockImplementation(() => {}));",
+      "unexpectedError": "failed to load notes",
+      "claim": "unexpected errors are visible"
+    },
+    "expectedOutcome": "advisory",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C057",
+    "group": "Requirements",
+    "partition": "development",
+    "provenance": "Retained C057 specification; structured input authored before owner adapter integration",
+    "rationale": "IDs come from the registry rather than a REQ-prefix regex.",
+    "input": {
+      "registry": [
+        {
+          "id": "UH-CORE-001",
+          "validationKinds": [
+            "unit"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "TestValidate",
+          "tags": [
+            "UH-CORE-001"
+          ]
+        }
+      ],
+      "runtime": [
+        {
+          "testId": "TestValidate",
+          "status": "passed"
+        }
+      ]
+    },
+    "expectedOutcome": "linked",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C058",
+    "group": "Requirements",
+    "partition": "development",
+    "provenance": "Retained C058 specification; structured input authored before owner adapter integration",
+    "rationale": "Preserve existing reporter grammar and inheritance.",
+    "input": {
+      "registry": [
+        {
+          "id": "UH-CORE-001"
+        },
+        {
+          "id": "UH-ANALYZE-003"
+        }
+      ],
+      "suiteTitle": "[REQ:UH-CORE-001,UH-ANALYZE-003] validation",
+      "tests": [
+        {
+          "id": "suite/parameter[1]",
+          "title": "parameter 1",
+          "status": "passed"
+        },
+        {
+          "id": "suite/parameter[2]",
+          "title": "parameter 2",
+          "status": "passed"
+        }
+      ]
+    },
+    "expectedOutcome": "linked",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C059",
+    "group": "Requirements",
+    "partition": "development",
+    "provenance": "Retained C059 specification; structured input authored before owner adapter integration",
+    "rationale": "A source mention is not an observed passing test.",
+    "input": {
+      "registry": [
+        {
+          "id": "UH-CORE-001"
+        }
+      ],
+      "source": "// UH-CORE-001\nfunc TestSomething(t *testing.T) { t.Log(\"setup\") }",
+      "runtime": []
+    },
+    "expectedOutcome": "not_executed",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C060",
+    "group": "Requirements",
+    "partition": "development",
+    "provenance": "Retained C060 specification; structured input authored before owner adapter integration",
+    "rationale": "Respect the declared validation kind.",
+    "input": {
+      "registry": [
+        {
+          "id": "UH-CORE-001",
+          "validationKinds": [
+            "integration"
+          ]
+        }
+      ],
+      "requestedKind": "unit",
+      "runtime": []
+    },
+    "expectedOutcome": "not_applicable_unit",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C061",
+    "group": "Requirements",
+    "partition": "development",
+    "provenance": "Retained C061 specification; structured input authored before owner adapter integration",
+    "rationale": "An unavailable owner cannot be treated as an empty registry.",
+    "input": {
+      "registryError": {
+        "owner": "requirements",
+        "status": 503,
+        "message": "temporarily unavailable"
+      },
+      "tests": [
+        {
+          "id": "test",
+          "tags": [
+            "UH-CORE-001"
+          ]
+        }
+      ]
+    },
+    "expectedOutcome": "unknown",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C062",
+    "group": "Requirements",
+    "partition": "development",
+    "provenance": "Retained C062 specification; structured input authored before owner adapter integration",
+    "rationale": "Use exact IDs rather than substring membership.",
+    "input": {
+      "registry": [
+        {
+          "id": "UH-CORE-001"
+        },
+        {
+          "id": "UH-CORE-0010"
+        }
+      ],
+      "tests": [
+        {
+          "id": "test",
+          "tags": [
+            "UH-CORE-0010"
+          ]
+        }
+      ],
+      "runtime": [
+        {
+          "testId": "test",
+          "status": "passed"
+        }
+      ]
+    },
+    "expectedOutcome": "exact_match",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C063",
+    "group": "History",
+    "partition": "development",
+    "provenance": "Retained C063 specification; structured input authored before owner adapter integration",
+    "rationale": "A repair is not evidence of flaky behavior.",
+    "input": {
+      "runs": [
+        {
+          "source": "a",
+          "toolchain": "go1",
+          "command": "go test ./...",
+          "selection": "all",
+          "status": "failed"
+        },
+        {
+          "source": "b",
+          "toolchain": "go1",
+          "command": "go test ./...",
+          "selection": "all",
+          "status": "passed"
+        }
+      ]
+    },
+    "expectedOutcome": "uncomparable",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C064",
+    "group": "History",
+    "partition": "development",
+    "provenance": "Retained C064 specification; structured input authored before owner adapter integration",
+    "rationale": "Toolchain changes alter the observation context.",
+    "input": {
+      "runs": [
+        {
+          "source": "a",
+          "toolchain": "go1",
+          "command": "go test ./...",
+          "selection": "all",
+          "status": "failed"
+        },
+        {
+          "source": "a",
+          "toolchain": "go2",
+          "command": "go test ./...",
+          "selection": "all",
+          "status": "passed"
+        }
+      ]
+    },
+    "expectedOutcome": "uncomparable",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C065",
+    "group": "History",
+    "partition": "development",
+    "provenance": "Retained C065 specification; structured input authored before owner adapter integration",
+    "rationale": "Report observed variation without proving its cause.",
+    "input": {
+      "runs": [
+        {
+          "source": "a",
+          "toolchain": "go1",
+          "command": "go test ./...",
+          "selection": "all",
+          "platform": "linux/amd64",
+          "seed": "1",
+          "testId": "TestX",
+          "status": "failed",
+          "failureClass": "assertion"
+        },
+        {
+          "source": "a",
+          "toolchain": "go1",
+          "command": "go test ./...",
+          "selection": "all",
+          "platform": "linux/amd64",
+          "seed": "1",
+          "testId": "TestX",
+          "status": "passed"
+        }
+      ]
+    },
+    "expectedOutcome": "suspected_instability",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C066",
+    "group": "History",
+    "partition": "development",
+    "provenance": "Retained C066 specification; structured input authored before owner adapter integration",
+    "rationale": "Do not attribute a transport outage to a flaky assertion.",
+    "input": {
+      "runs": [
+        {
+          "source": "a",
+          "toolchain": "go1",
+          "testId": "TestX",
+          "status": "failed",
+          "failureClass": "infrastructure",
+          "error": "connection refused"
+        },
+        {
+          "source": "a",
+          "toolchain": "go1",
+          "testId": "TestX",
+          "status": "failed",
+          "failureClass": "assertion",
+          "error": "expected 5, got 4"
+        }
+      ]
+    },
+    "expectedOutcome": "separate_classes",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C067",
+    "group": "History",
+    "partition": "development",
+    "provenance": "Retained C067 specification; structured input authored before owner adapter integration",
+    "rationale": "Historical observations remain readable without invented identity.",
+    "input": {
+      "runs": [
+        {
+          "command": "go test ./...",
+          "status": "failed"
+        },
+        {
+          "command": "go test ./...",
+          "status": "passed"
+        }
+      ]
+    },
+    "expectedOutcome": "unknown",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C069",
+    "group": "Analysis",
+    "partition": "development",
+    "provenance": "Retained C069 specification; structured input authored before owner adapter integration",
+    "rationale": "Assessment coverage exposes missing inputs.",
+    "input": {
+      "discovery": {
+        "discoveredFiles": 3,
+        "complete": false,
+        "files": [
+          "a_test.go",
+          "b_test.go"
+        ]
+      },
+      "reads": {
+        "a_test.go": {
+          "source": "package a\nfunc TestA() {}"
+        },
+        "b_test.go": {
+          "error": "permission denied"
+        }
+      }
+    },
+    "expectedOutcome": "unknown",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C070",
+    "group": "Analysis",
+    "partition": "development",
+    "provenance": "Retained C070 specification; structured input authored before owner adapter integration",
+    "rationale": "Semantic result must not depend on directory enumeration order.",
+    "input": {
+      "orders": [
+        [
+          "b_test.go",
+          "a_test.go"
+        ],
+        [
+          "a_test.go",
+          "b_test.go"
+        ]
+      ],
+      "files": {
+        "a_test.go": "package a\nimport \"testing\"\nfunc TestA(t *testing.T) {if 2+3!=5 {t.Fatal(\"sum\")}}",
+        "b_test.go": "package a\nimport \"testing\"\nfunc TestB(t *testing.T) {t.Log(\"no assertion\")}"
+      }
+    },
+    "expectedOutcome": "deterministic",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C071",
+    "group": "Analysis",
+    "partition": "development",
+    "provenance": "Retained C071 specification; structured input authored before owner adapter integration",
+    "rationale": "Truncation must retain totals and detail retrieval.",
+    "input": {
+      "results": [
+        {
+          "testId": "a",
+          "status": "violation"
+        },
+        {
+          "testId": "b",
+          "status": "unknown"
+        },
+        {
+          "testId": "c",
+          "status": "checked_clean"
+        }
+      ],
+      "limit": 1,
+      "detailsRef": "run:fixture/quality-details"
+    },
+    "expectedOutcome": "bounded_with_total",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C072",
+    "group": "Isolation",
+    "partition": "development",
+    "provenance": "Retained C072 specification; structured input authored before owner adapter integration",
+    "rationale": "The declared profile needs an actual denial observation.",
+    "input": {
+      "profile": "pure-domain",
+      "hostCapabilities": {
+        "externalNetworkDeny": true
+      },
+      "operation": {
+        "kind": "tcp-connect",
+        "destination": "non-loopback-test-endpoint"
+      },
+      "requiredObservation": {
+        "connection": "denied"
+      },
+      "note": "Capability declaration alone is not evidence; phase16 must run the denied connection probe."
+    },
+    "expectedOutcome": "enforced",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C073",
+    "group": "Isolation",
+    "partition": "development",
+    "provenance": "Retained C073 specification; structured input authored before owner adapter integration",
+    "rationale": "Do not silently replace isolation with network allow.",
+    "input": {
+      "profile": "pure-domain",
+      "hostCapabilities": {
+        "externalNetworkDeny": false
+      },
+      "requestedNetworkPolicy": "deny"
+    },
+    "expectedOutcome": "unknown_or_refused",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C074",
+    "group": "Isolation",
+    "partition": "development",
+    "provenance": "Retained C074 specification; structured input authored before owner adapter integration",
+    "rationale": "Real loopback transport is valid for transport behavior.",
+    "input": {
+      "profile": "local-integration",
+      "transport": "loopback-http",
+      "operation": "stream response in two chunks",
+      "networkPolicy": "allow-loopback",
+      "hermetic": false
+    },
+    "expectedOutcome": "declared_local_integration",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C075",
+    "group": "Mutation",
+    "partition": "development",
+    "provenance": "Retained C075 specification; structured input authored before owner adapter integration",
+    "rationale": "A selected behavioral fault must reach the expected failing assertion.",
+    "input": {
+      "production": "export const accepts = size => size <= 7;",
+      "test": "expect(accepts(7)).toBe(true); expect(accepts(8)).toBe(false);",
+      "mutation": "export const accepts = size => size <= 8;",
+      "requiredControl": "passed"
+    },
+    "expectedOutcome": "detected_by_intended_test",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C076",
+    "group": "Mutation",
+    "partition": "development",
+    "provenance": "Retained C076 specification; structured input authored before owner adapter integration",
+    "rationale": "Build failure does not prove the test detects behavior.",
+    "input": {
+      "production": "export const accepts = size => size <= 7;",
+      "mutation": "export const accepts = size => ;",
+      "compilerOutcome": "syntax-error"
+    },
+    "expectedOutcome": "invalid_experiment",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C077",
+    "group": "Mutation",
+    "partition": "development",
+    "provenance": "Retained C077 specification; structured input authored before owner adapter integration",
+    "rationale": "A survivor is not automatically a missing-test defect.",
+    "input": {
+      "production": "export const accepts = size => size <= 7;",
+      "mutation": "export const accepts = size => !(size > 7);",
+      "domain": "finite integer sizes",
+      "exclusionReason": "Equivalent on declared finite integer input domain."
+    },
+    "expectedOutcome": "excluded_with_reason",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C078",
+    "group": "Fleet",
+    "partition": "development",
+    "provenance": "Retained C078 specification; structured input authored before owner adapter integration",
+    "rationale": "Every discovered target remains in the denominator.",
+    "input": {
+      "discoveredTargets": [
+        "alpha",
+        "beta",
+        "gamma"
+      ],
+      "observations": [
+        {
+          "target": "alpha",
+          "status": "assessed"
+        },
+        {
+          "target": "beta",
+          "status": "unavailable",
+          "ownerError": "503"
+        },
+        {
+          "target": "gamma",
+          "status": "assessed"
+        }
+      ]
+    },
+    "expectedOutcome": "unknown_accounted",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C079",
+    "group": "Fleet",
+    "partition": "development",
+    "provenance": "Retained C079 specification; structured input authored before owner adapter integration",
+    "rationale": "Migration must not overwrite legitimate local test-kind policy.",
+    "input": {
+      "target": "custom",
+      "currentPolicy": {
+        "testKind": "live-system",
+        "network": "allow",
+        "storage": "leased"
+      },
+      "requestedMigration": {
+        "profile": "pure-domain",
+        "network": "deny"
+      },
+      "explicitOverrideAuthority": false
+    },
+    "expectedOutcome": "preserved_or_refused",
+    "requiresEvidence": true
+  },
+  {
+    "id": "C080",
+    "group": "Fleet",
+    "partition": "development",
+    "provenance": "Retained C080 specification; structured input authored before owner adapter integration",
+    "rationale": "Replaying an acknowledged application must not duplicate changes.",
+    "input": {
+      "requestId": "fixture-migration-1",
+      "target": "example",
+      "desiredPolicy": {
+        "assertionRequirement": true
+      },
+      "receipts": [
+        {
+          "requestId": "fixture-migration-1",
+          "status": "applied",
+          "changeCount": 1
+        }
+      ],
+      "repeatSameRequest": true
+    },
+    "expectedOutcome": "idempotent",
+    "requiresEvidence": true
+  }
+]

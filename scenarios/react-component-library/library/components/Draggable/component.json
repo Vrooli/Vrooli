@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "manipulation.draggable",
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3",
+    "1.0.0",
+    "1.0.2",
+    "1.0.4",
+    "1.0.5"
+  ],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3",
+    "1.0.1",
+    "1.0.2",
+    "1.0.0",
+    "1.0.4",
+    "1.0.5",
+    "1.0.6",
+    "1.1.0"
+  ],
+  "latest": "1.1.2",
+  "libraryId": "react-component-library:Draggable",
+  "displayName": "Draggable",
+  "description": "The direct-manipulation primitive with pointer capture, keyboard dragging, constraints, drag handles, cancellation, velocity reporting, position announcements, and overlay support.",
+  "tags": []
+}

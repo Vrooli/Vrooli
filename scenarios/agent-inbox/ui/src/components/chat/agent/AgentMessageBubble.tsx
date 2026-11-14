@@ -46,7 +46,7 @@ export function AgentMessageBubble({ event, viewMode = "bubble" }: AgentMessageB
           <div className="flex-1" />
           <Tooltip content={copied ? "Copied" : "Copy message"} side="top">
             <button
-              onClick={handleCopy}
+              onClick={() => { void handleCopy(); }}
               className="p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/70 transition-colors"
               aria-label="Copy message"
               data-testid={`agent-message-copy-${event.id}`}
@@ -102,7 +102,7 @@ export function AgentMessageBubble({ event, viewMode = "bubble" }: AgentMessageB
           <div className="flex-1" />
           <Tooltip content={copied ? "Copied" : "Copy message"} side="top">
             <button
-              onClick={handleCopy}
+              onClick={() => { void handleCopy(); }}
               className={`p-1 rounded transition-colors ${
                 isUser
                   ? "text-blue-200 hover:text-white hover:bg-blue-500/50"

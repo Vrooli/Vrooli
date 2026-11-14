@@ -1,0 +1,57 @@
+{
+  "metadata": {
+    "name": "experience-commissions-spec-smoke",
+    "description": "Observer smoke: the Commissions page renders at phone width against the real research home.",
+    "requirement": "OT-P0-004",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "commissions",
+      "surface": "experience-commissions"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate-commissions",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "research-desk",
+          "scenario_path": "/commissions",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Commissions"
+        }
+      }
+    },
+    {
+      "id": "wait-commissions-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.commissions",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Commissions page visible"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-commissions",
+      "source": "navigate-commissions",
+      "target": "wait-commissions-page"
+    }
+  ]
+}

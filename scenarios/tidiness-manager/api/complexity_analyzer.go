@@ -1,15 +1,15 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"os/exec"
 	"path/filepath"
-	"regexp"
-	"strconv"
+	"sort"
 	"strings"
 	"time"
+
+	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
+	debt "tidiness-manager/internal/discovery"
 )
 
 // ComplexityResult contains cyclomatic complexity analysis results
@@ -43,257 +43,93 @@ type ComplexFile struct {
 	Line       int    `json:"line"`
 }
 
-// ComplexityAnalyzer analyzes cyclomatic complexity using external tools
+// ComplexityAnalyzer consumes the shared source graph. No local parser or
+// external-tool installation is needed for Go complexity metrics.
 type ComplexityAnalyzer struct {
 	scenarioPath string
 	timeout      time.Duration
+	source       ReductionFacts
 }
 
-// NewComplexityAnalyzer creates an analyzer for the specified scenario
 func NewComplexityAnalyzer(scenarioPath string, timeout time.Duration) *ComplexityAnalyzer {
 	if timeout == 0 {
 		timeout = 60 * time.Second
 	}
-	return &ComplexityAnalyzer{
-		scenarioPath: scenarioPath,
-		timeout:      timeout,
-	}
+	return &ComplexityAnalyzer{scenarioPath: scenarioPath, timeout: timeout}
 }
 
-// AnalyzeComplexity runs complexity analysis based on detected language
 func (ca *ComplexityAnalyzer) AnalyzeComplexity(ctx context.Context, lang Language, files []string) (*ComplexityResult, error) {
-	switch lang {
-	case LanguageGo:
-		return ca.analyzeGoComplexity(ctx, files)
-	case LanguageTypeScript, LanguageJavaScript:
-		// TypeScript/JavaScript complexity analysis would require eslint setup
-		// Skip for now with a clear reason
-		return &ComplexityResult{
-			Skipped:    true,
-			SkipReason: "TypeScript/JavaScript complexity analysis requires eslint configuration",
-		}, nil
-	default:
-		return &ComplexityResult{
-			Skipped:    true,
-			SkipReason: fmt.Sprintf("complexity analysis not implemented for %s", lang),
-		}, nil
+	skipped := func(reason string) (*ComplexityResult, error) {
+		return &ComplexityResult{Skipped: true, SkipReason: reason}, nil
 	}
-}
-
-// analyzeGoComplexity uses gocyclo to analyze Go code complexity
-func (ca *ComplexityAnalyzer) analyzeGoComplexity(ctx context.Context, files []string) (*ComplexityResult, error) {
-	// Check if gocyclo is installed
-	if !commandExists("gocyclo") {
-		return &ComplexityResult{
-			Skipped:    true,
-			SkipReason: "gocyclo not installed (install with: go install github.com/fzipp/gocyclo/cmd/gocyclo@latest)",
-		}, nil
+	if lang != LanguageGo {
+		return skipped(fmt.Sprintf("shared complexity facts are not yet available for %s", lang))
 	}
-
 	if len(files) == 0 {
-		return &ComplexityResult{
-			Skipped:    true,
-			SkipReason: "no files to analyze",
-		}, nil
+		return skipped("no files to analyze")
 	}
-
-	// Convert relative paths to absolute paths
-	absPaths := make([]string, len(files))
-	for i, relPath := range files {
-		absPaths[i] = filepath.Join(ca.scenarioPath, relPath)
+	if _, err := resolveScenarioFiles(ca.scenarioPath, files); err != nil {
+		return skipped(err.Error())
 	}
-
-	// Run gocyclo with threshold (default 10 for high complexity)
-	threshold := 10
-	cmdCtx, cancel := context.WithTimeout(ctx, ca.timeout)
+	ctx, cancel := context.WithTimeout(ctx, ca.timeout)
 	defer cancel()
-
-	// gocyclo -over <threshold> <files...>
-	args := append([]string{"-over", fmt.Sprintf("%d", threshold)}, absPaths...)
-	cmd := exec.CommandContext(cmdCtx, "gocyclo", args...)
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	// gocyclo returns non-zero if high complexity functions found, which is fine
-	_ = cmd.Run()
-
-	// Parse output
-	output := stdout.String()
-	complexFiles := ca.parseGoCycloOutput(output)
-
-	// Run gocyclo without threshold to get all functions for statistics
-	cmdCtx2, cancel2 := context.WithTimeout(ctx, ca.timeout)
-	defer cancel2()
-
-	cmd2 := exec.CommandContext(cmdCtx2, "gocyclo", absPaths...)
-	var stdout2 bytes.Buffer
-	cmd2.Stdout = &stdout2
-	_ = cmd2.Run()
-
-	allOutput := stdout2.String()
-	allComplexity := ca.parseGoCycloOutputAll(allOutput)
-
-	// Parse per-file complexity from all functions output
-	fileComplexity := ca.parseGoCycloPerFile(allOutput)
-
-	// Calculate statistics
-	avgComplexity := 0.0
-	maxComplexity := 0
-	totalFunctions := len(allComplexity)
-
-	if totalFunctions > 0 {
-		sum := 0
-		for _, c := range allComplexity {
-			sum += c
-			if c > maxComplexity {
-				maxComplexity = c
-			}
-		}
-		avgComplexity = float64(sum) / float64(totalFunctions)
+	report, err := currentCodeFacts(ctx, ca.source, &facts.CodeTarget{Kind: facts.TargetKind_TARGET_KIND_PATH, Path: ca.scenarioPath, LanguageFilter: []string{"go"}})
+	if err != nil {
+		return skipped(err.Error())
 	}
-
-	return &ComplexityResult{
-		AverageComplexity:   avgComplexity,
-		MaxComplexity:       maxComplexity,
-		HighComplexityFiles: complexFiles,
-		HighComplexityCount: len(complexFiles),
-		Threshold:           threshold,
-		TotalFunctions:      totalFunctions,
-		Skipped:             false,
-		Tool:                "gocyclo",
-		FileComplexity:      fileComplexity,
-	}, nil
+	return ca.AnalyzeComplexityFromFacts(files, report)
 }
 
-// parseGoCycloOutput parses gocyclo output into structured ComplexFile entries
-// Format: <complexity> <package> <function> <file>:<line>:<column>
-func (ca *ComplexityAnalyzer) parseGoCycloOutput(output string) []ComplexFile {
-	var results []ComplexFile
-
-	// Example line: 15 main (*Server).handleLightScan /path/to/file.go:26:1
-	re := regexp.MustCompile(`^(\d+)\s+\S+\s+(\S+)\s+(.+?):(\d+):`)
-
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		matches := re.FindStringSubmatch(line)
-		if len(matches) < 5 {
-			continue
-		}
-
-		complexity, _ := strconv.Atoi(matches[1])
-		function := matches[2]
-		filePath := matches[3]
-		lineNum, _ := strconv.Atoi(matches[4])
-
-		// Convert absolute path to relative path
-		relPath, err := filepath.Rel(ca.scenarioPath, filePath)
-		if err != nil {
-			relPath = filePath // Use absolute if conversion fails
-		}
-
-		results = append(results, ComplexFile{
-			Path:       relPath,
-			Function:   function,
-			Complexity: complexity,
-			Line:       lineNum,
-		})
+func (ca *ComplexityAnalyzer) AnalyzeComplexityFromFacts(files []string, report *facts.CodeFactsReport) (*ComplexityResult, error) {
+	skipped := func(reason string) (*ComplexityResult, error) {
+		return &ComplexityResult{Skipped: true, SkipReason: reason}, nil
 	}
-
-	return results
-}
-
-// parseGoCycloOutputAll parses all complexity values for statistics
-func (ca *ComplexityAnalyzer) parseGoCycloOutputAll(output string) []int {
-	var complexities []int
-
-	re := regexp.MustCompile(`^(\d+)\s+`)
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		matches := re.FindStringSubmatch(line)
-		if len(matches) < 2 {
-			continue
-		}
-
-		complexity, _ := strconv.Atoi(matches[1])
-		complexities = append(complexities, complexity)
+	if len(report.GetGraphs()) == 0 {
+		return skipped("Code Facts returned no Go graph evidence")
 	}
-
-	return complexities
-}
-
-// parseGoCycloPerFile parses gocyclo output and aggregates complexity per file
-// Returns a map of file path -> FileComplexityStats (avg, max, function count)
-func (ca *ComplexityAnalyzer) parseGoCycloPerFile(output string) map[string]FileComplexityStats {
-	// Temporary structure to collect complexities per file
-	fileComplexities := make(map[string][]int)
-
-	// Example line: 15 main (*Server).handleLightScan /path/to/file.go:26:1
-	re := regexp.MustCompile(`^(\d+)\s+\S+\s+\S+\s+(.+?):\d+:`)
-
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		matches := re.FindStringSubmatch(line)
-		if len(matches) < 3 {
-			continue
-		}
-
-		complexity, _ := strconv.Atoi(matches[1])
-		filePath := matches[2]
-
-		// Convert absolute path to relative path
-		relPath, err := filepath.Rel(ca.scenarioPath, filePath)
-		if err != nil {
-			relPath = filePath // Use absolute if conversion fails
-		}
-
-		fileComplexities[relPath] = append(fileComplexities[relPath], complexity)
+	functions, warnings := debt.FunctionMetrics(report)
+	if len(warnings) > 0 {
+		return skipped(strings.Join(warnings, "; "))
 	}
-
-	// Calculate stats per file
-	result := make(map[string]FileComplexityStats)
-	for path, complexities := range fileComplexities {
-		if len(complexities) == 0 {
+	allowed := map[string]bool{}
+	for _, file := range files {
+		allowed[filepath.ToSlash(filepath.Clean(file))] = true
+	}
+	result := &ComplexityResult{Threshold: 10, Tool: "code-facts", FileComplexity: map[string]FileComplexityStats{}, HighComplexityFiles: []ComplexFile{}}
+	sum := 0
+	for _, function := range functions {
+		if !allowed[function.Path] {
 			continue
 		}
-
-		sum := 0
-		max := 0
-		for _, c := range complexities {
-			sum += c
-			if c > max {
-				max = c
-			}
-		}
-
-		result[path] = FileComplexityStats{
-			Avg:           float64(sum) / float64(len(complexities)),
-			Max:           max,
-			FunctionCount: len(complexities),
+		sum += function.Complexity
+		result.TotalFunctions++
+		result.MaxComplexity = max(result.MaxComplexity, function.Complexity)
+		metric := result.FileComplexity[function.Path]
+		metric.Avg += float64(function.Complexity)
+		metric.Max = max(metric.Max, function.Complexity)
+		metric.FunctionCount++
+		result.FileComplexity[function.Path] = metric
+		if function.Complexity > result.Threshold {
+			result.HighComplexityFiles = append(result.HighComplexityFiles, ComplexFile{Path: function.Path, Function: function.Symbol, Complexity: function.Complexity, Line: function.StartLine})
 		}
 	}
-
-	return result
-}
-
-// commandExists checks if a command is available in PATH
-func commandExists(cmd string) bool {
-	_, err := exec.LookPath(cmd)
-	return err == nil
+	if result.TotalFunctions > 0 {
+		result.AverageComplexity = float64(sum) / float64(result.TotalFunctions)
+	}
+	for path, metric := range result.FileComplexity {
+		metric.Avg /= float64(metric.FunctionCount)
+		result.FileComplexity[path] = metric
+	}
+	sort.Slice(result.HighComplexityFiles, func(i, j int) bool {
+		a, b := result.HighComplexityFiles[i], result.HighComplexityFiles[j]
+		if a.Complexity != b.Complexity {
+			return a.Complexity > b.Complexity
+		}
+		if a.Path != b.Path {
+			return a.Path < b.Path
+		}
+		return a.Line < b.Line
+	})
+	result.HighComplexityCount = len(result.HighComplexityFiles)
+	return result, nil
 }

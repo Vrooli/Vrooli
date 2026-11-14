@@ -1,0 +1,3 @@
+-- Query telemetry is owned by internal/telemetry. This compatibility file is
+-- intentionally table-free so old tooling that expects metrics/schema.sql to
+-- exist does not silently recreate a centralized schema home.

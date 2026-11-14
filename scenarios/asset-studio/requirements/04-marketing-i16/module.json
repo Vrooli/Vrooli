@@ -1,0 +1,40 @@
+{
+  "_metadata": {
+    "module": "marketing-i16",
+    "description": "Accepted full Marketing specialist contracts; desired outcomes, not implementation proof",
+    "priority": "P0",
+    "schema_version": "1.0"
+  },
+  "requirements": [
+    {
+      "id": "ASSET-P0-019",
+      "title": "Honest external producer and original media admission",
+      "description": "The system shall accept externally authored media through candidate admission with exact original digest/bytes, honest assistant/Drive/other producer identity and source revision, rights, alt/caption/order intent and derivative provenance; preserve per-item definite rejection and unresolved admission outcomes without fake producing-scenario attribution or duplicate ingest.",
+      "criticality": "P0",
+      "prd_ref": "OT-P0-019",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Full approved Marketing dossier/native-contract cases; implementation and native qualification not yet established."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-P0-020",
+      "title": "Exact candidate review and release linkage",
+      "description": "The system shall return stable candidate/version/review/release receipts under current human conformance and rights gates; permit Content Desk pending candidate references without treating them as released, preserve exact original and derivative lineage, and enforce scope-authorized reads and separately attributable human release decisions.",
+      "criticality": "P0",
+      "prd_ref": "OT-P0-020",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Full approved Marketing dossier/native-contract cases; implementation and native qualification not yet established."
+        }
+      ]
+    }
+  ]
+}

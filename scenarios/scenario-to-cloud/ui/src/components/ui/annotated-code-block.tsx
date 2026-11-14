@@ -199,7 +199,7 @@ export const AnnotatedCodeBlock = memo(function AnnotatedCodeBlock({
       visible: true,
       x: rect.right - containerRect.left + 8,
       y: rect.top - containerRect.top,
-      annotation: lineAnnotations[0], // Show first annotation (usually there's only one per line)
+      annotation: lineAnnotations[0] ?? null, // Show first annotation (usually there's only one per line)
     });
   };
 

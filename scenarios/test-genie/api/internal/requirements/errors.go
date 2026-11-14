@@ -17,12 +17,14 @@ var (
 )
 
 // Type aliases for error types
-type ParseError = types.ParseError
-type ValidationIssue = types.ValidationIssue
-type IssueSeverity = types.IssueSeverity
-type ValidationResult = types.ValidationResult
-type DiscoveryError = types.DiscoveryError
-type SyncError = types.SyncError
+type (
+	ParseError       = types.ParseError
+	ValidationIssue  = types.ValidationIssue
+	IssueSeverity    = types.IssueSeverity
+	ValidationResult = types.ValidationResult
+	DiscoveryError   = types.DiscoveryError
+	SyncError        = types.SyncError
+)
 
 // Severity constants
 const (

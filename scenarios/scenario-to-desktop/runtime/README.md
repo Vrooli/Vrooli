@@ -47,7 +47,7 @@ flowchart TB
     end
 
     subgraph Storage["Persistent Storage"]
-        SFILE[secrets.json]
+        SSTORE[Native OS credential store]
         MFILE[migrations.json]
         TFILE[telemetry.jsonl]
         LOGS[Service Logs]
@@ -72,7 +72,7 @@ flowchart TB
 
     HEALTH --> SVC1 & SVC2 & SVC3
 
-    SECRETS --> SFILE
+    SECRETS --> SSTORE
     MIG --> MFILE
     TEL --> TFILE
     SVC1 & SVC2 & SVC3 --> LOGS
@@ -104,7 +104,7 @@ sequenceDiagram
 
     activate S
     S->>S: Create app data directory
-    S->>S: Load persisted secrets
+    S->>S: Resolve declared credentials from the native authority
     S->>S: Load migration state
     S->>S: Generate/load auth token
     S->>S: Allocate ports
@@ -133,6 +133,75 @@ sequenceDiagram
     E->>C: GET /readyz
     C-->>E: {"ready": true/false, "details": {...}}
 ```
+
+## Provider and footprint invariants
+
+The runtime is a Tier-2 application, but it must cooperate with other Vrooli
+tiers on the same host. For a resource that can be shared, the embedding shell
+may provide a `PrioritySharedServiceResolver`. Its candidates are attempted in
+this fixed order:
+
+1. the locally running Tier-1 Vrooli control plane;
+2. another running desktop application's authenticated broker;
+3. the verified private resource artifact inside this bundle.
+
+The first two candidates must provide their own loopback endpoint, scoped
+credential, expiry, and user-consent decision. The desktop runtime never scans
+arbitrary ports, accepts a caller-supplied resource endpoint, or grants a
+shared provider lifecycle authority. If an external candidate is unavailable
+or expired, the private bundle remains usable and receives no stale external
+credential. `ServiceStatus.Provider` records the winning provider tier without
+exposing endpoint or credential material.
+
+Bundle packaging is similarly explicit: UI payloads are staged only for UI
+services explicitly listed in the selected bundle manifest. Supporting
+scenarios/resources that are merely cataloged are represented by declarative
+manifests and API/CLI artifacts only; their UI directories are not copied into
+the bundle. This keeps the artifact small while preserving the runtime's
+ability to communicate with those supporting components.
+
+These are security and portability invariants, not optimizations. Changes to
+provider selection or catalog staging require tests covering Tier-1 preference,
+desktop-peer fallback, private fallback, and the absence of auxiliary UI
+payloads.
+
+## Human identity and application authentication
+
+The runtime has two separate authentication concerns:
+
+1. The supervisor's loopback bearer token authenticates the Electron shell to
+   the supervisor control API.
+2. The bundled scenario's selected authentication mode determines whether a
+   human identity is required for scenario use.
+
+The supervisor token is never a human principal, scenario capability, LPBS
+entitlement, or subscription proof.
+
+The bundle manifest declares one of these modes:
+
+| Mode | Runtime behavior |
+|---|---|
+| `personal_local` | Current OS user operates a private bundle without human sign-in by default. |
+| `local_multi_user` | A private local authenticator realm supplies human sessions and account selection; its declared provider service starts only in this mode. |
+| `remote_vrooli` | The desktop app uses the configured Tier 1 identity and authorization boundary. |
+| `shared_provider` | A broker supplies an expiring, scoped provider lease. |
+
+The runtime must preserve the selected mode, keep provider credentials in the
+native credential authority, and report provider absence or expiry as a typed
+status. It must not silently expose a private service to other users or change
+to a remote provider because the private artifact is unavailable.
+
+Mode selection is persisted as non-secret state and takes effect on the next
+managed restart. `personal_local` therefore remains offline-capable and does
+not start an optional local authenticator; `local_multi_user` starts its
+declared authenticator service so the operator can complete first-run
+enrollment, sign-in, account switching, and revocation through that provider.
+If the provider is not declared or a shared lease is unavailable or expired,
+the runtime refuses the networked mode rather than falling back silently.
+
+LPBS website authentication and commercial entitlement are separate. A
+desktop app may redeem an explicit, one-time account-linking or entitlement
+flow, but it must not copy a website session or admin JWT into the bundle.
 
 ## File Structure
 
@@ -213,6 +282,12 @@ func main() {
 }
 ```
 
+`Supervisor.Done()` closes after shutdown returns. Command hosts must not exit
+on the internal cancellation context: service/resource cleanup may still be
+running. Shutdown requests native service stops before cancelling their process
+contexts, allowing application cleanup hooks to complete. Deadline escalation
+and harness containment remain distinct from a successful native shutdown.
+
 ### Command-Line Tools
 
 **Runtime Daemon:**
@@ -284,6 +359,10 @@ curl -H "Authorization: Bearer $(cat /tmp/vrooli-runtime-fixture/runtime/auth-to
 | `/readyz` | GET | Yes | Detailed service readiness status |
 | `/status` | GET | Yes | Runtime instance metadata (instance id, start time, manifest hash) |
 | `/ports` | GET | Yes | Current port allocation map |
+| `/features` | GET | Yes | Resolve an explicit owner feature and optional version range at call time |
+| `/components` | GET | Yes | Signed available releases and installed component state |
+| `/components` | POST | Yes | Verify and stage a signed component; activate on restart |
+| `/components` | DELETE | Yes | Stop and remove a component; requires explicit `keep_data` choice |
 | `/logs/tail` | GET | Yes | Tail service log file (`?serviceId=X&lines=N`) |
 | `/secrets` | GET | Yes | List secrets with has_value status |
 | `/secrets` | POST | Yes | Submit secret values |
@@ -292,6 +371,22 @@ curl -H "Authorization: Bearer $(cat /tmp/vrooli-runtime-fixture/runtime/auth-to
 | `/shutdown` | GET | Yes | Initiate graceful shutdown |
 
 **Authentication:** Bearer token from `{app_data}/runtime/auth-token`
+
+Feature selection prefers a healthy compatible full application that explicitly
+advertises the requested owner feature. It then uses an explicit embedded peer
+binding or a verified installed component. Embedded and installed bindings stay
+local to the host runtime; slices never satisfy bare scenario discovery or
+advertise themselves as full applications. Selecting a full application stops
+the local copy; a later call can restart it after the full application closes.
+Owner declarations live in `.vrooli/desktop-features.json`; packaged slices carry
+their feature declarations in signed catalog entries. Installed data lives
+separately from immutable code generations and survives removal only when chosen.
+Signed feature declarations must select a declared port in their own owner service
+graph. An update retains its previous signed generation until the new services
+pass readiness. Failed activation re-verifies and restores the previous compatible
+generation, keeps user data, and preserves the host's existing port bindings.
+If no healthy, trusted, compatible generation remains, the optional component
+stays unavailable with a reason in Integrations while the host continues running.
 
 ```bash
 curl -H "Authorization: Bearer $(cat ~/.config/myapp/runtime/auth-token)" \
@@ -402,6 +497,15 @@ The runtime is driven by a `bundle.json` manifest:
 | `port_open` | Wait for TCP port to accept connections | `port_name`, `timeout_ms` |
 | `log_match` | Wait for pattern in logs | `pattern`, `timeout_ms` |
 | `dependencies_ready` | Wait for dependent services | (none) |
+
+`health_success` probes immediately and waits 100 ms between failed probes.
+The readiness `timeout_ms` (default 30 seconds) bounds the startup window;
+`health.interval_ms` and `health.retries` do not shorten that window.
+Cancellation and deadline expiry interrupt the wait between probes. HTTP,
+TCP and command probes inherit the startup context and retain a 2 second ceiling.
+Port readiness shares context-aware TCP dialing with a 500 ms probe limit and
+cancellable 250 ms retry waits. `CheckOnce` keeps the configured health timeout
+for an individual monitoring request.
 
 ## GPU Requirements
 

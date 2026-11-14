@@ -1,0 +1,1 @@
+{"gate":"token-vocabulary","assetId":"calibration-token-vocabulary","kind":"component","runner":"static","requiredFailureCode":"catalog.token_vocabulary","catalogAsset":"asset.json","source":"broken.tsx","description":"Uses the retired --app-* vocabulary."}

@@ -1,0 +1,55 @@
+{
+  "_metadata": {
+    "module": "marketing-i16",
+    "description": "Accepted full Marketing specialist contracts; desired outcomes, not implementation proof",
+    "priority": "P0",
+    "schema_version": "1.0"
+  },
+  "requirements": [
+    {
+      "id": "CHANMGR-P0-020",
+      "title": "Exact timed publication package admission",
+      "description": "The system shall bind an immutable exact draft/package/media revision, authorized actor, destination identity, route and original-zone requested instant/window in release admission; enforce current eligibility, consent, cadence and asset-use reservation at final admission; return same-request replay and reject changed payload under the same key without immediate-release substitution.",
+      "criticality": "P0",
+      "prd_ref": "OT-P0-020",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Full approved Marketing dossier/native-contract cases; implementation and native qualification not yet established."
+        }
+      ]
+    },
+    {
+      "id": "CHANMGR-P0-021",
+      "title": "Route-aware uncertain and partial outcome recovery",
+      "description": "The system shall retain stable ordered-item and attempt identities, admission/dispatch/provider-held/scheduled/cancel-requested/partial/unknown outcomes and durable reconciliation lookup; recover lost responses and late receipts without duplicate external effects, report actual provider amend/cancel/control limits, and record manual owner reports distinctly from verified outcomes.",
+      "criticality": "P0",
+      "prd_ref": "OT-P0-021",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Full approved Marketing dossier/native-contract cases; implementation and native qualification not yet established."
+        }
+      ]
+    },
+    {
+      "id": "CHANMGR-P0-022",
+      "title": "Versioned observation and correction lineage",
+      "description": "The system shall retain release/item/package/account identity with metric definition/version, interval, source, observation time, unit/denominator and limits; deduplicate identical samples, preserve unknown values and append correction/conflict/supersession lineage for Content Desk learning without fabricating causality.",
+      "criticality": "P0",
+      "prd_ref": "OT-P0-022",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Full approved Marketing dossier/native-contract cases; implementation and native qualification not yet established."
+        }
+      ]
+    }
+  ]
+}

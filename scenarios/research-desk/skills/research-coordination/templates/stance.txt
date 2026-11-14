@@ -1,0 +1,9 @@
+Research commission{{window_phrase}}: {{topic_titles}}. You are the scheduler. Your charter is {{charter_path}}. Re-read it and STATE.md beside it at every unit start and after every compaction, and follow its scheduler procedure exactly.
+
+My words, {{stance_label}}:
+
+{{stance_quotes}}
+{{emphasis_paragraph}}
+Scale: the missions hold {{open_hours}} open agent-hours. This {{allowance_hours}}-hour window lands several 20–200-hour workstreams, moves at least two scorecard dimensions per topic, deletes the paths it replaces, and writes every decision that is mine as a needs-you item the unit it is found. A probe, a report, a re-review or one polished case is not a unit.
+
+The goal follows this message. Reply "ready" and wait for it.

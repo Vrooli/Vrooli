@@ -1,0 +1,24 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-08-27T13:31:23-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P2-002",
+      "title": "Produce Reproducible Rollout Evidence",
+      "status": "complete",
+      "prd_ref": "OT-P2-002",
+      "category": "rollout",
+      "criticality": "P2",
+      "description": "Workflow Health must document and support validation commands for full workflow-health scenario tests, provider-contract checks, Test Genie workflow phase runs, Search Hub discovery checks, BAS-backed execution checks, routed mutating fixtures, and baseline diffs for affected scenarios.",
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Final rollout notes in docs/internal/PROGRESS.md list the exact commands, run IDs, baseline names, and accepted skips for the completed plan."
+        }
+      ]
+    }
+  ]
+}

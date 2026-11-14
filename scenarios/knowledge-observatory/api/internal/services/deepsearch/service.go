@@ -160,9 +160,6 @@ func (s *Service) GetJob(ctx context.Context, jobID string) (*DeepSearchJob, err
 }
 
 func (s *Service) spawnAgent(ctx context.Context, jobID string, req DeepSearchRequest, prompt, scopePath, projectRoot string) (string, error) {
-	if err := s.agent.EnsureProfile(ctx); err != nil {
-		return "", err
-	}
 	title := fmt.Sprintf("Deep documentation search: %s", truncate(req.Query, 64))
 	runReq := AgentRunRequest{
 		Title:       title,

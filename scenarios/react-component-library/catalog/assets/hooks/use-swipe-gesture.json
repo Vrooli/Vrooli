@@ -1,0 +1,6 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": { "id": "hooks.use-swipe-gesture", "name": "Use Swipe Gesture", "kind": "runtime-hook", "domain": "hooks", "description": "Tracks staged pointer movement and reports deterministic swipe outcomes without rerendering every frame.", "targets": ["react-vite"], "slot": "non-renderable", "delivery": "adopted", "target": { "priority": "P1", "maturity": "verified" } }
+}

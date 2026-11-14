@@ -1,75 +1,122 @@
-# Quick Start
+# Quickstart — Development Toolchain Validator
 
-## What is development-toolchain-validator?
-
-This scenario validates that the Vrooli development ecosystem works correctly by testing development tools and steer skills against known-good **reference scenarios**. It answers three questions:
-
-1. **Are steer skills consistent with each other?** When multiple skills are applied to the same scenario, do they create conflicts?
-2. **Are development tools accurate?** Does scenario-auditor, test-genie, and scenario-completeness-scoring produce correct results on known-good code?
-3. **How mature are steer skills?** Can we programmatically describe what a skill does, or is it too vague?
+Get this scenario running locally in under five minutes. The lifecycle
+handles ports, environment variables, and dependencies — you should
+not need to set anything by hand.
 
 ## Prerequisites
 
-- PostgreSQL running (resource dependency)
-- prompt-manager running (API dependency for reading skills)
-- For tooling baselines (P1): scenario-auditor, test-genie, and scenario-completeness-scoring running
+- **Vrooli CLI** installed and on `PATH` (run `vrooli help` to confirm)
+- **Go** matching the versions declared in `api/go.mod` and `cli/go.mod`
+- **Node 20+ and pnpm 9+** for the UI bundle
 
-## Setup
+If `vrooli` is not on your `PATH`, run `make setup` from the workspace
+root (one level above this directory) once.
+
+## 1 — Setup
+
+From this scenario's directory:
 
 ```bash
-cd scenarios/development-toolchain-validator
+make setup
+```
+
+This runs the scenario's setup lifecycle: dependencies are prepared,
+the API/CLI/UI are built as needed, and the scenario CLI is installed.
+Keep the exact lifecycle steps in `.vrooli/service.json`; this guide is
+only the user-facing path.
+
+Run this once after generation, and again whenever dependencies change.
+
+## 2 — Start
+
+```bash
 make start
 ```
 
-## Core Workflow
+This starts the API, UI, and any declared resources. The lifecycle
+allocates ports automatically and exposes them through scenario
+commands such as `make status` and `vrooli scenario port`.
 
-### 1. Register a reference scenario
-
-```bash
-development-toolchain-validator references add reference-react-vite --template react-vite
-```
-
-### 2. Connect a steer skill
+## 3 — Open
 
 ```bash
-development-toolchain-validator skills connect api-steer --reference reference-react-vite
+make open
 ```
 
-This connects the skill with its current version pinned. No config is needed initially — unconfigured connections represent skills that need structured expectations defined.
-
-### 3. Add structural expectations (optional, but this is where value comes from)
+Or check the URL directly:
 
 ```bash
-development-toolchain-validator expectations add structural \
-  --connection api-steer:reference-react-vite \
-  --type folder --path "api/handlers/{domain}/" --required true \
-  --description "API handlers organized by domain module"
+vrooli scenario port development-toolchain-validator UI_PORT
 ```
 
-### 4. Add CLI tool assertions (optional)
+You should see the example UI rendering live `/health` data and a
+notes pane backed by the local SQLite store.
+
+## 4 — Talk to the API
+
+Through the scenario CLI (preferred — uses the resolved port and token
+automatically):
 
 ```bash
-development-toolchain-validator expectations add cli-tool \
-  --connection api-steer:reference-react-vite \
-  --command "scenario-auditor audit reference-react-vite --json" \
-  --path "$.total" --op eq --value 0
+development-toolchain-validator status
+development-toolchain-validator notes list
+development-toolchain-validator notes create --title "First note" --body "Hello"
 ```
 
-### 5. Run validation
+Or directly via HTTP:
 
 ```bash
-development-toolchain-validator validate reference-react-vite
+API_PORT=$(vrooli scenario port development-toolchain-validator API_PORT)
+curl -s "http://localhost:${API_PORT}/health"
+curl -s -X POST "http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.notes.NotesService/ListNotes" \
+  -H 'Content-Type: application/json' \
+  -d '{}'
 ```
 
-### 6. View the report
+## 5 — Run the tests
 
 ```bash
-development-toolchain-validator report reference-react-vite
+make test
 ```
 
-## What's Next
+This runs the scenario test lifecycle. The current phase list and
+coverage expectations live in `.vrooli/testing.json`,
+`.github/workflows/test.yml`, and [`internal/TESTING.md`](internal/TESTING.md).
 
-- Read [Concepts: Vision & Purpose](concepts/VISION.md) to understand why this exists
-- Read [Concepts: Architecture](concepts/ARCHITECTURE.md) for the technical design
-- Read [Guides: Connecting Skills](guides/connecting-skills.md) for the full workflow
-- Read [Guides: Writing Assertions](guides/writing-assertions.md) for assertion syntax
+## Common follow-up commands
+
+| Command | What it does |
+|---|---|
+| `make logs` | Tail API + UI logs (or `vrooli scenario logs`) |
+| `make status` | Show running surfaces and their ports |
+| `make stop` | Shut everything down cleanly |
+| `make restart` | `stop` then `start` (preferred over manually restarting individual surfaces) |
+
+For scenario-specific commands beyond the lifecycle, use the scenario
+CLI (`development-toolchain-validator --help`) — see
+[`reference/cli-commands.md`](reference/cli-commands.md).
+
+## Troubleshooting
+
+If anything misbehaves on first boot, check
+[`guides/troubleshooting.md`](guides/troubleshooting.md). The most
+common first-time issues are:
+
+- A previous scenario instance still holding ports — `make restart`
+- Stale build artifacts after editing source — `make setup` rebuilds
+- Missing `vrooli` CLI — run workspace-root `make setup`
+
+## Next steps
+
+- Read [`START-HERE.md`](START-HERE.md) before implementing product
+  behavior. It owns the first-session workflow after generation.
+- Read [`concepts/ARCHITECTURE.md`](concepts/ARCHITECTURE.md) for the
+  mental model: three surfaces, proto bridge, layered API, where to
+  add code.
+- Read [`internal/TESTING.md`](internal/TESTING.md) before writing
+  your first non-trivial test.
+- Update `PRD.md` with your operational targets, then add requirement
+  modules under `requirements/`.
+- Append a one-line entry to [`internal/PROGRESS.md`](internal/PROGRESS.md)
+  whenever you land work, so future agents can replay the lifecycle.

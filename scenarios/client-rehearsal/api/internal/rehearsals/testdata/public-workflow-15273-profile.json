@@ -1,0 +1,28 @@
+{
+  "kind": "openapi-catalog",
+  "services": [
+    {
+      "id": "synthetic-payment-alerts",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {"title": "Synthetic payment alerts", "version": "1"},
+        "servers": [{"url": "https://alerts.synthetic.invalid"}],
+        "paths": {
+          "/v1/slack/messages": {"post": {"x-n8n-node-type": "n8n-nodes-base.slack", "x-n8n-resource": "message", "x-n8n-operation": "post", "responses": {"200": {"content": {"application/json": {"example": {"status": "recorded"}}}}}}},
+          "/v1/gmail/messages": {"post": {"x-n8n-node-type": "n8n-nodes-base.gmail", "x-n8n-resource": "message", "x-n8n-operation": "send", "responses": {"200": {"content": {"application/json": {"example": {"status": "accepted", "messageId": "synthetic-message-01"}}}}}}}
+        }
+      }
+    },
+    {
+      "id": "synthetic-payment-ledger",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {"title": "Synthetic payment ledger", "version": "1"},
+        "servers": [{"url": "https://ledger.synthetic.invalid"}],
+        "paths": {
+          "/v1/payment-failures": {"post": {"x-n8n-node-type": "n8n-nodes-base.supabase", "x-n8n-resource": "row", "x-n8n-operation": "create", "x-n8n-input-match": {"tableId": "payment_failure"}, "responses": {"201": {"content": {"application/json": {"example": {"id": "synthetic-payment-failure-01", "status": "created"}}}}}}}
+        }
+      }
+    }
+  ]
+}

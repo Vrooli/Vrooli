@@ -1,0 +1,209 @@
+{
+  "schema_version": "device-definition/v1",
+  "id": "galaxy-z-fold6",
+  "group": "foldable",
+  "kind": "book_fold_phone",
+  "identity_status": "documented_product",
+  "manufacturer": "Samsung",
+  "model": "Galaxy Z Fold6",
+  "dimensions": {
+    "unfolded": {
+      "width": {
+        "value": 132.6,
+        "unit": "mm",
+        "meaning": "left-to-right in front reference pose",
+        "configuration": "unfolded",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.samsung.com/ph/smartphones/galaxy-z-fold6/specs/",
+            "kind": "manufacturer_specification",
+            "qualifier": "Manufacturer nominal body/case dimensions; exact protrusion envelope/tolerance not independently measured."
+          }
+        ]
+      },
+      "height": {
+        "value": 153.5,
+        "unit": "mm",
+        "meaning": "bottom-to-top in front reference pose",
+        "configuration": "unfolded",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.samsung.com/ph/smartphones/galaxy-z-fold6/specs/",
+            "kind": "manufacturer_specification",
+            "qualifier": "Manufacturer nominal body/case dimensions; exact protrusion envelope/tolerance not independently measured."
+          }
+        ]
+      },
+      "depth": {
+        "value": 5.6,
+        "unit": "mm",
+        "meaning": "front-to-back in front reference pose",
+        "configuration": "unfolded",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.samsung.com/ph/smartphones/galaxy-z-fold6/specs/",
+            "kind": "manufacturer_specification",
+            "qualifier": "Manufacturer nominal body/case dimensions; exact protrusion envelope/tolerance not independently measured."
+          }
+        ]
+      }
+    },
+    "folded": {
+      "width": {
+        "value": 68.1,
+        "unit": "mm",
+        "meaning": "left-to-right in front reference pose",
+        "configuration": "folded",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.samsung.com/ph/smartphones/galaxy-z-fold6/specs/",
+            "kind": "manufacturer_specification",
+            "qualifier": "Manufacturer nominal body/case dimensions; exact protrusion envelope/tolerance not independently measured."
+          }
+        ]
+      },
+      "height": {
+        "value": 153.5,
+        "unit": "mm",
+        "meaning": "bottom-to-top in front reference pose",
+        "configuration": "folded",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.samsung.com/ph/smartphones/galaxy-z-fold6/specs/",
+            "kind": "manufacturer_specification",
+            "qualifier": "Manufacturer nominal body/case dimensions; exact protrusion envelope/tolerance not independently measured."
+          }
+        ]
+      },
+      "depth": {
+        "value": 12.1,
+        "unit": "mm",
+        "meaning": "front-to-back in front reference pose",
+        "configuration": "folded",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.samsung.com/ph/smartphones/galaxy-z-fold6/specs/",
+            "kind": "manufacturer_specification",
+            "qualifier": "Manufacturer nominal body/case dimensions; exact protrusion envelope/tolerance not independently measured."
+          }
+        ]
+      }
+    }
+  },
+  "displays": [
+    {
+      "id": "inner-display",
+      "topology": "continuous_flexible",
+      "physical_boundary": {
+        "status": "unknown"
+      },
+      "active_area": {
+        "status": "unknown"
+      },
+      "app_safe_area": {
+        "status": "unknown"
+      },
+      "hardware_occlusions": []
+    },
+    {
+      "id": "cover-display",
+      "topology": "planar",
+      "physical_boundary": {
+        "status": "unknown"
+      },
+      "active_area": {
+        "status": "unknown"
+      },
+      "app_safe_area": {
+        "status": "unknown"
+      },
+      "hardware_occlusions": []
+    }
+  ],
+  "joints": [
+    {
+      "id": "main-hinge",
+      "parent_part": "left-housing",
+      "child_part": "right-housing",
+      "status": "unknown"
+    }
+  ],
+  "supported_poses": [
+    {
+      "name": "open-flat",
+      "status": "candidate_only"
+    },
+    {
+      "name": "folded-closed",
+      "status": "candidate_only"
+    }
+  ],
+  "supported_motion": [
+    {
+      "name": "fold_transition",
+      "status": "unknown"
+    }
+  ],
+  "supported_profiles": [],
+  "supports": [
+    {
+      "kind": "tabletop",
+      "status": "unknown"
+    }
+  ],
+  "model_candidates": [
+    {
+      "id": "galaxy-z-fold6-murat",
+      "status": "not_acquired",
+      "listing_url": "https://sketchfab.com/3d-models/galaxy-z-fold6-silver-bf94529cd69a43d4b3569fcddfc9d28d",
+      "author": "Murat",
+      "license": "CC BY 4.0 listing",
+      "attribution": "Credit Murat; include adaptation notice",
+      "rights_notes": "Listing metadata only; file not acquired/inspected; matching title does not establish dimensions, flexible screen, or hinge."
+    }
+  ],
+  "provenance": [
+    {
+      "source": "https://www.samsung.com/ph/smartphones/galaxy-z-fold6/specs/",
+      "kind": "manufacturer_specification",
+      "qualifier": "Open/folded H×W×D and display diagonals sourced; active geometry, hinge origin/limits and bend radius not specified."
+    },
+    {
+      "source": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/model-sourcing/mobile-devices.json",
+      "kind": "archived_source_record",
+      "qualifier": "Dual-surface topology and missing rig facts."
+    }
+  ],
+  "qualification": "unqualified",
+  "description": "Two display surfaces are distinct; published diagonals do not determine active boundaries or usable/safe regions."
+}

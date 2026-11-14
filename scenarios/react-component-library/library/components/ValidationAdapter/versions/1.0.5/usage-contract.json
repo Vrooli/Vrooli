@@ -1,0 +1,15 @@
+{
+  "collections": [
+    {
+      "labelField": "label",
+      "maximumCount": 8,
+      "maximumLabelCharacters": 48,
+      "primaryAction": "not-applicable",
+      "property": "inputs",
+      "stableIdField": "id",
+      "typicalCount": 4
+    }
+  ],
+  "componentId": "react-component-library:ValidationAdapter",
+  "version": "1.0.5"
+}

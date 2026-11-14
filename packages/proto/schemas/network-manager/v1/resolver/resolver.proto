@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package vrooli.network_manager.v1.resolver;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/resolver;resolver_v1";
+
+// ResolverService owns managed DNS resolver backend status and setup.
+service ResolverService {
+  rpc GetResolverStatus(GetResolverStatusRequest) returns (GetResolverStatusResponse);
+  rpc ConfigureAdGuardHome(ConfigureAdGuardHomeRequest) returns (ConfigureAdGuardHomeResponse);
+  rpc UpdateUpstreams(UpdateUpstreamsRequest) returns (UpdateUpstreamsResponse);
+  rpc CheckResolverHealth(CheckResolverHealthRequest) returns (CheckResolverHealthResponse);
+  rpc GetAdGuardRollout(GetAdGuardRolloutRequest) returns (GetAdGuardRolloutResponse);
+}
+
+message ResolverStatus {
+  string backend = 1;
+  string status = 2;
+  string base_url = 3;
+  repeated string upstreams = 4;
+  bool filtering_enabled = 5;
+  repeated string warnings = 6;
+  string enforcement_status = 7;
+  repeated string enforcement_evidence = 8;
+}
+
+message GetResolverStatusRequest {}
+
+message GetResolverStatusResponse {
+  ResolverStatus status = 1;
+}
+
+message ConfigureAdGuardHomeRequest {
+  string base_url = 1;
+  string username = 2;
+  string credential_ref = 3;
+  bool dry_run = 4;
+}
+
+message ConfigureAdGuardHomeResponse {
+  ResolverStatus status = 1;
+  repeated string next_steps = 2;
+}
+
+message UpdateUpstreamsRequest {
+  repeated string upstreams = 1;
+  bool dry_run = 2;
+}
+
+message UpdateUpstreamsResponse {
+  ResolverStatus status = 1;
+  repeated string changes = 2;
+}
+
+message CheckResolverHealthRequest {}
+
+message CheckResolverHealthResponse {
+  ResolverStatus status = 1;
+  repeated string checks = 2;
+}
+
+message RolloutCheck {
+  string id = 1;
+  string title = 2;
+  string status = 3;
+  string evidence = 4;
+  repeated string recommendations = 5;
+}
+
+message AdGuardRollout {
+  string status = 1;
+  string summary = 2;
+  string dns_bind_ip = 3;
+  ResolverStatus resolver_status = 4;
+  repeated RolloutCheck checks = 5;
+  repeated string router_settings = 6;
+  repeated string next_steps = 7;
+  repeated string warnings = 8;
+}
+
+message GetAdGuardRolloutRequest {}
+
+message GetAdGuardRolloutResponse {
+  AdGuardRollout rollout = 1;
+}

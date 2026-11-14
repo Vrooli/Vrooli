@@ -2,9 +2,24 @@ version: v2
 modules:
   - path: schemas
     name: buf.build/vrooli/schemas
-deps:
-  - buf.build/googleapis/googleapis
-  - buf.build/bufbuild/protovalidate
+  # BSR module deps are vendored under vendor/{googleapis,protovalidate}/
+  # and treated as workspace modules so transitive imports resolve without
+  # contacting BSR. Refresh via `make refresh-vendor` (the only code path
+  # that requires BSR access). See docs/development/proto.md.
+  - path: vendor/googleapis
+    name: buf.build/googleapis/googleapis
+    lint:
+      use:
+        - MINIMAL
+    breaking:
+      ignore_unstable_packages: true
+  - path: vendor/protovalidate
+    name: buf.build/bufbuild/protovalidate
+    lint:
+      use:
+        - MINIMAL
+    breaking:
+      ignore_unstable_packages: true
 lint:
   use:
     - DEFAULT
@@ -16,6 +31,14 @@ lint:
     # different Go packages for better code organization.
     - PACKAGE_SAME_DIRECTORY
     - PACKAGE_SAME_GO_PACKAGE
+    # audio-tools STT streaming RPC returns TranscribeStreamEvent (a typed
+    # oneof envelope) rather than TranscribeStreamResponse, and TTS
+    # SynthesizeStream reuses SynthesizeRequest and returns AudioFrame
+    # frames. These shapes predate the lint additions and are intentional
+    # for the bidi/server-stream surfaces.
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
+    - RPC_REQUEST_RESPONSE_UNIQUE
 breaking:
   use:
     - WIRE

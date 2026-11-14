@@ -1,0 +1,204 @@
+{
+  "Component": {
+    "ID": "0dc67429-29d4-41c9-a7f6-09e56f3cba91",
+    "CatalogID": "legacy.ingest-probe",
+    "LibraryID": "react-component-library:IngestProbe",
+    "Slug": "IngestProbe",
+    "DisplayName": "IngestProbe",
+    "Description": "Ingested from react-component-library:ui/src/components/ingest-probe/IngestProbe.tsx",
+    "Slot": "ui-primitive",
+    "Category": "uncategorized",
+    "SourcePath": "components/IngestProbe/versions/1.0.0/IngestProbe.tsx",
+    "Version": "1.0.0",
+    "LatestVersion": "1.0.0",
+    "DraftVersion": "",
+    "ManifestPath": "components/IngestProbe/component.json",
+    "Tags": null,
+    "IndexedAt": "2026-10-30T03:01:01.612877068Z",
+    "UpdatedAt": "2026-10-30T03:01:42.27588569Z",
+    "Headers": {
+      "catalogId": "legacy.ingest-probe",
+      "description": "Ingested from react-component-library:ui/src/components/ingest-probe/IngestProbe.tsx",
+      "displayName": "IngestProbe",
+      "tags": "[]",
+      "warning": "Managed by React Component Library. Preserve this header when editing adopted copies."
+    },
+    "DesignStyles": [
+      {
+        "StyleID": "vrooli-default",
+        "Affinity": "native",
+        "Reason": "token-native operational-console baseline"
+      }
+    ],
+    "AssetKind": "component",
+    "Dependencies": null,
+    "Expects": null,
+    "Satisfies": null,
+    "CatalogKind": "",
+    "CatalogDomain": "",
+    "CatalogDomainOrder": 0,
+    "CatalogRung": 0,
+    "CatalogRungName": "",
+    "TransitiveDependentCount": 0,
+    "Metrics": {
+      "DirectAdoptionCount": 0,
+      "EffectiveAdoptionCount": 0,
+      "VersionCount": 2,
+      "VersionAdoptions": null
+    },
+    "KitCompatibility": {
+      "Verdict": "universal",
+      "CompatibleKitIDs": [
+        "switchboard-console",
+        "vrooli-command-display",
+        "vrooli-conversion-landing",
+        "vrooli-default"
+      ],
+      "UnsatisfiedProperties": null
+    }
+  },
+  "Versions": [
+    {
+      "ID": "9a3cc502-b2bf-47c8-ab9f-c76eadb7b542",
+      "ComponentID": "0dc67429-29d4-41c9-a7f6-09e56f3cba91",
+      "LibraryID": "react-component-library:IngestProbe",
+      "Version": "1.0.0-draft.1",
+      "Status": "draft",
+      "SourcePath": "components/IngestProbe/versions/1.0.0-draft.1/IngestProbe.tsx",
+      "Content": "/**\n * @libraryId react-component-library:IngestProbe\n * @displayName IngestProbe\n * @description Ingested from react-component-library:ui/src/components/ingest-probe/IngestProbe.tsx\n * @version 1.0.0-draft.1\n * @tags []\n * @warning Managed by React Component Library. Preserve this header when editing adopted copies.\n */\n/** A throwaway origin used to verify that ingest creates a new asset as a draft only. */\nexport function IngestProbe({ label = \"Probe\" }: { label?: string }) {\n  return \u003cspan data-testid=\"ingest-probe\"\u003e{label}\u003c/span\u003e;\n}\n",
+      "ContentSHA256": "13200627c33be214e62fc9f76d4aa83a46d6678fe9e1fe5c36ce54faf354afa3",
+      "ChangelogMD": "",
+      "IndexedAt": "2026-10-30T03:01:29.033579609Z",
+      "CreatedAt": "2026-10-30T03:01:01.614014739Z",
+      "ReleasedAt": "0001-01-01T00:00:00Z",
+      "Presence": "materialized",
+      "Headers": null,
+      "Files": [
+        {
+          "Path": "IngestProbe.tsx",
+          "Content": "/**\n * @libraryId react-component-library:IngestProbe\n * @displayName IngestProbe\n * @description Ingested from react-component-library:ui/src/components/ingest-probe/IngestProbe.tsx\n * @version 1.0.0-draft.1\n * @tags []\n * @warning Managed by React Component Library. Preserve this header when editing adopted copies.\n */\n/** A throwaway origin used to verify that ingest creates a new asset as a draft only. */\nexport function IngestProbe({ label = \"Probe\" }: { label?: string }) {\n  return \u003cspan data-testid=\"ingest-probe\"\u003e{label}\u003c/span\u003e;\n}\n",
+          "ContentSHA256": "13200627c33be214e62fc9f76d4aa83a46d6678fe9e1fe5c36ce54faf354afa3",
+          "IsEntry": true,
+          "Slot": ""
+        },
+        {
+          "Path": "dependencies.json",
+          "Content": "{\n  \"schemaVersion\": 2,\n  \"libraryId\": \"react-component-library:IngestProbe\",\n  \"version\": \"1.0.0-draft.1\",\n  \"resolvedAt\": \"2026-10-30T03:01:19.403Z\",\n  \"dependencies\": []\n}\n",
+          "ContentSHA256": "6c30479170a0ceea0455e8ee4b5a84a80276adf2a1311d06fa807f9aed62abf3",
+          "IsEntry": false,
+          "Slot": ""
+        },
+        {
+          "Path": "story.json",
+          "Content": "{\n  \"schemaVersion\": 5,\n  \"kind\": \"component\",\n  \"args\": { \"fields\": [] },\n  \"environment\": { \"fixtures\": [] },\n  \"stories\": [{ \"id\": \"default\", \"name\": \"Default\", \"args\": {}, \"expect\": [] }]\n}\n",
+          "ContentSHA256": "29a6212ea503e9b9c79cf458adfa1039ad1e61d38a7e6dd1c4c20a020d31eca0",
+          "IsEntry": false,
+          "Slot": ""
+        }
+      ],
+      "Dependencies": [],
+      "DependencyLockPresent": true,
+      "RequiredTokens": null,
+      "RequiredTokenPatterns": null,
+      "KitCompatibility": {
+        "Verdict": "universal",
+        "CompatibleKitIDs": [
+          "switchboard-console",
+          "vrooli-command-display",
+          "vrooli-conversion-landing",
+          "vrooli-default"
+        ],
+        "UnsatisfiedProperties": null
+      },
+      "ExperienceContract": "",
+      "ParityReport": null
+    },
+    {
+      "ID": "a1a454ee-7d85-48c0-be9a-27c0c56d3655",
+      "ComponentID": "0dc67429-29d4-41c9-a7f6-09e56f3cba91",
+      "LibraryID": "react-component-library:IngestProbe",
+      "Version": "1.0.0",
+      "Status": "released",
+      "SourcePath": "components/IngestProbe/versions/1.0.0/IngestProbe.tsx",
+      "Content": "/**\n * @libraryId react-component-library:IngestProbe\n * @displayName IngestProbe\n * @description Ingested from react-component-library:ui/src/components/ingest-probe/IngestProbe.tsx\n * @version 1.0.0\n * @tags []\n * @warning Managed by React Component Library. Preserve this header when editing adopted copies.\n */\n/** A throwaway origin used to verify that ingest creates a new asset as a draft only. */\nexport function IngestProbe({ label = \"Probe\" }: { label?: string }) {\n  return \u003cspan data-testid=\"ingest-probe\"\u003e{label}\u003c/span\u003e;\n}\n",
+      "ContentSHA256": "d5a95aa1076753d7f650297ef5c9bf317bccd3c0a66a3c1d55f779d6052bbe09",
+      "ChangelogMD": "",
+      "IndexedAt": "2026-10-30T03:01:29.033579609Z",
+      "CreatedAt": "2026-10-30T03:01:29.033579609Z",
+      "ReleasedAt": "2026-10-30T03:01:29.033579609Z",
+      "Presence": "materialized",
+      "Headers": null,
+      "Files": [
+        {
+          "Path": "IngestProbe.tsx",
+          "Content": "/**\n * @libraryId react-component-library:IngestProbe\n * @displayName IngestProbe\n * @description Ingested from react-component-library:ui/src/components/ingest-probe/IngestProbe.tsx\n * @version 1.0.0\n * @tags []\n * @warning Managed by React Component Library. Preserve this header when editing adopted copies.\n */\n/** A throwaway origin used to verify that ingest creates a new asset as a draft only. */\nexport function IngestProbe({ label = \"Probe\" }: { label?: string }) {\n  return \u003cspan data-testid=\"ingest-probe\"\u003e{label}\u003c/span\u003e;\n}\n",
+          "ContentSHA256": "d5a95aa1076753d7f650297ef5c9bf317bccd3c0a66a3c1d55f779d6052bbe09",
+          "IsEntry": true,
+          "Slot": ""
+        },
+        {
+          "Path": "dependencies.json",
+          "Content": "{\n  \"schemaVersion\": 2,\n  \"libraryId\": \"react-component-library:IngestProbe\",\n  \"version\": \"1.0.0\",\n  \"resolvedAt\": \"2026-10-30T03:01:28Z\",\n  \"dependencies\": []\n}\n",
+          "ContentSHA256": "57fcd127e8667428bdd06437a1ef788dccb49354eba09a85631cf16146b60414",
+          "IsEntry": false,
+          "Slot": ""
+        },
+        {
+          "Path": "story.json",
+          "Content": "{\n  \"schemaVersion\": 5,\n  \"kind\": \"component\",\n  \"args\": { \"fields\": [] },\n  \"environment\": { \"fixtures\": [] },\n  \"stories\": [{ \"id\": \"default\", \"name\": \"Default\", \"args\": {}, \"expect\": [] }]\n}\n",
+          "ContentSHA256": "29a6212ea503e9b9c79cf458adfa1039ad1e61d38a7e6dd1c4c20a020d31eca0",
+          "IsEntry": false,
+          "Slot": ""
+        }
+      ],
+      "Dependencies": [],
+      "DependencyLockPresent": true,
+      "RequiredTokens": null,
+      "RequiredTokenPatterns": null,
+      "KitCompatibility": {
+        "Verdict": "universal",
+        "CompatibleKitIDs": [
+          "switchboard-console",
+          "vrooli-command-display",
+          "vrooli-conversion-landing",
+          "vrooli-default"
+        ],
+        "UnsatisfiedProperties": null
+      },
+      "ExperienceContract": "",
+      "ParityReport": null
+    }
+  ],
+  "Stories": [
+    {
+      "ID": "756994e1-abbe-4c07-bcd9-a0acfa3a18cc",
+      "ComponentID": "0dc67429-29d4-41c9-a7f6-09e56f3cba91",
+      "LibraryID": "react-component-library:IngestProbe",
+      "Version": "1.0.0-draft.1",
+      "SchemaVersion": 5,
+      "Kind": "component",
+      "Title": "",
+      "ArgsJSON": "{\"fields\":[]}",
+      "EnvironmentJSON": "{\"fixtures\":[]}",
+      "StoriesJSON": "[{\"id\":\"default\",\"name\":\"Default\",\"args\":{}}]",
+      "ContractJSON": "{\"schemaVersion\":5,\"kind\":\"component\",\"args\":{\"fields\":[]},\"environment\":{\"fixtures\":[]},\"stories\":[{\"id\":\"default\",\"name\":\"Default\",\"args\":{}}]}",
+      "SourcePath": "components/IngestProbe/versions/1.0.0-draft.1/story.json",
+      "IndexedAt": "2026-10-30T03:01:29.033579609Z"
+    },
+    {
+      "ID": "c18c7385-3979-4023-96da-a1861f38913a",
+      "ComponentID": "0dc67429-29d4-41c9-a7f6-09e56f3cba91",
+      "LibraryID": "react-component-library:IngestProbe",
+      "Version": "1.0.0",
+      "SchemaVersion": 5,
+      "Kind": "component",
+      "Title": "",
+      "ArgsJSON": "{\"fields\":[]}",
+      "EnvironmentJSON": "{\"fixtures\":[]}",
+      "StoriesJSON": "[{\"id\":\"default\",\"name\":\"Default\",\"args\":{}}]",
+      "ContractJSON": "{\"schemaVersion\":5,\"kind\":\"component\",\"args\":{\"fields\":[]},\"environment\":{\"fixtures\":[]},\"stories\":[{\"id\":\"default\",\"name\":\"Default\",\"args\":{}}]}",
+      "SourcePath": "components/IngestProbe/versions/1.0.0/story.json",
+      "IndexedAt": "2026-10-30T03:01:29.033579609Z"
+    }
+  ]
+}

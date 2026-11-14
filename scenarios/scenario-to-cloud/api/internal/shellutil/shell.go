@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+const remoteVrooliRelativePath = ".vrooli/bin/vrooli"
+
 // QuoteSingle quotes a string for safe use in single-quoted shell contexts.
 // This is the standard way to quote strings for SSH command arguments.
 func QuoteSingle(s string) string {
@@ -15,11 +17,38 @@ func QuoteSingle(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'"
 }
 
-// VrooliCommand wraps a vrooli command with PATH setup for SSH non-interactive sessions.
-// SSH non-interactive commands don't source .bashrc, so we need to set up PATH explicitly.
+// RemoteVrooliPath returns the deployment-local vrooli binary path for a VPS workdir.
+func RemoteVrooliPath(workdir string) string {
+	return SafeRemoteJoin(workdir, remoteVrooliRelativePath)
+}
+
+// QuotedRemoteVrooliPath returns the shell-quoted deployment-local vrooli binary path.
+func QuotedRemoteVrooliPath(workdir string) string {
+	return QuoteSingle(RemoteVrooliPath(workdir))
+}
+
+// VrooliCommand wraps a remote vrooli command with PATH setup for SSH non-interactive sessions.
+// SSH non-interactive commands don't source shell profiles, so we make the deployment-local
+// binary location explicit because the VPS install is a sealed artifact.
 func VrooliCommand(workdir, cmd string) string {
-	pathSetup := `export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"`
-	return fmt.Sprintf("%s && cd %s && %s", pathSetup, QuoteSingle(workdir), cmd)
+	// The release delivery places the authoritative service manifest, contract,
+	// and the managed source closure under the durable deployment root. Point
+	// both root variables there so setup and target-owner verbs resolve the same
+	// delivered project while artifact mode suppresses development rebuilds.
+	pathSetup := fmt.Sprintf(`export VROOLI_PRIVILEGE_BROKER_SOCKET=/run/vrooli/privilege-broker.sock; export VROOLI_CLI_ARTIFACT_MODE=1; export VROOLI_ENVIRONMENT=production; export VROOLI_ROOT=%s; export VROOLI_SOURCE_ROOT=%s; : "${VROOLI_TUNING_SETUP_EXTENDED_OPERATION_TIMEOUT:=5m}"; export VROOLI_TUNING_SETUP_EXTENDED_OPERATION_TIMEOUT; export PATH="$HOME/.vrooli/bin:$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"`, QuoteSingle(workdir), QuoteSingle(workdir))
+	trimmed := strings.TrimSpace(cmd)
+	switch {
+	case trimmed == "vrooli":
+		trimmed = ""
+	case strings.HasPrefix(trimmed, "vrooli "):
+		trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, "vrooli "))
+	}
+
+	base := fmt.Sprintf("%s && cd %s && %s", pathSetup, QuoteSingle(workdir), QuotedRemoteVrooliPath(workdir))
+	if trimmed == "" {
+		return base
+	}
+	return fmt.Sprintf("%s %s", base, trimmed)
 }
 
 // SafeRemoteJoin joins path elements for a remote (POSIX) path.

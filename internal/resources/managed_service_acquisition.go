@@ -1,0 +1,1133 @@
+package resources
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/shell"
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	"github.com/vrooli/binaryfetch"
+	"github.com/vrooli/envkit-go"
+	_ "github.com/vrooli/vrooli/internal/artifactcodecs" // register the caller-owned tar.zst archive decoder
+	"github.com/vrooli/vrooli/internal/artifactlock"
+	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/operatorstate"
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
+)
+
+const (
+	managedServiceAcquisitionDir = "dir"
+)
+
+const (
+	managedServiceAcquisitionFile = "file"
+)
+
+// managedServiceAcquisitionTarget resolves the same ordered, fact-predicated
+// contract used by explain. There is no resource-specific source switch here:
+// the manifest is the sole source of the selected target.
+func managedServiceAcquisitionTarget(ctx context.Context, manifest ResourceManifest) (binaryfetch.AcquisitionTarget, error) {
+	target, _, err := managedServiceAcquisitionTargetWithFacts(ctx, manifest)
+	return target, err
+}
+
+// managedServiceAcquisitionTargetWithFacts resolves the target and returns the
+// facts it was resolved from. The facts travel with the target because both the
+// install record and the drift message need them, and re-collecting would risk
+// comparing a target against a different observation than the one that produced
+// it.
+func managedServiceAcquisitionTargetWithFacts(ctx context.Context, manifest ResourceManifest) (binaryfetch.AcquisitionTarget, binaryfetch.Facts, error) {
+	return managedServiceAcquisitionTargetWithFactSource(ctx, manifest, runtime.GOOS, runtime.GOARCH, collectManagedServiceAcquisitionFacts)
+}
+
+func managedServiceAcquisitionTargetWithFactSource(ctx context.Context, manifest ResourceManifest, hostOS, hostArch string, genericFacts func(context.Context) (binaryfetch.Facts, error)) (binaryfetch.AcquisitionTarget, binaryfetch.Facts, error) {
+	if manifest.ManagedService == nil || manifest.ManagedService.Acquisition == nil {
+		return binaryfetch.AcquisitionTarget{}, nil, nil
+	}
+	facts, err := managedServiceAcquisitionFactsWithSource(ctx, manifest, hostOS, hostArch, genericFacts)
+	if err != nil {
+		return binaryfetch.AcquisitionTarget{}, nil, fmt.Errorf("collect host facts for %s acquisition: %w", manifest.Name, err)
+	}
+	target, err := manifest.ManagedService.Acquisition.Resolve(facts)
+	if err != nil {
+		return target, facts, fmt.Errorf("resolve acquisition target for %s: %w", manifest.Name, err)
+	}
+	return target, facts, nil
+}
+
+// Target selection and post-acquisition sidecars share the same bounded fact
+// owner. A best-effort provenance write must not reintroduce hardware probes.
+func managedServiceAcquisitionFactsWithSource(ctx context.Context, manifest ResourceManifest, hostOS, hostArch string, genericFacts func(context.Context) (binaryfetch.Facts, error)) (binaryfetch.Facts, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if manifest.Name == openRGBResourceName && (hostOS == "darwin" || hostOS == "windows") {
+		for _, target := range manifest.ManagedService.Acquisition.Targets {
+			if !binaryfetch.UsesOnlyBuildTimeFacts(target) {
+				return nil, fmt.Errorf("native OpenRGB acquisition requires static OS/architecture profiles")
+			}
+		}
+		return binaryfetch.Facts{"os": hostOS, "arch": hostArch}, nil
+	}
+	return genericFacts(ctx)
+}
+
+func collectManagedServiceAcquisitionFacts(ctx context.Context) (binaryfetch.Facts, error) {
+	// Preserve Linux and other-resource accelerator/preference observations.
+	snapshot, err := hostinventory.CollectGPUFacts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return acquisitionFactsWithOperatorPreference(ctx, snapshot.AcceleratorFacts()), nil
+}
+
+func acquisitionFactsWithOperatorPreference(ctx context.Context, facts binaryfetch.Facts) binaryfetch.Facts {
+	preference := operatorstate.AccelPreferenceAuto
+	if root, err := buildinfo.ResolveSourceRoot(); err == nil {
+		if state, loadErr := operatorstate.New(operatorstate.Config{RepoRoot: root}).Effective(ctx); loadErr == nil {
+			preference = state.EffectiveAccelPreference()
+		}
+	}
+	return withOperatorAccelPreference(facts, preference)
+}
+
+func withOperatorAccelPreference(facts binaryfetch.Facts, preference string) binaryfetch.Facts {
+	result := make(binaryfetch.Facts, len(facts)+1)
+	for name, value := range facts {
+		result[name] = value
+	}
+	result[binaryfetch.FactOperatorAccelPreference] = preference
+	return result
+}
+
+// ensureManagedServiceArtifact converges a declared managed service into the
+// user-owned artifact store. Existing bytes are always verified under the
+// shared artifact lock before a network operation is considered.
+//
+//nolint:gocyclo // acquisition preserves ordered archive, binary, and fallback artifact decisions.
+func ensureManagedServiceArtifact(ctx context.Context, controller *Controller, manifest ResourceManifest) error {
+	if manifest.ManagedService == nil {
+		return fmt.Errorf("managed_service is required")
+	}
+	if manifest.ManagedService.Acquisition == nil {
+		if err := verifyManagedServiceArtifact(ctx, controller, manifest); err != nil {
+			return err
+		}
+		return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
+	}
+	choice, selected, err := controller.ManagedServiceSource(ctx, manifest.Name)
+	if err != nil {
+		return err
+	}
+	if manifest.ManagedService.SourceSelectionRequired && !selected {
+		return fmt.Errorf("resource %s requires an explicit source choice; run `vrooli resource source %s managed` or `vrooli resource source %s host`", manifest.Name, manifest.Name, manifest.Name)
+	}
+	if selected && choice.Mode == "host" {
+		path, pathErr := managedServiceArtifactPath(controller, manifest)
+		if pathErr != nil {
+			return pathErr
+		}
+		info, statErr := os.Stat(path)
+		if statErr != nil {
+			return fmt.Errorf("adopted %s executable is unavailable: %w", manifest.Name, statErr)
+		}
+		if !info.Mode().IsRegular() || runtime.GOOS != "windows" && info.Mode()&0o111 == 0 {
+			return fmt.Errorf("adopted %s executable is not a regular executable file", manifest.Name)
+		}
+		digest, digestErr := managedFileSHA256(path)
+		if digestErr != nil {
+			return digestErr
+		}
+		if digest != choice.SHA256 {
+			return fmt.Errorf("adopted %s executable changed after compatibility preflight; reselect it with `vrooli resource source %s host`", manifest.Name, manifest.Name)
+		}
+		if manifest.Name == openRGBResourceName {
+			if _, err := inspectOpenRGBAdoptedSource(ctx, path); err != nil {
+				return err
+			}
+			return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
+		}
+
+		cmd := exec.CommandContext(ctx, path, "--version")
+		output, runErr := cmd.CombinedOutput()
+		if runErr != nil {
+			return fmt.Errorf("verify adopted %s version: %w: %s", manifest.Name, runErr, strings.TrimSpace(string(output)))
+		}
+		if !compatibleHostToolVersion(string(output), manifest.ManagedService.HostToolVersion) {
+			return fmt.Errorf("adopted %s executable no longer reports compatible version %s", manifest.Name, manifest.ManagedService.HostToolVersion)
+		}
+		return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
+	}
+	if selected && choice.Mode != "managed" {
+		return fmt.Errorf("resource %s has unsupported source selection %q", manifest.Name, choice.Mode)
+	}
+	return ensureManagedServiceAcquiredArtifact(ctx, controller, manifest)
+}
+
+// Explicit staging bypasses the adopted-host branch entirely. A source change
+// may invalidate completion, but cannot redirect downloads or evaluate a host
+// executable under the managed acquisition lease.
+func ensureManagedServiceArtifactForStaging(ctx context.Context, controller *Controller, manifest ResourceManifest) error {
+	if err := controller.requireManagedArtifactSource(ctx, manifest); err != nil {
+		return err
+	}
+	return ensureManagedServiceAcquiredArtifact(ctx, controller, manifest)
+}
+
+func ensureManagedServiceAcquiredArtifact(ctx context.Context, controller *Controller, manifest ResourceManifest) error {
+	if manifest.Name == openRGBResourceName {
+		if _, err := openRGBReleaseProfileForCurrentHost(); err != nil {
+			return err
+		}
+	}
+	release, err := artifactlock.AcquireContext(ctx, "resource:"+manifest.Name)
+	if err != nil {
+		return err
+	}
+	defer release()
+
+	var path string
+	if strings.EqualFold(manifest.ManagedService.Artifact.Verification, "host-tool") {
+		path, err = managedServiceArtifactPath(controller, manifest)
+	} else {
+		path, err = managedServiceArtifactStorePath(controller, manifest)
+	}
+	if err != nil {
+		return err
+	}
+	target, err := managedServiceAcquisitionTarget(ctx, manifest)
+	if err != nil {
+		return err
+	}
+	if target.Unsupported != "" {
+		return fmt.Errorf("resource %s is unsupported: %s", manifest.Name, target.Unsupported)
+	}
+	artifact, err := managedServiceArtifactForTarget(manifest, target)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(target.Executable) != "" {
+		if strings.TrimSpace(target.Executable) == "" {
+			return fmt.Errorf("resource %s host-tool acquisition did not resolve an executable", manifest.Name)
+		}
+		if filepath.Base(path) != filepath.Base(target.Executable) {
+			return fmt.Errorf("resource %s host-tool executable %q does not match artifact %q", manifest.Name, target.Executable, manifest.ManagedService.Artifact.Path)
+		}
+		if err := verifyManagedServiceTargetArtifact(ctx, path, artifact, target); err != nil {
+			return fmt.Errorf("verify adopted %s host tool: %w", manifest.Name, err)
+		}
+		return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
+	}
+	pending := managedServiceArtifactPendingPath(path)
+	if err := verifyManagedServiceTargetArtifact(ctx, path, artifact, target); err == nil {
+		_ = os.RemoveAll(pending) // a staged copy of the installed bytes is redundant
+		recordManagedServiceInstallFacts(ctx, manifest, path, target, artifact)
+		return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	// A running service executes, maps and lazily loads files from the path it
+	// launched from, and its status re-verifies that path against the digest
+	// witnessed at launch. Replacing it in place breaks both, so a replacement
+	// for a running image is staged beside it and applied when the service is
+	// next started (restart stops it, then start commits the staged bytes).
+	running, err := managedServiceRunningFrom(manifest.Name, path)
+	if err != nil {
+		return err
+	}
+	if err := verifyManagedServiceTargetArtifact(ctx, pending, artifact, target); err == nil {
+		if running {
+			return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
+		}
+		if err := replaceManagedServiceArtifact(pending, path); err != nil {
+			return fmt.Errorf("apply staged %s artifact: %w", manifest.Name, err)
+		}
+		recordManagedServiceInstallFacts(ctx, manifest, path, target, artifact)
+		return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
+	}
+	if err := verifyManagedServiceProvenance(ctx, manifest.ManagedService.Acquisition.Provenance); err != nil {
+		return fmt.Errorf("verify %s acquisition provenance: %w", manifest.Name, err)
+	}
+
+	layout := strings.ToLower(strings.TrimSpace(target.Layout))
+	if layout == "" {
+		layout = strings.ToLower(strings.TrimSpace(artifact.Layout))
+	}
+	if layout == "" {
+		layout = managedServiceAcquisitionFile
+	}
+	mode := target.Mode
+	if mode == "" {
+		mode = "755"
+	}
+	// The kind is resolved per target, so one resource can stage an OCI
+	// filesystem tree on one platform and a published archive on another.
+	targetKind := manifest.ManagedService.Acquisition.EffectiveKind(target)
+	acquire := func(candidate string) error {
+		switch {
+		case targetKind == "oci-image" && layout == managedServiceAcquisitionDir:
+			if err := os.MkdirAll(candidate, 0o755); err != nil {
+				return err
+			}
+			if _, err := binaryfetch.FetchOCI(ctx, target, candidate, nil); err != nil {
+				return fmt.Errorf("acquire %s OCI artifact: %w", manifest.Name, err)
+			}
+		case targetKind == "oci-image":
+			if _, err := binaryfetch.FetchOCIFile(ctx, target, candidate, nil); err != nil {
+				return fmt.Errorf("acquire %s OCI executable: %w", manifest.Name, err)
+			}
+		case targetKind == "composed":
+			if err := composeManagedServiceArtifactWithCache(ctx, manifest.Name, target, filepath.Join(controller.Root, "resources", manifest.Name), candidate); err != nil {
+				return fmt.Errorf("compose %s artifact: %w", manifest.Name, err)
+			}
+		default:
+			spec := binaryfetch.Target{
+				Name: filepath.Base(candidate), URL: target.URL, SHA256: target.SHA256,
+				Archive: target.Archive, Layout: layout, BinPath: target.BinPath, Mode: mode,
+			}
+			auth, err := resolveAcquisitionAuthorization(ctx, manifest, target)
+			if err != nil {
+				return err
+			}
+			spec.Authorization = auth
+			if size, bounded := managedServiceExactDownloadBytes(manifest, target); bounded {
+				if err := binaryfetch.DownloadExact(ctx, spec, candidate, size); err != nil {
+					return fmt.Errorf("acquire exact %s artifact: %w", manifest.Name, err)
+				}
+				permissions, err := strconv.ParseUint(mode, 8, 32)
+				if err != nil {
+					return err
+				}
+				return os.Chmod(candidate, os.FileMode(permissions))
+			}
+			if layout == managedServiceAcquisitionDir {
+				if _, err := binaryfetch.FetchDir(ctx, spec, candidate, nil); err != nil {
+					return fmt.Errorf("acquire %s artifact tree: %w", manifest.Name, err)
+				}
+			} else if _, err := binaryfetch.Fetch(ctx, spec, filepath.Dir(candidate), nil); err != nil {
+				return fmt.Errorf("acquire %s artifact: %w", manifest.Name, err)
+			}
+		}
+		return nil
+	}
+	validate := func(candidate string) error {
+		if err := verifyManagedServiceTargetArtifact(ctx, candidate, artifact, target); err != nil {
+			return fmt.Errorf("verify acquired %s artifact: %w", manifest.Name, err)
+		}
+		// The digest says these are the right bytes. The closure check says the
+		// host can start them. An artifact that passes the first and fails the
+		// second is worse than a missing one: it installs clean and then refuses
+		// to run, with no signal until someone reads the service log.
+		if verdict := verifyManagedServiceRuntimeClosure(manifest, candidate); verdict.State == ClosureUnresolved {
+			return &RuntimeClosureError{Resource: manifest.Name, Artifact: path, Verdict: verdict}
+		}
+		return nil
+	}
+	destination := path
+	if running {
+		destination = pending
+	}
+	if err := acquireManagedServiceArtifact(destination, acquire, validate); err != nil {
+		return err
+	}
+	if running {
+		_, _ = fmt.Fprintf(os.Stderr, "resource %s is running from %s; its verified replacement is staged and applies at the next restart (vrooli resource restart %s)\n", manifest.Name, path, manifest.Name)
+		return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
+	}
+	_ = os.RemoveAll(pending) // superseded by the bytes just installed
+	recordManagedServiceInstallFacts(ctx, manifest, path, target, artifact)
+	return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
+}
+
+// managedServiceArtifactPendingPath is where a replacement for a running
+// image waits. It is a sibling, so committing it is a same-filesystem rename.
+func managedServiceArtifactPendingPath(path string) string {
+	return path + ".pending"
+}
+
+// managedServiceRunningFrom reports whether the resource's supervised process
+// is running from path. An unreadable supervisor state is an error: it cannot
+// prove the path is free to replace.
+func managedServiceRunningFrom(name, path string) (bool, error) {
+	supervisor, _, err := managedServiceSupervisorFor(name)
+	if err != nil {
+		return false, err
+	}
+	state, running, err := supervisor.Status()
+	if err != nil {
+		return false, fmt.Errorf("read %s supervisor state before replacing its artifact: %w", name, err)
+	}
+	return running && filepath.Clean(state.ArtifactPath) == filepath.Clean(path), nil
+}
+
+// acquireManagedServiceArtifact acquires into a private staging location
+// beside destination, validates it, and only then swaps it into place. The
+// installed artifact stays available until the replacement is proven: a
+// timeout, checksum failure or runtime-closure failure only discards the
+// candidate.
+func acquireManagedServiceArtifact(destination string, acquire func(string) error, validate func(string) error) error {
+	parent := filepath.Dir(destination)
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		return fmt.Errorf("create artifact parent: %w", err)
+	}
+	base := filepath.Base(destination)
+	staging, err := os.MkdirTemp(parent, "."+base+".staging-")
+	if err != nil {
+		return fmt.Errorf("create staged artifact directory: %w", err)
+	}
+	defer os.RemoveAll(staging)
+	candidate := filepath.Join(staging, base)
+	if err := acquire(candidate); err != nil {
+		return err
+	}
+	if err := validate(candidate); err != nil {
+		return err
+	}
+	return replaceManagedServiceArtifact(candidate, destination)
+}
+
+// acquireManagedServiceDirectory is acquireManagedServiceArtifact for a tree
+// whose acquirer expects an existing, empty directory.
+func acquireManagedServiceDirectory(path string, acquire func(string) error, validate func(string) error) error {
+	return acquireManagedServiceArtifact(path, func(candidate string) error {
+		if err := os.MkdirAll(candidate, 0o755); err != nil {
+			return err
+		}
+		return acquire(candidate)
+	}, validate)
+}
+
+// replaceManagedServiceArtifact swaps a validated candidate (file or tree)
+// into destination, restoring the previous artifact if the swap fails.
+func replaceManagedServiceArtifact(candidate, destination string) error {
+	parent := filepath.Dir(destination)
+	base := filepath.Base(destination)
+	backupPath, err := os.MkdirTemp(parent, "."+base+".previous-")
+	if err != nil {
+		return fmt.Errorf("reserve previous artifact path: %w", err)
+	}
+	if err := os.Remove(backupPath); err != nil {
+		return fmt.Errorf("prepare previous artifact path: %w", err)
+	}
+	defer os.RemoveAll(backupPath)
+
+	hadPrevious := false
+	if _, err := os.Lstat(destination); err == nil {
+		if err := os.Rename(destination, backupPath); err != nil {
+			return fmt.Errorf("preserve previous artifact: %w", err)
+		}
+		hadPrevious = true
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect previous artifact: %w", err)
+	}
+	if err := os.Rename(candidate, destination); err != nil {
+		if hadPrevious {
+			if restoreErr := os.Rename(backupPath, destination); restoreErr != nil {
+				return fmt.Errorf("commit staged artifact: %w (restore previous artifact: %v)", err, restoreErr)
+			}
+		}
+		return fmt.Errorf("commit staged artifact: %w", err)
+	}
+	return nil
+}
+
+// recordManagedServiceInstallFacts writes the sidecar that makes a later
+// mismatch explainable. It is best-effort: the artifact is already staged and
+// verified, and a missing record only costs the better diagnosis later.
+func recordManagedServiceInstallFacts(ctx context.Context, manifest ResourceManifest, path string, target binaryfetch.AcquisitionTarget, artifact resourcedeployment.ServiceArtifact) {
+	facts, err := managedServiceAcquisitionFactsWithSource(ctx, manifest, runtime.GOOS, runtime.GOARCH, collectManagedServiceAcquisitionFacts)
+	if err != nil {
+		return
+	}
+	_ = writeInstallFacts(path, manifest.Name, facts, target, artifact, time.Now())
+}
+
+//nolint:gocyclo // managed artifact composition preserves archive, binary, checksum, and filesystem outcomes.
+func composeManagedServiceArtifact(ctx context.Context, target binaryfetch.AcquisitionTarget, resourceRoot, artifactRoot string) error {
+	return composeManagedServiceArtifactCached(ctx, target, resourceRoot, artifactRoot, nil)
+}
+
+func composeManagedServiceArtifactCached(ctx context.Context, target binaryfetch.AcquisitionTarget, resourceRoot, artifactRoot string, cache *composeStepCache) error {
+	if err := os.RemoveAll(artifactRoot); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(artifactRoot, tuning.PermDir); err != nil {
+		return err
+	}
+	for index, step := range target.Compose {
+		step.Kind = strings.ToLower(strings.TrimSpace(step.Kind))
+		if err := step.Validate(); err != nil {
+			return fmt.Errorf("compose step %d (%s): %w", index, step.Role, err)
+		}
+		dest := filepath.Clean(filepath.Join(artifactRoot, filepath.FromSlash(step.Dest)))
+		if dest != artifactRoot && !strings.HasPrefix(dest, artifactRoot+string(filepath.Separator)) {
+			return fmt.Errorf("compose step %d destination escapes artifact root", index)
+		}
+		build := func(destination string) error { return composeManagedServiceStep(ctx, step, resourceRoot, destination) }
+		if (step.Kind == "url" || step.Kind == "python-wheels") && cache != nil && dest != artifactRoot {
+			if err := cache.stage(ctx, step, resourceRoot, dest, build); err != nil {
+				return err
+			}
+		} else {
+			offline, _ := ctx.Value(offlineComposeKey{}).(bool)
+			if offline && step.Kind != "local" {
+				return fmt.Errorf("offline compose cannot acquire uncached/overlay step %q", step.Role)
+			}
+			if err := build(dest); err != nil {
+				return err
+			}
+		}
+
+	}
+	platformOS := runtime.GOOS
+	if platformOS == string(hostreqspec.PlatformDarwin) {
+		platformOS = "macos"
+	}
+	return writeManagedComposeManifest(ctx, target, artifactRoot, platformOS+"-"+runtime.GOARCH, resourceRoot)
+}
+
+// PythonWheelsCommand builds the governed wheel-only installation command for
+// a composed resource target. Release staging and runtime acquisition share
+// this path so index, hash, and source-distribution policy cannot drift.
+func PythonWheelsCommand(ctx context.Context, step binaryfetch.ComposeStep, dest, lockfile, platform string) (*exec.Cmd, error) {
+	// The lock is the complete resolved closure. Installing without dependency
+	// re-resolution is important here: it prevents a package metadata edge from
+	// reintroducing an unqualified source distribution after the lock has
+	// selected a replacement wheel (Kokoro uses pyopenjtalk-plus for Linux).
+	args := []string{"pip", "install", "--no-deps", "--target", dest, "--requirement", lockfile, "--python-version", "3.12", "--python-platform", platform}
+	if !step.AllowSDists {
+		args = append(args, "--only-binary", ":all:")
+	}
+	if index := strings.TrimSpace(step.IndexURL); index != "" {
+		args = append(args, "--index-url", index)
+	}
+	for _, index := range step.ExtraIndexURLs {
+		args = append(args, "--extra-index-url", strings.TrimSpace(index))
+	}
+	// A CUDA wheel index and PyPI both publish packages such as torch. The
+	// default first-index strategy can reject a lock containing a local CUDA
+	// version after it sees the PyPI project page. The lock carries hashes, so
+	// considering all declared indexes is deterministic and still refuses any
+	// byte not present in that lock.
+	if strings.TrimSpace(step.IndexURL) != "" && len(step.ExtraIndexURLs) > 0 {
+		args = append(args, "--index-strategy", "unsafe-best-match")
+	}
+	data, err := os.ReadFile(lockfile)
+	if err != nil {
+		return nil, fmt.Errorf("read python wheel lockfile: %w", err)
+	}
+	hashed := strings.Contains(string(data), "--hash=sha256:")
+	if (strings.TrimSpace(step.IndexURL) != "" || len(step.ExtraIndexURLs) > 0) && !hashed {
+		return nil, fmt.Errorf("python-wheels index requires a hash-pinned lockfile")
+	}
+	if hashed {
+		args = append(args, "--require-hashes")
+	}
+	return shell.NewCommandContext(ctx, "uv", args...), nil
+}
+
+func copyManagedComposeSource(source, destination string) error {
+	info, err := os.Stat(source)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return fmt.Errorf("local compose source must be a file")
+	}
+	if err := os.MkdirAll(filepath.Dir(destination), tuning.PermDir); err != nil {
+		return err
+	}
+	input, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer input.Close()
+	output, err := os.OpenFile(destination, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, tuning.PermFile)
+	if err != nil {
+		return err
+	}
+	defer output.Close()
+	if _, err := io.Copy(output, input); err != nil {
+		return err
+	}
+	return output.Close()
+}
+
+func flattenManagedComposePrefix(root, prefix string) error {
+	prefixPath := filepath.Join(root, filepath.FromSlash(prefix))
+	info, err := os.Stat(prefixPath)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("compose archive root %q is not a directory", prefix)
+	}
+	flat := root + ".flat"
+	if err := os.Rename(root, flat); err != nil { //nolint:forbidigo // intentional directory flattening
+		return err
+	}
+	if err := os.MkdirAll(root, tuning.PermDir); err != nil {
+		return err
+	}
+	entries, err := os.ReadDir(filepath.Join(flat, filepath.FromSlash(prefix)))
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if err := os.Rename(filepath.Join(flat, filepath.FromSlash(prefix), entry.Name()), filepath.Join(root, entry.Name())); err != nil { //nolint:forbidigo // intentional directory flattening
+			return err
+		}
+	}
+	return os.RemoveAll(flat)
+}
+
+// managedComposeManifest is the provenance record written beside a composed
+// managed-service artifact (.vrooli-compose-manifest.json).
+type managedComposeManifest struct {
+	SchemaVersion string                       `json:"schema_version"`
+	Platform      string                       `json:"platform"`
+	Steps         []managedComposeManifestStep `json:"steps"`
+}
+
+type managedComposeManifestStep struct {
+	Role         string `json:"role"`
+	Kind         string `json:"kind"`
+	Dest         string `json:"dest"`
+	SourceDigest string `json:"source_digest,omitempty"`
+}
+
+const managedComposeManifestSchemaVersion = "v1"
+
+func writeManagedComposeManifest(ctx context.Context, target binaryfetch.AcquisitionTarget, root, platform, resourceRoot string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	records := make([]managedComposeManifestStep, 0, len(target.Compose))
+	for _, step := range target.Compose {
+		digest := step.SHA256
+		if step.Kind == "local" {
+			if !filepath.IsLocal(filepath.FromSlash(step.Dest)) {
+				return fmt.Errorf("local compose destination must stay within staging root")
+			}
+			value, err := managedRegularFileSHA256(ctx, filepath.Join(root, filepath.FromSlash(step.Dest)))
+			if err != nil {
+				return fmt.Errorf("hash staged local compose input %q: %w", step.Dest, err)
+			}
+			digest = value
+		}
+		if step.Kind == "python-wheels" {
+			value, err := binaryfetch.FileDigestContext(ctx, filepath.Join(resourceRoot, filepath.FromSlash(step.Lockfile)))
+			if err != nil {
+				return err
+			}
+			digest = value
+		}
+		records = append(records, managedComposeManifestStep{Role: step.Role, Kind: step.Kind, Dest: step.Dest, SourceDigest: digest})
+	}
+	data, err := json.MarshalIndent(managedComposeManifest{SchemaVersion: managedComposeManifestSchemaVersion, Platform: platform, Steps: records}, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(root, ".vrooli-compose-manifest.json"), append(data, '\n'), tuning.PermFile)
+}
+
+func managedRegularFileSHA256(ctx context.Context, path string) (string, error) {
+	before, err := os.Lstat(path)
+	if err != nil {
+		return "", err
+	}
+	if !before.Mode().IsRegular() {
+		return "", fmt.Errorf("digest input %q is not a regular file", path)
+	}
+	sum, err := binaryfetch.FileDigestContext(ctx, path)
+	if err != nil {
+		return "", err
+	}
+	after, err := os.Lstat(path)
+	if err != nil {
+		return "", err
+	}
+	if !after.Mode().IsRegular() || !os.SameFile(before, after) {
+		return "", fmt.Errorf("digest input %q changed during hashing", path)
+	}
+	return sum, nil
+}
+
+// Host-tool/state fingerprints historically follow final regular symlinks.
+func managedFileSHA256(path string) (string, error) {
+	return binaryfetch.FileDigestContext(context.Background(), path)
+}
+
+// ensureManagedServiceDataArtifacts stages model and other non-executable
+// inputs below RESOURCE_DATA_DIR. They use the same host-fact selection and
+// digest verification as the launch artifact, but never become executable or
+// part of the supervisor's launch path.
+//
+//nolint:gocyclo // managed-service data acquisition coordinates declaration, cache, fetch, and verification states.
+func ensureManagedServiceDataArtifacts(ctx context.Context, controller *Controller, manifest ResourceManifest) error {
+	return acquireManagedServiceDataArtifacts(ctx, controller, manifest, selectDataArtifacts(manifest, ""), 0)
+}
+
+// AcquireManagedServiceDataGroup acquires only a declared group. It cannot
+// introduce arbitrary URLs, executable inputs, or a parallel download lock.
+func (c *Controller) AcquireManagedServiceDataGroup(ctx context.Context, name, group string) (int, error) {
+	if group == "" {
+		return 0, fmt.Errorf("a declared data group is required")
+	}
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+
+	manifest, err := c.ResourceManifest(name)
+	if err != nil {
+		return 0, err
+	}
+	selected := selectDataArtifacts(manifest, group)
+	if len(selected) == 0 {
+		return 0, fmt.Errorf("resource %s has no declared data group %q", name, group)
+	}
+	release, err := acquireManagedServiceLifecycleLock(ctx, manifest.Name)
+	if err != nil {
+		return 0, err
+	}
+	defer release()
+	if err := acquireManagedServiceDataArtifacts(ctx, c, manifest, selected, time.Second); err != nil {
+		return 0, err
+	}
+	return len(selected), nil
+}
+
+func verifyManagedServiceDataGroupAvailability(ctx context.Context, manifest ResourceManifest) error {
+	if manifest.ManagedService == nil || manifest.ManagedService.MinimumDataGroups == 0 {
+		return nil
+	}
+	release, err := artifactlock.AcquireContext(ctx, "resource-data:"+manifest.Name)
+	if err != nil {
+		return err
+	}
+	defer release()
+	paths, err := resourceStoragePaths(manifest.Name)
+	if err != nil {
+		return err
+	}
+	groups := map[string]bool{}
+	for _, artifact := range manifest.ManagedService.DataArtifacts {
+		if artifact.Group == "" || artifact.AcquisitionMode != "on-demand" {
+			continue
+		}
+		if _, seen := groups[artifact.Group]; !seen {
+			groups[artifact.Group] = true
+		}
+		stat, err := os.Lstat(filepath.Join(paths.DataDir, filepath.FromSlash(artifact.Path)))
+		if err != nil || stat.Mode()&os.ModeSymlink != 0 || !(stat.IsDir() || stat.Mode().IsRegular()) || (artifact.SizeBytes > 0 && stat.Size() != artifact.SizeBytes) {
+			groups[artifact.Group] = false
+		}
+	}
+	available := 0
+	for _, complete := range groups {
+		if complete {
+			available++
+		}
+	}
+	if available < manifest.ManagedService.MinimumDataGroups {
+		return fmt.Errorf("resource %s requires %d acquired data group(s), found %d; use vrooli resource acquisition data %s --group GROUP before start", manifest.Name, manifest.ManagedService.MinimumDataGroups, available, manifest.Name)
+	}
+	return nil
+}
+
+func selectDataArtifacts(manifest ResourceManifest, group string) []resourcedeployment.ManagedServiceDataArtifact {
+	if manifest.ManagedService == nil {
+		return nil
+	}
+	var selected []resourcedeployment.ManagedServiceDataArtifact
+	for _, artifact := range manifest.ManagedService.DataArtifacts {
+		if group != "" && artifact.Group == group || group == "" && artifact.AcquisitionMode != "on-demand" {
+			selected = append(selected, artifact)
+		}
+	}
+	return selected
+}
+
+func acquireManagedServiceDataArtifacts(ctx context.Context, controller *Controller, manifest ResourceManifest, declarations []resourcedeployment.ManagedServiceDataArtifact, lockWait time.Duration) error {
+	if manifest.ManagedService == nil || len(declarations) == 0 {
+		return nil
+	}
+	env := managedServiceEnvValues(resourceEnvForResource(controller.Root, controller.Home, manifest.Name))
+	dataRoot := strings.TrimSpace(env["RESOURCE_DATA_DIR"])
+	if dataRoot == "" {
+		return fmt.Errorf("managed-service data artifacts require RESOURCE_DATA_DIR")
+	}
+	lockCtx := ctx
+	cancelLock := func() {}
+	if lockWait > 0 {
+		lockCtx, cancelLock = context.WithTimeout(ctx, lockWait)
+	}
+	release, err := artifactlock.AcquireContext(lockCtx, "resource-data:"+manifest.Name)
+	cancelLock()
+	if err != nil {
+		return fmt.Errorf("resource %s data is busy or acquisition was cancelled: %w", manifest.Name, err)
+	}
+	defer release()
+
+	snapshot, err := hostinventory.Collect(ctx)
+	if err != nil {
+		return fmt.Errorf("collect host facts for %s data artifacts: %w", manifest.Name, err)
+	}
+	facts := acquisitionFactsWithOperatorPreference(ctx, snapshot.AcceleratorFacts())
+	for _, declaration := range declarations {
+		target, err := declaration.Acquisition.Resolve(facts)
+		if err != nil {
+			return fmt.Errorf("resolve %s data artifact target: %w", declaration.Name, err)
+		}
+		if target.Unsupported != "" {
+			return fmt.Errorf("data artifact %s is unsupported: %s", declaration.Name, target.Unsupported)
+		}
+		path := filepath.Join(dataRoot, filepath.FromSlash(declaration.Path))
+		cleanRoot := filepath.Clean(dataRoot)
+		cleanPath := filepath.Clean(path)
+		if cleanPath != cleanRoot && !strings.HasPrefix(cleanPath, cleanRoot+string(filepath.Separator)) {
+			return fmt.Errorf("data artifact %s path escapes RESOURCE_DATA_DIR", declaration.Name)
+		}
+		layout := strings.ToLower(strings.TrimSpace(target.Layout))
+		if layout == "" {
+			layout = managedServiceAcquisitionFile
+		}
+		if existingErr := binaryfetch.VerifyArtifactContext(ctx, path, layout, target.SHA256); existingErr == nil {
+			if err := writeDataArtifactChecksum(path, layout, target.SHA256); err != nil {
+				return fmt.Errorf("record %s data artifact checksum: %w", declaration.Name, err)
+			}
+			continue
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		// A source checkout may already contain the exact release artifact
+		// produced by vrooli-dist. Treat it as a vendored input, not as a
+		// source-build instruction, and still verify it against the manifest
+		// digest before copying it into the managed data root.
+		if layout == managedServiceAcquisitionFile {
+			sourcePath := filepath.Join(controller.Root, "resources", manifest.Name, "artifacts", filepath.Base(cleanPath))
+			if err := binaryfetch.VerifyArtifactContext(ctx, sourcePath, layout, target.SHA256); err == nil {
+				if err := copyDataArtifact(sourcePath, cleanPath); err != nil {
+					return fmt.Errorf("stage vendored %s data artifact: %w", declaration.Name, err)
+				}
+				if err := writeDataArtifactChecksum(cleanPath, layout, target.SHA256); err != nil {
+					return fmt.Errorf("record %s data artifact checksum: %w", declaration.Name, err)
+				}
+				continue
+			}
+		}
+		if strings.EqualFold(strings.TrimSpace(declaration.Acquisition.Kind), "oci-image") {
+			return fmt.Errorf("data artifact %s uses unsupported OCI acquisition; model data must be a URL artifact", declaration.Name)
+		}
+		spec := binaryfetch.Target{
+			Name: filepath.Base(cleanPath), URL: target.URL, SHA256: target.SHA256,
+			Archive: target.Archive, Layout: layout, BinPath: target.BinPath, Mode: target.Mode,
+		}
+		auth, err := resolveAcquisitionAuthorization(ctx, manifest, target)
+		if err != nil {
+			return err
+		}
+		spec.Authorization = auth
+		if layout == managedServiceAcquisitionDir {
+			if _, err := binaryfetch.FetchDir(ctx, spec, cleanPath, nil); err != nil {
+				return fmt.Errorf("acquire %s data artifact tree: %w", declaration.Name, err)
+			}
+		} else {
+			if _, err := binaryfetch.FetchData(ctx, spec, filepath.Dir(cleanPath), nil); err != nil {
+				return fmt.Errorf("acquire %s data artifact: %w", declaration.Name, err)
+			}
+		}
+		if err := binaryfetch.VerifyArtifactContext(ctx, cleanPath, layout, target.SHA256); err != nil {
+			return fmt.Errorf("verify acquired %s data artifact: %w", declaration.Name, err)
+		}
+		if err := writeDataArtifactChecksum(cleanPath, layout, target.SHA256); err != nil {
+			return fmt.Errorf("record %s data artifact checksum: %w", declaration.Name, err)
+		}
+	}
+	if err := noteModelCachesLocked(manifest, modelCacheEventInstalled); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "warning: model-cache usage not recorded; cleanup remains protected: %s\n", err)
+	}
+	return nil
+}
+
+func copyDataArtifact(sourcePath, destinationPath string) error {
+	if err := os.MkdirAll(filepath.Dir(destinationPath), tuning.PermDir); err != nil {
+		return err
+	}
+	input, err := os.Open(sourcePath)
+	if err != nil {
+		return err
+	}
+	defer input.Close()
+	temporary, err := os.CreateTemp(filepath.Dir(destinationPath), ".data-artifact-*")
+	if err != nil {
+		return err
+	}
+	temporaryPath := temporary.Name()
+	defer os.Remove(temporaryPath)
+	if _, err := io.Copy(temporary, input); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Chmod(tuning.PermFile); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Sync(); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	// Commit the streamed file directly: model weights can be many GiB, so
+	// materializing another complete copy in memory can exhaust the host.
+	return config.CommitOwnedPathAtomic(temporaryPath, destinationPath)
+}
+
+func writeDataArtifactChecksum(path, layout, checksum string) error {
+	if strings.ToLower(strings.TrimSpace(layout)) != managedServiceAcquisitionFile || strings.TrimSpace(checksum) == "" {
+		return nil
+	}
+	return os.WriteFile(path+".sha256", []byte(strings.TrimSpace(checksum)+"\n"), tuning.PermFile)
+}
+
+func managedServiceArtifactForTarget(manifest ResourceManifest, target binaryfetch.AcquisitionTarget) (resourcedeployment.ServiceArtifact, error) {
+	artifact := manifest.ManagedService.Artifact
+	if !strings.EqualFold(strings.TrimSpace(artifact.Verification), "host-tool") {
+		var err error
+		artifact, err = artifact.ForCurrentPlatform()
+		if err != nil {
+			return resourcedeployment.ServiceArtifact{}, err
+		}
+	} else if err := artifact.Validate(); err != nil {
+		return resourcedeployment.ServiceArtifact{}, err
+	}
+	if target.ArtifactSHA256 != "" {
+		artifact.SHA256 = target.ArtifactSHA256
+	}
+	if strings.TrimSpace(target.Executable) != "" {
+		artifact.Verification = "host-tool"
+	}
+	if target.Layout != "" {
+		artifact.Layout = target.Layout
+	}
+	layout := strings.ToLower(strings.TrimSpace(target.Layout))
+	if layout == "" {
+		layout = strings.ToLower(strings.TrimSpace(artifact.Layout))
+	}
+	// A file-layout archive uses bin_path only during extraction. The staged
+	// file is the launch artifact, so EntryPath is meaningful only for a tree.
+	if layout == managedServiceAcquisitionDir && target.BinPath != "" {
+		artifact.EntryPath = strings.TrimPrefix(filepath.ToSlash(target.BinPath), "/")
+	} else if layout == managedServiceAcquisitionFile {
+		// File-layout targets (including OCI executable extraction) launch the
+		// staged file itself; carrying the manifest's directory entry_path into
+		// this target makes the artifact contract self-contradictory.
+		artifact.EntryPath = ""
+	}
+	return artifact, nil
+}
+
+// managedServiceArtifactForLaunch returns the checksum/layout selected by the
+// same host-fact predicate that acquisition uses. A manifest-level artifact
+// checksum is only the platform default; a GPU or other fact-specific target
+// may deliberately identify a different verified artifact. It also returns the artifact the resolver selects for
+// this host right now. artifactPath is the staged artifact it will be compared
+// against; an empty path skips the fact-drift check, which is correct for a
+// caller that has no staged artifact to compare.
+func managedServiceArtifactForLaunch(ctx context.Context, controller *Controller, manifest ResourceManifest, artifactPath string) (resourcedeployment.ServiceArtifact, error) {
+	if manifest.ManagedService.Acquisition != nil {
+		choice, selected, err := controller.ManagedServiceSource(ctx, manifest.Name)
+		if err != nil {
+			return resourcedeployment.ServiceArtifact{}, err
+		}
+		if selected && choice.Mode == "host" {
+			artifact := manifest.ManagedService.Artifact
+			artifact.Verification = "host-tool"
+			artifact.SHA256 = choice.SHA256
+			artifact.SHA256ByPlatform = nil
+			return artifact, nil
+		}
+	}
+	if manifest.ManagedService.Acquisition == nil {
+		return managedServiceArtifactForTarget(manifest, binaryfetch.AcquisitionTarget{})
+	}
+	target, facts, err := managedServiceAcquisitionTargetWithFacts(ctx, manifest)
+	if err != nil {
+		return resourcedeployment.ServiceArtifact{}, err
+	}
+	if target.Unsupported != "" {
+		return resourcedeployment.ServiceArtifact{}, fmt.Errorf("resource %s is unsupported: %s", manifest.Name, target.Unsupported)
+	}
+	// Ask whether the host moved before letting a digest comparison speak for
+	// it. "The bytes are corrupt" and "the host changed" have different cures,
+	// and only one of them is a re-download of the same artifact.
+	if strings.TrimSpace(artifactPath) != "" {
+		if driftErr := checkFactDrift(artifactPath, manifest.Name, facts, target); driftErr != nil {
+			return resourcedeployment.ServiceArtifact{}, driftErr
+		}
+	}
+	return managedServiceArtifactForTarget(manifest, target)
+}
+
+func verifyManagedServiceTargetArtifact(ctx context.Context, path string, artifact resourcedeployment.ServiceArtifact, target binaryfetch.AcquisitionTarget) error {
+	if target.ArtifactSHA256 == "" {
+		return artifact.VerifyFileContext(ctx, path)
+	}
+	layout := target.Layout
+	if layout == "" {
+		layout = artifact.Layout
+	}
+	return binaryfetch.VerifyArtifactContext(ctx, path, layout, target.ArtifactSHA256)
+}
+
+func verifyManagedServiceProvenance(ctx context.Context, declaration *binaryfetch.Provenance) error {
+	if declaration == nil || strings.EqualFold(strings.TrimSpace(declaration.Kind), "none") {
+		return nil
+	}
+	dir, err := os.MkdirTemp("", "vrooli-acquisition-provenance-*")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(dir)
+	keyPath := filepath.Join(dir, "release-key.asc")
+	manifestPath := filepath.Join(dir, "SHA256SUMS")
+	signaturePath := filepath.Join(dir, "SHA256SUMS.sig")
+	for _, item := range []struct{ url, path string }{
+		{declaration.KeyURL, keyPath},
+		{declaration.ChecksumManifest, manifestPath},
+		{declaration.ChecksumSignature, signaturePath},
+	} {
+		if err := binaryfetch.Download(ctx, item.url, item.path, nil); err != nil {
+			return err
+		}
+	}
+	_, err = binaryfetch.VerifyProvenance(ctx, declaration, keyPath, manifestPath, signaturePath)
+	return err
+}
+
+// verifyManagedServiceArtifact is the launch/status gate for both acquired
+// and release-bundled artifacts.
+func verifyManagedServiceArtifact(ctx context.Context, controller *Controller, manifest ResourceManifest) error {
+	path, err := managedServiceArtifactPath(controller, manifest)
+	if err != nil {
+		return err
+	}
+	artifact, err := manifest.ManagedService.Artifact.ForCurrentPlatform()
+	if err != nil {
+		return err
+	}
+	return artifact.VerifyFileContext(ctx, path)
+}
+
+func managedServiceArtifactVersionsRoot(controller *Controller, manifest ResourceManifest) (string, error) {
+	root, err := managedServiceArtifactStoreRoot(controller.Home)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, manifest.Name), nil
+}
+
+func acquisitionTargetRuntimeEnv(ctx context.Context, manifest ResourceManifest, artifactRoot string) (map[string]string, error) {
+	if manifest.ManagedService == nil || manifest.ManagedService.Acquisition == nil {
+		return nil, nil
+	}
+	target, err := managedServiceAcquisitionTarget(ctx, manifest)
+	if err != nil {
+		return nil, err
+	}
+	values := make(map[string]string, len(target.RuntimeEnv))
+	for key, value := range target.RuntimeEnv {
+		if strings.TrimSpace(key) == "" {
+			return nil, fmt.Errorf("acquisition runtime_env contains an empty key")
+		}
+		value = strings.ReplaceAll(value, "${RESOURCE_ARTIFACT_DIR}", artifactRoot)
+		value = strings.ReplaceAll(value, "$RESOURCE_ARTIFACT_DIR", artifactRoot)
+		values[key] = value
+	}
+	return values, nil
+}
+
+// verifyManagedServiceRuntimeClosure checks the staged executable against the
+// library paths its selected backend declares. A resource that declares no
+// accelerator still gets the check: an unsatisfiable closure is a broken
+// artifact whatever the reason for its selection.
+func verifyManagedServiceRuntimeClosure(manifest ResourceManifest, path string) ClosureVerdict {
+	var libraryPaths []string
+	if declaration := manifest.EffectiveAcceleration(); declaration != nil {
+		for _, backend := range declaration.Backends {
+			if config, ok := declaration.Config(backend); ok {
+				libraryPaths = append(libraryPaths, config.LibraryPaths...)
+			}
+		}
+	}
+	return VerifyRuntimeClosure(path, libraryPaths)
+}
+
+func composeManagedServiceStep(ctx context.Context, step binaryfetch.ComposeStep, resourceRoot, dest string) error {
+	switch strings.ToLower(strings.TrimSpace(step.Kind)) {
+	case "url":
+		if err := binaryfetch.FetchTree(ctx, binaryfetch.Target{URL: step.URL, SHA256: step.SHA256, Archive: step.Archive}, dest, nil); err != nil {
+			return err
+		}
+		if step.BinPath != "" {
+			if err := flattenManagedComposePrefix(dest, step.BinPath); err != nil {
+				return err
+			}
+		}
+	case "python-wheels":
+		lockfile := filepath.Join(resourceRoot, filepath.FromSlash(step.Lockfile))
+		if err := os.MkdirAll(dest, tuning.PermDir); err != nil {
+			return err
+		}
+		arch := runtime.GOARCH
+		if arch == "amd64" {
+			arch = "x86_64"
+		}
+		if arch == "arm64" {
+			arch = "aarch64"
+		}
+		platform := arch + "-unknown-linux-gnu"
+		if runtime.GOOS == string(hostreqspec.PlatformDarwin) {
+			platform = arch + "-apple-darwin"
+		}
+		if runtime.GOOS == string(hostreqspec.PlatformWindows) {
+			platform = arch + "-pc-windows-msvc"
+		}
+		command, err := PythonWheelsCommand(ctx, step, dest, lockfile, platform)
+		if err != nil {
+			return err
+		}
+		command.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, envkit.Env{"UV_NO_PROGRESS=1"})
+		if output, err := command.CombinedOutput(); err != nil {
+			return fmt.Errorf("uv wheel resolution failed: %w: %s (command: %s)", err, strings.TrimSpace(string(output)), strings.Join(command.Args, " "))
+		}
+	case "local":
+		source := filepath.Join(resourceRoot, filepath.FromSlash(step.Source))
+		if err := copyManagedComposeSource(source, dest); err != nil {
+			return fmt.Errorf("copy local compose source %q: %w", step.Source, err)
+		}
+	default:
+		return fmt.Errorf("unsupported compose step kind %q", step.Kind)
+	}
+	return nil
+}

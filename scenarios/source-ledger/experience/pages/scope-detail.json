@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {"id": "scope-detail", "title": "Scope detail", "routes": ["/scopes/:scope"], "runtimeRoutes": ["/scopes/agent-memory"], "purpose": "Inspect a scope's journal timeline, bounded frontier, policy, and maintenance state.", "prd_refs": ["OT-P0-002", "OT-P0-003"]},
+  "states": [
+    {"id": "default", "description": "Timeline and frontier are visible with source-versus-derived labels."},
+    {"id": "loading", "description": "Scope data is loading."},
+    {"id": "empty", "description": "The scope has no entries."},
+    {"id": "partial", "description": "Source data is available while derived enrichment is incomplete."},
+    {"id": "frontier-review", "description": "Eligible frontier nodes and their bound are visible."},
+    {"id": "request-error", "description": "The scope cannot be read."},
+    {"id": "stale", "description": "The displayed derived view is older than the journal authority."}
+  ],
+  "elements": [{"id": "scope-timeline", "role": "region", "name": "Scope timeline"}, {"id": "frontier-table", "role": "table", "name": "Compaction frontier"}],
+  "claims": [{"id": "source-derived-labelled", "type": "element-present", "statement": "The scope view labels authoritative source rows separately from derived rows.", "tier": "machine", "elements": ["scope-timeline"], "states": ["default", "partial", "frontier-review", "stale"]}],
+  "bindings": {"elements": {"scope-timeline": {"testid": "scope-timeline"}, "frontier-table": {"testid": "frontier-table"}}}
+}

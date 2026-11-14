@@ -2,7 +2,10 @@
 
 Endpoints for triggering and monitoring deployments.
 
-> **Note**: Full deployment orchestration is partially implemented. The `package` CLI command provides the most complete packaging workflow today.
+> **Boundary**: These generic deployment routes are compatibility and local
+> preparation surfaces. They do not establish a commercial release or replace
+> the typed candidate, readiness, destination, and receipt-bound `releases`
+> lifecycle.
 
 ## POST /deploy/{profile_id}
 

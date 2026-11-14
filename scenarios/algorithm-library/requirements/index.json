@@ -27,7 +27,7 @@
       "category": "algorithms.execution",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "title": "Algorithm execution",
-      "description": "Execute and validate algorithms using Judge0 resource",
+      "description": "Execute and validate algorithms using the local multi-language executor",
       "status": "complete",
       "validation": [
         {
@@ -35,7 +35,7 @@
           "ref": "api/executor_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Local executor fallback for Python/JS/Go/Java/C++ when Judge0 unavailable"
+          "notes": "Local executor for Python/JS/Go/Java/C++"
         }
       ]
     },
@@ -100,7 +100,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "initialization/postgres/schema.sql",
+          "ref": "api/internal/<domain>/schema.sql",
           "phase": "setup",
           "status": "implemented",
           "notes": "Database populated with 35 algorithms, 48 test cases"

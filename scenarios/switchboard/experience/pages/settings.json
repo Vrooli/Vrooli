@@ -1,0 +1,311 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": [
+      "/settings"
+    ],
+    "purpose": "Install-wide configuration: the descriptor directory the channel registry reads, the metered allowance and where it is charged, quiet hours, and the theme. Everything here changes behaviour for every agent, so each control states its blast radius.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P1-014",
+      "OT-P1-006"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Which settings change behaviour for every agent rather than just one"
+    },
+    {
+      "statement": "Where descriptors are read from, and whether they all loaded"
+    },
+    {
+      "statement": "How metered work is being charged, and that a personal key avoids the charge"
+    },
+    {
+      "statement": "What is safe to change while conversations are live"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Settings render grouped by blast radius, widest first."
+    },
+    {
+      "id": "loading",
+      "description": "Current settings are resolving."
+    },
+    {
+      "id": "empty",
+      "description": "No optional integration is configured; each is offered rather than hidden."
+    },
+    {
+      "id": "saving",
+      "description": "A change is being written."
+    },
+    {
+      "id": "success",
+      "description": "A change was written and its effect is stated."
+    },
+    {
+      "id": "partial",
+      "description": "One settings group failed to load while the rest resolved."
+    },
+    {
+      "id": "stale",
+      "description": "Settings are cached; their age is stated."
+    },
+    {
+      "id": "validation-error",
+      "description": "A value was rejected; the message sits beside the field."
+    },
+    {
+      "id": "request-error",
+      "description": "The write failed and the previous value is restored."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The signed-in person may not change install-wide settings."
+    },
+    {
+      "id": "offline",
+      "description": "Settings that require a network write are disabled with the reason stated."
+    }
+  ],
+  "elements": [
+    {
+      "id": "descriptor-source",
+      "role": "region",
+      "name": "Channel descriptors"
+    },
+    {
+      "id": "descriptor-status",
+      "role": "status",
+      "name": "Descriptors loaded"
+    },
+    {
+      "id": "metering-section",
+      "role": "region",
+      "name": "Metered work"
+    },
+    {
+      "id": "byok-field",
+      "role": "textbox",
+      "name": "Your own provider key"
+    },
+    {
+      "id": "byok-note",
+      "role": "note",
+      "name": "A personal key is never charged"
+    },
+    {
+      "id": "quiet-hours",
+      "role": "group",
+      "name": "Quiet hours"
+    },
+    {
+      "id": "theme-control",
+      "role": "radiogroup",
+      "name": "Theme"
+    },
+    {
+      "id": "blast-radius-note",
+      "role": "note",
+      "name": "Applies to every agent"
+    },
+    {
+      "id": "save-action",
+      "role": "button",
+      "name": "Save"
+    }
+  ],
+  "claims": [
+    {
+      "id": "blast-radius-stated",
+      "type": "element-present",
+      "statement": "Every setting that changes behaviour for all agents says so beside the control, not in a help page.",
+      "tier": "aspirational",
+      "elements": [
+        "blast-radius-note"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "A single field here can silence every agent in the install."
+    },
+    {
+      "id": "descriptor-load-is-visible",
+      "type": "element-present",
+      "statement": "The descriptor directory and how many descriptors loaded from it are stated, and a failed descriptor is named.",
+      "tier": "aspirational",
+      "elements": [
+        "descriptor-source",
+        "descriptor-status"
+      ],
+      "states": [
+        "default",
+        "partial"
+      ],
+      "rationale": "OT-P0-001 fails startup on an invalid descriptor; the console must show the same fact rather than only a log line."
+    },
+    {
+      "id": "byok-is-offered",
+      "type": "element-present",
+      "statement": "The page states that supplying a personal provider key avoids the metered charge entirely.",
+      "tier": "aspirational",
+      "elements": [
+        "byok-field",
+        "byok-note"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "The monetisation contract requires bring-your-own-key to stay a valid path; hiding it would breach that in the surface even if the code honours it."
+    },
+    {
+      "id": "no-key-echo",
+      "type": "element-absent",
+      "statement": "A stored provider key is never rendered back in full after it is saved.",
+      "tier": "aspirational",
+      "elements": [
+        "byok-field"
+      ],
+      "states": [
+        "default",
+        "success"
+      ]
+    },
+    {
+      "id": "failed-write-restores",
+      "type": "custom",
+      "statement": "A failed write restores the previous value visibly rather than leaving the attempted one in the field.",
+      "tier": "manual",
+      "states": [
+        "request-error"
+      ]
+    },
+    {
+      "id": "theme-applies-immediately",
+      "type": "custom",
+      "statement": "Changing the theme applies immediately and is not gated behind the save action.",
+      "tier": "manual",
+      "elements": [
+        "theme-control"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "groups-by-radius",
+      "type": "reading-order",
+      "statement": "Settings are read widest blast radius first, so install-wide controls precede personal preferences.",
+      "tier": "aspirational",
+      "elements": [
+        "descriptor-source",
+        "metering-section",
+        "quiet-hours",
+        "theme-control"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "save-busy",
+      "type": "affordance-present",
+      "statement": "The save action shows a busy state and prevents duplicate submission.",
+      "tier": "aspirational",
+      "elements": [
+        "save-action"
+      ],
+      "states": [
+        "saving"
+      ]
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "Every settings group renders with equivalent hierarchy in both themes.",
+      "tier": "aspirational"
+    }
+  ],
+  "regions": [
+    {
+      "id": "descriptor-region",
+      "purpose": "Channel descriptors loaded from the configured directory.",
+      "required": true,
+      "component": {
+        "local": "async-region"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "partial",
+          "error"
+        ]
+      }
+    },
+    {
+      "id": "metering-region",
+      "purpose": "Metered allowance and charging configuration.",
+      "required": false,
+      "component": {
+        "local": "async-region"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "descriptor-source": {
+        "testid": "settings-descriptor-source"
+      },
+      "descriptor-status": {
+        "testid": "settings-descriptor-status"
+      },
+      "metering-section": {
+        "testid": "settings-metering"
+      },
+      "byok-field": {
+        "testid": "settings-byok"
+      },
+      "byok-note": {
+        "testid": "settings-byok-note"
+      },
+      "quiet-hours": {
+        "testid": "settings-quiet-hours"
+      },
+      "theme-control": {
+        "testid": "settings-theme"
+      },
+      "blast-radius-note": {
+        "testid": "settings-blast-radius"
+      },
+      "save-action": {
+        "testid": "settings-save"
+      }
+    },
+    "regions": {
+      "descriptor-region": {
+        "testid": "settings-descriptor-region"
+      },
+      "metering-region": {
+        "testid": "settings-metering-region"
+      }
+    }
+  }
+}

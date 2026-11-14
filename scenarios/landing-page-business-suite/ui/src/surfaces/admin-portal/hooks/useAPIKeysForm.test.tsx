@@ -43,24 +43,24 @@ describe('useAPIKeysForm', () => {
     it('starts with loading state', async () => {
       const { result } = renderHook(() => useAPIKeysForm());
       expect(result.current.loading).toBe(true);
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
     });
 
     it('has empty keys initially', async () => {
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
       expect(result.current.keys).toEqual([]);
     });
 
     it('has modal closed initially', async () => {
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
       expect(result.current.showAddModal).toBe(false);
     });
 
     it('has empty form state initially', async () => {
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
       expect(result.current.newKeyProvider).toBe('');
       expect(result.current.newKeyValue).toBe('');
     });
@@ -75,7 +75,7 @@ describe('useAPIKeysForm', () => {
       mockFetchAPIKeys.mockResolvedValue(mockKeys);
 
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.keys).toHaveLength(2);
       expect(mockFetchAPIKeys).toHaveBeenCalledTimes(1);
@@ -85,7 +85,7 @@ describe('useAPIKeysForm', () => {
       mockFetchAPIKeys.mockResolvedValue([]);
 
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(mockFetchAPIKeys).toHaveBeenCalledTimes(1);
 
@@ -103,7 +103,7 @@ describe('useAPIKeysForm', () => {
       mockFetchAPIKeys.mockResolvedValue(mockKeys);
 
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       const openaiAvailable = result.current.availableProviders.find((p) => p.value === 'openai');
       expect(openaiAvailable).toBeUndefined();
@@ -113,7 +113,7 @@ describe('useAPIKeysForm', () => {
   describe('add modal', () => {
     it('opens and closes modal', async () => {
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.showAddModal).toBe(false);
 
@@ -132,7 +132,7 @@ describe('useAPIKeysForm', () => {
 
     it('updates form state', async () => {
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setNewKeyProvider('openai');
@@ -145,7 +145,7 @@ describe('useAPIKeysForm', () => {
 
     it('clears form on clear', async () => {
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setShowAddModal(true);
@@ -166,7 +166,7 @@ describe('useAPIKeysForm', () => {
   describe('handleAddKey', () => {
     it('validates required fields', async () => {
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let addResult: { success: boolean; message?: string };
       await act(async () => {
@@ -181,7 +181,7 @@ describe('useAPIKeysForm', () => {
       mockCreateAPIKey.mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setNewKeyProvider('openai');
@@ -203,7 +203,7 @@ describe('useAPIKeysForm', () => {
       mockCreateAPIKey.mockRejectedValue(new Error('API error'));
 
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setNewKeyProvider('openai');
@@ -223,12 +223,12 @@ describe('useAPIKeysForm', () => {
       let resolvePromise: () => void;
       mockCreateAPIKey.mockReturnValue(
         new Promise((resolve) => {
-          resolvePromise = () => resolve(undefined);
+          resolvePromise = () => { resolve(undefined); };
         })
       );
 
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setNewKeyProvider('openai');
@@ -257,7 +257,7 @@ describe('useAPIKeysForm', () => {
       mockDeleteAPIKey.mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let deleteResult: { success: boolean; message?: string };
       await act(async () => {
@@ -272,7 +272,7 @@ describe('useAPIKeysForm', () => {
       mockDeleteAPIKey.mockRejectedValue(new Error('Delete failed'));
 
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let deleteResult: { success: boolean; message?: string };
       await act(async () => {
@@ -289,7 +289,7 @@ describe('useAPIKeysForm', () => {
       mockDeleteAPIKey.mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       // First test the key
       await act(async () => {
@@ -313,7 +313,7 @@ describe('useAPIKeysForm', () => {
       mockTestAPIKey.mockResolvedValue({ success: true, message: 'Key is valid' });
 
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let testResult: { success: boolean; message: string };
       await act(async () => {
@@ -333,7 +333,7 @@ describe('useAPIKeysForm', () => {
       mockTestAPIKey.mockResolvedValue({ success: false, message: 'Invalid key' });
 
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let testResult: { success: boolean; message: string };
       await act(async () => {
@@ -348,7 +348,7 @@ describe('useAPIKeysForm', () => {
       mockTestAPIKey.mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let testResult: { success: boolean; message: string };
       await act(async () => {
@@ -368,7 +368,7 @@ describe('useAPIKeysForm', () => {
       );
 
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let testPromise: Promise<{ success: boolean; message: string }>;
       act(() => {
@@ -392,7 +392,7 @@ describe('useAPIKeysForm', () => {
       mockToggleAPIKey.mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let toggleResult: { success: boolean; message?: string };
       await act(async () => {
@@ -407,7 +407,7 @@ describe('useAPIKeysForm', () => {
       mockToggleAPIKey.mockRejectedValue(new Error('Toggle failed'));
 
       const { result } = renderHook(() => useAPIKeysForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let toggleResult: { success: boolean; message?: string };
       await act(async () => {

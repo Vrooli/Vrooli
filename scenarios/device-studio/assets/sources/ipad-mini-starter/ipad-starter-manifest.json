@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "profile_id": "device-studio-ipad-mini-source-preserving-starter-v1",
+  "source": {
+    "staged_name": "ipad_mini_6.glb",
+    "sha256": "a462088b7bd84b7752802c109beee04110047c3b1a4f355624c863f790e93d5e",
+    "size_bytes": 1986244,
+    "creator": "DatSketch",
+    "title": "IPad Mini 6 2021",
+    "source_url": "https://sketchfab.com/3d-models/ipad-mini-6-2021-f363c2b1c74a462588db184bd4fb024e",
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "creator_api_snapshot_sha256": "9e331347425d75b441ae3172e4f32e0d998435fd7a745f6316f9ef993667f487",
+    "attribution": "iPad mini 6 by DatSketch, used under CC BY 4.0; screen image replaced in this derivative.",
+    "embedded_images": [
+      {"index": 0, "mime_type": "image/jpeg", "sha256": "883daa1bcb7220aaf6c08f381a7bdc560e52b82d11d2ff8bf556f1b0a031d9fc", "size_bytes": 38178},
+      {"index": 1, "mime_type": "image/jpeg", "sha256": "3b6d18ba2261ab248f3387676ef387f3edf17e44819b4575f99aca8bdfbba90d", "size_bytes": 51537, "width": 512, "height": 1024},
+      {"index": 2, "mime_type": "image/jpeg", "sha256": "cb292d21f30b1851d9d9c9236ab5c864308ea7b63dca26b38a259265681ec940", "size_bytes": 1021}
+    ],
+    "screen_binding": {"node_index": 14, "mesh_index": 10, "primitive_index": 0, "material_index": 10, "texture_index": 1, "image_index": 1, "uv_min": [0.001012146, -0.001258582], "uv_max": [0.998987794, 1.001258969]}
+  },
+  "neutral_screen": {"width": 512, "height": 1024, "rgba_srgb": [128, 128, 128, 255], "encoding": "deterministic opaque 8-bit sRGB PNG; uniform neutral placeholder, not a UI texture"},
+  "output": {"glb_name": "ipad-mini-neutral-screen.glb", "receipt_name": "ipad-starter-derivation.json", "max_bytes": 4194304},
+  "rights_and_claims": {
+    "attribution": "iPad mini 6 by DatSketch, used under CC BY 4.0.",
+    "modification": "The source model's embedded screen image 1 was replaced with a uniform neutral placeholder. Geometry, UVs, node transforms, and the other embedded images are preserved.",
+    "limits": "Source asset adaptation only; not manufacturer CAD, not independently measured device dimensions, and not Apple-endorsed. Whole-model bounds and screen-plane bounds are source GLB measurements under the glTF metre assumption."
+  }
+}

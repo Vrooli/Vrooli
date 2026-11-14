@@ -1,0 +1,15 @@
+{
+  "collections": [
+    {
+      "labelField": "label",
+      "maximumCount": 40,
+      "maximumLabelCharacters": 32,
+      "primaryAction": "not-applicable",
+      "property": "data",
+      "stableIdField": "id",
+      "typicalCount": 8
+    }
+  ],
+  "componentId": "react-component-library:Chart",
+  "version": "1.0.12"
+}

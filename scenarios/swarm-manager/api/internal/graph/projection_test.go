@@ -4,9 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/execution"
 )
 
 func ptrStr(s string) *string { return &s }
@@ -22,13 +20,13 @@ func (m *mockBacklogLister) LoadAll(_ []backlog.BacklogKind) ([]backlog.BacklogI
 	return m.items, m.err
 }
 
-type mockInitiativeLister struct {
-	inits []InitiativeEntry
+type mockGoalLister struct {
+	goals []GoalEntry
 	err   error
 }
 
-func (m *mockInitiativeLister) List() ([]InitiativeEntry, error) {
-	return m.inits, m.err
+func (m *mockGoalLister) List() ([]GoalEntry, error) {
+	return m.goals, m.err
 }
 
 type mockCaptureLister struct {
@@ -47,44 +45,6 @@ type mockScenarioLister struct {
 
 func (m *mockScenarioLister) List(_ context.Context) ([]ScenarioEntry, error) {
 	return m.scens, m.err
-}
-
-type mockExecutionLister struct {
-	records []execution.Record
-	err     error
-}
-
-func (m *mockExecutionLister) List(_ context.Context, _ execution.ListFilters) ([]execution.Record, error) {
-	return m.records, m.err
-}
-
-type mockActivityLister struct {
-	available bool
-	records   []agentactivity.Record
-	err       error
-}
-
-func (m *mockActivityLister) IsAvailable(_ context.Context) bool {
-	return m.available
-}
-
-func (m *mockActivityLister) List(_ context.Context, filters agentactivity.ListFilters) ([]agentactivity.Record, error) {
-	if !filters.ActiveOnly {
-		return m.records, m.err
-	}
-	activeStatuses := map[agentactivity.Status]bool{
-		agentactivity.StatusPending:     true,
-		agentactivity.StatusStarting:    true,
-		agentactivity.StatusRunning:     true,
-		agentactivity.StatusNeedsReview: true,
-	}
-	var filtered []agentactivity.Record
-	for _, r := range m.records {
-		if activeStatuses[r.Status] {
-			filtered = append(filtered, r)
-		}
-	}
-	return filtered, m.err
 }
 
 func assertEdgeEndpointsPresent(t *testing.T, resp GraphResponse) {
@@ -110,20 +70,17 @@ func assertEdgeEndpointsPresent(t *testing.T, resp GraphResponse) {
 func TestProjectTopology(t *testing.T) {
 	svc := NewProjectionService(ProjectionConfig{
 		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
-			{Kind: "execute", Name: "task-a", Title: "Task A", Status: backlog.StatusQueued, Priority: 3, DependsOn: []string{"execute/task-b"}, Initiative: "init-1", AcceptanceAllow: []string{"scenarios/my-app"}},
+			{Kind: "execute", Name: "task-a", Title: "Task A", Status: backlog.StatusQueued, Priority: 3, DependsOn: []string{"execute/task-b"}, Milestone: "init-1", AcceptanceAllow: []string{"scenarios/my-app"}},
 			{Kind: "execute", Name: "task-b", Title: "Task B", Status: "ready", Priority: 5},
 			{Kind: "execute", Name: "task-c", Title: "Done", Status: backlog.StatusCompleted},                                           // should be excluded
 			{Kind: "idea", Name: "archived", Title: "Old", Status: backlog.StatusCompleted, ArchivedAt: ptrStr("2026-01-01T00:00:00Z")}, // should be excluded
 		}},
-		Initiative: &mockInitiativeLister{inits: []InitiativeEntry{
-			{Name: "init-1", Title: "Initiative 1", Status: "active", Items: []string{"execute/task-a", "execute/task-c"}},
+		Goal: &mockGoalLister{goals: []GoalEntry{
+			{Name: "init-1", Title: "Milestone 1", Status: "active", Items: []string{"execute/task-a", "execute/task-c"}},
 			{Name: "init-archived", Title: "Archived", Status: "completed", ArchivedAt: ptrStr("2026-01-01T00:00:00Z")}, // excluded
 		}},
 		Capture: &mockCaptureLister{caps: []CaptureEntry{
-			{ID: "cap-1", Text: "fix login", Status: "classified", Items: []CaptureClassificationItem{
-				{Kind: "execute", Title: "task-a"},  // matches existing item
-				{Kind: "fix", Title: "nonexistent"}, // no match, no edge
-			}},
+			{ID: "cap-1", Text: "fix login", Status: "classifying"},
 			{ID: "cap-2", Text: "empty", Status: "pending"}, // no items, excluded
 		}},
 		Scenario: &mockScenarioLister{scens: []ScenarioEntry{
@@ -147,11 +104,11 @@ func TestProjectTopology(t *testing.T) {
 	if nodeTypes["BacklogItem"] != 2 {
 		t.Errorf("expected 2 BacklogItem nodes, got %d", nodeTypes["BacklogItem"])
 	}
-	if nodeTypes["Initiative"] != 1 {
-		t.Errorf("expected 1 Initiative node, got %d", nodeTypes["Initiative"])
+	if nodeTypes["Goal"] != 1 {
+		t.Errorf("expected 1 Goal node, got %d", nodeTypes["Goal"])
 	}
-	if nodeTypes["Capture"] != 1 {
-		t.Errorf("expected 1 Capture node, got %d", nodeTypes["Capture"])
+	if nodeTypes["Capture"] != 2 {
+		t.Errorf("expected 2 Capture nodes, got %d", nodeTypes["Capture"])
 	}
 	if nodeTypes["Scenario"] != 1 {
 		t.Errorf("expected 1 Scenario node, got %d", nodeTypes["Scenario"])
@@ -168,8 +125,8 @@ func TestProjectTopology(t *testing.T) {
 	if edgeTypes["member_of"] != 1 {
 		t.Errorf("expected 1 member_of edge, got %d", edgeTypes["member_of"])
 	}
-	if edgeTypes["classified_as"] != 1 {
-		t.Errorf("expected 1 classified_as edge, got %d", edgeTypes["classified_as"])
+	if edgeTypes["classified_as"] != 0 {
+		t.Errorf("expected no classified_as edges, got %d", edgeTypes["classified_as"])
 	}
 
 	assertEdgeEndpointsPresent(t, resp)
@@ -208,269 +165,14 @@ func TestProjectTopology_TargetsEdges(t *testing.T) {
 	}
 }
 
-func TestProjectOperations(t *testing.T) {
-	svc := NewProjectionService(ProjectionConfig{
-		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
-			{Kind: "execute", Name: "task-a", Title: "A", Status: backlog.StatusInProgress, Initiative: "my-init"},
-		}},
-		Execution: &mockExecutionLister{records: []execution.Record{
-			{ExecutionID: "exec-1", BacklogKind: "execute", BacklogName: "task-a", Status: execution.StatusRunning, Mode: "manual"},
-		}},
-		Activity: &mockActivityLister{available: true, records: []agentactivity.Record{
-			{ActivityID: "act-1", OwnerType: agentactivity.OwnerBacklog, OwnerKind: "execute", OwnerName: "task-a", ExecutionID: "exec-1", Status: agentactivity.StatusRunning, RunID: "run-1", InteractionType: agentactivity.InteractionSpawn},
-			{ActivityID: "act-terminal", OwnerType: agentactivity.OwnerBacklog, OwnerKind: "execute", OwnerName: "task-a", ExecutionID: "exec-1", Status: agentactivity.StatusComplete},
-			{ActivityID: "act-orphan", OwnerType: agentactivity.OwnerBacklog, OwnerKind: "execute", OwnerName: "no-such-item", Status: agentactivity.StatusRunning},
-		}},
-		Initiative: &mockInitiativeLister{inits: []InitiativeEntry{
-			{Name: "my-init", Title: "Init", Status: "active", Items: []string{"execute/task-a"}},
-		}},
-	})
-
-	resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensOperations})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	nodeTypes := map[string]int{}
-	for _, n := range resp.Nodes {
-		nodeTypes[n.Type]++
-	}
-	if nodeTypes["BacklogItem"] != 1 {
-		t.Errorf("expected 1 BacklogItem node, got %d", nodeTypes["BacklogItem"])
-	}
-	if nodeTypes["ExecutionRecord"] != 1 {
-		t.Errorf("expected 1 ExecutionRecord node, got %d", nodeTypes["ExecutionRecord"])
-	}
-	if nodeTypes["Initiative"] != 1 {
-		t.Errorf("expected 1 Initiative node, got %d", nodeTypes["Initiative"])
-	}
-	if nodeTypes["Scenario"] != 0 {
-		t.Errorf("expected 0 Scenario nodes, got %d", nodeTypes["Scenario"])
-	}
-	if nodeTypes["AgentActivity"] != 1 {
-		t.Errorf("expected 1 AgentActivity node (active + owned), got %d", nodeTypes["AgentActivity"])
-	}
-	if nodeTypes["Run"] != 1 {
-		t.Errorf("expected 1 Run node, got %d", nodeTypes["Run"])
-	}
-
-	edgeTypes := map[string]int{}
-	for _, e := range resp.Edges {
-		edgeTypes[e.Type]++
-	}
-	if edgeTypes["executes"] != 1 {
-		t.Errorf("expected 1 executes edge, got %d", edgeTypes["executes"])
-	}
-	if edgeTypes["member_of"] != 1 {
-		t.Errorf("expected 1 member_of edge, got %d", edgeTypes["member_of"])
-	}
-	if edgeTypes["activity_for"] != 1 {
-		t.Errorf("expected 1 activity_for edge, got %d", edgeTypes["activity_for"])
-	}
-	if edgeTypes["records_activity"] != 1 {
-		t.Errorf("expected 1 records_activity edge, got %d", edgeTypes["records_activity"])
-	}
-	if edgeTypes["spawned_run"] != 1 {
-		t.Errorf("expected 1 spawned_run edge, got %d", edgeTypes["spawned_run"])
-	}
-
-	if resp.Meta.AgentManagerAvailable == nil || !*resp.Meta.AgentManagerAvailable {
-		t.Error("expected agent_manager_available to be true")
-	}
-
-	assertEdgeEndpointsPresent(t, resp)
-}
-
-func TestProjectOperations_AgentUnavailable(t *testing.T) {
-	svc := NewProjectionService(ProjectionConfig{
-		Backlog:  &mockBacklogLister{items: nil},
-		Activity: &mockActivityLister{available: false},
-	})
-
-	resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensOperations})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(resp.Nodes) != 0 {
-		t.Errorf("expected 0 nodes, got %d", len(resp.Nodes))
-	}
-	if resp.Meta.AgentManagerAvailable == nil || *resp.Meta.AgentManagerAvailable {
-		t.Error("expected agent_manager_available to be false")
-	}
-}
-
-func TestProjectOperations_ExcludesArchivedBacklog(t *testing.T) {
-	svc := NewProjectionService(ProjectionConfig{
-		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
-			{Kind: "execute", Name: "done-task", Title: "Done", Status: backlog.StatusCompleted, ArchivedAt: ptrStr("2026-01-01T00:00:00Z")},
-		}},
-		Execution: &mockExecutionLister{records: []execution.Record{
-			{ExecutionID: "exec-1", BacklogKind: "execute", BacklogName: "done-task", Status: execution.StatusNeedsFixup},
-		}},
-	})
-
-	resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensOperations})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(resp.Nodes) != 0 {
-		t.Errorf("expected 0 nodes for archived backlog + its execution, got %d", len(resp.Nodes))
-	}
-	if len(resp.Edges) != 0 {
-		t.Errorf("expected 0 edges, got %d", len(resp.Edges))
-	}
-}
-
-func TestProjectOperations_BacklogStatusFiltering(t *testing.T) {
-	tests := []struct {
-		status   backlog.BacklogStatus
-		included bool
-	}{
-		{backlog.StatusBacklog, true},
-		{backlog.StatusResearching, true},
-		{backlog.StatusReady, true},
-		{backlog.StatusQueued, true},
-		{backlog.StatusInProgress, true},
-		{backlog.StatusFailed, true},
-		{backlog.StatusCompleted, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.status), func(t *testing.T) {
-			svc := NewProjectionService(ProjectionConfig{
-				Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
-					{Kind: "execute", Name: "item", Title: "Item", Status: tt.status},
-				}},
-			})
-
-			resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensOperations})
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			found := false
-			for _, n := range resp.Nodes {
-				if n.Type == "BacklogItem" {
-					found = true
-				}
-			}
-			if found != tt.included {
-				t.Errorf("status %q: expected included=%v, got %v", tt.status, tt.included, found)
-			}
-		})
-	}
-}
-
-func TestProjectOperations_FiltersExecutionsByParentBacklog(t *testing.T) {
-	svc := NewProjectionService(ProjectionConfig{
-		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
-			{Kind: "execute", Name: "active-task", Title: "Active", Status: backlog.StatusInProgress},
-			{Kind: "execute", Name: "archived-task", Title: "Archived", Status: backlog.StatusCompleted, ArchivedAt: ptrStr("2026-01-01T00:00:00Z")},
-		}},
-		Execution: &mockExecutionLister{records: []execution.Record{
-			{ExecutionID: "exec-1", BacklogKind: "execute", BacklogName: "active-task", Status: execution.StatusRunning},
-			{ExecutionID: "exec-2", BacklogKind: "execute", BacklogName: "archived-task", Status: execution.StatusNeedsFixup},
-		}},
-	})
-
-	resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensOperations})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	nodeTypes := map[string]int{}
-	for _, n := range resp.Nodes {
-		nodeTypes[n.Type]++
-	}
-	if nodeTypes["BacklogItem"] != 1 {
-		t.Errorf("expected 1 BacklogItem node, got %d", nodeTypes["BacklogItem"])
-	}
-	if nodeTypes["ExecutionRecord"] != 1 {
-		t.Errorf("expected 1 ExecutionRecord node (only for active parent), got %d", nodeTypes["ExecutionRecord"])
-	}
-
-	// Verify the correct execution was included.
-	for _, n := range resp.Nodes {
-		if n.Type == "ExecutionRecord" && n.ID != "execution-record/exec-1" {
-			t.Errorf("expected exec-1 (active parent), got %s", n.ID)
-		}
-	}
-
-	assertEdgeEndpointsPresent(t, resp)
-}
-
-func TestProjectOperations_InitiativeWithMixedMembers(t *testing.T) {
-	svc := NewProjectionService(ProjectionConfig{
-		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
-			{Kind: "execute", Name: "active", Title: "Active", Status: backlog.StatusReady, Initiative: "init-1"},
-			{Kind: "execute", Name: "done", Title: "Done", Status: backlog.StatusCompleted, ArchivedAt: ptrStr("2026-01-01T00:00:00Z"), Initiative: "init-1"},
-		}},
-		Initiative: &mockInitiativeLister{inits: []InitiativeEntry{
-			{Name: "init-1", Title: "Init", Status: "active", Items: []string{"execute/active", "execute/done"}},
-		}},
-	})
-
-	resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensOperations})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	nodeTypes := map[string]int{}
-	for _, n := range resp.Nodes {
-		nodeTypes[n.Type]++
-	}
-	if nodeTypes["BacklogItem"] != 1 {
-		t.Errorf("expected 1 BacklogItem (only active), got %d", nodeTypes["BacklogItem"])
-	}
-	if nodeTypes["Initiative"] != 1 {
-		t.Errorf("expected 1 Initiative node, got %d", nodeTypes["Initiative"])
-	}
-
-	memberOfCount := 0
-	for _, e := range resp.Edges {
-		if e.Type == "member_of" {
-			memberOfCount++
-		}
-	}
-	if memberOfCount != 1 {
-		t.Errorf("expected 1 member_of edge (only active member), got %d", memberOfCount)
-	}
-
-	assertEdgeEndpointsPresent(t, resp)
-}
-
-func TestProjectOperations_EmptyState(t *testing.T) {
-	svc := NewProjectionService(ProjectionConfig{
-		Backlog:   &mockBacklogLister{items: nil},
-		Execution: &mockExecutionLister{records: nil},
-	})
-
-	resp, err := svc.Project(context.Background(), ProjectionParams{Lens: LensOperations})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(resp.Nodes) != 0 {
-		t.Errorf("expected 0 nodes, got %d", len(resp.Nodes))
-	}
-	if len(resp.Edges) != 0 {
-		t.Errorf("expected 0 edges, got %d", len(resp.Edges))
-	}
-	if resp.Meta.Lens != LensOperations {
-		t.Errorf("expected lens %q, got %q", LensOperations, resp.Meta.Lens)
-	}
-}
-
 func TestMemberOfEdges(t *testing.T) {
 	svc := NewProjectionService(ProjectionConfig{
 		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
-			{Kind: "execute", Name: "task-1", Title: "T1", Status: "ready", Initiative: "my-init"},
-			{Kind: "fix", Name: "bug-1", Title: "B1", Status: "ready"}, // no initiative
+			{Kind: "execute", Name: "task-1", Title: "T1", Status: "ready", Milestone: "delivery"},
+			{Kind: "fix", Name: "bug-1", Title: "B1", Status: "ready"}, // no milestone
 		}},
-		Initiative: &mockInitiativeLister{inits: []InitiativeEntry{
-			{Name: "my-init", Title: "Init", Status: "active"},
+		Goal: &mockGoalLister{goals: []GoalEntry{
+			{Name: "my-goal", Title: "Goal", Status: "active", Items: []string{"execute/task-1"}},
 		}},
 	})
 
@@ -486,8 +188,8 @@ func TestMemberOfEdges(t *testing.T) {
 			if e.Source != "backlog-item/execute/task-1" {
 				t.Errorf("expected member_of source to be task-1, got %s", e.Source)
 			}
-			if e.Target != "initiative/my-init" {
-				t.Errorf("expected member_of target to be my-init, got %s", e.Target)
+			if e.Target != "goal/my-goal" {
+				t.Errorf("expected member_of target to be my-goal, got %s", e.Target)
 			}
 		}
 	}
@@ -496,16 +198,13 @@ func TestMemberOfEdges(t *testing.T) {
 	}
 }
 
-func TestClassifiedAsEdges(t *testing.T) {
+func TestCaptureNodesDoNotInventClassificationEdges(t *testing.T) {
 	svc := NewProjectionService(ProjectionConfig{
 		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
 			{Kind: "execute", Name: "deploy", Title: "deploy", Status: "ready"},
 		}},
 		Capture: &mockCaptureLister{caps: []CaptureEntry{
-			{ID: "cap-1", Text: "deploy", Status: "classified", Items: []CaptureClassificationItem{
-				{Kind: "execute", Title: "deploy"},  // matches
-				{Kind: "fix", Title: "no-such-bug"}, // no match
-			}},
+			{ID: "cap-1", Text: "deploy", Status: "classifying"},
 		}},
 	})
 
@@ -520,12 +219,12 @@ func TestClassifiedAsEdges(t *testing.T) {
 			classifiedCount++
 		}
 	}
-	if classifiedCount != 1 {
-		t.Errorf("expected 1 classified_as edge, got %d", classifiedCount)
+	if classifiedCount != 0 {
+		t.Errorf("expected no classified_as edges, got %d", classifiedCount)
 	}
 }
 
-func TestTopologyInitiativeRollup(t *testing.T) {
+func TestTopologyGoalRollup(t *testing.T) {
 	svc := NewProjectionService(ProjectionConfig{
 		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
 			{Kind: "execute", Name: "done", Status: backlog.StatusCompleted},
@@ -533,7 +232,7 @@ func TestTopologyInitiativeRollup(t *testing.T) {
 			{Kind: "execute", Name: "broken", Status: backlog.StatusFailed},
 			{Kind: "execute", Name: "todo", Status: backlog.StatusReady},
 		}},
-		Initiative: &mockInitiativeLister{inits: []InitiativeEntry{
+		Goal: &mockGoalLister{goals: []GoalEntry{
 			{
 				Name:   "init-1",
 				Title:  "Init 1",
@@ -556,13 +255,13 @@ func TestTopologyInitiativeRollup(t *testing.T) {
 
 	var found bool
 	for _, n := range resp.Nodes {
-		if n.Type != "Initiative" {
+		if n.Type != "Goal" {
 			continue
 		}
 		found = true
-		data, ok := n.Data.(GraphInitiativeNodeData)
+		data, ok := n.Data.(GraphGoalNodeData)
 		if !ok {
-			t.Fatalf("expected GraphInitiativeNodeData, got %T", n.Data)
+			t.Fatalf("expected GraphGoalNodeData, got %T", n.Data)
 		}
 		if data.Rollup.Total != 5 {
 			t.Errorf("expected total=5, got %v", data.Rollup.Total)
@@ -581,7 +280,7 @@ func TestTopologyInitiativeRollup(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Error("expected to find an Initiative node")
+		t.Error("expected to find a Goal node")
 	}
 }
 
@@ -602,5 +301,43 @@ func TestMatchesAcceptancePattern(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("matchesAcceptancePattern(%q, %q) = %v, want %v", tc.pattern, tc.scenario, got, tc.want)
 		}
+	}
+}
+
+// TestComputeMilestoneRollup_NewStatuses asserts that in_review and
+// review_pending items count as InProgress (they are still in flight from the
+// milestone's perspective), while needs_followup counts as Failed (it is a
+// terminal state that needs more work).
+func TestComputeGoalRollup_NewStatuses(t *testing.T) {
+	items := []string{
+		"execute/a",
+		"execute/b",
+		"execute/c",
+		"execute/d",
+		"execute/e",
+	}
+	itemByKey := map[string]backlog.BacklogItem{
+		"execute/a": {Name: "a", Status: backlog.StatusInReview},
+		"execute/b": {Name: "b", Status: backlog.StatusReviewPending},
+		"execute/c": {Name: "c", Status: backlog.StatusNeedsFollowup},
+		"execute/d": {Name: "d", Status: backlog.StatusCompleted},
+		"execute/e": {Name: "e", Status: backlog.StatusInProgress},
+	}
+	got := computeGoalRollup(items, itemByKey)
+
+	if got.Total != 5 {
+		t.Errorf("Total = %d, want 5", got.Total)
+	}
+	if got.Completed != 1 {
+		t.Errorf("Completed = %d, want 1 (only the terminal-completed item)", got.Completed)
+	}
+	if got.Failed != 1 {
+		t.Errorf("Failed = %d, want 1 (needs_followup counts as Failed)", got.Failed)
+	}
+	if got.InProgress != 3 {
+		t.Errorf("InProgress = %d, want 3 (in_review + review_pending + in_progress)", got.InProgress)
+	}
+	if got.Pending != 0 {
+		t.Errorf("Pending = %d, want 0", got.Pending)
 	}
 }

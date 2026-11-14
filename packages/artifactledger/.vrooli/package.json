@@ -1,0 +1,36 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "artifactledger",
+    "display_name": "github.com/vrooli/vrooli/packages/artifactledger",
+    "description": "Control-plane artifact removal ledger exposed to scenario modules so scenario-side removals leave receipts.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": [
+      "github.com/vrooli/vrooli/packages/artifactledger"
+    ],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": [
+        "scenario_api"
+      ],
+      "adoption_modes": [
+        "go_module_replace"
+      ]
+    },
+    "lifecycle": {},
+    "module_boundary": {
+      "status": "intentional_exception",
+      "reason": "Aliases control-plane types from internal/artifactledger for scenario modules, which Go's internal rule forbids from importing internal/ directly; the door must stay in the repository module."
+    },
+    "refresh": {
+      "strategy": "none",
+      "restart_running_consumers": false
+    },
+    "docs": [
+      "packages/artifactledger/README.md",
+      "docs/package-governance.md"
+    ]
+  }
+}

@@ -162,7 +162,12 @@ function useReservedPathValidation(
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [reservedPath, projectRoot, defaultProjectRoot, existingReservedPaths, existingReservedPathsKey]);
+    // existingReservedPaths is read via existingReservedPathsKey, which is a
+    // stable string derived from the array contents. Including the array
+    // directly would cause an infinite re-render loop because callers pass a
+    // freshly-constructed array each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reservedPath, projectRoot, defaultProjectRoot, existingReservedPathsKey]);
 
   return validation;
 }

@@ -1,0 +1,67 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "shopping-and-changes",
+    "title": "Shopping and changes",
+    "purpose": "Review the week's groceries, shop in Shop mode, absorb a plan change mid-trip, and confirm purchases — without a checkmark ever becoming a purchase or losing picked-up items.",
+    "prd_refs": [
+      "OT-P0-011",
+      "OT-P0-012",
+      "OT-P0-014",
+      "OT-P0-009"
+    ]
+  },
+  "steps": [
+    {
+      "page": "week",
+      "intent": "Open the week's groceries from Review groceries.",
+      "via": "review-groceries-link"
+    },
+    {
+      "page": "groceries",
+      "state": "have-this",
+      "intent": "Review pantry checks and mark items the kitchen already has.",
+      "via": "have-this-action"
+    },
+    {
+      "page": "groceries",
+      "state": "shop-mode",
+      "intent": "Switch to Shop mode and pick items up with large checkboxes.",
+      "via": "mode-switch"
+    },
+    {
+      "page": "groceries",
+      "state": "picked-up",
+      "intent": "Check a row and undo a mistaken check without losing focus.",
+      "via": "undo-check-action"
+    },
+    {
+      "page": "groceries",
+      "state": "plan-changed",
+      "intent": "Review a plan change that keeps picked-up and manual items.",
+      "via": "plan-diff"
+    },
+    {
+      "page": "groceries",
+      "state": "confirm-purchases",
+      "intent": "Confirm what was actually bought, including a partial purchase.",
+      "via": "confirm-purchases-action"
+    }
+  ],
+  "claims": [
+    {
+      "id": "check-is-not-purchase",
+      "type": "custom",
+      "statement": "Only Confirm purchases records purchases and stock, exactly once.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "offline-shopping-survives",
+      "type": "custom",
+      "statement": "Checks made offline replay idempotently on reconnect and conflicts are shown.",
+      "tier": "aspirational"
+    }
+  ]
+}

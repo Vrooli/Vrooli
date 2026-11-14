@@ -1,0 +1,359 @@
+syntax = "proto3";
+
+package vrooli.deployment_manager.v1.releases;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/releases;releasesv1";
+
+// =============================================================================
+// RELEASE CONTRACTS
+// =============================================================================
+//
+// @stability beta
+//
+// Canonical identities and receipts shared by release preparation, review,
+// publication, and client-update qualification.
+
+// Complete identity of one delivery target.
+message TargetIdentity {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  string platform = 2 [(buf.validate.field).string.min_len = 1];
+  string os = 3 [(buf.validate.field).string.min_len = 1];
+  string architecture = 4 [(buf.validate.field).string.min_len = 1];
+  string format = 5 [(buf.validate.field).string.min_len = 1];
+}
+
+// Final signed bytes and their immutable storage reference for one target.
+message CandidateArtifact {
+  TargetIdentity target = 1 [(buf.validate.field).required = true];
+  string immutable_ref = 2 [(buf.validate.field).string.min_len = 1];
+  string digest = 3 [(buf.validate.field).string.min_len = 1];
+  int64 size_bytes = 4 [(buf.validate.field).int64.gte = 0];
+  string signature_digest = 5 [(buf.validate.field).string.min_len = 1];
+  string signer_ref = 6 [(buf.validate.field).string.min_len = 1];
+}
+
+// Non-secret authorities that must be named for a candidate before it can be
+// treated as operationally owned. These references identify an owner, queue,
+// runbook, or contact path; they do not embed credentials or mutable effects.
+message CapabilityDeclaration {
+  string support_owner = 1 [(buf.validate.field).string.min_len = 1];
+  string incident_owner = 2 [(buf.validate.field).string.min_len = 1];
+  string customer_contact = 3 [(buf.validate.field).string.min_len = 1];
+  string release_authority = 4 [(buf.validate.field).string.min_len = 1];
+  string rollback_authority = 5 [(buf.validate.field).string.min_len = 1];
+  string degraded_mode_authority = 6 [(buf.validate.field).string.min_len = 1];
+}
+
+// Immutable source, build-input, policy, final-artifact, and capability
+// declaration identity.
+message Candidate {
+  string source_revision = 1 [(buf.validate.field).string.min_len = 1];
+  string profile_revision = 2 [(buf.validate.field).string.min_len = 1];
+  map<string, string> build_inputs = 3;
+  string dependency_lock_digest = 4 [(buf.validate.field).string.min_len = 1];
+  string policy_digest = 5 [(buf.validate.field).string.min_len = 1];
+  repeated CandidateArtifact artifacts = 6 [(buf.validate.field).repeated.min_items = 1];
+  string candidate_id = 7 [(buf.validate.field).string.min_len = 1];
+  CapabilityDeclaration capability_declaration = 8;
+}
+
+// Immutable non-secret coordinates for one publication destination revision.
+message DestinationRevision {
+  string kind = 1 [(buf.validate.field).string.min_len = 1];
+  string destination_id = 2 [(buf.validate.field).string.min_len = 1];
+  string configuration_digest = 3 [(buf.validate.field).string.min_len = 1];
+  string channel = 4 [(buf.validate.field).string.min_len = 1];
+  string expected_channel_revision = 5;
+  string destination_revision_id = 6 [(buf.validate.field).string.min_len = 1];
+}
+
+// Exact candidate, destination, target, evidence, and authorization binding
+// covered by one human or policy review.
+message ReviewBinding {
+  string candidate_id = 1 [(buf.validate.field).string.min_len = 1];
+  string destination_revision_id = 2 [(buf.validate.field).string.min_len = 1];
+  repeated string targets = 3 [(buf.validate.field).repeated.min_items = 1];
+  string channel = 4 [(buf.validate.field).string.min_len = 1];
+  string evidence_set_digest = 5 [(buf.validate.field).string.min_len = 1];
+  string policy_digest = 6 [(buf.validate.field).string.min_len = 1];
+  uint64 authorization_epoch = 7 [(buf.validate.field).uint64.gt = 0];
+  string review_id = 8 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result attributed by a producer to an actual external publication effect.
+message PublicationReceipt {
+  string candidate_id = 1 [(buf.validate.field).string.min_len = 1];
+  string destination_revision_id = 2 [(buf.validate.field).string.min_len = 1];
+  string target_id = 3 [(buf.validate.field).string.min_len = 1];
+  string artifact_digest = 4 [(buf.validate.field).string.min_len = 1];
+  string destination_object = 5 [(buf.validate.field).string.min_len = 1];
+  string producer = 6 [(buf.validate.field).string.min_len = 1];
+  string external_receipt = 7 [(buf.validate.field).string.min_len = 1];
+  ReceiptOutcome outcome = 8 [(buf.validate.field).enum = {defined_only: true}];
+  google.protobuf.Timestamp observed_at = 9 [(buf.validate.field).required = true];
+}
+
+// Result proving that an installed predecessor verified and relaunched the
+// exact successor artifact.
+message ClientUpdateReceipt {
+  string candidate_id = 1 [(buf.validate.field).string.min_len = 1];
+  string predecessor_ref = 2 [(buf.validate.field).string.min_len = 1];
+  string successor_digest = 3 [(buf.validate.field).string.min_len = 1];
+  string target_id = 4 [(buf.validate.field).string.min_len = 1];
+  string verified_version = 5 [(buf.validate.field).string.min_len = 1];
+  ReceiptOutcome outcome = 6 [(buf.validate.field).enum = {defined_only: true}];
+  string producer = 7 [(buf.validate.field).string.min_len = 1];
+  string external_receipt = 8 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Timestamp observed_at = 9 [(buf.validate.field).required = true];
+}
+
+// Result proving that an owner applied a bound recovery action to one
+// deployment. A dry-run preview is deliberately not an effect receipt.
+message RecoveryReceipt {
+  string release_id = 1 [(buf.validate.field).string.min_len = 1];
+  string candidate_id = 2 [(buf.validate.field).string.min_len = 1];
+  string destination_revision_id = 3 [(buf.validate.field).string.min_len = 1];
+  string deployment_id = 4 [(buf.validate.field).string.min_len = 1];
+  string action = 5 [(buf.validate.field).string.min_len = 1];
+  string outcome = 6 [(buf.validate.field).string.min_len = 1];
+  string health = 7 [(buf.validate.field).string.min_len = 1];
+  string external_receipt = 8 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Timestamp observed_at = 9 [(buf.validate.field).required = true];
+  bool dry_run = 10;
+  string bundle_sha256 = 11;
+}
+
+// Semantic outcome of a release receipt. Unknown and unavailable outcomes
+// must never be serialized as a successful publication or update.
+enum ReceiptOutcome {
+  RECEIPT_OUTCOME_UNSPECIFIED = 0;
+  RECEIPT_OUTCOME_PREPARED = 1;
+  RECEIPT_OUTCOME_STAGED = 2;
+  RECEIPT_OUTCOME_PUBLISHED = 3;
+  RECEIPT_OUTCOME_VERIFIED = 4;
+  RECEIPT_OUTCOME_FAILED = 5;
+  RECEIPT_OUTCOME_AMBIGUOUS = 6;
+  RECEIPT_OUTCOME_UNAVAILABLE = 7;
+}
+
+// Durable standing for one server-owned release operation.
+message ReleaseOperation {
+  string operation_id = 1 [(buf.validate.field).string.min_len = 1];
+  string release_id = 2 [(buf.validate.field).string.min_len = 1];
+  string profile_id = 3 [(buf.validate.field).string.min_len = 1];
+  string idempotency_key = 4;
+  ReleaseOperationStatus status = 5 [(buf.validate.field).enum = {defined_only: true}];
+  string active_stage = 6;
+  string error = 7;
+  google.protobuf.Timestamp created_at = 8 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp updated_at = 9 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp completed_at = 10;
+}
+
+// Lifecycle standing for a durable release operation.
+enum ReleaseOperationStatus {
+  RELEASE_OPERATION_STATUS_UNSPECIFIED = 0;
+  RELEASE_OPERATION_STATUS_QUEUED = 1;
+  RELEASE_OPERATION_STATUS_RUNNING = 2;
+  RELEASE_OPERATION_STATUS_COMPLETE = 3;
+  RELEASE_OPERATION_STATUS_FAILED = 4;
+  RELEASE_OPERATION_STATUS_CANCELED = 5;
+  RELEASE_OPERATION_STATUS_AMBIGUOUS = 6;
+}
+
+// Typed operator API for the release lifecycle. These messages keep the
+// served contract aligned with the canonical identities above; legacy JSON
+// representations remain adapters at the CLI boundary.
+message ReleasePlatformView {
+  string platform = 1 [(buf.validate.field).string.min_len = 1];
+  string status = 2 [(buf.validate.field).string.min_len = 1];
+  string error = 3;
+}
+
+message ReleaseView {
+  string release_id = 1 [(buf.validate.field).string.min_len = 1];
+  string profile_id = 2 [(buf.validate.field).string.min_len = 1];
+  string git_commit_hash = 3 [(buf.validate.field).string.min_len = 1];
+  string artifact_digest = 4;
+  string candidate_id = 5;
+  string destination_revision_id = 6;
+  uint64 authorization_epoch = 7;
+  string readiness_review_key = 8;
+  string release_version = 9 [(buf.validate.field).string.min_len = 1];
+  string channel = 10 [(buf.validate.field).string.min_len = 1];
+  string status = 11 [(buf.validate.field).string.min_len = 1];
+  string release_notes = 12;
+  string released_by = 13;
+  repeated ReleasePlatformView platforms = 14;
+  google.protobuf.Timestamp created_at = 15;
+  google.protobuf.Timestamp published_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  Candidate candidate = 18;
+  DestinationRevision destination_revision = 19;
+  ReviewBinding review_binding = 20;
+  repeated PublicationReceipt publication_receipts = 21;
+  repeated ClientUpdateReceipt client_update_receipts = 22;
+  string deployment_id = 23;
+  repeated RecoveryReceipt recovery_receipts = 24;
+}
+
+message ListReleasesRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+  uint32 limit = 2 [(buf.validate.field).uint32.lte = 100];
+}
+
+message ListReleasesResponse {
+  repeated ReleaseView releases = 1;
+}
+
+message GetReleaseRequest {
+  string release_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetReleaseResponse {
+  ReleaseView release = 1 [(buf.validate.field).required = true];
+}
+
+message GetReleaseOperationRequest {
+  string operation_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetReleaseOperationResponse {
+  ReleaseOperation operation = 1 [(buf.validate.field).required = true];
+}
+
+message ReleaseAlert {
+  string code = 1 [(buf.validate.field).string.min_len = 1];
+  string severity = 2 [(buf.validate.field).string.min_len = 1];
+  string target = 3;
+  string message = 4 [(buf.validate.field).string.min_len = 1];
+  string next_action = 5 [(buf.validate.field).string.min_len = 1];
+}
+
+message ReleaseHealth {
+  string release_id = 1 [(buf.validate.field).string.min_len = 1];
+  string status = 2 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Timestamp observed_at = 3 [(buf.validate.field).required = true];
+  bool publication_verified = 4;
+  bool client_updates_healthy = 5;
+  string recovery_standing = 6;
+  repeated ReleaseAlert alerts = 7;
+  map<string, int64> known_durations_millis = 8;
+  repeated string supported_controls = 9;
+  repeated string unsupported_controls = 10;
+}
+
+message CandidateRecord {
+  string candidate_id = 1 [(buf.validate.field).string.min_len = 1];
+  Candidate candidate = 2 [(buf.validate.field).required = true];
+  string artifact_manifest_digest = 3 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Timestamp created_at = 4 [(buf.validate.field).required = true];
+}
+
+message DestinationRevisionRecord {
+  string destination_revision_id = 1 [(buf.validate.field).string.min_len = 1];
+  DestinationRevision revision = 2 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp created_at = 3 [(buf.validate.field).required = true];
+}
+
+message ReviewRecord {
+  string review_id = 1 [(buf.validate.field).string.min_len = 1];
+  ReviewBinding binding = 2 [(buf.validate.field).required = true];
+  string status = 3 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Timestamp approved_at = 4;
+  google.protobuf.Timestamp revoked_at = 5;
+  google.protobuf.Timestamp created_at = 6 [(buf.validate.field).required = true];
+}
+
+message ReleaseDossier {
+  uint32 schema_version = 1 [(buf.validate.field).uint32.gt = 0];
+  google.protobuf.Timestamp generated_at = 2 [(buf.validate.field).required = true];
+  ReleaseView release = 3 [(buf.validate.field).required = true];
+  ReleaseHealth health = 4 [(buf.validate.field).required = true];
+  CandidateRecord candidate = 5;
+  DestinationRevisionRecord destination = 6;
+  ReviewRecord review = 7;
+  repeated string missing_proof = 8;
+}
+
+message GetReleaseDossierRequest {
+  string release_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetReleaseDossierResponse {
+  ReleaseDossier dossier = 1 [(buf.validate.field).required = true];
+}
+
+message ReverifyReleaseRequest {
+  string release_id = 1 [(buf.validate.field).string.min_len = 1];
+  bool deep = 2;
+}
+
+message ReverifyReleaseResponse {
+  ReleaseView release = 1 [(buf.validate.field).required = true];
+}
+
+message ReconcileReleaseRequest {
+  string release_id = 1 [(buf.validate.field).string.min_len = 1];
+  bool deep = 2;
+}
+
+message ReconcileReleaseResponse {
+  ReleaseView release = 1 [(buf.validate.field).required = true];
+}
+
+message RecoverReleaseRequest {
+  string release_id = 1 [(buf.validate.field).string.min_len = 1];
+  string review_key = 2 [(buf.validate.field).string.min_len = 1];
+  string candidate_id = 3 [(buf.validate.field).string.min_len = 1];
+  string destination_revision_id = 4 [(buf.validate.field).string.min_len = 1];
+  string action = 5 [(buf.validate.field).string.min_len = 1];
+  int64 expected_predecessor_revision = 6;
+  string data_compatibility = 7;
+  map<string, int64> repair_artifact_ids = 8;
+  string repair_bundle_sha256 = 9;
+  string idempotency_key = 10;
+  string confirmation = 11;
+  bool dry_run = 12;
+}
+
+message RecoverReleaseResponse {
+  string release_id = 1 [(buf.validate.field).string.min_len = 1];
+  bool dry_run = 2;
+  RecoveryReceipt receipt = 3 [(buf.validate.field).required = true];
+}
+
+message StartReleaseRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+  string channel = 2;
+  string git_commit_hash = 3 [(buf.validate.field).string.min_len = 1];
+  string artifact_digest = 4;
+  string candidate_id = 5;
+  string destination_revision_id = 6;
+  uint64 authorization_epoch = 7;
+  string idempotency_key = 8;
+  string readiness_review_key = 9;
+  string release_version = 10 [(buf.validate.field).string.min_len = 1];
+  string release_notes = 11;
+  repeated string platforms = 12;
+  // Optional scenario-to-cloud handoff. The manifest is encoded as JSON so
+  // the typed boundary still carries the exact cloud contract without
+  // embedding scenario-to-cloud's schema in deployment-manager.
+  string cloud_manifest_json = 13;
+  string cloud_deployment_name = 14;
+  string cloud_bundle_path = 15;
+  string cloud_bundle_sha256 = 16;
+  int64 cloud_bundle_size_bytes = 17;
+  bool cloud_run_preflight = 18;
+}
+
+message StartReleaseResponse {
+  string operation_id = 1;
+  string release_id = 2 [(buf.validate.field).string.min_len = 1];
+  string status = 3 [(buf.validate.field).string.min_len = 1];
+  ReleaseView release = 4;
+  ReleaseOperation operation = 5;
+}

@@ -1,0 +1,237 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "setup-host",
+    "title": "Host tools and safeguards",
+    "routes": [
+      "/setup/host"
+    ],
+    "purpose": "Obtain informed operator consent for every host change, with declared risk and privilege visible before the choice.",
+    "prd_refs": [
+      "OT-P0-004"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Nothing that modifies the host is consented to blind."
+    },
+    {
+      "statement": "Risk and privilege are visible at the moment of choosing, not one click away."
+    },
+    {
+      "statement": "A safeguard's configurable fields are editable here, not only from a terminal."
+    }
+  ],
+  "states": [
+    {
+      "id": "loading",
+      "description": "Requirements are being derived from selected manifests.",
+      "setup": {
+        "route": "/setup/host"
+      }
+    },
+    {
+      "id": "default",
+      "description": "Tools and safeguards rendered with risk, privilege, bundling, and platforms.",
+      "setup": {
+        "route": "/setup/host"
+      }
+    },
+    {
+      "id": "config-expanded",
+      "description": "A safeguard's declared config fields are expanded for editing."
+    },
+    {
+      "id": "config-invalid",
+      "description": "A config value failed its manifest schema; the failing field is named."
+    },
+    {
+      "id": "unsupported-platform",
+      "description": "A requirement is not declared for this platform and is marked unsupported."
+    },
+    {
+      "id": "catalog-unavailable",
+      "description": "The tool or safeguard catalog cannot be resolved on this tier."
+    }
+  ],
+  "elements": [
+    {
+      "id": "tools-group",
+      "role": "group",
+      "description": "Host tools derived from selected manifests."
+    },
+    {
+      "id": "safeguards-group",
+      "role": "group",
+      "description": "Host safeguards derived from selected manifests."
+    },
+    {
+      "id": "requirement-entry",
+      "role": "checkbox",
+      "description": "One tool or safeguard opt-in."
+    },
+    {
+      "id": "risk-indicator",
+      "role": "note",
+      "description": "The manifest-declared risk level."
+    },
+    {
+      "id": "privilege-indicator",
+      "role": "note",
+      "description": "The privilege the change requires."
+    },
+    {
+      "id": "change-summary",
+      "role": "note",
+      "description": "What the safeguard writes or modifies on the host."
+    },
+    {
+      "id": "config-fields",
+      "role": "form",
+      "description": "Fields rendered from the safeguard manifest's own config schema."
+    },
+    {
+      "id": "config-error",
+      "role": "alert",
+      "description": "Names the config field that failed validation."
+    },
+    {
+      "id": "catalog-error",
+      "role": "alert",
+      "description": "Names the catalog that could not be resolved and the next action."
+    }
+  ],
+  "claims": [
+    {
+      "id": "risk-visible-before-consent",
+      "type": "element-present",
+      "statement": "Risk is visible on the same row as the opt-in control, before the operator consents.",
+      "tier": "machine",
+      "elements": [
+        "risk-indicator",
+        "requirement-entry"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "privilege-visible-before-consent",
+      "type": "element-present",
+      "statement": "The privilege a change requires is visible before the operator consents to it.",
+      "tier": "machine",
+      "elements": [
+        "privilege-indicator"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "host-change-is-described",
+      "type": "element-present",
+      "statement": "A safeguard that modifies host state describes what it writes.",
+      "tier": "machine",
+      "elements": [
+        "change-summary"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "config-editable-here",
+      "type": "element-present",
+      "statement": "A safeguard declaring a config schema renders its fields for editing on this step.",
+      "tier": "aspirational",
+      "elements": [
+        "config-fields"
+      ],
+      "states": [
+        "config-expanded"
+      ],
+      "rationale": "Parity with the CLI: an operator must not have to leave the wizard to express a decision the CLI can express."
+    },
+    {
+      "id": "invalid-config-names-field",
+      "type": "state-covered",
+      "statement": "A rejected config value names the failing field rather than reporting a generic error.",
+      "tier": "aspirational",
+      "elements": [
+        "config-error"
+      ],
+      "states": [
+        "config-invalid"
+      ]
+    },
+    {
+      "id": "unsupported-is-distinct-from-missing",
+      "type": "state-distinct",
+      "statement": "An unsupported platform reads differently from a missing installation.",
+      "tier": "aspirational",
+      "states": [
+        "unsupported-platform",
+        "default"
+      ],
+      "rationale": "They have different operator responses: change target versus install."
+    },
+    {
+      "id": "catalog-failure-is-named",
+      "type": "state-covered",
+      "statement": "A tier that cannot supply the catalog renders a named, actionable message rather than a generic failure.",
+      "tier": "aspirational",
+      "elements": [
+        "catalog-error"
+      ],
+      "states": [
+        "catalog-unavailable"
+      ]
+    },
+    {
+      "id": "consent-keyboard-operable",
+      "type": "keyboard-reachable",
+      "statement": "Every opt-in control and config field is operable by keyboard alone.",
+      "tier": "aspirational",
+      "elements": [
+        "requirement-entry",
+        "config-fields"
+      ],
+      "states": [
+        "config-expanded"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "tools-group": {
+        "testid": "host-tools"
+      },
+      "safeguards-group": {
+        "testid": "host-safeguards"
+      },
+      "requirement-entry": {
+        "testid": "requirement-entry"
+      },
+      "risk-indicator": {
+        "testid": "risk-indicator"
+      },
+      "privilege-indicator": {
+        "testid": "privilege-indicator"
+      },
+      "change-summary": {
+        "testid": "change-summary"
+      },
+      "config-fields": {
+        "testid": "safeguard-config"
+      },
+      "config-error": {
+        "testid": "config-error"
+      },
+      "catalog-error": {
+        "testid": "catalog-error"
+      }
+    }
+  }
+}

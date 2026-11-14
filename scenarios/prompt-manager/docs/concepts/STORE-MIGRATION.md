@@ -10,6 +10,7 @@ The prompt-manager underwent a storage architecture change to support:
 - **Per-Entity Files**: Each entity has its own directory with structured files
 - **Schema Validation**: JSON Schemas for runtime validation
 - **Pack System**: Skills organized into precedence-ordered packs
+- **Actions (proposed)**: Future executable contracts will use the same per-entity, schema-validated pattern
 
 ## Migration Status
 
@@ -20,6 +21,7 @@ The prompt-manager underwent a storage architecture change to support:
 | Members → Agents | Complete | 8 members converted to agents |
 | Legacy compatibility | Active | `/api/v1/members` routes still work |
 | Old `skills/` dir | Deprecated | Content verified identical, can be removed |
+| Actions | Proposed | Planned `store/actions/packs/{pack}/{id}/action.json` layout |
 
 ## Architecture Changes
 
@@ -52,6 +54,9 @@ store/
 │   └── history.jsonl   # Version history
 ├── agents/{agent-id}/
 │   └── agent.json      # Agent definition
+├── actions/packs/{pack}/{action-id}/  # Proposed
+│   ├── action.json     # Typed executable contract
+│   └── history.jsonl   # Version history
 ├── relations/
 │   └── team-member/    # Team-agent bindings
 └── schemas/            # Validation schemas
@@ -105,6 +110,19 @@ func (a *StoreAdapter) GetAll() ([]Metadata, error) {
     // Convert store.Skill to skills.Metadata
 }
 ```
+
+### Read metadata snapshots
+
+`StoreAdapter` also implements `MetadataBatchStore.LoadMetadataBatch`. A skill
+read requests its five legacy reader folders together and takes one fresh
+pack-registry snapshot. The adapter preserves the request context, active-pack
+precedence, folder order, and metadata used by ID/file/name resolution. It does
+not retain metadata between requests, so edits and source errors remain visible
+on the next read. Folder-file stores continue through `LoadMetadata`; their
+error behavior is unchanged.
+
+The regression and real-file benchmark live in
+`api/internal/skills/read_metadata_batch_test.go`.
 
 ### Dependency Injection in main.go
 

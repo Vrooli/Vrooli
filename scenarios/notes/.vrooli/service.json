@@ -1,6 +1,22 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "name": "notes",
     "displayName": "SmartNotes",
@@ -56,7 +72,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "SmartNotes UI port",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -91,216 +107,144 @@
     },
     "setup": {
       "description": "Initialize SmartNotes",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/notes-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "notes",
-            "targets": [
-              "notes"
-            ]
-          },
-          {
-            "type": "dependencies",
-            "paths": [
-              "ui/package.json"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
       "steps": [
         {
           "name": "generate-embeddings",
-          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "exec": [
+            "vrooli",
+            "resource",
+            "qdrant",
+            "embeddings",
+            "refresh",
+            "--force"
+          ],
+          "on_error": "continue",
           "description": "Generate code embeddings for AI assistance"
-        },
-        {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add notes data to resources"
-        },
-        {
-          "name": "install-cli",
-          "run": "cd cli && chmod +x notes && ln -sf $(pwd)/notes ~/.local/bin/notes 2>/dev/null || true",
-          "description": "Install CLI command"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o notes-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "printf '\ud83d\udcdd SmartNotes initialized\\n  UI: http://localhost:%s\\n  API: http://localhost:%s\\n' \"$UI_PORT\" \"$API_PORT\"",
-          "description": "Display service URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start SmartNotes services",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./notes-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/notes-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start UI server",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "printf '\ud83d\ude80 SmartNotes running:\\n  UI: http://localhost:%s\\n  API: http://localhost:%s\\n' \"$UI_PORT\" \"$API_PORT\"",
-          "description": "Display running services"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for notes",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute notes --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"notes-api\" || true; sleep 1; pkill -9 -f \"notes-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/notes.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/notes.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
         }
       ]
     }
   },
   "dependencies": {
     "resources": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "shared_workflows": [
-          "ollama",
-          "embedding-generator",
-          "semantic-search",
-          "structured-data-extractor",
-          "chain-of-thought-orchestrator",
-          "react-loop-engine",
-          "smart-semantic-search"
-        ],
-        "initialization": [
-          {
-            "file": "initialization/n8n/note-processor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/smart-tagging.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/note-search.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/daily-summary.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/smart-suggestions.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/intelligent-note-analyzer.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/intelligent-note-linker.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/note-to-mindmap.json",
-            "type": "workflow"
-          }
-        ]
-      },
       "postgres": {
         "type": "postgres",
         "enabled": true,
         "required": true,
         "purpose": "Store notes, folders, tags, and user preferences",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
         "purpose": "Vector storage for semantic search across notes",
-        "initialization": [
-          {
-            "file": "initialization/qdrant/collections.json",
-            "type": "config"
-          }
-        ]
+        "startup_policy": "must_start"
       },
       "redis": {
         "type": "redis",
         "enabled": true,
         "required": false,
-        "purpose": "Cache recent notes and real-time collaboration"
+        "purpose": "Cache recent notes and real-time collaboration",
+        "startup_policy": "try_start"
       },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "purpose": "AI-powered note suggestions and summarization"
+        "purpose": "AI-powered note suggestions and summarization",
+        "model_roles": [
+          "embedding.default"
+        ],
+        "startup_policy": "must_start"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "notes",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "notes"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "Optional accelerator that no Go code in this scenario currently opens. The declaration records intended caching, not a runtime requirement."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "The scenario does not require Redis, so the desktop tier simply runs without it rather than shipping a server."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
+        }
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

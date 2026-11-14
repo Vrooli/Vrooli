@@ -1,0 +1,132 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "sources",
+    "title": "Sources",
+    "routes": [
+      "/sources"
+    ],
+    "purpose": "Review explicit credential provider registrations and health.",
+    "prd_refs": [
+      "OT-P1-001"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Provider identity and declared capability remain visible without silently probing or falling back."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The page is ready for its primary task."
+    },
+    {
+      "id": "loading",
+      "description": "The page is loading protected metadata."
+    },
+    {
+      "id": "empty",
+      "description": "The page is ready but has no records to show."
+    },
+    {
+      "id": "partial",
+      "description": "The primary task is usable while supporting evidence is unavailable."
+    },
+    {
+      "id": "request-error",
+      "description": "The page explains the failed request and offers a recovery path."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The current principal cannot use this destination or action."
+    }
+  ],
+  "elements": [
+    {
+      "id": "sources-region",
+      "role": "region",
+      "name": "Credential sources"
+    },
+    {
+      "id": "register-source",
+      "role": "button",
+      "name": "Register source"
+    },
+    {
+      "id": "source-list",
+      "role": "list",
+      "name": "Registered authorities"
+    }
+  ],
+  "claims": [
+    {
+      "id": "explicit-provider",
+      "type": "element-present",
+      "statement": "Source registration and source health are visible in the same workspace.",
+      "tier": "manual",
+      "elements": [
+        "sources-region",
+        "source-list"
+      ],
+      "states": [
+        "default",
+        "empty"
+      ]
+    },
+    {
+      "id": "bootstrap-hidden",
+      "type": "state-covered",
+      "statement": "Bootstrap references remain in a protected input and do not appear in ordinary source rows.",
+      "tier": "manual",
+      "elements": [
+        "sources-region"
+      ],
+      "states": [
+        "default"
+      ]
+    }
+  ],
+  "regions": [
+    {
+      "id": "sources-workspace",
+      "purpose": "Register and review explicit credential authorities.",
+      "component": {
+        "library": {
+          "component": "collection-page",
+          "version": "1.7.1"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "partial",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "sources-workspace": {
+        "selector": "[data-experience-surface=\"sources-workspace\"]"
+      }
+    },
+    "elements": {
+      "sources-region": {
+        "selector": "[data-experience-surface=\"sources-workspace\"]"
+      },
+      "register-source": {
+        "selector": "button.button-primary"
+      },
+      "source-list": {
+        "selector": ".access-layout > .panel-card:last-child"
+      }
+    }
+  }
+}

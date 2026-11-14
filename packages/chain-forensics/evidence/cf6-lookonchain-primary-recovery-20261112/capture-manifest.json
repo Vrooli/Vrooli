@@ -1,0 +1,36 @@
+{
+  "capture_method": "direct unauthenticated HTTPS GET; no cookies or credentials",
+  "records": [
+    {
+      "file": "lookonchain-x-status-1690965940937334784.html",
+      "requested_url": "https://x.com/lookonchain/status/1690965940937334784",
+      "final_url": "https://x.com/lookonchain/status/1690965940937334784",
+      "retrieved_at_utc": "2026-11-12T17:17:10+00:00",
+      "status": 200,
+      "content_type": "text/html; charset=UTF-8",
+      "content_length_bytes": 149623,
+      "sha256": "c60e7a0d05cea7274c05aebca413a31e1b4d5fbf0528b116994565d2f7c69330"
+    },
+    {
+      "file": "lookonchain-syndication-tweet-1690965940937334784.json",
+      "requested_url": "https://cdn.syndication.twimg.com/tweet-result?id=1690965940937334784&lang=en&token=0",
+      "final_url": "https://cdn.syndication.twimg.com/tweet-result?id=1690965940937334784&lang=en&token=0",
+      "retrieved_at_utc": "2026-11-12T17:17:10+00:00",
+      "status": 200,
+      "content_type": "application/json; charset=utf-8",
+      "content_length_bytes": 3926,
+      "sha256": "cf8b4fe0f5e0914387c9c80fe3ee27632bc16487bfe0937663db95811f005ced"
+    },
+    {
+      "parsed_primary_fields": {
+        "id_str": "1690965940937334784",
+        "created_at": "2023-08-14T05:57:51.000Z",
+        "text": "Bald Deployer has successfully bridged 7,000 $ETH ($12.9M) from the #Base network back to #Ethereum and deposited 2,100 $ETH($3.87M) to #Kraken.\n\nThere are currently 2,000 $ETH ($3.7M) in bridging and 2,237 $ETH ($4.13M) in the #Base network.\n\nhttps://t.co/mtko220gTR https://t.co/BdB5QIob0s",
+        "screen_name": "lookonchain",
+        "name": "Lookonchain",
+        "permalink": null,
+        "conversation_id_str": null
+      }
+    }
+  ]
+}

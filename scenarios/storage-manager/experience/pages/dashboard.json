@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Cleanup Console",
+    "routes": ["/"],
+    "purpose": "Show provider estimates, conservative policy gates, plan review state, and audit events before any cleanup is applied.",
+    "prd_refs": ["OT-P0-001", "OT-P0-003", "OT-P0-004"]
+  }
+}

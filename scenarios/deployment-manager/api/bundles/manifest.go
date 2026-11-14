@@ -1,29 +1,73 @@
 // Package bundles provides bundle validation, assembly, and secret merging.
 package bundles
 
-import "deployment-manager/codesigning"
+import (
+	"deployment-manager/codesigning"
+	runtimeManifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+)
 
 // Manifest mirrors the v0.1 desktop bundle schema enough for
 // lightweight validation without pulling in external schema validators.
 type Manifest struct {
-	SchemaVersion string                     `json:"schema_version"`
-	Target        string                     `json:"target"`
-	App           ManifestApp                `json:"app"`
-	IPC           ManifestIPC                `json:"ipc"`
-	Telemetry     ManifestTelemetry          `json:"telemetry"`
-	Ports         *ManifestPorts             `json:"ports,omitempty"`
-	Swaps         []ManifestSwap             `json:"swaps,omitempty"`
-	Secrets       []ManifestSecret           `json:"secrets,omitempty"`
-	Services      []ServiceEntry             `json:"services"`
-	CodeSigning   *codesigning.SigningConfig `json:"code_signing,omitempty"`
+	Features            map[string]runtimeManifest.FeatureExport `json:"features,omitempty"`
+	Peers               []runtimeManifest.Peer                   `json:"peers,omitempty"`
+	ProgramBindingPeers []runtimeManifest.Peer                   `json:"program_binding_peers,omitempty"`
+	ToolProfiles        []runtimeManifest.ToolProfilePackage     `json:"tool_profiles,omitempty"`
+	CatalogRequirements []string                                 `json:"catalog_requirements,omitempty"`
+	SchemaVersion       string                                   `json:"schema_version"`
+	Target              string                                   `json:"target"`
+	App                 ManifestApp                              `json:"app"`
+	IPC                 ManifestIPC                              `json:"ipc"`
+	Telemetry           ManifestTelemetry                        `json:"telemetry"`
+	Authentication      *AuthenticationProfile                   `json:"authentication,omitempty"`
+	Ports               *ManifestPorts                           `json:"ports,omitempty"`
+	Swaps               []ManifestSwap                           `json:"swaps,omitempty"`
+	Secrets             []ManifestSecret                         `json:"secrets,omitempty"`
+	Services            []ServiceEntry                           `json:"services"`
+	CodeSigning         *codesigning.SigningConfig               `json:"code_signing,omitempty"`
+}
+
+// AuthenticationProfile declares the explicit desktop identity mode without
+// carrying credentials or provider-managed secrets.
+type AuthenticationProfile struct {
+	Version               int                                  `json:"version"`
+	Mode                  string                               `json:"mode"`
+	ModeProfiles          map[string]AuthenticationModeProfile `json:"mode_profiles,omitempty"`
+	Provider              string                               `json:"provider,omitempty"`
+	Resource              string                               `json:"resource,omitempty"`
+	Audience              string                               `json:"audience,omitempty"`
+	ProviderEndpoint      string                               `json:"provider_endpoint,omitempty"`
+	ProviderServiceID     string                               `json:"provider_service_id,omitempty"`
+	HumanSignIn           string                               `json:"human_sign_in"`
+	Offline               bool                                 `json:"offline"`
+	PublicRoutes          []string                             `json:"public_routes,omitempty"`
+	ProtectedRoutes       []string                             `json:"protected_routes,omitempty"`
+	LeasePath             string                               `json:"lease_path,omitempty"`
+	RecoveryURL           string                               `json:"recovery_url,omitempty"`
+	RequiresAuthenticator bool                                 `json:"requires_authenticator"`
+}
+
+// AuthenticationModeProfile declares the non-secret configuration for an
+// alternate mode an operator may select after installation. Credentials and
+// leases remain owned by their declared providers and are never exported in a
+// bundle manifest.
+type AuthenticationModeProfile struct {
+	Provider              string   `json:"provider,omitempty"`
+	Resource              string   `json:"resource,omitempty"`
+	Audience              string   `json:"audience,omitempty"`
+	ProviderEndpoint      string   `json:"provider_endpoint,omitempty"`
+	ProviderServiceID     string   `json:"provider_service_id,omitempty"`
+	HumanSignIn           string   `json:"human_sign_in"`
+	Offline               bool     `json:"offline"`
+	PublicRoutes          []string `json:"public_routes,omitempty"`
+	ProtectedRoutes       []string `json:"protected_routes,omitempty"`
+	LeasePath             string   `json:"lease_path,omitempty"`
+	RecoveryURL           string   `json:"recovery_url,omitempty"`
+	RequiresAuthenticator bool     `json:"requires_authenticator"`
 }
 
 // ManifestApp holds application metadata.
-type ManifestApp struct {
-	Name        string `json:"name"`
-	Version     string `json:"version"`
-	Description string `json:"description"`
-}
+type ManifestApp = runtimeManifest.App
 
 // ManifestIPC holds IPC configuration.
 type ManifestIPC struct {
@@ -62,6 +106,8 @@ type ManifestSwap struct {
 // ManifestSecret defines a secret in the manifest.
 type ManifestSecret struct {
 	ID          string                 `json:"id"`
+	LogicalID   string                 `json:"logical_id"`
+	Field       string                 `json:"field"`
 	Class       string                 `json:"class"`
 	Description string                 `json:"description"`
 	Format      string                 `json:"format"`
@@ -85,10 +131,12 @@ type SecretTarget struct {
 
 // ServiceEntry defines a service in the bundle.
 type ServiceEntry struct {
+	DistRoot     string                   `json:"dist_root,omitempty"`
+	AssetDirs    []string                 `json:"asset_dirs,omitempty"`
 	ID           string                   `json:"id"`
 	Type         string                   `json:"type"`
 	Description  string                   `json:"description"`
-	Binaries     map[string]ServiceBinary `json:"binaries"`
+	Binaries     map[string]ServiceBinary `json:"binaries,omitempty"`
 	Build        *BuildConfig             `json:"build,omitempty"`
 	Env          map[string]string        `json:"env,omitempty"`
 	Secrets      []string                 `json:"secrets,omitempty"`

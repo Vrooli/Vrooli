@@ -2,6 +2,24 @@
 
 This guide explains how to build Electron desktop applications for Windows, macOS, and Linux from a single machine.
 
+## Validation claims by target
+
+Build output and visual qualification are separate claims. The current
+scenario-to-desktop runner provides a complete native Linux/Xvfb qualification
+only; it does not use Linux emulation to claim native Windows or macOS behavior.
+
+| Target | Build/package claim | Visual claim | Required runner |
+|---|---|---|---|
+| Linux | Native AppImage/DEB/RPM packaging | Supported end-to-end when Xvfb, Openbox, xdotool, FFmpeg, and Electron are available | `linux-xvfb-openbox` |
+| Windows | Package/compile result only on non-Windows hosts | Unverified until native or remote Windows runner executes the semantic journey | Native or remote Windows |
+| macOS | ZIP/package result only on non-macOS hosts | Unverified until native or remote macOS runner executes the semantic journey | Native or remote macOS |
+
+An artifact is not release-visual merely because it builds or passes the
+protocol smoke marker. The visual profile requires a usable attributed window,
+semantic interaction, persisted screenshots and journey, an inspected MP4,
+and a complete producer-owned evidence manifest. A release-visual profile also
+requires governance reporting.
+
 ## Build Compatibility Matrix
 
 The following table shows which installer formats can be built on which host operating system:
@@ -145,19 +163,9 @@ sudo apt-get install rpm  # If building RPM
 ```
 
 #### For Windows Builds on Linux (Wine)
-Wine is automatically installed by the build scripts:
-```bash
-npm run dist:win  # Runs setup-wine.js automatically
-```
-
-Or install manually:
-```bash
-# Using AppImage (no sudo required)
-node scripts/setup-wine.js
-
-# Or via Flatpak
-flatpak --user install flathub org.winehq.Wine
-```
+Generated packages require working host Wine. The published Wine 1.0.1 bundle
+lacks PE builtins and is not selected. Packaging does not install or overwrite
+host Wine wrappers; see [Wine prerequisites](wine-installation.md).
 
 #### For macOS Builds on Linux
 No additional setup needed for ZIP target. DMG/PKG require macOS.
@@ -258,11 +266,9 @@ npm run dist:all
 ### Wine Build Issues
 
 **"spawn wine ENOENT"**
-Wine is not in PATH. Run:
-```bash
-node scripts/setup-wine.js
-export PATH="$HOME/.local/bin:$PATH"
-```
+Wine is not in the build process PATH. Confirm the existing Wine installation
+with `scenario-to-desktop wine check --json`, then select that toolchain in the
+build environment. Host installation and repair belong to the control plane.
 
 **WiX/MSI errors under Wine**
 Switch to NSIS target (see "Setting Up Cross-Platform Builds").
@@ -325,4 +331,4 @@ dist-electron/
 
 - [Wine Installation Guide](./wine-installation.md) - Detailed Wine setup
 - [Debugging Windows Apps](./debugging-windows.md) - Windows-specific troubleshooting
-- [electron-builder Targets](https://www.electron.build/multi-platform-build) - Official docs
+- [electron-builder Multi-Platform Build](https://www.electron.build/docs/features/multi-platform-build/) - Official docs

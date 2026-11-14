@@ -1,0 +1,116 @@
+{
+  "id": "rate-errors-timeouts-02",
+  "family": "rate-errors-timeouts",
+  "family_name": "Rate limits, errors and timeouts",
+  "difficulty": 2,
+  "title": "Rate limits, errors and timeouts: level 2",
+  "task": "Extract every matching record from the rate limits, errors and timeouts page and return records in source order. Include id, name, category, value and active.",
+  "mechanism": "resilience",
+  "tags": [
+    "difficulty-2",
+    "resilience"
+  ],
+  "page": {
+    "title": "Rate limits, errors and timeouts Practice 2",
+    "records": [
+      {
+        "id": "RAT-02-001",
+        "name": "Rate Item 2-1",
+        "category": "alpha",
+        "value": 921,
+        "active": true
+      },
+      {
+        "id": "RAT-02-002",
+        "name": "Rate Item 2-2",
+        "category": "beta",
+        "value": 922,
+        "active": true
+      },
+      {
+        "id": "RAT-02-003",
+        "name": "Rate Item 2-3",
+        "category": "gamma",
+        "value": 923,
+        "active": true
+      },
+      {
+        "id": "RAT-02-004",
+        "name": "Rate Item 2-4",
+        "category": "alpha",
+        "value": 924,
+        "active": false
+      },
+      {
+        "id": "RAT-02-005",
+        "name": "Rate Item 2-5",
+        "category": "beta",
+        "value": 925,
+        "active": true
+      },
+      {
+        "id": "RAT-02-006",
+        "name": "Rate Item 2-6",
+        "category": "gamma",
+        "value": 926,
+        "active": true
+      }
+    ],
+    "page_size": 6,
+    "variant": 2,
+    "search_fields": [],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "",
+    "behavior": {
+      "status_code": 429,
+      "delay_ms": 0,
+      "retry_after_seconds": 2
+    },
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "RAT-02-001",
+      "name": "Rate Item 2-1",
+      "category": "alpha",
+      "value": 921,
+      "active": true
+    },
+    {
+      "id": "RAT-02-002",
+      "name": "Rate Item 2-2",
+      "category": "beta",
+      "value": 922,
+      "active": true
+    },
+    {
+      "id": "RAT-02-003",
+      "name": "Rate Item 2-3",
+      "category": "gamma",
+      "value": 923,
+      "active": true
+    },
+    {
+      "id": "RAT-02-004",
+      "name": "Rate Item 2-4",
+      "category": "alpha",
+      "value": 924,
+      "active": false
+    },
+    {
+      "id": "RAT-02-005",
+      "name": "Rate Item 2-5",
+      "category": "beta",
+      "value": 925,
+      "active": true
+    },
+    {
+      "id": "RAT-02-006",
+      "name": "Rate Item 2-6",
+      "category": "gamma",
+      "value": 926,
+      "active": true
+    }
+  ]
+}

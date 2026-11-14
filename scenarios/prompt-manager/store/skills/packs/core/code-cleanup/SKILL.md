@@ -1,7 +1,28 @@
+---
+name: "code-cleanup"
+description: "Remove dead code, unused imports, and obsolete patterns"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","cleanup"]
+  tags: ["skill","audit-technique"]
+  icon: "trash2"
+  status: "active"
+  defaultScope: "refactor-scope"
+  revision: 46
+  createdAt: "2025-01-14T00:00:00Z"
+  updatedAt: "2026-02-06T14:33:21Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Code Cleanup
 
 Prioritize **systematic removal of dead code, deprecated implementations, and backwards-compatibility cruft** across this scenario.
-Do **not** modify code in `packages/*` (shared code may have external consumers).
+Do **not** modify code in `path:packages/*` (shared code may have external consumers).
 Do **not** remove code without verification; all removals must be provably safe.
 
 Focus on **reducing code surface area** by eliminating artifacts that AI agents leave behind during iterative development.
@@ -9,7 +30,8 @@ Focus on **reducing code surface area** by eliminating artifacts that AI agents 
 ---
 
 Required reading:
-- `prompt-manager skills read knowledge-observatory-tools`
+- `docs/scenario-qa/methods/audit/code-cleanup.md` — strategic-canon home: when this lens applies, when it backfires, what the qa-contrarian challenges.
+- `prompt-manager skill read knowledge-observatory-tools`
 
 ### **1. The Problem: AI Agent Accumulation Patterns**
 
@@ -38,7 +60,7 @@ Look for these cleanup candidates:
 * Re-exports kept "for backward compatibility" with no actual consumers
 
 **Do NOT remove:**
-* Code in `packages/*` - shared packages may have external consumers you cannot see
+* Code in `path:packages/*` - shared packages may have external consumers you cannot see
 * Active feature flags or gradual rollout code
 * Code with explicit "keep until X" where X has not occurred
 * Cross-scenario dependencies (verify before removing)
@@ -81,12 +103,20 @@ rg -n "// TODO: remove|// TODO: delete|// TODO: clean" --type go --type ts
 
 **Unused exports:**
 ```bash
-# Use golangci-lint for Go unused detection
-golangci-lint run --enable=unused,deadcode
+# Use golangci-lint for Go unused detection from the owning module.
+# `unused` replaces the deprecated, fully inactivated `deadcode` linter.
+golangci-lint run --enable-only=unused ./...
 
 # For TypeScript, check import counts
 rg -l "export.*function\s+\w+Legacy" --type ts
 ```
+
+Treat Go `unused` output as a candidate list. It can report whole private call
+chains beneath an unregistered handler, stubs, and uncalled test helpers. Trace
+each candidate through routes, callers, tests, generated-code conventions, and
+migration history before removal. Do not enable it in a scenario's normal lint
+profile until its owner has reviewed existing findings and chosen a baseline
+policy.
 
 ---
 
@@ -243,7 +273,7 @@ func GetResourcePath() string { return getResourcePathNew() }
 * Test fixtures for removed code
 
 **DO NOT remove:**
-* Code in `packages/*` (external consumers may exist)
+* Code in `path:packages/*` (external consumers may exist)
 * Code with unclear ownership or purpose (investigate first)
 * Feature flags that may still be in gradual rollout
 * Code with "keep until X" where X has not happened
@@ -258,25 +288,25 @@ func GetResourcePath() string { return getResourcePathNew() }
 
 ### **7. Memory Management with Tidiness Manager**
 
-Use `tidiness-manager` to get intelligent cleanup recommendations combining code metrics with visit tracking.
+Use `tidiness-manager` to rank current source opportunities by expected net production reduction. Inspect the detector, replacement estimate and historical calibration before selecting a candidate. Visit tracking records coverage independently.
 
 **At the start of each iteration:**
 ```bash
-# Get files with highest cleanup potential
-# Priority combines: staleness + tech debt markers + complexity
+# Get opportunities with the highest expected net reduction
 tidiness-manager recommend-refactors {{TARGET}} \
   --limit 5 \
-  --sort-by priority \
   --min-lines 50
 
-# Alternative: Focus on files with most TODO/deprecated markers
-tidiness-manager issues {{TARGET}} --category lint --limit 10
 ```
+
+Use `tidiness-manager scan {{TARGET}} --type tidiness` to inspect current maintainability
+findings, including debt markers. Use the ranked recommendation command above when choosing a
+production reduction candidate; the issue queue is not a second refactor ranking surface.
 
 **After cleaning each file:**
 ```bash
 # Record cleanup work with specific notes
-tidiness-manager visit <file-path> \
+tidiness-manager visit "<file-path>" \
   --scenario {{TARGET}} \
   --note "<what was removed, what remains to investigate>"
 ```
@@ -284,7 +314,7 @@ tidiness-manager visit <file-path> \
 **When a file has no cleanup candidates:**
 ```bash
 # Exclude from future cleanup queries
-tidiness-manager exclude <file-path> \
+tidiness-manager exclude "<file-path>" \
   --scenario {{TARGET}} \
   --reason "No dead code found - clean implementation"
 ```
@@ -292,7 +322,7 @@ tidiness-manager exclude <file-path> \
 **When a file is in packages/ or out of scope:**
 ```bash
 # Exclude shared code from cleanup scope
-tidiness-manager exclude <file-path> \
+tidiness-manager exclude "<file-path>" \
   --scenario {{TARGET}} \
   --reason "Shared package - out of scope for scenario cleanup"
 ```
@@ -336,7 +366,7 @@ You **must**:
 * Run tests after every removal
 * Keep changes atomic (one logical removal per commit when possible)
 * Document uncertain cases rather than guessing
-* Never touch `packages/*` without explicit permission
+* Never touch `path:packages/*` without explicit permission
 * Leave the codebase **smaller, cleaner, and easier to understand**
 
 You **must not**:

@@ -21,33 +21,21 @@ const (
 	ComponentServerToolUse PricingComponent = "server_tool_use"
 )
 
-// AllComponents returns all pricing components for iteration.
-func AllComponents() []PricingComponent {
-	return []PricingComponent{
-		ComponentInputTokens,
-		ComponentOutputTokens,
-		ComponentCacheRead,
-		ComponentCacheCreation,
-		ComponentWebSearch,
-		ComponentServerToolUse,
-	}
-}
-
 // PricingSource indicates where a pricing value originated from.
 type PricingSource string
 
 const (
-	SourceManualOverride    PricingSource = "manual_override"
-	SourceProviderAPI       PricingSource = "provider_api"
-	SourceHistoricalAverage PricingSource = "historical_average"
-	SourceUnknown           PricingSource = "unknown"
+	SourceManualOverride PricingSource = "manual_override"
+	SourceProviderAPI    PricingSource = "provider_api"
+	SourceUnknown        PricingSource = "unknown"
 )
 
 // ModelPricing represents pricing data for a specific model from a provider.
 type ModelPricing struct {
 	ID                 uuid.UUID `json:"id"`
-	CanonicalModelName string    `json:"canonicalModelName"` // e.g., "anthropic/claude-opus-4-5"
+	CanonicalModelName string    `json:"canonicalModelName"` // provider/model identity
 	Provider           string    `json:"provider"`           // e.g., "openrouter"
+	PriceBookRevision  string    `json:"priceBookRevision,omitempty"`
 
 	// Per-component pricing (USD per token, nil means not available)
 	InputTokenPrice    *float64 `json:"inputTokenPrice,omitempty"`
@@ -72,82 +60,6 @@ type ModelPricing struct {
 
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
-}
-
-// GetPrice returns the price for a specific component.
-func (m *ModelPricing) GetPrice(component PricingComponent) *float64 {
-	switch component {
-	case ComponentInputTokens:
-		return m.InputTokenPrice
-	case ComponentOutputTokens:
-		return m.OutputTokenPrice
-	case ComponentCacheRead:
-		return m.CacheReadPrice
-	case ComponentCacheCreation:
-		return m.CacheCreationPrice
-	case ComponentWebSearch:
-		return m.WebSearchPrice
-	case ComponentServerToolUse:
-		return m.ServerToolUsePrice
-	default:
-		return nil
-	}
-}
-
-// SetPrice sets the price for a specific component.
-func (m *ModelPricing) SetPrice(component PricingComponent, price *float64) {
-	switch component {
-	case ComponentInputTokens:
-		m.InputTokenPrice = price
-	case ComponentOutputTokens:
-		m.OutputTokenPrice = price
-	case ComponentCacheRead:
-		m.CacheReadPrice = price
-	case ComponentCacheCreation:
-		m.CacheCreationPrice = price
-	case ComponentWebSearch:
-		m.WebSearchPrice = price
-	case ComponentServerToolUse:
-		m.ServerToolUsePrice = price
-	}
-}
-
-// GetSource returns the source for a specific component.
-func (m *ModelPricing) GetSource(component PricingComponent) PricingSource {
-	switch component {
-	case ComponentInputTokens:
-		return m.InputTokenSource
-	case ComponentOutputTokens:
-		return m.OutputTokenSource
-	case ComponentCacheRead:
-		return m.CacheReadSource
-	case ComponentCacheCreation:
-		return m.CacheCreationSource
-	case ComponentWebSearch:
-		return m.WebSearchSource
-	case ComponentServerToolUse:
-		return m.ServerToolUseSource
-	default:
-		return SourceUnknown
-	}
-}
-
-// SetSource sets the source for a specific component.
-func (m *ModelPricing) SetSource(component PricingComponent, source PricingSource) {
-	switch component {
-	case ComponentInputTokens:
-		m.InputTokenSource = source
-	case ComponentOutputTokens:
-		m.OutputTokenSource = source
-	case ComponentCacheRead:
-		m.CacheReadSource = source
-	case ComponentCacheCreation:
-		m.CacheCreationSource = source
-	case ComponentWebSearch:
-		m.WebSearchSource = source
-	case ComponentServerToolUse:
-		m.ServerToolUseSource = source
-	}
 }
 
 // IsExpired returns true if the pricing data has expired.
@@ -191,9 +103,9 @@ func (m *ModelPricing) Clone() *ModelPricing {
 // ModelAlias maps runner-specific model names to canonical names used by pricing providers.
 type ModelAlias struct {
 	ID             uuid.UUID `json:"id"`
-	RunnerModel    string    `json:"runnerModel"`    // e.g., "claude-opus-4-5"
+	RunnerModel    string    `json:"runnerModel"`    // runner-native model identifier
 	RunnerType     string    `json:"runnerType"`     // e.g., "claude-code", "codex"
-	CanonicalModel string    `json:"canonicalModel"` // e.g., "anthropic/claude-opus-4-5"
+	CanonicalModel string    `json:"canonicalModel"` // provider/model identity
 	Provider       string    `json:"provider"`       // e.g., "openrouter"
 
 	CreatedAt time.Time `json:"createdAt"`
@@ -222,44 +134,15 @@ func (o *ManualPriceOverride) IsExpired() bool {
 	return time.Now().After(*o.ExpiresAt)
 }
 
-// HistoricalPricing contains averaged pricing calculated from historical run data.
-type HistoricalPricing struct {
-	CanonicalModel        string    `json:"canonicalModel"`
-	InputTokenAvgPrice    *float64  `json:"inputTokenAvgPrice,omitempty"`
-	OutputTokenAvgPrice   *float64  `json:"outputTokenAvgPrice,omitempty"`
-	CacheReadAvgPrice     *float64  `json:"cacheReadAvgPrice,omitempty"`
-	CacheCreationAvgPrice *float64  `json:"cacheCreationAvgPrice,omitempty"`
-	SampleCount           int       `json:"sampleCount"`
-	Since                 time.Time `json:"since"`
-}
-
-// GetAvgPrice returns the average price for a specific component.
-func (h *HistoricalPricing) GetAvgPrice(component PricingComponent) *float64 {
-	switch component {
-	case ComponentInputTokens:
-		return h.InputTokenAvgPrice
-	case ComponentOutputTokens:
-		return h.OutputTokenAvgPrice
-	case ComponentCacheRead:
-		return h.CacheReadAvgPrice
-	case ComponentCacheCreation:
-		return h.CacheCreationAvgPrice
-	default:
-		return nil
-	}
-}
-
 // PricingSettings holds global configuration for the pricing system.
 type PricingSettings struct {
-	HistoricalAverageDays int           `json:"historicalAverageDays"` // Default: 7
-	ProviderCacheTTL      time.Duration `json:"providerCacheTtl"`      // Default: 6h
+	ProviderCacheTTL time.Duration `json:"providerCacheTtl"` // Default: 6h
 }
 
 // DefaultPricingSettings returns the default pricing configuration.
 func DefaultPricingSettings() *PricingSettings {
 	return &PricingSettings{
-		HistoricalAverageDays: 7,
-		ProviderCacheTTL:      6 * time.Hour,
+		ProviderCacheTTL: 6 * time.Hour,
 	}
 }
 
@@ -299,9 +182,12 @@ type CostCalculation struct {
 	ComponentSources map[PricingComponent]PricingSource `json:"componentSources"`
 
 	// Metadata
-	PricingFetchedAt time.Time `json:"pricingFetchedAt"`
-	PricingVersion   string    `json:"pricingVersion,omitempty"`
-	Provider         string    `json:"provider"`
+	PricingFetchedAt  time.Time `json:"pricingFetchedAt"`
+	PricingVersion    string    `json:"pricingVersion,omitempty"`
+	Provider          string    `json:"provider"`
+	CostSource        string    `json:"costSource,omitempty"`
+	ChargeReason      string    `json:"chargeReason,omitempty"`
+	PriceBookRevision string    `json:"priceBookRevision,omitempty"`
 }
 
 // CacheStatus provides visibility into the pricing cache state.
@@ -318,20 +204,6 @@ type ProviderCacheStatus struct {
 	LastFetchedAt time.Time `json:"lastFetchedAt"`
 	ExpiresAt     time.Time `json:"expiresAt"`
 	IsStale       bool      `json:"isStale"`
-}
-
-// PricingHistory represents a historical pricing lookup entry.
-type PricingHistory struct {
-	ID                 uuid.UUID     `json:"id"`
-	CanonicalModelName string        `json:"canonicalModelName"`
-	Provider           string        `json:"provider"`
-	InputTokenPrice    *float64      `json:"inputTokenPrice,omitempty"`
-	OutputTokenPrice   *float64      `json:"outputTokenPrice,omitempty"`
-	CacheReadPrice     *float64      `json:"cacheReadPrice,omitempty"`
-	CacheCreationPrice *float64      `json:"cacheCreationPrice,omitempty"`
-	Source             PricingSource `json:"source"`
-	PricingVersion     string        `json:"pricingVersion,omitempty"`
-	Timestamp          time.Time     `json:"timestamp"`
 }
 
 // ModelPricingListItem is used for API responses when listing models with pricing.
@@ -365,9 +237,4 @@ type ModelPricingListItem struct {
 // TokensToMillion converts per-token price to per-million-token price.
 func TokensToMillion(perTokenPrice float64) float64 {
 	return perTokenPrice * 1_000_000
-}
-
-// MillionToTokens converts per-million-token price to per-token price.
-func MillionToTokens(perMillionPrice float64) float64 {
-	return perMillionPrice / 1_000_000
 }

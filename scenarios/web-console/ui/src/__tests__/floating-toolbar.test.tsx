@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import FloatingToolbar from "../components/FloatingToolbar";
 
 vi.mock("../hooks/useDraggablePosition", () => ({
@@ -43,6 +44,8 @@ describe("FloatingToolbar", () => {
     localStorage.removeItem("wc-toolbar-dock");
   });
 
+  const onExpandComposer = vi.fn();
+
   function renderToolbar(isCreating = false) {
     return render(
       <FloatingToolbar
@@ -50,6 +53,7 @@ describe("FloatingToolbar", () => {
         onOpenAi={onOpenAi}
         onNewTerminal={onNewTerminal}
         onOpenLauncher={onOpenLauncher}
+        onExpandComposer={onExpandComposer}
         isCreating={isCreating}
       />,
     );
@@ -61,12 +65,22 @@ describe("FloatingToolbar", () => {
     expect(screen.getByTestId("toolbar-settings")).toBeTruthy();
     expect(screen.getByTestId("toolbar-ai")).toBeTruthy();
     expect(screen.getByTestId("toolbar-new")).toBeTruthy();
+    expect(screen.getByTestId("toolbar-settings")).toHaveClass("h-11", "w-11", "md:h-8", "md:w-8");
+    expect(screen.getByTestId("toolbar-new")).toHaveClass("h-11", "w-11", "md:h-8", "md:w-8");
   });
 
   it("calls onOpenSettings when settings button is clicked", () => {
     renderToolbar();
     fireEvent.click(screen.getByTestId("toolbar-settings"));
     expect(onOpenSettings).toHaveBeenCalledOnce();
+  });
+
+  it("opens the composer when the expand-composer button is clicked", () => {
+    renderToolbar();
+    const btn = screen.getByTestId("toolbar-expand-composer");
+    expect(btn).toBeTruthy();
+    fireEvent.click(btn);
+    expect(onExpandComposer).toHaveBeenCalledOnce();
   });
 
   it("calls onOpenLauncher on short press of the plus button (default launcher behavior)", () => {
@@ -102,5 +116,60 @@ describe("FloatingToolbar", () => {
     renderToolbar();
     const buttonsContainer = screen.getByTestId("toolbar-settings").parentElement;
     expect(buttonsContainer?.getAttribute("aria-hidden")).toBe("true");
+  });
+});
+
+describe("FloatingToolbar approvals control", () => {
+  it("mutes the approvals shield while idle and accents it when pending", () => {
+    const handlers = {
+      onOpenSettings: vi.fn(),
+      onOpenApprovals: vi.fn(),
+      onOpenAi: vi.fn(),
+      onNewTerminal: vi.fn(),
+      onOpenLauncher: vi.fn(),
+      onExpandComposer: vi.fn(),
+    };
+    const { rerender } = render(<FloatingToolbar {...handlers} isCreating={false} />);
+    expect(screen.getByTestId("toolbar-approvals")).toHaveClass("text-wc-text-muted");
+    expect(screen.queryByTestId("toolbar-approvals-badge")).toBeNull();
+
+    rerender(<FloatingToolbar {...handlers} isCreating={false} approvalsPendingCount={3} />);
+    expect(screen.getByTestId("toolbar-approvals")).toHaveClass("text-wc-accent");
+    expect(screen.getByTestId("toolbar-approvals-badge").textContent).toBe("3");
+  });
+});
+
+describe("FloatingToolbar trimming", () => {
+  const handlers = {
+    onOpenSettings: vi.fn(),
+    onOpenAi: vi.fn(),
+    onNewTerminal: vi.fn(),
+    onOpenLauncher: vi.fn(),
+    onExpandComposer: vi.fn(),
+    onVoiceStart: vi.fn(),
+    onVoiceStop: vi.fn(),
+  };
+
+  it("shows every action by default", () => {
+    render(<FloatingToolbar {...handlers} isCreating={false} />);
+    expect(screen.getByTestId("toolbar-new")).toBeTruthy();
+    expect(screen.getByTestId("toolbar-ai")).toBeTruthy();
+    expect(screen.getByTestId("toolbar-expand-composer")).toBeTruthy();
+    expect(screen.getByTestId("voice-mic-btn")).toBeTruthy();
+  });
+
+  it("drops the new action when the layout carries its own", () => {
+    render(<FloatingToolbar {...handlers} isCreating={false} showNewAction={false} />);
+    expect(screen.queryByTestId("toolbar-new")).toBeNull();
+    // The global controls are the remainder and must survive the trim.
+    expect(screen.getByTestId("toolbar-settings")).toBeTruthy();
+  });
+
+  it("drops composer actions when the composer bar already shows them", () => {
+    render(<FloatingToolbar {...handlers} isCreating={false} showComposerActions={false} />);
+    expect(screen.queryByTestId("toolbar-ai")).toBeNull();
+    expect(screen.queryByTestId("toolbar-expand-composer")).toBeNull();
+    expect(screen.queryByTestId("voice-mic-btn")).toBeNull();
+    expect(screen.getByTestId("toolbar-new")).toBeTruthy();
   });
 });

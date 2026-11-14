@@ -82,6 +82,34 @@ Declares child requirement files to import.
 | `status` | enum | See Status Values | Implementation progress |
 | `prd_ref` | string | - | Reference to PRD |
 
+#### Delivery scope
+
+`delivery_scope` is optional and defaults to `committed`. Use
+`"delivery_scope": "roadmap"` only for a linked, deferred capability that is
+intentionally outside the scenario's current delivery commitment. Roadmap
+requirements remain in the registry, must retain a valid `prd_ref`, and remain
+visible in reporting; they do not dilute current delivery-completeness or
+operational-target scores. Do not use this field to defer a P0 capability that
+the approved product contract requires for the current release.
+
+#### Title/Description Wording (EARS + RFC 2119)
+
+Write `title` (and `description`) as an **EARS** statement — a falsifiable
+behavioral claim in one of the standard shapes:
+
+- Ubiquitous: "The `<system>` shall `<response>`."
+- Event-driven: "When `<trigger>`, the `<system>` shall `<response>`."
+- State-driven: "While `<state>`, the `<system>` shall `<response>`."
+- Unwanted behaviour: "If `<undesired trigger>`, then the `<system>` shall `<response>`."
+- Optional feature: "Where `<feature is present>`, the `<system>` shall `<response>`."
+
+Use RFC 2119 keywords by criticality: `shall`/`must` for P0-linked
+requirements, `should` for P1, `may` for P2. Prohibitions are always
+unwanted-behaviour claims about an observable response ("If an
+unauthenticated request arrives, then the API shall return 401"), never bare
+absences. This is wording guidance for authorship and on-touch edits — the
+schema does not enforce it, and existing registries need no bulk rewrite.
+
 #### ID Pattern Examples
 
 **Valid:**
@@ -207,7 +235,7 @@ Each requirement can have multiple validation entries.
 ```json
 {"ref": "api/handlers/projects_test.go"}
 {"ref": "ui/src/**/*.test.{ts,tsx}"}
-{"ref": "test/cli/*.bats"}
+{"ref": "cli/**/*_test.go"}
 ```
 
 **FORBIDDEN:**

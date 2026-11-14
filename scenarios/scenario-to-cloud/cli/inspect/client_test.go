@@ -52,7 +52,7 @@ func TestLogsBuildsExpectedQuery(t *testing.T) {
 func TestFilesContentQuery(t *testing.T) {
 	var got url.Values
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/deployments/dep-456/files" {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/deployments/dep-456/files/content" {
 			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
 		got = r.URL.Query()
@@ -69,7 +69,7 @@ func TestFilesContentQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Files returned error: %v", err)
 	}
-	if got.Get("path") != "/etc/caddy/Caddyfile" || got.Get("content") != "true" {
+	if got.Get("path") != "/etc/caddy/Caddyfile" {
 		t.Fatalf("unexpected query params: %v", got)
 	}
 }

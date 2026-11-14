@@ -49,7 +49,7 @@ Local Large Language Model (LLM) inference and management infrastructure that pr
 ### Performance Criteria
 | Metric | Target | Measurement Method |
 |--------|--------|-------------------|
-| Service Startup Time | < 30s | Systemd service initialization |
+| Service Startup Time | < 30s | Docker container startup |
 | Health Check Response | < 100ms | API endpoint response |
 | Model Loading Time | < 60s for 8B models | Ollama model loading |
 | Inference Response | < 2s for short prompts | API response time |
@@ -67,10 +67,10 @@ Local Large Language Model (LLM) inference and management infrastructure that pr
 ### Resource Dependencies
 ```yaml
 required:
-  - resource_name: systemd
-    purpose: Service management for Ollama daemon
-    integration_pattern: Systemd service management
-    access_method: systemctl commands
+  - resource_name: docker
+    purpose: Runs the Ollama daemon as a managed container
+    integration_pattern: docker-service driver (internal/resources/drivers.go)
+    access_method: vrooli resource {install,start,stop,status} ollama
     
   - resource_name: nvidia-drivers
     purpose: GPU acceleration support (when GPU available)
@@ -90,23 +90,23 @@ resource_category: ai
 
 standard_interfaces:
   management:
-    - cli: cli.sh (using CLI framework)
-    - actions: [help, install, uninstall, start, stop, restart, status, validate, test, content, pull, benchmark]
-    - configuration: config/defaults.sh
+    - lifecycle: vrooli resource {install,start,stop,restart,status,logs} ollama (docker-service driver)
+    - resource_cli: resource-ollama {ensure,gateway,capacity,policy} for model + inference workflows
+    - configuration: resource.json (runtime image, env, ports, memory cap, health checks)
     - documentation: README.md + docs/
     
   networking:
-    - port_registry: Port defined in scripts/resources/port_registry.sh (ollama)
+    - port: 11434 (declared in resource.json ports[])
     - hostname: localhost
     - protocol: http
     
   monitoring:
-    - health_check: http://localhost:$(port from registry)/api/tags
-    - status_reporting: resource-ollama status (uses status-args.sh framework)
-    - logging: systemd journal logs
+    - health_check: http://127.0.0.1:11434/api/tags (declared in resource.json health_checks[])
+    - status_reporting: vrooli resource status ollama
+    - logging: docker logs ollama (container stdout/stderr)
     
   data_persistence:
-    - storage: ~/.ollama (user home directory)
+    - storage: ${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/vrooli/resources/ollama}
     - backup_strategy: Model files and configuration
     - migration_support: Model version management
 
@@ -114,9 +114,6 @@ integration_patterns:
   scenarios_using_resource:
     - scenario_name: research-assistant
       usage_pattern: Document analysis and knowledge extraction
-      
-    - scenario_name: idea-generator
-      usage_pattern: Creative content generation and refinement
       
     - scenario_name: stream-of-consciousness-analyzer
       usage_pattern: Thought pattern analysis and insight extraction
@@ -135,12 +132,12 @@ integration_patterns:
 resource_configuration:
   defaults:
     enabled: true
-    port: [retrieved from port_registry.sh]
-    service_name: ollama
-    user: ollama
-    install_dir: /usr/local/bin
+    port: 11434
+    container_name: ollama
+    image: ollama/ollama:0.30.10
+    memory_limit: 12g
     environment:
-      OLLAMA_HOST: "0.0.0.0:$(port from registry)"
+      OLLAMA_HOST: "0.0.0.0:11434"
       OLLAMA_ORIGINS: "*"
     
   templates:
@@ -166,8 +163,10 @@ resource_configuration:
 customization:
   user_configurable:
     - parameter: default_models
-      description: Models to install automatically
-      default: ["llama3.1:8b", "deepseek-r1:8b", "qwen2.5-coder:7b"]
+      description: >-
+        Models to install automatically. Governed by the role policy in
+        model-policy.json (resolved primaries for the embedding/chat/code
+        roles), not a hard-coded list — see `resource-ollama policy roles`.
       
     - parameter: gpu_enabled
       description: Enable GPU acceleration
@@ -179,7 +178,20 @@ customization:
       
     - var: OLLAMA_MAX_LOADED_MODELS
       purpose: Maximum models kept in memory
+
 ```
+
+### Host Stability Protections
+
+Ollama runs as a Docker container with a hard memory ceiling declared in
+`resource.json` (`runtime.memory_limit: 12g`, applied as `docker run --memory`).
+The intent is that any caller — including agents that hit `localhost:11434`
+directly — runs against a bounded ollama: under genuine memory pressure Docker
+OOM-kills the container rather than letting the kernel hang. An embeddings-burst
+pattern from such callers was a candidate cause of host hard-resets in the
+2026-05-07 incident; the container memory cap is the Docker equivalent of the
+cgroup `MemoryMax` limit the old host-systemd unit used to render. To adjust the
+ceiling, edit `runtime.memory_limit` and `vrooli resource restart ollama`.
 
 ### API Contract
 ```yaml
@@ -309,15 +321,15 @@ resource_specific_actions:
 ### Management Standards
 ```yaml
 implementation_requirements:
-  - cli_location: cli.sh (uses CLI framework)
-  - configuration: config/defaults.sh, config/capabilities.yaml
-  - dependencies: lib/ directory with modular functions
+  - lifecycle: vrooli resource ... (docker-service driver)
+  - resource_cli: resource-ollama (Go module under cli/)
+  - configuration: resource.json, model-policy.json, config/capabilities.yaml
   - error_handling: Exit codes (0=success, 1=error, 2=model error, 3=GPU error)
   - logging: Structured output with levels (INFO, WARN, ERROR)
   - idempotency: Safe to run commands multiple times
   
 status_reporting:
-  - framework: status-args.sh for consistent argument parsing
+  - framework: vrooli resource status ollama (docker-service driver)
   - health_status: healthy|degraded|unhealthy|unknown
   - service_info: version, uptime, GPU status, memory usage
   - model_info: installed models, sizes, last used
@@ -336,7 +348,7 @@ content_storage:
   purpose: Manage AI models, custom configurations, and prompt templates
   
   implementation_patterns:
-    - Model storage: ~/.ollama/models directory
+    - Model storage: ${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/vrooli/resources/ollama}/models
     - Custom models: Created via Modelfiles
     - Prompt templates: Stored for reuse across scenarios
     - Metadata tracking: Model sizes, creation dates, usage stats
@@ -363,10 +375,10 @@ content_storage:
 ### Deployment Standards
 ```yaml
 installation:
-  method: Official installer script from ollama.com
-  binary_location: /usr/local/bin/ollama
-  service_management: systemd service (ollama.service)
-  user_creation: Dedicated ollama user for service execution
+  method: Docker image pull (ollama/ollama:<pin>) via the docker-service driver
+  runtime: Docker container named "ollama"
+  service_management: vrooli resource {start,stop,restart,status} ollama
+  model_storage: ${RESOURCE_DATA_DIR} bind-mounted to /root/.ollama
   
 networking:
   port_allocation:
@@ -377,7 +389,7 @@ networking:
     
 data_management:
   persistence:
-    - storage: ~/.ollama (user home directory)
+    - storage: ${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/vrooli/resources/ollama}
       purpose: Model files and configuration storage
       
   backup_strategy:
@@ -456,7 +468,7 @@ security_requirements:
     
 compliance:
   standards: Data sovereignty (local processing)
-  auditing: Systemd journal logs and API access logs
+  auditing: Container logs (docker logs ollama) and API access logs
   data_retention: Models and prompts not logged by default
 ```
 
@@ -465,25 +477,22 @@ compliance:
 ### Test Categories
 ```yaml
 unit_tests:
-  location: Co-located with source files (e.g., lib/install.sh and lib/install.bats)
-  coverage: Individual function testing
-  framework: BATS (Bash Automated Testing System)
+  location: Co-located with Go source (cli/ and cli/internal/*/*_test.go)
+  coverage: Model resolution/ensure, gateway, capacity, policy logic
+  framework: Go testing (go test ./...)
   
 integration_tests:
-  location: test/ directory
-  coverage: API functionality, model operations, cross-resource communication, content management
-  test_data: Uses shared fixtures from __test/fixtures/data/
+  location: internal/resources (docker-service driver, incl. port-conflict preflight)
+  coverage: Driver argument construction, host-port preflight, lifecycle behavior
   test_scenarios: 
-    - Model download and loading
-    - Inference API functionality
-    - Custom model creation via content management
-    - Resource integration tests
-    - Content management operations (add/list/get/remove/execute)
+    - docker run argument assembly (memory cap, ports, volumes)
+    - host-port conflict preflight (occupied port → actionable failure)
+    - model resolution via model-policy.json
   
 system_tests:
-  location: resources/ollama/test/integration-test.sh
-  coverage: Full Ollama lifecycle, performance, failure scenarios
-  automation: Integrated with Vrooli test framework
+  location: vrooli resource {install,start,status,stop} ollama against the live container
+  coverage: Full Ollama lifecycle, health, failure scenarios
+  automation: Integrated with Vrooli resource control plane
   
 performance_tests:
   load_testing: Concurrent inference requests
@@ -502,7 +511,7 @@ test_specification:
     - Integration tests in test/ directory
     - Shared fixtures from __test/fixtures/data/
     - Test results included in status output with timestamp
-    - Examples in examples/ directory
+    - Usage examples documented in README.md or docs/
   
   lifecycle_tests:
     - name: "Ollama Installation"
@@ -590,27 +599,28 @@ resource_discovery:
       - Embedding generation
       - Privacy-first AI processing
     interfaces:
-      - cli: resource-ollama (installed via install-resource-cli.sh)
-      - api: http://localhost:$(port from registry)/api
-      - health: http://localhost:$(port from registry)/api/tags
+      - lifecycle: vrooli resource ... ollama (docker-service driver)
+      - cli: resource-ollama (Go module, built through cli.source_build)
+      - api: http://localhost:11434/api
+      - health: http://localhost:11434/api/tags
       
   metadata:
     description: "Local LLM inference with privacy-first AI capabilities"
     version: "latest"
     dependencies: []
-    enables: [research-assistant, idea-generator, stream-of-consciousness-analyzer, study-buddy]
+    enables: [research-assistant, stream-of-consciousness-analyzer, study-buddy]
 
 resource_framework_compliance:
-  - Standard directory structure (/config, /lib, /docs, /test, etc.)
-  - CLI framework integration (cli.sh as thin wrapper over lib/ functions)
-  - Port registry integration (never hardcode ports)
+  - docker-service structure (resource.json + cli/ Go module + config/ + docs/)
+  - Lifecycle via the shared vrooli resource control plane (no bash wrapper)
+  - Ports + health checks declared in resource.json
   - Health monitoring integration
   - Configuration management standards
   
 deployment_integration:
   supported_targets:
-    - local: System service with GPU support
-    - kubernetes: System service with GPU node affinity
+    - local: Docker container with GPU support
+    - kubernetes: Container workload with GPU node affinity
     - cloud: GPU-enabled cloud instances
     
   configuration_management:
@@ -701,15 +711,15 @@ release_management:
 ## 📝 Implementation Notes
 
 ### Design Decisions
-**Official Ollama Installer**: Use upstream installer script for reliability
-- Alternative considered: Custom installation with additional tools
-- Decision driver: Maintain compatibility with upstream updates
-- Trade-offs: Less customization, better stability and security
+**Official Ollama Docker image**: Pin and run `ollama/ollama:<version>` as a container
+- Alternative considered: Host install via upstream installer script (legacy, removed)
+- Decision driver: Single deployment axis, reproducible runtime, host isolation
+- Trade-offs: Requires Docker; no host `ollama` binary (use `docker exec ollama ollama …`)
 
-**Systemd Service Management**: Use systemd for service lifecycle management
-- Alternative considered: Custom service management
-- Decision driver: Standard Linux service management
-- Trade-offs: Linux-only, better integration with system tools
+**Docker container service management**: Manage lifecycle via the docker-service driver
+- Alternative considered: Host-systemd service (removed 2026-06-22)
+- Decision driver: One manager (Go driver + resource.json) instead of two drifting ones
+- Trade-offs: Requires Docker; memory bounding via `--memory` instead of cgroup unit directives
 
 **Network-only Security Model**: No authentication on localhost
 - Alternative considered: API key authentication

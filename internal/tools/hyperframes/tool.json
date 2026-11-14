@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "hyperframes",
+  "description": "Pinned local HTML-to-video renderer; bounded invocation via vrooli host hyperframes",
+  "commands": [
+    "hyperframes"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "version": "0.8.112",
+  "handler": "hyperframes",
+  "platforms": [
+    "linux"
+  ],
+  "bundling": "host-required",
+  "installHint": "vrooli host install hyperframes delegates the SDA frozen host-tool gateway; no browser download",
+  "storage": {
+    "entries": {
+      "installation": {
+        "rung": "owned",
+        "kind": "dir",
+        "regenerable": true,
+        "class": "cache",
+        "subpath": "host-tools/hyperframes"
+      }
+    },
+    "rationale": "Managed versioned frozen dependency trees; film bundles belong to the caller."
+  },
+  "platform_status": {
+    "linux": {
+      "status": "experimental",
+      "evidence": "internal/tools/hyperframes/README.md#qualification"
+    },
+    "macos": {
+      "status": "unsupported",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unsupported",
+      "evidence": null
+    }
+  },
+  "capability": "developer-utility",
+  "capability_role": "primary",
+  "notes": "The explicit hyperframes tool name is required; this is not an alternative FFmpeg implementation. Exact0.8.112 Linux amd64 four-video render/reuse/deadline observed on one host; historical0.8.44 receipts and immutable installation preserved. Linux remains experimental; broader portability is unqualified."
+}

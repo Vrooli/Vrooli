@@ -1,0 +1,264 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "setup-scenarios",
+    "title": "Choose capabilities",
+    "routes": [
+      "/setup/scenarios"
+    ],
+    "purpose": "Let an operator pick the capabilities this install runs, and make the full consequence of each choice visible before they move on.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-004",
+      "OT-P2-001"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "An operator finds the capability they want without scrolling a hundred-entry catalog."
+    },
+    {
+      "statement": "Selecting one scenario never hides what it drags in; the cascade is named on the same screen."
+    },
+    {
+      "statement": "The implied resource set is visible before the operator leaves the step."
+    },
+    {
+      "statement": "System capabilities read as deliberately locked, not as a broken control."
+    }
+  ],
+  "states": [
+    {
+      "id": "loading",
+      "description": "Catalog is being derived from manifests.",
+      "setup": {
+        "route": "/setup/scenarios"
+      }
+    },
+    {
+      "id": "default",
+      "description": "Catalog rendered; system-required entries locked on.",
+      "setup": {
+        "route": "/setup/scenarios"
+      }
+    },
+    {
+      "id": "searching",
+      "description": "A search term narrows the catalog to matching scenarios."
+    },
+    {
+      "id": "no-results",
+      "description": "The search term matches nothing; a one-click clear is offered."
+    },
+    {
+      "id": "cascade-visible",
+      "description": "A selected scenario has pulled in dependencies, and each is named."
+    },
+    {
+      "id": "catalog-unavailable",
+      "description": "The manifest catalog cannot be resolved on this tier; the step names which catalog is missing."
+    }
+  ],
+  "elements": [
+    {
+      "id": "scenario-search",
+      "role": "searchbox",
+      "description": "Narrows the catalog by name and description.",
+      "name": "Search scenarios"
+    },
+    {
+      "id": "scenario-filter",
+      "role": "combobox",
+      "description": "Narrows by selection state: all, selected, or available."
+    },
+    {
+      "id": "scenario-list",
+      "role": "list",
+      "description": "The selectable scenario catalog."
+    },
+    {
+      "id": "scenario-entry",
+      "role": "button",
+      "description": "One selectable scenario."
+    },
+    {
+      "id": "locked-badge",
+      "role": "note",
+      "description": "Marks a system-required scenario as not toggleable."
+    },
+    {
+      "id": "cascade-note",
+      "role": "note",
+      "description": "Names the scenarios a selection pulls in, and the ones it tries."
+    },
+    {
+      "id": "resource-rollup",
+      "role": "status",
+      "description": "The resource set the current selection implies."
+    },
+    {
+      "id": "catalog-error",
+      "role": "alert",
+      "description": "Names the manifest catalog that could not be resolved and the next action."
+    },
+    {
+      "id": "next",
+      "role": "button",
+      "description": "Continue to resources.",
+      "name": "Next"
+    }
+  ],
+  "claims": [
+    {
+      "id": "catalog-reachable-by-search",
+      "type": "affordance-present",
+      "statement": "An operator can narrow a hundred-entry catalog by name or description without scrolling it.",
+      "tier": "machine",
+      "elements": [
+        "scenario-search"
+      ],
+      "states": [
+        "default"
+      ],
+      "params": {
+        "affordances": [
+          "search"
+        ]
+      }
+    },
+    {
+      "id": "filter-present",
+      "type": "affordance-present",
+      "statement": "Selection state can be filtered to all, core, or enabled.",
+      "tier": "machine",
+      "elements": [
+        "scenario-filter"
+      ],
+      "states": [
+        "default"
+      ],
+      "params": {
+        "affordances": [
+          "filter"
+        ]
+      }
+    },
+    {
+      "id": "cascade-named",
+      "type": "element-present",
+      "statement": "When a selection pulls in other scenarios, each pulled-in scenario is named on this step.",
+      "tier": "aspirational",
+      "elements": [
+        "cascade-note"
+      ],
+      "states": [
+        "cascade-visible"
+      ]
+    },
+    {
+      "id": "rollup-visible-before-leaving",
+      "type": "visible-without-scroll",
+      "statement": "The implied resource set is visible without scrolling before the operator continues.",
+      "tier": "aspirational",
+      "elements": [
+        "resource-rollup"
+      ],
+      "states": [
+        "cascade-visible"
+      ]
+    },
+    {
+      "id": "locked-reads-as-locked",
+      "type": "element-present",
+      "statement": "A system-required scenario shows a locked indicator rather than an unexplained disabled control.",
+      "tier": "machine",
+      "elements": [
+        "locked-badge"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "no-results-recoverable",
+      "type": "state-covered",
+      "statement": "A search matching nothing renders dedicated guidance with a way back, not an empty page.",
+      "tier": "aspirational",
+      "states": [
+        "no-results"
+      ]
+    },
+    {
+      "id": "catalog-failure-is-named",
+      "type": "state-covered",
+      "statement": "A tier that cannot supply the catalog renders a named, actionable message rather than a generic failure.",
+      "tier": "aspirational",
+      "elements": [
+        "catalog-error"
+      ],
+      "states": [
+        "catalog-unavailable"
+      ]
+    },
+    {
+      "id": "selection-keyboard-operable",
+      "type": "keyboard-reachable",
+      "statement": "Every scenario entry, its keep-running toggle, and the search field are operable by keyboard alone.",
+      "tier": "machine",
+      "elements": [
+        "scenario-entry",
+        "scenario-search"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "reading-order-is-decide-then-consequence",
+      "type": "reading-order",
+      "statement": "The step reads search, then catalog, then the consequence of the current selection.",
+      "tier": "aspirational",
+      "elements": [
+        "scenario-search",
+        "scenario-list",
+        "resource-rollup"
+      ],
+      "states": [
+        "cascade-visible"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "scenario-search": {
+        "testid": "scenario-search"
+      },
+      "scenario-filter": {
+        "testid": "scenario-filter"
+      },
+      "scenario-list": {
+        "testid": "scenario-list"
+      },
+      "scenario-entry": {
+        "testid": "scenario-card-agent-inbox"
+      },
+      "locked-badge": {
+        "testid": "locked-badge"
+      },
+      "cascade-note": {
+        "testid": "cascade-note"
+      },
+      "resource-rollup": {
+        "testid": "resource-rollup"
+      },
+      "catalog-error": {
+        "testid": "catalog-error"
+      },
+      "next": {
+        "testid": "wizard-next"
+      }
+    }
+  }
+}

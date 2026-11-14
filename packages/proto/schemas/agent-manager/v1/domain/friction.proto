@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package agent_manager.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
+
+// FrictionService records what the operator did with a tool friction finding
+// that MeasuresService.UsageFriction lists. A finding is found by its
+// fingerprint in the window the caller listed it in.
+service FrictionService {
+  // ReportFriction files the finding with its evidence in the scenario-qa bug
+  // inbox and marks it reported. Idempotent: a repeat or concurrent call
+  // returns the one bug filed for the fingerprint. Unknown fingerprint:
+  // NotFound; bug inbox unreachable: Unavailable.
+  rpc ReportFriction(ReportFrictionRequest) returns (ReportFrictionResponse);
+  // DismissFriction sets the finding aside: it stays listed as dismissed and
+  // is no longer recommended.
+  rpc DismissFriction(DismissFrictionRequest) returns (DismissFrictionResponse);
+}
+
+message ReportFrictionRequest {
+  string fingerprint = 1;
+  // RFC 3339 start of the window the finding was listed in (the list's
+  // window_start or its --since); empty means the default week.
+  string since = 2;
+}
+message ReportFrictionResponse {
+  string fingerprint = 1;
+  string description = 2;
+  // reported
+  string status = 3;
+  // The scenario-qa bug id.
+  string bug_id = 4;
+}
+
+message DismissFrictionRequest {
+  string fingerprint = 1;
+  // RFC 3339 start of the window the finding was listed in (the list's
+  // window_start or its --since); empty means the default week.
+  string since = 2;
+}
+message DismissFrictionResponse {
+  string fingerprint = 1;
+  // dismissed
+  string status = 2;
+}

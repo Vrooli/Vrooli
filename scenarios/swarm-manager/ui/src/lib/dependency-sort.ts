@@ -18,7 +18,21 @@
  * DOC: docs/concepts/ARCHITECTURE.md#dependency-sort
  */
 
-import type { BacklogItem, BacklogStatus } from "../types";
+/**
+ * Minimal shape any entity must satisfy to participate in dependency-aware
+ * sorting. Callers supply a `kind` namespace ("idea", "milestone", ...) plus
+ * a stable `name` so that keys (`"kind/name"`) don't collide across domains.
+ *
+ * BacklogItem structurally satisfies this; milestones pass plain objects
+ * with `kind: "milestone"`.
+ */
+export interface DepthItem {
+  kind: string;
+  name: string;
+  status: string;
+  dependsOn?: string[] | null;
+  archivedAt?: string | null;
+}
 
 /**
  * Statuses where a dependency is considered resolved for sort-ordering purposes.
@@ -26,7 +40,7 @@ import type { BacklogItem, BacklogStatus } from "../types";
  * should sort below its dependency. Archived items are also considered resolved
  * (checked via archivedAt at the callsite).
  */
-export const SORT_RESOLVED_STATUSES: ReadonlySet<BacklogStatus> = new Set<BacklogStatus>([
+export const SORT_RESOLVED_STATUSES: ReadonlySet<string> = new Set<string>([
   "completed",
 ]);
 
@@ -139,13 +153,11 @@ export function computeUnblockingMap(
   return unblockingMap;
 }
 
-/** Minimal shape needed from a backlog item to compute dependency depths. */
-type DepthItem = Pick<BacklogItem, "kind" | "name" | "status" | "dependsOn" | "archivedAt">;
-
 /**
- * Build a canonical key for a backlog item: `"kind/name"`.
+ * Build a canonical key: `"kind/name"`. Pure helper — any object with the two
+ * fields works.
  */
-function itemKey(item: Pick<BacklogItem, "kind" | "name">): string {
+function itemKey(item: { kind: string; name: string }): string {
   return `${item.kind}/${item.name}`;
 }
 
@@ -223,7 +235,7 @@ export function computeDepthMap(
  *                   is computed from `items` alone.
  * @returns A new sorted array.
  */
-export function dependencyAwareSort<T extends Pick<BacklogItem, "kind" | "name" | "dependsOn">>(
+export function dependencyAwareSort<T extends { kind: string; name: string; dependsOn?: string[] | null }>(
   items: ReadonlyArray<T>,
   compareFn: (a: T, b: T) => number,
   allItems?: ReadonlyArray<DepthItem>,

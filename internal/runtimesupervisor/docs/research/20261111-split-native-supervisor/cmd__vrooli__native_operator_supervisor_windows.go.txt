@@ -1,0 +1,26 @@
+//go:build windows
+
+package main
+
+import (
+	"errors"
+	"os"
+
+	"golang.org/x/sys/windows"
+)
+
+func openNativeOperatorLifetime(handle uintptr) (*os.File, error) {
+	return os.NewFile(handle, "native-operator-lifetime"), nil
+}
+
+func protectNativeOperatorLifetime(file *os.File) error {
+	raw, err := file.SyscallConn()
+	if err != nil {
+		return err
+	}
+	var nativeErr error
+	err = raw.Control(func(handle uintptr) {
+		nativeErr = windows.SetHandleInformation(windows.Handle(handle), windows.HANDLE_FLAG_INHERIT, 0)
+	})
+	return errors.Join(err, nativeErr)
+}

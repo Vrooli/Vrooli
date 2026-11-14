@@ -1,0 +1,48 @@
+package main
+
+const (
+	seedDeleteDuplicateAdminSQL = `DELETE FROM admin_users WHERE LOWER(email) = LOWER($1) AND id <> $2`
+	seedAdminSQL                = `INSERT INTO admin_users (id, email, password_hash) VALUES ($1, $2, $3)
+		 ON CONFLICT (id) DO NOTHING`
+	// seedAdminUpsertSQL is used only when the operator supplied the admin
+	// password credential. The declared credential is authoritative, so a
+	// rotated password takes effect on the next start instead of remaining
+	// pinned to the hash captured at first seed.
+	seedAdminUpsertSQL = `INSERT INTO admin_users (id, email, password_hash) VALUES ($1, $2, $3)
+		 ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, password_hash = EXCLUDED.password_hash`
+	seedAdminSequenceSQL   = `SELECT setval(pg_get_serial_sequence('admin_users', 'id'), (SELECT COALESCE(MAX(id), 1) FROM admin_users), true)`
+	seedPaymentSettingsSQL = `INSERT INTO payment_settings (id, dashboard_url, updated_at)
+		VALUES (1, NULL, NOW())
+		ON CONFLICT (id) DO NOTHING`
+	seedDownloadAppSQL = `INSERT INTO download_apps (bundle_key, app_key, name, tagline, description, icon_url, screenshot_url, install_overview, install_steps, storefronts, metadata, display_order)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12)
+		ON CONFLICT (bundle_key, app_key) DO UPDATE SET
+			name = EXCLUDED.name,
+			tagline = EXCLUDED.tagline,
+			description = EXCLUDED.description,
+			icon_url = EXCLUDED.icon_url,
+			screenshot_url = EXCLUDED.screenshot_url,
+			install_overview = EXCLUDED.install_overview,
+			install_steps = EXCLUDED.install_steps,
+			storefronts = EXCLUDED.storefronts,
+			metadata = EXCLUDED.metadata,
+			display_order = EXCLUDED.display_order,
+			updated_at = NOW()`
+	seedDownloadAssetSQL = `INSERT INTO download_assets (bundle_key, app_key, platform, artifact_url, release_version, release_notes, checksum, requires_entitlement, metadata, variant_key)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,'default')
+		ON CONFLICT (bundle_key, app_key, platform, variant_key)
+		DO UPDATE SET artifact_url = EXCLUDED.artifact_url,
+			release_version = EXCLUDED.release_version,
+			release_notes = EXCLUDED.release_notes,
+			checksum = EXCLUDED.checksum,
+			requires_entitlement = EXCLUDED.requires_entitlement,
+			metadata = EXCLUDED.metadata,
+			updated_at = NOW()`
+	seedDownloadVisibilityMigrationSQL = `UPDATE download_apps
+		SET metadata = jsonb_set(COALESCE(metadata, '{}'::jsonb), '{enabled}', 'false'::jsonb, true), updated_at = NOW()
+		WHERE bundle_key = $1 AND app_key <> 'web-console' AND NOT (COALESCE(metadata, '{}'::jsonb) ? 'enabled')`
+	seedTierLimitCountSQL = `SELECT COUNT(*) FROM subscription_tier_limits`
+	seedTierLimitSQL      = `INSERT INTO subscription_tier_limits (tier_id, limit_type, limit_key, limit_value, app_bundle_key)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (tier_id, limit_type, limit_key, app_bundle_key) DO NOTHING`
+)

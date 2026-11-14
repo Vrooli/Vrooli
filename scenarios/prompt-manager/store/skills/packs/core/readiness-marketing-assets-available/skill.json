@@ -1,0 +1,16 @@
+{
+  "createdAt": "2026-09-01T20:57:51Z",
+  "description": "Review whether launch assets are answerable for a scenario.",
+  "entry": "SKILL.md",
+  "id": "readiness-marketing-assets-available",
+  "kind": "skill",
+  "name": "readiness-marketing-assets-available",
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "readiness-check",
+    "deployment-manager"
+  ],
+  "updatedAt": "2026-09-01T20:57:51Z"
+}

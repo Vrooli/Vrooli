@@ -26,6 +26,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Level represents a log severity level.
@@ -58,6 +60,7 @@ type Logger struct {
 	out     io.Writer
 	service string
 	level   Level
+	clock   schedule.Clock
 }
 
 // Option configures a Logger.
@@ -77,7 +80,15 @@ func WithLevel(level Level) Option {
 	}
 }
 
-// New creates a new structured logger.
+// WithClock injects the time source. Required (the New constructor
+// panics if a Clock isn't supplied via this option).
+func WithClock(c schedule.Clock) Option {
+	return func(l *Logger) {
+		l.clock = c
+	}
+}
+
+// New creates a new structured logger. WithClock is required.
 func New(service string, opts ...Option) *Logger {
 	l := &Logger{
 		out:     os.Stdout,
@@ -89,6 +100,9 @@ func New(service string, opts ...Option) *Logger {
 		opt(l)
 	}
 
+	if l.clock == nil {
+		panic("logging.New: WithClock is required")
+	}
 	return l
 }
 
@@ -100,7 +114,7 @@ func (l *Logger) log(level Level, event, message string, fields map[string]inter
 	}
 
 	entry := Entry{
-		Time:    time.Now().UTC().Format(time.RFC3339),
+		Time:    l.clock.Now().UTC().Format(time.RFC3339),
 		Level:   level,
 		Event:   event,
 		Message: message,
@@ -283,10 +297,13 @@ func WithLogger(ctx context.Context, l *Logger) context.Context {
 	return context.WithValue(ctx, ctxKey{}, l)
 }
 
-// FromContext retrieves the logger from context, or returns a default logger.
+// FromContext retrieves the logger from context, or returns a default
+// logger backed by schedule.System(). This default is only used by callers
+// that forgot to attach a logger; production wires its own with the
+// shared clock at startup.
 func FromContext(ctx context.Context) *Logger {
 	if l, ok := ctx.Value(ctxKey{}).(*Logger); ok {
 		return l
 	}
-	return New("workspace-sandbox")
+	return New("workspace-sandbox", WithClock(schedule.System()))
 }

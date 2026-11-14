@@ -1,0 +1,203 @@
+package inference
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"strings"
+
+	"ai-gateway/internal/providers"
+
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
+	"google.golang.org/protobuf/proto"
+)
+
+// ProviderRequest is the provider-neutral payload sent to a repository. The
+// repository owns resource/provider execution; the inference service owns the
+// schema gate and local validation.
+type ProviderRequest struct {
+	// RootOperationID names one logical operation for idempotency only; it never
+	// grants access to provider execution or receipt data.
+	RootOperationID   string
+	RequestDigest     string
+	ValidationAttempt int
+	// PriorRights* binds a schema-repair retry to the semantic local rights
+	// context that produced the previous response. It is execution continuity
+	// metadata, not part of the caller's canonical request digest.
+	PriorRightsProvider      string
+	PriorRightsModel         string
+	PriorRightsContextSHA256 string
+	Source                   string
+	SchemaJSON               string
+	Instruction              string
+	Role                     string
+	Profile                  sharedv1.Profile
+	PrivacyClass             sharedv1.PrivacyClass
+	Turns                    []*inferencev1.Turn
+	Attachments              []*sharedv1.Attachment
+	// Temperature is the caller's explicit sampling request, or nil for "use
+	// the role's declared sampling". It is a plain pointer rather than the
+	// proto message so this package does not depend on proto shape for one
+	// scalar.
+	Temperature *float64
+	// MaxOutputTokens is the caller's explicit output cap, or 0 for "use the
+	// resolved resource role's declared cap". It is request-level because the
+	// budget depends on caller data a role cannot know.
+	MaxOutputTokens int32
+	// MaxProviderCalls is the caller's total adapter execution ceiling across
+	// candidate fallback and schema repair. Zero preserves legacy policy.
+	MaxProviderCalls int32
+	SpendLimit       *inferencev1.SpendLimit
+}
+
+type ProviderResult struct {
+	Recovery               *inferencev1.RecoveryReceipt
+	ValueJSON              string
+	Provider               string
+	Model                  string
+	CoordinateConvention   string
+	InputTokens            int64
+	OutputTokens           int64
+	CostMicros             int64
+	CreditsCharged         *int64
+	AccountingStatus       string
+	InputTokensProvenance  inferencev1.UsageProvenance
+	OutputTokensProvenance inferencev1.UsageProvenance
+	CostProvenance         inferencev1.UsageProvenance
+	// Applied records what the gateway actually sent and what the resolved role
+	// declares, so a caller records provenance that is true rather than
+	// provenance that echoes its own request.
+	Applied            AppliedSettings
+	ContextWindow      int32
+	SpendAuthorization *inferencev1.SpendAuthorization
+	// ProviderCallsMade counts adapter Execute attempts, including failures.
+	// It is not a receipt of provider HTTP requests completed.
+	ProviderCallsMade int32
+	// RightsReceiptSHA256 is present when a local model produced this response;
+	// the schema-repair loop carries semantic context identity forward. Receipt
+	// hashes include evaluation time and are unsuitable for continuity checks.
+	RightsReceiptSHA256 string
+	RightsContextSHA256 string
+}
+
+func canonicalRequestDigest(request ProviderRequest) string {
+	message := &inferencev1.RunRequest{
+		Source: request.Source, SchemaJson: request.SchemaJSON, Instruction: request.Instruction,
+		Role: request.Role, Turns: request.Turns, Attachments: request.Attachments,
+		Profile: request.Profile, PrivacyClass: request.PrivacyClass, MaxOutputTokens: request.MaxOutputTokens,
+		MaxProviderCalls: request.MaxProviderCalls, SpendLimit: request.SpendLimit,
+	}
+	if request.Temperature != nil {
+		message.Sampling = &sharedv1.SamplingControls{Temperature: proto.Float64(*request.Temperature)}
+	}
+	encoded, err := (proto.MarshalOptions{Deterministic: true}).Marshal(message)
+	if err != nil {
+		return ""
+	}
+	digest := sha256.Sum256(encoded)
+	return hex.EncodeToString(digest[:])
+}
+
+type EmbeddingResult struct {
+	Vectors               [][]float64
+	Provider              string
+	Model                 string
+	Dimension             int
+	InputTokens           int64
+	CostMicros            int64
+	InputTokensProvenance inferencev1.UsageProvenance
+	CostProvenance        inferencev1.UsageProvenance
+}
+
+// AppliedSettings is the gateway's honest account of one execution. It
+// deliberately has no single "applied temperature": for a provider that accepts
+// and silently discards the control, such a field would have to lie in exactly
+// the case the caller most needs the truth. TemperatureSent and
+// TemperatureSupport are reported separately so the caller can combine them.
+type AppliedSettings struct {
+	// TemperatureSent is the value passed to the provider, nil when the gateway
+	// omitted the control. It is not proof the provider honoured it.
+	TemperatureSent *float64
+	// TemperatureSupport is the resolved role's policy declaration, or empty
+	// when no candidate resolved.
+	TemperatureSupport providers.SamplingSupport
+	// MaxOutputTokens is the cap the gateway imposed and MaxOutputTokensSource
+	// names where it came from. A zero cap with source OutputCapNoneImposed
+	// means the gateway genuinely sent nothing, which is a stronger statement
+	// than "unknown".
+	MaxOutputTokens       int32
+	MaxOutputTokensSource OutputCapSource
+}
+
+// OutputCapSource names where an imposed output cap came from. It reports only
+// what the gateway knows: a provider's own internal default is not visible from
+// here and is never guessed.
+type OutputCapSource string
+
+const (
+	// OutputCapUnspecified means no candidate resolved, so there is nothing to
+	// report.
+	OutputCapUnspecified OutputCapSource = ""
+	// OutputCapRequest means the caller set max_output_tokens.
+	OutputCapRequest OutputCapSource = "request"
+	// OutputCapRolePolicy means the resolved resource role declared the cap.
+	OutputCapRolePolicy OutputCapSource = "role_policy"
+	// OutputCapNoneImposed means the gateway sent no cap at all.
+	OutputCapNoneImposed OutputCapSource = "none_imposed"
+)
+
+type Repository interface {
+	Run(context.Context, ProviderRequest) (ProviderResult, error)
+}
+
+type EmbeddingRepository interface {
+	Embed(context.Context, EmbeddingRequest) (EmbeddingResult, error)
+}
+
+// EmbeddingRequest carries the provider boundary for one typed embedding
+// operation. The public Embed API has no profile field, so Service currently
+// sets the contract to LOCAL_ONLY explicitly; adapters and resources must
+// preserve and enforce that constraint rather than infer locality from rights.
+type EmbeddingRequest struct {
+	Role    string
+	Texts   []string
+	Profile sharedv1.Profile
+}
+
+// UnavailableRepository is the degraded stance used when the role catalog
+// cannot be loaded. Inference reports a stated reason per call while the rest
+// of the gateway — routing, measures, conformance — keeps serving.
+type UnavailableRepository struct{ Reason string }
+
+func (r UnavailableRepository) Run(context.Context, ProviderRequest) (ProviderResult, error) {
+	reason := strings.TrimSpace(r.Reason)
+	if reason == "" {
+		reason = "the inference role catalog is not loaded"
+	}
+	return ProviderResult{}, fmt.Errorf("%w: %s", ErrUnavailable, reason)
+}
+
+func (r UnavailableRepository) Decide(context.Context, DecisionRequest, TypedRunner) *inferencev1.DecideResponse {
+	reason := strings.TrimSpace(r.Reason)
+	if reason == "" {
+		reason = "the inference role catalog is not loaded"
+	}
+	return decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, reason, "")
+}
+
+// StaticRepository is the phase-one seam implementation. It provides a
+// deterministic, schema-shaped value for contract tests until the resource
+// command repository is wired in a later phase.
+type StaticRepository struct{}
+
+func (StaticRepository) Run(_ context.Context, request ProviderRequest) (ProviderResult, error) {
+	return ProviderResult{
+		ValueJSON:    `{}`,
+		Provider:     "skeleton",
+		Model:        "skeleton",
+		InputTokens:  int64(len(request.Source)),
+		OutputTokens: 1,
+	}, nil
+}

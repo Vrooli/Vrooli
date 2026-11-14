@@ -1,0 +1,174 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "swarm-manager",
+  "key": "swarm-manager/goal-plan",
+  "version": "1.2.0",
+  "description": "Plan and sequence an immutable goal snapshot through operator-reviewed goal proposals.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "entity": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "goal"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "snapshot": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "supported_ops": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required": [
+      "entity",
+      "snapshot",
+      "supported_ops"
+    ],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "result": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "proposed",
+              "needs_attention",
+              "abstained"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "proposals": {
+            "type": "array"
+          }
+        },
+        "required": [
+          "outcome",
+          "summary",
+          "proposals"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "result"
+    ],
+    "additionalProperties": false
+  },
+  "nodes": [
+    {
+      "id": "plan",
+      "kind": "run",
+      "run": {
+        "profileKey": "swarm-manager/deep-work",
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "proposed",
+                  "needs_attention",
+                  "abstained"
+                ]
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "proposals": {
+                "type": "array"
+              }
+            },
+            "required": [
+              "outcome",
+              "summary",
+              "proposals"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "bindings": [
+          {
+            "name": "entity",
+            "source": "workflow_input",
+            "selector": "$.entity",
+            "limit": 1,
+            "maxBytes": 2048,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "snapshot",
+            "source": "workflow_input",
+            "selector": "$.snapshot",
+            "limit": 1,
+            "maxBytes": 65536,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "supported_ops",
+            "source": "workflow_input",
+            "selector": "$.supported_ops",
+            "limit": 1,
+            "maxBytes": 2048,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
+        ],
+        "maxTurns": 16,
+        "timeoutSeconds": 1500,
+        "promptRef": {
+          "skillId": "swarm-manager-workflow-goal-plan"
+        }
+      }
+    }
+  ],
+  "budgets": {
+    "wallTimeSeconds": 2400,
+    "maxTurns": 16,
+    "maxTokens": 800000,
+    "maxChargeMicroUsd": 6000000,
+    "maxNodeAttempts": 2,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 1,
+    "maxWaitSeconds": 60
+  },
+  "metadata": {
+    "consumerMutationOwner": "swarm-manager"
+  }
+}

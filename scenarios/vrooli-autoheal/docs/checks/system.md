@@ -30,8 +30,8 @@ Low disk space causes:
 ### Troubleshooting
 1. Check usage: `df -h`
 2. Find large files: `du -h --max-depth=1 / | sort -rh | head -20`
-3. Clean Docker: `docker system prune -a`
-4. Clear old logs: `sudo journalctl --vacuum-time=7d`
+3. Preview cleanup candidates: `storage-manager cleanup plan`
+4. Apply only an approved storage-manager plan with an idempotency key
 5. Check /tmp: `du -sh /tmp/*`
 
 ---
@@ -112,8 +112,8 @@ Zombie processes:
 - Suggest unhandled child exits
 
 ### Thresholds
-- **Warning**: 5 zombies
-- **Critical**: 20 zombies
+- **Warning**: the configured zombie-process warning threshold
+- **Critical**: the configured zombie-process critical threshold
 
 ### Status Meanings
 - **OK**: Few or no zombies

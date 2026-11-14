@@ -1,0 +1,173 @@
+{
+  "smoke": [
+    "boundaries",
+    "stores",
+    "features-core",
+    "workflow-palette",
+    "workflow-builder"
+  ],
+  "sourceClosureProject": "stores",
+  "projects": [
+    {
+      "name": "boundaries",
+      "include": [
+        "vitest/boundaries/**/*.test.ts"
+      ],
+      "pool": "threads"
+    },
+    {
+      "name": "stores",
+      "include": [
+        "src/stores/**/*.test.{ts,tsx}",
+        "src/stores/**/*.spec.{ts,tsx}",
+        "src/hooks/**/*.test.{ts,tsx}"
+      ],
+      "pool": "threads"
+    },
+    {
+      "name": "features-core",
+      "include": [
+        "src/domains/projects/ProjectModal.test.tsx",
+        "src/domains/projects/ProjectDetail.test.tsx",
+        "src/domains/ai/AIPromptModal.test.tsx",
+        "src/domains/workflows/WorkflowCreationDialog.test.tsx",
+        "src/shared/layout/ResponsiveDialog.test.tsx",
+        "src/domains/workflows/components/VariableSuggestionList.test.tsx",
+        "src/domains/executions/viewer/ExecutionViewer.test.tsx",
+        "src/domains/workflows/builder/WorkflowToolbar.test.tsx"
+      ],
+      "pool": "threads"
+    },
+    {
+      "name": "workflow-palette",
+      "include": [
+        "src/domains/workflows/builder/NodePalette.test.tsx"
+      ],
+      "pool": "forks"
+    },
+    {
+      "name": "workflow-builder",
+      "include": [
+        "src/domains/workflows/builder/WorkflowBuilder.test.tsx",
+        "src/domains/workflows/nodes/ActionNode.test.tsx",
+        "src/domains/workflows/utils/**/*.test.{ts,tsx}",
+        "src/domains/workflows/nodes/components/**/*.test.{ts,tsx}"
+      ],
+      "pool": "forks"
+    },
+    {
+      "name": "utils",
+      "include": [
+        "src/utils/**/*.test.{ts,tsx}"
+      ],
+      "pool": "threads"
+    },
+    {
+      "name": "api-clients",
+      "include": [
+        "src/api/**/*.test.{ts,tsx}"
+      ],
+      "pool": "threads"
+    },
+    {
+      "name": "record-mode",
+      "include": [
+        "src/domains/recording/**/*.test.{ts,tsx}",
+        "src/views/RecordModeView/**/*.test.{ts,tsx}",
+        "src/domains/preview-settings/**/*.test.{ts,tsx}"
+      ],
+      "pool": "threads",
+      "exclude": [
+        "src/domains/recording/services/**/*.test.{ts,tsx}"
+      ]
+    },
+    {
+      "name": "session-manager",
+      "include": [
+        "src/views/SettingsView/sections/sessions/SessionManager/**/*.test.{ts,tsx}"
+      ],
+      "pool": "threads"
+    },
+    {
+      "name": "subscription",
+      "include": [
+        "src/views/SettingsView/sections/subscription/**/*.test.{ts,tsx}"
+      ],
+      "pool": "threads"
+    },
+    {
+      "name": "components",
+      "include": [
+        "src/components/**/*.test.{ts,tsx}"
+      ],
+      "pool": "threads"
+    },
+    {
+      "name": "export-domain",
+      "include": [
+        "src/domains/executions/export/**/*.test.{ts,tsx}"
+      ],
+      "pool": "threads"
+    },
+    {
+      "name": "execution-viewer",
+      "include": [
+        "src/domains/executions/InlineExecution*.test.{ts,tsx}",
+        "src/domains/executions/history/**/*.test.{ts,tsx}",
+        "src/domains/executions/hooks/useExecutionEvents.test.{ts,tsx}",
+        "src/domains/executions/viewer/useExecutionHeartbeat.test.{ts,tsx}",
+        "src/domains/executions/viewer/useExecutionExport.test.{ts,tsx}"
+      ],
+      "pool": "threads"
+    },
+    {
+      "name": "exports-domain",
+      "include": [
+        "src/domains/exports/**/*.test.{ts,tsx}",
+        "src/export/**/*.test.{ts,tsx}",
+        "src/domains/replay-style/**/*.test.{ts,tsx}",
+        "src/domains/replay-layout/**/*.test.ts",
+        "src/domains/replay-positioning/**/*.test.{ts,tsx}"
+      ],
+      "pool": "threads"
+    },
+    {
+      "name": "shared",
+      "include": [
+        "src/shared/**/*.test.{ts,tsx}",
+        "src/domains/executions/utils/protoEnumName.test.ts",
+        "src/domains/**/services/**/*.test.{ts,tsx}",
+        "src/views/**/controllers/**/*.test.{ts,tsx}"
+      ],
+      "pool": "threads",
+      "exclude": [
+        "src/shared/layout/ResponsiveDialog.test.tsx"
+      ]
+    }
+  ],
+  "coverage": {
+    "include": [
+      "src/**/*.{ts,tsx}"
+    ],
+    "exclude": [
+      "src/**/*.test.{ts,tsx}",
+      "src/**/*.test.{ts,tsx,mjs}",
+      "src/**/*.spec.{ts,tsx}",
+      "src/**/*.spec.{ts,tsx,mjs}",
+      "src/**/*.d.ts",
+      "src/main.tsx",
+      "src/bootstrap.tsx",
+      "src/test-setup.ts",
+      "src/test-utils/**",
+      "src/consts/strings.generated.ts",
+      "src/i18n/locales/**",
+      "src/**/generated/**"
+    ],
+    "thresholds": {
+      "lines": 85,
+      "functions": 85,
+      "branches": 85,
+      "statements": 85
+    }
+  }
+}

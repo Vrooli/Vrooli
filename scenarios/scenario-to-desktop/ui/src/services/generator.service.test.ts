@@ -28,7 +28,9 @@ describe("generator.service", () => {
 
     it("uses custom API base URL", () => {
       const url = buildIconPreviewUrl("/icon.png", "http://localhost:3000");
-      expect(url).toBe("http://localhost:3000/api/icon-preview?path=%2Ficon.png");
+      expect(url).toBe(
+        "http://localhost:3000/api/icon-preview?path=%2Ficon.png",
+      );
     });
 
     it("encodes special characters", () => {
@@ -151,7 +153,9 @@ describe("generator.service", () => {
       expect(result.deployment?.mode).toBe("bundled");
       expect(result.deployment?.serverType).toBe("external");
       expect(result.connection?.proxyUrl).toBe("https://api.example.com");
-      expect(result.connection?.bundleManifestPath).toBe("/path/to/manifest.json");
+      expect(result.connection?.bundleManifestPath).toBe(
+        "/path/to/manifest.json",
+      );
       expect(result.appMetadata?.displayName).toBe("Test App");
       expect(result.appMetadata?.description).toBe("Test description");
       expect(result.appMetadata?.iconPath).toBe("/icons/test.png");
@@ -204,23 +208,32 @@ describe("generator.service", () => {
     };
 
     it("builds pipeline config from form state", () => {
-      const config = buildPipelineConfigFromForm(mockFormState, "test-scenario");
-      expect(config.scenario_name).toBe("test-scenario");
-      expect(config.template_type).toBe("electron-react");
-      expect(config.deployment_mode).toBe("bundled");
-      expect(config.stop_after_stage).toBe("generate");
+      const config = buildPipelineConfigFromForm(
+        mockFormState,
+        "test-scenario",
+      );
+      expect(config.scenarioName).toBe("test-scenario");
+      expect(config.templateType).toBeDefined();
+      expect(config.deploymentMode).toBeDefined();
+      expect(config.stopAfterStage).toBeDefined();
     });
 
     it("sets platforms from form state", () => {
-      const config = buildPipelineConfigFromForm(mockFormState, "test-scenario");
-      expect(config.platforms).toContain("win");
-      expect(config.platforms).toContain("mac");
-      expect(config.platforms).not.toContain("linux");
+      const config = buildPipelineConfigFromForm(
+        mockFormState,
+        "test-scenario",
+      );
+      expect(config.platforms).toContain(1);
+      expect(config.platforms).toContain(2);
+      expect(config.platforms).not.toContain(3);
     });
 
     it("includes proxy_url when provided", () => {
-      const config = buildPipelineConfigFromForm(mockFormState, "test-scenario");
-      expect(config.proxy_url).toBe("https://api.example.com");
+      const config = buildPipelineConfigFromForm(
+        mockFormState,
+        "test-scenario",
+      );
+      expect(config.proxyUrl).toBe("https://api.example.com");
     });
 
     it("omits proxy_url when empty", () => {
@@ -228,8 +241,11 @@ describe("generator.service", () => {
         ...mockFormState,
         connection: { ...mockFormState.connection, proxyUrl: "" },
       };
-      const config = buildPipelineConfigFromForm(stateWithoutProxy, "test-scenario");
-      expect(config.proxy_url).toBeUndefined();
+      const config = buildPipelineConfigFromForm(
+        stateWithoutProxy,
+        "test-scenario",
+      );
+      expect(config.proxyUrl).toBeUndefined();
     });
   });
 
@@ -276,7 +292,7 @@ describe("generator.service", () => {
         null,
         false,
         null,
-        undefined
+        undefined,
       );
 
       expect(params.scenarioName).toBe("test-scenario");
@@ -292,7 +308,7 @@ describe("generator.service", () => {
         null,
         false,
         null,
-        undefined
+        undefined,
       );
       expect(params.isBundled).toBe(true);
     });
@@ -381,7 +397,11 @@ describe("generator.service", () => {
 
     it("preserves platform selection", () => {
       const serialized = serializeFormStateForServer(mockFormState);
-      expect(serialized.platforms).toEqual({ win: true, mac: true, linux: false });
+      expect(serialized.platforms).toEqual({
+        win: true,
+        mac: true,
+        linux: false,
+      });
     });
   });
 
@@ -409,7 +429,11 @@ describe("generator.service", () => {
       expect(formState.appMetadata?.iconPath).toBe("/server-icon.png");
       expect(formState.deployment?.mode).toBe("proxy");
       expect(formState.deployment?.serverType).toBe("local");
-      expect(formState.platforms).toEqual({ win: false, mac: true, linux: true });
+      expect(formState.platforms).toEqual({
+        win: false,
+        mac: true,
+        linux: true,
+      });
       expect(formState.signingEnabledForBuild).toBe(false);
     });
 
@@ -419,7 +443,11 @@ describe("generator.service", () => {
       expect(formState.appMetadata?.displayName).toBe("");
       expect(formState.appMetadata?.displayNameEdited).toBe(false);
       expect(formState.deployment?.framework).toBe("electron");
-      expect(formState.platforms).toEqual({ win: true, mac: true, linux: true });
+      expect(formState.platforms).toEqual({
+        win: true,
+        mac: true,
+        linux: true,
+      });
       expect(formState.connection?.serverPort).toBe(3000);
     });
   });

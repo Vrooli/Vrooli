@@ -1,0 +1,9 @@
+{
+  "kind": "catalog-asset",
+  "asset": {
+    "id": "calibration.composition",
+    "name": "Composition calibration fixture",
+    "kind": "component",
+    "targets": ["react-vite"]
+  }
+}

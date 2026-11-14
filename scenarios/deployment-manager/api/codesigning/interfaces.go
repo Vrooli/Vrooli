@@ -80,28 +80,3 @@ type Repository interface {
 	// DeleteForPlatform removes the signing config for a specific platform.
 	DeleteForPlatform(ctx context.Context, profileID string, platform string) error
 }
-
-// Validator validates signing configurations structurally.
-// This interface is defined in the main package to avoid import cycles.
-// The implementation is in the validation subpackage.
-type Validator interface {
-	// ValidateConfig checks structural validity of a SigningConfig.
-	ValidateConfig(config *SigningConfig) *ValidationResult
-
-	// ValidateForPlatform checks config is valid for a specific target platform.
-	ValidateForPlatform(config *SigningConfig, platform string) *ValidationResult
-}
-
-// PrerequisiteChecker verifies external signing prerequisites.
-// This interface is defined in the main package to avoid import cycles.
-// The implementation is in the validation subpackage.
-type PrerequisiteChecker interface {
-	// CheckPrerequisites validates tools and certificates are available.
-	CheckPrerequisites(ctx context.Context, config *SigningConfig) *ValidationResult
-
-	// CheckPlatformPrerequisites checks prerequisites for a specific platform.
-	CheckPlatformPrerequisites(ctx context.Context, config *SigningConfig, platform string) *ValidationResult
-
-	// DetectTools returns available signing tools on the current system.
-	DetectTools(ctx context.Context) ([]ToolDetectionResult, error)
-}

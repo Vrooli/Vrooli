@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "generators.detail-page-generator",
+    "name": "DetailPageGenerator",
+    "kind": "generator",
+    "domain": "generators",
+    "description": "Produces a structured detail surface from resource metadata, sections, relations, actions, history, permissions, and display adapters.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "lib-util",
+    "delivery": "generated",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.app-shell",
+        "reason": "Generated detail content mounts under the host AppShell; the generator does not redraw application chrome."
+      },
+      {
+        "asset": "navigation.page-header",
+        "reason": "Compose the resource title and actions through the shared page header."
+      },
+      {
+        "asset": "data-display.description-list",
+        "reason": "Render resource metadata through the shared description-list component."
+      }
+    ]
+  }
+}

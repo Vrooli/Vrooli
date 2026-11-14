@@ -1,11 +1,11 @@
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import App from "./App";
 import { selectors } from "./consts/selectors";
+import { renderWithProviders } from "./test-utils/renderWithProviders";
 
 const SAVED_DEPLOYMENT_KEY = "scenario-to-cloud:deployment";
 
@@ -61,18 +61,7 @@ function seedSavedDeployment() {
 }
 
 function renderApp() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
-  );
+  return renderWithProviders(<App />);
 }
 
 describe("Dashboard", () => {
@@ -219,5 +208,59 @@ describe("Deployment Wizard", () => {
 
     // Should be back on dashboard
     expect(await screen.findByTestId(selectors.dashboard.startNewButton)).toBeInTheDocument();
+  });
+});
+
+describe("Operator surfaces", () => {
+  beforeEach(() => {
+    window.history.replaceState(null, "", "#dashboard");
+    localStorage.clear();
+  });
+
+  test("navigates to deployments and renders the empty state", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/health")) {
+        return jsonResponse({ status: "healthy" });
+      }
+      if (url.includes("/deployments")) {
+        return jsonResponse({ deployments: [] });
+      }
+      return jsonResponse({ error: { message: "not found" } }, 404);
+    }));
+
+    renderApp();
+    await userEvent.click(await screen.findByRole("button", { name: "Deployments" }));
+
+    expect(await screen.findByRole("heading", { name: "Deployments" })).toBeInTheDocument();
+    expect(await screen.findByText("No deployments yet")).toBeInTheDocument();
+  });
+
+  test("loads the documentation manifest and selected document", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/health")) {
+        return jsonResponse({ status: "healthy" });
+      }
+      if (url.includes("/docs/manifest")) {
+        return jsonResponse({
+          version: "1",
+          title: "Scenario-to-Cloud Docs",
+          description: "Operator documentation",
+          defaultDocument: "quickstart.md",
+          sections: [{ id: "start", title: "Start", documents: [{ path: "quickstart.md", title: "Quickstart" }] }]
+        });
+      }
+      if (url.includes("/docs/content")) {
+        return jsonResponse({ content: "# Quickstart\n\nDeploy a scenario safely." });
+      }
+      return jsonResponse({ error: { message: "not found" } }, 404);
+    }));
+
+    renderApp();
+    await userEvent.click(await screen.findByRole("button", { name: "Documentation" }));
+
+    expect(await screen.findByRole("heading", { name: "Scenario-to-Cloud Docs" })).toBeInTheDocument();
+    expect(await screen.findByText("Deploy a scenario safely.")).toBeInTheDocument();
   });
 });

@@ -16,6 +16,12 @@ func rulesJSON(t *testing.T, rules ...GroupingRule) string {
 	return string(data)
 }
 
+func TestNormalizePrefixEmptyIsEmpty(t *testing.T) {
+	if got := normalizePrefix(""); got != "" {
+		t.Fatalf("normalizePrefix(\"\") = %q, want empty string", got)
+	}
+}
+
 func TestAnalyzeHealth_PrefixMode_SingleGroup(t *testing.T) {
 	configPath := "/config/grouping-rules.json"
 	fs := NewFakeFileIO().
@@ -25,8 +31,9 @@ func TestAnalyzeHealth_PrefixMode_SingleGroup(t *testing.T) {
 		WithFile("/repo/.gitignore", "resources/postgres/data\n")
 
 	deps := HealthDeps{
-		FS:      fs,
-		RepoDir: "/repo",
+		AuthContext: authorizedHumanContext(),
+		FS:          fs,
+		RepoDir:     "/repo",
 		GroupingDeps: GroupingDeps{
 			FS:         fs,
 			ConfigPath: configPath,
@@ -268,8 +275,9 @@ func TestMoveEntry_Success(t *testing.T) {
 		WithFile("/repo/.gitignore", "# header\nresources/postgres/data\nother/stuff\n")
 
 	deps := HealthDeps{
-		FS:      fs,
-		RepoDir: "/repo",
+		AuthContext: authorizedHumanContext(),
+		FS:          fs,
+		RepoDir:     "/repo",
 		GroupingDeps: GroupingDeps{
 			FS:         fs,
 			ConfigPath: "/config/grouping-rules.json",
@@ -312,8 +320,9 @@ func TestMoveEntry_CreatesGroupGitignore(t *testing.T) {
 		WithFile("/repo/.gitignore", "scenarios/foo/build\n")
 
 	deps := HealthDeps{
-		FS:      fs,
-		RepoDir: "/repo",
+		AuthContext: authorizedHumanContext(),
+		FS:          fs,
+		RepoDir:     "/repo",
 		GroupingDeps: GroupingDeps{
 			FS:         fs,
 			ConfigPath: "/config/grouping-rules.json",
@@ -349,8 +358,9 @@ func TestMoveEntry_StaleLineNumber(t *testing.T) {
 		WithFile("/repo/.gitignore", "only-one-line\n")
 
 	deps := HealthDeps{
-		FS:      fs,
-		RepoDir: "/repo",
+		AuthContext: authorizedHumanContext(),
+		FS:          fs,
+		RepoDir:     "/repo",
 		GroupingDeps: GroupingDeps{
 			FS:         fs,
 			ConfigPath: "/config/grouping-rules.json",
@@ -381,8 +391,9 @@ func TestMoveEntry_PatternMismatch(t *testing.T) {
 		WithFile("/repo/.gitignore", "actual-pattern\n")
 
 	deps := HealthDeps{
-		FS:      fs,
-		RepoDir: "/repo",
+		AuthContext: authorizedHumanContext(),
+		FS:          fs,
+		RepoDir:     "/repo",
 		GroupingDeps: GroupingDeps{
 			FS:         fs,
 			ConfigPath: "/config/grouping-rules.json",
@@ -413,8 +424,9 @@ func TestMoveEntry_InvalidGroupDir(t *testing.T) {
 		WithFile("/repo/.gitignore", "something\n")
 
 	deps := HealthDeps{
-		FS:      fs,
-		RepoDir: "/repo",
+		AuthContext: authorizedHumanContext(),
+		FS:          fs,
+		RepoDir:     "/repo",
 		GroupingDeps: GroupingDeps{
 			FS:         fs,
 			ConfigPath: "/config/grouping-rules.json",

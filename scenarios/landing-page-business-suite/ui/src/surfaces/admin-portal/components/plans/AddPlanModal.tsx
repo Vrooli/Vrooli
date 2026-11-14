@@ -277,7 +277,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
   }, [onClose]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open: boolean) => !open && handleClose()}>
+    <Dialog open={isOpen} onOpenChange={(open: boolean) => { if (!open) handleClose(); }}>
       <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -300,14 +300,15 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
                 id="stripe-price-id"
                 placeholder="price_..."
                 value={form.stripePriceId}
-                onChange={(e) => handleChange('stripePriceId', e.target.value)}
+                onChange={(e) => { handleChange('stripePriceId', e.target.value); }}
                 className="flex-1 font-mono text-sm"
               />
               <Button
                 type="button"
                 variant="outline"
-                onClick={handleVerify}
+                onClick={() => { void handleVerify(); }}
                 disabled={verifying || !form.stripePriceId.trim()}
+                aria-label="Verify Stripe price"
               >
                 {verifying ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -333,7 +334,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
               id="plan-name"
               placeholder="Pro Monthly"
               value={form.planName}
-              onChange={(e) => handleChange('planName', e.target.value)}
+              onChange={(e) => { handleChange('planName', e.target.value); }}
             />
           </div>
 
@@ -341,7 +342,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Plan Tier *</Label>
-              <Select value={form.planTier} onValueChange={(v) => handleChange('planTier', v)}>
+              <Select value={form.planTier} onValueChange={(v) => { handleChange('planTier', v); }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -356,7 +357,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
             </div>
             <div className="space-y-2">
               <Label>Billing Interval *</Label>
-              <Select value={form.billingInterval} onValueChange={(v) => handleChange('billingInterval', v)}>
+              <Select value={form.billingInterval} onValueChange={(v) => { handleChange('billingInterval', v); }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -378,12 +379,12 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
                 type="number"
                 placeholder="7900"
                 value={form.amountCents}
-                onChange={(e) => handleChange('amountCents', e.target.value)}
+                onChange={(e) => { handleChange('amountCents', e.target.value); }}
               />
             </div>
             <div className="space-y-2">
               <Label>Currency</Label>
-              <Select value={form.currency} onValueChange={(v) => handleChange('currency', v)}>
+              <Select value={form.currency} onValueChange={(v) => { handleChange('currency', v); }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -404,7 +405,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
               type="number"
               placeholder="10"
               value={form.displayWeight}
-              onChange={(e) => handleChange('displayWeight', e.target.value)}
+              onChange={(e) => { handleChange('displayWeight', e.target.value); }}
             />
           </div>
 
@@ -416,7 +417,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
               type="number"
               placeholder="1000000"
               value={form.monthlyIncludedCredits}
-              onChange={(e) => handleChange('monthlyIncludedCredits', e.target.value)}
+              onChange={(e) => { handleChange('monthlyIncludedCredits', e.target.value); }}
             />
           </div>
 
@@ -428,7 +429,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
             </div>
             <Switch
               checked={form.displayEnabled}
-              onCheckedChange={(checked: boolean) => handleChange('displayEnabled', checked)}
+              onCheckedChange={(checked: boolean) => { handleChange('displayEnabled', checked); }}
             />
           </div>
 
@@ -439,7 +440,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
             </div>
             <Switch
               checked={form.highlight}
-              onCheckedChange={(checked: boolean) => handleChange('highlight', checked)}
+              onCheckedChange={(checked: boolean) => { handleChange('highlight', checked); }}
             />
           </div>
 
@@ -450,7 +451,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
               id="subtitle"
               placeholder="For growing teams"
               value={form.subtitle}
-              onChange={(e) => handleChange('subtitle', e.target.value)}
+              onChange={(e) => { handleChange('subtitle', e.target.value); }}
             />
           </div>
 
@@ -461,7 +462,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
                 id="badge"
                 placeholder="Popular"
                 value={form.badge}
-                onChange={(e) => handleChange('badge', e.target.value)}
+                onChange={(e) => { handleChange('badge', e.target.value); }}
               />
             </div>
             <div className="space-y-2">
@@ -470,7 +471,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
                 id="cta-label"
                 placeholder="Get Started"
                 value={form.ctaLabel}
-                onChange={(e) => handleChange('ctaLabel', e.target.value)}
+                onChange={(e) => { handleChange('ctaLabel', e.target.value); }}
               />
             </div>
           </div>
@@ -482,7 +483,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
               id="features"
               placeholder="Unlimited projects&#10;Priority support&#10;Advanced analytics"
               value={form.featuresText}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleChange('featuresText', e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => { handleChange('featuresText', e.target.value); }}
               rows={4}
             />
           </div>
@@ -492,7 +493,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
           <Button variant="outline" onClick={handleClose} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={() => { void handleSave(); }} disabled={saving}>
             {saving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

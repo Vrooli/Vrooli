@@ -1,0 +1,130 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "earning-admin",
+    "title": "Earning",
+    "routes": [
+      "/earning"
+    ],
+    "purpose": "Let the minter record work done directly and see what the connected adapters are reporting, with operator entry as an equal path rather than a fallback.",
+    "prd_refs": [
+      "OT-P0-007",
+      "OT-P0-011"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Recording an earning by hand is presented as an ordinary action, not a workaround.",
+      "notes": "Several real earning sources will never have an API; the operator is a first-class adapter."
+    },
+    {
+      "statement": "Which adapters are connected and what they last reported is visible."
+    },
+    {
+      "statement": "A replayed submission is shown as recognised rather than as an error."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Recent submissions and connected adapters listed."
+    },
+    {
+      "id": "loading",
+      "description": "Submissions are being fetched."
+    },
+    {
+      "id": "empty",
+      "description": "No submissions yet; the page explains both entry paths."
+    },
+    {
+      "id": "submitting",
+      "description": "An operator entry is in flight."
+    },
+    {
+      "id": "success",
+      "description": "Earning recorded and the grant issued."
+    },
+    {
+      "id": "validation-error",
+      "description": "Submission rejected, naming the constraint."
+    },
+    {
+      "id": "request-error",
+      "description": "Submission list or entry failed."
+    },
+    {
+      "id": "partial",
+      "description": "Submissions loaded but adapter status failed; the list renders and the adapter panel reports its own failure."
+    },
+    {
+      "id": "stale",
+      "description": "Showing cached submissions after a failed refresh, labelled as such."
+    }
+  ],
+  "elements": [
+    {
+      "id": "submission-list",
+      "role": "table",
+      "name": "Recent submissions",
+      "description": "What was reported, by which adapter, for which holder."
+    },
+    {
+      "id": "operator-entry",
+      "role": "form",
+      "name": "Record earning",
+      "description": "Direct operator entry for work done."
+    },
+    {
+      "id": "adapter-status",
+      "role": "status",
+      "name": "Adapters",
+      "description": "Which earning surfaces are connected and when they last reported."
+    }
+  ],
+  "claims": [
+    {
+      "id": "operator-entry-is-equal",
+      "type": "element-present",
+      "statement": "Operator entry is presented with the same prominence as adapter-reported earning, not as a fallback.",
+      "tier": "aspirational",
+      "elements": [
+        "operator-entry",
+        "submission-list"
+      ]
+    },
+    {
+      "id": "replay-reads-as-recognised",
+      "type": "state-covered",
+      "statement": "A duplicate submission is reported as already recorded rather than as a failure.",
+      "tier": "aspirational",
+      "states": [
+        "success"
+      ]
+    },
+    {
+      "id": "adapter-visibility",
+      "type": "element-present",
+      "statement": "Connected adapters and their last report time are visible.",
+      "tier": "aspirational",
+      "elements": [
+        "adapter-status"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "submission-list": {
+        "testid": "earning-submission-list"
+      },
+      "operator-entry": {
+        "testid": "earning-operator-entry"
+      },
+      "adapter-status": {
+        "testid": "earning-adapter-status"
+      }
+    }
+  }
+}

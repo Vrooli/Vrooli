@@ -1,0 +1,120 @@
+{
+  "nodes": [
+    {
+      "id": "3f436ab2-5937-4e74-8ee1-601181655406",
+      "name": "When clicking ‘Execute workflow’",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        -380,
+        -100
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "a7566e68-2613-4cd8-9307-ecdabb10cb9d",
+      "name": "Get row(s) in sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -120,
+        -100
+      ],
+      "parameters": {
+        "options": {},
+        "sheetName": "YOUR_SHEET_NAME",
+        "documentId": "synthetic-id"
+      },
+      "typeVersion": 4.6
+    },
+    {
+      "id": "e424a6a7-25ac-4258-8ec2-63f25c4ce2cb",
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        120,
+        -100
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 2,
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "7e87aee9-3061-4daf-ae3c-0fed5ed1480b",
+              "operator": {
+                "name": "filter.operator.equals",
+                "type": "string",
+                "operation": "equals"
+              },
+              "leftValue": "={{ $json['Due Date'] }}",
+              "rightValue": "={{ $now.format('yyyy-MM-dd') }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 2.2
+    },
+    {
+      "id": "ba1beadf-7a42-4a50-b0e6-8476528ed4dd",
+      "name": "Send a message",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        340,
+        -200
+      ],
+      "parameters": {
+        "sendTo": "={{ $json.Email }}",
+        "message": "={{ $json.Body }}",
+        "options": {},
+        "subject": "={{ $json.Subject }}"
+      },
+      "typeVersion": 2.1
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "connections": {
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "id": "public-template-6338",
+  "name": "Public template 6338 (sanitized)",
+  "active": false
+}

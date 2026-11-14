@@ -1,0 +1,458 @@
+{
+    "version": "2.0.0",
+    "title": "{{SCENARIO_DISPLAY_NAME}} Documentation",
+    "description": "Documentation contract for the landing-page scenario generated from the landing-page-react-vite template",
+    "defaultDocument": "index.md",
+    "contract": {
+        "kind": "scenario-docs",
+        "template": "landing-page-react-vite",
+        "schema": "scenario-docs-manifest/v2",
+        "maturityValues": [
+            "missing",
+            "stub",
+            "draft",
+            "active",
+            "not-applicable",
+            "deferred",
+            "retired"
+        ],
+        "stages": [
+            "generated",
+            "oriented",
+            "implemented",
+            "validated",
+            "deployable",
+            "monetizable"
+        ],
+        "extensionRule": "Every durable scenario document should be registered here. Top-level guides live in docs/, API references under docs/api/. Keep this manifest in sync when adding or removing durable documents."
+    },
+    "sections": [
+        {
+            "id": "getting-started",
+            "title": "Getting Started",
+            "icon": "rocket",
+            "description": "First-touch experience, scenario identity, and local startup flow",
+            "purpose": "Help users, operators, developers, and agents understand what the scenario is, where to begin, and how to run it.",
+            "documents": [
+                {
+                    "path": "../README.md",
+                    "docType": "readme",
+                    "title": "Scenario Readme",
+                    "description": "Scenario overview and entrypoint",
+                    "audience": [
+                        "users",
+                        "developers",
+                        "agents"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                },
+                {
+                    "path": "index.md",
+                    "docType": "docs-index",
+                    "title": "Documentation Index",
+                    "description": "Map of the scenario documentation set",
+                    "audience": [
+                        "developers",
+                        "agents"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                },
+                {
+                    "path": "manifest.json",
+                    "docType": "docs-manifest",
+                    "title": "Docs Manifest",
+                    "description": "Scenario documentation contract and registry",
+                    "audience": [
+                        "agents"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                },
+                {
+                    "path": "../PRD.md",
+                    "docType": "prd",
+                    "title": "Product Requirements",
+                    "description": "Product requirements and scope for the landing experience",
+                    "audience": [
+                        "developers",
+                        "agents"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                },
+                {
+                    "path": "QUICKSTART.md",
+                    "docType": "quickstart",
+                    "title": "Quickstart",
+                    "description": "Fast path to running and customizing the scenario locally",
+                    "audience": [
+                        "users",
+                        "developers"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                }
+            ]
+        },
+        {
+            "id": "concepts",
+            "title": "Concepts",
+            "icon": "compass",
+            "description": "Durable product and system mental models",
+            "purpose": "Document how the scenario is put together and which concepts guide future code changes.",
+            "documents": [
+                {
+                    "path": "ARCHITECTURE.md",
+                    "docType": "architecture",
+                    "title": "Architecture",
+                    "description": "System map: surfaces, contracts, boundaries, and extension rules",
+                    "audience": [
+                        "developers",
+                        "agents"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                },
+                {
+                    "path": "CONCEPTS.md",
+                    "docType": "concepts",
+                    "title": "Concepts",
+                    "description": "Core product and system concepts for the landing experience",
+                    "audience": [
+                        "developers",
+                        "agents"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                },
+                {
+                    "path": "DESIGN_SYSTEM.md",
+                    "docType": "design-system",
+                    "title": "Design System",
+                    "description": "Visual language, tokens, and component conventions",
+                    "audience": [
+                        "developers",
+                        "designers"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                },
+                {
+                    "path": "SEAMS.md",
+                    "docType": "seams",
+                    "title": "Seams",
+                    "description": "Extension seams and integration points",
+                    "audience": [
+                        "developers",
+                        "agents"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                }
+            ]
+        },
+        {
+            "id": "guides",
+            "title": "Guides",
+            "icon": "book",
+            "description": "Task-oriented procedures for operating and customizing the scenario",
+            "purpose": "Give operators and developers step-by-step procedures.",
+            "documents": [
+                {
+                    "path": "ADMIN_GUIDE.md",
+                    "docType": "admin-guide",
+                    "title": "Admin Guide",
+                    "description": "Operating the admin portal: variants, content, analytics, downloads, billing",
+                    "audience": [
+                        "operators",
+                        "developers"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                },
+                {
+                    "path": "CONFIGURATION_GUIDE.md",
+                    "docType": "configuration-guide",
+                    "title": "Configuration Guide",
+                    "description": "Configuring the scenario and its resources",
+                    "audience": [
+                        "operators",
+                        "developers"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                },
+                {
+                    "path": "CONTENT_GUIDE.md",
+                    "docType": "content-guide",
+                    "title": "Content Guide",
+                    "description": "Authoring and structuring landing-page content",
+                    "audience": [
+                        "operators",
+                        "content-authors"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                },
+                {
+                    "path": "TROUBLESHOOTING.md",
+                    "docType": "troubleshooting",
+                    "title": "Troubleshooting",
+                    "description": "Common issues and their resolutions",
+                    "audience": [
+                        "operators",
+                        "developers"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                }
+            ]
+        },
+        {
+            "id": "reference",
+            "title": "Reference",
+            "icon": "list",
+            "description": "Stable lookup material for APIs and behaviors",
+            "purpose": "Provide precise, stable reference material agents can act on.",
+            "documents": [
+                {
+                    "path": "api/overview.md",
+                    "docType": "api-overview",
+                    "title": "API Overview",
+                    "description": "Landing-page API surface overview",
+                    "audience": [
+                        "developers",
+                        "agents"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                },
+                {
+                    "path": "api/admin.md",
+                    "docType": "api-admin",
+                    "title": "Admin API",
+                    "description": "Admin authentication and management endpoints",
+                    "audience": [
+                        "developers",
+                        "agents"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                },
+                {
+                    "path": "api/landing.md",
+                    "docType": "api-landing",
+                    "title": "Landing API",
+                    "description": "Public landing configuration endpoints",
+                    "audience": [
+                        "developers",
+                        "agents"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                },
+                {
+                    "path": "api/metrics.md",
+                    "docType": "api-metrics",
+                    "title": "Metrics API",
+                    "description": "Analytics and metrics endpoints",
+                    "audience": [
+                        "developers",
+                        "agents"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                },
+                {
+                    "path": "api/payments.md",
+                    "docType": "api-payments",
+                    "title": "Payments API",
+                    "description": "Billing, bundles, and Stripe endpoints",
+                    "audience": [
+                        "developers",
+                        "agents"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                },
+                {
+                    "path": "api/sections.md",
+                    "docType": "api-sections",
+                    "title": "Sections API",
+                    "description": "Content section endpoints",
+                    "audience": [
+                        "developers",
+                        "agents"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                },
+                {
+                    "path": "api/variants.md",
+                    "docType": "api-variants",
+                    "title": "Variants API",
+                    "description": "A/B variant management endpoints",
+                    "audience": [
+                        "developers",
+                        "agents"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                },
+                {
+                    "path": "FAQ.md",
+                    "docType": "faq",
+                    "title": "FAQ",
+                    "description": "Frequently asked questions",
+                    "audience": [
+                        "users",
+                        "operators"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                }
+            ]
+        },
+        {
+            "id": "operations",
+            "title": "Operations",
+            "icon": "server",
+            "description": "Runtime operations and deployment",
+            "purpose": "Document how to deploy and secure the scenario in production.",
+            "documents": [
+                {
+                    "path": "DEPLOYMENT.md",
+                    "docType": "deployment",
+                    "title": "Deployment",
+                    "description": "Deploying the landing-page scenario",
+                    "audience": [
+                        "operators",
+                        "developers"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                },
+                {
+                    "path": "SECURITY.md",
+                    "docType": "security",
+                    "title": "Security",
+                    "description": "Security posture, admin auth, and entitlement gating",
+                    "audience": [
+                        "operators",
+                        "developers",
+                        "agents"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                }
+            ]
+        },
+        {
+            "id": "internal",
+            "title": "Internal",
+            "icon": "wrench",
+            "description": "Developer and agent memory",
+            "purpose": "Capture internal audits and decisions.",
+            "documents": [
+                {
+                    "path": "EXPERIENCE_AUDIT.md",
+                    "docType": "experience-audit",
+                    "title": "Experience Audit",
+                    "description": "Audit of the end-to-end landing and admin experience",
+                    "audience": [
+                        "developers",
+                        "agents"
+                    ],
+                    "maturity": "active",
+                    "requiredBy": [
+                        "validated"
+                    ],
+                    "completion": "optional"
+                }
+            ]
+        }
+    ],
+    "navigation": {
+        "primary": [
+            "getting-started",
+            "concepts",
+            "guides",
+            "reference",
+            "operations"
+        ],
+        "secondary": [
+            "internal"
+        ]
+    }
+}

@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "gridlabd",
+  "display_name": "GridLAB-D",
+  "category": "simulation",
+  "summary": "Distribution power-system simulator for smart grid analysis, DER integration, and energy system modeling.",
+  "why_it_matters": "GridLAB-D preserves specialized energy-simulation capability knowledge, but there is no active Vrooli scenario that justifies maintaining it as a supported resource.",
+  "when_to_use": [
+    "A future scenario needs smart-grid or distribution-network simulation.",
+    "Operators want DER, load, or resilience modeling tied to local workflows.",
+    "The workflow depends on power-system analysis rather than generic simulation."
+  ],
+  "example_scenarios": [
+    "Energy planning services",
+    "Grid resilience analysis",
+    "Distributed energy optimization"
+  ],
+  "integration_kind": "native-cli",
+  "platform_support": {
+    "notes": "Scientific tooling and packaging vary by OS, and realistic usage depends on validated datasets and models rather than simple lifecycle support.",
+    "linux": "partial",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "prerequisites": [
+    "Validated install or container strategy",
+    "Reference datasets and example models",
+    "Defined artifact storage and result interpretation path"
+  ],
+  "dependencies": [],
+  "suggested_template": "native-cli",
+  "implementation_notes": [
+    "Promotion should validate a specific energy-system workflow instead of generic solver support.",
+    "Keep data/model preparation separate from solver execution.",
+    "Do not claim broad platform support without tested installation paths."
+  ],
+  "operational_notes": [
+    "Real value depends on trustworthy input models, not just binary availability.",
+    "Validation should include a known reference simulation.",
+    "Large result sets need explicit retention rules."
+  ],
+  "risks": [
+    "Niche scientific tools become maintenance drag without active users.",
+    "Unsupported host installs are likely unless support scope stays narrow."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "gridlabd"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/gridlabd"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

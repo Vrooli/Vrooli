@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { ReviewCard } from "./review-card";
 import type { ArchiveRequirement, ArchiveTarget } from "../../types";
 
@@ -25,7 +26,7 @@ const makeTarget = (overrides?: Partial<ArchiveTarget>): ArchiveTarget => ({
 
 describe("ReviewCard", () => {
   it("renders requirement with unreviewed status", () => {
-    render(
+    renderWithCanonicalProviders(
       <ReviewCard
         item={makeRequirement()}
         itemType="requirement"
@@ -44,7 +45,7 @@ describe("ReviewCard", () => {
   });
 
   it("renders target with criticality badge", () => {
-    render(
+    renderWithCanonicalProviders(
       <ReviewCard
         item={makeTarget()}
         itemType="target"
@@ -64,7 +65,7 @@ describe("ReviewCard", () => {
 
   it("calls onApprove when Approve button is clicked", () => {
     const onApprove = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <ReviewCard
         item={makeRequirement()}
         itemType="requirement"
@@ -83,7 +84,7 @@ describe("ReviewCard", () => {
 
   it("calls onFlag and shows comment field when Flag button is clicked", () => {
     const onFlag = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <ReviewCard
         item={makeRequirement()}
         itemType="requirement"
@@ -107,7 +108,7 @@ describe("ReviewCard", () => {
   });
 
   it("shows Reset button when status is not unreviewed", () => {
-    render(
+    renderWithCanonicalProviders(
       <ReviewCard
         item={makeRequirement()}
         itemType="requirement"
@@ -124,7 +125,7 @@ describe("ReviewCard", () => {
   });
 
   it("does not show Reset button when status is unreviewed", () => {
-    render(
+    renderWithCanonicalProviders(
       <ReviewCard
         item={makeRequirement()}
         itemType="requirement"
@@ -141,7 +142,7 @@ describe("ReviewCard", () => {
   });
 
   it("uses correct border color classes for each status", () => {
-    const { container, rerender } = render(
+    const { container, rerender } = renderWithCanonicalProviders(
       <ReviewCard
         item={makeRequirement()}
         itemType="requirement"
@@ -173,7 +174,7 @@ describe("ReviewCard", () => {
   });
 
   it("disables buttons when disabled prop is true", () => {
-    render(
+    renderWithCanonicalProviders(
       <ReviewCard
         item={makeRequirement()}
         itemType="requirement"
@@ -192,7 +193,7 @@ describe("ReviewCard", () => {
   });
 
   it("optimistically updates visual state on approve click", () => {
-    const { container } = render(
+    const { container } = renderWithCanonicalProviders(
       <ReviewCard
         item={makeRequirement()}
         itemType="requirement"
@@ -214,7 +215,7 @@ describe("ReviewCard", () => {
   });
 
   it("shows error banner when error prop is set", () => {
-    render(
+    renderWithCanonicalProviders(
       <ReviewCard
         item={makeRequirement()}
         itemType="requirement"
@@ -232,7 +233,7 @@ describe("ReviewCard", () => {
   });
 
   it("disables action buttons when saving", () => {
-    render(
+    renderWithCanonicalProviders(
       <ReviewCard
         item={makeRequirement()}
         itemType="requirement"

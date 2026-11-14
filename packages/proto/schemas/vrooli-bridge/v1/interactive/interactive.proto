@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.interactive;
+
+import "common/v1/surface.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/interactive;interactive_v1";
+
+// Bridge owns trust, admission, signaling, and revocation. It never owns
+// pixels, native input, or clipboard contents.
+service InteractiveDesktopService {
+  rpc OpenChannel(OpenChannelRequest) returns (OpenChannelResponse);
+  rpc Signal(SignalRequest) returns (SignalResponse);
+  rpc CloseChannel(CloseChannelRequest) returns (CloseChannelResponse);
+  rpc RevokeChannel(RevokeChannelRequest) returns (RevokeChannelResponse);
+}
+
+enum ChannelProtocol {
+  CHANNEL_PROTOCOL_UNSPECIFIED = 0;
+  CHANNEL_PROTOCOL_WEBRTC_VP8 = 1;
+}
+
+enum ChannelRole {
+  CHANNEL_ROLE_UNSPECIFIED = 0;
+  CHANNEL_ROLE_CONTROLLER = 1;
+  CHANNEL_ROLE_VIEWER = 2;
+}
+
+enum RouteKind {
+  ROUTE_KIND_UNSPECIFIED = 0;
+  ROUTE_KIND_DIRECT = 1;
+  ROUTE_KIND_TURN = 2;
+}
+
+enum SignalKind {
+  SIGNAL_KIND_UNSPECIFIED = 0;
+  SIGNAL_KIND_OFFER = 1;
+  SIGNAL_KIND_ANSWER = 2;
+  SIGNAL_KIND_ICE = 3;
+}
+
+enum RevokeReason {
+  REVOKE_REASON_UNSPECIFIED = 0;
+  REVOKE_REASON_OPERATOR = 1;
+  REVOKE_REASON_NODE_REVOKED = 2;
+  REVOKE_REASON_LEASE_EXPIRED = 3;
+  REVOKE_REASON_COMPANION_LOST = 4;
+  REVOKE_REASON_POLICY = 5;
+}
+
+message ChannelGrant {
+  string channel_id = 1;
+  string node_id = 2;
+  common.v1.SurfaceRef surface = 3;
+  string session_id = 4;
+  string lease_id = 5;
+  uint64 lease_epoch = 6;
+  ChannelProtocol protocol = 7;
+  ChannelRole role = 8;
+  google.protobuf.Timestamp expires_at = 9;
+  string policy_revision = 10;
+  // Ephemeral ICE route metadata is carried to the node-local peer for the
+  // same channel. TURN credentials remain short-lived and are never persisted.
+  repeated RouteCandidate routes = 11;
+}
+
+message OpenChannelRequest {
+  string node_id = 1;
+  common.v1.SurfaceRef surface = 2;
+  string session_id = 3;
+  string lease_id = 4;
+  uint64 lease_epoch = 5;
+  ChannelProtocol protocol = 6;
+  ChannelRole role = 7;
+  bool takeover = 8;
+  uint32 ttl_seconds = 9;
+  string request_id = 10;
+}
+
+message RouteCandidate {
+  RouteKind kind = 1;
+  string url = 2;
+  string username = 3;
+  // Passwords are short-lived transport credentials and must never be logged
+  // or persisted by a Bridge repository.
+  string credential = 4;
+  uint32 priority = 5;
+}
+
+message OpenChannelResponse {
+  ChannelGrant grant = 1;
+  repeated RouteCandidate routes = 2;
+}
+
+message SignalRequest {
+  ChannelGrant grant = 1;
+  SignalKind kind = 2;
+  string generation = 3;
+  bytes payload = 4;
+  string request_id = 5;
+}
+
+message SignalResponse {
+  bool accepted = 1;
+  string generation = 2;
+  string reason_code = 3;
+  bytes payload = 4;
+  string request_id = 5;
+}
+
+message CloseChannelRequest {
+  ChannelGrant grant = 1;
+  string reason = 2;
+}
+
+message CloseChannelResponse { bool closed = 1; }
+
+message RevokeChannelRequest {
+  string channel_id = 1;
+  RevokeReason reason = 2;
+  string detail = 3;
+}
+
+message RevokeChannelResponse {
+  bool revoked = 1;
+  google.protobuf.Timestamp revoked_at = 2;
+}

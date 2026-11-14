@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { getApiBase } from '@/config';
+import { aiClient } from '@/api/ai';
 
 /** Link preview data from the API */
 export interface LinkPreviewData {
@@ -100,27 +100,21 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * Fetch a single link preview from the API
+ * Fetch a single link preview from the API (Connect-RPC).
+ * Returns null when the server reports `found=false` (no usable metadata).
  */
 async function fetchLinkPreview(url: string): Promise<LinkPreviewData | null> {
-  const apiBase = getApiBase();
-  const apiUrl = `${apiBase}/link-preview?url=${encodeURIComponent(url)}`;
-
-  const res = await fetch(apiUrl, {
-    headers: { 'Content-Type': 'application/json' },
-  });
-
-  if (res.status === 204) {
-    // No content - preview unavailable
+  const resp = await aiClient.getLinkPreview({ url });
+  if (!resp.found) {
     return null;
   }
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch link preview: ${res.status}`);
-  }
-
-  const payload: unknown = await res.json();
-  return parseLinkPreview(payload);
+  return parseLinkPreview({
+    title: resp.title,
+    description: resp.description,
+    image: resp.image,
+    favicon: resp.favicon,
+    site_name: resp.siteName,
+  });
 }
 
 /**
@@ -151,76 +145,6 @@ function setCachedPreview(url: string, data: LinkPreviewData | null): void {
   };
   memoryCache.set(url, entry);
   saveCacheToStorage(memoryCache);
-}
-
-interface UseLinkPreviewReturn {
-  preview: LinkPreviewData | null;
-  isLoading: boolean;
-  error: string | null;
-  fetch: () => void;
-}
-
-/**
- * Hook for fetching and caching a single link preview.
- * Only fetches when `fetch` is called (lazy loading).
- */
-export function useLinkPreview(url: string): UseLinkPreviewReturn {
-  const [preview, setPreview] = useState<LinkPreviewData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Check cache on mount
-  useEffect(() => {
-    const cached = getCachedPreview(url);
-    if (cached !== undefined) {
-      setPreview(cached);
-    }
-  }, [url]);
-
-  const fetchPreviewCallback = useCallback(async () => {
-    // Already cached
-    const cached = getCachedPreview(url);
-    if (cached !== undefined) {
-      setPreview(cached);
-      return;
-    }
-
-    // Already fetching
-    if (pendingFetches.has(url)) {
-      try {
-        const result = await pendingFetches.get(url);
-        setPreview(result ?? null);
-      } catch {
-        setError('Failed to fetch preview');
-      }
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    const fetchPromise = fetchLinkPreview(url);
-    pendingFetches.set(url, fetchPromise);
-
-    try {
-      const result = await fetchPromise;
-      setCachedPreview(url, result);
-      setPreview(result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch preview');
-      setCachedPreview(url, null); // Cache failures too
-    } finally {
-      setIsLoading(false);
-      pendingFetches.delete(url);
-    }
-  }, [url]);
-
-  return {
-    preview,
-    isLoading,
-    error,
-    fetch: fetchPreviewCallback,
-  };
 }
 
 interface UseLinkPreviewsBatchReturn {

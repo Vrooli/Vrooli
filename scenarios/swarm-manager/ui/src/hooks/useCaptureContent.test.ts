@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactNode } from "react";
-import { createElement } from "react";
+import { createQueryWrapper } from "../test-utils";
 
 // Mock buildApiUrl to return a predictable URL.
 vi.mock("@vrooli/api-base", () => ({
@@ -10,15 +8,6 @@ vi.mock("@vrooli/api-base", () => ({
 }));
 
 import { useCaptureContent } from "./useCaptureContent";
-
-function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return function Wrapper({ children }: { children: ReactNode }) {
-    return createElement(QueryClientProvider, { client: queryClient }, children);
-  };
-}
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -32,7 +21,7 @@ describe("useCaptureContent", () => {
 
     const { result } = renderHook(
       () => useCaptureContent("fix", "my-item", "output.txt"),
-      { wrapper: createWrapper() },
+      { wrapper: createQueryWrapper() },
     );
 
     expect(result.current.isLoading).toBe(true);
@@ -50,7 +39,7 @@ describe("useCaptureContent", () => {
 
     const { result } = renderHook(
       () => useCaptureContent("fix", "my-item", "output.txt"),
-      { wrapper: createWrapper() },
+      { wrapper: createQueryWrapper() },
     );
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -66,7 +55,7 @@ describe("useCaptureContent", () => {
 
     const { result } = renderHook(
       () => useCaptureContent("fix", "my-item", "missing.txt"),
-      { wrapper: createWrapper() },
+      { wrapper: createQueryWrapper() },
     );
 
     await waitFor(() => expect(result.current.error).toBeTruthy());
@@ -79,7 +68,7 @@ describe("useCaptureContent", () => {
 
     renderHook(
       () => useCaptureContent("fix", "my-item", ""),
-      { wrapper: createWrapper() },
+      { wrapper: createQueryWrapper() },
     );
 
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -95,7 +84,7 @@ describe("useCaptureContent", () => {
 
     const { result } = renderHook(
       () => useCaptureContent("fix", "my-item", "binary.bin"),
-      { wrapper: createWrapper() },
+      { wrapper: createQueryWrapper() },
     );
 
     await waitFor(() => expect(result.current.error).toBeTruthy());
@@ -113,7 +102,7 @@ describe("useCaptureContent", () => {
 
     const { result } = renderHook(
       () => useCaptureContent("fix", "my-item", "big.txt"),
-      { wrapper: createWrapper() },
+      { wrapper: createQueryWrapper() },
     );
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));

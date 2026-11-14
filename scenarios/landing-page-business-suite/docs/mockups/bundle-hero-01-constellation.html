@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aquila — The working constellation</title>
+  <style>
+    :root { --bg:#070a10; --ink:#f4f1eb; --muted:#98a4b8; --faint:#657188; --panel:#111927; --panel2:#182438; --orange:#f97316; --cyan:#55d6e6; --green:#35d399; --line:rgba(255,255,255,.12); }
+    * { box-sizing:border-box; }
+    body { margin:0; min-width:320px; color:var(--ink); background:var(--bg); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    body:before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.24; background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px); background-size:64px 64px; mask-image:linear-gradient(to bottom,black,transparent 90%); }
+    .wrap { width:min(1240px,calc(100% - 64px)); margin:auto; position:relative; }
+    nav { height:82px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:12px; color:var(--ink); text-decoration:none; font:600 18px "Space Grotesk",Inter,sans-serif; letter-spacing:-.03em; }
+    .mark { width:28px; height:28px; display:grid; place-items:center; color:#141820; background:var(--orange); border-radius:9px 9px 3px 9px; font:800 14px "Space Grotesk",sans-serif; }
+    .nav { display:flex; align-items:center; gap:22px; color:var(--muted); font-size:12px; }
+    .nav a { color:inherit; text-decoration:none; }
+    .nav .button { color:var(--cyan); border:1px solid rgba(85,214,230,.4); padding:10px 14px; border-radius:999px; }
+    main { display:grid; grid-template-columns:.75fr 1.25fr; align-items:center; gap:7vw; min-height:calc(100vh - 82px); padding:72px 0 90px; }
+    .copy { position:relative; z-index:3; max-width:520px; }
+    .eyebrow { display:flex; align-items:center; gap:10px; color:var(--cyan); font:700 11px "JetBrains Mono",monospace; letter-spacing:.12em; text-transform:uppercase; }
+    .eyebrow:before { content:""; width:28px; height:1px; background:var(--orange); }
+    h1 { margin:24px 0; font:600 clamp(50px,6.4vw,80px)/.99 "Space Grotesk",Inter,sans-serif; letter-spacing:-.07em; }
+    h1 em { color:var(--orange); font-style:normal; }
+    .lede { max-width:490px; margin:0; color:var(--muted); font-size:18px; line-height:1.66; }
+    .actions { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:34px; }
+    .button { display:inline-flex; gap:11px; align-items:center; padding:15px 20px; border-radius:999px; font:650 14px "Space Grotesk",Inter,sans-serif; text-decoration:none; }
+    .primary { color:#151a22; background:var(--orange); box-shadow:0 12px 28px rgba(249,115,22,.2); }
+    .secondary { color:var(--cyan); background:rgba(17,25,39,.8); border:1px solid var(--line); }
+    .micro { display:flex; align-items:center; gap:8px; margin-top:38px; color:var(--faint); font:10px "JetBrains Mono",monospace; }
+    .micro i { width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 0 5px rgba(53,211,153,.12); }
+    .scene { min-height:590px; position:relative; display:grid; place-items:center; }
+    .scene:before { content:""; position:absolute; width:520px; height:520px; border:1px solid rgba(85,214,230,.16); border-radius:50%; box-shadow:0 0 0 45px rgba(85,214,230,.035),0 0 0 90px rgba(85,214,230,.025),0 0 0 135px rgba(85,214,230,.02); }
+    .scene:after { content:""; position:absolute; width:600px; height:230px; border:1px solid rgba(249,115,22,.16); border-radius:50%; transform:rotate(-31deg); }
+    .orbit { position:absolute; inset:5%; z-index:1; }
+    .orbit svg { width:100%; height:100%; overflow:visible; }
+    .node { position:absolute; z-index:3; width:208px; padding:17px; border:1px solid var(--line); border-radius:15px; background:rgba(17,25,39,.94); box-shadow:0 22px 50px rgba(0,0,0,.35); }
+    .node.aquila { width:280px; left:22%; top:30%; padding:21px; background:#172437; border-color:rgba(85,214,230,.47); box-shadow:0 0 0 1px rgba(85,214,230,.08),0 27px 60px rgba(0,0,0,.48); }
+    .node.bas { right:0; top:10%; transform:rotate(4deg); opacity:.9; }
+    .node.backdrop { left:0; bottom:9%; transform:rotate(-4deg); }
+    .node-top { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .node-icon { width:29px; height:29px; display:grid; place-items:center; border-radius:8px; color:#10151d; background:var(--cyan); font:800 13px "Space Grotesk",sans-serif; }
+    .bas .node-icon { background:var(--orange); }
+    .backdrop .node-icon { color:#f4f1eb; background:#45687a; }
+    .node-status { color:var(--green); font:9px "JetBrains Mono",monospace; text-transform:uppercase; letter-spacing:.1em; }
+    .bas .node-status { color:#d3a77c; }
+    .node h2 { margin:17px 0 6px; font:600 20px/1 "Space Grotesk",sans-serif; letter-spacing:-.04em; }
+    .node p { min-height:31px; margin:0; color:var(--muted); font-size:10px; line-height:1.5; }
+    .node-action { display:flex; align-items:center; gap:7px; margin-top:16px; padding-top:11px; border-top:1px solid var(--line); color:var(--cyan); font-size:10px; }
+    .bas .node-action { color:#d3a77c; }
+    .backdrop .node-action { color:#a8dce1; }
+    .hub-label { position:absolute; z-index:4; left:31%; top:22%; color:#7290a8; font:9px "JetBrains Mono",monospace; letter-spacing:.12em; text-transform:uppercase; }
+    .scene-caption { position:absolute; left:1%; bottom:1%; color:#5f6d83; font:10px "JetBrains Mono",monospace; letter-spacing:.05em; }
+    .legend { position:absolute; right:0; bottom:1%; display:flex; gap:13px; color:#657188; font:9px "JetBrains Mono",monospace; }
+    .legend span { display:flex; align-items:center; gap:5px; }.legend i { width:6px;height:6px;border-radius:50%;background:var(--cyan); }.legend span:nth-child(2) i { background:var(--orange); }.legend span:nth-child(3) i { background:#45687a; }
+    @media (max-width:900px) { .wrap { width:min(100% - 36px,650px); } .nav a:not(.button) { display:none; } main { display:block; padding:64px 0 80px; } .scene { min-height:545px; margin-top:48px; } }
+    @media (max-width:560px) { .wrap { width:calc(100% - 28px); } .scene { min-height:450px; transform:scale(.91); transform-origin:top center; margin-bottom:-30px; } .node { width:170px; padding:12px; } .node.aquila { width:225px; left:13%; top:31%; }.node h2 { font-size:16px; margin-top:12px; }.node p { font-size:9px; }.node.bas { right:-2%; }.node.backdrop { left:-6%; } .scene:before { width:420px; height:420px; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav><a class="brand" href="index.html"><span class="mark">A</span><span>Aquila</span></a><div class="nav"><a href="#suite">The suite</a><a href="#proof">Why it fits together</a><a class="button" href="#start">Explore the system ↗</a></div></nav>
+    <main id="suite">
+      <section class="copy"><div class="eyebrow">A suite for the work between tools</div><h1>One operating center. <em>Every useful surface.</em></h1><p class="lede">Aquila gives the bundle a shared point of gravity—then lets each focused app do its best work around it. Start with the command center. Add the right capability when the work calls for it.</p><div class="actions" id="start"><a class="button primary" href="#constellation">See what’s inside <span>↓</span></a><a class="button secondary" href="#proof">Meet the apps <span>↗</span></a></div><div class="micro" id="proof"><i></i><span>Two live surfaces · one coherent workspace · more on the way</span></div></section>
+      <section class="scene" id="constellation" aria-label="Aquila suite constellation"><div class="orbit" aria-hidden="true"><svg viewBox="0 0 640 540" fill="none"><path d="M55 390C150 260 234 225 334 274C425 319 484 309 590 104" stroke="rgba(85,214,230,.32)" stroke-dasharray="5 8"/><path d="M75 108C201 177 248 265 328 275C415 286 460 379 565 436" stroke="rgba(249,115,22,.28)" stroke-dasharray="3 9"/><circle cx="334" cy="274" r="8" fill="#55d6e6" fill-opacity=".25" stroke="#55d6e6"/></svg></div><div class="hub-label">shared context / aquila hub</div><article class="node aquila"><div class="node-top"><span class="node-icon">A</span><span class="node-status">Live now</span></div><h2>Aquila workspace</h2><p>Durable sessions, agent handoffs, and the operating view that keeps a team oriented.</p><div class="node-action"><span>Open workspace</span><span>↗</span></div></article><article class="node bas"><div class="node-top"><span class="node-icon">B</span><span class="node-status">Coming next</span></div><h2>Browser Automation Studio</h2><p>Record, build, and monitor browser workflows when the job needs repeatable action.</p><div class="node-action"><span>View product</span><span>↗</span></div></article><article class="node backdrop"><div class="node-top"><span class="node-icon">✦</span><span class="node-status">Live system</span></div><h2>Backdrop Studio</h2><p>Art-directed visual surfaces with geometry and legibility built in.</p><div class="node-action"><span>View product</span><span>↗</span></div></article><div class="scene-caption">ARTIFACT 03 / PRODUCT CONSTELLATION / BUNDLE HERO</div><div class="legend"><span><i></i>core</span><span><i></i>planned</span><span><i></i>visual system</span></div></section>
+    </main>
+  </div>
+</body>
+</html>

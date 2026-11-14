@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // DocsManifest represents the structure of the docs manifest.json file
@@ -122,7 +124,11 @@ func (s *Server) getDocsDir() string {
 		"docs",
 		"../docs",
 		"../../docs",
-		filepath.Join(os.Getenv("HOME"), "Vrooli/scenarios/test-genie/docs"),
+	}
+	if root := s.resolveRepoRoot(); root != "" {
+		if path, err := repocontract.ResolveScenarioPath(root, "test-genie"); err == nil {
+			candidates = append(candidates, filepath.Join(path, "docs"))
+		}
 	}
 
 	for _, candidate := range candidates {

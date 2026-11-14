@@ -1,0 +1,31 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "ai-provider-go",
+    "display_name": "github.com/vrooli/ai-provider-go",
+    "description": "Shared inference-provider contract and implementation kit for Vrooli AI API resources.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": ["github.com/vrooli/ai-provider-go"],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": [
+        "resource_runtime",
+        "internal_platform",
+        "scenario_api",
+        "scenario_cli",
+        "scenario_test",
+        "template_api",
+        "template_cli"
+      ],
+      "adoption_modes": ["go_module_replace"]
+    },
+    "lifecycle": {},
+    "refresh": {
+      "strategy": "rebuild_cli_consumers",
+      "restart_running_consumers": false
+    },
+    "docs": ["packages/ai-provider-go/README.md", "docs/package-governance.md"]
+  }
+}

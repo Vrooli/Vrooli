@@ -1,0 +1,126 @@
+{
+  "id": "downloads-03",
+  "family": "downloads",
+  "family_name": "Downloads",
+  "difficulty": 3,
+  "title": "Downloads: level 3",
+  "task": "Extract every matching record from the downloads page and return records in source order. Include id, name, category, value and active.",
+  "mechanism": "download",
+  "tags": [
+    "difficulty-3",
+    "download"
+  ],
+  "page": {
+    "title": "Downloads Practice 3",
+    "records": [
+      {
+        "id": "DOW-03-001",
+        "name": "Downloads Item 3-1",
+        "category": "beta",
+        "value": 631,
+        "active": true
+      },
+      {
+        "id": "DOW-03-002",
+        "name": "Downloads Item 3-2",
+        "category": "gamma",
+        "value": 632,
+        "active": true
+      },
+      {
+        "id": "DOW-03-003",
+        "name": "Downloads Item 3-3",
+        "category": "alpha",
+        "value": 633,
+        "active": true
+      },
+      {
+        "id": "DOW-03-004",
+        "name": "Downloads Item 3-4",
+        "category": "beta",
+        "value": 634,
+        "active": false
+      },
+      {
+        "id": "DOW-03-005",
+        "name": "Downloads Item 3-5",
+        "category": "gamma",
+        "value": 635,
+        "active": true
+      },
+      {
+        "id": "DOW-03-006",
+        "name": "Downloads Item 3-6",
+        "category": "alpha",
+        "value": 636,
+        "active": true
+      },
+      {
+        "id": "DOW-03-007",
+        "name": "Downloads Item 3-7",
+        "category": "beta",
+        "value": 637,
+        "active": true
+      }
+    ],
+    "page_size": 7,
+    "variant": 3,
+    "search_fields": [],
+    "requires_session": false,
+    "download_format": "csv",
+    "layout_variant": "",
+    "behavior": {},
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "DOW-03-001",
+      "name": "Downloads Item 3-1",
+      "category": "beta",
+      "value": 631,
+      "active": true
+    },
+    {
+      "id": "DOW-03-002",
+      "name": "Downloads Item 3-2",
+      "category": "gamma",
+      "value": 632,
+      "active": true
+    },
+    {
+      "id": "DOW-03-003",
+      "name": "Downloads Item 3-3",
+      "category": "alpha",
+      "value": 633,
+      "active": true
+    },
+    {
+      "id": "DOW-03-004",
+      "name": "Downloads Item 3-4",
+      "category": "beta",
+      "value": 634,
+      "active": false
+    },
+    {
+      "id": "DOW-03-005",
+      "name": "Downloads Item 3-5",
+      "category": "gamma",
+      "value": 635,
+      "active": true
+    },
+    {
+      "id": "DOW-03-006",
+      "name": "Downloads Item 3-6",
+      "category": "alpha",
+      "value": 636,
+      "active": true
+    },
+    {
+      "id": "DOW-03-007",
+      "name": "Downloads Item 3-7",
+      "category": "beta",
+      "value": 637,
+      "active": true
+    }
+  ]
+}

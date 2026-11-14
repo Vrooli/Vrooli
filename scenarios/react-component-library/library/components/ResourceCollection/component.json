@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "patterns.resource-collection",
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3",
+    "1.0.2",
+    "1.0.4",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8"
+  ],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3",
+    "1.0.1",
+    "1.0.2",
+    "1.0.4",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.9"
+  ],
+  "latest": "1.0.14",
+  "libraryId": "react-component-library:ResourceCollection",
+  "displayName": "ResourceCollection",
+  "description": "The resource-list pattern with querying, sorting, filtering, selection, row actions, pagination, every generic state, and responsive row-or-card presentation.",
+  "tags": []
+}

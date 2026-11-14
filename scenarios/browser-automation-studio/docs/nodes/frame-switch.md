@@ -18,7 +18,7 @@
 ## Runtime Behavior
 
 1. The automation compiler passes `switchBy`/value/timeout fields directly into the contract instruction; validation is handled by the workflow validator.
-2. `browserless/cdp/frame_actions.go` resolves the requested frame via selector/index/name/url and pushes the resulting scope onto a managed stack; `parent` pops once while `main` clears the stack entirely.
+2. The Playwright driver resolves the requested frame via selector/index/name/url and pushes the resulting scope onto a managed stack; `parent` pops once while `main` clears the stack entirely.
 3. Subsequent steps automatically reuse the active frame scope because the session calls `s.evalWithFrame` for DOM work, so clicks, extracts, and scripts target the correct iframe until another Frame Switch resets it.
 
 ## Example

@@ -1,71 +1,66 @@
 {
-  "description": "Track PIDs/process groups spawned under sandbox, clean up on stop/delete",
-  "module_id": "MOD-P0-008",
-  "prd_ref": "OT-P0-008",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-07-13T22:51:14-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [
-        "REQ-P0-004"
-      ],
-      "description": "Track and manage all processes spawned within sandbox context",
       "id": "REQ-P0-009",
-      "prd_ref": "OT-P0-008",
-      "status": "implemented",
       "title": "Process Group Tracking",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "core",
+      "description": "Track and manage all processes spawned within sandbox context",
       "validation": [
         {
-          "notes": "Test process tracking logic",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/process/tracker_test.go::TestTrackerBasicOperations",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test process tracking logic"
         },
         {
-          "notes": "Test running process detection",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/process/tracker_test.go::TestTrackedProcessIsRunning",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test running process detection"
         },
         {
-          "notes": "Test process listing",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/process/tracker_test.go::TestGetProcesses",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test process listing"
         },
         {
-          "notes": "Test running process filtering",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/process/tracker_test.go::TestGetRunningProcesses",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test running process filtering"
         },
         {
-          "notes": "Test session workflow",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/process/tracker_test.go::TestSessionWorkflow",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test session workflow"
         },
         {
-          "notes": "Test process statistics",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/process/tracker_test.go::TestGetAllStats",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test process statistics"
         },
         {
-          "notes": "Test cleanup removes tracking data",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/process/tracker_test.go::TestCleanup",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test cleanup removes tracking data"
         }
       ]
     }
-  ],
-  "title": "Process/Session Tracking"
+  ]
 }

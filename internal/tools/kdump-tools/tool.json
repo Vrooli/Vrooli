@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "kdump-tools",
+  "storage": {
+    "entries": {
+      "crash_dumps": {
+        "rung": "owned",
+        "path": "/var/crash",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Kernel crash dumps are forensic evidence written by kdump-tools after a panic.",
+        "budget": {
+          "max_bytes": "8GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      }
+    },
+    "rationale": "kdump-tools owns the host crash-dump directory on Linux."
+  },
+  "description": "kdump capture-kernel framework — captures full kernel crash dumps on panic to /var/crash for forensic analysis",
+  "commands": [
+    "kdump-config"
+  ],
+  "versionArgs": [
+    "show"
+  ],
+  "handler": "kdump_tools",
+  "defaultPackage": "kdump-tools",
+  "installHint": "Install kdump-tools and reboot after the crashkernel_reserve safeguard adds the crashkernel= parameter. Without crashkernel reserved, kdump cannot operate.",
+  "bundling": "host-required",
+  "capability": "crash-forensics",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "The host OS does not expose the provider native command surface in this tool package."
+    },
+    "windows": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "The host OS does not expose the provider native command surface in this tool package."
+    }
+  }
+}

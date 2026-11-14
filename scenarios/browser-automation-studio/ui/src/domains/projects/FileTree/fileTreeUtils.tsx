@@ -9,7 +9,7 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
-import type { FileTreeNode } from "./FileTreeItem";
+import type { FileTreeNode } from './fileTreeTypes';
 
 const FOLDER_TYPE_ICONS: Record<string, { icon: LucideIcon; color: string }> = {
   actions: { icon: Zap, color: "text-yellow-400" },

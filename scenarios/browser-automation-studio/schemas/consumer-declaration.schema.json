@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.dev/schemas/browser-automation-studio/consumer-declaration.v1.json",
+  "title": "Browser Automation Studio consumer declaration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "profiles"],
+  "properties": {
+    "schemaVersion": { "const": "browser-automation-studio.consumer-declaration/v1" },
+    "profiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "workflowRef"],
+        "properties": {
+          "key": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,62}$" },
+          "workflowRef": { "type": "string", "minLength": 1 },
+          "allowedVariables": { "type": "array", "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$" }, "uniqueItems": true },
+          "preferences": {
+            "type": "object",
+            "additionalProperties": { "type": ["string", "number", "integer", "boolean"] }
+          }
+        }
+      }
+    }
+  }
+}

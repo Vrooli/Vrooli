@@ -1,0 +1,15 @@
+{
+  "id":"client-shaped-synthetic",
+  "name":"Synthetic Gmail Sheets CRM handoff",
+  "nodes":[
+    {"id":"manual","name":"Start","type":"n8n-nodes-base.manualTrigger","parameters":{}},
+    {"id":"send-mail","name":"Send message","type":"n8n-nodes-base.gmail","parameters":{"resource":"message","operation":"send","sendTo":"fictional@example.invalid","subject":"Synthetic rehearsal","message":"Made-up content"},"credentials":{"gmailOAuth2":{"id":"stand-in-reference","name":"synthetic-only"}}},
+    {"id":"append-row","name":"Append row","type":"n8n-nodes-base.googleSheets","parameters":{"resource":"sheet","operation":"append","documentId":"synthetic-sheet"},"credentials":{"googleSheetsOAuth2Api":{"id":"stand-in-reference","name":"synthetic-only"}}},
+    {"id":"upsert-contact","name":"Upsert contact","type":"n8n-nodes-base.hubspot","parameters":{"resource":"contact","operation":"upsert"},"credentials":{"hubspotApi":{"id":"stand-in-reference","name":"synthetic-only"}}}
+  ],
+  "connections":{
+    "Start":{"main":[[{"node":"Send message","type":"main","index":0}]]},
+    "Send message":{"main":[[{"node":"Append row","type":"main","index":0}]]},
+    "Append row":{"main":[[{"node":"Upsert contact","type":"main","index":0}]]}
+  }
+}

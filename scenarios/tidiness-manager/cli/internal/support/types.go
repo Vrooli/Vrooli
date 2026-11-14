@@ -1,0 +1,289 @@
+package support
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"time"
+)
+
+// ScanDuration keeps smart-scan response decoding at the transport boundary.
+// The API currently exposes Go time.Duration values as JSON nanoseconds, while
+// older/proxied responses may expose the human-readable string form.
+type ScanDuration string
+
+func (d *ScanDuration) UnmarshalJSON(data []byte) error {
+	data = bytes.TrimSpace(data)
+	if bytes.Equal(data, []byte("null")) {
+		*d = ""
+		return nil
+	}
+
+	if len(data) > 0 && data[0] == '"' {
+		var value string
+		if err := json.Unmarshal(data, &value); err != nil {
+			return err
+		}
+		*d = ScanDuration(value)
+		return nil
+	}
+
+	nanoseconds, err := strconv.ParseInt(string(data), 10, 64)
+	if err != nil {
+		return fmt.Errorf("duration must be a string or nanoseconds integer: %w", err)
+	}
+	*d = ScanDuration(time.Duration(nanoseconds).String())
+	return nil
+}
+
+func (d ScanDuration) String() string { return string(d) }
+
+type CommandRun struct {
+	Command    string `json:"command"`
+	ExitCode   int    `json:"exit_code"`
+	Stdout     string `json:"stdout"`
+	Stderr     string `json:"stderr"`
+	DurationMS int64  `json:"duration_ms"`
+	Success    bool   `json:"success"`
+	Skipped    bool   `json:"skipped"`
+	SkipReason string `json:"skip_reason,omitempty"`
+}
+
+type LongFile struct {
+	Path      string `json:"path"`
+	Lines     int    `json:"lines"`
+	Threshold int    `json:"threshold"`
+}
+
+type LightScanResult struct {
+	Scenario        string                          `json:"scenario"`
+	DurationMS      int64                           `json:"duration_ms"`
+	LanguageMetrics map[string]LightLanguageMetrics `json:"language_metrics,omitempty"`
+	LintOutput      *CommandRun                     `json:"lint_output,omitempty"`
+	TypeOutput      *CommandRun                     `json:"type_output,omitempty"`
+	LongFiles       []LongFile                      `json:"long_files"`
+	TotalFiles      int                             `json:"total_files"`
+	TotalLines      int                             `json:"total_lines"`
+	Incremental     bool                            `json:"incremental"`
+	LintIssuesCount int                             `json:"lint_issues"`
+	TypeIssuesCount int                             `json:"type_issues"`
+	LongFilesCount  int                             `json:"long_files_count"`
+}
+
+type LightLanguageMetrics struct {
+	Language    string          `json:"language"`
+	FileCount   int             `json:"file_count"`
+	TotalLines  int             `json:"total_lines"`
+	CodeMetrics json.RawMessage `json:"code_metrics,omitempty"`
+	Complexity  json.RawMessage `json:"complexity,omitempty"`
+	Duplicates  json.RawMessage `json:"duplicates,omitempty"`
+}
+
+type Issue struct {
+	ID               int    `json:"id"`
+	Scenario         string `json:"scenario"`
+	FilePath         string `json:"file_path"`
+	Category         string `json:"category"`
+	Severity         string `json:"severity"`
+	Title            string `json:"title"`
+	Description      string `json:"description"`
+	LineNumber       *int   `json:"line_number,omitempty"`
+	ColumnNumber     *int   `json:"column_number,omitempty"`
+	AgentNotes       string `json:"agent_notes,omitempty"`
+	RemediationSteps string `json:"remediation_steps,omitempty"`
+	Status           string `json:"status"`
+	CreatedAt        string `json:"created_at"`
+}
+
+type StalenessInfo struct {
+	LastScanAt    *string `json:"last_scan_at,omitempty"`
+	IsStale       bool    `json:"is_stale"`
+	ModifiedFiles int     `json:"modified_files,omitempty"`
+	StaleReason   string  `json:"stale_reason,omitempty"`
+	RescanCommand string  `json:"rescan_command,omitempty"`
+}
+
+type Campaign struct {
+	ID                 int    `json:"id"`
+	Scenario           string `json:"scenario"`
+	Status             string `json:"status"`
+	MaxSessions        int    `json:"max_sessions"`
+	MaxFilesPerSession int    `json:"max_files_per_session"`
+	CurrentSession     int    `json:"current_session"`
+	FilesVisited       int    `json:"files_visited"`
+	FilesTotal         int    `json:"files_total"`
+	CreatedAt          string `json:"created_at"`
+	UpdatedAt          string `json:"updated_at"`
+}
+
+type CampaignsResponse struct {
+	Campaigns []Campaign `json:"campaigns"`
+	Count     int        `json:"count"`
+}
+
+type CampaignEnvelope struct {
+	Campaign Campaign `json:"campaign"`
+}
+
+type DetectorHistoricalAudit struct {
+	EvidenceRef                 string `json:"evidence_ref"`
+	EvidenceSHA256              string `json:"evidence_sha256"`
+	RunsReviewed                int    `json:"runs_reviewed"`
+	HuntEntriesReviewed         int    `json:"hunt_entries_reviewed"`
+	DetectorsAudited            int    `json:"detectors_audited"`
+	ReductionDetectorsAudited   int    `json:"reduction_detectors_audited"`
+	ArchivedPredictionsJoinable int    `json:"archived_predictions_joinable"`
+}
+
+type Recommendation struct {
+	ID         string `json:"id"`
+	DetectorID string `json:"detector_id"`
+	Title      string `json:"title"`
+	Locations  []struct {
+		Path      string `json:"path"`
+		StartLine int    `json:"start_line"`
+		EndLine   int    `json:"end_line"`
+		Symbol    string `json:"symbol"`
+	} `json:"locations"`
+	RemovableLines   int      `json:"removable_lines"`
+	ReplacementLines int      `json:"replacement_lines"`
+	NetLines         int      `json:"net_lines"`
+	ExpectedNetLines *float64 `json:"expected_net_lines"`
+	Calibration      struct {
+		Basis              string                   `json:"basis"`
+		ScopeFrameID       string                   `json:"scope_frame_id"`
+		ScopeCases         int                      `json:"scope_cases"`
+		HistoricalCases    int                      `json:"historical_cases"`
+		RegressionCases    int                      `json:"regression_cases"`
+		RegressionFailures int                      `json:"regression_failures"`
+		Precision          *float64                 `json:"precision"`
+		Recall             *float64                 `json:"recall"`
+		CorpusVersion      string                   `json:"corpus_version"`
+		TruePositive       int                      `json:"true_positive"`
+		FalsePositive      int                      `json:"false_positive"`
+		FalseNegative      int                      `json:"false_negative"`
+		TrueNegative       int                      `json:"true_negative"`
+		HistoricalAudit    *DetectorHistoricalAudit `json:"historical_audit,omitempty"`
+	} `json:"calibration"`
+	Reason string `json:"reason"`
+	Action string `json:"action"`
+}
+
+type RecommendationsResponse struct {
+	Scenario        string            `json:"scenario"`
+	SourceHash      string            `json:"source_hash"`
+	ConfigHash      string            `json:"config_hash"`
+	Recommendations []Recommendation  `json:"recommendations"`
+	Detectors       []json.RawMessage `json:"detectors"`
+	Warnings        []string          `json:"warnings,omitempty"`
+	Count           int               `json:"count"`
+}
+
+type SmartScanRequest struct {
+	Scenario    string   `json:"scenario"`
+	Files       []string `json:"files"`
+	ForceRescan bool     `json:"force_rescan,omitempty"`
+	CampaignID  *int     `json:"campaign_id,omitempty"`
+}
+
+type SmartScanResult struct {
+	SessionID     string        `json:"session_id"`
+	FilesAnalyzed int           `json:"files_analyzed"`
+	IssuesFound   int           `json:"issues_found"`
+	BatchResults  []BatchResult `json:"batch_results"`
+	Duration      ScanDuration  `json:"duration"`
+	Errors        []string      `json:"errors,omitempty"`
+}
+
+type BatchResult struct {
+	BatchID  int          `json:"batch_id"`
+	Files    []string     `json:"files"`
+	Issues   []AIIssue    `json:"issues"`
+	Duration ScanDuration `json:"duration"`
+	Error    string       `json:"error,omitempty"`
+}
+
+type AIIssue struct {
+	FilePath         string `json:"file_path"`
+	Category         string `json:"category"`
+	Severity         string `json:"severity"`
+	Title            string `json:"title"`
+	Description      string `json:"description"`
+	LineNumber       *int   `json:"line_number,omitempty"`
+	RemediationSteps string `json:"remediation_steps,omitempty"`
+}
+
+type ScenarioSummary struct {
+	Scenario  string `json:"scenario"`
+	Total     int    `json:"total"`
+	Lint      int    `json:"lint"`
+	Type      int    `json:"type"`
+	LongFiles int    `json:"long_files"`
+}
+
+type ScenariosResponse struct {
+	Scenarios []ScenarioSummary `json:"scenarios"`
+	Count     int               `json:"count"`
+}
+
+type ScenarioFile struct {
+	Path        string `json:"path"`
+	Lines       int    `json:"lines"`
+	TotalIssues int    `json:"totalIssues"`
+	VisitCount  int    `json:"visitCount"`
+}
+
+type ScenarioDetail struct {
+	Scenario    string         `json:"scenario"`
+	LightIssues int            `json:"lightIssues"`
+	AIIssues    int            `json:"aiIssues"`
+	LongFiles   int            `json:"longFiles"`
+	Files       []ScenarioFile `json:"files"`
+}
+
+type IssueUpdateResponse struct {
+	ID        int    `json:"id"`
+	Status    string `json:"status"`
+	UpdatedAt string `json:"updated_at"`
+}
+
+type TidinessScoreResponse struct {
+	Scenario   string               `json:"scenario"`
+	Score      float64              `json:"score"`
+	Violations int                  `json:"violations"`
+	LastScan   *string              `json:"last_scan,omitempty"`
+	Breakdown  *TidinessBreakdown   `json:"breakdown,omitempty"`
+	Metrics    *TidinessMetricsInfo `json:"metrics,omitempty"`
+}
+
+type TidinessBreakdown struct {
+	LintScore         float64 `json:"lint_score"`
+	TypeSafetyScore   float64 `json:"type_safety_score"`
+	ComplexityScore   float64 `json:"complexity_score"`
+	FileLengthScore   float64 `json:"file_length_score"`
+	TestCoverageScore float64 `json:"test_coverage_score"`
+	TechDebtScore     float64 `json:"tech_debt_score"`
+	CommentsScore     float64 `json:"comments_score"`
+	DuplicationScore  float64 `json:"duplication_score"`
+	LintIssues        int     `json:"lint_issues"`
+	TypeIssues        int     `json:"type_issues"`
+	LongFiles         int     `json:"long_files"`
+	ComplexFunctions  int     `json:"complex_functions"`
+	TechDebtMarkers   int     `json:"tech_debt_markers"`
+	DuplicationIssues int     `json:"duplication_issues"`
+	TestedFiles       int     `json:"tested_files"`
+	TestableFiles     int     `json:"testable_files"`
+}
+
+type TidinessMetricsInfo struct {
+	TotalFiles      int     `json:"total_files"`
+	TotalLines      int     `json:"total_lines"`
+	TotalCodeLines  int     `json:"total_code_lines"`
+	KLOC            float64 `json:"kloc"`
+	AvgFileLength   float64 `json:"avg_file_length"`
+	MaxComplexity   int     `json:"max_complexity"`
+	AvgComplexity   float64 `json:"avg_complexity"`
+	DuplicationPct  float64 `json:"duplication_pct"`
+	TestCoveragePct float64 `json:"test_coverage_pct"`
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "browser-automation-studio",
+  "evidenceProducers": {
+    "evidence-completeness": {
+      "argv": [
+        "node",
+        "api/cmd/evidence-completeness-cohort/qualification.mjs",
+        "{output_dir}"
+      ],
+      "workingDirectory": ".",
+      "timeout": "10m",
+      "maximumOutputBytes": 16777216
+    }
+  }
+}

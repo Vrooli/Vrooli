@@ -221,6 +221,27 @@ const maxCssDepth = config.recording.selector.maxCssDepth;
 const includeXPath = config.recording.selector.includeXPath;
 ```
 
+## Development fault-control drills
+
+The driver exposes a deliberately narrow, development-only test control surface
+for BAS recovery qualification. It is not runtime configuration and cannot
+change `MAX_SESSIONS` or session-pool size.
+
+All `/test-control/faults/*` routes require a loopback connection plus the
+`x-playwright-admin-secret` header. They are disabled when `NODE_ENV=production`.
+An arm request contains an opaque drill token, a bounded `ttl_ms`, a one-shot
+or bounded use count, and one supported fault name:
+
+| Fault | Seam | Controlled outcome |
+|---|---|---|
+| `driver_unavailable` | Before session admission | Honest driver failure without a session |
+| `fail_after_session_registration` | Immediately after registration | Session is force-closed before failure returns |
+| `capacity_lease` | Session admission | One token-scoped `429` without changing global capacity |
+
+Fault snapshots deliberately redact drill tokens. Faults are consumed before
+the injected outcome returns and are removed on consumption, explicit disarm,
+or TTL expiry. Ordinary session starts without a drill token are unchanged.
+
 ## Adding New Levers
 
 When adding a new configurable lever:

@@ -1,55 +1,83 @@
 {
-  "module_id": "customization-ux",
-  "title": "Customization UX",
-  "priority": "P0",
-  "description": "Live preview and form-based customization of landing page sections",
+  "_metadata": {
+    "last_validated_at": "2026-09-15T15:48:55-04:00"
+  },
   "requirements": [
     {
       "id": "LANDING-CONFIG",
-      "title": "API-driven landing config + fallback",
+      "title": "API-driven landing config and scope-safe failure",
+      "status": "in_progress",
       "prd_ref": "OT-P0-031",
-      "description": "Public landing page renders ordered sections/pricing/download entries from GET /api/v1/landing-config?variant=… and includes a baked fallback variant that is shown when the API fails or misconfigurations prevent fetching live data.",
-      "validation": [],
-      "status": "planned",
-      "notes": "Spec: Template PRD `OT-P0-031` (landing config + fallback). Requires caching fallback JSON inside the UI bundle and wiring the template API to return landing-config payloads."
+      "description": "Public root and eligible app routes render ordered typed presentation and commerce-owner facts with optional variant_slug. Resolution failure uses only explicitly configured validated same-product fallback, or returns unavailable when none exists; locale fallback reports its actual locale and reason. Generic baked product narratives cannot substitute for the requested scope.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/landing/presentation_landing_test.go::TestGetLandingConfigForRequestDoesNotUseGenericFallbackForDetailWithoutPublication",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Proves absent publication cannot substitute generic content on an app detail route. The amended OT-P0-031 follows the accepted product-scope contract. No last-known-good fallback store or fallback activation is claimed."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/landing/presentation_landing_test.go::TestGetLandingConfigForRequestDoesNotUseGenericFallbackForRootWithoutPublication",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Proves root fails unavailable when no public revision exists instead of emitting baked marketing copy."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/landing/presentation_landing_test.go::TestLocaleFallbackIsReportedWithoutChangingAppScope",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Red-to-green regression proves top-level and nested fallback flags agree, resolved locale and reason are explicit, and root/detail keep their app, variant and route identities."
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-foundation/public-landing-loads.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Observer BAS smoke case verifies the public runtime landing surface renders after configuration resolution."
+        }
+      ]
     },
     {
       "id": "CUSTOM-SPLIT",
       "title": "Split customization layout",
+      "status": "in_progress",
       "prd_ref": "OT-P0-012",
-      "description": "Each slide customization page shows form (one column) + live preview (other column), stacked on mobile",
+      "description": "Typed presentation editing and private preview use two columns on desktop and stack on mobile.",
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/surfaces/admin-portal/presentation/PresentationLocalPreview.test.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/surfaces/admin-portal/routes/SectionEditor.test.tsx",
-          "notes": "Responsive grid layout using lg:grid-cols-2 for desktop split view and stacked layout on mobile. Form and preview panes marked with data-testid and covered by unit tests."
+          "status": "failing",
+          "notes": "Mounted editor regression proves the editing and preview regions share the split-layout container, preserve source, and use the same private renderer. Browser layout measurements at 320/390/768/1440 are retained in the UI presentation README; these are isolated editor fixtures, not live authenticated-backend proof."
         }
-      ],
-      "status": "complete",
-      "notes": "Implemented via responsive grid in SectionEditor.tsx (lg:grid-cols-2) with data-testid markers and passing unit tests."
+      ]
     },
     {
       "id": "CUSTOM-LIVE",
       "title": "Live preview updates",
+      "status": "in_progress",
       "prd_ref": "OT-P0-013",
-      "description": "Form field changes update preview within 300ms (debounced) without page reload",
+      "description": "Valid local document edits request a read-only private preview after a 300ms debounce without saving, publishing, or reloading the page.",
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/surfaces/admin-portal/presentation/PresentationLocalPreview.test.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/surfaces/admin-portal/routes/SectionEditor.test.tsx",
-          "notes": "Live preview uses 300ms debounce (useDebounce) to refresh preview without reload when form fields change; covered by unit tests."
+          "status": "failing",
+          "notes": "Six mounted regressions cover debounce, no automatic writes, stale route/locale responses, invalid edits, retained-revision inspection, and authorization loss. Parent independently passed the focused UI suite."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/config/presentation_admin_test.go::TestPresentationAdminEphemeralPreviewIsReadOnlyAndContentIdentified",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Generated Preview document path validates and resolves without changing stored revisions or generation. Known-variant and missing/expired lease checks have separate backend regressions."
         }
-      ],
-      "status": "complete",
-      "dependencies": [
-        "CUSTOM-SPLIT"
-      ],
-      "notes": "Implemented via useDebounce hook (300ms) in SectionEditor.tsx. Form changes trigger debounced state updates that automatically refresh the live preview without page reload."
+      ]
     }
-  ],
-  "_metadata": {}
+  ]
 }

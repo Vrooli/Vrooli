@@ -22,7 +22,7 @@ func TestHealthHandler(t *testing.T) {
 	}
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(healthHandler)
+	handler := createHealthHandler(nil)
 	handler.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
@@ -34,8 +34,9 @@ func TestHealthHandler(t *testing.T) {
 		t.Errorf("Failed to parse response: %v", err)
 	}
 
-	if status, ok := response["status"].(string); !ok || status != "healthy" {
-		t.Errorf("Expected status 'healthy', got %v", response["status"])
+	// The database is optional: a nil database is degraded, not unhealthy.
+	if status, ok := response["status"].(string); !ok || status != "degraded" {
+		t.Errorf("Expected status 'degraded' without a database, got %v", response["status"])
 	}
 }
 
@@ -765,7 +766,7 @@ func TestHealthEndpointSchema(t *testing.T) {
 	}
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(healthHandler)
+	handler := createHealthHandler(nil)
 	handler.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {

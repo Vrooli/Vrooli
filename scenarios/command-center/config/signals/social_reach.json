@@ -1,0 +1,34 @@
+{
+  "id": "social_reach",
+  "label": "Social reach",
+  "description": "Cross-platform follower and engagement counts.",
+  "unit": "count",
+  "format": "compact",
+  "shape": "series",
+  "source": {
+    "team": "marketing-crew",
+    "binding": "none",
+    "read": "",
+    "select": "social_reach",
+    "ttlSeconds": 30,
+    "integrationId": "none",
+    "featureId": "social_reach",
+    "contractVersion": "legacy.v1",
+    "selector": "social_reach",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "MISSING",
+  "sample": {
+    "value": 5400,
+    "series": [
+      3200,
+      3600,
+      4100,
+      4500,
+      4900,
+      5400
+    ],
+    "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+  }
+}

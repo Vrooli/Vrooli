@@ -1,0 +1,50 @@
+{
+  "schema_version": "1",
+  "kind": "profile",
+  "key": "prose-studio/blog-diverse",
+  "created_by": "prose-studio",
+  "record": {
+    "style_refs": [
+      "prose-studio/blog"
+    ],
+    "sampler": {
+      "kind": "vs_standard",
+      "k": 5,
+      "tau": 0.1,
+      "temperature_stance": "role_default",
+      "max_output_tokens": 2048
+    },
+    "selection_policy": "threshold_then_rarest",
+    "measurement_tiers": [
+      "deterministic_and_semantic"
+    ],
+    "gateway_role": "write.diverse",
+    "locality": "remote_only",
+    "budget": {
+      "max_output_tokens": 2048,
+      "max_session_cost_micros": 1000000
+    },
+    "context_policy": {
+      "full_text_token_budget": 4096,
+      "summarize_beyond": 4096,
+      "always_full_previous": true
+    },
+    "constraints": {
+      "required_format": "essay"
+    },
+    "coherence_thresholds": {
+      "max_cross_section_repetition": 0.55,
+      "max_style_drift": 0.35,
+      "max_semantic_section_repetition": 0.86
+    },
+    "composition": {
+      "target_section_words": 350,
+      "min_sections": 4,
+      "max_sections": 7,
+      "section_word_tolerance": 0.25,
+      "section_format": "rich_prose",
+      "max_repair_rounds": 2
+    },
+    "_max_semantic_section_repetition_basis": "Provisional. Measured section-level values on documents that passed every other gate: 0.8199, 0.8184, 0.8297 (4 sections, nomic-embed-text 768d). Paragraph-level calibration against the known-bad 2026-08-17 article gives 0.7622 bad vs 0.6877 good, so the measure separates in the right direction but its absolute level depends on how many units are compared. 0.86 sits above the observed good band and below any measured bad document; it is set to fire on worse-than-observed rather than calibrated from a labelled corpus, and needs a bad 4-section example to anchor properly."
+  }
+}

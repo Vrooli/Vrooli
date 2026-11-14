@@ -30,8 +30,10 @@ func TestHealthHandler(t *testing.T) {
 		var response HealthResponse
 		assertJSONResponse(t, w, http.StatusOK, &response)
 
-		if response.Status != "healthy" {
-			t.Errorf("Expected status 'healthy', got '%s'", response.Status)
+		// The database is optional: without it the API serves in-memory
+		// wheels, so it is ready but degraded.
+		if response.Status != "degraded" {
+			t.Errorf("Expected status 'degraded' without a database, got '%s'", response.Status)
 		}
 		if response.Service != "picker-wheel-api" {
 			t.Errorf("Expected service 'picker-wheel-api', got '%s'", response.Service)

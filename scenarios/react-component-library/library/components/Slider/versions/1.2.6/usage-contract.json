@@ -1,0 +1,13 @@
+{
+  "componentId": "react-component-library:Slider",
+  "items": {
+    "labelField": "label",
+    "maximumCount": 10,
+    "maximumLabelCharacters": 32,
+    "primaryAction": "not-applicable",
+    "property": "marks",
+    "stableIdField": "value",
+    "typicalCount": 3
+  },
+  "version": "1.2.6"
+}

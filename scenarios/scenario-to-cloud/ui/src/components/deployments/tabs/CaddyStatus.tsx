@@ -221,6 +221,7 @@ export function CaddyStatus({ caddy, deploymentId }: CaddyStatusProps) {
             <button
               onClick={() => refetchDNS()}
               disabled={dnsLoading}
+              aria-label="Refresh DNS status"
               className="p-1.5 rounded border border-white/10 hover:bg-white/5 transition-colors"
             >
               <RefreshCw
@@ -354,6 +355,7 @@ export function CaddyStatus({ caddy, deploymentId }: CaddyStatusProps) {
               <button
                 onClick={() => refetchTLS()}
                 disabled={tlsLoading}
+                aria-label="Refresh TLS status"
                 className="p-1.5 rounded border border-white/10 hover:bg-white/5 transition-colors"
               >
                 <RefreshCw

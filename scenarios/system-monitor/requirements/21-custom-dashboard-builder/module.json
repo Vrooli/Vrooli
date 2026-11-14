@@ -1,0 +1,11 @@
+{
+  "requirements": [{
+    "id": "REQ-P2-002",
+    "title": "Custom dashboard builder",
+    "status": "planned",
+    "prd_ref": "OT-P2-002",
+    "category": "ui",
+    "description": "Allow operators to define and save custom monitoring dashboards.",
+    "validation": [{"type": "test", "phase": "integration", "status": "not_implemented", "notes": "Validate dashboard composition and persistence."}]
+  }]
+}

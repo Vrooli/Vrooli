@@ -1,0 +1,126 @@
+{
+  "id": "messy-markup-03",
+  "family": "messy-markup",
+  "family_name": "Messy markup",
+  "difficulty": 3,
+  "title": "Messy markup: level 3",
+  "task": "Extract every matching record from the messy markup page and return records in source order. Include id, name, category, value and active.",
+  "mechanism": "messy_markup",
+  "tags": [
+    "difficulty-3",
+    "messy_markup"
+  ],
+  "page": {
+    "title": "Messy markup Practice 3",
+    "records": [
+      {
+        "id": "MES-03-001",
+        "name": "Messy Item 3-1",
+        "category": "beta",
+        "value": 731,
+        "active": true
+      },
+      {
+        "id": "MES-03-002",
+        "name": "Messy Item 3-2",
+        "category": "gamma",
+        "value": 732,
+        "active": true
+      },
+      {
+        "id": "MES-03-003",
+        "name": "Messy Item 3-3",
+        "category": "alpha",
+        "value": 733,
+        "active": true
+      },
+      {
+        "id": "MES-03-004",
+        "name": "Messy Item 3-4",
+        "category": "beta",
+        "value": 734,
+        "active": false
+      },
+      {
+        "id": "MES-03-005",
+        "name": "Messy Item 3-5",
+        "category": "gamma",
+        "value": 735,
+        "active": true
+      },
+      {
+        "id": "MES-03-006",
+        "name": "Messy Item 3-6",
+        "category": "alpha",
+        "value": 736,
+        "active": true
+      },
+      {
+        "id": "MES-03-007",
+        "name": "Messy Item 3-7",
+        "category": "beta",
+        "value": 737,
+        "active": true
+      }
+    ],
+    "page_size": 7,
+    "variant": 3,
+    "search_fields": [],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "",
+    "behavior": {},
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "MES-03-001",
+      "name": "Messy Item 3-1",
+      "category": "beta",
+      "value": 731,
+      "active": true
+    },
+    {
+      "id": "MES-03-002",
+      "name": "Messy Item 3-2",
+      "category": "gamma",
+      "value": 732,
+      "active": true
+    },
+    {
+      "id": "MES-03-003",
+      "name": "Messy Item 3-3",
+      "category": "alpha",
+      "value": 733,
+      "active": true
+    },
+    {
+      "id": "MES-03-004",
+      "name": "Messy Item 3-4",
+      "category": "beta",
+      "value": 734,
+      "active": false
+    },
+    {
+      "id": "MES-03-005",
+      "name": "Messy Item 3-5",
+      "category": "gamma",
+      "value": 735,
+      "active": true
+    },
+    {
+      "id": "MES-03-006",
+      "name": "Messy Item 3-6",
+      "category": "alpha",
+      "value": 736,
+      "active": true
+    },
+    {
+      "id": "MES-03-007",
+      "name": "Messy Item 3-7",
+      "category": "beta",
+      "value": 737,
+      "active": true
+    }
+  ]
+}

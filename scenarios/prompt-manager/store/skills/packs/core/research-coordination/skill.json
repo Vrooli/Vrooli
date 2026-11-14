@@ -1,0 +1,35 @@
+{
+  "createdAt": "2026-10-26T00:00:00Z",
+  "description": "Drive research programmes toward large capability outcomes: start every commission from the topic's mission file, staff each workstream with a long-lived owner, keep every slot working, reject small plans and early closure, route proposals for approval, and measure progress on the mission scorecard.",
+  "entry": "SKILL.md",
+  "icon": "compass",
+  "id": "research-coordination",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "research-coordination",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "search-hub query",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 30,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "research",
+    "experiment",
+    "coordination",
+    "supervision"
+  ],
+  "updatedAt": "2026-11-07T02:30:00Z"
+}

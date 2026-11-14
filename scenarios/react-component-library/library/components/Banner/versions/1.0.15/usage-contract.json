@@ -1,0 +1,15 @@
+{
+  "collections": [
+    {
+      "labelField": "title",
+      "maximumCount": 3,
+      "maximumLabelCharacters": 56,
+      "primaryAction": "not-applicable",
+      "property": "banners",
+      "stableIdField": "id",
+      "typicalCount": 1
+    }
+  ],
+  "componentId": "react-component-library:Banner",
+  "version": "1.0.15"
+}

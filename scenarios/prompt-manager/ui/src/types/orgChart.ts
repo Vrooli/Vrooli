@@ -7,6 +7,7 @@
 import type { Node, Edge } from '@xyflow/react'
 import type { TeamMember, TeamRole } from '@/types/team'
 import type { AgentAppearance } from '@/types/agent'
+import type { HeartbeatOwnerProjection } from '@/services/heartbeatService'
 
 /**
  * Data payload for an org chart node (team member).
@@ -28,7 +29,7 @@ export interface OrgChartNodeData extends Record<string, unknown> {
   /** Whether a heartbeat config exists and is enabled */
   heartbeatEnabled?: boolean
   /** Last execution status of the heartbeat (or 'running' if currently active) */
-  heartbeatStatus?: 'running' | 'completed' | 'failed' | 'cancelled' | null
+  heartbeatStatus?: HeartbeatOwnerProjection | null
   /** Callback when node is clicked */
   onSelect: (agentId: string) => void
 }
@@ -86,6 +87,15 @@ export interface OrgChartApiResponse {
     managerAgentId: string
     reportAgentId: string
   }>
+  managedTeamEdges?: ManagedTeamEdge[]
+}
+
+export interface ManagedTeamEdge {
+  managerTeamId: string
+  managedTeamId: string
+  relationship?: string
+  authorityRef?: string
+  status?: string
 }
 
 /**
@@ -96,6 +106,7 @@ export interface SetOrgChartRequest {
     managerAgentId: string
     reportAgentId: string
   }>
+  managedTeamEdges?: ManagedTeamEdge[]
 }
 
 /**

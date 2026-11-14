@@ -87,11 +87,11 @@ var File_swarm_manager_v1_api_graph_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_graph_proto_rawDesc = "" +
 	"\n" +
-	" swarm-manager/v1/api/graph.proto\x12\x10swarm_manager.v1\x1a#swarm-manager/v1/domain/graph.proto\"\xa6\x01\n" +
-	"\rGraphResponse\x121\n" +
-	"\x05nodes\x18\x01 \x03(\v2\x1b.swarm_manager.v1.GraphNodeR\x05nodes\x121\n" +
-	"\x05edges\x18\x02 \x03(\v2\x1b.swarm_manager.v1.GraphEdgeR\x05edges\x12/\n" +
-	"\x04meta\x18\x03 \x01(\v2\x1b.swarm_manager.v1.GraphMetaR\x04metaBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	" swarm-manager/v1/api/graph.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a#swarm-manager/v1/domain/graph.proto\"\xd0\x01\n" +
+	"\rGraphResponse\x12?\n" +
+	"\x05nodes\x18\x01 \x03(\v2).vrooli.swarm_manager.v1.domain.GraphNodeR\x05nodes\x12?\n" +
+	"\x05edges\x18\x02 \x03(\v2).vrooli.swarm_manager.v1.domain.GraphEdgeR\x05edges\x12=\n" +
+	"\x04meta\x18\x03 \x01(\v2).vrooli.swarm_manager.v1.domain.GraphMetaR\x04metaBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_graph_proto_rawDescOnce sync.Once
@@ -107,15 +107,15 @@ func file_swarm_manager_v1_api_graph_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_api_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_swarm_manager_v1_api_graph_proto_goTypes = []any{
-	(*GraphResponse)(nil),    // 0: swarm_manager.v1.GraphResponse
-	(*domain.GraphNode)(nil), // 1: swarm_manager.v1.GraphNode
-	(*domain.GraphEdge)(nil), // 2: swarm_manager.v1.GraphEdge
-	(*domain.GraphMeta)(nil), // 3: swarm_manager.v1.GraphMeta
+	(*GraphResponse)(nil),    // 0: vrooli.swarm_manager.v1.api.GraphResponse
+	(*domain.GraphNode)(nil), // 1: vrooli.swarm_manager.v1.domain.GraphNode
+	(*domain.GraphEdge)(nil), // 2: vrooli.swarm_manager.v1.domain.GraphEdge
+	(*domain.GraphMeta)(nil), // 3: vrooli.swarm_manager.v1.domain.GraphMeta
 }
 var file_swarm_manager_v1_api_graph_proto_depIdxs = []int32{
-	1, // 0: swarm_manager.v1.GraphResponse.nodes:type_name -> swarm_manager.v1.GraphNode
-	2, // 1: swarm_manager.v1.GraphResponse.edges:type_name -> swarm_manager.v1.GraphEdge
-	3, // 2: swarm_manager.v1.GraphResponse.meta:type_name -> swarm_manager.v1.GraphMeta
+	1, // 0: vrooli.swarm_manager.v1.api.GraphResponse.nodes:type_name -> vrooli.swarm_manager.v1.domain.GraphNode
+	2, // 1: vrooli.swarm_manager.v1.api.GraphResponse.edges:type_name -> vrooli.swarm_manager.v1.domain.GraphEdge
+	3, // 2: vrooli.swarm_manager.v1.api.GraphResponse.meta:type_name -> vrooli.swarm_manager.v1.domain.GraphMeta
 	3, // [3:3] is the sub-list for method output_type
 	3, // [3:3] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name

@@ -1,0 +1,18 @@
+{
+  "_metadata": {
+    "module": "sqlite-audit-logging",
+    "description": "OT-P0-007 SQLite audit logging",
+    "last_updated": "2026-02-03"
+  },
+  "requirements": [
+    {
+      "id": "GCT-OT-P0-007",
+      "category": "operational_target.p0",
+      "prd_ref": "OT-P0-007",
+      "title": "SQLite audit logging",
+      "description": "Logs all mutating operations (stage, unstage, commit) to database with graceful degradation",
+      "status": "pending",
+    "validation": [{"type":"test","ref":"api/audit_logger_test.go","phase":"unit","status":"implemented","notes":"Covers audit event persistence and logger behavior without credential values."}]
+    }
+  ]
+}

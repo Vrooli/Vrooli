@@ -3,6 +3,7 @@ package httpserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -12,10 +13,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gorilla/mux"
-
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/orchestrator/workspace"
+
+	"github.com/gorilla/mux"
 )
 
 func TestServer_handlePlaybooksSeedApply_Success(t *testing.T) {
@@ -25,9 +26,19 @@ func TestServer_handlePlaybooksSeedApply_Success(t *testing.T) {
 		t.Fatalf("create scenario dir: %v", err)
 	}
 
-	var gotScenario string
+	var gotScenario, gotAPIURL string
+	var gotRuntimeScenario, gotRuntimeDir string
+	previousResolve := resolveSeedTargetAPI
+	resolveSeedTargetAPI = func(_ context.Context, scenarioName, scenarioDir string) (string, error) {
+		gotRuntimeScenario = scenarioName
+		gotRuntimeDir = scenarioDir
+		return "http://127.0.0.1:17551", nil
+	}
+	t.Cleanup(func() { resolveSeedTargetAPI = previousResolve })
+
 	apply := func(ctx context.Context, env workspace.Environment, logWriter io.Writer, retain bool) (*phases.PlaybooksSeedSession, error) {
 		gotScenario = env.ScenarioName
+		gotAPIURL = env.APIURL
 		return &phases.PlaybooksSeedSession{
 			RunID:     "run-123",
 			SeedState: map[string]any{"seeded": true},
@@ -59,6 +70,12 @@ func TestServer_handlePlaybooksSeedApply_Success(t *testing.T) {
 	if gotScenario != scenario {
 		t.Fatalf("expected apply to receive scenario %q, got %q", scenario, gotScenario)
 	}
+	if gotAPIURL != "http://127.0.0.1:17551" {
+		t.Fatalf("expected apply to receive resolved target API URL, got %q", gotAPIURL)
+	}
+	if gotRuntimeScenario != scenario || gotRuntimeDir != filepath.Join(scenariosRoot, scenario) {
+		t.Fatalf("target runtime resolved wrong scenario: name=%q dir=%q", gotRuntimeScenario, gotRuntimeDir)
+	}
 
 	var payload map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
@@ -69,6 +86,58 @@ func TestServer_handlePlaybooksSeedApply_Success(t *testing.T) {
 	}
 	if payload["cleanup_token"] == "" {
 		t.Fatalf("expected cleanup_token in response")
+	}
+}
+
+func TestServer_handlePlaybooksSeedApply_RequiresLiveTargetAPI(t *testing.T) {
+	scenario := "personal-planner"
+	scenariosRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(scenariosRoot, scenario), 0o755); err != nil {
+		t.Fatalf("create scenario dir: %v", err)
+	}
+	previousResolve := resolveSeedTargetAPI
+	resolveSeedTargetAPI = func(_ context.Context, gotName, gotDir string) (string, error) {
+		if gotName != scenario || gotDir != filepath.Join(scenariosRoot, scenario) {
+			t.Fatalf("unexpected target resolution request: name=%q dir=%q", gotName, gotDir)
+		}
+		return "", errors.New("scenario personal-planner has no live API URL")
+	}
+	t.Cleanup(func() { resolveSeedTargetAPI = previousResolve })
+
+	applyCalled := false
+	previousApply := applyPlaybooksSeed
+	applyPlaybooksSeed = func(context.Context, workspace.Environment, io.Writer, bool) (*phases.PlaybooksSeedSession, error) {
+		applyCalled = true
+		return &phases.PlaybooksSeedSession{RunID: "unexpected"}, nil
+	}
+	t.Cleanup(func() { applyPlaybooksSeed = previousApply })
+
+	server := &Server{
+		config:                 Config{Port: "0"},
+		router:                 mux.NewRouter(),
+		scenarios:              &stubScenarioDirectory{scenarioRoot: scenariosRoot},
+		logger:                 log.New(io.Discard, "", 0),
+		seedSessions:           make(map[string]*seedSession),
+		seedSessionsByScenario: make(map[string]string),
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/"+scenario+"/playbooks/seed/apply", strings.NewReader(`{}`))
+	req = mux.SetURLVars(req, map[string]string{"name": scenario})
+	rec := httptest.NewRecorder()
+	server.handlePlaybooksSeedApply(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503 when target API is unavailable, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if applyCalled {
+		t.Fatal("seed isolation/apply ran without a resolved target API")
+	}
+	if len(server.seedSessionsByScenario) != 0 {
+		t.Fatal("unavailable target retained active ownership")
+	}
+	for _, record := range server.seedSessions {
+		if record.Session != nil {
+			t.Fatal("unavailable target created backing resources")
+		}
 	}
 }
 
@@ -95,40 +164,32 @@ func TestServer_handlePlaybooksSeedApply_Conflict(t *testing.T) {
 	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode conflict response: %v", err)
 	}
-	if payload["cleanup_token"] != "existing-token" {
-		t.Fatalf("expected cleanup_token existing-token, got %#v", payload["cleanup_token"])
+	if _, leaked := payload["cleanup_token"]; leaked {
+		t.Fatal("conflicting callers must not receive the active owner bearer token")
 	}
 }
 
 func TestServer_handlePlaybooksSeedCleanup_Success(t *testing.T) {
-	token := "cleanup-token"
-	server := &Server{
-		config:    Config{Port: "0"},
-		router:    mux.NewRouter(),
-		scenarios: &stubScenarioDirectory{scenarioRoot: "/tmp"},
-		logger:    log.New(io.Discard, "", 0),
-		seedSessions: map[string]*seedSession{
-			token: {
-				Scenario: "demo",
-				Session: &phases.PlaybooksSeedSession{
-					RunID: "run-123",
-				},
-			},
-		},
-		seedSessionsByScenario: map[string]string{"demo": token},
+	fixture := newSeedRecoveryFixture(t)
+	server := newRecoverySeedServer(t, fixture)
+	token, record, err := server.applySeedSession(t.Context(), "demo", fixture.source, "legacy-cleanup", false)
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/playbooks/seed/cleanup", strings.NewReader(`{"cleanup_token":"cleanup-token"}`))
+	project := record.Session.SeedState["project"].(string)
+	body, _ := json.Marshal(map[string]string{"cleanup_token": token})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/playbooks/seed/cleanup", strings.NewReader(string(body)))
 	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
 	rec := httptest.NewRecorder()
-
 	server.handlePlaybooksSeedCleanup(rec, req)
-
 	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}
-	if len(server.seedSessions) != 0 || len(server.seedSessionsByScenario) != 0 {
-		t.Fatalf("expected cleanup session to be removed")
+	if len(server.seedSessions) != 1 || len(server.seedSessionsByScenario) != 0 {
+		t.Fatal("cleanup must retire active ownership and retain its retry outcome")
+	}
+	if _, err := os.Stat(project); !os.IsNotExist(err) {
+		t.Fatal("cleanup did not retire actual private backing", err)
 	}
 }
 
@@ -160,28 +221,21 @@ func TestServer_handlePlaybooksSeedCleanup_Conflict(t *testing.T) {
 }
 
 func TestServer_handlePlaybooksSeedCleanupForce_Success(t *testing.T) {
-	token := "cleanup-token"
-	server := &Server{
-		config:    Config{Port: "0"},
-		router:    mux.NewRouter(),
-		scenarios: &stubScenarioDirectory{scenarioRoot: "/tmp"},
-		logger:    log.New(io.Discard, "", 0),
-		seedSessions: map[string]*seedSession{
-			token: {
-				Scenario: "demo",
-				Session:  &phases.PlaybooksSeedSession{RunID: "run-123"},
-			},
-		},
-		seedSessionsByScenario: map[string]string{"demo": token},
+	fixture := newSeedRecoveryFixture(t)
+	server := newRecoverySeedServer(t, fixture)
+	_, record, err := server.applySeedSession(t.Context(), "demo", fixture.source, "legacy-force-cleanup", false)
+	if err != nil {
+		t.Fatal(err)
 	}
-
+	project := record.Session.SeedState["project"].(string)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/playbooks/seed/cleanup-force?force=true", strings.NewReader(`{}`))
 	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
 	rec := httptest.NewRecorder()
-
 	server.handlePlaybooksSeedCleanupForce(rec, req)
-
 	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if _, err := os.Stat(project); !os.IsNotExist(err) {
+		t.Fatal("force route did not retire exact owner backing", err)
 	}
 }

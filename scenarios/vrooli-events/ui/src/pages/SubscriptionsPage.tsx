@@ -1,4 +1,6 @@
 // REQ-UI-009: Subscription management
+// DOC: docs/reference/api-endpoints.md#subscriptions
+// DOC: docs/guides/creating-subscriptions.md
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bell, Plus, Trash2, RefreshCw } from "lucide-react";

@@ -45,7 +45,7 @@ const resolveSelectedProductId = (preview: StripeImportPreview, preferredId?: st
 export interface UseStripeImportReturn {
   // Modal state
   isModalOpen: boolean;
-  openModal: () => void;
+  openModal: () => Promise<void>;
   closeModal: () => void;
 
   // Preview data
@@ -198,7 +198,7 @@ export function useStripeImport(onImportComplete?: () => void): UseStripeImportR
         return { price_id: priceId, action: 'skip' };
       }
       const action: ImportPlanSelection['action'] = selected
-        ? price?.exists_locally
+        ? price.exists_locally
           ? 'overwrite'
           : 'import'
         : 'skip';
@@ -226,7 +226,7 @@ export function useStripeImport(onImportComplete?: () => void): UseStripeImportR
       const errorCount = result.errors?.length ?? 0;
       const hasErrors = errorCount > 0;
       if (hasErrors) {
-        setError(`Import completed with ${errorCount} error(s)`);
+        setError(`Import completed with ${String(errorCount)} error(s)`);
       }
 
       // Call completion callback

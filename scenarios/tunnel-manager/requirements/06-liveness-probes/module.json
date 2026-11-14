@@ -1,0 +1,118 @@
+{
+  "_metadata": {
+    "module": "probes",
+    "description": "Liveness probing & classification: internal local-port probes, external public-URL probes, scheduled probe history, and failure classification.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PROBE-001",
+      "title": "Probe each exposed route's local port (internal liveness)",
+      "status": "complete",
+      "prd_ref": "OT-P0-009",
+      "category": "probes",
+      "criticality": "P0",
+      "description": "An internal probe issues an HTTP request to each exposed route's local port + health_path and records whether the scenario is listening, with latency and any error.",
+      "tags": [
+        "internal-probe",
+        "liveness"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "implemented",
+          "ref": "api/internal/probes/service_test.go"
+        }
+      ]
+    },
+    {
+      "id": "PROBE-002",
+      "title": "Probe each exposed route via its public URL (external liveness)",
+      "status": "complete",
+      "prd_ref": "OT-P0-010",
+      "category": "probes",
+      "criticality": "P0",
+      "description": "An external probe issues an HTTP request to each exposed route's public_url to verify end-to-end connectivity through the tunnel, recording status, latency, and error.",
+      "tags": [
+        "external-probe",
+        "liveness",
+        "end-to-end"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "implemented",
+          "ref": "api/internal/probes/service_test.go"
+        }
+      ]
+    },
+    {
+      "id": "PROBE-003",
+      "title": "Persist probe history per route and kind",
+      "status": "complete",
+      "prd_ref": "OT-P0-009",
+      "category": "probes",
+      "criticality": "P0",
+      "description": "Each probe result (route, kind internal|external, status, latency, error) is written to the probes table on a schedule so history can be queried for trends and SLA.",
+      "tags": [
+        "probe-history",
+        "sqlite"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "implemented",
+          "ref": "api/internal/probes/sqlite_test.go"
+        }
+      ]
+    },
+    {
+      "id": "PROBE-004",
+      "title": "Classify failures from current probe signals",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "category": "probes",
+      "criticality": "P1",
+      "description": "Combining internal/external probe pairs, the classifier produces healthy, tunnel-down, scenario-down, and config-drift outcomes that drive current recovery/operator guidance.",
+      "tags": [
+        "classification",
+        "diagnosis"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "implemented",
+          "ref": "api/internal/probes/service_test.go"
+        }
+      ]
+    },
+    {
+      "id": "PROBE-005",
+      "title": "Isolate DNS failures and Cloudflare outages",
+      "status": "not_implemented",
+      "prd_ref": "OT-P1-001",
+      "category": "probes",
+      "criticality": "P1",
+      "description": "Add resolver-specific and upstream/Cloudflare-status signals so the classifier can distinguish dns-failure and cloudflare-outage from generic external probe failure.",
+      "tags": [
+        "classification",
+        "dns",
+        "cloudflare"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "not_implemented",
+          "ref": "api/internal/probes/service_test.go"
+        }
+      ]
+    }
+  ]
+}

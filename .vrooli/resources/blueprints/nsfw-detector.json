@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "nsfw-detector",
+  "display_name": "NSFW Detector",
+  "category": "moderation",
+  "summary": "Local image moderation service for classifying adult or otherwise sensitive visual content.",
+  "why_it_matters": "NSFW detection is a useful moderation capability to retain as structured knowledge, but current repo usage does not justify maintaining this resource as supported infrastructure.",
+  "when_to_use": [
+    "A future scenario needs local-first image moderation.",
+    "Operators want pre-publication content filtering without outsourcing images.",
+    "The workflow depends on structured moderation outputs for downstream decisions."
+  ],
+  "example_scenarios": [
+    "User-generated content moderation",
+    "Media ingestion filters",
+    "Safety review pipelines"
+  ],
+  "integration_kind": "managed-service",
+  "platform_support": {
+    "notes": "The service can be containerized, but GPU acceleration and model quality vary by environment and model choice.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Model selection and threshold policy",
+    "Artifact handling for sensitive inputs",
+    "Clear moderation review workflow"
+  ],
+  "dependencies": [],
+  "suggested_template": "managed-service",
+  "implementation_notes": [
+    "Promotion should focus on a tested moderation workflow with clear thresholds and outputs.",
+    "Keep model lifecycle and calibration explicit.",
+    "Do not imply policy completeness from model availability alone."
+  ],
+  "operational_notes": [
+    "False positives and false negatives need measured expectations.",
+    "Validation should run sample inputs with known expected classifications.",
+    "Sensitive content handling needs clear retention boundaries."
+  ],
+  "risks": [
+    "Moderation quality is policy-sensitive and easy to oversell.",
+    "Models drift and may require recalibration over time."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "nsfw-detector"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/nsfw-detector"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

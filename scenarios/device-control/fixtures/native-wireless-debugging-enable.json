@@ -1,0 +1,9 @@
+{
+  "id": "native-wireless-debugging-enable",
+  "name": "Enable paired wireless debugging",
+  "transport": "usb",
+  "steps": [
+    {"id": "enable", "kind": "wireless-debugging", "target": "enable"},
+    {"id": "verify", "kind": "wireless-debugging-assert", "target": "enable"}
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "_metadata": {
+    "module": "scenario-boundary",
+    "description": "Service surface boundary: dual-mount validation service, agent-readable maturity assessment, and finding-code↔maturity mapping.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SH-BOUND-001",
+      "title": "Dual-mount native and shared validation service",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "api",
+      "criticality": "P0",
+      "description": "structure-health mounts both a native structure-health/v1 ValidationService (rich detail in native_detail) and the shared scenario-validation/v1 ScenarioValidationServiceHandler, so Test Genie can delegate the structure phase while humans/agents get the richer native response from the same engine.",
+      "tags": ["dual-mount", "scenario-validation", "api"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "handlers/validation/handler_test.go proves both the native and shared mounts return a well-formed response for the same target."}
+      ]
+    },
+    {
+      "id": "SH-BOUND-002",
+      "title": "Agent-readable maturity assessment",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Responses carry stable finding codes, severity, evidence, location, remediation, current and next Structure Health local maturity (L0–L4), and the blocking findings for the next level, built through packages/maturity-go/assessment.",
+      "tags": ["findings", "maturity", "test-genie"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "End-to-end handler/main tests assert deterministic finding codes and current/next level transitions in the assessment."}
+      ]
+    },
+    {
+      "id": "SH-BOUND-003",
+      "title": "Every finding code maps in the maturity ladder",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Every finding code the validator can emit is mapped in .vrooli/maturity.json with a local level impact, global impact, dimension, and default severity; severity owns pass/fail (ERROR/BLOCKER fail the phase).",
+      "tags": ["maturity-ladder", "anti-drift", "severity"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "Rules/assessment tests assert each emitted code resolves in the loaded maturity spec; ERROR-severity findings gate local maturity."}
+      ]
+    }
+  ]
+}

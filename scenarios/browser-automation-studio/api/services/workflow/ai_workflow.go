@@ -41,7 +41,7 @@ func (s *WorkflowService) generateWorkflowDefinitionFromPrompt(ctx context.Conte
 		return &pb, nil
 	}
 
-	// Fallback: interpret as legacy nodes/edges and convert to V2 via the write compat boundary.
+	// Fallback: apply the V2 write boundary to map-shaped output.
 	var payload map[string]any
 	if err := json.Unmarshal([]byte(jsonBlob), &payload); err != nil {
 		return nil, &AIWorkflowError{Reason: "AI did not return valid JSON workflow definition"}

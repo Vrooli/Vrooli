@@ -1,0 +1,140 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "extraction-range",
+  "description": "Extraction Range CLI for owned graded practice levels, submissions and scoreboards.",
+  "groups": [
+    {
+      "name": "range",
+      "description": "Explore extraction challenges and submit scored results",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List extraction practice levels",
+          "flags": [
+            {
+              "name": "family",
+              "description": "Filter by family id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.extraction_range.v1.range.RangeService",
+            "method": "ListLevels"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a level brief and target URL",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Level id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.extraction_range.v1.range.RangeService",
+            "method": "GetLevel"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "submit",
+          "description": "Submit extracted records for scoring",
+          "positionals": [
+            {
+              "name": "level_id",
+              "required": true,
+              "description": "Level id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "tool",
+              "required": true,
+              "description": "Tool name for scoreboard attribution"
+            },
+            {
+              "name": "file",
+              "required": true,
+              "description": "Local JSON file containing an array of extracted records",
+              "bind": {
+                "field": "records",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.extraction_range.v1.range.RangeService",
+            "method": "Submit"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "scoreboard",
+          "description": "Show best scores by tool and level",
+          "flags": [
+            {
+              "name": "tool",
+              "description": "Filter by tool name"
+            },
+            {
+              "name": "family",
+              "description": "Filter by family id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.extraction_range.v1.range.RangeService",
+            "method": "Scoreboard"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "exceptions": [],
+  "omitted": []
+}

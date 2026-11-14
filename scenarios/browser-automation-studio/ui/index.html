@@ -2,9 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" sizes="196x196" href="/favicon-196.png" />
-    <link rel="apple-touch-icon" href="/apple-icon-180.png" />
-    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="icon" type="image/png" sizes="196x196" href="public/favicon-196.png" />
+    <link rel="apple-touch-icon" href="public/apple-icon-180.png" />
+    <link rel="manifest" href="public/site.webmanifest" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vrooli Ascension - Visual Workflow Builder</title>
@@ -31,6 +31,11 @@
       }
       @keyframes spin {
         to { transform: rotate(360deg); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #initial-loading .spinner {
+          animation: none;
+        }
       }
       /* Hide loading once React renders */
       #root:not(:empty) ~ #initial-loading {

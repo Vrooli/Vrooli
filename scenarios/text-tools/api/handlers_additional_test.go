@@ -12,7 +12,6 @@ func TestHealthHandlerAdditional(t *testing.T) {
 		config := &Config{
 			Port:        "8080",
 			DatabaseURL: "",
-			OllamaURL:   "http://localhost:11434",
 			RedisURL:    "http://localhost:6379",
 		}
 
@@ -46,9 +45,8 @@ func TestHealthHandlerAdditional(t *testing.T) {
 func TestResourcesHandlerAdditional(t *testing.T) {
 	t.Run("Returns_Resource_Details", func(t *testing.T) {
 		config := &Config{
-			Port:      "8080",
-			OllamaURL: "http://localhost:11434",
-			RedisURL:  "http://localhost:6379",
+			Port:     "8080",
+			RedisURL: "http://localhost:6379",
 		}
 
 		server := NewServer(config)
@@ -105,10 +103,6 @@ func TestDiffHandlerV1Additional(t *testing.T) {
 		if server == nil {
 			t.Fatal("Server should not be nil")
 		}
-
-		if server.config.OllamaURL != "" {
-			t.Error("Expected Ollama URL to be empty")
-		}
 	})
 }
 
@@ -150,22 +144,25 @@ func TestResourceMonitoring(t *testing.T) {
 	})
 
 	t.Run("Check_All_Resources", func(t *testing.T) {
-		config := &Config{
-			Port:      "8080",
-			OllamaURL: "http://localhost:11434",
-		}
+		healthy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
+		defer healthy.Close()
+		down := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusServiceUnavailable) }))
+		defer down.Close()
 
-		rm := NewResourceManager(config)
+		rm := NewResourceManager(&Config{Port: "8080", QdrantURL: healthy.URL, MinIOURL: down.URL})
 		rm.Start()
-
-		// Give it a moment to run a check
-		// (In real scenario, would use time.Sleep but keeping tests fast)
-
 		rm.Stop()
 
-		// Should have run at least initial check
-		if rm.resources["ollama"].CheckCount < 1 {
-			t.Error("Expected at least one resource check")
+		// Start runs one synchronous check of every configured resource.
+		qdrant, minio := rm.resources["qdrant"], rm.resources["minio"]
+		if qdrant == nil || minio == nil {
+			t.Fatalf("configured resources were not registered: %v", rm.resources)
+		}
+		if qdrant.CheckCount < 1 || !qdrant.Available {
+			t.Errorf("qdrant = %+v, want checked and available", qdrant)
+		}
+		if minio.CheckCount < 1 || minio.Available {
+			t.Errorf("minio = %+v, want checked and unavailable", minio)
 		}
 	})
 }

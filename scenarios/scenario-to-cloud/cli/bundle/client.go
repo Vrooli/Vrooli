@@ -5,21 +5,21 @@ import (
 	"fmt"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/deployments/deploymentsv1connect"
+
+	"scenario-to-cloud/cli/internal/transport"
 )
 
-// Client provides API access for bundle operations.
+// Client provides API access for bundle operations; deployment-scoped
+// bundle commands resolve their selector through the deployments service.
 type Client struct {
-	api *cliutil.APIClient
+	api         *cliutil.APIClient
+	Deployments deploymentsv1connect.DeploymentsServiceClient
 }
 
-// NewClient creates a new bundle client.
-func NewClient(api *cliutil.APIClient) *Client {
-	return &Client{api: api}
-}
-
-// APIClient returns the underlying API client for advanced operations.
-func (c *Client) APIClient() *cliutil.APIClient {
-	return c.api
+// NewClient creates a new bundle client over the shared transport.
+func NewClient(tr transport.Transport) *Client {
+	return &Client{api: tr.API, Deployments: deploymentsv1connect.NewDeploymentsServiceClient(tr.HTTP, tr.BaseURL)}
 }
 
 // Build creates a mini-Vrooli bundle from a manifest.
@@ -84,32 +84,6 @@ func (c *Client) Cleanup(req CleanupRequest) ([]byte, CleanupResponse, error) {
 	var resp CleanupResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return body, CleanupResponse{}, err
-	}
-	return body, resp, nil
-}
-
-// VPSList lists bundles on the VPS bundle cache given explicit SSH parameters.
-func (c *Client) VPSList(req VPSBundleListRequest) ([]byte, DeploymentVPSListResponse, error) {
-	body, err := c.api.Request("POST", "/api/v1/bundles/vps/list", nil, req)
-	if err != nil {
-		return nil, DeploymentVPSListResponse{}, err
-	}
-	var resp DeploymentVPSListResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, DeploymentVPSListResponse{}, err
-	}
-	return body, resp, nil
-}
-
-// VPSDelete deletes a single bundle from the VPS bundle cache.
-func (c *Client) VPSDelete(req VPSBundleDeleteRequest) ([]byte, VPSBundleDeleteResponse, error) {
-	body, err := c.api.Request("POST", "/api/v1/bundles/vps/delete", nil, req)
-	if err != nil {
-		return nil, VPSBundleDeleteResponse{}, err
-	}
-	var resp VPSBundleDeleteResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, VPSBundleDeleteResponse{}, err
 	}
 	return body, resp, nil
 }

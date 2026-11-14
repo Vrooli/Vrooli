@@ -1,13 +1,28 @@
+import { handleRecordStart } from '../../../src/routes/record-mode/recording-lifecycle';
+import { EventEmitter } from 'node:events';
+import type { Page } from 'rebrowser-playwright';
+import { createDeferred, createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
+import { handleRecordNewPage, emitHistoryCallback } from '../../../src/routes/record-mode/recording-pages';
 import * as pageEvents from '../../../src/routes/record-mode/page-events';
 import type { Config } from '../../../src/config';
 import type { SessionManager } from '../../../src/session';
+import { installFetchMock } from '../../helpers';
+import { DriverPageBindings } from '../../../src/session/page-bindings';
 
 const { sendPageEvent, setupPageLifecycleListeners, pageEventCircuitBreaker } = pageEvents;
 
-jest.mock('../../../src/routes/record-mode/recording-pages', () => ({
-  captureThumbnail: jest.fn().mockResolvedValue('thumb'),
-  emitHistoryCallback: jest.fn().mockResolvedValue(undefined),
-}));
+type PageEventPayload = { eventType?: string; faviconUrl?: string; driverPageId?: string; url?: string; title?: string };
+const parsePageEvent = (body: unknown): PageEventPayload => {
+  if (typeof body !== 'string') throw new Error('page-event fixture did not return a JSON body');
+  return JSON.parse(body) as PageEventPayload;
+};
+const pageEventBodies = (fetchMock: ReturnType<typeof installFetchMock>): PageEventPayload[] =>
+  fetchMock.mock.calls.map(call => parsePageEvent((call[1] as { body?: unknown } | undefined)?.body));
+
+jest.mock('../../../src/routes/record-mode/recording-pages', () => {
+  const actual = jest.requireActual<typeof import('../../../src/routes/record-mode/recording-pages')>('../../../src/routes/record-mode/recording-pages');
+  return { ...actual, captureThumbnail: jest.fn().mockResolvedValue('thumb'), emitHistoryCallback: jest.fn().mockResolvedValue(undefined) };
+});
 
 describe('page event routes', () => {
   const config: Config = {
@@ -17,13 +32,15 @@ describe('page event routes', () => {
       thumbnailQuality: 60,
     },
   } as Config;
+  let fetchMock: ReturnType<typeof installFetchMock>;
 
   beforeEach(() => {
-    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, statusText: 'OK' }) as typeof fetch;
+    fetchMock = installFetchMock();
+    fetchMock.mockResolvedValue({ ok: true, status: 200, statusText: 'OK' } as Response);
     if (!global.crypto) {
-      (global as typeof globalThis).crypto = { randomUUID: jest.fn().mockReturnValue('page-1') } as Crypto;
+      (global as { crypto?: Crypto }).crypto = { randomUUID: jest.fn().mockReturnValue('page-1') } as unknown as Crypto;
     } else if (!('randomUUID' in global.crypto)) {
-      global.crypto.randomUUID = jest.fn().mockReturnValue('page-1');
+      (global.crypto as { randomUUID: () => string }).randomUUID = jest.fn().mockReturnValue('page-1');
     }
   });
 
@@ -45,7 +62,7 @@ describe('page event routes', () => {
 
     await sendPageEvent('session-1', 'http://callback', event);
 
-    expect(global.fetch).toHaveBeenCalledWith('http://callback', expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith('http://callback', expect.objectContaining({
       method: 'POST',
     }));
   });
@@ -65,7 +82,7 @@ describe('page event routes', () => {
       timestamp: new Date().toISOString(),
     });
 
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('sets up listeners for new pages and emits events', async () => {
@@ -76,42 +93,328 @@ describe('page event routes', () => {
       waitForLoadState: jest.fn().mockResolvedValue(undefined),
       url: jest.fn().mockReturnValue('https://example.com'),
       title: jest.fn().mockResolvedValue('Example'),
+      evaluate: jest.fn().mockResolvedValue('https://example.com/icon.svg'),
       mainFrame: jest.fn().mockReturnValue(mainFrame),
       on: jest.fn((event: string, handler: (arg?: unknown) => void) => {
         pageHandlers[event] = handler;
       }),
-    } as unknown as Parameters<SessionManager['getSession']>[0]['page'];
+      off: jest.fn(),
+      isClosed: () => false,
+    } as unknown as Page;
 
     const contextHandlers: Record<string, (page: typeof newPage) => Promise<void>> = {};
+    const openPages: Page[] = [];
+    const context = {
+      pages: () => openPages,
+      on: jest.fn((event: string, handler: (page: typeof newPage) => Promise<void>) => { contextHandlers[event] = handler; }),
+      off: jest.fn(),
+    };
     const session = {
-      context: {
-        on: jest.fn((event: string, handler: (page: typeof newPage) => Promise<void>) => {
-          contextHandlers[event] = handler;
-        }),
-        off: jest.fn(),
-      },
-      pages: [],
-      pageIdMap: new Map(),
-      pageToIdMap: new Map(),
+      context,
+      pageBindings: new DriverPageBindings(),
     } as unknown as ReturnType<SessionManager['getSession']>;
 
-    const cleanup = setupPageLifecycleListeners('session-1', session, 'http://callback', config);
+    const { cleanup, ready } = setupPageLifecycleListeners('session-1', session, 'http://callback', config);
+    await ready;
 
+    openPages.push(newPage);
     await contextHandlers.page?.(newPage);
 
-    expect(session.pages).toHaveLength(1);
-    const createdPayload = (global.fetch as jest.Mock).mock.calls[0]?.[1]?.body as string;
-    expect(createdPayload).toContain('\"eventType\":\"created\"');
+    expect(session.context.pages()).toHaveLength(1);
+    const createdPayload = fetchMock.mock.calls[0]?.[1]?.body as string;
+    expect(createdPayload).toContain('"eventType":"created"');
 
     await pageHandlers.framenavigated?.(mainFrame);
-    const navigatedPayload = (global.fetch as jest.Mock).mock.calls[1]?.[1]?.body as string;
-    expect(navigatedPayload).toContain('\"eventType\":\"navigated\"');
+    const navigatedPayload = fetchMock.mock.calls[1]?.[1]?.body as string;
+    expect(navigatedPayload).toContain('"eventType":"navigated"');
 
     await pageHandlers.close?.();
-    const closedPayload = (global.fetch as jest.Mock).mock.calls[2]?.[1]?.body as string;
-    expect(closedPayload).toContain('\"eventType\":\"closed\"');
+    const closedPayload = fetchMock.mock.calls[2]?.[1]?.body as string;
+    expect(closedPayload).toContain('"eventType":"closed"');
 
     cleanup();
     expect(session.context.off).toHaveBeenCalled();
+  });
+});
+
+
+describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
+  const config = createTestConfig({ history: { thumbnailEnabled: false, callbackUrl: '' } });
+  let fetchMock: ReturnType<typeof installFetchMock>;
+  beforeEach(() => {
+    jest.clearAllMocks();
+    fetchMock = installFetchMock();
+    fetchMock.mockResolvedValue({ ok: true, status: 200, statusText: 'OK' } as Response);
+  });
+  afterEach(() => pageEventCircuitBreaker.cleanup('owned-tabs'));
+
+  function fixture() {
+    const context = new EventEmitter();
+    const openPages: Page[] = [];
+    (context as EventEmitter & { pages: () => Page[] }).pages = () => openPages.filter(page => !page.isClosed());
+    const events = new EventEmitter();
+    const frame = {};
+    const page = Object.assign(events, {
+      opener: jest.fn().mockResolvedValue(null),
+      waitForLoadState: jest.fn().mockResolvedValue(undefined),
+      goto: jest.fn().mockResolvedValue(undefined),
+      url: (): string => 'https://fixture.invalid/first',
+      title: jest.fn().mockResolvedValue('First page'),
+      evaluate: jest.fn().mockResolvedValue('https://fixture.invalid/custom.svg'),
+      mainFrame: (): object => frame,
+      isClosed: (): boolean => false,
+    }) as unknown as Page & EventEmitter;
+    const session = {
+      id: 'owned-tabs', phase: 'recording', ownerExecutionId: 'owner', leaseId: 'lease',
+      context, pageBindings: new DriverPageBindings(),
+      page, frameStack: [],
+    } as unknown as ReturnType<SessionManager['getSession']>;
+    const setup = (): ReturnType<typeof setupPageLifecycleListeners> => setupPageLifecycleListeners('owned-tabs', session, 'http://callback', config);
+    const open = (): Promise<void> => {
+      if (!openPages.includes(page)) openPages.push(page);
+      return (context.listeners('page')[0] as (page: Page) => Promise<void>)(page);
+    };
+    return { context, page, frame, session, setup, open, openPages };
+  }
+
+  it('publishes page creation before loaded document metadata', async () => {
+    const f = fixture(); const {cleanup} = f.setup();
+    try {
+      await f.open();
+      await (f.page.listeners('framenavigated')[0] as (frame: unknown) => Promise<void>)(f.frame);
+      const events = pageEventBodies(fetchMock);
+      expect(events.map(e => e.eventType)).toEqual(['created', 'navigated']);
+      expect(events[0].faviconUrl).toBeUndefined();
+      expect(events[1].faviconUrl).toBe('https://fixture.invalid/custom.svg');
+      expect(fetchMock.mock.calls.every(([url]) => url === 'http://callback')).toBe(true);
+      expect(f.page.goto).not.toHaveBeenCalled();
+    } finally {cleanup();}
+  });
+
+  it('publishes creation without waiting for document readiness, then orders navigation metadata', async () => {
+    const f = fixture(); const readiness = createDeferred<void>();
+    jest.mocked(f.page.waitForLoadState).mockReturnValueOnce(readiness.promise);
+    const {cleanup} = f.setup();
+    try {
+      await f.open();
+      const creationBody = fetchMock.mock.calls[0]?.[1]?.body;
+      expect(creationBody).toEqual(expect.stringContaining('"eventType":"created"'));
+      expect(creationBody).toEqual(expect.stringContaining('"driverPageId":"'));
+      expect(f.page.waitForLoadState).not.toHaveBeenCalled();
+
+      await new Promise(setImmediate);
+      f.page.url = (): string => 'https://fixture.invalid/new-document';
+      f.page.emit('framenavigated', f.frame);
+      await new Promise(setImmediate);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      readiness.resolve();
+      await new Promise(setImmediate);
+      const events = pageEventBodies(fetchMock);
+      expect(events.map(e => e.eventType)).toEqual(['created', 'navigated']);
+      expect(events[1]).toMatchObject({url: 'https://fixture.invalid/new-document', faviconUrl: 'https://fixture.invalid/custom.svg'});
+    } finally {readiness.resolve(); cleanup();}
+  });
+
+  it.each(['cleanup', 'replacement'])('discards icon metadata after %s while the DOM read waits', async kind => {
+    const f = fixture(); const {cleanup} = f.setup();
+    await f.open(); fetchMock.mockClear(); jest.mocked(f.page.evaluate).mockClear();
+    const icon = createDeferred<string>(); const reading = createDeferred<void>();
+    jest.mocked(f.page.evaluate).mockImplementation(() => {reading.resolve(); return icon.promise;});
+    const navigation = (f.page.listeners('framenavigated')[0] as (frame: unknown) => Promise<void>)(f.frame);
+    try {
+      // The navigation callback must still wait for current document metadata.
+      await new Promise(setImmediate);
+      expect(f.page.evaluate).toHaveBeenCalled();
+      if (kind === 'cleanup') cleanup();
+      else f.page.url = (): string => 'https://fixture.invalid/replaced';
+      icon.resolve('https://fixture.invalid/old.svg');
+      await navigation;
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {icon.resolve(''); cleanup();}
+  });
+
+  it('removes every page listener and makes cleanup repeatable', async () => {
+    const f = fixture(); const { cleanup } = f.setup();
+    try {
+      await f.open();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      cleanup(); cleanup();
+      expect(f.context.listenerCount('page')).toBe(0);
+      expect(f.page.listenerCount('framenavigated')).toBe(0);
+      expect(f.page.listenerCount('close')).toBe(0);
+      f.page.emit('framenavigated', f.frame);
+      f.page.emit('close');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally { cleanup(); }
+  });
+
+  it.each(['opener', 'created callback'])('preserves navigation while awaiting %s', async (stage) => {
+    const f = fixture();
+    const opener = createDeferred<Page | null>();
+    const delivery = createDeferred<Response>();
+    const sent = createDeferred<void>();
+    if (stage === 'opener') jest.mocked(f.page.opener).mockReturnValue(opener.promise);
+    else fetchMock.mockImplementationOnce(() => { sent.resolve(); return delivery.promise; });
+    const { cleanup } = f.setup();
+    const opening = f.open();
+    try {
+      if (stage === 'created callback') await sent.promise;
+      f.page.url = (): string => 'https://fixture.invalid/blue';
+      jest.mocked(f.page.title).mockResolvedValue('Blue page');
+      f.page.emit('framenavigated', f.frame);
+      expect(fetchMock).toHaveBeenCalledTimes(stage === 'opener' ? 0 : 1);
+      opener.resolve(null);
+      delivery.resolve({ ok: true, status: 200, statusText: 'OK' } as Response);
+      await opening;
+      await new Promise(setImmediate);
+      const events = pageEventBodies(fetchMock);
+      expect(events.map(event => event.eventType)).toEqual(['created', 'navigated']);
+      expect(events[1]).toMatchObject({
+        driverPageId: events[0].driverPageId, url: 'https://fixture.invalid/blue', title: 'Blue page',
+      });
+    } finally { cleanup(); }
+  });
+
+  it('discards navigation queued behind creation when recording stops', async () => {
+    const f = fixture(); const sent = createDeferred<void>(); const delivery = createDeferred<Response>();
+    fetchMock.mockImplementationOnce(() => { sent.resolve(); return delivery.promise; });
+    const { cleanup } = f.setup(); const opening = f.open();
+    await sent.promise;
+    f.page.emit('framenavigated', f.frame);
+    cleanup();
+    delivery.resolve({ ok: true, status: 200, statusText: 'OK' } as Response);
+    await opening;
+    await new Promise(setImmediate);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(f.page.listenerCount('framenavigated')).toBe(0);
+    expect(emitHistoryCallback).not.toHaveBeenCalled();
+  });
+
+  it('cannot attach or publish a pending popup after cleanup', async () => {
+    const f = fixture(); const opener = createDeferred<Page | null>();
+    jest.mocked(f.page.opener).mockReturnValue(opener.promise);
+    const { cleanup } = f.setup(); const opening = f.open();
+    cleanup(); opener.resolve(null); await opening;
+    expect(f.page.listenerCount('framenavigated')).toBe(0);
+    expect(f.page.listenerCount('close')).toBe(0);
+    expect(f.session.pageBindings.ids()).toHaveLength(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not roll back a page already owned by the session', async () => {
+    const f = fixture(); const opener = createDeferred<Page | null>();
+    jest.mocked(f.page.opener).mockReturnValue(opener.promise);
+    const pageId = 'existing-page';
+    f.session.pageBindings.register(f.page, pageId);
+    const { cleanup } = f.setup(); const opening = f.open();
+    cleanup(); opener.resolve(null); await opening;
+    expect(f.session.context.pages()).toEqual([f.page]);
+    expect(f.session.pageBindings.getPage(pageId)).toBe(f.page);
+    expect(f.session.pageBindings.getId(f.page)).toBe(pageId);
+  });
+
+  it('cannot publish a pending navigation title after cleanup', async () => {
+    const f = fixture(); const { cleanup } = f.setup();
+    await f.open();
+    const title = createDeferred<string>();
+    jest.mocked(f.page.title).mockReturnValue(title.promise);
+    const navigation = (f.page.listeners('framenavigated')[0] as (frame: unknown) => Promise<void>)(f.frame);
+    cleanup(); title.resolve('Late title'); await navigation;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(emitHistoryCallback).not.toHaveBeenCalled();
+  });
+
+  it('observes popup lookup rejection without an unhandled event-listener failure', async () => {
+    const f = fixture(); const { cleanup } = f.setup();
+    jest.mocked(f.page.opener).mockRejectedValue(new Error('Page closed while opening'));
+    try { await expect(f.open()).resolves.toBeUndefined(); }
+    finally { cleanup(); }
+  });
+
+  it('binds initial-page navigation to that page after active-tab selection changes', async () => {
+    const f = fixture(); const other = fixture();
+    f.openPages.push(f.page, other.page);
+    f.session.pageBindings.register(f.page, 'first-id');
+    f.session.pageBindings.register(other.page, 'second-id');
+    const { cleanup, ready } = f.setup(); await ready; fetchMock.mockClear(); f.session.page = other.page;
+    try {
+      const listeners = f.page.listeners('framenavigated');
+      expect(listeners).toHaveLength(1);
+      await (listeners[0] as (frame: unknown) => Promise<void>)(f.frame);
+      const payload = pageEventBodies(fetchMock)[0];
+      if (!payload) throw new Error('page-event fixture did not return a payload');
+      expect(payload).toMatchObject({ driverPageId: 'first-id', eventType: 'navigated', url: 'https://fixture.invalid/first', title: 'First page' });
+      expect(other.page.title).not.toHaveBeenCalled();
+    } finally { cleanup(); }
+  });
+
+  it('cannot send the initial page callback when recording stops during its title lookup', async () => {
+    const f = fixture();
+    f.openPages.push(f.page);
+    f.session.pageBindings.register(f.page, 'first-id');
+    let capturing = false;
+    let generation = 0;
+    f.session.pipelineManager = {
+      isRecording: () => capturing,
+      startRecording: () => { capturing = true; generation++; return Promise.resolve('recording-id'); },
+      getGeneration: () => generation,
+      getState: () => ({ phase: capturing ? 'capturing' : 'ready' }),
+      getVerification: () => undefined,
+    } as unknown as typeof f.session.pipelineManager;
+    const title = createDeferred<string>(); const reading = createDeferred<void>();
+    jest.mocked(f.page.title).mockImplementation(() => { reading.resolve(); return title.promise; });
+    const manager = { getSession: () => f.session, getSessionForLease: () => f.session, updateActivity: jest.fn(), setSessionPhase: jest.fn() } as unknown as SessionManager;
+    const response = createMockHttpResponse();
+    const start = handleRecordStart(createMockHttpRequest({ method: 'POST', body: { execution_id: 'owner', lease_id: 'lease', page_callback_url: 'http://callback' } }),
+      response, 'owned-tabs', manager, config);
+    await reading.promise;
+    f.session.pageLifecycleCleanup?.();
+    capturing = false;
+    title.resolve('Initial title after stop');
+    await start;
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(f.page.listenerCount('framenavigated')).toBe(0);
+    expect(response.statusCode).toBe(409);
+  });
+
+  it.each([false, true])('settles a close during pending creation callback, stopped=%s', async (stopped) => {
+    const f = fixture(); const sent = createDeferred<void>(); const delivery = createDeferred<Response>();
+    fetchMock.mockImplementationOnce(() => { sent.resolve(); return delivery.promise; });
+    let closed = false;
+    f.page.isClosed = (): boolean => closed;
+    const { cleanup } = f.setup(); const opening = f.open();
+    try {
+      await sent.promise;
+      closed = true; f.page.emit('close');
+      if (stopped) cleanup();
+      delivery.resolve({ ok: true, status: 200, statusText: 'OK' } as Response);
+      await opening;
+      const events = pageEventBodies(fetchMock).map(event => event.eventType);
+      expect(events).toEqual(stopped ? ['created'] : ['created', 'closed']);
+      expect(f.page.listenerCount('close')).toBe(0);
+      expect(f.page.listenerCount('framenavigated')).toBe(0);
+      if (!stopped) {
+        expect(f.session.pageBindings.ids()).toHaveLength(0);
+      }
+    } finally { cleanup(); }
+  });
+
+  it('registers an explicitly created tab once and uses the same callback and response identity', async () => {
+    const f = fixture(); const { cleanup } = f.setup();
+    let discovered: Promise<void> | undefined;
+    f.session.context.newPage = jest.fn(() => { discovered = f.open(); return Promise.resolve(f.page); });
+    const manager = { getSession: () => f.session, getSessionForLease: () => f.session, updateActivity: jest.fn() } as unknown as SessionManager;
+    const response = createMockHttpResponse();
+    try {
+      await handleRecordNewPage(createMockHttpRequest({ method: 'POST', body: { execution_id: 'owner', lease_id: 'lease', url: 'https://fixture.invalid/first' } }), response, 'owned-tabs', manager, config);
+      await discovered;
+      expect(response.statusCode).toBe(201);
+      expect(f.session.context.pages()).toEqual([f.page]);
+      expect(f.session.pageBindings.ids()).toHaveLength(1);
+      const payload = pageEventBodies(fetchMock)[0];
+      if (!payload) throw new Error('page-event fixture did not return a payload');
+      expect(response.getJSON().driver_page_id).toBe(payload.driverPageId);
+      expect(f.session.pageBindings.getId(f.page)).toBe(payload.driverPageId);
+    } finally { cleanup(); }
   });
 });

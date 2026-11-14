@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "review-public-forfeiture-case",
+    "title": "Review a published forfeiture case",
+    "purpose": "Inspect an offline, public BTC trace and distinguish chain observations from the complaint's narrative.",
+    "prd_refs": ["OT-P0-001"]
+  },
+  "steps": [
+    {
+      "page": "cases",
+      "state": "empty",
+      "intent": "Import or select the locally stored public forfeiture case without sending case data elsewhere.",
+      "via": "Import case file or choose a stored case"
+    },
+    {
+      "page": "cases",
+      "state": "partial",
+      "intent": "Inspect the 2013 consolidation's source captures and exact Bitcoin outpoint edges while keeping the complaint allegation and unresolved predecessor transaction separate.",
+      "via": "Open the case and inspect its sources, observations, supported links, and gaps"
+    },
+    {
+      "page": "cases",
+      "state": "default",
+      "intent": "Create and download a versioned private case packet; verify the returned digest against the retained packet receipt.",
+      "via": "Export private packet"
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "library",
+    "title": "Library",
+    "routes": [
+      "/library"
+    ],
+    "purpose": "Find qualified free devices, scenes, presentations and motions by capability, rights and visual suitability.",
+    "prd_refs": [
+      "OT-P0-002",
+      "OT-P0-007",
+      "OT-P0-008"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Find an asset appropriate for the shot and motion."
+    },
+    {
+      "statement": "Understand qualification, provenance and license before reuse."
+    },
+    {
+      "statement": "Import or create an asset when no qualified choice fits."
+    }
+  ],
+  "states": [
+    {
+      "id": "idle",
+      "description": "No operation is pending; identify the current task and available next action."
+    },
+    {
+      "id": "pending",
+      "description": "Work is acknowledged and queued or in flight with observed progress or an honest indeterminate state."
+    },
+    {
+      "id": "retrying",
+      "description": "A safe retry is actively reconciling or executing without blind duplicate side effects."
+    },
+    {
+      "id": "default",
+      "description": "Explain the current task, saved revision and next meaningful action."
+    },
+    {
+      "id": "loading",
+      "description": "Name what is loading; retain stable layout and existing local content."
+    },
+    {
+      "id": "submitting",
+      "description": "Acknowledge the requested operation once and prevent duplicate costly submissions."
+    },
+    {
+      "id": "saving",
+      "description": "Distinguish local draft changes from durably saved revision; never claim saved early."
+    },
+    {
+      "id": "syncing",
+      "description": "Explain local versus remote state and conflict resolution without silently overwriting edits."
+    },
+    {
+      "id": "refreshing",
+      "description": "Retain usable content and identify the specific information being refreshed."
+    },
+    {
+      "id": "empty",
+      "description": "Explain why there is no content and offer a relevant low-risk first action."
+    },
+    {
+      "id": "partial",
+      "description": "Show which inputs, output or services are available and which remain incomplete."
+    },
+    {
+      "id": "stale",
+      "description": "Show age, affected decisions and explicit refresh; never silently spend on refresh."
+    },
+    {
+      "id": "success",
+      "description": "Confirm the concrete durable result and offer inspection or the next task."
+    },
+    {
+      "id": "validation-error",
+      "description": "Associate actionable correction with each invalid field while preserving input."
+    },
+    {
+      "id": "request-error",
+      "description": "Explain the failed operation, preserved work and safe next action with diagnostic reference."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Identify the unavailable operation and authority boundary without requesting unrelated access."
+    },
+    {
+      "id": "offline",
+      "description": "Keep supported local work usable; mark online operations unavailable and never auto-submit paid work on reconnect."
+    },
+    {
+      "id": "retry",
+      "description": "Explain whether retry reuses an operation identity, reconciles prior work or starts a newly authorized operation."
+    },
+    {
+      "id": "no-qualified-assets",
+      "description": "Keep broad search available and explain exactly which capability lacks a qualified free asset."
+    },
+    {
+      "id": "candidate-only",
+      "description": "Show unreleased candidates with their remaining checks; do not mix them into approved defaults."
+    }
+  ],
+  "claims": [
+    {
+      "id": "library-intent-1",
+      "type": "custom",
+      "statement": "Library cards disclose license attribution obligations, exact model identity and current qualification rather than treating a free listing as inspected geometry.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    },
+    {
+      "id": "library-intent-2",
+      "type": "custom",
+      "statement": "Compatibility filtering preserves required controlled physical motion instead of silently replacing it with a photographic crop.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    }
+  ],
+  "x-route-status": "planned-not-implemented",
+  "x-design": {
+    "layout": "Search and eight-group facet navigation with curated preview grid/list. Device families, scene context, presentation method and motion capability are explicit filters, not misleading thumbnail decoration.",
+    "controls": [
+      "Search/filter by eight required groups, family, displays, articulation, rights, reference status and render route",
+      "Open asset detail and compare variants",
+      "Import asset",
+      "Start explicitly labeled AI/agent creation with budget/data preflight"
+    ],
+    "details": [
+      "Eight accepted representative groups: slab phone; laptop; tablet; foldable/dual-screen; round watch; monitor/TV; smart display/digital frame; embedded vehicle host. Book/flip folds, dual rigid screens and rectangular watches remain explicit family/variant distinctions rather than extra first-release groups. The PRD remains authoritative for exact minimum coverage.",
+      "Device, scene, presentation and motion are independent reusable asset kinds; filters expose compatible combinations.",
+      "A listing, inspected file, imported candidate, visually reviewed candidate and released asset have different visible states.",
+      "A model with no separated lid or joint cannot be advertised as lid-close ready."
+    ]
+  },
+  "x-requirements": [],
+  "x-evidence-policy": "No fake selectors, region bindings, setup hooks, captures or attestations. Planned controls are metadata until implemented and grounded."
+}

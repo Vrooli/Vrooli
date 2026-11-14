@@ -1,0 +1,392 @@
+{
+  "name": "Post New Articles from Feeds to Slack Channel",
+  "nodes": [
+    {
+      "id": "5555a9ce-26d1-45a3-9672-5f54b0cf28a3",
+      "name": "Filter Unpublished Articles",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -460,
+        -340
+      ],
+      "parameters": {
+        "jsCode": "const sheetLinks = $('Get Historically Posted Articles from Google Sheet').all().map(row => row.json.link);\nconst articles = $('Read Latest Articles from Feeds').all();\nreturn articles.filter(item => !sheetLinks.includes(item.json.link));              "
+      },
+      "typeVersion": 2,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "235db786-a37c-4f70-9fb8-a23903399056",
+      "name": "Trigger Workflow",
+      "type": "n8n-nodes-base.cron",
+      "position": [
+        -1340,
+        -340
+      ],
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 7
+            }
+          ]
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "195bea58-205a-4d30-bab0-ef137b157ab5",
+      "name": "Post New Articles to Slack Channel",
+      "type": "n8n-nodes-base.slack",
+      "position": [
+        -20,
+        -340
+      ],
+      "parameters": {
+        "text": "=*{{$json[\"title\"]}}* | {{$json[\"link\"]}} _Published: {{$json[\"pubDate\"]}}_",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "C_SYNTHETIC_NEWS",
+          "cachedResultName": "synthetic-news"
+        },
+        "otherOptions": {},
+        "authentication": "oAuth2"
+      },
+      "typeVersion": 2.3
+    },
+    {
+      "id": "146f4c93-a72c-4356-99ab-bcbc7747e671",
+      "name": "Get Article Feeds",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -1120,
+        -340
+      ],
+      "parameters": {
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "synthetic-feeds"
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "synthetic-sheet-document"
+        }
+      },
+      "typeVersion": 4.6,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "3a2f3d00-333f-477f-8634-1b3c703d4061",
+      "name": "Read Latest Articles from Feeds",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "position": [
+        -900,
+        -340
+      ],
+      "parameters": {
+        "url": "={{ $json.link }}",
+        "options": {}
+      },
+      "typeVersion": 1.2,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "74fec81d-bd50-4cce-87d5-fa6808658581",
+      "name": "Get Historically Posted Articles from Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -680,
+        -340
+      ],
+      "parameters": {
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "synthetic-posted-articles"
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "synthetic-sheet-document"
+        }
+      },
+      "executeOnce": true,
+      "typeVersion": 4.6,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "f0c01201-06f4-4154-8010-f134e5506f27",
+      "name": "Append New Articles to Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -240,
+        -340
+      ],
+      "parameters": {
+        "columns": {
+          "value": {
+            "link": "={{ $json.link }}",
+            "title": "={{ $json.title }}",
+            "pubDate": "={{ $json.pubDate }}"
+          },
+          "schema": [
+            {
+              "id": "title",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "title",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "link",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "link",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pubDate",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "pubDate",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "creator",
+              "type": "string",
+              "display": true,
+              "removed": true,
+              "required": false,
+              "displayName": "creator",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "content:encoded",
+              "type": "string",
+              "display": true,
+              "removed": true,
+              "required": false,
+              "displayName": "content:encoded",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "content:encodedSnippet",
+              "type": "string",
+              "display": true,
+              "removed": true,
+              "required": false,
+              "displayName": "content:encodedSnippet",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "dc:creator",
+              "type": "string",
+              "display": true,
+              "removed": true,
+              "required": false,
+              "displayName": "dc:creator",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "content",
+              "type": "string",
+              "display": true,
+              "removed": true,
+              "required": false,
+              "displayName": "content",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "contentSnippet",
+              "type": "string",
+              "display": true,
+              "removed": true,
+              "required": false,
+              "displayName": "contentSnippet",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "guid",
+              "type": "string",
+              "display": true,
+              "removed": true,
+              "required": false,
+              "displayName": "guid",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "categories",
+              "type": "string",
+              "display": true,
+              "removed": true,
+              "required": false,
+              "displayName": "categories",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "isoDate",
+              "type": "string",
+              "display": true,
+              "removed": true,
+              "required": false,
+              "displayName": "isoDate",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "date",
+              "type": "string",
+              "display": true,
+              "removed": true,
+              "required": false,
+              "displayName": "date",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "author",
+              "type": "string",
+              "display": true,
+              "removed": true,
+              "required": false,
+              "displayName": "author",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "dc:date",
+              "type": "string",
+              "display": true,
+              "removed": true,
+              "required": false,
+              "displayName": "dc:date",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "comments",
+              "type": "string",
+              "display": true,
+              "removed": true,
+              "required": false,
+              "displayName": "comments",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            }
+          ],
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {},
+        "operation": "append",
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "synthetic-posted-articles"
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "synthetic-sheet-document"
+        }
+      },
+      "executeOnce": false,
+      "typeVersion": 4.6,
+      "alwaysOutputData": true
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "connections": {
+    "Trigger Workflow": {
+      "main": [
+        [
+          {
+            "node": "Get Article Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Article Feeds": {
+      "main": [
+        [
+          {
+            "node": "Read Latest Articles from Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Unpublished Articles": {
+      "main": [
+        [
+          {
+            "node": "Append New Articles to Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Latest Articles from Feeds": {
+      "main": [
+        [
+          {
+            "node": "Get Historically Posted Articles from Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append New Articles to Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Post New Articles to Slack Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Historically Posted Articles from Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Filter Unpublished Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false
+}

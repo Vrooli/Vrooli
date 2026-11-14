@@ -579,12 +579,12 @@ const handleProjectClick = (projectId) => {
 ## See Also
 
 ### Related Guides
-- [Phases Overview](../phases/README.md) - How UI tests fit into the 11-phase architecture
-- [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) - Unit testing with Vitest
+- [Phases Overview](../phases/README.md) - How UI tests fit into the descriptor-backed phase architecture
+- [Test Authoring Guide](/docs/testing/UNIT-TEST-AUTHORING.md) - Behavior-focused UI tests
 - [Requirements Sync](../phases/business/requirements-sync.md) - Link UI tests to requirements
 
 ### Reference
-- [Test Runners](../phases/unit/test-runners.md) - Node.js test runner configuration
+- [Testing Guide](/docs/TESTING.md) - Scenario and package test commands
 - [Phases Overview](../phases/README.md) - Integration and business phase details
 - [Presets](../reference/presets.md) - Test preset configurations
 

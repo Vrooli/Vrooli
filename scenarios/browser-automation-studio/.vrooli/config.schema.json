@@ -1,0 +1,22 @@
+{
+  "settings": {
+    "sidecar_health_poll_interval_ms": {"type": "integer", "default": 5000},
+    "sidecar_health_timeout_ms": {"type": "integer", "default": 2000},
+    "sidecar_health_failure_threshold": {"type": "integer", "default": 3},
+    "sidecar_health_debounce_ms": {"type": "integer", "default": 1000},
+    "sidecar_enabled": {"type": "boolean", "default": true},
+    "sidecar_driver_dir": {"type": "string", "default": "playwright-driver"},
+    "sidecar_driver_script": {"type": "string", "default": "dist/server.js"},
+    "sidecar_node_path": {"type": "string", "default": "node"},
+    "sidecar_max_restarts": {"type": "integer", "default": 5},
+    "sidecar_restart_window_ms": {"type": "integer", "default": 300000},
+    "sidecar_initial_backoff_ms": {"type": "integer", "default": 1000},
+    "sidecar_max_backoff_ms": {"type": "integer", "default": 30000},
+    "sidecar_backoff_multiplier": {"type": "number", "default": 2.0},
+    "sidecar_startup_timeout_ms": {"type": "integer", "default": 10000},
+    "sidecar_graceful_stop_ms": {"type": "integer", "default": 5000},
+    "sidecar_checkpoint_enabled": {"type": "boolean", "default": true},
+    "sidecar_checkpoint_interval_ms": {"type": "integer", "default": 2000},
+    "sidecar_checkpoint_retention_ms": {"type": "integer", "default": 3600000}
+  }
+}

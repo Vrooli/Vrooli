@@ -9,21 +9,11 @@ import (
 
 func TestNormalizePhaseSelection(t *testing.T) {
 	t.Run("dedupes and normalizes", func(t *testing.T) {
-		result, err := phases.NormalizeSelection([]string{"Unit", "unit", "integration"})
+		result, err := phases.NormalizeSelection([]string{"Unit", "unit", "storage"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if len(result) != 2 || result[0] != "unit" || result[1] != "integration" {
-			t.Fatalf("unexpected phases: %#v", result)
-		}
-	})
-
-	t.Run("accepts standards phase", func(t *testing.T) {
-		result, err := phases.NormalizeSelection([]string{"standards"})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(result) != 1 || result[0] != "standards" {
+		if len(result) != 2 || result[0] != "unit" || result[1] != "storage" {
 			t.Fatalf("unexpected phases: %#v", result)
 		}
 	})

@@ -1,0 +1,96 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "project-detail",
+    "title": "Project detail",
+    "routes": [
+      "/projects/:projectId"
+    ],
+    "purpose": "Show one project's workflows, executions, and files. Reached by clicking a card on the dashboard rather than by direct navigation, so a caller arrives here without a page load to wait on and needs the content surface itself to report when it has settled."
+  },
+  "priorities": [
+    {
+      "statement": "Arriving at a project must be distinguishable from arriving at a project whose workflow list then failed to load.",
+      "notes": "Eleven of the suite's real failures across six runs surface at the Workflows tab button. That button renders synchronously with the tab strip, so its absence means the page never mounted \u2014 the timeout is measuring the wrong thing."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Workflows tab active in card view with at least one workflow.",
+      "setup": {
+        "route": "/projects/:projectId"
+      }
+    },
+    {
+      "id": "empty",
+      "description": "Project loaded and contains no workflows yet.",
+      "setup": {
+        "route": "/projects/:projectId"
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The project detail store holds an error; the page renders it in place.",
+      "setup": {
+        "route": "/projects/:projectId"
+      }
+    }
+  ],
+  "regions": [
+    {
+      "id": "project-workflows",
+      "purpose": "Hold the workflow list for the active project, in either card or tree view. This is the surface a caller is actually waiting for after clicking a project, and the one whose absence currently manifests as a Workflows-tab timeout several steps later.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.0"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "project-workflows": {
+        "testid": "project-workflows-surface",
+        "note": "Wraps the tab content area so it covers card view, tree view, and the empty and error states alike. The existing workflows.card testid marks individual cards and so is absent in exactly the states a caller most needs to distinguish."
+      }
+    },
+    "elements": {
+      "project-workflows": {
+        "testid": "project-workflows-surface"
+      }
+    }
+  },
+  "claims": [
+    {
+      "id": "project-workflows-declares-terminal-state",
+      "type": "element-present",
+      "statement": "The project workflows surface is present on the project detail page in every lifecycle state, so a caller can distinguish a slow load from an empty project from a failed request.",
+      "tier": "machine",
+      "elements": [
+        "project-workflows"
+      ]
+    }
+  ],
+  "elements": [
+    {
+      "id": "project-workflows",
+      "role": "region",
+      "name": "Workflows",
+      "description": "The declared readiness surface for this region. Present in every lifecycle state so a caller reads a state rather than waiting for content to appear."
+    }
+  ]
+}

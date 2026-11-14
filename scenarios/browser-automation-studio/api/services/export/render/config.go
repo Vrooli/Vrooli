@@ -16,9 +16,9 @@ import (
 // Package-level accessors for config values used across the render package.
 // These provide the values from the control surface for use in rendering and encoding.
 var (
-	defaultCaptureInterval    = config.Load().Replay.CaptureIntervalMs
-	defaultPresentationWidth  = config.Load().Replay.PresentationWidth
-	maxCaptureFrames          = config.Load().Replay.MaxCaptureFrames
+	defaultCaptureInterval   = config.Load().Replay.CaptureIntervalMs
+	defaultPresentationWidth = config.Load().Replay.PresentationWidth
+	maxCaptureFrames         = config.Load().Replay.MaxCaptureFrames
 )
 
 func newReplayRendererConfig(log *logrus.Logger, recordingsRoot string) *ReplayRenderer {

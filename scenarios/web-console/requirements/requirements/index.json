@@ -77,7 +77,7 @@
       "category": "networking",
       "prd_ref": "OT-P0-004",
       "title": "Proxy-Correct Networking via api-base",
-      "description": "Route all HTTP/WebSocket traffic through shared api-base helpers to preserve parent proxy compatibility.",
+      "description": "Route HTTP/WebSocket traffic through shared api-base helpers and open terminal localhost HTTP links through the same secure origin using a capability-protected loopback proxy.",
       "status": "pending",
       "validation": [
         {

@@ -42,7 +42,7 @@ func SkillUsageCount(skillID string) int {
 	switch entry.UsageType {
 	case UsageSupportReference:
 		count := 0
-		for _, candidate := range entries {
+		for _, candidate := range catalogEntries() {
 			if candidate.UsageType != UsageDirectRuntime {
 				continue
 			}
@@ -53,7 +53,7 @@ func SkillUsageCount(skillID string) int {
 		return count
 	default:
 		count := 0
-		for _, candidate := range entries {
+		for _, candidate := range catalogEntries() {
 			if candidate.SourceType != SourceSkill || candidate.UsageType != UsageDirectRuntime {
 				continue
 			}
@@ -87,7 +87,7 @@ func SkillImpactSummary(skillID string) string {
 
 func skillEntry(skillID string) (Entry, bool) {
 	normalized := strings.TrimSpace(skillID)
-	for _, entry := range entries {
+	for _, entry := range catalogEntries() {
 		if entry.SourceType != SourceSkill {
 			continue
 		}

@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "forms.conditional-field",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2"
+  ],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2",
+    "1.0.3"
+  ],
+  "latest": "1.0.5",
+  "libraryId": "react-component-library:ConditionalField",
+  "displayName": "ConditionalField",
+  "description": "The schema-driven field that appears, disables, resets, or reconfigures itself based on a compiled dependency expression rather than ad hoc conditional rendering.",
+  "tags": []
+}

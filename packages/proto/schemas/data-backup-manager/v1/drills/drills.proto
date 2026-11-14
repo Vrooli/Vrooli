@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package vrooli.data_backup_manager.v1.drills;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/drills;drills_v1";
+
+// Recovery drills are durable, automated restore proofs. A drill selects the
+// newest successful target×destination snapshot, invokes the existing verified
+// restore gate, and retains the outcome as evidence. It never writes to the
+// live target.
+service RecoveryDrillsService {
+  rpc PreviewDrill(PreviewDrillRequest) returns (PreviewDrillResponse);
+  rpc RunDrill(RunDrillRequest) returns (RunDrillResponse);
+  rpc GetDrill(GetDrillRequest) returns (GetDrillResponse);
+  rpc ListDrills(ListDrillsRequest) returns (ListDrillsResponse);
+}
+
+enum DrillStatus {
+  DRILL_STATUS_UNSPECIFIED = 0;
+  DRILL_STATUS_REQUESTED = 1;
+  DRILL_STATUS_RUNNING = 2;
+  DRILL_STATUS_VERIFIED = 3;
+  DRILL_STATUS_FAILED = 4;
+}
+
+message RecoveryDrill {
+  string id = 1;
+  string plan_id = 2;
+  string target_id = 3;
+  string destination_id = 4;
+  string snapshot_id = 5;
+  string restore_id = 6;
+  DrillStatus status = 7;
+  bool scheduled = 8;
+  string error = 9;
+  string next_action = 10;
+  google.protobuf.Timestamp requested_at = 11;
+  google.protobuf.Timestamp started_at = 12;
+  google.protobuf.Timestamp finished_at = 13;
+}
+
+message PreviewDrillRequest {
+  string plan_id = 1 [(buf.validate.field).string.min_len = 1];
+  string target_id = 2;
+  string destination_id = 3;
+}
+
+message PreviewDrillResponse {
+  bool eligible = 1;
+  string plan_id = 2;
+  string target_id = 3;
+  string destination_id = 4;
+  string snapshot_id = 5;
+  repeated string warnings = 6;
+  string reason = 7;
+}
+
+message RunDrillRequest {
+  string plan_id = 1 [(buf.validate.field).string.min_len = 1];
+  string target_id = 2;
+  string destination_id = 3;
+  string idempotency_key = 4;
+  bool scheduled = 5;
+}
+
+message RunDrillResponse {
+  RecoveryDrill drill = 1;
+}
+
+message GetDrillRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetDrillResponse {
+  RecoveryDrill drill = 1;
+}
+
+message ListDrillsRequest {
+  string plan_id = 1;
+  string target_id = 2;
+  int32 page_size = 3 [(buf.validate.field).int32.gte = 0];
+  string page_token = 4;
+}
+
+message ListDrillsResponse {
+  repeated RecoveryDrill drills = 1;
+  string next_page_token = 2;
+}

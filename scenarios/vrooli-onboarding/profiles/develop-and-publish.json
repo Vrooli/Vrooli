@@ -1,0 +1,205 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "develop-and-publish",
+  "version": "1.0.0",
+  "titleKey": "profiles.developPublish.title",
+  "descriptionKey": "profiles.developPublish.description",
+  "owner": "vrooli-onboarding",
+  "compatibleCatalogMajor": 1,
+  "questions": [
+    {
+      "id": "purposes",
+      "type": "multi-select",
+      "promptKey": "setup.purpose.prompt",
+      "required": true,
+      "options": [
+        {"id": "develop-apps", "labelKey": "setup.purpose.develop"},
+        {"id": "publish-apps", "labelKey": "setup.purpose.publish"}
+      ],
+      "minSelections": 1
+    },
+    {
+      "id": "desktopPlatforms",
+      "type": "multi-select",
+      "promptKey": "setup.publish.platforms",
+      "required": true,
+      "visibleWhen": {"contains": {"answer": "purposes", "value": "publish-apps"}},
+      "options": [
+        {"id": "linux", "labelKey": "platform.linux"},
+        {"id": "macos", "labelKey": "platform.macos"},
+        {"id": "windows", "labelKey": "platform.windows"}
+      ],
+      "minSelections": 1
+    },
+    {
+      "id": "hosting",
+      "type": "single-select",
+      "promptKey": "setup.publish.hosting",
+      "required": true,
+      "visibleWhen": {"contains": {"answer": "purposes", "value": "publish-apps"}},
+      "options": [
+        {"id": "local", "labelKey": "hosting.local"},
+        {"id": "managed-vps", "labelKey": "hosting.managedVps"}
+      ]
+    },
+    {
+      "id": "mobilePlatforms",
+      "type": "multi-select",
+      "promptKey": "setup.publish.mobilePlatforms",
+      "required": false,
+      "visibleWhen": {"contains": {"answer": "purposes", "value": "publish-apps"}},
+      "options": [
+        {"id": "android", "labelKey": "platform.android"},
+        {"id": "ios", "labelKey": "platform.ios"}
+      ]
+    },
+    {
+      "id": "distributionMethod",
+      "type": "single-select",
+      "promptKey": "setup.publish.distributionMethod",
+      "required": true,
+      "visibleWhen": {"contains": {"answer": "purposes", "value": "publish-apps"}},
+      "options": [
+        {"id": "direct-download", "labelKey": "distribution.directDownload"},
+        {"id": "managed-store", "labelKey": "distribution.managedStore"}
+      ]
+    },
+    {
+      "id": "accountOwnership",
+      "type": "single-select",
+      "promptKey": "setup.publish.accountOwnership",
+      "required": true,
+      "visibleWhen": {"contains": {"answer": "purposes", "value": "publish-apps"}},
+      "options": [
+        {"id": "operator-owned", "labelKey": "account.operatorOwned"},
+        {"id": "customer-managed", "labelKey": "account.customerManaged"}
+      ]
+    },
+    {
+      "id": "payments",
+      "type": "single-select",
+      "promptKey": "setup.publish.payments",
+      "required": true,
+      "visibleWhen": {"all": [
+        {"contains": {"answer": "purposes", "value": "publish-apps"}},
+        {"eq": {"answer": "hosting", "value": "managed-vps"}}
+      ]},
+      "options": [
+        {"id": "none", "labelKey": "payments.none"},
+        {"id": "stripe", "labelKey": "payments.stripe"}
+      ]
+    },
+    {
+      "id": "mail",
+      "type": "single-select",
+      "promptKey": "setup.publish.mail",
+      "required": true,
+      "visibleWhen": {"all": [
+        {"contains": {"answer": "purposes", "value": "publish-apps"}},
+        {"eq": {"answer": "hosting", "value": "managed-vps"}}
+      ]},
+      "options": [
+        {"id": "none", "labelKey": "mail.none"},
+        {"id": "provider", "labelKey": "mail.provider"}
+      ]
+    },
+    {
+      "id": "downloadStorage",
+      "type": "single-select",
+      "promptKey": "setup.publish.downloadStorage",
+      "required": true,
+      "visibleWhen": {"all": [
+        {"contains": {"answer": "purposes", "value": "publish-apps"}},
+        {"eq": {"answer": "distributionMethod", "value": "direct-download"}}
+      ]},
+      "options": [
+        {"id": "local", "labelKey": "storage.local"},
+        {"id": "s3", "labelKey": "storage.s3"}
+      ]
+    },
+    {
+      "id": "remoteTargets",
+      "type": "single-select",
+      "promptKey": "setup.publish.remoteTargets",
+      "required": true,
+      "visibleWhen": {"contains": {"answer": "purposes", "value": "publish-apps"}},
+      "options": [
+        {"id": "local-only", "labelKey": "remote.localOnly"},
+        {"id": "connected-host", "labelKey": "remote.connectedHost"}
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "desktop-publishing",
+      "when": {"contains": {"answer": "purposes", "value": "publish-apps"}},
+      "recommend": [
+        {"capabilityRef": "release.desktop", "scenarioRefs": ["scenario-to-desktop", "landing-page-business-suite"], "reasonKey": "setup.reason.desktop"}
+      ]
+    },
+    {
+      "id": "identity-for-publishing",
+      "when": {"contains": {"answer": "purposes", "value": "publish-apps"}},
+      "recommend": [
+        {"capabilityRef": "identity.operator", "scenarioRefs": ["scenario-authenticator"], "reasonKey": "setup.reason.identity"}
+      ]
+    },
+    {
+      "id": "android-publishing",
+      "when": {"all": [
+        {"contains": {"answer": "purposes", "value": "publish-apps"}},
+        {"contains": {"answer": "mobilePlatforms", "value": "android"}}
+      ]},
+      "recommend": [
+        {"capabilityRef": "release.android", "scenarioRefs": ["scenario-to-android"], "reasonKey": "setup.reason.android"}
+      ]
+    },
+    {
+      "id": "ios-publishing",
+      "when": {"all": [
+        {"contains": {"answer": "purposes", "value": "publish-apps"}},
+        {"contains": {"answer": "mobilePlatforms", "value": "ios"}}
+      ]},
+      "recommend": [
+        {"capabilityRef": "release.ios", "scenarioRefs": ["scenario-to-ios"], "reasonKey": "setup.reason.ios"}
+      ]
+    },
+    {
+      "id": "direct-download-release",
+      "when": {"eq": {"answer": "distributionMethod", "value": "direct-download"}},
+      "recommend": [
+        {"capabilityRef": "release.distribution", "scenarioRefs": ["scenario-to-desktop"], "reasonKey": "setup.reason.distribution"}
+      ]
+    },
+    {
+      "id": "hosted-payments",
+      "when": {"eq": {"answer": "payments", "value": "stripe"}},
+      "recommend": [
+        {"capabilityRef": "release.payments", "scenarioRefs": ["scenario-to-cloud"], "reasonKey": "setup.reason.payments"}
+      ]
+    },
+    {
+      "id": "hosted-mail",
+      "when": {"eq": {"answer": "mail", "value": "provider"}},
+      "recommend": [
+        {"capabilityRef": "release.mail", "scenarioRefs": ["scenario-to-cloud"], "reasonKey": "setup.reason.mail"}
+      ]
+    },
+    {
+      "id": "download-storage",
+      "when": {"eq": {"answer": "downloadStorage", "value": "s3"}},
+      "recommend": [
+        {"capabilityRef": "release.storage", "scenarioRefs": ["scenario-to-cloud"], "reasonKey": "setup.reason.storage"}
+      ]
+    },
+    {
+      "id": "remote-publishing-target",
+      "when": {"eq": {"answer": "remoteTargets", "value": "connected-host"}},
+      "recommend": [
+        {"capabilityRef": "release.remote-target", "scenarioRefs": ["vrooli-bridge"], "reasonKey": "setup.reason.remoteTarget"}
+      ]
+    }
+  ],
+  "manualSelection": {"available": true},
+  "provenance": {"source": "repository", "reviewRevision": "develop-and-publish-r1"}
+}

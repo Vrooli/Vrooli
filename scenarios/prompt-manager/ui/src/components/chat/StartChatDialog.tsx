@@ -1,5 +1,12 @@
 /**
- * StartChatDialog - Two-phase modal for launching agent chat from skill view.
+ * StartChatDialog - Two-phase modal for launching skill-scoped agent chat.
+ *
+ * This is the skill-context entrypoint, not the persona conversation path.
+ * Persona conversations (agent or agent-as-team-member) use
+ * MemberConversationPanel + useMemberConversation, which own durable identity
+ * and reload recovery. This dialog reuses the same per-turn request identity so
+ * a retried continuation is at most once, but it does not claim the persona
+ * identity contract.
  *
  * Phase 1 (Configure): User writes a message, selects skills for context.
  * Phase 2 (Active): Shows ChatPanel with live conversation.
@@ -17,6 +24,7 @@ import {
   getRunDetails,
   getRunEvents,
   continueRun,
+  newConversationRequestId,
   type RunDetails,
   type RunEvent,
 } from '@/services/heartbeatService'
@@ -43,6 +51,7 @@ export function StartChatDialog({ isOpen, onClose, initialSkill, allSkills }: St
   const [run, setRun] = useState<RunDetails | null>(null)
   const [events, setEvents] = useState<RunEvent[]>([])
   const maxSequenceRef = useRef(-1)
+  const pendingTurnRequestRef = useRef<string | null>(null)
   const eventPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const runPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -58,6 +67,7 @@ export function StartChatDialog({ isOpen, onClose, initialSkill, allSkills }: St
       setRun(null)
       setEvents([])
       maxSequenceRef.current = -1
+      pendingTurnRequestRef.current = null
     }
   }, [isOpen, initialSkill.id])
 
@@ -161,7 +171,12 @@ export function StartChatDialog({ isOpen, onClose, initialSkill, allSkills }: St
 
   const handleContinue = async (msg: string) => {
     if (!run) return
-    await continueRun(run.id, msg)
+    // Reuse one id per logical turn so a retried send is at most once; clear it
+    // only after the owner accepted the turn.
+    const requestId = pendingTurnRequestRef.current ?? newConversationRequestId()
+    pendingTurnRequestRef.current = requestId
+    await continueRun(run.id, msg, { requestId })
+    pendingTurnRequestRef.current = null
   }
 
   const handleClose = () => {

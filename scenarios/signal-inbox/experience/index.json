@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "signal-inbox",
+  "description": "Signal Inbox experience contract for capture, safe archive import, full-journal retrieval, and ambient triage.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Dashboard",
+      "status": "active"
+    },
+    {
+      "id": "signals",
+      "path": "pages/signals.json",
+      "title": "Signal inbox",
+      "status": "active"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "active"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "capture-search-triage",
+      "path": "journeys/capture-search-triage.json",
+      "title": "Capture, retrieve, and triage a signal",
+      "status": "active"
+    }
+  ]
+}

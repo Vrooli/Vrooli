@@ -1,0 +1,116 @@
+{
+  "archived": false,
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "local-inference-maturity-orchestrator",
+    "reportingMode": "leader",
+    "messagingMode": "async-inbox",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": true,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "createdAt": "2026-11-11T06:39:13Z",
+  "creationProof": {
+    "kind": "agent",
+    "subject": "5010ec85-d6c0-4c89-9829-5538b71b4eff",
+    "owner": "d47163a3-1ba3-5e7b-96dd-e6f8fc450b3f",
+    "source": "agent_provenance"
+  },
+  "displayName": "local-inference-maturity-delivery",
+  "effortRefs": [
+    "effort:local-inference-maturity"
+  ],
+  "enabled": true,
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "homePath": ".vrooli/work/delivery/local-inference-maturity",
+  "id": "local-inference-maturity-delivery",
+  "kind": "team",
+  "lifetime": "finite",
+  "mission": "Deliver governed efficient local inference end to end, remove superseded debt, validate real workloads and bound disk retention across the full charter.",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "local-inference-charter",
+          "hub": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/local-inference-maturity/CHARTER.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/local-inference-maturity/CHARTER.md"
+            },
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/local-inference-maturity/STATUS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/local-inference-maturity/LOG.md"
+            },
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/local-inference-maturity/FEEDBACK.md"
+            }
+          ],
+          "writePolicy": "operator destination; orchestrator maintains allocation and evidence",
+          "consumers": [
+            "local-inference-maturity-orchestrator"
+          ],
+          "useFor": "whole delivery destination and execution ledger"
+        }
+      ],
+      "sharedState": []
+    },
+    "knowledgeTopics": {
+      "delivery-observation/*": {
+        "ownerMemberId": "local-inference-maturity-orchestrator",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {
+      "local-inference-maturity-orchestrator": {
+        "lane": "Full charter delivery orchestration, substantial outcome allocation and independent acceptance",
+        "allowedWrites": [
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/local-inference-maturity"
+          },
+          {
+            "kind": "knowledge"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Do not implement product code; use coherent implementation owners.",
+          "Re-read charter at every wake and compaction; copy full operator stance into each worker brief.",
+          "No product acceptance from runtime completion or elapsed budget.",
+          "Preserve actual owner denial and human-only approvals.",
+          "No paid inference, new credentials or stopping operator coding agents."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": false,
+          "stillWriteHandoff": false
+        }
+      }
+    }
+  },
+  "purpose": "delivery",
+  "revision": 4,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
+  "updatedAt": "2026-11-11T06:47:54Z"
+}

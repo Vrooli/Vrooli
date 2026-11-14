@@ -1,374 +1,105 @@
-import { useState, useCallback } from "react";
-import { Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight, Minus, Anchor, Camera } from "lucide-react";
+// Workflows tab — a workflow evidence-kind lens across arbitrary producer phases.
+
+import { useMemo, useState } from "react";
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Loader2, Minus, Play, XCircle } from "lucide-react";
+import type { ArtifactRef, RunInfo } from "@vrooli/proto-types/test-genie/v1/runs/runs_pb";
+import type { AgentContextItem } from "../lib/api";
 import { Button } from "./ui/button";
-import { buildWorkflowVideoUrl } from "../lib/api";
-import type { ExecutionMode, WorkflowCaptureResult } from "../lib/api";
-import { MediaLightbox, MutationErrorBanner, sanitizePagePath, formatDuration, type LightboxItem } from "./ScenarioReviewPanelShared";
+import { MediaLightbox, MutationErrorBanner, formatDuration, formatRelativeTime, type LightboxItem } from "./ScenarioReviewPanelShared";
+import { useEvidence, useStartRun } from "../lib/hooks-evidence";
+import { runArtifactUrl } from "../lib/api-evidence";
+import { ArtifactEvidenceRenderer, artifactRendererKind } from "./ArtifactEvidenceRenderer";
+import { SurfaceComparePanel } from "../features/baselines/SurfaceComparePanel";
+import { SurfaceCaptureEmptyState } from "../features/baselines/SurfaceCaptureEmptyState";
+import { useSurfaceBaselineModal } from "../features/baselines/useSurfaceBaselineModal";
 
-export const EXECUTION_MODE_COLORS: Record<ExecutionMode, string> = {
-  observer: "bg-green-900/50 text-green-300 border-green-700/50",
-  mutating: "bg-yellow-900/50 text-yellow-300 border-yellow-700/50",
-  destructive: "bg-red-900/50 text-red-300 border-red-700/50",
-};
+const WORKFLOW_KINDS = ["workflow.video", "video", "workflow.trace", "trace", "har", "network.har", "network", "console", "console.log", "log"];
+const EVIDENCE_PAGE_SIZE = 40;
 
-export const STATUS_ICONS: Record<string, typeof CheckCircle2> = {
+const STATUS_ICON: Record<string, typeof CheckCircle2> = {
   passed: CheckCircle2,
   failed: XCircle,
   skipped: Minus,
-  error: AlertTriangle,
+  aborted: AlertTriangle,
+  in_progress: Loader2,
 };
 
-export function WorkflowsTab({
-  baseline,
-  capture,
-  captureStaleness,
-  scenarioSlug,
-  basAvailable,
-  isRunning,
-  onBaseline,
-  onCapture,
-  mutationError,
-  onDismissError,
-  initialSelectedModes,
-  initialViewRole,
-  onSelectedModesChange,
-  onViewRoleChange,
-}: {
-  baseline?: WorkflowCaptureResult;
-  capture?: WorkflowCaptureResult;
-  captureStaleness?: import("../lib/api").SnapshotStalenessInfo;
+function statusColor(status: string): string {
+  if (status === "passed") return "text-green-400";
+  if (status === "failed" || status === "aborted") return "text-red-400";
+  return "text-slate-500";
+}
+
+interface EvidenceRun {
+  run: RunInfo;
+  artifacts: ArtifactRef[];
+}
+
+export function WorkflowsTab({ scenarioSlug, repoId, testGenieAvailable, agentManagerAvailable, onAttachToAgent, onOpenBaselines, onOpenTests }: {
   scenarioSlug: string;
-  basAvailable: boolean;
-  isRunning: boolean;
-  onBaseline: (executionModes: ExecutionMode[]) => void;
-  onCapture: (executionModes: ExecutionMode[]) => void;
-  mutationError?: Error | null;
-  onDismissError?: () => void;
-  initialSelectedModes?: ExecutionMode[];
-  initialViewRole?: "baseline" | "capture";
-  onSelectedModesChange?: (modes: ExecutionMode[]) => void;
-  onViewRoleChange?: (role: "baseline" | "capture") => void;
+  repoId?: string | null;
+  testGenieAvailable: boolean;
+  agentManagerAvailable?: boolean;
+  onAttachToAgent?: (item: AgentContextItem) => void;
+  onOpenBaselines: () => void;
+  onOpenTests?: (runId: string, phase: string) => void;
 }) {
-  const [selectedModes, setSelectedModesInternal] = useState<Set<ExecutionMode>>(() => new Set(initialSelectedModes ?? ["observer"]));
-  const [lightboxIndex, setLightboxIndex] = useState(-1);
-  // Which role's results to show in the table ("capture" by default, toggle to "baseline")
-  const [viewRole, setViewRoleInternal] = useState<"baseline" | "capture">(initialViewRole ?? "capture");
-  // Which rows are expanded to show error details
-  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [evidenceLimit, setEvidenceLimit] = useState(EVIDENCE_PAGE_SIZE);
+  const evidenceQuery = useEvidence(scenarioSlug, { kinds: WORKFLOW_KINDS, limit: evidenceLimit, runLimit: 50 }, testGenieAvailable, repoId);
+  const runs = useMemo<EvidenceRun[]>(() => groupEvidence(evidenceQuery.data?.items ?? []), [evidenceQuery.data?.items]);
+  const triggerRun = useStartRun(repoId);
+  const { openCaptureBaseline, baselineModal } = useSurfaceBaselineModal(scenarioSlug, repoId);
+  const runWorkflows = () => triggerRun.mutate({ scenario: scenarioSlug, preset: "comprehensive" }, { onSuccess: () => void evidenceQuery.refetch() });
 
-  const setSelectedModes = useCallback((updater: Set<ExecutionMode> | ((prev: Set<ExecutionMode>) => Set<ExecutionMode>)) => {
-    setSelectedModesInternal(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      onSelectedModesChange?.(Array.from(next));
-      return next;
-    });
-  }, [onSelectedModesChange]);
-
-  const setViewRole = useCallback((role: "baseline" | "capture") => {
-    setViewRoleInternal(role);
-    onViewRoleChange?.(role);
-  }, [onViewRoleChange]);
-
-  const toggleMode = useCallback((mode: ExecutionMode) => {
-    setSelectedModes(prev => {
-      const next = new Set(prev);
-      if (next.has(mode)) next.delete(mode);
-      else next.add(mode);
-      return next;
-    });
-  }, []);
-
-  const toggleExpanded = useCallback((idx: number) => {
-    setExpandedRows(prev => {
-      const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx);
-      else next.add(idx);
-      return next;
-    });
-  }, []);
-
-  const modesArray = Array.from(selectedModes);
-
-  // Which result to display: user-selected role, falling back to whatever exists
-  const viewedResult = viewRole === "capture" ? (capture ?? baseline) : (baseline ?? capture);
-
-  // Build lightbox items from viewed result videos
-  const lightboxItems: LightboxItem[] = [];
-  if (viewedResult) {
-    for (const wfResult of viewedResult.workflowResults) {
-      if (wfResult.videoCount > 0 && wfResult.executionId) {
-        for (let i = 0; i < wfResult.videoCount; i++) {
-          const filename = `${sanitizePagePath(wfResult.workflowName)}_${i}.webm`;
-          lightboxItems.push({
-            label: wfResult.workflowName,
-            sublabel: `${wfResult.executionMode} - ${wfResult.status}`,
-            type: "video",
-            url: buildWorkflowVideoUrl(viewedResult.id, scenarioSlug, filename),
-          });
-        }
-      }
-    }
+  if (!testGenieAvailable) {
+    return <div className="flex flex-col items-center justify-center py-12 text-slate-500"><Play className="h-8 w-8 mb-3 opacity-50" /><p className="text-sm">test-genie is not available</p><p className="text-xs mt-1 text-slate-600">Start test-genie to see workflow evidence</p></div>;
   }
 
-  // Summary counts for a given result
-  const summarize = (result: WorkflowCaptureResult) => ({
-    passed: result.workflowResults.filter(r => r.status === "passed").length,
-    failed: result.workflowResults.filter(r => r.status === "failed" || r.status === "error").length,
-    skipped: result.workflowResults.filter(r => r.status === "skipped").length,
-  });
+  return <div className="space-y-4">
+    {baselineModal}
+    <MutationErrorBanner error={triggerRun.error} onDismiss={() => triggerRun.reset()} />
+    {evidenceQuery.isLoading ? <div className="space-y-2"><div className="h-12 animate-pulse rounded bg-slate-800/60" /><div className="h-12 animate-pulse rounded bg-slate-800/60" /></div>
+      : evidenceQuery.error ? <MutationErrorBanner error={evidenceQuery.error} />
+      : runs.length === 0 ? <SurfaceCaptureEmptyState label="Workflows" hasService={testGenieAvailable} onCaptureLoose={runWorkflows} onCaptureBaseline={openCaptureBaseline} isCapturing={triggerRun.isPending} />
+      : <>
+        <SurfaceComparePanel scenario={scenarioSlug} contextLabel="Workflows" repoId={repoId} onOpenBaselines={onOpenBaselines} onCaptureBaseline={openCaptureBaseline} viewingLabel={`${evidenceQuery.data?.total ?? 0} workflow artifact${evidenceQuery.data?.total === 1 ? "" : "s"} across ${runs.length} run${runs.length === 1 ? "" : "s"}`} />
+        <div className="flex items-center justify-between gap-2"><p className="text-xs text-slate-500">Recordings, traces, logs, HAR, and network evidence are discovered by kind across every producing phase. Media loads only when previewed.</p><Button variant="outline" size="sm" onClick={runWorkflows} disabled={triggerRun.isPending} className="h-7 px-3 gap-1.5 shrink-0">{triggerRun.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}Capture workflows</Button></div>
+        {evidenceQuery.data?.degradedReasons.map((reason) => <p key={reason} className="text-xs text-amber-400">Evidence unavailable: {reason}</p>)}
+        <div className="space-y-2">{runs.map((entry) => <RunRow key={entry.run.runId} entry={entry} scenario={scenarioSlug} agentManagerAvailable={agentManagerAvailable} onAttachToAgent={onAttachToAgent} onOpenTests={onOpenTests} />)}</div>
+        {evidenceQuery.data?.hasMore && <Button variant="outline" size="sm" onClick={() => setEvidenceLimit((limit) => limit + EVIDENCE_PAGE_SIZE)}>Load {Math.min(EVIDENCE_PAGE_SIZE, Math.max(0, evidenceQuery.data.total - evidenceLimit))} more workflow artifacts</Button>}
+      </>}
+  </div>;
+}
 
-  // No captures at all — empty state
-  if (!baseline && !capture) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-        <MutationErrorBanner error={mutationError ?? null} onDismiss={onDismissError} />
-        <Play className="h-8 w-8 mb-3 opacity-50" />
-        <p className="text-sm">No workflow captures yet</p>
-        <p className="text-xs mt-1 mb-3 text-slate-600">Set a baseline to start comparing workflow results</p>
-        {basAvailable ? (
-          <>
-            <ExecutionModeSelector selectedModes={selectedModes} onToggle={toggleMode} />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onBaseline(modesArray)}
-              disabled={isRunning || selectedModes.size === 0}
-              className="h-7 text-xs gap-1 mt-2"
-            >
-              {isRunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Anchor className="h-3 w-3" />}
-              Set Baseline
-            </Button>
-          </>
-        ) : (
-          <p className="text-xs">Start browser-automation-studio to enable workflow captures</p>
-        )}
-      </div>
-    );
+function RunRow({ entry, scenario, agentManagerAvailable, onAttachToAgent, onOpenTests }: { entry: EvidenceRun; scenario: string; agentManagerAvailable?: boolean; onAttachToAgent?: (item: AgentContextItem) => void; onOpenTests?: (runId: string, phase: string) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const [previewArtifact, setPreviewArtifact] = useState<ArtifactRef | null>(null);
+  const { run, artifacts } = entry;
+  const Icon = STATUS_ICON[run.status] ?? AlertTriangle;
+  const sha8 = run.gitSha ? run.gitSha.slice(0, 8) : "";
+  const recordings = artifacts.filter((artifact) => artifactRendererKind(artifact.kind) === "video").length;
+  const lightboxItems: LightboxItem[] = previewArtifact ? [{ label: previewArtifact.label || previewArtifact.id, sublabel: `${previewArtifact.producingPhase || "unknown producer"} · ${run.runId}`, type: artifactRendererKind(previewArtifact.kind) === "video" ? "video" : "image", url: runArtifactUrl(scenario, run.runId, previewArtifact.id) }] : [];
+
+  return <div className="rounded-lg border border-slate-800 bg-slate-900/40">
+    <button type="button" onClick={() => setExpanded((value) => !value)} className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-slate-800/30 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500" aria-expanded={expanded}>
+      {expanded ? <ChevronDown className="h-3.5 w-3.5 text-slate-500 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-slate-500 shrink-0" />}
+      <Icon className={`h-4 w-4 shrink-0 ${statusColor(run.status)}`} />
+      <span className="text-xs text-slate-300 font-mono truncate">{run.runId}</span>
+      <span className="text-[11px] text-slate-500">{recordings} recording{recordings === 1 ? "" : "s"} · {artifacts.length} artifact{artifacts.length === 1 ? "" : "s"}</span>
+      <div className="ml-auto flex items-center gap-3 text-[11px] text-slate-500 shrink-0">{run.startedAt && run.completedAt && <span>{formatDuration(Math.max(0, Math.round((Date.parse(run.completedAt) - Date.parse(run.startedAt)) / 1000)))}</span>}{sha8 && <span className="font-mono">{sha8}</span>}{run.gitDirty && <span className="text-amber-500">dirty</span>}{run.startedAt && <span>{formatRelativeTime(run.startedAt)}</span>}</div>
+    </button>
+    {expanded && <div className="border-t border-slate-800/60 px-3 py-3"><div className="grid grid-cols-1 gap-3 lg:grid-cols-2">{artifacts.map((artifact) => <ArtifactEvidenceRenderer key={artifact.id} scenario={scenario} run={run} artifact={artifact} agentManagerAvailable={agentManagerAvailable} onAttachToAgent={onAttachToAgent} onPreview={setPreviewArtifact} onOpenTests={onOpenTests} />)}</div></div>}
+    <MediaLightbox items={lightboxItems} initialIndex={0} isOpen={previewArtifact !== null} onClose={() => setPreviewArtifact(null)} />
+  </div>;
+}
+
+function groupEvidence(items: readonly { run?: RunInfo; artifact?: ArtifactRef }[]): EvidenceRun[] {
+  const grouped = new Map<string, EvidenceRun>();
+  for (const item of items) {
+    if (!item.run || !item.artifact) continue;
+    const entry = grouped.get(item.run.runId) ?? { run: item.run, artifacts: [] };
+    if (!entry.artifacts.some((artifact) => artifact.id === item.artifact?.id)) entry.artifacts.push(item.artifact);
+    grouped.set(item.run.runId, entry);
   }
-
-  return (
-    <div className="space-y-4">
-      <MutationErrorBanner error={mutationError ?? null} onDismiss={onDismissError} />
-      {/* Action buttons + execution mode selector */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onBaseline(modesArray)}
-          disabled={isRunning || selectedModes.size === 0}
-          className="h-7 text-xs gap-1"
-        >
-          {isRunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Anchor className="h-3 w-3" />}
-          {baseline ? "Reset Baseline" : "Set Baseline"}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onCapture(modesArray)}
-          disabled={isRunning || selectedModes.size === 0}
-          className="h-7 text-xs gap-1"
-        >
-          {isRunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
-          {capture ? "Re-capture" : "Capture"}
-        </Button>
-        <div className="ml-auto">
-          <ExecutionModeSelector selectedModes={selectedModes} onToggle={toggleMode} />
-        </div>
-      </div>
-
-      {/* Staleness warning */}
-      {captureStaleness?.isStale && capture && (
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-950/30 border border-amber-900/40">
-          <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
-          <p className="text-xs text-amber-300">
-            Files have changed since this capture. Re-capture to see the latest workflow results.
-          </p>
-        </div>
-      )}
-
-      {/* Status message when only baseline exists */}
-      {baseline && !capture && (
-        <div className="text-xs text-slate-500 bg-slate-900/50 rounded px-3 py-2">
-          Baseline set. Capture to compare workflow results against it.
-        </div>
-      )}
-
-      {/* Summary bars — clickable to toggle which role's detail is shown */}
-      {baseline && capture ? (
-        <div className="space-y-1">
-          {[capture, baseline].map((result) => {
-            const role = result === capture ? "capture" : "baseline";
-            const s = summarize(result);
-            const isViewed = viewedResult === result;
-            return (
-              <button
-                key={role}
-                type="button"
-                onClick={() => setViewRole(role)}
-                className={`w-full flex items-center gap-4 px-3 py-2 rounded text-xs transition-colors text-left ${
-                  isViewed ? "bg-slate-800/50 ring-1 ring-slate-600" : "bg-slate-800/30 hover:bg-slate-800/40"
-                }`}
-              >
-                <span className="text-slate-300 font-medium capitalize">{role}</span>
-                {role === "capture" && captureStaleness?.isStale && (
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-900/50 text-amber-300">
-                    Stale
-                  </span>
-                )}
-                {result.status === "failed" && (
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-900/50 text-red-300">
-                    Failed
-                  </span>
-                )}
-                <span className="text-green-400">{s.passed} passed</span>
-                <span className="text-red-400">{s.failed} failed</span>
-                <span className="text-slate-400">{s.skipped} skipped</span>
-                <span className="text-slate-500 ml-auto">
-                  {new Date(result.createdAt).toLocaleString()}
-                </span>
-                {isViewed && <ChevronRight className="h-3 w-3 text-blue-400" />}
-              </button>
-            );
-          })}
-        </div>
-      ) : viewedResult && (() => {
-        const s = summarize(viewedResult);
-        return (
-          <div className="flex items-center gap-4 px-3 py-2 bg-slate-800/50 rounded text-xs">
-            <span className="text-slate-300 font-medium capitalize">{viewedResult.role}</span>
-            {viewedResult.status === "failed" && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-900/50 text-red-300">
-                Failed
-              </span>
-            )}
-            <span className="text-green-400">{s.passed} passed</span>
-            <span className="text-red-400">{s.failed} failed</span>
-            <span className="text-slate-400">{s.skipped} skipped</span>
-            <span className="text-slate-500 ml-auto">
-              {new Date(viewedResult.createdAt).toLocaleString()}
-            </span>
-          </div>
-        );
-      })()}
-
-      {/* Overall capture error */}
-      {viewedResult?.error && (
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-red-950/30 border border-red-900/40">
-          <XCircle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-red-300 mb-1">Capture error</p>
-            <pre className="text-[11px] text-red-200/80 whitespace-pre-wrap break-words font-mono">{viewedResult.error}</pre>
-          </div>
-        </div>
-      )}
-
-      {/* Results table — shows whichever role is selected */}
-      {viewedResult && viewedResult.workflowResults.length > 0 && (
-        <div className="border border-slate-800 rounded-lg overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="bg-slate-800/50">
-                <th className="w-5 px-1 py-2"></th>
-                <th className="text-left px-3 py-2 text-slate-400 font-medium">Workflow</th>
-                <th className="text-left px-3 py-2 text-slate-400 font-medium">Mode</th>
-                <th className="text-center px-3 py-2 text-slate-400 font-medium">Status</th>
-                <th className="text-right px-3 py-2 text-slate-400 font-medium">Duration</th>
-                <th className="text-center px-3 py-2 text-slate-400 font-medium">Video</th>
-              </tr>
-            </thead>
-            <tbody>
-              {viewedResult.workflowResults.map((wfr, idx) => {
-                const StatusIcon = STATUS_ICONS[wfr.status] ?? AlertTriangle;
-                const statusColor = wfr.status === "passed" ? "text-green-400"
-                  : wfr.status === "failed" || wfr.status === "error" ? "text-red-400"
-                  : "text-slate-500";
-                const hasError = !!wfr.error;
-                const isExpanded = expandedRows.has(idx);
-
-                let videoLightboxIdx = -1;
-                if (wfr.videoCount > 0) {
-                  videoLightboxIdx = lightboxItems.findIndex(
-                    item => item.label === wfr.workflowName
-                  );
-                }
-
-                return (
-                  <tr key={idx} className={`border-t border-slate-800/50 ${hasError ? "cursor-pointer" : ""} hover:bg-slate-800/30`} onClick={hasError ? () => toggleExpanded(idx) : undefined}>
-                    <td className="px-1 py-2 text-center">
-                      {hasError && (isExpanded ? <ChevronDown className="h-3 w-3 text-slate-500 inline" /> : <ChevronRight className="h-3 w-3 text-slate-500 inline" />)}
-                    </td>
-                    <td className="px-3 py-2 text-slate-200 max-w-[200px] truncate" title={wfr.workflowName}>
-                      {wfr.workflowName}
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className={`px-1.5 py-0.5 rounded border text-[10px] ${EXECUTION_MODE_COLORS[wfr.executionMode as ExecutionMode] ?? "text-slate-400"}`}>
-                        {wfr.executionMode}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <StatusIcon className={`h-3.5 w-3.5 inline ${statusColor}`} />
-                    </td>
-                    <td className="px-3 py-2 text-right text-slate-400">
-                      {wfr.durationMs > 0 ? formatDuration(Math.round(wfr.durationMs / 1000)) : "-"}
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      {wfr.videoCount > 0 && videoLightboxIdx >= 0 ? (
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); setLightboxIndex(videoLightboxIdx); }}
-                          className="text-blue-400 hover:text-blue-300 text-[10px] underline"
-                        >
-                          Watch
-                        </button>
-                      ) : (
-                        <span className="text-slate-600">-</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {/* Expanded error details rendered outside table for proper layout */}
-          {viewedResult.workflowResults.map((wfr, idx) =>
-            expandedRows.has(idx) && wfr.error ? (
-              <div key={`err-${idx}`} className="px-4 py-2 bg-red-950/20 border-t border-red-900/30">
-                <p className="text-[10px] text-slate-400 mb-1">{wfr.workflowName} — error details</p>
-                <pre className="text-[11px] text-red-200/80 whitespace-pre-wrap break-words font-mono max-h-48 overflow-y-auto">{wfr.error}</pre>
-              </div>
-            ) : null
-          )}
-        </div>
-      )}
-
-      <MediaLightbox
-        items={lightboxItems}
-        initialIndex={lightboxIndex}
-        isOpen={lightboxIndex >= 0}
-        onClose={() => setLightboxIndex(-1)}
-      />
-    </div>
-  );
+  return [...grouped.values()];
 }
-
-function ExecutionModeSelector({ selectedModes, onToggle }: { selectedModes: Set<ExecutionMode>; onToggle: (mode: ExecutionMode) => void }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-slate-400">Modes:</span>
-      {(["observer", "mutating", "destructive"] as ExecutionMode[]).map(mode => (
-        <label key={mode} className="flex items-center gap-1 text-xs cursor-pointer">
-          <input
-            type="checkbox"
-            checked={selectedModes.has(mode)}
-            onChange={() => onToggle(mode)}
-            className="rounded border-slate-600"
-          />
-          <span className={`px-1.5 py-0.5 rounded border text-[10px] ${EXECUTION_MODE_COLORS[mode]}`}>
-            {mode}
-          </span>
-        </label>
-      ))}
-    </div>
-  );
-}
-

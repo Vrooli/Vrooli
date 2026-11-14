@@ -9,7 +9,6 @@ import type {
 } from '@vrooli/iframe-bridge';
 import type { App } from '@/types';
 import { logger } from '@/services/logger';
-import { appService } from '@/services/api';
 import type { ReportNetworkEntry } from './reportTypes';
 import { isTruncated } from './reportTypes';
 import { REPORT_NETWORK_MAX_EVENTS } from './reportConstants';
@@ -22,7 +21,6 @@ import {
 interface UseReportNetworkDataParams {
   app: App | null;
   appId?: string;
-  activePreviewUrl: string | null;
   bridgeSupported: boolean;
   bridgeCaps: string[];
   networkState: BridgeNetworkStreamState | null;
@@ -44,7 +42,6 @@ export interface ReportNetworkDataState {
   total: number | null;
   fetch: (options?: { force?: boolean }) => Promise<void>;
   reset: () => void;
-  fromFallback: boolean;
 }
 
 /**
@@ -53,7 +50,6 @@ export interface ReportNetworkDataState {
 export function useReportNetworkData({
   app,
   appId,
-  activePreviewUrl,
   bridgeSupported,
   bridgeCaps,
   networkState,
@@ -63,7 +59,6 @@ export function useReportNetworkData({
 }: UseReportNetworkDataParams): ReportNetworkDataState {
   const [state, dispatch] = useReducer(reportNetworkReducer, initialReportNetworkState);
   const fetchedForRef = useRef<string | null>(null);
-  const fromFallbackRef = useRef<boolean>(false);
 
   const resolveIdentifier = useCallback(() => {
     const candidates = [app?.scenario_name, app?.id, appId]
@@ -86,86 +81,17 @@ export function useReportNetworkData({
       return;
     }
 
-    // Try fallback if bridge doesn't support network
+    // The iframe bridge is the only network-capture source. When it does not
+    // advertise network support, degrade to a clear, informative empty state.
     if (!bridgeSupported || !bridgeCaps.includes('network')) {
-      if (activePreviewUrl) {
-        logger.info('Bridge does not support network capture, attempting browserless fallback');
-        dispatch({ type: 'FETCH_START' });
-
-        try {
-          const fallbackData = await appService.getFallbackDiagnostics(identifier, activePreviewUrl);
-
-          if (fallbackData && fallbackData.networkRequests && fallbackData.networkRequests.length > 0) {
-            const entries: ReportNetworkEntry[] = fallbackData.networkRequests.map(req => {
-              const ts = new Date(req.timestamp).getTime();
-              const timestamp = new Date(req.timestamp).toLocaleTimeString();
-              const method = req.method.toUpperCase();
-              const statusLabel = req.status ? `HTTP ${req.status}` : req.failed ? 'Failed' : 'Pending';
-              const durationLabel = req.duration ? `${req.duration}ms` : null;
-              const display = `${timestamp} [${method}] ${req.url} → ${statusLabel}${durationLabel ? ` (${durationLabel})` : ''}`.trim();
-
-              return {
-                display,
-                payload: {
-                  ts,
-                  kind: 'fetch' as const,
-                  method: req.method,
-                  url: req.url,
-                  status: req.status,
-                  ok: req.ok,
-                  durationMs: req.duration,
-                  error: req.error,
-                  requestId: req.requestId,
-                },
-                timestamp,
-                method: req.method,
-                statusLabel: req.status ? `${req.status}` : req.failed ? 'Failed' : 'Pending',
-                durationLabel,
-                errorText: req.error || null,
-              };
-            });
-
-            dispatch({
-              type: 'FETCH_SUCCESS',
-              payload: {
-                events: entries,
-                total: fallbackData.networkRequests.length,
-                fetchedAt: new Date(fallbackData.capturedAt).getTime(),
-              },
-            });
-
-            fromFallbackRef.current = true;
-            fetchedForRef.current = normalizedIdentifier;
-            logger.info(`Successfully retrieved ${entries.length} network requests via browserless fallback`);
-            return;
-          } else if (fallbackData && fallbackData.networkRequests && fallbackData.networkRequests.length === 0) {
-            // Fallback succeeded but no network requests were captured
-            dispatch({
-              type: 'FETCH_SUCCESS',
-              payload: {
-                events: [],
-                total: 0,
-                fetchedAt: new Date(fallbackData.capturedAt).getTime(),
-              },
-            });
-
-            fromFallbackRef.current = true;
-            fetchedForRef.current = normalizedIdentifier;
-            logger.info('Browserless fallback succeeded but captured no network requests');
-            return;
-          }
-        } catch (error) {
-          logger.warn('Browserless fallback failed for network requests', error);
-        }
-      }
-
-      dispatch({ type: 'FETCH_ERROR', payload: 'Network capture is not available for this preview.' });
+      dispatch({
+        type: 'FETCH_ERROR',
+        payload: "Network requests unavailable — the preview's iframe bridge did not advertise network support.",
+      });
       fetchedForRef.current = null;
-      fromFallbackRef.current = false;
       return;
     }
 
-    fromFallbackRef.current = false;
     dispatch({ type: 'FETCH_START' });
 
     try {
@@ -204,7 +130,6 @@ export function useReportNetworkData({
     }
   }, [
     resolveIdentifier,
-    activePreviewUrl,
     bridgeSupported,
     bridgeCaps,
     networkState,
@@ -216,7 +141,6 @@ export function useReportNetworkData({
   const reset = useCallback(() => {
     dispatch({ type: 'RESET' });
     fetchedForRef.current = null;
-    fromFallbackRef.current = false;
   }, []);
 
   const formattedCapturedAt = useMemo(
@@ -242,6 +166,5 @@ export function useReportNetworkData({
     total: state.total,
     fetch,
     reset,
-    fromFallback: fromFallbackRef.current,
   };
 }

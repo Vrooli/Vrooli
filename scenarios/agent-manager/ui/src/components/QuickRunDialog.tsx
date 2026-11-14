@@ -1,3 +1,4 @@
+import { selectors } from "../consts/selectors";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -12,7 +13,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import {
   Dialog,
   DialogBody,
@@ -24,38 +25,29 @@ import {
 } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { ModelConfigSelector, type ModelSelectionMode } from "./ModelConfigSelector";
+import { RoleSelector } from "./RoleSelector";
 import { AttachmentPreview } from "./AttachmentPreview";
 import { ScopePathsManager } from "./ScopePathsManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Textarea } from "./ui/textarea";
 import { useAttachments, type PersistedAttachment } from "../hooks/useAttachments";
 import { usePersistedFormState } from "../hooks/usePersistedFormState";
-import { cn, networkAccessLabel, runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
+import { cn, networkAccessLabel, sandboxModeLabel } from "../lib/utils";
+import type { RolePolicyCatalog } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 import type {
   AgentProfile,
-  ModelRegistry,
   Run,
   RunFormData,
-  RunnerStatus,
-  RunnerType,
   Task,
   TaskFormData,
 } from "../types";
-import { ModelPreset, RunMode, RunnerType as RunnerTypeEnum } from "../types";
-
-const RUNNER_TYPES: RunnerType[] = [
-  RunnerTypeEnum.CLAUDE_CODE,
-  RunnerTypeEnum.CODEX,
-  RunnerTypeEnum.OPENCODE,
-];
+import { ExecutionMode, RunMode, SandboxMode } from "../types";
 
 interface QuickRunDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   profiles: AgentProfile[];
-  runners?: Record<string, RunnerStatus>;
-  modelRegistry?: ModelRegistry;
+  rolePolicyCatalog?: RolePolicyCatalog;
   defaultProjectRoot?: string;
   onCreateTask: (task: TaskFormData) => Promise<Task>;
   onCreateRun: (run: RunFormData) => Promise<Run>;
@@ -68,16 +60,13 @@ const DEFAULT_TIMEOUT_MINUTES = 120;
 interface AgentConfigData {
   mode: "profile" | "custom";
   profileId: string;
-  runnerType: RunnerType;
-  model: string;
-  modelPreset: ModelPreset;
-  modelMode: ModelSelectionMode;
+  roleRef: string;
   maxTurns: number | string;
   timeoutMinutes: number | string;
   runMode: RunMode;
+  executionMode: ExecutionMode;
   skipPermissionPrompt: boolean;
   networkAccess: "none" | "localhost" | "full";
-  fallbackRunnerTypes: RunnerType[];
   features?: {
     enableBrowser?: boolean;
   };
@@ -92,16 +81,11 @@ const STEPS: { num: Step; label: string; icon: React.ReactNode }[] = [
   { num: 3, label: "Review", icon: <Rocket className="h-4 w-4" /> },
 ];
 
-const getModelId = (model: string | { id: string }): string => {
-  return typeof model === "string" ? model : model.id;
-};
-
 export function QuickRunDialog({
   open,
   onOpenChange,
   profiles,
-  runners,
-  modelRegistry,
+  rolePolicyCatalog,
   defaultProjectRoot,
   onCreateTask,
   onCreateRun,
@@ -157,37 +141,26 @@ export function QuickRunDialog({
   const [agentConfig, setAgentConfig, clearConfigStorage] = usePersistedFormState<AgentConfigData>("quick-run-config", {
     mode: "custom",
     profileId: "",
-    runnerType: RunnerTypeEnum.CLAUDE_CODE,
-    model: "",
-    modelPreset: ModelPreset.UNSPECIFIED,
-    modelMode: "default",
+    roleRef: rolePolicyCatalog?.defaultRole || "code.default",
     maxTurns: DEFAULT_MAX_TURNS,
     timeoutMinutes: DEFAULT_TIMEOUT_MINUTES,
-    runMode: RunMode.IN_PLACE,
+    runMode: RunMode.SANDBOXED,
+    executionMode: ExecutionMode.CODEC_PIPE,
     skipPermissionPrompt: true,
     networkAccess: "localhost",
-    fallbackRunnerTypes: [],
     features: { enableBrowser: false },
     extraFlags: {},
   });
   const [existingSandboxId, setExistingSandboxId, clearSandboxStorage] = usePersistedFormState("quick-run-sandbox", "");
 
-  const getRegistryForRunner = (runnerType: RunnerType) => {
-    return modelRegistry?.runners?.[runnerTypeToSlug(runnerType)];
-  };
-
-  const getModelsForRunner = (runnerType: RunnerType) => {
-    const registry = getRegistryForRunner(runnerType);
-    if (registry?.models?.length) {
-      return registry.models;
-    }
-    const runner = runners?.[runnerType];
-    return runner?.supportedModels ?? [];
-  };
-
-  const getPresetMapForRunner = (runnerType: RunnerType) => {
-    return getRegistryForRunner(runnerType)?.presets ?? {};
-  };
+  // Interactive execution is gated to non-protected (in-place) runs server-side
+  // (domain.ValidateInteractiveRunMode). Surface the conflict inline so the
+  // operator fixes it before submitting rather than only seeing the server
+  // rejection. Only the custom-config path exposes an explicit run mode here.
+  const interactiveProtectedConflict =
+    agentConfig.mode === "custom" &&
+    agentConfig.executionMode === ExecutionMode.INTERACTIVE &&
+    agentConfig.runMode !== RunMode.IN_PLACE;
 
   const getSelectedProfile = (): AgentProfile | undefined => {
     return profiles.find((p) => p.id === agentConfig.profileId);
@@ -217,16 +190,13 @@ export function QuickRunDialog({
     setAgentConfig({
       mode: "custom",
       profileId: "",
-      runnerType: RunnerTypeEnum.CLAUDE_CODE,
-      model: "",
-      modelPreset: ModelPreset.UNSPECIFIED,
-      modelMode: "default",
+      roleRef: rolePolicyCatalog?.defaultRole || "code.default",
       maxTurns: DEFAULT_MAX_TURNS,
       timeoutMinutes: DEFAULT_TIMEOUT_MINUTES,
-      runMode: RunMode.IN_PLACE,
+      runMode: RunMode.SANDBOXED,
+      executionMode: ExecutionMode.CODEC_PIPE,
       skipPermissionPrompt: true,
       networkAccess: "localhost",
-      fallbackRunnerTypes: [],
       features: { enableBrowser: false },
       extraFlags: {},
     });
@@ -250,7 +220,7 @@ export function QuickRunDialog({
     if (agentConfig.mode === "profile") {
       return agentConfig.profileId.length > 0;
     }
-    return agentConfig.runnerType !== RunnerTypeEnum.UNSPECIFIED;
+    return agentConfig.roleRef.trim().length > 0;
   };
 
   const handleNext = () => {
@@ -281,30 +251,6 @@ export function QuickRunDialog({
     }
   };
 
-  const handleAddFallbackRunner = () => {
-    setAgentConfig((prev) => ({
-      ...prev,
-      fallbackRunnerTypes: [...prev.fallbackRunnerTypes, RunnerTypeEnum.CLAUDE_CODE],
-    }));
-  };
-
-  const handleFallbackRunnerChange = (index: number, value: string) => {
-    const parsed = Number(value) as RunnerType;
-    setAgentConfig((prev) => {
-      const fallback = [...prev.fallbackRunnerTypes];
-      fallback[index] = parsed;
-      return { ...prev, fallbackRunnerTypes: fallback };
-    });
-  };
-
-  const handleRemoveFallbackRunner = (index: number) => {
-    setAgentConfig((prev) => {
-      const fallback = [...prev.fallbackRunnerTypes];
-      fallback.splice(index, 1);
-      return { ...prev, fallbackRunnerTypes: fallback };
-    });
-  };
-
   const generateTitle = useCallback((): string => {
     if (taskData.title.trim()) return taskData.title.trim();
     if (taskData.description.trim()) {
@@ -320,6 +266,10 @@ export function QuickRunDialog({
   }, [taskData.title, taskData.description]);
 
   const handleStartRun = useCallback(async () => {
+    if (interactiveProtectedConflict) {
+      setError("Interactive execution is not available for sandboxed (protected) runs. Switch Run Mode to In-place, or use Codec-pipe.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
 
@@ -354,21 +304,15 @@ export function QuickRunDialog({
       if (agentConfig.mode === "profile") {
         runRequest.agentProfileId = agentConfig.profileId;
       } else {
-        runRequest.runnerType = agentConfig.runnerType;
-        if (agentConfig.modelMode === "model" && agentConfig.model.trim() !== "") {
-          runRequest.model = agentConfig.model;
-        }
-        if (agentConfig.modelMode === "preset") {
-          runRequest.modelPreset = agentConfig.modelPreset;
-        }
+        runRequest.roleRef = agentConfig.roleRef;
         runRequest.maxTurns = typeof agentConfig.maxTurns === "number" ? agentConfig.maxTurns : DEFAULT_MAX_TURNS;
         runRequest.timeoutMinutes = typeof agentConfig.timeoutMinutes === "number" ? agentConfig.timeoutMinutes : DEFAULT_TIMEOUT_MINUTES;
         runRequest.runMode = agentConfig.runMode;
+        if (agentConfig.executionMode === ExecutionMode.INTERACTIVE) {
+          runRequest.executionMode = ExecutionMode.INTERACTIVE;
+        }
         runRequest.skipPermissionPrompt = agentConfig.skipPermissionPrompt;
         runRequest.networkAccess = agentConfig.networkAccess;
-        if (agentConfig.fallbackRunnerTypes.length > 0) {
-          runRequest.fallbackRunnerTypes = agentConfig.fallbackRunnerTypes;
-        }
         if (agentConfig.features?.enableBrowser) {
           runRequest.features = { enableBrowser: true };
         }
@@ -469,6 +413,7 @@ export function QuickRunDialog({
                 <Label htmlFor="description">What should the agent do?</Label>
                 <Textarea
                   id="description"
+                  data-testid={selectors.quickRun.description}
                   value={taskData.description}
                   onChange={(e) =>
                     setTaskData({ ...taskData, description: e.target.value })
@@ -491,7 +436,7 @@ export function QuickRunDialog({
                 )}
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => imageInputRef.current?.click()}
                 >
@@ -511,6 +456,7 @@ export function QuickRunDialog({
                 <Label htmlFor="title">Task Title</Label>
                 <Input
                   id="title"
+                  data-testid={selectors.quickRun.title}
                   value={taskData.title}
                   onChange={(e) =>
                     setTaskData({ ...taskData, title: e.target.value })
@@ -523,6 +469,7 @@ export function QuickRunDialog({
               </div>
 
               <ScopePathsManager
+                projectRootTestId={selectors.quickRun.projectRoot}
                 projectRoot={taskData.projectRoot}
                 onProjectRootChange={(value) =>
                   setTaskData({ ...taskData, projectRoot: value })
@@ -585,7 +532,7 @@ export function QuickRunDialog({
                         <option value="">Select a profile...</option>
                         {profiles.map((profile) => (
                           <option key={profile.id} value={profile.id}>
-                            {profile.name} ({runnerTypeLabel(profile.runnerType)})
+                            {profile.name} ({profile.roleRef})
                           </option>
                         ))}
                       </select>
@@ -601,19 +548,12 @@ export function QuickRunDialog({
                             return (
                               <div className="space-y-2 text-sm">
                                 <div className="flex flex-wrap gap-2">
-                                  <Badge variant="secondary">
-                                    {runnerTypeLabel(profile.runnerType)}
-                                  </Badge>
-                                  {profile.model && (
-                                    <Badge variant="outline">
-                                      {profile.model}
-                                    </Badge>
+                                  <Badge variant="secondary">{profile.roleRef}</Badge>
+                                  {profile.sandboxConfig?.mode != null && profile.sandboxConfig.mode !== SandboxMode.UNSPECIFIED && (
+                                    <Badge variant="outline">Sandbox: {sandboxModeLabel(profile.sandboxConfig.mode)}</Badge>
                                   )}
-                                  {profile.requiresSandbox && (
-                                    <Badge variant="outline">Sandbox</Badge>
-                                  )}
-                                  {profile.requiresApproval && (
-                                    <Badge variant="outline">Approval</Badge>
+                                  {profile.sandboxConfig?.manualReview && (
+                                    <Badge variant="outline">Manual Review</Badge>
                                   )}
                                   {profile.networkAccess != null && (
                                     <Badge variant="outline">Net: {networkAccessLabel(profile.networkAccess)}</Badge>
@@ -637,99 +577,21 @@ export function QuickRunDialog({
                 </TabsContent>
 
                 <TabsContent value="custom" className="mt-4 space-y-4">
-                  <div className="space-y-2">
-                  <Label htmlFor="runnerType">Runner Type *</Label>
-                  <select
-                    id="runnerType"
-                    value={String(agentConfig.runnerType)}
-                    onChange={(e) => {
-                      const newRunnerType = Number(e.target.value) as RunnerType;
-                      const availableModels = getModelsForRunner(newRunnerType);
-                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0] ?? "") : "";
-                      setAgentConfig({
-                        ...agentConfig,
-                        runnerType: newRunnerType,
-                        model:
-                          agentConfig.modelMode === "model"
-                            ? firstModel
-                            : agentConfig.model,
-                      });
-                    }}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    {RUNNER_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {runnerTypeLabel(type)}
-                      </option>
-                    ))}
-                  </select>
-                  </div>
-
-                  <ModelConfigSelector
-                    value={{
-                      mode: agentConfig.modelMode,
-                      model: agentConfig.model,
-                      preset: agentConfig.modelPreset,
-                    }}
-                    onChange={(selection) =>
-                      setAgentConfig({
-                        ...agentConfig,
-                        modelMode: selection.mode,
-                        model: selection.model,
-                        modelPreset: selection.preset,
-                      })
-                    }
-                    models={getModelsForRunner(agentConfig.runnerType)}
-                    presetMap={getPresetMapForRunner(agentConfig.runnerType)}
-                    label="Model Selection"
+                  <RoleSelector
+                    catalog={rolePolicyCatalog}
+                    value={agentConfig.roleRef}
+                    onChange={(roleRef) => setAgentConfig({ ...agentConfig, roleRef })}
+                    label="Execution Role"
+                    id="quickRunRoleRef"
+                    testId={selectors.quickRun.role}
                   />
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label>Fallback Runners</Label>
-                      <Button type="button" variant="outline" size="sm" onClick={handleAddFallbackRunner}>
-                        Add
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Ordered runners to try if the primary runner is unavailable.
-                    </p>
-                    {agentConfig.fallbackRunnerTypes.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">No fallback runners configured.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {agentConfig.fallbackRunnerTypes.map((runnerType, index) => (
-                          <div key={`quick-fallback-${index}`} className="flex items-center gap-2">
-                            <select
-                              value={String(runnerType)}
-                              onChange={(e) => handleFallbackRunnerChange(index, e.target.value)}
-                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            >
-                              {RUNNER_TYPES.map((type) => (
-                                <option key={type} value={type}>
-                                  {runnerTypeLabel(type)}
-                                </option>
-                              ))}
-                            </select>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveFallbackRunner(index)}
-                            >
-                              Remove
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
 
                   <div className="grid gap-4 grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="maxTurns">Max Turns</Label>
                       <Input
                         id="maxTurns"
+                        data-testid={selectors.quickRun.maxTurns}
                         type="number"
                         value={agentConfig.maxTurns}
                         onChange={(e) =>
@@ -755,6 +617,7 @@ export function QuickRunDialog({
                       <Label htmlFor="timeoutMinutes">Timeout (minutes)</Label>
                       <Input
                         id="timeoutMinutes"
+                        data-testid={selectors.quickRun.timeoutMinutes}
                         type="number"
                         value={agentConfig.timeoutMinutes}
                         onChange={(e) =>
@@ -782,6 +645,7 @@ export function QuickRunDialog({
                   <Label htmlFor="runMode">Run Mode *</Label>
                   <select
                     id="runMode"
+                    data-testid={selectors.quickRun.runMode}
                     value={String(agentConfig.runMode)}
                     onChange={(e) =>
                       setAgentConfig({
@@ -791,9 +655,32 @@ export function QuickRunDialog({
                     }
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   >
-                    <option value={RunMode.SANDBOXED}>Sandboxed (isolated copy)</option>
-                    <option value={RunMode.IN_PLACE}>In-place (direct changes)</option>
+                    <option value={RunMode.SANDBOXED}>Sandboxed — normal audit path (recommended)</option>
+                    <option value={RunMode.IN_PLACE}>In-place — operator escape hatch (bypasses provenance + review queue)</option>
                   </select>
+                  </div>
+
+                  <div className="space-y-2">
+                  <Label htmlFor="executionMode">Execution Mode *</Label>
+                  <select
+                    id="executionMode"
+                    value={String(agentConfig.executionMode)}
+                    onChange={(e) =>
+                      setAgentConfig({
+                        ...agentConfig,
+                        executionMode: Number(e.target.value) as ExecutionMode,
+                      })
+                    }
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value={ExecutionMode.CODEC_PIPE}>Codec-pipe — agent-manager owns the CLI process (default)</option>
+                    <option value={ExecutionMode.INTERACTIVE}>Interactive — real CLI in a live web-console session (in-place runs only)</option>
+                  </select>
+                  {interactiveProtectedConflict && (
+                    <p className="text-xs text-destructive" data-testid="interactive-protected-warning">
+                      Interactive execution is not available for sandboxed (protected) runs. Switch Run Mode to In-place, or use Codec-pipe.
+                    </p>
+                  )}
                   </div>
 
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -814,6 +701,7 @@ export function QuickRunDialog({
                   <label className="flex items-center gap-2">
                     <span className="text-sm">Network Access</span>
                     <select
+                      data-testid={selectors.quickRun.network}
                       value={agentConfig.networkAccess}
                       onChange={(e) =>
                         setAgentConfig({
@@ -829,40 +717,20 @@ export function QuickRunDialog({
                     </select>
                   </label>
 
-                  {agentConfig.runnerType === RunnerTypeEnum.CLAUDE_CODE && (
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={agentConfig.features?.enableBrowser ?? false}
-                        onChange={(e) =>
-                          setAgentConfig({
-                            ...agentConfig,
-                            features: { ...agentConfig.features, enableBrowser: e.target.checked },
-                          })
-                        }
-                        className="h-4 w-4 rounded border-input"
-                      />
-                      <span className="text-sm">Browser automation (--chrome)</span>
-                    </label>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label>Extra CLI Flags</Label>
-                    <Input
-                      placeholder="--verbose, --allowedTools"
-                      value={(agentConfig.extraFlags?.[runnerTypeToSlug(agentConfig.runnerType)] ?? []).join(", ")}
-                      onChange={(e) => {
-                        const flags = e.target.value.split(",").map(s => s.trim()).filter(Boolean);
-                        setAgentConfig(prev => ({
-                          ...prev,
-                          extraFlags: { ...prev.extraFlags, [runnerTypeToSlug(prev.runnerType)]: flags },
-                        }));
-                      }}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={agentConfig.features?.enableBrowser ?? false}
+                      onChange={(e) =>
+                        setAgentConfig({
+                          ...agentConfig,
+                          features: { ...agentConfig.features, enableBrowser: e.target.checked },
+                        })
+                      }
+                      className="h-4 w-4 rounded border-input"
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Flags validated against runner allowlist on save
-                    </p>
-                  </div>
+                    <span className="text-sm">Request browser automation when the resolved runner supports it</span>
+                  </label>
 
                   <div className="space-y-2">
                     <Label htmlFor="existingSandboxId">Reuse Sandbox ID (optional)</Label>
@@ -965,15 +833,12 @@ export function QuickRunDialog({
                               <span className="font-medium">{profile.name}</span>
                             </div>
                             <div className="flex flex-wrap gap-2 mt-2">
-                              <Badge variant="outline">{runnerTypeLabel(profile.runnerType)}</Badge>
-                              {profile.model && (
-                                <Badge variant="outline">{profile.model}</Badge>
+                              <Badge variant="outline">{profile.roleRef}</Badge>
+                              {profile.sandboxConfig?.mode != null && profile.sandboxConfig.mode !== SandboxMode.UNSPECIFIED && (
+                                <Badge variant="outline">Sandbox: {sandboxModeLabel(profile.sandboxConfig.mode)}</Badge>
                               )}
-                              {profile.requiresSandbox && (
-                                <Badge variant="outline">Sandbox</Badge>
-                              )}
-                              {profile.requiresApproval && (
-                                <Badge variant="outline">Approval Required</Badge>
+                              {profile.sandboxConfig?.manualReview && (
+                                <Badge variant="outline">Manual Review</Badge>
                               )}
                               {profile.networkAccess != null && (
                                 <Badge variant="outline">Net: {networkAccessLabel(profile.networkAccess)}</Badge>
@@ -998,8 +863,7 @@ export function QuickRunDialog({
                         <Badge variant="secondary">Custom Config</Badge>
                       </div>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        <Badge variant="outline">{runnerTypeLabel(agentConfig.runnerType)}</Badge>
-                        <Badge variant="outline">{agentConfig.model}</Badge>
+                        <Badge variant="outline">{agentConfig.roleRef}</Badge>
                         <Badge variant="outline">
                           {agentConfig.runMode === RunMode.SANDBOXED
                             ? "Sandboxed"
@@ -1048,7 +912,7 @@ export function QuickRunDialog({
           {currentStep > 1 && (
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={handleBack}
               disabled={submitting}
               className="gap-2"
@@ -1064,7 +928,8 @@ export function QuickRunDialog({
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={handleStartRun}
+                  data-testid={selectors.quickRun.start}
+                onClick={handleStartRun}
                   disabled={submitting || isUploading || !canProceedStep1()}
                   className="gap-2"
                 >
@@ -1073,6 +938,7 @@ export function QuickRunDialog({
                 </Button>
                 <Button
                   type="button"
+                  data-testid={selectors.quickRun.next}
                   onClick={handleNext}
                   disabled={
                     (currentStep === 1 && !canProceedStep1()) ||
@@ -1088,6 +954,7 @@ export function QuickRunDialog({
             {currentStep === 3 && (
               <Button
                 type="button"
+                data-testid={selectors.quickRun.start}
                 onClick={handleStartRun}
                 disabled={submitting || isUploading}
                 className="gap-2"

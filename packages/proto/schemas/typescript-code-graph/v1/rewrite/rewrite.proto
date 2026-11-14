@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package vrooli.typescript_code_graph.v1.rewrite;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/rewrite;rewrite_v1";
+
+// =============================================================================
+// REWRITE DOMAIN — operations + per-op results
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain rewrite
+// @stability stable
+//
+// Operation, FileMove, ImportRewrite, and per-op result types for the
+// two-step rewrite surface. The Connect-RPC service that consumes
+// these messages lives in graph/graph.proto alongside Extract because
+// consumers (architecture-cartographer, future TS migration agents)
+// expect a single TypeScriptCodeGraphService client across all three
+// RPCs. Same shape as the go-code-graph rewrite domain.
+//
+// The rewrite contract is intentionally narrow: filesystem mutations
+// only. The scenario never invokes git and never invokes `tsc` /
+// `pnpm`; partial applies leave the working tree in a torn state and
+// the operator owns recovery through git.
+//
+// Operations execute through `ts-morph`'s formatting-preserving
+// Project APIs inside the Node sidecar.
+// =============================================================================
+
+// FileMove relocates a single file from from_path to to_path. Both
+// paths are relative to the project root (no leading slash, no ".."
+// segments). The sidecar uses `SourceFile.move(toPath)`, which both
+// moves the file on disk and rewrites every import/export specifier in
+// the project that resolves to it.
+message FileMove {
+  string from_path = 1;
+  string to_path = 2;
+}
+
+// ImportRewrite changes the module specifier on every import / export
+// declaration whose normalized specifier equals old_path. Does not
+// move any files. Specifiers are the textual strings as written in
+// source ("./components/Button", "@/lib/utils", etc.).
+message ImportRewrite {
+  string old_path = 1;
+  string new_path = 2;
+}
+
+// Operation is the sum type the caller sends. Exactly one inner
+// message must be set; the service rejects empty / multi-set
+// operations with InvalidArgument.
+message Operation {
+  oneof op {
+    FileMove file_move = 1;
+    ImportRewrite import_rewrite = 2;
+  }
+}
+
+enum OperationStatus {
+  OPERATION_STATUS_UNSPECIFIED = 0;
+  OPERATION_STATUS_OK = 1;
+  OPERATION_STATUS_FAILED = 2;
+}
+
+// OperationResult is one row of the per-op apply log.
+message OperationResult {
+  Operation operation = 1;
+  OperationStatus status = 2;
+  // Human-readable message; empty when status is OK.
+  string message = 3;
+}

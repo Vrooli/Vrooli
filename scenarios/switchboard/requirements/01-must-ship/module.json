@@ -1,0 +1,266 @@
+{
+  "_metadata": {
+    "description": "Requirement validations for the P0 operational targets.",
+    "last_validated_at": "2026-09-01T18:16:10-04:00",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SWBD-P0-001",
+      "title": "Channel descriptor registry",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "The system shall load every channel definition from validated descriptor files at boot, shall treat the descriptor file as the source of truth and the database as a cache, and shall fail startup naming the file and field when a descriptor is invalid.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/channels/registry_test.go::TestLoadAndAvailabilityFailClosed",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P0-002",
+      "title": "Channel capability questions answered by descriptor",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "description": "The system shall answer every capability, limit, and policy question about a channel by reading its descriptor, and shall contain no branch on a channel identifier above the adapter layer.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/channels/registry_test.go::TestLoadAndAvailabilityFailClosed",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P0-003",
+      "title": "Channel adapter contract",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "description": "The system shall define one bidirectional adapter contract covering connect, receive, send, and normalise, and shall bind an adapter to a descriptor by identifier.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/channels/conformance/conformance_test.go::TestEveryCasePassesWithoutAdapterBranches",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P0-004",
+      "title": "Normalised message envelope",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "The system shall convert every inbound and outbound message to a single envelope shape, and no component above the adapter shall receive a channel-native type.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/channels/conformance/conformance_test.go::TestEveryCasePassesWithoutAdapterBranches",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P0-005",
+      "title": "Ingress idempotency",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "description": "The system shall discard a redelivered inbound message at ingress using the channel identifier and the remote message identifier, before any run is started or any metered call is made.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ingress/ingress_test.go::TestDeduplicatesByChannelAndRemoteID",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P0-006",
+      "title": "Durable thread sessions",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "description": "The system shall persist every conversation as a thread carrying its roster, its messages, and its media references, and shall resume a thread across a restart without losing position.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/threads/schema_test.go::TestSchemaAndDuplicateAppend",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P0-007",
+      "title": "Address to agent binding",
+      "status": "complete",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "description": "The system shall resolve an inbound address, handle, or thread to exactly one agent binding, and shall reject an ambiguous binding rather than choosing one.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/agents/bindings_test.go::TestResolveExact",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P0-008",
+      "title": "Agent profiles held by reference",
+      "status": "complete",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "description": "The system shall read agent profiles from prompt-manager by reference and shall never store a copy of a descriptor it does not own.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/agents/store_test.go::TestStoreCreatesAndListsBinding",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P0-009",
+      "title": "Contact trust tiers",
+      "status": "complete",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "description": "The system shall assign every known contact a trust tier of owner, trusted, known, or stranger, and shall treat an unrecognised sender as a stranger.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/trust/scope_test.go::TestResolveNeverWidens",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P0-010",
+      "title": "Fail-closed scope resolution",
+      "status": "complete",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "description": "The system shall compute the effective scope for a turn as the narrowest of the sender tier, the thread ceiling, and the agent capability grant, shall resolve it before the agent reads the message, and shall refuse the turn when the result is empty.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/trust/scope_test.go::TestResolveEmptyFailsClosed",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P0-011",
+      "title": "Owner-only scope is unreachable from a non-owner tier",
+      "status": "complete",
+      "prd_ref": "OT-P0-011",
+      "criticality": "P0",
+      "description": "The system shall make it impossible to grant an owner-only scope to any tier below owner, by construction rather than by configuration.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/trust/scope_test.go::TestResolveEmptyFailsClosed",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P0-012",
+      "title": "Attenuated run dispatch",
+      "status": "complete",
+      "prd_ref": "OT-P0-012",
+      "criticality": "P0",
+      "description": "The system shall start every agent turn as an agent-manager run carrying the resolved scope through one-way attenuation, and shall never widen a scope inside a turn.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/dispatch/agent_manager_test.go::TestAgentManagerRunnerCreatesTaskAndRun",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P0-013",
+      "title": "Reply egress through the ingressing adapter",
+      "status": "complete",
+      "prd_ref": "OT-P0-013",
+      "criticality": "P0",
+      "description": "The system shall return a reply through the adapter that received the message, on the same thread, and shall not route a conversational reply through a one-shot notification path.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/egress/egress_test.go::TestRoutesSameChannelAndEnforcesDescriptorLimit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P0-014",
+      "title": "In-app conversation adapter",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "criticality": "P0",
+      "description": "The system shall expose its own in-app conversation surface as an ordinary channel adapter, indistinguishable to the core from any external channel.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/channels/adapters/inapp/inapp_test.go::TestAdapterNormalizesInboundAndDeliversOutboundOnThread",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P0-015",
+      "title": "Telegram adapter",
+      "status": "complete",
+      "prd_ref": "OT-P0-015",
+      "criticality": "P0",
+      "description": "The system shall send and receive text, images, and files on Telegram through the Bot API, requiring no account provisioning and no public origin.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/channels/adapters/telegram/telegram_test.go::TestAdapterSendsThreadedTextThroughBotAPI",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P0-016",
+      "title": "Channel conformance suite",
+      "status": "complete",
+      "prd_ref": "OT-P0-016",
+      "criticality": "P0",
+      "description": "The system shall provide one shared conformance suite that every adapter passes, covering text round-trip, media round-trip, declared-limit rejection, threaded reply, rate-limit backoff, unknown-sender ingress, and refusal to auto-reply to an agent-authored message.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/channels/conformance/conformance_test.go::TestEveryCasePassesWithoutAdapterBranches",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P0-017",
+      "title": "Operator console",
+      "status": "complete",
+      "prd_ref": "OT-P0-017",
+      "criticality": "P0",
+      "description": "The system shall provide a console for the agent roster, conversations, contacts and their tiers, and the channel catalogue, rendering loading, error, and empty states throughout.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/app/routes.test.tsx::renders the declared routes",
+          "status": "implemented"
+        }
+      ]
+    }
+  ]
+}

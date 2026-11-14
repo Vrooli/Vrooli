@@ -247,9 +247,10 @@ export function registerStorageHandlers(
  * Register authentication handlers.
  */
 export function registerAuthHandlers(
-    ipcMain: IIpcMain,
+    rawIPC: IIpcMain,
     deps: AuthHandlerDependencies
 ): HandlerRegistration {
+    const ipcMain = restrictIPC(rawIPC, deps.isTrustedRenderer);
     const channels: string[] = [];
     const { authManager } = deps;
 
@@ -258,6 +259,38 @@ export function registerAuthHandlers(
         return authManager.signIn(options);
     });
     channels.push(AUTH_CHANNELS.SIGN_IN);
+
+    // auth:connect-desktop - Link the authenticated LPBS account to a local identity.
+    ipcMain.handle(AUTH_CHANNELS.CONNECT_DESKTOP, async (event, options) => {
+        return authManager.connectDesktop(options);
+    });
+    channels.push(AUTH_CHANNELS.CONNECT_DESKTOP);
+
+    ipcMain.handle(AUTH_CHANNELS.GET_DESKTOP_LINK_STATUS, async (event, options) => {
+        return authManager.getDesktopLinkStatus(options);
+    });
+    channels.push(AUTH_CHANNELS.GET_DESKTOP_LINK_STATUS);
+
+    ipcMain.handle(AUTH_CHANNELS.DISCONNECT_DESKTOP, async (event, options) => {
+        return authManager.disconnectDesktop(options);
+    });
+    channels.push(AUTH_CHANNELS.DISCONNECT_DESKTOP);
+
+    ipcMain.handle(AUTH_CHANNELS.GET_CREDIT_SESSION_STATUS, async (event) => {
+        return authManager.getCreditSessionShareStatus();
+    });
+    channels.push(AUTH_CHANNELS.GET_CREDIT_SESSION_STATUS);
+
+    ipcMain.handle(AUTH_CHANNELS.GET_CREDIT_BALANCE, async (event) => {
+        return authManager.getCreditBalance();
+    });
+    channels.push(AUTH_CHANNELS.GET_CREDIT_BALANCE);
+
+    ipcMain.handle(AUTH_CHANNELS.SET_CREDIT_SESSION_SHARING, async (event, enabled: unknown) => {
+        if (typeof enabled !== "boolean") throw new Error("credit session sharing requires an explicit boolean choice");
+        return authManager.setCreditSessionSharing(enabled);
+    });
+    channels.push(AUTH_CHANNELS.SET_CREDIT_SESSION_SHARING);
 
     // auth:sign-out - Sign out
     ipcMain.handle(AUTH_CHANNELS.SIGN_OUT, async () => {
@@ -270,6 +303,21 @@ export function registerAuthHandlers(
         return authManager.getAccessToken();
     });
     channels.push(AUTH_CHANNELS.GET_ACCESS_TOKEN);
+
+    // The runtime-owned local session is available only to the trusted local
+    // renderer. A remote page must not be able to turn the Electron bridge into
+    // a bearer-token oracle.
+    if (deps.getLocalSessionToken) {
+        ipcMain.handle(AUTH_CHANNELS.GET_LOCAL_SESSION_TOKEN, async (event) => {
+            return deps.getLocalSessionToken?.() ?? null;
+        });
+        channels.push(AUTH_CHANNELS.GET_LOCAL_SESSION_TOKEN);
+    }
+
+    ipcMain.handle(AUTH_CHANNELS.GET_ENTITLEMENT_LEASE, async () => {
+        return authManager.getEntitlementLease();
+    });
+    channels.push(AUTH_CHANNELS.GET_ENTITLEMENT_LEASE);
 
     // auth:get-user - Get user info
     ipcMain.handle(AUTH_CHANNELS.GET_USER, async () => {
@@ -295,16 +343,52 @@ export function registerAuthHandlers(
     };
 }
 
+function restrictIPC(ipcMain: IIpcMain, authorize?: (event: Electron.IpcMainInvokeEvent) => boolean): IIpcMain {
+    return {
+        removeHandler: (channel) => ipcMain.removeHandler(channel),
+        handle: (channel, listener) => ipcMain.handle(channel, async (event, ...args) => {
+            if (!authorize?.(event)) {
+                if (channel === AUTH_CHANNELS.GET_LOCAL_SESSION_TOKEN) return null;
+                throw new Error("Desktop IPC requires the trusted local renderer main frame");
+            }
+            return listener(event, ...args);
+        }),
+    };
+}
+
+/** Component code admission stays in the authenticated native runtime. */
+function registerComponentHandlers(deps: IpcHandlerDependencies): HandlerRegistration {
+    if (!deps.components) return { channels: [], unregister: () => undefined };
+    const trusted = (event: Electron.IpcMainInvokeEvent) => {
+        if (!deps.isTrustedRenderer(event)) throw new Error("Component changes require the trusted local renderer main frame");
+    };
+    deps.ipcMain.handle("components:list", async (event) => { trusted(event); return deps.components!.list(); });
+    deps.ipcMain.handle("components:install", async (event, id: unknown) => {
+        trusted(event);
+        if (typeof id !== "string" || !/^[a-z][a-z0-9.-]*$/.test(id) || id.includes("..")) throw new Error("Invalid component ID");
+        return deps.components!.install(id);
+    });
+    deps.ipcMain.handle("components:remove", async (event, id: unknown, keepData: unknown) => {
+        trusted(event);
+        if (typeof id !== "string" || !/^[a-z][a-z0-9.-]*$/.test(id) || id.includes("..") || typeof keepData !== "boolean") throw new Error("Invalid component removal choice");
+        return deps.components!.remove(id, keepData);
+    });
+    const channels = ["components:list", "components:install", "components:remove"];
+    return { channels, unregister: () => channels.forEach(channel => deps.ipcMain.removeHandler(channel)) };
+}
+
 /**
  * Register all IPC handlers.
  */
-export function registerAllHandlers(deps: IpcHandlerDependencies): HandlerRegistration {
+export function registerAllHandlers(input: IpcHandlerDependencies): HandlerRegistration {
+    const deps = { ...input, ipcMain: restrictIPC(input.ipcMain, input.isTrustedRenderer) };
     const registrations = [
+        registerComponentHandlers(deps),
         registerFileHandlers(deps.ipcMain, { dialog: deps.dialog, fs: deps.fs }),
         registerSystemHandlers(deps.ipcMain, deps.systemInfo),
         registerAppHandlers(deps.ipcMain, { getMainWindow: deps.getMainWindow }),
         registerStorageHandlers(deps.ipcMain, { storage: deps.storage }),
-        registerAuthHandlers(deps.ipcMain, { authManager: deps.authManager }),
+        registerAuthHandlers(deps.ipcMain, { authManager: deps.authManager, isTrustedRenderer: deps.isTrustedRenderer, ...(deps.getLocalSessionToken ? { getLocalSessionToken: deps.getLocalSessionToken } : {}) }),
     ];
 
     const allChannels = registrations.flatMap(r => r.channels);

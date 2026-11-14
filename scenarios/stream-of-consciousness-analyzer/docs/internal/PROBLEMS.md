@@ -1,39 +1,64 @@
 # Known Problems & Risks
 
-## P1: Clock Skew in Last-Write-Wins Sync
-- **Risk:** Client and server clocks may diverge, causing incorrect conflict resolution
-- **Mitigation:** Use server-assigned timestamps for all conflict resolution; client timestamps only for display
-- **Status:** Design decision made, needs implementation verification
+This is the scenario's current issue ledger. Historical scores, test counts,
+and audit results are observations of earlier revisions, not current readiness.
 
-## P2: Ollama Contention Under Load
-- **Risk:** Multiple scenarios + ghost node generation + voice refinement could saturate Ollama
-- **Mitigation:** Throttled generation (30s interval, max 1 pending), configurable limits
-- **Status:** Architectural mitigation designed, needs load testing
+## Confirmed implementation gaps
 
-## P3: IndexedDB Storage Limits
-- **Risk:** Browsers may impose storage limits on IndexedDB, especially with large voice recordings
-- **Mitigation:** Store voice recordings as blobs with size tracking; warn user approaching limits; prioritize sync of large items
-- **Status:** Needs browser-specific limit research
+- **Suggestion generation is a stub.** `GenerateSuggestions` selects a provider
+  and returns an empty slice; it does not call an LLM. Implement graph-to-prompt
+  construction, provider invocation, and response parsing behind the existing
+  service seam. [CODE: api/suggestion_service.go]
+- **Database startup resilience.** The API exits when database connection or
+  schema initialization fails. Retry or degraded startup remains a product
+  decision. [CODE: api/main.go]
 
-## P4: Scoring System API Integration Detection
-- **Risk:** scenario-completeness-scoring `api_integration` metric shows 0 endpoints despite UI using 14+ API endpoints via `apiFetch` helper
-- **Root cause:** The scoring tool likely scans for direct `fetch("/api/v1/...")` calls rather than detecting abstracted API clients
-- **Mitigation:** None needed for functionality; scoring improvement is a tooling issue
-- **Status:** Documented, not blocking
+## Unresolved design and operational checks
 
-## P5: Production Lifecycle Missing
-- **Risk:** `vrooli scenario status` warns about missing production lifecycle phase
-- **Mitigation:** Add production steps to service.json when deploying
-- **Status:** Deferred to deployment phase
+- **Request rate limiting:** the prior ledger reported no API rate limiting.
+  Recheck the request boundary before exposing it to high traffic.
+- **Clock skew:** verify server-assigned timestamps govern last-write-wins sync;
+  client timestamps should serve display, not conflict authority.
+- **Ollama contention:** verify the proposed throttling (30-second interval,
+  one pending generation) under concurrent scenario load. The mitigation was
+  designed, but its load-test evidence remains unverified.
+- **IndexedDB capacity:** research browser-specific limits for voice blobs;
+  verify size accounting, approaching-limit warnings, and sync prioritization.
+- **Production lifecycle:** confirm the deployment target's lifecycle declaration
+  before deployment. Earlier notes reported a missing production phase.
+- **Smoke-test readiness:** earlier 502s were attributed to smoke starting before
+  API initialization. Wait for lifecycle health before validation; recheck any
+  recurrence against the current startup contract.
 
-## P6: Requirements Live Status Not Tracked
-- **Risk:** `scenario-completeness-scoring` shows 0/12 requirements passing despite all tests passing
-- **Root cause:** The requirements sync system doesn't detect Go test `[REQ:ID]` annotations from `go test` output. The syncer appears to match test output files but doesn't parse Go test function comments.
-- **Impact:** Score capped at ~39/100 until requirement pass tracking works
-- **Mitigation:** Tooling improvement needed in test-genie requirement syncer
-- **Status:** Documented, not fixable within scenario scope
+## Historical validation claims requiring fresh evidence
 
-## P7: Medium Standards Violations Remaining
-- **Risk:** 3 medium-severity standards violations remain (dangerous TS patterns in selectors.ts, setup step ordering, ESLint per-rule comments)
-- **Mitigation:** Address in next iteration; none are HIGH+ so tests pass
-- **Status:** Tracked for next phase
+The two previous ledgers disagreed: one recorded a score near 39, untracked
+requirements, and three standards findings; the other later reported 96 and
+zero findings. Neither snapshot proves current status. The earlier proposed
+causes (API-client detection and Go requirement-annotation parsing) remain
+historical hypotheses, not verified current defects.
+
+Use Test Genie for a scoped current assessment:
+
+```text
+vrooli scenario test stream-of-consciousness-analyzer --phases docs
+```
+
+Select additional phases for the issue under investigation using the project
+[testing guide](../../../../docs/TESTING.md). A passing docs phase does not
+establish product readiness or requirement coverage.
+
+## Historical resolutions
+
+Earlier work recorded canvas error feedback, configurable provider polling,
+an application error boundary, a connection-health indicator, accessible
+controls, safer TypeScript assertions, and test/configuration repairs. Keep
+these as regression expectations; archived test counts and accessibility
+scores do not replace current runs.
+
+## Preserved ledger sources
+
+Both pre-merge ledgers are preserved under the protected runtime-home entry
+`plan-artifacts/docs-cleanup-20260907-final-txumdx73/scenarios/stream-of-consciousness-analyzer/docs/`:
+`PROBLEMS.md` and `internal/PROBLEMS.md`. Original hashes and recovery
+instructions are indexed by the project [cleanup record](../../../../docs/internal/PROGRESS.md#documentation-cleanup-completion--2026-09-07).

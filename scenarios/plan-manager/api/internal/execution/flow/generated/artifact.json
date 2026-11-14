@@ -1,0 +1,548 @@
+{
+  "schemaVersion": 6,
+  "flowId": "plan-manager.execution.api",
+  "source": {
+    "contractPath": "api/internal/execution/flow/flow.json",
+    "contractSha256": "cd2c3b62418bcc1a5a32a40d861cbb39a21316a0e54ce9c4e5941cb9cd1532e0",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "1737e2a389135a2c6b6ee2dcfa653680a67b7d237f2d701cc60af362864e3090",
+    "generatorVersion": 7,
+    "modelPath": "api/internal/execution/flow/generated/model.qnt",
+    "modelSha256": "e06e843f9f9beefae1d7dff153682222c5bb018f1ecbff8af8c029c72b90d679",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
+  },
+  "commands": {
+    "run": [
+      "quint",
+      "run",
+      "api/internal/execution/flow/generated/model.qnt",
+      "--mbt",
+      "--seed",
+      "2026110901",
+      "--max-samples",
+      "6",
+      "--n-traces",
+      "6",
+      "--max-steps",
+      "6",
+      "--out-itf",
+      "<temp-itf-pattern>"
+    ],
+    "test": [
+      "quint",
+      "test",
+      "api/internal/execution/flow/generated/model.qnt",
+      "--seed",
+      "2026110901"
+    ],
+    "typecheck": [
+      "quint",
+      "typecheck",
+      "api/internal/execution/flow/generated/model.qnt"
+    ],
+    "verify": [
+      "quint",
+      "verify",
+      "api/internal/execution/flow/generated/model.qnt",
+      "--invariants",
+      "TypeOK",
+      "TerminalClosure",
+      "IllegalTransitionsPreserveState",
+      "--max-steps",
+      "6"
+    ]
+  },
+  "states": [
+    "active",
+    "ready",
+    "completed",
+    "abandoned"
+  ],
+  "events": [
+    "edit",
+    "phases_ready",
+    "phases_open",
+    "finalize",
+    "abandon"
+  ],
+  "transitions": [
+    {
+      "from": "active",
+      "event": "edit",
+      "to": "active",
+      "wantError": false
+    },
+    {
+      "from": "active",
+      "event": "phases_ready",
+      "to": "ready",
+      "wantError": false
+    },
+    {
+      "from": "active",
+      "event": "phases_open",
+      "to": "active",
+      "wantError": false
+    },
+    {
+      "from": "active",
+      "event": "finalize",
+      "to": "active",
+      "wantError": true
+    },
+    {
+      "from": "active",
+      "event": "abandon",
+      "to": "abandoned",
+      "wantError": false
+    },
+    {
+      "from": "ready",
+      "event": "edit",
+      "to": "ready",
+      "wantError": false
+    },
+    {
+      "from": "ready",
+      "event": "phases_ready",
+      "to": "ready",
+      "wantError": false
+    },
+    {
+      "from": "ready",
+      "event": "phases_open",
+      "to": "active",
+      "wantError": false
+    },
+    {
+      "from": "ready",
+      "event": "finalize",
+      "to": "completed",
+      "wantError": false
+    },
+    {
+      "from": "ready",
+      "event": "abandon",
+      "to": "abandoned",
+      "wantError": false
+    },
+    {
+      "from": "completed",
+      "event": "edit",
+      "to": "completed",
+      "wantError": true
+    },
+    {
+      "from": "completed",
+      "event": "phases_ready",
+      "to": "completed",
+      "wantError": true
+    },
+    {
+      "from": "completed",
+      "event": "phases_open",
+      "to": "completed",
+      "wantError": true
+    },
+    {
+      "from": "completed",
+      "event": "finalize",
+      "to": "completed",
+      "wantError": true
+    },
+    {
+      "from": "completed",
+      "event": "abandon",
+      "to": "completed",
+      "wantError": true
+    },
+    {
+      "from": "abandoned",
+      "event": "edit",
+      "to": "abandoned",
+      "wantError": true
+    },
+    {
+      "from": "abandoned",
+      "event": "phases_ready",
+      "to": "abandoned",
+      "wantError": true
+    },
+    {
+      "from": "abandoned",
+      "event": "phases_open",
+      "to": "abandoned",
+      "wantError": true
+    },
+    {
+      "from": "abandoned",
+      "event": "finalize",
+      "to": "abandoned",
+      "wantError": true
+    },
+    {
+      "from": "abandoned",
+      "event": "abandon",
+      "to": "abandoned",
+      "wantError": true
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "full_completion",
+      "initial": "active",
+      "steps": [
+        {
+          "event": "phases_ready",
+          "want": "ready",
+          "wantError": false
+        },
+        {
+          "event": "finalize",
+          "want": "completed",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "reopen_before_handoff",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "phases_open",
+          "want": "active",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "finalize_requires_ready",
+      "initial": "active",
+      "steps": [
+        {
+          "event": "finalize",
+          "want": "active",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "abandoned_is_closed",
+      "initial": "active",
+      "steps": [
+        {
+          "event": "abandon",
+          "want": "abandoned",
+          "wantError": false
+        },
+        {
+          "event": "edit",
+          "want": "abandoned",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "completed_is_closed",
+      "initial": "completed",
+      "steps": [
+        {
+          "event": "phases_open",
+          "want": "completed",
+          "wantError": true
+        }
+      ]
+    }
+  ],
+  "generatedTraces": [
+    {
+      "name": "generated_model_001",
+      "initial": "active",
+      "steps": [
+        {
+          "event": "abandon",
+          "want": "abandoned",
+          "wantError": false
+        },
+        {
+          "event": "edit",
+          "want": "abandoned",
+          "wantError": true
+        },
+        {
+          "event": "phases_ready",
+          "want": "abandoned",
+          "wantError": true
+        },
+        {
+          "event": "abandon",
+          "want": "abandoned",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "abandoned",
+          "wantError": true
+        },
+        {
+          "event": "edit",
+          "want": "abandoned",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_002",
+      "initial": "active",
+      "steps": [
+        {
+          "event": "finalize",
+          "want": "active",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "active",
+          "wantError": true
+        },
+        {
+          "event": "phases_open",
+          "want": "active",
+          "wantError": false
+        },
+        {
+          "event": "phases_ready",
+          "want": "ready",
+          "wantError": false
+        },
+        {
+          "event": "phases_open",
+          "want": "active",
+          "wantError": false
+        },
+        {
+          "event": "edit",
+          "want": "active",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_003",
+      "initial": "active",
+      "steps": [
+        {
+          "event": "phases_open",
+          "want": "active",
+          "wantError": false
+        },
+        {
+          "event": "phases_ready",
+          "want": "ready",
+          "wantError": false
+        },
+        {
+          "event": "abandon",
+          "want": "abandoned",
+          "wantError": false
+        },
+        {
+          "event": "phases_open",
+          "want": "abandoned",
+          "wantError": true
+        },
+        {
+          "event": "phases_open",
+          "want": "abandoned",
+          "wantError": true
+        },
+        {
+          "event": "finalize",
+          "want": "abandoned",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_004",
+      "initial": "active",
+      "steps": [
+        {
+          "event": "edit",
+          "want": "active",
+          "wantError": false
+        },
+        {
+          "event": "abandon",
+          "want": "abandoned",
+          "wantError": false
+        },
+        {
+          "event": "phases_ready",
+          "want": "abandoned",
+          "wantError": true
+        },
+        {
+          "event": "edit",
+          "want": "abandoned",
+          "wantError": true
+        },
+        {
+          "event": "edit",
+          "want": "abandoned",
+          "wantError": true
+        },
+        {
+          "event": "abandon",
+          "want": "abandoned",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_005",
+      "initial": "active",
+      "steps": [
+        {
+          "event": "edit",
+          "want": "active",
+          "wantError": false
+        },
+        {
+          "event": "phases_ready",
+          "want": "ready",
+          "wantError": false
+        },
+        {
+          "event": "finalize",
+          "want": "completed",
+          "wantError": false
+        },
+        {
+          "event": "finalize",
+          "want": "completed",
+          "wantError": true
+        },
+        {
+          "event": "edit",
+          "want": "completed",
+          "wantError": true
+        },
+        {
+          "event": "abandon",
+          "want": "completed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_006",
+      "initial": "active",
+      "steps": [
+        {
+          "event": "phases_ready",
+          "want": "ready",
+          "wantError": false
+        },
+        {
+          "event": "abandon",
+          "want": "abandoned",
+          "wantError": false
+        },
+        {
+          "event": "phases_ready",
+          "want": "abandoned",
+          "wantError": true
+        },
+        {
+          "event": "edit",
+          "want": "abandoned",
+          "wantError": true
+        },
+        {
+          "event": "phases_open",
+          "want": "abandoned",
+          "wantError": true
+        },
+        {
+          "event": "phases_open",
+          "want": "abandoned",
+          "wantError": true
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    "TypeOK",
+    "TerminalClosure",
+    "IllegalTransitionsPreserveState"
+  ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
+  "coverage": {
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "active",
+        "ready",
+        "completed",
+        "abandoned"
+      ],
+      "coveredEvents": [
+        "edit",
+        "phases_ready",
+        "phases_open",
+        "finalize",
+        "abandon"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "active",
+        "ready",
+        "completed",
+        "abandoned"
+      ],
+      "coveredEvents": [
+        "edit",
+        "phases_ready",
+        "phases_open",
+        "finalize",
+        "abandon"
+      ],
+      "coveredPairs": [
+        "active/edit",
+        "active/phases_ready",
+        "active/phases_open",
+        "active/finalize",
+        "active/abandon",
+        "ready/phases_open",
+        "ready/finalize",
+        "ready/abandon",
+        "completed/edit",
+        "completed/finalize",
+        "completed/abandon",
+        "abandoned/edit",
+        "abandoned/phases_ready",
+        "abandoned/phases_open",
+        "abandoned/finalize",
+        "abandoned/abandon"
+      ],
+      "allPairsCovered": false
+    }
+  },
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
+}

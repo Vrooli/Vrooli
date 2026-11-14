@@ -1,0 +1,11 @@
+# vrooli argv built by bootstrap.sh, one invocation per line, after the binary.
+# `<result-file>` stands for the mktemp path the script passes to --result-file.
+# bootstrap_test.sh asserts the fake CLI recorded the first line; the invoker
+# registry test (internal/cli/rootcli/invokers) parses every line through the
+# real root parser. Update both when the script's argv changes.
+# step_setup, prebuilt Linux node (bootstrap.sh step_setup)
+setup --result-file <result-file>
+# step_setup, prebuilt macOS node with passwordless sudo and every selection set
+setup --bootstrap-only --environment development --resources none --scenarios none --include-optional --sudo-mode ask --result-file <result-file>
+# step_finalize_setup, macOS native CLI (bootstrap.sh step_finalize_setup)
+setup --environment development --resources none --scenarios none --include-optional --sudo-mode ask --credential-passphrase-stdin --result-file <result-file>

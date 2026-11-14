@@ -2,20 +2,48 @@ package mocks
 
 import (
 	"context"
+	"time"
 
-	"system-monitor-api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 // MonitorQuerier is a configurable test double for handlers.MonitorQuerier.
 type MonitorQuerier struct {
-	metrics          *models.MetricsResponse
-	freshMetrics     *models.MetricsResponse
-	detailedMetrics  *models.DetailedMetrics
-	timelineResponse *models.MetricsTimelineResponse
-	processData      *models.ProcessMonitorData
-	infraData        *models.InfrastructureMonitorData
-	active           bool
-	err              error
+	metrics            *models.MetricsResponse
+	freshMetrics       *models.MetricsResponse
+	pressureSnapshot   *models.PressureSnapshot
+	gpuHistory         *models.GPUHistory
+	pressureHistory    *models.PressureHistory
+	detailedMetrics    *models.DetailedMetrics
+	networkDiagnostic  *models.NetworkDiagnosticSnapshot
+	diskDetail         *models.DiskDetailResponse
+	timelineResponse   *models.MetricsTimelineResponse
+	processData        *models.ProcessMonitorData
+	processTimeline    []repository.ProcessTimelineEntry
+	processSamples     []repository.ProcessSample
+	processSamplesMore bool
+	processRangeStart  time.Time
+	processRangeEnd    time.Time
+	processRangeCalled bool
+	infraData          *models.InfrastructureMonitorData
+	active             bool
+	err                error
+}
+
+func (m *MonitorQuerier) WithPressureSnapshot(snapshot *models.PressureSnapshot) *MonitorQuerier {
+	m.pressureSnapshot = snapshot
+	return m
+}
+
+func (m *MonitorQuerier) WithGPUHistory(history *models.GPUHistory) *MonitorQuerier {
+	m.gpuHistory = history
+	return m
+}
+
+func (m *MonitorQuerier) WithPressureHistory(history *models.PressureHistory) *MonitorQuerier {
+	m.pressureHistory = history
+	return m
 }
 
 func NewMonitorQuerier() *MonitorQuerier {
@@ -34,6 +62,16 @@ func (m *MonitorQuerier) WithFreshMetrics(metrics *models.MetricsResponse) *Moni
 
 func (m *MonitorQuerier) WithDetailedMetrics(metrics *models.DetailedMetrics) *MonitorQuerier {
 	m.detailedMetrics = metrics
+	return m
+}
+
+func (m *MonitorQuerier) WithNetworkDiagnostic(snapshot *models.NetworkDiagnosticSnapshot) *MonitorQuerier {
+	m.networkDiagnostic = snapshot
+	return m
+}
+
+func (m *MonitorQuerier) WithDiskDetail(detail *models.DiskDetailResponse) *MonitorQuerier {
+	m.diskDetail = detail
 	return m
 }
 
@@ -73,8 +111,28 @@ func (m *MonitorQuerier) GetCurrentMetricsFresh(_ context.Context) (*models.Metr
 	return m.metrics, m.err
 }
 
+func (m *MonitorQuerier) GetPressureSnapshot(_ context.Context) (*models.PressureSnapshot, error) {
+	return m.pressureSnapshot, m.err
+}
+
+func (m *MonitorQuerier) GetGPUHistory(_ context.Context, _ time.Duration) (*models.GPUHistory, error) {
+	return m.gpuHistory, m.err
+}
+
+func (m *MonitorQuerier) GetPressureHistory(_ context.Context, _ time.Duration) (*models.PressureHistory, error) {
+	return m.pressureHistory, m.err
+}
+
 func (m *MonitorQuerier) GetDetailedMetrics(_ context.Context) (*models.DetailedMetrics, error) {
 	return m.detailedMetrics, m.err
+}
+
+func (m *MonitorQuerier) GetDiskDetail(_ context.Context) (*models.DiskDetailResponse, error) {
+	return m.diskDetail, m.err
+}
+
+func (m *MonitorQuerier) GetNetworkDiagnostic(_ context.Context, _ int, _ time.Duration, _ bool) (*models.NetworkDiagnosticSnapshot, error) {
+	return m.networkDiagnostic, m.err
 }
 
 func (m *MonitorQuerier) GetMetricsTimeline(_ context.Context, _, _ int) (*models.MetricsTimelineResponse, error) {
@@ -83,6 +141,43 @@ func (m *MonitorQuerier) GetMetricsTimeline(_ context.Context, _, _ int) (*model
 
 func (m *MonitorQuerier) GetProcessMonitorData(_ context.Context) (*models.ProcessMonitorData, error) {
 	return m.processData, m.err
+}
+
+func (m *MonitorQuerier) WithProcessTimeline(entries []repository.ProcessTimelineEntry) *MonitorQuerier {
+	m.processTimeline = entries
+	return m
+}
+
+func (m *MonitorQuerier) GetProcessTimeline(_ context.Context, _ time.Duration, _ string, _ int) ([]repository.ProcessTimelineEntry, error) {
+	return m.processTimeline, m.err
+}
+
+func (m *MonitorQuerier) GetProcessTimelineRanked(_ context.Context, _ time.Duration, _ string, _ int, _ string) ([]repository.ProcessTimelineEntry, error) {
+	return m.processTimeline, m.err
+}
+
+func (m *MonitorQuerier) GetProcessTimelineInRange(_ context.Context, start, end time.Time, _ string, _ int, _ string) ([]repository.ProcessTimelineEntry, error) {
+	m.processRangeStart = start
+	m.processRangeEnd = end
+	m.processRangeCalled = true
+	return m.processTimeline, m.err
+}
+
+func (m *MonitorQuerier) WithProcessSamples(samples []repository.ProcessSample, truncated bool) *MonitorQuerier {
+	m.processSamples = samples
+	m.processSamplesMore = truncated
+	return m
+}
+
+func (m *MonitorQuerier) GetProcessSamplesInRange(_ context.Context, start, end time.Time, _ string, _ int) ([]repository.ProcessSample, bool, error) {
+	m.processRangeStart = start
+	m.processRangeEnd = end
+	m.processRangeCalled = true
+	return m.processSamples, m.processSamplesMore, m.err
+}
+
+func (m *MonitorQuerier) ProcessTimelineRange() (time.Time, time.Time, bool) {
+	return m.processRangeStart, m.processRangeEnd, m.processRangeCalled
 }
 
 func (m *MonitorQuerier) GetInfrastructureMonitorData(_ context.Context) (*models.InfrastructureMonitorData, error) {

@@ -12,7 +12,6 @@ These are set on the host or in the scenario's environment before starting.
 | `OPENROUTER_API_KEY` | *(unset — provider disabled)* | Set to any non-empty value to activate OpenRouter as a fallback LLM provider. |
 | `API_PORT` | Allocated by Vrooli | Port the Go API listens on. Managed by the lifecycle system. |
 | `UI_PORT` | Allocated by Vrooli | Port the Vite UI dev server or production server listens on. |
-| `WS_PORT` | Allocated by Vrooli | WebSocket channel port. |
 | `POSTGRES_*` | Via `api-core` | Standard PostgreSQL connection variables (host, port, user, password, dbname). |
 
 ## API Constants (`api/config.go`)
@@ -76,7 +75,7 @@ Controls where newly created items appear on the canvas. Items are placed random
 
 | Decision | Rationale |
 |----------|-----------|
-| Database schema names | Managed by the lifecycle system; changing them would break initialization. |
+| Database schema names | Managed by the API-owned domain provider; changing them requires a schema migration. |
 | API route paths | Changing routes would break UI and cross-scenario consumers. Versioned via `/api/v1/` prefix. |
 | Health check intervals/timeouts | Defined in `.vrooli/service.json` and managed by the lifecycle system, not the app. |
 | Textarea auto-expand | Currently fixed rows; auto-expand adds complexity without clear demand. Revisit if users report friction. |

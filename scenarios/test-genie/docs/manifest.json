@@ -5,12 +5,72 @@
   "defaultDocument": "QUICKSTART.md",
   "sections": [
     {
+      "id": "root",
+      "title": "Scenario Entry Points",
+      "icon": "home",
+      "documents": [
+        {
+          "path": "../README.md",
+          "docType": "scenario-readme",
+          "title": "Test Genie",
+          "description": "Scenario overview and operator entry point",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "../PRD.md",
+          "docType": "prd",
+          "title": "Product Requirements Document",
+          "description": "Product contract and operational targets for Test Genie",
+          "maturity": "active",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "manifest.json",
+          "docType": "documentation-manifest",
+          "title": "Documentation Manifest",
+          "description": "Machine-readable documentation contract",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
+        }
+      ]
+    },
+    {
       "id": "getting-started",
       "title": "Getting Started",
       "icon": "rocket",
       "documents": [
-        { "path": "QUICKSTART.md", "title": "Quick Start", "description": "Get up and running with Test Genie" },
-        { "path": "GLOSSARY.md", "title": "Glossary", "description": "Testing terminology and definitions" }
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quick Start",
+          "description": "Get up and running with Test Genie",
+          "docType": "quickstart",
+          "maturity": "active",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "GLOSSARY.md",
+          "title": "Glossary",
+          "description": "Testing terminology and definitions",
+          "docType": "glossary",
+          "maturity": "active",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -19,10 +79,39 @@
       "icon": "shield",
       "description": "Critical safety guidelines for test scripts",
       "documents": [
-        { "path": "safety/README.md", "title": "Safety Overview", "description": "Quick safety checklist" },
-        { "path": "safety/GUIDELINES.md", "title": "Safety Guidelines", "description": "Complete safety rules and patterns" },
-        { "path": "safety/agent-spawning-security.md", "title": "Agent Spawning Security", "description": "Security constraints for delegated agents" },
-        { "path": "safety/bats-teardown-bug.md", "title": "BATS Teardown Bug", "description": "Real incident case study" }
+        {
+          "path": "safety/README.md",
+          "title": "Safety Overview",
+          "description": "Quick safety checklist",
+          "docType": "safety-readme",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "safety/GUIDELINES.md",
+          "title": "Safety Guidelines",
+          "description": "Complete safety rules and patterns",
+          "docType": "guidelines",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "safety/agent-spawning-security.md",
+          "title": "Agent Spawning Security",
+          "description": "Security constraints for delegated agents",
+          "docType": "agent-spawning-security",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -31,36 +120,500 @@
       "icon": "sliders",
       "description": "Operator-facing environment variables and tuning levers",
       "documents": [
-        { "path": "configuration/tunable-levers.md", "title": "Tunable Levers", "description": "Runtime, queue, CLI, and playbooks controls" }
+        {
+          "path": "configuration/tunable-levers.md",
+          "title": "Tunable Levers",
+          "description": "Runtime, CLI, and playbooks controls",
+          "docType": "tunable-levers",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
       "id": "phases",
       "title": "Phases",
       "icon": "layers",
-      "description": "11-phase testing architecture documentation",
+      "description": "Descriptor-backed phase architecture documentation",
       "documents": [
-        { "path": "phases/README.md", "title": "Phases Overview", "description": "11-phase architecture with execution flow" },
-        { "path": "phases/structure/README.md", "title": "Structure Phase", "description": "File and configuration validation" },
-        { "path": "phases/structure/cli-approaches.md", "title": "CLI Approaches", "description": "Legacy vs cross-platform CLI patterns" },
-        { "path": "phases/structure/ui-smoke.md", "title": "UI Smoke Testing", "description": "Fast UI validation with Browserless" },
-        { "path": "phases/standards/README.md", "title": "Standards Phase", "description": "Standards enforcement via scenario-auditor" },
-        { "path": "phases/dependencies/README.md", "title": "Dependencies Phase", "description": "Runtime and tool availability checks" },
-        { "path": "phases/lint/README.md", "title": "Lint Phase", "description": "Type checking and linting" },
-        { "path": "phases/docs/README.md", "title": "Docs Phase", "description": "Markdown, mermaid, and link validation" },
-        { "path": "phases/unit/README.md", "title": "Unit Phase", "description": "Language-specific unit test execution" },
-        { "path": "phases/unit/scenario-unit-testing.md", "title": "Scenario Unit Testing", "description": "Unit testing for Go, Node.js, Python" },
-        { "path": "phases/unit/test-runners.md", "title": "Test Runners", "description": "Language-specific test runner APIs" },
-        { "path": "phases/integration/README.md", "title": "Integration Phase", "description": "API and CLI connectivity testing" },
-        { "path": "phases/integration/cli-testing.md", "title": "CLI Testing", "description": "BATS testing for command-line tools" },
-        { "path": "phases/playbooks/README.md", "title": "Playbooks Phase", "description": "BAS browser automation workflows" },
-        { "path": "phases/playbooks/directory-structure.md", "title": "Playbooks Directory Structure", "description": "Canonical bas/ layout and registry semantics" },
-        { "path": "phases/playbooks/ui-automation-with-bas.md", "title": "UI Automation with BAS", "description": "Vrooli Ascension workflow testing" },
-        { "path": "phases/business/README.md", "title": "Business Phase", "description": "Requirement coverage validation" },
-        { "path": "phases/business/requirements-sync.md", "title": "Requirements Sync", "description": "Automatic requirement tracking from tests" },
-        { "path": "phases/performance/README.md", "title": "Performance Phase", "description": "Benchmarks and performance testing" },
-        { "path": "phases/performance/lighthouse.md", "title": "Lighthouse Integration", "description": "Performance and accessibility testing" },
-        { "path": "phases/performance/performance-testing.md", "title": "Performance Testing", "description": "Build benchmarks and regression detection" }
+        {
+          "path": "phases/README.md",
+          "title": "Phases Overview",
+          "description": "Descriptor-backed phase architecture with execution flow",
+          "docType": "phases-readme",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/structure/README.md",
+          "title": "Structure Phase",
+          "description": "File and configuration validation",
+          "docType": "phases-structure-readme",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/structure/cli-approaches.md",
+          "title": "CLI Manifest Contract",
+          "description": "Manifest-driven scenario CLI adapter validation",
+          "docType": "cli-approaches",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/structure/ui-smoke.md",
+          "title": "UI Smoke Testing",
+          "description": "Fast UI validation on Browser Automation Studio",
+          "docType": "ui-smoke",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/contracts/README.md",
+          "title": "Contracts Phase",
+          "description": "cli/manifest.json proto-binding validation via cli-health",
+          "docType": "phases-contracts-readme",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/ui-health/README.md",
+          "title": "UI Health Phase",
+          "description": "All UI validation via ui-health: manifest/slot/overlay rules, static UI-interop, net-new UI standards, UI-bundle freshness, and a BAS-driven runtime render + iframe-bridge handshake group (execution mode)",
+          "docType": "phases-ui-health-readme",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/dependencies/README.md",
+          "title": "Dependencies Phase",
+          "description": "Runtime and tool availability checks",
+          "docType": "phases-dependencies-readme",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/quality/README.md",
+          "title": "Quality Phase",
+          "description": "Static quality contracts via quality-health",
+          "docType": "phases-quality-readme",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/docs/README.md",
+          "title": "Docs Phase",
+          "description": "Markdown, mermaid, and link validation",
+          "docType": "phases-docs-readme",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/unit/README.md",
+          "title": "Unit Phase",
+          "description": "Delegates test execution, coverage, and test maturity to unit-health",
+          "docType": "phases-unit-readme",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/workflow/README.md",
+          "title": "Workflow Phase",
+          "description": "Delegated BAS workflow validation via workflow-health",
+          "docType": "phases-workflow-readme",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/playbooks/README.md",
+          "title": "Playbooks Alias",
+          "description": "Deprecated alias for the workflow phase",
+          "docType": "phases-playbooks-readme",
+          "maturity": "retired",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "phases/playbooks/directory-structure.md",
+          "title": "Workflow Asset Layout Alias",
+          "description": "Deprecated redirect to workflow-health BAS asset layout guidance",
+          "docType": "directory-structure",
+          "maturity": "retired",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "phases/playbooks/ui-automation-with-bas.md",
+          "title": "BAS Workflow Authoring Alias",
+          "description": "Deprecated redirect to workflow-health BAS authoring guidance",
+          "docType": "ui-automation-with-bas",
+          "maturity": "retired",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "phases/business/README.md",
+          "title": "Business Phase",
+          "description": "Requirement coverage validation",
+          "docType": "phases-business-readme",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/business/requirements-sync.md",
+          "title": "Requirements Sync",
+          "description": "Automatic requirement tracking from tests",
+          "docType": "requirements-sync",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/performance/README.md",
+          "title": "Performance Phase",
+          "description": "Benchmarks and performance testing",
+          "docType": "phases-performance-readme",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/performance/lighthouse.md",
+          "title": "Lighthouse Integration",
+          "description": "Performance and accessibility testing",
+          "docType": "lighthouse",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/performance/performance-testing.md",
+          "title": "Performance Testing",
+          "description": "Build benchmarks and regression detection",
+          "docType": "performance-testing",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/search/README.md",
+          "title": "Search Phase",
+          "description": "Search maturity validation for search-enabled scenarios",
+          "docType": "phases-search-readme",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/agent-conformance/README.md",
+          "title": "Agent Conformance Phase",
+          "description": "Portable Agent Manager dependency and role-profile validation",
+          "docType": "phases-agent-conformance-readme",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/ai-conformance/README.md",
+          "docType": "phases-ai-conformance-readme-md",
+          "title": "AI Conformance Phase",
+          "description": "AI capability applicability and provider-backed validation.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/api/README.md",
+          "docType": "phases-api-readme-md",
+          "title": "API Phase",
+          "description": "API readiness validation through the shared API Health contract.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/architecture/README.md",
+          "docType": "phases-architecture-readme-md",
+          "title": "Architecture Phase",
+          "description": "Structural cohesion and architecture validation through Architecture Cartographer.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/branding/README.md",
+          "docType": "phases-branding-readme-md",
+          "title": "branding phase",
+          "description": "Brand identity validation delegated to Brand Manager.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/capability-contract-inventory.md",
+          "docType": "phases-capability-contract-inventory-md",
+          "title": "Phase Capability Contract — Inventory",
+          "description": "Committed phase capability inventory checked against the live catalog.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/component-tests/README.md",
+          "docType": "phases-component-tests-readme-md",
+          "title": "Component Tests",
+          "description": "Version-pinned component stories and browser-observed behavior evidence.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/env-conformance/README.md",
+          "docType": "phases-env-conformance-readme-md",
+          "title": "Environment Conformance Phase",
+          "description": "Environment producer and consumer satisfiability validation.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/env-conformance/findings-2026-08-23.md",
+          "docType": "phases-env-conformance-findings-2026-08-23-md",
+          "title": "Environment conformance findings — 2026-08-23",
+          "description": "Historical environment conformance producer-scan findings from 2026-08-23.",
+          "maturity": "retired",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional",
+          "knowledgeStatus": "historical"
+        },
+        {
+          "path": "phases/env-conformance/non-go-findings.md",
+          "docType": "phases-env-conformance-non-go-findings-md",
+          "title": "Non-Go environment findings",
+          "description": "Historical non-Go environment-read findings recorded on 2026-08-23.",
+          "maturity": "retired",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional",
+          "knowledgeStatus": "historical"
+        },
+        {
+          "path": "phases/event-capture-conformance/README.md",
+          "docType": "phases-event-capture-conformance-readme-md",
+          "title": "Event Capture Conformance",
+          "description": "Vrooli Events receipt and policy conformance validation.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/experience/README.md",
+          "docType": "phases-experience-readme-md",
+          "title": "Experience Phase",
+          "description": "Scenario experience validation through Experience Manager.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/measures/README.md",
+          "docType": "phases-measures-readme-md",
+          "title": "measures phase",
+          "description": "Measure extraction and coverage validation through Measures Health.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/monetization-conformance/README.md",
+          "docType": "phases-monetization-conformance-readme-md",
+          "title": "Monetization Conformance Phase",
+          "description": "Monetization declaration and trust-boundary validation.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/portability/README.md",
+          "docType": "phases-portability-readme-md",
+          "title": "Portability",
+          "description": "Platform support validation against declared resource compatibility.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/programs/README.md",
+          "docType": "phases-programs-readme-md",
+          "title": "Programs",
+          "description": "Governed program declaration, source, and behavior validation.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/proto/README.md",
+          "docType": "phases-proto-readme-md",
+          "title": "proto phase",
+          "description": "Protocol Buffer contract validation delegated to Proto Health.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/provider-conformance/README.md",
+          "docType": "phases-provider-conformance-readme-md",
+          "title": "Provider Conformance Phase",
+          "description": "Test Genie phase-provider descriptor and runtime conformance validation.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/security/README.md",
+          "docType": "phases-security-readme-md",
+          "title": "security phase",
+          "description": "Security validation delegated to Security Health.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/skill-set/README.md",
+          "docType": "phases-skill-set-readme-md",
+          "title": "Skill Set",
+          "description": "Skill role declaration, dialect, reachability, and sensor/program validation.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/storage/README.md",
+          "docType": "phases-storage-readme-md",
+          "title": "Storage Phase",
+          "description": "Storage declaration, ownership, and validation behavior.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/templates/README.md",
+          "docType": "phases-templates-readme-md",
+          "title": "Templates — Phase Capability Contract",
+          "description": "Template lineage, drift, migration, and inherited-debt validation.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/tidiness/README.md",
+          "docType": "phases-tidiness-readme-md",
+          "title": "Tidiness Phase",
+          "description": "Maintainability findings delegated to Tidiness Manager.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -68,12 +621,7 @@
       "title": "Implementation Plans",
       "icon": "map",
       "description": "Detailed implementation plans for features",
-      "documents": [
-        { "path": "plans/bidirectional-reference-validation.md", "title": "Bidirectional Reference Validation", "description": "Implementation plan for CODE:/DOC: reference validation" },
-        { "path": "plans/lint-phase-implementation.md", "title": "Lint Phase Implementation", "description": "Implementation plan for lint phase" },
-        { "path": "plans/standards-phase-implementation-plan.md", "title": "Standards Phase Implementation", "description": "Implementation plan for standards phase" },
-        { "path": "plans/ui-smoke-go-implementation.md", "title": "UI Smoke Go Implementation", "description": "Implementation plan for UI smoke testing in Go" }
-      ]
+      "documents": []
     },
     {
       "id": "guides",
@@ -81,16 +629,105 @@
       "icon": "book",
       "description": "In-depth guides for testing workflows",
       "documents": [
-        { "path": "guides/phased-testing.md", "title": "Phased Testing", "description": "Understanding the 11-phase testing architecture" },
-        { "path": "guides/test-generation.md", "title": "Test Generation", "description": "AI-powered test generation with Test Genie" },
-        { "path": "guides/ui-testability.md", "title": "Writing Testable UIs", "description": "Design UIs for browser automation" },
-        { "path": "guides/custom-presets.md", "title": "Custom Presets", "description": "Create tailored test presets for CI/CD" },
-        { "path": "guides/dashboard-guide.md", "title": "Dashboard Guide", "description": "Using the web dashboard UI" },
-        { "path": "guides/vault-testing.md", "title": "Vault Testing", "description": "Multi-phase lifecycle validation" },
-        { "path": "guides/sync-execution.md", "title": "Synchronous Execution", "description": "Blocking test execution for agents" },
-        { "path": "guides/validation-best-practices.md", "title": "Validation Best Practices", "description": "Quality validation guidelines" },
-        { "path": "guides/end-to-end-example.md", "title": "End-to-End Example", "description": "Complete PRD to coverage walkthrough" },
-        { "path": "guides/troubleshooting.md", "title": "Troubleshooting", "description": "Debug and fix common test issues" }
+        {
+          "path": "guides/phased-testing.md",
+          "title": "Phased Testing",
+          "description": "Understanding the descriptor-backed phase architecture",
+          "docType": "phased-testing",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/test-generation.md",
+          "title": "Evidence-Driven Remediation",
+          "description": "Findings-first remediation with Test Genie",
+          "docType": "test-generation",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/ui-testability.md",
+          "title": "Writing Testable UIs",
+          "description": "Design UIs for browser automation",
+          "docType": "ui-testability",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/custom-presets.md",
+          "title": "Custom Presets",
+          "description": "Create tailored test presets for CI/CD",
+          "docType": "custom-presets",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/dashboard-guide.md",
+          "title": "Dashboard Guide",
+          "description": "Using the web dashboard UI",
+          "docType": "dashboard-guide",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/sync-execution.md",
+          "title": "Synchronous Execution",
+          "description": "Blocking test execution for agents",
+          "docType": "sync-execution",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/validation-best-practices.md",
+          "title": "Validation Best Practices",
+          "description": "Quality validation guidelines",
+          "docType": "validation-best-practices",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/end-to-end-example.md",
+          "title": "End-to-End Example",
+          "description": "Complete PRD to coverage walkthrough",
+          "docType": "end-to-end-example",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/troubleshooting.md",
+          "title": "Troubleshooting",
+          "description": "Debug and fix common test issues",
+          "docType": "troubleshooting",
+          "maturity": "draft",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -99,16 +736,158 @@
       "icon": "code",
       "description": "Technical reference documentation",
       "documents": [
-        { "path": "reference/api-endpoints.md", "title": "API Reference", "description": "REST API endpoint documentation" },
-        { "path": "reference/cli-commands.md", "title": "CLI Commands", "description": "test-genie CLI reference" },
-        { "path": "reference/configuration.md", "title": "Execution Configuration", "description": "Execution planning, timeouts, and estimate behavior" },
-        { "path": "reference/presets.md", "title": "Test Presets", "description": "Quick, Smoke, Comprehensive presets" },
-        { "path": "reference/requirement-schema.md", "title": "Requirement Schema", "description": "JSON schema for requirement registry" },
-        { "path": "reference/gaming-prevention.md", "title": "Gaming Prevention", "description": "Test integrity detection system" },
-        { "path": "reference/examples.md", "title": "Gold Standard Examples", "description": "Exemplary testing implementations" },
-        { "path": "reference/sync-execution-cheatsheet.md", "title": "Sync Execution Cheatsheet", "description": "Quick reference for sync API" },
-        { "path": "reference/vitest-requirement-reporter.md", "title": "Vitest Requirement Reporter", "description": "Custom reporter for requirement coverage tracking" },
-        { "path": "reference/workflow-runner.md", "title": "Workflow Runner", "description": "Generic BAS workflow execution infrastructure" }
+        {
+          "path": "reference/api-endpoints.md",
+          "title": "API Reference",
+          "description": "REST API endpoint documentation",
+          "docType": "api-endpoints",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/cli-commands.md",
+          "title": "CLI Commands",
+          "description": "test-genie CLI reference",
+          "docType": "cli-commands",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/configuration.md",
+          "title": "Execution Configuration",
+          "description": "Execution planning, timeouts, and estimate behavior",
+          "docType": "configuration",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/presets.md",
+          "title": "Test Presets",
+          "description": "Quick, Smoke, Comprehensive presets",
+          "docType": "presets",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/requirement-schema.md",
+          "title": "Requirement Schema",
+          "description": "JSON schema for requirement registry",
+          "docType": "requirement-schema",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/gaming-prevention.md",
+          "title": "Gaming Prevention",
+          "description": "Test integrity detection system",
+          "docType": "gaming-prevention",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/examples.md",
+          "title": "Gold Standard Examples",
+          "description": "Exemplary testing implementations",
+          "docType": "examples",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/vitest-requirement-reporter.md",
+          "title": "Vitest Requirement Reporter",
+          "description": "Custom reporter for requirement coverage tracking",
+          "docType": "vitest-requirement-reporter",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/workflow-runner.md",
+          "title": "Workflow Runner",
+          "description": "Generic BAS workflow execution infrastructure",
+          "docType": "workflow-runner",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/component-library-gaps.md",
+          "docType": "reference-component-library-gaps-md",
+          "title": "Test Genie component-library gaps",
+          "description": "Current component-library migration boundary and supporting UI decision record.",
+          "maturity": "draft",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "reference/cost-baseline-2026-08.md",
+          "docType": "reference-cost-baseline-2026-08-md",
+          "title": "Test Genie cost and storage: before and after",
+          "description": "Historical measured cost and storage baseline for the 2026-08-20 consolidation.",
+          "maturity": "retired",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional",
+          "knowledgeStatus": "historical"
+        }
+      ]
+    },
+    {
+      "id": "requirements",
+      "title": "Requirements & Operational Targets",
+      "icon": "target",
+      "description": "How PRD operational-target and requirement status is derived and improved",
+      "documents": [
+        {
+          "path": "requirements/STATUS_MODEL.md",
+          "title": "Status Model",
+          "description": "How requirement/OT status is derived from tests and shown in execute output",
+          "docType": "status-model",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "requirements/IMPROVING_COVERAGE.md",
+          "title": "Improving Coverage",
+          "description": "Tag tests with [REQ:ID] and raise passing requirements",
+          "docType": "improving-coverage",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -117,10 +896,61 @@
       "icon": "lightbulb",
       "description": "Architecture and design concepts",
       "documents": [
-        { "path": "concepts/architecture.md", "title": "Architecture", "description": "Go orchestrator design" },
-        { "path": "concepts/requirement-flow.md", "title": "Requirement Flow", "description": "End-to-end requirement validation" },
-        { "path": "concepts/strategy.md", "title": "Testing Strategy", "description": "Three-layer validation approach" },
-        { "path": "concepts/infrastructure.md", "title": "Infrastructure", "description": "Testing tools and frameworks" }
+        {
+          "path": "concepts/architecture.md",
+          "title": "Architecture",
+          "description": "Go orchestrator design",
+          "docType": "architecture",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/requirement-flow.md",
+          "title": "Requirement Flow",
+          "description": "End-to-end requirement validation",
+          "docType": "requirement-flow",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/strategy.md",
+          "title": "Testing Strategy",
+          "description": "Three-layer validation approach",
+          "docType": "strategy",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/infrastructure.md",
+          "title": "Infrastructure",
+          "description": "Testing tools and frameworks",
+          "docType": "infrastructure",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/phase-capability-contract.md",
+          "docType": "concepts-phase-capability-contract-md",
+          "title": "The Phase Capability Contract",
+          "description": "Canonical contract for phase capability maturity and next actions.",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -129,15 +959,154 @@
       "icon": "clipboard",
       "description": "Standard scenario documentation",
       "documents": [
-        { "path": "PROGRESS.md", "title": "Progress Log", "description": "Development progress tracking" },
-        { "path": "PROBLEMS.md", "title": "Known Issues", "description": "Current issues and blockers" },
-        { "path": "SEAMS.md", "title": "Seams", "description": "Integration points and boundaries" },
-        { "path": "RESEARCH.md", "title": "Research", "description": "Research notes and findings" }
+        {
+          "path": "PROGRESS.md",
+          "title": "Progress Log",
+          "description": "Development progress tracking",
+          "docType": "progress",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "PROBLEMS.md",
+          "title": "Known Issues",
+          "description": "Current issues and blockers",
+          "docType": "problems",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "SEAMS.md",
+          "title": "Seams",
+          "description": "Integration points and boundaries",
+          "docType": "seams",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/INVARIANTS.md",
+          "title": "Execution Evidence Invariants",
+          "description": "Canonical evidence, live-memory, and lifecycle rules",
+          "docType": "invariants",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/TEMPORAL-FLOWS.md",
+          "title": "Temporal Flows",
+          "description": "Index of time-dependent Test Genie behavior and confidence gaps",
+          "docType": "doc-internal-TEMPORAL-FLOWS-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "RESEARCH.md",
+          "title": "Research",
+          "description": "Research notes and findings",
+          "docType": "research",
+          "maturity": "draft",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/SEAMS.md",
+          "docType": "internal-seams",
+          "title": "Internal Seams",
+          "description": "Internal package boundaries, seams, and test doubles",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
+      ]
+    },
+    {
+      "id": "spaces",
+      "title": "Coverage Spaces",
+      "icon": "grid",
+      "description": "Coverage-space definitions (denominators) for federated answer projections",
+      "documents": [
+        {
+          "path": "spaces/validate-space.md",
+          "title": "Validate Space — Validation Concern Coverage",
+          "description": "The Validate projection's denominator: validation concerns the project should check, mapped to phases, owning health scenarios, and autofix intent. Live coverage comes from test-genie health.",
+          "docType": "validate-space",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "spaces/validation-cost-space.md",
+          "docType": "spaces-validation-cost-space-md",
+          "title": "Validation Cost Space — Validation Reliability and Cost",
+          "description": "Validation cost and reliability coverage space owned by Test Genie.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        }
       ]
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "configuration", "safety", "phases", "guides", "reference"],
-    "secondary": ["concepts", "plans", "standard"]
+    "primary": [
+      "getting-started",
+      "configuration",
+      "safety",
+      "phases",
+      "guides",
+      "reference"
+    ],
+    "secondary": [
+      "requirements",
+      "concepts",
+      "plans",
+      "standard",
+      "spaces"
+    ]
+  },
+  "contract": {
+    "kind": "scenario-docs",
+    "template": "test-genie",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": [
+      "missing",
+      "stub",
+      "draft",
+      "active",
+      "not-applicable",
+      "deferred",
+      "retired"
+    ],
+    "stages": [
+      "generated",
+      "oriented",
+      "implemented",
+      "validated",
+      "deployable",
+      "monetizable"
+    ],
+    "extensionRule": "Register every durable Test Genie document here. Mark dated evidence or deprecated aliases as historical or retired; do not register generated transient artifacts."
   }
 }

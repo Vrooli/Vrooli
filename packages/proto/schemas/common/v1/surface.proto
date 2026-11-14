@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package common.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1";
+
+// =============================================================================
+// OWNER-RESOLVED SURFACE REFERENCES
+// =============================================================================
+// @stability experimental
+//
+// Shared identity vocabulary for Portal, Web Console, Bridge, and Device Control.
+// References contain no endpoint or credential and grant no authority. Owners
+// resolve references and authorize temporary connection offers separately.
+// =============================================================================
+
+message TargetRef {
+  string owner_scenario = 1 [(buf.validate.field).string = {max_len: 63, pattern: "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"}];
+  string resource_id = 2 [(buf.validate.field).string = {max_len: 255, pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]*$"}];
+  // Attached-device topology; never inferred from the consumer API host.
+  string host_node_id = 3 [(buf.validate.field).string = {max_len: 255, pattern: "^$|^[A-Za-z0-9][A-Za-z0-9._:-]*$"}];
+}
+
+message SurfaceRef {
+  TargetRef target = 1 [(buf.validate.field).required = true];
+  string owner_scenario = 2 [(buf.validate.field).string = {max_len: 63, pattern: "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"}];
+  string surface_id = 3 [(buf.validate.field).string = {max_len: 255, pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]*$"}];
+}
+
+message SessionRef {
+  SurfaceRef surface = 1 [(buf.validate.field).required = true];
+  string session_id = 2 [(buf.validate.field).string = {max_len: 255, pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]*$"}];
+  // The OS login identity is distinct from the lease/session resource ID.
+  string desktop_session_id = 3 [(buf.validate.field).string = {max_len: 255, pattern: "^$|^[A-Za-z0-9][A-Za-z0-9._:-]*$"}];
+}
+
+enum SurfaceKind {
+  SURFACE_KIND_UNSPECIFIED = 0;
+  SURFACE_KIND_SCENARIO = 1;
+  SURFACE_KIND_TERMINAL = 2;
+  SURFACE_KIND_DESKTOP = 3;
+  SURFACE_KIND_BROWSER = 4;
+  SURFACE_KIND_DEVICE_PANEL = 5;
+}
+
+enum SurfaceCapabilityState {
+  SURFACE_CAPABILITY_STATE_UNSPECIFIED = 0;
+  SURFACE_CAPABILITY_STATE_READY = 1;
+  SURFACE_CAPABILITY_STATE_MISSING = 2;
+  SURFACE_CAPABILITY_STATE_UNSUPPORTED = 3;
+  SURFACE_CAPABILITY_STATE_UNKNOWN = 4;
+  SURFACE_CAPABILITY_STATE_DENIED = 5;
+}
+
+message SurfaceCapabilityFact {
+  option (buf.validate.message).cel = {
+    id: "surface_capability.interval"
+    message: "capability observation must expire after its observation time"
+    expression: "this.expires_at > this.observed_at"
+  };
+  option (buf.validate.message).cel = {
+    id: "surface_capability.evidence"
+    message: "ready capabilities require evidence; other states require a reason"
+    expression: "this.state == 1 ? this.evidence_id != '' : this.reason_code != ''"
+  };
+  string capability = 1 [(buf.validate.field).string = {max_len: 255, pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]*$"}];
+  SurfaceCapabilityState state = 2 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  string reason_code = 3 [(buf.validate.field).string = {max_len: 255, pattern: "^$|^[A-Za-z0-9][A-Za-z0-9._:-]*$"}];
+  string evidence_id = 4 [(buf.validate.field).string = {max_len: 255, pattern: "^$|^[A-Za-z0-9][A-Za-z0-9._:-]*$"}];
+  google.protobuf.Timestamp observed_at = 5 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp expires_at = 6 [(buf.validate.field).required = true];
+}
+
+message SurfaceDescriptor {
+  option (buf.validate.message).cel = {
+    id: "surface.desktop_session"
+    message: "desktop surfaces require an explicit OS login session"
+    expression: "this.kind != 3 || this.desktop_session_id != ''"
+  };
+  option (buf.validate.message).cel = {
+    id: "surface.unique_capabilities"
+    message: "capability names must be unique within a surface"
+    expression: "this.capabilities.map(c, c.capability).unique()"
+  };
+  SurfaceRef ref = 1 [(buf.validate.field).required = true];
+  SurfaceKind kind = 2 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  string display_label = 3 [(buf.validate.field).string = {min_len: 1, max_len: 256, pattern: "^[^\\x00\\r\\n]+$"}];
+  repeated SurfaceCapabilityFact capabilities = 4 [(buf.validate.field).repeated.max_items = 64];
+  repeated string protocol_versions = 5 [(buf.validate.field).repeated = {
+    min_items: 1, max_items: 16, unique: true,
+    items: {string: {max_len: 255, pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]*$"}}
+  }];
+  string desktop_session_id = 6 [(buf.validate.field).string = {max_len: 255, pattern: "^$|^[A-Za-z0-9][A-Za-z0-9._:-]*$"}];
+  repeated string display_ids = 7 [(buf.validate.field).repeated = {
+    max_items: 32, unique: true,
+    items: {string: {max_len: 255, pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]*$"}}
+  }];
+}

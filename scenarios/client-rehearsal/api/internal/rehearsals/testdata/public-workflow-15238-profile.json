@@ -1,0 +1,135 @@
+{
+  "kind": "openapi-catalog",
+  "services": [
+    {
+      "id": "synthetic-attendance-sheet",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "Synthetic attendance sheet",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://sheets.synthetic.invalid"
+          }
+        ],
+        "paths": {
+          "/v1/attendees/read": {
+            "get": {
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": [
+                        {
+                          "email": "prior@synthetic.invalid"
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "x-n8n-node-type": "n8n-nodes-base.googleSheets",
+              "x-n8n-resource": "sheet",
+              "x-n8n-operation": "read"
+            }
+          },
+          "/v1/attendees/append": {
+            "post": {
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "Code": "SYNTHETIC-20",
+                        "Expiry": "2026-11-16T00:00:00Z",
+                        "Discount": 20,
+                        "Usage Limit": 50
+                      }
+                    }
+                  }
+                }
+              },
+              "x-n8n-node-type": "n8n-nodes-base.googleSheets",
+              "x-n8n-resource": "sheet",
+              "x-n8n-operation": "append"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "synthetic-attendance-mail",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "Synthetic attendance mail",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://mail.synthetic.invalid"
+          }
+        ],
+        "paths": {
+          "/v1/messages": {
+            "post": {
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "id": "synthetic-message-1",
+                        "status": "recorded"
+                      }
+                    }
+                  }
+                }
+              },
+              "x-n8n-node-type": "n8n-nodes-base.gmail",
+              "x-n8n-resource": "message",
+              "x-n8n-operation": "send"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "synthetic-promo-slack",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "Synthetic promo Slack",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://slack.synthetic.invalid"
+          }
+        ],
+        "paths": {
+          "/v1/messages": {
+            "post": {
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "status": "recorded",
+                        "id": "synthetic-message-1"
+                      }
+                    }
+                  }
+                }
+              },
+              "x-n8n-node-type": "n8n-nodes-base.slack",
+              "x-n8n-resource": "message",
+              "x-n8n-operation": "post"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

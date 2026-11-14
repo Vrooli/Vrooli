@@ -1,0 +1,91 @@
+{
+  "template_version": "1",
+  "gates": {
+    "charter_bytes": 25000,
+    "stance_chars": 3500,
+    "kernel_chars": 600,
+    "stance_ending": "Reply \"ready\" and wait for it."
+  },
+  "packet": {
+    "topics_max": 6,
+    "allowance_hours_min": 1,
+    "allowance_hours_max": 72,
+    "allowance_hours_default": 24,
+    "ordered_workstreams_max": 4
+  },
+  "entry_chars_max": 4000,
+  "defaults": {
+    "supervisor_model": "gpt-6-luna",
+    "supervisor_effort": "medium",
+    "owner_model_tier": "inherit"
+  },
+  "models": {
+    "supervisor_model": ["gpt-6-luna", "gpt-6-astra", "gpt-6-sol"],
+    "supervisor_effort": ["low", "medium", "high", "xhigh"],
+    "owner_model_tier": ["inherit", "gpt-6-luna", "gpt-6-astra", "gpt-6-sol"]
+  },
+  "ceilings": {
+    "scheduler_start_bytes": 63816,
+    "scheduler_unit_bytes": 42677,
+    "owner_start_bytes": 21517,
+    "mission_bytes": 40000,
+    "skill_bytes": {
+      "research-coordination/SKILL.md": 30027,
+      "research-coordination/references/operator-attention.md": 28043,
+      "research-coordination/references/cohort-lifecycle.md": 7667,
+      "research-coordination/references/direction.md": 22712,
+      "research-coordination/references/mission.md": 18566,
+      "research-coordination/references/observations.md": 8060,
+      "adaptive-research/SKILL.md": 17937,
+      "local-experimentation/SKILL.md": 12961,
+      "local-experimentation/references/adaptive.md": 22608,
+      "local-experimentation/references/record.md": 8771
+    }
+  },
+  "read_sets": {
+    "note": "What each role is told to read, measured 2026-11-11T22:35:53Z on cohorts/programme-three-20261111 before any skill text changed. MISSION.md and CHECKPOINT.md are excluded: the desk and the templates do not author them. Paths in skills are relative to scenarios/research-desk/skills/; long_effort is docs/agent-system/LONG_EFFORT_DESIGN.md from '## 2. Design rules' up to '## 4. Codex'. scheduler_start is what a scheduler reads under the current templates: owner-brief.md, not operator-attention.md (a templates/ charter hands delivery to the desk and opens operator-attention.md only for its fallback). Its ceiling was lowered on 2026-11-12 from 88485 (the older charter with operator-attention.md) to 63816, this list measured on programme-three-20261111 that day: charter 36030, STATE.md 6549, OPERATOR.md 0, long_effort_s2_s3 17945, owner-brief.md 3292.",
+    "scheduler_start": [
+      "charter",
+      "STATE.md",
+      "OPERATOR.md",
+      "long_effort_s2_s3",
+      "research-coordination/templates/owner-brief.md"
+    ],
+    "scheduler_unit": [
+      "charter",
+      "STATE.md",
+      "OPERATOR.md"
+    ],
+    "owner_start": [
+      "research-coordination/templates/owner-brief.md",
+      "adaptive-research/SKILL.md"
+    ],
+    "owner_topic": [
+      "MISSION.md"
+    ],
+    "owner_topic_note": "Each owner also reads its topic's files named here, in topics/<topic>/. They are operator-authored, so they are measured per topic against ceilings.mission_bytes as a flag with a recommended tidy (mission_check.py warns), never a launch gate, and never summed into owner_start_bytes, which bounds skill text only. mission_bytes 40000 is the real spread on 2026-11-12: 25 missions, median 23,266, three-quarters at or under 33,480, two over (local-model-performance 49,806; ai-video-production-and-funnels 71,041).",
+    "measured_before": {
+      "programme-three-20261111": {
+        "charter": 36128,
+        "STATE.md": 6549,
+        "OPERATOR.md": 0,
+        "owner_brief": 3580
+      },
+      "programme-four-20261110": {
+        "charter": 31988,
+        "STATE.md": 9143,
+        "owner_brief": 3700
+      },
+      "standing-teams-w1-20261110": {
+        "charter": 22069,
+        "STATE.md": 4119,
+        "owner_brief": 2706
+      },
+      "long_effort_s2_s3": 17765
+    }
+  },
+  "evidence": {
+    "defaults": "Root and child turn_context of the Web Console Codex sessions that hold the latest goals: b7117dc2-7eda-442f-aebe-bfc62ae5d21b (programme-three-20261111) root gpt-6-luna/medium, 115 children gpt-6-luna/medium; 0551a4e8-c55f-44c5-97fe-77250d331082 (programme-four-20261110) root gpt-6-luna/medium, 55 children gpt-6-luna/medium. Session homes under ~/.vrooli/state/vrooli/web-console/sessions/codex/<id>/. The shared config.toml says gpt-6-luna/high, so a session started by hand from config runs high effort. Owners were started with model and reasoning_effort omitted (inherit).",
+    "models": "The Codex models and efforts the research skills allow, from ~/.codex/models_cache.json on 2026-11-11 (gpt-6-luna supports low to max; astra and sol up to ultra). A spec value outside these lists is invalid_spec. Adding a model is an edit here."
+  }
+}

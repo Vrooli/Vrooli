@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "react-component-library:ExperienceSurface",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.2"
+  ],
+  "latest": "1.0.4",
+  "libraryId": "react-component-library:ExperienceSurface",
+  "displayName": "Experience Surface",
+  "description": "Reusable experience surface component implementation for the React component library.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
+}

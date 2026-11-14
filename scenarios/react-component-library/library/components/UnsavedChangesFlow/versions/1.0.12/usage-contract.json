@@ -1,0 +1,25 @@
+{
+  "actions": {
+    "maximumCount": 4,
+    "maximumLabelCharacters": 24,
+    "primaryAction": "required",
+    "primaryCount": 1,
+    "primarySlot": "saveLabel / onSave",
+    "secondarySlots": [
+      "continueLabel / onLeave",
+      "discardLabel / onDiscard",
+      "preserveDraftLabel / onPreserveDraft"
+    ],
+    "typicalCount": 3,
+    "typicalLabelCharacters": 18
+  },
+  "children": {
+    "allowedChildComponents": [
+      "any-content-composition"
+    ],
+    "maximumCount": 1,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:UnsavedChangesFlow",
+  "version": "1.0.12"
+}

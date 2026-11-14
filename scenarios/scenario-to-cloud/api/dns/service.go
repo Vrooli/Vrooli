@@ -24,17 +24,17 @@ type Resolver interface {
 	LookupHost(ctx context.Context, host string) ([]string, error)
 }
 
-// Config controls DNS service behavior.
-type Config struct {
+// ServiceConfig controls DNS service behavior.
+type ServiceConfig struct {
 	Timeout time.Duration
 }
 
 // Option applies configuration to Service.
-type Option func(*Config)
+type Option func(*ServiceConfig)
 
 // WithTimeout sets a default DNS lookup timeout when no deadline is provided.
 func WithTimeout(timeout time.Duration) Option {
-	return func(cfg *Config) {
+	return func(cfg *ServiceConfig) {
 		cfg.Timeout = timeout
 	}
 }
@@ -42,7 +42,7 @@ func WithTimeout(timeout time.Duration) Option {
 // DefaultService implements Service using the provided resolver.
 type DefaultService struct {
 	resolver Resolver
-	config   Config
+	config   ServiceConfig
 }
 
 // NetResolver resolves DNS via the system resolver.
@@ -54,7 +54,7 @@ func (NetResolver) LookupHost(ctx context.Context, host string) ([]string, error
 
 // NewService returns a Service backed by the given resolver.
 func NewService(resolver Resolver, opts ...Option) *DefaultService {
-	cfg := Config{}
+	cfg := ServiceConfig{}
 	for _, opt := range opts {
 		opt(&cfg)
 	}

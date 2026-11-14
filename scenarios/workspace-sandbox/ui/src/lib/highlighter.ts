@@ -117,25 +117,17 @@ const extensionToLanguage: Record<string, BundledLanguage> = {
   asm: "asm",
 };
 
-// Common languages to bundle (subset for better loading time)
+// Languages preloaded eagerly with the highlighter. Trimmed to the
+// always-on set; everything else loads on first demand via `loadLanguage`.
+// Cuts ~50–150 KB off the initial highlighter init. See
+// docs/perf/2026-05-03-history-fileviewer-resize.md F6.
 const bundledLanguages: BundledLanguage[] = [
   "javascript",
   "typescript",
-  "jsx",
   "tsx",
-  "html",
-  "css",
   "json",
-  "yaml",
   "markdown",
-  "go",
-  "python",
-  "rust",
   "bash",
-  "sql",
-  "dockerfile",
-  "diff",
-  "graphql",
 ];
 
 // Singleton highlighter instance
@@ -230,6 +222,36 @@ export interface HighlightedLine {
   tokens: HighlightToken[];
 }
 
+// Result cache. Keyed on (language, content-hash). FNV-1a hash is collision-
+// resistant enough for our purposes (small population of distinct files); a
+// real collision merely returns a wrong-but-consistent highlight, which the
+// next genuine change evicts. Bounded to 64 entries so a session that opens
+// many files doesn't grow unboundedly. See F6.
+const HIGHLIGHT_CACHE_LIMIT = 64;
+const highlightCache = new Map<string, HighlightedLine[]>();
+
+function fnv1a(str: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+  }
+  return h >>> 0;
+}
+
+function cacheKey(lang: string, code: string): string {
+  return `${lang}|${code.length}|${fnv1a(code).toString(16)}`;
+}
+
+function rememberHighlight(key: string, lines: HighlightedLine[]): HighlightedLine[] {
+  if (highlightCache.size >= HIGHLIGHT_CACHE_LIMIT) {
+    const oldest = highlightCache.keys().next().value;
+    if (oldest !== undefined) highlightCache.delete(oldest);
+  }
+  highlightCache.set(key, lines);
+  return lines;
+}
+
 /**
  * Highlight code and return tokens per line
  */
@@ -237,10 +259,17 @@ export async function highlightCode(
   code: string,
   language: BundledLanguage | null
 ): Promise<HighlightedLine[]> {
-  const highlighter = await getHighlighter();
-
   // Use plaintext if no language detected or not supported
   const lang = language || "plaintext";
+
+  // Cache lookup before paying for highlighter init / parser load — this
+  // is the dominant win when re-rendering the same file (view-mode toggle,
+  // re-mount on tab switch, etc.).
+  const key = cacheKey(lang, code);
+  const cached = highlightCache.get(key);
+  if (cached) return cached;
+
+  const highlighter = await getHighlighter();
 
   // Ensure language is loaded
   if (lang !== "plaintext") {
@@ -250,7 +279,7 @@ export async function highlightCode(
         await highlighter.loadLanguage(lang);
       } catch {
         // Fall back to plaintext
-        return highlightAsPlaintext(code);
+        return rememberHighlight(key, highlightAsPlaintext(code));
       }
     }
   }
@@ -261,16 +290,18 @@ export async function highlightCode(
       theme: "github-dark",
     });
 
-    return result.tokens.map((lineTokens, index) => ({
+    const lines: HighlightedLine[] = result.tokens.map((lineTokens, index) => ({
       lineNumber: index + 1,
       tokens: lineTokens.map((token) => ({
         content: token.content,
         color: token.color,
-        fontStyle: token.fontStyle === 1 ? "italic" : token.fontStyle === 2 ? "bold" : undefined,
+        fontStyle:
+          token.fontStyle === 1 ? "italic" : token.fontStyle === 2 ? "bold" : undefined,
       })),
     }));
+    return rememberHighlight(key, lines);
   } catch {
-    return highlightAsPlaintext(code);
+    return rememberHighlight(key, highlightAsPlaintext(code));
   }
 }
 

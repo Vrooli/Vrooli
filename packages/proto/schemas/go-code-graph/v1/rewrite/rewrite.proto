@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package vrooli.go_code_graph.v1.rewrite;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/rewrite;rewrite_v1";
+
+// =============================================================================
+// REWRITE DOMAIN — operations + plan + apply messages
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain rewrite
+// @stability stable
+//
+// Operation, FileMove, ImportRewrite and result types for the two-step rewrite
+// surface. The Connect-RPC service that consumes these messages lives in
+// graph/graph.proto alongside Extract because cartographer expects a single
+// GoCodeGraphService client across all three RPCs.
+//
+// The rewrite contract is intentionally narrow: filesystem mutations only.
+// The scenario never invokes git and never invokes `go build`; partial
+// applies leave the working tree in a torn state and the operator owns
+// recovery through git.
+// =============================================================================
+
+// FileMove relocates a single file from from_path to to_path. Both paths are
+// expressed relative to the module root (no leading slash, no ".." segments).
+message FileMove {
+  string from_path = 1;
+  string to_path = 2;
+}
+
+// ImportRewrite replaces import path old_path with new_path across every .go
+// file under the module root.
+message ImportRewrite {
+  string old_path = 1;
+  string new_path = 2;
+}
+
+// Operation is the sum type the caller sends. Exactly one inner message must
+// be set; the service rejects empty / multi-set operations with
+// InvalidArgument.
+message Operation {
+  oneof op {
+    FileMove file_move = 1;
+    ImportRewrite import_rewrite = 2;
+  }
+}
+
+enum OperationStatus {
+  OPERATION_STATUS_UNSPECIFIED = 0;
+  OPERATION_STATUS_OK = 1;
+  OPERATION_STATUS_FAILED = 2;
+}
+
+// OperationResult is one row of the per-op apply log.
+message OperationResult {
+  Operation operation = 1;
+  OperationStatus status = 2;
+  // Human-readable message; empty when status is OK.
+  string message = 3;
+}

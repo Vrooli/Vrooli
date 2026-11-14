@@ -123,7 +123,10 @@ export async function validateBundlePreFlight(
         result.valid = false;
         result.errors.push("Manifest missing app.name or app.version");
     }
-    if (!manifest.ipc?.host || !manifest.ipc?.port) {
+    // Port 0 is an allocator request, not a missing value: the runtime binds an
+    // unused port and publishes it. Only a missing or out-of-range port is invalid.
+    const ipcPort = manifest.ipc?.port;
+    if (!manifest.ipc?.host || typeof ipcPort !== "number" || !Number.isInteger(ipcPort) || ipcPort < 0 || ipcPort > 65535) {
         result.valid = false;
         result.errors.push("Manifest missing ipc.host or ipc.port");
     }

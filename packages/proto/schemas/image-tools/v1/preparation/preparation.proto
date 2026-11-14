@@ -1,0 +1,187 @@
+syntax = "proto3";
+
+package vrooli.image_tools.v1.preparation;
+
+import "image-tools/v1/ai/ai.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/preparation;preparation_v1";
+
+// Immutable photographic scene exchange. The surrounding ZIP contains exactly
+// manifest.json and the declared artifacts. No host paths or remote URLs.
+// Known rigid devices, supplied landmarks and hinge fits remain Device Studio
+// revisions; this bundle owns the photograph and reconstructed background.
+message PreparedPhotograph {
+  // Exactly hybrid-device-scene/v1.
+  string contract_version = 1;
+  PhotographRoute route = 2;
+  SourceRaster source = 3;
+  Geometry geometry = 4;
+  Background background = 5;
+  // Geometric predictions do not establish measured dimensions.
+  string scale_status = 6;
+  // Small camera translations only; bounds are explicit reviewed settings,
+  // never an automatic guarantee from a single photograph.
+  CameraEnvelope camera_envelope = 7;
+  VisualReview review = 8;
+}
+
+enum PhotographRoute {
+  PHOTOGRAPH_ROUTE_UNSPECIFIED = 0;
+  PHOTOGRAPH_ROUTE_EMPTY_SCENE = 1;
+  PHOTOGRAPH_ROUTE_DEVICE_REMOVAL = 2;
+}
+
+message Artifact {
+  // Portable path relative to the containing immutable bundle root.
+  string path = 1;
+  string sha256 = 2;
+  int64 size_bytes = 3;
+  string media_type = 4;
+}
+
+message SourceRaster {
+  Artifact original = 1;
+  Artifact oriented = 2;
+  uint32 original_width = 3;
+  uint32 original_height = 4;
+  uint32 width = 5;
+  uint32 height = 6;
+  uint32 original_exif_orientation = 7;
+  // Nine row-major values, acting on continuous raster column vectors.
+  // Pixel centers are (i+0.5,j+0.5). This map precedes model resizing.
+  repeated double original_to_oriented = 8;
+}
+
+message Geometry {
+  // Existing vrooli.image-tools.scene-geometry.v1 ZIP, with complete model,
+  // checkpoint, postprocess and array provenance in its own manifest.
+  Artifact archive = 1;
+  Camera camera = 2;
+  SupportPlane support_plane = 3;
+}
+
+message Camera {
+  // Exactly opencv-camera-x-right-y-down-z-forward-v1.
+  string basis = 1;
+  uint32 raster_width = 2;
+  uint32 raster_height = 3;
+  // Nine row-major K values. First/second rows normalized by raster width/
+  // height respectively; last row is [0,0,1].
+  repeated double normalized_intrinsics = 4;
+  // Exactly device-studio-right-handed-meters-x-right-y-up-z-front-v1.
+  string world_basis = 5;
+  // Sixteen column-major active-transform values, rigid (no scale).
+  // Maps Device Studio camera-local (x,-y,-z) into world coordinates.
+  repeated double camera_to_world = 6;
+}
+
+message SupportPlane {
+  // Three unit-normal coordinates in the original OpenCV camera basis.
+  repeated double normal = 1;
+  // Plane equation n dot p + offset = 0, in estimated metres.
+  double offset = 2;
+  uint32 valid_pixel_count = 3;
+  uint32 inlier_count = 4;
+  double residual_p50 = 5;
+  double residual_p95 = 6;
+  // Pixel mask/ROI and fitting thresholds remain in the geometry archive.
+}
+
+message Background {
+  Artifact clean_plate = 1;
+  // Binary region masks; neither is implicitly a transparency matte.
+  Artifact device_mask = 2;
+  Artifact removal_mask = 3;
+  // Optional alpha mattes/regions of foreground occluders, explicitly supplied.
+  repeated Artifact occluder_masks = 4;
+  // Retained repair proof, including model/checkpoint and effective mask/crop.
+  // Required for the device-removal route, omitted for an unedited empty plate.
+  Artifact repair_provenance = 5;
+}
+
+message CameraEnvelope {
+  // Maximum displacement of camera position from the prepared view.
+  double max_translation_m = 1;
+  double max_rotation_degrees = 2;
+  // Overscan coverage is accepted only after actual motion samples are viewed.
+  bool overscan_reviewed = 3;
+}
+
+message VisualReview {
+  // pending, rejected or accepted. An inference exit code never sets accepted.
+  string decision = 1;
+  string reviewed_by = 2;
+  string rationale = 3;
+  // Opaque retained output/sample evidence references, not inline image bodies.
+  repeated string evidence_refs = 4;
+  // Set by PreparationService when it records a completed review; callers
+  // cannot choose or backdate this owner timestamp.
+  int64 reviewed_at_unix_ms = 5;
+}
+
+// Native durable preparation artifacts. Inference remains owned by AIService;
+// these calls assemble/review immutable assets, never enqueue another model job.
+service PreparationService {
+  // Read-only input measurements before spending compute on a repair.
+  rpc AssessRepair(AssessRepairRequest) returns (AssessRepairResponse);
+  rpc CreatePhotograph(CreatePhotographRequest) returns (PhotographResponse);
+  rpc GetPhotograph(GetPhotographRequest) returns (PhotographResponse);
+  rpc ListPhotographs(ListPhotographsRequest) returns (ListPhotographsResponse);
+  // A review produces a new immutable revision; the original remains readable.
+  rpc ReviewPhotograph(ReviewPhotographRequest) returns (PhotographResponse);
+}
+message ArtifactBinding {
+  string artifact_path = 1;
+  // Opaque Image Tools blob reference; host paths/URLs are not accepted.
+  string stored_ref = 2;
+  // Alternative only for the declared repair-provenance JSON artifact. Bounded
+  // to 64 KiB, parsed as JSON and pinned by the artifact SHA. Caller-supplied
+  // evidence is retained, never represented as server-attested model output.
+  string inline_json = 3;
+}
+message CreatePhotographRequest {
+  PreparedPhotograph manifest = 1;
+  repeated ArtifactBinding artifacts = 2;
+  string label = 3;
+}
+message StoredPhotograph {
+  // SHA256 of the complete retained ZIP; immutable and idempotent by content.
+  string id = 1;
+  string label = 2;
+  string bundle_ref = 3;
+  PreparedPhotograph manifest = 4;
+  string parent_id = 5;
+  int64 created_at_unix_ms = 6;
+  string source_preview_ref = 7;
+  string clean_plate_preview_ref = 8;
+  RepairAssessment repair_assessment = 9;
+}
+message PhotographResponse { StoredPhotograph photograph = 1; }
+message GetPhotographRequest { string id = 1; }
+message ListPhotographsRequest { uint32 limit = 1; }
+message ListPhotographsResponse { repeated StoredPhotograph photographs = 1; }
+message ReviewPhotographRequest {
+  string id = 1;
+  VisualReview review = 2;
+  // Explicit additional proof when accepting camera movement.
+  bool overscan_reviewed = 3;
+  // Stable caller-generated UUID, reused unchanged when the response is uncertain.
+  string operation_id = 4;
+}
+
+// Advisory input/context measurements, never an automatic quality decision.
+message RepairAssessment {
+  double mask_area_fraction = 1;
+  string risk_level = 2;
+  repeated string risk_signals = 3;
+  uint32 context_pixels = 4;
+  repeated string context_clipped_sides = 5;
+  double inference_scale = 6;
+}
+
+message AssessRepairRequest {
+  string mask_ref = 1;
+  // Optional proposed crop controls; no inference is dispatched.
+  vrooli.image_tools.v1.ai.InpaintParams inpaint = 2;
+}
+message AssessRepairResponse { RepairAssessment assessment = 1; }

@@ -26,25 +26,13 @@ describe('ScrollHandler', () => {
     };
   });
 
-  it('should scroll to origin', async () => {
-    const instruction = createTypedInstruction('scroll', { x: 0, y: 0 }, { nodeId: 'node-1' });
-
-    mockPage.evaluate.mockResolvedValue(undefined);
-
+  it('releases its target after a browser-side failure', async () => {
+    const dispose = jest.fn().mockResolvedValue(undefined);
+    const evaluate = jest.fn().mockRejectedValue(new Error('document was replaced'));
+    mockPage.waitForSelector.mockResolvedValue({ evaluate, dispose } as never);
+    const instruction = createTypedInstruction('scroll', { selector: '#pane', x: 20, y: 30 });
     const result = await handler.execute(instruction, context);
-
-    expect(mockPage.evaluate.mock.calls.length).toBeGreaterThan(0);
-    expect(result.success).toBe(true);
-  });
-
-  it('should scroll to coordinates', async () => {
-    const instruction = createTypedInstruction('scroll', { x: 0, y: 500 }, { nodeId: 'node-1' });
-
-    mockPage.evaluate.mockResolvedValue(undefined);
-
-    const result = await handler.execute(instruction, context);
-
-    expect(mockPage.evaluate.mock.calls.length).toBeGreaterThan(0);
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+    expect(dispose).toHaveBeenCalledTimes(1);
   });
 });

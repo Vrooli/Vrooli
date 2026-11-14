@@ -1,0 +1,114 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "readiness",
+    "title": "Account readiness",
+    "routes": [
+      "/channels/readiness"
+    ],
+    "purpose": "Choose the exact destination and inspect action-specific identity, policy, route and permission evidence.",
+    "prd_refs": [
+      "OT-P0-028",
+      "OT-P0-029"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "The default state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "not-configured",
+      "description": "The not configured state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "owner-supplied-unverified",
+      "description": "The owner supplied unverified state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "verified-identity",
+      "description": "The verified identity state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "policy-check-needed",
+      "description": "The policy check needed state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "eligible-for-action",
+      "description": "The eligible for action state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "restricted",
+      "description": "The restricted state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "disconnected",
+      "description": "The disconnected state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "outcome-unknown",
+      "description": "The outcome unknown state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "x-link-only",
+      "description": "The x link only state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "community-proposed",
+      "description": "The community proposed state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "loading",
+      "description": "The loading state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "empty",
+      "description": "The empty state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "partial",
+      "description": "The partial state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "stale",
+      "description": "The stale state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "request-error",
+      "description": "The request error state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The permission denied state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "offline",
+      "description": "The offline state is distinguishable with its truthful basis and a permitted next action."
+    }
+  ],
+  "claims": [
+    {
+      "id": "readiness-outcome-1",
+      "type": "custom",
+      "statement": "A platform logo or profile-complete state never summarizes role, policy, activation, connection and publication-route eligibility.",
+      "tier": "aspirational",
+      "rationale": "Accepted target intent; no running selector or runtime attestation is asserted."
+    },
+    {
+      "id": "readiness-outcome-2",
+      "type": "custom",
+      "statement": "X is link-only; an owned subreddit remains an uncreated proposal with accountable moderation and eligibility needs.",
+      "tier": "aspirational",
+      "rationale": "Accepted target intent; no running selector or runtime attestation is asserted."
+    }
+  ],
+  "x-i16-source": {
+    "dossier": "package/documents/dossier-accepted-basis/document-text.md",
+    "selected_visuals": [
+      "design-source/screens/M14-readiness-v04-desktop.png",
+      "design-source/screens/M14-readiness-v04-phone.png"
+    ]
+  }
+}

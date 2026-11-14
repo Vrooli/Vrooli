@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package vrooli.vrooli_onboarding.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/shared;sharedv1";
+
+// CompletionBlocker is shared by readiness verdicts and apply runs.
+message CompletionBlocker {
+  string kind = 1;
+  string name = 2;
+  string reason = 3;
+  string remediation = 4;
+}

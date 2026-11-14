@@ -1,0 +1,187 @@
+--- a/drivers/bluetooth/btusb.c
++++ b/drivers/bluetooth/btusb.c
+@@ -738,6 +738,8 @@
+ 						     BTUSB_WIDEBAND_SPEECH },
+ 	{ USB_DEVICE(0x0489, 0xe139), .driver_info = BTUSB_MEDIATEK |
+ 						     BTUSB_WIDEBAND_SPEECH },
++	{ USB_DEVICE(0x0489, 0xe13a), .driver_info = BTUSB_MEDIATEK |
++						     BTUSB_WIDEBAND_SPEECH },
+ 	{ USB_DEVICE(0x0489, 0xe14e), .driver_info = BTUSB_MEDIATEK |
+ 						     BTUSB_WIDEBAND_SPEECH },
+ 	{ USB_DEVICE(0x0489, 0xe14f), .driver_info = BTUSB_MEDIATEK |
+--- a/drivers/bluetooth/btmtk.c
++++ b/drivers/bluetooth/btmtk.c
+@@ -127,8 +127,10 @@
+ }
+ EXPORT_SYMBOL_GPL(btmtk_fw_get_filename);
+ 
+-int btmtk_setup_firmware_79xx(struct hci_dev *hdev, const char *fwname,
+-			      wmt_cmd_sync_func_t wmt_cmd_sync)
++static int __btmtk_setup_firmware_79xx(struct hci_dev *hdev,
++				      const char *fwname,
++				      wmt_cmd_sync_func_t wmt_cmd_sync,
++				      bool mt6639)
+ {
+ 	struct btmtk_hci_wmt_params wmt_params;
+ 	struct btmtk_patch_header *hdr;
+@@ -148,13 +150,25 @@
+ 		return err;
+ 	}
+ 
++	if (mt6639 && fw->size < MTK_FW_ROM_PATCH_HEADER_SIZE +
++			       MTK_FW_ROM_PATCH_GD_SIZE) {
++		err = -EINVAL;
++		goto err_release_fw;
++	}
++
+ 	fw_ptr = fw->data;
+ 	fw_bin_ptr = fw_ptr;
+ 	hdr = (struct btmtk_patch_header *)fw_ptr;
+ 	globaldesc = (struct btmtk_global_desc *)(fw_ptr + MTK_FW_ROM_PATCH_HEADER_SIZE);
+ 	section_num = le32_to_cpu(globaldesc->section_num);
++	if (mt6639 && section_num >
++	    (fw->size - MTK_FW_ROM_PATCH_HEADER_SIZE -
++	     MTK_FW_ROM_PATCH_GD_SIZE) / MTK_FW_ROM_PATCH_SEC_MAP_SIZE) {
++		err = -EINVAL;
++		goto err_release_fw;
++	}
+ 
+-	bt_dev_info(hdev, "HW/SW Version: 0x%04x%04x, Build Time: %s",
++	bt_dev_info(hdev, "HW/SW Version: 0x%04x%04x, Build Time: %.16s",
+ 		    le16_to_cpu(hdr->hwver), le16_to_cpu(hdr->swver), hdr->datetime);
+ 
+ 	for (i = 0; i < section_num; i++) {
+@@ -166,6 +180,18 @@
+ 		section_offset = le32_to_cpu(sectionmap->secoffset);
+ 		dl_size = le32_to_cpu(sectionmap->bin_info_spec.dlsize);
+ 
++		/* MT6639 firmware also carries sections for other functions. */
++		if (mt6639 && dl_size > 0) {
++			if ((le32_to_cpu(sectionmap->bin_info_spec.dlmodecrctype) &
++			     0xff) != 0x01)
++				continue;
++			if (section_offset > fw->size ||
++			    dl_size > fw->size - section_offset) {
++				err = -EINVAL;
++				goto err_release_fw;
++			}
++		}
++
+ 		if (dl_size > 0) {
+ 			retry = 20;
+ 			while (retry > 0) {
+@@ -175,7 +201,7 @@
+ 				       MTK_FW_ROM_PATCH_GD_SIZE +
+ 				       MTK_FW_ROM_PATCH_SEC_MAP_SIZE * i +
+ 				       MTK_SEC_MAP_COMMON_SIZE,
+-				       MTK_SEC_MAP_NEED_SEND_SIZE + 1);
++				       MTK_SEC_MAP_NEED_SEND_SIZE + !mt6639);
+ 
+ 				wmt_params.op = BTMTK_WMT_PATCH_DWNLD;
+ 				wmt_params.status = &status;
+@@ -205,6 +231,11 @@
+ 				}
+ 			}
+ 
++			if (mt6639 && !retry) {
++				err = -EIO;
++				goto err_release_fw;
++			}
++
+ 			fw_ptr += section_offset;
+ 			wmt_params.op = BTMTK_WMT_PATCH_DWNLD;
+ 			wmt_params.status = NULL;
+@@ -246,6 +277,11 @@
+ 
+ 	return err;
+ }
++int btmtk_setup_firmware_79xx(struct hci_dev *hdev, const char *fwname,
++			      wmt_cmd_sync_func_t wmt_cmd_sync)
++{
++	return __btmtk_setup_firmware_79xx(hdev, fwname, wmt_cmd_sync, false);
++}
+ EXPORT_SYMBOL_GPL(btmtk_setup_firmware_79xx);
+ 
+ int btmtk_setup_firmware(struct hci_dev *hdev, const char *fwname,
+@@ -853,7 +889,7 @@
+ 		if (err < 0)
+ 			return err;
+ 		msleep(100);
+-	} else if (dev_id == 0x7925) {
++	} else if (dev_id == 0x7925 || dev_id == 0x6639) {
+ 		err = btmtk_usb_uhw_reg_read(hdev, MTK_BT_RESET_REG_CONNV3, &val);
+ 		if (err < 0)
+ 			return err;
+@@ -939,7 +975,7 @@
+ 	}
+ 
+ 	err = btmtk_usb_id_get(hdev, 0x70010200, &val);
+-	if (err < 0 || !val)
++	if (err < 0 || (!val && dev_id != 0x6639))
+ 		bt_dev_err(hdev, "Can't get device id, subsys reset fail.");
+ 
+ 	return err;
+@@ -1001,7 +1037,9 @@
+ 	if (!btmtk_data->isopkt_intf)
+ 		return -ENODEV;
+ 
+-	err = usb_set_interface(btmtk_data->udev, MTK_ISO_IFNUM, 1);
++	err = usb_set_interface(btmtk_data->udev, MTK_ISO_IFNUM,
++			       btmtk_data->dev_id == 0x6639 &&
++			       intf->num_altsetting == 1 ? 0 : 1);
+ 	if (err < 0) {
+ 		bt_dev_err(hdev, "setting interface failed (%d)", -err);
+ 		return err;
+@@ -1323,6 +1361,14 @@
+ 		fw_flavor = (fw_flavor & 0x00000080) >> 7;
+ 	}
+ 
++	/* This ASUS device can return zero from the CHIPID register. */
++	if (!dev_id &&
++	    le16_to_cpu(btmtk_data->udev->descriptor.idVendor) == 0x0489 &&
++	    le16_to_cpu(btmtk_data->udev->descriptor.idProduct) == 0xe13a) {
++		dev_id = 0x6639;
++		bt_dev_info(hdev, "MT6639: CHIPID=0x0000 for USB 0489:e13a");
++	}
++
+ 	btmtk_data->dev_id = dev_id;
+ 
+ 	err = btmtk_register_coredump(hdev, btmtk_data->drv_name, fw_version);
+@@ -1339,11 +1385,18 @@
+ 	case 0x7922:
+ 	case 0x7925:
+ 	case 0x7961:
+-		btmtk_fw_get_filename(fw_bin_name, sizeof(fw_bin_name), dev_id,
+-				      fw_version, fw_flavor);
++	case 0x6639:
++		if (dev_id == 0x6639)
++			snprintf(fw_bin_name, sizeof(fw_bin_name),
++				 "mediatek/mt7927/BT_RAM_CODE_MT6639_2_%x_hdr.bin",
++				 (fw_version & 0xff) + 1);
++		else
++			btmtk_fw_get_filename(fw_bin_name, sizeof(fw_bin_name),
++					      dev_id, fw_version, fw_flavor);
+ 
+-		err = btmtk_setup_firmware_79xx(hdev, fw_bin_name,
+-						btmtk_usb_hci_wmt_sync);
++		err = __btmtk_setup_firmware_79xx(hdev, fw_bin_name,
++						  btmtk_usb_hci_wmt_sync,
++						  dev_id == 0x6639);
+ 		if (err < 0) {
+ 			bt_dev_err(hdev, "Failed to set up firmware (%d)", err);
+ 			return err;
+@@ -1510,3 +1563,4 @@
+ MODULE_FIRMWARE(FIRMWARE_MT7922);
+ MODULE_FIRMWARE(FIRMWARE_MT7961);
+ MODULE_FIRMWARE(FIRMWARE_MT7925);
++MODULE_FIRMWARE(FIRMWARE_MT7927);
+--- a/drivers/bluetooth/btmtk.h
++++ b/drivers/bluetooth/btmtk.h
+@@ -7,6 +7,7 @@
+ #define FIRMWARE_MT7922		"mediatek/BT_RAM_CODE_MT7922_1_1_hdr.bin"
+ #define FIRMWARE_MT7961		"mediatek/BT_RAM_CODE_MT7961_1_2_hdr.bin"
+ #define FIRMWARE_MT7925		"mediatek/mt7925/BT_RAM_CODE_MT7925_1_1_hdr.bin"
++#define FIRMWARE_MT7927		"mediatek/mt7927/BT_RAM_CODE_MT6639_2_1_hdr.bin"
+ 
+ #define HCI_EV_WMT 0xe4
+ #define HCI_WMT_MAX_EVENT_SIZE		64

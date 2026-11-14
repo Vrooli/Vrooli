@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "hook",
+  "catalogId": "hooks.use-long-press",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "description": "A token-backed long-press hook with movement tolerance, pointer cancellation, origin capture, and click/context-menu coordination.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "useLongPress",
+  "draft": "",
+  "evictedVersions": [],
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:useLongPress",
+  "tags": []
+}

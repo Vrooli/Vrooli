@@ -86,14 +86,5 @@ TODO: Implementation required
 
 // CheckXMLContentTypeHeaders validates XML response Content-Type headers
 func CheckXMLContentTypeHeaders(content []byte, filePath string) []Violation {
-	var violations []Violation
-
-	// TODO: Implement XML Content-Type checking
-	// Follow approach similar to JSON rule but for XML patterns
-	// Key difference: Look for xml.NewEncoder/Marshal instead of json.*
-
-	_ = content
-	_ = filePath
-
-	return violations
+	return noContentTypeViolations()
 }

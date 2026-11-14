@@ -26,7 +26,6 @@ export interface Template {
   content: string; // Template text with {{variable}} placeholders
   variables: TemplateVariable[];
   suggestedSkillIds?: string[]; // Skills that auto-attach when template selected
-  suggestedToolIds?: string[]; // Tools suggested for this template (e.g., ["spawn_coding_agent"])
   modes?: string[]; // Hierarchical path: ["Research", "Codebase Structure"]
   isBuiltIn?: boolean; // Distinguishes system vs user templates (legacy, use source instead)
   createdAt?: string; // ISO timestamp (user templates)

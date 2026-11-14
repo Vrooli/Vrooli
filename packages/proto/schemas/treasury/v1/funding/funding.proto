@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package vrooli.treasury.v1.funding;
+
+import "google/protobuf/timestamp.proto";
+import "money-ledger/v1/ingest/ingest.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/funding;funding_v1";
+
+// The caller selects a durable verified check, never supplies transfer amounts.
+// Valuation remains an explicit operator declaration separate from token units.
+message SubmitReceiptFundingRequest {
+  string wallet_id = 1;
+  string transaction_hash = 2;
+  string check_id = 3;
+  uint64 log_index = 4;
+  string budget_id = 5;
+  string ledger_book_id = 6;
+  string ledger_account_id = 7;
+  vrooli.money_ledger.v1.ingest.CryptoReceiptAction action = 8;
+  string original_receipt_id = 9;
+  string previous_receipt_id = 10;
+  string reason = 11;
+  vrooli.money_ledger.v1.ingest.CryptoValuation valuation = 12;
+  vrooli.money_ledger.v1.ingest.CryptoPayerAttribution attribution = 13;
+}
+
+enum ReceiptFundingState {
+  RECEIPT_FUNDING_STATE_UNSPECIFIED = 0;
+  RECEIPT_FUNDING_STATE_QUEUED = 1;
+  RECEIPT_FUNDING_STATE_ACCEPTED = 2;
+}
+
+message ReceiptFundingDelivery {
+  string id = 1;
+  string wallet_id = 2;
+  string budget_id = 3;
+  string source_check_id = 4;
+  ReceiptFundingState state = 5;
+  uint32 attempts = 6;
+  string last_error = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp accepted_at = 9;
+  vrooli.money_ledger.v1.ingest.AcceptedCryptoReceipt receipt = 10;
+  // Separate post-acceptance association; the immutable ledger receipt remains unchanged.
+  string credit_lot_id = 11;
+  string credit_lot_owner = 12;
+  string credit_lot_receipt_id = 13;
+}
+
+message ReceiptFundingResponse { ReceiptFundingDelivery delivery = 1; }
+message GetReceiptFundingRequest { string id = 1; }

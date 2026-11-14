@@ -1,0 +1,224 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.local-work-snapshot",
+  "version": "2",
+  "helpers": {
+    "program": "2"
+  },
+  "purpose": "Read a bounded cross-owner local work snapshot for evidence-backed many-to-many reconciliation, preserving source scope and uncertainty without scheduling or accepting work.",
+  "inputs": {
+    "research_root": {
+      "type": "string",
+      "default": "",
+      "description": "Optional caller-authorized absolute research root; empty means research not requested."
+    },
+    "row_limit": {
+      "type": "integer",
+      "default": 4,
+      "description": "1..20 entity examples per source; counts and continuations remain separate."
+    },
+    "run_statuses": {
+      "type": "array",
+      "default": [
+        "pending",
+        "starting",
+        "running",
+        "needs_review",
+        "parked",
+        "unknown",
+        "complete"
+      ],
+      "description": "Unique selected statuses, at most 9. Each is one bounded owner page. Omitted statuses are not checked."
+    },
+    "run_offsets": {
+      "type": "object",
+      "default": {},
+      "description": "Selected status to nonnegative offset, at most 1000000. Paging is not a transactionally stable snapshot."
+    },
+    "sample_offsets": {
+      "type": "object",
+      "default": {},
+      "description": "Nonnegative in-response offset for teams, objectives, swarm_goals, research_topics, research_runs or program_usage; owner order may change."
+    },
+    "effort_page_token": {
+      "type": "string",
+      "default": "",
+      "description": "Exact owner-issued continuation for one effort board page."
+    },
+    "usage_window_days": {
+      "type": "integer",
+      "default": 7,
+      "description": "1..30 day Program Runtime usage window; capability context, not work counts."
+    },
+    "team_ids": {
+      "type": "array",
+      "default": [],
+      "description": "Up to four unique explicitly selected Prompt Manager team IDs. Empty leaves queue/task observations not_requested; never inferred from the team sample."
+    },
+    "team_task_offsets": {
+      "type": "object",
+      "default": {},
+      "description": "Selected team ID to nonnegative task-board offset, at most 1000000. One owner page per selected team; ordering can change."
+    }
+  },
+  "assumptions": [
+    "Caller is authorized to read the selected local research root and owner sources.",
+    "This is a dated observation, not a global inventory, live process service, scheduler or acceptance authority."
+  ],
+  "invariants": [
+    "Read-only owner calls and selected research files only; no inference, delegation, retries, lifecycle changes or Flywheel writes.",
+    "Run labels, enabled teams, active goals, retained research and successful programs never prove live executors or accepted outcomes.",
+    "Sources retain separate denominators and collection/producer timestamps; absence and explicit null do not become zero.",
+    "At most 9 run pages, one team list, objective projection, effort page, goal list, backlog sample, usage window, research catalog and workspace child per call. For each of at most four selected teams, one execution-status read and one bounded task-board page.",
+    "Swarm execution listing is not collected by this version; its supported owner CLI remains an explicit gap. Normal useful results remain partial while that gap exists.",
+    "No automatic identity matching or task creation; relations require source evidence and owner review."
+  ],
+  "bindings": [
+    {
+      "id": "agent-manager/run/list",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "agent-manager/effort/board",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "prompt-manager/team/list",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "prompt-manager/graph/objectives",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "swarm-manager/goals/list",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "swarm-manager/backlog/list",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "program-runtime/programs/portfolio",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "prompt-manager/team/execution-status",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "prompt-manager/team/task-list",
+      "effect": "read",
+      "optional": true
+    }
+  ],
+  "verbs": [
+    "lib"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "partial",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "report"
+      ]
+    },
+    "signals": {
+      "sources": "Separate owner observations with scope, fetched and evidence timestamps, query/output coverage, native identities, summaries and continuation. No source sum is a count of work.",
+      "collected_at": "UTC collection start, not evidence freshness.",
+      "finished_at": "UTC collection end. Sources are not atomically sampled.",
+      "coverage": "Always bounded_observation; lists unselected run statuses and uncollected execution/acceptance evidence.",
+      "reconciliation": "No inferred Flywheel relations; permitted relation vocabulary and required evidence.",
+      "output_truncated": "Output reductions are explicit and leave source counts/continuations intact."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "invalid_response",
+        "source_unavailable",
+        "workspace_unavailable",
+        "outside_root",
+        "source_limit",
+        "output_limit",
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "no_governed_binding",
+        "remote_error",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "Owning binding/program/path locators; child version/digest; selected projection and catalog content hashes. Parent artifact digest is in the runtime execution receipt."
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 200,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "reject-zero-limit",
+      "inputs": {
+        "row_limit": 0
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": []
+    },
+    {
+      "id": "reject-unknown-status",
+      "inputs": {
+        "run_statuses": [
+          "imagined"
+        ]
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": []
+    },
+    {
+      "id": "reject-duplicate-team",
+      "inputs": {
+        "team_ids": [
+          "one",
+          "one"
+        ]
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": []
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime"
+}

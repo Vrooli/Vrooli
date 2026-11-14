@@ -1,0 +1,64 @@
+{
+  "kind": "openapi-catalog",
+  "services": [
+    {
+      "id": "synthetic-reminder-sheet",
+      "document": {
+        "openapi": "3.0.3",
+        "info": { "title": "Synthetic reminder sheet", "version": "1" },
+        "servers": [{ "url": "https://sheets.synthetic.invalid" }],
+        "paths": {
+          "/v1/reminders": {
+            "get": {
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": [
+                        {
+                          "Due Date": "2026-11-12",
+                          "Email": "recipient@synthetic.invalid",
+                          "Subject": "Synthetic reminder",
+                          "Body": "A synthetic reminder for simulator coverage."
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "x-n8n-node-type": "n8n-nodes-base.googleSheets",
+              "x-n8n-resource": "sheet",
+              "x-n8n-operation": "read"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "synthetic-reminder-mail",
+      "document": {
+        "openapi": "3.0.3",
+        "info": { "title": "Synthetic reminder mail", "version": "1" },
+        "servers": [{ "url": "https://mail.synthetic.invalid" }],
+        "paths": {
+          "/v1/messages": {
+            "post": {
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": { "id": "synthetic-message-1", "status": "recorded" }
+                    }
+                  }
+                }
+              },
+              "x-n8n-node-type": "n8n-nodes-base.gmail",
+              "x-n8n-resource": "message",
+              "x-n8n-operation": "send"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

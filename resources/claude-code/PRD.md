@@ -73,7 +73,7 @@ Claude Code provides an enterprise-grade AI coding agent with tool-using capabil
 
 ### Non-Functional Requirements
 - **Security**
-  - [x] API key management via Vault
+  - [x] API key management via the Vrooli credential authority
   - [x] Secure session storage with encryption
   - [x] Sandboxed code execution environment
   - [ ] Audit logging for all code modifications
@@ -83,7 +83,7 @@ Claude Code provides an enterprise-grade AI coding agent with tool-using capabil
   - [x] Automatic retry on failures with exponential backoff
   - [x] Session persistence across restarts
   - [x] Graceful degradation with Ollama fallback
-  - [x] Rate limit prediction and preemptive switching
+  - [x] Provider quota feed: `statusline run` appends Claude Code's own five-hour/seven-day `used_percentage` readings (per session, only when that session's reading changes, plus a 5-minute heartbeat; expired windows skipped; file rotates at 4 MiB) to the quota sample file for Agent Manager forecasting (no local estimates)
   - [ ] Health monitoring and alerting integration
   
 - **Scalability**
@@ -97,13 +97,10 @@ Claude Code provides an enterprise-grade AI coding agent with tool-using capabil
 
 ### Architecture
 - **Runtime**: Node.js v18+ (Claude CLI), Bash (resource management)
-- **Primary Provider**: Anthropic Claude (claude-3-5-sonnet-latest)
-- **Fallback Provider**: Ollama-Code with optimized models
+- **Provider**: Anthropic Claude (Anthropic-native — talks to the Anthropic API directly, no local model proxy or fallback)
 - **Dependencies**: 
   - Claude CLI (@anthropic-ai/claude-code)
-  - Ollama resource (for fallback)
-  - LiteLLM adapter (optional proxy)
-  - Vault (for secure key storage)
+  - Vrooli credential authority (for secure key storage and runtime injection)
 
 ### Provider Configuration
 ```yaml
@@ -124,10 +121,9 @@ primary_provider:
 fallback_provider:
   name: Ollama-Code
   models:
-    - qwen2.5-coder:14b (primary fallback)
-    - qwen2.5-coder:7b (fast responses)
-    - codellama:7b (specialized coding)
-    - deepseek-r1:8b (reasoning tasks)
+    - Resolved from the ollama resource's `code.local` role
+      (resources/ollama/model-policy.json) — a local coding-capable model
+      with structured tool-calls, plus the policy-defined fallbacks.
   capabilities:
     - Unlimited local inference
     - No rate limits
@@ -158,7 +154,9 @@ fallback_provider:
   # Fallback control
   resource-claude-code for ollama connect            # Force Ollama fallback
   resource-claude-code for ollama disconnect         # Return to Claude
-  resource-claude-code usage                         # Check rate limit status
+  resource-claude-code statusline install|uninstall  # Reconcile settings.json statusLine to the quota feed (uninstall restores the prior command)
+  resource-claude-code statusline run                # The statusLine command: record quota sample, then render/chain
+  resource-claude-code statusline status             # Show the statusline quota feed
   
   # Content management
   resource-claude-code content add <template>        # Add templates
@@ -170,7 +168,7 @@ fallback_provider:
 ```yaml
 environment_variables:
   # Primary provider
-  ANTHROPIC_API_KEY: Retrieved from Vault
+  ANTHROPIC_API_KEY: Injected from the Vrooli credential authority
   CLAUDE_SUBSCRIPTION_TIER: free|pro|teams|enterprise
   
   # Fallback configuration
@@ -180,18 +178,16 @@ environment_variables:
   
   # Execution settings
   CLAUDE_CODE_DEFAULT_MODEL: claude-3-5-sonnet-latest
-  CLAUDE_CODE_FALLBACK_MODEL: qwen2.5-coder:14b
+  CLAUDE_CODE_FALLBACK_MODEL: gemma4:12b
   CLAUDE_CODE_MAX_RETRIES: 3
   CLAUDE_CODE_TIMEOUT: 600
   
-  # Usage tracking
-  CLAUDE_USAGE_FILE: ~/.claude/usage_tracking.json
-  CLAUDE_CODE_TRACK_COSTS: true
+  # Provider quota feed (statusline)
+  VROOLI_CLAUDE_QUOTA_SAMPLES: ~/.vrooli/state/vrooli/claude-code/quota-samples.ndjson
 
 config_files:
   - ~/.claude/config.json           # Global configuration
-  - ~/.claude/litellm_config.json   # Fallback adapter config
-  - ~/.claude/usage_tracking.json   # Usage and rate limit tracking
+  - ~/.claude/settings.json         # statusLine reconciled to the quota feed
   - .claude/project.json            # Project-specific settings
 ```
 
@@ -230,7 +226,7 @@ config_files:
 ### Prerequisites
 1. Node.js v18+ installed
 2. Ollama resource installed and configured
-3. API keys configured in Vault (ANTHROPIC_API_KEY)
+3. API keys provisioned through the Vrooli credential authority (for example, `vrooli/claude-code:anthropic-api-key`)
 4. Network access to Anthropic API
 5. Sufficient disk space for sessions (~1GB)
 6. GPU recommended for Ollama performance (optional)
@@ -240,15 +236,16 @@ config_files:
 # 1. Install the resource
 vrooli resource install claude-code
 
-# 2. Configure API keys in Vault
-vrooli vault set ANTHROPIC_API_KEY "your-key-here"
+# 2. Provision the Anthropic API key through the credential authority
+printf '%s' "$ANTHROPIC_API_KEY" | vrooli credentials provision \
+  --identity vrooli/claude-code --field anthropic-api-key
 
 # 3. Install Ollama for fallback support
 vrooli resource install ollama
 
 # 4. Pull recommended Ollama models
-resource-ollama pull qwen2.5-coder:14b
-resource-ollama pull codellama:7b
+resource-ollama pull gemma4:12b
+resource-ollama pull llama3.1:8b
 
 # 5. Verify installation
 resource-claude-code status
@@ -304,9 +301,9 @@ trigger_conditions:
 
 fallback_behavior:
   model_selection:
-    - Primary: qwen2.5-coder:14b (best quality)
-    - Fast: qwen2.5-coder:7b (quick responses)
-    - Specialized: codellama:7b (code-specific)
+    - Primary: gemma4:12b (best quality, tool-calling capable)
+    - Fast: llama3.2:3b (quick responses)
+    - Specialized: llama3.1:8b (reliable structured tool calls)
   
   limitations:
     - No tool execution (text responses only)
@@ -325,9 +322,9 @@ fallback_behavior:
 - [Configuration Guide](docs/CONFIGURATION.md)
 - [Fallback Guide](docs/FALLBACK.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [Rate Limit Management](docs/RATE_LIMITS.md)
+- [Provider quota feed](README.md#provider-quota-feed-statusline)
 - [Automation Guide](docs/AUTOMATION.md)
-- [Examples](examples/README.md)
+- [Usage Guidance](README.md)
 
 ## 💰 Infrastructure Value
 
@@ -354,7 +351,7 @@ fallback_behavior:
 | Claude API rate limits | High | Medium | Automatic Ollama fallback with 95% success rate |
 | Ollama model quality | Medium | Low | Multiple model options, user can review output |
 | Network connectivity | Low | High | Local Ollama fallback, session persistence |
-| API key exposure | Low | Critical | Vault integration, secure storage |
+| API key exposure | Low | Critical | Credential-authority integration and process-scoped injection |
 | Tool execution errors | Medium | Medium | Sandboxing, dry-run options, rollback support |
 
 ### Operational Risks
@@ -431,13 +428,14 @@ fallback_behavior:
 - docs/FALLBACK.md - Detailed fallback configuration
 - docs/RATE_LIMITS.md - Rate limit management strategies
 - lib/common.sh - Core utility functions including rate detection
-- adapters/litellm/ - Fallback adapter implementation
 
 ### Related Resources
-- **ollama** - Provides local LLM inference for fallback
-- **vault** - Secure API key storage
-- **litellm** - Optional proxy for model routing
+- **Vrooli credential authority** - Secure API key storage and recovery
 - **n8n** - Workflow automation using Claude Code
+
+> Claude Code is Anthropic-native: it talks to the Anthropic API directly and
+> does not route through a local model proxy. (codex and opencode reach local
+> Ollama models first-class; claude-code is the one acknowledged difference.)
 
 ### External Resources
 - [Claude Documentation](https://docs.anthropic.com/claude/docs)

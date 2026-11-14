@@ -1,0 +1,799 @@
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  ArrowRight,
+  BarChart3,
+  CheckCircle,
+  CheckCircle2,
+  Circle,
+  Clock,
+  FileText,
+  Globe,
+  LayoutGrid,
+  LineChart,
+  Loader2,
+  MousePointer2,
+  Pause,
+  ShieldCheck,
+  Sparkles,
+  Terminal,
+  Type,
+  Video,
+} from 'lucide-react';
+import { Button } from '../../../shared/ui/button';
+import { useMetrics } from '../../../shared/hooks/useMetricsHook';
+import { resolveBackdropReference, type BackdropReference } from '../services/backdrop.service';
+
+interface HeroSectionProps {
+  content: {
+    title?: string;
+    subtitle?: string;
+    cta_text?: string;
+    cta_url?: string;
+    image_url?: string;
+    /** Stable Backdrop Studio release reference resolved for this placement. */
+    backdrop_reference?: BackdropReference;
+    background_style?: 'gradient' | 'solid' | 'image';
+    secondary_cta_text?: string;
+    secondary_cta_url?: string;
+  };
+}
+
+export function HeroSection({ content }: HeroSectionProps) {
+  const { trackCTAClick } = useMetrics();
+  const primaryCtaText = content.cta_text ?? 'Start free';
+  const primaryCtaUrl = content.cta_url ?? '#pricing';
+  const secondaryCtaText = content.secondary_cta_text ?? 'Watch video';
+  const secondaryCtaUrl = content.secondary_cta_url ?? '#video';
+  const [resolvedBackdrop, setResolvedBackdrop] = useState<BackdropReference | undefined>(content.backdrop_reference);
+  useEffect(() => {
+    let active = true;
+    if (!content.backdrop_reference?.id || content.backdrop_reference.url) {
+      setResolvedBackdrop(content.backdrop_reference);
+      return () => { active = false; };
+    }
+    void resolveBackdropReference(content.backdrop_reference).then((reference) => {
+      if (active && reference) setResolvedBackdrop(reference);
+    });
+    return () => { active = false; };
+  }, [content.backdrop_reference]);
+  const backdropURL = resolvedBackdrop?.url ?? content.image_url;
+  const backdropReferenceID = resolvedBackdrop?.id ?? content.backdrop_reference?.id;
+
+  const handleCTAClick = () => {
+    trackCTAClick('hero-cta', {
+      cta_text: primaryCtaText,
+      cta_url: primaryCtaUrl,
+    });
+    window.location.href = primaryCtaUrl;
+  };
+
+  return (
+    <section
+      className="relative overflow-hidden bg-gradient-to-br from-bg-base via-surface-deep to-surface-primary text-white"
+      data-testid="hero-section"
+      data-backdrop-reference={backdropReferenceID}
+      data-backdrop-placement={resolvedBackdrop?.placement ?? content.backdrop_reference?.placement}
+      data-backdrop-reserved-region={resolvedBackdrop?.reserved_regions?.[0] ? JSON.stringify(resolvedBackdrop.reserved_regions[0]) : undefined}
+      style={backdropURL ? { backgroundImage: `url(${JSON.stringify(backdropURL).slice(1, -1)})` } : undefined}
+    >
+      <div className="pointer-events-none absolute inset-0 opacity-30 mix-blend-plus-lighter">
+        <div className="noise-overlay absolute inset-0" />
+      </div>
+      <div className="absolute left-1/3 top-10 h-64 w-64 rounded-full bg-accent-secondary/10 blur-3xl" />
+      <div className="absolute right-10 bottom-10 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
+
+      <div className="container relative mx-auto grid gap-14 px-6 py-24 lg:grid-cols-[1.05fr,0.95fr] lg:items-center">
+        <div className="space-y-8">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs uppercase tracking-[0.35em] text-slate-300">
+              Aquila
+              <Sparkles className="h-3.5 w-3.5 text-accent" />
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-full border border-accent-secondary/20 bg-accent-secondary/10 px-3 py-1 text-[11px] font-semibold text-accent-secondary/80">
+              Vrooli Business Suite · Live in your browser
+            </span>
+          </div>
+
+          <div className="space-y-5">
+            <h1 className="text-5xl leading-tight text-white md:text-6xl">
+              {content.title || 'Your work, in one calm command center'}
+            </h1>
+            <p className="max-w-2xl text-lg text-slate-300">
+              {content.subtitle ||
+                'Aquila keeps durable terminal sessions, agent workflows, and operational context close at hand'}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Button size="default" onClick={handleCTAClick} className="gap-2" data-testid="hero-cta">
+              {primaryCtaText}
+              <ArrowRight className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="default"
+              asChild
+              className="border-white/20 bg-white/5 text-white hover:bg-white/10"
+            >
+              <a href={secondaryCtaUrl}>{secondaryCtaText}</a>
+            </Button>
+          </div>
+
+          <div className="rounded-3xl border border-white/5 bg-white/5 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Aquila essentials</p>
+            <div className="mt-4 grid gap-3 text-sm text-slate-200">
+              {[
+                {
+                  icon: <Terminal className="h-4 w-4 text-accent-secondary" />,
+                  title: 'Durable sessions',
+                  copy: 'Keep terminal work available across reconnects so context does not disappear when the browser does.',
+                },
+                {
+                  icon: <ShieldCheck className="h-4 w-4 text-success" />,
+                  title: 'Pane-based focus',
+                  copy: 'See multiple sessions together and keep the important work in view.',
+                },
+                {
+                  icon: <Sparkles className="h-4 w-4 text-accent" />,
+                  title: 'AI-assisted input',
+                  copy: 'Turn intent into useful command suggestions while keeping the operator in control.',
+                },
+              ].map((item) => (
+                <div key={item.title} className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/5 px-3 py-3">
+                  <div className="mt-0.5">{item.icon}</div>
+                  <div className="space-y-1">
+                    <p className="font-semibold text-white">{item.title}</p>
+                    <p className="text-slate-300">{item.copy}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 flex flex-wrap gap-3 text-xs text-slate-200">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
+                <LineChart className="h-4 w-4 text-accent" />
+                <span>Context that persists</span>
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
+                <ShieldCheck className="h-4 w-4 text-success" />
+                <span>Operator control</span>
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
+                <Sparkles className="h-4 w-4 text-accent-secondary" />
+                <span>Browser-first</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative">
+          <div className="absolute -top-12 -right-10 h-72 w-72 rounded-full bg-accent-secondary/10 blur-3xl" />
+          <AquilaWorkspacePreview />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AquilaWorkspacePreview() {
+  return (
+    <div className="relative mx-auto w-full max-w-2xl">
+      <div className="absolute -inset-8 rounded-[3rem] bg-cyan-400/10 blur-3xl" />
+      <div className="relative overflow-hidden rounded-3xl border border-cyan-300/20 bg-slate-950/90 shadow-2xl shadow-cyan-950/50">
+        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+          <div className="flex items-center gap-2">
+            <div className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+            <span className="text-sm font-semibold text-white">Aquila workspace</span>
+          </div>
+          <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-medium text-emerald-300">Live</span>
+        </div>
+        <div className="grid gap-3 p-4 sm:grid-cols-[0.7fr_1.3fr]">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+            <p className="mb-3 text-[10px] uppercase tracking-[0.25em] text-slate-500">Sessions</p>
+            {['Release checklist', 'Agent handoff', 'Local shell'].map((session, index) => (
+              <div key={session} className={`mb-2 rounded-xl px-3 py-2 text-xs ${index === 0 ? 'border border-cyan-300/20 bg-cyan-300/10 text-cyan-100' : 'text-slate-400'}`}>
+                {session}
+              </div>
+            ))}
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-4 font-mono text-xs leading-6 text-slate-300">
+            <p><span className="text-emerald-400">$</span> vrooli status</p>
+            <p className="text-slate-500">workspace ready · 3 sessions attached</p>
+            <p><span className="text-emerald-400">$</span> aquila suggest</p>
+            <p className="text-cyan-200">Keep the release lane open and verify the latest receipt.</p>
+            <div className="mt-3 flex items-center gap-2 text-[10px] text-emerald-300"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" /> Connected to local workspace</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type TimeoutRef = ReturnType<typeof setTimeout> | null;
+
+interface FeatureConfig {
+  id: string;
+  title: string;
+  label: string;
+  icon: ReactNode;
+  gradient: string;
+  accentColor: string;
+}
+
+const FEATURE_CONFIGS: FeatureConfig[] = [
+  {
+    id: 'record-mode',
+    title: 'Record Mode',
+    label: 'Passively capture your browser actions',
+    icon: <Video size={16} />,
+    gradient: 'from-red-500/20 to-orange-500/20',
+    accentColor: 'red',
+  },
+  {
+    id: 'visual-builder',
+    title: 'Visual Builder',
+    label: 'Build with drag-and-drop',
+    icon: <LayoutGrid size={16} />,
+    gradient: 'from-blue-500/20 to-cyan-500/20',
+    accentColor: 'blue',
+  },
+  {
+    id: 'test-monitor',
+    title: 'Test & Monitor',
+    label: 'Watch executions live',
+    icon: <BarChart3 size={16} />,
+    gradient: 'from-green-500/20 to-emerald-500/20',
+    accentColor: 'green',
+  },
+];
+
+const CYCLE_DURATION = 6000;
+const ANIMATION_DURATION = 500;
+
+function PreviewContainer({
+  children,
+  headerText,
+  footerContent,
+}: {
+  children: ReactNode;
+  headerText: string;
+  footerContent?: ReactNode;
+}) {
+  return (
+    <div className="relative bg-flow-node/80 backdrop-blur-sm border border-flow-border/50 rounded-xl p-6 shadow-2xl">
+      <div className="flex items-center gap-2 mb-4 pb-3 border-b border-flow-border/50">
+        <div className="flex gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-red-500/60" />
+          <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
+          <div className="w-3 h-3 rounded-full bg-green-500/60" />
+        </div>
+        <span className="text-xs text-flow-text-muted ml-2">{headerText}</span>
+      </div>
+
+      <div className="min-h-[140px] flex flex-col justify-center">{children}</div>
+
+      {footerContent && (
+        <div className="flex items-center justify-center gap-2 mt-4 pt-3 border-t border-flow-border/50">
+          {footerContent}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface RecordedAction {
+  type: 'navigate' | 'click' | 'type' | 'scroll';
+  target: string;
+  timestamp: string;
+}
+
+const RECORDED_ACTIONS: RecordedAction[] = [
+  { type: 'navigate', target: 'amazon.com', timestamp: '0:00' },
+  { type: 'click', target: '#search-box', timestamp: '0:02' },
+  { type: 'type', target: '"wireless mouse"', timestamp: '0:03' },
+  { type: 'click', target: 'Search button', timestamp: '0:05' },
+  { type: 'click', target: 'First result', timestamp: '0:08' },
+];
+
+const ACTION_ICONS: Record<RecordedAction['type'], ReactNode> = {
+  navigate: <Globe size={12} className="text-green-400" />,
+  click: <MousePointer2 size={12} className="text-blue-400" />,
+  type: <Type size={12} className="text-yellow-400" />,
+  scroll: <ArrowRight size={12} className="text-gray-400" />,
+};
+
+function RecordModePreview({ isActive }: { isActive: boolean }) {
+  const [visibleActions, setVisibleActions] = useState<number>(0);
+  const [isRecording, setIsRecording] = useState(false);
+  const timeoutRef = useRef<TimeoutRef>(null);
+
+  useEffect(() => {
+    if (!isActive) {
+      setVisibleActions(0);
+      setIsRecording(false);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      return;
+    }
+
+    setIsRecording(true);
+
+    let actionIndex = 0;
+    const showNextAction = () => {
+      if (actionIndex < RECORDED_ACTIONS.length) {
+        setVisibleActions(actionIndex + 1);
+        actionIndex += 1;
+        timeoutRef.current = setTimeout(showNextAction, 800);
+      }
+    };
+
+    timeoutRef.current = setTimeout(showNextAction, 600);
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [isActive]);
+
+  return (
+    <PreviewContainer
+      headerText="record-session"
+      footerContent={
+        <>
+          {isRecording && <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
+          <span className="text-xs text-flow-text-muted">
+            {isRecording ? 'Recording in progress...' : 'Ready to record'}
+          </span>
+        </>
+      }
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div
+            className={`flex items-center gap-1.5 px-2 py-1 rounded-md ${
+              isRecording ? 'bg-red-500/20 border border-red-500/40' : 'bg-flow-surface'
+            }`}
+          >
+            {isRecording ? (
+              <>
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-xs font-medium text-red-400">REC</span>
+              </>
+            ) : (
+              <>
+                <Circle size={10} className="text-gray-500" />
+                <span className="text-xs text-gray-500">IDLE</span>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1 text-xs text-flow-text-muted">
+          <Clock size={12} />
+          <span>{RECORDED_ACTIONS[visibleActions - 1]?.timestamp || '0:00'}</span>
+        </div>
+      </div>
+
+      <div className="space-y-1.5 max-h-[100px] overflow-hidden">
+        {RECORDED_ACTIONS.slice(0, visibleActions).map((action, index) => (
+          <div
+            key={action.target}
+            className="flex items-center gap-2 px-2 py-1.5 bg-flow-surface/50 rounded-md animate-slide-in-right text-xs"
+            style={{ animationDelay: `${String(index * 50)}ms` }}
+          >
+            <span className="text-flow-text-muted w-8">{action.timestamp}</span>
+            <div className="flex items-center gap-1.5">
+              {ACTION_ICONS[action.type]}
+              <span className="text-flow-text-secondary capitalize">{action.type}</span>
+            </div>
+            <span className="text-flow-text-muted truncate">{action.target}</span>
+          </div>
+        ))}
+      </div>
+    </PreviewContainer>
+  );
+}
+
+interface WorkflowNode {
+  icon: ReactNode;
+  label: string;
+  colorClass: string;
+}
+
+const WORKFLOW_NODES: WorkflowNode[] = [
+  { icon: <Globe size={16} />, label: 'Navigate', colorClass: 'green' },
+  { icon: <MousePointer2 size={16} />, label: 'Click', colorClass: 'blue' },
+  { icon: <FileText size={16} />, label: 'Extract', colorClass: 'purple' },
+  { icon: <CheckCircle2 size={16} />, label: 'Done', colorClass: 'emerald' },
+];
+
+function VisualBuilderPreview({ isActive }: { isActive: boolean }) {
+  const [visibleNodes, setVisibleNodes] = useState<number>(0);
+  const timeoutRef = useRef<TimeoutRef>(null);
+
+  useEffect(() => {
+    if (!isActive) {
+      setVisibleNodes(0);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      return;
+    }
+
+    let nodeIndex = 0;
+    const showNextNode = () => {
+      if (nodeIndex <= WORKFLOW_NODES.length) {
+        setVisibleNodes(nodeIndex);
+        nodeIndex += 1;
+        timeoutRef.current = setTimeout(showNextNode, 400);
+      }
+    };
+
+    timeoutRef.current = setTimeout(showNextNode, 300);
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [isActive]);
+
+  const getNodeColorClasses = (color: string): { bg: string; border: string; text: string } => {
+    const defaultColors = { bg: 'bg-blue-500/20', border: 'border-blue-500/40', text: 'text-blue-300' };
+    const colors: Record<string, { bg: string; border: string; text: string }> = {
+      green: { bg: 'bg-green-500/20', border: 'border-green-500/40', text: 'text-green-300' },
+      blue: defaultColors,
+      purple: { bg: 'bg-purple-500/20', border: 'border-purple-500/40', text: 'text-purple-300' },
+      emerald: { bg: 'bg-emerald-500/20', border: 'border-emerald-500/40', text: 'text-emerald-300' },
+    };
+    return colors[color] ?? defaultColors;
+  };
+
+  return (
+    <PreviewContainer
+      headerText="workflow-builder.tsx"
+      footerContent={
+        visibleNodes >= WORKFLOW_NODES.length ? (
+          <>
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-xs text-flow-text-muted">Workflow executing...</span>
+          </>
+        ) : (
+          <>
+            <LayoutGrid size={14} className="text-blue-400" />
+            <span className="text-xs text-flow-text-muted">Drag and drop to build...</span>
+          </>
+        )
+      }
+    >
+      <div className="flex items-center justify-center gap-3 py-2">
+        {WORKFLOW_NODES.map((node, index) => {
+          const colors = getNodeColorClasses(node.colorClass);
+          const isVisible = index < visibleNodes;
+          const showConnection = index < visibleNodes - 1;
+
+          return (
+            <Fragment key={node.label}>
+              <div
+                className={`transition-all duration-300 ${
+                  isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
+                }`}
+              >
+                <div className={`flex items-center gap-2 px-3 py-2 ${colors.bg} border ${colors.border} rounded-lg`}>
+                  <span className={colors.text}>{node.icon}</span>
+                  <span className={`text-sm font-medium ${colors.text}`}>{node.label}</span>
+                </div>
+              </div>
+              {index < WORKFLOW_NODES.length - 1 && (
+                <div className={`transition-all duration-300 ${showConnection ? 'opacity-100' : 'opacity-0'}`}>
+                  <ArrowRight size={18} className="text-flow-accent" />
+                </div>
+              )}
+            </Fragment>
+          );
+        })}
+      </div>
+    </PreviewContainer>
+  );
+}
+
+interface ExecutionStep {
+  name: string;
+  status: 'pending' | 'running' | 'passed' | 'failed';
+  duration?: string;
+}
+
+const EXECUTION_STEPS: Omit<ExecutionStep, 'status'>[] = [
+  { name: 'Navigate to page', duration: '234ms' },
+  { name: 'Click search box', duration: '89ms' },
+  { name: 'Enter search term', duration: '156ms' },
+  { name: 'Submit search', duration: '342ms' },
+  { name: 'Verify results', duration: '178ms' },
+];
+
+function TestMonitorPreview({ isActive }: { isActive: boolean }) {
+  const [stepStatuses, setStepStatuses] = useState<ExecutionStep['status'][]>(
+    EXECUTION_STEPS.map(() => 'pending'),
+  );
+  const [progress, setProgress] = useState(0);
+  const timeoutRef = useRef<TimeoutRef>(null);
+
+  useEffect(() => {
+    if (!isActive) {
+      setStepStatuses(EXECUTION_STEPS.map(() => 'pending'));
+      setProgress(0);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      return;
+    }
+
+    let stepIndex = 0;
+    const executeNextStep = () => {
+      if (stepIndex < EXECUTION_STEPS.length) {
+        setStepStatuses((prev) => {
+          const next = [...prev];
+          next[stepIndex] = 'running';
+          return next;
+        });
+
+        timeoutRef.current = setTimeout(() => {
+          setStepStatuses((prev) => {
+            const next = [...prev];
+            next[stepIndex] = 'passed';
+            return next;
+          });
+          setProgress(((stepIndex + 1) / EXECUTION_STEPS.length) * 100);
+          stepIndex += 1;
+          timeoutRef.current = setTimeout(executeNextStep, 300);
+        }, 600);
+      }
+    };
+
+    timeoutRef.current = setTimeout(executeNextStep, 400);
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [isActive]);
+
+  const getStatusIcon = (status: ExecutionStep['status']) => {
+    switch (status) {
+      case 'passed':
+        return <CheckCircle size={12} className="text-green-400" />;
+      case 'running':
+        return <Loader2 size={12} className="text-blue-400 animate-spin" />;
+      case 'failed':
+        return <Circle size={12} className="text-red-400" />;
+      default:
+        return <Circle size={12} className="text-gray-500" />;
+    }
+  };
+
+  const allPassed = stepStatuses.every((status) => status === 'passed');
+
+  return (
+    <PreviewContainer
+      headerText="execution-monitor"
+      footerContent={
+        allPassed ? (
+          <>
+            <CheckCircle size={14} className="text-green-400" />
+            <span className="text-xs text-green-400">All steps passed!</span>
+            <span className="text-xs text-flow-text-muted ml-2">Total: 999ms</span>
+          </>
+        ) : (
+          <>
+            <Terminal size={14} className="text-flow-accent" />
+            <span className="text-xs text-flow-text-muted">Running workflow...</span>
+          </>
+        )
+      }
+    >
+      <div className="mb-3">
+        <div className="flex items-center justify-between text-xs mb-1">
+          <span className="text-flow-text-muted">Progress</span>
+          <span className="text-flow-text-secondary">{Math.round(progress)}%</span>
+        </div>
+        <div className="h-1.5 bg-flow-surface rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all duration-500 ease-out"
+            style={{ width: `${String(progress)}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-1 max-h-[85px] overflow-hidden">
+        {EXECUTION_STEPS.map((step, index) => {
+          const status = stepStatuses[index] ?? 'pending';
+          return (
+            <div
+              key={step.name}
+              className={`flex items-center justify-between px-2 py-1 rounded text-xs transition-colors ${
+                status === 'running' ? 'bg-blue-500/10' : ''
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {getStatusIcon(status)}
+                <span
+                  className={status === 'passed'
+                      ? 'text-flow-text-secondary'
+                      : status === 'running'
+                        ? 'text-blue-300'
+                        : 'text-flow-text-muted'}
+                >
+                  {step.name}
+                </span>
+              </div>
+              {status === 'passed' && <span className="text-flow-text-muted">{step.duration}</span>}
+            </div>
+          );
+        })}
+      </div>
+    </PreviewContainer>
+  );
+}
+
+function NavigationDots({
+  total,
+  active,
+  onSelect,
+  isPaused,
+}: {
+  total: number;
+  active: number;
+  onSelect: (index: number) => void;
+  isPaused: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-center gap-2 mt-4">
+      {Array.from({ length: total }).map((_, index) => (
+        <button
+          key={index}
+          onClick={() => { onSelect(index); }}
+          className={`group relative flex h-8 w-8 items-center justify-center rounded-full transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-flow-accent focus-visible:ring-offset-2 ${
+            index === active ? 'bg-flow-accent/10' : 'hover:bg-flow-text-muted/10'
+          }`}
+          aria-label={`Go to preview ${String(index + 1)}`}
+        >
+          <span
+            className={`relative h-2 rounded-full transition-all duration-300 ${
+              index === active ? 'w-8 bg-flow-accent' : 'w-2 bg-flow-border group-hover:bg-flow-text-muted'
+            }`}
+          >
+            {index === active && !isPaused && (
+              <span
+                className="absolute inset-0 rounded-full bg-white/30 origin-left animate-progress-bar"
+                style={{ animationDuration: `${String(CYCLE_DURATION)}ms` }}
+              />
+            )}
+          </span>
+        </button>
+      ))}
+      {isPaused && (
+        <div className="flex items-center gap-1 ml-2 text-xs text-flow-text-muted">
+          <Pause size={12} />
+          <span>Paused</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FeatureShowcase({ onActiveIndexChange }: { onActiveIndexChange?: (index: number) => void }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const intervalRef = useRef<TimeoutRef>(null);
+
+  useEffect(() => {
+    onActiveIndexChange?.(activeIndex);
+  }, [activeIndex, onActiveIndexChange]);
+
+  useEffect(() => {
+    if (isPaused) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
+    intervalRef.current = setInterval(() => {
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setActiveIndex((prev) => (prev + 1) % FEATURE_CONFIGS.length);
+        setIsTransitioning(false);
+      }, ANIMATION_DURATION / 2);
+    }, CYCLE_DURATION);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isPaused]);
+
+  const handleManualSelect = useCallback((index: number) => {
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setActiveIndex(index);
+      setIsTransitioning(false);
+    }, ANIMATION_DURATION / 2);
+  }, []);
+
+  const handleMouseEnter = useCallback(() => { setIsPaused(true); }, []);
+  const handleMouseLeave = useCallback(() => { setIsPaused(false); }, []);
+
+  const activeFeature = FEATURE_CONFIGS[activeIndex] ?? FEATURE_CONFIGS[0];
+  if (!activeFeature) {
+    return null;
+  }
+
+  const previews = [
+    <RecordModePreview key="record" isActive={activeIndex === 0 && !isTransitioning} />,
+    <VisualBuilderPreview key="visual" isActive={activeIndex === 1 && !isTransitioning} />,
+    <TestMonitorPreview key="test" isActive={activeIndex === 2 && !isTransitioning} />,
+  ];
+
+  return (
+    <div className="relative w-full max-w-2xl mx-auto" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+      <div className="text-center mb-6">
+        <span
+          className={`inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-full transition-all duration-300 ${
+            getAccentClasses(activeFeature.accentColor)
+          }`}
+        >
+          <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${getAccentDotClass(activeFeature.accentColor)}`} />
+          {activeFeature.label}
+        </span>
+      </div>
+
+      <div className="relative">
+        <div
+          className={`pointer-events-none absolute inset-0 blur-3xl transition-colors duration-500 ${getGlowClass(activeFeature.accentColor)}`}
+        />
+        <div className={`relative transition-all duration-300 ${isTransitioning ? 'opacity-0 scale-98' : 'opacity-100 scale-100'}`}>
+          {previews[activeIndex]}
+        </div>
+      </div>
+
+      <NavigationDots total={FEATURE_CONFIGS.length} active={activeIndex} onSelect={handleManualSelect} isPaused={isPaused} />
+    </div>
+  );
+}
+
+function getAccentClasses(color: string): string {
+  const defaultClass = 'text-blue-400 bg-blue-500/10 border border-blue-500/20';
+  const classes: Record<string, string> = {
+    purple: 'text-purple-400 bg-purple-500/10 border border-purple-500/20',
+    red: 'text-red-400 bg-red-500/10 border border-red-500/20',
+    blue: defaultClass,
+    green: 'text-green-400 bg-green-500/10 border border-green-500/20',
+  };
+  return classes[color] ?? defaultClass;
+}
+
+function getAccentDotClass(color: string): string {
+  const defaultClass = 'bg-blue-400';
+  const classes: Record<string, string> = {
+    purple: 'bg-purple-400',
+    red: 'bg-red-400',
+    blue: defaultClass,
+    green: 'bg-green-400',
+  };
+  return classes[color] ?? defaultClass;
+}
+
+function getGlowClass(color: string): string {
+  const defaultClass = 'bg-gradient-to-r from-blue-500/20 via-cyan-500/20 to-blue-500/20';
+  const classes: Record<string, string> = {
+    purple: 'bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-purple-500/20',
+    red: 'bg-gradient-to-r from-red-500/20 via-orange-500/20 to-red-500/20',
+    blue: defaultClass,
+    green: 'bg-gradient-to-r from-green-500/20 via-emerald-500/20 to-green-500/20',
+  };
+  return classes[color] ?? defaultClass;
+}

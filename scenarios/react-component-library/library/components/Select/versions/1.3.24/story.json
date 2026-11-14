@@ -1,0 +1,101 @@
+{
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-select]"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "LongSelectedValue",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-select]"
+        }
+      ],
+      "id": "long-selected-value",
+      "mode": "live",
+      "name": "Long selected value",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Placeholder",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-select]"
+        }
+      ],
+      "id": "placeholder",
+      "mode": "live",
+      "name": "Placeholder",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-select-listbox]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-select-option]"
+        }
+      ],
+      "id": "open-options",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "selector": "[data-rcl-select]"
+          }
+        }
+      ],
+      "mode": "live",
+      "name": "Open options",
+      "role": "boundary"
+    }
+  ],
+  "title": "Select"
+}

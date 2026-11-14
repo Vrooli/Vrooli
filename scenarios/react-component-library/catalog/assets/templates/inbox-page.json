@@ -1,0 +1,129 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "templates.inbox-page",
+    "name": "InboxPage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The triage surface with folders, filters, search, bulk actions, a reading pane, keyboard navigation, unread state, and responsive drill-in.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "page-template",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    },
+    "kits": [
+      "vrooli-default"
+    ]
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page",
+        "reason": "Route boundary, metadata, scroll restoration, and focus placement are the shared page."
+      },
+      {
+        "asset": "patterns.master-detail-workspace",
+        "reason": "List-and-reading-pane behavior is the shared workspace."
+      },
+      {
+        "asset": "patterns.bulk-action-workflow",
+        "reason": "Multi-item operations use the shared workflow."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Every generic state is delegated to the shared boundary."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TItem"
+      ]
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "heading-hierarchy",
+    "semantic-structure",
+    "entrance-restraint",
+    "content-reflow",
+    "recovery-path",
+    "error-honesty",
+    "partial-degradation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "permission-explained",
+    "empty-state-craft",
+    "status-announced",
+    "dark-parity",
+    "text-scale-resilience",
+    "card-restraint"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "regions": [
+    {
+      "id": "folders",
+      "purpose": "Folder or scope navigation.",
+      "required": false,
+      "lifecycle": "static"
+    },
+    {
+      "id": "list",
+      "purpose": "The triage list with unread state and selection.",
+      "required": true,
+      "lifecycle": "async",
+      "accepts": "data-display"
+    },
+    {
+      "id": "reading",
+      "purpose": "The selected item's content.",
+      "required": false,
+      "lifecycle": "async"
+    },
+    {
+      "id": "bulk-actions",
+      "purpose": "Contextual actions for the current selection.",
+      "required": false,
+      "lifecycle": "static"
+    }
+  ],
+  "beauty": {
+    "signatureMoment": {
+      "description": "Keyboard alone moves through the queue, opens, acts, and advances to the next item without the hands leaving the home row, so a large backlog can be cleared at speed."
+    }
+  }
+}

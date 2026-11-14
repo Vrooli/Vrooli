@@ -1,9 +1,20 @@
 import { useState, useEffect } from "react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
-import { Loader2, RefreshCw, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import {
+  Loader2,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+} from "lucide-react";
 import type { PipelineConfig } from "../../lib/api";
 import { usePipelineMutation, usePipelineStatus } from "../../hooks";
+import {
+  deploymentModeFromFormValue,
+  templateTypeFromFormValue,
+} from "../../lib/pipeline-enums";
+import { StageName } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 import type { DesktopConnectionConfig } from "./types";
 
 interface RegenerateButtonProps {
@@ -11,7 +22,10 @@ interface RegenerateButtonProps {
   connectionConfig?: DesktopConnectionConfig;
 }
 
-export function RegenerateButton({ scenarioName, connectionConfig }: RegenerateButtonProps) {
+export function RegenerateButton({
+  scenarioName,
+  connectionConfig,
+}: RegenerateButtonProps) {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const {
@@ -22,7 +36,9 @@ export function RegenerateButton({ scenarioName, connectionConfig }: RegenerateB
     clearBuildId,
   } = usePipelineMutation({
     invalidateOnSuccess: ["scenarios-desktop-status"],
-    onSuccess: () => setShowConfirm(false),
+    onSuccess: () => {
+      setShowConfirm(false);
+    },
   });
 
   const { isBuilding, isComplete, isFailed } = usePipelineStatus({
@@ -32,15 +48,18 @@ export function RegenerateButton({ scenarioName, connectionConfig }: RegenerateB
 
   const handleRegenerate = () => {
     const config: PipelineConfig = {
-      scenario_name: scenarioName,
-      template_type: "universal",
-      stop_after_stage: "generate",
+      scenarioName,
+      templateType: templateTypeFromFormValue("universal"),
+      stopAfterStage: StageName.GENERATE,
     };
     if (connectionConfig?.proxy_url || connectionConfig?.server_url) {
-      config.proxy_url = connectionConfig.proxy_url || connectionConfig.server_url;
+      config.proxyUrl =
+        connectionConfig.proxy_url || connectionConfig.server_url;
     }
     if (connectionConfig?.deployment_mode) {
-      config.deployment_mode = connectionConfig.deployment_mode as "bundled" | "proxy";
+      config.deploymentMode = deploymentModeFromFormValue(
+        connectionConfig.deployment_mode,
+      );
     }
     runPipelineWithConfig(config);
   };
@@ -49,7 +68,9 @@ export function RegenerateButton({ scenarioName, connectionConfig }: RegenerateB
   useEffect(() => {
     if (isComplete) {
       const timer = setTimeout(clearBuildId, 3000);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+      };
     }
   }, [isComplete, clearBuildId]);
 
@@ -102,7 +123,8 @@ export function RegenerateButton({ scenarioName, connectionConfig }: RegenerateB
           <div className="text-xs text-yellow-200">
             <p className="font-semibold">Regenerate desktop app?</p>
             <p className="text-yellow-300/80 mt-1">
-              This will overwrite existing files. Make sure you've saved any custom changes.
+              This will overwrite existing files. Make sure you've saved any
+              custom changes.
             </p>
           </div>
         </div>
@@ -110,7 +132,9 @@ export function RegenerateButton({ scenarioName, connectionConfig }: RegenerateB
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setShowConfirm(false)}
+            onClick={() => {
+              setShowConfirm(false);
+            }}
             disabled={combinedIsBuilding}
           >
             Cancel
@@ -133,7 +157,9 @@ export function RegenerateButton({ scenarioName, connectionConfig }: RegenerateB
     <Button
       variant="outline"
       size="sm"
-      onClick={() => setShowConfirm(true)}
+      onClick={() => {
+        setShowConfirm(true);
+      }}
       disabled={combinedIsBuilding}
       className="gap-1"
     >

@@ -1,0 +1,115 @@
+// Package sttcapacity reports STT transcription activity to the platform
+// capacity broker (plan §7 Phase 7 audio-tools adopter).
+//
+// audio-tools holds NO VRAM capacity claim of its own — the backing STT
+// resource (kyutai-stt) declares and holds the claim, so audio-tools never
+// double-reserves. What audio-tools uniquely knows is *when a transcription
+// session is in flight*, which the model-server cannot report for itself. This
+// package bridges that: at the start of a streaming session on a local-resource
+// engine it marks the resource's claim activity=active (which protects it from
+// idle reclaim per plan §8.3), and at session end marks it idle again.
+//
+// SCOPE (activity-source contract, internal/capacity/doc.go): this reporter
+// covers kyutai-stt ONLY. kyutai-stt is a websocket streaming server, so the
+// CALLER (audio-tools) is the right place to bracket a whole session — the edge
+// can't see session boundaries. whisper is request/response HTTP and is reported
+// at its RESOURCE EDGE (a host-side proxy bracketing each /asr) so it covers the
+// host dictation tool and browser clients audio-tools never sees. There is
+// exactly ONE reporter per resource; whisper is deliberately NOT in scope here.
+//
+// It is strictly advisory and best-effort: a missing vrooli binary, a resource
+// with no live claim, or any CLI error is swallowed. Capacity reporting NEVER
+// affects transcription.
+package sttcapacity
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+
+	"audio-tools/internal/controlplane"
+)
+
+// allowedResources is the whitelist of backing STT resources whose capacity
+// claim this reporter will ever touch. Defence-in-depth: the engine registry
+// already constrains engine.Resource, this is a second guard. whisper is
+// intentionally absent — it is reported at its resource edge, not caller-side
+// (see the package doc and internal/capacity/doc.go activity-source contract).
+var allowedResources = map[string]struct{}{
+	"kyutai-stt": {},
+}
+
+// Reporter marks a backing STT resource's capacity claim active during a
+// transcription session and idle afterwards. The zero/nil reporter is a no-op.
+type Reporter interface {
+	// Active marks the resource's active capacity claim as activity=active and
+	// returns the claim id to later pass to Idle. Returns "" when there is no
+	// applicable claim or anything failed (best-effort).
+	Active(ctx context.Context, resource string) string
+	// Idle marks the given claim activity=idle. No-op on an empty id.
+	Idle(ctx context.Context, claimID string)
+}
+
+// CLIReporter is the production Reporter. It speaks the sanctioned
+// `vrooli capacity …` CLI (plan §8.4) so audio-tools never couples to the
+// broker's storage internals.
+type CLIReporter struct {
+	controlPlane *controlplane.Client
+}
+
+// NewCLIReporter resolves the vrooli binary once at startup. The returned
+// reporter is safe even when the binary is missing (every method no-ops).
+func NewCLIReporter() *CLIReporter {
+	return &CLIReporter{controlPlane: controlplane.New()}
+}
+
+func (r *CLIReporter) run(ctx context.Context, args ...string) ([]byte, error) {
+	if r.controlPlane == nil || !r.controlPlane.Available() {
+		return nil, fmt.Errorf("vrooli binary not found on PATH")
+	}
+	return r.controlPlane.Run(ctx, args...)
+}
+
+type listResponse struct {
+	Claims []struct {
+		ClaimID string `json:"claim_id"`
+		OwnerID string `json:"owner_id"`
+	} `json:"claims"`
+}
+
+// Active resolves the resource's active capacity claim and marks it
+// activity=active, returning the claim id (or "" if none/failed).
+func (r *CLIReporter) Active(ctx context.Context, resource string) string {
+	if r.controlPlane == nil || !r.controlPlane.Available() || resource == "" {
+		return ""
+	}
+	if _, ok := allowedResources[resource]; !ok {
+		return ""
+	}
+	out, err := r.run(ctx, "capacity", "list", "--owner", resource, "--active", "--json")
+	if err != nil {
+		return ""
+	}
+	var resp listResponse
+	if err := json.Unmarshal(out, &resp); err != nil {
+		return ""
+	}
+	for _, c := range resp.Claims {
+		if c.OwnerID == resource && c.ClaimID != "" {
+			// activity auto-resolves the generation server-side, so no --generation.
+			if _, err := r.run(ctx, "capacity", "activity", "--claim-id", c.ClaimID, "--state", "active", "--json"); err != nil {
+				return ""
+			}
+			return c.ClaimID
+		}
+	}
+	return ""
+}
+
+// Idle marks the given claim activity=idle (best-effort).
+func (r *CLIReporter) Idle(ctx context.Context, claimID string) {
+	if r.controlPlane == nil || !r.controlPlane.Available() || claimID == "" {
+		return
+	}
+	_, _ = r.run(ctx, "capacity", "activity", "--claim-id", claimID, "--state", "idle", "--json")
+}

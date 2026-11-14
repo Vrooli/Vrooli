@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "cloudflared",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
+  "description": "Cloudflare Tunnel client for exposing local services via secure tunnels",
+  "commands": [
+    "cloudflared"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "handler": "cloudflared",
+  "installHint": "Stage the resource-owned pinned release with scenario-dependency-analyzer deps install source/cloudflared@2026.10.7 --scenario cloudflared --surface host-tool --exact --apply",
+  "bundling": "host-required",
+  "capability": "web-proxy",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  },
+  "notes": "This entry projects the resource-owned pinned release into host requirements and carries no acquisition of its own. The checksummed per-platform targets live in resources/cloudflared/resource.json, which is the vendorable item a desktop bundle stages; as a standalone tool requirement, cloudflared must already be staged on the host."
+}

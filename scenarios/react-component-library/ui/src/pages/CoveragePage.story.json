@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 5,
+  "kind": "page",
+  "title": "Catalog coverage",
+  "route": "/coverage",
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "service-unavailable",
+      "name": "Coverage service unavailable",
+      "role": "boundary",
+      "states": [
+        "error"
+      ],
+      "apiState": [
+        {
+          "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetCoverage",
+          "method": "POST",
+          "status": 503,
+          "body": {
+            "code": "unavailable",
+            "message": "Coverage fixture is unavailable"
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Coverage unavailable"
+        },
+        {
+          "kind": "text",
+          "value": "Retry coverage"
+        }
+      ]
+    },
+    {
+      "id": "report",
+      "name": "Coverage report",
+      "role": "anatomy",
+      "apiState": [
+        {
+          "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetCoverage",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "report": {
+              "maturity": {
+                "total": 1,
+                "atOrAboveTarget": 0,
+                "byRung": {
+                  "verified": 1
+                }
+              },
+              "rows": [
+                {
+                  "assetId": "controls.button",
+                  "name": "Button",
+                  "domain": "controls",
+                  "target": "production-ready",
+                  "achieved": "verified"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "path": "/vrooli.react_component_library.v1.catalog.CatalogService/ListNextWork",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "rows": []
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Catalog coverage"
+        },
+        {
+          "kind": "text",
+          "value": "Button"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid=\"coverage-table\"]"
+        }
+      ]
+    }
+  ]
+}

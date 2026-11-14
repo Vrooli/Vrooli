@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "attach-a-handle",
+    "title": "Attach an agent to an external channel",
+    "purpose": "An agent that already works in the app is given an external handle, with the least-effort available channel offered first and any unavailable channel presented as a requirement to satisfy rather than a dead end.",
+    "prd_refs": [
+      "OT-P1-012",
+      "OT-P1-013",
+      "OT-P1-010",
+      "OT-P0-007"
+    ]
+  },
+  "steps": [
+    {
+      "page": "agent-detail",
+      "intent": "Decides this agent should be reachable from outside the app.",
+      "state": "default"
+    },
+    {
+      "page": "channels",
+      "intent": "Sees which channels this host can actually attach, cheapest first.",
+      "state": "default"
+    },
+    {
+      "page": "channels",
+      "intent": "Reads why an unavailable channel is unavailable and what would fix it.",
+      "state": "default",
+      "via": "requirement-prompt"
+    },
+    {
+      "page": "channels",
+      "intent": "Attaches the chosen channel.",
+      "state": "default",
+      "via": "attach-action"
+    },
+    {
+      "page": "conversations",
+      "intent": "Receives a first external message on the new handle.",
+      "state": "default"
+    }
+  ],
+  "claims": [
+    {
+      "id": "no-unfinishable-attach",
+      "type": "custom",
+      "statement": "No attach flow can be started that cannot be completed on this host.",
+      "tier": "manual",
+      "rationale": "OT-P1-012. Availability is computed from facts the fleet already holds, so a dead end is always avoidable."
+    },
+    {
+      "id": "ordering-is-derived",
+      "type": "custom",
+      "statement": "The order channels are offered in comes from descriptor data, never from a maintained list.",
+      "tier": "manual"
+    }
+  ]
+}

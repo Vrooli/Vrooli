@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {"id": "expose-scenario", "title": "Expose a scenario", "purpose": "Let an operator expose a known manifest route only after target, duration, hostname, tier, authentication, and publicness are reviewed."},
+  "steps": [
+    {"page": "overview", "state": "ready", "intent": "Inspect readiness findings and choose the primary exposure action.", "elements": ["overview-exposure-constellation", "overview-actionable-finding"]},
+    {"page": "exposure", "state": "ready", "intent": "Choose a known manifest-backed route and inspect its target and hostname.", "elements": ["exposure-expose-input"]},
+    {"page": "exposure", "state": "ready", "intent": "Configure bounded lease duration and review tier, authentication, and /public/* behavior.", "elements": ["exposure-duration-select", "exposure-review-dialog"]},
+    {"page": "exposure", "state": "submitting", "intent": "Confirm provisioning and follow classified progress or remediation.", "elements": ["exposure-confirm-expose-button", "exposure-expose-error"]},
+    {"page": "exposure", "state": "success", "intent": "Verify the resulting URL, expiry, policy, and local-to-external checks.", "elements": ["exposure-detail-dialog", "exposure-verify-result-button"]}
+  ],
+  "claims": [{"id": "bounded-exposure", "type": "custom", "statement": "The journey does not submit until target, duration, hostname, and access scope have been reviewed.", "tier": "manual"}]
+}

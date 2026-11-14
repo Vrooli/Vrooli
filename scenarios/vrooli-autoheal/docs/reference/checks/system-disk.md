@@ -48,11 +48,8 @@ Docker images, logs, and database files are common space consumers in Vrooli dep
 # Check Docker disk usage
 docker system df
 
-# Clean unused images, containers, volumes
-docker system prune -a --volumes
-
-# Remove dangling images only
-docker image prune
+# Preview Docker cleanup through storage-manager policy/audit
+storage-manager cleanup plan
 ```
 
 ### 2. Log Files
@@ -64,8 +61,8 @@ find /var/log -type f -size +100M -exec ls -lh {} \;
 # Check journal disk usage
 journalctl --disk-usage
 
-# Vacuum old journal entries
-sudo journalctl --vacuum-time=7d
+# Preview journal cleanup through storage-manager policy/audit
+storage-manager cleanup plan
 ```
 
 ### 3. Database Files
@@ -75,7 +72,7 @@ sudo journalctl --vacuum-time=7d
 du -sh /var/lib/postgresql/
 
 # For Vrooli's PostgreSQL resource
-vrooli resource logs postgres | tail -20
+vrooli resource logs postgres --tail 20
 ```
 
 ### 4. Build Artifacts
@@ -105,21 +102,14 @@ find ~ -name "node_modules" -type d -exec du -sh {} \; 2>/dev/null
    lsof +L1 | grep deleted
    ```
 
-4. **Clean package manager caches**
+4. **Preview storage-manager reclaim candidates**
    ```bash
-   # APT
-   sudo apt clean
-
-   # npm
-   npm cache clean --force
-
-   # pnpm
-   pnpm store prune
+   storage-manager cleanup plan
    ```
 
-5. **Review old log files**
+5. **Review old log files before any owner-approved cleanup**
    ```bash
-   sudo find /var/log -name "*.gz" -mtime +30 -delete
+   find /var/log -name "*.gz" -mtime +30 -print
    ```
 
 ## Configuration
@@ -165,9 +155,9 @@ The health score is calculated as `100 - worstPartitionUsagePercent`. For exampl
 ## Auto-Heal Actions
 
 When this check fails, consider:
-1. Running `docker system prune` automatically
-2. Rotating old log files
-3. Alerting administrators (disk cleanup often requires human judgment)
+1. Running `storage-manager cleanup plan` to produce previewed reclaim candidates
+2. Applying only an approved storage-manager plan with an idempotency key
+3. Alerting administrators when storage-manager reports missing privileges, forbidden providers, or owner-scenario approval requirements
 
 ---
 

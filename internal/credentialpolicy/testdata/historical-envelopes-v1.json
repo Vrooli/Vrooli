@@ -1,0 +1,24 @@
+{
+  "key_wrap_v1": {
+    "ciphertext": "pqFwZOiwVw6QmslPhQnBCiTqLRao+6eO2mgrp4GsqAiPOYROMMEvmH/4ZhKjwMaE",
+    "kek": "ERERERERERERERERERERERERERERERERERERERERERE=",
+    "nonce": "MzMzMzMzMzMzMzMz",
+    "provider": "passphrase",
+    "version": 1
+  },
+  "recovery_v1": {
+    "ciphertext": "Dm1VLrecmj/ZywNjHCH6xc99z++2cxiwMf20nzlU6kDXJYUdbcs4jz/qjLhdiOgo2Jz6rk6p367sQ0KQVdUZ/waMR9hyfq2O5dGn2O9XLmCwr0RXI/r6oxG3LifBaqZcUo6MMynWaEaSmbHPwKVoCQ==",
+    "nonce": "MzMzMzMzMzMzMzMz",
+    "passphrase": "fixture-passphrase",
+    "salt": "REREREREREREREREREREREREREREREREREREREREREQ=",
+    "version": 1
+  },
+  "store_entry_v1": {
+    "ciphertext": "BbepmBABEAFwme4CcPx780nUDtVzyHWxLYaC2J+lYbMTk0Y=",
+    "data_key": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI=",
+    "key": "api-key",
+    "nonce": "MzMzMzMzMzMzMzMz",
+    "service": "svc",
+    "version": 1
+  }
+}

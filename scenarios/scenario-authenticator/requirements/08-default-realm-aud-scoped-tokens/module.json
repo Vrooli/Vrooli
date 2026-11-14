@@ -1,0 +1,53 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-08-09T01:12:20-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-008",
+      "title": "Default Realm Primitive with aud-Scoped Token Issuance and Rejection",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "security",
+      "description": "A default realm must exist from initial boot. All tokens issued by a realm carry an aud claim set to that realm's identifier. Token verification must reject any token whose aud does not match the verifying realm. Cross-realm token acceptance is explicitly forbidden even when only one realm exists. The realm primitive provides the foundation for multi-tenancy in P1.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/realm/aud_test.go: token issued for realm-A with aud=realm-A verifies successfully against realm-A verifier"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/realm/aud_test.go: token issued for realm-A with aud=realm-A is rejected by realm-B verifier (aud mismatch error)"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/realm/aud_test.go: token with missing aud claim is rejected by all verifiers"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/realm/aud_test.go: default realm is auto-created on first boot; its identifier is stable across restarts"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "api/handlers/realm/aud_scoping_e2e_test.go: boot service with default realm, register user, issue token → aud matches default realm ID; attempt to verify token against a second realm → rejected with explicit aud-mismatch error"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "api/handlers/realm/aud_scoping_e2e_test.go: confirm default realm record exists in SQLite after fresh boot before any user action"
+        }
+      ]
+    }
+  ]
+}

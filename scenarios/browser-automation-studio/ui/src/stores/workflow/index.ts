@@ -31,11 +31,11 @@ export {
 } from './utils/viewport';
 
 export {
-  sanitizeNodesForPersistence,
-  sanitizeEdgesForPersistence,
-  buildFlowDefinition,
-  stripPreviewDataFromNodes,
-} from './utils/serialization';
+  canvasToWorkflowDefinition,
+  workflowDefinitionToCanvas,
+  workflowPayloadToCanvas,
+  workflowDefinitionToProto,
+} from './utils/codec';
 
 export {
   computeWorkflowFingerprint,
@@ -43,7 +43,6 @@ export {
 } from './utils/fingerprint';
 
 export {
-  normalizeWorkflowResponse,
   normalizeVersionSummary,
   buildWorkflowLoadState,
 } from './utils/normalization';

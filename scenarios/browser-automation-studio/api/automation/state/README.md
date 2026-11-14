@@ -105,4 +105,4 @@ instr := interp.InterpolateInstruction(instr)
 This package follows the architectural principles from:
 - `boundary-of-responsibility-enforcement.md` - Clear separation of state management from execution
 - `change-axis-and-evolution-resilience-audit.md` - Localized change for namespace additions
-- `domain-compression.md` - Single canonical implementation of state management
+- `domain-clarity.md` - Single canonical implementation of state management

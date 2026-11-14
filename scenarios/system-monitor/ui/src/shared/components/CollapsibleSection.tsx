@@ -30,21 +30,18 @@ export const CollapsibleSection = ({
   return (
     <div className="collapsible-section">
       <div
-        className="section-header hover-bg-accent"
-        style={{
-          borderBottom: expanded ? '1px solid var(--color-primary)' : 'none'
-        }}
+        className={`section-header hover-bg-accent ${expanded ? 'section-header-expanded' : ''}`}
       >
         <div
           className="section-header-toggle"
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => { setExpanded(!expanded); }}
         >
           {expanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
           <h3 className="section-heading text-md">
             {title}
           </h3>
           {count != null && (
-            <span className="text-muted text-sm" style={{ marginLeft: 'var(--spacing-xs)' }}>
+            <span className="text-muted text-sm" data-sm-style="sm-style-8c6820c472">
               ({count})
             </span>
           )}

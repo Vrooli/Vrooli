@@ -1,0 +1,121 @@
+{
+  "description": "Detect SCCs across the import graph and classify cycles by pattern (type-only, junk-drawer, cross-domain, within-domain) to surface appropriate fix suggestions (extract-shared-types, invert-dependency, manual).",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-003"
+      ],
+      "description": "Cartographer must detect strongly connected components (SCCs) across the import graph (AC-CYCLE-SCC) and classify each cycle by pattern (AC-CYCLE-CLASSIFY): type-only (imports only type declarations), junk-drawer (node with high in/out degree to many domains), cross-domain (cycle spans domain boundaries), or within-domain (cycle contained within a single domain). Fix suggestions must be ranked per pattern (AC-CYCLE-FIXES): type-only cycles suggest extract-shared-types; cross-domain cycles suggest invert-dependency; junk-drawer and within-domain cycles suggest manual review. Fix suggestions are embedded in the Conflict envelope's suggested_fixes field.",
+      "id": "REQ-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "draft",
+      "title": "Cycle Detection, SCC Classification, and Fix Suggestion",
+      "validation": [
+        {
+          "notes": "AC-CYCLE-SCC: Tarjan's or Kosaraju's algorithm correctly identifies a known 3-node SCC in a fixture graph",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-CYCLE-SCC: A DAG (no cycles) returns an empty SCC set",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-CYCLE-CLASSIFY: A cycle whose edges are exclusively type imports is classified as type-only",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-CYCLE-CLASSIFY: A cycle spanning two or more domain boundaries is classified as cross-domain",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-CYCLE-CLASSIFY: A node with imports to and from ≥3 domains is classified as junk-drawer",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-CYCLE-CLASSIFY: A cycle fully contained within one domain is classified as within-domain",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-CYCLE-FIXES: type-only classification produces suggested_fix=extract-shared-types as top suggestion",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-CYCLE-FIXES: cross-domain classification produces suggested_fix=invert-dependency as top suggestion",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-CYCLE-FIXES: junk-drawer and within-domain classifications produce suggested_fix=manual",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end: bas/fixtures/go-cycles/ contains a deliberate cross-domain cycle; cartographer detects it, classifies it as cross-domain, and suggests invert-dependency",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end: bas/fixtures/ts-junk-drawer/ contains a junk-drawer node; cartographer detects it and suggests manual review",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "SCC output is embedded in Conflict envelopes that pass the envelope serialization round-trip test",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A developer reviewing a cycle conflict immediately sees its classification and ranked fix suggestions without needing to understand graph theory",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Within-domain cycles are surfaced at lower severity than cross-domain cycles by default",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Cycle Detection and Classification"
+}

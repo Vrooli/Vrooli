@@ -39,13 +39,9 @@ type BundleCleanupRequest struct {
 	ScenarioID string `json:"scenario_id,omitempty"` // If set, only clean this scenario's bundles
 	KeepLatest int    `json:"keep_latest"`           // Keep N most recent per scenario (default: 3)
 
-	// VPS cleanup options (optional)
-	CleanVPS bool   `json:"clean_vps,omitempty"`
-	Host     string `json:"host,omitempty"`
-	Port     int    `json:"port,omitempty"`
-	User     string `json:"user,omitempty"`
-	KeyPath  string `json:"key_path,omitempty"`
-	Workdir  string `json:"workdir,omitempty"`
+	// CleanVPS is refused: target release retention belongs to the
+	// deployment-scoped GC (POST /deployments/{id}/bundles/vps/gc).
+	CleanVPS bool `json:"clean_vps,omitempty"`
 }
 
 // BundleCleanupResponse is the response from bundle cleanup operations.
@@ -53,9 +49,6 @@ type BundleCleanupResponse struct {
 	OK              bool         `json:"ok"`
 	LocalDeleted    []BundleInfo `json:"local_deleted,omitempty"`
 	LocalFreedBytes int64        `json:"local_freed_bytes"`
-	VPSDeleted      int          `json:"vps_deleted,omitempty"`
-	VPSFreedBytes   int64        `json:"vps_freed_bytes,omitempty"`
-	VPSError        string       `json:"vps_error,omitempty"`
 	Message         string       `json:"message"`
 	Timestamp       string       `json:"timestamp"`
 }
@@ -74,22 +67,18 @@ type BundleDeleteResponse struct {
 	Timestamp  string `json:"timestamp"`
 }
 
-// VPSBundleListRequest is the request body for listing VPS bundles.
-type VPSBundleListRequest struct {
-	Host    string `json:"host"`
-	Port    int    `json:"port,omitempty"`
-	User    string `json:"user,omitempty"`
-	KeyPath string `json:"key_path"`
-	Workdir string `json:"workdir"`
-}
-
-// VPSBundleInfo represents a bundle stored on the VPS.
+// VPSBundleInfo is one release in the target owner's release store.
+// Filename carries the release digest (the owner's identity); Sha256 the
+// bundle digest artifact leases protect; Role and State are the owner's
+// standing for the release (active, previous, staged; complete, staging).
 type VPSBundleInfo struct {
 	Filename   string `json:"filename"`
 	ScenarioID string `json:"scenario_id"`
 	Sha256     string `json:"sha256"`
 	SizeBytes  int64  `json:"size_bytes"`
 	ModTime    string `json:"mod_time"`
+	Role       string `json:"role,omitempty"`
+	State      string `json:"state,omitempty"`
 }
 
 // VPSBundleListResponse is the response from listing VPS bundles.
@@ -99,25 +88,6 @@ type VPSBundleListResponse struct {
 	TotalSizeBytes int64           `json:"total_size_bytes"`
 	Error          string          `json:"error,omitempty"`
 	Timestamp      string          `json:"timestamp"`
-}
-
-// VPSBundleDeleteRequest is the request body for deleting a VPS bundle.
-type VPSBundleDeleteRequest struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port,omitempty"`
-	User     string `json:"user,omitempty"`
-	KeyPath  string `json:"key_path"`
-	Workdir  string `json:"workdir"`
-	Filename string `json:"filename"`
-}
-
-// VPSBundleDeleteResponse is the response from deleting a VPS bundle.
-type VPSBundleDeleteResponse struct {
-	OK         bool   `json:"ok"`
-	FreedBytes int64  `json:"freed_bytes"`
-	Message    string `json:"message"`
-	Error      string `json:"error,omitempty"`
-	Timestamp  string `json:"timestamp"`
 }
 
 // VPSBundleGCRequest is the request body for garbage-collecting bundle cache on a VPS.

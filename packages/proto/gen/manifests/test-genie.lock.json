@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "scenario": "test-genie",
+  "input_digest": "sha256:e0a41bb799c31f2770632fbcb436b79766df72fc22876055eff9fe359ed6309a",
+  "input_files": [
+    "schemas/common/v1/evidence.proto",
+    "schemas/common/v1/maturity.proto",
+    "schemas/common/v1/metrics.proto",
+    "schemas/common/v1/operations.proto",
+    "schemas/common/v1/validation_target.proto",
+    "schemas/dev-routing/v1/routing/routing.proto",
+    "schemas/scenario-validation/v1/validation.proto",
+    "schemas/test-genie/v1/eligibility/eligibility.proto",
+    "schemas/test-genie/v1/runs/runs.proto",
+    "schemas/test-genie/v1/seeds/seeds.proto",
+    "schemas/test-genie/v1/validation/validation.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:cccdbaf9a556a5be923d2c17f31d7f3f1e8de7959b27263f9ddbb964a4b52cc9",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/test-genie/v1/eligibility/eligibility.pb.go": "sha256:a26fcc0ad4b5358c348374fabeb321f4709591f565335c30c512950c8a1c71d5",
+    "gen/go/test-genie/v1/eligibility/eligibility_v1connect/eligibility.connect.go": "sha256:d4625c359a2476102d7a917f21e72ee08f05cf2f75c32437e3d40fa5f3686115",
+    "gen/go/test-genie/v1/runs/runs.pb.go": "sha256:8a4d5fccf79ba337cea4e7d351ab185ed0728522c77928b862529082fda5a454",
+    "gen/go/test-genie/v1/runs/runs_v1connect/runs.connect.go": "sha256:5ceb78328f4bcc3841755b6e4afd4695fe0c68c9f3742152216a7eecdf0c7214",
+    "gen/go/test-genie/v1/seeds/seeds.pb.go": "sha256:2072e68480ba128813d840c5b2e6795ab5f699ae26c52ea7d586beb69e2ddbc0",
+    "gen/go/test-genie/v1/seeds/seeds_v1connect/seeds.connect.go": "sha256:ef878a9389a75e03d87903d28663f1be82f509039c3c4d34ce34ba0422f7ef4a",
+    "gen/go/test-genie/v1/validation/validation.pb.go": "sha256:10028909c8ff8c72722458d799551cb18b27fa1c7add7fa0ad6046f27a253ea8",
+    "gen/go/test-genie/v1/validation/validation_v1connect/validation.connect.go": "sha256:92af5330a7692c07713d4ca09a9f286afd2d10126ab1fab671ab4076661578cb",
+    "gen/python/test_genie/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/test_genie/v1/eligibility/eligibility_pb2.py": "sha256:b673fc4cd9db97ccdf685dfab46588539598c7006acaefa89c2f6877ce677e7b",
+    "gen/python/test_genie/v1/eligibility/eligibility_pb2.pyi": "sha256:0687206f7677e63261fd0966fc26bfc26dbf8a1440718a6239961c71d6afb883",
+    "gen/python/test_genie/v1/eligibility/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/test_genie/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/test_genie/v1/runs/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/test_genie/v1/runs/runs_pb2.py": "sha256:3aae6131c1cff1213fe1495bd4c2aad8b2f46b6d0010fdc73fded62268a9e335",
+    "gen/python/test_genie/v1/runs/runs_pb2.pyi": "sha256:f9bf3eb3e83efe73d1c59937811e67404512025a9dafc960848fdc322d7ed13a",
+    "gen/python/test_genie/v1/seeds/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/test_genie/v1/seeds/seeds_pb2.py": "sha256:7cd1d9570da8f86fd655294e5987e37e0d215c339b33991704849a8705e2a0a6",
+    "gen/python/test_genie/v1/seeds/seeds_pb2.pyi": "sha256:b833e7a1e0965b34613865113eac5d5dd744002523c4d55c34328d4b76a8f116",
+    "gen/python/test_genie/v1/validation/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/test_genie/v1/validation/validation_pb2.py": "sha256:04888b46b2138bd60c57c69b28ba1ee4489d2ed749e0ea6986d39f06af69810d",
+    "gen/python/test_genie/v1/validation/validation_pb2.pyi": "sha256:c37499990eabd9ca45d603c43121a834546c14b83e61c048a6c07ead5924910b",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
+    "gen/typescript/test-genie/v1/eligibility/eligibility_pb.ts": "sha256:5b2aefa75504a035a11cca71dc467dab42f82105ff8c78abaeb4304d94d9891a",
+    "gen/typescript/test-genie/v1/runs/runs_pb.ts": "sha256:24faacfb081bdd2d4923a89f040b61083b96d0e79e64730f21e7a4660176dda6",
+    "gen/typescript/test-genie/v1/seeds/seeds_pb.ts": "sha256:48e5d0665ecf9352c52c305bc65921aaa8d467659ef70f05ffef21f30e5c33c2",
+    "gen/typescript/test-genie/v1/validation/validation_pb.ts": "sha256:8d079a011fe5b779d2069ae2c10e23d8e97620b8da1c71e8a99a43d74577eaa5"
+  }
+}

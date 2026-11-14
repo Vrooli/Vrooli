@@ -3,9 +3,55 @@ package collectors
 import (
 	"context"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
+	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 )
+
+func TestCollectorsDoNotFabricateNonLinuxMetrics(t *testing.T) {
+	originalOS := collectorOS
+	collectorOS = "darwin"
+	t.Cleanup(func() { collectorOS = originalOS })
+
+	collectors := []Collector{
+		NewNetworkCollector(),
+		NewProcessCollector(),
+	}
+	for _, collector := range collectors {
+		data, err := collector.Collect(context.Background())
+		if err != nil {
+			t.Fatalf("%s returned error: %v", collector.GetName(), err)
+		}
+		if got := data.Values["status"]; got != "unsupported" {
+			t.Errorf("%s status = %v, want unsupported", collector.GetName(), got)
+		}
+		if _, fabricated := data.Values["usage_percent"]; fabricated {
+			t.Errorf("%s returned fabricated usage values", collector.GetName())
+		}
+	}
+}
+
+func TestDiskCollectorUsesNativeFilesystemBackend(t *testing.T) {
+	collector := NewDiskCollector()
+	data, err := collector.Collect(context.Background())
+	if err != nil {
+		t.Fatalf("disk collection failed: %v", err)
+	}
+	usage, ok := data.Values["usage"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("disk usage has type %T, want map", data.Values["usage"])
+	}
+	if usage["status"] == "failed" {
+		t.Fatalf("disk usage failed: %v", usage["reason"])
+	}
+	if percent, ok := usage["percent"].(float64); !ok || percent < 0 || percent > 100 {
+		t.Fatalf("disk percent = %#v, want measured percentage", usage["percent"])
+	}
+}
 
 // TestCPUCollector_Collect tests CPU metrics collection
 func TestCPUCollector_Collect(t *testing.T) {
@@ -36,11 +82,41 @@ func TestCPUCollector_Collect(t *testing.T) {
 			t.Fatal("Expected values map, got nil")
 		}
 
-		// Check required fields
-		requiredFields := []string{"usage_percent", "cores", "load_average", "context_switches", "goroutines"}
+		// The first CPU delta is intentionally not a numeric measurement. The
+		// collector must expose the reason rather than fabricate a zero.
+		if got := metrics.Values["status"]; got != "not_yet_sampled" {
+			t.Fatalf("first sample status = %v, want not_yet_sampled", got)
+		}
+		if _, exists := metrics.Values["usage_percent"]; exists {
+			t.Fatal("first CPU sample must not expose a fabricated usage_percent")
+		}
+
+		// Stable metadata is available even before the first delta.
+		requiredFields := []string{"cores", "status", "reason"}
 		for _, field := range requiredFields {
 			if _, exists := metrics.Values[field]; !exists {
 				t.Errorf("Expected field %s in values", field)
+			}
+		}
+
+		time.Sleep(20 * time.Millisecond)
+		metrics, err = collector.Collect(ctx)
+		if err != nil {
+			t.Fatalf("second CPU collection failed: %v", err)
+		}
+		if metrics.Values["status"] == "not_yet_sampled" {
+			time.Sleep(20 * time.Millisecond)
+			metrics, err = collector.Collect(ctx)
+			if err != nil {
+				t.Fatalf("retry CPU collection failed: %v", err)
+			}
+		}
+		if metrics.Values["status"] != "measured" {
+			t.Fatalf("second valid sample status = %v, want measured", metrics.Values["status"])
+		}
+		for _, field := range []string{"usage_percent", "load_average", "context_switches_per_second"} {
+			if _, exists := metrics.Values[field]; !exists {
+				t.Errorf("measured sample missing field %s", field)
 			}
 		}
 
@@ -144,78 +220,142 @@ func TestMemoryCollector_Collect(t *testing.T) {
 // TestDiskCollector_Collect tests disk metrics collection
 func TestDiskCollector_Collect(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		collector := NewDiskCollector()
-		ctx := context.Background()
-
-		metrics, err := collector.Collect(ctx)
-		if err != nil {
-			t.Errorf("Expected no error, got %v", err)
-		}
-
-		if metrics == nil {
-			t.Fatal("Expected metrics, got nil")
-		}
-
-		if metrics.CollectorName != "disk" {
-			t.Errorf("Expected collector name 'disk', got %s", metrics.CollectorName)
-		}
+		assertCollectorBasics(t, NewDiskCollector(), "disk")
 	})
 
 	t.Run("DiskStats", func(t *testing.T) {
-		collector := NewDiskCollector()
-		ctx := context.Background()
-
-		metrics, err := collector.Collect(ctx)
-		if err != nil {
-			t.Fatalf("Failed to collect metrics: %v", err)
-		}
-
-		// Disk metrics should contain partition information
-		if metrics.Values == nil {
-			t.Fatal("Expected values map, got nil")
-		}
-
-		// Log available fields for debugging
+		metrics := mustCollectMetrics(t, NewDiskCollector())
 		t.Logf("Disk metrics values: %+v", metrics.Values)
 	})
+}
+
+func TestDiskCollector_NoSteadyForks(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		repocontracttest.SkipPlatform(t, "disk collector reads /proc/statfs only on linux")
+	}
+
+	c := NewDiskCollector()
+	forks := countCommandForks(t, func() error {
+		_, err := c.Collect(context.Background())
+		return err
+	})
+	if forks != 0 {
+		t.Errorf("disk collection forked %d times, want 0", forks)
+	}
 }
 
 // TestNetworkCollector_Collect tests network metrics collection
 func TestNetworkCollector_Collect(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		collector := NewNetworkCollector()
-		ctx := context.Background()
-
-		metrics, err := collector.Collect(ctx)
-		if err != nil {
-			t.Errorf("Expected no error, got %v", err)
-		}
-
-		if metrics == nil {
-			t.Fatal("Expected metrics, got nil")
-		}
-
-		if metrics.CollectorName != "network" {
-			t.Errorf("Expected collector name 'network', got %s", metrics.CollectorName)
-		}
+		assertCollectorBasics(t, NewNetworkCollector(), "network")
 	})
 
 	t.Run("NetworkInterfaces", func(t *testing.T) {
-		collector := NewNetworkCollector()
-		ctx := context.Background()
-
-		metrics, err := collector.Collect(ctx)
-		if err != nil {
-			t.Fatalf("Failed to collect metrics: %v", err)
-		}
-
-		// Network metrics should contain interface information
-		if metrics.Values == nil {
-			t.Fatal("Expected values map, got nil")
-		}
-
+		metrics := mustCollectMetrics(t, NewNetworkCollector())
 		t.Logf("Network metrics values: %+v", metrics.Values)
 	})
+}
+
+func TestNetworkCollector_NilPlatformValuesRemainAnnotatable(t *testing.T) {
+	reading := platformNetworkReading{status: "failed", reason: "native probe unavailable"}
+	values := networkReadingValues(reading)
+
+	if values["status"] != "failed" || values["reason"] != "native probe unavailable" {
+		t.Fatalf("annotated values = %#v, want preserved failure state", values)
+	}
+}
+
+func TestNetworkCollector_NoSteadyForks(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		repocontracttest.SkipPlatform(t, "network collector reads /proc only on linux")
+	}
+
+	c := NewNetworkCollector()
+	forks := countCommandForks(t, func() error {
+		_, err := c.Collect(context.Background())
+		return err
+	})
+	if forks != 0 {
+		t.Errorf("network collection forked %d times, want 0", forks)
+	}
+}
+
+func countCommandForks(t *testing.T, collect func() error) int {
+	t.Helper()
+
+	var mu sync.Mutex
+	forks := 0
+
+	orig := commandOutput
+	defer func() { commandOutput = orig }()
+	commandOutput = func(_ context.Context, _ time.Duration, name string, args ...string) ([]byte, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		forks++
+		return []byte(""), nil
+	}
+
+	if err := collect(); err != nil {
+		t.Fatalf("collect: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	return forks
+}
+
+type testCollector interface {
+	Collect(context.Context) (*MetricData, error)
+}
+
+func assertCollectorBasics(t *testing.T, collector testCollector, wantName string) {
+	t.Helper()
+
+	metrics := mustCollectMetrics(t, collector)
+	if metrics.CollectorName != wantName {
+		t.Errorf("Expected collector name %q, got %s", wantName, metrics.CollectorName)
+	}
+}
+
+func mustCollectMetrics(t *testing.T, collector testCollector) *MetricData {
+	t.Helper()
+
+	metrics, err := collector.Collect(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to collect metrics: %v", err)
+	}
+	if metrics == nil {
+		t.Fatal("Expected metrics, got nil")
+	}
+	if metrics.Values == nil {
+		t.Fatal("Expected values map, got nil")
+	}
+	return metrics
+}
+
+func TestParseNetDevLine(t *testing.T) {
+	name, stats, ok := parseNetDevLine("  eth0: 100 2 3 4 0 0 0 0 900 8 7 6 0 0 0 0")
+	if !ok {
+		t.Fatal("parseNetDevLine returned !ok")
+	}
+	if name != "eth0" {
+		t.Fatalf("name = %q, want eth0", name)
+	}
+	if stats.bytesRecv != 100 || stats.packetsRecv != 2 || stats.errorsIn != 3 || stats.droppedIn != 4 {
+		t.Fatalf("recv stats parsed incorrectly: %+v", stats)
+	}
+	if stats.bytesSent != 900 || stats.packetsSent != 8 || stats.errorsOut != 7 || stats.droppedOut != 6 {
+		t.Fatalf("sent stats parsed incorrectly: %+v", stats)
+	}
+}
+
+func TestIsEphemeralAddressPort(t *testing.T) {
+	if !isEphemeralAddressPort("0100007F:7530") {
+		t.Fatal("port 30000 should be counted as ephemeral")
+	}
+	if isEphemeralAddressPort("0100007F:0050") {
+		t.Fatal("port 80 should not be counted as ephemeral")
+	}
 }
 
 // TestProcessCollector_Collect tests process metrics collection
@@ -281,6 +421,43 @@ func TestGPUCollector_Collect(t *testing.T) {
 			t.Errorf("Expected collector name 'gpu', got %s", metrics.CollectorName)
 		}
 	})
+}
+
+func TestAdaptGPUInventory(t *testing.T) {
+	temp := 63.0
+	snapshot := hostinventory.Snapshot{
+		GPUs: []hostinventory.GPU{{
+			Index:              0,
+			UUID:               "GPU-1",
+			Name:               "NVIDIA RTX 4090",
+			DriverVersion:      "555.42",
+			VRAMBytes:          24564 * 1024 * 1024,
+			VRAMUsedBytes:      2048 * 1024 * 1024,
+			UtilizationPercent: 42,
+			TemperatureC:       &temp,
+		}},
+		GPUProcesses: []hostinventory.GPUProcess{{
+			GPUUUID:     "GPU-1",
+			PID:         123,
+			ProcessName: "python",
+			UsedBytes:   512 * 1024 * 1024,
+		}},
+	}
+
+	devices, summary, driver, model := adaptGPUInventory(snapshot)
+	if driver != "555.42" || model != "NVIDIA RTX 4090" {
+		t.Fatalf("driver/model = %q/%q", driver, model)
+	}
+	if summary.DeviceCount != 1 || summary.UsedMemoryMB != 2048 || summary.TotalMemoryMB != 24564 {
+		t.Fatalf("summary = %#v", summary)
+	}
+	if len(devices) != 1 {
+		t.Fatalf("devices = %#v", devices)
+	}
+	want := models.GPUProcessInfo{PID: 123, ProcessName: "python", MemoryUsedMB: 512}
+	if len(devices[0].Processes) != 1 || devices[0].Processes[0] != want {
+		t.Fatalf("processes = %#v", devices[0].Processes)
+	}
 }
 
 // TestBaseCollector tests base collector functionality

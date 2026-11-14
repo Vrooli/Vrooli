@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -24,9 +23,9 @@ type ErrorTestPattern struct {
 
 // HandlerTestSuite provides a comprehensive test framework for HTTP handlers
 type HandlerTestSuite struct {
-	HandlerName    string
-	Handler        http.HandlerFunc
-	BaseURL        string
+	HandlerName     string
+	Handler         http.HandlerFunc
+	BaseURL         string
 	RequiredURLVars []string
 }
 
@@ -154,24 +153,24 @@ func missingRequiredFieldPattern(method, urlPath string, body interface{}) Error
 
 // PerformanceTestPattern defines performance testing scenarios
 type PerformanceTestPattern struct {
-	Name           string
-	Description    string
-	MaxDuration    time.Duration
-	Setup          func(t *testing.T) interface{}
-	Execute        func(t *testing.T, setupData interface{}) time.Duration
-	Cleanup        func(setupData interface{})
+	Name        string
+	Description string
+	MaxDuration time.Duration
+	Setup       func(t *testing.T) interface{}
+	Execute     func(t *testing.T, setupData interface{}) time.Duration
+	Cleanup     func(setupData interface{})
 }
 
 // ConcurrencyTestPattern defines concurrency testing scenarios
 type ConcurrencyTestPattern struct {
-	Name           string
-	Description    string
-	Concurrency    int
-	Iterations     int
-	Setup          func(t *testing.T) interface{}
-	Execute        func(t *testing.T, setupData interface{}, iteration int) error
-	Validate       func(t *testing.T, setupData interface{}, results []error)
-	Cleanup        func(setupData interface{})
+	Name        string
+	Description string
+	Concurrency int
+	Iterations  int
+	Setup       func(t *testing.T) interface{}
+	Execute     func(t *testing.T, setupData interface{}, iteration int) error
+	Validate    func(t *testing.T, setupData interface{}, results []error)
+	Cleanup     func(setupData interface{})
 }
 
 // TestScenarioBuilder provides a fluent interface for building test scenarios

@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"self-report-rule-pack-fixture"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"message-1","type":"agent_message","text":"I am blocked because this keeps failing; I need permission, so instead I will try a different approach."}}
+{"type":"turn.completed","usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}

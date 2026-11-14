@@ -1,0 +1,226 @@
+{
+  "archived": false,
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "desktop-packaging-orchestrator",
+    "reportingMode": "leader",
+    "messagingMode": "async-inbox",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": true,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": false,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": false
+    }
+  },
+  "createdAt": "2026-10-06T20:11:57Z",
+  "displayName": "Desktop Packaging Delivery",
+  "effortRefs": [
+    "effort:desktop-packaging-performance"
+  ],
+  "enabled": false,
+  "execution": {
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
+  },
+  "id": "desktop-packaging-delivery",
+  "homePath": ".vrooli/work/delivery/desktop-packaging-delivery",
+  "instrument": {
+    "status": "partial",
+    "scenario": "agent-manager",
+    "archetype": "coverage-board",
+    "coversScenarios": [
+      "agent-manager",
+      "prompt-manager",
+      "scenario-to-desktop",
+      "performance-health",
+      "code-facts"
+    ],
+    "gapMarker": "2026-10-06 \u2014 commissioned for orchestrated epochs (large-effort-orchestration): leader desktop-packaging-orchestrator on prompt-manager/delivery-orchestrator; team stays disabled until the operator says go."
+  },
+  "kind": "team",
+  "lifetime": "finite",
+  "mission": "Deliver selectable packaging strategies, one packaged-launch.v1 measurement contract and evidence-based automatic selection across the approved reference scenarios.",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "desktop-packaging-goal",
+          "hub": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/CHARTER.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/desktop-packaging-delivery/CHARTER.md"
+            },
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/desktop-packaging-delivery/archive/v1/TARGETS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/architecture/packaging-strategies.md"
+            }
+          ],
+          "writePolicy": "The orchestrator maintains the goal home and proposes design amendments through slice-log DESIGN: lines; operator amendments change the destination.",
+          "consumers": [
+            "desktop-packaging-delivery",
+            "effort-supervision"
+          ],
+          "useFor": "Destination, constraints, validation targets, quality bands and the cross-ramp packaging design."
+        },
+        {
+          "id": "delivery-worker-card",
+          "hub": {
+            "base": "repo-root",
+            "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/references/worker.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/references/worker.md"
+            }
+          ],
+          "writePolicy": "Owner-authorized amendments only.",
+          "consumers": [
+            "desktop-packaging-delivery"
+          ],
+          "useFor": "The epoch worker's rules; workers read this card, not the full skill."
+        },
+        {
+          "id": "delivery-reference",
+          "hub": {
+            "base": "repo-root",
+            "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/agent-system/EFFORT_SUPERVISION.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/scenario-to-desktop/docs/concepts/ARCHITECTURE.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/scenario-to-desktop/docs/reference/live-desktop-api.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/performance-health/PRD.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/TESTING.md"
+            }
+          ],
+          "writePolicy": "Owner-authorized amendments only.",
+          "consumers": [
+            "desktop-packaging-delivery",
+            "effort-supervision"
+          ],
+          "useFor": "Epoch standard, supervisor contract, desktop ramp architecture, measurement owner and testing protocol.",
+          "required": false,
+          "optionalReason": "Read on demand: the orchestrator heartbeat names the skill sections it follows, and the ramp docs are too large for every wake."
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "delivery-status",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/STATUS.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "delivery-log",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/LOG.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "delivery-feedback",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/FEEDBACK.md"
+          },
+          "kind": "operator-input",
+          "required": true
+        }
+      ]
+    },
+    "knowledgeTopics": {},
+    "members": {
+      "desktop-packaging-orchestrator": {
+        "lane": "Own the whole product destination, technical strategy, evolving outcome allocation and independent acceptance. Delegate substantial independent implementation to workers; coordinate shared components, API contracts and dependencies within native limits.",
+        "allowedWrites": [
+          {
+            "kind": "handoff"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/STATUS.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/LOG.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/FEEDBACK.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/epochs"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/evidence"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/desktop-packaging-delivery/archive"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Never implement product work; spawn an epoch worker on prompt-manager/delivery-epoch-worker (Luna medium) with run create --until and the interactive substrate.",
+          "Accept an epoch only through the mechanical gate (large-effort-orchestration \u00a74.4); never silently lower a gate so a worker can pass.",
+          "Park with --producer children between check-ins; never poll children in a loop or claim to be parked from prompt text.",
+          "Infrastructure never blocks: record a STATUS.md entry, use the fallback and stop retrying the broken tool.",
+          "Only the orchestrator authorizes external installs and records them in STATUS.md; dependency installs go through Scenario Dependency Analyzer; privileged host packages only through tool.json plus the operator's sudo vrooli setup (a Needs operator item).",
+          "Do not use Swarm Manager or Plan Manager, do not run git or sudo, and preserve user data and other agents' changes.",
+          "Never restart live BAS; request BAS changes through the BAS goal FEEDBACK.md.",
+          "Keep shared delivery-ramp-go types mobile-ready and every working packaging strategy selectable (CHARTER.md).",
+          "Use bounded independent surface workers under one retained orchestrator. Respect native commission limits and file/resource conflicts.",
+          "At HARD STOP checkpoint truthful accepted, partial and unverified outcomes; the owner clock stops this commission and returns an operator decision. Never manufacture acceptance or silently lower a required gate."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": false,
+          "stillWriteHandoff": true
+        }
+      }
+    }
+  },
+  "purpose": "delivery",
+  "revision": 5,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-24T03:15:34.545803Z"
+}

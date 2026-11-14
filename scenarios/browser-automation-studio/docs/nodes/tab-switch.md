@@ -17,7 +17,7 @@
 ## Runtime Behavior
 
 1. The automation compiler/executor forwards the mode/index/title/url/wait/close flags as-authored; validation is handled by the workflow validator/UI.
-2. `api/browserless/cdp/evaluation_actions.go:92-155` keeps a live inventory of Chrome targets, optionally waits for a brand-new tab, picks one based on the configured strategy, and switches focus. When `closeOld` is set it also disposes the previous target to free memory.
+2. The Playwright driver keeps a live inventory of Chrome targets, optionally waits for a brand-new tab, picks one based on the configured strategy, and switches focus. When `closeOld` is set it also disposes the previous target to free memory.
 3. Execution artifacts capture the active tab's title/URL and the `targetId`, making it easy to debug which window the workflow selected.
 
 ## Example
@@ -39,7 +39,7 @@
 
 - Use `waitForNew` when the previous step triggers a popup (OAuth, report preview, payment confirmation), otherwise the workflow may switch too early.
 - Regular expressions must be wrapped in slashes (e.g., `/callback\\/success/`). Anything else is treated as a case-insensitive substring match.
-- Closing the previous tab keeps Browserless from accumulating zombie targets during long regression runs.
+- Closing the previous tab keeps the driver from accumulating zombie targets during long regression runs.
 - Combine with `Wait` or `Assert` nodes right after switching to confirm the new tab loaded the correct route.
 
 ## Related Nodes

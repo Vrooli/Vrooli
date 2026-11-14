@@ -1,0 +1,148 @@
+{
+  "schema_version": "v6",
+  "artifact_trust_mode": "development-local",
+  "promotable": false,
+  "resources": [
+    {
+      "requested_resource": "postgres",
+      "resource": "postgres",
+      "os": "linux",
+      "architecture": "amd64",
+      "mode": "bundled-service",
+      "support": "conditional",
+      "privilege": "user",
+      "bundling": "vendorable",
+      "eligibility": "eligible",
+      "limitations": [
+        "The native PostgreSQL tree is extracted from a digest-pinned official OCI image without a container runtime."
+      ],
+      "evidence": [
+        "manifest-validation",
+        "artifact-checksum",
+        "copy-first-data-validation"
+      ],
+      "artifact": "resource-postgres_linux_amd64",
+      "files": [
+        {
+          "name": "resource-postgres_linux_amd64",
+          "sha256": "86038e1264115c2704df9925bca302744c7a102b78e2074eea73136f5dfa2a48"
+        },
+        {
+          "name": "resource-postgres_linux_amd64.manifest.json",
+          "sha256": "645c4361b33828561239428887597a636102a3d03e096b15fef83375c3e83df9"
+        },
+        {
+          "name": "resource-postgres_linux_amd64.build.json",
+          "sha256": "f546bb68301427d888d17d56ed680dfb73a65afbbabf92c74a0b34dc4caed81e"
+        }
+      ],
+      "service": {
+        "provider_policy": {
+          "default_mode": "",
+          "target_defaults": {
+            "control-plane": "managed-private",
+            "desktop-bundle": "managed-private"
+          },
+          "allowed_modes": [
+            "managed-private",
+            "managed-shared",
+            "attach-only",
+            "remote-vrooli",
+            "managed-discovered"
+          ],
+          "shared_reuse_requires_consent": true,
+          "external_management": "forbidden",
+          "external_access_capabilities": [
+            "read-only",
+            "read-write"
+          ]
+        },
+        "artifact": "postgres_linux_amd64",
+        "layout": "dir",
+        "entry_path": "usr/lib/postgresql/16/bin/postgres",
+        "version": "16",
+        "sha256": "47435624b2447556bdc76e2b1110ae869a5bac4057aeed336d1832132220496a",
+        "arguments": [
+          "-D",
+          "${RESOURCE_DATA_DIR}/instances/main/data",
+          "-p",
+          "${RESOURCE_PORT_POSTGRESQL}",
+          "-h",
+          "127.0.0.1",
+          "-k",
+          ""
+        ],
+        "environment": {
+          "LD_PRELOAD": "${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libpq.so.5:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libicui18n.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libicuuc.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libicudata.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libzstd.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/liblz4.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libxml2.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libpam.so.0:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libssl.so.3:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libcrypto.so.3:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libgssapi_krb5.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libz.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libldap.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libsystemd.so.0",
+          "PGDATA": "${RESOURCE_DATA_DIR}/instances/main/data",
+          "POSTGRES_DB": "vrooli",
+          "POSTGRES_PASSWORD": "vrooli",
+          "POSTGRES_USER": "vrooli"
+        },
+        "bootstrap": {
+          "marker": "instances/main/data/PG_VERSION",
+          "executable": "usr/lib/postgresql/16/bin/initdb",
+          "executable_by_platform": {
+            "macos-amd64": "postgresql-16.15.0-x86_64-apple-darwin/bin/initdb",
+            "macos-arm64": "postgresql-16.15.0-aarch64-apple-darwin/bin/initdb",
+            "windows-amd64": "postgresql-16.15.0-x86_64-pc-windows-msvc/bin/initdb.exe"
+          },
+          "arguments": [
+            "-D",
+            "${RESOURCE_DATA_DIR}/instances/main/data",
+            "--username",
+            "${POSTGRES_USER}",
+            "--pwfile",
+            "${RESOURCE_CONFIG_DIR}/.bootstrap-password",
+            "--auth-host",
+            "scram-sha-256",
+            "--auth-local",
+            "trust",
+            "--encoding",
+            "UTF8"
+          ],
+          "arguments_by_platform": {
+            "windows": [
+              "-D",
+              "${RESOURCE_DATA_DIR}/instances/main/data",
+              "--username",
+              "${POSTGRES_USER}",
+              "--pwfile",
+              "${RESOURCE_CONFIG_DIR}/.bootstrap-password",
+              "--auth-host",
+              "scram-sha-256",
+              "--encoding",
+              "UTF8"
+            ]
+          },
+          "password_env": "POSTGRES_PASSWORD",
+          "password_file": ".bootstrap-password"
+        },
+        "ports": [
+          {
+            "name": "postgresql",
+            "host": 5433
+          }
+        ],
+        "health_checks": [
+          {
+            "type": "tcp",
+            "target": "127.0.0.1:5433",
+            "timeout_seconds": 5
+          },
+          {
+            "type": "tcp",
+            "target": "127.0.0.1:5433",
+            "timeout_seconds": 5
+          }
+        ],
+        "files": [
+          {
+            "name": "postgres_linux_amd64",
+            "sha256": "47435624b2447556bdc76e2b1110ae869a5bac4057aeed336d1832132220496a"
+          }
+        ]
+      }
+    }
+  ]
+}

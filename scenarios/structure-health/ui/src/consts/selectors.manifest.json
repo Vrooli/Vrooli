@@ -1,0 +1,321 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.fleet": {
+      "testId": "page-fleet",
+      "selector": "[data-testid=\"page-fleet\"]"
+    },
+    "pages.validation": {
+      "testId": "page-validation",
+      "selector": "[data-testid=\"page-validation\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "fleet.view": {
+      "testId": "fleet-view",
+      "selector": "[data-testid=\"fleet-view\"]"
+    },
+    "fleet.refreshButton": {
+      "testId": "fleet-refresh-button",
+      "selector": "[data-testid=\"fleet-refresh-button\"]"
+    },
+    "fleet.loading": {
+      "testId": "fleet-loading",
+      "selector": "[data-testid=\"fleet-loading\"]"
+    },
+    "fleet.error": {
+      "testId": "fleet-error",
+      "selector": "[data-testid=\"fleet-error\"]"
+    },
+    "fleet.empty": {
+      "testId": "fleet-empty",
+      "selector": "[data-testid=\"fleet-empty\"]"
+    },
+    "fleet.summary": {
+      "testId": "fleet-summary",
+      "selector": "[data-testid=\"fleet-summary\"]"
+    },
+    "fleet.summaryScenarios": {
+      "testId": "fleet-summary-scenarios",
+      "selector": "[data-testid=\"fleet-summary-scenarios\"]"
+    },
+    "fleet.summaryPassing": {
+      "testId": "fleet-summary-passing",
+      "selector": "[data-testid=\"fleet-summary-passing\"]"
+    },
+    "fleet.summaryAutofixable": {
+      "testId": "fleet-summary-autofixable",
+      "selector": "[data-testid=\"fleet-summary-autofixable\"]"
+    },
+    "fleet.profiles": {
+      "testId": "fleet-profiles",
+      "selector": "[data-testid=\"fleet-profiles\"]"
+    },
+    "fleet.rules": {
+      "testId": "fleet-rules",
+      "selector": "[data-testid=\"fleet-rules\"]"
+    },
+    "fleet.rulesEmpty": {
+      "testId": "fleet-rules-empty",
+      "selector": "[data-testid=\"fleet-rules-empty\"]"
+    },
+    "fleet.scenarios": {
+      "testId": "fleet-scenarios",
+      "selector": "[data-testid=\"fleet-scenarios\"]"
+    },
+    "fleet.scenariosEmpty": {
+      "testId": "fleet-scenarios-empty",
+      "selector": "[data-testid=\"fleet-scenarios-empty\"]"
+    },
+    "fleet.errors": {
+      "testId": "fleet-errors",
+      "selector": "[data-testid=\"fleet-errors\"]"
+    },
+    "fleet.targets": {
+      "testId": "fleet-targets",
+      "selector": "[data-testid=\"fleet-targets\"]"
+    },
+    "validation.view": {
+      "testId": "validation-view",
+      "selector": "[data-testid=\"validation-view\"]"
+    },
+    "validation.kind": {
+      "testId": "validation-kind",
+      "selector": "[data-testid=\"validation-kind\"]"
+    },
+    "validation.id": {
+      "testId": "validation-id",
+      "selector": "[data-testid=\"validation-id\"]"
+    },
+    "validation.root": {
+      "testId": "validation-root",
+      "selector": "[data-testid=\"validation-root\"]"
+    },
+    "validation.path": {
+      "testId": "validation-path",
+      "selector": "[data-testid=\"validation-path\"]"
+    },
+    "validation.submit": {
+      "testId": "validation-submit",
+      "selector": "[data-testid=\"validation-submit\"]"
+    },
+    "validation.loading": {
+      "testId": "validation-loading",
+      "selector": "[data-testid=\"validation-loading\"]"
+    },
+    "validation.error": {
+      "testId": "validation-error",
+      "selector": "[data-testid=\"validation-error\"]"
+    },
+    "validation.result": {
+      "testId": "validation-result",
+      "selector": "[data-testid=\"validation-result\"]"
+    },
+    "validation.findings": {
+      "testId": "validation-findings",
+      "selector": "[data-testid=\"validation-findings\"]"
+    },
+    "validation.emptyFindings": {
+      "testId": "validation-findings-empty",
+      "selector": "[data-testid=\"validation-findings-empty\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "fleet.profileRow": {
+      "description": "Fleet profile row by profile id",
+      "selectorPattern": "[data-testid=\"fleet-profile-row-${profileId}\"]",
+      "testIdPattern": "fleet-profile-row-${profileId}",
+      "params": [
+        {
+          "name": "profileId",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.ruleRow": {
+      "description": "Fleet rule row by rule id",
+      "selectorPattern": "[data-testid=\"fleet-rule-row-${code}\"]",
+      "testIdPattern": "fleet-rule-row-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.scenarioRow": {
+      "description": "Fleet scenario row by scenario id",
+      "selectorPattern": "[data-testid=\"fleet-scenario-row-${scenario}\"]",
+      "testIdPattern": "fleet-scenario-row-${scenario}",
+      "params": [
+        {
+          "name": "scenario",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.targetRow": {
+      "description": "Fleet target row by target id",
+      "selectorPattern": "[data-testid=\"fleet-target-row-${kind}-${id}\"]",
+      "testIdPattern": "fleet-target-row-${kind}-${id}",
+      "params": [
+        {
+          "name": "kind",
+          "type": "string"
+        },
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.navLink": {
+      "description": "App shell navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]",
+      "testIdPattern": "layout-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "fleet",
+            "validate",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "f32319b4f20977779fe5bca6416d524a062d3247d963df70661fc945c716c2ad",
+    "ui/src/consts/selectors.ts": "fc0fbab8697fe09778216ac639e2764ee9014eae8225cced3cd7a4b33f3e2074",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

@@ -1,0 +1,180 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "swarm-manager",
+  "key": "swarm-manager/plan-workshop-reconcile",
+  "version": "1.0.0",
+  "description": "Reconcile one accepted Plan Workshop response into a candidate-only change or an attention outcome; it has no live mutation authority.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "subject": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "snapshot": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "response": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "accepted_proposals": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "required": [
+      "subject",
+      "snapshot",
+      "response",
+      "accepted_proposals"
+    ],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "result": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "required": [
+      "result"
+    ],
+    "additionalProperties": false
+  },
+  "nodes": [
+    {
+      "id": "reconcile",
+      "kind": "run",
+      "run": {
+        "profileKey": "swarm-manager/deep-work",
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "outcome": {
+                    "const": "candidate"
+                  },
+                  "candidate": {
+                    "type": "object",
+                    "additionalProperties": true
+                  }
+                },
+                "required": [
+                  "outcome",
+                  "candidate"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "outcome": {
+                    "const": "needs_attention"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  }
+                },
+                "required": [
+                  "outcome",
+                  "reason"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "outcome": {
+                    "const": "abstained"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  }
+                },
+                "required": [
+                  "outcome",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "bindings": [
+          {
+            "name": "subject",
+            "source": "workflow_input",
+            "selector": "$.subject",
+            "limit": 1,
+            "maxBytes": 4096,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "snapshot",
+            "source": "workflow_input",
+            "selector": "$.snapshot",
+            "limit": 1,
+            "maxBytes": 65536,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "response",
+            "source": "workflow_input",
+            "selector": "$.response",
+            "limit": 1,
+            "maxBytes": 32768,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "accepted_proposals",
+            "source": "workflow_input",
+            "selector": "$.accepted_proposals",
+            "limit": 1,
+            "maxBytes": 65536,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
+        ],
+        "maxTurns": 12,
+        "timeoutSeconds": 900,
+        "promptRef": {
+          "skillId": "swarm-manager-plan-workshop-reconcile"
+        }
+      }
+    }
+  ],
+  "budgets": {
+    "wallTimeSeconds": 1200,
+    "maxTurns": 12,
+    "maxTokens": 600000,
+    "maxChargeMicroUsd": 5000000,
+    "maxNodeAttempts": 2,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 1,
+    "maxWaitSeconds": 60
+  },
+  "metadata": {
+    "consumerMutationOwner": "swarm-manager"
+  }
+}

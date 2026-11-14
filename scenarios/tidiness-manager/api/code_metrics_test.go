@@ -1,9 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // assertCodeMetricsTechDebt validates TODO/FIXME/HACK counts in CodeMetrics
@@ -69,8 +74,8 @@ func helper() {
 			expectedTodo:    1,
 			expectedFixme:   1,
 			expectedHack:    1,
-			expectedImports: 2.0, // Go grouped imports are now counted individually
-			minFunctions:    2.0,
+			expectedImports: 0, // Structural counts require the shared Code Facts graph.
+			minFunctions:    0,
 		},
 		{
 			name:     "TypeScript",
@@ -94,8 +99,8 @@ const helper = () => {
 			expectedTodo:    1,
 			expectedFixme:   1,
 			expectedHack:    1,
-			expectedImports: 2.0,
-			minFunctions:    1.0,
+			expectedImports: 0,
+			minFunctions:    0,
 		},
 		{
 			name:     "Python",
@@ -128,7 +133,7 @@ def helper():
 			writeCodeFile(t, tmpDir, tc.filename, tc.code)
 
 			analyzer := NewCodeMetricsAnalyzer(tmpDir)
-			metrics, err := analyzer.AnalyzeFiles([]string{tc.filename}, tc.language)
+			metrics, err := analyzer.AnalyzeFilesWithFacts([]string{tc.filename}, tc.language, nil)
 			if err != nil {
 				t.Fatalf("AnalyzeFiles failed: %v", err)
 			}
@@ -142,6 +147,47 @@ def helper():
 				t.Errorf("Expected at least %f functions per file, got %f", tc.minFunctions, metrics.AvgFunctionsPerFile)
 			}
 		})
+	}
+}
+
+func TestCodeMetricsAnalyzer_UsesSharedGraphCounts(t *testing.T) {
+	root := t.TempDir()
+	writeCodeFile(t, root, "test.go", "package main\nimport (\n\"fmt\"\n\"strings\"\n)\nfunc first() {}\nfunc second() {}\n")
+	var nodes []*commonv1.CodeGraphNode
+	for index, kind := range []string{"go_import_spec", "go_import_spec", "go_func", "go_func"} {
+		attrs := map[string]string{"kind": kind, "language": "go"}
+		if strings.HasSuffix(kind, "func") {
+			attrs["signature"] = "func()"
+			attrs["start_line"] = fmt.Sprint(index + 5)
+			attrs["end_line"] = fmt.Sprint(index + 5)
+		}
+		nodes = append(nodes, &commonv1.CodeGraphNode{Id: fmt.Sprintf("node-%d", index), Path: "test.go", Attributes: attrs})
+	}
+	report := &facts.CodeFactsReport{
+		Target: &facts.TargetContext{RootPath: root},
+		Graphs: []*facts.LanguageGraph{{
+			ParseUnit: &facts.ParseUnit{Id: "go:" + root, Language: "go", RootPath: root},
+			Graph:     &commonv1.CodeGraph{Nodes: nodes},
+		}},
+	}
+	metrics, err := NewCodeMetricsAnalyzer(root).AnalyzeFilesWithFacts([]string{"test.go"}, LanguageGo, report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if metrics.AvgImportsPerFile != 2 || metrics.AvgFunctionsPerFile != 2 || metrics.MaxImportsInFile != 2 || metrics.MaxFunctionsInFile != 2 {
+		t.Fatalf("graph counts not projected: %+v", metrics)
+	}
+}
+
+func TestCodeMetricsAnalyzer_JavaScriptFallbackForFilesOutsideGraphUnits(t *testing.T) {
+	root := t.TempDir()
+	writeCodeFile(t, root, "postcss.config.js", "import plugin from 'plugin';\nexport function configure() {}\n")
+	metrics, err := NewCodeMetricsAnalyzer(root).AnalyzeFilesWithFacts([]string{"postcss.config.js"}, LanguageJavaScript, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if metrics.AvgImportsPerFile != 1 || metrics.AvgFunctionsPerFile != 1 {
+		t.Fatalf("JavaScript config fallback counts = imports %.1f, functions %.1f; want 1 each", metrics.AvgImportsPerFile, metrics.AvgFunctionsPerFile)
 	}
 }
 
@@ -164,7 +210,7 @@ func test() {}
 	writeCodeFile(t, tmpDir, "test.go", code)
 
 	analyzer := NewCodeMetricsAnalyzer(tmpDir)
-	metrics, err := analyzer.AnalyzeFiles([]string{"test.go"}, LanguageGo)
+	metrics, err := analyzer.AnalyzeFilesWithFacts([]string{"test.go"}, LanguageGo, nil)
 	if err != nil {
 		t.Fatalf("AnalyzeFiles failed: %v", err)
 	}
@@ -177,7 +223,7 @@ func TestCodeMetricsAnalyzer_EmptyFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	analyzer := NewCodeMetricsAnalyzer(tmpDir)
-	metrics, err := analyzer.AnalyzeFiles([]string{}, LanguageGo)
+	metrics, err := analyzer.AnalyzeFilesWithFacts([]string{}, LanguageGo, nil)
 	if err != nil {
 		t.Fatalf("AnalyzeFiles failed: %v", err)
 	}
@@ -288,7 +334,7 @@ def process():
 			}
 
 			analyzer := NewCodeMetricsAnalyzer(tmpDir)
-			metrics, err := analyzer.AnalyzeFiles([]string{tc.filename}, tc.language)
+			metrics, err := analyzer.AnalyzeFilesWithFacts([]string{tc.filename}, tc.language, nil)
 			if err != nil {
 				t.Fatalf("AnalyzeFiles failed: %v", err)
 			}
@@ -353,7 +399,7 @@ func TestAdd(t *testing.T) {
 	}
 
 	analyzer := NewCodeMetricsAnalyzer(tmpDir)
-	metrics, err := analyzer.AnalyzeFiles([]string{"math.go", "math_test.go"}, LanguageGo)
+	metrics, err := analyzer.AnalyzeFilesWithFacts([]string{"math.go", "math_test.go"}, LanguageGo, nil)
 	if err != nil {
 		t.Fatalf("AnalyzeFiles failed: %v", err)
 	}
@@ -396,7 +442,7 @@ test('add function', () => {
 	}
 
 	analyzer := NewCodeMetricsAnalyzer(tmpDir)
-	metrics, err := analyzer.AnalyzeFiles([]string{"math.ts", "math.test.ts"}, LanguageTypeScript)
+	metrics, err := analyzer.AnalyzeFilesWithFacts([]string{"math.ts", "math.test.ts"}, LanguageTypeScript, nil)
 	if err != nil {
 		t.Fatalf("AnalyzeFiles failed: %v", err)
 	}
@@ -441,7 +487,7 @@ test('multiply function', () => {
 	}
 
 	analyzer := NewCodeMetricsAnalyzer(tmpDir)
-	metrics, err := analyzer.AnalyzeFiles([]string{"math.ts", "__tests__/math.test.ts"}, LanguageTypeScript)
+	metrics, err := analyzer.AnalyzeFilesWithFacts([]string{"math.ts", "__tests__/math.test.ts"}, LanguageTypeScript, nil)
 	if err != nil {
 		t.Fatalf("AnalyzeFiles failed: %v", err)
 	}
@@ -467,7 +513,7 @@ func Untested() {
 	}
 
 	analyzer := NewCodeMetricsAnalyzer(tmpDir)
-	metrics, err := analyzer.AnalyzeFiles([]string{"untested.go"}, LanguageGo)
+	metrics, err := analyzer.AnalyzeFilesWithFacts([]string{"untested.go"}, LanguageGo, nil)
 	if err != nil {
 		t.Fatalf("AnalyzeFiles failed: %v", err)
 	}
@@ -515,7 +561,7 @@ func TestCodeMetricsAnalyzer_TestCoverage_MixedCoverage(t *testing.T) {
 	}
 
 	analyzer := NewCodeMetricsAnalyzer(tmpDir)
-	metrics, err := analyzer.AnalyzeFiles(fileList, LanguageGo)
+	metrics, err := analyzer.AnalyzeFilesWithFacts(fileList, LanguageGo, nil)
 	if err != nil {
 		t.Fatalf("AnalyzeFiles failed: %v", err)
 	}
@@ -547,7 +593,7 @@ const safe = normalValue;
 	writeCodeFile(t, tmpDir, "test.ts", code)
 
 	analyzer := NewCodeMetricsAnalyzer(tmpDir)
-	metrics, err := analyzer.AnalyzeFiles([]string{"test.ts"}, LanguageTypeScript)
+	metrics, err := analyzer.AnalyzeFilesWithFacts([]string{"test.ts"}, LanguageTypeScript, nil)
 	if err != nil {
 		t.Fatalf("AnalyzeFiles failed: %v", err)
 	}
@@ -569,7 +615,7 @@ if (typeof x === 'string') { const y = x as String; }
 	writeCodeFile(t, tmpDir, "test.ts", code)
 
 	analyzer := NewCodeMetricsAnalyzer(tmpDir)
-	metrics, err := analyzer.AnalyzeFiles([]string{"test.ts"}, LanguageTypeScript)
+	metrics, err := analyzer.AnalyzeFilesWithFacts([]string{"test.ts"}, LanguageTypeScript, nil)
 	if err != nil {
 		t.Fatalf("AnalyzeFiles failed: %v", err)
 	}
@@ -591,7 +637,7 @@ const z = "normal code";
 	writeCodeFile(t, tmpDir, "test.ts", code)
 
 	analyzer := NewCodeMetricsAnalyzer(tmpDir)
-	metrics, err := analyzer.AnalyzeFiles([]string{"test.ts"}, LanguageTypeScript)
+	metrics, err := analyzer.AnalyzeFilesWithFacts([]string{"test.ts"}, LanguageTypeScript, nil)
 	if err != nil {
 		t.Fatalf("AnalyzeFiles failed: %v", err)
 	}
@@ -612,7 +658,7 @@ if (a != b) { console.log("also not equal"); }
 	writeCodeFile(t, tmpDir, "test.ts", code)
 
 	analyzer := NewCodeMetricsAnalyzer(tmpDir)
-	metrics, err := analyzer.AnalyzeFiles([]string{"test.ts"}, LanguageTypeScript)
+	metrics, err := analyzer.AnalyzeFilesWithFacts([]string{"test.ts"}, LanguageTypeScript, nil)
 	if err != nil {
 		t.Fatalf("AnalyzeFiles failed: %v", err)
 	}
@@ -634,7 +680,7 @@ func main() {
 	writeCodeFile(t, tmpDir, "test.go", code)
 
 	analyzer := NewCodeMetricsAnalyzer(tmpDir)
-	metrics, err := analyzer.AnalyzeFiles([]string{"test.go"}, LanguageGo)
+	metrics, err := analyzer.AnalyzeFilesWithFacts([]string{"test.go"}, LanguageGo, nil)
 	if err != nil {
 		t.Fatalf("AnalyzeFiles failed: %v", err)
 	}
@@ -645,7 +691,7 @@ func main() {
 	}
 }
 
-func TestIssueGenerator_TypeSafety(t *testing.T) {
+func TestIssueGenerator_DoesNotEmitTypeSafetyIssues(t *testing.T) {
 	metrics := []DetailedFileMetrics{
 		{
 			FilePath:              "src/bad.ts",
@@ -659,16 +705,9 @@ func TestIssueGenerator_TypeSafety(t *testing.T) {
 	config := DefaultIssueGeneratorConfig()
 	issues := GenerateIssuesFromMetrics("test-scenario", metrics, config)
 
-	foundTypeSafety := false
 	for _, issue := range issues {
 		if issue.Category == "type_safety" {
-			foundTypeSafety = true
-			if issue.Severity == "" {
-				t.Error("expected non-empty severity for type_safety issue")
-			}
+			t.Fatalf("type_safety issues must be owned by quality-health, got %+v", issue)
 		}
-	}
-	if !foundTypeSafety {
-		t.Error("expected type_safety issue to be generated when threshold exceeded")
 	}
 }

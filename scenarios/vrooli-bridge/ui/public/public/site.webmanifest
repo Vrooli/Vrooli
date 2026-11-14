@@ -1,0 +1,25 @@
+{
+  "background_color": "#f8fafc",
+  "description": "Fleet control plane that provisions, updates, and runs allowlisted commands across an owner's trusted Vrooli nodes on every OS",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any maskable",
+      "sizes": "192x192",
+      "src": "manifest-icon-192.maskable.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any maskable",
+      "sizes": "512x512",
+      "src": "manifest-icon-512.maskable.png",
+      "type": "image/png"
+    }
+  ],
+  "id": "/vrooli-bridge/",
+  "name": "Vrooli Bridge",
+  "scope": "../",
+  "short_name": "vrooli-bridge",
+  "start_url": "../",
+  "theme_color": "#f8fafc"
+}

@@ -1,0 +1,127 @@
+{
+  "id": "login-sessions-03",
+  "family": "login-sessions",
+  "family_name": "Login and sessions",
+  "difficulty": 3,
+  "title": "Login and sessions: level 3",
+  "task": "Sign in with the public synthetic practice code range-3, then extract every record in source order with id, name, category, value and active.",
+  "mechanism": "session",
+  "tags": [
+    "difficulty-3",
+    "session"
+  ],
+  "page": {
+    "title": "Login and sessions Practice 3",
+    "records": [
+      {
+        "id": "LOG-03-001",
+        "name": "Login Item 3-1",
+        "category": "beta",
+        "value": 531,
+        "active": true
+      },
+      {
+        "id": "LOG-03-002",
+        "name": "Login Item 3-2",
+        "category": "gamma",
+        "value": 532,
+        "active": true
+      },
+      {
+        "id": "LOG-03-003",
+        "name": "Login Item 3-3",
+        "category": "alpha",
+        "value": 533,
+        "active": true
+      },
+      {
+        "id": "LOG-03-004",
+        "name": "Login Item 3-4",
+        "category": "beta",
+        "value": 534,
+        "active": false
+      },
+      {
+        "id": "LOG-03-005",
+        "name": "Login Item 3-5",
+        "category": "gamma",
+        "value": 535,
+        "active": true
+      },
+      {
+        "id": "LOG-03-006",
+        "name": "Login Item 3-6",
+        "category": "alpha",
+        "value": 536,
+        "active": true
+      },
+      {
+        "id": "LOG-03-007",
+        "name": "Login Item 3-7",
+        "category": "beta",
+        "value": 537,
+        "active": true
+      }
+    ],
+    "page_size": 7,
+    "variant": 3,
+    "search_fields": [],
+    "requires_session": true,
+    "download_format": "",
+    "layout_variant": "",
+    "behavior": {},
+    "bot_gate": "",
+    "session_code": "range-3"
+  },
+  "answer": [
+    {
+      "id": "LOG-03-001",
+      "name": "Login Item 3-1",
+      "category": "beta",
+      "value": 531,
+      "active": true
+    },
+    {
+      "id": "LOG-03-002",
+      "name": "Login Item 3-2",
+      "category": "gamma",
+      "value": 532,
+      "active": true
+    },
+    {
+      "id": "LOG-03-003",
+      "name": "Login Item 3-3",
+      "category": "alpha",
+      "value": 533,
+      "active": true
+    },
+    {
+      "id": "LOG-03-004",
+      "name": "Login Item 3-4",
+      "category": "beta",
+      "value": 534,
+      "active": false
+    },
+    {
+      "id": "LOG-03-005",
+      "name": "Login Item 3-5",
+      "category": "gamma",
+      "value": 535,
+      "active": true
+    },
+    {
+      "id": "LOG-03-006",
+      "name": "Login Item 3-6",
+      "category": "alpha",
+      "value": 536,
+      "active": true
+    },
+    {
+      "id": "LOG-03-007",
+      "name": "Login Item 3-7",
+      "category": "beta",
+      "value": 537,
+      "active": true
+    }
+  ]
+}

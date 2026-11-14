@@ -1,7 +1,7 @@
 import * as React from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "../../../lib/utils";
-import { Button } from "../../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 
 interface DetailPanelProps {
   /** Panel title */

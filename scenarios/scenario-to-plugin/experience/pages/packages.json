@@ -1,0 +1,190 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "packages",
+    "title": "Packages",
+    "routes": [
+      "/packages"
+    ],
+    "purpose": "List every composed package with its position on the gate ladder so an operator can find the one they care about and see how far it got.",
+    "prd_refs": [
+      "OT-P0-001"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The operator finds a specific package quickly by scenario, commit, or state."
+    },
+    {
+      "statement": "Each row shows how far the package advanced, not merely whether it succeeded."
+    },
+    {
+      "statement": "A package that was never judged is distinguishable from one that failed.",
+      "notes": "The unavailable/failed distinction is a correctness property, not a nuance."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Packages listed across several scenarios and ladder positions."
+    },
+    {
+      "id": "loading",
+      "description": "Package list is loading."
+    },
+    {
+      "id": "empty",
+      "description": "No package has been composed yet."
+    },
+    {
+      "id": "request-error",
+      "description": "The package list could not be loaded."
+    },
+    {
+      "id": "partial",
+      "description": "Some packages could not be evaluated and show an unevaluated ladder position."
+    },
+    {
+      "id": "stale",
+      "description": "The list predates the most recent build and is being refreshed."
+    }
+  ],
+  "elements": [
+    {
+      "id": "packages-table",
+      "role": "table",
+      "name": "Composed packages"
+    },
+    {
+      "id": "package-row",
+      "role": "row",
+      "name": "Package row"
+    },
+    {
+      "id": "ladder-position",
+      "role": "status",
+      "name": "Gate ladder position"
+    },
+    {
+      "id": "package-state-badge",
+      "role": "status",
+      "name": "Package state"
+    },
+    {
+      "id": "package-search",
+      "role": "searchbox",
+      "name": "Search packages"
+    },
+    {
+      "id": "state-filter",
+      "role": "button",
+      "name": "Filter by state"
+    },
+    {
+      "id": "scenario-filter",
+      "role": "button",
+      "name": "Filter by scenario"
+    },
+    {
+      "id": "sort-built-at",
+      "role": "button",
+      "name": "Sort by build time"
+    },
+    {
+      "id": "empty-explainer",
+      "role": "note",
+      "name": "How to compose the first package"
+    }
+  ],
+  "claims": [
+    {
+      "id": "packages-table-present",
+      "type": "element-present",
+      "statement": "The packages table is present.",
+      "tier": "aspirational",
+      "elements": [
+        "packages-table"
+      ]
+    },
+    {
+      "id": "packages-affordances",
+      "type": "affordance-present",
+      "statement": "The table offers search, filter by state and scenario, and sort by build time.",
+      "tier": "aspirational",
+      "elements": [
+        "packages-table"
+      ],
+      "params": {
+        "affordances": [
+          "search",
+          "filter",
+          "sort"
+        ],
+        "targetRole": "table"
+      }
+    },
+    {
+      "id": "ladder-position-visible",
+      "type": "element-present",
+      "statement": "Every row shows the package's gate ladder position.",
+      "tier": "aspirational",
+      "elements": [
+        "ladder-position"
+      ]
+    },
+    {
+      "id": "empty-names-next-action",
+      "type": "state-covered",
+      "statement": "The empty state names the command that composes a first package.",
+      "tier": "aspirational",
+      "elements": [
+        "empty-explainer"
+      ],
+      "states": [
+        "empty"
+      ]
+    },
+    {
+      "id": "state-badge-not-color-only",
+      "type": "element-present",
+      "statement": "Package state is conveyed by text as well as color.",
+      "tier": "aspirational",
+      "elements": [
+        "package-state-badge"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "packages-table": {
+        "testid": "packages-table"
+      },
+      "package-row": {
+        "testid": "package-row"
+      },
+      "ladder-position": {
+        "testid": "ladder-position"
+      },
+      "package-state-badge": {
+        "testid": "package-state-badge"
+      },
+      "package-search": {
+        "testid": "package-search"
+      },
+      "state-filter": {
+        "testid": "state-filter"
+      },
+      "scenario-filter": {
+        "testid": "scenario-filter"
+      },
+      "sort-built-at": {
+        "testid": "sort-built-at"
+      },
+      "empty-explainer": {
+        "testid": "empty-explainer"
+      }
+    }
+  }
+}

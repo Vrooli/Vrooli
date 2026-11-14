@@ -1,0 +1,23 @@
+{
+  "background_color": "#f8fafc",
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
+  "description": "Configure Vrooli scenarios, resources, credentials, and host safeguards.",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any maskable",
+      "sizes": "512x512",
+      "src": "logo.webp",
+      "type": "image/webp"
+    }
+  ],
+  "id": "/vrooli-onboarding",
+  "name": "Vrooli Onboarding",
+  "scope": "../",
+  "short_name": "Vrooli",
+  "start_url": "../",
+  "theme_color": "#f8fafc"
+}

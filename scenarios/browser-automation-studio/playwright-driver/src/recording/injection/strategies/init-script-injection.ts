@@ -23,7 +23,7 @@
  *
  * - When you need per-page script customization
  * - When debugging injection (CDP offers more visibility)
- * - Standard Playwright where route-injection is proven to work
+ * - Browser contexts that support context.addInitScript()
  *
  * ## Technical Details
  *
@@ -303,20 +303,7 @@ export class InitScriptInjectionStrategy implements InjectionStrategy {
     return Promise.resolve();
   }
 
-  /**
-   * Check if this strategy supports a given provider.
-   *
-   * Init-script strategy works with all Playwright providers including
-   * rebrowser-playwright. It's the RECOMMENDED strategy for rebrowser.
-   *
-   * @param _providerName - Name of the provider
-   * @returns Always true - works with all providers
-   */
-  supportsProvider(_providerName: string): boolean {
-    // init-script works with all providers
-    // It's the RECOMMENDED strategy for rebrowser-playwright
-    return true;
-  }
+
 }
 
 /**

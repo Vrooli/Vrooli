@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import { ScenarioNavigatorPopover } from "./ScenarioNavigatorPopover";
 import { selectors } from "../../consts/selectors";
 import type { CrossItemQuestion } from "../../lib/command-post-utils";
@@ -85,8 +86,8 @@ describe("ScenarioNavigatorPopover", () => {
   };
 
   it("renders nothing when closed", () => {
-    const { container } = render(<ScenarioNavigatorPopover {...defaultProps} isOpen={false} />);
-    expect(container.innerHTML).toBe("");
+    render(<ScenarioNavigatorPopover {...defaultProps} isOpen={false} />);
+    expect(screen.queryByTestId(selectors.commandPost.decisionStream.navigatorPopover)).not.toBeInTheDocument();
   });
 
   it("renders parent items with correct counts", () => {
@@ -109,7 +110,7 @@ describe("ScenarioNavigatorPopover", () => {
 
   it("shows correct answered count when answers exist", () => {
     const answers = new Map<string, QuestionAnswer>();
-    answers.set("dash-q0", { selected: "A" });
+    answers.set("dash-q0", { selected: "A", reviewStatus: "approved" });
 
     render(
       <ScenarioNavigatorPopover

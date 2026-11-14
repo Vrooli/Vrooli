@@ -1,0 +1,327 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "business-health.intent",
+      "lifecycle": "production",
+      "provider_group": "business-health",
+      "bucket": "BUCKET_STATE",
+      "type": "requirements",
+      "description": "Fleet-wide intent corpus: every scenario's PRD purpose, operational targets, and requirements, semantically searchable. Routes: 'which scenario provides capability X / where should I build Y' (answer-space cell #34) and 'what is scenario Y supposed to deliver / why does it exist' (cell #22 — POINTER-ONLY: results are anchors into PRD.md/requirements files, never synthesized rationale). Supersedes the product-manager-agent.requirements capability-gap stub.",
+      "routing_profile": {
+        "answer_spaces": ["capability_catalog", "scenario_purpose", "requirements", "operational_target"],
+        "intents": ["choose_capability", "identify_owner", "understand_purpose", "locate_requirement"],
+        "positive_examples": ["which scenario provides this capability", "where should I build this feature", "what is this scenario supposed to deliver"],
+        "exclusions": ["source implementation", "service contract declaration", "runtime workflow evidence"]
+      },
+      "scope": "SCOPE_PROJECT",
+      "class": "local_index",
+      "index_timestamp_field": "lastReconcileAt",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "business-health",
+          "path": "/vrooli.business_health.v1.search.SearchService/Search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"mode\":\"MODE_AI\"}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "business-health",
+          "path": "/vrooli.business_health.v1.search.SearchService/Status",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "snippet",
+        "path_field": "anchor",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "reindex_endpoint": {
+        "http_json": {
+          "scenario_id": "business-health",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/Reindex",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"scope\":\"{{scope}}\",\"dry_run\":false}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "config_endpoint": {
+        "http_json": {
+          "scenario_id": "business-health",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/WriteConfig",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "rerank_enabled": true,
+        "rerank_blend": true,
+        "rerank_shortlist": 50,
+        "floor": {
+          "max_gap": 0,
+          "hard_floor": 0
+        }
+      },
+      "scoring": {
+        "recall_at": 5,
+        "recall_target": 0.8,
+        "mrr_at": 3,
+        "deep_k": 50
+      },
+      "performance": {
+        "p95_ms": 1500,
+        "degraded_rate_max": 0.05,
+        "telemetry_required": true,
+        "minimum_samples": 8
+      },
+      "tests": {
+        "name": "business-health intent — primary golden corpus",
+        "description": "RANK-CENTRIC golden corpus for the fleet intent index. Positive cases assert expect_ids (corpus record ids: '\u003cscenario\u003e/prd' for purpose docs, '\u003cscenario\u003e/\u003cOT-ID\u003e' for targets, '\u003cscenario\u003e/\u003cREQ-ID\u003e' for requirements) within expect_within_top_k. No absolute score bands on positives (rank-centric across score regimes). Gibberish negatives feed the junk-rejection constraint. Two phrasings families: capability-dedup ('which scenario handles X' — cell #34) and intent ('what is Y supposed to deliver' — cell #22).",
+        "cases": [
+          {
+            "id": "capability-image-processing",
+            "query": "which scenario resizes converts and edits images",
+            "tags": [
+              "strong",
+              "capability"
+            ],
+            "expect_ids": [
+              "image-tools/prd",
+              "image-tools/OT-P0-001"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Capability cell #34's answer is the SCENARIO: any of its strong intent docs (purpose or OT/requirement) within top-k counts; ids observed live 2026-07-02."
+          },
+          {
+            "id": "capability-cli-command-search",
+            "query": "which scenario indexes and searches CLI commands across the fleet",
+            "tags": [
+              "strong",
+              "capability"
+            ],
+            "expect_ids": [
+              "cli-health/prd",
+              "cli-health/OT-P2-001",
+              "cli-health/REQ-P0-004"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Capability cell #34's answer is the SCENARIO: any of its strong intent docs (purpose or OT/requirement) within top-k counts; ids observed live 2026-07-02."
+          },
+          {
+            "id": "capability-proto-validation",
+            "query": "which scenario validates protobuf contracts and annotations",
+            "tags": [
+              "strong",
+              "capability"
+            ],
+            "expect_ids": [
+              "proto-health/prd",
+              "proto-health/OT-P0-003"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Capability cell #34's answer is the SCENARIO: any of its strong intent docs (purpose or OT/requirement) within top-k counts; ids observed live 2026-07-02."
+          },
+          {
+            "id": "capability-business-contract",
+            "query": "which scenario validates PRD and requirements registries",
+            "tags": [
+              "strong",
+              "capability"
+            ],
+            "expect_ids": [
+              "business-health/prd",
+              "business-health/OT-P0-001"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Capability cell #34's answer is the SCENARIO: any of its strong intent docs (purpose or OT/requirement) within top-k counts; ids observed live 2026-07-02."
+          },
+          {
+            "id": "capability-speech-to-text",
+            "query": "where should I build speech to text transcription features",
+            "tags": [
+              "hard",
+              "capability"
+            ],
+            "expect_ids": [
+              "audio-tools/prd",
+              "audio-tools/OT-P0-001"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Capability cell #34's answer is the SCENARIO: any of its strong intent docs (purpose or OT/requirement) within top-k counts; ids observed live 2026-07-02."
+          },
+          {
+            "id": "capability-suite-runner",
+            "query": "which scenario runs the test suites and phases for every scenario",
+            "tags": [
+              "weak-real",
+              "capability"
+            ],
+            "expect_ids": [
+              "test-genie/prd",
+              "test-genie/OT-P0-001"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Capability cell #34's answer is the SCENARIO: any of its strong intent docs (purpose or OT/requirement) within top-k counts; ids observed live 2026-07-02."
+          },
+          {
+            "id": "intent-business-health-delivery",
+            "query": "what is business-health supposed to deliver",
+            "tags": [
+              "strong",
+              "intent"
+            ],
+            "expect_ids": [
+              "business-health/prd"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "intent-web-console-purpose",
+            "query": "why does the web console scenario exist and what does it promise",
+            "tags": [
+              "hard",
+              "intent"
+            ],
+            "expect_ids": [
+              "web-console/prd"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "intent-traceability-matrix",
+            "query": "traceability matrix joining operational targets requirements and evidence",
+            "tags": [
+              "strong",
+              "intent"
+            ],
+            "expect_ids": [
+              "business-health/OT-P1-001"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "intent-deterministic-wizard",
+            "query": "deterministic interview wizard that scaffolds a PRD and requirements skeleton",
+            "tags": [
+              "strong",
+              "intent"
+            ],
+            "expect_ids": [
+              "business-health/OT-P0-004"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "intent-search-hub-federation",
+            "query": "what does search-hub promise about federated provider routing",
+            "tags": [
+              "weak-real",
+              "intent"
+            ],
+            "expect_ids": [
+              "search-hub/prd"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "intent-fleet-debt-ranking",
+            "query": "rank scenarios by business contract debt worst first",
+            "tags": [
+              "intent"
+            ],
+            "expect_ids": [
+              "business-health/OT-P1-002"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "junk-gibberish-1",
+            "query": "qwzx flurble grpnak vromblit",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_max_score": 0.3,
+            "expect_no_strong_hit": true
+          },
+          {
+            "id": "junk-gibberish-2",
+            "query": "asdfgh jkl zxcvbnm qwerty uiop",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_max_score": 0.3,
+            "expect_no_strong_hit": true
+          },
+          {
+            "id": "junk-gibberish-3",
+            "query": "purple monkey dishwasher lorem ipsum dolor",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_max_score": 0.3,
+            "expect_no_strong_hit": true
+          },
+          {
+            "id": "gen-intent-evidence-honesty",
+            "query": "detect checked off targets that have no passing evidence",
+            "status": "candidate",
+            "tags": [
+              "generated",
+              "type:intent/business-health"
+            ],
+            "expect_ids": [
+              "business-health/OT-P1-001"
+            ],
+            "expect_within_top_k": 5,
+            "note": "machine-generated by query inversion (review before trusting)"
+          }
+        ],
+        "coverage": {
+          "required_tag_groups": [
+            {
+              "id": "capability-routing",
+              "description": "Questions that identify which scenario owns a capability.",
+              "tags": [
+                "capability"
+              ],
+              "min_reviewed_positive": 4
+            },
+            {
+              "id": "intent-purpose",
+              "description": "Questions that retrieve scenario purpose, requirements, or operational targets.",
+              "tags": [
+                "intent"
+              ],
+              "min_reviewed_positive": 4
+            }
+          ]
+        },
+        "minimum": {
+          "reviewed_positive": 1,
+          "negative": 1
+        }
+      }
+    }
+  ]
+}

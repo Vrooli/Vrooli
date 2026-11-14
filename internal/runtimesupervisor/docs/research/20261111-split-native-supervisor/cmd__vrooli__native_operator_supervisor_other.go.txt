@@ -1,0 +1,11 @@
+//go:build !linux && !darwin && !windows
+
+package main
+
+import (
+	"os"
+
+	platform "github.com/vrooli/platform-go"
+)
+
+func protectNativeOperatorLifetime(*os.File) error { return platform.ErrUnsupported }

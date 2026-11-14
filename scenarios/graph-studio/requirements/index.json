@@ -107,7 +107,7 @@
       "validation": [
         {
           "type": "manual",
-          "ref": "initialization/postgres/schema.sql",
+          "ref": "api/internal/<domain>/schema.sql",
           "phase": "integration",
           "status": "implemented",
           "notes": "Schema includes graphs, graph_versions, graph_conversions tables"

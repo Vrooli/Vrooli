@@ -16,7 +16,7 @@ import {
 import { toast } from 'react-hot-toast';
 import ResponsiveDialog from '@shared/layout/ResponsiveDialog';
 import { useExportStore, type Export } from './store';
-import { getConfig } from '@/config';
+import { exportsClient } from '@/api/exports';
 import { selectors } from '@constants/selectors';
 import {
   formatFileSize,
@@ -123,29 +123,15 @@ export const ExportDetailsModal: React.FC<ExportDetailsModalProps> = ({
   const handleGenerateCaption = useCallback(async () => {
     setIsGeneratingCaption(true);
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/exports/${export_.id}/generate-caption`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (!response.ok) {
-        // If endpoint doesn't exist yet, use a placeholder caption
-        const placeholderCaption = `Check out this ${export_.format.toUpperCase()} replay of "${export_.name}"! Created with Vrooli Ascension.`;
-        setAiCaption(placeholderCaption);
-        await updateExport(export_.id, { aiCaption: placeholderCaption });
-        toast.success('Caption generated');
-        return;
-      }
-
-      const data: unknown = await response.json();
-      const caption =
-        data && typeof data === 'object' ? (data as Record<string, unknown>).caption : null;
-      if (typeof caption === 'string' && caption.length > 0) {
+      const res = await exportsClient.generateExportCaption({ id: export_.id });
+      const caption = res.caption;
+      if (caption.length > 0) {
         setAiCaption(caption);
         await updateExport(export_.id, { aiCaption: caption });
         toast.success('Caption generated');
+        return;
       }
+      throw new Error('Empty caption');
     } catch {
       // Fallback to placeholder
       const placeholderCaption = `Check out this ${export_.format.toUpperCase()} replay of "${export_.name}"! Created with Vrooli Ascension.`;

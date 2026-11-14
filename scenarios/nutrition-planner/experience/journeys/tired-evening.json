@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "tired-evening",
+    "title": "A tired evening",
+    "purpose": "Swap tonight's planned meal for something less effortful in a few taps, see the material effects, and keep groceries and leftovers coherent without changing permanent preferences.",
+    "prd_refs": [
+      "OT-P0-008",
+      "OT-P0-006",
+      "OT-P0-007",
+      "OT-P0-011",
+      "OT-P1-006"
+    ]
+  },
+  "steps": [
+    {
+      "page": "today",
+      "intent": "See tonight's meal and decide it is too much work.",
+      "via": "meal-hero"
+    },
+    {
+      "page": "today",
+      "state": "swap-open",
+      "intent": "Open Swap meal and pick Less effort to rerank alternatives.",
+      "via": "swap-reason-chips"
+    },
+    {
+      "page": "today",
+      "state": "swap-impact",
+      "intent": "Review the impact on leftovers and groceries before applying.",
+      "via": "impact-preview"
+    },
+    {
+      "page": "groceries",
+      "state": "plan-changed",
+      "intent": "See the grocery list reflect the swap as a reviewable change.",
+      "via": "plan-diff"
+    }
+  ],
+  "claims": [
+    {
+      "id": "reason-is-optional",
+      "type": "custom",
+      "statement": "The swap works without choosing a reason, and a missing-ingredient reason never becomes a permanent dislike.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "rules-hold-under-fatigue",
+      "type": "custom",
+      "statement": "Every offered alternative still satisfies the required rules.",
+      "tier": "aspirational"
+    }
+  ]
+}

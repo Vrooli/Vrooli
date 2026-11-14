@@ -1,0 +1,407 @@
+// Responsibility: retain cmd runs declarations within their original package.
+package main
+
+import (
+	"encoding/json"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"time"
+	"unicode/utf8"
+
+	"agent-manager/cli/internal/support"
+
+	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/vrooli/packages/proto/contracts"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/proto"
+)
+
+func (a *App) runAttach(args []string) error {
+	fs := flag.NewFlagSet("run attach", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	harnessKind := fs.String("harness-kind", "", "Stable harness kind, such as claude-code or codex")
+	harnessSessionID := fs.String("harness-session-id", "", "Harness-owned session identifier")
+	taskID := fs.String("task-id", "", "Optional task UUID to associate with the session")
+	processID := fs.Int("process-id", 0, "Optional harness process ID")
+	harnessTitle := fs.String("harness-title", "", "Optional title from harness transcript metadata")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*harnessKind) == "" || strings.TrimSpace(*harnessSessionID) == "" {
+		return fmt.Errorf("usage: agent-manager run attach --harness-kind kind --harness-session-id id [--task-id uuid] [--process-id pid] [--harness-title title]")
+	}
+	if *processID < 0 {
+		return fmt.Errorf("--process-id must be positive when provided")
+	}
+	req := &apipb.AttachRunRequest{
+		HarnessKind:      *harnessKind,
+		HarnessSessionId: *harnessSessionID,
+	}
+	if *taskID != "" {
+		req.TaskId = proto.String(*taskID)
+	}
+	if *processID > 0 {
+		value := int32(*processID)
+		req.ProcessId = &value
+	}
+	if *harnessTitle != "" {
+		req.HarnessTitle = proto.String(*harnessTitle)
+	}
+	body, response, err := a.services.Runs.Attach(req)
+	if err != nil {
+		return apiError(body, err)
+	}
+	if *jsonOutput || response == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	runID := ""
+	if response.Run != nil {
+		runID = response.Run.Id
+	}
+	fmt.Printf("Attached run: %s\nIdentity token: %s\n", runID, response.IdentityToken)
+	if response.ExpiresAt != nil {
+		fmt.Printf("Token expires: %s\n", response.ExpiresAt.AsTime().Format(time.RFC3339))
+	}
+	return nil
+}
+
+func (a *App) runDetach(args []string) error {
+	fs := flag.NewFlagSet("run detach", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	reason := fs.String("reason", "", "Optional operator reason for detaching the session")
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager run detach <id> [--reason text]")
+	}
+	body, response, err := a.services.Runs.Detach(id, *reason)
+	if err != nil {
+		return apiError(body, err)
+	}
+	if *jsonOutput || response == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	status := "terminal"
+	if response.Run != nil {
+		status = formatEnumValue(response.Run.Status, "RUN_STATUS_", "_")
+	}
+	fmt.Printf("Detached run: %s\nStatus: %s\n", id, status)
+	return nil
+}
+
+// =============================================================================
+// Run Create
+// =============================================================================
+
+func (a *App) runCreate(args []string) error {
+	fs := flag.NewFlagSet("run create", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	localOwner := fs.Bool("local-owner", false, "Explicit local human authentication; unavailable inside an agent session")
+	taskID := fs.String("task-id", "", "Task ID (required)")
+	profileID := fs.String("profile-id", "", "Agent profile ID (required)")
+	prompt := fs.String("prompt", "", "Optional override prompt")
+	runMode := fs.String("run-mode", "", "Run mode (sandboxed or in_place)")
+	executionMode := fs.String("execution-mode", "", "Execution mode (codec_pipe or interactive); interactive launches the real CLI in a live web-console session, supports sandbox tracking, and rejects protected sandbox mode")
+	forceInPlace := fs.Bool("force-in-place", false, "Force in-place execution")
+	idempotencyKey := fs.String("idempotency-key", "", "Idempotency key for safe retries")
+	existingSandboxID := fs.String("existing-sandbox-id", "", "Reuse an existing sandbox ID (sandboxed runs only)")
+	sandboxConfig := fs.String("sandbox-config", "", "Sandbox config JSON (proto JSON)")
+	sandboxConfigFile := fs.String("sandbox-config-file", "", "Path to sandbox config JSON")
+	sandboxRetentionMode := fs.String("sandbox-retention-mode", "", "Sandbox retention mode (keep_active, stop_on_terminal, delete_on_terminal)")
+	sandboxRetentionTTL := fs.String("sandbox-retention-ttl", "", "Sandbox retention TTL (e.g., 2h, 30m)")
+	resultSchema := fs.String("result-schema", "", "JSON Schema for the canonical structured result")
+	resultSchemaFile := fs.String("result-schema-file", "", "Path to a JSON Schema for the canonical structured result")
+	classify := fs.String("classify", "", "Comma-separated classification values (convenience ResultSpec)")
+	structuredExtraction := fs.Bool("structured-extraction", false, "Allow portable extract.structured fallback after deterministic parsing")
+	effort := fs.String("effort", "", "Reasoning effort (low, medium, high, xhigh, max)")
+	model := fs.String("model", "", "Per-run model override")
+	until := fs.String("until", "", "Engine-owned completion test for this run")
+	untilFile := fs.String("until-file", "", "Read the engine-owned completion test from a UTF-8 file (max 1 MiB)")
+	workloadKey := fs.String("workload-key", "", "Stable workload key for grouping repeated work")
+	workloadKind := fs.String("workload-kind", "", "Workload kind (workflow_node, scheduled, interactive, adhoc, imported)")
+	parentRunID := fs.String("parent-run-id", "", "Parent run ID for durable child lineage (the creating run's own ID; nesting is capped by runExecution.maxChildDepth)")
+	charter := fs.String("charter", "", "Absolute path of an existing charter file; the task prompt names it and asks the agent to re-read it at every unit start and after any compaction")
+	expectedOwnerSubject := fs.String("expected-owner-subject", "", "Refuse run identity credentials for a different verified owner")
+	var requestedScopes cliutil.StringList
+	fs.Var(&requestedScopes, "requested-scope", "Request a narrowed run identity scope; repeatable and never grants authority (for example, treasury:write)")
+	var targetInstances cliutil.StringList
+	fs.Var(&targetInstances, "target-instance", "Scenario instance this run changes, <scenario>@<instance> (repeatable); a quiesce of another instance skips the run")
+	maxWeightedTokens := fs.Int64("max-weighted-tokens", 0, "Observed weighted-token threshold; may only lower the profile limit; action depends on token-cap mode and usage reporting")
+
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	untilValue, err := readUntilInput(*until, *untilFile)
+	if err != nil {
+		return err
+	}
+
+	if *taskID == "" {
+		return fmt.Errorf("--task-id is required")
+	}
+	if *profileID == "" {
+		return fmt.Errorf("--profile-id is required")
+	}
+	for _, id := range []struct{ flag, value string }{{"--task-id", *taskID}, {"--profile-id", *profileID}, {"--parent-run-id", *parentRunID}} {
+		if err := requireUUIDFlag(id.flag, id.value); err != nil {
+			return err
+		}
+	}
+
+	req := &apipb.CreateRunRequest{
+		TaskId: *taskID,
+	}
+	if *parentRunID != "" {
+		req.ParentRunId = protoString(*parentRunID)
+	}
+	if *charter != "" {
+		if !filepath.IsAbs(*charter) {
+			return fmt.Errorf("--charter %q must be an absolute path", *charter)
+		}
+		req.CharterPath = protoString(*charter)
+	}
+	if len(requestedScopes.Values()) > 0 || strings.TrimSpace(*expectedOwnerSubject) != "" {
+		scopes := requestedScopes.Values()
+		for i, scope := range scopes {
+			scopes[i] = strings.TrimSpace(scope)
+			if scopes[i] == "" {
+				return fmt.Errorf("--requested-scope values must not be empty")
+			}
+		}
+		req.RequestedScopes = &apipb.RunIdentityScopeRequest{
+			Scopes: scopes, ExpectedOwnerSubject: strings.TrimSpace(*expectedOwnerSubject),
+		}
+	}
+	req.TargetInstances = targetInstances.Values()
+	if *maxWeightedTokens < 0 {
+		return fmt.Errorf("--max-weighted-tokens must be positive")
+	}
+	if *maxWeightedTokens > 0 {
+		if req.InlineConfig == nil {
+			req.InlineConfig = &domainpb.RunConfigOverrides{}
+		}
+		req.InlineConfig.MaxWeightedTokens = maxWeightedTokens
+	}
+	if *profileID != "" {
+		req.AgentProfileId = protoString(*profileID)
+	}
+	if *prompt != "" {
+		req.Prompt = protoString(*prompt)
+	}
+	if *idempotencyKey != "" {
+		req.IdempotencyKey = protoString(*idempotencyKey)
+	}
+	if *existingSandboxID != "" {
+		req.ExistingSandboxId = protoString(*existingSandboxID)
+	}
+	if *runMode != "" {
+		mode := parseRunMode(*runMode)
+		if mode == domainpb.RunMode_RUN_MODE_UNSPECIFIED {
+			return fmt.Errorf("invalid run mode: %s", *runMode)
+		}
+		req.RunMode = &mode
+	} else if *forceInPlace {
+		mode := domainpb.RunMode_RUN_MODE_IN_PLACE
+		req.RunMode = &mode
+	}
+	if *executionMode != "" {
+		mode := parseExecutionMode(*executionMode)
+		if mode == domainpb.ExecutionMode_EXECUTION_MODE_UNSPECIFIED {
+			return fmt.Errorf("invalid execution mode: %s (want codec_pipe or interactive)", *executionMode)
+		}
+		req.ExecutionMode = &mode
+	}
+	spec, err := parseResultSpec(*resultSchema, *resultSchemaFile, *classify, *structuredExtraction)
+	if err != nil {
+		return err
+	}
+	if spec != nil {
+		if req.InlineConfig == nil {
+			req.InlineConfig = &domainpb.RunConfigOverrides{}
+		}
+		req.InlineConfig.ResultSpec = spec
+	}
+	if *effort != "" {
+		if req.InlineConfig == nil {
+			req.InlineConfig = &domainpb.RunConfigOverrides{}
+		}
+		req.InlineConfig.Effort = protoString(*effort)
+	}
+	if *model != "" {
+		if req.InlineConfig == nil {
+			req.InlineConfig = &domainpb.RunConfigOverrides{}
+		}
+		req.InlineConfig.Model = protoString(*model)
+	}
+	if untilValue != "" {
+		if req.InlineConfig == nil {
+			req.InlineConfig = &domainpb.RunConfigOverrides{}
+		}
+		req.InlineConfig.Until = protoString(untilValue)
+	}
+	if *workloadKey != "" || *workloadKind != "" {
+		if req.Environment == nil {
+			req.Environment = map[string]string{}
+		}
+		if *workloadKey != "" {
+			req.Environment["VROOLI_WORKLOAD_KEY"] = *workloadKey
+		}
+		if *workloadKind != "" {
+			req.Environment["VROOLI_WORKLOAD_KIND"] = *workloadKind
+		}
+	}
+	if cfg, err := parseSandboxConfig(*sandboxConfig, *sandboxConfigFile); err != nil {
+		return err
+	} else {
+		cfg, err = applySandboxRetention(cfg, *sandboxRetentionMode, *sandboxRetentionTTL)
+		if err != nil {
+			return err
+		}
+		if cfg != nil {
+			if req.InlineConfig == nil {
+				req.InlineConfig = &domainpb.RunConfigOverrides{}
+			}
+			req.InlineConfig.SandboxConfig = cfg
+		}
+	}
+
+	service := a.services.Runs
+	if *localOwner {
+		ownerAPI, err := localOwnerAPIForResource(service.api, standingGrantResource)
+		if err != nil {
+			return err
+		}
+		service = &RunService{api: ownerAPI}
+	}
+	body, run, err := service.Create(req)
+	if err != nil {
+		return apiError(body, err)
+	}
+
+	if *jsonOutput || run == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	fmt.Printf("Created run: %s\n", run.Id)
+	fmt.Printf("Status: %s\n", formatEnumValue(run.Status, "RUN_STATUS_", "_"))
+	fmt.Printf("Phase: %s\n", formatEnumValue(run.Phase, "RUN_PHASE_", "_"))
+	fmt.Printf("Execution Mode: %s\n", formatEnumValue(run.ExecutionMode, "EXECUTION_MODE_", "_"))
+	if run.WebConsoleSessionId != "" {
+		fmt.Printf("Live Session: %s\n", run.WebConsoleSessionId)
+		if run.WebConsoleSessionUrl != "" {
+			fmt.Printf("Live Session URL: %s\n", run.WebConsoleSessionUrl)
+		}
+	}
+	return nil
+}
+
+func readUntilInput(inline, filePath string) (string, error) {
+	if inline != "" && filePath != "" {
+		return "", fmt.Errorf("--until and --until-file are mutually exclusive")
+	}
+	value := inline
+	if filePath != "" {
+		file, err := os.Open(filePath)
+		if err != nil {
+			return "", fmt.Errorf("read --until-file: %w", err)
+		}
+		defer file.Close()
+		content, err := io.ReadAll(io.LimitReader(file, int64(contracts.AgentManagerMaxGoalCompletionBytes)+1))
+		if err != nil {
+			return "", fmt.Errorf("read --until-file: %w", err)
+		}
+		if len(content) > contracts.AgentManagerMaxGoalCompletionBytes {
+			return "", fmt.Errorf("--until-file is %d bytes; maximum is %d UTF-8 bytes (1 MiB)", len(content), contracts.AgentManagerMaxGoalCompletionBytes)
+		}
+		value = string(content)
+	}
+	if !utf8.ValidString(value) {
+		return "", fmt.Errorf("completion test must be valid UTF-8")
+	}
+	if len(value) > contracts.AgentManagerMaxGoalCompletionBytes {
+		return "", fmt.Errorf("completion test is %d bytes; maximum is %d UTF-8 bytes (1 MiB)", len(value), contracts.AgentManagerMaxGoalCompletionBytes)
+	}
+	return value, nil
+}
+
+func parseResultSpec(schemaText, schemaFile, classification string, extraction bool) (*domainpb.ResultSpec, error) {
+	configured := 0
+	if strings.TrimSpace(schemaText) != "" {
+		configured++
+	}
+	if strings.TrimSpace(schemaFile) != "" {
+		configured++
+	}
+	if strings.TrimSpace(classification) != "" {
+		configured++
+	}
+	if configured == 0 {
+		return nil, nil
+	}
+	if configured > 1 {
+		return nil, fmt.Errorf("use exactly one of --result-schema, --result-schema-file, or --classify")
+	}
+	mode := domainpb.StructuredExtractionMode_STRUCTURED_EXTRACTION_MODE_DETERMINISTIC_ONLY
+	role := ""
+	if extraction {
+		mode = domainpb.StructuredExtractionMode_STRUCTURED_EXTRACTION_MODE_CONSTRAINED_FALLBACK
+		role = "extract.structured"
+	}
+	spec := &domainpb.ResultSpec{Version: "result-spec/v1", ExtractionMode: mode, ExtractionRole: role}
+	if strings.TrimSpace(classification) != "" {
+		spec.Kind = domainpb.ResultSpecKind_RESULT_SPEC_KIND_CLASSIFICATION
+		for _, value := range strings.Split(classification, ",") {
+			if value = strings.TrimSpace(value); value != "" {
+				spec.ClassificationValues = append(spec.ClassificationValues, value)
+			}
+		}
+		if len(spec.ClassificationValues) == 0 {
+			return nil, fmt.Errorf("--classify must contain at least one non-empty value")
+		}
+		return spec, nil
+	}
+	raw := []byte(schemaText)
+	if strings.TrimSpace(schemaFile) != "" {
+		var err error
+		raw, err = os.ReadFile(schemaFile)
+		if err != nil {
+			return nil, fmt.Errorf("read result schema: %w", err)
+		}
+	}
+	if !json.Valid(raw) {
+		return nil, fmt.Errorf("result schema is not valid JSON")
+	}
+	spec.Kind = domainpb.ResultSpecKind_RESULT_SPEC_KIND_JSON_SCHEMA
+	spec.Schema = raw
+	return spec, nil
+}
+
+// =============================================================================
+// Run Stop
+// =============================================================================
+
+var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+// requireUUIDFlag echoes the value it refuses, so a caller that copied an ID
+// wrong (for example dropped its last character) can see the difference.
+func requireUUIDFlag(flag, value string) error {
+	if value == "" || uuidPattern.MatchString(value) {
+		return nil
+	}
+	return fmt.Errorf("%s %q is not a UUID (%d characters; a UUID has 36 in 8-4-4-4-12 form); copy the ID exactly from the command that returned it", flag, value, len(value))
+}

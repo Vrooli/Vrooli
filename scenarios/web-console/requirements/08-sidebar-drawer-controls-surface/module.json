@@ -1,97 +1,99 @@
 {
-  "description": "Drawer exposes session/workspace status and core controls without blocking primary terminal workflow",
-  "module_id": "MOD-P0-008",
-  "prd_ref": "OT-P0-008",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-08-26T09:02:31-04:00"
+  },
   "requirements": [
     {
-      "category": "ui",
-      "children": ["REQ-P0-008b"],
-      "description": "Collapsible side drawer component slides in/out without disrupting terminal pane layout. Accessible via hamburger icon or keyboard shortcut.",
       "id": "REQ-P0-008a",
-      "prd_ref": "OT-P0-008",
-      "status": "passed",
       "title": "Drawer Layout Component",
-      "validation": [
-        {
-          "notes": "Drawer component module exports default function",
-          "phase": "unit",
-          "ref": "ui/src/__tests__/drawer.test.ts",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Drawer panel selector registered",
-          "phase": "unit",
-          "ref": "ui/src/__tests__/selectors.test.ts:exposes drawer panel selector",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Drawer open/close, backdrop, session list, empty state, ProviderHealthPanel integration",
-          "phase": "unit",
-          "ref": "ui/src/__tests__/session-drawer.test.tsx",
-          "status": "passing",
-          "type": "test"
-        }
-      ]
-    },
-    {
-      "category": "ui",
-      "children": ["REQ-P0-008b-i"],
-      "description": "Drawer displays active session list with status indicators, workspace controls, and session management actions (rename, terminate).",
-      "id": "REQ-P0-008b",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
-      "status": "passed",
-      "title": "Session Status and Controls",
+      "category": "ui",
+      "description": "Collapsible side drawer component slides in/out without disrupting terminal pane layout. Accessible via hamburger icon or keyboard shortcut.",
+      "children": [
+        "REQ-P0-008b"
+      ],
       "validation": [
         {
-          "notes": "Drawer displays session list with terminate controls and props interface",
+          "type": "test",
+          "ref": "ui/src/__tests__/workspace.test.tsx:opens and closes the mobile sidebar drawer",
           "phase": "unit",
-          "ref": "ui/src/__tests__/drawer.test.ts",
-          "status": "passing",
-          "type": "test"
+          "status": "failing",
+          "notes": "Drawer shell exposes dialog semantics, focus containment, backdrop close, and Escape close"
         },
         {
-          "notes": "Session time formatting for drawer display",
+          "type": "test",
+          "ref": "ui/src/__tests__/selectors.test.ts:exposes drawer panel selector",
           "phase": "unit",
-          "ref": "ui/src/__tests__/format.test.ts:formatSessionTime",
-          "status": "passing",
-          "type": "test"
+          "status": "failing",
+          "notes": "Drawer panel selector registered"
         },
         {
-          "notes": "Session rows rendering, selection, multiple sessions count, policy dropdown",
+          "type": "test",
+          "ref": "ui/src/__tests__/workspace.test.tsx",
           "phase": "unit",
-          "ref": "ui/src/__tests__/session-drawer.test.tsx",
-          "status": "passing",
-          "type": "test"
+          "status": "failing",
+          "notes": "Workspace covers sidebar drawer open/close, backdrop, and mobile session activation"
         }
       ]
     },
     {
+      "id": "REQ-P0-008b",
+      "title": "Session Status and Controls",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "ui",
+      "description": "Drawer displays active session list with status indicators, workspace controls, and session management actions (rename, terminate).",
+      "children": [
+        "REQ-P0-008b-i"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/session-sidebar.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Sidebar renders session rows, grouping, sorting, and its primary controls"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/format.test.ts:formatSessionTime",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Session time formatting for drawer display"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/session-management-section.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Session management renders rows and policy controls and invokes session actions"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-008b-i",
+      "title": "Session Action Feedback",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
       "category": "ui",
       "description": "Session terminate action provides visual feedback: confirmation state on first click, immediate deletion on second click.",
-      "id": "REQ-P0-008b-i",
-      "prd_ref": "OT-P0-008",
-      "status": "passed",
-      "title": "Session Action Feedback",
       "validation": [
         {
-          "notes": "Drawer session list with terminate controls",
+          "type": "test",
+          "ref": "ui/src/__tests__/session-management-section.test.tsx",
           "phase": "unit",
-          "ref": "ui/src/__tests__/drawer.test.ts",
-          "status": "passing",
-          "type": "test"
+          "status": "failing",
+          "notes": "Session management exposes an explicit remove action per pane"
         },
         {
-          "notes": "Double-click delete confirmation pattern, title change on arm",
+          "type": "test",
+          "ref": "ui/src/__tests__/terminal-context-menu.test.tsx",
           "phase": "unit",
-          "ref": "ui/src/__tests__/session-drawer.test.tsx",
-          "status": "passing",
-          "type": "test"
+          "status": "failing",
+          "notes": "Terminal context menu tests cover confirmation-backed destructive actions"
         }
       ]
     }
-  ],
-  "title": "Sidebar/Drawer Controls Surface"
+  ]
 }

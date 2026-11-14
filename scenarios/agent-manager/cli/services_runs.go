@@ -1,0 +1,536 @@
+// Responsibility: retain services declarations within their original package.
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/url"
+	"time"
+
+	"github.com/vrooli/cli-core/cliutil"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+// RunService handles run-related API operations.
+type RunService struct {
+	api *cliutil.APIClient
+}
+
+// RunListFilter is the server-side filter set of `run list`. Empty fields
+// are omitted.
+type RunListFilter struct {
+	Limit, Offset                                             int
+	TaskID, ProfileID, Status, TagPrefix, Origin, ParentRunID string
+}
+
+// List retrieves runs with optional filters.
+func (s *RunService) List(filter RunListFilter) ([]byte, []*domainpb.Run, error) {
+	query := url.Values{}
+	if filter.Limit > 0 {
+		query.Set("limit", fmt.Sprintf("%d", filter.Limit))
+	}
+	if filter.Offset > 0 {
+		query.Set("offset", fmt.Sprintf("%d", filter.Offset))
+	}
+	for key, value := range map[string]string{
+		"taskId": filter.TaskID, "profileId": filter.ProfileID, "status": filter.Status,
+		"tagPrefix": filter.TagPrefix, "origin": filter.Origin, "parentRunId": filter.ParentRunID,
+	} {
+		if value != "" {
+			query.Set(key, value)
+		}
+	}
+
+	body, err := s.api.Get("/api/v1/runs", query)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.ListRunsResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, fmt.Errorf("decode Agent Manager run list response: %w", err)
+	}
+	return body, resp.Runs, nil
+}
+
+// ListChildren lists the direct child runs of one parent run.
+func (s *RunService) ListChildren(parentID string, limit int) ([]byte, []*domainpb.Run, error) {
+	return s.List(RunListFilter{ParentRunID: parentID, Limit: limit})
+}
+
+// Wait blocks server-side until one run settles or timeout elapses. The
+// transport deadline is the server bound plus a margin, never the ordinary
+// CLI request timeout.
+func (s *RunService) Wait(id string, timeout time.Duration) (*apipb.WaitRunResponse, error) {
+	_, response, err := typedRPC[apipb.WaitRunResponse](s.api.WithTimeout(timeout+waitTransportMargin), apiconnect.AgentManagerServiceWaitRunProcedure,
+		&apipb.WaitRunRequest{RunId: id, TimeoutSeconds: int32(timeout / time.Second)})
+	return response, err
+}
+
+// WaitChildren blocks server-side until a direct child of parentID settles at
+// or after since (the call's start when zero), no child is live, or timeout
+// elapses.
+func (s *RunService) WaitChildren(parentID string, since time.Time, timeout time.Duration) (*apipb.WaitRunChildrenResponse, error) {
+	request := &apipb.WaitRunChildrenRequest{ParentRunId: parentID, TimeoutSeconds: int32(timeout / time.Second)}
+	if !since.IsZero() {
+		request.Since = timestamppb.New(since)
+	}
+	_, response, err := typedRPC[apipb.WaitRunChildrenResponse](s.api.WithTimeout(timeout+waitTransportMargin), apiconnect.AgentManagerServiceWaitRunChildrenProcedure, request)
+	return response, err
+}
+
+// Tree reads one run and its descendants.
+func (s *RunService) Tree(id string) ([]byte, *apipb.RunTree, error) {
+	return typedRPC[apipb.RunTree](s.api, apiconnect.AgentManagerServiceGetRunTreeProcedure, &apipb.GetRunTreeRequest{RunId: id})
+}
+
+// waitTransportMargin lets a bounded server-side wait return its own timed-out
+// answer before the client transport gives up.
+const waitTransportMargin = 30 * time.Second
+
+// Accounting reads one run's metered usage, including non-cache tokens.
+func (s *RunService) Accounting(id string) (*apipb.RunAccounting, error) {
+	_, accounting, err := typedRPC[apipb.RunAccounting](s.api, apiconnect.AgentManagerServiceGetRunAccountingProcedure, &apipb.GetRunAccountingRequest{RunId: id})
+	return accounting, err
+}
+
+// Get retrieves a single run by ID.
+func (s *RunService) Get(id string) ([]byte, *domainpb.Run, error) {
+	body, err := s.api.Get("/api/v1/runs/"+id, nil)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.GetRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, resp.Run, nil
+}
+
+// Attach registers an operator-started harness session and returns its
+// scoped, one-time identity token.
+func (s *RunService) Attach(req *apipb.AttachRunRequest) ([]byte, *apipb.AttachRunResponse, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/attach", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+	var resp apipb.AttachRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
+// Detach closes an attached harness session without terminating its process.
+func (s *RunService) Detach(id, reason string) ([]byte, *apipb.DetachRunResponse, error) {
+	req := &apipb.DetachRunRequest{RunId: id}
+	if reason != "" {
+		req.Reason = proto.String(reason)
+	}
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/detach", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+	var resp apipb.DetachRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
+// GetReport retrieves the bounded shared run-report projection.
+func (s *RunService) GetReport(id string) ([]byte, error) {
+	return s.api.Get("/api/v1/runs/"+id+"/report", nil)
+}
+
+// Durability retrieves the evidence-bounded durability projection for one run.
+func (s *RunService) Durability(id string) ([]byte, error) {
+	return s.api.Get("/api/v1/runs/"+id+"/durability", nil)
+}
+
+// GetReceipts retrieves platform observations for one run.
+func (s *RunService) GetReceipts(id string) ([]byte, error) {
+	return s.api.Get("/api/v1/runs/"+id+"/observed-receipts", nil)
+}
+
+// Create creates a new run.
+func (s *RunService) Create(req *apipb.CreateRunRequest) ([]byte, *domainpb.Run, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.CreateRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, resp.Run, nil
+}
+
+// Stop stops a running execution.
+func (s *RunService) Stop(id string) ([]byte, *apipb.StopRunResponse, error) {
+	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/stop", nil, nil)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.StopRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
+// GetByTag retrieves a run by its custom tag.
+func (s *RunService) GetByTag(tag string) ([]byte, *domainpb.Run, error) {
+	body, err := s.api.Get("/api/v1/runs/tag/"+tag, nil)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.GetRunByTagResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, resp.Run, nil
+}
+
+// StopByTag stops a run identified by its custom tag.
+func (s *RunService) StopByTag(tag string) ([]byte, *apipb.StopRunByTagResponse, error) {
+	body, err := s.api.Request("POST", "/api/v1/runs/tag/"+tag+"/stop", nil, nil)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.StopRunByTagResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
+// StopAll stops all running runs, optionally filtered by tag prefix.
+func (s *RunService) StopAll(req *apipb.StopAllRunsRequest) ([]byte, *domainpb.StopAllResult, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/stop-all", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.StopAllRunsResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, resp.Result, nil
+}
+
+// Quiesce drains in-flight runs targeting a scenario so a Baseline Modes promote
+// can re-point and restart its live instance (Baseline Modes P6).
+func (s *RunService) Quiesce(req *apipb.QuiesceScenarioRequest) ([]byte, *apipb.QuiesceResult, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	// The owner enforces the requested drain timeout (five minutes by default).
+	// Reuse the same request-local wait transport as workflow execution-wait.
+	body, err := s.api.WithoutTimeout().Request("POST", "/api/v1/runs/quiesce", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.QuiesceScenarioResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, resp.Result, nil
+}
+
+// Approve approves a run.
+func (s *RunService) Approve(id string, req *apipb.ApproveRunRequest) ([]byte, *domainpb.ApproveResult, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/approve", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.ApproveRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, resp.Result, nil
+}
+
+// Reject rejects a run.
+func (s *RunService) Reject(id string, req *apipb.RejectRunRequest) ([]byte, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	return s.api.Request("POST", "/api/v1/runs/"+id+"/reject", nil, payload)
+}
+
+// GetDiff retrieves the diff for a run.
+func (s *RunService) GetDiff(id string) ([]byte, *domainpb.RunDiff, error) {
+	body, err := s.api.Get("/api/v1/runs/"+id+"/diff", nil)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.GetRunDiffResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, resp.Diff, nil
+}
+
+// GetEvents retrieves events for a run.
+func (s *RunService) GetEvents(id string, limit int, afterSequence *int64) ([]byte, []*domainpb.RunEvent, error) {
+	body, response, err := s.getEventResponse(id, limit, afterSequence, false, "decode run events response")
+	if err != nil {
+		return body, nil, err
+	}
+	return body, response.GetEvents(), nil
+}
+
+// GetEventPage retrieves one bounded event page and preserves its cursor
+// metadata for callers that need to continue through a selected sequence range.
+func (s *RunService) GetEventPage(id string, limit int, afterSequence *int64) (*apipb.GetRunEventsResponse, error) {
+	_, response, err := s.getEventResponse(id, limit, afterSequence, false, "decode run event page")
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+// GetEventSummary retrieves the retained-row summary without event payloads.
+func (s *RunService) GetEventSummary(id string, limit int, afterSequence *int64) (*apipb.GetRunEventsResponse, error) {
+	_, response, err := s.getEventResponse(id, limit, afterSequence, true, "decode run event summary response")
+	if err != nil {
+		return nil, err
+	}
+	if response.Summary == nil || len(response.Events) != 0 {
+		return nil, fmt.Errorf("agent-manager API did not return the requested payload-free event summary; update the API before using --stats")
+	}
+	return response, nil
+}
+
+func (s *RunService) getEventResponse(id string, limit int, afterSequence *int64, summary bool, decodeContext string) ([]byte, *apipb.GetRunEventsResponse, error) {
+	body, err := s.api.Get("/api/v1/runs/"+id+"/events", runEventsQuery(limit, afterSequence, summary))
+	if err != nil {
+		return body, nil, err
+	}
+	response := &apipb.GetRunEventsResponse{}
+	if err := unmarshalProtoResponse(body, response); err != nil {
+		return body, nil, fmt.Errorf("%s: %w", decodeContext, err)
+	}
+	return body, response, nil
+}
+
+func runEventsQuery(limit int, afterSequence *int64, summary bool) url.Values {
+	query := url.Values{}
+	if limit > 0 {
+		query.Set("limit", fmt.Sprintf("%d", limit))
+	}
+	if afterSequence != nil {
+		query.Set("after_sequence", fmt.Sprintf("%d", *afterSequence))
+	}
+	if summary {
+		query.Set("summary_only", "true")
+	}
+	return query
+}
+
+// Delete removes a run.
+func (s *RunService) Delete(id string) error {
+	_, err := s.api.Request("DELETE", "/api/v1/runs/"+id, nil, nil)
+	return err
+}
+
+// Continue continues an existing run with a follow-up message.
+func (s *RunService) Continue(id string, req *domainpb.ContinueRunRequest) ([]byte, *domainpb.Run, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/continue", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp domainpb.ContinueRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, resp.Run, nil
+}
+
+// Park parks a run on externally-owned async work (durable park/resume).
+func (s *RunService) Park(id string, req *domainpb.ParkRunRequest) ([]byte, *domainpb.ParkRunResponse, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/park", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp domainpb.ParkRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
+// Wake wakes a parked run with a result (ops/manual recovery).
+func (s *RunService) Wake(id string, req *domainpb.WakeRunRequest) ([]byte, *domainpb.WakeRunResponse, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/wake", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp domainpb.WakeRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
+// WakeByKey wakes every run parked on one producer/key await handle and
+// returns the IDs the server moved from parked to running.
+func (s *RunService) WakeByKey(req *domainpb.WakeParkedRunsRequest) ([]string, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/wake-by-key", nil, payload)
+	if err != nil {
+		return nil, err
+	}
+	var resp domainpb.WakeParkedRunsResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return nil, err
+	}
+	return resp.GetWokenRunIds(), nil
+}
+
+// AwaitResult fetches a run's most recently resolved await result (the
+// non-blocking re-fetch path). Pure read; never parks.
+func (s *RunService) AwaitResult(id string) ([]byte, *domainpb.GetAwaitResultResponse, error) {
+	body, err := s.api.Request("GET", "/api/v1/runs/"+id+"/await-result", nil, nil)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp domainpb.GetAwaitResultResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
+func (s *RunService) Recover(id string, selected ...*apipb.RecoverRunRequest) ([]byte, *apipb.RecoverRunResponse, error) {
+	var payload any
+	if len(selected) > 0 {
+		if len(selected) != 1 {
+			return nil, nil, fmt.Errorf("one recovery selection is required")
+		}
+		encoded, err := marshalProtoRequest(selected[0])
+		if err != nil {
+			return nil, nil, err
+		}
+		payload = encoded
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/recover", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.RecoverRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
+func (s *RunService) InvocationFacts(id string) ([]byte, error) {
+	return s.api.Request("GET", "/api/v1/runs/"+id+"/invocation-facts", nil, nil)
+}
+
+func (s *RunService) ImportSessionCorpus(payload []byte) ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/runs/import-session-corpus", nil, payload)
+}
+
+func (s *RunService) BackfillLabels() ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/runs/backfill-labels", nil, nil)
+}
+
+func (s *RunService) BackfillSubjects() ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/runs/backfill-subjects", nil, nil)
+}
+
+// importSweepTimeout bounds the on-demand sweep generously. A sweep re-reads
+// every governed harness transcript — measured at ~90s over ~4.9k files — so
+// the CLI default would abort it partway and report a transport failure for
+// work the server was completing normally.
+const importSweepTimeout = 15 * time.Minute
+
+// ImportSweep runs the scheduled importer's sweep now. It is idempotent, so a
+// caller diagnosing a stale corpus can repeat it safely.
+func (s *RunService) ImportSweep() ([]byte, error) {
+	return s.api.WithTimeout(importSweepTimeout).Request("POST", "/api/v1/runs/import-sweep", nil, nil)
+}
+
+func (s *RunService) ReplayInvocationCorpus(values url.Values) ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/runs/invocation-facts/replay", values, nil)
+}
+
+// InvestigationApply creates a run that applies investigation recommendations.
+func (s *RunService) InvestigationApply(req json.RawMessage) ([]byte, *domainpb.Run, error) {
+	body, err := s.api.Request("POST", "/api/v1/runs/investigation-apply", nil, req)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.CreateRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, resp.Run, nil
+}
+
+// SandboxSync syncs run state from a sandbox.
+func (s *RunService) SandboxSync(id string, req json.RawMessage) ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/runs/"+id+"/sandbox-sync", nil, req)
+}
+
+// =============================================================================
+// Runner Service
+// =============================================================================

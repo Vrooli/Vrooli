@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:Button",
+  "version": "2.2.12",
+  "resolvedAt": "2026-09-10T03:12:18Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ControlBase",
+      "major": 1,
+      "observed": "1.1.5",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:Icon",
+      "major": 1,
+      "observed": "1.1.6",
+      "rank": 3
+    },
+    {
+      "libraryId": "react-component-library:Pressable",
+      "major": 1,
+      "observed": "1.0.4",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    }
+  ]
+}

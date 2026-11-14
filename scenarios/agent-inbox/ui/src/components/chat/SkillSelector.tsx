@@ -94,7 +94,9 @@ export function SkillSelector({
   const skillsByCategory = useMemo(() => {
     const grouped = new Map<string, Skill[]>();
     for (const skill of displaySkills) {
-      const category = skill.modes?.[0] || skill.category || "Other";
+      const skillRecord = skill as unknown as Record<string, unknown>;
+      const legacyCategory = typeof skillRecord.category === "string" ? skillRecord.category : undefined;
+      const category = skill.modes?.[0] || legacyCategory || "Other";
       const categorySkills = grouped.get(category) ?? [];
       if (!grouped.has(category)) grouped.set(category, categorySkills);
       categorySkills.push(skill);
@@ -143,7 +145,10 @@ export function SkillSelector({
           if (focusedIndex >= 0) {
             e.preventDefault();
             const skill = skillsWithIndices.find((s) => s.index === focusedIndex)?.skill;
-            if (skill) { focusedElement === "preview" ? setPreviewSkill(skill) : onToggle(skill.id); }
+            if (skill) {
+              if (focusedElement === "preview") setPreviewSkill(skill);
+              else onToggle(skill.id);
+            }
           }
           break;
         case "Escape": if (focusedElement === "preview") { e.preventDefault(); setFocusedElement("skill"); } break;
@@ -155,8 +160,8 @@ export function SkillSelector({
   useEffect(() => {
     if (!open) return;
     if (focusedIndex === -1) { searchInputRef.current?.focus(); }
-    else if (focusedElement === "preview" && previewRefs.current[focusedIndex]) { previewRefs.current[focusedIndex]?.focus(); }
-    else if (skillRefs.current[focusedIndex]) { skillRefs.current[focusedIndex]?.focus(); skillRefs.current[focusedIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+    else if (focusedElement === "preview" && previewRefs.current[focusedIndex]) { previewRefs.current[focusedIndex].focus(); }
+    else if (skillRefs.current[focusedIndex]) { skillRefs.current[focusedIndex].focus(); skillRefs.current[focusedIndex].scrollIntoView({ block: "nearest", behavior: "smooth" }); }
   }, [focusedIndex, focusedElement, open]);
 
   const handleCreateSkill = useCallback(async (skillData: Omit<Skill, "id" | "createdAt" | "updatedAt">) => {
@@ -176,7 +181,7 @@ export function SkillSelector({
           </div>
           <div className="flex items-center gap-1">
             {onSyncSkills && (
-              <button onClick={onSyncSkills} disabled={isSyncing} className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors disabled:opacity-50" title="Sync skills from prompt-manager">
+              <button onClick={() => { void onSyncSkills(); }} disabled={isSyncing} className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors disabled:opacity-50" title="Sync skills from prompt-manager">
                 <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
               </button>
             )}
@@ -221,7 +226,7 @@ export function SkillSelector({
                   <div className="space-y-2">
                     <p>No skills available</p>
                     {onSyncSkills && (
-                      <button onClick={onSyncSkills} disabled={isSyncing} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors disabled:opacity-50">
+                      <button onClick={() => { void onSyncSkills(); }} disabled={isSyncing} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors disabled:opacity-50">
                         <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? "animate-spin" : ""}`} />
                         {isSyncing ? "Syncing..." : "Sync from prompt-manager"}
                       </button>
@@ -274,20 +279,22 @@ export function SkillSelector({
         skill={previewSkill || undefined}
         readOnly={previewReadOnly}
         onEdit={() => setPreviewReadOnly(false)}
-        onSave={async (skillData) => {
+        onSave={(skillData) => {
           if (!previewSkill) return;
-          try {
-            const { updateSkill } = await import("@/data/skills");
-            await updateSkill(previewSkill.id, skillData);
-            onSkillCreated?.();
-          } catch (error) { console.error("Failed to update skill:", error); }
+          void (async () => {
+            try {
+              const { updateSkill } = await import("@/data/skills");
+              await updateSkill(previewSkill.id, skillData);
+              onSkillCreated?.();
+            } catch (error) { console.error("Failed to update skill:", error); }
+          })();
         }}
       />
 
       <SkillEditorModal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onSave={handleCreateSkill}
+        onSave={(skillData) => { void handleCreateSkill(skillData); }}
       />
     </>
   );

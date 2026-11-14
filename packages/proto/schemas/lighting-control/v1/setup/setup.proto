@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package vrooli.lighting_control.v1.setup;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/lighting-control/v1/setup;setup";
+
+enum InstallationSource {
+  INSTALLATION_SOURCE_UNSPECIFIED = 0;
+  INSTALLATION_SOURCE_MANAGED = 1;
+  INSTALLATION_SOURCE_EXISTING = 2;
+}
+
+message LightingSelection {
+  InstallationSource source = 1 [(buf.validate.field).enum.defined_only = true];
+  string version = 2 [(buf.validate.field).string.max_len = 64];
+  string sha256 = 3 [(buf.validate.field).string.max_len = 64];
+  string device_policy_id = 4 [(buf.validate.field).string.max_len = 128];
+}
+
+message GetSetupStatusRequest {}
+message SetupLightingRequest {
+  LightingSelection selection = 1 [(buf.validate.field).required = true];
+}
+message EnableLightingRequest {
+  LightingSelection selection = 1 [(buf.validate.field).required = true];
+}
+message DisableLightingRequest {}
+
+// Explicit discovery is separate from disabled status and never provisions access.
+message GetSetupDevicesRequest {}
+message LightingDeviceCandidate { string id = 1; string label = 2; string kind = 3; string detail = 4; bool selected = 5; }
+message LightingDeviceDiscovery { repeated LightingDeviceCandidate candidates = 1; string state = 2; string message = 3; }
+message PlanLightingDevicesRequest {
+ repeated string device_ids = 1 [(buf.validate.field).repeated = {max_items: 32, unique: true, items: {string: {min_len: 1, max_len: 128}}}];
+}
+message LightingDevicePlan { string id = 1; repeated LightingDeviceCandidate devices = 2; repeated string changes = 3; repeated string warnings = 4; bool requires_privilege = 5; string message = 6; }
+message ApplyLightingDevicesRequest { string plan_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 128}]; }
+message RollbackLightingDevicesRequest { string plan_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 128}]; }
+message LightingDeviceAccessResult { string state = 1; string message = 2; string plan_id = 3; bool needs_sudo = 4; string device_policy_id = 5; }
+
+// Durable intent, installed bytes, process state and SDK readiness are
+// independent observations. Opening Settings only reads these observations.
+message LightingRuntimeStatus {
+  string phase = 1;
+  string state = 2;
+  bool installed = 3;
+  bool running = 4;
+  bool ready = 5;
+  bool degraded = 6;
+  string message = 7;
+  LightingSelection selection = 8;
+  LightingSelection pinned_selection = 9;
+  bool setup_verified = 10;
+  string launch_blocker = 11;
+  bool resource_observed = 12;
+ string device_access_plan_id = 13;
+ bool device_access_pending = 14;
+}
+
+service SetupService {
+ rpc GetSetupDevices(GetSetupDevicesRequest) returns (LightingDeviceDiscovery);
+ rpc PlanLightingDevices(PlanLightingDevicesRequest) returns (LightingDevicePlan);
+ rpc ApplyLightingDevices(ApplyLightingDevicesRequest) returns (LightingDeviceAccessResult);
+ rpc RollbackLightingDevices(RollbackLightingDevicesRequest) returns (LightingDeviceAccessResult);
+  rpc GetSetupStatus(GetSetupStatusRequest) returns (LightingRuntimeStatus);
+  rpc SetupLighting(SetupLightingRequest) returns (LightingRuntimeStatus);
+  rpc EnableLighting(EnableLightingRequest) returns (LightingRuntimeStatus);
+  rpc DisableLighting(DisableLightingRequest) returns (LightingRuntimeStatus);
+}

@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { ConnectError } from '@connectrpc/connect';
+import { recordingsClient } from '@/api/recordings';
 import { logger } from '@/utils/logger';
-import { recordingApi } from '../api';
-import { createProfileResourceHook } from './useProfileResource';
 import type { HistoryResponse, HistorySettings } from '../types/types';
 
 export interface UseHistoryResult {
@@ -18,140 +18,169 @@ export interface UseHistoryResult {
   navigateToUrl: (profileId: string, url: string) => Promise<boolean>;
 }
 
-// Create base hook using factory
-const useHistoryBase = createProfileResourceHook<HistoryResponse>({
-  endpoint: 'history',
-  componentName: 'useHistory',
-  fetchErrorMessage: 'Failed to load history',
-  clearAllErrorMessage: 'Clear history failed',
-});
+const COMPONENT = 'useHistory';
+
+function describe(err: unknown): string {
+  if (err instanceof ConnectError) return err.message;
+  if (err instanceof Error) return err.message;
+  return 'History operation failed';
+}
+
+const DEFAULT_SETTINGS: HistorySettings = {
+  maxEntries: 100,
+  retentionDays: 30,
+  captureThumbnails: true,
+};
 
 export function useHistory(): UseHistoryResult {
-  const base = useHistoryBase();
-  const {
-    data,
-    loading,
-    error,
-    deleting,
-    fetch: fetchHistory,
-    clear,
-    clearAll,
-    deleteRequest,
-    setLoading,
-    setError,
-  } = base;
-
-  // Additional state for navigation operations
+  const [history, setHistory] = useState<HistoryResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [navigating, setNavigating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // AbortController for request cancellation
-  const abortControllerRef = useRef<AbortController | null>(null);
-
-  // Clean up on unmount
-  useEffect(() => {
-    return () => {
-      abortControllerRef.current?.abort();
-    };
+  const fetchHistory = useCallback(async (profileId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const resp = await recordingsClient.getHistory({ profileId });
+      setHistory({
+        entries: (resp.entries ?? []).map((e) => ({
+          id: e.id,
+          url: e.url,
+          title: e.title,
+          timestamp: e.timestamp,
+          thumbnail: e.thumbnail || undefined,
+        })),
+        settings: resp.settings
+          ? {
+              maxEntries: resp.settings.maxEntries,
+              retentionDays: resp.settings.retentionDays,
+              captureThumbnails: resp.settings.captureThumbnails,
+            }
+          : DEFAULT_SETTINGS,
+        stats: {
+          totalEntries: resp.stats?.totalEntries ?? 0,
+          oldestEntry: resp.stats?.oldestEntry || undefined,
+          newestEntry: resp.stats?.newestEntry || undefined,
+        },
+      });
+    } catch (err) {
+      const message = describe(err);
+      setError(message);
+      logger.error(message, { component: COMPONENT, action: 'fetch' }, err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Reset abort controller
-  useEffect(() => {
-    abortControllerRef.current = new AbortController();
+  const clear = useCallback(() => {
+    setHistory(null);
+    setError(null);
   }, []);
+
+  const runMutation = useCallback(
+    async (profileId: string, op: () => Promise<unknown>, action: string): Promise<boolean> => {
+      setDeleting(true);
+      setError(null);
+      try {
+        await op();
+        await fetchHistory(profileId);
+        return true;
+      } catch (err) {
+        const message = describe(err);
+        setError(message);
+        logger.error(message, { component: COMPONENT, action }, err);
+        return false;
+      } finally {
+        setDeleting(false);
+      }
+    },
+    [fetchHistory]
+  );
+
+  const clearAllHistory = useCallback(
+    (profileId: string) =>
+      runMutation(profileId, () => recordingsClient.clearHistory({ profileId }), 'clearAll'),
+    [runMutation]
+  );
 
   const deleteHistoryEntry = useCallback(
-    async (profileId: string, entryId: string): Promise<boolean> => {
-      return deleteRequest(profileId, encodeURIComponent(entryId));
-    },
-    [deleteRequest]
+    (profileId: string, entryId: string) =>
+      runMutation(profileId, () => recordingsClient.deleteHistoryEntry({ profileId, entryId }), 'deleteEntry'),
+    [runMutation]
   );
 
   const updateSettings = useCallback(
-    async (profileId: string, settings: Partial<HistorySettings>): Promise<boolean> => {
+    async (profileId: string, partial: Partial<HistorySettings>): Promise<boolean> => {
       setLoading(true);
       setError(null);
-
-      // Merge with existing settings
-      const existingSettings = data?.settings ?? {
-        maxEntries: 100,
-        retentionDays: 30,
-        captureThumbnails: true,
-      };
-      const mergedSettings: HistorySettings = {
-        ...existingSettings,
-        ...settings,
-      };
-
-      const result = await recordingApi.updateHistorySettings(
-        profileId,
-        {
-          maxEntries: mergedSettings.maxEntries,
-          retentionDays: mergedSettings.retentionDays,
-          captureThumbnails: mergedSettings.captureThumbnails,
-        },
-        { signal: abortControllerRef.current?.signal }
-      );
-
-      if (!result.success) {
-        setError(result.error);
+      const existing = history?.settings ?? DEFAULT_SETTINGS;
+      const merged: HistorySettings = { ...existing, ...partial };
+      try {
+        await recordingsClient.updateHistorySettings({
+          profileId,
+          settings: {
+            maxEntries: merged.maxEntries,
+            retentionDays: merged.retentionDays,
+            captureThumbnails: merged.captureThumbnails,
+          },
+        });
+        await fetchHistory(profileId);
+        return true;
+      } catch (err) {
+        const message = describe(err);
+        setError(message);
         setLoading(false);
-        logger.error(result.error, { component: 'useHistory', action: 'updateSettings' });
+        logger.error(message, { component: COMPONENT, action: 'updateSettings' }, err);
         return false;
       }
-
-      // Refetch history to get updated data (settings may have triggered pruning)
-      await fetchHistory(profileId);
-      setLoading(false);
-      return true;
     },
-    [data?.settings, fetchHistory, setLoading, setError]
+    [history?.settings, fetchHistory]
   );
 
   const navigateToUrl = useCallback(
     async (profileId: string, url: string): Promise<boolean> => {
       setNavigating(true);
       setError(null);
-
-      const result = await recordingApi.navigateToHistoryUrl(profileId, url, {
-        signal: abortControllerRef.current?.signal,
-      });
-
-      setNavigating(false);
-
-      if (!result.success) {
-        setError(result.error);
-        logger.error(result.error, { component: 'useHistory', action: 'navigateToUrl', url });
+      try {
+        await recordingsClient.navigateToHistoryURL({ profileId, url });
+        return true;
+      } catch (err) {
+        const message = describe(err);
+        setError(message);
+        logger.error(message, { component: COMPONENT, action: 'navigateTo', url }, err);
         return false;
+      } finally {
+        setNavigating(false);
       }
-
-      return true;
     },
-    [setError]
+    []
   );
 
   return useMemo(
     () => ({
-      history: data,
-      loading,
-      error,
-      deleting,
-      navigating,
-      fetchHistory: fetchHistory,
-      clear,
-      clearAllHistory: clearAll,
-      deleteHistoryEntry,
-      updateSettings,
-      navigateToUrl,
-    }),
-    [
-      data,
+      history,
       loading,
       error,
       deleting,
       navigating,
       fetchHistory,
       clear,
-      clearAll,
+      clearAllHistory,
+      deleteHistoryEntry,
+      updateSettings,
+      navigateToUrl,
+    }),
+    [
+      history,
+      loading,
+      error,
+      deleting,
+      navigating,
+      fetchHistory,
+      clear,
+      clearAllHistory,
       deleteHistoryEntry,
       updateSettings,
       navigateToUrl,

@@ -50,11 +50,23 @@ func TestHandleDocsHeal(t *testing.T) {
 			Status:       dochealing.StatusRunning,
 		},
 	}
-	srv := &Server{docHealingService: service}
+	// Healing starts agent runs, so the handler admits only a verified run
+	// creator; the fixture validator stands in for Agent Manager.
+	srv := &Server{docHealingService: service, runCallerValidator: auth01FixtureVerifier{}}
+	newRequest := func() *http.Request {
+		body, _ := json.Marshal(DocHealRequest{AutoApprove: true})
+		req := httptest.NewRequest("POST", "/api/v1/scenarios/alpha/docs/heal", bytes.NewReader(body))
+		return mux.SetURLVars(req, map[string]string{"name": "alpha"})
+	}
 
-	body, _ := json.Marshal(DocHealRequest{AutoApprove: true})
-	req := httptest.NewRequest("POST", "/api/v1/scenarios/alpha/docs/heal", bytes.NewReader(body))
-	req = mux.SetURLVars(req, map[string]string{"name": "alpha"})
+	anonymous := httptest.NewRecorder()
+	srv.handleDocsHeal(anonymous, newRequest())
+	if anonymous.Code != http.StatusUnauthorized || service.lastReq.ScenarioName != "" {
+		t.Fatalf("unverified caller: status %d, started %q; want 401 and no healing", anonymous.Code, service.lastReq.ScenarioName)
+	}
+
+	req := newRequest()
+	req.Header.Set("Authorization", "Bearer fixture-owner")
 	rec := httptest.NewRecorder()
 
 	srv.handleDocsHeal(rec, req)

@@ -1,0 +1,170 @@
+{
+  "root": "native/vitest-v2",
+  "files": ["vitest.config.mjs", "probe.test.mjs", "delegated.test.mjs", "a11y-helper.mjs", "events-reporter.mjs"],
+  "version": "2.1.9",
+  "provenance": "Retained calibration C021-C039 and planning Vitest 2.1.9 probe; explicit test names authored with native fixture. Retry event granularity is an observed limitation, not certification.",
+  "cases": [
+    {
+      "caseId": "C021",
+      "name": "C021 direct matcher",
+      "status": "passed",
+      "failureContains": "",
+      "retryCount": 0,
+      "retainedErrorContains": "",
+      "limitation": ""
+    },
+    {
+      "caseId": "C022",
+      "name": "C022 delegated axe assertion",
+      "status": "passed",
+      "failureContains": "",
+      "retryCount": 0,
+      "retainedErrorContains": "",
+      "limitation": ""
+    },
+    {
+      "caseId": "C023",
+      "name": "C023 empty",
+      "status": "failed",
+      "failureContains": "expected any number of assertion",
+      "retryCount": 0,
+      "retainedErrorContains": "",
+      "limitation": ""
+    },
+    {
+      "caseId": "C024",
+      "name": "C024 unreachable",
+      "status": "failed",
+      "failureContains": "expected any number of assertion",
+      "retryCount": 0,
+      "retainedErrorContains": "",
+      "limitation": ""
+    },
+    {
+      "caseId": "C025",
+      "name": "C025 bare expect",
+      "status": "passed",
+      "failureContains": "",
+      "retryCount": 0,
+      "retainedErrorContains": "",
+      "limitation": "Native assertion activity does not detect omitted matchers; syntax calibration remains required."
+    },
+    {
+      "caseId": "C026",
+      "name": "C026 tautology",
+      "status": "passed",
+      "failureContains": "",
+      "retryCount": 0,
+      "retainedErrorContains": "",
+      "limitation": "Native activity is not proof of semantic value."
+    },
+    {
+      "caseId": "C027",
+      "name": "C027 hook empty body",
+      "status": "passed",
+      "failureContains": "",
+      "retryCount": 0,
+      "retainedErrorContains": "",
+      "limitation": "Asserting setup can satisfy the native requirement for an empty test body."
+    },
+    {
+      "caseId": "C028",
+      "name": "C028 Node assertion",
+      "status": "failed",
+      "failureContains": "expected any number of assertion",
+      "retryCount": 0,
+      "retainedErrorContains": "",
+      "limitation": "Expect-only profiles do not observe Node assertion activity."
+    },
+    {
+      "caseId": "C029",
+      "name": "C029 parameter 1",
+      "status": "passed",
+      "failureContains": "",
+      "retryCount": 0,
+      "retainedErrorContains": "",
+      "limitation": ""
+    },
+    {
+      "caseId": "C029",
+      "name": "C029 parameter 2",
+      "status": "failed",
+      "failureContains": "expected any number of assertion",
+      "retryCount": 0,
+      "retainedErrorContains": "",
+      "limitation": ""
+    },
+    {
+      "caseId": "C030",
+      "name": "C030 local expect first",
+      "status": "passed",
+      "failureContains": "",
+      "retryCount": 0,
+      "retainedErrorContains": "",
+      "limitation": ""
+    },
+    {
+      "caseId": "C030",
+      "name": "C030 local expect second",
+      "status": "passed",
+      "failureContains": "",
+      "retryCount": 0,
+      "retainedErrorContains": "",
+      "limitation": ""
+    },
+    {
+      "caseId": "C031",
+      "name": "C031 failing custom matcher",
+      "status": "failed",
+      "failureContains": "expected 4 to be five",
+      "retryCount": 0,
+      "retainedErrorContains": "",
+      "limitation": ""
+    },
+    {
+      "caseId": "C032",
+      "name": "C032 setup body never executes",
+      "status": "failed",
+      "failureContains": "fixture setup failure",
+      "retryCount": 0,
+      "retainedErrorContains": "",
+      "limitation": ""
+    },
+    {
+      "caseId": "C033",
+      "name": "C033 retry",
+      "status": "passed",
+      "failureContains": "",
+      "retryCount": 1,
+      "retainedErrorContains": "expected 1 to be 2",
+      "limitation": "Public v2 reporter retains a retry count and prior error, not a separate first-attempt event."
+    },
+    {
+      "caseId": "C034",
+      "name": "C034 skipped",
+      "status": "skipped",
+      "failureContains": "",
+      "retryCount": 0,
+      "retainedErrorContains": "",
+      "limitation": ""
+    },
+    {
+      "caseId": "C037",
+      "name": "C037 extended",
+      "status": "passed",
+      "failureContains": "",
+      "retryCount": 0,
+      "retainedErrorContains": "",
+      "limitation": ""
+    },
+    {
+      "caseId": "C039",
+      "name": "C039 returned async matcher",
+      "status": "passed",
+      "failureContains": "",
+      "retryCount": 0,
+      "retainedErrorContains": "",
+      "limitation": ""
+    }
+  ]
+}

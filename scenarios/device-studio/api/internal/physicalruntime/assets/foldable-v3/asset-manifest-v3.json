@@ -1,0 +1,20 @@
+{
+  "schema_version": "device-studio-asset-manifest/v1",
+  "asset_id": "vrooli-generic-book-fold-concept-v3-left-screen-vflip",
+  "file": "assets/foldable-v3/foldable-concept-v3.glb",
+  "sha256": "5f16cb936cb7ed63e55be84cf00ab642c350d87479662b88e86515996498a6cb",
+  "size_bytes": 22640,
+  "license": "AGPL-3.0-only",
+  "attribution": "Vrooli-authored generic dual-rigid book-fold concept; source-mapped derivative.",
+  "source": {
+    "file": "assets/foldable/foldable-concept.glb",
+    "sha256": "90e1e5195ee88018e37b98d8d08af4d1407d8161e6216cf3fb699921d77ce4ac"
+  },
+  "adaptation": "Only LeftInnerDisplay mesh 1 primitive 0 TEXCOORD_0 V values are flipped (V := 1-V) in a private accessor; source BIN bytes and all geometry remain unchanged.",
+  "status": "candidate_only",
+  "limitations": [
+    "No product geometry claim",
+    "No flexible display or hinge qualification",
+    "Native appearance review pending"
+  ]
+}

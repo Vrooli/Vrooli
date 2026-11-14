@@ -1,0 +1,151 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Search Hub are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Search Hub"
+  },
+  "layout": {
+    "sidebarLabel": "Primary navigation",
+    "bottomNavLabel": "Primary navigation (mobile)",
+    "nav": {
+      "search": "Search",
+      "evals": "Evals",
+      "dashboard": "Dashboard",
+      "settings": "Settings"
+    },
+    "mainLabel": "Main content"
+  },
+  "theme": {
+    "switcherLabel": "Theme",
+    "choice": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
+      "statPlaceholderLabel": "Stat"
+    },
+    "settings": {
+      "title": "Settings",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language"
+    },
+    "search": {
+      "title": "Search",
+      "description": "One query across every registered corpus — the router classifies, fans out, and reranks into a single list."
+    },
+    "evals": {
+      "title": "Evals",
+      "description": "Per-provider search-quality baselines: registered golden suites, tagged run history, and side-by-side run comparison. Soft labels, not a pass/fail gate."
+    }
+  },
+  "health": {
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
+  },
+  "search": {
+    "queryLabel": "Search query",
+    "queryPlaceholder": "Search across all registered corpora…",
+    "submit": "Search",
+    "searching": "Searching…",
+    "expandLabel": "Search all providers",
+    "typesLabel": "Filter by type",
+    "emptyState": "Enter a query to search across every registered corpus.",
+    "noResults": "No results. Try “Search all providers” to widen the search.",
+    "error": "Search failed. Make sure the scenario is running through `vrooli scenario start`.",
+    "summary": "{{corpora}} corpora · {{hits}} hits · {{latency}} ms",
+    "rankedHeading": "Unified ranking",
+    "groupedHeading": "Results by provider",
+    "routingHeading": "Routing",
+    "reranked": "reranked",
+    "grouped": "by-provider",
+    "degraded": "degraded",
+    "groupEmpty": "No matches",
+    "weak": "weak",
+    "confidenceStrong": "strong{{regime}}",
+    "confidenceWeak": "weak{{regime}}",
+    "confidenceUnknown": "confidence unknown",
+    "locations": "locations: {{value}}",
+    "noConfidentMatch": "No confident match",
+    "provenance": "{{group}} · {{path}}",
+    "statusHeading": "Federation",
+    "classifier": "Classifier",
+    "reranker": "Reranker",
+    "available": "available",
+    "unavailable": "unavailable",
+    "statusError": "Status unavailable",
+    "providersReachable": "{{reachable}}/{{total}} providers reachable"
+  },
+  "evals": {
+    "suitesHeading": "Suites",
+    "loading": "Loading…",
+    "error": "Unable to load evals. Make sure the scenario is running through `vrooli scenario start`.",
+    "noSuites": "No eval suites registered yet.",
+    "suiteMeta": "{{provider}} · {{cases}} case(s)",
+    "selectSuite": "Select a suite to see its run history.",
+    "runsHeading": "Run history",
+    "noRuns": "No runs yet. Run this suite from the CLI: search-hub evals run <suite> --tag <tag>.",
+    "trendHeading": "Trend (oldest → newest)",
+    "trendStrong": "Strong top-1",
+    "trendGibberish": "Gibberish max",
+    "runMet": "{{met}}/{{cases}} met",
+    "runConfig": "reranker {{reranker}}",
+    "casesHeading": "Cases",
+    "colCase": "Case",
+    "colOutcome": "Outcome",
+    "colTop": "Top score",
+    "colRank": "Rank",
+    "compareHint": "Tick two runs to compare them.",
+    "compareButton": "Compare selected",
+    "compareHeading": "Per-case delta (A → B)",
+    "compareLegend": "A = {{a}} → B = {{b}}",
+    "compareColA": "A",
+    "compareColB": "B",
+    "colDelta": "Δ top",
+    "viewRun": "View cases",
+    "hideRun": "Hide cases",
+    "tagLabel": "tag {{tag}}",
+    "untagged": "untagged"
+  }
+}

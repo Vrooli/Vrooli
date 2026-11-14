@@ -1,0 +1,357 @@
+{
+  "_metadata": {
+    "description": "P1 capabilities to add after the P0 backbone is proven.",
+    "last_validated_at": "2026-06-01T10:39:28-04:00",
+    "module": "post-launch",
+    "prd_ref": "OT-P1-001",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DBM-HOOK-001",
+      "title": "Quiesce pre/post hooks for app-consistent snapshots",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "consistency",
+      "criticality": "P1",
+      "description": "A target can declare pre/post hooks (e.g. flush, pause writes) so live databases and stateful scenarios get application-consistent snapshots.",
+      "tags": [
+        "quiesce",
+        "consistency",
+        "hooks"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred: implement target-owned pre/post quiesce hooks, then prove ordering and failure rollback against a live source adapter."
+        }
+      ]
+    },
+    {
+      "id": "DBM-RET-001",
+      "title": "GFS retention policies per plan",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "retention",
+      "criticality": "P1",
+      "description": "Grandfather-father-son retention configurable per plan, applied through kopia snapshot policies.",
+      "tags": [
+        "retention",
+        "gfs"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred: replace keep-latest-only policy with explicit grandfather-father-son retention and prove the kept set over simulated time."
+        }
+      ]
+    },
+    {
+      "id": "DBM-DEST-DRYRUN",
+      "title": "Destination reachability dry-run",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
+      "category": "destination",
+      "criticality": "P1",
+      "description": "Verify a destination is reachable and writable before a plan depends on it.",
+      "tags": [
+        "destination",
+        "dry-run",
+        "preflight"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Implemented and covered: dry-run validates the preparation plan without invoking the preparer; missing destinations fail closed during readiness analysis."
+        }
+      ]
+    },
+    {
+      "id": "DBM-RST-GRAN",
+      "title": "Restore granularity (path / point-in-time)",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "restore",
+      "criticality": "P1",
+      "description": "Restore a single path or a chosen point-in-time from a snapshot, not just the whole artifact.",
+      "tags": [
+        "restore",
+        "granularity",
+        "point-in-time"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred: add path-level and point-in-time restore selection, then prove content and version selection against multiple snapshots."
+        }
+      ]
+    },
+    {
+      "id": "DBM-MIG-PM",
+      "title": "prompt-manager store migration (first customer)",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "adoption",
+      "criticality": "P1",
+      "description": "prompt-manager registers store/teams/** as a target, a verified restore is proven, and the data stops being committed to git.",
+      "tags": [
+        "adoption",
+        "prompt-manager",
+        "migration"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Register prompt-manager store target; run verified restore; confirm git no longer tracks the churned runtime files."
+        }
+      ]
+    },
+    {
+      "id": "DBM-RECOVERY-001",
+      "title": "Identity-bound drive recovery with operator decision callback",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-007",
+      "category": "recovery",
+      "criticality": "P1",
+      "description": "DBM MUST automatically remount a registered filesystem destination only after a positive read-only consistency check, using the canonical control-plane volume owner and a persisted strong device identity. If safe recovery cannot be proven and repair is supported, DBM MUST raise an exact Notification Hub decision; only a signed callback for that ask with a verified human approval may execute the revalidated repair. Refusal, Other, dismissal, expiry, stale identity, or changed preconditions MUST NOT repair the volume. Every terminal outcome MUST produce a retryable result notification without replaying host mutations.",
+      "tags": [
+        "volume-recovery",
+        "control-plane",
+        "notification-hub",
+        "operator-decision"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/recovery_decision_test.go::TestVolumeRecoveryWorkerMountsOnlyAfterPositiveReadOnlyCheck",
+          "notes": "Fixture proof that automatic remount follows only a positive check; dirty/unknown state raises a decision instead."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/recovery_decision_test.go::TestRecoveryDecisionVerifiedHumanExecutesOnceAndNotifies",
+          "notes": "Fixture proof for verified-human callback, one repair execution and result notification; retry coverage confirms notification retry does not replay repair."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/internal/destinationreadiness/recovery_test.go::TestFileRecoveryEpisodePersistsUntilMountedThenStartsFresh",
+          "notes": "Recovery episode identity is stable across repeated unmounted polls and process restart, then rotates after a mounted observation and later outage."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/internal/destinationreadiness/recovery_test.go::TestFileRecoveryEpisodeAdoptsIncompleteLegacyJournalAndAdvancesCompletedOne",
+          "notes": "Upgrade adopts an incomplete legacy journal and advances a completed unmounted episode exactly once."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/recovery_decision_test.go::TestVolumeRecoveryWorkerRaisesFreshDecisionAfterCompletedEpisodeAndAvoidsDuplicateAsks",
+          "notes": "The worker raises a new decision after a later outage, while repeated polls during that outage do not duplicate the decision."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/recovery_decision_test.go::TestRecoveryDecisionOtherAndDismissalNeverRepair",
+          "notes": "A custom Other direction is preserved in the result notice and dismissal closes without answering; neither disposition executes host remediation."
+        },
+        {
+          "type": "manual",
+          "status": "implemented",
+          "notes": "Linux Elements recovery was approved through the exact Notification Hub decision, repaired and mounted once through the control plane, then reported by a delivered follow-up notification. Native macOS/Windows runtime recovery remains unverified; NTFS read/write is unsupported on macOS."
+        }
+      ]
+    },
+    {
+      "id": "DBM-ALERT-001",
+      "title": "Alerting integration: stalled backups and switched-off plans",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-006",
+      "category": "observability",
+      "criticality": "P1",
+      "description": "When an enabled plan has had no successful run for longer than twice its schedule (at least 48 hours; 48 hours with no schedule), DBM MUST tell the operator once per day while it lasts, naming the plan, the days since success, the number of items no other plan protects, and any open question. A disabled plan that protects items nothing else protects MUST be reported once, as its own condition. A standing warning MUST repeat daily while an approved unreadable-file exception applies.",
+      "tags": [
+        "alerting",
+        "notifications",
+        "stalled-backups"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/internal/repohealth/repohealth_test.go::TestStallThresholdIsTwiceTheScheduleButNeverUnderFortyEightHours",
+          "notes": "Threshold is twice the schedule, never under 48 hours; no or unreadable schedule uses 48 hours."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/internal/repohealth/repohealth_test.go::TestStalledNoticeRepeatsOncePerDayWhileItLastsAndNamesTheOpenQuestion",
+          "notes": "Daily cadence, plan name, days, unprotected count and the open question are in the notice."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/internal/repohealth/repohealth_test.go::TestDisabledUnprotectedPlansAreReportedOnceUntilTheSetChanges",
+          "notes": "A switched-off plan with unprotected items is reported once per distinct set."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/backup_failure_test.go::TestBackupFailureTellsTheOperatorOncePerDayWhileBackupsAreStalled",
+          "notes": "The monitor publishes the stalled notice through the publisher on its cadence across restarts of the clock."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/backup_failure_test.go::TestBackupFailureReportsASwitchedOffPlanThatProtectsSomethingNothingElseDoes",
+          "notes": "The monitor reports a disabled plan once."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/backup_failure_test.go::TestBackupFailureWarnsDailyWhileAnAcceptedExceptionStillApplies",
+          "notes": "Standing warning repeats daily while the exception applies and stops when the file is readable."
+        },
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Live Notification Hub delivery of a stalled-backup notice is not yet observed by an operator; unit evidence uses a recording publisher."
+        }
+      ]
+    },
+    {
+      "id": "DBM-RECOVERY-002",
+      "title": "Backup-failure diagnosis, one question, and recorded exceptions",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-007",
+      "category": "recovery",
+      "criticality": "P1",
+      "description": "When a plan's run is stopped by a destination-level reason (a blocked preflight or a failed run) on a mounted volume, DBM MUST diagnose read-only (volume state, repository open and snapshot list, every unreadable repository entry classified as a leftover temporary file or repository content, days since the last success, items with no other copy), apply only safe steps, and raise ONE plain-language Notification Hub decision that stays outstanding and is re-presented until answered. An answer MUST be applied only from a verified human identity through the signed callback. Skipping unreadable files MUST be a recorded exception for each exact path (who, when, failure kind) that the usage measurement and preflight honour only for that path while it stays an unreadable leftover temporary file; any other unreadable entry or a changed path MUST block again and ask again. Drive repair MUST delegate to the control-plane volume owner and refuse while a backup is running. DBM MUST NOT delete, rename, or write repository content in this path.",
+      "tags": [
+        "backup-failure",
+        "operator-decision",
+        "exceptions",
+        "control-plane"
+      ],
+      "validation": [
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/backup_failure_test.go::TestBackupFailureRaisesOneDecisionAndRepresentsItUntilAnswered",
+          "notes": "One question however many sweeps; no run, host action or exception while it is only raised."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/backup_failure_test.go::TestBackupFailureQuestionIsRetriedWhenTheHubWasDown",
+          "notes": "A publication the hub refused is retried until delivered, and a delivered question is not repeated."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/backup_failure_test.go::TestBackupFailureAnswerNeedsAVerifiedHuman",
+          "notes": "Agent identity, missing identity source, missing answerer, default application and dismissal change nothing."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/backup_failure_test.go::TestBackupFailureAcceptRecordsExactExceptionsAndResumesBackups",
+          "notes": "Verified skip records an exception per exact path with approver, source and time, retries the plan, and a replay does nothing more."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/backup_failure_test.go::TestBackupFailureExceptionLetsUsageThroughOnlyForTheApprovedPaths",
+          "notes": "Usage passes with every unreadable entry excepted; a new unreadable entry blocks again and raises a new question for only that entry."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/backup_failure_test.go::TestBackupFailureAcceptRechecksEachPathBeforeRecordingIt",
+          "notes": "A path that became readable or failed differently is not excepted."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/backup_failure_test.go::TestBackupFailureRepairDelegatesToTheVolumeOwnerAndRefusesWhileABackupRuns",
+          "notes": "Repair runs unmount, repair and remount through the control-plane owner and is refused while a backup is running."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/backup_failure_test.go::TestBackupFailureContentLossIsNeverOfferedForSkipping",
+          "notes": "Unreadable repository content is never offered for skipping and a forged skip records nothing."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/backup_failure_test.go::TestBackupFailureDeclineKeepsTheProblemInFrontOfTheOperator",
+          "notes": "A declined question returns after a day while the condition lasts."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/destinations/backup_failure_test.go::TestBackupFailureNeverWritesToTheRepository",
+          "notes": "Raising, accepting and re-diagnosing leave the repository directory byte-for-byte and time-for-time unchanged."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/internal/repohealth/repohealth_test.go::TestDiagnoseNamesTheCauseInOrderOfCost",
+          "notes": "Classification covers unmounted, read-only, unopenable, unlistable, cleared, leftover temporary files, repository content and unexplained."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/internal/repohealth/repohealth_test.go::TestClassifyNameSeparatesLeftoverTempFromRepositoryContent",
+          "notes": "A temporary upload name is distinguished from a committed blob and from anything else."
+        },
+        {
+          "type": "unit",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/internal/repohealth/repohealth_test.go::TestDecisionIsPlainAndWithinTheHubLimits",
+          "notes": "The question is plain words within hub limits, with no identifiers outside the technical details."
+        },
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Live proof on the real blocked Elements backup: diagnosis ran, exactly one decision reached Notification Hub. The operator's answer is not yet given."
+        }
+      ]
+    }
+  ]
+}

@@ -1,159 +1,4 @@
 {
-  "metadata": {
-    "name": "slow-execution-demo",
-    "description": "Slow-executing test workflow for telemetry validation (5-10 second duration)",
-    "labels": {
-      "fixture_id": "slow-execution-demo",
-      "reset": "none",
-      "version": "1"
-    },
-    "execution_mode": "observer"
-  },
-  "settings": {
-    "viewport_width": 1440,
-    "viewport_height": 900
-  },
-  "nodes": [
-    {
-      "id": "nav-1",
-      "action": {
-        "type": "ACTION_TYPE_NAVIGATE",
-        "navigate": {
-          "url": "https://example.com",
-          "timeout_ms": 10000
-        },
-        "metadata": {
-          "label": "Navigate to example.com"
-        }
-      }
-    },
-    {
-      "id": "wait-1",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 2000
-        },
-        "metadata": {
-          "label": "Wait 2 seconds"
-        }
-      }
-    },
-    {
-      "id": "screenshot-1",
-      "action": {
-        "type": "ACTION_TYPE_SCREENSHOT",
-        "screenshot": {
-          "full_page": false
-        },
-        "metadata": {
-          "label": "Capture first screenshot"
-        }
-      }
-    },
-    {
-      "id": "assert-1",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "h1",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 5000
-        },
-        "metadata": {
-          "label": "Assert page title exists"
-        }
-      }
-    },
-    {
-      "id": "nav-2",
-      "action": {
-        "type": "ACTION_TYPE_NAVIGATE",
-        "navigate": {
-          "url": "https://example.org",
-          "timeout_ms": 10000
-        },
-        "metadata": {
-          "label": "Navigate to example.org"
-        }
-      }
-    },
-    {
-      "id": "wait-2",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 2000
-        },
-        "metadata": {
-          "label": "Wait 2 seconds"
-        }
-      }
-    },
-    {
-      "id": "screenshot-2",
-      "action": {
-        "type": "ACTION_TYPE_SCREENSHOT",
-        "screenshot": {
-          "full_page": false
-        },
-        "metadata": {
-          "label": "Capture second screenshot"
-        }
-      }
-    },
-    {
-      "id": "assert-2",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "h1",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 5000
-        },
-        "metadata": {
-          "label": "Assert second page title exists"
-        }
-      }
-    },
-    {
-      "id": "nav-3",
-      "action": {
-        "type": "ACTION_TYPE_NAVIGATE",
-        "navigate": {
-          "url": "https://example.net",
-          "timeout_ms": 10000
-        },
-        "metadata": {
-          "label": "Navigate to example.net"
-        }
-      }
-    },
-    {
-      "id": "wait-3",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 2000
-        },
-        "metadata": {
-          "label": "Wait 2 seconds"
-        }
-      }
-    },
-    {
-      "id": "screenshot-3",
-      "action": {
-        "type": "ACTION_TYPE_SCREENSHOT",
-        "screenshot": {
-          "full_page": false
-        },
-        "metadata": {
-          "label": "Capture final screenshot"
-        }
-      }
-    }
-  ],
   "edges": [
     {
       "id": "e1",
@@ -215,5 +60,162 @@
       "target": "screenshot-3",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Slow-executing test workflow for telemetry validation (5-10 second duration)",
+    "execution_mode": "mutating",
+    "labels": {
+      "fixture_id": "slow-execution-demo",
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true",
+      "version": "1"
+    },
+    "name": "slow-execution-demo"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Navigate to example.com"
+        },
+        "navigate": {
+          "timeout_ms": 10000,
+          "url": "https://example.com"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "nav-1"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait 2 seconds"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 2000
+        }
+      },
+      "id": "wait-1"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Capture first screenshot"
+        },
+        "screenshot": {
+          "full_page": false
+        },
+        "type": "ACTION_TYPE_SCREENSHOT"
+      },
+      "id": "screenshot-1"
+    },
+    {
+      "action": {
+        "assert": {
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "h1",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Assert page title exists"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-1"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Navigate to example.org"
+        },
+        "navigate": {
+          "timeout_ms": 10000,
+          "url": "https://example.org"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "nav-2"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait 2 seconds"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 2000
+        }
+      },
+      "id": "wait-2"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Capture second screenshot"
+        },
+        "screenshot": {
+          "full_page": false
+        },
+        "type": "ACTION_TYPE_SCREENSHOT"
+      },
+      "id": "screenshot-2"
+    },
+    {
+      "action": {
+        "assert": {
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "h1",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Assert second page title exists"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-2"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Navigate to example.net"
+        },
+        "navigate": {
+          "timeout_ms": 10000,
+          "url": "https://example.net"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "nav-3"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait 2 seconds"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 2000
+        }
+      },
+      "id": "wait-3"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Capture final screenshot"
+        },
+        "screenshot": {
+          "full_page": false
+        },
+        "type": "ACTION_TYPE_SCREENSHOT"
+      },
+      "id": "screenshot-3"
+    }
+  ],
+  "settings": {
+    "viewport_height": 900,
+    "viewport_width": 1440
+  }
 }

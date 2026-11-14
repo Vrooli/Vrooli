@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package vrooli.browser_automation_studio.v1.measures;
+
+import "measures/v1/measures.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/measures;measuresv1";
+
+// Read-only, run-eligible execution quality measures. Each method uses the
+// canonical shared time-window type and is backed by the same SQL aggregate as
+// the /measures serve registry.
+message MeasureRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+message RateResponse {
+  double rate = 1;
+}
+
+message DurationResponse {
+  double duration_ms = 1;
+}
+
+service MeasuresService {
+  rpc ExecutionSuccessRate(MeasureRequest) returns (RateResponse);
+  rpc ExecutionDurationP95(MeasureRequest) returns (DurationResponse);
+  rpc StepFailureRate(MeasureRequest) returns (RateResponse);
+  rpc SelectorFailureRate(MeasureRequest) returns (RateResponse);
+}

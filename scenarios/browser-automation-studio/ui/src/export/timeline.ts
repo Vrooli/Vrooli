@@ -5,10 +5,7 @@
  * finding frames by time, and clamping values.
  */
 
-import type {
-  ReplayMovieFrame,
-  ReplayMovieSummary,
-} from "@/types/export";
+import type { ReplayFrame as ReplayMovieFrame, ReplaySummary as ReplayMovieSummary } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 import type { FrameTimeline } from "./types";
 import { toNumber } from "@/utils/executionTypeMappers";
 
@@ -25,14 +22,14 @@ export const buildTimeline = (
     return [];
   }
   const sorted = [...frames].sort((a, b) => {
-    const aStart = toNumber(a.start_offset_ms) ?? 0;
-    const bStart = toNumber(b.start_offset_ms) ?? 0;
+    const aStart = toNumber(a.startOffsetMs) ?? 0;
+    const bStart = toNumber(b.startOffsetMs) ?? 0;
     return aStart - bStart;
   });
   return sorted.map((frame, index) => {
-    const duration = toNumber(frame.duration_ms) ?? DEFAULT_FRAME_DURATION_MS;
+    const duration = toNumber(frame.durationMs) ?? DEFAULT_FRAME_DURATION_MS;
     const start =
-      toNumber(frame.start_offset_ms) ??
+      toNumber(frame.startOffsetMs) ??
       (index > 0 ? index * DEFAULT_FRAME_DURATION_MS : 0);
     return {
       index,
@@ -49,8 +46,8 @@ export const computeTotalDuration = (
   summary: ReplayMovieSummary | undefined,
   timeline: FrameTimeline[],
 ): number => {
-  if (summary?.total_duration_ms && summary.total_duration_ms > 0) {
-    return summary.total_duration_ms;
+  if (summary?.totalDurationMs && summary.totalDurationMs > 0) {
+    return summary.totalDurationMs;
   }
   if (timeline.length === 0) {
     return 0;

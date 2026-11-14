@@ -1,0 +1,601 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "lighting-control",
+  "description": "Lighting Control CLI surface for typed Connect-RPC APIs.",
+  "groups": [
+    {
+      "name": "control",
+      "description": "Discover, enroll, and control lighting controllers and persisted desired state.",
+      "commands": [
+        {
+          "name": "backend-status",
+          "description": "Show OpenRGB SDK readiness and protocol compatibility.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ControlService",
+            "method": "GetBackendStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "controllers",
+          "description": "Discover controllers and show stable SDK v6 identities and zones.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ControlService",
+            "method": "ListControllers"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "flags": [
+            {
+              "name": "include-unavailable",
+              "description": "Include persisted enrolled controllers that are not present in the current SDK discovery."
+            }
+          ]
+        },
+        {
+          "name": "enroll",
+          "description": "Enroll or unenroll a controller by its SDK v6 unique ID.",
+          "flags": [
+            {
+              "name": "controller-id",
+              "required": true,
+              "description": "Stable SDK v6 controller ID."
+            },
+            {
+              "name": "enrolled",
+              "required": true,
+              "description": "true to enroll, false to unenroll."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ControlService",
+            "method": "EnrollController"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "set",
+          "description": "Persist and apply one zone desired state from a proto JSON file.",
+          "flags": [
+            {
+              "name": "desired",
+              "required": true,
+              "description": "Path to a JSON ZoneState message.",
+              "bind": {
+                "field": "desired",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ControlService",
+            "method": "SetZoneState"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "off",
+          "description": "Set a durable manual Off override for enrolled controllers, optionally until expiry.",
+          "flags": [
+            {
+              "name": "all-enrolled",
+              "description": "Apply to all enrolled controllers."
+            },
+            {
+              "name": "controller-ids",
+              "description": "JSON array of selected enrolled controller IDs.",
+              "bind": {
+                "field": "controller_ids",
+                "kind": "json_inline"
+              }
+            },
+            {
+              "name": "expires-at",
+              "description": "JSON protobuf Timestamp value.",
+              "bind": {
+                "field": "expires_at",
+                "kind": "json_inline"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ControlService",
+            "method": "SetManualOff"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "desired",
+          "description": "Read persisted zone state, command outcomes, and manual Off expiry.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ControlService",
+            "method": "GetDesiredState"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "off-clear",
+          "description": "Clear the persisted manual Off override.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ControlService",
+            "method": "ClearManualOverride"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "reconcile",
+          "description": "Refresh SDK identities and retry each persisted zone command once.",
+          "flags": [
+            {
+              "name": "trigger",
+              "description": "Reason for reconciliation, such as operator or backend-reconnect."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ControlService",
+            "method": "Reconcile"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "configure-zone",
+          "description": "Persist the connected LED count within observed zone limits and reconcile safely.",
+          "flags": [
+            {
+              "name": "controller-id",
+              "required": true,
+              "description": "Stable enrolled controller ID."
+            },
+            {
+              "name": "zone-id",
+              "required": true,
+              "description": "Stable zone ID."
+            },
+            {
+              "name": "led-count",
+              "required": true,
+              "description": "Connected physical LED count within advertised limits."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ControlService",
+            "method": "ConfigureZone"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "policy",
+      "description": "Configure evidence-driven lighting presets and temporary manual requests.",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Read persisted policy and effective evidence-backed preset.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "GetPolicy"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "set",
+          "description": "Persist policy configuration from a proto JSON file.",
+          "flags": [
+            {
+              "name": "config",
+              "required": true,
+              "description": "Path to a JSON PolicyConfig message.",
+              "bind": {
+                "field": "config",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "SetPolicy"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "set-manual",
+          "description": "Apply a preset manually until cleared or its optional expiry.",
+          "flags": [
+            {
+              "name": "preset",
+              "required": true,
+              "description": "Preset enum value (for example PRESET_KIND_OFF or PRESET_KIND_WORK)."
+            },
+            {
+              "name": "expires-at",
+              "description": "Expiry as a protobuf Timestamp JSON object.",
+              "bind": {
+                "field": "expires_at",
+                "kind": "json_inline"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "SetManualPreset"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "clear-manual",
+          "description": "Clear the manual preset and resume configured policy.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "ClearManualPreset"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "evaluate",
+          "description": "Read current sources and reconcile the effective policy once.",
+          "flags": [
+            {
+              "name": "trigger",
+              "description": "Reason for evaluation, such as operator or reconnect."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "EvaluatePolicy"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "setup",
+      "description": "Authenticated explicit setup and runtime intent.",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Status lighting setup.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SetupService",
+            "method": "GetSetupStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "install",
+          "description": "Install lighting setup.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SetupService",
+            "method": "SetupLighting"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "flags": [
+            {
+              "name": "selection",
+              "required": true,
+              "description": "Exact typed installation selection as JSON (source, version, sha256, devicePolicyId).",
+              "bind": {
+                "field": "selection",
+                "kind": "json_inline"
+              }
+            }
+          ]
+        },
+        {
+          "name": "enable",
+          "description": "Enable lighting setup.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SetupService",
+            "method": "EnableLighting"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "flags": [
+            {
+              "name": "selection",
+              "required": true,
+              "description": "Exact typed installation selection as JSON (source, version, sha256, devicePolicyId).",
+              "bind": {
+                "field": "selection",
+                "kind": "json_inline"
+              }
+            }
+          ]
+        },
+        {
+          "name": "disable",
+          "description": "Disable lighting setup.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SetupService",
+            "method": "DisableLighting"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "devices",
+          "description": "Devices.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SetupService",
+            "method": "GetSetupDevices"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "plan-devices",
+          "description": "Plan Devices.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SetupService",
+            "method": "PlanLightingDevices"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "flags": [
+            {
+              "name": "device-ids",
+              "required": true,
+              "description": "JSON array of selected opaque device identities.",
+              "bind": {
+                "field": "device_ids",
+                "kind": "json_inline"
+              }
+            }
+          ]
+        },
+        {
+          "name": "apply-devices",
+          "description": "Apply Devices.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SetupService",
+            "method": "ApplyLightingDevices"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "flags": [
+            {
+              "name": "plan-id",
+              "required": true,
+              "description": "Exact reviewed permission plan identity."
+            }
+          ]
+        },
+        {
+          "name": "rollback-devices",
+          "description": "Rollback Devices.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SetupService",
+            "method": "RollbackLightingDevices"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "flags": [
+            {
+              "name": "plan-id",
+              "required": true,
+              "description": "Exact reviewed permission plan identity."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "exceptions": [],
+  "omitted": []
+}

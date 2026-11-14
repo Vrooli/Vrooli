@@ -1,0 +1,293 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "run_artifacts": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "test_runs",
+        "regenerable": true,
+        "rationale": "Scenario validation output is reproducible by rerunning the suite; 762777637 bytes were observed for test-genie on 2026-08-27.",
+        "budget": {
+          "max_age": "30d",
+          "max_bytes": "20GiB",
+          "rationale": "The repository-wide coverage tree measured 17317434773 bytes on 2026-08-27; 30 days and 20 GiB preserve the existing runtime-home policy."
+        }
+      },
+      "phase_cache": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "rationale": "Content-addressed phase results are reproducible on a cache miss; 69927878 bytes were observed for test-genie on 2026-08-27.",
+        "budget": {
+          "max_age": "7d",
+          "max_bytes": "2GiB",
+          "rationale": "The repository-wide phase cache measured 4613930066 bytes on 2026-08-27; 7 days and 2 GiB match the owner-side eviction policy."
+        }
+      },
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "cleanup_providers": [
+      {
+        "id": "test-genie-run-retention",
+        "name": "Test Genie retained runs",
+        "safety_tier": "safe_with_owner",
+        "default_mode": "disabled",
+        "default_approval": "owner"
+      }
+    ],
+    "rationale": "Storage surfaces include durable API data plus governed, regenerable test-run and phase-cache artifacts."
+  },
+  "retention": {
+    "budgets": {
+      "run_artifacts": {
+        "target": {
+          "kind": "directory",
+          "class": "test_runs",
+          "path": "."
+        },
+        "max_age": "30d",
+        "max_bytes": "20GiB",
+        "pruner": "builtin",
+        "rationale": "The repository-wide coverage tree measured 17317434773 bytes on 2026-08-27; the existing runtime-home policy bounds regenerable run evidence at 30 days and 20 GiB while preserving active runs."
+      },
+      "phase_cache": {
+        "target": {
+          "kind": "directory",
+          "class": "cache",
+          "path": "."
+        },
+        "max_age": "7d",
+        "max_bytes": "2GiB",
+        "pruner": "builtin",
+        "rationale": "The repository-wide phase cache measured 4613930066 bytes on 2026-08-27; a 7-day, 2 GiB ceiling matches the owner-side eviction policy and keeps recomputation bounded."
+      }
+    }
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "test-genie",
+    "displayName": "Test Genie",
+    "description": "Descriptor-backed test orchestration and execution-evidence remediation",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/test-genie"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999",
+      "port": 21223
+    }
+  },
+  "environment": {
+    "TEST_GENIE_SQLITE_PATH": "${SCENARIO_DATA_DIR}/test-genie.db"
+  },
+  "hostTools": [
+    {
+      "name": "bats",
+      "required": false,
+      "reason": "Execute discovered BATS suites during integration-test orchestration",
+      "when": [
+        "setup"
+      ],
+      "environments": [
+        "development"
+      ],
+      "notes": "Test Genie degrades with a clear missing-dependency error when bats is unavailable"
+    }
+  ],
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "startup_grace_period": 15000,
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": false,
+        "required": false,
+        "purpose": "Optional isolated database fixture provider",
+        "startup_policy": "try_start"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Optional isolated cache fixture provider",
+        "startup_policy": "try_start"
+      }
+    },
+    "scenarios": {
+      "agent-inbox": {
+        "enabled": true,
+        "required": false,
+        "description": "Optional external tool-discovery consumer. Test Genie publishes tool registry proto contracts that agent-inbox can consume.",
+        "degraded_behavior": "Core test execution continues when agent-inbox is unavailable; external tool invocation/discovery integrations may be unavailable.",
+        "startup_policy": "try_start"
+      },
+      "agent-manager": {
+        "enabled": true,
+        "required": false,
+        "description": "Optional evidence-bound remediation executor using Test Genie's declared role-only profile.",
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "profileMode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-manager/generation.json"
+            ]
+          }
+        },
+        "degraded_behavior": "Core test execution continues when agent-manager is unavailable; evidence-bound remediation returns a clear unavailable error.",
+        "startup_policy": "try_start"
+      },
+      "deployment-manager": {
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Test Genie reports candidate-bound terminal suite evidence through Deployment Manager's typed readiness service; it does not import Deployment Manager implementation code.",
+        "purpose": "Owner of release readiness review state",
+        "degraded_behavior": "Test execution remains available; release readiness records remain unavailable until Deployment Manager and its server-side readiness credential are configured.",
+        "startup_policy": "try_start"
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "test-genie",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "test-genie"
+    },
+    "freshness": {
+      "inputs": [
+        "api/**",
+        "cli/**",
+        ".vrooli/service.json",
+        ".vrooli/testing.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/test-genie/SKILL.md",
+      "programs": ["test-genie.validation-digest"]
+    },
+    "improve": {
+      "source": "skills/test-genie-improve/SKILL.md",
+      "programs": ["test-genie.validation-digest"]
+    },
+    "feature": [],
+    "learning": {"scope": "test-genie-usage"},
+    "waivers": {}
+  }
+}

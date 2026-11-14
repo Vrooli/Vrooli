@@ -236,19 +236,3 @@ func TestExecuteTool_ConcurrentAccess(t *testing.T) {
 		t.Errorf("expected %d calls, got %d", goroutines, h.callCount())
 	}
 }
-
-// TestRegisterProtocolHandler verifies protocol handler registration.
-func TestRegisterProtocolHandler(t *testing.T) {
-	exec := NewToolExecutor()
-	exec.RegisterProtocolHandler("my-scenario", "http://localhost:8080", []string{"tool-1", "tool-2"})
-
-	if !exec.IsKnownTool("tool-1") {
-		t.Error("expected tool-1 to be known")
-	}
-	if !exec.IsKnownTool("tool-2") {
-		t.Error("expected tool-2 to be known")
-	}
-	if exec.GetToolScenario("tool-1") != "my-scenario" {
-		t.Errorf("expected scenario 'my-scenario', got '%s'", exec.GetToolScenario("tool-1"))
-	}
-}

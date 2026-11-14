@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "case_id": "OPS-03",
+  "verdict": "unavailable",
+  "lane": "soak",
+  "requirement_refs": [
+    "STC-P0-043"
+  ],
+  "candidate": {
+    "release_digest": "",
+    "configuration_digest": "",
+    "closure_digest": ""
+  },
+  "target": {
+    "machine_id": "",
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "operation_refs": [],
+  "validation_receipt_ref": "go test ./perfbudget/ ./certification/ (2026-09-09, PASS, -race)",
+  "artifact_refs": [
+    "api/perfbudget/bounded_test.go#TestEveryRetryClassHasAFiniteCeiling",
+    "api/perfbudget/bounded_test.go#TestOperationTimeoutsAreBoundedAndMatchTheFrozenBudget",
+    "api/perfbudget/bounded_test.go#TestRetentionNeverDeletesProtectedOrActiveArtifacts"
+  ],
+  "assertions": [
+    "bounded behaviour on the package lane: every retry class finite (api/perfbudget RetryBudget), operation timeouts bounded and equal to the frozen budget, retention planners never delete protected artifacts",
+    "capacity preflight headroom for transient update/backup (plan step 7) is not proven here"
+  ],
+  "observed_at": "2026-09-09T18:30:00Z",
+  "limitations": [
+    "soak lane pending EXT-09 (authorised 24-hour staging soak on a disposable target); no soak has run",
+    "real_vps lane pending EXT-01 (authorised disposable VPS); no real target exists",
+    "qemu lane pending EXT-06 (qemu + cloud-localds not installed on the host)",
+    "no disk/CPU/memory pressure was applied to any target (needs a disposable target, EXT-01/EXT-06)"
+  ]
+}

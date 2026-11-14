@@ -1,0 +1,148 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_cloud.v1.operations;
+
+import "scenario-to-cloud/v1/errors/errors.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/operations;operationsv1";
+
+// =============================================================================
+// OPERATIONS — durable, fenced, recoverable cloud operations
+// =============================================================================
+//
+// @stability beta
+//
+// An operation is one admitted executable plan against one deployment. The
+// durable record (cloud_operations) owns execution: workers acquire it under
+// a monotonic fence, commit per-step receipts under that fence and lose every
+// write once a successor acquires a higher fence. Clients keep the operation
+// id as their wait reference across disconnects and owner restarts.
+//
+// States (one canonical vocabulary): admitted, waiting_input, running,
+// verifying, reconciling, recovering, cancel_requested, succeeded, failed,
+// failed_recovery, cancelled. Operation success is distinct from recovery
+// success: `failed` may carry recovery_outcome "service_restored".
+//
+// JSON on the wire uses these field names (snake_case); the REST endpoints
+// GET /api/v1/operations/{id}, GET /api/v1/operations/{id}/wait,
+// POST /api/v1/operations/{id}/cancel and
+// GET /api/v1/deployments/{id}/operations return the same shapes.
+//
+// USAGE CONTEXTS:
+//   - api/operations: state machine, worker, reconciliation, standing.
+//   - api/operationsvc: Connect handler mounted beside the REST routes.
+//   - cli: `scenario-to-cloud operation get|wait|cancel|list`.
+//
+// =============================================================================
+
+service OperationsService {
+  // GetOperation returns the durable standing.
+  rpc GetOperation(GetOperationRequest) returns (OperationStanding);
+  // WaitOperation blocks server-side until terminal or the observer bound
+  // elapses; a timed-out wait returns still_pending and never mutates state.
+  rpc WaitOperation(WaitOperationRequest) returns (OperationStanding);
+  // CancelOperation records the cancellation intent; the worker honours it at
+  // the next declared cancel point.
+  rpc CancelOperation(CancelOperationRequest) returns (OperationStanding);
+  // ListDeploymentOperations lists the operations of one deployment.
+  rpc ListDeploymentOperations(ListDeploymentOperationsRequest) returns (ListDeploymentOperationsResponse);
+  // ReconcileOperations runs one owner pass now (reacquire expired leases,
+  // resume from receipts). Destructive scope.
+  rpc ReconcileOperations(ReconcileOperationsRequest) returns (ReconcileOperationsResponse);
+}
+
+// StepReceipt is one committed step outcome.
+message StepReceipt {
+  string step = 1;
+  string owner_operation = 2;
+  // succeeded | failed | skipped | unchanged | unknown
+  string outcome = 3;
+  uint64 fence = 4;
+  bool replayed = 5;
+  // worker | target_receipt
+  string source = 6;
+  string detail = 7;
+  string error = 8;
+  string started_at = 9;
+  string completed_at = 10;
+}
+
+// UnknownEffect is a remote effect whose outcome could not be observed.
+message UnknownEffect {
+  string step = 1;
+  uint64 fence = 2;
+  string reason = 3;
+  string retry = 4;
+  string next_action = 5;
+  string recorded_at = 6;
+}
+
+// OperationResult is the terminal outcome envelope.
+message OperationResult {
+  string outcome = 1;
+  // service_restored | not_attempted | recovery_failed (empty when not applicable)
+  string recovery_outcome = 2;
+  int32 completed_steps = 3;
+  string message = 4;
+}
+
+// OperationStanding is the durable status contract.
+message OperationStanding {
+  string schema_version = 1;
+  string operation_id = 2;
+  string deployment_id = 3;
+  string request_key = 4;
+  string plan_digest = 5;
+  string state = 6;
+  bool terminal = 7;
+  uint64 fence = 8;
+  string worker_id = 9;
+  string lease_expires_at = 10;
+  string heartbeat_at = 11;
+  bool cancel_requested = 12;
+  string active_step = 13;
+  repeated string completed_steps = 14;
+  repeated StepReceipt step_receipts = 15;
+  repeated UnknownEffect unknown_effects = 16;
+  OperationResult result = 17;
+  vrooli.scenario_to_cloud.v1.errors.Error error = 18;
+  vrooli.scenario_to_cloud.v1.errors.NextAction next_action = 19;
+  string reattach_command = 20;
+  bool still_pending = 21;
+  int32 recommended_next_check_seconds = 22;
+  string created_at = 23;
+  string updated_at = 24;
+  string terminal_at = 25;
+}
+
+message GetOperationRequest {
+  string operation_id = 1;
+}
+
+message WaitOperationRequest {
+  string operation_id = 1;
+  // Observer bound in seconds; 0 uses the owner's default and is capped by it.
+  int32 timeout_seconds = 2;
+}
+
+message CancelOperationRequest {
+  string operation_id = 1;
+}
+
+message ListDeploymentOperationsRequest {
+  string deployment_id = 1;
+}
+
+message ListDeploymentOperationsResponse {
+  string schema_version = 1;
+  string deployment_id = 2;
+  repeated OperationStanding operations = 3;
+}
+
+message ReconcileOperationsRequest {}
+
+message ReconcileOperationsResponse {
+  string schema_version = 1;
+  string worker_id = 2;
+  repeated string acquired = 3;
+}

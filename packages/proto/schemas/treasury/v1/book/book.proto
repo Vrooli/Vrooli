@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package vrooli.treasury.v1.book;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/book;book_v1";
+
+message Book {
+  string id = 1;
+  string name = 2;
+  string beneficiary_identity = 3;
+  google.protobuf.Timestamp created_at = 4;
+}

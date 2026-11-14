@@ -1,4 +1,4 @@
-import { computeLineDiff, type DiffLine } from "../lib/diff";
+import { computeLineDiff } from "../lib/diff";
 
 export function DiffViewer({ before, after, filePath }: { before: string; after: string; filePath: string }) {
   const lines = computeLineDiff(before, after);

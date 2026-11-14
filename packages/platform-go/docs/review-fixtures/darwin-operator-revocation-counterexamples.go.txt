@@ -1,0 +1,76 @@
+package platform
+
+import (
+ "context"
+ "errors"
+ "testing"
+)
+
+type reviewDarwinRevokeTransition struct {
+ darwinOwnedStore
+ afterRevoke func()
+}
+func (s reviewDarwinRevokeTransition) Revoke(r darwinOwnedRecord) error {
+ if err := s.darwinOwnedStore.Revoke(r); err != nil { return err }
+ s.afterRevoke()
+ return nil
+}
+
+// A manager label remains exact, but its current kernel root changed after the
+// initial inspection. Revocation I/O is an observable gap before bootout.
+func TestIndependentDarwinStopRejectsRootChangedDuringRevocation(t *testing.T) {
+ b,f,i,s := newDarwinFixture(t)
+ ref := startDarwinFixture(t,b,i,s)
+ b.store = reviewDarwinRevokeTransition{b.store,func(){
+  f.process = darwinOwnedProcess{PID:77, Seconds:200, Micros:9, UniqueID:777, ExecVersion:1}
+ }}
+ before := len(f.calls)
+ receipt,err := b.stop(context.Background(),ref)
+ if !errors.Is(err,ErrOperationIdentity) || receipt.NativeQuiescent || len(f.calls)!=before {
+  t.Fatalf("changed manager root was retired: receipt=%+v error=%v effects=%v",receipt,err,f.calls[before:])
+ }
+}
+
+func TestIndependentDarwinReleaseRejectsRootStartedDuringRevocation(t *testing.T) {
+ b,f,i,s := newDarwinFixture(t)
+ ref := startDarwinFixture(t,b,i,s)
+ f.process = darwinOwnedProcess{}
+ b.store = reviewDarwinRevokeTransition{b.store,func(){
+  f.process = darwinOwnedProcess{PID:77, Seconds:200, Micros:9, UniqueID:777, ExecVersion:1}
+ }}
+ before := len(f.calls)
+ err := b.release(context.Background(),ref)
+ if !errors.Is(err,ErrOperationIdentity) || len(f.calls)!=before {
+  t.Fatalf("new manager root was released: error=%v effects=%v",err,f.calls[before:])
+ }
+}
+
+func TestIndependentDarwinRetirementRejectsPostRevocationUncertainty(t *testing.T) {
+ for _,kind := range []string{"same-pid-new-birth","boot","manager-unknown"} {
+  t.Run(kind,func(t *testing.T){
+   b,f,i,s := newDarwinFixture(t)
+   ref := startDarwinFixture(t,b,i,s)
+   b.store = reviewDarwinRevokeTransition{b.store,func(){
+    switch kind {
+    case "same-pid-new-birth": f.process.UniqueID++
+    case "boot": f.boot="22222222-2222-3333-4444-555555555555"
+    case "manager-unknown": f.managerErr=errors.New("independent manager outage")
+    }
+   }}
+   before:=len(f.calls)
+   receipt,err:=b.stop(context.Background(),ref)
+   if err==nil || receipt.NativeQuiescent || len(f.calls)!=before {
+    t.Fatalf("post-revoke uncertainty became effect/success: receipt=%+v err=%v effects=%v",receipt,err,f.calls[before:])
+   }
+   if _,err:=b.store.Read(i);err!=nil { t.Fatalf("uncertain retirement lost intent: %v",err) }
+  })
+ }
+}
+
+func TestIndependentDarwinRetirementAllowsSameBirthExecDuringRevocation(t *testing.T) {
+ b,f,i,s:=newDarwinFixture(t)
+ ref:=startDarwinFixture(t,b,i,s)
+ b.store=reviewDarwinRevokeTransition{b.store,func(){f.process.ExecVersion++}}
+ receipt,err:=b.stop(context.Background(),ref)
+ if err!=nil || !receipt.NativeQuiescent {t.Fatalf("legitimate same-birth exec prevented retirement: %+v %v",receipt,err)}
+}

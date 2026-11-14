@@ -1,346 +1,162 @@
-/**
- * Vrooli Ascension selector registry
- *
- * This file is the single source of truth for every selector used by the UI and
- * by Vrooli Ascension workflows. We deliberately model selectors as two
- * declarative maps (one literal, one dynamic) and rely on a small helper to
- * produce the typed `selectors` export plus the manifest consumed by workflow
- * linting. Do not hand-roll selector helpers or change this structure—update the
- * maps below so UI code, automation flows, and the manifest builder all stay in
- * sync across every scenario.
- *
- * ## Auto-Generated Manifest
- *
- * The `selectors.manifest.json` file is automatically generated from this file
- * during the testing process. If you need to add or modify selectors:
- *
- * 1. Update the `literalSelectors` object below for static selectors
- * 2. Update the `dynamicSelectorDefinitions` object for parameterized selectors
- * 3. The manifest will be regenerated automatically when tests run
- *
- * DO NOT manually edit `selectors.manifest.json` - your changes will be overwritten!
+import { librarySelectors } from "./selectors.library";
+export { librarySelectors };
+/** Application selector definitions. Shared behavior lives in @vrooli/ui-selectors.
+ * Run selector:manifest after editing these maps; UI builds regenerate the manifest.
  */
+import { LOCALE_CODES } from "../i18n/locales";
 
-type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree };
-type LiteralNode = string | LiteralSelectorTree;
+import { createSelectorRegistry, defineDynamicSelector, type LiteralSelectorTree, type DynamicSelectorTree } from "@vrooli/ui-selectors";
+export { createSelectorRegistry, defineDynamicSelector } from "@vrooli/ui-selectors";
 
-type ParamType = "string" | "number" | "enum";
-
-type ParamDefinition =
-  | { readonly type: "string" }
-  | { readonly type: "number" }
-  | { readonly type: "enum"; readonly values: readonly (string | number)[] };
-
-type ParamSchema = Readonly<Record<string, ParamDefinition>>;
-
-type ParamValueType<T extends ParamDefinition> = T extends { type: "number" }
-  ? number
-  : T extends { type: "enum"; values: readonly (infer V)[] }
-  ? V
-  : string;
-
-type ParamValues<P extends ParamSchema | undefined> = P extends ParamSchema
-  ? { [K in keyof P]: ParamValueType<P[K]> }
-  : Record<string, never>;
-
-interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefined> {
-  readonly kind: "dynamic-selector";
-  readonly description: string;
-  readonly params?: P;
-  readonly testIdPattern?: string;
-  readonly selectorPattern?: string;
-}
-
-type DynamicSelectorBranch = {
-  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<any>;
-};
-
-type DynamicSelectorTree = DynamicSelectorBranch;
-
-type DynamicSelectorFn<P extends ParamSchema | undefined> = keyof ParamValues<P> extends never
-  ? () => string
-  : (params: ParamValues<P>) => string;
-
-type DynamicBranchResult<D extends DynamicSelectorTree> = {
-  [K in keyof D]: D[K] extends DynamicSelectorDefinition<infer P>
-  ? DynamicSelectorFn<P>
-  : D[K] extends DynamicSelectorTree
-  ? DynamicBranchResult<D[K]>
-  : never;
-};
-
-type SelectorTreeResult<
-  L extends LiteralSelectorTree,
-  D extends DynamicSelectorTree,
-> = {
-  [K in keyof L]: L[K] extends string
-    ? string
-    : SelectorTreeResult<
-        Extract<L[K], LiteralSelectorTree>,
-        K extends keyof D ? Extract<D[K], DynamicSelectorTree> : DynamicSelectorTree
-      >;
-} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : {});
-
-const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
-
-const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
-  template.replace(TEMPLATE_TOKEN, (_match, token) => {
-    if (!(token in values)) {
-      throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
-    }
-    return String(values[token]);
-  });
-
-const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
-
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<any> =>
-  Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition).kind === "dynamic-selector");
-
-const normalizeParams = (
-  definition: DynamicSelectorDefinition<any>,
-  raw: Record<string, string | number>,
-  path: string,
-) => {
-  const schema = definition.params ?? ({} as ParamSchema);
-  const normalized: Record<string, string | number> = {};
-
-  for (const key of Object.keys(schema)) {
-    if (!(key in raw)) {
-      throw new Error(`Selector '${path}' is missing parameter '${key}'`);
-    }
-    const definitionEntry = schema[key];
-    const value = raw[key];
-    if (definitionEntry.type === "number") {
-      if (typeof value !== "number") {
-        throw new Error(`Selector '${path}' parameter '${key}' must be numeric`);
-      }
-      normalized[key] = value;
-      continue;
-    }
-    if (definitionEntry.type === "enum") {
-      if (!definitionEntry.values.includes(value)) {
-        throw new Error(
-          `Selector '${path}' parameter '${key}' must be one of: ${definitionEntry.values.join(", ")}`,
-        );
-      }
-      normalized[key] = value;
-      continue;
-    }
-    normalized[key] = value;
-  }
-
-  const extras = Object.keys(raw).filter((key) => !(key in schema));
-  if (extras.length > 0) {
-    throw new Error(`Selector '${path}' received unknown parameter(s): ${extras.join(", ")}`);
-  }
-
-  return normalized;
-};
-
-const flattenLiteralSelectors = (
-  tree: LiteralSelectorTree,
-  prefix: string[] = [],
-  target: Record<string, { testId: string; selector: string }> = {},
-) => {
-  for (const [key, value] of Object.entries(tree)) {
-    const nextPath = [...prefix, key];
-    if (typeof value === "string") {
-      const manifestKey = nextPath.join(".");
-      target[manifestKey] = {
-        testId: value,
-        selector: toDataTestIdSelector(value),
-      };
-      continue;
-    }
-    flattenLiteralSelectors(value, nextPath, target);
-  }
-  return target;
-};
-
-const flattenDynamicSelectors = (
-  tree: DynamicSelectorTree,
-  prefix: string[] = [],
-  target: Record<string, {
-    description: string;
-    selectorPattern: string;
-    testIdPattern?: string;
-    params: Array<{ name: string; type: ParamType; values?: readonly (string | number)[] }>;
-  }> = {},
-) => {
-  for (const [key, value] of Object.entries(tree)) {
-    const nextPath = [...prefix, key];
-    if (isDynamicDefinition(value)) {
-      const manifestKey = nextPath.join(".");
-      const paramEntries = Object.entries(value.params ?? {}) as Array<[string, ParamDefinition]>;
-      target[manifestKey] = {
-        description: value.description,
-        selectorPattern:
-          value.selectorPattern ?? (value.testIdPattern ? toDataTestIdSelector(value.testIdPattern) : ""),
-        testIdPattern: value.testIdPattern,
-        params: paramEntries.map(([name, config]) => ({
-          name,
-          type: config.type,
-          values: config.type === "enum" ? config.values : undefined,
-        })),
-      };
-      continue;
-    }
-    flattenDynamicSelectors(value, nextPath, target);
-  }
-  return target;
-};
-
-const mergeLiteralAndDynamicNodes = (
-  literalNode: LiteralSelectorTree | undefined,
-  dynamicNode: DynamicSelectorTree | undefined,
-  path: string[] = [],
-): Record<string, unknown> => {
-  const merged: Record<string, unknown> = {};
-  const keys = new Set([
-    ...Object.keys(literalNode ?? {}),
-    ...Object.keys(dynamicNode ?? {}),
-  ]);
-
-  keys.forEach((key) => {
-    const literalValue: LiteralNode | undefined = literalNode?.[key];
-    const dynamicValue = dynamicNode?.[key];
-    const nextPath = [...path, key];
-
-    if (typeof literalValue === "string") {
-      merged[key] = literalValue;
-      return;
-    }
-
-    if (literalValue && typeof literalValue === "object") {
-      merged[key] = mergeLiteralAndDynamicNodes(
-        literalValue as LiteralSelectorTree,
-        isDynamicDefinition(dynamicValue) ? undefined : (dynamicValue as DynamicSelectorTree | undefined),
-        nextPath,
-      );
-      return;
-    }
-
-    if (dynamicValue) {
-      if (isDynamicDefinition(dynamicValue)) {
-        merged[key] = createDynamicSelectorFn(dynamicValue, nextPath.join("."));
-        return;
-      }
-      merged[key] = mergeLiteralAndDynamicNodes(undefined, dynamicValue as DynamicSelectorTree, nextPath);
-    }
-  });
-
-  return merged;
-};
-
-const createDynamicSelectorFn = (
-  definition: DynamicSelectorDefinition<any>,
-  path: string,
-) => {
-  return (params?: Record<string, string | number>) => {
-    const normalized = normalizeParams(definition, params ?? {}, path);
-    const template = definition.testIdPattern ?? definition.selectorPattern;
-    if (!template) {
-      throw new Error(`Selector '${path}' is missing both testIdPattern and selectorPattern`);
-    }
-    return formatTemplate(template, normalized, path);
-  };
-};
-
-const defineDynamicSelector = <P extends ParamSchema | undefined>(
-  definition: Omit<DynamicSelectorDefinition<P>, "kind">,
-): DynamicSelectorDefinition<P> => ({
-  ...definition,
-  kind: "dynamic-selector",
-});
-
-const createSelectorRegistry = <
-  L extends LiteralSelectorTree,
-  D extends DynamicSelectorTree,
->(literalTree: L, dynamicTree: D) => {
-  const selectors = mergeLiteralAndDynamicNodes(literalTree, dynamicTree) as SelectorTreeResult<L, D>;
-  const manifest = {
-    selectors: flattenLiteralSelectors(literalTree),
-    dynamicSelectors: flattenDynamicSelectors(dynamicTree),
-  };
-  return { selectors, manifest };
-};
-
-const literalSelectors: LiteralSelectorTree = {
-  dashboard: {
-    root: "dashboard",
-    scenariosTable: "scenarios-table",
-    healthAlertBanner: "health-alert-banner",
-    healthSummaryBar: "health-summary-bar",
-    searchFilterBar: "search-filter-bar",
-    searchInput: "search-input",
-    categoryFilter: "category-filter",
-    quickAccessSection: "quick-access-section",
-    recentScenarios: "recent-scenarios",
-    needsAttention: "needs-attention",
-    welcomeGuidance: "welcome-guidance",
-    bulkRefreshButton: "bulk-refresh-button",
+const literalSelectors = {
+  app: {
+    title: "app-title",
+    eyebrow: "app-eyebrow",
+    description: "app-description",
   },
-  scenarioDetail: {
-    root: "scenario-detail",
-    recommendationsSection: "recommendations-section",
-    configureButton: "configure-button",
-    whatIfSection: "what-if-section",
-    scoreBarDetails: "score-bar-details",
-    configTip: "config-tip",
-    partialDataBanner: "partial-data-banner",
-    historyPanel: "history-panel",
-    historySnapshotList: "history-snapshot-list",
+  health: {
+    card: "health-card",
+    loading: "health-loading",
+    error: "health-error",
+    statusValue: "health-status-value",
+    serviceValue: "health-service-value",
+    timestampValue: "health-timestamp-value",
+    refreshButton: "health-refresh-button",
+    refreshCount: "health-refresh-count",
   },
-  configuration: {
-    root: "configuration-panel",
-    presetsList: "presets-list",
-    trippedBreakersAlert: "tripped-breakers-alert",
-    scenarioContextIndicator: "scenario-context-indicator",
+  notifications: {
+    summary: "notifications-summary",
   },
-  components: {
-    trendIndicator: "trend-indicator",
-    sparkline: "sparkline",
-    scoreClassificationBadge: "score-classification-badge",
-    scoreLegendButton: "score-legend-button",
-    scoreLegendPopover: "score-legend-popover",
+  scoring: {
+    dashboard: "scoring-dashboard",
+    form: "scoring-form",
+    input: "scoring-input",
+    submit: "scoring-submit",
+    loading: "scoring-loading",
+    error: "scoring-error",
+    empty: "scoring-empty",
+    maturity: {
+      card: "scoring-maturity-card",
+      workingRung: "scoring-maturity-working-rung",
+      ladderClean: "scoring-maturity-ladder-clean",
+      satisfiedThrough: "scoring-maturity-satisfied-through",
+      build: "scoring-maturity-build",
+      digest: "scoring-maturity-digest",
+      dimensions: "scoring-maturity-dimensions",
+    },
+    composite: {
+      card: "scoring-composite-card",
+      score: "scoring-composite-score",
+      classification: "scoring-composite-classification",
+    },
+    freshness: {
+      card: "scoring-freshness-card",
+      refreshCommand: "scoring-freshness-refresh-command",
+    },
+    importance: {
+      card: "scoring-importance-card",
+      score: "scoring-importance-score",
+      signals: "scoring-importance-signals",
+    },
+    recommendations: {
+      card: "scoring-recommendations-card",
+    },
+    actionPlan: {
+      card: "scoring-action-plan-card",
+      projected: "scoring-action-plan-projected",
+    },
+    degradations: {
+      card: "scoring-degradations-card",
+    },
+    trend: {
+      card: "scoring-trend-card",
+      delta: "scoring-trend-delta",
+      series: "scoring-trend-series",
+    },
+    fleet: {
+      card: "scoring-fleet-card",
+      table: "scoring-fleet-table",
+      next: "scoring-fleet-next",
+      empty: "scoring-fleet-empty",
+    },
   },
-};
+  locale: {
+    switcher: "locale-switcher",
+  },
+  layout: {
+    shell: "layout-shell",
+  },
+  theme: {
+    switcher: "theme-switcher",
+    select: "theme-select",
+  },
+  pages: {
+    dashboard: "page-dashboard",
+    settings: "page-settings",
+  },
+  errorBoundary: {
+    root: "error-boundary-root",
+    retryButton: "error-boundary-retry",
+  },
+} satisfies LiteralSelectorTree;
 
-const dynamicSelectorDefinitions: DynamicSelectorTree = {
-  dashboard: {
-    scenarioRow: defineDynamicSelector({
-      description: "Scenario row by name",
-      testIdPattern: "scenario-row-${name}",
-      params: { name: { type: "string" } },
+// Per-locale toggle test IDs are emitted by `locale.toggle({ code })` below.
+// We deliberately do NOT also declare static `toggleEn` / `toggleJa` literals —
+// the dynamic form is the single source of truth, and duplicating it here would
+// drift the moment a new locale is added to LOCALE_CODES.
+//
+// `code` is constrained to `LOCALE_CODES` so `selectors.locale.toggle({ code: "fr" })`
+// is a TypeScript error when "fr" isn't a supported locale. The runtime enum
+// validation in `normalizeParams` provides the same guarantee at call time.
+const dynamicSelectorDefinitions = {
+  scoring: {
+    freshnessPhaseRow: defineDynamicSelector({
+      description: "Freshness verdict row by required-phase name",
+      testIdPattern: "scoring-freshness-phase-${phase}",
+      params: { phase: { type: "string" } },
     }),
-    recalculateButton: defineDynamicSelector({
-      description: "Recalculate button by scenario name",
-      testIdPattern: "recalculate-${name}",
-      params: { name: { type: "string" } },
+    compositeGroup: defineDynamicSelector({
+      description: "Composite score group section by stable group id",
+      testIdPattern: "scoring-composite-group-${id}",
+      params: { id: { type: "enum", values: ["quality", "coverage", "quantity", "ui"] as const } },
     }),
   },
-  configuration: {
-    preset: defineDynamicSelector({
-      description: "Preset button by name",
-      testIdPattern: "preset-${name}",
-      params: { name: { type: "string" } },
+  locale: {
+    toggle: defineDynamicSelector({
+      description: "Locale toggle button by language code",
+      testIdPattern: "locale-toggle-${code}",
+      params: { code: { type: "enum", values: LOCALE_CODES } },
     }),
   },
-  components: {
-    scoreBar: defineDynamicSelector({
-      description: "Score bar by dimension",
-      testIdPattern: "score-bar-${dimension}",
-      params: { dimension: { type: "string" } },
-    }),
-    healthBadge: defineDynamicSelector({
-      description: "Health badge by status",
-      testIdPattern: "health-badge-${status}",
-      params: { status: { type: "enum", values: ["ok", "degraded", "failed"] } },
+  layout: {
+    navLink: defineDynamicSelector({
+      description: "App shell navigation link by canonical nav key",
+      testIdPattern: "layout-nav-link-${key}",
+      params: {
+        key: {
+          type: "enum",
+          values: [
+            "dashboard",
+            "settings",          ] as const,
+        },
+      },
     }),
   },
-};
+  settingsPage: {
+    themeOption: defineDynamicSelector({
+      description: "Theme choice radio button on the settings page",
+      testIdPattern: "page-settings-theme-${choice}",
+      params: { choice: { type: "enum", values: ["light", "dark", "system"] as const } },
+    }),
+    localeOption: defineDynamicSelector({
+      description: "Locale choice radio button on the settings page",
+      testIdPattern: "page-settings-locale-${code}",
+      params: { code: { type: "enum", values: LOCALE_CODES } },
+    }),
+  },
+} satisfies DynamicSelectorTree;
 
-const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
+const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions, librarySelectors);
 
 export const selectors = registry.selectors;
 export type Selectors = typeof selectors;

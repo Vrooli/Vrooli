@@ -1,0 +1,24 @@
+{
+  "background_color": "#ffffff",
+  "description": "Personal music player with a legible taste engine: decomposes what you play, learns what you like, and generates toward it",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any maskable",
+      "sizes": "192x192",
+      "src": "manifest-icon-192.maskable.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any maskable",
+      "sizes": "512x512",
+      "src": "manifest-icon-512.maskable.png",
+      "type": "image/png"
+    }
+  ],
+  "name": "Music Library",
+  "scope": "../",
+  "short_name": "music-library",
+  "start_url": "../",
+  "theme_color": "#ffffff"
+}

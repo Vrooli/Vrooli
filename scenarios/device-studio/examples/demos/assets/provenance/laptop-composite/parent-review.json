@@ -1,0 +1,27 @@
+{
+  "reviewedAt": "2026-10-21T04:30:24.976651+00:00",
+  "reviewer": "root independent actual-image inspection",
+  "artifact": "/home/matthalloran8/Vrooli/scenarios/device-studio/docs/internal/goal/evidence/E3/final-demos/laptop-lid-vflip-10s-3/laptop-vflip-native-api-provisional.mp4",
+  "sha256": "9e6d9047e1425e0dd54f6516af070318d95f5248e66f4688265748291842d314",
+  "bytes": 3843081,
+  "framesReviewed": [
+    "frames/laptop-01.png",
+    "frames/laptop-02.png",
+    "frames/laptop-03.png",
+    "frames/laptop-04.png",
+    "frames/laptop-05.png"
+  ],
+  "verdict": "PASS bounded appearance",
+  "findings": [
+    "Upright unmirrored app/browser/desktop with left sidebar and bottom dock.",
+    "Whole-device camera framing and coherent keyboard/base/lid relationship.",
+    "Lid screen remains attached across open/intermediate/near-closed samples; final lid is visibly closed.",
+    "Desk contact/reflection and neutral environment match accepted framed direction."
+  ],
+  "limits": [
+    "Sampled-frame review does not substitute for continuous browser playback, which remains in progress.",
+    "Source is a static authentic app screenshot with composed browser/desktop; no recording-texture timing proof is claimed for this clip.",
+    "No universal mechanical clearance or manufacturer mechanism certification.",
+    "Full saved/reopened demonstration set and scope-bound qualification remain separate."
+  ]
+}

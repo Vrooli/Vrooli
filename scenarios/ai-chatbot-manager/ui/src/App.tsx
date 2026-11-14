@@ -14,12 +14,10 @@ import {
   Bot,
   LayoutDashboard,
   Loader2,
-  MessageSquare,
-  PanelLeftOpen,
-  PanelLeftClose,
   PlusCircle,
   Sparkles,
 } from 'lucide-react';
+import { AppShell as LibraryAppShell, type AppShellNavItem } from '@vrooli/react-component-library/AppShell/2';
 
 import Dashboard from './components/Dashboard';
 import ChatbotList from './components/ChatbotList';
@@ -63,7 +61,6 @@ const App = () => (
 function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [apiState, setApiState] = useState<ApiConnectionState>({
     status: 'checking',
     latencyMs: null,
@@ -147,24 +144,24 @@ function AppShell() {
     );
   }
 
+  const shellItems: AppShellNavItem[] = NAV_ITEMS.map((item) => ({
+    id: item.path,
+    label: item.label,
+    href: item.path,
+    icon: <item.icon size={18} aria-hidden="true" />,
+    current: item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path),
+  }));
+
   return (
-    <div className="app-shell">
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        currentPath={location.pathname}
-        onNavigate={(path) => navigate(path)}
-        onToggle={() => setSidebarCollapsed((prev) => !prev)}
-        apiState={apiState}
-      />
-      <div className="main-panel">
-        <header className="app-topbar">
-          <button
-            className="sidebar-toggle"
-            onClick={() => setSidebarCollapsed((prev) => !prev)}
-            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-          </button>
+    <LibraryAppShell
+      brand="AI Chatbot Manager"
+      brandMark={<Bot aria-hidden="true" />}
+      items={shellItems}
+      density="sidebar"
+      mobileNav="tabs"
+      mainMode="scroll"
+      header={(
+        <div className="app-topbar">
           <div className="topbar-heading">
             <h1>{routeTitle.title}</h1>
             <p>{routeTitle.subtitle}</p>
@@ -176,74 +173,26 @@ function AppShell() {
               <span>Launch New Chatbot</span>
             </button>
           </div>
-        </header>
-        <main className="app-content">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/chatbots" element={<ChatbotList />} />
-            <Route path="/chatbots/new" element={<ChatbotEditor />} />
-            <Route path="/chatbots/:id/edit" element={<ChatbotEditor />} />
-            <Route path="/chatbots/:id/analytics" element={<Analytics />} />
-            <Route path="/chatbots/:id/test" element={<TestChat />} />
-          </Routes>
-        </main>
-      </div>
-    </div>
-  );
-}
-
-interface SidebarProps {
-  collapsed: boolean;
-  currentPath: string;
-  onNavigate: (path: string) => void;
-  onToggle: () => void;
-  apiState: ApiConnectionState;
-}
-
-function Sidebar({ collapsed, currentPath, onNavigate, onToggle, apiState }: SidebarProps) {
-  return (
-    <aside className={`sidebar ${collapsed ? 'is-collapsed' : ''}`}>
-      <div className="sidebar-brand" onClick={!collapsed ? undefined : onToggle}>
-        <div className="brand-icon">
-          <Bot size={22} />
         </div>
-        {!collapsed && (
-          <div className="brand-copy">
-            <span className="brand-title">AI Chatbot Manager</span>
-            <span className="brand-subtitle">Conversation intelligence at scale</span>
-          </div>
-        )}
-      </div>
-      <nav className="sidebar-nav">
-        {NAV_ITEMS.map((item) => {
-          const isActive = item.path === '/'
-            ? currentPath === item.path
-            : currentPath.startsWith(item.path);
-
-          return (
-            <button
-              key={item.path}
-              className={`nav-link ${isActive ? 'is-active' : ''}`}
-              onClick={() => onNavigate(item.path)}
-              title={collapsed ? item.label : undefined}
-            >
-              <item.icon size={18} />
-              {!collapsed && <span>{item.label}</span>}
-            </button>
-          );
-        })}
-      </nav>
-      <div className="sidebar-footer">
-        <ApiStatusIndicator state={apiState} collapsed={collapsed} />
-        <div className="sidebar-meta">
-          <MessageSquare size={14} />
-          {!collapsed && <span>Real-time chat orchestration</span>}
-        </div>
-      </div>
-      <button className="sidebar-collapse" onClick={onToggle} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-        {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-      </button>
-    </aside>
+      )}
+      utility={<ApiStatusIndicator state={apiState} />}
+      renderLink={(item, { href, children, ...props }) => (
+        <Link to={href} {...props}>{children}</Link>
+      )}
+      onNavigate={(item) => navigate(item.href)}
+      sidebarStorageKey="ai-chatbot-manager.sidebar-width"
+      testId="ai-chatbot-manager-shell"
+      mainClassName="app-content"
+    >
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/chatbots" element={<ChatbotList />} />
+        <Route path="/chatbots/new" element={<ChatbotEditor />} />
+        <Route path="/chatbots/:id/edit" element={<ChatbotEditor />} />
+        <Route path="/chatbots/:id/analytics" element={<Analytics />} />
+        <Route path="/chatbots/:id/test" element={<TestChat />} />
+      </Routes>
+    </LibraryAppShell>
   );
 }
 
@@ -305,7 +254,7 @@ interface FullScreenStateProps {
 
 function FullScreenState({ title, subtitle, icon: Icon, iconClassName, actionLabel, onAction }: FullScreenStateProps) {
   return (
-    <div className="fullscreen-state">
+    <section className="connection-state" role="status">
       <div className="state-card">
         <div className={`state-icon ${iconClassName ?? ''}`}>
           <Icon size={32} />
@@ -319,7 +268,7 @@ function FullScreenState({ title, subtitle, icon: Icon, iconClassName, actionLab
           </button>
         )}
       </div>
-    </div>
+    </section>
   );
 }
 

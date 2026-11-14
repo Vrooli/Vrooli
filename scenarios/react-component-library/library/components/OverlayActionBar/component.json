@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "overlays.action-bar",
+  "description": "A one-row overlay action bar with one primary action, short labels, and overflow for additional actions.",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "Token-native overlay action contract."
+    }
+  ],
+  "displayName": "OverlayActionBar",
+  "draft": "",
+  "evictedVersions": [],
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:OverlayActionBar",
+  "tags": [
+    "overlay",
+    "actions",
+    "responsive",
+    "accessibility"
+  ]
+}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -69,7 +70,7 @@ export default function App() {
 	}
 
 	// Execute full scan
-	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 30*time.Second)
 	result, err := scanner.Scan(context.Background())
 	if err != nil {
 		t.Fatalf("Light scan integration failed: %v", err)
@@ -175,7 +176,7 @@ func TestLightScanner_Integration_PartialFailure(t *testing.T) {
 	}
 
 	// Use short timeout to force Makefile command failure
-	scanner := NewLightScanner(tmpDir, 1*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 1*time.Second)
 	result, err := scanner.Scan(context.Background())
 	// INTEGRATION VALIDATION: Partial failure should not prevent overall scan
 	if err != nil {
@@ -208,7 +209,7 @@ func TestLightScanner_Integration_EmptyScenario(t *testing.T) {
 
 	tmpDir := t.TempDir()
 
-	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 30*time.Second)
 	result, err := scanner.Scan(context.Background())
 	if err != nil {
 		t.Fatalf("Integration error: Empty scenario should scan successfully: %v", err)
@@ -254,7 +255,7 @@ func TestLightScanner_Integration_ContextCancellation(t *testing.T) {
 	// Create context that will be cancelled during scan
 	ctx, cancel := context.WithCancel(context.Background())
 
-	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 30*time.Second)
 
 	// Cancel context after 100ms
 	time.AfterFunc(100*time.Millisecond, cancel)
@@ -307,7 +308,7 @@ test:
 		t.Fatal(err)
 	}
 
-	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 30*time.Second)
 	result, err := scanner.Scan(context.Background())
 	if err != nil {
 		t.Fatalf("Scan should complete despite missing Makefile commands: %v", err)
@@ -366,7 +367,7 @@ func TestLightScanner_Integration_SymlinksAndSpecialFiles(t *testing.T) {
 		t.Logf("Skipping symlink test (not supported): %v", err)
 	}
 
-	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 30*time.Second)
 	result, err := scanner.Scan(context.Background())
 	if err != nil {
 		t.Fatalf("Scan should handle special files gracefully: %v", err)
@@ -397,8 +398,8 @@ func TestLightScanner_Integration_ConcurrentScans(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	scanner1 := NewLightScanner(tmpDir1, 30*time.Second)
-	scanner2 := NewLightScanner(tmpDir2, 30*time.Second)
+	scanner1 := newLightScannerForTest(tmpDir1, 30*time.Second)
+	scanner2 := newLightScannerForTest(tmpDir2, 30*time.Second)
 
 	// Run scans concurrently
 	ctx := context.Background()
@@ -442,5 +443,37 @@ func TestLightScanner_Integration_ConcurrentScans(t *testing.T) {
 		if result1.TotalLines >= result2.TotalLines {
 			t.Errorf("Concurrent scans may have mixed results: file2 should have more lines than file1")
 		}
+	}
+}
+
+func TestLightScannerIncrementalRetainsWholeLanguageInventory(t *testing.T) {
+	root := filepath.Join(t.TempDir(), fmt.Sprintf("inventory-%d", time.Now().UnixNano()))
+	createTestDir(t, root, "playwright-driver/src", map[string]string{"one.ts": "export const one = 1;\n", "two.ts": "export const two = 2;\n"})
+	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	scenario := filepath.Base(root)
+	defer db.Exec("DELETE FROM file_metrics WHERE scenario = $1", scenario)
+	for _, name := range []string{"one.ts", "two.ts"} {
+		_, err := db.Exec("INSERT INTO file_metrics(scenario, file_path, line_count, updated_at) VALUES($1,$2,1,$3)", scenario, "playwright-driver/src/"+name, time.Now().UTC().Add(time.Hour))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	result, err := newLightScannerForTest(root, 30*time.Second).ScanWithOptions(context.Background(), ScanOptions{Incremental: true, DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.FileMetrics) != 0 {
+		t.Fatalf("unchanged files returned as changed: %+v", result.FileMetrics)
+	}
+	if !result.Incremental || result.TotalFiles != 0 || result.TotalLines != 0 {
+		t.Fatalf("incremental response should identify changed-file totals: incremental=%v files=%d lines=%d", result.Incremental, result.TotalFiles, result.TotalLines)
+	}
+	language := result.LanguageMetrics[LanguageTypeScript]
+	if language == nil || language.FileCount != 2 {
+		t.Fatalf("incremental mode lost whole-language coverage: %+v", language)
 	}
 }

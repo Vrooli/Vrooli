@@ -15,7 +15,7 @@ export interface UseEmbeddedServiceUrlResult {
 }
 
 export function useEmbeddedServiceUrl(serviceName: string): UseEmbeddedServiceUrlResult {
-  const { data, isLoading } = useQuery<string | null, Error>({
+  const { data, isLoading } = useQuery<string | null>({
     queryKey: ["embedded-service-url", serviceName],
     queryFn: () => embeddedService.getExternalUrl(serviceName),
     staleTime: Infinity,

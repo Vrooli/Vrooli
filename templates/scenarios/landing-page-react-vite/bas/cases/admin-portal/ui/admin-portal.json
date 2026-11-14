@@ -1,0 +1,49 @@
+{
+  "metadata": {
+    "name": "Admin Portal Smoke",
+    "description": "Observer smoke: the admin login surface renders. Reads only, so it needs no full reset or confirmation gate.",
+    "requirement": "OT-P0-008",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "admin-portal"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-admin-login",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "{{SCENARIO_ID}}",
+          "scenario_path": "/admin/login",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open admin login"
+        }
+      }
+    },
+    {
+      "id": "wait-login-email",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"admin-login-email\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Login email field visible"
+        }
+      }
+    }
+  ]
+}

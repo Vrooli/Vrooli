@@ -5,6 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // metricsAssertion represents a single metrics field assertion
@@ -78,6 +81,7 @@ type languageTestCase struct {
 	expectedFixme    int
 	expectedHack     int
 	minFunctionCount int
+	expectedImports  int
 	expectTestFile   bool
 }
 
@@ -124,6 +128,7 @@ func TestProcessData(t *testing.T) {
 			expectedHack:     1,
 			minFunctionCount: 2,
 			expectTestFile:   true,
+			expectedImports:  2,
 		},
 		{
 			name:      "TypeScript",
@@ -150,6 +155,7 @@ const helper = () => {
 			expectedFixme:    1,
 			expectedHack:     1,
 			minFunctionCount: 1,
+			expectedImports:  2,
 		},
 		{
 			name:      "JavaScript",
@@ -176,6 +182,7 @@ const util = (x) => x * 2;
 			expectedFixme:    1,
 			expectedHack:     1,
 			minFunctionCount: 2,
+			expectedImports:  1,
 		},
 	}
 
@@ -201,7 +208,7 @@ const util = (x) => x * 2;
 				expectedMetricCount = 2
 			}
 
-			metrics := collectAndValidateMetrics(t, tmpDir, files, expectedMetricCount)
+			metrics := collectAndValidateMetricsWithGraph(t, tmpDir, files, expectedMetricCount, Language(tc.language), files[0], tc.expectedImports, tc.minFunctionCount)
 			mainMetrics := requireMetricsByPath(t, metrics, files[0])
 
 			assertLanguageAndExtension(t, *mainMetrics, tc.language, tc.extension)
@@ -230,7 +237,7 @@ func TestCollectDetailedFileMetrics_UnknownLanguage(t *testing.T) {
 	writeTestFile(t, filepath.Join(tmpDir, "script.sh"), "#!/bin/bash\necho 'test'\n")
 
 	files := []string{"script.sh"}
-	metrics, err := CollectDetailedFileMetrics(tmpDir, files)
+	metrics, err := collectDetailedFileMetricsForTest(tmpDir, files, nil)
 	if err != nil {
 		t.Fatalf("CollectDetailedFileMetrics should handle unknown languages: %v", err)
 	}
@@ -269,7 +276,7 @@ func TestCollectDetailedFileMetrics_JSONFiles(t *testing.T) {
 	writeTestFile(t, filepath.Join(configDir, "package.json"), jsonContent)
 
 	files := []string{"config/package.json"}
-	metrics, err := CollectDetailedFileMetrics(tmpDir, files)
+	metrics, err := collectDetailedFileMetricsForTest(tmpDir, files, nil)
 	if err != nil {
 		t.Fatalf("CollectDetailedFileMetrics should handle JSON files: %v", err)
 	}
@@ -293,7 +300,7 @@ func TestCollectDetailedFileMetrics_JSONFiles(t *testing.T) {
 func TestCollectDetailedFileMetrics_EmptyList(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	metrics, err := CollectDetailedFileMetrics(tmpDir, []string{})
+	metrics, err := collectDetailedFileMetricsForTest(tmpDir, []string{}, nil)
 	if err != nil {
 		t.Fatalf("CollectDetailedFileMetrics should handle empty list: %v", err)
 	}
@@ -313,7 +320,7 @@ func TestCollectDetailedFileMetrics_NonExistentFiles(t *testing.T) {
 	}
 
 	files := []string{"api/nonexistent.go"}
-	metrics, err := CollectDetailedFileMetrics(tmpDir, files)
+	metrics, err := collectDetailedFileMetricsForTest(tmpDir, files, nil)
 	if err != nil {
 		t.Logf("CollectDetailedFileMetrics returned error for non-existent file: %v", err)
 		return
@@ -341,7 +348,7 @@ func TestCollectDetailedFileMetrics_MixedLanguages(t *testing.T) {
 	writeTestFile(t, filepath.Join(uiDir, "util.ts"), "export function test() {\n  return 42;\n}\n")
 
 	files := []string{"api/main.go", "ui/src/util.ts"}
-	metrics, err := CollectDetailedFileMetrics(tmpDir, files)
+	metrics, err := collectDetailedFileMetricsForTest(tmpDir, files, nil)
 	if err != nil {
 		t.Fatalf("CollectDetailedFileMetrics failed: %v", err)
 	}
@@ -474,6 +481,73 @@ func TestCollectDetailedFileMetrics_TestFileDetection(t *testing.T) {
 	}
 }
 
+// Companion detection uses names as a heuristic; it does not assert test coverage.
+func TestCollectDetailedFileMetrics_DescriptiveGoTestFileDetection(t *testing.T) {
+	tmpDir, apiDir := setupTestDir(t, "api")
+	source := "package main\n\nfunc overlap() {}\n"
+	testSource := "package main\n\nimport \"testing\"\n\nfunc TestOverlap(t *testing.T) {}\n"
+	writeTestFile(t, filepath.Join(apiDir, "overlap_agree.go"), source)
+	writeTestFile(t, filepath.Join(apiDir, "overlap_agree_behavior_test.go"), testSource)
+	writeTestFile(t, filepath.Join(apiDir, "overlap_agree_internal_test.go"), testSource)
+	writeTestFile(t, filepath.Join(apiDir, "overlap_agreement_test.go"), testSource)
+	writeTestFile(t, filepath.Join(apiDir, "overlap_agreements.go"), "package main\n\nfunc agreements() {}\n")
+	writeTestFile(t, filepath.Join(apiDir, "orphan.go"), "package main\n\nfunc orphan() {}\n")
+	writeTestFile(t, filepath.Join(apiDir, "record.go"), "package main\n\nfunc record() {}\n")
+	writeTestFile(t, filepath.Join(apiDir, "record_details.go"), "package main\n\nfunc recordDetails() {}\n")
+	writeTestFile(t, filepath.Join(apiDir, "record_details_test.go"), testSource)
+	subDir := filepath.Join(apiDir, "sub")
+	if err := os.MkdirAll(subDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(subDir, "orphan_behavior_test.go"), testSource)
+
+	files := []string{
+		"api/overlap_agree.go",
+		"api/overlap_agree_behavior_test.go",
+		"api/overlap_agree_internal_test.go",
+		"api/overlap_agreement_test.go",
+		"api/overlap_agreements.go",
+		"api/orphan.go",
+		"api/record.go",
+		"api/record_details.go",
+		"api/record_details_test.go",
+		"api/sub/orphan_behavior_test.go",
+	}
+	metrics := collectAndValidateMetrics(t, tmpDir, files, len(files))
+	for _, metric := range metrics {
+		switch metric.FilePath {
+		case "api/overlap_agree.go":
+			if !metric.HasTestFile {
+				t.Error("overlap_agree.go should match same-directory descriptive test files")
+			}
+		case "api/overlap_agreements.go":
+			if metric.HasTestFile {
+				t.Error("overlap_agree_* tests should not match overlap_agreements.go")
+			}
+		case "api/orphan.go":
+			if metric.HasTestFile {
+				t.Error("orphan.go should not match a test in another directory")
+			}
+		case "api/record.go":
+			if metric.HasTestFile {
+				t.Error("record_details_test.go should not match the less-specific record.go sibling")
+			}
+		case "api/record_details.go":
+			if !metric.HasTestFile {
+				t.Error("record_details.go should match its exact record_details_test.go companion")
+			}
+		}
+	}
+
+	aggregate, err := NewCodeMetricsAnalyzer(tmpDir).AnalyzeFilesWithFacts(files, LanguageGo, nil)
+	if err != nil {
+		t.Fatalf("AnalyzeFiles returned error: %v", err)
+	}
+	if aggregate.FilesWithTests != 2 || aggregate.FilesWithoutTests != 3 {
+		t.Errorf("AnalyzeFiles test companion counts = %d with, %d without; want 2 with, 3 without", aggregate.FilesWithTests, aggregate.FilesWithoutTests)
+	}
+}
+
 // [REQ:TM-LS-005] Test CollectDetailedFileMetrics with binary/non-text files
 func TestCollectDetailedFileMetrics_BinaryFiles(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -482,7 +556,7 @@ func TestCollectDetailedFileMetrics_BinaryFiles(t *testing.T) {
 	writeTestFile(t, filepath.Join(tmpDir, "binary.dat"), string(binaryData))
 
 	files := []string{"binary.dat"}
-	metrics, err := CollectDetailedFileMetrics(tmpDir, files)
+	metrics, err := collectDetailedFileMetricsForTest(tmpDir, files, nil)
 	if err != nil {
 		t.Logf("CollectDetailedFileMetrics handled binary file with error: %v", err)
 		return
@@ -505,7 +579,7 @@ func TestCollectDetailedFileMetrics_LargeFile(t *testing.T) {
 	writeTestFile(t, filepath.Join(apiDir, "large.go"), largeCode)
 
 	files := []string{"api/large.go"}
-	metrics := collectAndValidateMetrics(t, tmpDir, files, 1)
+	metrics := collectAndValidateMetricsWithGraph(t, tmpDir, files, 1, LanguageGo, files[0], 0, 1)
 	m := metrics[0]
 
 	if m.LineCount < 2000 {
@@ -524,7 +598,7 @@ func TestCollectDetailedFileMetrics_EmptyFiles(t *testing.T) {
 	writeTestFile(t, filepath.Join(apiDir, "empty.go"), "")
 
 	files := []string{"api/empty.go"}
-	metrics, err := CollectDetailedFileMetrics(tmpDir, files)
+	metrics, err := collectDetailedFileMetricsForTest(tmpDir, files, nil)
 	if err != nil {
 		t.Fatalf("CollectDetailedFileMetrics should handle empty files: %v", err)
 	}
@@ -645,7 +719,7 @@ func second() {
 	writeTestFile(t, filepath.Join(apiDir, "exact.go"), goCode)
 
 	files := []string{"api/exact.go"}
-	metrics := collectAndValidateMetrics(t, tmpDir, files, 1)
+	metrics := collectAndValidateMetricsWithGraph(t, tmpDir, files, 1, LanguageGo, files[0], 2, 2)
 	m := metrics[0]
 
 	if m.ImportCount != 2 {
@@ -678,7 +752,7 @@ func TestCollectDetailedFileMetrics_PathNormalization(t *testing.T) {
 	}
 
 	for _, path := range testPaths {
-		metrics, err := CollectDetailedFileMetrics(tmpDir, []string{path})
+		metrics, err := collectDetailedFileMetricsForTest(tmpDir, []string{path}, nil)
 		if err != nil {
 			t.Errorf("CollectDetailedFileMetrics failed for path %q: %v", path, err)
 			continue
@@ -718,7 +792,7 @@ func TestCollectDetailedFileMetrics_Concurrent(t *testing.T) {
 				done <- true
 			}()
 
-			metrics, err := CollectDetailedFileMetrics(tmpDir, files)
+			metrics, err := collectDetailedFileMetricsForTest(tmpDir, files, nil)
 			if err != nil {
 				t.Errorf("Goroutine %d: CollectDetailedFileMetrics failed: %v", goroutineID, err)
 				return
@@ -732,5 +806,68 @@ func TestCollectDetailedFileMetrics_Concurrent(t *testing.T) {
 
 	for i := 0; i < 5; i++ {
 		<-done
+	}
+}
+
+func collectAndValidateMetricsWithGraph(t *testing.T, root string, files []string, expected int, lang Language, path string, imports, functions int) []DetailedFileMetrics {
+	t.Helper()
+	metrics, err := collectDetailedFileMetricsForTest(root, files, map[Language]*LanguageMetrics{
+		lang: {facts: testMetricsGraph(root, path, lang, imports, functions)},
+	})
+	if err != nil {
+		t.Fatalf("collectDetailedFileMetricsForTest() error = %v", err)
+	}
+	if len(metrics) != expected {
+		t.Fatalf("got %d metrics, want %d", len(metrics), expected)
+	}
+	return metrics
+}
+
+func testMetricsGraph(root, path string, lang Language, imports, functions int) *facts.CodeFactsReport {
+	language := string(lang)
+	importKind, functionKind := "go_import_spec", "go_func"
+	if lang == LanguageTypeScript || lang == LanguageJavaScript {
+		importKind, functionKind = "TS_NODE_KIND_IMPORT_BINDING", "TS_NODE_KIND_FUNCTION"
+	}
+	nodes := []*commonv1.CodeGraphNode{{
+		Id: "file:" + path, Kind: commonv1.NodeKind_NODE_KIND_FILE, Path: path,
+		Attributes: map[string]string{"language": language},
+	}}
+	var edges []*commonv1.CodeGraphEdge
+	for i := 0; i < imports; i++ {
+		if lang == LanguageGo {
+			nodes = append(nodes, &commonv1.CodeGraphNode{
+				Id: fmt.Sprintf("import:%s:%d", path, i+1), Path: path,
+				Attributes: map[string]string{"kind": importKind, "language": language, "start_line": fmt.Sprint(i + 1)},
+			})
+		} else {
+			moduleID := "ts_module:" + path
+			if i == 0 {
+				nodes = append(nodes, &commonv1.CodeGraphNode{Id: moduleID, Kind: commonv1.NodeKind_NODE_KIND_MODULE, Path: path, Attributes: map[string]string{"kind": "TS_NODE_KIND_MODULE", "language": language}})
+			}
+			edges = append(edges, &commonv1.CodeGraphEdge{
+				Id: fmt.Sprintf("import:%s:%d", path, i+1), Kind: commonv1.EdgeKind_EDGE_KIND_IMPORT,
+				FromNodeId: moduleID, ToNodeId: fmt.Sprintf("module:%s:%d", path, i+1),
+				Attributes: map[string]string{"specifier": fmt.Sprintf("./dependency-%d", i+1)},
+			})
+		}
+	}
+	for i := 0; i < functions; i++ {
+		attrs := map[string]string{"kind": functionKind, "language": language, "start_line": fmt.Sprint(i + 1), "end_line": fmt.Sprint(i + 1)}
+		if lang == LanguageGo {
+			attrs["signature"] = "func()"
+			attrs["cyclomatic_complexity"] = "1"
+		} else {
+			attrs["body_hash"] = fmt.Sprintf("hash-%d", i)
+			attrs["body_lines"] = "1"
+		}
+		nodes = append(nodes, &commonv1.CodeGraphNode{Id: fmt.Sprintf("function:%s:%d", path, i+1), Path: path, Attributes: attrs})
+	}
+	return &facts.CodeFactsReport{
+		Target: &facts.TargetContext{RootPath: root},
+		Graphs: []*facts.LanguageGraph{{
+			ParseUnit: &facts.ParseUnit{Id: language + ":" + root, Language: language, RootPath: root},
+			Graph:     &commonv1.CodeGraph{Nodes: nodes, Edges: edges},
+		}},
 	}
 }

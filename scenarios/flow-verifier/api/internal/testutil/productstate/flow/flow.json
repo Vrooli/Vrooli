@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "testutil.product-state.api",
+  "domain": "testutil",
+  "description": "Generic finite product tuple with a generated production-observation/effect replay adapter.",
+  "model": {
+    "module": "ProductStateFixture",
+    "seed": "2026110401",
+    "maxSteps": 4,
+    "traceCount": 4,
+    "verify": { "invariants": ["TypeOK", "ProductNonnegative"] }
+  },
+  "states": [
+    { "id": "ready", "quint": "Ready", "initial": true },
+    { "id": "settled", "quint": "Settled", "terminal": true }
+  ],
+  "events": [
+    { "id": "finalize", "quint": "Finalize" }
+  ],
+  "transitionDefaults": {
+    "invalid": { "to": "self", "wantError": true },
+    "terminal": { "to": "self", "wantError": true }
+  },
+  "transitions": [
+    { "from": "ready", "event": "finalize", "to": "settled" }
+  ],
+  "invariants": [
+    { "id": "type_ok", "quint": "TypeOK", "description": "Scalar lifecycle values remain finite." },
+    { "id": "illegal_transitions_preserve_state", "quint": "IllegalTransitionsPreserveState", "description": "Invalid transitions preserve lifecycle status." }
+  ],
+  "traces": [
+    { "name": "finalize", "initial": "ready", "steps": [{ "event": "finalize", "want": "settled", "wantError": false }] }
+  ],
+  "runtime": {
+    "go": { "package": "flow", "statusType": "ProductStatus", "eventType": "ProductEvent", "constantPrefix": "Product" }
+  },
+  "replay": { "transition": { "function": "TransitionProduct", "stateType": "ProductStatus", "statusField": "Status" } },
+  "product": {
+    "variables": [
+      { "id": "settlement", "quint": "settlement", "values": [{ "id": "pending", "quint": "SPending" }, { "id": "settled", "quint": "SSettled" }] },
+      { "id": "wallet", "quint": "wallet", "values": [{ "id": "nonnegative", "quint": "WNonnegative" }, { "id": "negative", "quint": "WNegative" }] }
+    ],
+    "initial": { "settlement": "pending", "wallet": "nonnegative" },
+    "transitions": [
+      { "fromStatus": "ready", "event": "finalize", "from": { "settlement": "pending", "wallet": "nonnegative" }, "toStatus": "settled", "to": { "settlement": "settled", "wallet": "nonnegative" } }
+    ],
+    "invariants": [
+      { "id": "wallet_nonnegative", "quint": "ProductNonnegative", "description": "The product wallet remains nonnegative.", "expression": "wallet == WNonnegative" }
+    ],
+    "traces": [
+      { "name": "production_finalize", "initialStatus": "ready", "initial": { "settlement": "pending", "wallet": "nonnegative" }, "steps": [{ "event": "finalize", "wantStatus": "settled", "wantError": false, "state": { "settlement": "settled", "wallet": "nonnegative" }, "effects": { "allocations": 1, "usage": 5 } }] }
+    ]
+  }
+}

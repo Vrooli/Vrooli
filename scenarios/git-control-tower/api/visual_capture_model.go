@@ -172,35 +172,3 @@ type BASRecordedVideosResponse struct {
 	ExecutionID string             `json:"execution_id"`
 	Videos      []BASVideoArtifact `json:"videos"`
 }
-
-// Workflow Capture Types
-
-type WorkflowCaptureRequest struct {
-	ScenarioSlug   string          `json:"scenarioSlug"`
-	Mode           string          `json:"mode,omitempty"`        // "baseline" | "capture" (default: "capture")
-	TriggerType    string          `json:"triggerType,omitempty"` // "manual" (default)
-	Presets        []CapturePreset `json:"presets,omitempty"`
-	ExecutionModes []string        `json:"executionModes,omitempty"` // filter: ["observer"], ["observer","mutating"], etc.
-}
-
-type WorkflowExecutionResult struct {
-	WorkflowName  string `json:"workflowName"`
-	ExecutionMode string `json:"executionMode"`
-	ExecutionID   string `json:"executionId,omitempty"`
-	Status        string `json:"status"` // "passed" | "failed" | "skipped" | "error"
-	Error         string `json:"error,omitempty"`
-	DurationMs    int64  `json:"durationMs"`
-	VideoCount    int    `json:"videoCount"`
-	VideoStatus   string `json:"videoStatus,omitempty"` // "captured" | "failed" | "none"
-}
-
-type WorkflowCaptureResult struct {
-	ID              string                    `json:"id"`
-	ScenarioSlug    string                    `json:"scenarioSlug"`
-	Role            string                    `json:"role"` // "baseline" | "capture"
-	WorkflowResults []WorkflowExecutionResult `json:"workflowResults"`
-	CreatedAt       time.Time                 `json:"createdAt"`
-	Status          string                    `json:"status"` // "complete" | "failed"
-	Error           string                    `json:"error,omitempty"`
-	SizeBytes       int64                     `json:"sizeBytes"`
-}

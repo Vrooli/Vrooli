@@ -1,0 +1,1265 @@
+// Responsibility: retain repository test declarations within their original package.
+package database
+
+import (
+	"agent-manager/internal/domain"
+	"agent-manager/internal/repository"
+	"context"
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+	_ "modernc.org/sqlite"
+	"sort"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestRunCRUD(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	// Create a task first (runs reference tasks)
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Parent Task",
+		ScopePath: "/test",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	run := &domain.Run{
+		ID:              uuid.New(),
+		TaskID:          task.ID,
+		Tag:             "test-run",
+		RunMode:         domain.RunModeSandboxed,
+		Status:          domain.RunStatusPending,
+		Phase:           domain.RunPhaseQueued,
+		ProgressPercent: 0,
+		ApprovalState:   domain.ApprovalStateNone,
+	}
+
+	// Create
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// Get
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got == nil {
+		t.Fatal("Get returned nil")
+	}
+	if got.Tag != run.Tag {
+		t.Errorf("expected tag %q, got %q", run.Tag, got.Tag)
+	}
+	if got.Status != domain.RunStatusPending {
+		t.Errorf("expected status pending, got %q", got.Status)
+	}
+	if got.CanaryArm != "" {
+		t.Errorf("expected empty canary arm to round-trip as an empty value, got %q", got.CanaryArm)
+	}
+
+	// List
+	runs, err := repos.Runs.List(ctx, repository.RunListFilter{ListFilter: repository.ListFilter{Limit: 10}})
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("expected 1 run, got %d", len(runs))
+	}
+
+	// ListByTask
+	runsByTask, err := repos.Runs.ListByTask(ctx, task.ID, repository.ListFilter{Limit: 10})
+	if err != nil {
+		t.Fatalf("ListByTask: %v", err)
+	}
+	if len(runsByTask) != 1 {
+		t.Errorf("expected 1 run for task, got %d", len(runsByTask))
+	}
+
+	// CountByStatus
+	count, err := repos.Runs.CountByStatus(ctx, domain.RunStatusPending)
+	if err != nil {
+		t.Fatalf("CountByStatus: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected count 1, got %d", count)
+	}
+
+	// Update
+	startedAt := time.Now()
+	run.Status = domain.RunStatusRunning
+	run.StartedAt = &startedAt
+	run.ProgressPercent = 50
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	got, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("Get after update: %v", err)
+	}
+	if got.Status != domain.RunStatusRunning {
+		t.Errorf("expected status running, got %q", got.Status)
+	}
+	if got.ProgressPercent != 50 {
+		t.Errorf("expected progress 50, got %d", got.ProgressPercent)
+	}
+
+	// Deletion refuses live execution and requires the exact terminal snapshot.
+	if err := repos.Runs.Delete(ctx, run.ID, got.Status, got.LifecycleVersion); err == nil {
+		t.Fatal("running run was deleted")
+	}
+	run.Status = domain.RunStatusComplete
+	run.Phase = domain.RunPhaseCompleted
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("complete before deletion: %v", err)
+	}
+	got, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("Get terminal snapshot: %v", err)
+	}
+	if err := repos.Runs.Delete(ctx, run.ID, got.Status, got.LifecycleVersion); err != nil {
+		t.Fatalf("Delete terminal snapshot: %v", err)
+	}
+	got, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("Get after delete: %v", err)
+	}
+	if got != nil {
+		t.Error("expected nil after delete")
+	}
+}
+
+// TestRunCustomEnvRoundTrip proves Run.CustomEnv persists through the JSON
+// column so the continue/wake path can re-inject it. Before Phase 0 there was
+// no column at all, so a continued turn could never recover custom env.
+func TestRunCustomEnvRoundTrip(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Parent Task",
+		ScopePath: "/test",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	run := &domain.Run{
+		ID:            uuid.New(),
+		TaskID:        task.ID,
+		RunMode:       domain.RunModeSandboxed,
+		Status:        domain.RunStatusPending,
+		Phase:         domain.RunPhaseQueued,
+		ApprovalState: domain.ApprovalStateNone,
+		CustomEnv: map[string]string{
+			"VROOLI_SHADOW_SCENARIOS":         "agent-manager",
+			"VROOLI_SWARM_MANAGER_SESSION_ID": "sess-42",
+		},
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if len(got.CustomEnv) != 2 {
+		t.Fatalf("expected 2 custom env entries, got %v", got.CustomEnv)
+	}
+	if got.CustomEnv["VROOLI_SHADOW_SCENARIOS"] != "agent-manager" ||
+		got.CustomEnv["VROOLI_SWARM_MANAGER_SESSION_ID"] != "sess-42" {
+		t.Errorf("custom env did not round-trip: %v", got.CustomEnv)
+	}
+
+	// Empty/nil custom env must decode as nil (not an empty map) so existing
+	// rows and env-free runs behave identically.
+	run.CustomEnv = nil
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	got, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("Get after update: %v", err)
+	}
+	if got.CustomEnv != nil {
+		t.Errorf("expected nil custom env after clearing, got %v", got.CustomEnv)
+	}
+}
+
+func TestRunAwaitHandleRoundTrip(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Await Task",
+		ScopePath: "/test",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	deadline := time.Now().Add(30 * time.Minute).UTC().Truncate(time.Second)
+	registered := time.Now().UTC().Truncate(time.Second)
+	run := &domain.Run{
+		ID:            uuid.New(),
+		TaskID:        task.ID,
+		RunMode:       domain.RunModeSandboxed,
+		Status:        domain.RunStatusParked,
+		Phase:         domain.RunPhaseExecuting,
+		ApprovalState: domain.ApprovalStateNone,
+		AwaitHandle: &domain.AwaitHandle{
+			Producer:     "test-genie",
+			Key:          "run-xyz",
+			Deadline:     &deadline,
+			RegisteredAt: registered,
+		},
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.Status != domain.RunStatusParked {
+		t.Errorf("status did not round-trip: %s", got.Status)
+	}
+	if got.AwaitHandle == nil {
+		t.Fatal("await handle did not round-trip (nil)")
+	}
+	if got.AwaitHandle.Producer != "test-genie" || got.AwaitHandle.Key != "run-xyz" {
+		t.Errorf("await handle producer/key did not round-trip: %+v", got.AwaitHandle)
+	}
+	if got.AwaitHandle.Deadline == nil || !got.AwaitHandle.Deadline.Equal(deadline) {
+		t.Errorf("await handle deadline did not round-trip: %v want %v", got.AwaitHandle.Deadline, deadline)
+	}
+
+	// Clearing the handle (wake/cancel) must persist as NULL → nil, exactly like
+	// a non-parked run, so existing rows and woken runs behave identically.
+	run.AwaitHandle = nil
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	got, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("Get after update: %v", err)
+	}
+	if got.AwaitHandle != nil {
+		t.Errorf("expected nil await handle after clearing, got %+v", got.AwaitHandle)
+	}
+}
+
+func TestTouchHeartbeat_StatusGuarded(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "HB Task",
+		ScopePath: "/test",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	old := time.Now().Add(-time.Hour)
+	mk := func(status domain.RunStatus) *domain.Run {
+		run := &domain.Run{
+			ID:            uuid.New(),
+			TaskID:        task.ID,
+			RunMode:       domain.RunModeInPlace,
+			Status:        status,
+			Phase:         domain.RunPhaseExecuting,
+			ApprovalState: domain.ApprovalStateNone,
+			LastHeartbeat: &old,
+		}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatalf("Create run (%s): %v", status, err)
+		}
+		return run
+	}
+
+	// running → updated, last_heartbeat advances.
+	running := mk(domain.RunStatusRunning)
+	now := time.Now()
+	updated, err := repos.Runs.TouchHeartbeat(ctx, running.ID, now)
+	if err != nil {
+		t.Fatalf("TouchHeartbeat(running): %v", err)
+	}
+	if !updated {
+		t.Fatal("running run heartbeat should have been updated")
+	}
+	got, _ := repos.Runs.Get(ctx, running.ID)
+	if got.LastHeartbeat == nil || got.LastHeartbeat.Before(now.Add(-2*time.Second)) {
+		t.Errorf("running heartbeat not advanced: %v", got.LastHeartbeat)
+	}
+	if got.Status != domain.RunStatusRunning {
+		t.Errorf("running status changed unexpectedly: %s", got.Status)
+	}
+
+	// starting → updated.
+	starting := mk(domain.RunStatusStarting)
+	if updated, err := repos.Runs.TouchHeartbeat(ctx, starting.ID, time.Now()); err != nil || !updated {
+		t.Fatalf("TouchHeartbeat(starting): updated=%v err=%v (want true,nil)", updated, err)
+	}
+
+	// parked → NO-OP (the critical anti-clobber guarantee). Status stays parked,
+	// heartbeat unchanged.
+	parked := mk(domain.RunStatusParked)
+	updated, err = repos.Runs.TouchHeartbeat(ctx, parked.ID, time.Now())
+	if err != nil {
+		t.Fatalf("TouchHeartbeat(parked): %v", err)
+	}
+	if updated {
+		t.Fatal("parked run heartbeat must NOT be updated (would clobber the park)")
+	}
+	got, _ = repos.Runs.Get(ctx, parked.ID)
+	if got.Status != domain.RunStatusParked {
+		t.Errorf("parked status changed: %s", got.Status)
+	}
+	if got.LastHeartbeat == nil || !got.LastHeartbeat.Equal(old.UTC().Truncate(time.Nanosecond)) {
+		// Heartbeat should be untouched (still ~old). Allow for storage truncation.
+		if got.LastHeartbeat != nil && got.LastHeartbeat.After(old.Add(time.Minute)) {
+			t.Errorf("parked heartbeat was advanced: %v", got.LastHeartbeat)
+		}
+	}
+
+	// terminal (complete) → NO-OP.
+	complete := mk(domain.RunStatusComplete)
+	if updated, err := repos.Runs.TouchHeartbeat(ctx, complete.ID, time.Now()); err != nil || updated {
+		t.Fatalf("TouchHeartbeat(complete): updated=%v err=%v (want false,nil)", updated, err)
+	}
+}
+
+func TestBeginInteractiveInvocationUpdatesOnlyExactRunningOwnerFence(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	task := createQueuedTask(t, repos, "interactive continuation fence")
+	oldAt := time.Now().Add(-time.Hour).UTC().Truncate(time.Microsecond)
+	run := pendingTaskRun(task.ID)
+	run.ExecutionMode = domain.ExecutionModeInteractive
+	run.SessionID = "native-session"
+	run.WebConsoleSessionID = "web-console-session"
+	run.InteractiveInvocationStartedAt = &oldAt
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	if admitted, err := repos.Runs.AdmitCurrentRun(ctx, run, domain.RunStatusPending, time.Now().UTC()); err != nil || !admitted {
+		t.Fatalf("admit current run: admitted=%v err=%v", admitted, err)
+	}
+	owner, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || owner == nil {
+		t.Fatalf("read admitted owner: run=%+v err=%v", owner, err)
+	}
+	staleStream := *owner
+	startedAt := time.Now().UTC().Add(time.Second)
+	updated, err := repos.Runs.BeginInteractiveInvocation(ctx, owner, domain.RunStatusRunning, owner.InteractiveInvocationStartedAt, startedAt)
+	if err != nil || !updated {
+		t.Fatalf("begin invocation: updated=%v err=%v", updated, err)
+	}
+	staleStream.TranscriptCursor = 77
+	if updated, err := repos.Runs.UpdateRunnerStreamState(ctx, &staleStream); err != nil || updated {
+		t.Fatalf("stale invocation stream update: updated=%v err=%v, want rejected", updated, err)
+	}
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.InteractiveInvocationStartedAt == nil || !got.InteractiveInvocationStartedAt.Equal(startedAt) || got.TranscriptCursor != 0 {
+		t.Fatalf("stale callback crossed invocation fence: invocation=%v cursor=%d", got.InteractiveInvocationStartedAt, got.TranscriptCursor)
+	}
+	currentStream := *got
+	currentStream.TranscriptCursor = 77
+	if updated, err := repos.Runs.UpdateRunnerStreamState(ctx, &currentStream); err != nil || !updated {
+		t.Fatalf("current invocation stream update: updated=%v err=%v", updated, err)
+	}
+	got, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.InteractiveInvocationStartedAt == nil || !got.InteractiveInvocationStartedAt.Equal(startedAt) || got.TranscriptCursor != 77 {
+		t.Fatalf("current invocation stream cursor was not retained: invocation=%v cursor=%d", got.InteractiveInvocationStartedAt, got.TranscriptCursor)
+	}
+	staleTerminal := staleStream
+	staleTerminal.Status = domain.RunStatusComplete
+	endedAt := time.Now().UTC()
+	staleTerminal.EndedAt = &endedAt
+	if err := repos.Runs.Update(ctx, &staleTerminal); err == nil || !strings.Contains(err.Error(), "interactive invocation changed") {
+		t.Fatalf("stale observer terminal update = %v, want invocation-fence refusal", err)
+	}
+	got, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != domain.RunStatusRunning || got.TranscriptCursor != 77 || got.InteractiveInvocationStartedAt == nil || !got.InteractiveInvocationStartedAt.Equal(startedAt) {
+		t.Fatalf("stale terminal observer changed current owner: status=%s cursor=%d invocation=%v", got.Status, got.TranscriptCursor, got.InteractiveInvocationStartedAt)
+	}
+
+	wrongSession := *got
+	wrongSession.WebConsoleSessionID = "replacement-session"
+	if updated, err := repos.Runs.BeginInteractiveInvocation(ctx, &wrongSession, domain.RunStatusRunning, got.InteractiveInvocationStartedAt, startedAt.Add(time.Second)); err != nil || updated {
+		t.Fatalf("mismatched session changed invocation owner: updated=%v err=%v", updated, err)
+	}
+	parked := *got
+	parked.Status = domain.RunStatusParked
+	if err := repos.Runs.Update(ctx, &parked); err != nil {
+		t.Fatalf("park run: %v", err)
+	}
+	if updated, err := repos.Runs.BeginInteractiveInvocation(ctx, got, domain.RunStatusParked, got.InteractiveInvocationStartedAt, startedAt.Add(2*time.Second)); updated {
+		t.Fatalf("parked owner advanced its invocation fence: updated=%v err=%v", updated, err)
+	}
+}
+
+func TestUpdateInteractiveContinuationAtomicallyReplacesTerminalInvocationFence(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	task := createQueuedTask(t, repos, "terminal interactive continuation CAS")
+	oldAt := time.Now().Add(-time.Hour).UTC().Truncate(time.Microsecond)
+	run := pendingTaskRun(task.ID)
+	run.ExecutionMode = domain.ExecutionModeInteractive
+	run.SessionID = "retained-native-session"
+	run.WebConsoleSessionID = "retained-web-console"
+	run.InteractiveInvocationStartedAt = &oldAt
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	if admitted, err := repos.Runs.AdmitCurrentRun(ctx, run, domain.RunStatusPending, time.Now().UTC()); err != nil || !admitted {
+		t.Fatalf("admit current run: admitted=%v err=%v", admitted, err)
+	}
+	terminal, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	terminal.Status = domain.RunStatusComplete
+	endedAt := time.Now().UTC()
+	terminal.EndedAt = &endedAt
+	if err := repos.Runs.Update(ctx, terminal); err != nil {
+		t.Fatalf("complete prior invocation: %v", err)
+	}
+	terminal, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nextAt := time.Now().UTC().Add(time.Second)
+	stale := *terminal
+	stale.Status = domain.RunStatusRunning
+	stale.InteractiveInvocationStartedAt = &nextAt
+	stale.EndedAt = nil
+	if err := repos.Runs.UpdateInteractiveContinuation(ctx, &stale, domain.RunStatusFailed, terminal.InteractiveInvocationStartedAt); err == nil {
+		t.Fatal("continuation with a mismatched expected terminal status succeeded")
+	}
+	unchanged, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unchanged.Status != domain.RunStatusComplete || unchanged.InteractiveInvocationStartedAt == nil || !unchanged.InteractiveInvocationStartedAt.Equal(oldAt) {
+		t.Fatalf("rejected continuation changed terminal owner: status=%s invocation=%v", unchanged.Status, unchanged.InteractiveInvocationStartedAt)
+	}
+	for _, tc := range []struct {
+		name   string
+		mutate func(*domain.Run)
+	}{
+		{name: "task", mutate: func(candidate *domain.Run) { candidate.TaskID = uuid.New() }},
+		{name: "session", mutate: func(candidate *domain.Run) { candidate.SessionID = "replacement-native-session" }},
+		{name: "web-console session", mutate: func(candidate *domain.Run) { candidate.WebConsoleSessionID = "replacement-web-console" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			candidate := *terminal
+			candidate.Status = domain.RunStatusRunning
+			candidate.EndedAt = nil
+			candidate.InteractiveInvocationStartedAt = &nextAt
+			tc.mutate(&candidate)
+			if err := repos.Runs.UpdateInteractiveContinuation(ctx, &candidate, domain.RunStatusComplete, terminal.InteractiveInvocationStartedAt); err == nil {
+				t.Fatalf("continuation with mismatched %s succeeded", tc.name)
+			}
+		})
+	}
+	if err := repos.Runs.UpdateInteractiveContinuation(ctx, &stale, domain.RunStatusComplete, terminal.InteractiveInvocationStartedAt); err != nil {
+		t.Fatalf("commit exact terminal continuation: %v", err)
+	}
+	continued, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if continued.Status != domain.RunStatusRunning || continued.EndedAt != nil || continued.InteractiveInvocationStartedAt == nil || !continued.InteractiveInvocationStartedAt.Equal(nextAt) {
+		t.Fatalf("exact continuation did not atomically replace terminal owner: status=%s ended=%v invocation=%v", continued.Status, continued.EndedAt, continued.InteractiveInvocationStartedAt)
+	}
+	if continued.TaskID != task.ID || continued.SessionID != "retained-native-session" || continued.WebConsoleSessionID != "retained-web-console" {
+		t.Fatalf("continuation changed retained run identity: task=%s session=%q web=%q", continued.TaskID, continued.SessionID, continued.WebConsoleSessionID)
+	}
+}
+
+// TestRequestCancellation_StatusGuardedAndIdempotent pins the Phase 3 durable
+// cancellation intent: a stop request stamps cancel_requested_at only while the
+// run is still actively executing, a repeat request is a no-op (monotonic
+// intent), and a terminal run is never stamped. The status guard is applied in
+// SQL so a stale caller cannot resurrect or re-stamp a run.
+func TestRequestCancellation_StatusGuardedAndIdempotent(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Cancel Task",
+		ScopePath: "/test",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	mk := func(status domain.RunStatus) *domain.Run {
+		run := &domain.Run{
+			ID:            uuid.New(),
+			TaskID:        task.ID,
+			RunMode:       domain.RunModeInPlace,
+			Status:        status,
+			Phase:         domain.RunPhaseExecuting,
+			ApprovalState: domain.ApprovalStateNone,
+		}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatalf("Create run (%s): %v", status, err)
+		}
+		return run
+	}
+
+	// running → intent recorded, status unchanged.
+	running := mk(domain.RunStatusRunning)
+	updated, err := repos.Runs.RequestCancellation(ctx, running.ID, time.Now())
+	if err != nil {
+		t.Fatalf("RequestCancellation(running): %v", err)
+	}
+	if !updated {
+		t.Fatal("running run cancellation intent should have been recorded")
+	}
+	got, err := repos.Runs.Get(ctx, running.ID)
+	if err != nil {
+		t.Fatalf("Get(running): %v", err)
+	}
+	if got.CancelRequestedAt == nil {
+		t.Fatal("running cancel intent was not persisted")
+	}
+	if got.Status != domain.RunStatusRunning {
+		t.Errorf("cancellation intent changed status: %s", got.Status)
+	}
+
+	// duplicate → no-op, still stamped, status unchanged.
+	if updated, err := repos.Runs.RequestCancellation(ctx, running.ID, time.Now()); err != nil || updated {
+		t.Fatalf("duplicate RequestCancellation: updated=%v err=%v (want false,nil)", updated, err)
+	}
+	got, _ = repos.Runs.Get(ctx, running.ID)
+	if got.CancelRequestedAt == nil {
+		t.Fatal("duplicate request cleared the cancellation intent")
+	}
+	if got.Status != domain.RunStatusRunning {
+		t.Errorf("duplicate request changed status: %s", got.Status)
+	}
+
+	// starting → intent recorded.
+	starting := mk(domain.RunStatusStarting)
+	if updated, err := repos.Runs.RequestCancellation(ctx, starting.ID, time.Now()); err != nil || !updated {
+		t.Fatalf("RequestCancellation(starting): updated=%v err=%v (want true,nil)", updated, err)
+	}
+
+	// terminal (complete) → NO-OP: a terminal run is never stamped.
+	complete := mk(domain.RunStatusComplete)
+	if updated, err := repos.Runs.RequestCancellation(ctx, complete.ID, time.Now()); err != nil || updated {
+		t.Fatalf("RequestCancellation(complete): updated=%v err=%v (want false,nil)", updated, err)
+	}
+	got, _ = repos.Runs.Get(ctx, complete.ID)
+	if got.CancelRequestedAt != nil {
+		t.Errorf("terminal run was stamped with cancellation intent: %v", got.CancelRequestedAt)
+	}
+}
+
+// TestRequestCancellationAdvancesLifecycleVersionRejectingStaleUpdates verifies that
+// the first durable cancellation intent consumes the current run lifecycle
+// version. A full-row writer holding a pre-intent Pending or Running snapshot
+// must not advance that run after cancellation has started. Replaying the same
+// intent is idempotent and does not consume another version.
+func TestRequestCancellationAdvancesLifecycleVersionRejectingStaleUpdates(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "Cancel version fence", ScopePath: "/test", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	createRun := func(status domain.RunStatus) *domain.Run {
+		run := &domain.Run{ID: uuid.New(), TaskID: task.ID, RunMode: domain.RunModeInPlace, Status: status, Phase: domain.RunPhaseExecuting, ApprovalState: domain.ApprovalStateNone}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatalf("Create run (%s): %v", status, err)
+		}
+		return run
+	}
+	read := func(id uuid.UUID) *domain.Run {
+		t.Helper()
+		run, err := repos.Runs.Get(ctx, id)
+		if err != nil {
+			t.Fatalf("Get run %s: %v", id, err)
+		}
+		return run
+	}
+
+	for _, status := range []domain.RunStatus{domain.RunStatusPending, domain.RunStatusRunning} {
+		t.Run(string(status), func(t *testing.T) {
+			created := createRun(status)
+			stale := read(created.ID)
+			versionBefore := stale.LifecycleVersion
+			epochBefore := stale.OwnerEpoch
+
+			updated, err := repos.Runs.RequestCancellation(ctx, created.ID, time.Now())
+			if err != nil || !updated {
+				t.Fatalf("RequestCancellation(%s): updated=%v err=%v", status, updated, err)
+			}
+			current := read(created.ID)
+			if current.LifecycleVersion != versionBefore+1 {
+				t.Fatalf("first cancellation did not consume exactly one lifecycle version: before=%d after=%d", versionBefore, current.LifecycleVersion)
+			}
+			if current.OwnerEpoch != epochBefore {
+				t.Fatalf("cancellation intent changed owner epoch: before=%d after=%d", epochBefore, current.OwnerEpoch)
+			}
+			if current.Status != status || current.CancelRequestedAt == nil {
+				t.Fatalf("cancellation intent changed lifecycle state: status=%s cancel_requested=%v", current.Status, current.CancelRequestedAt != nil)
+			}
+
+			if status == domain.RunStatusPending {
+				stale.Status = domain.RunStatusStarting
+			} else {
+				stale.Status = domain.RunStatusComplete
+			}
+			if err := repos.Runs.Update(ctx, stale); err == nil {
+				t.Fatalf("stale %s snapshot updated after cancellation intent", status)
+			}
+			current = read(created.ID)
+			if current.Status != status || current.LifecycleVersion != versionBefore+1 || current.CancelRequestedAt == nil {
+				t.Fatalf("stale update changed run after cancellation: status=%s version=%d cancel_requested=%v", current.Status, current.LifecycleVersion, current.CancelRequestedAt != nil)
+			}
+
+			updated, err = repos.Runs.RequestCancellation(ctx, created.ID, time.Now())
+			if err != nil || updated {
+				t.Fatalf("duplicate RequestCancellation: updated=%v err=%v (want false,nil)", updated, err)
+			}
+			current = read(created.ID)
+			if current.LifecycleVersion != versionBefore+1 {
+				t.Fatalf("duplicate cancellation consumed a lifecycle version: before=%d after=%d", versionBefore, current.LifecycleVersion)
+			}
+		})
+	}
+}
+
+// TestUpdateRunnerStreamState_StatusGuarded pins the park-clobber fix: the
+// runner's transcript callbacks (OnAdvance/OnProcessStart/OnSessionID) persist
+// streaming columns on every agent output chunk from an in-memory run whose
+// Status is the stale "running". During the park turn-end grace the agent keeps
+// emitting output; a full-row write would rewrite a just-persisted
+// running→parked transition back to running (clobbering the park before
+// detectParked reads it). UpdateRunnerStreamState must be status-guarded so a
+// parked/terminal run is never resurrected. (Found by the local-inference
+// park/resume e2e; the prior detectParked-only guard was structurally too late.)
+func TestUpdateRunnerStreamState_StatusGuarded(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Stream Task",
+		ScopePath: "/test",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	mk := func(status domain.RunStatus) *domain.Run {
+		run := &domain.Run{
+			ID:            uuid.New(),
+			TaskID:        task.ID,
+			RunMode:       domain.RunModeSandboxed,
+			Status:        status,
+			Phase:         domain.RunPhaseExecuting,
+			ApprovalState: domain.ApprovalStateNone,
+		}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatalf("Create run (%s): %v", status, err)
+		}
+		return run
+	}
+
+	// running → streaming write applies (cursor persists, status unchanged).
+	running := mk(domain.RunStatusRunning)
+	running.TranscriptCursor = 42
+	running.SessionID = "sess-running"
+	updated, err := repos.Runs.UpdateRunnerStreamState(ctx, running)
+	if err != nil {
+		t.Fatalf("UpdateRunnerStreamState(running): %v", err)
+	}
+	if !updated {
+		t.Fatal("running run streaming state should have been updated")
+	}
+	got, _ := repos.Runs.Get(ctx, running.ID)
+	if got.TranscriptCursor != 42 || got.SessionID != "sess-running" {
+		t.Errorf("running streaming state not persisted: cursor=%d session=%q", got.TranscriptCursor, got.SessionID)
+	}
+	if got.Status != domain.RunStatusRunning {
+		t.Errorf("running status changed unexpectedly: %s", got.Status)
+	}
+
+	// parked → NO-OP (the critical anti-clobber guarantee). An in-flight
+	// transcript callback must not resurrect the park. Status stays parked and
+	// the streaming columns are NOT written.
+	parked := mk(domain.RunStatusParked)
+	parked.TranscriptCursor = 99
+	parked.SessionID = "should-not-persist"
+	updated, err = repos.Runs.UpdateRunnerStreamState(ctx, parked)
+	if err != nil {
+		t.Fatalf("UpdateRunnerStreamState(parked): %v", err)
+	}
+	if updated {
+		t.Fatal("parked run streaming state must NOT be updated (would clobber the park)")
+	}
+	got, _ = repos.Runs.Get(ctx, parked.ID)
+	if got.Status != domain.RunStatusParked {
+		t.Errorf("parked status was clobbered to %s (the bug)", got.Status)
+	}
+	if got.TranscriptCursor == 99 || got.SessionID == "should-not-persist" {
+		t.Errorf("parked streaming columns were written: cursor=%d session=%q", got.TranscriptCursor, got.SessionID)
+	}
+
+	// terminal (failed) → NO-OP.
+	failed := mk(domain.RunStatusFailed)
+	if updated, err := repos.Runs.UpdateRunnerStreamState(ctx, failed); err != nil || updated {
+		t.Fatalf("UpdateRunnerStreamState(failed): updated=%v err=%v (want false,nil)", updated, err)
+	}
+}
+
+// TestRunLastAwaitFieldsRoundTrip verifies the durable re-fetch SSOT + re-park
+// guard bookkeeping (last_await_key/result/resolved_at, last_wake_seq,
+// same_key_park_streak) persist and reload through Create/Update/Get.
+func TestRunLastAwaitFieldsRoundTrip(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{ID: uuid.New(), Title: "Await Task", ScopePath: "/test", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	resolved := time.Now().UTC().Truncate(time.Second)
+	run := &domain.Run{
+		ID:                  uuid.New(),
+		TaskID:              task.ID,
+		RunMode:             domain.RunModeSandboxed,
+		Status:              domain.RunStatusRunning,
+		Phase:               domain.RunPhaseExecuting,
+		ApprovalState:       domain.ApprovalStateNone,
+		LastAwaitKey:        "git-control-tower:agent-manager/am-park-resume",
+		LastAwaitResult:     `{"status":"ready"}`,
+		LastAwaitResolvedAt: &resolved,
+		LastWakeSeq:         12,
+		SameKeyParkStreak:   1,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.LastAwaitKey != run.LastAwaitKey || got.LastAwaitResult != run.LastAwaitResult {
+		t.Errorf("await key/result not persisted: key=%q result=%q", got.LastAwaitKey, got.LastAwaitResult)
+	}
+	if got.LastWakeSeq != 12 || got.SameKeyParkStreak != 1 {
+		t.Errorf("guard counters not persisted: wakeSeq=%d streak=%d", got.LastWakeSeq, got.SameKeyParkStreak)
+	}
+	if got.LastAwaitResolvedAt == nil || !got.LastAwaitResolvedAt.Equal(resolved) {
+		t.Errorf("resolved_at not persisted: %v want %v", got.LastAwaitResolvedAt, resolved)
+	}
+
+	// Update mutates the fields (next await resolves) — reload reflects it.
+	got.SameKeyParkStreak = 0
+	got.LastAwaitResult = `{"status":"done"}`
+	if err := repos.Runs.Update(ctx, got); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	reloaded, _ := repos.Runs.Get(ctx, run.ID)
+	if reloaded.SameKeyParkStreak != 0 || reloaded.LastAwaitResult != `{"status":"done"}` {
+		t.Errorf("update did not persist: streak=%d result=%q", reloaded.SameKeyParkStreak, reloaded.LastAwaitResult)
+	}
+}
+
+func TestRenewalAnchorPreservesAttachedBindingAcrossStaleFullRowUpdate(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	run := &domain.Run{
+		ID: uuid.New(), RunMode: domain.RunModeInPlace,
+		ExecutionMode: domain.ExecutionModeAttached, HarnessKind: "codex",
+		HarnessSessionID: "harness-session", WebConsoleSessionID: "wc-session",
+		Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting,
+		ApprovalState: domain.ApprovalStateNone, IdentityTokenHash: "original-active-hash",
+		RunnerPID: 1234, RunnerPGID: 1234,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	stale, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rotator := repos.Runs.(repository.AttachedIdentityRenewalRepository)
+	issuedAt := time.Now().UTC().Truncate(time.Second)
+	if changed, err := rotator.RenewAttachedIdentity(ctx, stale, "original-anchor-hash", "rotated-active-hash", issuedAt); err != nil || !changed {
+		t.Fatalf("renew attached identity: changed=%v err=%v", changed, err)
+	}
+
+	// A full-row writer that loaded before the CAS may update ordinary metadata,
+	// but it must not restore its old process/session binding after the renewal
+	// anchor made that binding part of the proof.
+	stale.Label = "metadata from stale snapshot"
+	stale.IdentityTokenHash = "stale-old-hash"
+	stale.TaskID = uuid.New()
+	stale.OwnerSubject = "stale-owner"
+	stale.OwnerScopes = []string{"stale:scope"}
+	staleExpires := time.Now().Add(time.Hour)
+	stale.OwnerExpiresAt = &staleExpires
+	stale.ExecutionMode = domain.ExecutionModeCodecPipe
+	staleParentID := uuid.New()
+	stale.ParentRunID = &staleParentID
+	stale.RunnerPID, stale.RunnerPGID = 9876, 9876
+	stale.HarnessKind, stale.HarnessSessionID = "other", "other-session"
+	stale.WebConsoleSessionID = "other-wc-session"
+	if err := repos.Runs.Update(ctx, stale); err != nil {
+		t.Fatalf("stale metadata update: %v", err)
+	}
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Label != stale.Label {
+		t.Errorf("ordinary metadata update lost: label=%q", got.Label)
+	}
+	if got.IdentityTokenHash != "rotated-active-hash" || got.IdentityRenewalAnchorHash != "original-anchor-hash" {
+		t.Errorf("renewed identity generation was overwritten: active=%q anchor=%q", got.IdentityTokenHash, got.IdentityRenewalAnchorHash)
+	}
+	if got.RunnerPID != 1234 || got.RunnerPGID != 1234 || got.HarnessKind != "codex" || got.HarnessSessionID != "harness-session" || got.WebConsoleSessionID != "wc-session" || got.TaskID != run.TaskID || got.OwnerSubject != run.OwnerSubject || len(got.OwnerScopes) != 0 || got.ExecutionMode != domain.ExecutionModeAttached || got.ParentRunID != nil || got.OwnerExpiresAt != nil {
+		t.Errorf("renewal proof/identity claims were overwritten: pid/pgid=%d/%d harness=%q/%q wc=%q task=%s owner=%q scopes=%v mode=%q parent=%v", got.RunnerPID, got.RunnerPGID, got.HarnessKind, got.HarnessSessionID, got.WebConsoleSessionID, got.TaskID, got.OwnerSubject, got.OwnerScopes, got.ExecutionMode, got.ParentRunID)
+	}
+	stale.TranscriptCursor = 17
+	if updated, err := repos.Runs.UpdateRunnerStreamState(ctx, stale); err != nil || updated {
+		t.Errorf("renewal-anchored attached stream write = %v, %v; want binding-preserving refusal", updated, err)
+	}
+	revokedAt := time.Now().UTC()
+	if _, err := db.ExecContext(ctx, `UPDATE runs SET identity_token_revoked_at = ? WHERE id = ?`, SQLiteTime(revokedAt), run.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := repos.Runs.Update(ctx, stale); err != nil {
+		t.Fatalf("stale update after revocation: %v", err)
+	}
+	got, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.IdentityTokenRevokedAt == nil || !got.IdentityTokenRevokedAt.Equal(revokedAt) {
+		t.Errorf("stale full-row update erased token revocation: got=%v want=%v", got.IdentityTokenRevokedAt, revokedAt)
+	}
+	terminal, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	terminal.Status = domain.RunStatusFailed
+	endedAt := time.Now().UTC()
+	terminal.EndedAt = &endedAt
+	if err := repos.Runs.Update(ctx, terminal); err != nil {
+		t.Fatalf("terminal transition: %v", err)
+	}
+	stale.Status = domain.RunStatusRunning
+	if err := repos.Runs.Update(ctx, stale); err == nil {
+		t.Error("stale full-row update resurrected a terminal attached run")
+	}
+}
+
+func TestUnanchoredAttachedFullRowUpdateRetainsLegacyBindingBehavior(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	run := &domain.Run{
+		ID: uuid.New(), RunMode: domain.RunModeInPlace,
+		ExecutionMode: domain.ExecutionModeAttached, HarnessKind: "codex",
+		HarnessSessionID: "before", WebConsoleSessionID: "wc-before",
+		Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting,
+		ApprovalState: domain.ApprovalStateNone, RunnerPID: 1234, RunnerPGID: 1234,
+	}
+	revokedAt := time.Now().UTC().Add(-time.Minute)
+	run.IdentityTokenRevokedAt = &revokedAt
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	run.RunnerPID, run.RunnerPGID = 4321, 4321
+	run.HarnessSessionID, run.WebConsoleSessionID = "after", "wc-after"
+	run.IdentityTokenHash = "legacy-updated-hash"
+	run.IdentityTokenRevokedAt = nil // managed credential replacement clears the prior generation's revocation.
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	run.TranscriptCursor = 9
+	if updated, err := repos.Runs.UpdateRunnerStreamState(ctx, run); err != nil || !updated {
+		t.Fatalf("unanchored attached stream update changed legacy behavior: updated=%v err=%v", updated, err)
+	}
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.IdentityRenewalAnchorHash != "" || got.IdentityTokenHash != "legacy-updated-hash" || got.IdentityTokenRevokedAt != nil || got.RunnerPID != 4321 || got.RunnerPGID != 4321 || got.HarnessSessionID != "after" || got.WebConsoleSessionID != "wc-after" {
+		t.Fatalf("unanchored attached update changed legacy behavior unexpectedly: %+v", got)
+	}
+}
+
+func TestRunListFilters(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	// Create a task
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Filter Task",
+		ScopePath: "/test",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	// Create a profile
+	profile := &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "filter-profile",
+		ProfileKey: "filter-profile", RoleRef: "code.default",
+	}
+	if err := repos.Profiles.Create(ctx, profile); err != nil {
+		t.Fatalf("Create profile: %v", err)
+	}
+
+	// Create runs with different tags and statuses
+	sourceRunID := uuid.New()
+	investigationRunID := uuid.New()
+	runs := []*domain.Run{
+		{ID: uuid.New(), TaskID: task.ID, AgentProfileID: &profile.ID, Tag: "batch-1", Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued, ApprovalState: domain.ApprovalStateNone, IdempotencyKey: "filter-key-1", SourceRunIDs: []uuid.UUID{sourceRunID}},
+		{ID: uuid.New(), TaskID: task.ID, Tag: "batch-2", Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, ApprovalState: domain.ApprovalStateNone, IdempotencyKey: "filter-key-2", SourceInvestigationRunID: &investigationRunID},
+		{ID: uuid.New(), TaskID: task.ID, Tag: "batch-1-sub", Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, ApprovalState: domain.ApprovalStateNone, IdempotencyKey: "filter-key-3"},
+	}
+	for _, run := range runs {
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatalf("Create run: %v", err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Filter by status
+	completedRuns, err := repos.Runs.List(ctx, repository.RunListFilter{
+		Status: func() *domain.RunStatus { s := domain.RunStatusComplete; return &s }(),
+	})
+	if err != nil {
+		t.Fatalf("List by status: %v", err)
+	}
+	if len(completedRuns) != 1 {
+		t.Errorf("expected 1 completed run, got %d", len(completedRuns))
+	}
+
+	// Filter by tag prefix
+	batchRuns, err := repos.Runs.List(ctx, repository.RunListFilter{
+		TagPrefix: "batch-1",
+	})
+	if err != nil {
+		t.Fatalf("List by tag prefix: %v", err)
+	}
+	if len(batchRuns) != 2 {
+		t.Errorf("expected 2 runs with tag prefix 'batch-1', got %d", len(batchRuns))
+	}
+
+	// Filter by profile ID
+	profileRuns, err := repos.Runs.List(ctx, repository.RunListFilter{
+		AgentProfileID: &profile.ID,
+	})
+	if err != nil {
+		t.Fatalf("List by profile: %v", err)
+	}
+	if len(profileRuns) != 1 {
+		t.Errorf("expected 1 run with profile, got %d", len(profileRuns))
+	}
+
+	// Filter by source run ID lineage
+	investigationRuns, err := repos.Runs.List(ctx, repository.RunListFilter{
+		InvestigatesRunID: &sourceRunID,
+	})
+	if err != nil {
+		t.Fatalf("List by source run ID: %v", err)
+	}
+	if len(investigationRuns) != 1 {
+		t.Errorf("expected 1 investigation run for source run ID, got %d", len(investigationRuns))
+	}
+
+	// Filter by source investigation run ID lineage
+	applyRuns, err := repos.Runs.List(ctx, repository.RunListFilter{
+		AppliesInvestigationRunID: &investigationRunID,
+	})
+	if err != nil {
+		t.Fatalf("List by source investigation run ID: %v", err)
+	}
+	if len(applyRuns) != 1 {
+		t.Errorf("expected 1 apply run for source investigation run ID, got %d", len(applyRuns))
+	}
+}
+
+func TestRunListNonTerminalOnlyExcludesTerminalHistory(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "authorization lookup", ScopePath: "/test", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 250; i++ {
+		run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, ApprovalState: domain.ApprovalStateNone}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, status := range []domain.RunStatus{domain.RunStatusFailed, domain.RunStatusCancelled, domain.RunStatusUnknown} {
+		run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: status, Phase: domain.RunPhaseCompleted, ApprovalState: domain.ApprovalStateNone}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want := []domain.RunStatus{domain.RunStatusPending, domain.RunStatusStarting, domain.RunStatusRunning, domain.RunStatusNeedsReview, domain.RunStatusParked}
+	var expectedIDs []string
+	for _, status := range want {
+		run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: status, Phase: domain.RunPhaseQueued, ApprovalState: domain.ApprovalStateNone}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatal(err)
+		}
+		expectedIDs = append(expectedIDs, run.ID.String())
+	}
+	// Force an equal timestamp across the page boundary to verify deterministic
+	// ordering does not skip or duplicate a live owner during pagination.
+	tiedCreatedAt := time.Date(2026, time.October, 17, 17, 0, 0, 0, time.UTC)
+	if _, err := db.ExecContext(ctx, `UPDATE runs SET created_at = ? WHERE task_id = ? AND status IN (?, ?, ?, ?, ?)`,
+		SQLiteTime(tiedCreatedAt), task.ID,
+		string(domain.RunStatusPending), string(domain.RunStatusStarting), string(domain.RunStatusRunning),
+		string(domain.RunStatusNeedsReview), string(domain.RunStatusParked)); err != nil {
+		t.Fatal(err)
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(expectedIDs)))
+
+	var got []*domain.Run
+	for offset := 0; ; offset += 2 {
+		page, err := repos.Runs.List(ctx, repository.RunListFilter{
+			ListFilter:      repository.ListFilter{Limit: 2, Offset: offset},
+			NonTerminalOnly: true,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, page...)
+		if len(page) < 2 {
+			break
+		}
+	}
+	if len(got) != len(want) {
+		t.Fatalf("nonterminal query returned %d rows; want only %d retained executor states", len(got), len(want))
+	}
+	seen := make(map[domain.RunStatus]int)
+	for _, run := range got {
+		seen[run.Status]++
+	}
+	for _, status := range want {
+		if seen[status] != 1 {
+			t.Errorf("status %q count = %d, want 1", status, seen[status])
+		}
+	}
+	for index, run := range got {
+		if run.ID.String() != expectedIDs[index] {
+			t.Fatalf("page %d returned run %s; deterministic tie-break wanted %s", index, run.ID, expectedIDs[index])
+		}
+	}
+}
+
+// ============================================================================
+// Event Repository Tests
+// ============================================================================
+
+func TestRenewAttachedIdentityLosesToCancellationIntent(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	run := &domain.Run{
+		ID: uuid.New(), RunMode: domain.RunModeInPlace,
+		ExecutionMode: domain.ExecutionModeAttached, HarnessKind: "codex",
+		HarnessSessionID: "harness-session", WebConsoleSessionID: "wc-session",
+		Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting,
+		ApprovalState: domain.ApprovalStateNone, IdentityTokenHash: "original-active-hash",
+		RunnerPID: 1234, RunnerPGID: 1234,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	stale, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cancelledAt := time.Now().UTC()
+	if requested, err := repos.Runs.RequestCancellation(ctx, run.ID, cancelledAt); err != nil || !requested {
+		t.Fatalf("request cancellation: requested=%v err=%v", requested, err)
+	}
+	rotator := repos.Runs.(repository.AttachedIdentityRenewalRepository)
+	if rotated, err := rotator.RenewAttachedIdentity(ctx, stale, "original-anchor-hash", "rotated-active-hash", time.Now().UTC()); err != nil || rotated {
+		t.Fatalf("renewal raced past cancellation intent: rotated=%v err=%v", rotated, err)
+	}
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.CancelRequestedAt == nil || got.IdentityTokenHash != "original-active-hash" || got.IdentityRenewalAnchorHash != "" || got.IdentityTokenIssuedAt != nil {
+		t.Fatalf("cancellation/identity state changed unexpectedly: cancelled=%v active=%q anchor=%q issued=%v", got.CancelRequestedAt != nil, got.IdentityTokenHash, got.IdentityRenewalAnchorHash, got.IdentityTokenIssuedAt)
+	}
+}
+
+func TestRunListRunnerPIDFilterNarrowsNonterminalRows(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	pid := 424242
+	for _, tc := range []struct {
+		status domain.RunStatus
+		pid    int
+		want   bool
+	}{
+		{status: domain.RunStatusRunning, pid: pid, want: true},
+		{status: domain.RunStatusParked, pid: pid, want: true},
+		{status: domain.RunStatusComplete, pid: pid, want: false},
+		{status: domain.RunStatusRunning, pid: pid + 1, want: false},
+	} {
+		run := &domain.Run{ID: uuid.New(), Status: tc.status, Phase: domain.RunPhaseExecuting, RunnerPID: tc.pid, ApprovalState: domain.ApprovalStateNone}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rows, err := repos.Runs.List(ctx, repository.RunListFilter{
+		ListFilter: repository.ListFilter{Limit: 10}, NonTerminalOnly: true, RunnerPIDs: []int{pid},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("runner PID filter returned %d rows, want the two matching nonterminal states", len(rows))
+	}
+	for _, row := range rows {
+		if row.RunnerPID != pid || row.Status.IsTerminal() {
+			t.Fatalf("runner PID filter returned an unrelated row: pid=%d status=%s", row.RunnerPID, row.Status)
+		}
+	}
+}
+
+func TestRunUpdateDoesNotAdvanceCallerVersionWhenTaskProjectionRollsBack(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "projection rollback", ScopePath: "/test", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, RunMode: domain.RunModeSandboxed, Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued, ApprovalState: domain.ApprovalStateNone}
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
+		t.Fatalf("create task attempt: %v", err)
+	}
+	current, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || current == nil {
+		t.Fatalf("read admitted run: %v", err)
+	}
+	startingVersion := current.LifecycleVersion
+	if _, err := db.ExecContext(ctx, `CREATE TRIGGER fail_running_task_projection BEFORE UPDATE ON tasks WHEN NEW.status = 'running' BEGIN SELECT RAISE(ABORT, 'injected task projection failure'); END`); err != nil {
+		t.Fatalf("create projection trigger: %v", err)
+	}
+	current.Status = domain.RunStatusRunning
+	err = repos.Runs.Update(ctx, current)
+	if err == nil {
+		t.Fatal("expected task projection failure")
+	}
+	if current.LifecycleVersion != startingVersion {
+		t.Fatalf("failed transaction advanced caller lifecycle version: got %d want %d", current.LifecycleVersion, startingVersion)
+	}
+	durable, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || durable == nil {
+		t.Fatalf("read run after rollback: %v", err)
+	}
+	if durable.Status != domain.RunStatusPending || durable.LifecycleVersion != startingVersion {
+		t.Fatalf("transaction did not roll back run state: status=%s version=%d want pending/%d", durable.Status, durable.LifecycleVersion, startingVersion)
+	}
+	if _, err := db.ExecContext(ctx, `DROP TRIGGER fail_running_task_projection`); err != nil {
+		t.Fatalf("drop projection trigger: %v", err)
+	}
+	if err := repos.Runs.Update(ctx, current); err != nil {
+		t.Fatalf("retry with unchanged lifecycle version: %v", err)
+	}
+	durable, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil || durable == nil {
+		t.Fatalf("read retried run: %v", err)
+	}
+	if durable.Status != domain.RunStatusRunning || durable.LifecycleVersion != startingVersion+1 {
+		t.Fatalf("retry did not commit once: status=%s version=%d want running/%d", durable.Status, durable.LifecycleVersion, startingVersion+1)
+	}
+}

@@ -1,12 +1,23 @@
 package generation
 
 import (
+	"crypto/sha256"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/signing"
 )
 
 // mockBuildStore implements BuildStore for testing QueueBuild.
 type mockBuildStore struct {
+	mu          sync.RWMutex
 	createCalls int
 	updateCalls int
 	statuses    map[string]*BuildStatus
@@ -19,6 +30,8 @@ func newMockBuildStore() *mockBuildStore {
 }
 
 func (m *mockBuildStore) Create(buildID string) *BuildStatus {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.createCalls++
 	status := &BuildStatus{
 		BuildID:   buildID,
@@ -34,15 +47,47 @@ func (m *mockBuildStore) Create(buildID string) *BuildStatus {
 }
 
 func (m *mockBuildStore) Get(buildID string) (*BuildStatus, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	status, ok := m.statuses[buildID]
-	return status, ok
+	if !ok {
+		return nil, false
+	}
+	return cloneBuildStatusForTest(status), true
 }
 
 func (m *mockBuildStore) Update(buildID string, fn func(status *BuildStatus)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.updateCalls++
 	if status, ok := m.statuses[buildID]; ok {
 		fn(status)
 	}
+}
+
+func (m *mockBuildStore) callCounts() (int, int) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.createCalls, m.updateCalls
+}
+
+func cloneBuildStatusForTest(status *BuildStatus) *BuildStatus {
+	clone := *status
+	clone.BuildLog = append([]string(nil), status.BuildLog...)
+	clone.ErrorLog = append([]string(nil), status.ErrorLog...)
+	clone.Artifacts = make(map[string]string, len(status.Artifacts))
+	for key, value := range status.Artifacts {
+		clone.Artifacts[key] = value
+	}
+	clone.Metadata = make(map[string]interface{}, len(status.Metadata))
+	for key, value := range status.Metadata {
+		clone.Metadata[key] = value
+	}
+	if status.CompletedAt != nil {
+		completedAt := *status.CompletedAt
+		clone.CompletedAt = &completedAt
+	}
+	return &clone
 }
 
 // mockRecordStore implements RecordStore for testing.
@@ -69,6 +114,7 @@ func TestQueueBuild_SavesBuildToStore(t *testing.T) {
 
 	service := NewService(
 		WithVrooliRoot("/tmp/vrooli"),
+		WithStagingRoot(func() (string, error) { return t.TempDir(), nil }),
 		WithBuildStore(buildStore),
 		WithRecordStore(recordStore),
 	)
@@ -90,13 +136,14 @@ func TestQueueBuild_SavesBuildToStore(t *testing.T) {
 	}
 
 	// Verify Create was called (this is the critical fix)
-	if buildStore.createCalls != 1 {
-		t.Errorf("expected Create to be called once, got %d calls", buildStore.createCalls)
+	createCalls, updateCalls := buildStore.callCounts()
+	if createCalls != 1 {
+		t.Errorf("expected Create to be called once, got %d calls", createCalls)
 	}
 
 	// Verify Update was called after Create to set additional fields
-	if buildStore.updateCalls != 1 {
-		t.Errorf("expected Update to be called once, got %d calls", buildStore.updateCalls)
+	if updateCalls != 1 {
+		t.Errorf("expected Update to be called once, got %d calls", updateCalls)
 	}
 
 	// Verify the build can be retrieved from the store
@@ -107,6 +154,10 @@ func TestQueueBuild_SavesBuildToStore(t *testing.T) {
 	if stored.BuildID != result.BuildID {
 		t.Errorf("stored build ID %q doesn't match result %q", stored.BuildID, result.BuildID)
 	}
+	selection, ok := result.Metadata["strategy_selection"].(*PackagingSelectionRecord)
+	if !ok || selection.Selected.StrategyID != DefaultStrategyID || selection.Selected.Override {
+		t.Fatalf("default strategy selection not recorded: %#v", result.Metadata["strategy_selection"])
+	}
 }
 
 func TestQueueBuild_SetsOutputPath(t *testing.T) {
@@ -114,6 +165,7 @@ func TestQueueBuild_SetsOutputPath(t *testing.T) {
 
 	service := NewService(
 		WithVrooliRoot("/tmp/vrooli"),
+		WithStagingRoot(func() (string, error) { return t.TempDir(), nil }),
 		WithBuildStore(buildStore),
 	)
 
@@ -127,6 +179,9 @@ func TestQueueBuild_SetsOutputPath(t *testing.T) {
 	// Verify output path was set
 	if result.OutputPath == "" {
 		t.Error("expected OutputPath to be set")
+	}
+	if config.OutputPath != "" {
+		t.Errorf("QueueBuild must not mutate the caller config, got OutputPath %q", config.OutputPath)
 	}
 
 	// Verify it's stored in the store
@@ -144,6 +199,7 @@ func TestQueueBuild_WithMetadata(t *testing.T) {
 
 	service := NewService(
 		WithVrooliRoot("/tmp/vrooli"),
+		WithStagingRoot(func() (string, error) { return t.TempDir(), nil }),
 		WithBuildStore(buildStore),
 	)
 
@@ -185,6 +241,7 @@ func TestQueueBuild_PersistsRecord(t *testing.T) {
 
 	service := NewService(
 		WithVrooliRoot("/tmp/vrooli"),
+		WithStagingRoot(func() (string, error) { return t.TempDir(), nil }),
 		WithBuildStore(buildStore),
 		WithRecordStore(recordStore),
 	)
@@ -215,6 +272,26 @@ func TestQueueBuild_PersistsRecord(t *testing.T) {
 	if record.AppDisplayName != "Test Application" {
 		t.Errorf("expected display name 'Test Application', got %q", record.AppDisplayName)
 	}
+	if record.StrategyID != DefaultStrategyID || record.Selection == nil || record.Selection.Selected.StrategyID != DefaultStrategyID {
+		t.Fatalf("strategy selection not persisted: %+v", record)
+	}
+}
+
+func TestQueueBuildRecordsExplicitStrategyOverride(t *testing.T) {
+	recordStore := newMockRecordStore()
+	service := NewService(WithVrooliRoot("/tmp/vrooli"), WithRecordStore(recordStore))
+	result := service.QueueBuild(&DesktopConfig{AppName: "test-app", StrategyID: DefaultStrategyID}, nil, false)
+	if result.Status != "building" {
+		t.Fatalf("build status=%+v", result)
+	}
+	selection, ok := result.Metadata["strategy_selection"].(*PackagingSelectionRecord)
+	if !ok || !selection.Selected.Override || selection.Selected.StrategyID != DefaultStrategyID {
+		t.Fatalf("build selection=%#v", result.Metadata["strategy_selection"])
+	}
+	record := recordStore.records[result.BuildID]
+	if record == nil || record.Selection == nil || !record.Selection.Selected.Override {
+		t.Fatalf("persisted record=%+v", record)
+	}
 }
 
 func TestQueueBuild_GeneratesUniqueBuildIDs(t *testing.T) {
@@ -222,6 +299,7 @@ func TestQueueBuild_GeneratesUniqueBuildIDs(t *testing.T) {
 
 	service := NewService(
 		WithVrooliRoot("/tmp/vrooli"),
+		WithStagingRoot(func() (string, error) { return t.TempDir(), nil }),
 		WithBuildStore(buildStore),
 	)
 
@@ -266,6 +344,7 @@ func TestQueueBuild_LocationModes(t *testing.T) {
 
 			service := NewService(
 				WithVrooliRoot("/tmp/vrooli"),
+				WithStagingRoot(func() (string, error) { return t.TempDir(), nil }),
 				WithBuildStore(buildStore),
 				WithRecordStore(recordStore),
 			)
@@ -295,6 +374,7 @@ func TestQueueBuild_NilBuildStore(t *testing.T) {
 	// Verify QueueBuild works even without a build store
 	service := NewService(
 		WithVrooliRoot("/tmp/vrooli"),
+		WithStagingRoot(func() (string, error) { return t.TempDir(), nil }),
 	)
 
 	config := &DesktopConfig{
@@ -366,5 +446,236 @@ func TestScenarioRoot(t *testing.T) {
 
 	if path != expected {
 		t.Errorf("expected %q, got %q", expected, path)
+	}
+}
+
+type recordingIconSyncer struct {
+	err   error
+	calls int
+}
+
+func (s *recordingIconSyncer) SyncIcons(_ string, _ string, _ func(string, map[string]interface{})) error {
+	s.calls++
+	return s.err
+}
+
+type recordingBundlePackager struct {
+	result *BundlePackageResult
+	err    error
+	calls  int
+}
+
+func (p *recordingBundlePackager) Package(_ string, _ string, _ []string) (*BundlePackageResult, error) {
+	p.calls++
+	return p.result, p.err
+}
+
+func TestPostGenerateStepsCapturesIconWarningsAndBundleMetadata(t *testing.T) {
+	iconSyncer := &recordingIconSyncer{err: errors.New("icon unavailable")}
+	packager := &recordingBundlePackager{result: &BundlePackageResult{
+		BundleDir: "bundle", ManifestPath: "bundle.json", RuntimeBinaries: []string{"runtime"}, TotalSizeBytes: 42, TotalSizeHuman: "42 B",
+		SizeWarning: &SizeWarning{Level: "warn", Message: "large bundle"},
+	}}
+	service := NewService(WithIconSyncer(iconSyncer), WithBundlePackager(packager))
+	status := &BuildStatus{Status: "ready", Metadata: map[string]interface{}{}, BuildLog: []string{}}
+	service.postGenerateSteps(&DesktopConfig{ScenarioName: "demo", OutputPath: "out", DeploymentMode: "bundled", BundleManifestPath: "bundle.json", Platforms: []string{"linux"}}, status)
+	if iconSyncer.calls != 1 || packager.calls != 1 || status.Status != "ready" || status.Metadata["bundle_dir"] != "bundle" || !strings.Contains(strings.Join(status.BuildLog, "\n"), "Icon sync warning") {
+		t.Fatalf("post generation status = %#v; icon=%d package=%d", status, iconSyncer.calls, packager.calls)
+	}
+
+	packager.err = errors.New("package failed")
+	failed := &BuildStatus{Status: "ready", Metadata: map[string]interface{}{}}
+	service.postGenerateSteps(&DesktopConfig{DeploymentMode: "bundled", BundleManifestPath: "bundle.json"}, failed)
+	if failed.Status != "failed" || len(failed.ErrorLog) != 1 {
+		t.Fatalf("bundle failure status = %#v", failed)
+	}
+}
+
+func TestWriteConfigFileProducesInspectableJSON(t *testing.T) {
+	builds := newMockBuildStore()
+	builds.Create("build")
+	service := NewService(WithBuildStore(builds))
+	path, err := service.writeConfigFile("build", &DesktopConfig{AppName: "demo", Features: map[string]interface{}{"offline": true}})
+	if err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Remove(path) })
+	data, err := os.ReadFile(path)
+	if err != nil || !strings.Contains(string(data), `"app_name": "demo"`) {
+		t.Fatalf("config content = %s, %v", data, err)
+	}
+	if filepath.Base(path) != "desktop-config-build.json" {
+		t.Fatalf("config path = %q", path)
+	}
+	status, ok := builds.Get("build")
+	if !ok {
+		t.Fatal("build status missing")
+	}
+	wantDigest := fmt.Sprintf("%x", sha256.Sum256(data))
+	if status.Artifacts["derived_config_sha256"] != wantDigest || status.Artifacts["derived_config_status"] != "ephemeral-not-retained" {
+		t.Fatalf("derived config evidence = %#v, want actual-byte digest %s and ephemeral disposition", status.Artifacts, wantDigest)
+	}
+	if _, exists := status.Artifacts["config_path"]; exists {
+		t.Fatal("temporary config advertised as a reusable artifact")
+	}
+}
+
+func TestGenerateRecordsTemplateGeneratorSuccessAndFailure(t *testing.T) {
+	builds := newMockBuildStore()
+	iconSyncer := &recordingIconSyncer{}
+	templateDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(templateDir, "build-tools", "dist"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(templateDir, "build-tools", "dist", "template-generator.js"), []byte("// fixture"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	buildTools := filepath.Join(templateDir, "build-tools")
+	for name, contents := range map[string]string{"package.json": "{}\n", "tsconfig.json": "{}\n"} {
+		if err := os.WriteFile(filepath.Join(buildTools, name), []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	inputHash, err := templateGeneratorInputsHash(buildTools)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stamp, err := json.Marshal(templateGeneratorBuildStamp{Schema: "scenario-to-desktop-template-generator-build-v1", InputsHash: inputHash})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(buildTools, "dist", ".build-stamp.json"), stamp, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	binDir := t.TempDir()
+	writeNodeFixture(t, binDir, "printf 'generated %s\\n' \"$1\"")
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	service := NewService(WithTemplateDir(templateDir), WithBuildStore(builds), WithIconSyncer(iconSyncer))
+	builds.Create("success")
+	output := t.TempDir()
+	service.Generate("success", &DesktopConfig{ScenarioName: "demo", AppName: "demo", OutputPath: output})
+	status, ok := builds.Get("success")
+	if !ok || status.Status != "ready" || status.Artifacts["output_path"] != output || status.CompletedAt == nil || iconSyncer.calls != 1 {
+		t.Fatalf("successful generation status = %#v; icon calls=%d", status, iconSyncer.calls)
+	}
+	if _, exists := status.Artifacts["config_path"]; exists {
+		t.Fatal("completed generation retained a dead temporary input path")
+	}
+	if status.Artifacts["derived_config_status"] != "ephemeral-not-retained" || len(status.Artifacts["derived_config_sha256"]) != 64 {
+		t.Fatalf("derived input evidence missing: %#v", status.Artifacts)
+	}
+	if _, err := os.Stat(filepath.Join(os.TempDir(), "desktop-config-success.json")); !os.IsNotExist(err) {
+		t.Fatalf("temporary input was not retired: %v", err)
+	}
+	if !strings.Contains(strings.Join(status.BuildLog, "\n"), "generated") {
+		t.Fatalf("generator output was not retained: %#v", status.BuildLog)
+	}
+
+	failureBinDir := t.TempDir()
+	writeNodeFixture(t, failureBinDir, "echo generator-failed >&2; exit 7")
+	t.Setenv("PATH", failureBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	builds.Create("failed")
+	service.Generate("failed", &DesktopConfig{ScenarioName: "demo", AppName: "demo", OutputPath: output})
+	status, ok = builds.Get("failed")
+	if !ok || status.Status != "failed" || status.CompletedAt == nil || len(status.ErrorLog) < 2 || !strings.Contains(strings.Join(status.ErrorLog, "\n"), "generator-failed") {
+		t.Fatalf("failed generation status = %#v", status)
+	}
+	if _, exists := status.Artifacts["config_path"]; exists {
+		t.Fatal("failed generation retained a dead input path")
+	}
+	if status.Artifacts["derived_config_status"] != "ephemeral-not-retained" || len(status.Artifacts["derived_config_sha256"]) != 64 {
+		t.Fatalf("failed generation lost input identity: %#v", status.Artifacts)
+	}
+
+}
+
+func TestGenerateSigningArtifactsIsNoOpWhenDisabledAndWritesMacOSFiles(t *testing.T) {
+	service := NewService()
+	if err := service.generateSigningArtifacts(&DesktopConfig{}); err != nil {
+		t.Fatalf("disabled signing generated an error: %v", err)
+	}
+	if err := service.generateSigningArtifacts(&DesktopConfig{CodeSigning: &signing.SigningConfig{Enabled: true}}); err == nil || !strings.Contains(err.Error(), "output path not set") {
+		t.Fatalf("missing output path error = %v", err)
+	}
+	output := t.TempDir()
+	config := &DesktopConfig{OutputPath: output, CodeSigning: &signing.SigningConfig{
+		Enabled: true,
+		MacOS:   &signing.MacOSSigningConfig{},
+	}}
+	if err := service.generateSigningArtifacts(config); err != nil {
+		t.Fatalf("generate macOS signing artifacts: %v", err)
+	}
+	if config.CodeSigning.MacOS.EntitlementsFile != "entitlements.mac.plist" {
+		t.Fatalf("default entitlements path = %q", config.CodeSigning.MacOS.EntitlementsFile)
+	}
+	if _, err := os.Stat(filepath.Join(output, "entitlements.mac.plist")); err != nil {
+		t.Fatalf("entitlements artifact missing: %v", err)
+	}
+}
+
+func TestGenerateSigningArtifactsWritesLinuxSignerHook(t *testing.T) {
+	output := t.TempDir()
+	config := &DesktopConfig{OutputPath: output, CodeSigning: &signing.SigningConfig{
+		Enabled: true,
+		Linux:   &signing.LinuxSigningConfig{GPGKeyID: "ABC123"},
+	}}
+	if err := NewService().generateSigningArtifacts(config); err != nil {
+		t.Fatalf("generate Linux signing artifacts: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(output, "scripts", "sign-linux-artifacts.js")); err != nil {
+		t.Fatalf("Linux signer hook missing: %v", err)
+	}
+}
+
+func TestPrepareSigningConfigFailsClosedWhenLinuxSignerCannotBeGenerated(t *testing.T) {
+	builds := newMockBuildStore()
+	builds.Create("linux-invalid")
+	service := NewService(WithBuildStore(builds))
+	if err := service.prepareSigningConfig("linux-invalid", &DesktopConfig{
+		OutputPath: t.TempDir(),
+		CodeSigning: &signing.SigningConfig{
+			Enabled: true,
+			Linux:   &signing.LinuxSigningConfig{},
+		},
+	}); err == nil {
+		t.Fatal("expected invalid Linux signing configuration to fail")
+	}
+	status, ok := builds.Get("linux-invalid")
+	if !ok || status.Status != "failed" || len(status.ErrorLog) == 0 {
+		t.Fatalf("signing failure was not terminal: %#v", status)
+	}
+}
+
+func writeNodeFixture(t *testing.T, directory, body string) {
+	t.Helper()
+	path := filepath.Join(directory, "node")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body+"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestQueueBuildFailsWhenStagingResolutionFails(t *testing.T) {
+	service := NewService(WithStagingRoot(func() (string, error) { return "", errors.New("storage unavailable") }))
+	status := service.QueueBuild(&DesktopConfig{AppName: "app", LocationMode: "staging"}, nil, false)
+	if status.Status != "failed" || status.OutputPath != "" || len(status.ErrorLog) == 0 {
+		t.Fatalf("status=%+v", status)
+	}
+}
+
+func TestQueueBuildExposesTypedNativeExtensionCompatibilityReason(t *testing.T) {
+	status := NewService().QueueBuild(&DesktopConfig{
+		AppName:    "example",
+		OutputPath: t.TempDir(),
+		Framework:  "electron",
+		Platforms:  []string{"windows-arm64"},
+		NativeExtension: &NativeExtension{
+			Version:     1,
+			Module:      "presentation",
+			Permissions: []string{"window.presentation"},
+			Platforms:   []string{"linux"},
+		},
+	}, nil, false)
+	if status.Status != "failed" || len(status.ErrorLog) != 1 || !strings.Contains(status.ErrorLog[0], "NATIVE_EXTENSION_TARGET_UNSUPPORTED") {
+		t.Fatalf("status=%+v", status)
 	}
 }

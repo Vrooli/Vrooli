@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "vrooli://agent-manager/friction-digest/output/v4",
+  "title": "Agent Manager Friction Digest Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["program", "version", "status", "phase", "inputs", "signals", "errors", "evidence"],
+  "properties": {
+    "program": {"const": "agent-manager.friction-digest"},
+    "version": {"const": "4"},
+    "status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]},
+    "phase": {"enum": ["validate", "collect", "classify", "report"]},
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenario", "window_days", "top_n"],
+      "properties": {
+        "scenario": {"type": "string", "minLength": 1},
+        "window_days": {"type": "integer", "minimum": 1, "maximum": 90},
+        "top_n": {"type": "integer"}
+      }
+    },
+    "signals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "window_start", "coverage", "profiles_for_scenario", "calls_for_scenario", "findings_for_scenario", "below_floor_for_scenario", "beyond_limit_for_scenario", "recurring_count", "top_fingerprints",
+        "supervision_outcomes", "supervision_calibration_available", "supervision_false_positives", "supervision_false_negatives", "supervision_overrides",
+        "supervision_counterexamples", "supervision_safety_violations", "supervision_completion_impact", "supervision_assessed", "supervision_unassessed",
+        "supervision_sample_capped", "supervision_sample_scope", "supervision_not_scenario_filtered", "supervision_impact_samples",
+        "supervision_outcome_coverage", "supervision_coverage_reason"
+      ],
+      "properties": {
+        "window_start": {"type": ["string", "null"]},
+        "coverage": {"type": ["string", "null"], "maxLength": 800},
+        "profiles_for_scenario": {"type": "integer", "minimum": 0},
+        "calls_for_scenario": {"type": "integer", "minimum": 0},
+        "findings_for_scenario": {"type": "integer", "minimum": 0},
+        "below_floor_for_scenario": {"type": "integer", "minimum": 0},
+        "beyond_limit_for_scenario": {"type": "integer", "minimum": 0},
+        "recurring_count": {"type": "integer", "minimum": 0},
+        "top_fingerprints": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["fingerprint", "kind", "command_path", "description", "description_truncated", "calls", "distinct_runs", "cost", "cost_unit", "cost_share", "status"],
+            "properties": {
+              "fingerprint": {"type": ["string", "null"]},
+              "kind": {"type": ["string", "null"]},
+              "command_path": {"type": ["string", "null"]},
+              "description": {"type": "string", "maxLength": 280},
+              "description_truncated": {"type": "boolean"},
+              "calls": {"type": "integer", "minimum": 0},
+              "distinct_runs": {"type": "integer", "minimum": 0},
+              "cost": {"type": "integer", "minimum": 0},
+              "cost_unit": {"type": ["string", "null"]},
+              "cost_share": {"type": "number", "minimum": 0, "maximum": 1},
+              "status": {"type": ["string", "null"]}
+            }
+          }
+        },
+        "supervision_outcomes": {"type": ["integer", "null"], "minimum": 0},
+        "supervision_calibration_available": {"type": "boolean"},
+        "supervision_false_positives": {"type": ["integer", "null"], "minimum": 0},
+        "supervision_false_negatives": {"type": ["integer", "null"], "minimum": 0},
+        "supervision_overrides": {"type": "integer", "minimum": 0},
+        "supervision_counterexamples": {"type": "integer", "minimum": 0},
+        "supervision_safety_violations": {"type": ["integer", "null"], "minimum": 0},
+        "supervision_completion_impact": {"type": ["number", "null"]},
+        "supervision_assessed": {"type": "integer", "minimum": 0},
+        "supervision_unassessed": {"type": "integer", "minimum": 0},
+        "supervision_sample_capped": {"type": "boolean"},
+        "supervision_sample_scope": {"type": "string"},
+        "supervision_not_scenario_filtered": {"type": "boolean"},
+        "supervision_impact_samples": {"type": "integer", "minimum": 0},
+        "supervision_outcome_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "supervision_coverage_reason": {"type": "string"}
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["class", "detail", "where"],
+        "properties": {
+          "class": {"type": "string"},
+          "detail": {"type": "string", "maxLength": 240},
+          "where": {"type": "string"}
+        }
+      }
+    },
+    "evidence": {"type": "array", "items": {"type": "string", "maxLength": 240}}
+  }
+}

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useReducer, useRef, type ReactNode } from 'react';
-import type { APIError, ErrorDetail } from '../../types/api';
+import type { ErrorDetail } from '../../types/api';
+import { isApiError } from '../api/apiFetch';
 
 export type ToastSeverity = 'info' | 'success' | 'warning' | 'error';
 
@@ -63,13 +64,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       toast: { id, severity, message, dedupKey: options?.dedupKey, retryFn: options?.retryFn, autoDismissMs },
     });
     if (autoDismissMs > 0) {
-      setTimeout(() => dispatch({ type: 'DISMISS', id }), autoDismissMs);
+      setTimeout(() => { dispatch({ type: 'DISMISS', id }); }, autoDismissMs);
     }
   }, []);
 
   const showApiError = useCallback((err: unknown, retryFn?: () => void) => {
-    if (err && typeof err === 'object' && 'error' in err) {
-      const apiErr = err as APIError;
+    if (isApiError(err)) {
+      const apiErr = err;
       const detail: ErrorDetail | undefined = apiErr.detail;
       let message = apiErr.error || 'An error occurred';
 

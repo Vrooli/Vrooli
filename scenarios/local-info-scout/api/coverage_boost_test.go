@@ -208,7 +208,7 @@ func TestCreateTablesWithMockDB(t *testing.T) {
 	defer env.Cleanup()
 
 	// Initialize DB
-	initDB()
+	initDB(boundedStartup(t))
 
 	// If DB is initialized, test createTables
 	if db != nil {
@@ -233,7 +233,7 @@ func TestSavePlaceToDbWithRealDB(t *testing.T) {
 	defer func() { db = origDB }()
 
 	// Initialize DB
-	initDB()
+	initDB(boundedStartup(t))
 
 	if db != nil {
 		// Create tables first
@@ -312,7 +312,7 @@ func TestLogSearchWithRealDB(t *testing.T) {
 	origDB := db
 	defer func() { db = origDB }()
 
-	initDB()
+	initDB(boundedStartup(t))
 
 	if db != nil {
 		createTables()
@@ -337,7 +337,7 @@ func TestGetPopularSearchesWithRealDB(t *testing.T) {
 	origDB := db
 	defer func() { db = origDB }()
 
-	initDB()
+	initDB(boundedStartup(t))
 
 	if db != nil {
 		createTables()

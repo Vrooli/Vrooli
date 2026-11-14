@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "name": "Inspection surfaces without a target",
+    "description": "Observer check of the read-only inspection surfaces (deployment listing filtered by status, docs manifest) that remote status and log retrieval build on; SSH-backed inspection needs an owned target and runs in the QEMU lane.",
+    "tags": [
+      "e2e",
+      "api",
+      "inspect"
+    ],
+    "requirements": [
+      "STC-P0-006"
+    ],
+    "labels": {
+      "safety": "observer",
+      "mutates_target": "false",
+      "mutates_repository": "false",
+      "requirements_json": "[\"STC-P0-006\"]"
+    },
+    "reset": "none",
+    "execution_mode": "observer"
+  },
+  "flow_definition": {
+    "settings": {},
+    "nodes": [
+      {"id":"deployed-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/deployments?status=deployed","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/deployments?status=deployed"}}},
+      {"id":"docs-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/docs/manifest","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/docs/manifest"}}}
+    ],
+    "edges":[{"source":"deployed-open","target":"docs-open"}]
+  }
+}

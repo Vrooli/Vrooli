@@ -10,7 +10,8 @@
  * 2. It ensures config serialization works correctly
  * 3. It catches drift between selectors.ts and injector.ts implementations
  */
-import { chromium, Browser, Page } from 'playwright';
+import { type Page } from 'rebrowser-playwright';
+import { ownBrowser } from './support/browser-fixture';
 import { generateRecordingInitScript } from '../../src/recording';
 import {
   TEST_ID_ATTRIBUTES,
@@ -28,32 +29,23 @@ interface SelectorSet {
     specificity: number;
   }>;
 }
-
 describe('Injector Selector Generation (Integration)', () => {
-  let browser: Browser;
+  const browserOwner = ownBrowser({ headless: true });
   let page: Page;
 
-  beforeAll(async () => {
-    browser = await chromium.launch({ headless: true });
-  });
-
-  afterAll(async () => {
-    await browser.close();
-  });
-
   beforeEach(async () => {
-    page = await browser.newPage();
+    page = await browserOwner.browser.newPage();
   });
 
   afterEach(async () => {
-    await page.close();
+    await page?.close();
   });
 
   /**
    * Helper to inject recording script and generate selectors for an element
    */
   async function generateSelectorsFor(html: string, elementSelector: string): Promise<SelectorSet> {
-    await page.setContent(html);
+    await page.goto(`data:text/html,${encodeURIComponent(html)}`);
     const script = generateRecordingInitScript();
     await page.evaluate(script);
 
@@ -346,7 +338,7 @@ describe('Injector Selector Generation (Integration)', () => {
 
   describe('Config Serialization Verification', () => {
     it('should have access to shared config in browser context', async () => {
-      await page.setContent('<div>Test</div>');
+      await page.goto('data:text/html,<div>Test</div>');
       const script = generateRecordingInitScript();
       await page.evaluate(script);
 

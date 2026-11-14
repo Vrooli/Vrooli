@@ -1,4 +1,5 @@
 package apierrors
+
 // DOC: docs/internal/ERROR-SEMANTICS.md
 
 import "fmt"

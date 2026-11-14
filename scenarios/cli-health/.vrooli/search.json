@@ -1,0 +1,598 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "cli-health.commands",
+      "lifecycle": "production",
+      "provider_group": "cli-health",
+      "bucket": "BUCKET_DO",
+      "type": "command",
+      "description": "Vrooli CLI commands across every scenario CLI, searchable by what each command does (for example \"restart a scenario\", \"view logs\", \"run tests\"). Route here to discover which CLI command performs an operation.",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_index",
+      "index_timestamp_field": "lastReconcileAt",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "cli-health",
+          "path": "/vrooli.cli_health.v1.search.SearchService/Search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"mode\":\"MODE_AI\"}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "cli-health",
+          "path": "/vrooli.cli_health.v1.search.SearchService/Status",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "name",
+        "title_field": "fullPath",
+        "score_field": "score",
+        "snippet_field": "description",
+        "path_field": "fullPath",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "reindex_endpoint": {
+        "http_json": {
+          "scenario_id": "cli-health",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/Reindex",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"scope\":\"{{scope}}\",\"dry_run\":false}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "config_endpoint": {
+        "http_json": {
+          "scenario_id": "cli-health",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/WriteConfig",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "tuning": {
+        "engine": "hybrid",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "rerank_enabled": true,
+        "rerank_blend": false,
+        "rerank_shortlist": 50,
+        "hybrid_fusion": "dbsf",
+        "floor": {
+          "max_gap": 0,
+    "hard_floor": 0
+        }
+      },
+      "scoring": {
+        "recall_at": 5,
+        "recall_target": 0.8,
+        "mrr_at": 3,
+        "deep_k": 50
+      },
+      "performance": {
+        "p95_ms": 1500,
+        "degraded_rate_max": 0.05,
+        "telemetry_required": true,
+        "minimum_samples": 8
+      },
+      "tests": {
+        "name": "cli-health commands — primary golden corpus",
+        "description": "RANK-CENTRIC golden corpus for the cli-health command index. Positive cases assert expect_ids (LEAF command name, e.g. 'restart' for 'vrooli scenario restart') landing within expect_within_top_k. NO absolute expect_min_score band is set on positives by design: the sweep compares arms across different score REGIMES (dense cosine ~0.5-0.7, cross-encoder ~0..1, RRF-blend ~0.03), so an absolute score band cannot be shared and would mislabel a rank-correct hit as a miss under RRF-blend. Difficulty spread: strong (intended leaf at rank 1-3), weak-real (in top-5 but contested by ambiguous leaves / vocab gaps), hard (genuine retrieval gaps that most arms miss — kept honest, not gamed). Gibberish negatives feed the junk-rejection constraint, never the recall objective.",
+        "cases": [
+          {
+            "id": "restart-scenario",
+            "query": "restart a scenario",
+            "tags": [
+              "strong",
+              "lifecycle"
+            ],
+            "expect_ids": [
+              "restart"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "start-scenario",
+            "query": "start a scenario",
+            "tags": [
+              "strong",
+              "lifecycle"
+            ],
+            "expect_ids": [
+              "start"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "stop-scenario",
+            "query": "stop a running scenario",
+            "tags": [
+              "strong",
+              "lifecycle"
+            ],
+            "expect_ids": [
+              "stop"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "run-tests",
+            "query": "run the tests for a scenario",
+            "tags": [
+              "strong",
+              "testing"
+            ],
+            "expect_ids": [
+              "test"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "view-logs",
+            "query": "view logs for a scenario",
+            "tags": [
+              "strong",
+              "observability"
+            ],
+            "expect_ids": [
+              "logs"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "list-scenarios",
+            "query": "list all scenarios",
+            "tags": [
+              "strong",
+              "lifecycle"
+            ],
+            "expect_ids": [
+              "list"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "develop-env",
+            "query": "start the development environment",
+            "tags": [
+              "strong",
+              "lifecycle"
+            ],
+            "expect_ids": [
+              "develop"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "reindex-run",
+            "query": "reindex the command search index",
+            "tags": [
+              "strong",
+              "search"
+            ],
+            "expect_ids": [
+              "run",
+              "reindex"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "duplicate-code",
+            "query": "find duplicate code",
+            "tags": [
+              "strong",
+              "analysis"
+            ],
+            "expect_ids": [
+              "duplicates"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "discover-skill",
+            "query": "discover an existing skill or action",
+            "tags": [
+              "strong",
+              "discovery"
+            ],
+            "expect_ids": [
+              "discover"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "test-genie",
+            "query": "run the test genie suite for a scenario",
+            "tags": [
+              "strong",
+              "testing"
+            ],
+            "expect_ids": [
+              "execute",
+              "run-tests"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "capture-baseline",
+            "query": "capture a regression baseline for a scenario",
+            "tags": [
+              "strong",
+              "recovery"
+            ],
+            "expect_ids": [
+              "capture"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "deploy-scenario",
+            "query": "deploy a scenario to production",
+            "tags": [
+              "strong",
+              "deployment"
+            ],
+            "expect_ids": [
+              "deployment"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "monitor-health",
+            "query": "monitor running scenarios health",
+            "tags": [
+              "strong",
+              "observability"
+            ],
+            "expect_ids": [
+              "health"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "stop-all",
+            "query": "stop all running scenarios at once",
+            "tags": [
+              "strong",
+              "lifecycle"
+            ],
+            "expect_ids": [
+              "stop-all"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "restart-resource",
+            "query": "restart a resource like postgres or redis",
+            "tags": [
+              "strong",
+              "resource"
+            ],
+            "expect_ids": [
+              "restart"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "cancel-reindex",
+            "query": "cancel a running reindex job",
+            "tags": [
+              "strong",
+              "search"
+            ],
+            "expect_ids": [
+              "cancel"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "list-resources",
+            "query": "list available resources",
+            "tags": [
+              "strong",
+              "resource"
+            ],
+            "expect_ids": [
+              "list"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "generate-scaffold",
+            "query": "generate a new scenario scaffold",
+            "tags": [
+              "strong",
+              "scaffolding"
+            ],
+            "expect_ids": [
+              "generate"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "setup-project",
+            "query": "set up the project and install dependencies",
+            "tags": [
+              "weak-real",
+              "lifecycle"
+            ],
+            "expect_ids": [
+              "setup"
+            ],
+            "expect_within_top_k": 5,
+            "note": "leaf 'setup' lands ~rank 5, contested by project-init verbs (mkdir/integrate/create)."
+          },
+          {
+            "id": "report-bug",
+            "query": "report a bug or defect",
+            "tags": [
+              "weak-real",
+              "issue"
+            ],
+            "expect_ids": [
+              "create"
+            ],
+            "expect_within_top_k": 5,
+            "note": "app-issue-tracker issue create lands ~rank 4; 'create' leaf is heavily contested."
+          },
+          {
+            "id": "validate-manifest",
+            "query": "validate a cli manifest against the rules",
+            "tags": [
+              "weak-real",
+              "validation"
+            ],
+            "expect_ids": [
+              "scenario",
+              "validate"
+            ],
+            "expect_within_top_k": 5,
+            "note": "cli-health validate scenario is rank 1 but the leaf 'scenario' is generic."
+          },
+          {
+            "id": "create-scenario",
+            "query": "create a new scenario from a template",
+            "tags": [
+              "weak-real",
+              "scaffolding"
+            ],
+            "expect_ids": [
+              "create",
+              "generate",
+              "template"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "search-status",
+            "query": "check whether ai command search is available",
+            "tags": [
+              "weak-real",
+              "search"
+            ],
+            "expect_ids": [
+              "search-status",
+              "status"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "tail-logs",
+            "query": "tail the logs in real time",
+            "tags": [
+              "weak-real",
+              "observability"
+            ],
+            "expect_ids": [
+              "logs",
+              "tail"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "create-record",
+            "query": "write a record of completed work",
+            "tags": [
+              "hard",
+              "records"
+            ],
+            "expect_ids": [
+              "create",
+              "record"
+            ],
+            "expect_within_top_k": 5,
+            "note": "swarm-manager records create is NOT retrieved in top-5 — genuine semantic gap (record vs history vs create). Honest hard case."
+          },
+          {
+            "id": "create-action",
+            "query": "register a reusable cli action",
+            "tags": [
+              "hard",
+              "discovery"
+            ],
+            "expect_ids": [
+              "create"
+            ],
+            "expect_within_top_k": 5,
+            "note": "prompt-manager action create is NOT retrieved in top-5 — 'register' surfaces wrong commands. Honest hard case."
+          },
+          {
+            "id": "search-command",
+            "query": "search for a cli command across scenarios",
+            "tags": [
+              "hard",
+              "vocab-gap",
+              "search"
+            ],
+            "expect_ids": [
+              "query",
+              "search"
+            ],
+            "expect_within_top_k": 5,
+            "note": "cli-health search query is NOT retrieved — query embeds toward 'configure'. Genuine vocab gap."
+          },
+          {
+            "id": "gibberish-1",
+            "query": "asdfqwer zxcvbnm qwertyuiop florbnax",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_max_score": 0.3,
+            "expect_no_strong_hit": true,
+            "note": "Junk rejection. Under rerank-on (incumbent) the cross-encoder collapses this to ~0.00; the sweep constraint is anchored to the incumbent's gibberish, so a rerank-off arm leaking ~0.59 becomes infeasible."
+          },
+          {
+            "id": "gibberish-2",
+            "query": "wibble snorp gleurgh ffffzzzz plover",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_max_score": 0.3,
+            "expect_no_strong_hit": true
+          },
+          {
+            "id": "gibberish-3",
+            "query": "qwop zxqj vbnm tplk gdsa hjkl",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_max_score": 0.3,
+            "expect_no_strong_hit": true
+          },
+          {
+            "id": "gen-6b3e7869",
+            "query": "monitoring breaker-reset",
+            "status": "candidate",
+            "tags": [
+              "generated",
+              "type:command/cli-health"
+            ],
+            "expect_ids": [
+              "circuit-breaker-reset"
+            ],
+            "expect_within_top_k": 5,
+            "note": "machine-generated by query inversion (review before trusting)"
+          },
+          {
+            "id": "gen-f43463f5",
+            "query": "reset scenario-to-desktop pipeline",
+            "status": "candidate",
+            "tags": [
+              "generated",
+              "type:command/cli-health"
+            ],
+            "expect_ids": [
+              "reset"
+            ],
+            "expect_within_top_k": 5,
+            "note": "machine-generated by query inversion (review before trusting)"
+          },
+          {
+            "id": "gen-246820d5",
+            "query": "start-all",
+            "status": "candidate",
+            "tags": [
+              "generated",
+              "type:command/cli-health"
+            ],
+            "expect_ids": [
+              "start-all"
+            ],
+            "expect_within_top_k": 5,
+            "note": "machine-generated by query inversion (review before trusting)"
+          },
+          {
+            "id": "gen-4e01f5b0",
+            "query": "run scenario start",
+            "status": "candidate",
+            "tags": [
+              "generated",
+              "type:command/cli-health"
+            ],
+            "expect_ids": [
+              "run"
+            ],
+            "expect_within_top_k": 5,
+            "note": "machine-generated by query inversion (review before trusting)"
+          },
+          {
+            "id": "gen-bce1496f",
+            "query": "apply scenario-auditor fixes",
+            "status": "candidate",
+            "tags": [
+              "generated",
+              "type:command/cli-health"
+            ],
+            "expect_ids": [
+              "apply"
+            ],
+            "expect_within_top_k": 5,
+            "note": "machine-generated by query inversion (review before trusting)"
+          },
+          {
+            "id": "gen-522e0b0c",
+            "query": "security scan",
+            "status": "candidate",
+            "tags": [
+              "generated",
+              "type:command/cli-health"
+            ],
+            "expect_ids": [
+              "scan"
+            ],
+            "expect_within_top_k": 5,
+            "note": "machine-generated by query inversion (review before trusting)"
+          },
+          {
+            "id": "gen-00c22bdb",
+            "query": "stop-all",
+            "status": "candidate",
+            "tags": [
+              "generated",
+              "type:command/cli-health"
+            ],
+            "expect_ids": [
+              "stop-all"
+            ],
+            "expect_within_top_k": 5,
+            "note": "machine-generated by query inversion (review before trusting)"
+          },
+          {
+            "id": "gen-d766cc0b",
+            "query": "cancel a running pipeline",
+            "status": "candidate",
+            "tags": [
+              "generated",
+              "type:command/cli-health"
+            ],
+            "expect_ids": [
+              "cancel"
+            ],
+            "expect_within_top_k": 5,
+            "note": "machine-generated by query inversion (review before trusting)"
+          }
+        ],
+        "coverage": {},
+        "minimum": {
+          "reviewed_positive": 1,
+          "negative": 1
+        }
+      }
+    }
+  ]
+}

@@ -1,26 +1,31 @@
 package detection
 
 import (
+	"context"
 	"io/fs"
-	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // resource_scanner.go - Resource dependency detection
 //
 // This file contains the logic for scanning scenario files to detect
-// resource dependencies through CLI commands, heuristics, and initialization files.
+// resource dependencies through CLI commands and heuristics.
 
 // resourceScanner handles resource dependency detection
 type resourceScanner struct {
 	catalog *catalogManager
+	// Immutable patterns are shared across scans. Cache only canonical catalog
+	// names, never source text; catalog removal still stops matching that name.
+	heuristicPatterns sync.Map
 }
 
 // newResourceScanner creates a scanner for detecting resource dependencies
@@ -31,11 +36,28 @@ func newResourceScanner(catalog *catalogManager) *resourceScanner {
 }
 
 // scan walks the scenario directory and detects all resource dependencies
-func (s *resourceScanner) scan(scenarioPath, scenarioName string, cfg *types.ServiceConfig) ([]types.ScenarioDependency, error) {
+func (s *resourceScanner) scan(scenarioPath, scenarioName string, cfg *types.Manifest) ([]types.ScenarioDependency, error) {
+	return s.scanContext(context.Background(), scenarioPath, scenarioName, cfg)
+}
+
+func (s *resourceScanner) scanContext(ctx context.Context, scenarioPath, scenarioName string, cfg *types.Manifest) ([]types.ScenarioDependency, error) {
 	results := map[string]types.ScenarioDependency{}
 
 	err := filepath.WalkDir(scenarioPath, func(path string, entry fs.DirEntry, walkErr error) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if walkErr != nil {
+			return walkErr
+		}
+		rel, relErr := filepath.Rel(scenarioPath, path)
+		if relErr != nil {
+			return relErr
+		}
+		if shouldIgnoreDetectionFile(rel) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
@@ -46,6 +68,9 @@ func (s *resourceScanner) scan(scenarioPath, scenarioName string, cfg *types.Ser
 			}
 			return nil
 		}
+		if entry.Type()&fs.ModeSymlink != 0 {
+			return nil
+		}
 
 		// Only scan relevant file types
 		ext := strings.ToLower(filepath.Ext(path))
@@ -54,20 +79,9 @@ func (s *resourceScanner) scan(scenarioPath, scenarioName string, cfg *types.Ser
 		}
 
 		// Read file content
-		content, err := os.ReadFile(path)
+		content, err := readDetectionSource(ctx, path, entry) // #nosec G304,G122 -- path comes from WalkDir under scenarioPath and symlink entries are skipped.
 		if err != nil {
-			return nil
-		}
-
-		// Calculate relative path for filtering
-		rel, relErr := filepath.Rel(scenarioPath, path)
-		if relErr != nil {
-			rel = path
-		}
-
-		// Skip documentation and test files
-		if shouldIgnoreDetectionFile(rel) {
-			return nil
+			return err
 		}
 
 		// Scan this file for resource dependencies
@@ -75,11 +89,6 @@ func (s *resourceScanner) scan(scenarioPath, scenarioName string, cfg *types.Ser
 
 		return nil
 	})
-
-	// Augment with resources declared in initialization
-	if cfg != nil {
-		s.augmentWithInitialization(results, scenarioName, cfg)
-	}
 
 	// Convert map to sorted slice
 	deps := make([]types.ScenarioDependency, 0, len(results))
@@ -126,23 +135,59 @@ func (s *resourceScanner) detectResourceCLICommands(content, relPath, scenarioNa
 	}
 }
 
-// detectResourceHeuristics uses pattern matching to detect resource usage
+// detectResourceHeuristics is an interim resource signal retained until resource
+// usage is delegated to code-facts/go-code-graph in the
+// scenario-dependency-analyzer-code-evidence-via-ast-facts follow-up.
 func (s *resourceScanner) detectResourceHeuristics(content, relPath, scenarioName string, results map[string]types.ScenarioDependency) {
-	for _, heuristic := range resourceHeuristicCatalog {
-		for _, pattern := range heuristic.Patterns {
-			if pattern.MatchString(content) {
-				s.recordDetection(
-					results,
-					scenarioName,
-					heuristic.Name,
-					"heuristic",
-					pattern.String(),
-					relPath,
-					heuristic.Type,
-				)
-				break // Only record once per heuristic
-			}
+	// Every heuristic contains the literal resource name. For ASCII source and
+	// names, rule out absent names once before running four regular expressions.
+	// Keep Unicode on the regex path: Unicode case folding is broader than
+	// strings.ToLower (for example, long-s can match ASCII s).
+	asciiContent := isASCII(content)
+	lowerContent := ""
+	if asciiContent {
+		lowerContent = strings.ToLower(content)
+	}
+	for resourceName := range s.catalog.getResourceCatalog() {
+		if asciiContent && isASCII(resourceName) && !strings.Contains(lowerContent, normalizeName(resourceName)) {
+			continue
 		}
+		for _, pattern := range s.patternsForResource(resourceName) {
+			if !pattern.MatchString(content) {
+				continue
+			}
+			s.recordDetection(results, scenarioName, resourceName, "heuristic", pattern.String(), relPath, "declared-resource")
+			break
+		}
+	}
+}
+
+func isASCII(value string) bool {
+	for i := 0; i < len(value); i++ {
+		if value[i] >= 128 {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *resourceScanner) patternsForResource(name string) []*regexp.Regexp {
+	name = normalizeName(name)
+	if patterns, ok := s.heuristicPatterns.Load(name); ok {
+		return patterns.([]*regexp.Regexp)
+	}
+	patterns, _ := s.heuristicPatterns.LoadOrStore(name, resourceHeuristicPatterns(name))
+	return patterns.([]*regexp.Regexp)
+}
+
+func resourceHeuristicPatterns(resourceName string) []*regexp.Regexp {
+	name := regexp.QuoteMeta(normalizeName(resourceName))
+	upper := regexp.QuoteMeta(strings.ToUpper(normalizeName(resourceName)))
+	return []*regexp.Regexp{
+		regexp.MustCompile(`resource-` + name + `\b`),
+		regexp.MustCompile(`(?i)\b` + name + `://`),
+		regexp.MustCompile(`\b` + upper + `_(?:HOST|URL|API|BASE_URL|ENDPOINT|WEBHOOK|KEY)\b`),
+		regexp.MustCompile(`(?i)https?://[^"'\s]*\b` + name + `\b`),
 	}
 }
 
@@ -166,33 +211,6 @@ func (s *resourceScanner) recordDetection(
 	entry = appendMatch(entry, pattern, method, file)
 
 	results[canonical] = entry
-}
-
-// augmentWithInitialization adds resources that have initialization files
-func (s *resourceScanner) augmentWithInitialization(
-	results map[string]types.ScenarioDependency,
-	scenarioName string,
-	cfg *types.ServiceConfig,
-) {
-	resources := resolvedResourceMap(cfg)
-
-	for resourceName, resource := range resources {
-		if len(resource.Initialization) == 0 {
-			continue
-		}
-
-		canonical := normalizeName(resourceName)
-		if canonical == "" {
-			continue
-		}
-
-		files := extractInitializationFiles(resource.Initialization)
-
-		entry := ensureResourceEntry(results, scenarioName, canonical, "Initialization data references this resource", "initialization", nil)
-		markInitialization(&entry, files)
-
-		results[canonical] = entry
-	}
 }
 
 func ensureResourceEntry(
@@ -245,20 +263,4 @@ func existingMatches(raw interface{}) []map[string]interface{} {
 		return cast
 	}
 	return []map[string]interface{}{}
-}
-
-func markInitialization(entry *types.ScenarioDependency, files []string) {
-	if entry.Configuration == nil {
-		entry.Configuration = map[string]interface{}{}
-	}
-	entry.Configuration["initialization_detected"] = true
-
-	if len(files) == 0 {
-		return
-	}
-
-	entry.Configuration["initialization_files"] = mergeInitializationFiles(
-		entry.Configuration["initialization_files"],
-		files,
-	)
 }

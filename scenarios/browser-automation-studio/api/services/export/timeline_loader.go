@@ -2,21 +2,19 @@ package export
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
-	bastelemetry "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
+	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -65,6 +63,7 @@ func (l *TimelineLoader) LoadTimelineProto(ctx context.Context, executionID uuid
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, &parsed); err != nil {
 		return nil, fmt.Errorf("parse proto timeline: %w", err)
 	}
+	redactSensitiveTimelineEntries(parsed.Entries)
 
 	// Ensure key fields reflect current index data.
 	if strings.TrimSpace(parsed.ExecutionId) == "" {
@@ -77,6 +76,35 @@ func (l *TimelineLoader) LoadTimelineProto(ctx context.Context, executionID uuid
 	parsed.StartedAt = pb.StartedAt
 	parsed.CompletedAt = pb.CompletedAt
 	return &parsed, nil
+}
+
+// LoadReplayPackage loads the writer-owned renderer-neutral package. A missing
+// package is an expected legacy-execution condition; callers decide whether to
+// use their compatible timeline fallback.
+func (l *TimelineLoader) LoadReplayPackage(ctx context.Context, executionID uuid.UUID) (*basevidence.ReplayPackage, error) {
+	execution, err := l.repo.GetExecution(ctx, executionID)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(execution.ResultPath) == "" {
+		return nil, os.ErrNotExist
+	}
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(execution.ResultPath), "evidence.proto.json"))
+	if err != nil {
+		return nil, err
+	}
+	var pack basevidence.ReplayPackage
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, &pack); err != nil {
+		return nil, fmt.Errorf("parse replay package: %w", err)
+	}
+	redactSensitiveTimelineEntries(pack.Timeline)
+	return &pack, nil
+}
+
+func redactSensitiveTimelineEntries(entries []*bastimeline.TimelineEntry) {
+	for _, entry := range entries {
+		driver.RedactSensitiveTimelineEntry(entry)
+	}
 }
 
 // LoadTimeline assembles replay-ready timeline data for a given execution.
@@ -116,236 +144,38 @@ func (l *TimelineLoader) LoadTimeline(ctx context.Context, executionID uuid.UUID
 		return nil, fmt.Errorf("read timeline proto: %w", err)
 	}
 
-	return timelineProtoToExport(execution, pbTimeline), nil
+	presentation := BuildExecutionTimelinePresentation(execution, pbTimeline)
+	if workflow, workflowErr := l.repo.GetWorkflow(ctx, execution.WorkflowID); workflowErr == nil && workflow != nil {
+		loadWorkflowCaptureGeometry(workflow, presentation)
+	}
+	return presentation, nil
 }
 
-// timelineProtoToExport converts a proto timeline to the export timeline format.
-func timelineProtoToExport(execution *database.ExecutionIndex, pb *bastimeline.ExecutionTimeline) *ExecutionTimeline {
-	frames := make([]TimelineFrame, 0, len(pb.Entries))
-	for _, entry := range pb.Entries {
-		if entry == nil {
-			continue
-		}
-		frame := timelineEntryToFrame(entry)
-		frames = append(frames, frame)
+func loadWorkflowCaptureGeometry(workflow *database.WorkflowIndex, out *ExecutionTimeline) {
+	if workflow == nil || out == nil || strings.TrimSpace(workflow.FilePath) == "" {
+		return
 	}
-	sort.Slice(frames, func(i, j int) bool {
-		if frames[i].StepIndex != frames[j].StepIndex {
-			return frames[i].StepIndex < frames[j].StepIndex
-		}
-		return frames[i].NodeID < frames[j].NodeID
-	})
-
-	logs := make([]TimelineLog, 0, len(pb.Logs))
-	for _, log := range pb.Logs {
-		if log == nil {
-			continue
-		}
-		entry := TimelineLog{
-			ID:      log.Id,
-			Level:   strings.ToLower(log.Level.String()),
-			Message: log.Message,
-		}
-		if log.Timestamp != nil {
-			entry.Timestamp = autocontracts.TimestampToTime(log.Timestamp)
-		}
-		if log.StepName != nil {
-			entry.StepName = *log.StepName
-		}
-		logs = append(logs, entry)
-	}
-
-	startedAt := execution.StartedAt
-	if pb.StartedAt != nil {
-		startedAt = autocontracts.TimestampToTime(pb.StartedAt)
-	}
-	completedAt := execution.CompletedAt
-	if pb.CompletedAt != nil {
-		completedAt = autocontracts.TimestampToTimePtr(pb.CompletedAt)
-	}
-
-	return &ExecutionTimeline{
-		ExecutionID: execution.ID,
-		WorkflowID:  execution.WorkflowID,
-		Status:      execution.Status,
-		Progress:    int(pb.Progress),
-		StartedAt:   startedAt,
-		CompletedAt: completedAt,
-		Frames:      frames,
-		Logs:        logs,
-	}
-}
-
-// timelineEntryToFrame converts a proto timeline entry to a TimelineFrame.
-func timelineEntryToFrame(entry *bastimeline.TimelineEntry) TimelineFrame {
-	frame := TimelineFrame{}
-
-	if entry.StepIndex != nil {
-		frame.StepIndex = int(*entry.StepIndex)
-	} else {
-		frame.StepIndex = int(entry.SequenceNum)
-	}
-	if entry.NodeId != nil {
-		frame.NodeID = *entry.NodeId
-	}
-	if entry.Action != nil {
-		frame.StepType = enums.ActionTypeToString(entry.Action.Type)
-	}
-	if entry.DurationMs != nil {
-		frame.DurationMs = int(*entry.DurationMs)
-	}
-	if entry.TotalDurationMs != nil {
-		frame.TotalDurationMs = int(*entry.TotalDurationMs)
-	}
-	if entry.Timestamp != nil {
-		started := autocontracts.TimestampToTime(entry.Timestamp)
-		frame.StartedAt = &started
-		if entry.DurationMs != nil {
-			completed := started.Add(time.Duration(*entry.DurationMs) * time.Millisecond)
-			frame.CompletedAt = &completed
-		}
-	}
-	if entry.Context != nil {
-		if entry.Context.Success != nil {
-			frame.Success = *entry.Context.Success
-		}
-		if entry.Context.Error != nil {
-			frame.Error = *entry.Context.Error
-		}
-		if entry.Context.Assertion != nil {
-			frame.Assertion = &autocontracts.AssertionOutcome{
-				Mode:          entry.Context.Assertion.Mode.String(),
-				Selector:      entry.Context.Assertion.Selector,
-				Success:       entry.Context.Assertion.Success,
-				Negated:       entry.Context.Assertion.Negated,
-				CaseSensitive: entry.Context.Assertion.CaseSensitive,
-			}
-			if entry.Context.Assertion.Message != nil {
-				frame.Assertion.Message = *entry.Context.Assertion.Message
-			}
-			if entry.Context.Assertion.Expected != nil {
-				frame.Assertion.Expected = typeconv.JsonValueToAny(entry.Context.Assertion.Expected)
-			}
-			if entry.Context.Assertion.Actual != nil {
-				frame.Assertion.Actual = typeconv.JsonValueToAny(entry.Context.Assertion.Actual)
-			}
-		}
-	}
-	if entry.Telemetry != nil {
-		frame.FinalURL = entry.Telemetry.Url
-		frame.ElementBoundingBox = entry.Telemetry.ElementBoundingBox
-		frame.ClickPosition = entry.Telemetry.ClickPosition
-		frame.CursorTrail = entry.Telemetry.CursorTrail
-		frame.HighlightRegions = entry.Telemetry.HighlightRegions
-		frame.MaskRegions = entry.Telemetry.MaskRegions
-		if entry.Telemetry.ZoomFactor != nil {
-			frame.ZoomFactor = *entry.Telemetry.ZoomFactor
-		}
-		if entry.Telemetry.Screenshot != nil {
-			frame.Screenshot = timelineScreenshotFromProto(entry.Telemetry.Screenshot)
-		}
-		if entry.Telemetry.ConsoleLogArtifact != nil {
-			if entries, err := loadTelemetryJSONSlice(entry.Telemetry.ConsoleLogArtifact.Path); err == nil {
-				frame.ConsoleLogCount = len(entries)
-				frame.Artifacts = append(frame.Artifacts, telemetryArtifactToExport("console", entry.Telemetry.ConsoleLogArtifact, map[string]any{
-					"entries": entries,
-				}))
-			}
-		}
-		if entry.Telemetry.NetworkEventArtifact != nil {
-			if events, err := loadTelemetryJSONSlice(entry.Telemetry.NetworkEventArtifact.Path); err == nil {
-				frame.NetworkEventCount = len(events)
-				frame.Artifacts = append(frame.Artifacts, telemetryArtifactToExport("network", entry.Telemetry.NetworkEventArtifact, map[string]any{
-					"events": events,
-				}))
-			}
-		}
-		if entry.Telemetry.DomSnapshot != nil {
-			frame.Artifacts = append(frame.Artifacts, telemetryArtifactToExport("dom_snapshot", entry.Telemetry.DomSnapshot, map[string]any{}))
-		}
-	}
-	if entry.Aggregates != nil {
-		frame.Status = enums.StepStatusToString(entry.Aggregates.Status)
-		if entry.Aggregates.FinalUrl != nil {
-			frame.FinalURL = *entry.Aggregates.FinalUrl
-		}
-		if entry.Aggregates.Progress != nil {
-			frame.Progress = int(*entry.Aggregates.Progress)
-		}
-		if entry.Aggregates.ConsoleLogCount != 0 {
-			frame.ConsoleLogCount = int(entry.Aggregates.ConsoleLogCount)
-		}
-		if entry.Aggregates.NetworkEventCount != 0 {
-			frame.NetworkEventCount = int(entry.Aggregates.NetworkEventCount)
-		}
-		if entry.Aggregates.ExtractedDataPreview != nil {
-			frame.ExtractedDataPreview = typeconv.JsonValueToAny(entry.Aggregates.ExtractedDataPreview)
-		}
-		if entry.Aggregates.FocusedElement != nil {
-			frame.FocusedElement = entry.Aggregates.FocusedElement
-		}
-	}
-	if frame.Status == "" {
-		if frame.Success {
-			frame.Status = "completed"
-		} else {
-			frame.Status = "failed"
-		}
-	}
-	return frame
-}
-
-// timelineScreenshotFromProto converts a proto screenshot to the export format.
-func timelineScreenshotFromProto(shot *bastelemetry.TimelineScreenshot) *TimelineScreenshot {
-	if shot == nil {
-		return nil
-	}
-	return &TimelineScreenshot{
-		ArtifactID:   shot.ArtifactId,
-		URL:          shot.Url,
-		ThumbnailURL: shot.ThumbnailUrl,
-		Width:        int(shot.Width),
-		Height:       int(shot.Height),
-		ContentType:  shot.ContentType,
-		SizeBytes:    shot.SizeBytes,
-	}
-}
-
-// loadTelemetryJSONSlice loads a JSON array from a file path.
-func loadTelemetryJSONSlice(path *string) ([]any, error) {
-	if path == nil || strings.TrimSpace(*path) == "" {
-		return nil, nil
-	}
-	raw, err := os.ReadFile(*path)
+	raw, err := os.ReadFile(workflow.FilePath)
 	if err != nil {
-		return nil, err
+		return
 	}
-	var entries []any
-	if err := json.Unmarshal(raw, &entries); err != nil {
-		return nil, err
+	var definition basworkflows.WorkflowDefinitionV2
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, &definition); err != nil {
+		return
 	}
-	return entries, nil
-}
-
-// telemetryArtifactToExport converts a proto telemetry artifact to the export format.
-func telemetryArtifactToExport(kind string, artifact *bastelemetry.TelemetryArtifact, payload map[string]any) TimelineArtifact {
-	out := TimelineArtifact{
-		Type:    kind,
-		Label:   kind,
-		Payload: payload,
+	settings := definition.GetSettings()
+	if settings == nil {
+		return
 	}
-	if artifact == nil {
-		return out
+	if out.ViewportWidth <= 0 {
+		out.ViewportWidth = int(settings.GetViewportWidth())
 	}
-	out.ID = artifact.ArtifactId
-	out.StorageURL = artifact.StorageUrl
-	out.ContentType = artifact.ContentType
-	out.SizeBytes = artifact.SizeBytes
-	if artifact.Path != nil {
-		if out.Payload == nil {
-			out.Payload = map[string]any{}
+	if out.ViewportHeight <= 0 {
+		out.ViewportHeight = int(settings.GetViewportHeight())
+	}
+	if out.DeviceScaleFactor <= 0 {
+		if fingerprint := settings.GetBrowserProfile().GetFingerprint(); fingerprint != nil {
+			out.DeviceScaleFactor = fingerprint.GetDeviceScaleFactor()
 		}
-		out.Payload["path"] = *artifact.Path
 	}
-	return out
 }

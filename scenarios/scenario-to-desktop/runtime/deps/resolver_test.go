@@ -3,7 +3,7 @@ package deps
 import (
 	"testing"
 
-	"scenario-to-desktop-runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 func TestTopoSort(t *testing.T) {

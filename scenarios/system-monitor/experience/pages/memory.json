@@ -1,0 +1,1 @@
+{ "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json", "kind": "experience-page", "schemaVersion": "1.0.0", "page": { "id": "memory", "title": "Memory Metrics", "routes": ["/metrics/memory"], "purpose": "Inspect memory history and detail provenance.", "prd_refs": ["OT-P0-001"] } }

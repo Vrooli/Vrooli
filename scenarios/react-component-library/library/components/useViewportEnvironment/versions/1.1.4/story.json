@@ -1,0 +1,135 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-viewport-environment]"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Browser viewport snapshot",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "attribute": "data-layout-width",
+          "kind": "attribute",
+          "selector": "[data-rcl-viewport-environment]",
+          "value": "0"
+        },
+        {
+          "attribute": "data-visible-height",
+          "kind": "attribute",
+          "selector": "[data-rcl-viewport-environment]",
+          "value": "0"
+        }
+      ],
+      "id": "zero-size",
+      "mode": "pinned",
+      "name": "Zero-size viewport override",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "KeyboardVisible",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "attribute": "data-keyboard-visible",
+          "kind": "attribute",
+          "selector": "[data-rcl-viewport-environment]",
+          "value": "true"
+        },
+        {
+          "attribute": "data-visible-height",
+          "kind": "attribute",
+          "selector": "[data-rcl-viewport-environment]",
+          "value": "500"
+        }
+      ],
+      "id": "keyboard-visible",
+      "mode": "pinned",
+      "name": "Keyboard-visible viewport override",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "OffsetViewport",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "attribute": "data-offset-left",
+          "kind": "attribute",
+          "selector": "[data-rcl-viewport-environment]",
+          "value": "20"
+        },
+        {
+          "attribute": "data-keyboard-visible",
+          "kind": "attribute",
+          "selector": "[data-rcl-viewport-environment]",
+          "value": "false"
+        }
+      ],
+      "id": "offset-viewport",
+      "mode": "pinned",
+      "name": "Offset visual viewport override",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "WideViewport",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "attribute": "data-layout-width",
+          "kind": "attribute",
+          "selector": "[data-rcl-viewport-environment]",
+          "value": "1920"
+        }
+      ],
+      "id": "wide-layout",
+      "mode": "pinned",
+      "name": "Wide layout viewport override",
+      "role": "boundary"
+    }
+  ],
+  "title": "Viewport environment"
+}

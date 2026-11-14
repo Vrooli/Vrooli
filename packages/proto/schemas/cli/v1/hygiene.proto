@@ -1,0 +1,219 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+import "cli/v1/contract.proto";
+import "cli/v1/shared_drift.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — `hygiene` output contract
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shape of `vrooli hygiene --json`. The command emits the report
+// directly (cliout.WriteJSON, no success envelope; `success` is a plain field).
+// Marshaled with protojson (UseProtoNames=true, EmitUnpopulated=true). The
+// report embeds the contract-validation output (ContractValidationOutput, from
+// contract.proto) and a shared-package drift report (SharedDriftReport, from
+// shared_drift.proto).
+// =============================================================================
+
+// HygieneReport is the top-level shape of `vrooli hygiene --json`.
+message HygieneReport {
+  // True when hygiene passed (no blocking failures).
+  bool success = 1;
+
+  // Repo root the hygiene run targeted.
+  string root = 2;
+
+  // All checks that ran, in order.
+  repeated HygieneCheck checks = 3;
+
+  // Findings (blocking + advisory); empty when nothing was flagged.
+  repeated HygieneFinding findings = 4;
+
+  // Recommended next actions; empty if none.
+  repeated HygieneAction actions = 5;
+
+  // Plan-lifecycle candidate files discovered; empty if none.
+  repeated HygienePlanCandidate plan_candidates = 6;
+
+  // Plan imports performed by --fix-safe --plans; empty if none applied.
+  repeated HygienePlanFix fixes_applied = 7;
+
+  // Human-readable descriptions of config fixes applied; empty if none.
+  repeated string config_fixes = 8;
+
+  // Embedded repo-contract validation output. Always emitted (the Go field has
+  // json:"contract,omitempty" but a struct value is never omitted).
+  ContractValidationOutput contract = 9;
+
+  // Shared-package drift report; null/absent when the drift check was skipped.
+  SharedDriftReport shared_drift = 10;
+
+  // Count of blocking (error-severity) failures.
+  int32 blocking_failures = 11;
+
+  // Count of warning-severity findings.
+  int32 warnings = 12;
+
+  // Authoritative Plan Manager reconcile outcomes. Includes no-op and failed
+  // outcomes; actual mutations also appear in fixes_applied.
+  repeated HygienePlanReconcileOutcome plan_reconcile_outcomes = 13;
+}
+
+// HygieneCheck is one named hygiene check result.
+message HygieneCheck {
+  // Check identifier.
+  string name = 1;
+
+  // True when the check passed.
+  bool passed = 2;
+
+  // Severity if it failed: "info", "warning", or "error".
+  string severity = 3;
+
+  // Human-readable detail.
+  string message = 4;
+}
+
+// HygieneFinding is one flagged issue.
+message HygieneFinding {
+  // Severity: "info", "warning", or "error".
+  string severity = 1;
+
+  // Stable finding code.
+  string code = 2;
+
+  // Path the finding refers to; empty if not path-scoped.
+  string path = 3;
+
+  // Additional file locations involved; empty if none.
+  repeated string locations = 4;
+
+  // Human-readable description of the finding.
+  string message = 5;
+
+  // Rationale for why this is flagged; empty if unset.
+  string why = 6;
+
+  // Fixability: "automatic", "guided", "manual", or "unsafe"; empty if unset.
+  string fixability = 7;
+
+  // Suggested follow-up actions; empty if none.
+  repeated HygieneAction next_actions = 8;
+}
+
+// HygieneAction is a recommended remediation step.
+message HygieneAction {
+  // Stable action code.
+  string code = 1;
+
+  // Human-readable description of the action.
+  string message = 2;
+
+  // Shell command to run; empty when the action has no single command.
+  string command = 3;
+
+  // Fixability: "automatic", "guided", "manual", or "unsafe"; empty if unset.
+  string fixability = 4;
+}
+
+// HygienePlanCandidate is a discovered plan-lifecycle candidate file.
+message HygienePlanCandidate {
+  // Path to the candidate plan file.
+  string path = 1;
+
+  // Git status of the candidate (e.g. "modified", "untracked"); empty if unset.
+  string status = 2;
+
+  // Why the file was flagged as a plan candidate.
+  string reason = 3;
+}
+
+// HygienePlanFix records one plan import performed by a safe fix.
+message HygienePlanFix {
+  // Source path the plan was imported from.
+  string source = 1;
+
+  // The imported plan record.
+  HygienePlanRecord plan = 2;
+
+  // Plan Manager reconcile action that performed the mutation.
+  string action = 3;
+
+  // Rendered mirror provenance for the mutation.
+  HygieneMirror mirror = 4;
+}
+
+// HygienePlanReconcileOutcome records one authoritative Plan Manager reconcile
+// result, including no-op and failed outcomes.
+message HygienePlanReconcileOutcome {
+  // Plan Manager reconcile action.
+  string action = 1;
+
+  // Source path involved in the outcome, when present.
+  string source = 2;
+
+  // Plan record identified by the outcome, when present.
+  HygienePlanRecord plan = 3;
+
+  // Rendered mirror provenance.
+  HygieneMirror mirror = 4;
+
+  // True when Plan Manager intentionally left the source file untouched.
+  bool source_untouched = 5;
+
+  // Per-item error detail, when present.
+  string error = 6;
+
+  // True when a dry-run would remove the adopted legacy source.
+  bool source_retirement_planned = 7;
+
+  // True when Plan Manager removed the adopted legacy source.
+  bool source_removed = 8;
+}
+
+message HygieneMirror {
+  // Rendered mirror path.
+  string path = 1;
+
+  // Rendered mirror status.
+  string status = 2;
+}
+
+// HygienePlanRecord mirrors a plan record (internal/app/plans.PlanRecord).
+message HygienePlanRecord {
+  // Stable plan ID.
+  string id = 1;
+
+  // Plan title.
+  string title = 2;
+
+  // URL-safe slug.
+  string slug = 3;
+
+  // Path to the plan file in the plan store.
+  string path = 4;
+
+  // Creation timestamp, RFC3339Nano; "" if zero.
+  string created_at = 5;
+
+  // Last-update timestamp, RFC3339Nano; "" if zero.
+  string updated_at = 6;
+
+  // True when the plan is archived.
+  bool archived = 7;
+
+  // Archive timestamp, RFC3339Nano; "" when not archived/zero.
+  string archived_at = 8;
+
+  // Original source path the plan was imported from; empty if unset.
+  string source_path = 9;
+
+  // Content hash of the plan body; empty if unset.
+  string content_hash = 10;
+}

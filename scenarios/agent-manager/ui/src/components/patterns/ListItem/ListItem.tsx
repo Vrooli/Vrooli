@@ -1,6 +1,8 @@
 import * as React from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import { useBoundedList } from "../../../hooks/useBoundedList";
+import { ShowMoreButton } from "../ShowMoreButton";
 
 interface ListItemProps {
   selected?: boolean;
@@ -92,5 +94,41 @@ export function ListItemSubtitle({
     <p className={cn("text-xs text-muted-foreground truncate", className)}>
       {children}
     </p>
+  );
+}
+
+interface BoundedListProps<T> {
+  items: T[];
+  getKey: (item: T, index: number) => React.Key;
+  renderItem: (item: T, index: number) => React.ReactNode;
+  initialCount?: number;
+  increment?: number;
+}
+
+const DEFAULT_INITIAL_LIST_COUNT = 80;
+const DEFAULT_LIST_INCREMENT = 80;
+
+export function BoundedList<T>({
+  items,
+  getKey,
+  renderItem,
+  initialCount = DEFAULT_INITIAL_LIST_COUNT,
+  increment = DEFAULT_LIST_INCREMENT,
+}: BoundedListProps<T>) {
+  const { visibleItems, hiddenCount, total, showMore } = useBoundedList(items, initialCount, increment);
+
+  return (
+    <>
+      {visibleItems.map((item, index) => (
+        <React.Fragment key={getKey(item, index)}>
+          {renderItem(item, index)}
+        </React.Fragment>
+      ))}
+      {hiddenCount > 0 && (
+        <div className="border-b border-border px-4 py-3">
+          <ShowMoreButton shown={visibleItems.length} total={total} onShowMore={showMore} />
+        </div>
+      )}
+    </>
   );
 }

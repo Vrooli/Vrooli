@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "navigation.sidebar",
+  "deprecatedVersions": [
+    "1.3.1",
+    "1.3.2",
+    "2.5.1",
+    "2.5.0",
+    "2.5.2",
+    "2.5.3",
+    "2.4.0",
+    "2.6.1",
+    "2.6.0",
+    "2.6.2",
+    "2.6.3",
+    "2.7.0",
+    "2.7.1"
+  ],
+  "description": "The persistent navigation or workspace panel with sections, active state, collapse to icons, keyboard traversal, independent scrolling, and stable width.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Sidebar",
+  "draft": "",
+  "evictedVersions": [
+    "2.7.1",
+    "2.7.0",
+    "2.6.3",
+    "2.7.5",
+    "2.7.4",
+    "2.7.3"
+  ],
+  "latest": "2.7.11",
+  "libraryId": "react-component-library:SidebarShell",
+  "tags": []
+}

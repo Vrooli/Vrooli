@@ -1,0 +1,70 @@
+{
+  "id": "traffic_landing_paths",
+  "label": "Traffic by landing path",
+  "description": "Ranked landing-path breakdown of visitors.",
+  "unit": "count",
+  "format": "integer",
+  "kind": "panel",
+  "shape": "rows",
+  "columns": {
+    "key": {
+      "type": "string"
+    },
+    "value": {
+      "type": "number"
+    },
+    "share": {
+      "type": "number"
+    },
+    "label": {
+      "type": "string",
+      "optional": true
+    },
+    "detail": {
+      "type": "string",
+      "optional": true
+    }
+  },
+  "source": {
+    "team": "marketing-crew",
+    "binding": "scenario:landing-page-business-suite",
+    "read": "/landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown?dimension=landing_path&limit=6&window_days=30",
+    "select": "traffic_landing_paths",
+    "ttlSeconds": 300,
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "featureId": "traffic_landing_paths",
+    "contractVersion": "analytics-traffic.v1",
+    "selector": "traffic_landing_paths",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "IN-REACH",
+  "sample": {
+    "value": 100,
+    "series": [
+      100
+    ],
+    "rows": [
+      {
+        "key": "/",
+        "label": "Home",
+        "value": 70,
+        "share": 0.7
+      },
+      {
+        "key": "/pricing",
+        "label": "Pricing",
+        "value": 20,
+        "share": 0.2
+      },
+      {
+        "key": "/docs",
+        "label": "Docs",
+        "value": 10,
+        "share": 0.1
+      }
+    ],
+    "basis": "hand-authored structural sample, reviewed 2026-09-03"
+  }
+}

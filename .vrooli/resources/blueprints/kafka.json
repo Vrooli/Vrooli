@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "kafka",
+  "display_name": "Apache Kafka",
+  "category": "messaging",
+  "summary": "Distributed event streaming and durable pub/sub platform for high-throughput asynchronous workflows.",
+  "why_it_matters": "Kafka is a common backbone for event-driven systems, audit pipelines, and large-scale async processing, but it carries enough operational overhead that it should remain blueprint knowledge until a concrete scenario justifies support.",
+  "when_to_use": [
+    "You need durable ordered event streams across multiple producers and consumers.",
+    "A scenario requires replayable messaging rather than lightweight queue semantics.",
+    "You are integrating with an external system that already standardizes on Kafka."
+  ],
+  "example_scenarios": [
+    "IoT ingestion pipelines",
+    "Event-driven analytics backplanes",
+    "High-volume audit log aggregation"
+  ],
+  "integration_kind": "managed-service",
+  "platform_support": {
+    "notes": "Cross-platform via containers is plausible, but local developer ergonomics and operational complexity are materially higher than simpler queueing options.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Docker or other container runtime",
+    "Clear retention and topic configuration requirements",
+    "Scenario-level need for durable event streams"
+  ],
+  "dependencies": [],
+  "suggested_template": "managed-service",
+  "implementation_notes": [
+    "Prefer a compose-style template because realistic Kafka setups often need companion services or multiple containers.",
+    "Keep the future implementation honest about resource costs and startup time.",
+    "Document when Redis, QuestDB, or direct database writes are simpler alternatives."
+  ],
+  "operational_notes": [
+    "Topic management and retention policy should be explicit.",
+    "Health checks need to verify broker readiness, not just process existence.",
+    "Logs can become noisy quickly and should be surfaced selectively."
+  ],
+  "risks": [
+    "Operational burden is high relative to current proven usage.",
+    "A speculative implementation would preserve stale complexity instead of validated capability."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "kafka"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/kafka"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

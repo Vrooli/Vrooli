@@ -1,0 +1,242 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "token-economy",
+  "generator": "v1.0.0",
+  "manifest_hash": "a3771df43f4963812c7456b998b6921e023eac55fceaafc7b065a7a4429f68bc",
+  "commands": [
+    {
+      "path": "catalog add",
+      "group": "catalog",
+      "command": "add",
+      "binding": "MinterService.CreateCatalogEntry",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "catalog browse",
+      "group": "catalog",
+      "command": "browse",
+      "binding": "HolderService.BrowseCatalog",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "catalog list",
+      "group": "catalog",
+      "command": "list",
+      "binding": "MinterService.ListCatalogEntries",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "catalog retire",
+      "group": "catalog",
+      "command": "retire",
+      "binding": "MinterService.RetireCatalogEntry",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "catalog show",
+      "group": "catalog",
+      "command": "show",
+      "binding": "MinterService.GetCatalogEntry",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "catalog update",
+      "group": "catalog",
+      "command": "update",
+      "binding": "MinterService.UpdateCatalogEntry",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "earning list",
+      "group": "earning",
+      "command": "list",
+      "binding": "EarningService.ListEarnings",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "earning submit",
+      "group": "earning",
+      "command": "submit",
+      "binding": "EarningService.SubmitEarning",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "grants issue",
+      "group": "grants",
+      "command": "issue",
+      "binding": "MinterService.CreateGrant",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "grants list",
+      "group": "grants",
+      "command": "list",
+      "binding": "MinterService.ListGrants",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "grants revoke",
+      "group": "grants",
+      "command": "revoke",
+      "binding": "MinterService.RevokeGrant",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "grants show",
+      "group": "grants",
+      "command": "show",
+      "binding": "MinterService.GetGrant",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "holders add",
+      "group": "holders",
+      "command": "add",
+      "binding": "MinterService.CreateHolder",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "holders list",
+      "group": "holders",
+      "command": "list",
+      "binding": "MinterService.ListHolders",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "holders show",
+      "group": "holders",
+      "command": "show",
+      "binding": "MinterService.GetHolder",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "holders view",
+      "group": "holders",
+      "command": "view",
+      "binding": "HolderService.ViewEconomy",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "journal balance",
+      "group": "journal",
+      "command": "balance",
+      "binding": "MinterService.ShowBalance",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "journal events",
+      "group": "journal",
+      "command": "events",
+      "binding": "MinterService.ListJournalEvents",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "journal export",
+      "group": "journal",
+      "command": "export",
+      "binding": "MinterService.ExportJournal",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "journal reverse",
+      "group": "journal",
+      "command": "reverse",
+      "binding": "MinterService.ReverseEvent",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "mints create",
+      "group": "mints",
+      "command": "create",
+      "binding": "MinterService.CreateTokenType",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "mints list",
+      "group": "mints",
+      "command": "list",
+      "binding": "MinterService.ListTokenTypes",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "mints mint",
+      "group": "mints",
+      "command": "mint",
+      "binding": "MinterService.MintSupply",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "mints retire",
+      "group": "mints",
+      "command": "retire",
+      "binding": "MinterService.RetireTokenType",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "mints show",
+      "group": "mints",
+      "command": "show",
+      "binding": "MinterService.GetTokenType",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "redemption approvals",
+      "group": "redemption",
+      "command": "approvals",
+      "binding": "MinterService.ListPendingRedemptions",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "redemption approve",
+      "group": "redemption",
+      "command": "approve",
+      "binding": "MinterService.ApproveRedemption",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "redemption deny",
+      "group": "redemption",
+      "command": "deny",
+      "binding": "MinterService.DenyRedemption",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "redemption redeem",
+      "group": "redemption",
+      "command": "redeem",
+      "binding": "HolderService.RequestRedemption",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    }
+  ]
+}

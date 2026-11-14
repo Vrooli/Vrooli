@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package vrooli.template_manager.v1.measures;
+
+import "measures/v1/measures.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/measures;measures_v1";
+
+// MeasuresService exposes template-manager's declared analytical measures as
+// read-only Connect RPCs. Each RPC shares its compute path with the
+// packages/measures-go registry mounted at /measures.
+service MeasuresService {
+  rpc OpenDebtCount(OpenDebtCountRequest) returns (OpenDebtCountResponse);
+  rpc DeepValidateGreenStreak(DeepValidateGreenStreakRequest) returns (DeepValidateGreenStreakResponse);
+  rpc FleetStandingDistribution(FleetStandingDistributionRequest) returns (FleetStandingDistributionResponse);
+  rpc MaxVersionLag(MaxVersionLagRequest) returns (MaxVersionLagResponse);
+}
+
+message OpenDebtCountRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+message OpenDebtCountResponse {
+  int64 count = 1;
+}
+
+message DeepValidateGreenStreakRequest {
+  string template_id = 1;
+}
+
+message DeepValidateGreenStreakResponse {
+  int64 streak = 1;
+}
+
+message FleetStandingDistributionRequest {}
+
+message FleetStandingBucket {
+  string standing = 1;
+  int64 count = 2;
+}
+
+message FleetStandingDistributionResponse {
+  repeated FleetStandingBucket buckets = 1;
+}
+
+message MaxVersionLagRequest {}
+
+message MaxVersionLagResponse {
+  int64 lag = 1;
+}

@@ -1,32 +1,19 @@
+import { ConnectError } from '@connectrpc/connect';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 import { create } from 'zustand';
-import { getConfig } from '../config';
+
+import { schedulesClient } from '../api/schedules';
 import { logger } from '../utils/logger';
-import { safeParse } from '../shared/api/safeParse';
-import {
-  ListSchedulesResponseSchema,
-  ScheduleResponseSchema,
-  OccurrencesResponseSchema,
-  TriggerScheduleResponseSchema,
-} from '../shared/api/schemas';
+import { protoTimestampToISOString } from '../utils/timestamps';
+import type {
+  WorkflowSchedule as PbWorkflowSchedule,
+  ScheduleOccurrence as PbScheduleOccurrence,
+  ScheduleAggregate as PbScheduleAggregate,
+} from '@vrooli/proto-types/browser-automation-studio/v1/schedules/schedules_pb';
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
-const parseJson = async (response: Response): Promise<unknown> => {
-  try {
-    const data: unknown = await response.json();
-    return data;
-  } catch {
-    return null;
-  }
-};
-
-const extractMessage = (payload: unknown, fallback: string): string => {
-  if (isRecord(payload) && typeof payload.message === 'string') {
-    return payload.message;
-  }
-  return fallback;
-};
+// =============================================================================
+// UI-facing types (snake_case, preserved for component compatibility)
+// =============================================================================
 
 export interface WorkflowSchedule {
   id: string;
@@ -41,7 +28,6 @@ export interface WorkflowSchedule {
   last_run_at?: string;
   created_at?: string;
   updated_at?: string;
-  // Computed fields from API
   workflow_name?: string;
   next_run_human?: string;
   last_run_status?: string;
@@ -65,7 +51,6 @@ export interface UpdateScheduleInput {
   is_active?: boolean;
 }
 
-// Calendar view types
 export interface ScheduleOccurrence {
   schedule_id: string;
   schedule_name: string;
@@ -85,17 +70,69 @@ export interface ScheduleAggregate {
   cron_expression: string;
 }
 
+// =============================================================================
+// Mappers (proto → snake_case UI shape)
+// =============================================================================
+
+const emptyToUndefined = (s: string | undefined): string | undefined =>
+  s && s.length > 0 ? s : undefined;
+
+const mapSchedule = (s: PbWorkflowSchedule): WorkflowSchedule => ({
+  id: s.id,
+  workflow_id: s.workflowId,
+  name: s.name,
+  description: emptyToUndefined(s.description),
+  cron_expression: s.cronExpression,
+  timezone: s.timezone,
+  is_active: s.isActive,
+  parameters: s.parameters ? (s.parameters as Record<string, unknown>) : undefined,
+  next_run_at: protoTimestampToISOString(s.nextRunAt),
+  last_run_at: protoTimestampToISOString(s.lastRunAt),
+  created_at: protoTimestampToISOString(s.createdAt),
+  updated_at: protoTimestampToISOString(s.updatedAt),
+  workflow_name: emptyToUndefined(s.workflowName),
+  next_run_human: emptyToUndefined(s.nextRunHuman),
+  last_run_status: emptyToUndefined(s.lastRunStatus),
+});
+
+const mapOccurrence = (o: PbScheduleOccurrence): ScheduleOccurrence => ({
+  schedule_id: o.scheduleId,
+  schedule_name: o.scheduleName,
+  workflow_id: o.workflowId,
+  workflow_name: o.workflowName,
+  run_at: protoTimestampToISOString(o.runAt) ?? '',
+  is_active: o.isActive,
+  cron_expression: o.cronExpression,
+  timezone: o.timezone,
+});
+
+const mapAggregate = (a: PbScheduleAggregate): ScheduleAggregate => ({
+  schedule_id: a.scheduleId,
+  schedule_name: a.scheduleName,
+  total_runs: a.totalRuns,
+  truncated: a.truncated,
+  cron_expression: a.cronExpression,
+});
+
+const errorMessage = (err: unknown, fallback: string): string => {
+  if (err instanceof ConnectError) return err.rawMessage || err.message;
+  if (err instanceof Error) return err.message;
+  return fallback;
+};
+
+// =============================================================================
+// Store
+// =============================================================================
+
 interface ScheduleState {
   schedules: WorkflowSchedule[];
   selectedScheduleId: string | null;
   isLoading: boolean;
   error: string | null;
-  // Calendar view state
   occurrences: ScheduleOccurrence[];
   aggregates: Record<string, ScheduleAggregate>;
   isLoadingOccurrences: boolean;
 
-  // Actions
   fetchSchedules: (workflowId?: string) => Promise<void>;
   fetchSchedulesByWorkflow: (workflowId: string) => Promise<void>;
   fetchOccurrences: (start: Date, end: Date, workflowId?: string) => Promise<void>;
@@ -114,7 +151,6 @@ const initialState = {
   selectedScheduleId: null as string | null,
   isLoading: false,
   error: null as string | null,
-  // Calendar view state
   occurrences: [] as ScheduleOccurrence[],
   aggregates: {} as Record<string, ScheduleAggregate>,
   isLoadingOccurrences: false,
@@ -125,294 +161,163 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
 
   fetchSchedules: async (workflowId?: string) => {
     set({ isLoading: true, error: null });
-
     try {
-      const config = await getConfig();
-      let url = `${config.API_URL}/schedules`;
-      if (workflowId) {
-        url += `?workflow_id=${workflowId}`;
-      }
-
-      const response = await fetch(url);
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || `Failed to load schedules (${response.status})`);
-      }
-
-      const rawData: unknown = await response.json();
-      const result = safeParse(ListSchedulesResponseSchema, rawData, 'ListSchedules');
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      set({ schedules: result.data.schedules, isLoading: false });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to load schedules';
-      logger.error('Failed to load schedules', { component: 'ScheduleStore', action: 'fetchSchedules' }, error);
+      const res = await schedulesClient.list({ workflowId: workflowId ?? '' });
+      set({ schedules: res.schedules.map(mapSchedule), isLoading: false });
+    } catch (err) {
+      const message = errorMessage(err, 'Unable to load schedules');
+      logger.error('Failed to load schedules', { component: 'ScheduleStore', action: 'fetchSchedules' }, err);
       set({ error: message, isLoading: false });
     }
   },
 
   fetchSchedulesByWorkflow: async (workflowId: string) => {
     set({ isLoading: true, error: null });
-
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/workflows/${workflowId}/schedules`);
-
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || `Failed to load workflow schedules (${response.status})`);
-      }
-
-      const rawData: unknown = await response.json();
-      const result = safeParse(ListSchedulesResponseSchema, rawData, 'ListWorkflowSchedules');
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      set({ schedules: result.data.schedules, isLoading: false });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to load workflow schedules';
-      logger.error('Failed to load workflow schedules', { component: 'ScheduleStore', action: 'fetchSchedulesByWorkflow' }, error);
+      const res = await schedulesClient.listByWorkflow({ workflowId });
+      set({ schedules: res.schedules.map(mapSchedule), isLoading: false });
+    } catch (err) {
+      const message = errorMessage(err, 'Unable to load workflow schedules');
+      logger.error('Failed to load workflow schedules', { component: 'ScheduleStore', action: 'fetchSchedulesByWorkflow' }, err);
       set({ error: message, isLoading: false });
     }
   },
 
   fetchOccurrences: async (start: Date, end: Date, workflowId?: string) => {
     set({ isLoadingOccurrences: true });
-
     try {
-      const config = await getConfig();
-      const params = new URLSearchParams({
-        start: start.toISOString(),
-        end: end.toISOString(),
+      const res = await schedulesClient.occurrences({
+        start: timestampFromDate(start),
+        end: timestampFromDate(end),
+        workflowId: workflowId ?? '',
       });
-      if (workflowId) {
-        params.set('workflow_id', workflowId);
+      const aggregates: Record<string, ScheduleAggregate> = {};
+      for (const [k, v] of Object.entries(res.aggregates)) {
+        aggregates[k] = mapAggregate(v as PbScheduleAggregate);
       }
-
-      const response = await fetch(`${config.API_URL}/schedules/occurrences?${params}`);
-
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || `Failed to load schedule occurrences (${response.status})`);
-      }
-
-      const rawData: unknown = await response.json();
-      const result = safeParse(OccurrencesResponseSchema, rawData, 'ScheduleOccurrences');
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
       set({
-        occurrences: result.data.occurrences,
-        aggregates: result.data.aggregates || {},
+        occurrences: res.occurrences.map(mapOccurrence),
+        aggregates,
         isLoadingOccurrences: false,
       });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to load schedule occurrences';
-      logger.error('Failed to load schedule occurrences', { component: 'ScheduleStore', action: 'fetchOccurrences' }, error);
+    } catch (err) {
+      const message = errorMessage(err, 'Unable to load schedule occurrences');
+      logger.error('Failed to load schedule occurrences', { component: 'ScheduleStore', action: 'fetchOccurrences' }, err);
       set({ occurrences: [], aggregates: {}, isLoadingOccurrences: false, error: message });
     }
   },
 
-  createSchedule: async (workflowId: string, input: CreateScheduleInput) => {
+  createSchedule: async (workflowId, input) => {
     set({ isLoading: true, error: null });
-
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/workflows/${workflowId}/schedules`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(input),
+      const res = await schedulesClient.create({
+        workflowId,
+        name: input.name,
+        description: input.description ?? '',
+        cronExpression: input.cron_expression,
+        timezone: input.timezone ?? '',
+        parameters: input.parameters as never,
+        isActive: input.is_active,
       });
-
-      if (!response.ok) {
-        const errorData = await parseJson(response);
-        throw new Error(extractMessage(errorData, `Failed to create schedule (${response.status})`));
-      }
-
-      const rawData: unknown = await response.json();
-      const result = safeParse(ScheduleResponseSchema, rawData, 'CreateSchedule');
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-      const newSchedule = result.data.schedule;
-
-      // Add to local state
-      set((state) => ({
-        schedules: [newSchedule, ...state.schedules],
-        isLoading: false,
-      }));
-
-      return newSchedule;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to create schedule';
-      logger.error('Failed to create schedule', { component: 'ScheduleStore', action: 'createSchedule' }, error);
+      if (!res.schedule) throw new Error('Server omitted schedule');
+      const created = mapSchedule(res.schedule);
+      set((state) => ({ schedules: [created, ...state.schedules], isLoading: false }));
+      return created;
+    } catch (err) {
+      const message = errorMessage(err, 'Unable to create schedule');
+      logger.error('Failed to create schedule', { component: 'ScheduleStore', action: 'createSchedule' }, err);
       set({ error: message, isLoading: false });
       return null;
     }
   },
 
-  updateSchedule: async (scheduleId: string, input: UpdateScheduleInput) => {
+  updateSchedule: async (scheduleId, input) => {
     set({ isLoading: true, error: null });
-
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/schedules/${scheduleId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(input),
+      const res = await schedulesClient.update({
+        scheduleId,
+        name: input.name,
+        description: input.description,
+        cronExpression: input.cron_expression,
+        timezone: input.timezone,
+        parameters: input.parameters as never,
+        isActive: input.is_active,
       });
-
-      if (!response.ok) {
-        const errorData = await parseJson(response);
-        throw new Error(extractMessage(errorData, `Failed to update schedule (${response.status})`));
-      }
-
-      const rawData: unknown = await response.json();
-      const result = safeParse(ScheduleResponseSchema, rawData, 'UpdateSchedule');
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-      const updatedSchedule = result.data.schedule;
-
-      // Update in local state
+      if (!res.schedule) throw new Error('Server omitted schedule');
+      const updated = mapSchedule(res.schedule);
       set((state) => ({
-        schedules: state.schedules.map((s) =>
-          s.id === scheduleId ? updatedSchedule : s
-        ),
+        schedules: state.schedules.map((s) => (s.id === scheduleId ? updated : s)),
         isLoading: false,
       }));
-
-      return updatedSchedule;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to update schedule';
-      logger.error('Failed to update schedule', { component: 'ScheduleStore', action: 'updateSchedule' }, error);
+      return updated;
+    } catch (err) {
+      const message = errorMessage(err, 'Unable to update schedule');
+      logger.error('Failed to update schedule', { component: 'ScheduleStore', action: 'updateSchedule' }, err);
       set({ error: message, isLoading: false });
       return null;
     }
   },
 
-  deleteSchedule: async (scheduleId: string) => {
+  deleteSchedule: async (scheduleId) => {
     set({ isLoading: true, error: null });
-
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/schedules/${scheduleId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const errorData = await parseJson(response);
-        throw new Error(extractMessage(errorData, `Failed to delete schedule (${response.status})`));
-      }
-
-      // Remove from local state
+      await schedulesClient.delete({ scheduleId });
       set((state) => ({
         schedules: state.schedules.filter((s) => s.id !== scheduleId),
         selectedScheduleId: state.selectedScheduleId === scheduleId ? null : state.selectedScheduleId,
         isLoading: false,
       }));
-
       return true;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to delete schedule';
-      logger.error('Failed to delete schedule', { component: 'ScheduleStore', action: 'deleteSchedule' }, error);
+    } catch (err) {
+      const message = errorMessage(err, 'Unable to delete schedule');
+      logger.error('Failed to delete schedule', { component: 'ScheduleStore', action: 'deleteSchedule' }, err);
       set({ error: message, isLoading: false });
       return false;
     }
   },
 
-  toggleSchedule: async (scheduleId: string) => {
+  toggleSchedule: async (scheduleId) => {
     set({ isLoading: true, error: null });
-
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/schedules/${scheduleId}/toggle`, {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        const errorData = await parseJson(response);
-        throw new Error(extractMessage(errorData, `Failed to toggle schedule (${response.status})`));
-      }
-
-      const rawData: unknown = await response.json();
-      const result = safeParse(ScheduleResponseSchema, rawData, 'ToggleSchedule');
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-      const updatedSchedule = result.data.schedule;
-
-      // Update in local state
+      const res = await schedulesClient.toggle({ scheduleId });
+      if (!res.schedule) throw new Error('Server omitted schedule');
+      const updated = mapSchedule(res.schedule);
       set((state) => ({
-        schedules: state.schedules.map((s) =>
-          s.id === scheduleId ? updatedSchedule : s
-        ),
+        schedules: state.schedules.map((s) => (s.id === scheduleId ? updated : s)),
         isLoading: false,
       }));
-
-      return updatedSchedule;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to toggle schedule';
-      logger.error('Failed to toggle schedule', { component: 'ScheduleStore', action: 'toggleSchedule' }, error);
+      return updated;
+    } catch (err) {
+      const message = errorMessage(err, 'Unable to toggle schedule');
+      logger.error('Failed to toggle schedule', { component: 'ScheduleStore', action: 'toggleSchedule' }, err);
       set({ error: message, isLoading: false });
       return null;
     }
   },
 
-  triggerSchedule: async (scheduleId: string) => {
+  triggerSchedule: async (scheduleId) => {
     set({ isLoading: true, error: null });
-
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/schedules/${scheduleId}/trigger`, {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        const errorData = await parseJson(response);
-        throw new Error(extractMessage(errorData, `Failed to trigger schedule (${response.status})`));
-      }
-
-      const rawData: unknown = await response.json();
-      const result = safeParse(TriggerScheduleResponseSchema, rawData, 'TriggerSchedule');
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      // Update last_run_at in local state
+      const res = await schedulesClient.trigger({ scheduleId });
+      const triggeredAt = protoTimestampToISOString(res.triggeredAt);
       set((state) => ({
         schedules: state.schedules.map((s) =>
-          s.id === scheduleId
-            ? { ...s, last_run_at: result.data.triggered_at, last_run_status: 'running' }
-            : s
+          s.id === scheduleId ? { ...s, last_run_at: triggeredAt, last_run_status: 'running' } : s,
         ),
         isLoading: false,
       }));
-
-      return { execution_id: result.data.execution_id };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to trigger schedule';
-      logger.error('Failed to trigger schedule', { component: 'ScheduleStore', action: 'triggerSchedule' }, error);
+      return { execution_id: res.executionId };
+    } catch (err) {
+      const message = errorMessage(err, 'Unable to trigger schedule');
+      logger.error('Failed to trigger schedule', { component: 'ScheduleStore', action: 'triggerSchedule' }, err);
       set({ error: message, isLoading: false });
       return null;
     }
   },
 
-  selectSchedule: (scheduleId: string | null) => {
-    set({ selectedScheduleId: scheduleId });
-  },
-
-  clearError: () => {
-    set({ error: null });
-  },
-
-  reset: () => {
-    set(initialState);
-  },
+  selectSchedule: (scheduleId) => set({ selectedScheduleId: scheduleId }),
+  clearError: () => set({ error: null }),
+  reset: () => set(initialState),
 }));
 
 // Common cron presets for UI dropdowns
@@ -451,15 +356,12 @@ export const COMMON_TIMEZONES = [
   'Pacific/Auckland',
 ] as const;
 
-// Helper to format next run time
 export function formatNextRun(nextRunAt?: string, nextRunHuman?: string): string {
   if (nextRunHuman) return nextRunHuman;
   if (!nextRunAt) return 'Not scheduled';
-
   const date = new Date(nextRunAt);
   const now = new Date();
   const diffMs = date.getTime() - now.getTime();
-
   if (diffMs < 0) return 'Overdue';
   if (diffMs < 60000) return 'In less than a minute';
   if (diffMs < 3600000) return `In ${Math.round(diffMs / 60000)} minutes`;
@@ -467,9 +369,8 @@ export function formatNextRun(nextRunAt?: string, nextRunHuman?: string): string
   return `In ${Math.round(diffMs / 86400000)} days`;
 }
 
-// Helper to describe cron expression
 export function describeCron(expr: string): string {
-  const preset = CRON_PRESETS.find(p => p.value === expr);
+  const preset = CRON_PRESETS.find((p) => p.value === expr);
   if (preset) return preset.description;
   return `Cron: ${expr}`;
 }

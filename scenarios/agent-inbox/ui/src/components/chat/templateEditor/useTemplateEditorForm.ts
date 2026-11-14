@@ -1,7 +1,7 @@
 /**
  * Custom hook for managing TemplateEditorModal form state.
  * Orchestrates form initialization, validation, unsaved changes tracking,
- * tool selection, and multi-item editing.
+ * and multi-item editing.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -9,7 +9,6 @@ import type { Template, TemplateVariable, TemplateWithSource } from "@/lib/types
 import { fillTemplateContent, getTemplateModesAtLevel } from "@/data/templates";
 import type { SaveOptions } from "./types";
 import { useMultiItemEditing } from "./useMultiItemEditing";
-import { useToolSelection } from "./useToolSelection";
 
 interface UseTemplateEditorFormParams {
   template?: Template;
@@ -55,14 +54,11 @@ export function useTemplateEditorForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
-  // Tool selection (delegated hook)
-  const tools = useToolSelection();
-
   // Track unsaved changes
   const hasUnsavedChanges = useMemo(() => {
     if (readOnly) return false;
     if (!template) {
-      return !!(name.trim() || description.trim() || content.trim() || modes.length > 0 || variables.length > 0 || tools.selectedToolIds.length > 0 || draft);
+      return !!(name.trim() || description.trim() || content.trim() || modes.length > 0 || variables.length > 0 || draft);
     }
     return (
       name !== template.name ||
@@ -70,16 +66,15 @@ export function useTemplateEditorForm({
       icon !== (template.icon || "Sparkles") ||
       JSON.stringify(modes) !== JSON.stringify(template.modes || []) ||
       content !== template.content ||
-      JSON.stringify(variables) !== JSON.stringify(template.variables || []) ||
-      JSON.stringify([...tools.selectedToolIds].sort()) !== JSON.stringify([...tools.initialToolIds].sort()) ||
+      JSON.stringify(variables) !== JSON.stringify(template.variables) ||
       draft !== (template.draft || false)
     );
-  }, [readOnly, template, name, description, icon, modes, content, variables, tools.selectedToolIds, tools.initialToolIds, draft]);
+  }, [readOnly, template, name, description, icon, modes, content, variables, draft]);
 
   const getCurrentFormState = useCallback(() => ({
     name, description, icon, modes, content, variables,
-    selectedToolIds: tools.selectedToolIds, applyToDefault, draft,
-  }), [name, description, icon, modes, content, variables, tools.selectedToolIds, applyToDefault, draft]);
+    selectedToolIds: [] as string[], applyToDefault, draft,
+  }), [name, description, icon, modes, content, variables, applyToDefault, draft]);
 
   // Multi-item editing (delegated hook)
   const multiItem = useMultiItemEditing({
@@ -122,20 +117,15 @@ export function useTemplateEditorForm({
         setModes(pending.modes);
         setContent(pending.content);
         setVariables(pending.variables);
-        tools.setSelectedToolIds(pending.selectedToolIds);
         setApplyToDefault(pending.applyToDefault);
         setDraft(pending.draft);
-        tools.setInitialToolIds(tools.normalizeToolIds(template.suggestedToolIds || [], tools.toolsByScenario));
       } else {
         setName(template.name);
         setDescription(template.description);
         setIcon(template.icon || "Sparkles");
         setModes(template.modes || []);
         setContent(template.content);
-        setVariables(template.variables || []);
-        const normalizedIds = tools.normalizeToolIds(template.suggestedToolIds || [], tools.toolsByScenario);
-        tools.setSelectedToolIds(normalizedIds);
-        tools.setInitialToolIds(normalizedIds);
+        setVariables(template.variables);
         setApplyToDefault(false);
         setDraft(template.draft || false);
       }
@@ -146,15 +136,17 @@ export function useTemplateEditorForm({
       setModes(defaultModes || []);
       setContent("");
       setVariables([]);
-      tools.setSelectedToolIds([]);
-      tools.setInitialToolIds([]);
       setApplyToDefault(false);
       setDraft(false);
     }
     setErrors({});
     setShowPreview(false);
-    tools.resetScenarios();
-  }, [template, defaultModes, open, tools.toolsByScenario, tools.normalizeToolIds, multiItem.pendingChanges]);
+  }, [
+    template,
+    defaultModes,
+    open,
+    multiItem.pendingChanges,
+  ]);
 
   // Variable management
   const addVariable = useCallback(() => {
@@ -212,13 +204,12 @@ export function useTemplateEditorForm({
       {
         name: name.trim(), description: description.trim(), icon, modes,
         content: content.trim(), variables,
-        suggestedToolIds: tools.selectedToolIds.length > 0 ? tools.selectedToolIds : undefined,
         draft: draft || undefined,
       },
       isEditingDefault ? { applyToDefault } : undefined
     );
     onClose();
-  }, [readOnly, onSave, validate, name, description, icon, modes, content, variables, tools.selectedToolIds, onClose, isEditingDefault, applyToDefault, draft]);
+  }, [readOnly, onSave, validate, name, description, icon, modes, content, variables, onClose, isEditingDefault, applyToDefault, draft]);
 
   // Generate preview content
   const previewContent = useCallback(() => {
@@ -233,14 +224,6 @@ export function useTemplateEditorForm({
     modes, setModes, content, setContent, variables,
     showPreview, setShowPreview, applyToDefault, setApplyToDefault,
     draft, setDraft, errors, undefinedVariables,
-    // Tool selection
-    selectedToolIds: tools.selectedToolIds,
-    expandedScenarios: tools.expandedScenarios,
-    toolsByScenario: tools.toolsByScenario,
-    isLoadingTools: tools.isLoadingTools,
-    toggleToolSelection: tools.toggleToolSelection,
-    toggleScenario: tools.toggleScenario,
-    selectedCountByScenario: tools.selectedCountByScenario,
     // Variable management
     addVariable, updateVariable, removeVariable, getSuggestionsAtLevel,
     // Multi-item editing

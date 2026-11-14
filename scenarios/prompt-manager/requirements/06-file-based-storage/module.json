@@ -9,7 +9,7 @@
       "description": "Implement file-based storage for skills, agents, teams, and relations with per-entity directories",
       "id": "REQ-P0-012",
       "prd_ref": "prompt-manager-must-have-file-based-storage",
-      "status": "draft",
+      "status": "planned",
       "title": "File-based Storage System",
       "validation": [
         {

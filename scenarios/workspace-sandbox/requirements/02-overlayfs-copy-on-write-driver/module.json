@@ -1,57 +1,52 @@
 {
-  "description": "Linux driver using overlayfs (lowerdir=canonical read-only, upperdir/workdir per sandbox, merged mount point)",
-  "module_id": "MOD-P0-002",
-  "prd_ref": "OT-P0-002",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-07-13T22:51:14-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [
-        "REQ-P0-001"
-      ],
-      "description": "Implement overlayfs driver with read-only lower dir pointing to canonical repo and writable upper/work dirs per sandbox",
       "id": "REQ-P0-003",
-      "prd_ref": "OT-P0-002",
-      "status": "complete",
       "title": "Overlayfs Mount Configuration",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "description": "Implement overlayfs driver with read-only lower dir pointing to canonical repo and writable upper/work dirs per sandbox",
       "validation": [
         {
-          "notes": "Verify driver type returns overlayfs",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/driver/overlayfs_test.go::TestOverlayfsDriverType",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Verify driver type returns overlayfs"
         },
         {
-          "notes": "Test directory structure creation",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/driver/overlayfs_test.go::TestOverlayfsDriverDirectoryStructure",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test directory structure creation"
         },
         {
-          "notes": "API reports driver availability status",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestDriverInfoAvailable",
-          "status": "implemented",
-          "type": "test"
-        },
-        {
-          "notes": "API reports driver unavailable status correctly",
           "phase": "unit",
-          "ref": "api/internal/handlers/handlers_test.go::TestDriverInfoUnavailable",
-          "status": "implemented",
-          "type": "test"
+          "status": "failing",
+          "notes": "API reports driver availability status"
         },
         {
-          "notes": "integration: Driver info endpoint returns driver status",
-          "phase": "api",
+          "type": "test",
+          "ref": "api/internal/handlers/handlers_test.go::TestDriverInfoUnavailable",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "API reports driver unavailable status correctly"
+        },
+        {
+          "type": "test",
           "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::driver info endpoint returns status",
+          "phase": "api",
           "status": "implemented",
-          "type": "test"
+          "notes": "integration: Driver info endpoint returns driver status"
         }
       ]
     }
-  ],
-  "title": "Overlayfs Copy-on-Write Driver"
+  ]
 }

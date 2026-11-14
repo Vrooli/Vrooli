@@ -41,6 +41,5 @@
       "placeholder": "e.g., 3 seconds, janky, blocks UI",
       "required": false
     }
-  ],
-  "suggestedToolIds": ["spawn_coding_agent"]
+  ]
 }

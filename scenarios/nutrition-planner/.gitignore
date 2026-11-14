@@ -1,0 +1,63 @@
+# Scenario-local build output and runtime state.
+#
+# The repo root ignores the standard shapes (api/*-api, api/main, cli/cli, ...).
+# This file is the scenario's own boundary for anything named after THIS
+# scenario, which a root glob cannot express. Add an entry here whenever a build
+# step writes an executable or generated file into the scenario tree.
+#
+# Mirrors the per-resource convention in resources/*/.gitignore. `vrooli hygiene`
+# fails the repo if a compiled binary is ever committed, so a missed entry here
+# is caught before it reaches history rather than years later.
+
+# Compiled Go binaries (any -o name, plus bare `go build` output)
+/api/api
+/api/main
+/api/*-api
+/cli/cli
+/cli/main
+/cli/*.exe
+
+# Go test/coverage output
+/api/*.test
+/cli/*.test
+/api/coverage.out
+/cli/coverage.out
+/api/*.prof
+/cli/*.prof
+
+# UI build output and dependencies
+/ui/dist/
+/ui/node_modules/
+/ui/.vite/
+
+# Local runtime state (databases, uploads, logs)
+/data/
+/logs/
+/api/uploads/
+
+# Build-freshness stamps
+/.build-fingerprint.json
+
+# Preserve authored goal/evidence summaries and compact manifests. Raw reports,
+# coverage, screenshots, source snapshots, and duplicate patch copies remain
+# local; GCT path snapshots are bounded, metadata-only by default, and leased.
+/docs/internal/goal/evidence/**
+!/docs/internal/goal/evidence/**/
+!/docs/internal/goal/evidence/**/*.md
+!/docs/internal/goal/evidence/**/manifest.json
+!/docs/internal/goal/evidence/**/source-map.json
+!/docs/internal/goal/evidence/**/SHA256SUMS*
+!/docs/internal/goal/evidence/**/*sha256sum*.txt
+!/docs/internal/goal/evidence/**/*.sha256
+
+/docs/internal/delivery-reliability-research/sources/**
+!/docs/internal/delivery-reliability-research/sources/**/
+!/docs/internal/delivery-reliability-research/sources/**/*.md
+!/docs/internal/delivery-reliability-research/sources/**/manifest.json
+!/docs/internal/delivery-reliability-research/sources/**/source-map.json
+!/docs/internal/delivery-reliability-research/sources/**/SHA256SUMS*
+!/docs/internal/delivery-reliability-research/sources/**/*sha256sum*.txt
+!/docs/internal/delivery-reliability-research/sources/**/*.sha256
+
+# Historical run directories are local artifacts, including Markdown receipts.
+/docs/internal/delivery-reliability-research/sources/*logs/

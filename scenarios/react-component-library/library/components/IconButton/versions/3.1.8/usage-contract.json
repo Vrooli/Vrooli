@@ -1,0 +1,9 @@
+{
+  "children": {
+    "allowedChildComponents": [],
+    "maximumCount": 1,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:IconButton",
+  "version": "3.1.8"
+}

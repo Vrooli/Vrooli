@@ -1,0 +1,126 @@
+{
+  "id": "changing-layouts-03",
+  "family": "changing-layouts",
+  "family_name": "Layouts that change between visits",
+  "difficulty": 3,
+  "title": "Layouts that change between visits: level 3",
+  "task": "Extract every matching record from the layouts that change between visits page and return records in source order. Include id, name, category, value and active.",
+  "mechanism": "changing_layout",
+  "tags": [
+    "difficulty-3",
+    "changing_layout"
+  ],
+  "page": {
+    "title": "Layouts that change between visits Practice 3",
+    "records": [
+      {
+        "id": "CHA-03-001",
+        "name": "Layouts Item 3-1",
+        "category": "beta",
+        "value": 831,
+        "active": true
+      },
+      {
+        "id": "CHA-03-002",
+        "name": "Layouts Item 3-2",
+        "category": "gamma",
+        "value": 832,
+        "active": true
+      },
+      {
+        "id": "CHA-03-003",
+        "name": "Layouts Item 3-3",
+        "category": "alpha",
+        "value": 833,
+        "active": true
+      },
+      {
+        "id": "CHA-03-004",
+        "name": "Layouts Item 3-4",
+        "category": "beta",
+        "value": 834,
+        "active": false
+      },
+      {
+        "id": "CHA-03-005",
+        "name": "Layouts Item 3-5",
+        "category": "gamma",
+        "value": 835,
+        "active": true
+      },
+      {
+        "id": "CHA-03-006",
+        "name": "Layouts Item 3-6",
+        "category": "alpha",
+        "value": 836,
+        "active": true
+      },
+      {
+        "id": "CHA-03-007",
+        "name": "Layouts Item 3-7",
+        "category": "beta",
+        "value": 837,
+        "active": true
+      }
+    ],
+    "page_size": 7,
+    "variant": 3,
+    "search_fields": [],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "table",
+    "behavior": {},
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "CHA-03-001",
+      "name": "Layouts Item 3-1",
+      "category": "beta",
+      "value": 831,
+      "active": true
+    },
+    {
+      "id": "CHA-03-002",
+      "name": "Layouts Item 3-2",
+      "category": "gamma",
+      "value": 832,
+      "active": true
+    },
+    {
+      "id": "CHA-03-003",
+      "name": "Layouts Item 3-3",
+      "category": "alpha",
+      "value": 833,
+      "active": true
+    },
+    {
+      "id": "CHA-03-004",
+      "name": "Layouts Item 3-4",
+      "category": "beta",
+      "value": 834,
+      "active": false
+    },
+    {
+      "id": "CHA-03-005",
+      "name": "Layouts Item 3-5",
+      "category": "gamma",
+      "value": 835,
+      "active": true
+    },
+    {
+      "id": "CHA-03-006",
+      "name": "Layouts Item 3-6",
+      "category": "alpha",
+      "value": 836,
+      "active": true
+    },
+    {
+      "id": "CHA-03-007",
+      "name": "Layouts Item 3-7",
+      "category": "beta",
+      "value": 837,
+      "active": true
+    }
+  ]
+}

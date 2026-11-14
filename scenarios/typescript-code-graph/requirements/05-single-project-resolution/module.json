@@ -1,0 +1,99 @@
+{
+  "description": "`Extract` and `Rewrite` operate on exactly one `tsconfig.json` per call. Reject ambiguous inputs (no `tsconfig.json` discoverable, multiple at the same level, pnpm workspace ambiguity) with a typed error explaining which file to point at.",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "Both Extract and Rewrite must operate on exactly one tsconfig.json per invocation. The scenario must implement discovery logic that identifies the applicable tsconfig.json from the provided project_path. project_path may be a project root directory or an explicit tsconfig.json file. Any ambiguous input must be rejected with a structured, typed error that identifies the ambiguity and instructs the caller which file path to specify. Ambiguous conditions include: no tsconfig.json discoverable in or above the path, multiple tsconfig.json files at the same directory level, and pnpm workspace roots where multiple packages each have a tsconfig.json.",
+      "id": "REQ-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "draft",
+      "title": "Single tsconfig.json Resolution and Ambiguity Rejection",
+      "validation": [
+        {
+          "notes": "Test that a path containing a single tsconfig.json resolves correctly",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that a path with no tsconfig.json returns a typed MISSING_TSCONFIG error with the searched path",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that a path with two tsconfig.json files at the same level returns a typed AMBIGUOUS_TSCONFIG error listing both files",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that a pnpm workspace root with multiple package-level tsconfig.json files returns a typed WORKSPACE_AMBIGUITY error",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that the error message in all ambiguity cases includes the exact file path(s) involved and a recommendation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-SINGLE-PROJECT: Extract call on a single-tsconfig fixture succeeds and returns a graph",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract call on a fixture with no tsconfig.json returns a structured error, not a panic or untyped exception",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract call on a multi-tsconfig fixture returns a structured AMBIGUOUS_TSCONFIG error with actionable message",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CLI surfaces the typed error message directly to stderr without stack traces",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Operator documentation includes examples of how to resolve each ambiguity error kind",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "No Extract or Rewrite call silently operates on the wrong tsconfig.json",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Single-Project Resolution"
+}

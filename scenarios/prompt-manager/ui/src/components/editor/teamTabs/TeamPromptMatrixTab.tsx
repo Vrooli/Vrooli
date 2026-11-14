@@ -14,34 +14,6 @@ import * as agentService from '@/services/agentService'
 import { SectionCard } from '../tabs/SectionCard'
 
 // ---------------------------------------------------------------------------
-// Section kind display order
-// ---------------------------------------------------------------------------
-
-const SECTION_KIND_ORDER = [
-  'agent-file',
-  'team-shared-charter',
-  'team-responsibilities',
-  'team-org-context',
-  'team-coordination',
-  'team-durable-state',
-  'team-inbox',
-  'last-handoff',
-  'heartbeat-task',
-] as const
-
-const SECTION_KIND_LABELS: Record<string, string> = {
-  'agent-file': 'Files',
-  'team-shared-charter': 'Charter',
-  'team-responsibilities': 'Responsibilities',
-  'team-org-context': 'Org',
-  'team-coordination': 'Coordination',
-  'team-durable-state': 'Durable State',
-  'team-inbox': 'Inbox',
-  'last-handoff': 'Handoff',
-  'heartbeat-task': 'Heartbeat',
-}
-
-// ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
@@ -49,6 +21,20 @@ interface TeamPromptMatrixTabProps {
   teamId: string
   onNavigateToMember?: (agentId: string) => void
   className?: string
+}
+
+const PROMPT_SIZE_RANGES = [
+  { label: 'Missing', range: '0 chars', tone: 'text-amber-500', icon: <AlertTriangle className="h-3 w-3" /> },
+  { label: 'Healthy', range: '1-12,000 chars', tone: 'text-green-500', icon: <Check className="h-3 w-3" /> },
+  { label: 'Large', range: '12,001-18,000 chars', tone: 'text-amber-500', icon: <AlertTriangle className="h-3 w-3" /> },
+  { label: 'Too large', range: '>18,000 chars', tone: 'text-destructive', icon: <XCircle className="h-3 w-3" /> },
+]
+
+function getPromptSizeStatus(chars: number, count: number): 'missing' | 'healthy' | 'large' | 'too-large' {
+  if (count === 0) return 'missing'
+  if (chars > 18000) return 'too-large'
+  if (chars > 12000) return 'large'
+  return 'healthy'
 }
 
 // ---------------------------------------------------------------------------
@@ -88,13 +74,28 @@ export function TeamPromptMatrixTab({
 
   // Determine which section kinds are present across all entries
   const activeKinds = useMemo(() => {
-    const found = new Set<string>()
+    const found: string[] = []
+    const seen = new Set<string>()
     for (const entry of entries) {
       for (const section of entry.sections) {
-        found.add(section.kind)
+        if (seen.has(section.kind)) continue
+        seen.add(section.kind)
+        found.push(section.kind)
       }
     }
-    return SECTION_KIND_ORDER.filter((k) => found.has(k))
+    return found
+  }, [entries])
+
+  const labelsByKind = useMemo(() => {
+    const labels = new Map<string, string>()
+    for (const entry of entries) {
+      for (const section of entry.sections) {
+        if (!labels.has(section.kind)) {
+          labels.set(section.kind, section.label)
+        }
+      }
+    }
+    return labels
   }, [entries])
 
   const totalChars = useMemo(
@@ -143,13 +144,24 @@ export function TeamPromptMatrixTab({
   return (
     <div className={cn('space-y-3', className)}>
       {/* Toolbar */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-foreground">
-          {entries.length} member{entries.length !== 1 ? 's' : ''}
-        </span>
+      <div className="flex items-start gap-2">
+        <div>
+          <span className="text-sm font-medium text-foreground">
+            {entries.length} member{entries.length !== 1 ? 's' : ''}
+          </span>
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+            {PROMPT_SIZE_RANGES.map((item) => (
+              <span key={item.label} className="inline-flex items-center gap-1">
+                <span className={item.tone}>{item.icon}</span>
+                <span>{item.label}:</span>
+                <span className="tabular-nums">{item.range}</span>
+              </span>
+            ))}
+          </div>
+        </div>
         <div className="flex-1" />
         {totalChars > 0 && (
-          <span className="text-[11px] text-muted-foreground tabular-nums">
+          <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
             {totalChars.toLocaleString()} total chars
           </span>
         )}
@@ -181,7 +193,7 @@ export function TeamPromptMatrixTab({
                     key={kind}
                     className="px-3 py-2 text-center text-xs font-medium text-muted-foreground"
                   >
-                    {SECTION_KIND_LABELS[kind] ?? kind}
+                    {labelsByKind.get(kind) ?? kind}
                   </th>
                 )
               })}
@@ -280,15 +292,26 @@ function MemberRow({
                 <button
                   type="button"
                   onClick={() => onToggleCell(kind)}
+                  data-size-status={getPromptSizeStatus(totalChars, count)}
                   className={cn(
                     'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] tabular-nums transition-colors',
                     isExpanded
                       ? 'bg-primary/15 text-primary'
-                      : 'text-green-500 hover:bg-muted',
+                      : getPromptSizeStatus(totalChars, count) === 'too-large'
+                        ? 'text-destructive hover:bg-muted'
+                        : getPromptSizeStatus(totalChars, count) === 'large'
+                          ? 'text-amber-500 hover:bg-muted'
+                          : 'text-green-500 hover:bg-muted',
                   )}
                   title={`${count} section${count > 1 ? 's' : ''}, ${totalChars.toLocaleString()} chars`}
                 >
-                  <Check className="h-3 w-3" />
+                  {getPromptSizeStatus(totalChars, count) === 'too-large' ? (
+                    <XCircle className="h-3 w-3" />
+                  ) : getPromptSizeStatus(totalChars, count) === 'large' ? (
+                    <AlertTriangle className="h-3 w-3" />
+                  ) : (
+                    <Check className="h-3 w-3" />
+                  )}
                   {totalChars.toLocaleString()}
                 </button>
               ) : (

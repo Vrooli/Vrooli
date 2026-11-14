@@ -34,6 +34,8 @@ func ApplyBundleSecrets(manifest *Manifest, bundleSecrets []secrets.BundleSecret
 		required := s.Required
 		converted = append(converted, ManifestSecret{
 			ID:          s.ID,
+			LogicalID:   s.LogicalID,
+			Field:       s.Field,
 			Class:       s.Class,
 			Description: s.Description,
 			Format:      s.Format,

@@ -1,61 +1,57 @@
 {
-  "description": "Emit structured logs for create/mount/run/diff/approve/reject/delete/gc with failure details",
-  "module_id": "MOD-P2-022",
-  "prd_ref": "OT-P2-007",
-  "priority": "P2",
+  "_metadata": {
+    "last_validated_at": "2026-07-13T22:51:14-04:00"
+  },
   "requirements": [
     {
+      "id": "REQ-P2-007",
+      "title": "Structured Event Logging",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-007",
       "category": "observability",
       "description": "Emit structured JSON logs for all sandbox lifecycle events including create, mount, stop, approve, reject, delete, and gc. Include contextual metadata (sandbox ID, actor, duration) and error details. Support log levels (debug, info, warn, error) and context-aware logging.",
-      "id": "REQ-P2-007",
-      "prd_ref": "OT-P2-007",
-      "status": "implemented",
-      "title": "Structured Event Logging",
       "validation": [
         {
-          "notes": "Test log level filtering",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/logging/logging_test.go::TestShouldLog",
-          "status": "passed",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test log level filtering"
         },
         {
-          "notes": "Test structured log output format",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/logging/logging_test.go::TestLogOutput",
-          "status": "passed",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test structured log output format"
         },
         {
-          "notes": "Test all log levels",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/logging/logging_test.go::TestLogLevels",
-          "status": "passed",
-          "type": "test"
-        },
-        {
-          "notes": "Test concurrent logging safety",
           "phase": "unit",
+          "status": "failing",
+          "notes": "Test all log levels"
+        },
+        {
+          "type": "test",
           "ref": "api/internal/logging/logging_test.go::TestConcurrentLogging",
-          "status": "passed",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test concurrent logging safety"
         },
         {
-          "notes": "Log aggregation systems can parse output",
+          "type": "test",
           "phase": "api",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Log aggregation systems can parse output"
         },
         {
-          "notes": "Operators can debug issues from logs",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Operators can debug issues from logs"
         }
       ]
     }
-  ],
-  "title": "Structured Event Logging"
+  ]
 }

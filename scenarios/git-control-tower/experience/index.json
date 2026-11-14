@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "git-control-tower",
+  "description": "Experience spec seed for git-control-tower's main workspace. The page is the responsive reference case: desktop shows configurable resizable panels around the primary diff, while mobile transforms the same work surfaces into full-height bottom-nav tabs.",
+  "pages": [
+    {
+      "id": "workspace",
+      "path": "pages/workspace.json",
+      "title": "Workspace",
+      "status": "active"
+    }
+  ]
+}

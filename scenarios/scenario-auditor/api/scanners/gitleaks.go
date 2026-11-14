@@ -1,11 +1,9 @@
 package scanners
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -21,19 +19,9 @@ type GitleaksScanner struct {
 
 // NewGitleaksScanner creates a new gitleaks scanner instance
 func NewGitleaksScanner(logger Logger) *GitleaksScanner {
-	// Try to find gitleaks in common locations
-	binPath := "gitleaks"
-	if _, err := exec.LookPath(binPath); err != nil {
-		// Try in ~/go/bin
-		homeBinPath := filepath.Join(os.Getenv("HOME"), "go", "bin", "gitleaks")
-		if _, err := os.Stat(homeBinPath); err == nil {
-			binPath = homeBinPath
-		}
-	}
-
 	return &GitleaksScanner{
 		logger:  logger,
-		binPath: binPath,
+		binPath: findExternalTool("gitleaks"),
 	}
 }
 
@@ -60,9 +48,7 @@ type GitleaksFinding struct {
 
 // IsAvailable checks if gitleaks is installed
 func (g *GitleaksScanner) IsAvailable() bool {
-	cmd := exec.Command(g.binPath, "version")
-	err := cmd.Run()
-	return err == nil
+	return externalToolAvailable(g.binPath, "version")
 }
 
 // GetType returns the scanner type
@@ -72,8 +58,7 @@ func (g *GitleaksScanner) GetType() ScannerType {
 
 // GetVersion returns the gitleaks version
 func (g *GitleaksScanner) GetVersion() (string, error) {
-	cmd := exec.Command(g.binPath, "version")
-	output, err := cmd.Output()
+	output, err := externalToolVersion(g.binPath, "version")
 	if err != nil {
 		return "", err
 	}
@@ -189,26 +174,11 @@ func (g *GitleaksScanner) Scan(opts ScanOptions) (*ScanResult, error) {
 
 	// Build gitleaks command
 	args := g.buildGitleaksArgs(opts, reportFile)
-	cmd := exec.Command(g.binPath, args...)
-
-	// Set timeout if specified
-	if opts.Timeout > 0 {
-		timer := time.AfterFunc(opts.Timeout, func() {
-			cmd.Process.Kill()
-		})
-		defer timer.Stop()
-	}
-
-	// Capture output
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
-	// Run gitleaks
-	err := cmd.Run()
-
-	// Gitleaks returns exit code 1 if leaks are found, which is expected
-	if err != nil && !strings.Contains(err.Error(), "exit status 1") {
-		return nil, fmt.Errorf("gitleaks execution failed: %v - stderr: %s", err, stderr.String())
+	_, _, err := runExternalTool(g.binPath, args, opts.Timeout, func(err error) bool {
+		return strings.Contains(err.Error(), "exit status 1")
+	}, false)
+	if err != nil {
+		return nil, fmt.Errorf("gitleaks execution failed: %w", err)
 	}
 
 	// Read and parse the report file
@@ -221,17 +191,7 @@ func (g *GitleaksScanner) Scan(opts ScanOptions) (*ScanResult, error) {
 	// Count files and lines scanned
 	filesScanned, linesScanned := g.countScannedFiles(opts.Path)
 
-	result := &ScanResult{
-		ScanID:       scanID,
-		ScannerType:  ScannerGitleaks,
-		StartTime:    startTime,
-		EndTime:      time.Now(),
-		Duration:     time.Since(startTime),
-		ScannedPath:  opts.Path,
-		Findings:     findings,
-		FilesScanned: filesScanned,
-		LinesScanned: linesScanned,
-	}
+	result := externalScanResult(scanID, ScannerGitleaks, startTime, opts.Path, findings, filesScanned, linesScanned)
 
 	// Get tool version
 	if version, err := g.GetVersion(); err == nil {
@@ -453,9 +413,6 @@ func (g *GitleaksScanner) redactSecret(secret string) string {
 
 // countScannedFiles counts files and lines in the scanned path
 func (g *GitleaksScanner) countScannedFiles(path string) (int, int) {
-	fileCount := 0
-	lineCount := 0
-
 	// Common text file extensions to count
 	textExtensions := map[string]bool{
 		".go": true, ".js": true, ".ts": true, ".tsx": true,
@@ -468,32 +425,7 @@ func (g *GitleaksScanner) countScannedFiles(path string) (int, int) {
 		".sql": true, ".md": true, ".txt": true,
 	}
 
-	filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-
-		if info.IsDir() {
-			if pathfilter.SkipDir(info.Name()) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		// Check if it's a text file we should count
-		ext := filepath.Ext(filePath)
-		if textExtensions[ext] {
-			fileCount++
-
-			// Count lines
-			if content, err := os.ReadFile(filePath); err == nil {
-				lines := bytes.Count(content, []byte("\n"))
-				lineCount += lines
-			}
-		}
-
-		return nil
+	return countExternalToolFiles(path, pathfilter.SkipDir, func(filePath string) bool {
+		return textExtensions[filepath.Ext(filePath)]
 	})
-
-	return fileCount, lineCount
 }

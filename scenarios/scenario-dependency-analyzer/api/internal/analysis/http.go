@@ -1,0 +1,92 @@
+package analysis
+
+import (
+	"errors"
+	"io"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/app/services"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
+)
+
+// HTTPHandler exposes scenario analysis and scan/apply compatibility routes.
+type HTTPHandler struct {
+	analysis services.AnalysisService
+	scans    services.ScanService
+}
+
+// NewHTTPHandler constructs an analysis HTTP adapter.
+func NewHTTPHandler(analysis services.AnalysisService, scans services.ScanService) *HTTPHandler {
+	return &HTTPHandler{analysis: analysis, scans: scans}
+}
+
+// RegisterHTTPRoutes mounts analysis and scan routes under the API group.
+func RegisterHTTPRoutes(api gin.IRoutes, analysis services.AnalysisService, scans services.ScanService) {
+	handler := NewHTTPHandler(analysis, scans)
+	api.GET("/analyze/:scenario", handler.AnalyzeScenario)
+	api.POST("/scenarios/:scenario/scan", handler.ScanScenario)
+	api.POST("/scenarios/:scenario/scan-selected", handler.ScanSelectedScenario)
+}
+
+// AnalyzeScenario returns dependency analysis for one scenario or all scenarios.
+func (h *HTTPHandler) AnalyzeScenario(c *gin.Context) {
+	scenarioName := c.Param("scenario")
+
+	if scenarioName == "all" {
+		c.JSON(http.StatusGone, gin.H{"error": "fleet analysis requires AnalysisOperationsService.StartOperation; use scenario-dependency-analyzer analysis start"})
+		return
+	}
+
+	result, err := h.analysis.AnalyzeScenario(scenarioName)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// ScanScenario runs a dependency scan and optionally applies detected diffs.
+func (h *HTTPHandler) ScanScenario(c *gin.Context) {
+	h.scanScenario(c, false)
+}
+
+func (h *HTTPHandler) ScanSelectedScenario(c *gin.Context) {
+	h.scanScenario(c, true)
+}
+
+func (h *HTTPHandler) scanScenario(c *gin.Context, selectedOnly bool) {
+	scenarioName := c.Param("scenario")
+	var req types.ScanRequest
+	if c.Request.Body != nil {
+		if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	if selectedOnly && len(req.OnlyScenarios) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "scan-selected requires a nonempty only_scenarios list"})
+		return
+	}
+	if !selectedOnly && req.OnlyScenarios != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "only_scenarios requires the scan-selected endpoint"})
+		return
+	}
+
+	result, err := h.scans.ScanScenario(scenarioName, req)
+	if err != nil {
+		if errors.Is(err, types.ErrInvalidScanRequest) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"analysis":      result.Analysis,
+		"applied":       result.Applied,
+		"apply_summary": result.ApplySummary,
+	})
+}

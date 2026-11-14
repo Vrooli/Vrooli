@@ -1,0 +1,220 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "The system shall validate database connectivity, Git availability, repository access, and readiness with a structured JSON response.",
+      "id": "GCT-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "planned",
+      "title": "Health check endpoint",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P0-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall return current branch, tracking status, staged, unstaged, untracked, conflict, and bounded scope information.",
+      "id": "GCT-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "title": "Repository status API",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P0-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall return a structured diff for an explicit file path relative to the selected immutable revision.",
+      "id": "GCT-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "planned",
+      "title": "File diff endpoint",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P0-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall stage or unstage explicit paths or bounded scopes only through verified human authority.",
+      "id": "GCT-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "planned",
+      "title": "Stage and unstage operations",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P0-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall validate a human-authored conventional commit message and create a commit only after exact preconditions pass.",
+      "id": "GCT-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "title": "Commit composition API",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P0-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall report push or pull readiness and behind-remote safety conditions without granting agents repository authority.",
+      "id": "GCT-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "planned",
+      "title": "Push and pull status",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P0-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall record mutating operation decisions and outcomes durably without recording credentials.",
+      "id": "GCT-P0-007",
+      "prd_ref": "OT-P0-007",
+      "status": "planned",
+      "title": "SQLite audit logging",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P0-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall expose bounded CLI commands corresponding to supported API read and human-control operations.",
+      "id": "GCT-P0-008",
+      "prd_ref": "OT-P0-008",
+      "status": "planned",
+      "title": "CLI command parity",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P0-008] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When validation requests behavioral or source-comparison evidence, the system shall durably capture or compare the declared collection with parent receipt attribution and idempotency.",
+      "id": "GCT-P0-009",
+      "prd_ref": "OT-P0-009",
+      "status": "planned",
+      "title": "Durable validation evidence operations",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P0-009] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall produce immutable change subjects, bounded evidence bundles, grounded summaries, findings, and editable commit, PR, and release drafts without actuating repository or host writes.",
+      "id": "GCT-P0-010",
+      "prd_ref": "OT-P0-010",
+      "status": "planned",
+      "title": "Safe advisory artifacts",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P0-010] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "If an agent, anonymous caller, forged header, expired intent, wrong repository, or replayed intent requests a repository mutation, then the system shall refuse before invoking a writer.",
+      "id": "GCT-P0-011",
+      "prd_ref": "OT-P0-011",
+      "status": "planned",
+      "title": "Human-only repository authority",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P0-011] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall durably identify advisory jobs, preserve exact evidence and validation receipts, report partial or unavailable inputs explicitly, and support idempotent recovery.",
+      "id": "GCT-P0-012",
+      "prd_ref": "OT-P0-012",
+      "status": "planned",
+      "title": "Truthful durable advisory execution",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P0-012] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall admit only tests and delegated workflows whose subprocess and fixture effects are proven repository-safe, with unsafe historical paths reported as degraded.",
+      "id": "GCT-P0-013",
+      "prd_ref": "OT-P0-013",
+      "status": "planned",
+      "title": "Safe validation admission",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P0-013] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall provide a diff-first workspace with explicit subject identity, evidence inspection, draft editing, human action previews, and exact precondition controls.",
+      "id": "GCT-P0-014",
+      "prd_ref": "OT-P0-014",
+      "status": "planned",
+      "title": "Operator workspace and controls",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:GCT-P0-014] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

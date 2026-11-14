@@ -2,6 +2,7 @@ package supervisor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -30,7 +31,13 @@ type ProcessSupervisor struct {
 
 	stopCh  chan struct{} // Signals the monitor goroutine to stop
 	stopped bool          // True if Stop() has been called
-	mu      sync.RWMutex
+	// intentionalExitCh identifies the process channel closed by a manual
+	// Restart. The monitor must consume that close without charging the crash
+	// restart budget or scheduling a second restart.
+	intentionalExitCh <-chan struct{}
+	monitorRunning    bool
+	monitorGeneration uint64
+	mu                sync.RWMutex
 }
 
 // NewProcessSupervisor creates a new ProcessSupervisor.
@@ -70,24 +77,36 @@ func (s *ProcessSupervisor) Start(ctx context.Context) error {
 	// setState acquires its own lock, so we must release ours first
 	s.setState(StateStarting, nil)
 
-	// Start the process
-	if err := s.process.Start(); err != nil {
+	if err := s.startProcess(ctx); err != nil {
 		s.setState(StateStopped, err)
-		return fmt.Errorf("failed to start process: %w", err)
-	}
-
-	// Wait for health check to pass
-	if err := s.waitForHealthy(ctx); err != nil {
-		// Stop the unhealthy process
-		_ = s.process.Stop(s.config.GracefulStop)
-		s.setState(StateStopped, err)
-		return fmt.Errorf("process failed health check: %w", err)
+		return err
 	}
 
 	s.setState(StateRunning, nil)
 
 	// Start the monitor goroutine
-	go s.monitorLoop()
+	s.mu.Lock()
+	s.monitorGeneration++
+	monitorGeneration := s.monitorGeneration
+	s.monitorRunning = true
+	s.mu.Unlock()
+	go s.monitorLoop(monitorGeneration)
+
+	return nil
+}
+
+// startProcess owns the common process-start and health-admission sequence for
+// initial starts and explicit restarts. A failed health check always tears down
+// the unhealthy process before returning to the caller's state transition.
+func (s *ProcessSupervisor) startProcess(ctx context.Context) error {
+	if err := s.process.Start(); err != nil {
+		return fmt.Errorf("failed to start process: %w", err)
+	}
+
+	if err := s.waitForHealthy(ctx); err != nil {
+		_ = s.process.Stop(s.config.GracefulStop)
+		return fmt.Errorf("process failed health check: %w", err)
+	}
 
 	return nil
 }
@@ -100,34 +119,82 @@ func (s *ProcessSupervisor) waitForHealthy(ctx context.Context) error {
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
+	// Keep the last health error: a timeout alone hides the real cause (a
+	// missing browser build, a port clash) that the driver already reported.
+	var lastErr error
 	for {
+		if err := s.healthCheck(ctx); err == nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return nil
+		} else {
+			lastErr = err
+		}
+
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("startup timeout: %w", ctx.Err())
-		case <-ticker.C:
-			if err := s.healthCheck(ctx); err == nil {
-				return nil
+			if lastErr != nil {
+				return fmt.Errorf("startup timeout: %w (last health check: %v)", ctx.Err(), lastErr)
 			}
+			return fmt.Errorf("startup timeout: %w (health endpoint never answered)", ctx.Err())
+		case <-ticker.C:
 		}
 	}
 }
 
 // monitorLoop watches for process exit and triggers restarts.
-func (s *ProcessSupervisor) monitorLoop() {
+//
+// ExitChan reports exit by closing its channel, and a closed channel stays
+// ready forever. The loop may therefore only continue once the process has
+// handed back a fresh channel, which happens only when Start succeeds. Waiting
+// on the same closed channel re-arms the select immediately and spins a core at
+// 100% while logging the same failure on every pass.
+func (s *ProcessSupervisor) monitorLoop(monitorGeneration uint64) {
+	defer func() {
+		s.mu.Lock()
+		if s.monitorGeneration == monitorGeneration {
+			s.monitorRunning = false
+		}
+		s.mu.Unlock()
+	}()
+
 	for {
+		exitCh := s.process.ExitChan()
+
 		select {
 		case <-s.stopCh:
 			return
-		case <-s.process.ExitChan():
-			s.handleProcessExit()
+		case <-exitCh:
+		}
+
+		s.handleProcessExit(exitCh)
+
+		if s.State().IsTerminal() {
+			return
+		}
+
+		if s.process.ExitChan() == exitCh {
+			// The restart never produced a live process, so the channel we
+			// woke on is still the closed one and there is nothing left to
+			// watch. Report it rather than looping on a dead channel.
+			s.setState(StateUnrecoverable, errors.New("process exited and could not be restarted; supervisor stopped monitoring"))
+			return
 		}
 	}
 }
 
 // handleProcessExit is called when the process exits unexpectedly.
-func (s *ProcessSupervisor) handleProcessExit() {
+func (s *ProcessSupervisor) handleProcessExit(exitCh <-chan struct{}) {
 	s.mu.Lock()
 	if s.stopped {
+		s.mu.Unlock()
+		return
+	}
+	if s.intentionalExitCh != nil && exitCh == s.intentionalExitCh {
+		// Restart intentionally closed this generation's channel. Leave the
+		// monitor armed against the fresh channel created by Start.
+		s.intentionalExitCh = nil
 		s.mu.Unlock()
 		return
 	}
@@ -229,6 +296,9 @@ func (s *ProcessSupervisor) calculateBackoff(restartCount int) time.Duration {
 
 // Stop gracefully stops the sidecar process.
 func (s *ProcessSupervisor) Stop(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	s.mu.Lock()
 	if s.stopped {
 		s.mu.Unlock()
@@ -245,7 +315,16 @@ func (s *ProcessSupervisor) Stop(ctx context.Context) error {
 	s.setState(StateStopping, nil)
 
 	// Stop the process
-	if err := s.process.Stop(s.config.GracefulStop); err != nil {
+	gracePeriod := s.config.GracefulStop
+	if deadline, ok := ctx.Deadline(); ok {
+		if remaining := time.Until(deadline); remaining < gracePeriod {
+			gracePeriod = remaining
+		}
+		if gracePeriod < 0 {
+			gracePeriod = 0
+		}
+	}
+	if err := s.process.Stop(gracePeriod); err != nil {
 		s.log.WithError(err).Warn("Error stopping process")
 	}
 
@@ -265,10 +344,19 @@ func (s *ProcessSupervisor) Stop(ctx context.Context) error {
 // Restart stops and then starts the sidecar process.
 func (s *ProcessSupervisor) Restart(ctx context.Context) error {
 	s.mu.Lock()
+	if s.stopped {
+		s.mu.Unlock()
+		return fmt.Errorf("supervisor has been stopped")
+	}
+	restartingFromTerminal := s.state == StateUnrecoverable
 	if s.state == StateUnrecoverable {
 		// Reset the restart counter for manual restarts
 		s.restartTimes = nil
 	}
+	// Capture the channel for the process that is about to be intentionally
+	// stopped. Matching the channel (rather than a boolean) prevents a late
+	// monitor wake from being mistaken for the freshly started process.
+	s.intentionalExitCh = s.process.ExitChan()
 	s.mu.Unlock()
 
 	// Stop the current process
@@ -277,20 +365,27 @@ func (s *ProcessSupervisor) Restart(ctx context.Context) error {
 		s.log.WithError(err).Warn("Error stopping process during restart")
 	}
 
-	// Start fresh
-	if err := s.process.Start(); err != nil {
+	if err := s.startProcess(ctx); err != nil {
 		s.setState(StateStopped, err)
-		return fmt.Errorf("failed to start process: %w", err)
-	}
-
-	// Wait for health
-	if err := s.waitForHealthy(ctx); err != nil {
-		_ = s.process.Stop(s.config.GracefulStop)
-		s.setState(StateStopped, err)
-		return fmt.Errorf("process failed health check: %w", err)
+		return err
 	}
 
 	s.setState(StateRunning, nil)
+
+	// A monitor that reached StateUnrecoverable has exited permanently. Manual
+	// recovery must re-arm it; ordinary restarts retain the existing monitor.
+	s.mu.Lock()
+	startMonitor := restartingFromTerminal || !s.monitorRunning
+	var monitorGeneration uint64
+	if startMonitor {
+		s.monitorGeneration++
+		monitorGeneration = s.monitorGeneration
+		s.monitorRunning = true
+	}
+	s.mu.Unlock()
+	if startMonitor {
+		go s.monitorLoop(monitorGeneration)
+	}
 	return nil
 }
 

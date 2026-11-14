@@ -83,6 +83,7 @@ export class WindowStateManager implements IWindowStateManager {
     private managedWindow: IManagedWindow | null = null;
     private saveHandler: (() => void) | null = null;
     private loadedState: WindowState | null = null;
+    private persistenceState: (() => WindowState | null) | undefined;
 
     /**
      * Tracked fullscreen state, updated via enter/leave-full-screen events.
@@ -182,13 +183,14 @@ export class WindowStateManager implements IWindowStateManager {
      * at close time, because on macOS the fullscreen exit animation completes
      * before the close event fires.
      */
-    manage(window: IManagedWindow): void {
+    manage(window: IManagedWindow, persistenceState?: () => WindowState | null): void {
         if (this.managedWindow) {
             this.log("Warning: Already managing a window, detaching from previous");
             this.detach();
         }
 
         this.managedWindow = window;
+        this.persistenceState = persistenceState;
 
         // Initialize tracked fullscreen state from current window state
         this.trackedFullScreenState = window.isFullScreen();
@@ -347,6 +349,11 @@ export class WindowStateManager implements IWindowStateManager {
         }
 
         try {
+            const presentationState = this.persistenceState?.();
+            if (presentationState) {
+                this.currentState = { ...presentationState };
+                return;
+            }
             // getNormalBounds returns the bounds when not maximized/fullscreen
             const bounds = this.managedWindow.getNormalBounds();
 
@@ -389,6 +396,7 @@ export class WindowStateManager implements IWindowStateManager {
             }
         }
         this.managedWindow = null;
+        this.persistenceState = undefined;
         this.saveHandler = null;
         this.enterFullScreenHandler = null;
         this.leaveFullScreenHandler = null;

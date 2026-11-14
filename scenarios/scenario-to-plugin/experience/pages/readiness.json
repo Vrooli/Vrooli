@@ -1,0 +1,246 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "readiness",
+    "title": "Publish Readiness",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Answer, for every scenario in the fleet, whether it may publish a plugin and \u2014 when it may not \u2014 name the single prerequisite that blocks it.",
+    "prd_refs": [
+      "OT-P1-005"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The operator learns which scenarios are eligible to publish without reading any detail page.",
+      "notes": "This is the landing route. If it fails, every other surface is reached by guessing."
+    },
+    {
+      "statement": "For every ineligible scenario, the one blocking prerequisite is visible in the row itself.",
+      "notes": "A boolean 'not ready' would hide the remediation, which is the only actionable part."
+    },
+    {
+      "statement": "Standalone-install failures are distinguishable from every other blocker, because that one is upstream work rather than a fix here."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Fleet listed with a mix of eligible and blocked scenarios."
+    },
+    {
+      "id": "loading",
+      "description": "Readiness is being computed across the fleet."
+    },
+    {
+      "id": "empty",
+      "description": "No scenario declares publishable plugin content yet \u2014 the expected first-run state."
+    },
+    {
+      "id": "partial",
+      "description": "Some scenarios could not be evaluated; those rows are marked unevaluated rather than blocked."
+    },
+    {
+      "id": "stale",
+      "description": "Readiness was computed before the most recent declaration change and is being recomputed."
+    },
+    {
+      "id": "request-error",
+      "description": "Readiness could not be loaded."
+    }
+  ],
+  "elements": [
+    {
+      "id": "readiness-table",
+      "role": "table",
+      "name": "Scenario publish readiness"
+    },
+    {
+      "id": "readiness-row",
+      "role": "row",
+      "name": "Scenario readiness row"
+    },
+    {
+      "id": "eligibility-badge",
+      "role": "status",
+      "name": "Eligibility"
+    },
+    {
+      "id": "blocking-prerequisite",
+      "role": "note",
+      "name": "Blocking prerequisite"
+    },
+    {
+      "id": "prerequisite-filter",
+      "role": "button",
+      "name": "Filter by prerequisite"
+    },
+    {
+      "id": "eligibility-filter",
+      "role": "button",
+      "name": "Filter by eligibility"
+    },
+    {
+      "id": "scenario-search",
+      "role": "searchbox",
+      "name": "Search scenarios"
+    },
+    {
+      "id": "sort-scenario",
+      "role": "button",
+      "name": "Sort by scenario"
+    },
+    {
+      "id": "sort-eligibility",
+      "role": "button",
+      "name": "Sort by eligibility"
+    },
+    {
+      "id": "empty-explainer",
+      "role": "note",
+      "name": "Why this list is empty"
+    },
+    {
+      "id": "unevaluated-marker",
+      "role": "status",
+      "name": "Unevaluated"
+    }
+  ],
+  "claims": [
+    {
+      "id": "readiness-table-present",
+      "type": "element-present",
+      "statement": "The readiness table is present.",
+      "tier": "aspirational",
+      "elements": [
+        "readiness-table"
+      ]
+    },
+    {
+      "id": "blocking-prerequisite-visible",
+      "type": "element-present",
+      "statement": "Every ineligible row names its blocking prerequisite in the row.",
+      "tier": "aspirational",
+      "elements": [
+        "blocking-prerequisite"
+      ],
+      "rationale": "The remediation is the actionable half; hiding it behind a detail page makes the board decorative."
+    },
+    {
+      "id": "readiness-affordances",
+      "type": "affordance-present",
+      "statement": "The fleet table offers search, sort, and filter, because the fleet exceeds ten rows.",
+      "tier": "aspirational",
+      "elements": [
+        "readiness-table"
+      ],
+      "params": {
+        "affordances": [
+          "search",
+          "sort",
+          "filter"
+        ],
+        "targetRole": "table"
+      }
+    },
+    {
+      "id": "eligibility-not-color-only",
+      "type": "element-present",
+      "statement": "Eligibility is conveyed by text as well as color.",
+      "tier": "aspirational",
+      "elements": [
+        "eligibility-badge"
+      ],
+      "rationale": "A red badge must be legible to a user who cannot distinguish it from green."
+    },
+    {
+      "id": "empty-is-explained",
+      "type": "state-covered",
+      "statement": "The empty state explains that no scenario declares plugin content yet, rather than rendering a blank table.",
+      "tier": "aspirational",
+      "elements": [
+        "empty-explainer"
+      ],
+      "states": [
+        "empty"
+      ]
+    },
+    {
+      "id": "unevaluated-distinct-from-blocked",
+      "type": "state-distinct",
+      "statement": "An unevaluated scenario is visually distinct from a blocked one.",
+      "tier": "aspirational",
+      "elements": [
+        "unevaluated-marker",
+        "eligibility-badge"
+      ],
+      "states": [
+        "partial",
+        "default"
+      ],
+      "rationale": "Reporting 'not evaluated' as 'blocked' attributes a system gap to the scenario owner."
+    },
+    {
+      "id": "readiness-reading-order",
+      "type": "reading-order",
+      "statement": "The row reads scenario, then eligibility, then blocking prerequisite.",
+      "tier": "aspirational",
+      "elements": [
+        "readiness-row",
+        "eligibility-badge",
+        "blocking-prerequisite"
+      ]
+    },
+    {
+      "id": "readiness-keyboard",
+      "type": "keyboard-reachable",
+      "statement": "Search, sort, and filter controls are keyboard reachable.",
+      "tier": "aspirational",
+      "elements": [
+        "scenario-search",
+        "sort-scenario",
+        "eligibility-filter"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "readiness-table": {
+        "testid": "readiness-table"
+      },
+      "readiness-row": {
+        "testid": "readiness-row"
+      },
+      "eligibility-badge": {
+        "testid": "eligibility-badge"
+      },
+      "blocking-prerequisite": {
+        "testid": "blocking-prerequisite"
+      },
+      "prerequisite-filter": {
+        "testid": "prerequisite-filter"
+      },
+      "eligibility-filter": {
+        "testid": "eligibility-filter"
+      },
+      "scenario-search": {
+        "testid": "scenario-search"
+      },
+      "sort-scenario": {
+        "testid": "sort-scenario"
+      },
+      "sort-eligibility": {
+        "testid": "sort-eligibility"
+      },
+      "empty-explainer": {
+        "testid": "empty-explainer"
+      },
+      "unevaluated-marker": {
+        "testid": "unevaluated-marker"
+      }
+    }
+  }
+}

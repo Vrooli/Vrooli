@@ -1,0 +1,122 @@
+{
+  "_metadata": {
+    "module": "desktop",
+    "description": "Cross-platform desktop architecture. First-release contract; completion follows requirement-linked behavior and retained protocol evidence.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "requirements": [
+    {
+      "id": "DS-DESKTOP-ARCHITECTURE",
+      "title": "The runtime shall separate portable semantics from platform adapters.",
+      "description": "The desktop/runtime contracts shall support Windows, macOS and Linux paths, process control, storage, secure-store and renderer availability with explicit per-platform capability states from the initial implementation.",
+      "prd_ref": "OT-P0-012",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "desktop",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-DESKTOP-ARCHITECTURE protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-DESKTOP-ARCHITECTURE",
+            "planned_automation": "Cross-platform build/contract tests and native platform matrix review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-DESKTOP-PACKAGE",
+      "title": "The desktop bundle shall run without the development checkout.",
+      "description": "The private bundle shall include required UI/API/state/composition and qualified FFmpeg/FFprobe artifacts and declared optional renderer/service packs using per-user mutable storage and immutable checked assets.",
+      "prd_ref": "OT-P0-012",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "desktop",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-DESKTOP-PACKAGE protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-DESKTOP-PACKAGE",
+            "planned_automation": "Fresh-user packaged smoke/offline/path and artifact-closure checks.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-DESKTOP-TOOLS",
+      "title": "The worker shall use qualified owner-managed renderer artifacts.",
+      "description": "Before rendering, the worker shall resolve pinned tool/runtime/library/kernel artifacts through existing provisioning owners and report hardware, compiled backend, enumeration, capacity admission and render qualification separately.",
+      "prd_ref": "OT-P0-012",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "desktop",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-DESKTOP-TOOLS protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-DESKTOP-TOOLS",
+            "planned_automation": "Tool capability/packaging tests and actual worker diagnostic render.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-DESKTOP-LIFECYCLE",
+      "title": "The desktop shall preserve data across offline restart and update.",
+      "description": "For each advertised platform, the packaged app shall qualify signed distribution, private loopback/lifecycle isolation, secure-store behavior, restart, update/migration and clean owned shutdown while preserving projects.",
+      "prd_ref": "OT-P0-012",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "desktop",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-DESKTOP-LIFECYCLE protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-DESKTOP-LIFECYCLE",
+            "planned_automation": "Per-platform install/update/offline/security lifecycle protocol.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    }
+  ]
+}

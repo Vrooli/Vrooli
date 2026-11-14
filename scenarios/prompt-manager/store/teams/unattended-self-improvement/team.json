@@ -1,0 +1,85 @@
+{
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "unattended-self-improvement-coordinator",
+    "reportingMode": "leader",
+    "messagingMode": "in-session",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "createdAt": "2026-09-13T21:55:43Z",
+  "displayName": "Unattended Self-Improvement",
+  "effortRefs": [
+    "workspace:/home/matthalloran8/Vrooli#unattended-self-improvement"
+  ],
+  "enabled": false,
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "id": "unattended-self-improvement",
+  "kind": "team",
+  "lifetime": "finite",
+  "mission": "Deliver the reviewed unattended self-improvement family: honest goal and sliced execution, interruption recovery, mandate plan shape, coherent operator surfaces and the dependent product launches.",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [],
+      "sharedState": [
+        {
+          "id": "managed-effort-home",
+          "path": {
+            "base": "external",
+            "path": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/unattended-self-improvement/README.md"
+          },
+          "kind": "rolling-snapshot",
+          "required": true
+        }
+      ]
+    },
+    "knowledgeTopics": {
+      "effort-wake/*": {
+        "ownerMemberId": "unattended-self-improvement-coordinator",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {
+      "unattended-self-improvement-coordinator": {
+        "lane": "Deliver the reviewed unattended-self-improvement family to its intent: honest goal/sliced execution, interruption recovery, mandate shape and operator surfaces, then the product launches on the reviewed frontier. Authoritative entry: /home/matthalloran8/.vrooli/plan-artifacts/efforts/unattended-self-improvement/README.md.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "safetyCriticalRules": [
+          "The effort reference is an attribution edge, not an authority grant.",
+          "Do not start, cancel, repair, or replace owner work without qualified control and the exact retained identity.",
+          "Do not resume this team or its legacy driver during migration; scheduling remains disabled until qualification is reviewed.",
+          "Retain exact effort, plan, run, task, revision, and evidence references in every handoff."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        }
+      }
+    }
+  },
+  "purpose": "delivery",
+  "revision": 4,
+  "runtime": {
+    "mode": "single-process"
+  },
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-24T11:52:50Z"
+}

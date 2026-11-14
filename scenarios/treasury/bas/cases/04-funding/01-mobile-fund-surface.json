@@ -1,0 +1,130 @@
+{
+  "metadata": {
+    "name": "cf5-mobile-fund-surface",
+    "description": "Given the Treasury Fund page is opened at a mobile viewport, when the receive-intent form is observed, then the funding controls and local-fork-only warning are visible without creating an intent or sending value.",
+    "requirement": "CF5",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "cf5-mobile-surface-only",
+      "showcase_status": "incomplete",
+      "spec_entry_id": "fund"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate-fund-mobile",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "treasury",
+          "scenario_path": "/fund",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open Fund at mobile viewport" }
+      }
+    },
+    {
+      "id": "wait-fund-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.fund",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Fund page visible" }
+      }
+    },
+    {
+      "id": "assert-fork-warning",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.fund",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": { "string_value": "This page does not publish a production funding address or authorize customer deposits." },
+          "timeout_ms": 5000,
+          "failure_message": "The mobile Fund surface must disclose that it is local-fork-only and does not authorize customer deposits."
+        },
+        "metadata": { "label": "Assert the local-fork and no-customer-deposit warning" }
+      }
+    },
+    {
+      "id": "assert-budget-control",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/funding.budgetId",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "A budget must be selectable for a receive intent."
+        },
+        "metadata": { "label": "Assert budget field exists" }
+      }
+    },
+    {
+      "id": "assert-amount-and-valuation-controls",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/funding.atomicAmount, @selector/funding.declaredValue",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Exact token amount and separate declared valuation fields must exist."
+        },
+        "metadata": { "label": "Assert exact-amount and separate-valuation fields exist" }
+      }
+    },
+    {
+      "id": "assert-ledger-destination-controls",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/funding.ledgerBookId, @selector/funding.ledgerAccountId",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Ledger book and account fields must exist for receipt allocation."
+        },
+        "metadata": { "label": "Assert ledger allocation fields exist" }
+      }
+    },
+    {
+      "id": "assert-create-intent-control",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/funding.createIntentButton",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "The receive-intent action must be present."
+        },
+        "metadata": { "label": "Assert receive-intent action exists" }
+      }
+    },
+    {
+      "id": "capture-mobile-fund-page",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": { "full_page": true },
+        "metadata": { "label": "Capture the mobile Fund surface for visual review" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-fund-mobile", "target": "wait-fund-page", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e2", "source": "wait-fund-page", "target": "assert-fork-warning", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e3", "source": "assert-fork-warning", "target": "assert-budget-control", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e4", "source": "assert-budget-control", "target": "assert-amount-and-valuation-controls", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e5", "source": "assert-amount-and-valuation-controls", "target": "assert-ledger-destination-controls", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e6", "source": "assert-ledger-destination-controls", "target": "assert-create-intent-control", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e7", "source": "assert-create-intent-control", "target": "capture-mobile-fund-page", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
+  ]
+}

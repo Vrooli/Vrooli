@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Treasury</title>
+  <desc id="description">A blue shield containing a balanced three-line ledger.</desc>
+  <defs>
+    <linearGradient id="shield" x1="96" y1="64" x2="416" y2="448" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#0891b2"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#shield)" d="M256 36 420 96v126c0 116-66 211-164 254C158 433 92 338 92 222V96L256 36Z"/>
+  <path fill="none" stroke="#e0f2fe" stroke-width="18" stroke-linejoin="round" d="M256 70 386 118v104c0 96-51 174-130 214-79-40-130-118-130-214V118L256 70Z" opacity=".9"/>
+  <g fill="#fff">
+    <rect x="174" y="164" width="164" height="28" rx="14"/>
+    <rect x="174" y="242" width="164" height="28" rx="14"/>
+    <rect x="174" y="320" width="164" height="28" rx="14"/>
+  </g>
+  <g fill="#bae6fd">
+    <circle cx="150" cy="178" r="14"/>
+    <circle cx="362" cy="256" r="14"/>
+    <circle cx="150" cy="334" r="14"/>
+  </g>
+</svg>

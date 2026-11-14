@@ -1,11 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import userEvent from "@testing-library/user-event";
 import { BottomSheet, BottomSheetAction } from "./bottom-sheet";
 
 describe("BottomSheet", () => {
   it("renders children when isOpen is true", () => {
-    render(
+    renderWithProviders(
       <BottomSheet isOpen onClose={vi.fn()}>
         <div>Sheet content</div>
       </BottomSheet>,
@@ -14,7 +15,7 @@ describe("BottomSheet", () => {
   });
 
   it("does not render when isOpen is false", () => {
-    render(
+    renderWithProviders(
       <BottomSheet isOpen={false} onClose={vi.fn()}>
         <div>Sheet content</div>
       </BottomSheet>,
@@ -23,7 +24,7 @@ describe("BottomSheet", () => {
   });
 
   it("renders title when provided", () => {
-    render(
+    renderWithProviders(
       <BottomSheet isOpen onClose={vi.fn()} title="Test Title">
         <div>content</div>
       </BottomSheet>,
@@ -34,7 +35,7 @@ describe("BottomSheet", () => {
   it("calls onClose when Escape key is pressed", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    render(
+    renderWithProviders(
       <BottomSheet isOpen onClose={onClose}>
         <div>content</div>
       </BottomSheet>,
@@ -47,7 +48,7 @@ describe("BottomSheet", () => {
   it("calls onClose when backdrop is clicked", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    render(
+    renderWithProviders(
       <BottomSheet isOpen onClose={onClose}>
         <div>content</div>
       </BottomSheet>,
@@ -58,7 +59,7 @@ describe("BottomSheet", () => {
   });
 
   it("has data-testid on the sheet container", () => {
-    render(
+    renderWithProviders(
       <BottomSheet isOpen onClose={vi.fn()}>
         <div>content</div>
       </BottomSheet>,
@@ -69,12 +70,12 @@ describe("BottomSheet", () => {
 
 describe("BottomSheetAction", () => {
   it("renders label", () => {
-    render(<BottomSheetAction label="Test Action" onClick={vi.fn()} />);
+    renderWithProviders(<BottomSheetAction label="Test Action" onClick={vi.fn()} />);
     expect(screen.getByText("Test Action")).toBeInTheDocument();
   });
 
   it("renders description when provided", () => {
-    render(
+    renderWithProviders(
       <BottomSheetAction label="Test" description="A description" onClick={vi.fn()} />,
     );
     expect(screen.getByText("A description")).toBeInTheDocument();
@@ -83,14 +84,14 @@ describe("BottomSheetAction", () => {
   it("calls onClick when clicked", async () => {
     const user = userEvent.setup();
     const onClick = vi.fn();
-    render(<BottomSheetAction label="Click me" onClick={onClick} />);
+    renderWithProviders(<BottomSheetAction label="Click me" onClick={onClick} />);
 
     await user.click(screen.getByText("Click me"));
     expect(onClick).toHaveBeenCalledOnce();
   });
 
   it("is disabled when disabled prop is true", () => {
-    render(<BottomSheetAction label="Disabled" onClick={vi.fn()} disabled />);
+    renderWithProviders(<BottomSheetAction label="Disabled" onClick={vi.fn()} disabled />);
     expect(screen.getByRole("button")).toBeDisabled();
   });
 });

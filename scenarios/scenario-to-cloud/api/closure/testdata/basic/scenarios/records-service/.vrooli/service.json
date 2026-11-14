@@ -1,0 +1,33 @@
+{
+  "service": {
+    "name": "records-service",
+    "version": "0.4.0"
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": true
+  },
+  "dependencies": {
+    "resources": {
+      "store": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start"
+      }
+    }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "fixture/records",
+        "field": "api-token",
+        "required": true
+      }
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://schemas.vrooli.dev/monetization.schema.json",
+  "version": 2,
+  "bundle_key": "business_suite",
+  "app_key": "system-monitor",
+  "requires_entitlement": false,
+  "features": [],
+  "meters": []
+}

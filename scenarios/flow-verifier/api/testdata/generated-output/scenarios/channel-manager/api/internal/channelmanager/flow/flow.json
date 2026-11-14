@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "channelmanager.action-lifecycle.api",
+  "domain": "channelmanager",
+  "description": "Scaffolded ActionLifecycle flow.",
+  "model": {
+    "module": "ActionLifecycleFlow",
+    "seed": "1",
+    "maxSteps": 4,
+    "traceCount": 4,
+    "verify": { "invariants": ["TypeOK"] }
+  },
+  "states": [
+    { "id": "idle", "quint": "Idle", "initial": true },
+    { "id": "ready", "quint": "Ready" }
+  ],
+  "events": [
+    { "id": "start", "quint": "Start" },
+    { "id": "reset", "quint": "Reset" }
+  ],
+  "transitionDefaults": {
+    "invalid": { "to": "self", "wantError": false }
+  },
+  "transitions": [
+    { "from": "idle", "event": "start", "to": "ready" },
+    { "from": "ready", "event": "reset", "to": "idle" }
+  ],
+  "invariants": [
+    { "id": "type_ok", "quint": "TypeOK", "description": "Types remain valid." }
+  ],
+  "traces": [
+    {
+      "name": "smoke",
+      "initial": "idle",
+      "steps": [
+        { "event": "start", "want": "ready", "wantError": false },
+        { "event": "reset", "want": "idle", "wantError": false }
+      ]
+    }
+  ],
+  "runtime": {
+    "go": {
+      "package": "flow",
+      "statusType": "Status",
+      "eventType": "Event",
+      "constantPrefix": "ActionLifecycle"
+    }
+  },
+  "replay": {
+    "transition": {
+      "function": "TransitionActionLifecycle",
+      "stateType": "State",
+      "statusField": "Status"
+    }
+  }
+}

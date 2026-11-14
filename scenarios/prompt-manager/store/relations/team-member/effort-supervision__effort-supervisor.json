@@ -1,0 +1,8 @@
+{
+  "kind": "team-member",
+  "schemaVersion": 1,
+  "teamId": "effort-supervision",
+  "agentId": "effort-supervisor",
+  "roles": ["effort-supervisor"],
+  "status": "active"
+}

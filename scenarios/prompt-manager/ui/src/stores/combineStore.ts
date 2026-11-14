@@ -12,7 +12,7 @@ import { loadPersistedSelection, savePersistedSelection, clearPersistedSelection
 
 export type CombineFormat = 'xml' | 'markdown' | 'json' | 'cli'
 export type CombineMode = 'skill-combine' | 'ai-select'
-export type CombineEntityType = 'skills' | 'agents' | 'teams' | 'topics'
+export type CombineEntityType = 'skills' | 'agents' | 'teams' | 'topics' | 'actions'
 
 interface CombineStore {
   // Mode state

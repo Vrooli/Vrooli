@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../.vrooli/schemas/monetization.schema.json",
+  "version": 2,
+  "bundle_key": "business_suite",
+  "app_key": "audio-tools",
+  "requires_entitlement": true,
+  "features": [],
+  "meters": [
+    {
+      "limit_key": "ai_credits",
+      "class": "A",
+      "byok": true,
+      "enforcement_paths": [
+        "api/internal/ai/sttchain/provider_vrooli.go",
+        "api/internal/ai/ttschain/provider_vrooli.go",
+        "api/internal/ai/summarizechain/provider_vrooli.go",
+        "api/integrations/lpbs/remote_reporter.go"
+      ]
+    },
+    {
+      "limit_key": "voice_minutes",
+      "class": "B",
+      "enforcement_paths": [
+        "api/internal/ai/ttschain/provider_vrooli.go",
+        "api/internal/ai/sttchain/provider_vrooli.go"
+      ]
+    }
+  ],
+  "ai_features": [
+    {
+      "id": "audio-tools.summarize",
+      "role": "chat",
+      "profile": "balanced",
+      "max_input_bytes": 65536,
+      "max_output_bytes": 32768,
+      "max_user_turns": 1,
+      "schema": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 8192
+      },
+      "pinned_instruction_digest": "00abc0e51f9a30cceec6de63577e62a1bdeb9856b46e863fc79cd9420b0e9bf7"
+    }
+  ]
+}

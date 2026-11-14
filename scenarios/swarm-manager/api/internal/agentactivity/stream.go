@@ -17,5 +17,5 @@ func (s *Service) dispatchStatusUpdate(record Record) {
 		"task_id":          record.TaskID,
 		"requested_at":     record.RequestedAt,
 	})
-	s.eventDispatcher.DispatchInvalidate("flow", "operations")
+	s.eventDispatcher.DispatchInvalidate("plan")
 }

@@ -7,8 +7,8 @@ This guide provides step-by-step diagnosis and fixes for common testing issues a
 ### Check Test Execution Status
 
 ```bash
-# Run tests and capture output
-test-genie execute my-scenario --preset comprehensive 2>&1 | tee test_output.log
+# Run the quick test preset
+test-genie execute my-scenario --preset quick
 
 # Check phase results
 cat coverage/phase-results/unit.json | jq '.status'
@@ -25,6 +25,25 @@ cat coverage/phase-results/unit.json | jq '.errors'
 | Tests pass locally, fail in CI | Environment differences | Verify CI environment matches |
 | Requirement not tracked | Missing `[REQ:ID]` tag | Add requirement tag to test |
 | Coverage shows 0% | Coverage not enabled | Check vitest/go test config |
+
+### Temp Scenario Links Fail
+
+**Symptoms:**
+```
+broken local link '../../../../docs/reference/port-allocation.md'
+```
+
+**Likely cause:** The suite is reading a generated scenario from a temp
+directory, but repo-relative validation was not given a logical placement.
+
+**Solution:**
+```bash
+test-genie execute template-validation-react-vite-deep \
+  --scenario-path /tmp/vrooli-template-deep-123/scenarios/template-validation-react-vite-deep \
+  --logical-repo-root /home/matthalloran8/Vrooli \
+  --logical-scenario-relpath scenarios/template-validation-react-vite-deep \
+  --preset quick
+```
 
 ## Docker & Container Issues
 
@@ -195,17 +214,13 @@ declare -x | grep -E "DATABASE|SQLITE|REDIS|API"
 
 **Solutions:**
 ```bash
-# Embedded SQLite scenarios
-export TEST_GENIE_SQLITE_PATH="$PWD/data/test-genie.db"
-
-# Generic SQLite fallback
-export SQLITE_PATH="$PWD/data/test-genie.db"
+# Embedded SQLite scenarios resolve their own database from the scenario id,
+# so there is nothing to point at a file. To isolate storage for a run,
+# redirect the whole class tree instead:
+export VROOLI_STORAGE_ROOT="$PWD/.tmp/isolated-storage"
 
 # Networked database scenarios
 export DATABASE_URL="postgresql://localhost:5432/testdb"
-
-# Use .env file
-echo "TEST_GENIE_SQLITE_PATH=$PWD/data/test-genie.db" >> .env
 ```
 
 ### Path Resolution Issues
@@ -326,8 +341,9 @@ ulimit -n
 # Proper cleanup in tests
 trap 'cleanup_resources' EXIT
 
-# Kill orphaned processes
-pkill -f test-process-name
+# Reconcile scenario-owned processes through the control plane
+vrooli scenario stop my-scenario
+vrooli scenario start my-scenario --clean-stale
 
 # Clean up containers
 docker ps -q | xargs -r docker rm -f
@@ -769,8 +785,8 @@ mkdir -p coverage/ui-smoke
 # Check permissions
 chmod 755 coverage
 
-# Verify browserless is running
-curl http://localhost:3000/json/version
+# Verify Browser Automation Studio is running
+vrooli scenario status browser-automation-studio
 ```
 
 ### Browser Connection Failures
@@ -778,19 +794,16 @@ curl http://localhost:3000/json/version
 **Symptoms:**
 ```
 Failed to connect to browser
-WebSocket connection failed
+BAS workflow engine unreachable
 ```
 
 **Solutions:**
 ```bash
-# Check browserless resource
-vrooli resource status browserless
+# Check Browser Automation Studio
+vrooli scenario status browser-automation-studio
 
-# Restart browserless
-vrooli resource restart browserless
-
-# Verify connection
-curl http://localhost:3000/health
+# Start it if needed (idempotent)
+vrooli scenario start browser-automation-studio
 ```
 
 ---
@@ -893,7 +906,7 @@ def db_session():
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| "browserless unavailable" | Resource down | `vrooli resource start browserless` |
+| "browser-automation-studio unavailable" | BAS down | `vrooli scenario start browser-automation-studio` |
 | "element not found" | UI changed | Update selectors |
 | "timeout exceeded" | Slow UI | Increase wait times |
 
@@ -925,16 +938,16 @@ def db_session():
 **Diagnosis:**
 ```bash
 # Check if scenario exists in catalog
-test-genie scenarios list | grep my-scenario
+vrooli scenario list
 
-# Verify scenario configuration
-cat scenarios/my-scenario/.vrooli/service.json | jq '.lifecycle.test'
+# Verify Test Genie configuration when the scenario customizes it
+jq . scenarios/my-scenario/.vrooli/testing.json
 ```
 
 **Solutions:**
 ```bash
-# Ensure scenario is registered
-test-genie scenarios refresh
+# Confirm the scenario is in the repository catalog
+vrooli scenario list
 
 # Check API is running
 curl http://localhost:${TEST_GENIE_PORT}/health
@@ -942,6 +955,8 @@ curl http://localhost:${TEST_GENIE_PORT}/health
 # Run with verbose output
 test-genie execute my-scenario --verbose
 ```
+
+If the scenario is missing, check its manifest and repository discovery path.
 
 ### Requirements Not Syncing
 
@@ -964,7 +979,7 @@ grep -r "\[REQ:" ui/src/**/*.test.ts
 test-genie execute my-scenario --preset comprehensive
 
 # Force sync manually
-test-genie sync my-scenario --force
+test-genie requirements sync --scenario "my-scenario"
 
 # Check reporter output
 cat ui/coverage/vitest-requirements.json | jq .
@@ -1008,11 +1023,13 @@ mkdir debug-info
 cp test_output.log debug-info/
 docker logs container-name > debug-info/docker.log 2>&1
 env > debug-info/environment.txt
-test-genie version > debug-info/version.txt
+test-genie version
 
 # Create archive
 zip -r debug-info.zip debug-info/
 ```
+
+Record the Test Genie version printed by the command with the debug bundle.
 
 ## Prevention Checklist
 
@@ -1048,10 +1065,10 @@ zip -r debug-info.zip debug-info/
 - [Architecture](../concepts/architecture.md) - Understand the system
 - [Requirements Sync](../phases/business/requirements-sync.md) - Debug requirement tracking issues
 - [Glossary](../GLOSSARY.md) - Look up unfamiliar terms
-- [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) - Writing effective tests
+- [Test Authoring Guide](/docs/testing/UNIT-TEST-AUTHORING.md) - Writing effective tests
 
 ### Reference
 - [CLI Commands](../reference/cli-commands.md) - CLI reference
 - [API Endpoints](../reference/api-endpoints.md) - API reference
-- [Test Runners](../phases/unit/test-runners.md) - Execution methods
+- [Testing Guide](/docs/TESTING.md) - Scenario and package test commands
 - [Phases Overview](../phases/README.md) - Phase specifications

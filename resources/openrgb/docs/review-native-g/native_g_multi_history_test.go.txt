@@ -1,0 +1,62 @@
+package resources
+
+import (
+ "context"
+ "errors"
+ "testing"
+
+ "github.com/vrooli/vrooli/internal/lightingruntime"
+)
+
+// Given two completed native replacements and a third uncertain publication,
+// Disable must retire the entire durable history, including terminal records.
+// A transient failure in an old record cannot preserve any later claim authority.
+func TestNativeGHistoricalRollbackAndUnknownPublicationDisable(t *testing.T) {
+ for _, target := range []string{openRGBPlatformDarwin,openRGBPlatformWindows} {
+  t.Run(target,func(t *testing.T) {
+   f:=newOpenRGBPublicFixtureFor(t,target)
+   control,model:=enablePublicLighting(t,f)
+   first:=f.admit(t,"g-forward")
+   got,err:=f.c.AdvanceManagedServiceUpdate(t.Context(),openRGBResourceName,first.RequestID,false)
+   if err!=nil || got.Phase!=UpdateSucceeded {t.Fatalf("first replacement %s %v",got.Phase,err)}
+   rollback,_,err:=f.c.AdmitManagedServiceUpdate(t.Context(),openRGBResourceName,ManagedServiceUpdateAdmission{RequestID:"g-rollback",ExpectedVersion:first.Rollback.Artifact.Version,ExpectedSHA256:first.Rollback.Artifact.SHA256,RollbackOf:first.RequestID})
+   if err!=nil {t.Fatal(err)}
+   got,err=f.c.AdvanceManagedServiceUpdate(t.Context(),openRGBResourceName,rollback.RequestID,false)
+   if err!=nil || got.Phase!=UpdateSucceeded {t.Fatalf("rollback %s %v",got.Phase,err)}
+   third:=f.admit(t,"g-third-unknown-publication")
+   publish:=f.c.updateEffects.publish
+   f.c.updateEffects.publish=func(ctx context.Context,u ManagedServiceUpdate,role string)error{
+    if err:=publish(ctx,u,role);err!=nil{return err};return ErrManagedUpdateCommitUnknown
+   }
+   pending,err:=f.c.AdvanceManagedServiceUpdate(t.Context(),openRGBResourceName,third.RequestID,false)
+   if !errors.Is(err,ErrManagedUpdateCommitUnknown) || pending.Phase!=UpdateCommitting {t.Fatalf("unknown publication %s %v",pending.Phase,err)}
+   starts,claims:=f.starts,f.execs
+   ledgerStore,err:=newManagedUpdateStore(openRGBResourceName);if err!=nil{t.Fatal(err)}
+   history,err:=ledgerStore.read();if err!=nil{t.Fatal(err)}
+   if len(history.Records)!=3 {t.Fatalf("lost durable history: %d",len(history.Records))}
+   cleanup:=f.c.updateEffects.cleanup
+   firstRole:=first.ID
+   attempts:=map[string]int{}
+   fail:=errors.New("old completed manager unavailable")
+   f.c.updateEffects.cleanup=func(ctx context.Context,u ManagedServiceUpdate,p ManagedUpdateProcess)error{
+    if p.Intent!=nil {attempts[u.ID+"/"+p.Intent.InstanceID]++;if u.ID==firstRole{return fail}}
+    return cleanup(ctx,u,p)
+   }
+   if err=control.Disable(t.Context());!errors.Is(err,fail){t.Fatalf("partial history cleanup acknowledged: %v",err)}
+   intent,err:=control.Current();if err!=nil || intent.Phase!=lightingruntime.Disabling || model.bound!="" {t.Fatalf("opt-out lost: %s bound=%q %v",intent.Phase,model.bound,err)}
+   for _,entry:=range history.Records {for _,p:=range openRGBUpdateRoles(entry.State){
+    if p.Intent==nil{continue}
+    if attempts[entry.State.ID+"/"+p.Intent.InstanceID]==0{t.Fatalf("skipped retained record %s role %s",entry.State.ID,p.Intent.InstanceID)}
+    fs,e:=newManagedUpdateExecStore(openRGBResourceName,entry.State.ID,p.Intent.InstanceID);if e!=nil{t.Fatal(e)}
+    fence,e:=fs.read();if e!=nil || fence.State!=managedUpdateExecFenceRevoked || fence.Claim==nil{t.Fatalf("retained consumed fence not revoked: %v",e)}
+    if _,e=fs.ClaimOpenRGB(t.Context(),fence,*fence.Claim,*fence.OpenRGBWitness);!errors.Is(e,ErrManagedUpdateExecRevoked){t.Fatalf("history replay: %v",e)}
+   }}
+   f.c.updateEffects.cleanup=cleanup
+   if err=control.Disable(t.Context());err!=nil{t.Fatal(err)}
+   if err=control.Reconcile(t.Context());err!=nil{t.Fatal(err)}
+   if err=f.c.ResumeManagedServiceUpdates(t.Context());err!=nil{t.Fatal(err)}
+   intent,err=control.Current();if err!=nil || intent.Phase!=lightingruntime.Disabled || f.starts!=starts || f.execs!=claims || len(f.active)!=0{t.Fatalf("disable replay effects: phase=%s start=%d claim=%d active=%d %v",intent.Phase,f.starts,f.execs,len(f.active),err)}
+   if _,err=f.c.AdvanceManagedServiceUpdate(t.Context(),openRGBResourceName,third.RequestID,false);err==nil{t.Fatal("disabled uncertain publication advanced")}
+  })
+ }
+}

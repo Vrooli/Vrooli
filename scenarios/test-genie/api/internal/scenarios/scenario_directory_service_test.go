@@ -47,15 +47,13 @@ func TestScenarioDirectoryServiceListSummariesHydratesCatalog(t *testing.T) {
 	repo := &fakeScenarioRepo{
 		listSummaries: []ScenarioSummary{
 			{
-				ScenarioName:    "ecosystem-manager",
-				PendingRequests: 2,
-				TotalRequests:   3,
+				ScenarioName: "swarm-manager",
 			},
 		},
 	}
 	lister := &fakeScenarioLister{
 		items: []ScenarioMetadata{
-			{Name: "ecosystem-manager", Description: "Ops hub", Status: "running"},
+			{Name: "swarm-manager", Description: "Ops hub", Status: "running"},
 			{Name: "test-genie", Description: "AI testing", Status: "stopped"},
 		},
 	}
@@ -70,7 +68,7 @@ func TestScenarioDirectoryServiceListSummariesHydratesCatalog(t *testing.T) {
 	}
 
 	first := results[0]
-	if first.ScenarioName != "ecosystem-manager" || first.ScenarioDescription != "Ops hub" {
+	if first.ScenarioName != "swarm-manager" || first.ScenarioDescription != "Ops hub" {
 		t.Fatalf("expected metadata to hydrate tracked scenario: %#v", first)
 	}
 
@@ -78,14 +76,14 @@ func TestScenarioDirectoryServiceListSummariesHydratesCatalog(t *testing.T) {
 	if second.ScenarioName != "test-genie" {
 		t.Fatalf("expected CLI-only scenario to be included, got %#v", second)
 	}
-	if second.TotalExecutions != 0 || second.TotalRequests != 0 {
+	if second.TotalExecutions != 0 {
 		t.Fatalf("expected zeroed stats for new scenario: %#v", second)
 	}
 }
 
 func TestScenarioDirectoryServiceListSummariesFallsBackOnListerError(t *testing.T) {
 	repo := &fakeScenarioRepo{
-		listSummaries: []ScenarioSummary{{ScenarioName: "ecosystem-manager"}},
+		listSummaries: []ScenarioSummary{{ScenarioName: "swarm-manager"}},
 	}
 	lister := &fakeScenarioLister{err: errors.New("boom")}
 
@@ -94,7 +92,7 @@ func TestScenarioDirectoryServiceListSummariesFallsBackOnListerError(t *testing.
 	if err != nil {
 		t.Fatalf("expected fallback list, got error: %v", err)
 	}
-	if len(results) != 1 || results[0].ScenarioName != "ecosystem-manager" {
+	if len(results) != 1 || results[0].ScenarioName != "swarm-manager" {
 		t.Fatalf("unexpected fallback results: %#v", results)
 	}
 }
@@ -216,12 +214,13 @@ func TestScenarioDirectoryServiceRunScenarioTestsValidation(t *testing.T) {
 }
 
 func TestScenarioDirectoryServiceRunScenarioTestsRunnerFailure(t *testing.T) {
+	t.Setenv("TEST_GENIE_DISABLE", "1")
 	root := t.TempDir()
 	scenarioDir := filepath.Join(root, "demo")
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "test"), 0o755); err != nil {
-		t.Fatalf("mkdir test dir: %v", err)
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "coverage"), 0o755); err != nil {
+		t.Fatalf("mkdir coverage dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "test", "run-tests.sh"), []byte("#!/usr/bin/env bash"), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(scenarioDir, "coverage", "run-tests.sh"), []byte("#!/usr/bin/env bash"), 0o755); err != nil {
 		t.Fatalf("write run-tests: %v", err)
 	}
 	svc := NewScenarioDirectoryService(&fakeScenarioRepo{}, nil, root)

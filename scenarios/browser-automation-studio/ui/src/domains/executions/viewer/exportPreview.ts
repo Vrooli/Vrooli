@@ -2,13 +2,17 @@ import {
   type ExecutionExportPreview as ProtoExecutionExportPreview,
   ExecutionExportPreviewSchema,
 } from "@vrooli/proto-types/browser-automation-studio/v1/execution/execution_pb";
-import type { ReplayMovieSpec } from "@/types/export";
+import type { ReplaySpec as ReplayMovieSpec } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
+import { ReplaySpecSchema } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 import {
   mapExportPreviewStatus,
   type ExportPreviewStatusLabel,
 } from "@/domains/exports/presentation";
 import { getConfig } from "@/config";
 import { parseProtoStrict } from "@/utils/proto";
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
 
 export interface ExportPreviewMetrics {
   capturedFrames: number;
@@ -24,16 +28,12 @@ export const parseExportPreviewPayload = (
   metrics: ExportPreviewMetrics;
   movieSpec: ReplayMovieSpec | null;
 } => {
-  const rawRecord =
-    raw && typeof raw === "object" && !Array.isArray(raw)
-      ? (raw as Record<string, unknown>)
-      : null;
+  const rawRecord = isRecord(raw) ? raw : null;
 
   const rawMovieSpec = rawRecord?.package ?? null;
-  const rawForProto = rawRecord ? { ...rawRecord } : raw;
-  if (rawRecord) {
-    delete (rawForProto as Record<string, unknown>).package;
-  }
+  const rawForProto = rawRecord
+    ? Object.fromEntries(Object.entries(rawRecord).filter(([key]) => key !== "package"))
+    : raw;
 
   const preview = parseProtoStrict<ProtoExecutionExportPreview>(
     ExecutionExportPreviewSchema,
@@ -53,10 +53,14 @@ export const parseExportPreviewPayload = (
       : 0,
   };
 
-  const movieSpec =
-    rawMovieSpec && typeof rawMovieSpec === "object" && !Array.isArray(rawMovieSpec)
-      ? (rawMovieSpec as ReplayMovieSpec)
-      : null;
+  let movieSpec: ReplayMovieSpec | null = null;
+  if (rawMovieSpec && typeof rawMovieSpec === "object" && !Array.isArray(rawMovieSpec)) {
+    try {
+      movieSpec = parseProtoStrict<ReplayMovieSpec>(ReplaySpecSchema, rawMovieSpec);
+    } catch {
+      movieSpec = null;
+    }
+  }
 
   return { preview, status, metrics, movieSpec };
 };

@@ -1,6 +1,6 @@
 # Redis Configuration Template for Vrooli Resources
 # This file is generated automatically - do not edit directly
-# Edit defaults.sh to change configuration values
+# Resource configuration is declared by resource.json and runtime settings.
 
 # Network Configuration
 bind {{REDIS_BIND}}
@@ -15,7 +15,7 @@ daemonize no
 supervised no
 pidfile /var/run/redis_6379.pid
 loglevel {{REDIS_LOGLEVEL}}
-# logfile disabled - Redis will log to stdout for Docker
+# logfile disabled - Redis logs to the Vrooli-managed supervisor log
 databases {{REDIS_DATABASES}}
 
 # Memory Management

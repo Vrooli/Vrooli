@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "monetization.entitlement-error-card",
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.3",
+    "1.0.4"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.2",
+    "1.0.3",
+    "1.0.4"
+  ],
+  "latest": "1.0.7",
+  "libraryId": "react-component-library:EntitlementErrorCard",
+  "displayName": "EntitlementErrorCard",
+  "description": "An explicit recovery-oriented entitlement error surface.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
+}

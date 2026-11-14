@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package vrooli.document_manager.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/shared;shared_v1";
+
+enum PrivacyClass {
+  PRIVACY_CLASS_UNSPECIFIED = 0;
+  PRIVACY_CLASS_PUBLIC = 1;
+  PRIVACY_CLASS_INTERNAL = 2;
+  PRIVACY_CLASS_CONFIDENTIAL = 3;
+  PRIVACY_CLASS_SECRET = 4;
+}
+
+enum AnchorKind {
+  ANCHOR_KIND_UNSPECIFIED = 0;
+  ANCHOR_KIND_LOGICAL = 1;
+  ANCHOR_KIND_GEOMETRIC = 2;
+  ANCHOR_KIND_TABULAR = 3;
+}
+
+enum Tier {
+  TIER_UNSPECIFIED = 0;
+  TIER_ONE = 1;
+  TIER_TWO = 2;
+  TIER_THREE = 3;
+}
+
+enum TerminalState {
+  TERMINAL_STATE_UNSPECIFIED = 0;
+  TERMINAL_STATE_PARSED = 1;
+  TERMINAL_STATE_NO_HANDLER_FOR_FORMAT = 2;
+  TERMINAL_STATE_HANDLER_UNAVAILABLE = 3;
+  TERMINAL_STATE_HANDLER_FAILED = 4;
+  TERMINAL_STATE_BLOCKED_BY_POLICY = 5;
+  TERMINAL_STATE_UNSUPPORTED_VARIANT = 6;
+}

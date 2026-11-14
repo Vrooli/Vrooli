@@ -36,9 +36,14 @@ type BrowserProfile struct {
 	Proxy *ProxySettings `protobuf:"bytes,5,opt,name=proxy,proto3,oneof" json:"proxy,omitempty"`
 	// Custom HTTP headers sent with every request.
 	// Keys like "Host", "Content-Length", and "Cookie" are blocked.
-	ExtraHeaders  map[string]string `protobuf:"bytes,6,rep,name=extra_headers,json=extraHeaders,proto3" json:"extra_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ExtraHeaders map[string]string `protobuf:"bytes,6,rep,name=extra_headers,json=extraHeaders,proto3" json:"extra_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Capture-only preference for CSS prefers-reduced-motion emulation.
+	MotionPreference *string `protobuf:"bytes,7,opt,name=motion_preference,json=motionPreference,proto3,oneof" json:"motion_preference,omitempty"` // no-preference, reduce
+	// Capture-only interaction state label. The capture orchestrator may pair
+	// this with an interaction flow before the final snapshot.
+	InteractionState *string `protobuf:"bytes,8,opt,name=interaction_state,json=interactionState,proto3,oneof" json:"interaction_state,omitempty"` // rest, hover, focus-visible, pressed, disabled
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *BrowserProfile) Reset() {
@@ -111,6 +116,20 @@ func (x *BrowserProfile) GetExtraHeaders() map[string]string {
 		return x.ExtraHeaders
 	}
 	return nil
+}
+
+func (x *BrowserProfile) GetMotionPreference() string {
+	if x != nil && x.MotionPreference != nil {
+		return *x.MotionPreference
+	}
+	return ""
+}
+
+func (x *BrowserProfile) GetInteractionState() string {
+	if x != nil && x.InteractionState != nil {
+		return *x.InteractionState
+	}
+	return ""
 }
 
 // FingerprintSettings controls browser identity and device characteristics.
@@ -704,14 +723,16 @@ var File_browser_automation_studio_v1_base_browser_profile_proto protoreflect.Fi
 
 const file_browser_automation_studio_v1_base_browser_profile_proto_rawDesc = "" +
 	"\n" +
-	"7browser-automation-studio/v1/base/browser_profile.proto\x12\x1cbrowser_automation_studio.v1\"\xec\x04\n" +
+	"7browser-automation-studio/v1/base/browser_profile.proto\x12\x1cbrowser_automation_studio.v1\"\xfc\x05\n" +
 	"\x0eBrowserProfile\x12\x1b\n" +
 	"\x06preset\x18\x01 \x01(\tH\x00R\x06preset\x88\x01\x01\x12X\n" +
 	"\vfingerprint\x18\x02 \x01(\v21.browser_automation_studio.v1.FingerprintSettingsH\x01R\vfingerprint\x88\x01\x01\x12O\n" +
 	"\bbehavior\x18\x03 \x01(\v2..browser_automation_studio.v1.BehaviorSettingsH\x02R\bbehavior\x88\x01\x01\x12_\n" +
 	"\x0eanti_detection\x18\x04 \x01(\v23.browser_automation_studio.v1.AntiDetectionSettingsH\x03R\rantiDetection\x88\x01\x01\x12F\n" +
 	"\x05proxy\x18\x05 \x01(\v2+.browser_automation_studio.v1.ProxySettingsH\x04R\x05proxy\x88\x01\x01\x12c\n" +
-	"\rextra_headers\x18\x06 \x03(\v2>.browser_automation_studio.v1.BrowserProfile.ExtraHeadersEntryR\fextraHeaders\x1a?\n" +
+	"\rextra_headers\x18\x06 \x03(\v2>.browser_automation_studio.v1.BrowserProfile.ExtraHeadersEntryR\fextraHeaders\x120\n" +
+	"\x11motion_preference\x18\a \x01(\tH\x05R\x10motionPreference\x88\x01\x01\x120\n" +
+	"\x11interaction_state\x18\b \x01(\tH\x06R\x10interactionState\x88\x01\x01\x1a?\n" +
 	"\x11ExtraHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\t\n" +
@@ -719,7 +740,9 @@ const file_browser_automation_studio_v1_base_browser_profile_proto_rawDesc = "" 
 	"\f_fingerprintB\v\n" +
 	"\t_behaviorB\x11\n" +
 	"\x0f_anti_detectionB\b\n" +
-	"\x06_proxy\"\xdc\x06\n" +
+	"\x06_proxyB\x14\n" +
+	"\x12_motion_preferenceB\x14\n" +
+	"\x12_interaction_state\"\xdc\x06\n" +
 	"\x13FingerprintSettings\x12*\n" +
 	"\x0eviewport_width\x18\x01 \x01(\x05H\x00R\rviewportWidth\x88\x01\x01\x12,\n" +
 	"\x0fviewport_height\x18\x02 \x01(\x05H\x01R\x0eviewportHeight\x88\x01\x01\x123\n" +

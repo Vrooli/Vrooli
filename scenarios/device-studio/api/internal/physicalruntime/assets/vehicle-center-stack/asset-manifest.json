@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "status": "candidate_only_unqualified",
+  "artifact_id": "vrooli-generic-vehicle-center-stack-concept-v1",
+  "output": {
+    "path": "scenarios/device-studio/api/internal/physicalruntime/assets/vehicle-center-stack/generic-center-stack.glb",
+    "sha256": "37fc41e26e5c5f616f78fe68dfbd88cbbce6bfb0038754a65a20783684239ce9",
+    "size_bytes": 18504
+  },
+  "authorship": {
+    "creator": "Vrooli",
+    "license": "AGPL-3.0-only",
+    "identity": "Generic authored center-stack/display concept; no BMW or vehicle-product identity, CAD, endorsement, or compatibility claim."
+  },
+  "design_envelope_mm": [380, 250, 120],
+  "geometry": {
+    "screen_node": "CenterDisplay",
+    "screen_dimensions_mm": [292, 126],
+    "controls": "Two authored vent recesses, four rotary controls, three physical buttons",
+    "review_pose": "Tabletop review candidate only; no vehicle-specific mount or driver ergonomics."
+  },
+  "comparison_references": [
+    {
+      "url": "https://www.press.bmwgroup.com/latin-america-caribbean/article/attachment/T0334110EN/480999",
+      "use": "Cockpit layout/styling context only; no BMW dimensions or compatibility are derived."
+    },
+    {
+      "url": "https://developer.apple.com/design/human-interface-guidelines/carplay",
+      "use": "Public CarPlay design guidance informs a separately supplied simulated-screen presentation only; no Apple marks or runtime compatibility."
+    },
+    {
+      "url": "https://developer.android.com/training/cars/apps/library",
+      "use": "Public Android for Cars app-library guidance informs a separately supplied simulated-screen presentation only; no Android Auto runtime compatibility."
+    }
+  ],
+  "reproduction": {
+    "command": "python3 scenarios/device-studio/assets/sources/screen-device-concepts-20261021/derive_candidates.py",
+    "script_sha256": "b38f24de7169a183e4f3d69e400825cfa9823c7e10e0bd730361ae7828bb30b1"
+  },
+  "presentation_profiles": [
+    {"id": "carplay_simulated", "status": "candidate_only", "content": "A user-supplied screen raster styled from public guidance; it is not the CarPlay system or an Apple application."},
+    {"id": "android_auto_simulated", "status": "candidate_only", "content": "A user-supplied screen raster styled from public guidance; it is not Android Auto or a Google application."}
+  ],
+  "qualification_limits": [
+    "Screen style presets are review labels and saved physical setup references; the profile image remains separately selected project media.",
+    "No in-vehicle mounting, vehicle compatibility, controls, safety/distraction review, functional platform, physical dimensions, or qualification is claimed."
+  ]
+}

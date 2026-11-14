@@ -1,0 +1,57 @@
+{
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "title": "Skill Catalog Sync",
+  "description": "Mirror the steer-skill catalog from prompt-manager. Records skill id, current version, and content hash. Refresh on demand; expose drift since last sync.",
+  "requirements": [
+    {
+      "id": "REQ-P0-003",
+      "prd_ref": "OT-P0-002",
+      "title": "prompt-manager API client",
+      "description": "Read-only client (Connect-RPC if exposed, otherwise CLI shell-out) that lists steer skills with version + content hash. Filters out non-steer skills (workflow skills like implementation-plan-authoring, idea-workshop, deployment-coordinator, skill-authoring).",
+      "category": "integration",
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/integrations/prompt_manager/skill_catalog_rest_test.go::TestFetch_HappyPath",
+          "status": "passing",
+          "notes": "REST adapter lists skills with version + content hash from prompt-manager /skills/sync."
+        },
+        {
+          "type": "e2e",
+          "phase": "integration",
+          "ref": "development-toolchain-validator skill-catalog sync",
+          "status": "passing",
+          "notes": "153 skills synced from prompt-manager live 2026-05-29."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-004",
+      "prd_ref": "OT-P0-002",
+      "title": "Skill catalog snapshot storage + drift surface",
+      "description": "SQLite-backed snapshot under api/internal/skillcatalog. Compare current sync against previous snapshot; expose 'changed since last sync' list for downstream staleness derivation (OT-P0-007).",
+      "category": "storage",
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/skill_catalog/sqlite_test.go::TestUpsert_InsertsNewRow",
+          "status": "passing",
+          "notes": "Snapshot rows upsert idempotently into SQLite."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/skill_catalog/service_test.go::TestSync_AddsNewSkills",
+          "status": "passing",
+          "notes": "Sync reconciles added/updated/removed skills (drift surface)."
+        }
+      ]
+    }
+  ]
+}

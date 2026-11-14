@@ -1,0 +1,150 @@
+{
+  "_metadata": {
+    "module": "commerce",
+    "description": "Local use and normal Vrooli commerce. First-release contract; completion follows requirement-linked behavior and retained protocol evidence.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "requirements": [
+    {
+      "id": "DS-COMMERCE-PERSONAL",
+      "title": "The application shall preserve personal-local capability.",
+      "description": "While using personal-local or offline mode, users shall open/edit/import/render/export eligible local projects without website sign-in or full-fleet availability and see precise unavailable reasons for optional services.",
+      "prd_ref": "OT-P0-011",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "commerce",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-COMMERCE-PERSONAL protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-COMMERCE-PERSONAL",
+            "planned_automation": "Offline/signed-out and dependency-unavailable journeys.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-COMMERCE-LINK",
+      "title": "The account adapter shall use scoped commercial linkage.",
+      "description": "When optional paid services are connected, the adapter shall use canonical identity and selected-account linking, fully verify principal/account/install/resource/audience/link/scopes and expiry, and handle switch/unlink/revocation through owners.",
+      "prd_ref": "OT-P0-011",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "commerce",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-COMMERCE-LINK protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-COMMERCE-LINK",
+            "planned_automation": "Identity-binding/PKCE/replay/revocation and packaged account journeys.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-COMMERCE-FUNDING",
+      "title": "The service adapter shall preserve local BYOK and funded boundaries.",
+      "description": "For optional Vrooli-funded execution, trusted owners shall authorize account-bound reserve/execute/settle and expose insufficient-credit and pending-cost states; BYOK shall use secure owner credentials without duplicate platform provider charges.",
+      "prd_ref": "OT-P0-011",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "commerce",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-COMMERCE-FUNDING protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-COMMERCE-FUNDING",
+            "planned_automation": "Funding/adaptor contract tests and later configured capped owner journey.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-COMMERCE-DELIVERY",
+      "title": "The product shall separate paid acquisition from local execution.",
+      "description": "Official downloadable desktop acquisition and updates shall use the declared LPBS delivery entitlement and catalog while already available local capability follows its own offline policy.",
+      "prd_ref": "OT-P0-011",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "commerce",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-COMMERCE-DELIVERY protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-COMMERCE-DELIVERY",
+            "planned_automation": "Delivery authorization and fresh-install/offline journey tests.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-COMMERCE-PRICING",
+      "title": "The UI shall use authoritative commercial display values.",
+      "description": "When displaying plan, price, allowance or usage, the system shall read the configured owner contract and preserve unknown/stale/pending states without inventing prices, credit conversions, bundle membership or a new wallet.",
+      "prd_ref": "OT-P0-011",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "commerce",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-COMMERCE-PRICING protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-COMMERCE-PRICING",
+            "planned_automation": "Account UI projection and stale/unknown owner-response tests.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    }
+  ]
+}

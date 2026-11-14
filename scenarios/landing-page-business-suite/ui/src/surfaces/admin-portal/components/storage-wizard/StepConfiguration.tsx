@@ -100,7 +100,7 @@ export function StepConfiguration({
         <Callout
           type="info"
           message={setupCalloutMessage}
-          actions={[{ label: 'Setup guide', onClick: () => setShowSetupHelp(true) }]}
+          actions={[{ label: 'Setup guide', onClick: () => { setShowSetupHelp(true); } }]}
         />
       )}
 
@@ -112,7 +112,7 @@ export function StepConfiguration({
           </label>
           <input
             value={form.bucket}
-            onChange={(e) => onFormChange({ bucket: e.target.value })}
+            onChange={(e) => { onFormChange({ bucket: e.target.value }); }}
             className={inputBaseClassName}
             placeholder={
               provider === 'cloudflare-r2'
@@ -133,7 +133,7 @@ export function StepConfiguration({
             <label className="text-sm font-medium text-slate-300">Region</label>
             <select
               value={form.region}
-              onChange={(e) => onFormChange({ region: e.target.value })}
+              onChange={(e) => { onFormChange({ region: e.target.value }); }}
               className={inputBaseClassName}
             >
               {AWS_REGIONS.map((region) => (
@@ -156,7 +156,7 @@ export function StepConfiguration({
             </label>
             <input
               value={cloudflareAccountId}
-              onChange={(e) => onCloudflareAccountIdChange(e.target.value)}
+              onChange={(e) => { onCloudflareAccountIdChange(e.target.value); }}
               className={inputBaseClassName}
               placeholder="abc123def456"
             />
@@ -181,7 +181,7 @@ export function StepConfiguration({
               </label>
               <input
                 value={form.endpoint}
-                onChange={(e) => onFormChange({ endpoint: e.target.value })}
+                onChange={(e) => { onFormChange({ endpoint: e.target.value }); }}
                 className={inputBaseClassName}
                 placeholder="https://minio.example.com:9000"
               />
@@ -195,7 +195,7 @@ export function StepConfiguration({
                 <input
                   type="checkbox"
                   checked={form.forcePathStyle}
-                  onChange={(e) => onFormChange({ forcePathStyle: e.target.checked })}
+                  onChange={(e) => { onFormChange({ forcePathStyle: e.target.checked }); }}
                   className="rounded border-white/20 bg-transparent text-emerald-400 focus:ring-emerald-400"
                 />
                 <div>
@@ -216,7 +216,7 @@ export function StepConfiguration({
               <label className="text-sm font-medium text-slate-300">Endpoint URL</label>
               <input
                 value={form.endpoint}
-                onChange={(e) => onFormChange({ endpoint: e.target.value })}
+                onChange={(e) => { onFormChange({ endpoint: e.target.value }); }}
                 className={inputBaseClassName}
                 placeholder="https://s3.provider.com"
               />
@@ -229,7 +229,7 @@ export function StepConfiguration({
               <label className="text-sm font-medium text-slate-300">Region</label>
               <input
                 value={form.region}
-                onChange={(e) => onFormChange({ region: e.target.value })}
+                onChange={(e) => { onFormChange({ region: e.target.value }); }}
                 className={inputBaseClassName}
                 placeholder="us-east-1 or auto"
               />
@@ -243,7 +243,7 @@ export function StepConfiguration({
                 <input
                   type="checkbox"
                   checked={form.forcePathStyle}
-                  onChange={(e) => onFormChange({ forcePathStyle: e.target.checked })}
+                  onChange={(e) => { onFormChange({ forcePathStyle: e.target.checked }); }}
                   className="rounded border-white/20 bg-transparent text-emerald-400 focus:ring-emerald-400"
                 />
                 <div>
@@ -262,7 +262,7 @@ export function StepConfiguration({
           <label className="text-sm font-medium text-slate-300">Default prefix</label>
           <input
             value={form.defaultPrefix}
-            onChange={(e) => onFormChange({ defaultPrefix: e.target.value })}
+            onChange={(e) => { onFormChange({ defaultPrefix: e.target.value }); }}
             className={inputBaseClassName}
             placeholder="downloads/"
           />
@@ -275,7 +275,7 @@ export function StepConfiguration({
       {provider !== 'custom' && (
         <HelpModal
           open={showSetupHelp}
-          onClose={() => setShowSetupHelp(false)}
+          onClose={() => { setShowSetupHelp(false); }}
           title={getSetupHelpTitle()}
         >
           {getSetupHelpContent()}

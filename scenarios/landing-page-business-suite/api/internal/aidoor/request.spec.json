@@ -1,0 +1,421 @@
+{
+  "flowId": "aidoor.request.api",
+  "domain": "aidoor",
+  "description": "LPBS request orchestration. Wallet reservations and Gateway receipts remain the only durable authorities; reconstruction begins reconciling and never dispatches.",
+  "states": [
+    {
+      "id": "accepted",
+      "quint": "Accepted",
+      "initial": true
+    },
+    {
+      "id": "planned",
+      "quint": "Planned"
+    },
+    {
+      "id": "reserved",
+      "quint": "Reserved"
+    },
+    {
+      "id": "streaming",
+      "quint": "Streaming"
+    },
+    {
+      "id": "reconciling",
+      "quint": "Reconciling"
+    },
+    {
+      "id": "receipt",
+      "quint": "Receipt"
+    },
+    {
+      "id": "settled",
+      "quint": "Settled",
+      "terminal": true
+    },
+    {
+      "id": "failed",
+      "quint": "Failed",
+      "terminal": true
+    }
+  ],
+  "events": [
+    {
+      "id": "plan",
+      "quint": "Plan"
+    },
+    {
+      "id": "reserve",
+      "quint": "Reserve"
+    },
+    {
+      "id": "dispatch",
+      "quint": "Dispatch"
+    },
+    {
+      "id": "recover",
+      "quint": "Recover"
+    },
+    {
+      "id": "disconnect",
+      "quint": "Disconnect"
+    },
+    {
+      "id": "receive",
+      "quint": "Receive"
+    },
+    {
+      "id": "commit",
+      "quint": "Commit"
+    },
+    {
+      "id": "defer",
+      "quint": "Defer"
+    },
+    {
+      "id": "reject",
+      "quint": "Reject"
+    },
+    {
+      "id": "release",
+      "quint": "Release"
+    }
+  ],
+  "transitionDefaults": {
+    "invalid": {
+      "to": "self",
+      "wantError": true
+    },
+    "terminal": {
+      "to": "self",
+      "wantError": true
+    }
+  },
+  "transitions": [
+    {
+      "from": "accepted",
+      "event": "plan",
+      "to": "planned"
+    },
+    {
+      "from": "planned",
+      "event": "reserve",
+      "to": "reserved"
+    },
+    {
+      "from": "reserved",
+      "event": "dispatch",
+      "to": "streaming"
+    },
+    {
+      "from": "reserved",
+      "event": "recover",
+      "to": "reconciling"
+    },
+    {
+      "from": "streaming",
+      "event": "disconnect",
+      "to": "streaming"
+    },
+    {
+      "from": "streaming",
+      "event": "receive",
+      "to": "receipt"
+    },
+    {
+      "from": "reconciling",
+      "event": "receive",
+      "to": "receipt"
+    },
+    {
+      "from": "receipt",
+      "event": "commit",
+      "to": "settled"
+    },
+    {
+      "from": "reserved",
+      "event": "defer",
+      "to": "reconciling"
+    },
+    {
+      "from": "streaming",
+      "event": "defer",
+      "to": "reconciling"
+    },
+    {
+      "from": "receipt",
+      "event": "defer",
+      "to": "reconciling"
+    },
+    {
+      "from": "accepted",
+      "event": "reject",
+      "to": "failed"
+    },
+    {
+      "from": "planned",
+      "event": "reject",
+      "to": "failed"
+    },
+    {
+      "from": "reserved",
+      "event": "release",
+      "to": "failed"
+    },
+    {
+      "from": "streaming",
+      "event": "release",
+      "to": "failed"
+    }
+  ],
+  "invariants": [
+    {
+      "id": "type_ok",
+      "quint": "TypeOK",
+      "description": "The orchestration uses only declared states and events."
+    },
+    {
+      "id": "terminal_closure",
+      "quint": "TerminalClosure",
+      "description": "A settled or definitively rejected request cannot dispatch or settle again."
+    },
+    {
+      "id": "illegal_transitions_preserve_state",
+      "quint": "IllegalTransitionsPreserveState",
+      "description": "Rejected events preserve the current request state."
+    }
+  ],
+  "traces": [
+    {
+      "name": "stream_and_settle",
+      "initial": "accepted",
+      "steps": [
+        {
+          "event": "plan",
+          "want": "planned",
+          "wantError": false
+        },
+        {
+          "event": "reserve",
+          "want": "reserved",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "streaming",
+          "wantError": false
+        },
+        {
+          "event": "receive",
+          "want": "receipt",
+          "wantError": false
+        },
+        {
+          "event": "commit",
+          "want": "settled",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "disconnect_then_settle",
+      "initial": "accepted",
+      "steps": [
+        {
+          "event": "plan",
+          "want": "planned",
+          "wantError": false
+        },
+        {
+          "event": "reserve",
+          "want": "reserved",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "streaming",
+          "wantError": false
+        },
+        {
+          "event": "disconnect",
+          "want": "streaming",
+          "wantError": false
+        },
+        {
+          "event": "receive",
+          "want": "receipt",
+          "wantError": false
+        },
+        {
+          "event": "commit",
+          "want": "settled",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "crash_recovery",
+      "initial": "reconciling",
+      "steps": [
+        {
+          "event": "receive",
+          "want": "receipt",
+          "wantError": false
+        },
+        {
+          "event": "commit",
+          "want": "settled",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "uncertain_dispatch",
+      "initial": "accepted",
+      "steps": [
+        {
+          "event": "plan",
+          "want": "planned",
+          "wantError": false
+        },
+        {
+          "event": "reserve",
+          "want": "reserved",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "streaming",
+          "wantError": false
+        },
+        {
+          "event": "defer",
+          "want": "reconciling",
+          "wantError": false
+        },
+        {
+          "event": "receive",
+          "want": "receipt",
+          "wantError": false
+        },
+        {
+          "event": "commit",
+          "want": "settled",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "undispatched_release",
+      "initial": "accepted",
+      "steps": [
+        {
+          "event": "plan",
+          "want": "planned",
+          "wantError": false
+        },
+        {
+          "event": "reserve",
+          "want": "reserved",
+          "wantError": false
+        },
+        {
+          "event": "dispatch",
+          "want": "streaming",
+          "wantError": false
+        },
+        {
+          "event": "release",
+          "want": "failed",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "failed_settlement_retry",
+      "initial": "reconciling",
+      "steps": [
+        {
+          "event": "receive",
+          "want": "receipt",
+          "wantError": false
+        },
+        {
+          "event": "defer",
+          "want": "reconciling",
+          "wantError": false
+        },
+        {
+          "event": "receive",
+          "want": "receipt",
+          "wantError": false
+        },
+        {
+          "event": "commit",
+          "want": "settled",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "duplicate_commit_refused",
+      "initial": "settled",
+      "steps": [
+        {
+          "event": "commit",
+          "want": "settled",
+          "wantError": true
+        },
+        {
+          "event": "dispatch",
+          "want": "settled",
+          "wantError": true
+        },
+        {
+          "event": "release",
+          "want": "settled",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "rejected_cannot_dispatch",
+      "initial": "failed",
+      "steps": [
+        {
+          "event": "dispatch",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "receive",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "reserve",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    }
+  ],
+  "formalModel": {
+    "status": "candidate",
+    "reason": "Level4 target. Flow Verifier run 6ff99a2c-0736-4a95-a4c8-8da94c24e56e failed at Quint Rust recursion limit on full 80-pair matrix; no formal-check claim."
+  },
+  "sideEffects": [
+    "Wallet reservations and Gateway receipts are the only durable authorities. The reserve event follows one committed account transaction containing device/session cap admission and the wallet hold.",
+    "Only a receipt matching the operation with known terminal cost may commit.",
+    "A failed commit returns to reconciliation; it cannot dispatch. Public disconnect preserves the stream until receipt.",
+    "Definitive no-dispatch failures release holds; ambiguous outcomes retain them.",
+    "Gateway pins the selected route and disables costlier fallback; request retries only query receipts.",
+    "A definitive wallet rejection commits only a zero-cost terminal cap marker. Process death before admission commit rolls back both cap and wallet changes; no provider dispatch can precede that commit."
+  ],
+  "compositionInvariants": [
+    "reserved_before_dispatch",
+    "receipt_before_commit",
+    "no_dispatch_after_recovery",
+    "commit_once"
+  ]
+}

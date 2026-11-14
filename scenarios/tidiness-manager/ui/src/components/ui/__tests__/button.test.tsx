@@ -1,72 +1,73 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../../../test-utils";
 import userEvent from '@testing-library/user-event';
 import { Button } from '../button';
 
 describe('Button', () => {
   it('renders with default variant and size', () => {
-    render(<Button>Default</Button>);
+    renderWithProviders(<Button>Default</Button>);
     const button = screen.getByRole('button');
     expect(button).toBeInTheDocument();
     expect(button).toHaveClass('bg-slate-50', 'text-slate-900', 'h-10', 'px-4');
   });
 
   it('renders with primary variant', () => {
-    render(<Button variant="primary">Primary</Button>);
+    renderWithProviders(<Button variant="primary">Primary</Button>);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('bg-blue-600', 'text-white');
   });
 
   it('renders with success variant', () => {
-    render(<Button variant="success">Success</Button>);
+    renderWithProviders(<Button variant="success">Success</Button>);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('bg-green-600', 'text-white');
   });
 
   it('renders with destructive variant', () => {
-    render(<Button variant="destructive">Destructive</Button>);
+    renderWithProviders(<Button variant="destructive">Destructive</Button>);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('bg-red-600', 'text-white');
   });
 
   it('renders with outline variant', () => {
-    render(<Button variant="outline">Outline</Button>);
+    renderWithProviders(<Button variant="outline">Outline</Button>);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('border', 'border-white/30', 'text-white');
   });
 
   it('renders with ghost variant', () => {
-    render(<Button variant="ghost">Ghost</Button>);
+    renderWithProviders(<Button variant="ghost">Ghost</Button>);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('text-white', 'hover:bg-white/10');
   });
 
   it('renders with link variant', () => {
-    render(<Button variant="link">Link</Button>);
+    renderWithProviders(<Button variant="link">Link</Button>);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('text-blue-400', 'underline-offset-4');
   });
 
   it('renders with small size', () => {
-    render(<Button size="sm">Small</Button>);
+    renderWithProviders(<Button size="sm">Small</Button>);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('h-9', 'px-3', 'text-xs', 'min-h-[2.25rem]');
   });
 
   it('renders with large size', () => {
-    render(<Button size="lg">Large</Button>);
+    renderWithProviders(<Button size="lg">Large</Button>);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('h-12', 'px-6', 'text-base');
   });
 
   it('renders with icon size', () => {
-    render(<Button size="icon">🔍</Button>);
+    renderWithProviders(<Button size="icon">🔍</Button>);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('h-11', 'w-11');
   });
 
   it('applies custom className', () => {
-    render(<Button className="custom-class">Custom</Button>);
+    renderWithProviders(<Button className="custom-class">Custom</Button>);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('custom-class');
   });
@@ -75,7 +76,7 @@ describe('Button', () => {
     const handleClick = vi.fn();
     const user = userEvent.setup();
 
-    render(<Button onClick={handleClick}>Click me</Button>);
+    renderWithProviders(<Button onClick={handleClick}>Click me</Button>);
     const button = screen.getByRole('button');
 
     await user.click(button);
@@ -86,7 +87,7 @@ describe('Button', () => {
     const handleClick = vi.fn();
     const user = userEvent.setup();
 
-    render(<Button onClick={handleClick} disabled>Disabled</Button>);
+    renderWithProviders(<Button onClick={handleClick} disabled>Disabled</Button>);
     const button = screen.getByRole('button');
 
     expect(button).toBeDisabled();
@@ -98,7 +99,7 @@ describe('Button', () => {
   });
 
   it('includes focus-visible styles', () => {
-    render(<Button>Focus Test</Button>);
+    renderWithProviders(<Button>Focus Test</Button>);
     const button = screen.getByRole('button');
     expect(button).toHaveClass(
       'focus-visible:outline-none',
@@ -108,19 +109,19 @@ describe('Button', () => {
   });
 
   it('includes transition classes', () => {
-    render(<Button>Transition</Button>);
+    renderWithProviders(<Button>Transition</Button>);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('transition-colors');
   });
 
   it('supports type attribute', () => {
-    render(<Button type="submit">Submit</Button>);
+    renderWithProviders(<Button type="submit">Submit</Button>);
     const button = screen.getByRole('button');
     expect(button).toHaveAttribute('type', 'submit');
   });
 
   it('renders children correctly', () => {
-    render(
+    renderWithProviders(
       <Button>
         <span>Icon</span>
         <span>Text</span>
@@ -131,7 +132,7 @@ describe('Button', () => {
   });
 
   it('supports asChild prop with Slot', () => {
-    render(
+    renderWithProviders(
       <Button asChild>
         <a href="/test">Link Button</a>
       </Button>
@@ -142,7 +143,7 @@ describe('Button', () => {
   });
 
   it('does not add role when asChild is true', () => {
-    render(
+    renderWithProviders(
       <Button asChild>
         <a href="/test">Link</a>
       </Button>
@@ -152,7 +153,7 @@ describe('Button', () => {
   });
 
   it('supports responsive sizing with custom classes', () => {
-    render(<Button className="h-8 sm:h-10 md:h-12">Responsive</Button>);
+    renderWithProviders(<Button className="h-8 sm:h-10 md:h-12">Responsive</Button>);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('h-8', 'sm:h-10', 'md:h-12');
   });
@@ -161,7 +162,7 @@ describe('Button', () => {
     const handleClick = vi.fn();
     const user = userEvent.setup();
 
-    render(<Button onClick={handleClick}>Keyboard Test</Button>);
+    renderWithProviders(<Button onClick={handleClick}>Keyboard Test</Button>);
     const button = screen.getByRole('button');
 
     button.focus();

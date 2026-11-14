@@ -1,0 +1,193 @@
+syntax = "proto3";
+
+package vrooli.plan_manager.v1.families;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/families;families_v1";
+
+service FamiliesService {
+  rpc CreateFamily(CreateFamilyRequest) returns (CreateFamilyResponse);
+  rpc GetFamily(GetFamilyRequest) returns (GetFamilyResponse);
+  rpc ListFamilies(ListFamiliesRequest) returns (ListFamiliesResponse);
+  rpc UpdateFamily(UpdateFamilyRequest) returns (UpdateFamilyResponse);
+  rpc PutMember(PutMemberRequest) returns (PutMemberResponse);
+  rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
+  rpc PutClaim(PutClaimRequest) returns (PutClaimResponse);
+  rpc RemoveClaim(RemoveClaimRequest) returns (RemoveClaimResponse);
+  rpc ProposeGraph(ProposeGraphRequest) returns (ProposeGraphResponse);
+  rpc ReviewGraph(ReviewGraphRequest) returns (ReviewGraphResponse);
+  rpc GetFrontier(GetFrontierRequest) returns (GetFrontierResponse);
+  rpc RenderFamily(RenderFamilyRequest) returns (RenderFamilyResponse);
+}
+
+enum MemberRole {
+  MEMBER_ROLE_UNSPECIFIED = 0;
+  MEMBER_ROLE_PRIMARY = 1;
+  MEMBER_ROLE_SUPPORTING = 2;
+  MEMBER_ROLE_EXPERIMENT = 3;
+}
+
+enum MemberState {
+  MEMBER_STATE_UNSPECIFIED = 0;
+  MEMBER_STATE_PENDING = 1;
+  MEMBER_STATE_RUNNING = 2;
+  MEMBER_STATE_SUCCEEDED = 3;
+  MEMBER_STATE_FAILED = 4;
+  MEMBER_STATE_BLOCKED = 5;
+  MEMBER_STATE_SKIPPED = 6;
+}
+
+enum ClaimKind {
+  CLAIM_KIND_UNSPECIFIED = 0;
+  CLAIM_KIND_PATH = 1;
+  CLAIM_KIND_API_CONTRACT = 2;
+  CLAIM_KIND_GENERATED_OUTPUT = 3;
+  CLAIM_KIND_SCHEMA = 4;
+  CLAIM_KIND_RUNTIME_PLANT = 5;
+  CLAIM_KIND_VALIDATION_TARGET = 6;
+  CLAIM_KIND_UNKNOWN_INTERACTION = 7;
+}
+
+enum ClaimAccess {
+  CLAIM_ACCESS_UNSPECIFIED = 0;
+  CLAIM_ACCESS_READ = 1;
+  CLAIM_ACCESS_SHARED_WRITE = 2;
+  CLAIM_ACCESS_EXCLUSIVE_WRITE = 3;
+}
+
+enum EdgeKind {
+  EDGE_KIND_UNSPECIFIED = 0;
+  EDGE_KIND_DEPENDENCY = 1;
+  EDGE_KIND_CONFLICT = 2;
+}
+
+enum EdgeProvenance {
+  EDGE_PROVENANCE_UNSPECIFIED = 0;
+  EDGE_PROVENANCE_EXPLICIT = 1;
+  EDGE_PROVENANCE_INFERRED = 2;
+  EDGE_PROVENANCE_SUGGESTED = 3;
+  EDGE_PROVENANCE_CORRECTED = 4;
+  EDGE_PROVENANCE_MIGRATED = 5;
+}
+
+enum ReviewDecision {
+  REVIEW_DECISION_UNSPECIFIED = 0;
+  REVIEW_DECISION_APPROVED = 1;
+  REVIEW_DECISION_CORRECTED = 2;
+  REVIEW_DECISION_REJECTED = 3;
+}
+
+enum FamilyExecutionState {
+  FAMILY_EXECUTION_STATE_UNSPECIFIED = 0;
+  FAMILY_EXECUTION_STATE_PENDING = 1;
+  FAMILY_EXECUTION_STATE_RUNNING = 2;
+  FAMILY_EXECUTION_STATE_BLOCKED = 3;
+  FAMILY_EXECUTION_STATE_SUCCEEDED = 4;
+  FAMILY_EXECUTION_STATE_FAILED = 5;
+}
+
+message FamilyPolicy {
+  uint32 maximum_parallel_plans = 1;
+  bool unknown_interactions_sequential = 2;
+  bool require_review_before_launch = 3;
+  string validation_policy = 4;
+}
+
+message FamilyMember {
+  string plan_id = 1;
+  MemberRole role = 2;
+  MemberState state = 3;
+  string execution_id = 4;
+  string detail = 5;
+  uint64 source_revision = 6;
+  string admission_key = 7;
+}
+
+message ResourceClaim {
+  string claim_id = 1;
+  string plan_id = 2;
+  ClaimKind kind = 3;
+  ClaimAccess access = 4;
+  string resource = 5;
+  string source = 6;
+  string detail = 7;
+  bool resolved = 8;
+}
+
+message FamilyEdge {
+  string from_plan_id = 1;
+  string to_plan_id = 2;
+  EdgeKind kind = 3;
+  EdgeProvenance provenance = 4;
+  string reason = 5;
+  repeated string claim_ids = 6;
+}
+
+message FrontierBatch {
+  uint32 ordinal = 1;
+  repeated string plan_ids = 2;
+}
+
+message GraphRevision {
+  uint64 revision = 1;
+  repeated FamilyEdge edges = 2;
+  repeated FrontierBatch proposed_frontier = 3;
+  bool cyclic = 4;
+  repeated string diagnostics = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message GraphReview {
+  uint64 graph_revision = 1;
+  ReviewDecision decision = 2;
+  string reviewer = 3;
+  string rationale = 4;
+  repeated FamilyEdge corrected_edges = 5;
+  google.protobuf.Timestamp reviewed_at = 6;
+}
+
+message PlanFamily {
+  uint32 schema_version = 1;
+  string family_id = 2;
+  string slug = 3;
+  string outcome = 4;
+  string shared_context = 5;
+  FamilyPolicy policy = 6;
+  repeated FamilyMember members = 7;
+  repeated ResourceClaim claims = 8;
+  GraphRevision graph = 9;
+  GraphReview review = 10;
+  uint64 revision = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  FamilyExecutionState execution_state = 14;
+  string execution_id = 15;
+  uint64 active_graph_revision = 16;
+  google.protobuf.Timestamp last_activity_at = 17;
+}
+
+message CreateFamilyRequest { string slug = 1; string outcome = 2; string shared_context = 3; FamilyPolicy policy = 4; }
+message CreateFamilyResponse { PlanFamily family = 1; }
+message GetFamilyRequest { string family_id = 1; }
+message GetFamilyResponse { PlanFamily family = 1; }
+message ListFamiliesRequest { uint32 page_size = 1; string page_token = 2; }
+message ListFamiliesResponse { repeated PlanFamily families = 1; string next_page_token = 2; }
+message UpdateFamilyRequest { string family_id = 1; uint64 expected_revision = 2; string outcome = 3; string shared_context = 4; FamilyPolicy policy = 5; }
+message UpdateFamilyResponse { PlanFamily family = 1; }
+message PutMemberRequest { string family_id = 1; uint64 expected_revision = 2; FamilyMember member = 3; }
+message PutMemberResponse { PlanFamily family = 1; }
+message RemoveMemberRequest { string family_id = 1; uint64 expected_revision = 2; string plan_id = 3; }
+message RemoveMemberResponse { PlanFamily family = 1; }
+message PutClaimRequest { string family_id = 1; uint64 expected_revision = 2; ResourceClaim claim = 3; }
+message PutClaimResponse { PlanFamily family = 1; }
+message RemoveClaimRequest { string family_id = 1; uint64 expected_revision = 2; string claim_id = 3; }
+message RemoveClaimResponse { PlanFamily family = 1; }
+message ProposeGraphRequest { string family_id = 1; uint64 expected_revision = 2; repeated FamilyEdge explicit_edges = 3; }
+message ProposeGraphResponse { PlanFamily family = 1; }
+message ReviewGraphRequest { string family_id = 1; uint64 expected_revision = 2; uint64 graph_revision = 3; ReviewDecision decision = 4; string reviewer = 5; string rationale = 6; repeated FamilyEdge corrected_edges = 7; }
+message ReviewGraphResponse { PlanFamily family = 1; }
+message GetFrontierRequest { string family_id = 1; }
+message GetFrontierResponse { uint64 graph_revision = 1; repeated FrontierBatch batches = 2; bool launchable = 3; repeated string diagnostics = 4; GraphReview review = 5; repeated FrontierBatch projected_batches = 6; }
+message RenderFamilyRequest { string family_id = 1; }
+message RenderFamilyResponse { PlanFamily family = 1; string markdown = 2; }

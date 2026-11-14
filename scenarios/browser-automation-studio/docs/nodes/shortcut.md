@@ -14,7 +14,7 @@
 ## Runtime Behavior
 
 1. The automation compiler/executor forwards shortcut arrays, delay, timeout, and focus selector as-authored; validation is handled by the workflow validator/UI to ensure at least one shortcut is present.
-2. Browserless focuses the optional element and dispatches the requested key combinations using Chrome DevTools `Input.dispatchKeyEvent`, respecting `delayMs` where provided.
+2. The Playwright driver focuses the optional element and dispatches the requested key combinations using Chrome DevTools `Input.dispatchKeyEvent`, respecting `delayMs` where provided.
 3. Telemetry logs each shortcut so Execution Viewer shows what combos were sent.
 
 ## Example

@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "forms.object-field",
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3",
+    "1.0.2",
+    "1.0.4",
+    "1.0.5",
+    "1.0.0",
+    "1.0.6",
+    "1.0.7"
+  ],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3",
+    "1.0.1",
+    "1.0.2",
+    "1.0.4",
+    "1.0.5",
+    "1.0.0",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8"
+  ],
+  "latest": "1.0.10",
+  "libraryId": "react-component-library:ObjectField",
+  "displayName": "ObjectField",
+  "description": "The nested-object field grouping child fields, collapsing sections, summarizing nested errors, supporting optional objects, and preserving per-field subscriptions.",
+  "tags": []
+}

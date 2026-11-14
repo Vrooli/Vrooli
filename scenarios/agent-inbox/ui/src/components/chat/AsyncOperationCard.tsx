@@ -177,7 +177,7 @@ export function AsyncOperationCard({
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleCancel}
+            onClick={() => { void handleCancel(); }}
             disabled={isCancelling}
             className="text-slate-400 hover:text-red-400 hover:bg-red-500/10 flex-shrink-0"
             data-testid={`cancel-${operation.tool_call_id}`}

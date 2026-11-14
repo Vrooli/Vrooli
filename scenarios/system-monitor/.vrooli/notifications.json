@@ -1,0 +1,17 @@
+{
+  "displayName": "System Monitor",
+  "icon": "system-monitor",
+  "appDelivery": true,
+  "categories": [
+    { "key": "alert.metrics_snapshot", "displayName": "Monitor data unavailable", "description": "System Monitor has stopped producing usable metric snapshots.", "defaultEnabled": true, "defaultMinUrgency": "high" },
+    { "key": "alert.cpu_usage", "displayName": "High CPU use", "description": "CPU usage crossed a sustained alert boundary.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "alert.memory_usage", "displayName": "High memory use", "description": "Memory usage crossed a sustained alert boundary.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "alert.tcp_connections", "displayName": "TCP connection pressure", "description": "Connection counts are high or show sustained leak-shaped growth.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "alert.gpu_usage", "displayName": "High GPU use", "description": "GPU usage crossed a sustained alert boundary.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "alert.memory_pressure", "displayName": "Memory pressure", "description": "Paging and stall evidence indicates elevated or critical memory pressure.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "alert.orphaned_agents", "displayName": "Orphaned agents", "description": "Agent processes are orphaned or holding substantial unreaped resources.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "alert.disk_pressure", "displayName": "Disk pressure", "description": "Disk usage crossed an escalation band.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "alert.storage_writer", "displayName": "Fast storage growth", "description": "A monitored storage root began growing quickly or returned to a normal rate.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "alert.investigation", "displayName": "Investigation started", "description": "System Monitor started an investigation for an alert.", "defaultEnabled": true, "defaultMinUrgency": "high" }
+  ]
+}

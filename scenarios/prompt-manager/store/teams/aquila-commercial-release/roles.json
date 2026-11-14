@@ -1,0 +1,12 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "aquila-commercial-release",
+  "roles": [
+    {
+      "id": "aquila-launch-coordinator",
+      "name": "Aquila Launch Coordinator",
+      "description": "Reconcile release identity and desktop lifecycle, LPBS deployment/download delivery, commercial paid journeys, and operational acceptance. Allocate independent prerequisites together; join their evidence for the final release decision."
+    }
+  ]
+}

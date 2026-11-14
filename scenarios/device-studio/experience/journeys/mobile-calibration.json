@@ -1,0 +1,64 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "mobile-calibration",
+    "title": "Accessible mobile precision editing",
+    "purpose": "Complete precision screen fitting on a narrow viewport and keyboard-only path without hiding advanced controls or requiring dragging.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P0-005",
+      "OT-P0-006",
+      "OT-P0-014"
+    ]
+  },
+  "steps": [
+    {
+      "page": "shot",
+      "state": "calibrating",
+      "intent": "Reframe the stage and edit all corners, masks and cutouts with numeric and keyboard alternatives.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "shot",
+      "state": "validation-error",
+      "intent": "Correct an invalid fit while preserving the original recording and other settings.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "shot",
+      "state": "default",
+      "intent": "Switch guided and advanced panels without changing shot values or losing focus.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "shot",
+      "state": "render-preflight",
+      "intent": "Review the same output/privacy/budget snapshot on a narrow viewport.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "job",
+      "state": "running",
+      "intent": "Inspect observed progress without losing navigation or stop access.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "result",
+      "state": "review-needed",
+      "intent": "Inspect full-resolution output and direct download on mobile.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    }
+  ],
+  "claims": [
+    {
+      "id": "mobile-calibration-intent",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Complete precision screen fitting on a narrow viewport and keyboard-only path without hiding advanced controls or requiring dragging.",
+      "rationale": "Draft cross-page intended behavior; not an executed journey or attested result."
+    }
+  ],
+  "x-execution-status": "not-implemented-not-executed"
+}

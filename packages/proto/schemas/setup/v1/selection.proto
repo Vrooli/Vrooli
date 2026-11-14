@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package vrooli.setup.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1;setup_v1";
+
+// Capability-shaped desired configuration. It intentionally does not expose
+// operator-state persistence details, allowing Bridge to hold a desired copy
+// while Onboarding remains the authority for local application.
+message Selection {
+  string schema_version = 1;
+  string target = 2;
+  repeated string scenarios = 3;
+  repeated string optional_resources = 4;
+  repeated string core_seed = 5;
+  repeated string trusted_base = 6;
+  repeated string host_tools = 7;
+  repeated string host_safeguards = 8;
+  repeated string credential_addresses = 9;
+  string trust_posture = 10;
+  string update_control = 11;
+  string session_mode = 12;
+  map<string, string> operating_mode = 13;
+  bool apply = 14;
+  string capacity_posture = 15;
+  uint64 transient_headroom_reserve_bytes = 16;
+  map<string, ResourceCapacitySelection> resource_capacity = 17;
+  // Presence is explicit for adapters that must distinguish an omitted field,
+  // an intentional value, and a reset-to-default request.
+  map<string, SelectionFieldPresence> field_presence = 18;
+}
+
+enum SelectionFieldPresence {
+  SELECTION_FIELD_PRESENCE_UNSPECIFIED = 0;
+  SELECTION_FIELD_PRESENCE_SET = 1;
+  SELECTION_FIELD_PRESENCE_CLEAR = 2;
+  SELECTION_FIELD_PRESENCE_RESET = 3;
+}
+
+message ResourceCapacitySelection {
+  string rung = 1;
+  map<string, string> tunables = 2;
+  uint32 gpu_index = 3;
+  string priority = 4;
+  bool yield_when_idle = 5;
+  uint32 idle_grace_seconds = 6;
+}

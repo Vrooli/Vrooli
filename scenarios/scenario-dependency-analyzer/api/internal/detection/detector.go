@@ -1,8 +1,10 @@
 package detection
 
 import (
-	appconfig "scenario-dependency-analyzer/internal/config"
-	types "scenario-dependency-analyzer/internal/types"
+	"context"
+
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // detector.go - Main detector coordinator
@@ -14,14 +16,14 @@ import (
 // Detector encapsulates resource/scenario scanning and catalog discovery logic.
 // It coordinates between catalog management, resource detection, and scenario detection.
 type Detector struct {
-	cfg             appconfig.Config
+	cfg             appconfig.RuntimeConfig
 	catalog         *catalogManager
 	resourceScanner *resourceScanner
 	scenarioScanner *scenarioScanner
 }
 
 // New creates a detector bound to the provided configuration.
-func New(cfg appconfig.Config) *Detector {
+func New(cfg appconfig.RuntimeConfig) *Detector {
 	catalog := newCatalogManager(cfg)
 
 	return &Detector{
@@ -62,10 +64,9 @@ func (d *Detector) ScenarioCatalog() map[string]struct{} {
 // It scans the scenario directory for:
 //   - Explicit resource CLI commands (e.g., "resource-postgres")
 //   - Resource usage patterns via heuristics (connection strings, env vars)
-//   - Resources referenced in initialization files
 //
 // Returns a list of detected resource dependencies.
-func (d *Detector) ScanResources(scenarioPath, scenarioName string, cfg *types.ServiceConfig) ([]types.ScenarioDependency, error) {
+func (d *Detector) ScanResources(scenarioPath, scenarioName string, cfg *types.Manifest) ([]types.ScenarioDependency, error) {
 	return d.resourceScanner.scan(scenarioPath, scenarioName, cfg)
 }
 
@@ -81,12 +82,11 @@ func (d *Detector) ScanScenarioDependencies(scenarioPath, scenarioName string) (
 	return d.scenarioScanner.scanDependencies(scenarioPath, scenarioName)
 }
 
-// ScanSharedWorkflows detects shared workflow references.
-//
-// It scans the initialization directory for workflow files (n8n, huginn, windmill)
-// that reference shared workflow templates.
-//
-// Returns a list of detected workflow dependencies.
-func (d *Detector) ScanSharedWorkflows(scenarioPath, scenarioName string) ([]types.ScenarioDependency, error) {
-	return d.scenarioScanner.scanWorkflows(scenarioPath, scenarioName)
+// ScanResourcesContext cooperatively stops between bounded source-file reads.
+func (d *Detector) ScanResourcesContext(ctx context.Context, path, name string, cfg *types.Manifest) ([]types.ScenarioDependency, error) {
+	return d.resourceScanner.scanContext(ctx, path, name, cfg)
+}
+
+func (d *Detector) ScanScenarioDependenciesContext(ctx context.Context, path, name string) ([]types.ScenarioDependency, error) {
+	return d.scenarioScanner.scanDependenciesContext(ctx, path, name)
 }

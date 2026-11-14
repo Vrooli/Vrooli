@@ -1,0 +1,25 @@
+{
+  "id": "ensure-messages-session",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "ensure-messages-session",
+  "folder_path": "/bas/actions",
+  "description": "Activate the seeded session that exposes the Messages view without duplicating tab probing in individual cases.",
+  "metadata": {
+    "name": "ensure-messages-session",
+    "description": "Activate the seeded session that exposes the Messages view without duplicating tab probing in individual cases.",
+    "execution_mode": "mutating",
+    "reset": "none",
+    "labels": { "reset": "none", "requires_confirmation": "true", "routed_isolation": "true" }
+  },
+  "tags": ["reset:none", "messages"],
+  "version": 1,
+  "flow_definition": {
+    "nodes": [
+      { "id": "activate-seeded-messages-session", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(async () => { const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)); const tabs = Array.from(document.querySelectorAll('[data-testid^=\"tab-\"]')).filter((element) => { const id = element.getAttribute('data-testid') || ''; return id !== 'tab-bar' && id !== 'tab-bar-new' && !id.startsWith('tab-group-') && !id.startsWith('tab-rename-input-'); }); for (const tab of tabs) { tab.click(); await sleep(350); if (document.querySelector('[data-testid=\"workspace-toggle-view\"]')) { document.body.setAttribute('data-bas-messages-active', 'true'); return; } } document.body.setAttribute('data-bas-messages-active', 'false'); })()" } } },
+      { "id": "assert-messages-session", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "body[data-bas-messages-active='true']", "failure_message": "Expected a seeded session that supports the Messages view", "timeout_ms": 5000 } } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "activate-seeded-messages-session", "target": "assert-messages-session", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
+    ]
+  }
+}

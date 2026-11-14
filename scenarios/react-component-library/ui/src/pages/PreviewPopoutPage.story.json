@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 5,
+  "kind": "page",
+  "title": "Preview popout",
+  "route": "/assets/cdd480c9-ca5c-47ea-ba4b-4045e2239a22/preview",
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "source-unavailable",
+      "name": "Source failure remains visible in popout",
+      "role": "boundary",
+      "apiState": [
+        {
+          "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponent",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "component": {
+              "id": "cdd480c9-ca5c-47ea-ba4b-4045e2239a22",
+              "libraryId": "react-component-library:Button",
+              "displayName": "Button",
+              "description": "The primary action control: a labelled, token-bound button that acknowledges activation immediately, expresses intent through semantic variants, and keeps stable dimensions while it moves through pending, success, and failure.",
+              "sourcePath": "components/Button/versions/2.2.11/Button.tsx",
+              "version": "2.2.11",
+              "slug": "Button",
+              "latestVersion": "2.2.11",
+              "slot": "ui-primitive",
+              "category": "controls",
+              "assetKind": "ASSET_KIND_COMPONENT",
+              "catalogId": "controls.button",
+              "catalogDomain": "controls",
+              "catalogRung": 3,
+              "catalogRungName": "component",
+              "catalogKind": "component"
+            }
+          }
+        },
+        {
+          "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentContent",
+          "method": "POST",
+          "status": 503,
+          "body": {
+            "code": "unavailable",
+            "message": "Preview source unavailable; return to the catalog and retry."
+          }
+        },
+        {
+          "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentVersions",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "versions": []
+          }
+        },
+        {
+          "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentStories",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "stories": []
+          }
+        },
+        {
+          "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListPreviewFrames",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "frames": []
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Service temporarily unavailable."
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid=\"preview-popout\"]"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Try again"
+        }
+      ]
+    }
+  ]
+}

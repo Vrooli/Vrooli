@@ -31,7 +31,7 @@ export const ADMIN_PAGE_DEFINITIONS: AdminPageDefinition[] = [
   },
   {
     id: 'admin-home',
-    name: 'Landing Manager Admin',
+    name: 'Landing Page Business Suite Admin',
     description: 'Admin overview with quick flows, stats, and reset controls.',
     route: '/admin',
     routePattern: '/admin',
@@ -79,11 +79,25 @@ export const ADMIN_PAGE_DEFINITIONS: AdminPageDefinition[] = [
   },
   {
     id: 'section-editor',
-    name: 'Section Editor',
-    description: 'Edit a single landing page section with live preview.',
+    name: 'Presentation Editor',
+    description: 'Open the typed presentation document for this variant.',
     route: '/admin/customization/variants/:variantSlug/sections/:sectionId',
     routePattern: '/admin/customization/variants/:variantSlug/sections/:sectionId',
     documentation: { ...ADMIN_GUIDE_DOC, anchor: 'section-editor' },
+  },
+  {
+    id: 'presentation-editor',
+    name: 'Presentation Editor',
+    description: 'Edit, preview, publish and restore typed presentation revisions.',
+    route: '/admin/presentation',
+    routePattern: '/admin/presentation',
+  },
+  {
+    id: 'presentation-editor-variant',
+    name: 'Presentation Editor',
+    description: 'Manage the selected variant’s typed presentation document.',
+    route: '/admin/presentation/:variantSlug',
+    routePattern: '/admin/presentation/:variantSlug',
   },
   {
     id: 'variant-editor',
@@ -100,6 +114,14 @@ export const ADMIN_PAGE_DEFINITIONS: AdminPageDefinition[] = [
     route: '/admin/branding',
     routePattern: '/admin/branding',
     documentation: { ...ADMIN_GUIDE_DOC, anchor: 'branding' },
+  },
+  {
+    id: 'email-delivery',
+    name: 'Email Delivery',
+    description: 'Provider authorization, outbox state, and delivery outcomes.',
+    route: '/admin/email-delivery',
+    routePattern: '/admin/email-delivery',
+    documentation: { ...ADMIN_GUIDE_DOC, anchor: 'email-delivery' },
   },
   {
     id: 'billing-dashboard',

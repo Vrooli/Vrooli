@@ -1,0 +1,13 @@
+{
+  "$schema": "./shared-proto-contracts.schema.json",
+  "contracts": [
+    {
+      "prefix": "scenario-validation/v1",
+      "reason": "Scenario validation exposes a shared control-plane contract used by multiple scenario CLIs."
+    },
+    {
+      "prefix": "search-hub/v1/control",
+      "reason": "Search Hub exposes the shared control contract used by registry and discovery consumers."
+    }
+  ]
+}

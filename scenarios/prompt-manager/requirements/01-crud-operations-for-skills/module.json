@@ -12,7 +12,7 @@
       "description": "Implement REST API endpoints for creating, reading, updating and deleting skills with JSON payload support",
       "id": "REQ-P0-001",
       "prd_ref": "prompt-manager-must-have-crud-operations-for-skills-via-api",
-      "status": "draft",
+      "status": "planned",
       "title": "REST API for Skill CRUD",
       "validation": [
         {
@@ -64,13 +64,27 @@
           "status": "pending",
           "type": "test"
         },
-        {
-          "notes": "Data persistence verified",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        }
+      {
+        "notes": "Data persistence verified",
+        "phase": "business",
+        "ref": "",
+        "status": "pending",
+        "type": "test"
+      },
+      {
+        "notes": "New skill editor opens without persisting before save",
+        "phase": "workflow",
+        "ref": "bas/cases/01-foundation/02-editor/new-skill-opens-editor.json",
+        "status": "implemented",
+        "type": "bas"
+      },
+      {
+        "notes": "Skill save and discard journey",
+        "phase": "workflow",
+        "ref": "bas/cases/01-foundation/03-editor/skill-save-discard.json",
+        "status": "implemented",
+        "type": "bas"
+      }
       ]
     },
     {
@@ -81,7 +95,7 @@
       "description": "Implement REST API endpoints for pack-based skill organization with folder structure support",
       "id": "REQ-P0-002",
       "prd_ref": "prompt-manager-must-have-crud-operations-for-skills-via-api",
-      "status": "draft",
+      "status": "planned",
       "title": "Pack-based Skill Organization API",
       "validation": [
         {

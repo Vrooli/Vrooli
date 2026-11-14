@@ -74,7 +74,7 @@ export function useUsageDashboard(): UseUsageDashboardReturn {
 
   // Fetch on mount and when billing period changes
   useEffect(() => {
-    fetchSummary();
+    void fetchSummary();
   }, [fetchSummary]);
 
   /**

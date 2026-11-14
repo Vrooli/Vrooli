@@ -1,0 +1,181 @@
+syntax = "proto3";
+
+package vrooli.flow_verifier.v1.scenarios;
+
+import "flow-verifier/v1/artifacts/artifacts.proto";
+import "flow-verifier/v1/flows/flows.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/scenarios;scenarios_v1";
+
+// =============================================================================
+// SCENARIOS DOMAIN — scenario index + scenario-level artifact lifecycle
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain scenarios
+// @imports vrooli.flow_verifier.v1.flows, vrooli.flow_verifier.v1.artifacts
+// @stability stable
+//
+// Wire contract for the /scenarios index and per-scenario operations.
+// GenerateScenarioArtifacts is the canonical server-streaming RPC: the
+// UI subscribes and updates per-flow rows as messages arrive instead
+// of waiting for a final batch.
+// =============================================================================
+
+service ScenariosService {
+  rpc ListScenarios(ListScenariosRequest) returns (ListScenariosResponse);
+  rpc GetScenario(GetScenarioRequest) returns (GetScenarioResponse);
+  // Scan every service-backed scenario and rank inferred lifecycle candidates
+  // from Go field, write, guard, test, and durability-adjacent evidence.
+  rpc ListLifecycles(ListLifecyclesRequest) returns (ListLifecyclesResponse);
+
+  // Server-stream: one GenerateScenarioArtifactsResponse per flow, in
+  // discovery order. The stream completes when every flow has been
+  // generated (success or per-flow failure). Per-flow failures do not
+  // abort the stream — the UI renders one yellow row and keeps going.
+  rpc GenerateScenarioArtifacts(GenerateScenarioArtifactsRequest) returns (stream GenerateScenarioArtifactsResponse);
+
+  rpc ClearScenarioArtifacts(ClearScenarioArtifactsRequest) returns (ClearScenarioArtifactsResponse);
+}
+
+// ScenarioSummary is the row the /scenarios index renders. flow_count
+// drives the "12 flows" badge and the empty-state branch.
+message ScenarioSummary {
+  string id = 1;
+  string display_name = 2;
+  string description = 3;
+  string path = 4;
+  int32 flow_count = 5;
+  // Set when this scenario's flow tree could not be read; the index
+  // still renders the row so misconfigured scenarios are visible.
+  string discovery_error = 6;
+}
+
+// ScenarioDetail is one scenario plus every flow inside it.
+message ScenarioDetail {
+  ScenarioSummary summary = 1;
+  repeated vrooli.flow_verifier.v1.flows.FlowSummary flows = 2;
+}
+
+message ListScenariosRequest {}
+message ListScenariosResponse {
+  // Resolved Vrooli root, surfaced to the UI's empty-state.
+  string vrooli_root = 1;
+  repeated ScenarioSummary scenarios = 2;
+}
+
+message GetScenarioRequest {
+  string id = 1;
+}
+message GetScenarioResponse {
+  ScenarioDetail scenario = 1;
+}
+
+message ListLifecyclesRequest {
+  // Empty scans every service-backed scenario; otherwise restricts to one id.
+  string scenario_id = 1;
+  // Optional Search Hub recall JSON (the `hits` envelope). Matched records are
+  // leads only and must be reviewed before a lifecycle is considered closed.
+  bytes hunt_index_json = 2;
+}
+message ListLifecyclesResponse {
+  string vrooli_root = 1;
+  int32 scenario_count = 2;
+  int32 candidate_count = 3;
+  int32 parse_error_count = 4;
+  repeated LifecycleScenarioSummary scenarios = 5;
+  repeated LifecycleCandidate candidates = 6;
+  int32 flow_contract_parse_error_count = 7;
+  int32 preselection_candidate_count = 8;
+  bool hunt_coverage_complete = 9;
+  string hunt_coverage_scope = 10;
+  repeated LifecycleCandidate preselection_candidates = 11;
+  // Candidates without source-backed preselection evidence are retained here
+  // for audit but are never included in burden-ranked `candidates`.
+  repeated LifecycleCandidate unranked_candidates = 12;
+}
+message LifecycleScenarioSummary {
+  string id = 1;
+  int32 source_files = 2;
+  int32 parse_errors = 3;
+  int32 candidate_count = 4;
+  int32 explicit_flow_contracts = 5;
+  int32 flow_contract_parse_errors = 6;
+}
+message LifecycleEvidence {
+  string path = 1;
+  int32 line = 2;
+  string text = 3;
+}
+message LifecycleStateEvidence {
+  string name = 1;
+  string value = 2;
+  LifecycleEvidence at = 3;
+}
+message LifecycleHuntReference {
+  string entry_id = 1;
+  string round = 2;
+  // Always "review" in inference output. History prose does not prove closure.
+  string status = 3;
+}
+message LifecycleFlowReference {
+  string flow_id = 1;
+  string path = 2;
+  string status_type = 3;
+  repeated string matched_states = 4;
+  int32 candidate_state_count = 5;
+  int32 contract_state_count = 6;
+  bool exact_lifecycle_match = 7;
+}
+message LifecycleCandidate {
+  string id = 1;
+  string scenario_id = 2;
+  string package = 3;
+  string type_name = 4;
+  string field_name = 5;
+  string field_type = 6;
+  LifecycleEvidence declaration = 7;
+  repeated LifecycleStateEvidence states = 8;
+  repeated LifecycleEvidence related_flags = 9;
+  repeated LifecycleEvidence time_fields = 10;
+  repeated LifecycleEvidence write_sites = 11;
+  repeated LifecycleEvidence guard_sites = 12;
+  repeated string test_files = 13;
+  repeated LifecycleHuntReference hunt_records = 14;
+  int32 burden_score = 15;
+  repeated string score_breakdown = 16;
+  string confidence = 17;
+  repeated LifecycleFlowReference explicit_flows = 18;
+  bool explicitly_modeled = 19;
+  repeated LifecycleEvidence transition_owners = 20;
+  // Source-backed preselection class. Unknown must remain visible when
+  // repository evidence is incomplete or ambiguous.
+  string persistence_class = 21;
+  string persistence_reason = 22;
+  repeated LifecycleEvidence persistence_evidence = 23;
+  string persistence_scope = 24;
+  int32 persistence_files_scanned = 25;
+  bool persistence_scan_complete = 26;
+  string preselection_status = 27;
+}
+
+message GenerateScenarioArtifactsRequest {
+  string scenario_id = 1;
+}
+
+// GenerateScenarioArtifactsResponse is one message in the server-stream.
+// Exactly one of `report` or `error_message` is populated per message:
+// success messages carry the fresh ArtifactReport; failure messages
+// carry the error_message and the stream continues with the next flow.
+message GenerateScenarioArtifactsResponse {
+  string flow_id = 1;
+  vrooli.flow_verifier.v1.artifacts.ArtifactReport report = 2;
+  string error_message = 3;
+}
+
+message ClearScenarioArtifactsRequest {
+  string scenario_id = 1;
+}
+message ClearScenarioArtifactsResponse {
+  repeated vrooli.flow_verifier.v1.artifacts.ClearArtifactsResponse flows = 1;
+}

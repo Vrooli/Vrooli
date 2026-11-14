@@ -1,0 +1,187 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "branding": {
+    "brand": "chain-forensics",
+    "targets": [
+      "web-public-v1"
+    ]
+  },
+  "storage": {
+    "entries": {
+      "deployment": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "deployment",
+        "regenerable": true,
+        "rationale": "Scenario Dependency Analyzer writes a derived deployment report here; a fresh analysis recreates it.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "The derived deployment report is small and bounded by its single JSON document."
+        }
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "retention",
+        "regenerable": true,
+        "rationale": "Storage Manager writes a derived enforcement receipt here; another enforcement pass recreates it.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "The owner enforcement receipt is a single small JSON record."
+        }
+      }
+    },
+    "rationale": "Observed runtime state consists of reproducible deployment and storage-enforcement records; case evidence remains in source-controlled local fixtures until the private case store is implemented."
+  },
+  "cli": {
+    "enabled": true,
+    "command": "chain-forensics",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "chain-forensics"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "cwd": "api",
+        "port": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "dependencies": {
+    "resources": {}
+  },
+  "environment": {},
+  "generation": {
+    "content_sha": "5b674a2c7be4c28d1b68582dea6b40c5eb5b0fe466ba7e025deeaa192282ef2d",
+    "design": {
+      "adapter": "react-vite-tailwind",
+      "id": "vrooli-default",
+      "version": "0.2.0"
+    },
+    "generated_at": "2026-11-09T21:47:19Z",
+    "manifest_sha": "f25dddd48885fad4d4416d6a25c234080d7c34b42b3b197df6fd3e3a3636f42a",
+    "template": {
+      "id": "react-vite",
+      "version": "6.0.1"
+    }
+  },
+  "hostTools": [],
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "startup_grace_period": 15000,
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "chain-forensics",
+    "displayName": "Chain Forensics",
+    "description": "Reconstruct public digital-asset flows with source-linked facts, graded attribution, and private evidence packets.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/chain-forensics"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/chain-forensics/SKILL.md"
+    }
+  },
+  "version": "1.0.0"
+}

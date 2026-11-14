@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "audio-tools",
+  "description": "Route-level experience contract for Audio Tools. Dictation Studio is the primary operator surface: it must make capture state, durable coverage, recovery, and terminal outcome visible rather than implying success from silence.",
+  "pages": [
+    { "id": "overview", "path": "pages/overview.json", "title": "Overview", "status": "draft" },
+    { "id": "diagnostics", "path": "pages/diagnostics.json", "title": "Diagnostics", "status": "draft" },
+    { "id": "dictation-studio", "path": "pages/dictation-studio.json", "title": "Dictation Studio", "status": "active" },
+    { "id": "status", "path": "pages/status.json", "title": "Status", "status": "draft" },
+    { "id": "configuration", "path": "pages/configuration.json", "title": "Configuration", "status": "draft" },
+    { "id": "voices", "path": "pages/voices.json", "title": "Voices", "status": "draft" },
+    { "id": "usage", "path": "pages/usage.json", "title": "Usage", "status": "draft" },
+    { "id": "docs", "path": "pages/docs.json", "title": "Documentation", "status": "draft" },
+    { "id": "speaker-verification", "path": "pages/speaker-verification.json", "title": "Speaker Verification", "status": "draft" },
+    { "id": "wake-word", "path": "pages/wake-word.json", "title": "Wake Word", "status": "draft" },
+    { "id": "stream-config", "path": "pages/stream-config.json", "title": "Stream Configuration", "status": "draft" }
+  ],
+  "components": [
+    { "id": "voice-input-button", "path": "components/voice-input-button.json", "title": "Voice Input Button", "status": "draft" }
+  ],
+  "journeys": []
+}

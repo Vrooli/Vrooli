@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "plan-manager.execution.api",
+  "domain": "execution",
+  "description": "Execution lifecycle separates phase readiness, durable final handoff, and abandonment. Terminal executions cannot mutate.",
+  "model": {
+    "module": "PlanExecution",
+    "seed": "2026110901",
+    "maxSteps": 6,
+    "traceCount": 6,
+    "verify": {
+      "invariants": [
+        "TypeOK",
+        "TerminalClosure",
+        "IllegalTransitionsPreserveState"
+      ]
+    }
+  },
+  "states": [
+    {
+      "id": "active",
+      "quint": "Active",
+      "initial": true
+    },
+    {
+      "id": "ready",
+      "quint": "Ready"
+    },
+    {
+      "id": "completed",
+      "quint": "Completed",
+      "terminal": true
+    },
+    {
+      "id": "abandoned",
+      "quint": "Abandoned",
+      "terminal": true
+    }
+  ],
+  "events": [
+    {
+      "id": "edit",
+      "quint": "Edit"
+    },
+    {
+      "id": "phases_ready",
+      "quint": "PhasesReady"
+    },
+    {
+      "id": "phases_open",
+      "quint": "PhasesOpen"
+    },
+    {
+      "id": "finalize",
+      "quint": "Finalize"
+    },
+    {
+      "id": "abandon",
+      "quint": "Abandon"
+    }
+  ],
+  "transitionDefaults": {
+    "invalid": {
+      "to": "self",
+      "wantError": true
+    },
+    "terminal": {
+      "to": "self",
+      "wantError": true
+    }
+  },
+  "transitions": [
+    {
+      "from": "active",
+      "event": "edit",
+      "to": "active"
+    },
+    {
+      "from": "ready",
+      "event": "edit",
+      "to": "ready"
+    },
+    {
+      "from": "active",
+      "event": "phases_ready",
+      "to": "ready"
+    },
+    {
+      "from": "ready",
+      "event": "phases_ready",
+      "to": "ready"
+    },
+    {
+      "from": "ready",
+      "event": "phases_open",
+      "to": "active"
+    },
+    {
+      "from": "active",
+      "event": "phases_open",
+      "to": "active"
+    },
+    {
+      "from": "ready",
+      "event": "finalize",
+      "to": "completed"
+    },
+    {
+      "from": "active",
+      "event": "abandon",
+      "to": "abandoned"
+    },
+    {
+      "from": "ready",
+      "event": "abandon",
+      "to": "abandoned"
+    }
+  ],
+  "invariants": [
+    {
+      "id": "type_ok",
+      "quint": "TypeOK",
+      "description": "Model variables remain inside declared state and event sets."
+    },
+    {
+      "id": "terminal_closure",
+      "quint": "TerminalClosure",
+      "description": "Terminal states cannot transition to another status."
+    },
+    {
+      "id": "illegal_transitions_preserve_state",
+      "quint": "IllegalTransitionsPreserveState",
+      "description": "Rejected transitions are state preserving."
+    }
+  ],
+  "traces": [
+    {
+      "name": "full_completion",
+      "initial": "active",
+      "steps": [
+        {
+          "event": "phases_ready",
+          "want": "ready",
+          "wantError": false
+        },
+        {
+          "event": "finalize",
+          "want": "completed",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "reopen_before_handoff",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "phases_open",
+          "want": "active",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "finalize_requires_ready",
+      "initial": "active",
+      "steps": [
+        {
+          "event": "finalize",
+          "want": "active",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "abandoned_is_closed",
+      "initial": "active",
+      "steps": [
+        {
+          "event": "abandon",
+          "want": "abandoned",
+          "wantError": false
+        },
+        {
+          "event": "edit",
+          "want": "abandoned",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "completed_is_closed",
+      "initial": "completed",
+      "steps": [
+        {
+          "event": "phases_open",
+          "want": "completed",
+          "wantError": true
+        }
+      ]
+    }
+  ],
+  "runtime": {
+    "go": {
+      "package": "flow",
+      "statusType": "ExecutionStatus",
+      "eventType": "ExecutionEvent",
+      "constantPrefix": "Execution"
+    }
+  },
+  "replay": {
+    "transition": {
+      "function": "TransitionExecution",
+      "stateType": "ExecutionState",
+      "statusField": "Status"
+    }
+  }
+}

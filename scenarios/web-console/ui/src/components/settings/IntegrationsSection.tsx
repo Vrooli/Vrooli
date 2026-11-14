@@ -1,18 +1,20 @@
+import { useTranslation } from "react-i18next";
+import { strings } from "../../consts/strings";
 import IntegrationsPanel from "../IntegrationsPanel";
-import { SettingsCard, SettingsSectionIntro } from "./primitives";
+import { SettingsIntro } from "./primitives";
 
 export default function IntegrationsSection({ open }: { open: boolean }) {
+  const { t } = useTranslation();
   return (
-    <div className="space-y-4">
-      <SettingsSectionIntro
-        eyebrow="Providers"
-        title="Integrations"
-        description="Configure external services and inspect provider availability from one place."
-      />
-
-      <SettingsCard>
-        <IntegrationsPanel open={open} />
-      </SettingsCard>
-    </div>
+    <IntegrationsPanel
+      open={open}
+      header={
+        <SettingsIntro
+          eyebrow={t(strings.settings.integrationsSection.eyebrow)}
+          title={t(strings.settings.integrationsSection.title)}
+          description={t(strings.settings.integrationsSection.description)}
+        />
+      }
+    />
   );
 }

@@ -6,11 +6,17 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"landing-page-business-suite/cli/domains/remoteprofiles"
 )
 
 func TestRemoteProfilesProxyAcceptsProfileTagSelector(t *testing.T) {
 	var sawList, sawProxy bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/admin/remote-profiles":
 			sawList = true
@@ -41,7 +47,8 @@ func TestRemoteProfilesProxyAcceptsProfileTagSelector(t *testing.T) {
 	}
 	withAdminSession(t, app, server.URL)
 
-	if err := app.cmdRemoteProfilesProxy([]string{
+	if err := app.Run([]string{
+		"remote-profiles-proxy",
 		"--profile-tag", "prod",
 		"--method", "GET",
 		"--path", "/admin/download-apps",
@@ -62,7 +69,7 @@ func TestRemoteProfilesProxyRejectsMixingIDAndProfileTag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewApp() error: %v", err)
 	}
-	err = app.cmdRemoteProfilesProxy([]string{
+	err = remoteprofiles.RunProxy(app.dependencies(), []string{
 		"12",
 		"--profile-tag", "prod",
 		"--method", "GET",
@@ -79,6 +86,10 @@ func TestRemoteProfilesProxyRejectsMixingIDAndProfileTag(t *testing.T) {
 func TestRemoteProfilesProxyPositionalIDStillWorks(t *testing.T) {
 	var sawProxy bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/admin/remote-profiles/12/proxy" {
 			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
@@ -94,7 +105,8 @@ func TestRemoteProfilesProxyPositionalIDStillWorks(t *testing.T) {
 	}
 	withAdminSession(t, app, server.URL)
 
-	if err := app.cmdRemoteProfilesProxy([]string{
+	if err := app.Run([]string{
+		"remote-profiles-proxy",
 		"12",
 		"--method", "GET",
 		"--path", "/admin/download-apps",
@@ -110,6 +122,10 @@ func TestRemoteProfilesProxyPositionalIDStillWorks(t *testing.T) {
 func TestRemoteProfilesDownloadStorageTest_UsesProxyEndpoint(t *testing.T) {
 	var sawList, sawProxy bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/admin/remote-profiles":
 			sawList = true
@@ -140,7 +156,8 @@ func TestRemoteProfilesDownloadStorageTest_UsesProxyEndpoint(t *testing.T) {
 	}
 	withAdminSession(t, app, server.URL)
 
-	if err := app.cmdRemoteProfilesDownloadStorageTest([]string{
+	if err := app.Run([]string{
+		"remote-profiles-download-storage-test",
 		"--profile-tag", "prod",
 		"--json",
 	}); err != nil {
@@ -157,6 +174,10 @@ func TestRemoteProfilesDownloadStorageTest_UsesProxyEndpoint(t *testing.T) {
 func TestRemoteProfilesDownloadAppsList_UsesProxyEndpoint(t *testing.T) {
 	var sawProxy bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/admin/remote-profiles/12/proxy" {
 			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
@@ -182,7 +203,8 @@ func TestRemoteProfilesDownloadAppsList_UsesProxyEndpoint(t *testing.T) {
 	}
 	withAdminSession(t, app, server.URL)
 
-	if err := app.cmdRemoteProfilesDownloadAppsList([]string{
+	if err := app.Run([]string{
+		"remote-profiles-download-apps-list",
 		"12",
 		"--json",
 	}); err != nil {

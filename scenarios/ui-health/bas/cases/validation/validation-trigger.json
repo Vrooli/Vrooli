@@ -1,0 +1,83 @@
+{
+  "metadata": {
+    "name": "validation-trigger",
+    "description": "Submits a scenario name to the Validation list page and verifies the detail page renders summary + findings (or empty findings).",
+    "labels": {
+      "reset": "none",
+      "navigation_spec": "ui-health.app.ui"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-validation",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "ui-health",
+          "scenario_path": "/validation",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Navigate to /validation" }
+      }
+    },
+    {
+      "id": "wait-validation-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='page-validation']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": { "label": "Validation list page visible" }
+      }
+    },
+    {
+      "id": "type-scenario",
+      "action": {
+        "type": "ACTION_TYPE_TYPE",
+        "type": {
+          "selector": "[data-testid='validation-scenario-input']",
+          "text": "ui-health"
+        },
+        "metadata": { "label": "Enter scenario to validate" }
+      }
+    },
+    {
+      "id": "submit",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "[data-testid='validation-submit']" },
+        "metadata": { "label": "Trigger validation" }
+      }
+    },
+    {
+      "id": "wait-summary",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='validation-detail-summary']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Detail page summary rendered" }
+      }
+    },
+    {
+      "id": "capture-final",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": { "full_page": true },
+        "metadata": { "label": "Capture validation result" }
+      }
+    }
+  ]
+}

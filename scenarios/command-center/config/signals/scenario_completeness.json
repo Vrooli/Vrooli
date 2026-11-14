@@ -1,0 +1,22 @@
+{
+  "id": "scenario_completeness",
+  "label": "Running and healthy",
+  "description": "Apps that are both running and passing their health probe.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "scalar",
+  "source": {
+    "team": "meta-optimization",
+    "binding": "scenario:vrooli-core",
+    "read": "/scenarios",
+    "select": "scenario_completeness",
+    "ttlSeconds": 60,
+    "integrationId": "vrooli-core",
+    "featureId": "scenario_completeness",
+    "contractVersion": "legacy.v1",
+    "selector": "scenario_completeness",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

@@ -1,0 +1,138 @@
+{
+  "metadata": {
+    "name": "filter-bar-compact",
+    "description": "Verify compact phone search geometry, submit and reset.",
+    "requirement": "PR-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "filter-bar",
+      "spec_entry_id": "component-harness",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "requirements_json": "[\"PR-001\"]"
+    },
+    "execution_mode": "EXECUTION_MODE_MUTATING"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "open",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/preview/react-component-library%3AFilterBar/harness.html?story=compact",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-density=\"compact\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      }
+    },
+    {
+      "id": "geometry",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{if(document.querySelector('.rcl-filter-bar__summary'))throw Error('Search-only filters must not claim result counts');const f=document.querySelector('[data-rcl-filter-bar]');const b=[...f.querySelectorAll('button')];if(f.getBoundingClientRect().height>210)throw Error('Compact filter too tall');if(document.documentElement.scrollWidth>innerWidth)throw Error('Horizontal overflow');if(Math.abs(b[0].getBoundingClientRect().top-b[1].getBoundingClientRect().top)>1||b.some(e=>e.getBoundingClientRect().height<44))throw Error('Actions must share a row with full touch targets');const i=f.querySelector('input');if(i.placeholder!=='Search conversations')throw Error('Domain placeholder missing');return true})()"
+        }
+      }
+    },
+    {
+      "id": "type",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const i=document.querySelector('input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'Support');i.dispatchEvent(new Event('input',{bubbles:true}));return true})()"
+        }
+      }
+    },
+    {
+      "id": "apply",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button[type=\"submit\"]"
+        }
+      }
+    },
+    {
+      "id": "applied",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{if(document.querySelector('[data-filter-applied]').textContent!=='Support')throw Error('Search did not apply');return true})()"
+        }
+      }
+    },
+    {
+      "id": "reset",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": ".rcl-filter-bar__button--quiet"
+        }
+      }
+    },
+    {
+      "id": "cleared",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{if(document.querySelector('input').value||document.querySelector('[data-filter-applied]').textContent)throw Error('Reset did not clear query and result');return true})()"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "0",
+      "source": "open",
+      "target": "ready"
+    },
+    {
+      "id": "1",
+      "source": "ready",
+      "target": "geometry"
+    },
+    {
+      "id": "2",
+      "source": "geometry",
+      "target": "type"
+    },
+    {
+      "id": "3",
+      "source": "type",
+      "target": "apply"
+    },
+    {
+      "id": "4",
+      "source": "apply",
+      "target": "applied"
+    },
+    {
+      "id": "5",
+      "source": "applied",
+      "target": "reset"
+    },
+    {
+      "id": "6",
+      "source": "reset",
+      "target": "cleared"
+    }
+  ]
+}

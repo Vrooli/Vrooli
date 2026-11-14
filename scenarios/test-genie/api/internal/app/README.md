@@ -110,7 +110,6 @@ NewServer translates runtime dependencies to HTTP server dependencies:
 |---------|-------------|
 | `cfg.Port` | `httpCfg.Port` |
 | `deps.DB` | `httpDeps.DB` |
-| `deps.SuiteRequests` | `httpDeps.SuiteQueue` |
 | `deps.ExecutionHistory` | `httpDeps.Executions` |
 | `deps.ExecutionService` | `httpDeps.ExecutionSvc` |
 | `deps.ScenarioService` | `httpDeps.Scenarios` |
@@ -139,6 +138,6 @@ app/
 
 ## Related Documentation
 
-- [Runtime README](runtime/README.md) — Configuration and bootstrap
-- [HTTP Server README](httpserver/README.md) — Endpoints and handlers
+- [Runtime configuration](runtime/config.go) — Environment and bootstrap configuration
+- [HTTP server](httpserver/server.go) — Route registration and handlers
 - [API README](../../README.md) — Overall architecture

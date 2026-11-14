@@ -172,16 +172,5 @@ TODO: Implementation required
 
 // CheckStreamingContentTypeHeaders validates streaming response Content-Type headers
 func CheckStreamingContentTypeHeaders(content []byte, filePath string) []Violation {
-	var violations []Violation
-
-	// TODO: Implement streaming Content-Type checking
-	// This is complex due to goroutines and control flow
-	// Must detect Flush() and verify headers set first
-	// SSE is critical - broken without text/event-stream
-	// Consider using data flow analysis
-
-	_ = content
-	_ = filePath
-
-	return violations
+	return noContentTypeViolations()
 }

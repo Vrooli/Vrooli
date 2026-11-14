@@ -12,12 +12,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
-	"scenario-to-desktop-runtime/assets"
-	"scenario-to-desktop-runtime/deps"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/strutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/assets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/deps"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	resourceplan "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/resources"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/strutil"
 )
 
 // =============================================================================
@@ -26,6 +29,9 @@ import (
 
 // ensureAssets verifies all required assets for a service exist and are valid.
 func (s *Supervisor) ensureAssets(svc manifest.Service) error {
+	if svc.ComponentID != "" {
+		return assets.NewVerifier(s.serviceBundleRoot(svc), s.fs, s.telemetry).EnsureAssets(svc)
+	}
 	return s.assetVerifier.EnsureAssets(svc)
 }
 
@@ -81,9 +87,22 @@ type serviceProcess struct {
 
 // launchServices starts all services in dependency order.
 func (s *Supervisor) launchServices(ctx context.Context) error {
-	order, err := deps.TopoSort(s.opts.Manifest.Services)
+	s.componentMu.Lock()
+	defer s.componentMu.Unlock()
+	if err := s.activatePendingUpdates(ctx); err != nil {
+		return err
+	}
+	services := s.effectiveServices()
+	order, err := deps.TopoSort(services)
 	if err != nil {
 		return fmt.Errorf("dependency sort: %w", err)
+	}
+	// The optimized Electron profile opts into concurrent launch of independent
+	// services. WaitForDependencies still gates each service on its declared
+	// dependency health, so only independent branches overlap. Keep the default
+	// serial path stable for sidecar and existing bundles.
+	if strings.EqualFold(os.Getenv("VROOLI_DESKTOP_PARALLEL_START"), "true") {
+		return s.launchServicesParallel(ctx, order)
 	}
 
 	for _, id := range order {
@@ -93,8 +112,17 @@ func (s *Supervisor) launchServices(ctx context.Context) error {
 		default:
 		}
 
-		svc := deps.FindService(s.opts.Manifest.Services, id)
+		svc := deps.FindService(services, id)
 		if svc == nil {
+			continue
+		}
+		if s.getProc(id) != nil {
+			continue
+		}
+
+		if skip, reason := s.shouldSkipAuthenticationService(*svc); skip {
+			status := ServiceStatus{Ready: false, Skipped: true, Message: reason}
+			s.setStatus(svc.ID, status)
 			continue
 		}
 
@@ -131,7 +159,83 @@ func (s *Supervisor) launchServices(ctx context.Context) error {
 	return nil
 }
 
+func (s *Supervisor) launchServicesParallel(ctx context.Context, order []string) error {
+	var wg sync.WaitGroup
+	services := s.effectiveServices()
+	for _, id := range order {
+		svc := deps.FindService(services, id)
+		if svc == nil {
+			continue
+		}
+		wg.Add(1)
+		go func(svc manifest.Service) {
+			defer wg.Done()
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+			if skip, reason := s.shouldSkipAuthenticationService(svc); skip {
+				s.setStatus(svc.ID, ServiceStatus{Ready: false, Skipped: true, Message: reason})
+				return
+			}
+			if skip, reason := shouldSkipService(svc); skip {
+				message := "skipped: on-demand service"
+				if reason != "" {
+					message = fmt.Sprintf("skipped: %s", reason)
+				}
+				s.setStatus(svc.ID, ServiceStatus{Ready: false, Skipped: true, Message: message})
+				return
+			}
+			if err := s.healthChecker.WaitForDependencies(ctx, &svc); err != nil {
+				s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: err.Error()})
+				_ = s.recordTelemetry("service_blocked", map[string]interface{}{"service_id": svc.ID, "reason": err.Error()})
+				return
+			}
+			if err := s.startService(ctx, svc); err != nil {
+				s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: err.Error()})
+				_ = s.recordTelemetry("service_start_failed", map[string]interface{}{"service_id": svc.ID, "error": err.Error()})
+			}
+		}(*svc)
+	}
+	wg.Wait()
+	return ctx.Err()
+}
+
+// shouldSkipAuthenticationService keeps an optional local authenticator
+// dormant unless the selected mode explicitly requires it. A bundle may carry
+// the provider so an operator can opt into local_multi_user later, but that
+// provider must not become a hidden dependency of personal_local, remote_vrooli,
+// or shared_provider. Mode transitions are persisted by the protected runtime
+// API and take effect on the next managed restart.
+func (s *Supervisor) shouldSkipAuthenticationService(svc manifest.Service) (bool, string) {
+	if s == nil || s.authModes == nil || s.opts.Manifest == nil || s.opts.Manifest.Authentication == nil {
+		return false, ""
+	}
+	profile := s.authModes.currentProfile()
+	if profile == nil || profile.RequiresAuthenticator {
+		return false, ""
+	}
+
+	providerIDs := make(map[string]struct{})
+	if id := strings.TrimSpace(s.opts.Manifest.Authentication.ProviderServiceID); id != "" {
+		providerIDs[id] = struct{}{}
+	}
+	for _, alternate := range s.opts.Manifest.Authentication.ModeProfiles {
+		if id := strings.TrimSpace(alternate.ProviderServiceID); id != "" {
+			providerIDs[id] = struct{}{}
+		}
+	}
+	if _, ok := providerIDs[strings.TrimSpace(svc.ID)]; !ok {
+		return false, ""
+	}
+	return true, fmt.Sprintf("skipped: authenticator is disabled in %s mode", profile.Mode)
+}
+
 func shouldSkipService(svc manifest.Service) (bool, string) {
+	if svc.ComponentSlice != "" {
+		return true, "optional feature starts on demand"
+	}
 	if len(svc.Metadata) == 0 {
 		return false, ""
 	}
@@ -165,14 +269,19 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 	if err != nil {
 		return err
 	}
+	s.recordIsolationObservation(svc.ID, envMap)
 
-	cmdPath := manifest.ResolvePath(s.opts.BundlePath, bin.Path)
+	cmdPath := manifest.ResolvePath(s.serviceBundleRoot(svc), bin.Path)
 	cmdCtx, cancel := context.WithCancel(ctx)
-	args := s.renderArgs(bin.Args)
+	args, err := s.serviceRenderer(svc).RenderArgs(bin.Args)
+	if err != nil {
+		cancel()
+		return fmt.Errorf("render arguments for service %s: %w", svc.ID, err)
+	}
 
-	workDir := s.opts.BundlePath
+	workDir := s.serviceBundleRoot(svc)
 	if bin.CWD != "" {
-		workDir = manifest.ResolvePath(s.opts.BundlePath, bin.CWD)
+		workDir = manifest.ResolvePath(s.serviceBundleRoot(svc), bin.CWD)
 	}
 
 	logWriter, logPath, err := s.logWriter(svc)
@@ -204,7 +313,7 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 	s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: "starting"})
 	_ = s.recordTelemetry("service_start", map[string]interface{}{"service_id": svc.ID})
 
-	s.monitorReadiness(cmdCtx, svc.ID, nil)
+	s.monitorReadiness(cmdCtx, svc, nil)
 	s.monitorExit(svcProc, proc)
 
 	return nil
@@ -219,6 +328,19 @@ func (s *Supervisor) prepareServiceEnv(ctx context.Context, svc manifest.Service
 	envMap, err := s.renderEnvMap(svc, bin)
 	if err != nil {
 		return nil, err
+	}
+	// Bind bundled local-auth consumers to the exact token path declared by the
+	// manifest. The runtime owns this value so a service cannot accidentally
+	// authenticate against a different file or fall back to its OS user.
+	envMap["VROOLI_AUTH_LOCAL_TOKEN_FILE"] = manifest.ResolvePath(s.appData, s.opts.Manifest.IPC.AuthTokenRel)
+	envMap["VROOLI_RUNTIME_URL"] = fmt.Sprintf("http://127.0.0.1:%d", s.opts.Manifest.IPC.Port)
+	if s.resourceServer != nil {
+		for key, value := range s.resourceServer.Environment() {
+			if existing, exists := envMap[key]; exists && existing != value {
+				return nil, fmt.Errorf("shared managed resource environment conflicts with service %s variable %s", svc.ID, key)
+			}
+			envMap[key] = value
+		}
 	}
 
 	if err := s.applySecrets(envMap, svc); err != nil {
@@ -244,17 +366,26 @@ func (s *Supervisor) prepareServiceEnv(ctx context.Context, svc manifest.Service
 
 // monitorReadiness watches for service readiness in a background goroutine.
 // extraFields are appended to telemetry events.
-func (s *Supervisor) monitorReadiness(ctx context.Context, svcID string, extraFields map[string]interface{}) {
+func (s *Supervisor) monitorReadiness(ctx context.Context, svc manifest.Service, extraFields map[string]interface{}) {
+	svcID := svc.ID
+	checker := s.serviceHealthChecker(svc)
+	process := s.getProc(svcID)
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		if err := s.healthChecker.WaitForReadiness(ctx, svcID); err != nil {
+		if err := checker.WaitForReadiness(ctx, svcID); err != nil {
+			if s.getProc(svcID) != process {
+				return
+			}
 			s.setStatus(svcID, ServiceStatus{Ready: false, Message: err.Error()})
 			fields := map[string]interface{}{"service_id": svcID, "error": err.Error()}
 			for k, v := range extraFields {
 				fields[k] = v
 			}
 			_ = s.recordTelemetry("service_not_ready", fields)
+			return
+		}
+		if s.getProc(svcID) != process {
 			return
 		}
 		s.setStatus(svcID, ServiceStatus{Ready: true, Message: "ready"})
@@ -277,7 +408,9 @@ func (s *Supervisor) monitorExit(svcProc *serviceProcess, proc Process) {
 		if err != nil {
 			msg = err.Error()
 		}
-		s.setStatus(svcProc.service.ID, ServiceStatus{Ready: false, Message: msg, ExitCode: code})
+		if s.getProc(svcProc.service.ID) == svcProc {
+			s.setStatus(svcProc.service.ID, ServiceStatus{Ready: false, Message: msg, ExitCode: code})
+		}
 		_ = s.recordTelemetry("service_exit", map[string]interface{}{
 			"service_id": svcProc.service.ID,
 			"exit_code":  code,
@@ -294,6 +427,7 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 	if err := s.prepareServiceDirs(svc); err != nil {
 		return err
 	}
+	s.recordIsolationObservation(svc.ID, map[string]string{"APP_DATA_DIR": s.appData, "VROOLI_STORAGE_ROOT": filepath.Join(s.appData, "storage")})
 
 	port, err := s.resolveUIPort(svc)
 	if err != nil {
@@ -320,7 +454,10 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 	}
 
 	handler := s.buildUIHandler(svc, serveRoot)
-	server := &http.Server{Handler: handler}
+	server := &http.Server{
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
 	serverCtx, cancel := context.WithCancel(ctx)
 
 	svcProc := &serviceProcess{
@@ -338,7 +475,7 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 	}()
 	go func() {
 		<-serverCtx.Done()
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(serverCtx), 3*time.Second)
 		defer shutdownCancel()
 		_ = server.Shutdown(shutdownCtx)
 	}()
@@ -351,7 +488,7 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 	})
 
 	extraFields := map[string]interface{}{"port": port, "type": "ui-bundle"}
-	s.monitorReadiness(serverCtx, svc.ID, extraFields)
+	s.monitorReadiness(serverCtx, svc, extraFields)
 
 	return nil
 }
@@ -381,7 +518,7 @@ func (s *Supervisor) buildUIHandler(svc manifest.Service, serveRoot string) http
 		healthPath = "/health"
 	}
 
-	apiProxy := s.buildAPIProxy()
+	apiProxy := s.buildAPIProxy(svc)
 	fileServer := http.FileServer(http.Dir(serveRoot))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -392,28 +529,38 @@ func (s *Supervisor) buildUIHandler(svc manifest.Service, serveRoot string) http
 			return
 		}
 
-		if apiProxy != nil && (strings.HasPrefix(r.URL.Path, "/api") || strings.HasPrefix(strings.ToLower(r.URL.Path), "/ws")) {
-			apiProxy.ServeHTTP(w, r)
-			return
-		}
-
-		path := filepath.Join(serveRoot, filepath.Clean(r.URL.Path))
+		path := filepath.Join(serveRoot, filepath.Clean("/"+strings.TrimPrefix(r.URL.Path, "/")))
 		if info, err := os.Stat(path); err == nil && !info.IsDir() {
 			fileServer.ServeHTTP(w, r)
 			return
 		}
-		indexPath := filepath.Join(serveRoot, "index.html")
-		if _, err := os.Stat(indexPath); err == nil {
-			http.ServeFile(w, r, indexPath)
+
+		// The root document is a navigation even when a health/readiness client
+		// omits Accept. Other non-asset paths require an explicit HTML accept
+		// header; protocol and API requests must continue to reach the API.
+		isNavigation := r.URL.Path == "/" || r.URL.Path == "/index.html" ||
+			strings.Contains(strings.ToLower(r.Header.Get("Accept")), "text/html")
+		if isNavigation {
+			indexPath := filepath.Join(serveRoot, "index.html")
+			if _, err := os.Stat(indexPath); err == nil {
+				http.ServeFile(w, r, indexPath)
+				return
+			}
+		}
+		if apiProxy != nil {
+			apiProxy.ServeHTTP(w, r)
 			return
 		}
-		http.NotFound(w, r)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(`{"error":"bundled API service is unavailable"}`))
+		return
 	})
 }
 
 // buildAPIProxy creates a reverse proxy to the API service, or nil if no API port is found.
-func (s *Supervisor) buildAPIProxy() *httputil.ReverseProxy {
-	apiPort := s.resolveAPIPort()
+func (s *Supervisor) buildAPIProxy(ui ...manifest.Service) *httputil.ReverseProxy {
+	apiPort := s.resolveAPIPort(ui...)
 	if apiPort <= 0 {
 		return nil
 	}
@@ -421,26 +568,41 @@ func (s *Supervisor) buildAPIProxy() *httputil.ReverseProxy {
 	return httputil.NewSingleHostReverseProxy(target)
 }
 
-// resolveAPIPort attempts to find a service that exposes an "api" port and returns its allocated value.
-func (s *Supervisor) resolveAPIPort() int {
-	ports := s.portAllocator.Map()
-
-	// Prefer a service with ID containing "-api".
-	for svcID, entries := range ports {
-		if strings.Contains(strings.ToLower(svcID), "-api") {
-			if port, ok := entries["api"]; ok {
-				return port
+// resolveAPIPort binds each UI to its own declared API. Embedded peer APIs
+// must not capture the root UI's requests through naming or map iteration order.
+func (s *Supervisor) resolveAPIPort(ui ...manifest.Service) int {
+	if s.opts.Manifest == nil {
+		return 0
+	}
+	prefix := ""
+	if len(ui) > 0 {
+		if scenario, _, ok := strings.Cut(ui[0].ID, "--"); ok {
+			prefix = scenario + "--"
+		}
+	}
+	allocations := s.portAllocator.Map()
+	selected := 0
+	for _, service := range s.opts.Manifest.Services {
+		if service.Type != "api-binary" || service.Ports == nil {
+			continue
+		}
+		if prefix == "" && strings.Contains(service.ID, "--") {
+			continue
+		}
+		if prefix != "" && !strings.HasPrefix(service.ID, prefix) {
+			continue
+		}
+		for _, port := range service.Ports.Requested {
+			if value := allocations[service.ID][port.Name]; value > 0 {
+				if selected != 0 {
+					return 0
+				} // An ambiguous declaration cannot choose an API.
+				selected = value
+				break
 			}
 		}
 	}
-
-	// Otherwise, return the first service that exposes "api".
-	for _, entries := range ports {
-		if port, ok := entries["api"]; ok {
-			return port
-		}
-	}
-	return 0
+	return selected
 }
 
 // resolveUIDistRoot determines the directory to serve static files from for a ui-bundle service.
@@ -454,14 +616,14 @@ func (s *Supervisor) resolveAPIPort() int {
 func (s *Supervisor) resolveUIDistRoot(svc manifest.Service) (string, error) {
 	// Priority 1: Explicit dist_root takes precedence
 	if svc.DistRoot != "" {
-		return manifest.ResolvePath(s.opts.BundlePath, svc.DistRoot), nil
+		return manifest.ResolvePath(s.serviceBundleRoot(svc), svc.DistRoot), nil
 	}
 
 	// Priority 2: Find index.html in assets - its parent directory is the dist root
 	for _, asset := range svc.Assets {
 		if filepath.Base(asset.Path) == "index.html" {
 			distRoot := filepath.Dir(asset.Path)
-			return manifest.ResolvePath(s.opts.BundlePath, distRoot), nil
+			return manifest.ResolvePath(s.serviceBundleRoot(svc), distRoot), nil
 		}
 	}
 
@@ -476,7 +638,9 @@ func (s *Supervisor) resolveUIDistRoot(svc manifest.Service) (string, error) {
 
 // stopServices stops all services in reverse dependency order.
 func (s *Supervisor) stopServices(ctx context.Context) {
-	order, err := deps.TopoSort(s.opts.Manifest.Services)
+	s.componentMu.Lock()
+	defer s.componentMu.Unlock()
+	order, err := deps.TopoSort(s.effectiveServices())
 	if err != nil {
 		return
 	}
@@ -490,18 +654,18 @@ func (s *Supervisor) stopServices(ctx context.Context) {
 		}
 
 		proc.stopping = true
-		if proc.cancel != nil {
-			proc.cancel()
-		}
 		if proc.proc != nil {
 			s.gracefulStop(ctx, proc)
+		}
+		if proc.cancel != nil {
+			proc.cancel()
 		}
 	}
 }
 
 // gracefulStop attempts graceful shutdown, then forceful kill.
 func (s *Supervisor) gracefulStop(ctx context.Context, proc *serviceProcess) {
-	_ = proc.proc.Signal(Interrupt)
+	_ = infra.StopProcess(proc.proc)
 
 	waitCh := make(chan error, 1)
 	go func() { waitCh <- proc.proc.Wait() }()
@@ -519,23 +683,22 @@ func (s *Supervisor) gracefulStop(ctx context.Context, proc *serviceProcess) {
 // prepareServiceDirs creates required directories for a service.
 func (s *Supervisor) prepareServiceDirs(svc manifest.Service) error {
 	for _, dir := range svc.DataDirs {
-		path := manifest.ResolvePath(s.appData, dir)
+		path := manifest.ResolvePath(s.serviceDataRoot(svc), dir)
 		if err := s.fs.MkdirAll(path, 0o755); err != nil {
 			return fmt.Errorf("create data dir for %s: %w", svc.ID, err)
 		}
 	}
-	if svc.LogDir != "" {
-		logPath := manifest.ResolvePath(s.appData, svc.LogDir)
-		if err := s.fs.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
-			return fmt.Errorf("prepare log dir: %w", err)
-		}
-		// Touch the log file to ensure it exists.
-		f, err := s.fs.OpenFile(logPath, fileCreateAppend, 0o644)
-		if err != nil {
-			return fmt.Errorf("prepare log file: %w", err)
-		}
-		_ = f.Close()
+	logPath := serviceLogPath(s.appData, svc)
+	if err := s.fs.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		return fmt.Errorf("prepare log dir: %w", err)
 	}
+	// Touch the log file to ensure it exists. Every declared service gets a
+	// conventional log even when log_dir is omitted from the manifest.
+	f, err := s.fs.OpenFile(logPath, fileCreateAppend, 0o644)
+	if err != nil {
+		return fmt.Errorf("prepare log file: %w", err)
+	}
+	_ = f.Close()
 	return nil
 }
 
@@ -544,15 +707,22 @@ var fileCreateAppend = os.O_CREATE | os.O_WRONLY | os.O_APPEND
 
 // logWriter creates a log file writer for a service.
 func (s *Supervisor) logWriter(svc manifest.Service) (File, string, error) {
-	if svc.LogDir == "" {
-		return nil, "", nil
+	logPath := serviceLogPath(s.appData, svc)
+	if err := s.fs.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		return nil, "", fmt.Errorf("prepare log dir: %w", err)
 	}
-	logPath := manifest.ResolvePath(s.appData, svc.LogDir)
 	f, err := s.fs.OpenFile(logPath, fileCreateAppend, 0o644)
 	if err != nil {
 		return nil, "", fmt.Errorf("open log file: %w", err)
 	}
 	return f, logPath, nil
+}
+
+func serviceLogPath(appData string, svc manifest.Service) string {
+	if svc.LogDir != "" {
+		return manifest.ResolvePath(appData, svc.LogDir)
+	}
+	return filepath.Join(appData, "resources", svc.ID, "logs", "service.log")
 }
 
 // LogWriter implements migrations.LogProvider.
@@ -579,8 +749,41 @@ func (s *Supervisor) startServicesAsync() {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
+		// Every service that needed a secret materialized on disk has been
+		// launched by the time this returns, success or failure, so the files
+		// have no purpose left. They are removed on the failure path too: a
+		// half-started bundle is exactly when a stray credential would sit
+		// around unnoticed.
+		defer func() {
+			if err := s.discardMaterializedSecrets(); err != nil {
+				_ = s.recordTelemetry("secret_cleanup_failed", map[string]interface{}{"error": err.Error()})
+			}
+		}()
 		if err := s.launchServices(ctx); err != nil {
 			_ = s.recordTelemetry("runtime_error", map[string]interface{}{"error": err.Error()})
 		}
 	}()
+}
+
+// startBundledResources launches only the app-private server artifacts that
+// were selected and verified by the immutable resource deployment plan. These
+// processes are intentionally separate from manifest services: they have no
+// user-facing launcher entry and cannot be replaced by host discovery.
+func (s *Supervisor) startBundledResources(ctx context.Context) error {
+	if s.resourcePlan == nil || s.opts.DryRun {
+		return nil
+	}
+	supervisor := resourceplan.NewServiceSupervisor(s.opts.BundlePath, s.appData, s.opts.SharedResourceResolver)
+	if err := supervisor.Start(ctx, s.resourcePlan); err != nil {
+		return fmt.Errorf("start bundled managed resources: %w", err)
+	}
+	s.resourceServer = supervisor
+	for resource, status := range supervisor.Statuses() {
+		_ = s.recordTelemetry("managed_resource_start", map[string]interface{}{
+			"resource": resource,
+			"pid":      status.PID,
+			"log_path": status.LogPath,
+		})
+	}
+	return nil
 }

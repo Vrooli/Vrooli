@@ -1,32 +1,22 @@
 {
-  "name": "tidiness-manager-ui",
-  "version": "1.0.0",
-  "description": "React + Vite front-end for Tidiness Manager",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "node server.js",
-    "lint": "eslint src --ext ts,tsx",
-    "type-check": "tsc --noEmit",
-    "test": "vitest run --coverage"
-  },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.0",
     "@tanstack/react-query": "^5.59.0",
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
+    "@vrooli/ui-selectors": "file:../../../packages/ui-selectors",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "express": "^4.21.2",
     "lucide-react": "^0.424.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.30.2",
+    "react-router-dom": "^6.30.4",
     "tailwind-merge": "^2.3.0",
-    "ws": "^8.16.0"
+    "ws": "^8.21.0"
   },
+  "description": "React + Vite front-end for Tidiness Manager",
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
@@ -48,5 +38,31 @@
     "vite": "^5.4.21",
     "vitest": "^2.1.4"
   },
-  "packageManager": "pnpm@9.12.1"
+  "name": "tidiness-manager-ui",
+  "packageManager": "pnpm@10.34.9+sha512.f49b5a8ea0fdedb44bb3c0c1d6575092a53c2950d95b7ad15df11f17974877a2de3a01c07e934e9b28ce716e51c09a94962c7306d09be2e1e4b18a8c8762fd32",
+  "pnpm": {
+    "overrides": {
+      "@remix-run/router": "1.23.2",
+      "path-to-regexp": "0.1.13",
+      "qs": "6.15.2",
+      "react-router": "6.30.4",
+      "ws": "8.21.0"
+    }
+  },
+  "private": true,
+  "scripts": {
+    "build": "pnpm selector:manifest \u0026\u0026 vite build",
+    "dev": "vrooli lifecycle protect -- vite",
+    "lint": "eslint src --ext ts,tsx",
+    "lint:fix": "eslint src --ext ts,tsx --fix",
+    "preview": "node server.js",
+    "selector:check": "node scripts/generate-selector-manifest.mjs --check",
+    "selector:manifest": "node scripts/generate-selector-manifest.mjs",
+    "strings:check": "node -e \"process.exit(0)\"",
+    "test": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage",
+    "type-check": "tsc --noEmit"
+  },
+  "type": "module",
+  "version": "1.0.0"
 }

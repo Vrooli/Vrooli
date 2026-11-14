@@ -1,0 +1,24 @@
+{
+  "background_color": "#f8fafc",
+  "description": "Validates, executes, indexes, and improves scenario workflow assets.",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any maskable",
+      "sizes": "192x192",
+      "src": "manifest-icon-192.maskable.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any maskable",
+      "sizes": "512x512",
+      "src": "manifest-icon-512.maskable.png",
+      "type": "image/png"
+    }
+  ],
+  "name": "Workflow Health",
+  "scope": "../",
+  "short_name": "workflow-health",
+  "start_url": "../",
+  "theme_color": "#ffffff"
+}

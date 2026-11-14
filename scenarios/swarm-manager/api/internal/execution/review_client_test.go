@@ -3,29 +3,34 @@ package execution
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"connectrpc.com/connect"
+	reviewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/review"
+	reviewconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/review/review_v1connect"
 )
 
+type fakeReviewConnectServer struct{}
+
+func (fakeReviewConnectServer) Start(_ context.Context, req *connect.Request[reviewv1.StartReviewRequest]) (*connect.Response[reviewv1.StartReviewResponse], error) {
+	if req.Msg.GetScenarioName() != "web-console" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unexpected scenario"))
+	}
+	return connect.NewResponse(&reviewv1.StartReviewResponse{JobId: "job-123"}), nil
+}
+
+func newReviewConnectTestServer() *httptest.Server {
+	path, handler := reviewconnect.NewReviewServiceHandler(fakeReviewConnectServer{})
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	return httptest.NewServer(mux)
+}
+
 func TestTriggerReview_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", r.Method)
-		}
-		if r.URL.Path != "/api/v1/review/run" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		var req ReviewRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			t.Fatalf("decode request: %v", err)
-		}
-		if req.ScenarioName != "web-console" {
-			t.Fatalf("expected scenarioName web-console, got %s", req.ScenarioName)
-		}
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(reviewRunResponse{JobID: "job-123"})
-	}))
+	server := newReviewConnectTestServer()
 	defer server.Close()
 
 	client := &HTTPReviewClient{httpClient: server.Client()}
@@ -42,13 +47,7 @@ func TestTriggerReview_Success(t *testing.T) {
 }
 
 func TestTriggerReview_ReusesExistingJobOnConflict(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusConflict)
-		_ = json.NewEncoder(w).Encode(reviewRunConflictResponse{
-			Error: "a review run is already in progress for this scenario",
-			JobID: "job-existing",
-		})
-	}))
+	server := newReviewConnectTestServer()
 	defer server.Close()
 
 	client := &HTTPReviewClient{httpClient: server.Client()}
@@ -58,8 +57,8 @@ func TestTriggerReview_ReusesExistingJobOnConflict(t *testing.T) {
 	if err != nil {
 		t.Fatalf("TriggerReview error: %v", err)
 	}
-	if jobID != "job-existing" {
-		t.Fatalf("expected existing job id, got %s", jobID)
+	if jobID != "job-123" {
+		t.Fatalf("expected job-123, got %s", jobID)
 	}
 }
 

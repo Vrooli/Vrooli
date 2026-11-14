@@ -1,0 +1,305 @@
+syntax = "proto3";
+package vrooli.device_studio.v1.scenes;
+
+import "device-studio/v1/physical/physical.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/scenes;scenes_v1";
+service ScenesService {
+  rpc SaveSceneCandidate(SaveSceneCandidateRequest) returns (SaveSceneCandidateResponse);
+  rpc GetSceneRevision(GetSceneRevisionRequest) returns (GetSceneRevisionResponse);
+  rpc GetSceneHead(GetSceneHeadRequest) returns (GetSceneHeadResponse);
+  rpc ListSceneRevisions(ListSceneRevisionsRequest) returns (ListSceneRevisionsResponse);
+  rpc ListSceneCandidates(ListSceneCandidatesRequest) returns (ListSceneCandidatesResponse);
+  rpc FitKnownCameraPose(FitKnownCameraPoseRequest) returns (FitKnownCameraPoseResponse);
+  rpc ImportPreparedPhotograph(ImportPreparedPhotographRequest) returns (ImportPreparedPhotographResponse);
+}
+message ImportPreparedPhotographRequest {
+  string preparation_id = 1;
+  string expected_bundle_sha256 = 2;
+  string license_id = 3;
+  string attribution = 4;
+  string source_label = 5;
+  // Explicit source-use choice. When true, the imported Library revision may
+  // be rendered locally; it does not qualify motion or authorize publication.
+  bool allow_local_render = 6;
+  string source_use_rationale = 7;
+}
+message ImportPreparedPhotographResponse {
+  SceneRevision revision = 1;
+  string library_bundle_id = 2;
+  uint32 library_revision = 3;
+  string library_manifest_sha256 = 4;
+  string scale_status = 5;
+  double estimated_scale_m = 6;
+}
+// Each 3D landmark is supplied by an operator from pinned device geometry;
+// no feature/keypoint detector participates in this fit.
+message FitKnownCameraPoseRequest {
+  string scene_id = 1;
+  uint32 scene_revision = 2;
+  string camera_frame_id = 3;
+  uint32 raster_width = 4;
+  uint32 raster_height = 5;
+  repeated DeviceFitLandmark landmarks = 6;
+  vrooli.device_studio.v1.physical.TRS initial_pose_world = 7;
+  string hinge_joint_id = 8;
+  double hinge_angle_radians = 9;
+  string hinge_rule = 10;
+  double max_rms_pixels = 11;
+  double max_point_pixels = 12;
+  string geometry_asset_id = 13;
+  string geometry_sha256 = 14;
+  string device_id = 15;
+  uint32 device_revision = 16;
+  string device_revision_sha256 = 17;
+}
+message DeviceFitLandmark {
+  string id = 1;
+  vrooli.device_studio.v1.physical.Vec3 device_local_m = 2;
+  double pixel_x = 3;
+  double pixel_y = 4;
+}
+message FitKnownCameraPoseResponse {
+  string profile = 1;
+  vrooli.device_studio.v1.physical.TRS fitted_pose_world = 2;
+  vrooli.device_studio.v1.physical.TRS initial_pose_world = 3;
+  string hinge_joint_id = 4;
+  double hinge_angle_radians = 5;
+  string hinge_rule = 6;
+  repeated DeviceFitResidual residuals = 7;
+  double rms_pixels = 8;
+  double max_pixels = 9;
+  string overlay_svg = 10;
+  uint32 iterations = 11;
+  string scene_id = 12;
+  uint32 scene_revision = 13;
+  string camera_frame_id = 14;
+  string geometry_asset_id = 15;
+  string geometry_sha256 = 16;
+  string device_id = 17;
+  uint32 device_revision = 18;
+  string device_revision_sha256 = 19;
+  SceneCameraFrame camera_frame = 20;
+  uint32 raster_width = 21;
+  uint32 raster_height = 22;
+}
+message DeviceFitResidual {
+  string landmark_id = 1;
+  double observed_x = 2;
+  double observed_y = 3;
+  double projected_x = 4;
+  double projected_y = 5;
+  double dx = 6;
+  double dy = 7;
+  double magnitude = 8;
+}
+message SaveSceneCandidateRequest {
+  SceneCandidate candidate = 1;
+  uint32 expected_head = 2;
+}
+message SaveSceneCandidateResponse {
+  SceneRevision revision = 1;
+}
+message GetSceneRevisionRequest {
+  string scene_id = 1;
+  uint32 revision = 2;
+}
+message GetSceneRevisionResponse {
+  SceneRevision revision = 1;
+}
+message GetSceneHeadRequest {
+  string scene_id = 1;
+}
+message GetSceneHeadResponse {
+  SceneRevision revision = 1;
+}
+message ListSceneRevisionsRequest {
+  string scene_id = 1;
+  uint32 after_revision = 2;
+  uint32 page_size = 3;
+}
+message ListSceneRevisionsResponse {
+  repeated SceneRevision revisions = 1;
+  uint32 next_after_revision = 2;
+}
+message ListSceneCandidatesRequest {
+  string after_scene_id = 1;
+  uint32 page_size = 2;
+}
+message ListSceneCandidatesResponse {
+  repeated SceneRevision candidates = 1;
+  string next_after_scene_id = 2;
+}
+message SceneRevision {
+  string scene_id = 1;
+  uint32 revision = 2;
+  string sha256 = 3;
+  string state = 4;
+  SceneCandidate candidate = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+message SceneCandidate {
+  string version = 1;
+  string scene_id = 2;
+  string coordinate_convention = 3;
+  repeated SceneArtifactBinding artifacts = 4;
+  repeated SceneMaterial materials = 5;
+  repeated SceneMaterialSlot material_slots = 6;
+  repeated ScenePart parts = 7;
+  repeated SceneSupportFrame support_frames = 8;
+  repeated SceneCameraFrame camera_frames = 9;
+  repeated SceneLightFrame light_frames = 10;
+  SceneEnvironment environment = 11;
+  repeated SceneRegion regions = 12;
+  repeated SceneSupportSlot support_slots = 13;
+  PhotographicBackground photographic_background = 14;
+}
+message PhotographicBackground {
+  string contract_version = 1;
+  string route = 2;
+  string source_bundle_sha256 = 3;
+  string source_raster_sha256 = 4;
+  string geometry_archive_sha256 = 5;
+  string repair_provenance_sha256 = 6;
+  string device_mask_sha256 = 7;
+  string removal_mask_sha256 = 8;
+  string scale_status = 9;
+  double estimated_scale_meters = 10;
+  string geometry_model = 11;
+  string checkpoint_sha256 = 12;
+  string postprocess = 13;
+  repeated double support_plane_normal_opencv = 14;
+  double support_plane_offset_estimate_m = 15;
+  uint32 support_plane_inliers = 16;
+  double support_plane_residual_p95_estimate_m = 17;
+  double camera_envelope_max_translation_m = 18;
+  double camera_envelope_max_rotation_degrees = 19;
+  bool overscan_reviewed = 20;
+  string source_visual_review_sha256 = 21;
+  string source_visual_reviewer = 22;
+  string source_visual_review_rationale = 23;
+  repeated string source_visual_review_evidence = 24;
+  string source_use_claim_sha256 = 25;
+  bool local_render_authorized = 26;
+  string source_use_rationale = 27;
+  // Names the photographic render contract independently from geometry
+  // provenance. Source-camera plate mode preserves the original raster and
+  // rejects camera motion; geometry reprojection remains a separate profile.
+  string render_mode = 28;
+}
+message SceneArtifactBinding {
+  string id = 1;
+  vrooli.device_studio.v1.physical.ArtifactRef ref = 2;
+  string source_unit = 3;
+  vrooli.device_studio.v1.physical.TRS source_to_canonical = 4;
+}
+message SceneMaterialInput {
+  string socket = 1;
+  string texture_binding_id = 2;
+  string semantic = 3;
+  string color_space = 4;
+  string channel = 5;
+  string sampler = 6;
+  string coordinates = 7;
+  string uv_set = 8;
+  repeated double affine_uv = 9;
+  repeated double physical_repeat_m = 10;
+  string normal_convention = 11;
+  optional double normal_strength = 12;
+  optional double bump_strength = 13;
+  optional double bump_distance_m = 14;
+}
+message SceneMaterialGrade {
+  string recipe = 1;
+  double saturation = 2;
+  double value = 3;
+  double mix_factor = 4;
+  repeated double mix_linear_rgb = 5;
+}
+message SceneMaterial {
+  string id = 1;
+  string surface_profile = 2;
+  repeated double base_color_linear_rgba = 3;
+  double metallic = 4;
+  double roughness = 5;
+  string alpha_mode = 6;
+  optional double alpha_cutoff = 7;
+  repeated SceneMaterialInput inputs = 8;
+  SceneMaterialGrade grade = 9;
+}
+message SceneMaterialSlot {
+  string part_id = 1;
+  uint32 primitive_index = 2;
+  uint32 slot_index = 3;
+  string material_id = 4;
+}
+message ScenePart {
+  string id = 1;
+  string role = 2;
+  string artifact_binding_id = 3;
+  string parent_id = 4;
+  uint32 node_index = 5;
+  string node_name = 6;
+  vrooli.device_studio.v1.physical.TRS local_frame = 7;
+}
+message SceneSupportFrame {
+  string id = 1;
+  string interface_id = 2;
+  string frame_part_id = 3;
+  vrooli.device_studio.v1.physical.TRS local_frame = 4;
+  string contact_region_part_id = 5;
+  vrooli.device_studio.v1.physical.Vec3 load_direction_local = 6;
+}
+// A support slot is an immutable compatibility requirement tied to one scene
+// support frame. Bounds are maximum device envelope dimensions in metres.
+message SceneSupportSlot {
+  string id = 1;
+  string frame_id = 2;
+  string kind = 3;
+  string required_interface = 4;
+  repeated string allowed_groups = 5;
+  string dimension_state = 6;
+  string required_pose = 7;
+  double max_width_m = 8;
+  double max_height_m = 9;
+  double max_depth_m = 10;
+}
+message FocusTarget {
+  string mode = 1;
+  string scene_part_id = 2;
+  optional double distance_m = 3;
+}
+message SceneCameraFrame {
+  string id = 1;
+  vrooli.device_studio.v1.physical.TRS frame = 2;
+  string projection = 3;
+  optional double focal_length_mm = 4;
+  optional double sensor_width_mm = 5;
+  optional double sensor_height_mm = 6;
+  string sensor_fit = 7;
+  double near_clip_m = 8;
+  double far_clip_m = 9;
+  optional double orthographic_vertical_span_m = 10;
+  FocusTarget focus = 11;
+  optional double dof_f_number = 12;
+}
+message SceneLightFrame {
+  string id = 1;
+  vrooli.device_studio.v1.physical.TRS frame = 2;
+  string local_axis_profile = 3;
+  string shape = 4;
+  repeated double dimensions_m = 5;
+  double power_watts = 6;
+  repeated double linear_rgb = 7;
+}
+message SceneEnvironment {
+  string model = 1;
+  repeated double linear_rgb = 2;
+  double strength = 3;
+}
+message SceneRegion {
+  string id = 1;
+  string part_id = 2;
+  string purpose = 3;
+}

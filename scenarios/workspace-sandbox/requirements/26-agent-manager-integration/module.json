@@ -1,0 +1,35 @@
+{
+  "requirements": [
+    {
+      "id": "REQ-P2-008",
+      "title": "Agent-Manager Trusted Patch Application",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-008",
+      "category": "integration",
+      "description": "Provide an explicit agent-manager apply-at-run-end contract with source attribution, run metadata, typed conflict handling, and request-shape parity.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/handlers/handlers_test.go::TestApplyAtRunEnd_Success",
+          "phase": "api",
+          "status": "implemented",
+          "notes": "Apply-at-run-end endpoint forwards the trusted agent-manager source and run metadata."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/types/auditability_contract_test.go::TestApplyAtRunEndRequest_RoundTrip",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The request contract preserves run identity, source, and auditability fields."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/handlers/handlers_test.go::TestApplyAtRunEnd_InvalidSandboxID",
+          "phase": "api",
+          "status": "implemented",
+          "notes": "Malformed trusted-apply requests fail at the API boundary."
+        }
+      ]
+    }
+  ]
+}

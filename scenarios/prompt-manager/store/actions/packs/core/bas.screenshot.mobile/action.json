@@ -1,0 +1,96 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "bas.screenshot.mobile",
+  "name": "Screenshot a Page (Mobile Viewport)",
+  "description": "Capture a mobile-viewport (390x844) screenshot of any URL or running Vrooli scenario. Scenario shorthand applies the target's declared readiness surface, so responsive checks do not need caller-provided sleeps or selectors.",
+  "status": "active",
+  "owner": {
+    "type": "scenario",
+    "id": "browser-automation-studio"
+  },
+  "command": {
+    "argv": [
+      "browser-automation-studio",
+      "capture",
+      "--url",
+      "{{url}}",
+      "--capture",
+      "screenshot",
+      "--dimensions",
+      "mobile",
+      "--wait-for",
+      "{{waitFor}}",
+      "--out",
+      "{{out}}",
+      "--json"
+    ]
+  },
+  "inputs": {
+    "out": {
+      "type": "path",
+      "description": "Directory the screenshot is written into; relative paths resolve under BAS's captures storage root.",
+      "required": true
+    },
+    "url": {
+      "type": "string",
+      "description": "Prefer `scenario=\u003cslug\u003e,path=\u003cpath\u003e` shorthand: it resolves the port and applies the scenario's declared readiness profile. Raw http(s) URLs get only generic navigation readiness and may capture a still-loading page unless waitFor is set.",
+      "required": true
+    },
+    "waitFor": {
+      "type": "string",
+      "description": "Optional readiness override: CSS selector, 'networkidle', or timeout in ms. Omit for scenario-shorthand URLs (declared readiness profile applies). Set it for raw http(s) URLs of dynamic pages, which otherwise wait only for navigation."
+    }
+  },
+  "outputs": {
+    "artifacts": {
+      "type": "string",
+      "description": "JSON array of artifact descriptors."
+    },
+    "executionId": {
+      "type": "string",
+      "description": "BAS execution id; reuse with `browser-automation-studio executions get`."
+    },
+    "primaryArtifactPath": {
+      "type": "string",
+      "description": "Path of the final screenshot artifact, marked primary=true in BAS JSON."
+    }
+  },
+  "permissions": {
+    "filesystemRead": true,
+    "filesystemWrite": true,
+    "localhostNetwork": true,
+    "externalNetwork": true,
+    "processStart": true
+  },
+  "examples": [
+    {
+      "description": "Mobile screenshot of an RCL component after its declared rendered-story readiness surface settles.",
+      "input": {
+        "out": "/tmp/bas-mobile",
+        "url": "scenario=react-component-library,path=/assets/react-component-library%3AColorPicker"
+      }
+    }
+  ],
+  "tags": [
+    "screenshot",
+    "mobile",
+    "responsive",
+    "browser",
+    "ui",
+    "visual",
+    "small-screen",
+    "viewport"
+  ],
+  "execution": {
+    "timeoutSeconds": 120,
+    "outputMode": "stdout",
+    "runEligible": true
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 4,
+  "createdAt": "2026-05-18T00:00:00Z",
+  "updatedAt": "2026-07-23T19:26:40Z"
+}

@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"landing-page-business-suite/cli/domains/remoteprofiles"
 )
 
 func TestRemoteProfilesCreateRejectsAPIBaseWithoutV1Suffix(t *testing.T) {
@@ -14,7 +16,7 @@ func TestRemoteProfilesCreateRejectsAPIBaseWithoutV1Suffix(t *testing.T) {
 		t.Fatalf("NewApp() error: %v", err)
 	}
 
-	err = app.cmdRemoteProfilesCreate([]string{
+	err = remoteprofiles.RunCreate(app.dependencies(), []string{
 		"--tag", "prod",
 		"--api-base", "https://vrooli.com",
 	})
@@ -28,7 +30,7 @@ func TestRemoteProfilesCreateRejectsAPIBaseWithoutV1Suffix(t *testing.T) {
 	if !strings.Contains(msg, "api_base_format") {
 		t.Fatalf("expected api_base_format triage, got: %v", err)
 	}
-	if !strings.Contains(msg, "Next steps:") {
+	if !strings.Contains(msg, "Next Steps:") {
 		t.Fatalf("expected next-step guidance, got: %v", err)
 	}
 }
@@ -63,7 +65,7 @@ func TestRemoteProfilesCreateAcceptsCanonicalAPIBase(t *testing.T) {
 	}
 	withAdminSession(t, app, server.URL)
 
-	if err := app.cmdRemoteProfilesCreate([]string{
+	if err := remoteprofiles.RunCreate(app.dependencies(), []string{
 		"--tag", "prod",
 		"--label", "Production",
 		"--api-base", "https://vrooli.com/api/v1/",

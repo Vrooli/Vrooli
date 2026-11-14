@@ -1,0 +1,77 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": [
+      "/settings"
+    ],
+    "purpose": "Own every preference this scenario needs: appearance, locale, accessibility, notification relay, retention, and the dependency status that explains system-wide behaviour.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P1-004"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Theme and locale switching are owned here, per the shell contract."
+    },
+    {
+      "statement": "Accessibility preferences (reduced motion, font scale) are first-class controls, not buried under an advanced section."
+    },
+    {
+      "statement": "Relay configuration states plainly what happens when it is absent: handoffs still queue and nothing is lost."
+    },
+    {
+      "statement": "Dependency status is visible here, including that act-as fails closed when the verification authority is unreachable.",
+      "notes": "This is where an operator confirms why the whole scenario is refusing."
+    },
+    {
+      "statement": "Retention windows are shown as the product's real commitments, not as tunable knobs that would silently break the journal's append-only guarantee."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "All settings readable and editable."
+    },
+    {
+      "id": "loading",
+      "description": "Settings resolving."
+    },
+    {
+      "id": "saving",
+      "description": "A change is being persisted."
+    },
+    {
+      "id": "success",
+      "description": "A change was saved, confirmed in place."
+    },
+    {
+      "id": "validation-error",
+      "description": "A submitted value was rejected, with the reason stated on the field."
+    },
+    {
+      "id": "degraded",
+      "description": "One or more optional dependencies are unavailable; each is named with its consequence."
+    },
+    {
+      "id": "request-error",
+      "description": "Settings cannot be loaded."
+    },
+    {
+      "id": "stale",
+      "description": "Dependency status is cached and may not reflect the current state; the age is stated."
+    },
+    {
+      "id": "partial",
+      "description": "Core settings load but optional dependency status cannot be resolved; each unresolved item is named."
+    },
+    {
+      "id": "empty",
+      "description": "A fresh install before any optional dependency or relay has been configured \u2014 defaults are shown as deliberate choices, not as missing values."
+    }
+  ]
+}

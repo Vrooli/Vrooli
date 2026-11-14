@@ -1,0 +1,26 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "marketing-contrarian",
+  "displayName": "Marketing Contrarian",
+  "description": "Cross-cutting skeptic for the marketing-crew. Scores pending proposals against the marketing failure-mode framework and operating-model boundaries, including typed-observation promotions, draft pipeline ownership, evidence quality, publish readiness, and aging work items. Does not generate positive proposals.",
+  "status": "active",
+  "appearance": {
+    "body": "#D97706",
+    "head": "#F59E0B",
+    "accent": "#FEF3C7"
+  },
+  "tags": [
+    "marketing",
+    "contrarian",
+    "skepticism",
+    "failure-modes",
+    "aging-scan"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-04-21T00:00:00Z",
+  "updatedAt": "2026-04-21T00:00:00Z"
+}

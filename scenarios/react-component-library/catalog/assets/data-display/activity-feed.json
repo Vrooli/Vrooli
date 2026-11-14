@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.activity-feed",
+    "name": "ActivityFeed",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "The human-readable stream of actions with actors, targets, timestamps, grouping, expansion, filters, pagination, and optimistic entries.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "data-display.timeline",
+        "reason": "Chronology, grouping, and pagination are shared."
+      },
+      {
+        "asset": "primitives.avatar",
+        "reason": "Actor identity uses the shared identity visual."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "optimistic-rollback",
+    "freshness-disclosure"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "partial",
+    "stale",
+    "request-error"
+  ]
+}

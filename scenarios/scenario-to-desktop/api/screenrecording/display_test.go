@@ -2,6 +2,7 @@ package screenrecording
 
 import (
 	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -154,5 +155,15 @@ func TestWmCandidates_DefaultsConfigured(t *testing.T) {
 	}
 	if wmCandidates[1].name != "matchbox-window-manager" {
 		t.Errorf("second WM candidate should be matchbox-window-manager, got %q", wmCandidates[1].name)
+	}
+}
+
+func TestRecordingOpenboxThemeIsHighContrast(t *testing.T) {
+	config := recordingOpenboxConfig()
+	theme := recordingOpenboxTheme()
+	for _, want := range []string{"VrooliEvidence", "#18375a", "#ffffff"} {
+		if !strings.Contains(config+theme, want) {
+			t.Fatalf("recording theme missing %q", want)
+		}
 	}
 }

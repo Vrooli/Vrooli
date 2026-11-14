@@ -1,77 +1,119 @@
 {
-  "description": "Full CRUD operations for team entities including roles, members, and org chart.",
-  "module_id": "MOD-P0-017",
-  "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-08-24T00:52:01-04:00"
+  },
   "requirements": [
     {
-      "category": "api",
-      "dependencies": ["REQ-P0-006"],
-      "description": "Implement REST API endpoints for creating, reading, updating and deleting teams with JSON payload support",
       "id": "REQ-P0-018",
-      "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
-      "status": "complete",
       "title": "REST API for Team CRUD",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
+      "category": "api",
+      "description": "Implement REST API endpoints for creating, reading, updating and deleting teams with JSON payload support",
       "validation": [
         {
-          "notes": "All team CRUD endpoints return correct HTTP status codes",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "All team CRUD endpoints return correct HTTP status codes"
         },
         {
-          "notes": "Team stored in file-based store (store/teams/)",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Team stored in file-based store (store/teams/)"
         }
       ]
     },
     {
-      "category": "api",
-      "dependencies": ["REQ-P0-018"],
-      "description": "Team roles management with role definitions",
       "id": "REQ-P0-019",
-      "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
-      "status": "complete",
       "title": "Team Roles Management",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
+      "category": "api",
+      "description": "Team roles management with role definitions",
       "validation": [
         {
-          "notes": "Roles can be defined and stored on the team",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "Roles can be defined and stored on the team"
         },
         {
-          "notes": "Roles are persisted and returned with team data",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Roles are persisted and returned with team data"
         }
       ]
     },
     {
-      "category": "api",
-      "dependencies": ["REQ-P0-018"],
-      "description": "Organizational chart with manager-report relationships",
       "id": "REQ-P0-020",
-      "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
-      "status": "complete",
       "title": "Team Org Chart",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
+      "category": "api",
+      "description": "Organizational chart with manager-report relationships",
       "validation": [
         {
-          "notes": "Org chart edges stored and retrieved correctly",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "Org chart edges stored and retrieved correctly"
+        }
+      ]
+    },
+    {
+      "id": "PM-TEAM-PREPARATION",
+      "title": "Verified creator and governed finite draft amendments",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
+      "category": "security",
+      "description": "Record server-verified team creation identity; amend only a disabled undispatched finite draft through its current creator with write authority or an exact approved owner operation, preserving CAS, audit, grants and reservation fences.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/store/finite_preparation_test.go",
+          "status": "not_implemented",
+          "notes": "Creator/legacy object authority, expiration, lifecycle denial, concurrency, atomic restart projection and attribution preservation. Status is earned through owner validation sync."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/handlers/heartbeat/finite_preparation_test.go::TestFinitePreparationConnectUsesVerifiedActorAndPreservesRefusals",
+          "status": "not_implemented",
+          "notes": "Actual generated Connect wire path preserves verified actor and denied request semantics."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "cli/teams/finite_preparation_test.go",
+          "status": "not_implemented",
+          "notes": "Bounded exact amendment input and no false owner confirmation."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/requestpolicy/preparation_test.go::TestPreparationGrantCannotReachOtherMutationHandlers",
+          "status": "not_implemented",
+          "notes": "Closed ingress boundary denies every generated non-preparation team/heartbeat procedure, unrelated and unknown routes, for both interactive grants and request authorities before handler side effects."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/handlers/teams/finite_preparation_test.go::TestPreparationReadIsLimitedToApprovedTeam",
+          "status": "not_implemented",
+          "notes": "Generated Connect read admits approved team, refuses another existing team before disclosure."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/requestpolicy/preparation_test.go::TestPreparationGrantAllowsOnlyReadOnlyBootstrapHealth",
+          "status": "not_implemented",
+          "notes": "Approved CLI identity may use only exact GET health bootstrap routes with read capability; health mutations and unrelated reads remain denied."
         }
       ]
     }
-  ],
-  "title": "Team CRUD with roles, members, org chart"
+  ]
 }

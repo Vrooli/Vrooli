@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {"id": "diagnose-route", "title": "Diagnose a route", "purpose": "Follow one route from local listener through ingress, policy, probe, lease, and recovery evidence."},
+  "steps": [
+    {"page": "overview", "state": "ready", "intent": "Select a route node or actionable finding to preserve route context.", "elements": ["overview-exposure-constellation", "overview-mobile-topology"]},
+    {"page": "exposure", "state": "ready", "intent": "Open route detail and inspect target, lease, policy, and readiness evidence.", "elements": ["exposure-detail-dialog"]},
+    {"page": "metrics", "state": "ready", "intent": "Run or inspect route probe history and classification evidence.", "elements": ["metrics-probes-panel", "metrics-run-probes-button"]},
+    {"page": "audit", "state": "ready", "intent": "Inspect fixed-port governance findings for the route.", "elements": ["audit-table", "audit-remediation"]},
+    {"page": "drift", "state": "ready", "intent": "Compare ingress and ownership state when route evidence is stale or mismatched.", "elements": ["drift-table", "drift-confirm-dialog"]},
+    {"page": "recovery", "state": "ready", "intent": "Inspect tunnel recovery risk and the next safe action.", "elements": ["recovery-state-panel", "recovery-timeline"]}
+  ],
+  "claims": [{"id": "route-centered-diagnostics", "type": "custom", "statement": "The diagnostic path keeps one route's evidence attributable across exposure, probe, governance, drift, and recovery surfaces.", "tier": "manual"}]
+}

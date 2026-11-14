@@ -32,7 +32,7 @@ export default tseslint.config(
     rules: {
       // ════════════════════════════════════════════════════════════════
       // SAFETY-CRITICAL RULES - DO NOT DISABLE
-      // See: prompt-manager skill read react-stability
+      // See: prompt-manager skill read ui-health
       // ════════════════════════════════════════════════════════════════
       "@typescript-eslint/no-non-null-assertion": "error",
       "@typescript-eslint/no-explicit-any": "error",

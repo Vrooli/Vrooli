@@ -228,7 +228,47 @@ describe('previewWorkspaceStore', () => {
       historyIndex: -1,
       initialPreviewUrl: null,
       isLogsVisible: false,
+      isFullView: false,
     });
+  });
+
+  it('bounds persisted pane navigation state to avoid localStorage quota failures', async () => {
+    const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id;
+    expect(paneId).toBeTruthy();
+    if (!paneId) {
+      return;
+    }
+
+    const largeHistory = Array.from({ length: 80 }, (_, index) => (
+      `http://localhost:3000/apps/scenario-a/proxy/path-${index}?payload=${'x'.repeat(2500)}`
+    ));
+    usePreviewWorkspaceStore.getState().setPaneViewState(paneId, {
+      previewUrl: largeHistory[largeHistory.length - 1],
+      previewUrlInput: largeHistory[largeHistory.length - 1],
+      hasCustomPreviewUrl: true,
+      history: largeHistory,
+      historyIndex: largeHistory.length - 1,
+      initialPreviewUrl: largeHistory[0],
+    });
+
+    const runtimePaneState = usePreviewWorkspaceStore.getState().paneViewState[paneId];
+    expect(runtimePaneState?.history).toHaveLength(50);
+
+    await usePreviewWorkspaceStore.persist.rehydrate();
+    const persisted = window.localStorage.getItem(STORAGE_KEY);
+    expect(persisted).toBeTruthy();
+    if (!persisted) {
+      return;
+    }
+    expect(persisted.length).toBeLessThan(20_000);
+
+    const parsed = JSON.parse(persisted) as {
+      state?: { paneViewState?: Record<string, { previewUrl?: string | null; previewUrlInput?: string; history?: string[] }> };
+    };
+    const persistedPaneState = parsed.state?.paneViewState?.[paneId];
+    expect(persistedPaneState?.previewUrl).toBeNull();
+    expect(persistedPaneState?.previewUrlInput).toBe('');
+    expect(persistedPaneState?.history).toEqual([]);
   });
 
   it('exportPresetData captures current state correctly including preview URLs', () => {

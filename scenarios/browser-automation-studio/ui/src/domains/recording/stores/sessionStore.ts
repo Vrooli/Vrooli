@@ -14,10 +14,11 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { getApiBase } from '@/config';
-import type { ActualViewport } from '../api/schemas';
+import { timelineEntryId, timelineEntryTimestamp, type ActualViewport } from '../api/schemas';
 import type { Page } from '../hooks/usePages';
 import type { TimelineEntry } from '../api/schemas';
 import type { RetryState } from '../services';
+import type { FrameStats } from '../hooks/useFrameStats';
 
 // ============================================================================
 // Types
@@ -47,6 +48,13 @@ export interface DisplayDimensions {
   height: number;
 }
 
+/** Live stream connection metadata displayed in browser chrome. */
+export interface StreamConnectionStatus {
+  isConnected: boolean;
+  isWebSocket: boolean;
+  lastFrameTime?: string;
+}
+
 // ============================================================================
 // Store State Interface
 // ============================================================================
@@ -56,7 +64,6 @@ interface SessionState {
   sessionId: string | null;
   profileId: string | null;
   actualViewport: ActualViewport | null;
-  initialRestoredUrl: string | null;
   /** Session has been confirmed to exist on the server */
   isValidated: boolean;
 
@@ -80,6 +87,11 @@ interface SessionState {
   // Display dimensions (for coordinate mapping)
   frameDimensions: FrameDimensions | null;
   displayDimensions: DisplayDimensions | null;
+
+  // Live preview metadata (kept out of RecordingSession React state)
+  recordingPageTitle: string;
+  recordingFrameStats: FrameStats | null;
+  connectionStatus: StreamConnectionStatus | null;
 }
 
 // ============================================================================
@@ -92,12 +104,12 @@ interface SessionActions {
     sessionId: string;
     profileId?: string | null;
     actualViewport?: ActualViewport | null;
-    initialRestoredUrl?: string | null;
   }) => void;
   /** Validate that a session exists on the server before subscribing */
-  validateSession: (sessionId: string) => Promise<boolean>;
+  validateSession: (sessionId: string, options?: { profileId?: string | null; signal?: AbortSignal }) => Promise<boolean>;
   clearSession: () => void;
-  setIsCreating: (isCreating: boolean) => void;
+  /** An opaque owner can retire its own loading flag without clearing a successor's. */
+  setIsCreating: (isCreating: boolean, owner?: object) => void;
   setIsValidating: (isValidating: boolean) => void;
   setError: (error: string | null) => void;
   setRetryState: (retryState: Partial<RetryState>) => void;
@@ -124,6 +136,12 @@ interface SessionActions {
   // Display dimensions
   setFrameDimensions: (dims: FrameDimensions | null) => void;
   setDisplayDimensions: (dims: DisplayDimensions | null) => void;
+
+  // Live preview metadata
+  setRecordingPageTitle: (title: string) => void;
+  setRecordingFrameStats: (stats: FrameStats | null) => void;
+  setConnectionStatus: (status: StreamConnectionStatus | null) => void;
+  clearLivePreviewMetadata: () => void;
 }
 
 type SessionStore = SessionState & SessionActions;
@@ -155,7 +173,6 @@ const initialState: SessionState = {
   sessionId: null,
   profileId: null,
   actualViewport: null,
-  initialRestoredUrl: null,
   isValidated: false,
   isCreating: false,
   isValidating: false,
@@ -170,6 +187,9 @@ const initialState: SessionState = {
   timelineHasMore: false,
   frameDimensions: null,
   displayDimensions: null,
+  recordingPageTitle: '',
+  recordingFrameStats: null,
+  connectionStatus: null,
 };
 
 // ============================================================================
@@ -177,7 +197,16 @@ const initialState: SessionState = {
 // ============================================================================
 
 export const useSessionStore = create<SessionStore>()(
-  subscribeWithSelector((set, get) => ({
+  subscribeWithSelector((set, get) => {
+    let validationGeneration = 0;
+    let validationController: AbortController | null = null;
+    let creationOwner: object | undefined;
+    const retireValidation = () => {
+      validationGeneration += 1;
+      validationController?.abort();
+      validationController = null;
+    };
+    return {
     ...initialState,
 
     // ========================================================================
@@ -185,6 +214,8 @@ export const useSessionStore = create<SessionStore>()(
     // ========================================================================
 
     setSession: (data) => {
+      retireValidation();
+      creationOwner = undefined;
       console.log('[sessionStore] setSession called:', {
         sessionId: data.sessionId,
         profileId: data.profileId ?? null,
@@ -194,7 +225,6 @@ export const useSessionStore = create<SessionStore>()(
         sessionId: data.sessionId,
         profileId: data.profileId ?? null,
         actualViewport: data.actualViewport ?? null,
-        initialRestoredUrl: data.initialRestoredUrl ?? null,
         isValidated: true,
         isCreating: false,
         isValidating: false,
@@ -202,7 +232,8 @@ export const useSessionStore = create<SessionStore>()(
       });
     },
 
-    validateSession: async (sessionId: string) => {
+    validateSession: async (sessionId: string, options?: { profileId?: string | null; signal?: AbortSignal }) => {
+      if (options?.signal?.aborted) return false;
       const state = get();
 
       console.log('[sessionStore] validateSession called:', {
@@ -213,15 +244,30 @@ export const useSessionStore = create<SessionStore>()(
 
       // Already validated this session
       if (state.sessionId === sessionId && state.isValidated) {
+        retireValidation();
+        set({ isValidating: false });
         console.log('[sessionStore] Session already validated, skipping');
         return true;
       }
+
+      retireValidation();
+      const generation = validationGeneration;
+      const controller = new AbortController();
+      validationController = controller;
+      const isCurrent = () => generation === validationGeneration && !controller.signal.aborted;
+      const retireFromCaller = () => {
+        if (!isCurrent()) return;
+        retireValidation();
+        set({ isValidating: false });
+      };
+      options?.signal?.addEventListener('abort', retireFromCaller, { once: true });
 
       set({ isValidating: true, error: null });
 
       try {
         const apiUrl = getApiBase();
-        const res = await fetch(`${apiUrl}/recordings/live/${sessionId}/pages`);
+        const res = await fetch(`${apiUrl}/recordings/live/${sessionId}/pages`, { signal: controller.signal });
+        if (!isCurrent()) return false;
         const isValid = res.ok;
 
         console.log('[sessionStore] Validation result:', { sessionId, isValid, status: res.status });
@@ -229,6 +275,7 @@ export const useSessionStore = create<SessionStore>()(
         if (isValid) {
           set({
             sessionId,
+            ...(options?.profileId !== undefined ? { profileId: options.profileId } : {}),
             isValidated: true,
             isValidating: false,
             error: null,
@@ -243,21 +290,31 @@ export const useSessionStore = create<SessionStore>()(
 
         return isValid;
       } catch (err) {
+        if (!isCurrent()) return false;
         console.error('[sessionStore] Session validation failed:', err);
         set({
           isValidated: false,
           isValidating: false,
         });
         return false;
+      } finally {
+        options?.signal?.removeEventListener('abort', retireFromCaller);
+        if (isCurrent()) validationController = null;
       }
     },
 
     clearSession: () => {
+      retireValidation();
+      creationOwner = undefined;
       console.log('[sessionStore] clearSession called - resetting to initial state');
       return set(initialState);
     },
 
-    setIsCreating: (isCreating) => set({ isCreating }),
+    setIsCreating: (isCreating, owner) => {
+      if (!isCreating && owner !== undefined && creationOwner !== owner) return;
+      creationOwner = isCreating ? owner : undefined;
+      set({ isCreating });
+    },
 
     setIsValidating: (isValidating) => set({ isValidating }),
 
@@ -268,13 +325,19 @@ export const useSessionStore = create<SessionStore>()(
         retryState: { ...s.retryState, ...retryState },
       })),
 
-    setSessionId: (sessionId) =>
+    setSessionId: (sessionId) => {
+      retireValidation();
       set({
         sessionId,
         isValidated: false, // Need to validate when setting from URL
-      }),
+        isValidating: false,
+      });
+    },
 
-    markValidated: () => set({ isValidated: true }),
+    markValidated: () => {
+      retireValidation();
+      set({ isValidated: true, isValidating: false });
+    },
 
     // ========================================================================
     // Pages/Tabs Actions
@@ -334,14 +397,14 @@ export const useSessionStore = create<SessionStore>()(
     addTimelineEntry: (entry) =>
       set((s) => {
         // Check if entry already exists
-        if (s.timelineEntries.some((e) => e.id === entry.id)) {
+        if (s.timelineEntries.some((e) => timelineEntryId(e) === timelineEntryId(entry))) {
           return {};
         }
 
         const updated = [...s.timelineEntries, entry];
         // Sort by timestamp
         updated.sort(
-          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          (a, b) => new Date(timelineEntryTimestamp(a)).getTime() - new Date(timelineEntryTimestamp(b)).getTime()
         );
 
         return {
@@ -373,7 +436,37 @@ export const useSessionStore = create<SessionStore>()(
     setFrameDimensions: (frameDimensions) => set({ frameDimensions }),
 
     setDisplayDimensions: (displayDimensions) => set({ displayDimensions }),
-  }))
+
+    // ========================================================================
+    // Live Preview Metadata Actions
+    // ========================================================================
+
+    setRecordingPageTitle: (recordingPageTitle) =>
+      set((s) => (s.recordingPageTitle === recordingPageTitle ? {} : { recordingPageTitle })),
+
+    setRecordingFrameStats: (recordingFrameStats) => set({ recordingFrameStats }),
+
+    setConnectionStatus: (connectionStatus) =>
+      set((s) => {
+        const current = s.connectionStatus;
+        if (
+          current?.isConnected === connectionStatus?.isConnected &&
+          current?.isWebSocket === connectionStatus?.isWebSocket &&
+          current?.lastFrameTime === connectionStatus?.lastFrameTime
+        ) {
+          return {};
+        }
+        return { connectionStatus };
+      }),
+
+    clearLivePreviewMetadata: () =>
+      set({
+        recordingPageTitle: '',
+        recordingFrameStats: null,
+        connectionStatus: null,
+      }),
+    };
+  })
 );
 
 // ============================================================================
@@ -441,6 +534,15 @@ export const useFrameDimensions = () => useSessionStore((s) => s.frameDimensions
 
 /** Get display dimensions */
 export const useDisplayDimensions = () => useSessionStore((s) => s.displayDimensions);
+
+/** Get recording page title for browser chrome */
+export const useRecordingPageTitle = () => useSessionStore((s) => s.recordingPageTitle);
+
+/** Get recording frame stats for browser chrome */
+export const useRecordingFrameStats = () => useSessionStore((s) => s.recordingFrameStats);
+
+/** Get recording stream connection status */
+export const useRecordingConnectionStatus = () => useSessionStore((s) => s.connectionStatus);
 
 /** Get combined session/validation state for components that need both */
 export const useSessionState = () =>

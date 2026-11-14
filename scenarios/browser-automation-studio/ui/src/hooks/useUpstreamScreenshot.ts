@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useWorkflowStore } from '../stores/workflowStore';
-import { getUpstreamScreenshot, type NodeScreenshot } from '../utils/nodeUtils';
+import { getUpstreamScreenshot, type NodeScreenshot } from '../domains/workflows/utils/normalizers';
 
 export function useUpstreamScreenshot(nodeId: string): NodeScreenshot | null {
   const nodes = useWorkflowStore((state) => state.nodes);

@@ -1,0 +1,1 @@
+{ "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json", "kind": "experience-page", "schemaVersion": "1.0.0", "page": { "id": "gpu", "title": "GPU Metrics", "routes": ["/metrics/gpu"], "purpose": "Inspect GPU capacity when a supported probe is available.", "prd_refs": ["OT-P0-001"] } }

@@ -1,0 +1,53 @@
+package main
+
+import (
+	"encoding/json"
+	"flag"
+	"fmt"
+	"strings"
+
+	"github.com/vrooli/cli-core/cliutil"
+)
+
+type cliBriefResponse struct {
+	Brief cliAgentSessionContextItem `json:"brief"`
+}
+
+func (a *App) cmdPortfolioBrief(args []string) error {
+	fs := flag.NewFlagSet("portfolio brief", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	body, err := a.core.Get("/portfolio/brief", nil)
+	if err != nil {
+		return err
+	}
+	return printBriefResponse(body, *jsonOut)
+}
+
+func printBriefResponse(body []byte, jsonOut bool) error {
+	if printJSONIfRequested(jsonOut, body) {
+		return nil
+	}
+	var response cliBriefResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse brief response: %w", err)
+	}
+	brief := response.Brief
+	printSection("Brief")
+	fmt.Printf("  %s\n", brief.Title)
+	if brief.Ref != "" {
+		fmt.Printf("  Ref: %s\n", brief.Ref)
+	}
+	if brief.SelectedAt != "" {
+		fmt.Printf("  Generated: %s\n", brief.SelectedAt)
+	}
+	printSection("Summary")
+	for _, line := range strings.Split(strings.TrimSpace(brief.Summary), "\n") {
+		if strings.TrimSpace(line) != "" {
+			fmt.Printf("  %s\n", line)
+		}
+	}
+	return nil
+}

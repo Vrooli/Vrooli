@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "blender",
+  "display_name": "Blender",
+  "category": "creative",
+  "summary": "Open-source 3D creation suite for modeling, animation, rendering, and simulation workflows.",
+  "why_it_matters": "Blender remains valuable capability knowledge for 3D content generation and simulation-heavy scenarios, but current repo usage does not justify claiming it as an actively maintained resource.",
+  "when_to_use": [
+    "A future scenario needs scripted 3D asset generation or rendering.",
+    "Operators need a local toolchain for animation, simulation, or geometry export.",
+    "The workflow benefits from Blender's Python API rather than a custom rendering service."
+  ],
+  "example_scenarios": [
+    "Synthetic dataset generation",
+    "3D asset pipelines",
+    "Design visualization tooling"
+  ],
+  "integration_kind": "native-cli",
+  "platform_support": {
+    "notes": "Blender is cross-platform, but headless rendering, GPU setup, and Python automation vary by host and driver availability.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Host GPU and driver strategy if acceleration matters",
+    "Defined Python automation entrypoints",
+    "Artifact storage plan for renders and exports"
+  ],
+  "dependencies": [],
+  "suggested_template": "native-cli",
+  "implementation_notes": [
+    "Keep future support focused on validated automation workflows instead of wrapping every Blender feature.",
+    "Headless and GUI-driven use cases should be treated separately.",
+    "Promotion should define how scenes, assets, and generated outputs are versioned."
+  ],
+  "operational_notes": [
+    "GPU support and rendering backends are the main portability risk.",
+    "Version pinning matters because addons and scripts drift.",
+    "Health checks should validate usable automation, not just binary presence."
+  ],
+  "risks": [
+    "A shallow wrapper would create maintenance load without reliable end-to-end workflows.",
+    "GPU and desktop dependencies make support claims easy to overstate."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "blender"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/blender"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

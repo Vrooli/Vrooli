@@ -1,0 +1,99 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "web-console.native-usage-summary",
+  "version": "1",
+  "purpose": "Read bounded native usage for explicitly selected threads without inferring billed cost or live thread state.",
+  "inputs": {
+    "session_id": {
+      "type": "string",
+      "required": true,
+      "description": "Existing authorized Web Console session ID."
+    },
+    "threads": {
+      "type": "array",
+      "required": true,
+      "description": "One to sixteen explicit native thread IDs."
+    },
+    "start": {
+      "type": "string",
+      "required": true,
+      "description": "Inclusive RFC3339 start; the window must not exceed 31 days."
+    },
+    "end": {
+      "type": "string",
+      "required": true,
+      "description": "Exclusive RFC3339 end after start; the window must not exceed 31 days."
+    }
+  },
+  "assumptions": [
+    "Web Console owns native usage and enforces session authority",
+    "Missing usage and pricing stay unknown"
+  ],
+  "invariants": [
+    "Exactly one read-only native-usage binding call",
+    "No transcript text or live state is claimed",
+    "The envelope prints once"
+  ],
+  "bindings": [
+    {
+      "id": "web-console/session/native-usage",
+      "effect": "read"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed"
+      ]
+    },
+    "signals": {
+      "threads": "Per-thread retained usage and owner status",
+      "total": "Owner aggregate or unknown",
+      "origin": "Owner origin",
+      "pricing": "Owner pricing status",
+      "owner_status": "Owner result status"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "binding_error"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "report"
+      ]
+    }
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 16,
+    "output_bytes": 65536
+  },
+  "rung": "S3",
+  "owner_skill": "research-coordination",
+  "verbs": [
+    "gather"
+  ],
+  "fixtures": [
+    {
+      "id": "missing-session",
+      "inputs": {
+        "threads": [
+          "fixture"
+        ]
+      },
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "web-console"
+      ]
+    }
+  ]
+}

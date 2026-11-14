@@ -1,0 +1,24 @@
+package platform
+
+import (
+ "encoding/json"
+ "strings"
+ "testing"
+)
+
+// Every admitted payload must fit the real recovery reader before reservation.
+// The large environment is within the shared 64KiB contract. JSON escaping can
+// exceed the reader even with considerably fewer source bytes.
+func TestFreshSubmissionAdmittedPayloadFitsRecoveryReader(t *testing.T) {
+ for _, value := range []string{strings.Repeat("x", 40000), strings.Repeat("\t", 17000)} {
+  p := windowsTaskFixture(t)
+  p.Spec.Env = []string{"APPDATA=" + value}
+  var e error
+  p.Intent, e = windowsOwnedFixtureIntent(p.Spec)
+  if e != nil { t.Fatal(e) }
+  raw, e := json.Marshal(p)
+  if e != nil { t.Fatal(e) }
+  if len(raw) <= 32768 { t.Fatalf("fixture did not exceed recovery reader: %d", len(raw)) }
+  if e = validateWindowsPayload(p); e == nil { t.Errorf("admitted %d-byte record cannot be read by recovery's 32768-byte boundary", len(raw)) }
+ }
+}

@@ -122,6 +122,9 @@ export const formatWindowLabel = (seconds?: number): string | undefined => {
   if (seconds < 60) {
     return `Past ${seconds}s`;
   }
+  if (seconds >= 3600 && seconds % 3600 === 0) {
+    return `Past ${seconds / 3600}h`;
+  }
   const minutes = seconds / 60;
   if (Number.isInteger(minutes)) {
     return `Past ${minutes.toFixed(0)}m`;

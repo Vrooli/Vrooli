@@ -1,0 +1,45 @@
+{
+  "_metadata": {
+    "module": "foundation",
+    "description": "Documentation and contract foundation for the proto-health scenario.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PROTO-FOUND-001",
+      "title": "Retire layer-based proto guidance",
+      "status": "implemented",
+      "prd_ref": "OT-P0-001",
+      "category": "documentation",
+      "criticality": "P0",
+      "description": "The proto style guide defines domain organization, the scenario-local shared bucket, supported annotations, version directory rules, and deprecates @layer/@domain/@imports.",
+      "tags": ["proto", "style-guide", "domain-organization"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "implemented",
+          "notes": "Review packages/proto/STYLE_GUIDE.md for the domain-org standard and deprecated annotation registry."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-FOUND-002",
+      "title": "Document proto-health target architecture",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "documentation",
+      "criticality": "P0",
+      "description": "Scenario docs describe the validation and protosurface domains, seams, known deferred work, and implementation sequence before production code is replaced.",
+      "tags": ["docs", "architecture", "requirements"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Read PRD.md, docs/concepts/ARCHITECTURE.md, docs/concepts/DOMAINS.md, docs/internal/SEAMS.md, docs/internal/PROBLEMS.md, and docs/internal/TESTING.md."
+        }
+      ]
+    }
+  ]
+}

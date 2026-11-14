@@ -1,0 +1,25 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "The scenario may extend its reusable service catalogue and protocol support to additional client workflow patterns while preserving synthetic credentials, provenance, and auditable handoffs.",
+      "id": "CR-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Expanded simulator ecosystem",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CR-P2-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

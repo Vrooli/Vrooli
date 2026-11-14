@@ -3,7 +3,10 @@ package subscription
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"path/filepath"
 	"testing"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -17,6 +20,289 @@ func newTestDB(t *testing.T) *sql.DB {
 	}
 	t.Cleanup(func() { db.Close() })
 	return db
+}
+
+func TestSQLiteStore_RetryDeadLetterUsesExpectedGenerationAndNewBoundedCycle(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+	subscriptionID, err := store.Create(ctx, makeSub("retryable", "owner", "example.**"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const eventID = "evt-retry-cycle"
+	const payload = `{"event_id":"evt-retry-cycle","payload":{"frozen":"original"}}`
+	if err := store.Enqueue(ctx, subscriptionID, eventID, payload); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RetryDeadLetter(ctx, subscriptionID, eventID, 1); !errors.Is(err, ErrDeliveryNotRetryable) {
+		t.Fatalf("pending row retry error = %v, want ErrDeliveryNotRetryable", err)
+	}
+	markFailuresToDeadLetter(t, ctx, store, subscriptionID, 5)
+	if err := store.Enqueue(ctx, subscriptionID, eventID, `{"replacement":true}`); err != nil {
+		t.Fatal(err)
+	}
+
+	before, err := store.GetDelivery(ctx, subscriptionID, eventID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before.Status != "dead_letter" || before.Attempts != 5 {
+		t.Fatalf("dead-letter metadata = %#v, want dead_letter with 5 attempts", before)
+	}
+	if err := store.RetryDeadLetter(ctx, subscriptionID, eventID, 4); !errors.Is(err, ErrDeliveryNotRetryable) {
+		t.Fatalf("stale attempt count error = %v, want ErrDeliveryNotRetryable", err)
+	}
+	if err := store.RetryDeadLetter(ctx, subscriptionID+1, eventID, 5); !errors.Is(err, ErrDeliveryNotRetryable) {
+		t.Fatalf("wrong subscription retry error = %v, want ErrDeliveryNotRetryable", err)
+	}
+	if err := store.RetryDeadLetter(ctx, subscriptionID, eventID+"-unknown", 5); !errors.Is(err, ErrDeliveryNotRetryable) {
+		t.Fatalf("unknown event retry error = %v, want ErrDeliveryNotRetryable", err)
+	}
+	if err := store.RetryDeadLetter(ctx, subscriptionID, eventID, 5); err != nil {
+		t.Fatalf("retry exact dead-letter row: %v", err)
+	}
+	if err := store.RetryDeadLetter(ctx, subscriptionID, eventID, 5); !errors.Is(err, ErrDeliveryNotRetryable) {
+		t.Fatalf("duplicate retry error = %v, want ErrDeliveryNotRetryable", err)
+	}
+	due, err := store.Due(ctx, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(due) != 1 || due[0].PayloadJSON != payload || due[0].Attempts != 5 {
+		t.Fatalf("retried due row = %#v, want stored payload and cumulative failed attempts 5", due)
+	}
+
+	markFailuresToDeadLetter(t, ctx, store, subscriptionID, 5)
+	second, err := store.GetDelivery(ctx, subscriptionID, eventID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.Status != "dead_letter" || second.Attempts != 10 {
+		t.Fatalf("second-cycle metadata = %#v, want dead_letter with 10 cumulative attempts", second)
+	}
+	if err := store.RetryDeadLetter(ctx, subscriptionID, eventID, 5); !errors.Is(err, ErrDeliveryNotRetryable) {
+		t.Fatalf("stale first-cycle retry error = %v, want ErrDeliveryNotRetryable", err)
+	}
+	if err := store.RetryDeadLetter(ctx, subscriptionID, eventID, 10); err != nil {
+		t.Fatalf("explicit second retry: %v", err)
+	}
+	due, err = store.Due(ctx, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(due) != 1 || due[0].Attempts != 10 || due[0].PayloadJSON != payload {
+		t.Fatalf("second retry due row = %#v, cumulative failure history/payload changed", due)
+	}
+	health, err := store.GetHealth(ctx, subscriptionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if health.TotalFailed != 10 {
+		t.Fatalf("total_failed = %d, want historical failures retained at 10", health.TotalFailed)
+	}
+}
+
+func TestSQLiteStore_RetryDeadLetterRequiresEnabledWebhook(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+	subscriptionID, err := store.Create(ctx, makeSub("disabled-retry", "owner", "example.**"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Enqueue(ctx, subscriptionID, "evt-disabled", `{"event_id":"evt-disabled"}`); err != nil {
+		t.Fatal(err)
+	}
+	markFailuresToDeadLetter(t, ctx, store, subscriptionID, 5)
+	sub, err := store.Get(ctx, subscriptionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub.Enabled = false
+	if err := store.Update(ctx, sub); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RetryDeadLetter(ctx, subscriptionID, "evt-disabled", 5); !errors.Is(err, ErrDeliveryNotRetryable) {
+		t.Fatalf("disabled subscription retry error = %v, want ErrDeliveryNotRetryable", err)
+	}
+	metadata, err := store.GetDelivery(ctx, subscriptionID, "evt-disabled")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if metadata.Status != "dead_letter" || metadata.Attempts != 5 {
+		t.Fatalf("disabled retry mutated row: %#v", metadata)
+	}
+	sub.Enabled = true
+	sub.DeliveryType = DeliverySSE
+	if err := store.Update(ctx, sub); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RetryDeadLetter(ctx, subscriptionID, "evt-disabled", 5); !errors.Is(err, ErrDeliveryNotRetryable) {
+		t.Fatalf("non-webhook retry error = %v, want ErrDeliveryNotRetryable", err)
+	}
+	metadata, err = store.GetDelivery(ctx, subscriptionID, "evt-disabled")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if metadata.Status != "dead_letter" || metadata.Attempts != 5 {
+		t.Fatalf("non-webhook retry mutated row: %#v", metadata)
+	}
+}
+
+func TestSQLiteStore_EarlyDeadLetterIsNotRetryable(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+	subscriptionID, err := store.Create(ctx, makeSub("early-dead-letter", "owner", "example.**"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const eventID = "evt-early-dead-letter"
+	if err := store.Enqueue(ctx, subscriptionID, eventID, `{"event_id":"evt-early-dead-letter"}`); err != nil {
+		t.Fatal(err)
+	}
+	initial, err := store.Due(ctx, 1)
+	if err != nil || len(initial) != 1 {
+		t.Fatalf("initial due row=%#v error=%v", initial, err)
+	}
+	if err := store.MarkFailed(ctx, initial[0].ID, subscriptionID, "invalid queued payload", time.Now().Add(-time.Second), true); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RetryDeadLetter(ctx, subscriptionID, eventID, 1); !errors.Is(err, ErrDeliveryNotRetryable) {
+		t.Fatalf("one-failure terminal retry error=%v, want ErrDeliveryNotRetryable", err)
+	}
+	metadata, err := store.GetDelivery(ctx, subscriptionID, eventID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if metadata.Status != "dead_letter" || metadata.Attempts != 1 {
+		t.Fatalf("early dead-letter changed after rejected retry: %#v", metadata)
+	}
+}
+
+func TestSQLiteStore_ReopenPreservesLegacyQueueBudgetAndHistory(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "legacy.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	defer func() { _ = db.Close() }()
+	legacySchema := `
+CREATE TABLE subscriptions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, owner_scenario TEXT NOT NULL,
+  event_pattern TEXT NOT NULL, source_filter TEXT NOT NULL DEFAULT '',
+  delivery_type TEXT NOT NULL CHECK(delivery_type IN ('sse','webhook')),
+  delivery_target TEXT NOT NULL DEFAULT '', enabled INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE subscription_health (
+  subscription_id INTEGER PRIMARY KEY, total_delivered INTEGER NOT NULL DEFAULT 0,
+  total_failed INTEGER NOT NULL DEFAULT 0, consecutive_failures INTEGER NOT NULL DEFAULT 0,
+  last_delivered_at TEXT NOT NULL DEFAULT '', last_failed_at TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'active'
+);
+CREATE TABLE subscription_deliveries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, subscription_id INTEGER NOT NULL, event_id TEXT NOT NULL,
+  payload_json TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f','now')),
+  status TEXT NOT NULL DEFAULT 'pending', last_error TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT '',
+  UNIQUE(subscription_id, event_id)
+);
+INSERT INTO subscriptions(id,name,owner_scenario,event_pattern,delivery_type,delivery_target,enabled) VALUES(1,'legacy','owner','**','webhook','http://localhost',1);
+INSERT INTO subscription_health(subscription_id,total_delivered,total_failed,consecutive_failures,status) VALUES(1,2,8,5,'circuit_broken');
+INSERT INTO subscription_deliveries(subscription_id,event_id,payload_json,attempts,status) VALUES(1,'evt-pending','{"fact":"pending-original"}',3,'pending');
+INSERT INTO subscription_deliveries(subscription_id,event_id,payload_json,attempts,status) VALUES(1,'evt-dead','{"fact":"dead-original"}',5,'dead_letter');`
+	if _, err := db.ExecContext(ctx, legacySchema); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err = sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	store, err := NewSQLiteStore(db)
+	if err != nil {
+		t.Fatalf("open legacy store: %v", err)
+	}
+	due, err := store.Due(ctx, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(due) != 1 || due[0].EventID != "evt-pending" || due[0].Attempts != 3 || due[0].PayloadJSON != `{"fact":"pending-original"}` {
+		t.Fatalf("legacy pending row = %#v, want original payload and cumulative failed attempts 3", due)
+	}
+	if nextFailure := due[0].Attempts%DeliveryAttemptsPerCycle + 1; nextFailure != 4 {
+		t.Fatalf("legacy pending next failure index = %d, want 4 (one existing-cycle attempt remains)", nextFailure)
+	}
+	health, err := store.GetHealth(ctx, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if health.TotalDelivered != 2 || health.TotalFailed != 8 || health.ConsecutiveFailures != 5 || health.Status != "circuit_broken" {
+		t.Fatalf("legacy health changed during reopen: %#v", health)
+	}
+	if err := store.RetryDeadLetter(ctx, 1, "evt-dead", 5); err != nil {
+		t.Fatalf("retry legacy exhausted dead-letter row: %v", err)
+	}
+	due, err = store.Due(ctx, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(due) != 2 {
+		t.Fatalf("due rows after legacy retry = %d, want pending legacy row and requeued dead-letter", len(due))
+	}
+	for _, row := range due {
+		if row.EventID == "evt-dead" && (row.Attempts != 5 || row.PayloadJSON != `{"fact":"dead-original"}`) {
+			t.Fatalf("legacy retry row lost cumulative attempts/payload: %#v", row)
+		}
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err = sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	store, err = NewSQLiteStore(db)
+	if err != nil {
+		t.Fatalf("reopen retried legacy store: %v", err)
+	}
+	due, err = store.Due(ctx, 10)
+	if err != nil || len(due) != 2 {
+		t.Fatalf("due rows after process-style reopen=%#v error=%v, want both persisted pending deliveries", due, err)
+	}
+	for _, row := range due {
+		if row.EventID == "evt-dead" && (row.Attempts != 5 || row.PayloadJSON != `{"fact":"dead-original"}`) {
+			t.Fatalf("reopened retry row lost cumulative attempts/payload: %#v", row)
+		}
+	}
+}
+
+func markFailuresToDeadLetter(t *testing.T, ctx context.Context, store *SQLiteStore, subscriptionID int64, count int) {
+	t.Helper()
+	for i := 0; i < count; i++ {
+		due, err := store.Due(ctx, 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var target *QueuedDelivery
+		for j := range due {
+			if due[j].SubscriptionID == subscriptionID {
+				target = &due[j]
+				break
+			}
+		}
+		if target == nil {
+			t.Fatalf("attempt %d: no due delivery for subscription %d", i+1, subscriptionID)
+		}
+		if err := store.MarkFailed(ctx, target.ID, subscriptionID, "webhook returned status 500", time.Now().Add(-time.Second), i == count-1); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 func newTestStore(t *testing.T) *SQLiteStore {

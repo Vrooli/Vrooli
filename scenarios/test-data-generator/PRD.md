@@ -430,7 +430,7 @@ direct_execution:
   supported: true
   structure_compliance:
     - service.json with metadata
-    - Complete initialization files
+    - Complete API and provider files
     - Startup and monitoring scripts
     - Health check endpoints
     

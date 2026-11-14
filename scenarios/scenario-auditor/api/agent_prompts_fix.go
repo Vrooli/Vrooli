@@ -81,7 +81,12 @@ type vulnerabilityFixMultiPromptData struct {
 
 func loadFixInstructions() (string, error) {
 	fixInstructionsOnce.Do(func() {
-		path := filepath.Join(getScenarioRoot(), "prompts", "fix-generation.txt")
+		ctx, err := repoContext()
+		if err != nil {
+			fixInstructionsErr = fmt.Errorf("resolve repo context: %w", err)
+			return
+		}
+		path := filepath.Join(ctx.ScenarioAuditorRoot(), "prompts", "fix-generation.txt")
 		data, err := os.ReadFile(path)
 		if err != nil {
 			fixInstructionsErr = err
@@ -90,6 +95,17 @@ func loadFixInstructions() (string, error) {
 		fixInstructions = string(data)
 	})
 	return fixInstructions, fixInstructionsErr
+}
+
+func newFixPromptSeverityCounts() map[string]int {
+	return map[string]int{"critical": 0, "high": 0, "medium": 0, "low": 0}
+}
+
+func addFixPromptSeverity(counts map[string]int, severity string) {
+	key := strings.ToLower(severity)
+	if _, ok := counts[key]; ok {
+		counts[key]++
+	}
 }
 
 func buildStandardsFixPrompt(scenarioName, scenarioPath string, violations []StandardsViolation, issueIDs []string) (string, string, map[string]string, error) {
@@ -109,17 +125,9 @@ func buildStandardsFixPrompt(scenarioName, scenarioPath string, violations []Sta
 		additional = len(violations) - maxIssuesForPrompt
 	}
 
-	severityCounts := map[string]int{
-		"critical": 0,
-		"high":     0,
-		"medium":   0,
-		"low":      0,
-	}
+	severityCounts := newFixPromptSeverityCounts()
 	for _, v := range violations {
-		key := strings.ToLower(v.Severity)
-		if _, ok := severityCounts[key]; ok {
-			severityCounts[key]++
-		}
+		addFixPromptSeverity(severityCounts, v.Severity)
 	}
 
 	ids := issueIDs
@@ -144,7 +152,12 @@ func buildStandardsFixPrompt(scenarioName, scenarioPath string, violations []Sta
 		Timestamp:            time.Now().Format(time.RFC3339),
 	}
 
-	templatePath := filepath.Join(getScenarioRoot(), "prompts", "standards-fix.tmpl")
+	ctx, err := repoContext()
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to resolve repo context: %w", err)
+	}
+
+	templatePath := filepath.Join(ctx.ScenarioAuditorRoot(), "prompts", "standards-fix.tmpl")
 	tplBytes, err := os.ReadFile(templatePath)
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to load standards fix template: %w", err)
@@ -186,23 +199,14 @@ func buildMultiStandardsFixPrompt(targets []standardsFixMultiScenario, userInstr
 		return "", "", nil, fmt.Errorf("failed to load fix instructions: %w", err)
 	}
 
-	severityCounts := map[string]int{
-		"critical": 0,
-		"high":     0,
-		"medium":   0,
-		"low":      0,
-	}
-
+	severityCounts := newFixPromptSeverityCounts()
 	issueSet := make(map[string]struct{})
 	var issueIDs []string
 	total := 0
 	for _, target := range targets {
 		for _, violation := range target.Violations {
 			total++
-			key := strings.ToLower(violation.Severity)
-			if _, ok := severityCounts[key]; ok {
-				severityCounts[key]++
-			}
+			addFixPromptSeverity(severityCounts, violation.Severity)
 			if violation.ID != "" {
 				if _, exists := issueSet[violation.ID]; !exists {
 					issueSet[violation.ID] = struct{}{}
@@ -223,7 +227,12 @@ func buildMultiStandardsFixPrompt(targets []standardsFixMultiScenario, userInstr
 		Timestamp:        time.Now().Format(time.RFC3339),
 	}
 
-	templatePath := filepath.Join(getScenarioRoot(), "prompts", "standards-fix-multi.tmpl")
+	ctx, err := repoContext()
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to resolve repo context: %w", err)
+	}
+
+	templatePath := filepath.Join(ctx.ScenarioAuditorRoot(), "prompts", "standards-fix-multi.tmpl")
 	tplBytes, err := os.ReadFile(templatePath)
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to load standards bulk fix template: %w", err)
@@ -279,17 +288,9 @@ func buildVulnerabilityFixPrompt(scenarioName, scenarioPath string, findings []S
 		additional = len(sorted) - maxIssuesForPrompt
 	}
 
-	severityCounts := map[string]int{
-		"critical": 0,
-		"high":     0,
-		"medium":   0,
-		"low":      0,
-	}
+	severityCounts := newFixPromptSeverityCounts()
 	for _, v := range sorted {
-		key := strings.ToLower(v.Severity)
-		if _, ok := severityCounts[key]; ok {
-			severityCounts[key]++
-		}
+		addFixPromptSeverity(severityCounts, v.Severity)
 	}
 
 	ids := issueIDs
@@ -314,7 +315,12 @@ func buildVulnerabilityFixPrompt(scenarioName, scenarioPath string, findings []S
 		Timestamp:          time.Now().Format(time.RFC3339),
 	}
 
-	templatePath := filepath.Join(getScenarioRoot(), "prompts", "vulnerability-fix.tmpl")
+	ctx, err := repoContext()
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to resolve repo context: %w", err)
+	}
+
+	templatePath := filepath.Join(ctx.ScenarioAuditorRoot(), "prompts", "vulnerability-fix.tmpl")
 	tplBytes, err := os.ReadFile(templatePath)
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to load vulnerability fix template: %w", err)
@@ -393,7 +399,12 @@ func buildMultiVulnerabilityFixPrompt(targets []vulnerabilityFixMultiScenario, u
 		Timestamp:        time.Now().Format(time.RFC3339),
 	}
 
-	templatePath := filepath.Join(getScenarioRoot(), "prompts", "vulnerability-fix-multi.tmpl")
+	ctx, err := repoContext()
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to resolve repo context: %w", err)
+	}
+
+	templatePath := filepath.Join(ctx.ScenarioAuditorRoot(), "prompts", "vulnerability-fix-multi.tmpl")
 	tplBytes, err := os.ReadFile(templatePath)
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to load vulnerability bulk fix template: %w", err)

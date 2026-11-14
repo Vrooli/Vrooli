@@ -1,0 +1,14 @@
+{
+  "apple_touch_icon_url": "/public/logo.webp",
+  "canonical_base_url": "https://example.com",
+  "coming_soon_enabled": false,
+  "default_description": "A secure business suite for publishing, testing, and monetizing the apps you build.",
+  "default_og_image_url": "/public/logo.webp",
+  "default_title": "Silent Founder OS",
+  "favicon_url": "/public/logo.webp",
+  "logo_icon_url": "/public/logo.webp",
+  "logo_url": "/public/logo.webp",
+  "site_name": "Silent Founder OS",
+  "tagline": "Tools for people with things to make.",
+  "theme_primary_color": "#6366f1"
+}

@@ -1,0 +1,245 @@
+package destinations_test
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"testing"
+	"time"
+
+	"data-backup-manager/internal/destinationreadiness"
+	"data-backup-manager/internal/destinations"
+	"data-backup-manager/internal/destinations/mocks"
+	enginemocks "data-backup-manager/internal/testutil/mocks"
+)
+
+// stubReadiness returns a canned report so the gate can be exercised without a
+// real filesystem.
+type stubReadiness struct {
+	report destinationreadiness.Report
+	err    error
+	calls  int
+}
+
+type recoveryBindingReadiness struct {
+	identity destinationreadiness.DeviceIdentity
+	mounted  bool
+	err      error
+}
+
+func (s recoveryBindingReadiness) Analyze(context.Context, destinationreadiness.AnalyzeInput) (destinationreadiness.Report, error) {
+	return destinationreadiness.Report{}, nil
+}
+
+func (s recoveryBindingReadiness) InspectDevice(context.Context, destinationreadiness.DeviceIdentity) (destinationreadiness.Inspection, error) {
+	return destinationreadiness.Inspection{Identity: s.identity, Mounted: s.mounted}, s.err
+}
+
+func (s *stubReadiness) Analyze(context.Context, destinationreadiness.AnalyzeInput) (destinationreadiness.Report, error) {
+	s.calls++
+	return s.report, s.err
+}
+
+func failingDriverReport() destinationreadiness.Report {
+	return destinationreadiness.Report{
+		OverallSeverity: destinationreadiness.SeverityFail,
+		Checks: []destinationreadiness.CheckResult{{
+			Code:       "filesystem_suitability",
+			Severity:   destinationreadiness.SeverityFail,
+			Message:    "destination is mounted with the ntfs3 driver: it faults in kernel context",
+			NextAction: "remount through a userspace driver",
+		}},
+	}
+}
+
+func newGatedService(t *testing.T, gate destinations.ReadinessGate) (destinations.Service, *mocks.FakeBundleWriter) {
+	t.Helper()
+	repo := mocks.NewFakeRepository()
+	eng := &enginemocks.FakeKopiaEngine{}
+	bundle := mocks.NewFakeBundleWriter()
+	return destinations.NewService(repo, eng, bundle, "/protected", destinations.WithReadinessGate(gate)), bundle
+}
+
+func fsInput() destinations.CreateInput {
+	return destinations.CreateInput{
+		Name:     "elements-local",
+		Backend:  destinations.BackendFilesystem,
+		Location: "/media/user/Elements/vrooli-backups",
+	}
+}
+
+// The condition that produced the 2026-08-19 host panic must be refused at
+// creation, not merely reported.
+func TestCreateDestinationRefusesKernelFaultingDriver(t *testing.T) {
+	svc, _ := newGatedService(t, &stubReadiness{report: failingDriverReport()})
+
+	_, err := svc.CreateDestination(context.Background(), fsInput())
+
+	if err == nil {
+		t.Fatal("expected creation to be refused")
+	}
+	var invalid destinations.ErrInvalidDestination
+	if !errors.As(err, &invalid) {
+		t.Fatalf("error = %T, want ErrInvalidDestination", err)
+	}
+	if !strings.Contains(err.Error(), "ntfs3") {
+		t.Fatalf("refusal must name the offending driver, got %q", err.Error())
+	}
+}
+
+// Acknowledgement is an operator judgement call about their backup. It must not
+// extend to a risk borne by the host.
+func TestAcknowledgementDoesNotOverrideDriverRefusal(t *testing.T) {
+	svc, _ := newGatedService(t, &stubReadiness{report: failingDriverReport()})
+	in := fsInput()
+	in.AcknowledgeReadinessFailure = true
+
+	if _, err := svc.CreateDestination(context.Background(), in); err == nil {
+		t.Fatal("acknowledgement must not override a kernel-faulting driver refusal")
+	}
+}
+
+// Other readiness failures are judgement calls and stay overridable, so an
+// operator with an unusual but deliberate setup is not locked out.
+func TestAcknowledgementOverridesOtherReadinessFailures(t *testing.T) {
+	report := destinationreadiness.Report{
+		OverallSeverity: destinationreadiness.SeverityFail,
+		Checks: []destinationreadiness.CheckResult{{
+			Code:     "capacity",
+			Severity: destinationreadiness.SeverityFail,
+			Message:  "free space is below selected target estimate",
+		}},
+	}
+	svc, _ := newGatedService(t, &stubReadiness{report: report})
+
+	if _, err := svc.CreateDestination(context.Background(), fsInput()); err == nil {
+		t.Fatal("an unacknowledged readiness failure must be refused")
+	}
+
+	in := fsInput()
+	in.AcknowledgeReadinessFailure = true
+	if _, err := svc.CreateDestination(context.Background(), in); err != nil {
+		t.Fatalf("acknowledged readiness failure should proceed, got %v", err)
+	}
+}
+
+// A refusal must not leave a half-provisioned bundle on a drive just declared
+// unfit for backups.
+func TestRefusedDestinationWritesNothingToTheDrive(t *testing.T) {
+	svc, bundle := newGatedService(t, &stubReadiness{report: failingDriverReport()})
+
+	if _, err := svc.CreateDestination(context.Background(), fsInput()); err == nil {
+		t.Fatal("expected refusal")
+	}
+	if len(bundle.Prepared) != 0 {
+		t.Fatalf("bundle was prepared %d times on a refused destination", len(bundle.Prepared))
+	}
+}
+
+// A readiness probe that errors is not a pass. An unprovable destination stays
+// out of the catalog.
+func TestUnevaluableReadinessRefusesCreation(t *testing.T) {
+	svc, _ := newGatedService(t, &stubReadiness{err: errors.New("probe failed")})
+
+	if _, err := svc.CreateDestination(context.Background(), fsInput()); err == nil {
+		t.Fatal("readiness that could not be evaluated must not admit the destination")
+	}
+}
+
+// S3 destinations have no mounted volume to evaluate; the gate must not run.
+func TestGateSkipsNonFilesystemBackends(t *testing.T) {
+	stub := &stubReadiness{report: failingDriverReport()}
+	svc, _ := newGatedService(t, stub)
+
+	in := destinations.CreateInput{Name: "offsite", Backend: destinations.BackendS3, Location: "bucket/prefix"}
+	if _, err := svc.CreateDestination(context.Background(), in); err != nil {
+		t.Fatalf("S3 creation should not consult readiness, got %v", err)
+	}
+	if stub.calls != 0 {
+		t.Fatalf("readiness consulted %d times for an S3 destination", stub.calls)
+	}
+}
+
+func TestCreatePersistsLastObservedDeviceIdentity(t *testing.T) {
+	report := destinationreadiness.Report{
+		OverallSeverity: destinationreadiness.SeverityPass,
+		Identity: destinationreadiness.DeviceIdentity{
+			DevicePath: "/dev/sda1", Mountpoint: "/media/user/Elements", Filesystem: "ntfs",
+			UUID: "E26A883E6A881189", Serial: "WD-WX52A946D6VL", TotalBytes: 2000,
+		},
+		ObservedAt: time.Date(2026, 9, 8, 4, 0, 0, 0, time.UTC),
+	}
+	repo := mocks.NewFakeRepository()
+	svc := destinations.NewService(repo, &enginemocks.FakeKopiaEngine{}, mocks.NewFakeBundleWriter(), "/protected", destinations.WithReadinessGate(&stubReadiness{report: report}))
+	d, err := svc.CreateDestination(context.Background(), fsInput())
+	if err != nil {
+		t.Fatalf("CreateDestination: %v", err)
+	}
+	if d.DeviceIdentity == nil || d.DeviceIdentity.UUID != report.Identity.UUID || !d.DeviceIdentityObservedAt.Equal(report.ObservedAt) {
+		t.Fatalf("identity evidence not persisted: %+v observed=%v", d.DeviceIdentity, d.DeviceIdentityObservedAt)
+	}
+	if d.RelativePath != "vrooli-backups" {
+		t.Fatalf("relative destination path = %q, want vrooli-backups", d.RelativePath)
+	}
+}
+
+func TestBindRecoveryIdentityObservesStableDeviceAndPersistsMountRoot(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	created, err := repo.Create(context.Background(), destinations.Destination{
+		Name: "elements-local", BackendKind: destinations.BackendFilesystem,
+		Location: "/media/matthalloran8/Elements/vrooli-backups", CapPolicy: destinations.CapPolicyAlertBlock,
+	})
+	if err != nil {
+		t.Fatalf("seed legacy destination: %v", err)
+	}
+	observed := destinationreadiness.DeviceIdentity{
+		DevicePath: "/dev/sda1", Filesystem: "ntfs", UUID: "E26A883E6A881189",
+		Serial: "WD-WX52A946D6VL", TotalBytes: 2000363192320,
+	}
+	svc := destinations.NewService(repo, &enginemocks.FakeKopiaEngine{}, mocks.NewFakeBundleWriter(), "/protected",
+		destinations.WithReadinessGate(recoveryBindingReadiness{identity: observed}))
+	expected := destinationreadiness.DeviceIdentity{
+		UUID: observed.UUID, Serial: observed.Serial, Filesystem: observed.Filesystem,
+		Mountpoint: "/media/matthalloran8/Elements",
+	}
+	bound, err := svc.BindRecoveryIdentity(context.Background(), created.ID, expected)
+	if err != nil {
+		t.Fatalf("BindRecoveryIdentity: %v", err)
+	}
+	if bound.DeviceIdentity == nil || bound.DeviceIdentity.DevicePath != observed.DevicePath || bound.DeviceIdentity.UUID != observed.UUID || bound.DeviceIdentity.Mountpoint != expected.Mountpoint {
+		t.Fatalf("bound identity = %+v, want freshly observed device plus intended mount root", bound.DeviceIdentity)
+	}
+	if bound.RelativePath != "vrooli-backups" || bound.DeviceIdentityObservedAt.IsZero() {
+		t.Fatalf("binding locator/time = %q / %v", bound.RelativePath, bound.DeviceIdentityObservedAt)
+	}
+	reread, err := repo.GetByID(context.Background(), created.ID)
+	if err != nil || reread.DeviceIdentity == nil || reread.RelativePath != "vrooli-backups" {
+		t.Fatalf("persisted binding = (%+v, %v)", reread, err)
+	}
+}
+
+func TestBindRecoveryIdentityRefusesWrongStableDeviceAndUnsafeMountRoot(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	created, err := repo.Create(context.Background(), destinations.Destination{
+		Name: "elements-local", BackendKind: destinations.BackendFilesystem,
+		Location: "/media/matthalloran8/Elements/vrooli-backups", CapPolicy: destinations.CapPolicyAlertBlock,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	observed := destinationreadiness.DeviceIdentity{DevicePath: "/dev/sda1", Filesystem: "ntfs", UUID: "different-volume"}
+	svc := destinations.NewService(repo, &enginemocks.FakeKopiaEngine{}, mocks.NewFakeBundleWriter(), "/protected",
+		destinations.WithReadinessGate(recoveryBindingReadiness{identity: observed}))
+	_, err = svc.BindRecoveryIdentity(context.Background(), created.ID, destinationreadiness.DeviceIdentity{
+		UUID: "E26A883E6A881189", Filesystem: "ntfs", Mountpoint: "/media/matthalloran8/Elements",
+	})
+	if err == nil {
+		t.Fatal("binding must refuse a different observed UUID")
+	}
+	_, err = svc.BindRecoveryIdentity(context.Background(), created.ID, destinationreadiness.DeviceIdentity{
+		UUID: "E26A883E6A881189", Filesystem: "ntfs", Mountpoint: "/",
+	})
+	if err == nil {
+		t.Fatal("binding must refuse a host-root mountpoint")
+	}
+}

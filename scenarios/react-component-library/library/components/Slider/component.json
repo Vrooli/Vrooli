@@ -1,0 +1,35 @@
+{
+  "assetKind": "component",
+  "catalogId": "controls.slider",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.1.0",
+    "1.1.1"
+  ],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.2",
+    "1.0.1",
+    "1.0.0",
+    "1.1.0",
+    "1.1.1",
+    "1.2.2",
+    "1.2.1",
+    "1.2.0",
+    "1.1.2",
+    "1.2.3"
+  ],
+  "latest": "1.2.7",
+  "libraryId": "react-component-library:Slider",
+  "displayName": "Slider",
+  "description": "The single-value range control with keyboard stepping, snapping, marks, formatted output, touch-friendly hit area, and accessible value text.",
+  "tags": []
+}

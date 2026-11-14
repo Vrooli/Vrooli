@@ -7,9 +7,11 @@
  * - Initializing the basExport API on window
  */
 
-import type { ReplayMovieSpec } from "@/types/export";
+import type { ReplaySpec as ReplayMovieSpec } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
+import { ReplaySpecSchema } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 import type { BootstrapPayload, ExportMetadata } from "./types";
 import { logger } from "@/utils/logger";
+import { parseProtoStrict } from "@/utils/proto";
 
 /**
  * Adds padding to a base64 string to make it valid.
@@ -37,7 +39,7 @@ export const decodeExportPayload = (encoded: string): ReplayMovieSpec | null => 
       return null;
     }
     const json = window.atob(normalized);
-    return JSON.parse(json) as ReplayMovieSpec;
+    return parseProtoStrict<ReplayMovieSpec>(ReplaySpecSchema, JSON.parse(json));
   } catch (error) {
     logger.error(
       "Failed to decode replay export payload",
@@ -58,7 +60,7 @@ export const decodeJsonSpec = (
     return null;
   }
   try {
-    return JSON.parse(raw) as ReplayMovieSpec;
+    return parseProtoStrict<ReplayMovieSpec>(ReplaySpecSchema, JSON.parse(raw));
   } catch (error) {
     logger.error(
       "Failed to parse replay export bootstrap payload",

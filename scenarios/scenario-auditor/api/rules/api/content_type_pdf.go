@@ -139,16 +139,5 @@ TODO: Implementation required
 
 // CheckPDFContentTypeHeaders validates PDF response Content-Type headers
 func CheckPDFContentTypeHeaders(content []byte, filePath string) []Violation {
-	var violations []Violation
-
-	// TODO: Implement PDF Content-Type checking
-	// Focus on detecting PDF generation libraries
-	// Check for .Output() calls without Content-Type
-	// Verify Content-Disposition has matching Content-Type
-	// High priority - PDFs are common in business apps
-
-	_ = content
-	_ = filePath
-
-	return violations
+	return noContentTypeViolations()
 }

@@ -72,7 +72,7 @@ const runtimeConfig: Config = {
   WS_URL: WS_ROOT,
   API_PORT: safeParsePort(API_URL),
   UI_PORT: getWindowPort(),
-  WS_PORT: safeParsePort(WS_ROOT),
+  WEBSOCKET_URL_PORT: safeParsePort(WS_ROOT),
 }
 
 export async function getConfig(): Promise<Config> {

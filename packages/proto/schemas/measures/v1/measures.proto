@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package vrooli.measures.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/measures/v1;measuresv1";
+
+// =============================================================================
+// MEASURES — shared canonical parameter types
+// =============================================================================
+//
+// @layer 0  (shared contract types)
+// @domain measures
+// @stability beta
+//
+// A "measure" is a named, typed, parameterized analytical query declared once
+// per scenario (see packages/measures-go + the manifest `measure` block). This
+// proto holds the canonical parameter *types* that measures share so that
+// natural-language extraction targets a typed, deterministically-resolvable
+// field instead of a freeform string.
+//
+// USAGE CONTEXTS:
+//   - request messages of measure-backed RPCs declare a TimeWindow field for
+//     any time-bounded measure (param `type: "time_window"` in the manifest)
+//   - the deterministic resolver in packages/measures-go maps a TimeWindowToken
+//     to a concrete [from, to) range with an explicit timezone, with no LLM in
+//     the loop
+//
+// =============================================================================
+
+// TimeWindowToken enumerates the canonical *relative* date ranges a measure can
+// be asked over. Each token resolves deterministically (no LLM) to a concrete
+// [from, to) range anchored to a caller-supplied "now" + timezone. This keeps
+// extraction of dates from natural language exact and auditable.
+enum TimeWindowToken {
+  // Unset — distinguishes "no token chosen" inside the TimeWindow oneof.
+  TIME_WINDOW_TOKEN_UNSPECIFIED = 0;
+
+  // The current calendar week, from its start (locale-independent: Monday
+  // 00:00) up to "now".
+  TIME_WINDOW_TOKEN_THIS_WEEK = 1;
+
+  // A rolling 7-day window ending at "now" (now-7d .. now).
+  TIME_WINDOW_TOKEN_LAST_7D = 2;
+
+  // A rolling 30-day window ending at "now" (now-30d .. now).
+  TIME_WINDOW_TOKEN_LAST_30D = 3;
+
+  // The current calendar month, from the 1st 00:00 up to "now".
+  TIME_WINDOW_TOKEN_THIS_MONTH = 4;
+
+  // The entire previous calendar month (1st 00:00 .. this month's 1st 00:00).
+  TIME_WINDOW_TOKEN_LAST_MONTH = 5;
+
+  // The current calendar quarter, from its first day 00:00 up to "now".
+  TIME_WINDOW_TOKEN_THIS_QUARTER = 6;
+}
+
+// CustomRange is an explicit absolute [from, to) range. Used when a question
+// names concrete dates rather than a relative token. `from` is inclusive, `to`
+// is exclusive; both are required when a CustomRange is supplied.
+message CustomRange {
+  // Start of the range, inclusive.
+  google.protobuf.Timestamp from = 1 [(buf.validate.field).required = true];
+
+  // End of the range, exclusive.
+  google.protobuf.Timestamp to = 2 [(buf.validate.field).required = true];
+}
+
+// TimeWindow is the canonical time-range parameter type for measures. A measure
+// request that is time-bounded carries a TimeWindow rather than a freeform
+// string so extraction resolves to a typed field. Exactly one of the oneof arms
+// is set: a relative `token` (resolved deterministically) or an absolute
+// `custom` range.
+message TimeWindow {
+  oneof window {
+    // A canonical relative range (resolved deterministically server-side).
+    TimeWindowToken token = 1 [(buf.validate.field).enum.defined_only = true];
+
+    // An explicit absolute [from, to) range.
+    CustomRange custom = 2;
+  }
+}

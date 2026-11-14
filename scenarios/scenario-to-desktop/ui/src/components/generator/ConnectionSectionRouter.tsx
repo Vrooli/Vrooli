@@ -1,7 +1,7 @@
 /**
  * Connection section router for GeneratorForm.
  * Switches between External (Remote) and Embedded server sections.
- * Note: BundledRuntimeSection is now rendered in BundleSection.
+ * Note: BundleSection renders the bundled workflow directly.
  */
 
 import type { ProbeResponse, ProxyHintsResponse } from "../../lib/api";
@@ -54,7 +54,7 @@ export function ConnectionSectionRouter({
   localApiEndpoint,
   onLocalApiEndpointChange,
 }: ConnectionSectionRouterProps) {
-  // BundledRuntimeSection is now in BundleSection - render nothing for bundled mode
+  // BundleSection owns bundled mode, so this router has no bundled branch.
   if (connectionDecision.kind === "bundled-runtime") {
     return null;
   }

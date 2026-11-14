@@ -1,0 +1,17 @@
+# Headless Stable Audio 3 77e0398c closure; SDA owns requirements.lock.
+# Linux cp312 CUDA12.6. No Gradio, training extras, or implicit source builds.
+torch==2.7.1+cu126
+torchaudio==2.7.1+cu126
+transformers==5.10.4
+huggingface-hub==1.7.1
+einops==0.8.2
+einops-exts==0.0.4
+numpy==2.2.6
+packaging==26.0
+safetensors==0.7.0
+tqdm==4.67.3
+soundfile==0.13.1
+fastapi==0.141.1
+pydantic==2.13.5
+uvicorn==0.53.0
+flash-attn @ https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3.post2/flash_attn-2.8.3.post2%2Bcu12torch2.7cxx11abiTRUE-cp312-cp312-linux_x86_64.whl#sha256=1acb95a0758941925d91e7a6d87ad826cb8eff83458810f746497d4086139c5d

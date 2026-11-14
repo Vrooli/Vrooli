@@ -14,7 +14,7 @@
 //
 //   - Dependencies: node_modules, vendor
 //   - Build/deployment artifacts: platforms, dist, build, bin, bundle, artifacts
-//   - Runtime data: data, logs, coverage, playwright-driver
+//   - Runtime data: data, logs, coverage
 //   - Language caches: __pycache__, target, obj
 //   - Temporary: tmp, temp, storybook-static, venv
 //   - All dot-directories (matched by "." prefix): .git, .vrooli, .cache, etc.

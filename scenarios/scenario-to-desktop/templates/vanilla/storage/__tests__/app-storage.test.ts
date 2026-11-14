@@ -423,6 +423,35 @@ describe("createAppStorage", () => {
 
             await expect(storage.writeFile("../escape.txt", "data")).rejects.toThrow("Invalid storage path");
         });
+
+        it("atomically replaces an existing file when rename is available", async () => {
+            const rename = vi.fn(async (from: string, to: string) => {
+                const value = fs._files.get(from);
+                if (value === undefined) throw new Error("temporary file missing");
+                fs._files.set(to, value);
+                fs._files.delete(from);
+            });
+            (fs as unknown as { rename: typeof rename }).rename = rename;
+            const storage = createAppStorage(fs, path, config);
+
+            await storage.writeFile("state.json", "new state");
+
+            expect(rename).toHaveBeenCalledTimes(1);
+            const [temporary, target] = rename.mock.calls[0] ?? [];
+            expect(temporary).toMatch(/^\/mock\/userData\/app-storage\/state\.json\.tmp-\d+$/);
+            expect(target).toBe("/mock/userData/app-storage/state.json");
+            expect(fs._files.get(target!)).toBe("new state");
+            expect([...fs._files.keys()].some((key) => key.includes(".tmp-"))).toBe(false);
+        });
+
+        it("removes the temporary file when atomic replacement fails", async () => {
+            const rename = vi.fn(async () => { throw new Error("replacement failed"); });
+            (fs as unknown as { rename: typeof rename }).rename = rename;
+            const storage = createAppStorage(fs, path, config);
+
+            await expect(storage.writeFile("state.json", "new state")).rejects.toThrow("replacement failed");
+            expect([...fs._files.keys()].some((key) => key.includes("state.json.tmp-"))).toBe(false);
+        });
     });
 
     describe("readFile", () => {

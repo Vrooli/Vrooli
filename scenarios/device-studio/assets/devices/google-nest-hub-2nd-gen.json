@@ -1,0 +1,128 @@
+{
+  "schema_version": "device-definition/v1",
+  "id": "google-nest-hub-2nd-gen",
+  "group": "smart_display_frame",
+  "kind": "smart_display",
+  "identity_status": "documented_product",
+  "manufacturer": "Google",
+  "model": "Nest Hub (2nd gen)",
+  "dimensions": {
+    "complete_tabletop": {
+      "width": {
+        "value": 177.4,
+        "unit": "mm",
+        "meaning": "left-to-right in front reference pose",
+        "configuration": "complete_tabletop",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://store.google.com/ie/product/nest_hub_2nd_gen_specs?hl=en-GB",
+            "kind": "manufacturer_specification",
+            "qualifier": "Complete tabletop unit with integrated base; generation-specific published dimensions."
+          }
+        ]
+      },
+      "height": {
+        "value": 120.4,
+        "unit": "mm",
+        "meaning": "bottom-to-top in front reference pose",
+        "configuration": "complete_tabletop",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://store.google.com/ie/product/nest_hub_2nd_gen_specs?hl=en-GB",
+            "kind": "manufacturer_specification",
+            "qualifier": "Complete tabletop unit with integrated base; generation-specific published dimensions."
+          }
+        ]
+      },
+      "depth": {
+        "value": 69.5,
+        "unit": "mm",
+        "meaning": "front-to-back in front reference pose",
+        "configuration": "complete_tabletop",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://store.google.com/ie/product/nest_hub_2nd_gen_specs?hl=en-GB",
+            "kind": "manufacturer_specification",
+            "qualifier": "Complete tabletop unit with integrated base; generation-specific published dimensions."
+          }
+        ]
+      }
+    }
+  },
+  "displays": [
+    {
+      "id": "display",
+      "topology": "planar",
+      "physical_boundary": {
+        "status": "unknown"
+      },
+      "active_area": {
+        "status": "unknown"
+      },
+      "app_safe_area": {
+        "status": "unknown"
+      },
+      "hardware_occlusions": []
+    }
+  ],
+  "joints": [],
+  "supported_poses": [
+    {
+      "name": "tabletop-facing",
+      "status": "candidate_only"
+    }
+  ],
+  "supported_motion": [
+    {
+      "name": "display-tilt",
+      "status": "unknown"
+    }
+  ],
+  "supported_profiles": [],
+  "supports": [
+    {
+      "kind": "tabletop",
+      "status": "candidate_only",
+      "interface_id": "integrated-base"
+    }
+  ],
+  "model_candidates": [
+    {
+      "id": "nest-hub-listing-1",
+      "status": "not_acquired",
+      "listing_url": "https://sketchfab.com/3d-models/google-nest-hub-850bae86ac454760a124e19ad1cc7911",
+      "license": "CC BY 4.0 listing",
+      "attribution": "Attribution author not transcribed; verify before use",
+      "rights_notes": "Listing title does not establish generation; archived source notes listing description points to an unrelated product."
+    }
+  ],
+  "provenance": [
+    {
+      "source": "https://store.google.com/ie/product/nest_hub_2nd_gen_specs?hl=en-GB",
+      "kind": "manufacturer_specification",
+      "qualifier": "Nest Hub (2nd gen) body dimensions and raster; active display bounds and exact surface shape remain unknown."
+    },
+    {
+      "source": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/model-sourcing/large-devices.json",
+      "kind": "archived_source_record",
+      "qualifier": "Candidate listing generation/author/dimension match is unverified."
+    }
+  ],
+  "qualification": "unqualified",
+  "description": "Do not use first-generation dimensions or a generic Nest Hub title as proof of second-generation geometry."
+}

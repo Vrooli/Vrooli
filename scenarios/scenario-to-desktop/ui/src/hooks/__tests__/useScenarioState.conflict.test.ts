@@ -3,9 +3,6 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
-import { useScenarioState } from "../useScenarioState";
-import type { CheckStalenessResponse } from "../../lib/api";
 import {
   mockFetchScenarioState,
   mockSaveScenarioState,
@@ -17,6 +14,9 @@ import {
   createSaveStateResponse,
   defaultOptions,
 } from "./useScenarioState.testUtils";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { useScenarioState } from "../useScenarioState";
+import type { CheckStalenessResponse } from "../../lib/api";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -36,19 +36,21 @@ describe("useScenarioState", () => {
         form_state: { app_display_name: "Conflicting Name" },
       });
 
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
       mockSaveScenarioState.mockResolvedValue(
         createSaveStateResponse({
           conflict: true,
           server_state: conflictingState,
-        })
+        }),
       );
 
       const onConflict = vi.fn();
 
       const { result } = renderHook(
         () => useScenarioState({ ...defaultOptions, onConflict }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       // Wait for initial load
@@ -85,19 +87,21 @@ describe("useScenarioState", () => {
         form_state: { app_display_name: "Server Name" },
       });
 
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
       mockSaveScenarioState.mockResolvedValue(
         createSaveStateResponse({
           conflict: true,
           server_state: conflictingState,
-        })
+        }),
       );
 
       const onStateLoaded = vi.fn();
 
       const { result } = renderHook(
         () => useScenarioState({ ...defaultOptions, onStateLoaded }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       // Wait for initial load
@@ -146,13 +150,15 @@ describe("useScenarioState", () => {
         form_state: { app_display_name: "Server Name" },
       });
 
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
       mockSaveScenarioState
         .mockResolvedValueOnce(
           createSaveStateResponse({
             conflict: true,
             server_state: conflictingState,
-          })
+          }),
         )
         .mockResolvedValueOnce(createSaveStateResponse());
 
@@ -199,7 +205,9 @@ describe("useScenarioState", () => {
   describe("staleness checking", () => {
     it("checks staleness when checkStaleness is called", async () => {
       const mockState = createMockScenarioState();
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
       mockCheckStateStaleness.mockResolvedValue({
         valid: true,
         changed: false,
@@ -217,23 +225,30 @@ describe("useScenarioState", () => {
 
       // Call checkStaleness
       await act(async () => {
-        await result.current.checkStaleness({ manifest_path: "/path/to/manifest.json" });
+        await result.current.checkStaleness({
+          manifest_path: "/path/to/manifest.json",
+        });
       });
 
-      expect(mockCheckStateStaleness).toHaveBeenCalledWith(
-        "test-scenario",
-        { manifest_path: "/path/to/manifest.json" }
-      );
+      expect(mockCheckStateStaleness).toHaveBeenCalledWith("test-scenario", {
+        manifest_path: "/path/to/manifest.json",
+      });
     });
 
     it("updates isStale and pendingChanges from staleness response", async () => {
       const mockState = createMockScenarioState();
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
       mockCheckStateStaleness.mockResolvedValue({
         valid: false,
         changed: true,
         pending_changes: [
-          { change_type: "modified", affected_stage: "bundle", reason: "Manifest updated" },
+          {
+            change_type: "modified",
+            affected_stage: "bundle",
+            reason: "Manifest updated",
+          },
         ],
       } satisfies CheckStalenessResponse);
 
@@ -248,18 +263,26 @@ describe("useScenarioState", () => {
 
       // Call checkStaleness
       await act(async () => {
-        await result.current.checkStaleness({ manifest_path: "/path/to/manifest.json" });
+        await result.current.checkStaleness({
+          manifest_path: "/path/to/manifest.json",
+        });
       });
 
       expect(result.current.isStale).toBe(true);
       expect(result.current.pendingChanges).toEqual([
-        { change_type: "modified", affected_stage: "bundle", reason: "Manifest updated" },
+        {
+          change_type: "modified",
+          affected_stage: "bundle",
+          reason: "Manifest updated",
+        },
       ]);
     });
 
     it("updates validationStatus from staleness response", async () => {
       const mockState = createMockScenarioState();
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
 
       const validationStatus = {
         scenario_name: "test-scenario",
@@ -291,7 +314,9 @@ describe("useScenarioState", () => {
 
       // Call checkStaleness
       await act(async () => {
-        await result.current.checkStaleness({ manifest_path: "/path/to/manifest.json" });
+        await result.current.checkStaleness({
+          manifest_path: "/path/to/manifest.json",
+        });
       });
 
       expect(result.current.validationStatus).toEqual(validationStatus);
@@ -301,14 +326,16 @@ describe("useScenarioState", () => {
   describe("clear state", () => {
     it("calls deleteScenarioState and clears local state", async () => {
       const mockState = createMockScenarioState();
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
       mockDeleteScenarioState.mockResolvedValue(undefined);
 
       const onStateCleared = vi.fn();
 
       const { result } = renderHook(
         () => useScenarioState({ ...defaultOptions, onStateCleared }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       // Wait for initial load
@@ -335,7 +362,9 @@ describe("useScenarioState", () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
 
       const mockState = createMockScenarioState();
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
       mockDeleteScenarioState.mockResolvedValue(undefined);
       mockSaveScenarioState.mockResolvedValue(createSaveStateResponse());
 

@@ -1,0 +1,1 @@
+../../../../api/internal/shots/schema.sql

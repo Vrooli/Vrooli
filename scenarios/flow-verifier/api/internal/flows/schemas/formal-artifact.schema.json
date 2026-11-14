@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.dev/schemas/react-vite/formal-temporal-artifact.json",
+  "title": "Formal Temporal Artifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "flowId",
+    "source",
+    "commands",
+    "states",
+    "events",
+    "transitions",
+    "namedTraces",
+    "generatedTraces",
+    "invariants",
+    "generatedChecks",
+    "coverage",
+    "checks"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 4 },
+    "flowId": { "type": "string", "minLength": 1 },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contractPath",
+        "contractSha256",
+        "modelPath",
+        "modelSha256",
+        "generatorPath",
+        "generatorSha256",
+        "generatorVersion",
+        "quintVersion",
+        "verificationBackend"
+      ],
+      "properties": {
+        "contractPath": { "type": "string", "minLength": 1 },
+        "contractSha256": { "$ref": "#/$defs/sha256" },
+        "modelPath": { "type": "string", "minLength": 1 },
+        "modelSha256": { "$ref": "#/$defs/sha256" },
+        "generatorPath": { "type": "string", "minLength": 1 },
+        "generatorSha256": { "$ref": "#/$defs/sha256" },
+        "generatorVersion": { "type": "integer", "minimum": 1 },
+        "quintVersion": { "type": "string", "minLength": 1 },
+        "verificationBackend": { "type": "string", "minLength": 1 }
+      }
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "states": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "events": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "transitions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/transition" } },
+    "namedTraces": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/trace" } },
+    "generatedTraces": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/trace" } },
+    "invariants": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "generatedChecks": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transitionMatrixComplete", "terminalTransitionsChecked", "namedTraces", "generatedTraces"],
+      "properties": {
+        "transitionMatrixComplete": { "type": "boolean" },
+        "terminalTransitionsChecked": { "type": "boolean" },
+        "namedTraces": { "$ref": "#/$defs/traceCoverage" },
+        "generatedTraces": { "$ref": "#/$defs/generatedTraceCoverage" }
+      }
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["typechecked", "tested", "verified", "generatedFromContract", "generatedFromModel"],
+      "properties": {
+        "typechecked": { "type": "boolean" },
+        "tested": { "type": "boolean" },
+        "verified": { "type": "boolean" },
+        "generatedFromContract": { "type": "boolean" },
+        "generatedFromModel": { "type": "boolean" }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "event", "to", "wantError"],
+      "properties": {
+        "from": { "type": "string", "minLength": 1 },
+        "event": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "wantError": { "type": "boolean" }
+      }
+    },
+    "trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "initial", "steps"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "initial": { "type": "string", "minLength": 1 },
+        "steps": { "type": "array", "items": { "$ref": "#/$defs/traceStep" } }
+      }
+    },
+    "traceStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event", "want", "wantError"],
+      "properties": {
+        "event": { "type": "string", "minLength": 1 },
+        "want": { "type": "string", "minLength": 1 },
+        "wantError": { "type": "boolean" }
+      }
+    },
+    "traceCoverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allStatesCovered", "allEventsCovered", "coveredStates", "coveredEvents"],
+      "properties": {
+        "allStatesCovered": { "type": "boolean" },
+        "allEventsCovered": { "type": "boolean" },
+        "coveredStates": { "type": "array", "items": { "type": "string" } },
+        "coveredEvents": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "generatedTraceCoverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allStatesCovered", "allEventsCovered", "coveredStates", "coveredEvents", "coveredPairs", "allPairsCovered"],
+      "properties": {
+        "allStatesCovered": { "type": "boolean" },
+        "allEventsCovered": { "type": "boolean" },
+        "coveredStates": { "type": "array", "items": { "type": "string" } },
+        "coveredEvents": { "type": "array", "items": { "type": "string" } },
+        "coveredPairs": { "type": "array", "items": { "type": "string" } },
+        "allPairsCovered": { "type": "boolean" }
+      }
+    }
+  }
+}

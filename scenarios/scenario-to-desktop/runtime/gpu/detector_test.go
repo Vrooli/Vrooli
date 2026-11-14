@@ -5,7 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"scenario-to-desktop-runtime/infra"
+	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
 )
 
 // mockCommandRunner is a test double for infra.CommandRunner.
@@ -119,8 +120,8 @@ func TestRealDetector_NvidiaSmi(t *testing.T) {
 				return "", errors.New("not found")
 			},
 			output: func(_ context.Context, name string, args ...string) ([]byte, error) {
-				if name == "/usr/bin/nvidia-smi" {
-					return []byte("NVIDIA GeForce RTX 3080\n"), nil
+				if name == "nvidia-smi" {
+					return []byte("0, NVIDIA GeForce RTX 3080, GPU-1, 555.42, 0, 0, 10240, 0, 40, N/A, 50, 100, 1000, 5000\n"), nil
 				}
 				return nil, errors.New("command failed")
 			},
@@ -186,230 +187,62 @@ func TestRealDetector_NvidiaSmi(t *testing.T) {
 	}
 }
 
-func TestDetectGPUDarwin(t *testing.T) {
+func TestStatusFromSnapshot(t *testing.T) {
 	tests := []struct {
 		name       string
-		lookPath   func(string) (string, error)
-		output     func(context.Context, string, ...string) ([]byte, error)
+		snapshot   hostinventory.Snapshot
 		wantAvail  bool
 		wantMethod string
 		wantReason string
 	}{
 		{
-			name: "system_profiler not found",
-			lookPath: func(_ string) (string, error) {
-				return "", errors.New("not found")
-			},
+			name:       "no GPU",
+			snapshot:   hostinventory.Snapshot{},
 			wantAvail:  false,
 			wantMethod: "probe",
-			wantReason: "system_profiler not found",
+			wantReason: "no GPU detected",
 		},
 		{
-			name: "system_profiler fails",
-			lookPath: func(cmd string) (string, error) {
-				if cmd == "system_profiler" {
-					return "/usr/sbin/system_profiler", nil
-				}
-				return "", errors.New("not found")
+			name: "NVIDIA GPU",
+			snapshot: hostinventory.Snapshot{
+				GPUs: []hostinventory.GPU{{Name: "NVIDIA GeForce RTX 3080", Source: "nvidia-smi"}},
 			},
-			output: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-				return nil, errors.New("system_profiler error")
-			},
-			wantAvail:  false,
-			wantMethod: "system_profiler",
-			wantReason: "system_profiler failed",
+			wantAvail:  true,
+			wantMethod: "nvidia-smi",
+			wantReason: "nvidia gpu detected",
 		},
 		{
-			name: "GPU detected via chipset model",
-			lookPath: func(cmd string) (string, error) {
-				if cmd == "system_profiler" {
-					return "/usr/sbin/system_profiler", nil
-				}
-				return "", errors.New("not found")
-			},
-			output: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-				return []byte(`
-Graphics/Displays:
-    Chipset Model: Apple M1 Pro
-    Type: GPU
-`), nil
+			name: "Darwin GPU",
+			snapshot: hostinventory.Snapshot{
+				GPUs: []hostinventory.GPU{{Name: "Apple M3 Pro", Source: "system_profiler"}},
 			},
 			wantAvail:  true,
 			wantMethod: "system_profiler",
 			wantReason: "GPU reported by system_profiler",
 		},
 		{
-			name: "GPU detected via gpu keyword",
-			lookPath: func(cmd string) (string, error) {
-				if cmd == "system_profiler" {
-					return "/usr/sbin/system_profiler", nil
-				}
-				return "", errors.New("not found")
-			},
-			output: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-				return []byte("Integrated GPU: Yes"), nil
+			name: "Windows GPU",
+			snapshot: hostinventory.Snapshot{
+				GPUs: []hostinventory.GPU{{Name: "AMD Radeon RX 6800", Source: "wmic"}},
 			},
 			wantAvail:  true,
-			wantMethod: "system_profiler",
-			wantReason: "GPU reported by system_profiler",
-		},
-		{
-			name: "no GPU info in output",
-			lookPath: func(cmd string) (string, error) {
-				if cmd == "system_profiler" {
-					return "/usr/sbin/system_profiler", nil
-				}
-				return "", errors.New("not found")
-			},
-			output: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-				return []byte("No display information available"), nil
-			},
-			wantAvail:  false,
-			wantMethod: "system_profiler",
-			wantReason: "no GPU info in system_profiler output",
+			wantMethod: "wmic",
+			wantReason: "GPU reported by wmic",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			detector := &RealDetector{
-				CommandRunner: &mockCommandRunner{
-					lookPathFunc: tt.lookPath,
-					outputFunc:   tt.output,
-				},
-				EnvReader: &mockEnvReader{},
-			}
-
-			status := detector.detectGPUDarwin()
+			status := statusFromSnapshot(tt.snapshot)
 
 			if status.Available != tt.wantAvail {
-				t.Errorf("detectGPUDarwin().Available = %v, want %v", status.Available, tt.wantAvail)
+				t.Errorf("statusFromSnapshot().Available = %v, want %v", status.Available, tt.wantAvail)
 			}
 			if status.Method != tt.wantMethod {
-				t.Errorf("detectGPUDarwin().Method = %q, want %q", status.Method, tt.wantMethod)
+				t.Errorf("statusFromSnapshot().Method = %q, want %q", status.Method, tt.wantMethod)
 			}
 			if status.Reason != tt.wantReason {
-				t.Errorf("detectGPUDarwin().Reason = %q, want %q", status.Reason, tt.wantReason)
-			}
-		})
-	}
-}
-
-func TestDetectGPUWindows(t *testing.T) {
-	tests := []struct {
-		name       string
-		lookPath   func(string) (string, error)
-		output     func(context.Context, string, ...string) ([]byte, error)
-		wantAvail  bool
-		wantMethod string
-		wantReason string
-	}{
-		{
-			name: "wmic not found",
-			lookPath: func(_ string) (string, error) {
-				return "", errors.New("not found")
-			},
-			wantAvail:  false,
-			wantMethod: "probe",
-			wantReason: "wmic not found",
-		},
-		{
-			name: "wmic query fails",
-			lookPath: func(cmd string) (string, error) {
-				if cmd == "wmic" {
-					return "C:\\Windows\\System32\\wbem\\wmic.exe", nil
-				}
-				return "", errors.New("not found")
-			},
-			output: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-				return nil, errors.New("wmic failed")
-			},
-			wantAvail:  false,
-			wantMethod: "wmic",
-			wantReason: "wmic query failed",
-		},
-		{
-			name: "NVIDIA GPU detected",
-			lookPath: func(cmd string) (string, error) {
-				if cmd == "wmic" {
-					return "wmic.exe", nil
-				}
-				return "", errors.New("not found")
-			},
-			output: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-				return []byte("Name\nNVIDIA GeForce RTX 3080\n"), nil
-			},
-			wantAvail:  true,
-			wantMethod: "wmic",
-			wantReason: "GPU reported by wmic",
-		},
-		{
-			name: "AMD GPU detected",
-			lookPath: func(cmd string) (string, error) {
-				if cmd == "wmic" {
-					return "wmic.exe", nil
-				}
-				return "", errors.New("not found")
-			},
-			output: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-				return []byte("Name\nAMD Radeon RX 6800\n"), nil
-			},
-			wantAvail:  true,
-			wantMethod: "wmic",
-			wantReason: "GPU reported by wmic",
-		},
-		{
-			name: "Intel GPU detected",
-			lookPath: func(cmd string) (string, error) {
-				if cmd == "wmic" {
-					return "wmic.exe", nil
-				}
-				return "", errors.New("not found")
-			},
-			output: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-				return []byte("Name\nIntel UHD Graphics 630\n"), nil
-			},
-			wantAvail:  true,
-			wantMethod: "wmic",
-			wantReason: "GPU reported by wmic",
-		},
-		{
-			name: "no recognized GPU",
-			lookPath: func(cmd string) (string, error) {
-				if cmd == "wmic" {
-					return "wmic.exe", nil
-				}
-				return "", errors.New("not found")
-			},
-			output: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-				return []byte("Name\nMicrosoft Basic Display Adapter\n"), nil
-			},
-			wantAvail:  false,
-			wantMethod: "wmic",
-			wantReason: "no recognized GPU in wmic output",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			detector := &RealDetector{
-				CommandRunner: &mockCommandRunner{
-					lookPathFunc: tt.lookPath,
-					outputFunc:   tt.output,
-				},
-				EnvReader: &mockEnvReader{},
-			}
-
-			status := detector.detectGPUWindows()
-
-			if status.Available != tt.wantAvail {
-				t.Errorf("detectGPUWindows().Available = %v, want %v", status.Available, tt.wantAvail)
-			}
-			if status.Method != tt.wantMethod {
-				t.Errorf("detectGPUWindows().Method = %q, want %q", status.Method, tt.wantMethod)
-			}
-			if status.Reason != tt.wantReason {
-				t.Errorf("detectGPUWindows().Reason = %q, want %q", status.Reason, tt.wantReason)
+				t.Errorf("statusFromSnapshot().Reason = %q, want %q", status.Reason, tt.wantReason)
 			}
 		})
 	}

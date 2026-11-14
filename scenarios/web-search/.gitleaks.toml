@@ -1,0 +1,18 @@
+# Scenario-local gitleaks config, auto-loaded by `gitleaks detect` (and by the
+# security-health validation phase, which runs gitleaks from the scenario root).
+#
+# .build-fingerprint.json is a GENERATED, GITIGNORED build artifact (see the
+# repo-root .gitignore: scenarios/*/.build-fingerprint.json). Its content is a
+# map of source paths to SHA-256 file hashes; entries for files named like
+# "client.go" pattern-match the generic-api-key rule (keyword + 64-hex value)
+# even though no secret exists and the file is never committed. Allowlist the
+# artifact by path; everything else stays under the default rules.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated build-fingerprint artifact: gitignored, content is SHA-256 source hashes, not credentials"
+paths = [
+  '''^\.build-fingerprint\.json$''',
+]

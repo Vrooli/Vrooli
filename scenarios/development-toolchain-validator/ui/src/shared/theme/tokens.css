@@ -1,0 +1,70 @@
+/*
+ * DTV semantic design tokens.
+ *
+ * Extends the base design-tokens.css with DTV-specific surfaces (verdict
+ * statuses, raised surfaces, accent variants). Both files are imported
+ * from styles.css; this file is the authoritative source for any token
+ * that did not exist in the template.
+ *
+ * Naming follows ui-health (semantic, not palette): consumers
+ * reference `text-status-pass`, never `text-emerald-400`.
+ */
+
+:root {
+  /* status tokens — verdict palette */
+  --color-status-pass: 52 211 153;        /* emerald-400 */
+  --color-status-pass-bg: 6 78 59;        /* emerald-900/40 surface */
+  --color-status-stale: 251 191 36;       /* amber-400 */
+  --color-status-stale-bg: 113 63 18;     /* amber-900/40 surface */
+  --color-status-unexpected: 248 113 113; /* red-400 */
+  --color-status-unexpected-bg: 127 29 29;/* red-900/40 surface */
+  --color-status-failure: 251 113 133;    /* rose-400 */
+  --color-status-failure-bg: 136 19 55;   /* rose-900/40 surface */
+  --color-status-neutral: 148 163 184;    /* slate-400 */
+  --color-status-neutral-bg: 30 41 59;    /* slate-800 surface */
+
+  /* surface depth tokens (extend base) */
+  --color-surface-overlay: 15 23 42;      /* slate-900 — sheets/popovers */
+  --color-surface-input: 30 41 59;        /* slate-800 — form controls */
+
+  /* border tokens */
+  --color-border-strong: 71 85 105;       /* slate-600 — focused borders */
+  --color-border-subtle: 30 41 59;        /* slate-800 — very faint dividers */
+
+  /* accent tokens (DTV is cyan-accented; web-console parity) */
+  --color-accent-default: 34 211 238;     /* cyan-400 */
+  --color-accent-hover: 103 232 249;      /* cyan-300 */
+
+  /* motion */
+  --motion-duration-fast: 120ms;
+  --motion-duration-default: 200ms;
+  --motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* density */
+  --density-row-height: 2.5rem;
+  --density-row-padding-x: 0.75rem;
+}
+
+:root[data-theme="light"] {
+  --color-status-pass: 5 150 105;         /* emerald-600 */
+  --color-status-pass-bg: 209 250 229;    /* emerald-100 */
+  --color-status-stale: 217 119 6;        /* amber-600 */
+  --color-status-stale-bg: 254 243 199;   /* amber-100 */
+  --color-status-unexpected: 220 38 38;   /* red-600 */
+  --color-status-unexpected-bg: 254 226 226; /* red-100 */
+  --color-status-failure: 225 29 72;      /* rose-600 */
+  --color-status-failure-bg: 255 228 230; /* rose-100 */
+  --color-status-neutral: 71 85 105;      /* slate-600 */
+  --color-status-neutral-bg: 241 245 249; /* slate-100 */
+  --color-surface-overlay: 255 255 255;
+  --color-surface-input: 248 250 252;
+  --color-border-strong: 148 163 184;
+  --color-border-subtle: 226 232 240;
+  --color-accent-default: 8 145 178;      /* cyan-600 */
+  --color-accent-hover: 14 116 144;       /* cyan-700 */
+}
+
+[data-density="compact"] {
+  --density-row-height: 2rem;
+  --density-row-padding-x: 0.5rem;
+}

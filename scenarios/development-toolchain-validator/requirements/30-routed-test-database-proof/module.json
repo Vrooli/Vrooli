@@ -1,0 +1,20 @@
+{
+  "module_id": "MOD-INFRA-001",
+  "prd_ref": "INFRA-ROUTED-DB",
+  "priority": "P1",
+  "title": "Routed Test-Database Proof",
+  "description": "End-to-end proof that test-genie's routed test-database path works for this scenario: the seed populates the per-run test pool, the running API routes UI requests to that pool via X-Vrooli-Test-Mode + RoutedDB, and the BAS playbook asserts the seeded row is visible in the UI. This module is the canonical reference exercise for the routed-e2e infrastructure (see scenarios/storage-manager/docs/concepts/test-isolation-contract.md).",
+  "requirements": [
+    {
+      "id": "REQ-ROUTED-DB-E2E",
+      "prd_ref": "INFRA-ROUTED-DB",
+      "title": "Routed test pool reaches the UI via TestModeMiddleware + RoutedDB",
+      "description": "When test-genie installs a per-run test pool on the running scenario and seeds it with a Golden row (slug 'routed-smoke-001'), the goldens index page rendered by the live UI must show that slug. The slug exists only in the test pool, so visibility proves the UI→API→RoutedDB chain routed the request to the test pool rather than the primary.",
+      "category": "infrastructure",
+      "status": "planned",
+      "validation": [
+        { "ref": "bas/cases/routed-database/proves-test-pool-routing.json" }
+      ]
+    }
+  ]
+}

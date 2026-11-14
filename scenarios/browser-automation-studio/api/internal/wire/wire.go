@@ -16,6 +16,7 @@ package wire
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,12 +27,14 @@ import (
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
+	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	"github.com/vrooli/browser-automation-studio/services/export/render"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
+	"github.com/vrooli/browser-automation-studio/services/readiness"
 	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
 	unifiedpersistence "github.com/vrooli/browser-automation-studio/services/recording/persistence"
 	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
@@ -51,6 +54,7 @@ type Dependencies struct {
 	// Core services
 	WorkflowService   *workflow.WorkflowService
 	RecordModeService *livecapture.Service
+	SessionBroker     *autosession.Manager
 	RecordingImport   archiveingestion.IngestionServiceInterface
 
 	// Unified recording service
@@ -104,20 +108,37 @@ func DefaultConfig() Config {
 func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub, log *logrus.Logger, cfg Config) (*Dependencies, error) {
 	// Initialize recordings infrastructure
 	recordingsRoot := paths.ResolveRecordingsRoot(log)
+	recordingsRootProvider, err := paths.NewRecordingsRootProvider(log)
+	if err != nil {
+		return nil, fmt.Errorf("create routed recordings root provider: %w", err)
+	}
 	// Store screenshots alongside other execution artifacts under recordingsRoot.
 	storageClient := storage.NewScreenshotStorage(log, recordingsRoot)
 	recordingImportSvc := archiveingestion.NewIngestionService(repo, storageClient, hub, log, recordingsRoot)
 	sessionProfileSvc := sessionprofile.NewServiceWithPath(paths.ResolveSessionProfilesRoot(log), log)
+	sessionBroker, brokerErr := autosession.NewManager(
+		autosession.WithLogger(log),
+		autosession.WithExecutionArtifactsRoot(recordingsRoot),
+	)
+	if brokerErr != nil {
+		log.WithError(brokerErr).Warn("Failed to initialize session broker; automation session routes will be unavailable")
+	}
 
 	// Wire automation stack
 	autoExecutor := autoexecutor.NewSimpleExecutor(nil)
-	autoEngineFactory, engErr := autoengine.DefaultFactoryWithRecordingsRoot(log, recordingsRoot)
+	var autoEngineFactory autoengine.Factory
+	var engErr error
+	if sessionBroker == nil {
+		engErr = fmt.Errorf("session broker unavailable")
+	} else {
+		autoEngineFactory, engErr = autoengine.DefaultFactoryWithSessionManager(log, sessionBroker)
+	}
 	if engErr != nil && !cfg.SkipEngineValidation {
 		log.WithError(engErr).Warn("Failed to initialize automation engine; automation executor will be disabled")
 	}
 
 	// Persist execution artifacts under recordingsRoot
-	autoRecorder := executionwriter.NewFileWriter(repo, storageClient, log, recordingsRoot)
+	autoRecorder := executionwriter.NewFileWriter(repo, storageClient, log, recordingsRootProvider)
 
 	// Configure event sink factory - optionally wrap with UX metrics collector
 	var eventSinkFactory func() autoevents.Sink
@@ -133,17 +154,24 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 	workflowSvc := workflow.NewWorkflowServiceWithDeps(repo, hub, log, workflow.WorkflowServiceOptions{
 		Executor:              autoExecutor,
 		EngineFactory:         autoEngineFactory,
+		SessionBroker:         sessionBroker,
 		ArtifactRecorder:      autoRecorder,
 		EventSinkFactory:      eventSinkFactory,
 		ExecutionDataRoot:     recordingsRoot,
 		SessionProfileService: sessionProfileSvc,
 	})
+	// Declared-readiness settling for the opening navigation. Optional by
+	// design: if Experience Manager is unavailable every run falls back to
+	// generic navigation with a stated reason.
+	if workflowSvc != nil {
+		workflowSvc.SetReadinessResolver(readiness.NewProfileResolver())
+	}
 
 	// Ensure the demo project exists
 	if workflowSvc != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		if _, err := workflowSvc.EnsureSeedProject(ctx); err != nil && log != nil {
-			log.WithError(err).Warn("Failed to ensure seed project")
+		if _, err := workflowSvc.EnsureSeedWorkflow(ctx); err != nil && log != nil {
+			log.WithError(err).Warn("Failed to ensure demo workflow fixture")
 		}
 		cancel()
 	}
@@ -160,11 +188,9 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 	var unifiedRecordingSvc *unifiedrecording.Service
 	if db != nil {
 		// Access underlying *sql.DB from *sqlx.DB embedded in database.DB
-		unifiedRecordingRepo = unifiedpersistence.NewSQLiteRepository(db.DB.DB, log)
+		unifiedRecordingRepo = unifiedpersistence.NewSQLiteRepository(db.Routed)
 		unifiedRecordingSvc = unifiedrecording.NewService(
 			unifiedRecordingRepo,
-			hub,
-			log,
 			unifiedrecording.ServiceConfig{},
 		)
 		log.Info("✅ Unified recording service initialized")
@@ -172,12 +198,13 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 
 	// Create record mode service with unified recording service injected
 	// This ensures all browser actions flow through a single recording pipeline
-	recordModeSvc := livecapture.NewService(log, unifiedRecordingSvc)
+	recordModeSvc := livecapture.NewServiceWithManager(sessionBroker, log, unifiedRecordingSvc)
 
 	// Create vision navigators with recording callbacks
 	playwrightNav := vision.NewPlaywrightVisionNavigator(
 		log,
 		vision.WithPlaywrightHub(hub),
+		vision.WithPlaywrightSessionBroker(sessionBroker),
 	)
 
 	// Connect vision navigator to live-capture service for unified AI action recording.
@@ -210,7 +237,9 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 
 		// Route through live-capture service's unified recording pipeline
 		// The source is determined from payload["source"] = "ai"
-		recordModeSvc.AddTimelineAction(sessionID, driverAction, uuid.Nil)
+		if err := recordModeSvc.AddTimelineAction(context.Background(), sessionID, driverAction, uuid.Nil); err != nil {
+			log.WithError(err).WithField("session_id", sessionID).Error("AI action was not committed to recording journal")
+		}
 	})
 	log.Info("✅ Vision navigator connected to unified recording via live-capture service")
 
@@ -218,13 +247,10 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 	navigatorRegistry := vision.NewNavigatorRegistry()
 	navigatorRegistry.Register(playwrightNav)
 
-	// Register ClaudeCode navigator (stub)
-	claudeCodeNav := vision.NewClaudeCodeVisionNavigator(log)
-	navigatorRegistry.Register(claudeCodeNav)
-
 	return &Dependencies{
 		WorkflowService:         workflowSvc,
 		RecordModeService:       recordModeSvc,
+		SessionBroker:           sessionBroker,
 		RecordingImport:         recordingImportSvc,
 		UnifiedRecordingService: unifiedRecordingSvc,
 		UnifiedRecordingRepo:    unifiedRecordingRepo,
@@ -254,16 +280,16 @@ func eventBufferLimits() autocontracts.EventBufferLimits {
 // HandlerDeps converts Dependencies to the format expected by handlers.
 // This provides backward compatibility while migrating to the new wire package.
 type HandlerDeps struct {
-	WorkflowCatalog   *workflow.WorkflowService
-	ExecutionService  *workflow.WorkflowService
-	ExportService     *workflow.WorkflowService
-	WorkflowValidator *workflowvalidator.Validator
-	Storage           storage.StorageInterface
-	RecordingService  archiveingestion.IngestionServiceInterface
-	RecordingsRoot    string
-	ReplayRenderer    ReplayRenderer
+	WorkflowCatalog       *workflow.WorkflowService
+	ExecutionService      *workflow.WorkflowService
+	ExportService         *workflow.WorkflowService
+	WorkflowValidator     *workflowvalidator.Validator
+	Storage               storage.StorageInterface
+	RecordingService      archiveingestion.IngestionServiceInterface
+	RecordingsRoot        string
+	ReplayRenderer        ReplayRenderer
 	SessionProfileService *sessionprofile.Service
-	UXMetricsRepo     uxmetrics.Repository
+	UXMetricsRepo         uxmetrics.Repository
 
 	// Unified recording service
 	// DOC: docs/architecture/recording.md#unified-recording

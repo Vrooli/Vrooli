@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "data-display.table",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1"
+  ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.0"
+  ],
+  "latest": "1.0.6",
+  "libraryId": "react-component-library:Table",
+  "displayName": "Table",
+  "description": "The semantic table foundation with responsive overflow, sticky regions, density modes, alignment, loading rows, and correctly associated headers.",
+  "tags": []
+}

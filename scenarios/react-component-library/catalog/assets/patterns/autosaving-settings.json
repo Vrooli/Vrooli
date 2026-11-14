@@ -1,0 +1,66 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.autosaving-settings",
+    "name": "AutosavingSettings",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The settings workflow with categorized navigation, field-level autosave, pending and saved status, reset to defaults, offline queueing, conflict resolution, and search across all settings.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.generated-settings-form",
+        "reason": "Field rendering, autosave, and search are shared."
+      },
+      {
+        "asset": "forms.autosave-indicator",
+        "reason": "Save status presentation is shared."
+      },
+      {
+        "asset": "patterns.conflict-resolution-flow",
+        "reason": "Concurrent changes are reconciled through the shared flow."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation",
+    "freshness-disclosure",
+    "optimistic-rollback"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "submitting",
+    "success",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ]
+}

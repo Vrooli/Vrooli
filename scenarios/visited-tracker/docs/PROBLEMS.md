@@ -317,3 +317,19 @@ Adding playbook references to requirements causes auto-sync to mark them as "fai
 **Recommendation**: Accept as production-ready. Further improvement requires either:
 1. Converting BATS tests to recognized format (~3-4 hours, no functional benefit)
 2. Implementing P2 requirements (~8-12 hours, actual feature expansion)
+
+
+## Work ladder
+
+2026-09-06: W0 repair follows the operator request for mature shared attention. The initial named-goal search returned none; registered `visited-tracker-shared-attention` records that request. The prior PRD said "single-agent focused" and promised no concurrent claim/completion semantics. OT-P0-007 through OT-P0-009 now specify concurrency, governed composition, and durable transactions. OT-P0-006 specifies revision-aware sync. Existing requirement statuses remain unearned; implementation and current evidence must satisfy these promises.
+
+
+### Attention capability validation — 2026-09-06
+
+The revision-aware attention operations, two programs, and usage/improve skills are implemented. Managed run `20260906-201813-c30a37a7` passes unit, programs and skill-set. API/CLI package checks and focused race regressions also pass. Earlier queue and UI-unit failures above are historical evidence; current whole-scenario readiness still requires resolution of the retained UI-health, accessibility/component-adoption, and browser-artifact findings.
+
+Preview now exposes current active-claim identity/overlap violations, queue-age metadata, and process-scoped completed storage replacement observations. `visited-tracker.setpoint-read` v2 consumes these through governed bindings. Storage readings require a completed sample no older than 300 seconds and directory-sync support; no samples or an old API response remain unavailable. A successful write clears the failure streak while retaining failed totals in the same process epoch. Neither current claim integrity nor recent write success establishes historical completion correctness. Guarded stale-completion rejections are not counted as defects.
+
+Automatic terminal-claim archival and cancellable OS-lock waits are implemented. Selection reserves every fourth scheduling slot for age order; the fixed eligible-set bound is 4N successful claims, not a promise under arbitrary arrivals or unavailable workers. Cross-campaign scheduling and non-file subject identity remain unimplemented. The bounded archive preserves recent replay identities rather than indefinite replay history.
+
+A live CLI check found that its freshness inputs omitted the generated attention protobuf client, allowing response fields to disappear in a stale binary. The CLI now declares that generated subtree as an input. Its supported automatic rebuild preserves the current preview fields. The research record at `~/.vrooli/research/scenario-program-composition-20260906/IMPLEMENTATION.md` contains the terminal receipts and remaining initiative work.

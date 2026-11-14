@@ -1,0 +1,106 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "data-display.data-table",
+    "name": "DataTable",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "The controlled data presentation with sorting, filtering, pagination, selection, row actions, column visibility, responsive presentation modes, and server-side operation support.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "data-display.table",
+        "reason": "Semantics, density, and overflow are shared."
+      },
+      {
+        "asset": "services.selection-store",
+        "reason": "Selection uses the shared model with stable identities across paging and reorder."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Loading, empty, partial, error, and offline presentation are delegated."
+      },
+      {
+        "asset": "foundations.class-merge",
+        "reason": "All class composition uses the shared Tailwind conflict resolver."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "data-display.bulk-action-bar",
+        "reason": "Only collections with multi-item operations need it."
+      },
+      {
+        "asset": "data-display.column-picker",
+        "reason": "Column configuration matters for wide tables and is clutter for narrow ones."
+      },
+      {
+        "asset": "data-display.virtual-list",
+        "reason": "Windowing is needed only above measured row counts."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TRow"
+      ]
+    }
+  ],
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "density-adaptive-layout",
+    "empty-state-craft",
+    "status-announced",
+    "partial-degradation",
+    "tap-target-size"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "beauty": {
+    "avoid": [
+      "hover-only-affordance"
+    ]
+  },
+  "rationale": "Already implemented in the catalog at 1.2.0. The avoid constraint is the common defect: row actions revealed only on hover are unreachable on touch, and DESIGN.md forbids hover-only affordances outright."
+}

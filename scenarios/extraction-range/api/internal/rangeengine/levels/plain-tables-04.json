@@ -1,0 +1,140 @@
+{
+  "id": "plain-tables-04",
+  "family": "plain-tables",
+  "family_name": "Plain tables",
+  "difficulty": 4,
+  "title": "Plain tables: level 4",
+  "task": "Extract every matching record from the plain tables page and return records in source order. Include id, name, category, value and active.",
+  "mechanism": "table",
+  "tags": [
+    "difficulty-4",
+    "table"
+  ],
+  "page": {
+    "title": "Plain tables Practice 4",
+    "records": [
+      {
+        "id": "PLA-04-001",
+        "name": "Plain Item 4-1",
+        "category": "gamma",
+        "value": 141,
+        "active": true
+      },
+      {
+        "id": "PLA-04-002",
+        "name": "Plain Item 4-2",
+        "category": "alpha",
+        "value": 142,
+        "active": true
+      },
+      {
+        "id": "PLA-04-003",
+        "name": "Plain Item 4-3",
+        "category": "beta",
+        "value": 143,
+        "active": true
+      },
+      {
+        "id": "PLA-04-004",
+        "name": "Plain Item 4-4",
+        "category": "gamma",
+        "value": 144,
+        "active": false
+      },
+      {
+        "id": "PLA-04-005",
+        "name": "Plain Item 4-5",
+        "category": "alpha",
+        "value": 145,
+        "active": true
+      },
+      {
+        "id": "PLA-04-006",
+        "name": "Plain Item 4-6",
+        "category": "beta",
+        "value": 146,
+        "active": true
+      },
+      {
+        "id": "PLA-04-007",
+        "name": "Plain Item 4-7",
+        "category": "gamma",
+        "value": 147,
+        "active": true
+      },
+      {
+        "id": "PLA-04-008",
+        "name": "Plain Item 4-8",
+        "category": "alpha",
+        "value": 148,
+        "active": false
+      }
+    ],
+    "page_size": 8,
+    "variant": 4,
+    "search_fields": [],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "",
+    "behavior": {},
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "PLA-04-001",
+      "name": "Plain Item 4-1",
+      "category": "gamma",
+      "value": 141,
+      "active": true
+    },
+    {
+      "id": "PLA-04-002",
+      "name": "Plain Item 4-2",
+      "category": "alpha",
+      "value": 142,
+      "active": true
+    },
+    {
+      "id": "PLA-04-003",
+      "name": "Plain Item 4-3",
+      "category": "beta",
+      "value": 143,
+      "active": true
+    },
+    {
+      "id": "PLA-04-004",
+      "name": "Plain Item 4-4",
+      "category": "gamma",
+      "value": 144,
+      "active": false
+    },
+    {
+      "id": "PLA-04-005",
+      "name": "Plain Item 4-5",
+      "category": "alpha",
+      "value": 145,
+      "active": true
+    },
+    {
+      "id": "PLA-04-006",
+      "name": "Plain Item 4-6",
+      "category": "beta",
+      "value": 146,
+      "active": true
+    },
+    {
+      "id": "PLA-04-007",
+      "name": "Plain Item 4-7",
+      "category": "gamma",
+      "value": 147,
+      "active": true
+    },
+    {
+      "id": "PLA-04-008",
+      "name": "Plain Item 4-8",
+      "category": "alpha",
+      "value": 148,
+      "active": false
+    }
+  ]
+}

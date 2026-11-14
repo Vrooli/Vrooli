@@ -1,0 +1,19 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "aquila-product-presentation-coordinator",
+  "displayName": "Aquila Product Presentation Coordinator",
+  "status": "active",
+  "appearance": {
+    "body": "#0F172A",
+    "head": "#F97316",
+    "accent": "#55D6E6"
+  },
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 2,
+  "createdAt": "2026-09-15T02:05:49Z",
+  "updatedAt": "2026-10-24T11:52:50Z",
+  "description": "Continue the configurable product-presentation plan to its intent, preserving BAS and the selected Signal/Studio designs. Reconcile the retained execution before allocating any implementation or review."
+}

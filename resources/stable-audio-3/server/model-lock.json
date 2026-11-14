@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "model_id": "stabilityai/stable-audio-3-medium",
+  "model_revision": "d4d3579395a8ac0df4ab13b5b1d7138ce7290f81",
+  "source_revision": "77e0398c26f7d22d801ec1bb036307e8b231f741",
+  "license": "Stability AI Community License; Gemma terms",
+  "files": [
+    {
+      "path": "model.safetensors",
+      "bytes": 9222116660,
+      "sha256": "48d9c65e290e7bcd5194e0633bfc2424a59ee9683f5c2d58762d997b7d8ce0b5"
+    },
+    {
+      "path": "model_config.json",
+      "bytes": 10360,
+      "sha256": "4f8846649df59167e1792d134acb6fc2bb7105227c5455300bad6cb107e20c88"
+    },
+    {
+      "path": "t5gemma-b-b-ul2/config.json",
+      "bytes": 2540,
+      "sha256": "575334409716886ac2952f5a275ed92868deef8a0ea560258d9970a431c6fb3a"
+    },
+    {
+      "path": "t5gemma-b-b-ul2/generation_config.json",
+      "bytes": 156,
+      "sha256": "1068b94599a94ceea097dd3936819f108c2e70806d7c6cc5ec425610af347625"
+    },
+    {
+      "path": "t5gemma-b-b-ul2/model.safetensors",
+      "bytes": 1183022944,
+      "sha256": "9b05ea5a4f211d023832f706fb2c0e83e4fc721b6da35ab69ceb0b55eb7800d3"
+    },
+    {
+      "path": "t5gemma-b-b-ul2/special_tokens_map.json",
+      "bytes": 636,
+      "sha256": "baec30ea10906f16adb8c18af7a34023002c1746542612b8b41c9f09e1351351"
+    },
+    {
+      "path": "t5gemma-b-b-ul2/tokenizer.json",
+      "bytes": 34362429,
+      "sha256": "7794135caa3ea73918949c902a781cc61dab674a4b59c17d85931c77c1114cbd"
+    },
+    {
+      "path": "t5gemma-b-b-ul2/tokenizer.model",
+      "bytes": 4241003,
+      "sha256": "61a7b147390c64585d6c3543dd6fc636906c9af3865a5548f27f31aee1d4c8e2"
+    },
+    {
+      "path": "t5gemma-b-b-ul2/tokenizer_config.json",
+      "bytes": 46437,
+      "sha256": "9546baec0dfefec0e29873edea9488ecde153f846e18c06ea48cb44587bf408f"
+    },
+    {
+      "path": "LICENSE.md",
+      "bytes": 11852,
+      "sha256": "d6f6b1a4dce5c852bd6d7d9482d002baf0ccdb71e662250b73be9eec8764ee8d"
+    },
+    {
+      "path": "LICENSE_GEMMA.md",
+      "bytes": 10541,
+      "sha256": "e77acc0d3163bb7534675045c584b4d04b387b529239fc4b3647da0a01ba4745"
+    },
+    {
+      "path": "NOTICE",
+      "bytes": 97,
+      "sha256": "66f856d7da72797f528fca46b7c80634ab481f917bfe020960e123d84b19f75f"
+    }
+  ]
+}

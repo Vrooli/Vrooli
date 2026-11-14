@@ -14,8 +14,8 @@ import (
 
 func TestBuildPhaseStatusPayload(t *testing.T) {
 	defs := []phases.Definition{
-		{Name: phases.Structure},
-		{Name: phases.Unit, Optional: true},
+		{Name: phases.Name("structure")},
+		{Name: phases.Name("unit"), Optional: true},
 	}
 	results := []phases.ExecutionResult{
 		{Name: "Structure", Status: "PASSED"},
@@ -42,14 +42,14 @@ func TestNewNodeSyncerReturnsNilWithoutScript(t *testing.T) {
 
 func TestNodeSyncerSyncSkipsWithoutScenarioOrRequirements(t *testing.T) {
 	syncer := &nodeRequirementsSyncer{projectRoot: t.TempDir()}
-	if err := syncer.Sync(context.Background(), SyncInput{}); err != nil {
+	if _, err := syncer.Sync(context.Background(), SyncInput{}); err != nil {
 		t.Fatalf("expected nil error when scenario missing, got %v", err)
 	}
 	input := SyncInput{
 		ScenarioName: "demo",
 		ScenarioDir:  filepath.Join(t.TempDir(), "scenarios", "demo"),
 	}
-	if err := syncer.Sync(context.Background(), input); err != nil {
+	if _, err := syncer.Sync(context.Background(), input); err != nil {
 		t.Fatalf("expected nil error when requirements dir missing, got %v", err)
 	}
 }
@@ -78,7 +78,7 @@ func TestNodeSyncerSyncRunsCommand(t *testing.T) {
 		ScenarioName: "demo",
 		ScenarioDir:  scenarioDir,
 		PhaseDefinitions: []phases.Definition{
-			{Name: phases.Structure},
+			{Name: phases.Name("structure")},
 		},
 		PhaseResults: []phases.ExecutionResult{
 			{Name: "Structure", Status: "PASSED"},
@@ -86,7 +86,7 @@ func TestNodeSyncerSyncRunsCommand(t *testing.T) {
 		CommandHistory: []string{"suite demo"},
 	}
 
-	if err := syncer.Sync(context.Background(), input); err != nil {
+	if _, err := syncer.Sync(context.Background(), input); err != nil {
 		t.Fatalf("sync failed: %v", err)
 	}
 
@@ -116,10 +116,10 @@ func TestNodeSyncerSyncErrorsWhenCommandUnavailable(t *testing.T) {
 	input := SyncInput{
 		ScenarioName:     "demo",
 		ScenarioDir:      scenarioDir,
-		PhaseDefinitions: []phases.Definition{{Name: phases.Unit}},
+		PhaseDefinitions: []phases.Definition{{Name: phases.Name("unit")}},
 		PhaseResults:     []phases.ExecutionResult{{Name: "unit", Status: "passed"}},
 	}
-	if err := syncer.Sync(context.Background(), input); err == nil || !strings.Contains(err.Error(), "node command not available") {
+	if _, err := syncer.Sync(context.Background(), input); err == nil || !strings.Contains(err.Error(), "node command not available") {
 		t.Fatalf("expected command availability error, got %v", err)
 	}
 }
@@ -135,7 +135,7 @@ func TestNodeSyncerSyncRequiresPhaseMetadata(t *testing.T) {
 		ScenarioName: "demo",
 		ScenarioDir:  scenarioDir,
 	}
-	if err := syncer.Sync(context.Background(), input); err == nil || !strings.Contains(err.Error(), "phase execution metadata missing") {
+	if _, err := syncer.Sync(context.Background(), input); err == nil || !strings.Contains(err.Error(), "phase execution metadata missing") {
 		t.Fatalf("expected metadata error, got %v", err)
 	}
 }
@@ -155,11 +155,11 @@ func TestNodeSyncerSyncPropagatesCommandErrors(t *testing.T) {
 	input := SyncInput{
 		ScenarioName:     "demo",
 		ScenarioDir:      scenarioDir,
-		PhaseDefinitions: []phases.Definition{{Name: phases.Unit}},
+		PhaseDefinitions: []phases.Definition{{Name: phases.Name("unit")}},
 		PhaseResults:     []phases.ExecutionResult{{Name: "unit", Status: "failed"}},
 		CommandHistory:   []string{"suite demo"},
 	}
-	if err := syncer.Sync(context.Background(), input); err == nil || !strings.Contains(err.Error(), "requirements sync command failed") {
+	if _, err := syncer.Sync(context.Background(), input); err == nil || !strings.Contains(err.Error(), "requirements sync command failed") {
 		t.Fatalf("expected command failure error, got %v", err)
 	}
 }

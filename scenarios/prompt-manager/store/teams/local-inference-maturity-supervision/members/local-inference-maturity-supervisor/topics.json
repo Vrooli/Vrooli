@@ -1,0 +1,14 @@
+{
+  "loop_kind": "reactive",
+  "required_read": [
+    {
+      "prefix": "supervision-assessment/*"
+    }
+  ],
+  "output": [
+    {
+      "prefix": "supervision-assessment/*",
+      "destination_kind": "knowledge"
+    }
+  ]
+}

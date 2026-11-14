@@ -1,0 +1,70 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "Extend to iPadOS-specific layouts, visionOS, and watchOS targets, each carrying its own SDK floor and conformance chapters, using the same Prober and Driver seams rather than new engines.",
+      "id": "S2I-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Additional Apple form factors",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P2-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Add a second shell technology to the template family for scenarios whose UX warrants a lower memory floor, without changing the ramp's adapter contract.",
+      "id": "S2I-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Alternative shell template",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P2-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Package several scenarios into one iOS application with a shared shell and per-scenario routing, so an owner ships a suite rather than one app per scenario.",
+      "id": "S2I-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Multi-scenario bundle applications",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P2-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Drive App Review submission through the App Store Connect API and track review state and rejection reasons as first-class records, so a rejection becomes an actionable state rather than an email.",
+      "id": "S2I-P2-004",
+      "prd_ref": "OT-P2-004",
+      "status": "planned",
+      "title": "Review submission and response tracking",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P2-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

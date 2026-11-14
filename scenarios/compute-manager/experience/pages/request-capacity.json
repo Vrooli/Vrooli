@@ -1,0 +1,170 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "request-capacity",
+    "title": "Request capacity",
+    "routes": [
+      "/request"
+    ],
+    "purpose": "Let an operator or tenant ask for a machine, and make the cost and the lifetime consequences clear before they commit.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-006",
+      "OT-P1-002"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "What this will cost, before it is requested.",
+      "notes": "Including the minimum billable unit, which is the number that surprises people."
+    },
+    {
+      "statement": "How long it will live, and that it will drain on its own."
+    },
+    {
+      "statement": "Whether there is credit for it, before anything is created."
+    },
+    {
+      "statement": "That a refusal is understandable and says what would fix it."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The form, with an estimate that updates as the specification changes."
+    },
+    {
+      "id": "validation-error",
+      "description": "The requested specification is not offered by the selected provider."
+    },
+    {
+      "id": "submitting",
+      "description": "The reservation is being taken and the provider is being called."
+    },
+    {
+      "id": "success",
+      "description": "The instance is creating, with a link to its detail page."
+    },
+    {
+      "id": "request-error",
+      "description": "The provider refused or was unreachable, and nothing was created."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The caller may not request capacity."
+    },
+    {
+      "id": "loading",
+      "description": "Provider catalogue and remaining allowance are being fetched, so no estimate can be shown yet."
+    },
+    {
+      "id": "empty",
+      "description": "No provider is configured, so nothing can be requested. The page links to settings rather than showing an unusable form."
+    },
+    {
+      "id": "partial",
+      "description": "The provider catalogue loaded but the remaining allowance did not, so the form is usable and the ceiling is shown as unknown rather than as unlimited."
+    },
+    {
+      "id": "stale",
+      "description": "The cost estimate is based on pricing older than the refresh interval and is labelled as such."
+    }
+  ],
+  "elements": [
+    {
+      "id": "spec-form",
+      "role": "form",
+      "name": "Capacity specification",
+      "description": "Provider, size, region and lifetime."
+    },
+    {
+      "id": "cost-estimate",
+      "role": "status",
+      "name": "Estimated cost",
+      "description": "Estimated cost for the requested lifetime, with the minimum billable unit and the rounding behaviour stated."
+    },
+    {
+      "id": "ceiling-notice",
+      "role": "note",
+      "name": "Remaining allowance",
+      "description": "How much of the tenant's ceiling remains, shown before submission."
+    },
+    {
+      "id": "submit-action",
+      "role": "button",
+      "name": "Request capacity"
+    }
+  ],
+  "claims": [
+    {
+      "id": "request-cost-before-commit",
+      "type": "visible-without-scroll",
+      "statement": "The estimated cost and the minimum billable unit are visible at the same time as the submit control, without scrolling.",
+      "tier": "aspirational",
+      "elements": [
+        "cost-estimate",
+        "submit-action"
+      ],
+      "rationale": "An estimate the operator has to scroll away from the button to read is an estimate they will not read."
+    },
+    {
+      "id": "request-refusal-is-actionable",
+      "type": "x-refusal-names-remedy",
+      "statement": "An out-of-credit refusal names which ceiling was reached and what would raise it, and is presented differently from a provider fault.",
+      "tier": "aspirational",
+      "elements": [
+        "ceiling-notice"
+      ],
+      "states": [
+        "request-error"
+      ],
+      "rationale": "The reference metered client collapses out-of-credit and server errors into one path. This page must not inherit that."
+    },
+    {
+      "id": "request-lifetime-is-required",
+      "type": "affordance-present",
+      "statement": "A lifetime must be chosen and has no unbounded option.",
+      "tier": "aspirational",
+      "elements": [
+        "spec-form"
+      ],
+      "rationale": "Every instance expires. An unbounded machine costs money for as long as nobody notices."
+    },
+    {
+      "id": "request-states-covered",
+      "type": "state-covered",
+      "statement": "Every declared state renders a distinct, readable surface.",
+      "tier": "aspirational",
+      "states": [
+        "default",
+        "validation-error",
+        "submitting",
+        "success",
+        "request-error",
+        "permission-denied",
+        "loading",
+        "empty",
+        "partial",
+        "stale"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "spec-form": {
+        "testid": "spec-form"
+      },
+      "cost-estimate": {
+        "testid": "cost-estimate"
+      },
+      "ceiling-notice": {
+        "testid": "ceiling-notice"
+      },
+      "submit-action": {
+        "testid": "submit-action"
+      }
+    }
+  }
+}

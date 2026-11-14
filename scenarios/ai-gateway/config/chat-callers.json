@@ -1,0 +1,845 @@
+{
+  "version": 1,
+  "purpose": "Explicit source-file classification for first-party chat and AI caller drift review. Classification describes the observed source path and does not grant provider eligibility or authorization.",
+  "scanner": {
+    "scope": [
+      "scenarios/*/api/**",
+      "scenarios/*/cli/**"
+    ],
+    "extensions": [
+      ".go",
+      ".ts",
+      ".tsx",
+      ".js",
+      ".py",
+      ".sh"
+    ],
+    "patterns": [
+      "chat.default",
+      "/api/v1/ai/inference",
+      "/api/v1/features/",
+      "chat/completions",
+      "NewInferenceServiceClient",
+      "ExecuteRoute(",
+      "ai-gateway/v1",
+      "ai_gateway.v1",
+      "NewGatewayServiceClient",
+      "api/chat",
+      "api/generate",
+      "resource-ollama",
+      "resource-openrouter"
+    ],
+    "case_insensitive": true,
+    "exclude_path_segments": [
+      "test",
+      "tests",
+      "test-utils",
+      "testdata",
+      "node_modules",
+      "vendor",
+      "dist",
+      "build",
+      "generated",
+      "gen"
+    ],
+    "exclude_file_patterns": [
+      "*_test.go",
+      "*.test.*",
+      "*.spec.*",
+      "test_helpers.*",
+      "*_generated.*"
+    ],
+    "contract": "Inventory every production source file in api/cli scope matching any configured regex. Broad gateway-import, CLI-name, and endpoint patterns intentionally surface adapters, policy/configuration, health probes, embeddings, media, and false-positive business endpoints; retain these with infrastructure or the actual observed class rather than silently dropping them. Compare paths, not match counts. New paths must be classified; disappeared paths require deliberate review. This is not semantic completeness for every SDK or dynamically assembled caller.",
+    "pattern_kind": "literal-substring"
+  },
+  "callers": [
+    {
+      "path": "scenarios/agent-inbox/api/config/config.go",
+      "class": "in_app",
+      "rationale": "Sets a generic multi-turn chat role for the scenario's chat service; the selected model role does not prove a bounded purpose."
+    },
+    {
+      "path": "scenarios/agent-inbox/api/config/config_model.go",
+      "class": "in_app",
+      "rationale": "Resolves the configured chat role to an OpenRouter model; configuration is part of the generic chat path, not a feature contract."
+    },
+    {
+      "path": "scenarios/agent-inbox/api/config/config_types.go",
+      "class": "in_app",
+      "rationale": "Declares the chat role setting and default; the label alone does not establish bounded feature eligibility."
+    },
+    {
+      "path": "scenarios/agent-inbox/api/config/config_types_integration.go",
+      "class": "infrastructure",
+      "rationale": "Integration timeout/cache settings only; no inference is issued."
+    },
+    {
+      "path": "scenarios/agent-inbox/api/integrations/ollama.go",
+      "class": "local_only",
+      "rationale": "Generates chat-adjacent names/query suggestions through resource-ollama locally."
+    },
+    {
+      "path": "scenarios/agent-inbox/api/integrations/openrouter.go",
+      "class": "in_app",
+      "rationale": "Sends general chat, optional tools, and streaming to OpenRouter using configured credentials; no pinned feature instruction is checked here."
+    },
+    {
+      "path": "scenarios/agent-inbox/api/integrations/openrouter_models.go",
+      "class": "infrastructure",
+      "rationale": "Model discovery through resource-openrouter CLI, not inference."
+    },
+    {
+      "path": "scenarios/agent-inbox/api/integrations/openrouter_types.go",
+      "class": "infrastructure",
+      "rationale": "OpenRouter request/response and model-list type declarations."
+    },
+    {
+      "path": "scenarios/agent-inbox/api/services/model_registry.go",
+      "class": "infrastructure",
+      "rationale": "Caches model discovery; not a generation call."
+    },
+    {
+      "path": "scenarios/agent-manager/api/internal/adapters/capacity/broker.go",
+      "class": "local_only",
+      "rationale": "Uses resource-ollama for capacity recommendation extraction locally."
+    },
+    {
+      "path": "scenarios/agent-manager/api/internal/adapters/runner/codecs/ollama.go",
+      "class": "infrastructure",
+      "rationale": "Model inventory adapter for the local resource; no prompt is submitted."
+    },
+    {
+      "path": "scenarios/agent-manager/api/internal/interventions/classifier.go",
+      "class": "local_only",
+      "rationale": "Intervention classification explicitly selects the LOCAL_ONLY profile for agent signal text."
+    },
+    {
+      "path": "scenarios/agent-manager/api/internal/interventions/signal.go",
+      "class": "local_only",
+      "rationale": "Carries intervention classification whose caller explicitly uses LOCAL_ONLY."
+    },
+    {
+      "path": "scenarios/agent-manager/api/internal/interventions/taxonomy.go",
+      "class": "local_only",
+      "rationale": "Typed decision taxonomy supporting the LOCAL_ONLY intervention classifier."
+    },
+    {
+      "path": "scenarios/agent-manager/api/internal/piimask/gateway.go",
+      "class": "local_only",
+      "rationale": "PII detection explicitly uses LOCAL_ONLY and documents that the text must not leave the host."
+    },
+    {
+      "path": "scenarios/agent-manager/api/internal/structuredresult/gateway_extractor.go",
+      "class": "in_app",
+      "rationale": "Advisory typed extraction of domain run output through the generic inference endpoint; source states it neither resolves a coding-agent role nor starts a runner. It has no pinned feature contract, so it is in_app rather than harness_access."
+    },
+    {
+      "path": "scenarios/agent-metareasoning-manager/api/main.go",
+      "class": "local_only",
+      "rationale": "Passes a default chat role into the workflow execution path whose model generation uses the resource-ollama local gateway."
+    },
+    {
+      "path": "scenarios/agent-metareasoning-manager/api/metareasoning.go",
+      "class": "local_only",
+      "rationale": "Calls resource-ollama gateway generate with the generic chat role; the selected execution path is local."
+    },
+    {
+      "path": "scenarios/ai-chatbot-manager/api/handlers.go",
+      "class": "in_app",
+      "rationale": "Creates chatbot configurations with a generic chat role and invokes the chatbot's user-configurable personality/knowledge prompt; no pinned feature digest is checked."
+    },
+    {
+      "path": "scenarios/ai-chatbot-manager/cli/domains/chatbots/register.go",
+      "class": "in_app",
+      "rationale": "Exposes a generic chat model role setting for chatbot configuration, not a bounded feature contract."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/handlers/conformance/connect_handler.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/handlers/conformance/endpoints.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/handlers/conformance/module.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/handlers/gateway/connect_handler.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/handlers/gateway/endpoints.go",
+      "class": "infrastructure",
+      "rationale": "Documents a generic gateway validation example; it is gateway API surface documentation, not a product caller."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/handlers/gateway/module.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/handlers/health/endpoints.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/handlers/inference/connect_handler.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/handlers/inference/endpoints.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/handlers/inference/module.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/handlers/inventory/connect_handler.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/handlers/inventory/endpoints.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/handlers/inventory/module.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/handlers/measures/measures.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/handlers/measures/module.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/handlers/routing/connect_handler.go",
+      "class": "infrastructure",
+      "rationale": "Implements the shared routing transport endpoint that receives scenario requests."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/handlers/routing/endpoints.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/handlers/routing/module.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/conformance/policy.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/conformance/scanner.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/gateway/service.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/httpx/errors.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/inference/coordinates.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/inference/decide.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/inference/decide_repository.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/inference/repository.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/inference/resource_repository.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/inference/service.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/modules/registry.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/providers/adapter.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/providers/door.go",
+      "class": "infrastructure",
+      "rationale": "Provider-side adapter forwards the already-authorized inference request to an upstream chat endpoint."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/providers/http.go",
+      "class": "infrastructure",
+      "rationale": "Provider HTTP implementation for upstream chat completions; this is shared transport, not an app feature caller."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/providers/metered.go",
+      "class": "infrastructure",
+      "rationale": "Gateway metered provider adapter calls LPBS inference as shared transport plumbing."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/routing/capacity.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/routing/flow/transition.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/routing/health.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/routing/health_repository.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/routing/media.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/routing/media_executor.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/routing/private_stream.go",
+      "class": "infrastructure",
+      "rationale": "Gateway private provider streaming adapter; it carries routed requests and does not own scenario prompts."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/routing/repository.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/api/internal/routing/service.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/cli/domains/conformance/handlers.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/cli/domains/gateway/handlers.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/cli/domains/inference/handlers.go",
+      "class": "infrastructure",
+      "rationale": "Gateway CLI client wrapper for the shared inference endpoint."
+    },
+    {
+      "path": "scenarios/ai-gateway/cli/domains/inference/register.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/cli/domains/internal/gatewayreq/request.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/cli/domains/inventory/handlers.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/cli/domains/measures/handlers.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/ai-gateway/cli/domains/routing/handlers.go",
+      "class": "infrastructure",
+      "rationale": "Gateway CLI client wrapper for the shared routing endpoint."
+    },
+    {
+      "path": "scenarios/ai-gateway/cli/domains/routing/register.go",
+      "class": "infrastructure",
+      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/algorithm-library/api/ai_suggestions.go",
+      "class": "local_only",
+      "rationale": "Suggestion generation calls resource-ollama gateway locally."
+    },
+    {
+      "path": "scenarios/api-library/api/main.go",
+      "class": "local_only",
+      "rationale": "Semantic embeddings call resource-ollama gateway embed locally."
+    },
+    {
+      "path": "scenarios/asset-studio/api/internal/studio/dispatcher.go",
+      "class": "bounded_feature",
+      "rationale": "Submits bounded media operations and tracks Gateway execution receipts; R24 treats image/media generation as bounded on operation/output limits, without a pinned text instruction."
+    },
+    {
+      "path": "scenarios/audio-tools/api/integrations/lpbs/clients/summarize_client.go",
+      "class": "bounded_feature",
+      "rationale": "Calls the declared audio-tools.summarize feature endpoint; the scenario publishes a pinned instruction digest and the request is constrained to one turn and declared caps/schema."
+    },
+    {
+      "path": "scenarios/audio-tools/api/internal/byok/openrouter.go",
+      "class": "own_account",
+      "rationale": "Direct OpenRouter summarization uses the caller-supplied API key rather than the LPBS feature route."
+    },
+    {
+      "path": "scenarios/audio-tools/api/internal/capabilities/checkers_llm.go",
+      "class": "infrastructure",
+      "rationale": "Checks provider/model availability; no inference request is made."
+    },
+    {
+      "path": "scenarios/audio-tools/api/internal/summarize/doc.go",
+      "class": "infrastructure",
+      "rationale": "Package documentation about provider routing, not an inference call."
+    },
+    {
+      "path": "scenarios/audio-tools/api/internal/summarize/model_policy.go",
+      "class": "infrastructure",
+      "rationale": "Resolves and selects summarize model policy; not the generation call."
+    },
+    {
+      "path": "scenarios/audio-tools/api/internal/summarize/summarizer.go",
+      "class": "local_only",
+      "rationale": "Text-to-speech summarization calls resource-ollama gateway chat locally."
+    },
+    {
+      "path": "scenarios/backdrop-studio/api/internal/vector/authoring/gateway.go",
+      "class": "in_app",
+      "rationale": "Sends an operator-authored generator prompt through a generic gateway role; no feature digest/purpose check is present in this caller."
+    },
+    {
+      "path": "scenarios/bedtime-story-generator/api/main.go",
+      "class": "local_only",
+      "rationale": "Story generation calls resource-ollama gateway locally."
+    },
+    {
+      "path": "scenarios/brand-manager/api/internal/generation/ollama.go",
+      "class": "local_only",
+      "rationale": "Text generation uses resource-ollama gateway CLI, the local provider path."
+    },
+    {
+      "path": "scenarios/brand-manager/api/internal/generation/openrouter.go",
+      "class": "own_account",
+      "rationale": "Direct OpenRouter chat completion uses the configured API key and resource-owned role resolution."
+    },
+    {
+      "path": "scenarios/brand-manager/api/internal/generation/providers.go",
+      "class": "infrastructure",
+      "rationale": "Composes the scenario's local Ollama and configured OpenRouter provider chain; this file selects sources but is not itself a single use class."
+    },
+    {
+      "path": "scenarios/browser-automation-studio/api/config/config.go",
+      "class": "infrastructure",
+      "rationale": "Declares role and provider settings for a chain that supports local, BYOK, and LPBS sources; configuration alone does not classify an invocation."
+    },
+    {
+      "path": "scenarios/browser-automation-studio/api/main.go",
+      "class": "infrastructure",
+      "rationale": "The matched inference URL is a desktop monetization conformance probe that deliberately checks refusal behavior, not normal feature inference."
+    },
+    {
+      "path": "scenarios/browser-automation-studio/api/services/ai/chain.go",
+      "class": "in_app",
+      "rationale": "General browser-automation AI provider chain can route requests through LPBS credits without a published feature contract; local and BYOK remain separate source choices."
+    },
+    {
+      "path": "scenarios/browser-automation-studio/api/services/ai/client.go",
+      "class": "in_app",
+      "rationale": "General browser automation inference can use LPBS credits without a published feature contract; local/BYOK sources remain selectable."
+    },
+    {
+      "path": "scenarios/browser-automation-studio/api/services/ai/provider.go",
+      "class": "in_app",
+      "rationale": "General browser automation inference can use LPBS credits without a published feature contract; local/BYOK sources remain selectable."
+    },
+    {
+      "path": "scenarios/browser-automation-studio/api/services/ai/provider_dev.go",
+      "class": "infrastructure",
+      "rationale": "Development provider helper, not the production hosted caller."
+    },
+    {
+      "path": "scenarios/browser-automation-studio/api/services/ai/rolemodel.go",
+      "class": "infrastructure",
+      "rationale": "Resolves the default model role for the provider chain; the role setting is not a bounded purpose contract."
+    },
+    {
+      "path": "scenarios/device-control/api/internal/flows/agent_planner.go",
+      "class": "in_app",
+      "rationale": "Request-driven device planning/resolution through generic inference with no published feature digest."
+    },
+    {
+      "path": "scenarios/device-control/api/internal/flows/resolution.go",
+      "class": "in_app",
+      "rationale": "Generated inference client supports the scenario's request-driven visual resolution; no pinned feature contract is asserted by this path."
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/library/generated_intake.go",
+      "class": "in_app",
+      "rationale": "Scenario AI-assisted operation has input/output/spend constraints but no published instruction digest is checked in this path."
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/library/intake.go",
+      "class": "in_app",
+      "rationale": "Scenario AI-assisted operation has input/output/spend constraints but no published instruction digest is checked in this path."
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/rendering/geometry_worker.go",
+      "class": "in_app",
+      "rationale": "Geometry inference has bounded worker/input/spend controls, but this path does not verify a published instruction digest, so it is not classified as bounded_feature."
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/renderjobs/geometry_creation.go",
+      "class": "in_app",
+      "rationale": "Scenario AI-assisted operation has input/output/spend constraints but no published instruction digest is checked in this path."
+    },
+    {
+      "path": "scenarios/document-manager/api/internal/enrichment/service.go",
+      "class": "in_app",
+      "rationale": "Invokes generic summarization/embedding through Gateway with privacy-dependent profiles and no pinned feature contract."
+    },
+    {
+      "path": "scenarios/document-manager/api/internal/enrichment/types.go",
+      "class": "infrastructure",
+      "rationale": "Document Gateway request/privacy policy or type support; not an independent invocation."
+    },
+    {
+      "path": "scenarios/document-manager/api/internal/gatewayreq/gatewayreq.go",
+      "class": "infrastructure",
+      "rationale": "Document Gateway request/privacy policy or type support; not an independent invocation."
+    },
+    {
+      "path": "scenarios/document-manager/api/internal/sensitivity/policy.go",
+      "class": "infrastructure",
+      "rationale": "Document Gateway request/privacy policy or type support; not an independent invocation."
+    },
+    {
+      "path": "scenarios/fall-foliage-explorer/api/main.go",
+      "class": "local_only",
+      "rationale": "Generation calls resource-ollama gateway locally."
+    },
+    {
+      "path": "scenarios/image-tools/api/internal/ai/ai_gateway.go",
+      "class": "bounded_feature",
+      "rationale": "Uses Gateway media generation with operation/output bounds and dedicated execution accounting; R24 does not require a pinned text instruction for image generation."
+    },
+    {
+      "path": "scenarios/knowledge-observatory/api/internal/adapters/embedder/ollama.go",
+      "class": "local_only",
+      "rationale": "Embeddings use resource-ollama locally."
+    },
+    {
+      "path": "scenarios/knowledge-observatory/api/internal/services/deepsearch/ollama_parser.go",
+      "class": "local_only",
+      "rationale": "Deep-search parsing uses resource-ollama generation locally."
+    },
+    {
+      "path": "scenarios/landing-page-business-suite/api/ai_door.go",
+      "class": "infrastructure",
+      "rationale": "Mounts LPBS feature and generic AI door endpoints; shared transport, not a scenario prompt owner."
+    },
+    {
+      "path": "scenarios/landing-page-business-suite/api/internal/aidoor/door.go",
+      "class": "infrastructure",
+      "rationale": "Dispatches generic and declared-feature requests through the shared door contract."
+    },
+    {
+      "path": "scenarios/landing-page-business-suite/api/internal/aidoor/feature.go",
+      "class": "infrastructure",
+      "rationale": "Validates/dispatches feature IDs against the gateway registry; LPBS transports scenario instructions but does not author them."
+    },
+    {
+      "path": "scenarios/landing-page-business-suite/api/internal/intelligence/metered_inference_contracts.go",
+      "class": "infrastructure",
+      "rationale": "LPBS shared inference/feature routing, policy, or contract support; it meters/transports caller requests but owns no scenario prompt."
+    },
+    {
+      "path": "scenarios/landing-page-business-suite/api/internal/intelligence/model_policy.go",
+      "class": "infrastructure",
+      "rationale": "Owns shared role-to-model policy data, not scenario prompts or caller purpose."
+    },
+    {
+      "path": "scenarios/landing-page-business-suite/api/internal/intelligence/openrouter_client.go",
+      "class": "infrastructure",
+      "rationale": "Shared LPBS upstream OpenRouter transport implementation for generic inference."
+    },
+    {
+      "path": "scenarios/landing-page-business-suite/api/internal/intelligence/spend_cap.go",
+      "class": "infrastructure",
+      "rationale": "LPBS shared inference/feature routing, policy, or contract support; it meters/transports caller requests but owns no scenario prompt."
+    },
+    {
+      "path": "scenarios/landing-page-business-suite/api/routes.go",
+      "class": "infrastructure",
+      "rationale": "Registers the generic inference endpoints and authentication middleware; shared service routing."
+    },
+    {
+      "path": "scenarios/local-info-scout/api/nlp.go",
+      "class": "local_only",
+      "rationale": "NLP generation uses resource-ollama locally."
+    },
+    {
+      "path": "scenarios/measures-health/api/internal/measureindex/ollama.go",
+      "class": "local_only",
+      "rationale": "Measure generation uses resource-ollama locally."
+    },
+    {
+      "path": "scenarios/measures-health/api/internal/measureindex/provider.go",
+      "class": "infrastructure",
+      "rationale": "Provider selection/availability support; not an inference call itself."
+    },
+    {
+      "path": "scenarios/notes/api/semantic_search.go",
+      "class": "local_only",
+      "rationale": "Semantic embeddings use resource-ollama locally."
+    },
+    {
+      "path": "scenarios/portal/api/internal/completion/service.go",
+      "class": "in_app",
+      "rationale": "Constructs Portal's operator-assistant chat with accumulated conversation, skills, and optional images; R24 classifies Portal chat as in_app."
+    },
+    {
+      "path": "scenarios/portal/api/internal/integrations/openrouter/client.go",
+      "class": "in_app",
+      "rationale": "Sends Portal chat through its configured OpenRouter integration; the caller is general in-app chat without a pinned feature contract."
+    },
+    {
+      "path": "scenarios/product-manager-agent/api/analysis.go",
+      "class": "local_only",
+      "rationale": "Analysis path uses the scenario local Ollama gateway."
+    },
+    {
+      "path": "scenarios/product-manager-agent/api/ollama_gateway.go",
+      "class": "local_only",
+      "rationale": "Text generation uses resource-ollama locally."
+    },
+    {
+      "path": "scenarios/prompt-injection-arena/api/ollama.go",
+      "class": "local_only",
+      "rationale": "Agent trials use local Ollama."
+    },
+    {
+      "path": "scenarios/prompt-injection-arena/api/ollama_gateway.go",
+      "class": "local_only",
+      "rationale": "Generation and embedding use resource-ollama locally."
+    },
+    {
+      "path": "scenarios/prompt-injection-arena/api/vector_search.go",
+      "class": "local_only",
+      "rationale": "Vector embeddings use local Ollama."
+    },
+    {
+      "path": "scenarios/prompt-manager/api/internal/aisearch/embedder.go",
+      "class": "local_only",
+      "rationale": "Semantic embeddings use resource-ollama locally."
+    },
+    {
+      "path": "scenarios/prompt-manager/api/internal/aisearch/vectorstore.go",
+      "class": "infrastructure",
+      "rationale": "Vector policy/metadata support, not model inference."
+    },
+    {
+      "path": "scenarios/prompt-manager/api/internal/testing/client.go",
+      "class": "local_only",
+      "rationale": "Skill test generation uses resource-ollama locally."
+    },
+    {
+      "path": "scenarios/prompt-manager/api/internal/testing/models.go",
+      "class": "infrastructure",
+      "rationale": "Defines local model response data types only."
+    },
+    {
+      "path": "scenarios/prompt-manager/api/main.go",
+      "class": "infrastructure",
+      "rationale": "Configures the local testing executable; no request is issued here."
+    },
+    {
+      "path": "scenarios/prose-studio/api/internal/prose/service.go",
+      "class": "in_app",
+      "rationale": "Calls generic AI Gateway generation/embedding for caller-supplied prose tasks; locality is configurable/local-first, not a pinned feature contract."
+    },
+    {
+      "path": "scenarios/react-component-library/api/handlers/sketch/inference.go",
+      "class": "in_app",
+      "rationale": "Scenario-owned generation/design inference through a generic role without a pinned feature digest."
+    },
+    {
+      "path": "scenarios/react-component-library/api/internal/designinference/service.go",
+      "class": "in_app",
+      "rationale": "Sends design-proposal inference through the generic gateway with caller-provided role/instruction/schema; no published feature digest is checked."
+    },
+    {
+      "path": "scenarios/scenario-auditor/api/agent_manager.go",
+      "class": "harness_access",
+      "rationale": "Resolves a model for scenario-auditor agent execution; this is agent/harness activity, not a one-shot app feature."
+    },
+    {
+      "path": "scenarios/scenario-dependency-analyzer/api/internal/integrations/ollama/embedder.go",
+      "class": "local_only",
+      "rationale": "Dependency analysis embeddings use resource-ollama locally."
+    },
+    {
+      "path": "scenarios/search-hub/api/internal/ollama/gateway.go",
+      "class": "local_only",
+      "rationale": "Search query generation uses resource-ollama locally."
+    },
+    {
+      "path": "scenarios/search-hub/api/internal/routing/reranker_ollama.go",
+      "class": "local_only",
+      "rationale": "Search reranking uses resource-ollama locally."
+    },
+    {
+      "path": "scenarios/security-health/api/internal/dependencies/aisearch/embedder.go",
+      "class": "local_only",
+      "rationale": "Health search embeddings use resource-ollama locally."
+    },
+    {
+      "path": "scenarios/signal-inbox/api/internal/inference/client.go",
+      "class": "in_app",
+      "rationale": "Scenario-owned classification and embedding calls use LOCAL_FIRST, which permits fallback and does not establish local_only or a pinned feature."
+    },
+    {
+      "path": "scenarios/signal-inbox/api/main.go",
+      "class": "in_app",
+      "rationale": "Scenario-owned classification/embedding uses LOCAL_FIRST, which does not prove LOCAL_ONLY; no pinned feature contract is present."
+    },
+    {
+      "path": "scenarios/source-ledger/api/internal/inference/client.go",
+      "class": "in_app",
+      "rationale": "Scenario-owned classification/summary/embedding calls use LOCAL_FIRST; no feature digest or strict LOCAL_ONLY profile is enforced at this client."
+    },
+    {
+      "path": "scenarios/source-ledger/api/main.go",
+      "class": "in_app",
+      "rationale": "Scenario-owned classification/embedding uses LOCAL_FIRST, which does not prove LOCAL_ONLY; no pinned feature contract is present."
+    },
+    {
+      "path": "scenarios/stream-of-consciousness-analyzer/api/config.go",
+      "class": "infrastructure",
+      "rationale": "Declares local resource transport configuration only."
+    },
+    {
+      "path": "scenarios/structure-health/api/internal/packs/structurepack/testcoverage/test_coverage.go",
+      "class": "infrastructure",
+      "rationale": "Coverage-policy source contains api/generated.pb.go as an exclusion example; it invokes no inference."
+    },
+    {
+      "path": "scenarios/swarm-manager/api/internal/aisearch/embedder.go",
+      "class": "local_only",
+      "rationale": "Swarm search embeddings use resource-ollama locally."
+    },
+    {
+      "path": "scenarios/swarm-manager/cli/cmd_aisearch.go",
+      "class": "infrastructure",
+      "rationale": "Mentions a resource command in operator guidance; does not invoke inference."
+    },
+    {
+      "path": "scenarios/test-data-generator/api/server.js",
+      "class": "infrastructure",
+      "rationale": "/api/generate routes create schema-driven test data; false positive for model generation."
+    },
+    {
+      "path": "scenarios/test-data-generator/cli/domains/generate/register.go",
+      "class": "infrastructure",
+      "rationale": "CLI wraps schema-driven test data generation, not model inference."
+    },
+    {
+      "path": "scenarios/test-data-generator/cli/internal/support/types.go",
+      "class": "infrastructure",
+      "rationale": "Documents test-data /api/generate response types; no model call."
+    },
+    {
+      "path": "scenarios/text-tools/api/resources.go",
+      "class": "infrastructure",
+      "rationale": "Resource status/readiness only; no prompt is sent."
+    },
+    {
+      "path": "scenarios/vrooli-autoheal/api/internal/checks/registry_autoheal.go",
+      "class": "infrastructure",
+      "rationale": "Resource name in host check registry, not an inference invocation."
+    },
+    {
+      "path": "scenarios/vrooli-autoheal/api/internal/userconfig/defaults.go",
+      "class": "infrastructure",
+      "rationale": "Resource configuration defaults, not an inference invocation."
+    },
+    {
+      "path": "scenarios/web-console/api/internal/ai/gateway.go",
+      "class": "in_app",
+      "rationale": "Provider chain includes a hosted credits source for shell-command generation, alongside local and own-key sources; the hosted call has no pinned feature contract in this path."
+    },
+    {
+      "path": "scenarios/web-console/api/internal/ai/provider.go",
+      "class": "in_app",
+      "rationale": "Contains local Ollama, own-key OpenRouter, and metered gateway providers; for hosted credits the shell-command request is unpinned and therefore in_app."
+    },
+    {
+      "path": "scenarios/web-search/api/internal/livesearch/synthesis.go",
+      "class": "local_only",
+      "rationale": "Live-search synthesis uses resource-ollama locally."
+    },
+    {
+      "path": "scenarios/web-search/api/internal/research/synthesizer.go",
+      "class": "local_only",
+      "rationale": "Research synthesis uses resource-ollama locally."
+    }
+  ],
+  "known_gaps": [
+    "R24-feature-prompt-ownership.md says 13 chat.default scenarios were not semantically surveyed. The broadened scan catches role labels, common generated gateway imports, Connect service names, common provider endpoints, and resource CLI references, but cannot prove completeness for all SDKs, dynamically assembled URLs, generated clients, or other commands.",
+    "Broad patterns intentionally retain false positives and support files, tagged infrastructure. A file-level class describes its associated path or matched behavior; mixed provider files may contain multiple selectable sources.",
+    "Agent Manager structuredresult is advisory typed extraction of domain run output. Its source explicitly says it does not resolve a coding-agent role or start a runner; it uses generic typed inference without a pinned feature contract, so class is in_app.",
+    "Document Manager applies privacy-dependent routing ceilings, but privacy-sensitive/local-first is not necessarily LOCAL_ONLY. Its unpinned model use is in_app; request builders and privacy policies are infrastructure.",
+    "Device Studio geometry has worker-integrity, schema, provider-call and spend bounds, but the matched callsite does not verify a published instruction digest; it stays in_app.",
+    "Media generation entries are separate from chat. They are classified bounded_feature under R24 media output/operation limits and execution accounting, without claiming a pinned text instruction."
+  ]
+}

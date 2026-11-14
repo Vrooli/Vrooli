@@ -1,0 +1,461 @@
+{
+  "name": "Manage job records via webhook REST API with PostgreSQL",
+  "nodes": [
+    {
+      "id": "3ebe4490-ec6f-46af-9cab-0090337add9f",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        608,
+        560
+      ],
+      "parameters": {
+        "path": "Your API path",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "source-httpHeaderAuth",
+          "name": "Public source httpHeaderAuth"
+        }
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "8b0aa560-b14f-4d67-ad95-fb5e7a337234",
+      "name": "Switch",
+      "type": "n8n-nodes-base.switch",
+      "position": [
+        880,
+        528
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "outputKey": "Get Jobs",
+              "conditions": {
+                "options": {
+                  "version": 3,
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "1405fa6e-6f89-4895-8f58-a6717867c21a",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.body.action }}",
+                    "rightValue": "fetch"
+                  }
+                ]
+              },
+              "renameOutput": true
+            },
+            {
+              "outputKey": "Add Job",
+              "conditions": {
+                "options": {
+                  "version": 3,
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "2523ac58-3c85-454e-b821-12ed404b9460",
+                    "operator": {
+                      "name": "filter.operator.equals",
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.body.action }}",
+                    "rightValue": "create"
+                  }
+                ]
+              },
+              "renameOutput": true
+            },
+            {
+              "outputKey": "Update Job",
+              "conditions": {
+                "options": {
+                  "version": 3,
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "739a39a3-f075-450f-bb7d-8db5e0c22720",
+                    "operator": {
+                      "name": "filter.operator.equals",
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.body.action }}",
+                    "rightValue": "update"
+                  }
+                ]
+              },
+              "renameOutput": true
+            },
+            {
+              "outputKey": "Delete Job",
+              "conditions": {
+                "options": {
+                  "version": 3,
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "a62f7d45-7a2d-47c4-8218-76f18f7f3fb5",
+                    "operator": {
+                      "name": "filter.operator.equals",
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.body.action }}",
+                    "rightValue": "delete"
+                  }
+                ]
+              },
+              "renameOutput": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "7e73b191-28e2-4de0-a191-8f93c5af2302",
+      "name": "Get All Jobs",
+      "type": "n8n-nodes-base.postgres",
+      "onError": "continueErrorOutput",
+      "position": [
+        1152,
+        128
+      ],
+      "parameters": {
+        "query": "SELECT * FROM jobs ORDER BY created_at DESC LIMIT 100;",
+        "options": {},
+        "operation": "executeQuery"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "source-postgres",
+          "name": "Public source postgres"
+        }
+      },
+      "typeVersion": 2.6
+    },
+    {
+      "id": "f9af3454-e487-474b-af66-ca555efe8ba0",
+      "name": "Create Job",
+      "type": "n8n-nodes-base.postgres",
+      "onError": "continueErrorOutput",
+      "position": [
+        1152,
+        656
+      ],
+      "parameters": {
+        "query": "INSERT INTO jobs (title, description, requirements, status)\nVALUES ($1, $2, $3, 'open')\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $json.body.title }},{{ $json.body.description }},{{ $json.body.requirements }}"
+        },
+        "operation": "executeQuery"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "source-postgres",
+          "name": "Public source postgres"
+        }
+      },
+      "typeVersion": 2.6
+    },
+    {
+      "id": "19bd1727-780c-450e-9e02-e02efd8fafe5",
+      "name": "Update Job",
+      "type": "n8n-nodes-base.postgres",
+      "onError": "continueErrorOutput",
+      "position": [
+        1600,
+        752
+      ],
+      "parameters": {
+        "query": "UPDATE jobs\nSET title=$1, description=$2, requirements=$3, status=$4\nWHERE id=$5\nRETURNING *;",
+        "options": {
+          "queryReplacement": "{{$json.body.title}}, {{ $json.body.description }}, {{ $json.body.requirements }}, {{ $json.body.status }}, {{ $json.body.id }}"
+        },
+        "operation": "executeQuery"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "source-postgres",
+          "name": "Public source postgres"
+        }
+      },
+      "typeVersion": 2.6
+    },
+    {
+      "id": "c24bee60-92cd-450c-8559-a3ffc04a8591",
+      "name": "Delete Job",
+      "type": "n8n-nodes-base.postgres",
+      "onError": "continueErrorOutput",
+      "position": [
+        2048,
+        1040
+      ],
+      "parameters": {
+        "query": "DELETE FROM jobs WHERE id=$1 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ $json.body.id }}"
+        },
+        "operation": "executeQuery"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "source-postgres",
+          "name": "Public source postgres"
+        }
+      },
+      "typeVersion": 2.6
+    },
+    {
+      "id": "2e96836a-72bf-44a5-b2ec-ec846cab2629",
+      "name": "Return Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        2912,
+        848
+      ],
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "typeVersion": 1.5
+    },
+    {
+      "id": "c1bae481-4a5f-4c47-9ca6-3bd9c32d68fb",
+      "name": "Return Job List",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        1376,
+        128
+      ],
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        },
+        "respondWith": "allIncomingItems"
+      },
+      "typeVersion": 1.5
+    },
+    {
+      "id": "d217fc96-7e86-4b99-9be9-68e99212e5b6",
+      "name": "Error During Fetching Jobs",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        1376,
+        320
+      ],
+      "parameters": {
+        "options": {
+          "responseCode": 500
+        },
+        "respondWith": "text",
+        "responseBody": "An error occurred during fetching the jobs"
+      },
+      "typeVersion": 1.5
+    },
+    {
+      "id": "c0d972e1-a1db-4517-989f-aaa86f59b347",
+      "name": "Error during job creation",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        1376,
+        656
+      ],
+      "parameters": {
+        "options": {
+          "responseCode": 500
+        },
+        "respondWith": "text",
+        "responseBody": "An error occurred during job creation"
+      },
+      "typeVersion": 1.5
+    },
+    {
+      "id": "47ffb6ab-7e00-4511-83f3-de86606df7f2",
+      "name": "Error during job details update",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        1824,
+        896
+      ],
+      "parameters": {
+        "options": {
+          "responseCode": 500
+        },
+        "respondWith": "text",
+        "responseBody": "An error occurred during edit the job details"
+      },
+      "typeVersion": 1.5
+    },
+    {
+      "id": "f259a236-c733-4818-83d0-1e01909feb2c",
+      "name": "Error during job deletion",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        2272,
+        1088
+      ],
+      "parameters": {
+        "options": {
+          "responseCode": 500
+        },
+        "respondWith": "text",
+        "responseBody": "An error occurred during deleting the job"
+      },
+      "typeVersion": 1.5
+    }
+  ],
+  "active": false,
+  "settings": {
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "connections": {
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Get All Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Job",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Job",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Job": {
+      "main": [
+        [
+          {
+            "node": "Return Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error during job creation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Job": {
+      "main": [
+        [
+          {
+            "node": "Return Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error during job deletion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Job": {
+      "main": [
+        [
+          {
+            "node": "Return Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error during job details update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Jobs": {
+      "main": [
+        [
+          {
+            "node": "Return Job List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error During Fetching Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

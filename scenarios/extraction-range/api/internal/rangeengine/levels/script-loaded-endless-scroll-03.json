@@ -1,0 +1,126 @@
+{
+  "id": "script-loaded-endless-scroll-03",
+  "family": "script-loaded-endless-scroll",
+  "family_name": "Script-loaded pages and endless scroll",
+  "difficulty": 3,
+  "title": "Script-loaded pages and endless scroll: level 3",
+  "task": "Extract every matching record from the script-loaded pages and endless scroll page and return records in source order. Include id, name, category, value and active.",
+  "mechanism": "script_loaded",
+  "tags": [
+    "difficulty-3",
+    "script_loaded"
+  ],
+  "page": {
+    "title": "Script-loaded pages and endless scroll Practice 3",
+    "records": [
+      {
+        "id": "SCR-03-001",
+        "name": "Script-loaded Item 3-1",
+        "category": "beta",
+        "value": 431,
+        "active": true
+      },
+      {
+        "id": "SCR-03-002",
+        "name": "Script-loaded Item 3-2",
+        "category": "gamma",
+        "value": 432,
+        "active": true
+      },
+      {
+        "id": "SCR-03-003",
+        "name": "Script-loaded Item 3-3",
+        "category": "alpha",
+        "value": 433,
+        "active": true
+      },
+      {
+        "id": "SCR-03-004",
+        "name": "Script-loaded Item 3-4",
+        "category": "beta",
+        "value": 434,
+        "active": false
+      },
+      {
+        "id": "SCR-03-005",
+        "name": "Script-loaded Item 3-5",
+        "category": "gamma",
+        "value": 435,
+        "active": true
+      },
+      {
+        "id": "SCR-03-006",
+        "name": "Script-loaded Item 3-6",
+        "category": "alpha",
+        "value": 436,
+        "active": true
+      },
+      {
+        "id": "SCR-03-007",
+        "name": "Script-loaded Item 3-7",
+        "category": "beta",
+        "value": 437,
+        "active": true
+      }
+    ],
+    "page_size": 7,
+    "variant": 3,
+    "search_fields": [],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "",
+    "behavior": {},
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "SCR-03-001",
+      "name": "Script-loaded Item 3-1",
+      "category": "beta",
+      "value": 431,
+      "active": true
+    },
+    {
+      "id": "SCR-03-002",
+      "name": "Script-loaded Item 3-2",
+      "category": "gamma",
+      "value": 432,
+      "active": true
+    },
+    {
+      "id": "SCR-03-003",
+      "name": "Script-loaded Item 3-3",
+      "category": "alpha",
+      "value": 433,
+      "active": true
+    },
+    {
+      "id": "SCR-03-004",
+      "name": "Script-loaded Item 3-4",
+      "category": "beta",
+      "value": 434,
+      "active": false
+    },
+    {
+      "id": "SCR-03-005",
+      "name": "Script-loaded Item 3-5",
+      "category": "gamma",
+      "value": 435,
+      "active": true
+    },
+    {
+      "id": "SCR-03-006",
+      "name": "Script-loaded Item 3-6",
+      "category": "alpha",
+      "value": 436,
+      "active": true
+    },
+    {
+      "id": "SCR-03-007",
+      "name": "Script-loaded Item 3-7",
+      "category": "beta",
+      "value": 437,
+      "active": true
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "scenario-app-update-preservation",
+    "description": "Observes app-owned WebView state after an update or installed-app relaunch without changing app data.",
+    "requirement": "HELLO-MOBILE-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "flow_id": "scenario-app-update-preservation"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {"viewport_width": 412, "viewport_height": 915},
+  "nodes": [
+    {"id":"open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"hello-mobile","scenario_path":"/","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"Open Hello Mobile after update"}}},
+    {"id":"wait-state","action":{"type":"ACTION_TYPE_WAIT","wait":{"selector":"@selector/helloMobile.state","state":"WAIT_STATE_VISIBLE","timeout_ms":10000},"metadata":{"label":"Wait for app-owned saved state"}}},
+    {"id":"assert-state","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/helloMobile.state","mode":"ASSERTION_MODE_TEXT_CONTAINS","expected":{"stringValue":"Saved state: android"},"timeout_ms":10000,"failure_message":"The app-owned local-storage sentinel must survive an in-place APK update"},"metadata":{"label":"Verify local-storage sentinel survived update"}}}
+  ],
+  "edges": [
+    {"id":"edge-open-state","source":"open","target":"wait-state","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"edge-state-assert","source":"wait-state","target":"assert-state","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}
+  ]
+}

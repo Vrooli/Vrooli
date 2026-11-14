@@ -1,0 +1,36 @@
+{
+  "background_color": "#ffffff",
+  "description": "Configure, launch, watch, steer and review supervised research from a phone, without being in the research loop.",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any",
+      "sizes": "192x192",
+      "src": "icon-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any",
+      "sizes": "512x512",
+      "src": "icon-512.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "192x192",
+      "src": "maskable-icon-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "512x512",
+      "src": "maskable-icon-512.png",
+      "type": "image/png"
+    }
+  ],
+  "name": "Research Desk",
+  "scope": "../",
+  "short_name": "research-desk",
+  "start_url": "../",
+  "theme_color": "#ffffff"
+}

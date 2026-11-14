@@ -40,7 +40,7 @@ func (r *SQLiteDigestRepository) GenerateWeeklyDigest(ctx context.Context, weekS
 		weekStart = startDate.Format("2006-01-02")
 	}
 
-	weekEnd := startDate.AddDate(0, 0, 6) // Sunday
+	weekEnd := startDate.AddDate(0, 0, 6)         // Sunday
 	baselineStart := startDate.AddDate(0, 0, -28) // 4 weeks before
 
 	digest := &domain.WeeklyDigest{

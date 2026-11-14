@@ -1,18 +1,64 @@
 # Problems / Risks
 
+## Work ladder — VPS delivery certification execution, 2026-09-09
+
+- Rung: W1 (obligations declared, evidence attaching per phase).
+- Evidence: PRD operational targets OT-P0-007..017 and requirement modules 10–18 declare the launch contract; `business-health validate scenario scenario-to-cloud` passes. Package-lane certification receipts exist for RUN, REACH, RELEASE (via P10 tests), DATA, SECRET, EDGE and GOV families under `certification/evidence/`; `api/certification` reports `not_ready` (158 missing, 55 stale, 53 unavailable of 266 required cells; `certification-report-2026-09-09-final.json`) because every QEMU, real-VPS, relay, BAS-UI, independent-review and soak lane is pending external inputs.
+- Blocker: no disposable VPS, delegated DNS zone, QEMU host tools, independent reviewer or soak window is available (plan-artifacts `ledgers/external-inputs.md` EXT-01..11). The only enrolled cloud target is the production LPBS host and is never used as a fixture.
+- Measured: 2026-09-09.
+
 ## Open Issues
 
-- **Packager contract not implemented yet**: deployment-manager docs reference scenario-to-cloud as a stub; API/CLI contract needs to be finalized and implemented.
-- **“Mini Vrooli” bundling semantics**: bundle embeds `.vrooli/cloud/manifest.json` + `.vrooli/cloud/bundle-metadata.json`, rewrites `.vrooli/service.json` to disable unused resources, and now generates a trimmed `go.work` so Go tooling won’t reference stripped modules — but still needs real VPS validation that `./scripts/manage.sh setup` honors it end-to-end.
-- **Remote port overrides**: forcing fixed ports (UI 3000, API 3001, WS 3002) must be compatible with the lifecycle allocator and scenario assumptions.
-- **Caddy + Let’s Encrypt edge cases**: HTTP-01 requires port 80/443 open and DNS already pointing at the VPS; preflight must be crisp and actionable.
-- **Long-running deploy endpoints**: VPS setup/deploy can exceed typical HTTP client/server timeouts; P0 keeps sync endpoints (server WriteTimeout raised), but async job orchestration is likely needed for real deployments.
-- **Inspect/log ergonomics**: P0 supports bounded log retrieval via `tail`, but does not yet support streaming (`--follow`) or advanced filtering (time ranges, multiple scenarios/resources).
-- **Tooling mismatch (repo-level)**: `scenario-completeness-scoring` attempts to auto-rebuild and fails with `go.work` workspace errors; this is outside `scenario-to-cloud` scope but affects reporting.
-- **Tooling mismatch (test-genie flags)**: `vrooli scenario status` invokes `test-genie` with a `-no-record` flag that the installed `test-genie` binary does not recognize; may require updating test-genie or the caller.
-- **Browserless dependency**: UI smoke + lighthouse checks require `BROWSERLESS_URL` (typically `http://localhost:4110`); if Browserless is not running, status checks and some test phases will be blocked.
-- **E2E validations are still placeholders**: playbooks exist for preflight/setup/deploy/logs, but real VPS E2E automation is not wired into the default suite yet.
+- **Remaining SSH-era surfaces**: the executor runs every effect as typed argv through `api/reach`; the preflight disk routes and their CLI/UI consumers are retired, while the remaining transport, repair, and error-classifier work stays tracked in deletion-ledger rows DL-02/DL-03/DL-08.
+- **Pre-enrollment egress check**: preflight cannot observe outbound reachability through the read-only observation set before a host is enrolled; the check reports `warn` and `host.prepare` surfaces a blocked egress at apply time.
+- **Legacy data bindings**: the production deployment's mutable directories are only inventoried (`cloud-target data inventory`); mapping them to declared `persistent_data` bindings has not been executed.
+- **Operator console**: the console, plan review and durable operation view shipped (phase 19); the independent operator walkthrough (EXT-08) and a real BAS run are still pending.
+- **Governance**: cloud → Deployment Manager calls need a service bearer for the `scenario-to-cloud` principal; Deployment Manager now independently verifies Ed25519 receipt signatures, while publication remains fail-closed until a qualification lane drives the ramp Driver.
+- **Production TLS renewal**: the live edge observation on vrooli.com reports `renewal_failed` (tls-alpn challenge) while the certificate is valid until 2026-12-07.
+- **Scope governance**: `cli/manifest.json` now declares the scenario scopes; destructive verbs (`deployment apply|rollback`, `recovery-points restore`) are run-eligible only with confirmation under `scenario-to-cloud:destructive`, so a governed program applying against a fixture needs a session grant.
+- **Browser-automation dependency**: UI smoke and BAS journeys require browser-automation-studio; only observer API cases are registered today.
+- **CLI reference catalog**: the manifest and generated command reference contain the recovery, edge, credential and inspection leaf commands, but the current CLI Health catalog does not expose all of them. Its validator reports `unknown_command` for those current paths, and a scenario-scoped reindex is denied because the search control plane is unavailable. The generated examples now quote required placeholders; rerun the docs phase after the owner restores reindex authority.
 
-## Deferred (Explicit P2+)
+## Resolved in current execution
 
-- Rollback/blue-green, backups/restore, resource swaps to managed services, bastion hosts.
+- **Governed LPBS activation contract (2026-09-16)**: a production redeploy
+  initially failed for three independent contract gaps: the remote lifecycle
+  inherited the checkout's dynamic port ranges instead of the release's fixed
+  ports, the minimal release omitted the `templates/` source-root marker used
+  by credential validation, and production API startup required
+  `CONSUMER_AUTH_KEY_ID` without a declared value. The activation environment
+  now pins `VROOLI_SOURCE_ROOT` to the staged release, bundles
+  `templates/.keep`, and LPBS declares the versioned consumer key ID. Regression
+  tests cover the source-root environment and bundle marker. Governed
+  operation `da57c47d-f3fc-4d63-afcc-7663928ac2a5` completed all 13 steps;
+  public health, landing routes, and Linux/macOS/Windows update feeds returned
+  200 after activation.
+
+- **False disk-capacity refusal (2026-09-16)**: preflight previously treated a
+  fixed 5 GiB floor and the analyzer's low-confidence PostgreSQL 8 GiB
+  persistent-footprint estimate as the free space needed for every release.
+  It now calculates a transaction budget from the built archive (three archive
+  copies plus 256 MiB staging headroom), keeps analyzer disk data advisory,
+  and re-runs after typed cleanup. Focused preflight/deployment regressions
+  pass, and LPBS redeployed successfully with approximately 4.3 GiB free.
+
+- **Health call cost (2026-09-11)**: the health path now compares the declared
+  scenario version and defers the full local bundle fingerprint to the explicit
+  release-freshness workflow; the version-only regression proves it does not
+  hash the local bundle on interactive health calls.
+
+## Deferred (explicitly out of scope for the certification plan)
+
+- Delta uploads, managed-service swaps, bastion hosts, Kubernetes/multi-region, billing and mobile packaging.
+
+## Preserved visual sources
+
+Historical HTML and editable canvas sources live beneath the protected
+control-plane runtime home (`~/.vrooli` for the invoking user).
+These are dated evidence or design supplements; this relocation does not
+change plan status or establish release readiness.
+
+- `plan-artifacts/docs-html-progress-20260908/scenarios/scenario-to-cloud/docs/internal/cloud-readiness-2026-09-07.html`
+
+The originating installation must retain these artifacts with its durable backups.
+Exact originals and SHA-256 hashes are in `backups/docs-html-progress-20260908/manifest.json`.

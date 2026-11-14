@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "lighting-control",
+  "description": "Experience contract for the Light Desk desktop workbench and focused mobile workflows.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Home",
+      "status": "active"
+    },
+    {
+      "id": "presets",
+      "path": "pages/presets.json",
+      "title": "Presets",
+      "status": "active"
+    },
+    {
+      "id": "controller",
+      "path": "pages/controller.json",
+      "title": "Controller",
+      "status": "active"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "active"
+    }
+  ],
+  "journeys": []
+}

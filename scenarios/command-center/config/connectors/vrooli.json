@@ -1,0 +1,8 @@
+{
+  "id": "vrooli",
+  "name": "Vrooli connector pack",
+  "pack": true,
+  "enabled": true,
+  "sources": ["vrooli-core", "swarm-manager", "landing-page-business-suite", "offer-desk", "deployment-manager", "prompt-manager", "source-ledger"],
+  "registers": {"readouts": ["ladder", "posture"], "compositions": ["funnel-cascade", "meridian-arc"]}
+}

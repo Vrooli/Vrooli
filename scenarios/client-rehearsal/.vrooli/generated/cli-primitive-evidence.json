@@ -1,0 +1,81 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "client-rehearsal",
+  "generator": "v1.0.0",
+  "manifest_hash": "3ecda4be21b3f621de8285c17136ad528e8f8c77f36c16c927b59b2c68919e93",
+  "commands": [
+    {
+      "path": "notes attach",
+      "group": "notes",
+      "command": "attach",
+      "declared_exception": "upload",
+      "observed_primitive": "upload"
+    },
+    {
+      "path": "notes count",
+      "group": "notes",
+      "command": "count",
+      "binding": "vrooli.client_rehearsal.v1.notes.NotesService.CountNotes",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "notes create",
+      "group": "notes",
+      "command": "create",
+      "binding": "vrooli.client_rehearsal.v1.notes.NotesService.CreateNote",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "notes get",
+      "group": "notes",
+      "command": "get",
+      "binding": "vrooli.client_rehearsal.v1.notes.NotesService.GetNote",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "notes list",
+      "group": "notes",
+      "command": "list",
+      "binding": "vrooli.client_rehearsal.v1.notes.NotesService.ListNotes",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "rehearsals create-and-run",
+      "group": "rehearsals",
+      "command": "create-and-run",
+      "binding": "vrooli.client_rehearsal.v1.rehearsals.RehearsalService.CreateAndRunRehearsal",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "rehearsals get",
+      "group": "rehearsals",
+      "command": "get",
+      "binding": "vrooli.client_rehearsal.v1.rehearsals.RehearsalService.GetRehearsal",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "rehearsals list",
+      "group": "rehearsals",
+      "command": "list",
+      "binding": "vrooli.client_rehearsal.v1.rehearsals.RehearsalService.ListRehearsals",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "rehearsals review",
+      "group": "rehearsals",
+      "command": "review",
+      "binding": "vrooli.client_rehearsal.v1.rehearsals.RehearsalService.RecordReview",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    }
+  ]
+}

@@ -3,13 +3,12 @@
 package policy
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"os/exec"
 	"strings"
 	"time"
 
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
 )
 
@@ -34,11 +33,15 @@ func (p *NoOpValidationPolicy) GetValidationHooks() []ValidationHook {
 
 // HookValidationPolicy runs configured validation hooks before applying changes.
 // [OT-P1-005] Pre-commit Validation Hooks
+//
+// Round 4 Phase 7: hook execution routes through process.Starter so the
+// canonical exec seam owns every external command spawn.
 type HookValidationPolicy struct {
 	hooks          []ValidationHook
 	globalTimeout  time.Duration
 	logger         ValidationLogger
 	continueOnFail bool // If true, continue running hooks even after a failure
+	starter        process.Starter
 }
 
 // ValidationLogger is an optional interface for logging hook execution.
@@ -71,11 +74,16 @@ func WithContinueOnFail(continueOnFail bool) HookPolicyOption {
 	}
 }
 
-// NewHookValidationPolicy creates a policy with the given hooks.
-func NewHookValidationPolicy(hooks []ValidationHook, opts ...HookPolicyOption) *HookValidationPolicy {
+// NewHookValidationPolicy creates a policy with the given hooks. starter
+// routes hook execution through the canonical exec seam.
+func NewHookValidationPolicy(starter process.Starter, hooks []ValidationHook, opts ...HookPolicyOption) *HookValidationPolicy {
+	if starter == nil {
+		panic("policy.NewHookValidationPolicy: starter is required")
+	}
 	p := &HookValidationPolicy{
 		hooks:         hooks,
 		globalTimeout: 5 * time.Minute, // Default timeout
+		starter:       starter,
 	}
 	for _, opt := range opts {
 		opt(p)
@@ -164,37 +172,31 @@ func (p *HookValidationPolicy) executeHook(ctx context.Context, hook ValidationH
 		HookName: hook.Name,
 	}
 
-	// Create command
-	cmd := exec.CommandContext(ctx, hook.Command, hook.Args...)
-	cmd.Env = env
-
-	// Set working directory to the sandbox merged directory if available
+	opts := process.StartOpts{
+		Path: hook.Command,
+		Args: append([]string(nil), hook.Args...),
+		Env:  env,
+	}
 	if sandbox.MergedDir != "" {
-		cmd.Dir = sandbox.MergedDir
+		opts.Dir = sandbox.MergedDir
 	} else if sandbox.ProjectRoot != "" {
-		cmd.Dir = sandbox.ProjectRoot
+		opts.Dir = sandbox.ProjectRoot
 	}
 
-	// Capture output
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	// Run the command
-	err := cmd.Run()
-
-	// Combine output
-	result.Output = stdout.String()
-	if stderr.Len() > 0 {
+	res, runErr := process.Run(ctx, p.starter, opts)
+	result.Output = string(res.Stdout)
+	if len(res.Stderr) > 0 {
 		if result.Output != "" {
 			result.Output += "\n"
 		}
-		result.Output += stderr.String()
+		result.Output += string(res.Stderr)
 	}
-
-	if err != nil {
+	if runErr != nil {
 		result.Success = false
-		result.Error = err
+		result.Error = runErr
+	} else if res.Exit.ExitCode != 0 {
+		result.Success = false
+		result.Error = fmt.Errorf("hook %q exited with code %d", hook.Name, res.Exit.ExitCode)
 	} else {
 		result.Success = true
 	}

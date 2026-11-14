@@ -1,0 +1,46 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.column-picker",
+    "name": "ColumnPicker",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "The grid configuration surface for showing, hiding, ordering, pinning, sizing, and resetting columns, with search and full keyboard operation.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "overlays.popover",
+        "reason": "The surface is an anchored panel."
+      },
+      {
+        "asset": "manipulation.sortable",
+        "reason": "Column ordering uses the shared reorder model with keyboard support."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "status-announced"
+  ]
+}

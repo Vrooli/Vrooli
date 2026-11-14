@@ -1,0 +1,223 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
+      }
+    },
+    {
+      "id": "measures_count_failed_validations",
+      "path": "/vrooli.measures_health.v1.measures.MeasuresService/CountFailedValidations",
+      "method": "POST",
+      "summary": "Count scenarios that failed measures validation in a window",
+      "description": "Answers \"how many scenarios failed measures validation this week\": a read-only, run-eligible, full-tier measure over the persisted validation_run history, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "count": "int64 (scalar value_field)"
+        }
+      },
+      "examples": [
+        {
+          "name": "Failed this week",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.measures.MeasuresService/CountFailedValidations -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "measures_count_validation_coverage",
+      "path": "/vrooli.measures_health.v1.measures.MeasuresService/CountValidationCoverage",
+      "method": "POST",
+      "summary": "Count scenarios that passed measures validation in a window",
+      "description": "Answers \"how many scenarios passed measures validation this week\" — the fleet measure-coverage signal over time. Read-only, run-eligible, full-tier (canonical time_window). Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "count": "int64 (scalar value_field)"
+        }
+      },
+      "examples": [
+        {
+          "name": "Coverage this week",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.measures.MeasuresService/CountValidationCoverage -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "search_search",
+      "path": "/vrooli.measures_health.v1.search.SearchService/Search",
+      "method": "POST",
+      "summary": "Match an analytical question to a measure and answer it",
+      "description": "The federated measures provider (search-hub 'measure' type): matches a natural-language analytical question to the best-fitting measure across the fleet, resolves its parameters (deterministic time_window first, constrained extraction for the rest), and — for a safe read-only measure resolved at high confidence — proxies execution to the owning scenario and returns the answer with provenance. A write/destructive measure is never auto-executed.",
+      "category": "index",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int (max measure hits; a measure provider returns the best answer)",
+          "query": "string (required, natural-language analytical question)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "matcher": "string (lexical | ai | none)",
+          "results": "array<MeasureResult{score, measure}>"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Measures index not configured"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Answer an analytical question",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.search.SearchService/Search -H 'Content-Type: application/json' -d '{\"query\":\"how many backlog items did we complete this week\",\"limit\":1}'"
+        }
+      ]
+    },
+    {
+      "id": "search_status",
+      "path": "/vrooli.measures_health.v1.search.SearchService/Status",
+      "method": "POST",
+      "summary": "Report measure-index + backend availability",
+      "description": "Reports the central measure index size, whether the ollama constrained-extraction backend is reachable, and the active matcher leg — so callers (and the search-hub status_endpoint) can degrade gracefully.",
+      "category": "index",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "available": "bool",
+          "indexed_count": "int",
+          "matcher": "string",
+          "ollama": "bool",
+          "qdrant": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Measures index not configured"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Index status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.search.SearchService/Status -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate a scenario's measure coverage",
+      "description": "Grades a scenario's measure adoption through the shared scenario-validation response; the native ScenarioCoverageReport is packed into native_detail.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "include_execution": "bool (run the behavioral adoption probe against live endpoints)",
+          "scenario": "string (required, scenario id under scenarios/)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "native_detail": "google.protobuf.Any<measures_health.v1.validation.ScenarioCoverageReport>",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Manifest/proto read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Validate swarm-manager",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\"}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_list_fleet_coverage",
+      "path": "/vrooli.measures_health.v1.validation.ValidationService/ListFleetCoverage",
+      "method": "POST",
+      "summary": "Roll up measure coverage across scenarios",
+      "description": "Statically grades every discovered scenario (or the requested subset) and returns one coverage rollup each: expected/covered/waived/uncovered counts, worst tier, and the pass/fail verdict. Powers the fleet-view UI.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenarios": "array<string> (empty = every discovered scenario)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "entries": "array<FleetEntry>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Scenario enumeration failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Fleet coverage",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.validation.ValidationService/ListFleetCoverage -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    }
+  ]
+}

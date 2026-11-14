@@ -51,7 +51,9 @@ func NewLoader(opts Options) (*Loader, error) {
 func (l *Loader) Load() (map[string]Info, error) {
 	rules := make(map[string]Info)
 
-	categories := []string{"api", "cli", "config", "test", "ui", "makefile", "structure"}
+	// structure/config/ui rule packs were migrated to the structure-health
+	// scenario; scenario-auditor retains only cross-cutting policy/content rules.
+	categories := []string{"api", "cli", "test", "makefile"}
 
 	err := l.walkRuleFiles(func(info Info) error {
 		exec, status := compileGoRule(&info, l.opts.ModuleRoot)
@@ -273,11 +275,12 @@ func BuildExecutionInfo(rule Info) ExecutionInfo {
 	}
 }
 
-// DiscoverRuleDirs attempts to find rule directories under the provided repository root.
-func DiscoverRuleDirs(repoRoot string) ([]string, error) {
+// DiscoverRuleDirs attempts to find rule directories under the provided
+// scenario-auditor root.
+func DiscoverRuleDirs(scenarioAuditorRoot string) ([]string, error) {
 	candidates := []string{
-		filepath.Join(repoRoot, "scenarios", "scenario-auditor", "api", "rules"),
-		filepath.Join(repoRoot, "scenarios", "scenario-auditor", "rules"),
+		filepath.Join(scenarioAuditorRoot, "api", "rules"),
+		filepath.Join(scenarioAuditorRoot, "rules"),
 	}
 
 	dirs := make([]string, 0, len(candidates))
@@ -288,57 +291,11 @@ func DiscoverRuleDirs(repoRoot string) ([]string, error) {
 	}
 
 	if len(dirs) == 0 {
-		return nil, fmt.Errorf("ruleengine: no rule directories found under %s", repoRoot)
+		return nil, fmt.Errorf("ruleengine: no rule directories found under %s", scenarioAuditorRoot)
 	}
 
 	sort.Strings(dirs)
 	return dirs, nil
-}
-
-// DiscoverRepoRoot walks up from the provided starting points to locate the repository root containing scenarios/scenario-auditor.
-func DiscoverRepoRoot(startPoints ...string) (string, error) {
-	queue := []string{}
-	seen := make(map[string]struct{})
-
-	for _, p := range startPoints {
-		if p == "" {
-			continue
-		}
-		queue = append(queue, p)
-	}
-
-	if wd, err := os.Getwd(); err == nil {
-		queue = append(queue, wd)
-	}
-
-	for len(queue) > 0 {
-		current := queue[0]
-		queue = queue[1:]
-
-		if _, ok := seen[current]; ok {
-			continue
-		}
-		seen[current] = struct{}{}
-
-		probe := filepath.Join(current, "scenarios", "scenario-auditor")
-		if info, err := os.Stat(probe); err == nil && info.IsDir() {
-			return current, nil
-		}
-
-		parent := filepath.Dir(current)
-		if parent != current {
-			queue = append(queue, parent)
-		}
-	}
-
-	if home := strings.TrimSpace(os.Getenv("HOME")); home != "" {
-		fallback := filepath.Join(home, "Vrooli")
-		if info, err := os.Stat(fallback); err == nil && info.IsDir() {
-			return fallback, nil
-		}
-	}
-
-	return "", fmt.Errorf("ruleengine: unable to locate Vrooli root; set VROOLI_ROOT")
 }
 
 // RuleFiles returns a list of rule files for tooling/CLI usage.

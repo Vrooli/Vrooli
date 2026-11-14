@@ -4,7 +4,7 @@
 package bundle
 
 import (
-	bundlemanifest "scenario-to-desktop-runtime/manifest"
+	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // Packager orchestrates bundle packaging operations.

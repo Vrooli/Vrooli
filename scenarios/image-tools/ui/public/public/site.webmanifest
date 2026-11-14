@@ -1,0 +1,30 @@
+{
+  "background_color": "#0b1020",
+  "description": "Lume — a local-first image studio: deterministic editing, on-demand AI generation/enhancement, and image analysis via CLI, UI, and API.",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any",
+      "sizes": "any",
+      "src": "lume-mark.svg",
+      "type": "image/svg+xml"
+    },
+    {
+      "purpose": "any maskable",
+      "sizes": "192x192",
+      "src": "manifest-icon-192.maskable.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any maskable",
+      "sizes": "512x512",
+      "src": "manifest-icon-512.maskable.png",
+      "type": "image/png"
+    }
+  ],
+  "name": "Lume — Image Tools",
+  "scope": "../",
+  "short_name": "Lume",
+  "start_url": "../",
+  "theme_color": "#0b1020"
+}

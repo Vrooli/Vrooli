@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "status": "candidate_only_unqualified",
+  "artifact_id": "vrooli-generic-round-watch-concept-v2",
+  "output": {
+    "path": "scenarios/device-studio/api/internal/physicalruntime/assets/roundwatch-v2/generic-roundwatch-v2.glb",
+    "sha256": "a609b435f5f4485504f1071e35cf74e95ba56095e5420aaa242255267c87750e",
+    "size_bytes": 223684
+  },
+  "authorship": {
+    "creator": "Vrooli",
+    "license": "AGPL-3.0-only",
+    "identity": "Generic round smartwatch-style concept; no Samsung product identity, CAD, endorsement, or compatibility claim."
+  },
+  "comparison_references": [
+    {
+      "url": "https://www.samsung.com/uk/watches/galaxy-watch/galaxy-watch-ultra-titanium-grey-lte-sm-l705fdaaeua/",
+      "use": "Published Galaxy Watch Ultra body envelope 47.4 x 47.1 x 12.1 mm informs generic proportions only; no product geometry is copied."
+    },
+    {
+      "url": "https://www.samsung.com/ae/watches/galaxy-watch/galaxy-watch-ultra-titanium-gray-lte-sm-l705fdaaxsg/",
+      "use": "Official product photographs serve as held-out shape/material comparison only; no photo or logo is embedded in the GLB."
+    }
+  ],
+  "geometry": {
+    "units": "meters",
+    "axis": "Y up; circular display faces +Z; screen UV U increases right and V=0 is top",
+    "nodes": [
+      {"name":"GenericRoundWatchV2","index":0,"role":"root"},
+      {"name":"One clean circular replaceable display","index":3,"mesh":2,"primitive":0,"material":2,"uv_min":[0,0],"uv_max":[1,1]}
+    ],
+    "case_shell_mm": [47.4, 47.4, 12.1],
+    "complete_authored_asset_bounds_mm": [51.05, 137.0, 15.6],
+    "authored_active_display_diameter_mm": 36.7,
+    "support": "Open upright tabletop presentation pose with strap/contact surfaces; candidate-only, no stability or fit claim."
+  },
+  "generator": "scenarios/device-studio/assets/sources/generic-roundwatch-v2-20261021/generate.py",
+  "limits": [
+    "Samsung dimensions and images are comparison references only; candidate geometry is independently authored and not manufacturer CAD.",
+    "Contact, physical size, strap comfort, water resistance, electronics, display calibration, and motion are unqualified.",
+    "The screen is a clean circular app-content target; the app-safe circle is a conservative authored candidate mask."
+  ]
+}

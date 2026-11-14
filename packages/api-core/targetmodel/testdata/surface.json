@@ -1,0 +1,19 @@
+{
+  "ref": {
+    "target": {"owner_scenario": "vrooli-bridge", "resource_id": "machine-1", "host_node_id": "node-1"},
+    "owner_scenario": "device-control",
+    "surface_id": "desktop-1"
+  },
+  "kind": "SURFACE_KIND_DESKTOP",
+  "display_label": "Office PC",
+  "capabilities": [{
+    "capability": "desktop.observe",
+    "state": "SURFACE_CAPABILITY_STATE_READY",
+    "evidence_id": "probe-1",
+    "observed_at": "2026-09-05T00:00:00Z",
+    "expires_at": "2026-09-05T00:01:00Z"
+  }],
+  "protocol_versions": ["vrooli.desktop.v1"],
+  "desktop_session_id": "login-2",
+  "display_ids": ["monitor-1"]
+}

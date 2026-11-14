@@ -1,0 +1,15 @@
+{
+  "collections": [
+    {
+      "labelField": "label",
+      "maximumCount": 8,
+      "maximumLabelCharacters": 48,
+      "primaryAction": "not-applicable",
+      "property": "fields",
+      "stableIdField": "id",
+      "typicalCount": 2
+    }
+  ],
+  "componentId": "react-component-library:ConflictResolutionFlow",
+  "version": "1.0.12"
+}

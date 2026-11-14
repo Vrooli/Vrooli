@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "manipulation.resizable",
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.3",
+    "2.0.0",
+    "2.0.1",
+    "2.0.2",
+    "2.0.3"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3",
+    "1.0.2",
+    "2.0.0",
+    "2.0.1",
+    "2.0.2",
+    "2.0.3"
+  ],
+  "latest": "2.0.6",
+  "libraryId": "react-component-library:Resizable",
+  "displayName": "Resizable",
+  "description": "The resize primitive with handles, axis constraints, snapping, keyboard resizing, minimum and maximum sizes, and persisted dimensions.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
+}

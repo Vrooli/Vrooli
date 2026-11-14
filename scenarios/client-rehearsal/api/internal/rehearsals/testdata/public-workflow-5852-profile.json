@@ -1,0 +1,15 @@
+{
+  "kind": "openapi",
+  "document": {
+    "openapi": "3.0.3",
+    "info": {"title": "Synthetic notifier destinations", "version": "1"},
+    "servers": [{"url": "https://notify.synthetic.invalid"}],
+    "paths": {
+      "/v1/gmail/messages": {"post": {"x-n8n-node-type": "n8n-nodes-base.gmail", "x-n8n-resource": "message", "x-n8n-operation": "send", "responses": {"200": {"content": {"application/json": {"example": {"status": "accepted", "id": "synthetic-message"}}}}}}},
+      "/v1/whatsapp/messages": {"post": {"x-n8n-node-type": "n8n-nodes-base.whatsApp", "x-n8n-resource": "message", "x-n8n-operation": "send", "responses": {"200": {"content": {"application/json": {"example": {"status": "recorded"}}}}}}},
+      "/v1/telegram/messages": {"post": {"x-n8n-node-type": "n8n-nodes-base.telegram", "x-n8n-resource": "message", "x-n8n-operation": "sendMessage", "responses": {"200": {"content": {"application/json": {"example": {"status": "recorded"}}}}}}},
+      "/v1/discord/messages": {"post": {"x-n8n-node-type": "n8n-nodes-base.discord", "x-n8n-resource": "message", "x-n8n-operation": "send", "responses": {"200": {"content": {"application/json": {"example": {"status": "recorded"}}}}}}},
+      "/v1/slack/messages": {"post": {"x-n8n-node-type": "n8n-nodes-base.slack", "x-n8n-resource": "message", "x-n8n-operation": "post", "responses": {"200": {"content": {"application/json": {"example": {"status": "recorded"}}}}}}}
+    }
+  }
+}

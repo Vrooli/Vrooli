@@ -1,0 +1,102 @@
+{
+  "description": "A strict-config + ui-health lint standard. Static checks verify `tsconfig` has `strict:true` and that eslint rules `rules-of-hooks`, `no-cycle`, `no-any`, and `no-non-null-assert` are set at error level. Auto-fix can flip these config flags behind a preview.",
+  "module_id": "MOD-P1-023",
+  "prd_ref": "OT-P1-009",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Static checks must verify `tsconfig` sets `strict:true` and that the eslint rules `rules-of-hooks`, `no-cycle`, `no-any`, and `no-non-null-assert` are configured at error level. A non-strict tsconfig or any of these rules missing/below error must produce a Finding.",
+      "id": "REQ-P1-015",
+      "prd_ref": "OT-P1-009",
+      "status": "draft",
+      "title": "Static strict-config + lint-rule checks",
+      "validation": [
+        {
+          "notes": "A tsconfig without strict:true produces a Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Any of rules-of-hooks, no-cycle, no-any, no-non-null-assert not set at error level produces a Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A fully strict, fully-configured project produces no strict-config Findings",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run ui-health against a scenario with strict disabled and confirm the strict-config Finding is emitted",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The strict-config + ui-health standard enforces type-safety and hook-stability lint rules across UI scenarios",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P1-015"
+      ],
+      "description": "An auto-fixer must be able to flip the strict-config and lint-rule flags to their required values, but only behind a preview (PreviewFix shows the change before ApplyFix writes it). The fixer must be idempotent.",
+      "id": "REQ-P1-016",
+      "prd_ref": "OT-P1-009",
+      "status": "draft",
+      "title": "Config-flip fixer behind preview",
+      "validation": [
+        {
+          "notes": "The config-flip fixer sets strict:true and elevates the four lint rules to error",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The fixer is only applied after a preview and is idempotent on re-run",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "PreviewFix surfaces the proposed config flip without writing any file",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run the config-flip fixer with --apply and confirm the strict-config Findings clear on re-validate",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Config flips are auto-remediable but gated behind a preview to keep risky transforms transparent",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "strict-config + ui-health lint standard"
+}

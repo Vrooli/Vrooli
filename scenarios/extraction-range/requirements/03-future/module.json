@@ -1,0 +1,40 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "Export reproducible score summaries for toolkit iterations and compare families and historical runs.",
+      "id": "EXTRACTI-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Benchmark comparison exports",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXTRACTI-P2-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Allow other Vrooli scenarios to add owned challenge data through a documented schema and validate it without code changes.",
+      "id": "EXTRACTI-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Composable scenario fixtures",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXTRACTI-P2-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

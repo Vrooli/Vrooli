@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package vrooli.client_rehearsal.v1.shared;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/client-rehearsal/v1/shared;shared_v1";
+
+// CapabilitiesService exposes the optional dependency registry as a stable
+// Connect surface. The registry is extensible, so its description remains a
+// structured protobuf value rather than an undocumented REST endpoint.
+service CapabilitiesService {
+  rpc DescribeCapabilities(DescribeCapabilitiesRequest) returns (DescribeCapabilitiesResponse);
+}
+
+message DescribeCapabilitiesRequest {}
+message DescribeCapabilitiesResponse {
+  google.protobuf.Struct description = 1;
+}

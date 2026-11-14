@@ -5,11 +5,51 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/vrooli/api-core/scenario"
 )
+
+func TestNewUsesProcessStartAcrossBuilders(t *testing.T) {
+	original := processStart
+	t.Cleanup(func() { processStart = original })
+	processStart = time.Date(2026, 8, 28, 10, 0, 0, 0, time.UTC)
+
+	first := New("first")
+	time.Sleep(time.Millisecond)
+	second := New("second")
+	if !first.startTime.Equal(processStart) || !second.startTime.Equal(processStart) {
+		t.Fatalf("builder start times = %s and %s, want process start %s", first.startTime, second.startTime, processStart)
+	}
+}
+
+func TestHandlerUptimeIncreasesFromStableProcessStart(t *testing.T) {
+	start := time.Date(2026, 8, 28, 10, 0, 0, 0, time.UTC)
+	now := start.Add(10 * time.Second)
+	b := New("test-service")
+	b.startTime = start
+	b.nowFunc = func() time.Time { return now }
+	handler := b.Handler()
+
+	read := func() Response {
+		req := httptest.NewRequest(http.MethodGet, "/health", nil)
+		w := httptest.NewRecorder()
+		handler(w, req)
+		var response Response
+		if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+			t.Fatalf("decode health response: %v", err)
+		}
+		return response
+	}
+	first := read()
+	now = now.Add(5 * time.Second)
+	second := read()
+	if first.UptimeSeconds != 10 || second.UptimeSeconds != 15 {
+		t.Fatalf("uptime readings = %v and %v, want 10 and 15 seconds", first.UptimeSeconds, second.UptimeSeconds)
+	}
+}
 
 func TestHandler_Minimal(t *testing.T) {
 	// Create handler with no checks
@@ -56,6 +96,39 @@ func TestHandler_Minimal(t *testing.T) {
 	}
 }
 
+func TestHandler_FunctionalFailureDegradesWithoutChangingReadiness(t *testing.T) {
+	handler := New("test").Functional(func(context.Context) FunctionalStatus {
+		return FunctionalStatus{Healthy: false, Reason: "lifecycle refusals exceeded"}
+	}).Handler()
+	w := httptest.NewRecorder()
+	handler(w, httptest.NewRequest(http.MethodGet, "/health", nil))
+	var resp Response
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode health response: %v", err)
+	}
+	if w.Code != http.StatusOK || resp.Status != StatusDegraded || !resp.Readiness {
+		t.Fatalf("status=%d response=%#v, want 200/degraded/ready", w.Code, resp)
+	}
+	if resp.Functional == nil || resp.Functional.Healthy || resp.Functional.Reason != "lifecycle refusals exceeded" {
+		t.Fatalf("functional=%#v, want failed status with reason", resp.Functional)
+	}
+}
+
+func TestHandler_FunctionalSuccessIsReported(t *testing.T) {
+	handler := New("test").Functional(func(context.Context) FunctionalStatus {
+		return FunctionalStatus{Healthy: true}
+	}).Handler()
+	w := httptest.NewRecorder()
+	handler(w, httptest.NewRequest(http.MethodGet, "/health", nil))
+	var resp Response
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode health response: %v", err)
+	}
+	if resp.Status != StatusHealthy || resp.Functional == nil || !resp.Functional.Healthy {
+		t.Fatalf("response=%#v, want healthy functional status", resp)
+	}
+}
+
 func TestHandler_ServiceFromEnv(t *testing.T) {
 	// Use scenario package test hooks
 	cleanup := scenario.SetTestHooks(
@@ -81,6 +154,58 @@ func TestHandler_ServiceFromEnv(t *testing.T) {
 
 	if resp.Service != "my-scenario-api" {
 		t.Errorf("expected service my-scenario-api, got %s", resp.Service)
+	}
+}
+
+func TestHandler_BuildIdentityDefaultsFromEnv(t *testing.T) {
+	// The lifecycle injects this at start and compares it against the served
+	// value; a handler that omits it turns that comparison into a silent no-op.
+	t.Setenv(buildIdentityEnv, "sha256:abc123")
+
+	handler := New("test").Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	var resp Response
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.BuildIdentity != "sha256:abc123" {
+		t.Errorf("expected build identity sha256:abc123, got %q", resp.BuildIdentity)
+	}
+}
+
+func TestHandler_BuildIdentityExplicitOverridesEnv(t *testing.T) {
+	t.Setenv(buildIdentityEnv, "sha256:from-env")
+
+	handler := New("test").BuildIdentity("sha256:explicit").Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	var resp Response
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.BuildIdentity != "sha256:explicit" {
+		t.Errorf("expected explicit identity to win, got %q", resp.BuildIdentity)
+	}
+}
+
+func TestHandler_BuildIdentityOmittedWhenUnset(t *testing.T) {
+	t.Setenv(buildIdentityEnv, "")
+
+	handler := New("test").Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if body := w.Body.String(); strings.Contains(body, "build_identity") {
+		t.Errorf("expected build_identity to be omitted when unset, got %s", body)
 	}
 }
 

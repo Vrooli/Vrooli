@@ -1,0 +1,22 @@
+{
+  "id": "review_stats",
+  "label": "Review rounds",
+  "description": "Review rounds completed.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "scalar",
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:swarm-manager",
+    "read": "/api/v1/stats",
+    "select": "review_stats",
+    "ttlSeconds": 30,
+    "integrationId": "swarm-manager",
+    "featureId": "review_stats",
+    "contractVersion": "legacy.v1",
+    "selector": "review_stats",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

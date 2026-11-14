@@ -10,121 +10,64 @@
 #   make test  - Run scenario tests
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
+#
+# This Makefile is a thin wrapper. All user-facing output (status, banners,
+# colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start stop test logs status clean build dev run fmt fmt-go fmt-ui lint lint-go lint-ui
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open
 
 .DEFAULT_GOAL := help
 
 SCENARIO_NAME := $(notdir $(CURDIR))
 
-GREEN := \033[1;32m
-YELLOW := \033[1;33m
-BLUE := \033[1;34m
-RED := \033[1;31m
-RESET := \033[0m
+SCENARIO_CUSTOM_TARGETS += fmt-ui lint-ui
+# Shared toolchain floor (mk/toolchain.mk) and build targets (mk/scenario.mk); a custom body for one of them is declared in SCENARIO_CUSTOM_TARGETS.
+-include ../../mk/scenario.mk
 
 help: ## Show this help message
-	@echo "$(BLUE)☁️  $(SCENARIO_NAME) Scenario Commands$(RESET)"
-	@echo ""
-	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make <command>"
-	@echo ""
-	@echo "$(YELLOW)Commands:$(RESET)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-12s$(RESET) %s\n", $$1, $$2}'
-	@echo ""
-	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/scenario-to-cloud-api directly!"
-	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
 
 start: ## Start this scenario
-	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario start $(SCENARIO_NAME)
 
 stop: ## Stop this scenario
-	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario stop $(SCENARIO_NAME)
 
-dev: ## Start development mode
-	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
-	@vrooli scenario start $(SCENARIO_NAME) --dev
+restart: ## Restart this scenario
+	@vrooli scenario restart $(SCENARIO_NAME)
 
 test: ## Run scenario tests
-	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario test $(SCENARIO_NAME)
 
 logs: ## Show scenario logs
-	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
 
 status: ## Show scenario status
-	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario status $(SCENARIO_NAME)
 
 clean: ## Clean build artifacts
-	@echo "$(YELLOW)🧹 Cleaning $(SCENARIO_NAME) artifacts...$(RESET)"
-	@rm -f api/scenario-to-cloud-api
-	@rm -rf ui/dist
-	@echo "$(GREEN)✓ Cleaned$(RESET)"
-
-build: ## Build the scenario
-	@echo "$(BLUE)🏗️  Building $(SCENARIO_NAME)...$(RESET)"
-	@vrooli scenario setup $(SCENARIO_NAME)
+	@rm -rf ui/dist 2>/dev/null || true
+	@rm -f api/$(SCENARIO_NAME)-api api/$(SCENARIO_NAME) 2>/dev/null || true
 
 fmt: fmt-go fmt-ui ## Format all code
 
-fmt-go: ## Format Go code
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		echo "$(BLUE)🎨 Formatting Go code...$(RESET)"; \
-		if command -v gofumpt >/dev/null 2>&1; then \
-			cd api && gofumpt -w .; \
-		elif command -v gofmt >/dev/null 2>&1; then \
-			cd api && gofmt -w .; \
-		fi; \
-		echo "$(GREEN)✓ Go code formatted$(RESET)"; \
-	fi
-
 fmt-ui: ## Format UI code
-	@if command -v pnpm >/dev/null 2>&1; then \
-		( cd ui && pnpm -s format || true ); \
-	fi
+	@if [ -f ui/package.json ]; then cd ui && pnpm run lint -- --fix; fi
 
 lint: lint-go lint-ui ## Lint all code
 
-lint-go: ## Lint Go code
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		echo "$(BLUE)🔍 Linting Go code...$(RESET)"; \
-		if command -v golangci-lint >/dev/null 2>&1; then \
-			cd api && golangci-lint run ./...; \
-		else \
-			cd api && go vet ./...; \
-		fi; \
-		echo "$(GREEN)✓ Go code linted$(RESET)"; \
-	fi
+lint-ui: ## Lint UI code
+	@if [ -f ui/package.json ]; then cd ui && pnpm run lint && pnpm run type-check; fi
 
-lint-ui: ## Lint TypeScript/JavaScript code
-	@if [ -d ui ] && (find ui -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx") | head -1 | grep -q .; then \
-		echo "$(BLUE)🔍 Linting UI code...$(RESET)"; \
-		if [ -f ui/package.json ] && grep -q '"eslint"' ui/package.json; then \
-			cd ui && npm run lint 2>/dev/null || true; \
-		fi; \
-		echo "$(GREEN)✓ UI code linted$(RESET)"; \
-	else \
-		echo "$(YELLOW)No UI code to lint$(RESET)"; \
-	fi
+check: fmt lint test ## Run full quality gates
 
-check: ## Format, lint, and test code (pre-commit workflow)
-	@echo "$(BLUE)✅ Running full code quality check...$(RESET)"
-	@$(MAKE) fmt
-	@$(MAKE) lint
-	@$(MAKE) test
+setup: ## Run scenario setup lifecycle
+	@vrooli scenario setup "$(SCENARIO_NAME)"
+
+open: ## Open the scenario in a browser
+	@vrooli scenario open "$(SCENARIO_NAME)"
 
 # Development shortcuts
 run: start
-r: run
-s: stop
-d: dev
-t: test
-l: logs
-c: clean
-b: build
-f: fmt
+dev: start

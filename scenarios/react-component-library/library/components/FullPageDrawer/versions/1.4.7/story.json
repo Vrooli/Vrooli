@@ -1,0 +1,262 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "MobileSheet",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "dialog"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='overlays.full-page-drawer']"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='overlays.full-page-drawer.grabber']"
+        }
+      ],
+      "id": "mobile-sheet",
+      "mode": "live",
+      "name": "Mobile sheet",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "DesktopCard",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='overlays.full-page-drawer.close']"
+        }
+      ],
+      "id": "desktop-card",
+      "mode": "live",
+      "name": "Desktop card",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "FlushContentWithSubheader",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='overlays.full-page-drawer.subheader']"
+        }
+      ],
+      "id": "flush-content",
+      "mode": "live",
+      "name": "Flush content with subheader",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "WithFooter",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='overlays.full-page-drawer'] \u003e footer"
+        }
+      ],
+      "id": "with-footer",
+      "mode": "live",
+      "name": "With footer",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "LongBody",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='overlays.full-page-drawer']"
+        }
+      ],
+      "id": "long-body",
+      "mode": "live",
+      "name": "Long body",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "DirectedInitialFocus",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='overlays.full-page-drawer'] input"
+        }
+      ],
+      "id": "directed-initial-focus",
+      "mode": "live",
+      "name": "Directed initial focus",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ComfortableContent",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-full-page-drawer][data-content-padding='comfortable']"
+        }
+      ],
+      "id": "comfortable-content",
+      "mode": "live",
+      "name": "Comfortable content padding",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "EmptyDrawer",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "dialog"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-full-page-drawer]"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-testid='overlays.full-page-drawer'] .empty-drawer-content \u003e *",
+          "value": "0"
+        }
+      ],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty drawer",
+      "role": "boundary"
+    },
+    {
+      "composition": {
+        "specimen": {
+          "export": "LoadingDrawer",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "dialog"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-full-page-drawer]"
+        },
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "loading",
+      "mode": "pinned",
+      "name": "Loading drawer",
+      "role": "boundary"
+    },
+    {
+      "composition": {
+        "specimen": {
+          "export": "ErrorDrawer",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "dialog"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-full-page-drawer]"
+        },
+        {
+          "kind": "role",
+          "role": "alert"
+        }
+      ],
+      "id": "error",
+      "mode": "pinned",
+      "name": "Drawer error",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "OverflowDrawer",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "dialog"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-full-page-drawer]"
+        },
+        {
+          "kind": "text",
+          "value": "Overflow content remains inside the drawer's scroll region."
+        }
+      ],
+      "id": "overflow",
+      "mode": "pinned",
+      "name": "Long drawer content",
+      "role": "boundary"
+    }
+  ],
+  "title": "FullPageDrawer"
+}

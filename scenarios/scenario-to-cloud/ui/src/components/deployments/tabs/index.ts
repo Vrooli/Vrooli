@@ -15,3 +15,4 @@ export { Timeline } from "./Timeline";
 export { LogViewer } from "./LogViewer";
 export { InvestigationsTab } from "./InvestigationsTab";
 export { TerminalTab } from "./TerminalTab";
+export { HealthObservationBadge } from "./HealthObservationBadge";

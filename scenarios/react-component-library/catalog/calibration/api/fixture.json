@@ -1,0 +1,1 @@
+{"gate":"api","assetId":"calibration-api","kind":"component","runner":"static","requiredFailureCode":"catalog.api_mismatch","catalogAsset":"asset.json","source":"broken.tsx","description":"Declares an API mode absent from its implementation."}

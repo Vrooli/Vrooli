@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"scenario-auditor/rules"
 )
 
 type DocCase struct {
@@ -23,8 +25,10 @@ type DocCase struct {
 	Scenario           string
 }
 
-var testCaseRegex = regexp.MustCompile(`(?s)<test-case\s+([^>]+)>(.*?)</test-case>`)
-var attrRegex = regexp.MustCompile(`([A-Za-z0-9_-]+)="([^"]*)"`)
+var (
+	testCaseRegex = regexp.MustCompile(`(?s)<test-case\s+([^>]+)>(.*?)</test-case>`)
+	attrRegex     = regexp.MustCompile(`([A-Za-z0-9_-]+)="([^"]*)"`)
+)
 
 func LoadDocCases(t *testing.T, filename string) []DocCase {
 	t.Helper()
@@ -107,6 +111,31 @@ func EvaluateDocCase(t *testing.T, tc DocCase, count int, messages []string, run
 			t.Fatalf("%s: expected message containing %q in %v", tc.ID, tc.ExpectedMessage, messages)
 		}
 	}
+}
+
+// RunDocViolationCases applies a violation-producing rule to each XML case and
+// checks the expected count/message contract. Keeping this runner here lets
+// separate rule groups share one fixture protocol.
+func RunDocViolationCases(t *testing.T, filename, defaultPath string, check func([]byte, string) []rules.Violation) {
+	t.Helper()
+	for _, tc := range LoadDocCases(t, filename) {
+		t.Run(tc.ID, func(t *testing.T) {
+			violations := check([]byte(tc.Input), DefaultPath(tc, defaultPath))
+			EvaluateDocCase(t, tc, len(violations), violationMessages(violations), nil)
+		})
+	}
+}
+
+func violationMessages(violations []rules.Violation) []string {
+	messages := make([]string, 0, len(violations)*3)
+	for _, violation := range violations {
+		for _, message := range []string{violation.Message, violation.Description, violation.Title} {
+			if message != "" {
+				messages = append(messages, message)
+			}
+		}
+	}
+	return messages
 }
 
 func containsMessage(messages []string, needle string) bool {

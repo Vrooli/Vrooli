@@ -63,6 +63,10 @@ type ValidationIssue struct {
 	Field         string
 	Message       string
 	Severity      IssueSeverity
+	// Rule names the validation rule that produced this issue (e.g.
+	// "duplicate_id"). Producers key on it to map issues into typed
+	// findings without parsing Message text.
+	Rule string
 }
 
 // IssueSeverity indicates the importance of a validation issue.

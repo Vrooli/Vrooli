@@ -1,0 +1,183 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "creation",
+    "title": "AI and agent creation",
+    "routes": [
+      "/creations/:creationId"
+    ],
+    "purpose": "Direct and review bounded AI or agent-assisted creation with reference evidence, explicit data egress and aggregate spend control.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P0-007",
+      "OT-P0-009",
+      "OT-P0-010",
+      "OT-P0-011"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Understand that AI or an agent will act and what it will send or spend."
+    },
+    {
+      "statement": "Set the target, references, quality gates and limits."
+    },
+    {
+      "statement": "Inspect iterations and stop safely without losing useful work."
+    }
+  ],
+  "states": [
+    {
+      "id": "idle",
+      "description": "No operation is pending; identify the current task and available next action."
+    },
+    {
+      "id": "pending",
+      "description": "Work is acknowledged and queued or in flight with observed progress or an honest indeterminate state."
+    },
+    {
+      "id": "retrying",
+      "description": "A safe retry is actively reconciling or executing without blind duplicate side effects."
+    },
+    {
+      "id": "default",
+      "description": "Explain the current task, saved revision and next meaningful action."
+    },
+    {
+      "id": "loading",
+      "description": "Name what is loading; retain stable layout and existing local content."
+    },
+    {
+      "id": "submitting",
+      "description": "Acknowledge the requested operation once and prevent duplicate costly submissions."
+    },
+    {
+      "id": "saving",
+      "description": "Distinguish local draft changes from durably saved revision; never claim saved early."
+    },
+    {
+      "id": "syncing",
+      "description": "Explain local versus remote state and conflict resolution without silently overwriting edits."
+    },
+    {
+      "id": "refreshing",
+      "description": "Retain usable content and identify the specific information being refreshed."
+    },
+    {
+      "id": "empty",
+      "description": "Explain why there is no content and offer a relevant low-risk first action."
+    },
+    {
+      "id": "partial",
+      "description": "Show which inputs, output or services are available and which remain incomplete."
+    },
+    {
+      "id": "stale",
+      "description": "Show age, affected decisions and explicit refresh; never silently spend on refresh."
+    },
+    {
+      "id": "success",
+      "description": "Confirm the concrete durable result and offer inspection or the next task."
+    },
+    {
+      "id": "validation-error",
+      "description": "Associate actionable correction with each invalid field while preserving input."
+    },
+    {
+      "id": "request-error",
+      "description": "Explain the failed operation, preserved work and safe next action with diagnostic reference."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Identify the unavailable operation and authority boundary without requesting unrelated access."
+    },
+    {
+      "id": "offline",
+      "description": "Keep supported local work usable; mark online operations unavailable and never auto-submit paid work on reconnect."
+    },
+    {
+      "id": "retry",
+      "description": "Explain whether retry reuses an operation identity, reconciles prior work or starts a newly authorized operation."
+    },
+    {
+      "id": "preflight",
+      "description": "Display AI/agent label, exact provider/model, uploaded media/derived content, expected/unknown price, aggregate cap and cancellation semantics before submission."
+    },
+    {
+      "id": "awaiting-consent",
+      "description": "Wait for a specific missing decision without treating elapsed time as consent."
+    },
+    {
+      "id": "running",
+      "description": "Show durable operations and receipts, remaining budget and observed versus estimated progress."
+    },
+    {
+      "id": "budget-blocked",
+      "description": "No provider call starts while cap enforcement or funding is unavailable."
+    },
+    {
+      "id": "stopping",
+      "description": "Stop requested; do not claim stopped or refunded before confirmed."
+    },
+    {
+      "id": "review-needed",
+      "description": "Retain candidate, parameters, sources, cost evidence and unresolved visual/reference issues."
+    }
+  ],
+  "claims": [
+    {
+      "id": "creation-intent-1",
+      "type": "custom",
+      "statement": "Every AI step and agent launch, including local inference, is conspicuously identified before action and remains attributable in history and artifact provenance.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    },
+    {
+      "id": "creation-intent-2",
+      "type": "custom",
+      "statement": "Creation enforces one aggregate budget across nested calls and exposes unknown cost or incomplete cancellation honestly.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    },
+    {
+      "id": "creation-intent-3",
+      "type": "custom",
+      "statement": "Reference-based creation retains source comparisons and rejected iterations; a successful render cannot self-certify realism.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    }
+  ],
+  "x-route-status": "planned-not-implemented",
+  "x-design": {
+    "layout": "Preflight summary and deliberate Start action before a durable step log; reference board and iteration comparison central, scope/budget/privacy visible throughout.",
+    "controls": [
+      "Choose task: generate photographic plate, author device/scene, repair or qualify; inspect route capabilities",
+      "Attach rights-cleared references and mark dimensions measured/estimated/unknown",
+      "Choose provider/model or local agent, requested controls and known/unknown pricing",
+      "Preview upload manifest/redactions; approve per-project external media and scoped operation",
+      "Set total nested budget, per-step limits, time/resource/iteration caps and stop rule",
+      "Inspect requested versus honored generation controls, compare iterations, pause/stop and review candidate"
+    ],
+    "details": [
+      "No automatic image generation on page open, prompt typing, preview refresh or account connection.",
+      "Plate generation produces approximate photographed geometry, not a calibrated 3D asset.",
+      "Unknown pricing is never represented as a hard enforceable money cap; cost-bearing dispatch is blocked unless authoritative rates or an enforceable provider cap establish a safe upper bound within the aggregate ceiling.",
+      "Account, BYOK credential, provider availability, authority, privacy opt-in and budget are distinct checks.",
+      "Autonomous steps follow the authorized target and budget but never grant their own release approval."
+    ]
+  },
+  "x-requirements": [
+    "DS-PHOTO-GENERATION",
+    "DS-CREATION-PIPELINE",
+    "DS-CREATION-REFERENCE-LOOP",
+    "DS-CREATION-AUTONOMY",
+    "DS-CREATION-ISOLATION",
+    "DS-CREATION-REVIEW",
+    "DS-SAFETY-DISCLOSURE",
+    "DS-SAFETY-BUDGET",
+    "DS-SAFETY-EGRESS"
+  ],
+  "x-evidence-policy": "No fake selectors, region bindings, setup hooks, captures or attestations. Planned controls are metadata until implemented and grounded."
+}

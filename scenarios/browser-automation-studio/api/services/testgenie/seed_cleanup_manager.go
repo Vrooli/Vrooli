@@ -3,9 +3,9 @@ package testgenie
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
-	"strings"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -167,7 +167,7 @@ func (m *SeedCleanupManager) processJob(job *seedCleanupJob) {
 	}
 
 	switch exec.Status {
-	case database.ExecutionStatusCompleted, database.ExecutionStatusFailed:
+	case database.ExecutionStatusCompleted, database.ExecutionStatusFailed, database.ExecutionStatusCancelled:
 		m.cleanup(job, false)
 	}
 }

@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "overview",
+    "title": "Overview",
+    "routes": ["/"],
+    "purpose": "Give the operator a truthful summary of available audio capabilities and a clear route into diagnostics or dictation.",
+    "prd_refs": ["OT-P0-001", "OT-P0-002"]
+  }
+}

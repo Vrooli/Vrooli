@@ -11,6 +11,10 @@ import (
 
 // Campaign represents a file tracking campaign with visit history and staleness metrics
 type Campaign struct {
+	AttentionSequence  uint64                 `json:"attention_sequence,omitempty"`
+	Revision           uint64                 `json:"revision"`
+	Claims             []ReviewClaim          `json:"claims,omitempty"`
+	ArchivedClaims     []ReviewClaim          `json:"archived_claims,omitempty"`
 	ID                 uuid.UUID              `json:"id"`
 	Name               string                 `json:"name"`
 	FromAgent          string                 `json:"from_agent"`
@@ -36,21 +40,26 @@ type Campaign struct {
 
 // TrackedFile represents a file being tracked with visit counts and staleness metrics
 type TrackedFile struct {
-	ID             uuid.UUID              `json:"id"`
-	FilePath       string                 `json:"file_path"`
-	AbsolutePath   string                 `json:"absolute_path"`
-	VisitCount     int                    `json:"visit_count"`
-	FirstSeen      time.Time              `json:"first_seen"`
-	LastVisited    *time.Time             `json:"last_visited,omitempty"`
-	LastModified   time.Time              `json:"last_modified"`
-	ContentHash    *string                `json:"content_hash,omitempty"`
-	SizeBytes      int64                  `json:"size_bytes"`
-	StalenessScore float64                `json:"staleness_score"`
-	Deleted        bool                   `json:"deleted"`
-	Notes          *string                `json:"notes,omitempty"`
-	PriorityWeight float64                `json:"priority_weight,omitempty"`
-	Excluded       bool                   `json:"excluded,omitempty"`
-	Metadata       map[string]interface{} `json:"metadata"`
+	LastAttentionSequence uint64                 `json:"last_attention_sequence,omitempty"`
+	ReviewedRevision      string                 `json:"reviewed_revision,omitempty"`
+	LastReviewed          *time.Time             `json:"last_reviewed,omitempty"`
+	ReviewCount           int                    `json:"review_count,omitempty"`
+	AttentionScore        float64                `json:"attention_score"`
+	ID                    uuid.UUID              `json:"id"`
+	FilePath              string                 `json:"file_path"`
+	AbsolutePath          string                 `json:"absolute_path"`
+	VisitCount            int                    `json:"visit_count"`
+	FirstSeen             time.Time              `json:"first_seen"`
+	LastVisited           *time.Time             `json:"last_visited,omitempty"`
+	LastModified          time.Time              `json:"last_modified"`
+	ContentHash           *string                `json:"content_hash,omitempty"`
+	SizeBytes             int64                  `json:"size_bytes"`
+	StalenessScore        float64                `json:"staleness_score"`
+	Deleted               bool                   `json:"deleted"`
+	Notes                 *string                `json:"notes,omitempty"`
+	PriorityWeight        float64                `json:"priority_weight,omitempty"`
+	Excluded              bool                   `json:"excluded,omitempty"`
+	Metadata              map[string]interface{} `json:"metadata"`
 }
 
 // Visit represents a single file visit event

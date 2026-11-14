@@ -1,0 +1,274 @@
+{
+  "metadata": {
+    "name": "e4-delivery-analytics-failure-dark",
+    "description": "Given the leased disposable recipient fixture on a phone, when Delivery analytics fail, the dark selected state preserves independent records and retry recovery.",
+    "requirement": "OT-P1-007",
+    "version": "2",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "delivery-analytics-dark"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844,
+    "browser_profile": {
+      "extra_headers": {
+        "X-Vrooli-Test-Mode": "1"
+      },
+      "fingerprint": {
+        "device_scale_factor": 2
+      }
+    }
+  },
+  "nodes": [
+    {
+      "id": "open-settings-theme",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/settings?view=all&vrooli_test_mode=1",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Settings to select dark appearance"
+        }
+      }
+    },
+    {
+      "id": "set-dark",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/settingsPage.themeOption(choice=dark)"
+        },
+        "metadata": {
+          "label": "Set dark appearance"
+        }
+      }
+    },
+    {
+      "id": "open-updates-fixture",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/updates?vrooli_test_mode=1&e4_fixture=delivery-analytics-read-failure",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Select the leased Delivery analytics fault from Updates"
+        }
+      }
+    },
+    {
+      "id": "open-menu",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the mobile destination drawer"
+        }
+      }
+    },
+    {
+      "id": "open-delivery",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.navLink(key=delivery)"
+        },
+        "metadata": {
+          "label": "Open Delivery through mobile navigation"
+        }
+      }
+    },
+    {
+      "id": "assert-analytics-failed",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Attempt metrics couldn\u2019t be loaded"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Show the selected analytics read failure"
+        },
+        "metadata": {
+          "label": "Show the selected analytics read failure"
+        }
+      }
+    },
+    {
+      "id": "assert-record-fallback",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "You can review individual delivery records while metrics are unavailable."
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Keep independent record access available"
+        },
+        "metadata": {
+          "label": "Keep independent record access available"
+        }
+      }
+    },
+    {
+      "id": "view-delivery-records",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/delivery.analyticsRecordsAction"
+        },
+        "metadata": {
+          "label": "Jump directly to the independent delivery record list"
+        }
+      }
+    },
+    {
+      "id": "assert-record-list-target",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "E4 delivery receipt fixture"
+          },
+          "timeout_ms": 10000,
+          "failure_message": "Keep the returned record available after following View delivery records"
+        },
+        "metadata": {
+          "label": "Confirm the independent record target remains available"
+        }
+      }
+    },
+    {
+      "id": "retry-analytics",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/delivery.analyticsRetry"
+        },
+        "metadata": {
+          "label": "Retry the failed analytics read"
+        }
+      }
+    },
+    {
+      "id": "assert-retry-recovered",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.delivery",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Delivery states"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Show successful analytics after retry"
+        },
+        "metadata": {
+          "label": "Show successful analytics after retry"
+        }
+      }
+    },
+    {
+      "id": "set-selected-capture-safe-area",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const root=document.documentElement;root.style.setProperty('--safe-area-inset-top','0px');root.style.setProperty('--safe-area-inset-bottom','0px');const top=getComputedStyle(root).getPropertyValue('--safe-area-inset-top').trim(),bottom=getComputedStyle(root).getPropertyValue('--safe-area-inset-bottom').trim();if(top!=='0px'||bottom!=='0px')throw new Error('Selected artwork comparison requires the zero-inset phone viewport');return {top,bottom,viewport:{width:innerWidth,height:innerHeight}}})()",
+          "store_result": "selectedCaptureSafeArea"
+        },
+        "metadata": {
+          "label": "Match the selected phone artwork\u2019s zero-inset viewport while retaining separate nonzero-inset shell coverage"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "open-settings-theme",
+      "target": "set-dark",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "set-dark",
+      "target": "open-updates-fixture",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "open-updates-fixture",
+      "target": "set-selected-capture-safe-area",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "open-menu",
+      "target": "open-delivery",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "open-delivery",
+      "target": "assert-analytics-failed",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "assert-analytics-failed",
+      "target": "assert-record-fallback",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "assert-record-fallback",
+      "target": "view-delivery-records",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "view-delivery-records",
+      "target": "assert-record-list-target",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e9",
+      "source": "assert-record-list-target",
+      "target": "retry-analytics",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e10",
+      "source": "retry-analytics",
+      "target": "assert-retry-recovered",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "selected-capture-safe-area-to-destination",
+      "source": "set-selected-capture-safe-area",
+      "target": "open-menu",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

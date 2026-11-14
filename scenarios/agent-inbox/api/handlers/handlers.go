@@ -4,7 +4,7 @@
 //   - chat.go: Chat CRUD operations
 //   - message.go: Message and chat state operations
 //   - label.go: Label management
-//   - ai.go: AI completion, models, tools, streaming
+//   - ai.go: AI completion, models, streaming
 //   - errors.go: Structured error responses
 package handlers
 
@@ -27,7 +27,6 @@ import (
 type Handlers struct {
 	Repo                *persistence.Repository
 	OllamaClient        *integrations.OllamaClient
-	ToolRegistry        *services.ToolRegistry
 	ModelRegistry       *services.ModelRegistry
 	Storage             services.StorageService
 	ToolExecutor        *integrations.ToolExecutor
@@ -43,11 +42,10 @@ type Handlers struct {
 // New creates a new Handlers instance with all dependencies.
 // All parameters are required - callers must create the dependencies explicitly.
 // This ensures consistent dependency sharing and makes the architecture explicit.
-func New(repo *persistence.Repository, ollamaClient *integrations.OllamaClient, storage services.StorageService, asyncTracker *services.AsyncTrackerService, toolExecutor *integrations.ToolExecutor, toolRegistry *services.ToolRegistry) *Handlers {
+func New(repo *persistence.Repository, ollamaClient *integrations.OllamaClient, storage services.StorageService, asyncTracker *services.AsyncTrackerService, toolExecutor *integrations.ToolExecutor) *Handlers {
 	return &Handlers{
 		Repo:            repo,
 		OllamaClient:    ollamaClient,
-		ToolRegistry:    toolRegistry,
 		ModelRegistry:   services.NewModelRegistry(),
 		Storage:         storage,
 		ToolExecutor:    toolExecutor,
@@ -109,24 +107,11 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 
 	// AI / OpenRouter
 	r.HandleFunc("/api/v1/models", h.ListModels).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/v1/tools", h.ListTools).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/complete", h.ChatComplete).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/tool-calls", h.ListChatToolCalls).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/auto-name", h.AutoName).Methods("POST", "OPTIONS")
 
-	// Tool Configuration
-	r.HandleFunc("/api/v1/tools/set", h.GetToolSet).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/v1/tools/scenarios", h.GetScenarioStatuses).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/v1/tools/config", h.SetToolEnabled).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/v1/tools/config", h.ResetToolConfig).Methods("DELETE", "OPTIONS")
-	r.HandleFunc("/api/v1/tools/config/approval", h.SetToolApproval).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/v1/tools/sync", h.SyncTools).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/v1/tools/execute", h.ExecuteToolManually).Methods("POST", "OPTIONS")
-
-	// Scenario Info (for Tool Call Details modal)
-	r.HandleFunc("/api/v1/scenarios/{name}", h.GetScenarioInfo).Methods("GET", "OPTIONS")
-
-	// Tool Call Approvals
+	// Runtime tool-call approvals
 	r.HandleFunc("/api/v1/chats/{id}/pending-approvals", h.GetPendingApprovals).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/tool-calls/{id}/approve", h.ApproveToolCall).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/tool-calls/{id}/reject", h.RejectToolCall).Methods("POST", "OPTIONS")
@@ -194,18 +179,18 @@ func (h *Handlers) JSONError(w http.ResponseWriter, message string, status int) 
 
 // NewCompletionService creates a completion service with async tracker configured.
 // This is the preferred way to create completion services in handlers.
-// Uses the shared toolExecutor, toolRegistry, and modelRegistry to ensure:
-// 1. Tools registered by handlers.ToolRegistry are available for both AI tool execution and async polling
+// Uses the shared toolExecutor and modelRegistry to ensure:
+// 1. Runtime tool-call records and async cancellation/status flows use the same executor
 // 2. A single ModelRegistry cache is shared across all completion services (reduces API calls)
 func (h *Handlers) NewCompletionService() *services.CompletionService {
 	return services.NewCompletionServiceWithDeps(services.CompletionServiceDeps{
-		Repo:            h.Repo,
-		Executor:        h.ToolExecutor,
-		Registry:        h.ToolRegistry,
-		AsyncTracker:    h.AsyncTracker,
-		Storage:         h.Storage,
-		ModelRegistry:   h.ModelRegistry,
-		ToolPersistence: h.ToolPersistence,
+		Repo:             h.Repo,
+		Executor:         h.ToolExecutor,
+		AsyncTracker:     h.AsyncTracker,
+		Storage:          h.Storage,
+		ModelRegistry:    h.ModelRegistry,
+		ToolPersistence:  h.ToolPersistence,
+		CommandDiscovery: services.NewSearchHubCommandDiscovery(),
 	})
 }
 

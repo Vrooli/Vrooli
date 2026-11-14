@@ -1,0 +1,8 @@
+-- System schema for content-desk.
+--
+-- This file is empty by default. It's the home for SQL that doesn't
+-- belong to any one domain — postgres extensions, custom types, and
+-- cross-domain views. Tables owned by a single domain go in
+-- internal/<dom>/schema.sql.
+--
+-- SQLite scenarios usually leave this empty.

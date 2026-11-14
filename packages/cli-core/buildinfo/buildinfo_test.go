@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestComputeFingerprint_DetectsChanges(t *testing.T) {
@@ -43,6 +45,50 @@ func TestComputeFingerprint_DetectsChanges(t *testing.T) {
 	}
 }
 
+func TestComputeFingerprint_UsesScopedCoverageOutputRoots(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write := func(name string, content []byte) {
+		t.Helper()
+		path := filepath.Join(root, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, root, name, content)
+	}
+	write(".vrooli/repo-contract.json", []byte("{}\n"))
+	write(".gitignore", []byte("/coverage/\npackages/*/coverage/\nscenarios/*/ui/coverage/\ntemplates/scenarios/*/ui/coverage/\n"))
+	write("api/internal/checks/coverage/check.go", []byte("package coverage\nconst Value = 1\n"))
+	write("api/internal/ui/coverage/check.go", []byte("package coverage\nconst UIValue = 1\n"))
+	write("coverage/index.html", []byte("root report"))
+	write("scenarios/demo/ui/coverage/index.html", []byte("scenario UI report"))
+	write("scenarios/demo/coverage/authored.go", []byte("package coverage\n"))
+
+	first, err := ComputeFingerprint(root)
+	if err != nil {
+		t.Fatalf("ComputeFingerprint: %v", err)
+	}
+	write("coverage/index.html", []byte("updated root report"))
+	write("scenarios/demo/ui/coverage/index.html", []byte("updated scenario UI report"))
+	outputsChanged, err := ComputeFingerprint(root)
+	if err != nil {
+		t.Fatalf("ComputeFingerprint after output churn: %v", err)
+	}
+	if outputsChanged != first {
+		t.Fatal("declared coverage report churn changed the source fingerprint")
+	}
+	write("api/internal/checks/coverage/check.go", []byte("package coverage\nconst Value = 2\n"))
+	sourceChanged, err := ComputeFingerprint(root)
+	if err != nil {
+		t.Fatalf("ComputeFingerprint after source edit: %v", err)
+	}
+	if sourceChanged == first {
+		t.Fatal("nested authored Go source did not change the fingerprint")
+	}
+}
+
 func TestComputeFingerprint_IgnoresModtimeAndSkippedDirs(t *testing.T) {
 	dir := t.TempDir()
 	root := filepath.Join(dir, "cli")
@@ -77,7 +123,7 @@ func TestComputeFingerprint_IgnoresModtimeAndSkippedDirs(t *testing.T) {
 
 func TestComputeFingerprint_ErrorsOnUnreadableFile(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("file permission semantics differ on Windows")
+		repocontracttest.SkipPlatform(t, "file permission semantics differ on Windows")
 	}
 	dir := t.TempDir()
 	root := filepath.Join(dir, "cli")
@@ -94,11 +140,37 @@ func TestComputeFingerprint_ErrorsOnUnreadableFile(t *testing.T) {
 }
 
 func TestSkipDirNormalizesSeparators(t *testing.T) {
-	if !skipDir("node_modules\\pkg") {
+	if !skipDir(t.TempDir(), "node_modules\\pkg") {
 		t.Fatalf("expected windows-style node_modules path to be skipped")
 	}
 	if !skipFile("custom\\cache\\index.json", []string{"custom/cache"}) {
 		t.Fatalf("expected windows-style custom/cache path to be skipped via extra list")
+	}
+}
+
+func TestIsCoverageOutputDirRequiresDeclaredRepositoryPath(t *testing.T) {
+	root := t.TempDir()
+	if IsCoverageOutputDir(root, "coverage") {
+		t.Fatal("an arbitrary input root must not turn its coverage package into an output")
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("/coverage/\npackages/*/coverage/\nscenarios/*/ui/coverage/\ntemplates/scenarios/*/ui/coverage/\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"coverage", "packages/demo/coverage", "scenarios/demo/ui/coverage", "templates/scenarios/demo/ui/coverage"} {
+		if !IsCoverageOutputDir(root, path) {
+			t.Errorf("expected repo-declared coverage output %q", path)
+		}
+	}
+	for _, path := range []string{"scenarios/demo/coverage", "api/internal/ui/coverage", "scenarios/demo/api/internal/ui/coverage"} {
+		if IsCoverageOutputDir(root, path) {
+			t.Errorf("unlisted path %q was treated as a coverage output", path)
+		}
 	}
 }
 

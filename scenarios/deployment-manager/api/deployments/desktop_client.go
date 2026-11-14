@@ -43,6 +43,7 @@ type QuickGenerateRequest struct {
 	DeploymentMode     string   `json:"deployment_mode"`
 	BundleManifestPath string   `json:"bundle_manifest_path,omitempty"`
 	Platforms          []string `json:"platforms,omitempty"`
+	StrategyID         string   `json:"strategy_id,omitempty"`
 }
 
 // QuickGenerateResponse is the response from quick desktop generation.
@@ -82,8 +83,9 @@ type PlatformResult struct {
 
 // ScenarioBuildRequest is the request for building desktop installers.
 type ScenarioBuildRequest struct {
-	Platforms []string `json:"platforms,omitempty"`
-	Clean     bool     `json:"clean,omitempty"`
+	Platforms  []string `json:"platforms,omitempty"`
+	Clean      bool     `json:"clean,omitempty"`
+	StrategyID string   `json:"strategy_id,omitempty"`
 }
 
 // ScenarioBuildResponse is the response from starting a scenario build.

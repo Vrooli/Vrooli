@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "runtime-hook",
+  "catalogId": "hooks.use-icon-morph",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.1.0",
+    "1.1.1"
+  ],
+  "description": "Coordinates icon transition timing and technique without coupling the caller to a renderer.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Use Icon Morph",
+  "draft": "",
+  "evictedVersions": [
+    "1.1.0",
+    "1.0.0",
+    "1.1.1",
+    "1.1.2"
+  ],
+  "latest": "1.1.4",
+  "libraryId": "react-component-library:useIconMorph",
+  "tags": []
+}

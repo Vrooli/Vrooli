@@ -12,27 +12,58 @@ import (
 
 // OverviewResponse mirrors the API overview endpoint payload.
 type OverviewResponse struct {
-	Items           []BacklogItem        `json:"items"`
-	Initiatives     []OverviewInitiative `json:"initiatives"`
-	DependencyGraph OverviewDepGraph     `json:"dependency_graph"`
-	Summary         OverviewSummary      `json:"summary"`
-	Governance      *GovernanceStatus    `json:"governance,omitempty"`
+	Items           []BacklogItem       `json:"items"`
+	Goals           []OverviewGoal      `json:"goals"`
+	DependencyGraph OverviewDepGraph    `json:"dependency_graph"`
+	Summary         OverviewSummary     `json:"summary"`
+	Consistency     OverviewConsistency `json:"consistency"`
+	Governance      *GovernanceStatus   `json:"governance,omitempty"`
+}
+
+// OverviewConsistency surfaces drift signals the Portfolio Manager should raise
+// but never auto-apply.
+type OverviewConsistency struct {
+	GoalScopeSuggestions []GoalScopeSuggestion `json:"goal_scope_suggestions"`
+}
+
+type GoalScopeSuggestion struct {
+	Goal   string `json:"goal"`
+	Reason string `json:"reason"`
+}
+
+// LaneStatus mirrors the per-lane utilization slice in the API governance
+// status. Lane names are "investigate", "execute", "review", "reconcile".
+type LaneStatus struct {
+	Lane     string `json:"lane"`
+	Active   int    `json:"active"`
+	Capacity int    `json:"capacity"`
+	Queue    int    `json:"queue"`
 }
 
 // GovernanceStatus mirrors the API governance status.
 type GovernanceStatus struct {
-	ActiveExecutions    int      `json:"active_executions"`
-	MaxConcurrent       int      `json:"max_concurrent"`
-	QueueDepth          int      `json:"queue_depth"`
-	MaxQueueDepth       int      `json:"max_queue_depth"`
-	CircuitBrokenItems  []string `json:"circuit_broken_items"`
-	EstimatedQueuedCost float64  `json:"estimated_queued_cost"`
+	Lanes               []LaneStatus `json:"lanes"`
+	ActiveExecutions    int          `json:"active_executions"`
+	QueueDepth          int          `json:"queue_depth"`
+	MaxQueueDepth       int          `json:"max_queue_depth"`
+	CircuitBrokenItems  []string     `json:"circuit_broken_items"`
+	EstimatedQueuedCost float64      `json:"estimated_queued_cost"`
 }
 
-// OverviewInitiative pairs an initiative with its rollup status.
-type OverviewInitiative struct {
-	Initiative Initiative       `json:"initiative"`
-	Rollup     InitiativeRollup `json:"rollup"`
+// OverviewGoal pairs a goal with its derived closure rollup.
+type OverviewGoal struct {
+	Goal struct {
+		Name     string `json:"name"`
+		Title    string `json:"title"`
+		Status   string `json:"status"`
+		Priority int    `json:"priority"`
+	} `json:"goal"`
+	Scope struct {
+		Total          int      `json:"total"`
+		CompletedCount int      `json:"completed_count"`
+		Ready          []string `json:"ready"`
+		Blocked        []string `json:"blocked"`
+	} `json:"scope"`
 }
 
 // OverviewDepGraph captures dependency edges and blocked/unblocked sets.
@@ -44,10 +75,10 @@ type OverviewDepGraph struct {
 
 // OverviewSummary provides aggregate counts.
 type OverviewSummary struct {
-	TotalItems        int            `json:"total_items"`
-	ItemsByStatus     map[string]int `json:"items_by_status"`
-	ItemsByKind       map[string]int `json:"items_by_kind"`
-	ActiveInitiatives int            `json:"active_initiatives"`
+	TotalItems    int            `json:"total_items"`
+	ItemsByStatus map[string]int `json:"items_by_status"`
+	ItemsByKind   map[string]int `json:"items_by_kind"`
+	ActiveGoals   int            `json:"active_goals"`
 }
 
 func (a *App) cmdOverview(args []string) error {
@@ -58,7 +89,7 @@ func (a *App) cmdOverview(args []string) error {
 		return err
 	}
 
-	body, err := a.getV1("/overview", nil)
+	body, err := a.core.Get("/overview", nil)
 	if err != nil {
 		return err
 	}
@@ -82,94 +113,129 @@ func printOverviewMarkdown(resp OverviewResponse) {
 	fmt.Println("## Swarm Manager Overview")
 	fmt.Println()
 
-	// Governance section.
-	if resp.Governance != nil {
-		gov := resp.Governance
-		printSection("Governance")
-		fmt.Printf("  Executions: %d/%d active | Queue: %d/%d\n",
-			gov.ActiveExecutions, gov.MaxConcurrent, gov.QueueDepth, gov.MaxQueueDepth)
-		if gov.EstimatedQueuedCost > 0 {
-			fmt.Printf("  Estimated queued cost: $%.2f\n", gov.EstimatedQueuedCost)
-		}
-		if len(gov.CircuitBrokenItems) > 0 {
-			fmt.Printf("  Circuit-broken: %s\n", strings.Join(gov.CircuitBrokenItems, ", "))
-		}
-		fmt.Println()
-	}
-
-	// Summary section.
-	printSection("Summary")
-	statusParts := formatMapCounts(resp.Summary.ItemsByStatus)
-	fmt.Printf("  Total items: %d | By status: %s\n", resp.Summary.TotalItems, statusParts)
-	kindParts := formatMapCounts(resp.Summary.ItemsByKind)
-	fmt.Printf("  By kind: %s\n", kindParts)
-	fmt.Printf("  Active initiatives: %d\n", resp.Summary.ActiveInitiatives)
-	fmt.Println()
-
-	// Initiatives section.
-	if len(resp.Initiatives) > 0 {
-		printSection("Initiatives")
-		for _, item := range resp.Initiatives {
-			init := item.Initiative
-			rollup := item.Rollup
-			fmt.Printf("  %s -- %d/%d completed -- %s\n",
-				init.Title, rollup.Completed, rollup.Total, init.Status)
-			if len(init.Items) > 0 {
-				fmt.Printf("    Items: %s\n", strings.Join(init.Items, ", "))
-			}
-		}
-		fmt.Println()
-	}
-
-	// Ready to execute (unblocked).
-	if len(resp.DependencyGraph.Unblocked) > 0 {
-		printSection("Ready to Execute (unblocked)")
-		// Build a lookup for quick access to item details.
-		itemMap := make(map[string]BacklogItem, len(resp.Items))
-		for _, item := range resp.Items {
-			itemMap[item.Kind+"/"+item.Name] = item
-		}
-		for _, key := range resp.DependencyGraph.Unblocked {
-			if item, ok := itemMap[key]; ok {
-				fmt.Printf("  - %s -- %s (priority: %d)\n", key, item.Title, item.Priority)
-			} else {
-				fmt.Printf("  - %s\n", key)
-			}
-		}
-		fmt.Println()
-	}
-
-	// Blocked items.
-	if len(resp.DependencyGraph.Blocked) > 0 {
-		printSection("Blocked")
-		// Build a reverse lookup: which deps block each item.
-		blockers := make(map[string][]string)
-		for _, edge := range resp.DependencyGraph.Edges {
-			from, to := edge[0], edge[1]
-			blockers[from] = append(blockers[from], to)
-		}
-		for _, key := range resp.DependencyGraph.Blocked {
-			deps := blockers[key]
-			sort.Strings(deps)
-			fmt.Printf("  - %s -- blocked by: %s\n", key, strings.Join(deps, ", "))
-		}
-		fmt.Println()
-	}
-
-	// Dependency graph edges.
-	if len(resp.DependencyGraph.Edges) > 0 {
-		printSection("Dependency Graph")
-		for _, edge := range resp.DependencyGraph.Edges {
-			fmt.Printf("  %s -> %s\n", edge[0], edge[1])
-		}
-		fmt.Println()
-	}
+	printOverviewGovernance(resp.Governance)
+	printOverviewSummary(resp.Summary)
+	printOverviewGoals(resp.Goals)
+	printOverviewUnblocked(resp)
+	printOverviewBlocked(resp.DependencyGraph)
+	printOverviewEdges(resp.DependencyGraph)
+	printOverviewScopeSuggestions(resp.Consistency.GoalScopeSuggestions)
 
 	// Next steps.
 	printCommandListSection("Next Steps", []string{
 		cliCommand("backlog", "list"),
-		cliCommand("initiatives", "list"),
+		cliCommand("goals", "list"),
 	})
+}
+
+func printOverviewGovernance(gov *GovernanceStatus) {
+	if gov == nil {
+		return
+	}
+	printSection("Governance")
+	fmt.Printf("  Active total: %d | Queue: %d/%d\n",
+		gov.ActiveExecutions, gov.QueueDepth, gov.MaxQueueDepth)
+	// Per-lane breakdown — mirrors the four-lane Operations Center
+	// header on the UI.
+	for _, lane := range gov.Lanes {
+		fmt.Printf("  %-12s %d/%d active", lane.Lane, lane.Active, lane.Capacity)
+		if lane.Queue > 0 {
+			fmt.Printf(" | queue %d", lane.Queue)
+		}
+		fmt.Println()
+	}
+	if gov.EstimatedQueuedCost > 0 {
+		fmt.Printf("  Estimated queued cost: $%.2f\n", gov.EstimatedQueuedCost)
+	}
+	if len(gov.CircuitBrokenItems) > 0 {
+		fmt.Printf("  Circuit-broken: %s\n", strings.Join(gov.CircuitBrokenItems, ", "))
+	}
+	fmt.Println()
+}
+
+func printOverviewSummary(summary OverviewSummary) {
+	printSection("Summary")
+	statusParts := formatMapCounts(summary.ItemsByStatus)
+	fmt.Printf("  Total items: %d | By status: %s\n", summary.TotalItems, statusParts)
+	kindParts := formatMapCounts(summary.ItemsByKind)
+	fmt.Printf("  By kind: %s\n", kindParts)
+	fmt.Printf("  Active goals: %d\n", summary.ActiveGoals)
+	fmt.Println()
+}
+
+func printOverviewGoals(goals []OverviewGoal) {
+	if len(goals) == 0 {
+		return
+	}
+	printSection("Goals")
+	for _, item := range goals {
+		fmt.Printf("  %s -- %d/%d completed -- %s\n", item.Goal.Title, item.Scope.CompletedCount, item.Scope.Total, item.Goal.Status)
+		if len(item.Scope.Ready) > 0 {
+			fmt.Printf("    Ready: %s\n", strings.Join(item.Scope.Ready, ", "))
+		}
+	}
+	fmt.Println()
+}
+
+func printOverviewUnblocked(resp OverviewResponse) {
+	if len(resp.DependencyGraph.Unblocked) == 0 {
+		return
+	}
+	printSection("Ready to Execute (unblocked)")
+	// Build a lookup for quick access to item details.
+	itemMap := make(map[string]BacklogItem, len(resp.Items))
+	for _, item := range resp.Items {
+		itemMap[item.Kind+"/"+item.Name] = item
+	}
+	for _, key := range resp.DependencyGraph.Unblocked {
+		if item, ok := itemMap[key]; ok {
+			fmt.Printf("  - %s -- %s (priority: %d)\n", key, item.Title, item.Priority)
+		} else {
+			fmt.Printf("  - %s\n", key)
+		}
+	}
+	fmt.Println()
+}
+
+func printOverviewBlocked(graph OverviewDepGraph) {
+	if len(graph.Blocked) == 0 {
+		return
+	}
+	printSection("Blocked")
+	// Build a reverse lookup: which deps block each item.
+	blockers := make(map[string][]string)
+	for _, edge := range graph.Edges {
+		from, to := edge[0], edge[1]
+		blockers[from] = append(blockers[from], to)
+	}
+	for _, key := range graph.Blocked {
+		deps := blockers[key]
+		sort.Strings(deps)
+		fmt.Printf("  - %s -- blocked by: %s\n", key, strings.Join(deps, ", "))
+	}
+	fmt.Println()
+}
+
+func printOverviewEdges(graph OverviewDepGraph) {
+	if len(graph.Edges) == 0 {
+		return
+	}
+	printSection("Dependency Graph")
+	for _, edge := range graph.Edges {
+		fmt.Printf("  %s -> %s\n", edge[0], edge[1])
+	}
+	fmt.Println()
+}
+
+func printOverviewScopeSuggestions(suggestions []GoalScopeSuggestion) {
+	if len(suggestions) == 0 {
+		return
+	}
+	printSection("Goal Scope Suggestions")
+	for _, s := range suggestions {
+		fmt.Printf("  - %s: %s\n", s.Goal, s.Reason)
+	}
+	fmt.Println()
 }
 
 // formatMapCounts renders a map as "key1(N) key2(M) ..." in sorted key order.

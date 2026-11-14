@@ -1,0 +1,115 @@
+{
+  "metadata": {
+    "name": "hive-reach-landscape-fits",
+    "description": "Renders The Hive's Reach Map wide beat at 1280x720 and asserts the room reports data-fit='ok': no figure leaves the screen and the hero never runs into the strip. A landscape room never scrolls (CC-P1-017).",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"CC-P1-017\"]"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 720
+  },
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/hive?beat=4&cycle=3600&tier=still",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /hive beat 4 at 1280x720"
+        }
+      }
+    },
+    {
+      "id": "wait-beat",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='room-composition'][data-beat='4']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Wait for the beat"
+        }
+      }
+    },
+    {
+      "id": "wait-fit",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='room-composition'][data-fit='ok'], [data-testid='room-composition'][data-fit='overflow']",
+          "state": "WAIT_STATE_ATTACHED",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for the room to report its fit"
+        }
+      }
+    },
+    {
+      "id": "assert-fit",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='room-composition'][data-fit='ok']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected the landscape room to fit the screen; data-fit-detail on the room names what left it"
+        },
+        "metadata": {
+          "label": "The room fits the screen"
+        }
+      }
+    },
+    {
+      "id": "capture",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture the fitted room"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate",
+      "target": "wait-beat",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-beat",
+      "target": "wait-fit",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "wait-fit",
+      "target": "assert-fit",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-fit",
+      "target": "capture",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

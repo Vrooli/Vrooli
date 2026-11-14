@@ -182,20 +182,31 @@ func TestCheckIframeBridgeRule_AuditorUnavailable(t *testing.T) {
 		},
 	}
 
+	callCount := 0
 	mockHTTP := &mockHTTPClient{
 		doFunc: func(req *http.Request) (*http.Response, error) {
+			callCount++
 			return nil, errors.New("connection refused")
 		},
 	}
 
 	service := NewAppServiceWithOptions(mockRepo, mockHTTP, nil)
+	service.scenarioPort = func(context.Context, string, string) (int, error) {
+		return 8090, nil
+	}
 
 	_, err := service.CheckIframeBridgeRule(context.Background(), "test-app")
 	if err == nil {
 		t.Fatal("Expected error when auditor is unavailable")
 	}
-	if !strings.Contains(err.Error(), "scenario-auditor") {
-		t.Errorf("Expected error to mention scenario-auditor, got: %v", err)
+	if callCount != 1 {
+		t.Fatalf("expected one scenario-auditor HTTP request, got %d", callCount)
+	}
+	if !errors.Is(err, ErrScenarioAuditorUnavailable) {
+		t.Errorf("expected ErrScenarioAuditorUnavailable, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "connection refused") {
+		t.Errorf("expected connection refusal detail, got: %v", err)
 	}
 }
 
@@ -211,27 +222,11 @@ func TestCheckIframeBridgeRule_RuleNotFound(t *testing.T) {
 		},
 	}
 
-	// First call finds scenario-auditor port, subsequent calls return 404
+	// The injected port resolver keeps this unit test on the HTTP rule path.
 	callCount := 0
 	mockHTTP := &mockHTTPClient{
 		doFunc: func(req *http.Request) (*http.Response, error) {
 			callCount++
-
-			// First call: locate scenario-auditor
-			if callCount == 1 {
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body: io.NopCloser(bytes.NewBufferString(`{
-						"success": true,
-						"scenarios": [{
-							"name": "scenario-auditor",
-							"ports": {"API_PORT": 8090}
-						}]
-					}`)),
-				}, nil
-			}
-
-			// Subsequent calls: rule checks return 404
 			return &http.Response{
 				StatusCode: http.StatusNotFound,
 				Body:       io.NopCloser(bytes.NewBufferString(`{"error": "scenario not found"}`)),
@@ -240,32 +235,31 @@ func TestCheckIframeBridgeRule_RuleNotFound(t *testing.T) {
 	}
 
 	service := NewAppServiceWithOptions(mockRepo, mockHTTP, nil)
+	service.scenarioPort = func(context.Context, string, string) (int, error) {
+		return 8090, nil
+	}
 
 	result, err := service.CheckIframeBridgeRule(context.Background(), "test-app")
 	if err != nil {
 		t.Fatalf("Should not error on 404, got: %v", err)
 	}
 
-	// Should have results (may be warnings from 404, or actual results from real scenario-auditor)
+	// Every rule should be checked through the deterministic fake HTTP client.
 	if len(result.Results) == 0 {
 		t.Error("Expected results to be populated")
 	}
+	if callCount != 6 {
+		t.Errorf("expected 6 scenario-auditor rule requests, got %d", callCount)
+	}
 
-	// If mock HTTP client was used (404 responses), results should have warnings.
-	// If real scenario-auditor was used (CLI port resolution succeeded), results may be valid.
-	// Accept either outcome as the test environment may vary.
 	hasWarnings := false
-	hasValidRules := false
 	for _, r := range result.Results {
 		if len(r.Warnings) > 0 {
 			hasWarnings = true
 		}
-		if r.RuleID != "" {
-			hasValidRules = true
-		}
 	}
-	if !hasWarnings && !hasValidRules {
-		t.Error("Expected either warnings (from 404) or valid rule results (from real auditor)")
+	if !hasWarnings {
+		t.Error("expected warnings for missing scenario-auditor rules")
 	}
 }
 
@@ -285,22 +279,6 @@ func TestCheckIframeBridgeRule_Success(t *testing.T) {
 	mockHTTP := &mockHTTPClient{
 		doFunc: func(req *http.Request) (*http.Response, error) {
 			callCount++
-
-			// First call: locate scenario-auditor
-			if callCount == 1 {
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body: io.NopCloser(bytes.NewBufferString(`{
-						"success": true,
-						"scenarios": [{
-							"name": "scenario-auditor",
-							"ports": {"API_PORT": 8090}
-						}]
-					}`)),
-				}, nil
-			}
-
-			// Subsequent calls: successful rule checks
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body: io.NopCloser(bytes.NewBufferString(`{
@@ -315,6 +293,9 @@ func TestCheckIframeBridgeRule_Success(t *testing.T) {
 	}
 
 	service := NewAppServiceWithOptions(mockRepo, mockHTTP, nil)
+	service.scenarioPort = func(context.Context, string, string) (int, error) {
+		return 8090, nil
+	}
 
 	result, err := service.CheckIframeBridgeRule(context.Background(), "test-app")
 	if err != nil {
@@ -337,6 +318,9 @@ func TestCheckIframeBridgeRule_Success(t *testing.T) {
 
 	if len(result.Results) == 0 {
 		t.Error("Expected results to be populated")
+	}
+	if callCount != 6 {
+		t.Errorf("expected 6 scenario-auditor rule requests, got %d", callCount)
 	}
 
 	if result.FilesScanned <= 0 {
@@ -423,7 +407,7 @@ func TestCheckLocalhostUsage_RealDirectory(t *testing.T) {
 	tempDir := t.TempDir()
 
 	apiDir := filepath.Join(tempDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("Failed to create api dir: %v", err)
 	}
 
@@ -435,7 +419,7 @@ func main() {
 	url := "http://localhost:8080/api"
 }
 `
-	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(content), 0o644); err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
@@ -473,6 +457,7 @@ func main() {
 
 func TestGetAppScenarioStatus_RequiredFields(t *testing.T) {
 	service := NewAppService(nil)
+	t.Cleanup(service.WaitForBackgroundTasks)
 
 	_, err := service.GetAppScenarioStatus(context.Background(), "")
 	if err == nil {
@@ -486,6 +471,7 @@ func TestGetAppScenarioStatus_AppNotFound(t *testing.T) {
 	}
 
 	service := NewAppService(mockRepo)
+	t.Cleanup(service.WaitForBackgroundTasks)
 
 	_, err := service.GetAppScenarioStatus(context.Background(), "nonexistent-app")
 	if err == nil {
@@ -581,6 +567,9 @@ cat <<'JSON'
 JSON
 exit 0
   fi
+
+  echo "app-monitor is running"
+  exit 0
 fi
 
 echo "unexpected args: $@" >&2
@@ -592,6 +581,7 @@ exit 1
 	}
 
 	t.Setenv("PATH", fmt.Sprintf("%s:%s", tempDir, os.Getenv("PATH")))
+	t.Setenv("VROOLI_BIN", scriptPath)
 
 	mockRepo := &mockAppRepository{
 		apps: []repository.App{
@@ -604,6 +594,7 @@ exit 1
 	}
 
 	service := NewAppService(mockRepo)
+	t.Cleanup(service.WaitForBackgroundTasks)
 
 	result, err := service.GetAppScenarioStatus(context.Background(), "app-monitor")
 	if err != nil {
@@ -621,7 +612,8 @@ exit 1
 	commands := strings.Split(strings.TrimSpace(string(logData)), "\n")
 	found := false
 	for _, cmd := range commands {
-		if cmd == "scenario status app-monitor --json" {
+		// Assert the identifier is passed to the status command.
+		if strings.HasSuffix(cmd, "scenario status app-monitor --json") {
 			found = true
 			break
 		}
@@ -698,6 +690,7 @@ exit 1
 	}
 
 	t.Setenv("PATH", fmt.Sprintf("%s:%s", tempDir, os.Getenv("PATH")))
+	t.Setenv("VROOLI_BIN", scriptPath)
 
 	mockRepo := &mockAppRepository{
 		apps: []repository.App{
@@ -710,6 +703,7 @@ exit 1
 	}
 
 	service := NewAppService(mockRepo)
+	t.Cleanup(service.WaitForBackgroundTasks)
 
 	result, err := service.GetAppScenarioStatus(context.Background(), "browser-automation-studio")
 	if err != nil {
@@ -729,7 +723,8 @@ exit 1
 	commands := strings.Split(strings.TrimSpace(string(logData)), "\n")
 	found := false
 	for _, cmd := range commands {
-		if cmd == "scenario status browser-automation-studio --json" {
+		// Match on the identifier.
+		if strings.HasSuffix(cmd, "scenario status browser-automation-studio --json") {
 			found = true
 			break
 		}

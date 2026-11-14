@@ -5,12 +5,19 @@
 import { UpdateSettingsRequestSchema } from "@vrooli/proto-types/swarm-manager/v1/api/settings_pb";
 import { DeleteConfirmLevel } from "@vrooli/proto-types/swarm-manager/v1/domain/settings_pb";
 import type { IApiClient } from "../lib/api-client";
-import type { DeleteConfirmLevel as DomainDeleteConfirmLevel } from "../types/settings";
+import type {
+  AutoFilerSettings,
+  DeleteConfirmLevel as DomainDeleteConfirmLevel,
+  DeleteConfirmationSettings,
+} from "../types/settings";
+import { defaultDeleteConfirmationLevels } from "../lib/deletable-entities";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import type { Settings } from "../types";
+import type { SettingsPolicyProjection } from "../types/settings";
 import {
   buildMessage,
+  mapProtoPolicyProjection,
   mapProtoSettings,
   parseProtoResponse,
   requireProtoField,
@@ -35,32 +42,93 @@ export const DEFAULT_SETTINGS: Settings = {
   autoFixup: false,
   maxFixupAttempts: 2,
   reviewAgentEnabled: true,
-  autoInitializeWorkshop: true,
-  autoAdvanceWorkshop: true,
-  autoCascadeWorkshop: true,
-  maxAutoRounds: 10,
-  autoAdvanceDelaySeconds: 10,
-  agentMaxTurns: 60,
+  agentMaxTurns: 600,
   agentTimeoutSeconds: 900,
-  agentRequiresApproval: true,
   searchDebounceMs: 300,
   toastDurationMs: 5000,
-  deleteConfirmation: { backlog: "simple", initiative: "strong", capture: "none" },
+  deleteConfirmation: defaultDeleteConfirmationLevels(),
   reviewCodeQualityMinScore: 60,
   reviewTestMinPassRate: 1.0,
   reviewMaxBlockingViolations: 0,
   reviewMaxWarnings: -1,
   reviewRequireScreenshots: true,
   reviewRequireTests: true,
-  maxConcurrentExecutions: 3,
+  laneConcurrencyLimits: {
+    investigate: 6,
+    execute: 3,
+    review: 8,
+    reconcile: 2,
+  },
   maxQueueDepth: 50,
   circuitBreakerThreshold: 3,
   circuitBreakerCooldownMinutes: 60,
   executionCostCapPerRun: 0,
   costPerTurnEstimate: 0.10,
+  fixBeforeFeature: "suggest",
+  autoFiler: {
+    enabled: false,
+    mode: "suggest",
+    strategy: "feature_pending",
+    maxOpenAutoFiled: 10,
+    velocityWindowDays: 7,
+    minVelocityTransitions: 1,
+    intervalMinutes: 30,
+    goalName: "automated-maintenance",
+  },
+  autonomyGateModes: {},
 };
 
 type SettingsPatch = Partial<Settings>;
+
+/**
+ * Fill any missing canonical lane keys from DEFAULT_SETTINGS so the four
+ * lanes are always present in the rendered Settings shape. The API does
+ * the same on its side; this is the UI guard.
+ */
+function normalizeLaneLimits(input?: Record<string, number>): Record<string, number> {
+  const defaults = DEFAULT_SETTINGS.laneConcurrencyLimits;
+  const out: Record<string, number> = { ...defaults };
+  if (!input) return out;
+  for (const lane of Object.keys(defaults)) {
+    const val = input[lane];
+    if (typeof val === "number" && val > 0) {
+      out[lane] = val;
+    }
+  }
+  return out;
+}
+
+/**
+ * Fill every known deletable entity key from registry defaults, overridden by
+ * any provided value. Unknown keys (e.g. from a newer API) are preserved so an
+ * older UI does not silently drop them on the next save.
+ */
+function normalizeDeleteConfirmation(
+  input?: Partial<Record<string, DomainDeleteConfirmLevel>>,
+): DeleteConfirmationSettings {
+  const out = defaultDeleteConfirmationLevels() as Record<string, DomainDeleteConfirmLevel>;
+  if (input) {
+    for (const [key, value] of Object.entries(input)) {
+      if (value) out[key] = value;
+    }
+  }
+  return out as DeleteConfirmationSettings;
+}
+
+function normalizeAutoFiler(input?: Partial<AutoFilerSettings>): AutoFilerSettings {
+  const defaults = DEFAULT_SETTINGS.autoFiler;
+  if (!input) return { ...defaults };
+  return {
+    enabled: input.enabled ?? defaults.enabled,
+    mode: input.mode === "auto_add" ? "auto_add" : defaults.mode,
+    strategy: input.strategy === "importance" ? "importance" : defaults.strategy,
+    maxOpenAutoFiled: input.maxOpenAutoFiled ?? defaults.maxOpenAutoFiled,
+    velocityWindowDays: input.velocityWindowDays ?? defaults.velocityWindowDays,
+    minVelocityTransitions: input.minVelocityTransitions ?? defaults.minVelocityTransitions,
+    intervalMinutes: input.intervalMinutes ?? defaults.intervalMinutes,
+    goalName: input.goalName?.trim() || defaults.goalName,
+  };
+}
 
 function normalizeSettings(input?: SettingsPatch): Settings {
   if (!input) return DEFAULT_SETTINGS;
@@ -70,39 +138,39 @@ function normalizeSettings(input?: SettingsPatch): Settings {
     autoFixup: input.autoFixup ?? DEFAULT_SETTINGS.autoFixup,
     maxFixupAttempts: input.maxFixupAttempts ?? DEFAULT_SETTINGS.maxFixupAttempts,
     reviewAgentEnabled: input.reviewAgentEnabled ?? DEFAULT_SETTINGS.reviewAgentEnabled,
-    autoInitializeWorkshop: input.autoInitializeWorkshop ?? DEFAULT_SETTINGS.autoInitializeWorkshop,
-    autoAdvanceWorkshop: input.autoAdvanceWorkshop ?? DEFAULT_SETTINGS.autoAdvanceWorkshop,
-    autoCascadeWorkshop: input.autoCascadeWorkshop ?? DEFAULT_SETTINGS.autoCascadeWorkshop,
-    maxAutoRounds: input.maxAutoRounds ?? DEFAULT_SETTINGS.maxAutoRounds,
-    autoAdvanceDelaySeconds: input.autoAdvanceDelaySeconds ?? DEFAULT_SETTINGS.autoAdvanceDelaySeconds,
     agentMaxTurns: input.agentMaxTurns ?? DEFAULT_SETTINGS.agentMaxTurns,
     agentTimeoutSeconds: input.agentTimeoutSeconds ?? DEFAULT_SETTINGS.agentTimeoutSeconds,
-    agentRequiresApproval: input.agentRequiresApproval ?? DEFAULT_SETTINGS.agentRequiresApproval,
     searchDebounceMs: input.searchDebounceMs ?? DEFAULT_SETTINGS.searchDebounceMs,
     toastDurationMs: input.toastDurationMs ?? DEFAULT_SETTINGS.toastDurationMs,
-    deleteConfirmation: {
-      backlog: input.deleteConfirmation?.backlog ?? DEFAULT_SETTINGS.deleteConfirmation.backlog,
-      initiative: input.deleteConfirmation?.initiative ?? DEFAULT_SETTINGS.deleteConfirmation.initiative,
-      capture: input.deleteConfirmation?.capture ?? DEFAULT_SETTINGS.deleteConfirmation.capture,
-    },
+    deleteConfirmation: normalizeDeleteConfirmation(input.deleteConfirmation),
     reviewCodeQualityMinScore: input.reviewCodeQualityMinScore ?? DEFAULT_SETTINGS.reviewCodeQualityMinScore,
     reviewTestMinPassRate: input.reviewTestMinPassRate ?? DEFAULT_SETTINGS.reviewTestMinPassRate,
     reviewMaxBlockingViolations: input.reviewMaxBlockingViolations ?? DEFAULT_SETTINGS.reviewMaxBlockingViolations,
     reviewMaxWarnings: input.reviewMaxWarnings ?? DEFAULT_SETTINGS.reviewMaxWarnings,
     reviewRequireScreenshots: input.reviewRequireScreenshots ?? DEFAULT_SETTINGS.reviewRequireScreenshots,
     reviewRequireTests: input.reviewRequireTests ?? DEFAULT_SETTINGS.reviewRequireTests,
-    maxConcurrentExecutions: input.maxConcurrentExecutions ?? DEFAULT_SETTINGS.maxConcurrentExecutions,
+    laneConcurrencyLimits: normalizeLaneLimits(input.laneConcurrencyLimits),
     maxQueueDepth: input.maxQueueDepth ?? DEFAULT_SETTINGS.maxQueueDepth,
     circuitBreakerThreshold: input.circuitBreakerThreshold ?? DEFAULT_SETTINGS.circuitBreakerThreshold,
     circuitBreakerCooldownMinutes: input.circuitBreakerCooldownMinutes ?? DEFAULT_SETTINGS.circuitBreakerCooldownMinutes,
     executionCostCapPerRun: input.executionCostCapPerRun ?? DEFAULT_SETTINGS.executionCostCapPerRun,
     costPerTurnEstimate: input.costPerTurnEstimate ?? DEFAULT_SETTINGS.costPerTurnEstimate,
+    fixBeforeFeature: input.fixBeforeFeature ?? DEFAULT_SETTINGS.fixBeforeFeature,
+    autoFiler: normalizeAutoFiler(input.autoFiler),
+    autonomyGateModes: input.autonomyGateModes ?? DEFAULT_SETTINGS.autonomyGateModes,
   };
 }
 
 export interface ISettingsService {
   get(): Promise<Settings>;
   update(patch: SettingsPatch): Promise<Settings>;
+  /**
+   * Fetch the settings → policy-controls projection: which settings are
+   * policy-level (govern the operation runner's transition policies) vs pure
+   * user preference, plus the effective control values. Returns null when the
+   * API does not serve the projection yet.
+   */
+  getPolicyProjection(): Promise<SettingsPolicyProjection | null>;
 }
 
 export function createSettingsService(apiClient: IApiClient = defaultApiClient): ISettingsService {
@@ -113,6 +181,12 @@ export function createSettingsService(apiClient: IApiClient = defaultApiClient):
       return normalizeSettings(mapProtoSettings(requireProtoField(parsed.settings, "settings")));
     },
 
+    async getPolicyProjection(): Promise<SettingsPolicyProjection | null> {
+      const data = await apiClient.get<unknown>(API_ENDPOINTS.settings);
+      const parsed = parseProtoResponse(settingsResponseSchema, data, "settings");
+      return mapProtoPolicyProjection(parsed.policyProjection);
+    },
+
     async update(patch: SettingsPatch): Promise<Settings> {
       const message = buildMessage(UpdateSettingsRequestSchema, {
         ...(patch.theme !== undefined ? { theme: patch.theme } : {}),
@@ -120,21 +194,17 @@ export function createSettingsService(apiClient: IApiClient = defaultApiClient):
         ...(patch.autoFixup !== undefined ? { autoFixup: patch.autoFixup } : {}),
         ...(patch.maxFixupAttempts !== undefined ? { maxFixupAttempts: patch.maxFixupAttempts } : {}),
         ...(patch.reviewAgentEnabled !== undefined ? { reviewAgentEnabled: patch.reviewAgentEnabled } : {}),
-        ...(patch.autoInitializeWorkshop !== undefined ? { autoInitializeWorkshop: patch.autoInitializeWorkshop } : {}),
-        ...(patch.autoAdvanceWorkshop !== undefined ? { autoAdvanceWorkshop: patch.autoAdvanceWorkshop } : {}),
-        ...(patch.autoCascadeWorkshop !== undefined ? { autoCascadeWorkshop: patch.autoCascadeWorkshop } : {}),
-        ...(patch.maxAutoRounds !== undefined ? { maxAutoRounds: patch.maxAutoRounds } : {}),
         ...(patch.agentMaxTurns !== undefined ? { agentMaxTurns: patch.agentMaxTurns } : {}),
         ...(patch.agentTimeoutSeconds !== undefined ? { agentTimeoutSeconds: patch.agentTimeoutSeconds } : {}),
-        ...(patch.agentRequiresApproval !== undefined ? { agentRequiresApproval: patch.agentRequiresApproval } : {}),
         ...(patch.searchDebounceMs !== undefined ? { searchDebounceMs: patch.searchDebounceMs } : {}),
         ...(patch.toastDurationMs !== undefined ? { toastDurationMs: patch.toastDurationMs } : {}),
         ...(patch.deleteConfirmation !== undefined ? {
-          deleteConfirmation: {
-            backlog: domainToProtoDeleteConfirmLevel(patch.deleteConfirmation.backlog),
-            initiative: domainToProtoDeleteConfirmLevel(patch.deleteConfirmation.initiative),
-            capture: domainToProtoDeleteConfirmLevel(patch.deleteConfirmation.capture),
-          },
+          deleteConfirmationLevels: Object.fromEntries(
+            Object.entries(patch.deleteConfirmation).map(([key, level]) => [
+              key,
+              domainToProtoDeleteConfirmLevel(level),
+            ]),
+          ),
         } : {}),
         ...(patch.reviewCodeQualityMinScore !== undefined ? { reviewCodeQualityMinScore: patch.reviewCodeQualityMinScore } : {}),
         ...(patch.reviewTestMinPassRate !== undefined ? { reviewTestMinPassRate: patch.reviewTestMinPassRate } : {}),
@@ -142,6 +212,15 @@ export function createSettingsService(apiClient: IApiClient = defaultApiClient):
         ...(patch.reviewMaxWarnings !== undefined ? { reviewMaxWarnings: patch.reviewMaxWarnings } : {}),
         ...(patch.reviewRequireScreenshots !== undefined ? { reviewRequireScreenshots: patch.reviewRequireScreenshots } : {}),
         ...(patch.reviewRequireTests !== undefined ? { reviewRequireTests: patch.reviewRequireTests } : {}),
+        ...(patch.laneConcurrencyLimits !== undefined ? { laneConcurrencyLimits: patch.laneConcurrencyLimits } : {}),
+        ...(patch.maxQueueDepth !== undefined ? { maxQueueDepth: patch.maxQueueDepth } : {}),
+        ...(patch.circuitBreakerThreshold !== undefined ? { circuitBreakerThreshold: patch.circuitBreakerThreshold } : {}),
+        ...(patch.circuitBreakerCooldownMinutes !== undefined ? { circuitBreakerCooldownMinutes: patch.circuitBreakerCooldownMinutes } : {}),
+        ...(patch.executionCostCapPerRun !== undefined ? { executionCostCapPerRun: patch.executionCostCapPerRun } : {}),
+        ...(patch.costPerTurnEstimate !== undefined ? { costPerTurnEstimate: patch.costPerTurnEstimate } : {}),
+        ...(patch.fixBeforeFeature !== undefined ? { fixBeforeFeature: patch.fixBeforeFeature } : {}),
+        ...(patch.autoFiler !== undefined ? { autoFiler: patch.autoFiler } : {}),
+        ...(patch.autonomyGateModes !== undefined ? { autonomyGateModes: patch.autonomyGateModes } : {}),
       });
       const data = await apiClient.put<unknown>(
         API_ENDPOINTS.settings,

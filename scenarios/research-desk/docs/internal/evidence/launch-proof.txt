@@ -1,0 +1,101 @@
+# Launch proof: one throwaway Web Console session through the governed launcher, 2026-11-11
+# Command: research-desk launch-test   (API TestLaunch; texts are launch.TestStance / TestKernel:
+# a harmless stance and a 591-character kernel telling the agent to mark the goal complete at once)
+# Report:  ~/.vrooli/state/vrooli/research-desk/launch-tests/20261111T235501Z.json
+# Session: 835fad11-5b65-4b9d-8ef2-36cb66e41f3e
+# CODEX_HOME: ~/.vrooli/state/vrooli/web-console/sessions/codex/835fad11-5b65-4b9d-8ef2-36cb66e41f3e
+#   (per-session home set by vrooli-agent-launcher from WC_SESSION_STATE_ROOT, not ~/.codex)
+
+Steps (UTC)
+  23:55:04.52  created         SessionsService.Create with X-Idempotency-Key research-desk-launch-test/20261111T235501Z
+  23:55:08.68  composer_ready  the Codex composer row appeared on the terminal screen
+  23:55:10.52  stance_sent     stance typed, then Enter
+  23:55:15.34  ready_seen      the agent replied "ready" (about 5 s)
+  23:55:15.35  goal_sent       "/goal <kernel>" typed, Enter 7 ms later
+  failed at goal_verified: no goal row in goals_1.sqlite within 2 minutes
+
+What it settled
+  - Web Console accepted the desk's local credential for Create and SendInput, but the session
+    owner reads "ui-fail-open": admission came through api-core authn.UIAvailabilityFallback,
+    so the credential itself is unverified. (Defect reported outside scope.)
+  - The kernel reached the composer whole: history.jsonl holds "/goal research-desk launch
+    test: ..." at 598 characters (6 for "/goal ", 591 kernel, the inserted newline).
+  - The stance-then-ready step works as designed.
+  - Goal submission failed for a cause found on the screen: Codex treats keys arriving in one
+    burst as a paste, so the Enter sent 7 ms after the text became a newline in the draft.
+    The stop's Ctrl+C then saved the draft to history.jsonl (ts 125 s after the stance).
+  - Fixed in api/internal/launch/launcher.go enter(): type, settle (Patience.Settle, 1 s),
+    Enter, check the screen with holds(); a second Enter if the text is still in the input
+    row; otherwise fail with "Codex kept ... in its input row after two Enters".
+    Proven live by session 2 below.
+  - Pause and resume could not be tried here (no goal existed); session 2 measured them.
+
+Cleanup (per brief: label, stop processes, keep the row)
+  Label:  research-desk launch test 20261111T235501Z (stopped; keep)
+  Policy: never      Origin: programmatic      Owner: ui-fail-open
+  No process has this CODEX_HOME on its command line (pgrep -af, 2026-11-12 00:05Z).
+  The session row is kept; nothing was deleted. Nothing was sent into any other session.
+
+
+# Session 2: 82039c84-bbb2-4ce5-a295-f97beb3bc69f, after the Enter fix (lead approved up to two more)
+# Report: ~/.vrooli/state/vrooli/research-desk/launch-tests/20261112T000748Z.json
+Steps (UTC): created 00:07:50, composer_ready, stance_sent, ready_seen 00:08, goal_sent, goal_verified 00:08:02
+  goal_verified is read from goals_1.sqlite thread_goals: objective length 591 (the kernel, whole),
+  status complete, tokens_used 1569, time_used_seconds 2.
+Goal status: after the goal complete; after /goal pause paused; after /goal resume complete; final complete.
+  (Resume of a completed goal re-activates it: Codex records status "active" and runs one
+  continuation turn, which completes it again. The desk now refuses Resume unless the goal is paused,
+  and Pause unless it is active: api/internal/launch/service.go Control.)
+Stopped: no Codex process with this CODEX_HOME; only Web Console's tmux attach clients remain.
+Row kept: Label "research-desk launch test 20261112T000748Z (stopped; keep)", Policy never,
+  Owner ui-fail-open (the fallback again). Automatic launch was then turned off; the lead
+  turned it back on through whichever access exists, shown (DECISIONS.md, "Automatic launch").
+history.jsonl: stance (300), "/goal <kernel>" (597), "/goal pause" (11), "/goal resume" (12).
+
+# Retention: do /goal pause and /goal resume count among the user messages kept at compaction?
+In the rollout each one becomes a user-role item:
+  <codex_internal_context source="user_goal"> User set goal status: "paused". </codex_internal_context>   (101 chars)
+  <codex_internal_context source="user_goal"> User set goal status: "active". </codex_internal_context>   (101 chars)
+and resume also adds a <codex_internal_context source="goal"> continuation item (6701 chars).
+Whether compaction keeps them was measured on a real supervisor session that was paused and
+resumed before it compacted (read only):
+  web-console/sessions/codex/0551a4e8-c55f-44c5-97fe-77250d331082/sessions/2026/11/10/
+    rollout-2026-11-10T09-46-45-01a1c5ec-fe6e-7d83-8bea-dc0efa1779c7.jsonl
+  user items before the first compaction: AGENTS.md, the stance, user_goal "set the goal",
+  goal continuation, user_goal "paused", user_goal "active", four goal continuations.
+  replacement_history after it (and after each of the next seven): AGENTS.md and the stance only.
+Result: goal-status and goal-continuation items are dropped at compaction; pause and resume
+do not take a retained slot and do not evict the stance. Typed messages do take one (a second
+real session, 2cf9ccfd-..., keeps every typed operator message across seven compactions).
+
+# Launch path: proven end to end on this host (create, stance, ready, /goal, goal row verified,
+# pause, resume, stop, row kept). Sessions 1 and 2 above; session 3 below measured controls during a turn.
+
+
+# Session 3: 7551d9c3-6561-472a-9e94-fcbe6f856de2, the last approved throwaway session (do pause and resume act during a running turn):
+# /goal pause and /goal resume typed while a turn is running. Driven by a temporary Go test through
+# the same Launcher (create, stance, ready, goal; then the steps below), deleted afterwards.
+# Label "research-desk control measurement <UTC stamp of 02:05> (stopped; keep)", created 02:05:43;
+# nothing written to the research home; nothing sent to any other session.
+Steps (UTC, goal status read from goals_1.sqlite, turn from the rollout)
+  02:05:53  goal set; the kernel's own turn completes it            complete
+  02:06:01  typed "Count from 1 to 600 ..." (a long turn)            turn running
+  02:06:08  typed "/goal pause", Enter, while the turn ran           paused within 1 s; turn still running
+            the screen showed "tab to queue message" under the draft: Enter submits a slash
+            command at once, Tab would queue it
+  02:06:25  the turn finished its count; no goal turn followed       paused, idle
+  02:06:36  typed the long message again                            turn running
+  02:06:43  typed "/goal resume", Enter, while the turn ran          active within 1 s; turn still running
+  02:06:59  the turn finished; a goal-continuation turn started at once and completed the goal
+  02:07:15  /compact; one compaction item, replacement_history of 10 items
+  stopped:  no Codex process with this CODEX_HOME; only Web Console's tmux attach clients remain.
+Rollout user items: AGENTS.md, stance, user_goal "set the goal", goal continuation, long message,
+  user_goal "paused" (02:06:08.778, inside the running turn), long message, user_goal "active"
+  (02:06:43.918, inside the running turn), goal continuation. No "/goal pause" or "/goal resume"
+  chat message: history.jsonl holds them only as typed input.
+replacement_history user items after /compact: the stance, both long messages, AGENTS.md. Neither
+  goal-status item nor either continuation was kept.
+Result: during a running turn /goal pause and /goal resume act at once, do not interrupt the
+  turn, are not queued as chat, and take none of the kept message slots. The desk now allows them
+  during a turn (launcher.go ready(duringTurn)); Re-send stance and Stop still wait for an idle
+  input row, since typed text would queue as a message or cut the turn.

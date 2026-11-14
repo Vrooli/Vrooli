@@ -63,6 +63,7 @@ function runEventsToXml(events: RunEvent[]): string {
       runId: event.runId,
       sequence: event.sequence,
       eventType: event.eventType,
+      raw: event.raw,
       timestamp: event.timestamp,
       data: event.data,
     }, 1))

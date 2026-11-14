@@ -1,0 +1,13 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "effort-supervisor",
+  "displayName": "Effort Supervisor",
+  "description": "Actively manages enrolled delivery efforts with freedom of operational means through large-effort-supervision and Agent Manager owner controls.",
+  "status": "active",
+  "tags": ["supervision", "evidence"],
+  "fileOrder": ["AGENT.md"],
+  "revision": 2,
+  "createdAt": "2026-09-12T00:00:00Z",
+  "updatedAt": "2026-09-14T00:00:00Z"
+}

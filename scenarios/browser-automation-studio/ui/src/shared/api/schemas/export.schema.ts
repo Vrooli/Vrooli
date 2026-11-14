@@ -32,17 +32,10 @@ export const ServerExportResponseSchema = z.object({
   message: z.string().optional(),
 });
 
-// Export status response schema (from GET /exports/:id/status)
-export const ExportStatusResponseSchema = z.object({
-  export_id: z.string(),
-  execution_id: z.string(),
-  status: ExportStatusEnumSchema,
-  format: z.string(),
-  name: z.string(),
-  storage_url: z.string().optional(),
-  file_size_bytes: z.number().optional(),
-  error: z.string().optional(),
-});
+// NOTE: ExportStatusResponseSchema (the legacy GET /exports/:id/status shape)
+// was removed in the proto+Connect migration. Status now flows through the
+// generated ExportsService Connect client; see ui/src/api/exports.ts and
+// the local interface in domains/executions/export/api/executeExport.ts.
 
 // Export progress schema (from WebSocket)
 export const ExportProgressSchema = z.object({
@@ -63,5 +56,4 @@ export type RenderSource = z.infer<typeof RenderSourceSchema>;
 export type ExportStatusEnum = z.infer<typeof ExportStatusEnumSchema>;
 export type ExportStage = z.infer<typeof ExportStageSchema>;
 export type ServerExportResponse = z.infer<typeof ServerExportResponseSchema>;
-export type ExportStatusResponse = z.infer<typeof ExportStatusResponseSchema>;
 export type ExportProgress = z.infer<typeof ExportProgressSchema>;

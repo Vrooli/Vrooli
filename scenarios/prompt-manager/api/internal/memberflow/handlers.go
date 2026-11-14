@@ -1,0 +1,555 @@
+// Package memberflow handlers for per-member topics declarations and the
+// derived graph / drain-status endpoints.
+//
+// DOC: docs/agent-system/TOPICS_SCHEMA.md
+package memberflow
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"path/filepath"
+	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/discovery"
+)
+
+// Handlers provides HTTP handlers for member-flow operations.
+type Handlers struct {
+	configDir             string
+	runtimeDataDir        string
+	knowledgeQuery        KnowledgeQuery
+	agingOpts             InboxAgingOptions
+	promptSectionProvider OperatingGraphPromptSectionProvider
+	instrumentProbe       InstrumentReachabilityChecker
+}
+
+type OperatingGraphPromptSectionProvider interface {
+	SectionsForMember(ctx context.Context, team, member string) ([]OperatingGraphPromptSection, error)
+}
+
+// NewHandlers constructs handlers rooted at the given Config and RuntimeData
+// roots. configDir is the Config-class authored store
+// (scenarios/prompt-manager/store/); runtimeDataDir is the RuntimeData root
+// (~/.vrooli/data/vrooli/prompt-manager) used by validation rules that read
+// runtime state. Team corpus data is owned by source-ledger.
+//
+// Use SetKnowledgeQuery to enable stalled_drain / piling_inbox warnings;
+// without it the API returns the pure-Go validation result.
+func NewHandlers(configDir, runtimeDataDir string) *Handlers {
+	return &Handlers{configDir: configDir, runtimeDataDir: runtimeDataDir, instrumentProbe: scenarioInstrumentReachabilityChecker{resolver: discovery.NewResolver(discovery.ResolverConfig{}), client: &http.Client{Timeout: 3 * time.Second}}}
+}
+
+// SetInstrumentReachabilityChecker replaces the live probe for deterministic
+// tests and controlled deployments. Passing nil disables probing.
+func (h *Handlers) SetInstrumentReachabilityChecker(checker InstrumentReachabilityChecker) {
+	h.instrumentProbe = checker
+}
+
+// SetKnowledgeQuery installs a backend used to compute inbox-aging warnings.
+// Pass nil to disable.
+func (h *Handlers) SetKnowledgeQuery(q KnowledgeQuery, opts InboxAgingOptions) {
+	h.knowledgeQuery = q
+	h.agingOpts = opts
+}
+
+func (h *Handlers) SetPromptSectionProvider(provider OperatingGraphPromptSectionProvider) {
+	h.promptSectionProvider = provider
+}
+
+func (h *Handlers) operatingModelService() OperatingModelService {
+	return OperatingModelService{
+		RepoRoot:       h.repoRoot(),
+		StoreDir:       h.configDir,
+		PromptSections: h.promptSectionProvider,
+	}
+}
+
+// MemberTopicsResponse is the JSON shape for a single member's declarations.
+type MemberTopicsResponse struct {
+	Team   string `json:"team"`
+	Member string `json:"member"`
+	Exists bool   `json:"exists"`
+	Topics Topics `json:"topics"`
+}
+
+// TeamTopicsResponse aggregates every member's declarations for one team.
+type TeamTopicsResponse struct {
+	Team    string                 `json:"team"`
+	Members []MemberTopicsResponse `json:"members"`
+}
+
+// GetMember handles GET /teams/{id}/members/{agentId}/topics.
+func (h *Handlers) GetMember(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	team := vars["id"]
+	member := vars["agentId"]
+	if team == "" || member == "" {
+		writeJSONError(w, http.StatusBadRequest, "team and member are required")
+		return
+	}
+	mt, err := LoadMember(h.configDir, team, member)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, MemberTopicsResponse{
+		Team:   team,
+		Member: member,
+		Exists: mt.Exists,
+		Topics: mt.Topics,
+	})
+}
+
+// PutMember handles PUT /teams/{id}/members/{agentId}/topics.
+// The request body is a Topics document; the handler validates and writes it
+// to disk. Empty body == empty Topics ({}), which is a valid "no flow" state.
+func (h *Handlers) PutMember(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	team := vars["id"]
+	member := vars["agentId"]
+	if team == "" || member == "" {
+		writeJSONError(w, http.StatusBadRequest, "team and member are required")
+		return
+	}
+
+	var t Topics
+	if r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
+			writeJSONError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+			return
+		}
+	}
+	if err := WriteMember(h.configDir, team, member, t); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, MemberTopicsResponse{
+		Team:   team,
+		Member: member,
+		Exists: true,
+		Topics: t,
+	})
+}
+
+// GetTeam handles GET /teams/{id}/topics — aggregates all members of one team.
+func (h *Handlers) GetTeam(w http.ResponseWriter, r *http.Request) {
+	team := mux.Vars(r)["id"]
+	if team == "" {
+		writeJSONError(w, http.StatusBadRequest, "team is required")
+		return
+	}
+	all, err := LoadTeam(h.configDir, team)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	out := make([]MemberTopicsResponse, 0, len(all))
+	for _, m := range all {
+		out = append(out, MemberTopicsResponse{
+			Team:   m.Ref.Team,
+			Member: m.Ref.Member,
+			Exists: m.Exists,
+			Topics: m.Topics,
+		})
+	}
+	writeJSON(w, http.StatusOK, TeamTopicsResponse{Team: team, Members: out})
+}
+
+// GraphResponse is the directed-graph view of all member declarations across
+// teams. Phase 2 returns nodes and edges only; Phase 3 layers validation
+// results on top via /topics/validate.
+type GraphResponse struct {
+	Nodes []GraphNode `json:"nodes"`
+	Edges []GraphEdge `json:"edges"`
+}
+
+// GraphNode is a single addressable element in the topic flow graph. Member
+// nodes carry a Ref; boundary nodes (external producers, work queues, PoR
+// sinks) carry a synthetic Ref with Team="<external>".
+type GraphNode struct {
+	Kind   string    `json:"kind"` // "member" | "external" | "por_file" | "skill_proposal" | "backlog" | "knowledge_sink"
+	ID     string    `json:"id"`   // unique within the response
+	Ref    MemberRef `json:"ref,omitempty"`
+	Label  string    `json:"label,omitempty"`
+	Topics Topics    `json:"topics,omitempty"` // populated for "member" nodes
+}
+
+// GraphEdge is a directed flow from source node to destination node, carrying
+// the topic prefix that connects them.
+type GraphEdge struct {
+	From   string `json:"from"`
+	To     string `json:"to"`
+	Prefix string `json:"prefix"`
+	Kind   string `json:"kind"` // "intake" | "output" | "external_producer" | "work_item"
+}
+
+// GraphWithValidationResponse pairs the directed graph with cross-graph
+// validation findings.
+type GraphWithValidationResponse struct {
+	GraphResponse
+	Validation ValidationResult `json:"validation"`
+}
+
+// GetGraph handles GET /topics/graph — returns the full directed graph
+// derived from all members' topics.json plus cross-graph validation findings.
+//
+// Optional query params:
+//   - team=<name>: filter graph + validation to one team's members
+func (h *Handlers) GetGraph(w http.ResponseWriter, r *http.Request) {
+	team := r.URL.Query().Get("team")
+
+	all, err := LoadAll(h.configDir)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Validation runs against the *full* set so cross-team references
+	// resolve correctly, then findings are filtered down to the requested
+	// team for the response.
+	skillIDs, _ := LoadSkillIDs(h.configDir)
+	repoRoot := h.repoRoot()
+	taxonomies, _ := LoadAllTaxonomies(repoRoot)
+	val := Validate(all, ValidationOptions{
+		RepoRoot:       repoRoot,
+		StoreDir:       h.configDir,
+		RuntimeDataDir: h.runtimeDataDir,
+		SkillIDs:       skillIDs,
+		Taxonomies:     taxonomies,
+	})
+
+	// Layer inbox-aging warnings if a knowledge query is wired in.
+	if h.knowledgeQuery != nil {
+		extra := EnrichWithDrainStatus(all, h.knowledgeQuery, h.agingOpts)
+		val = MergeFindings(val, extra)
+
+		// Cross-check entry topic keys against declared prefixes.
+		mismatchExtra := EnrichWithKeyPrefixMismatch(all, h.knowledgeQuery)
+		val = MergeFindings(val, mismatchExtra)
+
+		// The enrichment passes run outside the registry, so their findings
+		// have not been stamped yet. Without this they would reach the CLI with
+		// an empty Kind and be excluded from both the gate and the report.
+		StampFindingKinds(val.Findings)
+	}
+
+	if team != "" {
+		filtered := make([]MemberTopics, 0, len(all))
+		for _, m := range all {
+			if m.Ref.Team == team {
+				filtered = append(filtered, m)
+			}
+		}
+		all = filtered
+
+		filteredFindings := make([]Finding, 0, len(val.Findings))
+		errs, warns := 0, 0
+		for _, f := range val.Findings {
+			if f.Team == team {
+				filteredFindings = append(filteredFindings, f)
+				switch f.Severity {
+				case SeverityError:
+					errs++
+				case SeverityWarning:
+					warns++
+				}
+			}
+		}
+		val = ValidationResult{Findings: filteredFindings, Errors: errs, Warnings: warns}
+	}
+
+	resp := GraphWithValidationResponse{
+		GraphResponse: buildGraph(all),
+		Validation:    val,
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// repoRoot resolves the repository root from configDir
+// (.../scenarios/prompt-manager/store -> repo root).
+func (h *Handlers) repoRoot() string {
+	// store -> prompt-manager -> scenarios -> repo
+	return filepath.Clean(filepath.Join(h.configDir, "..", "..", ".."))
+}
+
+// buildGraph turns a flat slice of member declarations into a GraphResponse.
+// Pulled out for unit-testability; no I/O.
+func buildGraph(members []MemberTopics) GraphResponse {
+	resp := GraphResponse{}
+	nodeIDs := map[string]bool{}
+
+	addNode := func(n GraphNode) {
+		if !nodeIDs[n.ID] {
+			resp.Nodes = append(resp.Nodes, n)
+			nodeIDs[n.ID] = true
+		}
+	}
+
+	for _, m := range members {
+		memberID := "member:" + m.Ref.String()
+		addNode(GraphNode{Kind: "member", ID: memberID, Ref: m.Ref, Label: m.Ref.Member, Topics: m.Topics})
+
+		// External producers feed the member's intake.
+		for _, p := range m.Topics.ExternalProducers {
+			extID := "external:" + p
+			addNode(GraphNode{Kind: "external", ID: extID, Label: p})
+			resp.Edges = append(resp.Edges, GraphEdge{From: extID, To: memberID, Prefix: "", Kind: "external_producer"})
+		}
+
+		// Intake edges: source members (or external producer) -> this member.
+		// At graph-build time we render each intake claim as a "demand"
+		// edge from a synthetic prefix node to this member; the actual
+		// producer match happens during validation (Phase 3).
+		for _, e := range m.Topics.Intake {
+			prefixID := "prefix:" + e.Prefix
+			addNode(GraphNode{Kind: "knowledge_sink", ID: prefixID, Label: e.Prefix})
+			resp.Edges = append(resp.Edges, GraphEdge{From: prefixID, To: memberID, Prefix: e.Prefix, Kind: "intake"})
+		}
+
+		// Output edges: this member -> destination prefix (knowledge sink,
+		// PoR file, work queue, etc.).
+		for _, e := range m.Topics.Output {
+			var destKind, destID string
+			switch e.DestinationKind {
+			case DestinationPORFile:
+				destKind = "por_file"
+				if e.DestinationPath != nil {
+					destID = "por:" + *e.DestinationPath
+				} else {
+					destID = "por:<missing>"
+				}
+				addNode(GraphNode{Kind: destKind, ID: destID, Label: stringPtr(e.DestinationPath)})
+			case DestinationSkillProposal:
+				destKind = "skill_proposal"
+				destID = "skill-proposal"
+				addNode(GraphNode{Kind: destKind, ID: destID, Label: "skill-proposal"})
+			case DestinationBacklog:
+				destKind = "backlog"
+				destID = "backlog"
+				addNode(GraphNode{Kind: destKind, ID: destID, Label: "backlog"})
+			default:
+				destKind = "knowledge_sink"
+				destID = "prefix:" + e.Prefix
+				addNode(GraphNode{Kind: destKind, ID: destID, Label: e.Prefix})
+			}
+			resp.Edges = append(resp.Edges, GraphEdge{From: memberID, To: destID, Prefix: e.Prefix, Kind: "output"})
+		}
+
+		if m.Topics.RaisesWorkItems {
+			id := "backlog"
+			addNode(GraphNode{Kind: "backlog", ID: id, Label: "Swarm Manager work"})
+			resp.Edges = append(resp.Edges, GraphEdge{From: memberID, To: id, Prefix: "backlog", Kind: "work_item"})
+		}
+	}
+
+	return resp
+}
+
+func stringPtr(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+
+// DrainStatusEntry is one intake-prefix queue snapshot.
+type DrainStatusEntry struct {
+	Member        MemberRef `json:"member"`
+	Prefix        string    `json:"prefix"`
+	UnroutedCount int       `json:"unrouted_count"`
+	OldestAtRFC   string    `json:"oldest_at,omitempty"`
+	OldestAgeSecs int64     `json:"oldest_age_seconds,omitempty"`
+}
+
+// DrainStatusResponse is the full per-team (or per-prefix) snapshot.
+type DrainStatusResponse struct {
+	Entries []DrainStatusEntry `json:"entries"`
+	Note    string             `json:"note,omitempty"`
+}
+
+// GetOperatingModels handles GET /operating-models.
+func (h *Handlers) GetOperatingModels(w http.ResponseWriter, r *http.Request) {
+	resp, err := h.operatingModelService().List(r.Context(), operatingModelFilterFromRequest(r))
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// ValidateOperatingModelsHandler handles GET /operating-models/validate.
+func (h *Handlers) ValidateOperatingModelsHandler(w http.ResponseWriter, r *http.Request) {
+	resp, err := h.operatingModelService().Validate(r.Context(), operatingModelFilterFromRequest(r))
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func operatingModelFilterFromRequest(r *http.Request) OperatingModelFilter {
+	return OperatingModelFilter{
+		Team: r.URL.Query().Get("team"),
+		ID:   r.URL.Query().Get("id"),
+	}
+}
+
+// DiffOperatingModelsHandler handles GET /operating-models/diff.
+func (h *Handlers) DiffOperatingModelsHandler(w http.ResponseWriter, r *http.Request) {
+	resp, err := h.operatingModelService().Diff(r.Context(), operatingModelFilterFromRequest(r))
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// CoverageOperatingModelsHandler handles GET /operating-models/coverage.
+func (h *Handlers) CoverageOperatingModelsHandler(w http.ResponseWriter, r *http.Request) {
+	resp, err := h.operatingModelService().Coverage(r.Context(), operatingModelFilterFromRequest(r))
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// GetDrainStatus handles GET /topics/drain-status — returns per-intake-prefix
+// queue depth + age. Returns an empty result with a note when no knowledge
+// query is wired in (e.g. test harnesses without a team store).
+func (h *Handlers) GetDrainStatus(w http.ResponseWriter, r *http.Request) {
+	team := r.URL.Query().Get("team")
+	if h.knowledgeQuery == nil {
+		writeJSON(w, http.StatusOK, DrainStatusResponse{
+			Note: "drain-status backend not wired (KnowledgeQuery is nil)",
+		})
+		return
+	}
+
+	all, err := LoadAll(h.configDir)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	now := h.agingOpts.Now
+	if now.IsZero() {
+		now = time.Now()
+	}
+
+	resp := DrainStatusResponse{}
+	for _, m := range all {
+		if team != "" && m.Ref.Team != team {
+			continue
+		}
+		for _, in := range m.Topics.Intake {
+			entries, qerr := h.knowledgeQuery.ListUnrouted(m.Ref.Team, in.Prefix)
+			if qerr != nil {
+				resp.Entries = append(resp.Entries, DrainStatusEntry{
+					Member: m.Ref,
+					Prefix: in.Prefix,
+				})
+				continue
+			}
+			entry := DrainStatusEntry{
+				Member:        m.Ref,
+				Prefix:        in.Prefix,
+				UnroutedCount: len(entries),
+			}
+			if len(entries) > 0 {
+				oldest := oldestEntry(entries)
+				if !oldest.At.IsZero() {
+					entry.OldestAtRFC = oldest.At.UTC().Format(time.RFC3339)
+					entry.OldestAgeSecs = int64(now.Sub(oldest.At).Seconds())
+				}
+			}
+			resp.Entries = append(resp.Entries, entry)
+		}
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func writeJSON(w http.ResponseWriter, status int, body any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(body)
+}
+
+func writeJSONError(w http.ResponseWriter, status int, msg string) {
+	writeJSON(w, status, map[string]string{"error": msg})
+}
+
+// RuleCatalogEntryView is the operator-facing serialization of one catalogued
+// rule. Fields are explicit rather than reusing RuleCatalogEntry so the wire
+// shape does not silently change when internal metadata does.
+type RuleCatalogEntryView struct {
+	ID          string `json:"id"`
+	Group       string `json:"group"`
+	Severity    string `json:"severity"`
+	Kind        string `json:"kind"`
+	Description string `json:"description"`
+	Actuator    string `json:"actuator"`
+	// Findings is how many findings this rule produced in the current
+	// validation run. Zero is the number Decision 7 tracks downward.
+	Findings int `json:"findings"`
+}
+
+// RulesResponse is the catalog plus the current firing counts.
+type RulesResponse struct {
+	Rules []RuleCatalogEntryView `json:"rules"`
+	Total int                    `json:"total"`
+	// Silent counts catalogued rules that produced no finding this run. A rule
+	// that never fires is either working against a clean tree or is dead; the
+	// count alone does not distinguish them, which is why Phase 3 screened on
+	// three questions rather than this one.
+	Silent int `json:"silent"`
+}
+
+// GetRules serves the rule catalog with each rule's current finding count.
+func (h *Handlers) GetRules(w http.ResponseWriter, r *http.Request) {
+	catalog, err := DefaultRuleCatalog()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	fired := map[string]int{}
+	if all, err := LoadAll(h.configDir); err == nil {
+		skillIDs, _ := LoadSkillIDs(h.configDir)
+		taxonomies, _ := LoadAllTaxonomies(h.repoRoot())
+		result := Validate(all, ValidationOptions{
+			RepoRoot:       h.repoRoot(),
+			StoreDir:       h.configDir,
+			RuntimeDataDir: h.runtimeDataDir,
+			SkillIDs:       skillIDs,
+			Taxonomies:     taxonomies,
+		})
+		for _, f := range result.Findings {
+			fired[f.Rule]++
+		}
+	}
+
+	resp := RulesResponse{Rules: make([]RuleCatalogEntryView, 0, len(catalog))}
+	for _, id := range catalog.IDs() {
+		entry := catalog[id]
+		resp.Rules = append(resp.Rules, RuleCatalogEntryView{
+			ID:          entry.ID,
+			Group:       string(entry.Group),
+			Severity:    string(entry.Severity),
+			Kind:        string(entry.Kind),
+			Description: entry.Description,
+			Actuator:    entry.Actuator,
+			Findings:    fired[id],
+		})
+		if fired[id] == 0 {
+			resp.Silent++
+		}
+	}
+	resp.Total = len(resp.Rules)
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}

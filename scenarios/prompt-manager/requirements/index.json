@@ -2,7 +2,7 @@
   "_metadata": {
     "entity": "prompt-manager",
     "generated_at": "2026-02-01T00:00:00-05:00",
-    "generator": "prd-control-tower",
+    "generator": "business-health",
     "schema_version": "1.0"
   },
   "imports": [
@@ -25,9 +25,16 @@
     "17-team-crud-operations/module.json",
     "19-team-member-relations/module.json",
     "21-3d-world-visualization/module.json",
-    "22-pack-based-skill-organization/module.json"
+    "22-pack-based-skill-organization/module.json",
+    "23-trusted-experiment-receipt-signing/module.json"
   ],
   "modules": [
+    {
+      "id": "MOD-P0-023",
+      "path": "23-trusted-experiment-receipt-signing",
+      "priority": "P0",
+      "title": "Trusted experiment receipt signing"
+    },
     {
       "id": "MOD-P0-001",
       "path": "01-crud-operations-for-skills",

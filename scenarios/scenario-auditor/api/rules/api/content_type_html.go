@@ -76,14 +76,5 @@ TODO: Implementation required
 
 // CheckHTMLContentTypeHeaders validates HTML response Content-Type headers
 func CheckHTMLContentTypeHeaders(content []byte, filePath string) []Violation {
-	var violations []Violation
-
-	// TODO: Implement HTML Content-Type checking
-	// This is a placeholder for the actual implementation
-	// Follow the approach outlined in the comments above
-
-	_ = content
-	_ = filePath
-
-	return violations
+	return noContentTypeViolations()
 }

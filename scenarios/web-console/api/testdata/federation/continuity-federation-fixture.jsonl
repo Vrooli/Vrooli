@@ -1,0 +1,3 @@
+{"type":"thread.started","thread_id":"web-console-federation-fixture-20260906"}
+{"type":"item.completed","item":{"id":"fixture-message-1","type":"agent_message","text":"web-console continuity federation fixture: durable source identity and tombstone convergence"}}
+{"type":"turn.completed","usage":{"input_tokens":1,"cached_input_tokens":0,"output_tokens":12}}

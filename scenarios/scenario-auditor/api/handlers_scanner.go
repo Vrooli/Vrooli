@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -112,9 +111,8 @@ type SecurityScanStatus struct {
 }
 
 type SecurityScanJob struct {
-	mu     sync.RWMutex
-	status SecurityScanStatus
-	cancel context.CancelFunc
+	lifecycle *scanJobLifecycle[SecurityScanStatus]
+	cancel    context.CancelFunc
 }
 
 type SecurityScanManager struct {
@@ -145,7 +143,7 @@ func (m *SecurityScanManager) StartScan(scenarioName string, req securityScanReq
 
 	job := &SecurityScanJob{
 		cancel: cancel,
-		status: SecurityScanStatus{
+		lifecycle: newSecurityScanLifecycle(SecurityScanStatus{
 			ID:             jobID,
 			Scenario:       scenarioName,
 			ScanType:       req.Type,
@@ -153,7 +151,7 @@ func (m *SecurityScanManager) StartScan(scenarioName string, req securityScanReq
 			StartedAt:      start,
 			TotalScenarios: len(targets),
 			Message:        "Security scan started",
-		},
+		}),
 	}
 
 	m.mu.Lock()
@@ -183,52 +181,20 @@ func (m *SecurityScanManager) Cancel(jobID string) (SecurityScanStatus, error) {
 }
 
 func (job *SecurityScanJob) update(fn func(*SecurityScanStatus)) {
-	job.mu.Lock()
-	defer job.mu.Unlock()
-	fn(&job.status)
-	if !job.status.StartedAt.IsZero() {
-		job.status.ElapsedSeconds = time.Since(job.status.StartedAt).Seconds()
-	}
+	job.lifecycle.update(fn)
 }
 
 func (job *SecurityScanJob) snapshot() SecurityScanStatus {
-	job.mu.RLock()
-	defer job.mu.RUnlock()
-	copy := job.status
-	if !copy.StartedAt.IsZero() && copy.Status != "pending" {
-		copy.ElapsedSeconds = time.Since(copy.StartedAt).Seconds()
-	}
-	return copy
+	return job.lifecycle.snapshot()
 }
 
 func (job *SecurityScanJob) requestCancel() error {
-	job.mu.Lock()
-	status := job.status.Status
-	if status == "completed" || status == "failed" || status == "cancelled" {
-		job.mu.Unlock()
-		return errSecurityScanFinished
-	}
-	if status == "cancelling" {
-		job.mu.Unlock()
-		return nil
-	}
-	job.status.Status = "cancelling"
-	job.status.Message = "Cancellation requested"
-	if !job.status.StartedAt.IsZero() {
-		job.status.ElapsedSeconds = time.Since(job.status.StartedAt).Seconds()
-	}
-	cancel := job.cancel
-	job.mu.Unlock()
-
-	if cancel != nil {
-		cancel()
-	}
-	return nil
+	return job.lifecycle.requestCancel(job.cancel, errSecurityScanFinished)
 }
 
 func (job *SecurityScanJob) markCancelled() {
 	completedAt := time.Now()
-	job.update(func(status *SecurityScanStatus) {
+	job.lifecycle.finish("cancelled", func(status *SecurityScanStatus) {
 		status.Status = "cancelled"
 		status.CompletedAt = &completedAt
 		status.Message = "Security scan cancelled"
@@ -239,7 +205,7 @@ func (job *SecurityScanJob) markCancelled() {
 
 func (job *SecurityScanJob) markFailed(err error) {
 	completedAt := time.Now()
-	job.update(func(status *SecurityScanStatus) {
+	job.lifecycle.finish("failed", func(status *SecurityScanStatus) {
 		status.Status = "failed"
 		status.CompletedAt = &completedAt
 		status.Error = err.Error()
@@ -251,7 +217,7 @@ func (job *SecurityScanJob) markFailed(err error) {
 
 func (job *SecurityScanJob) markCompleted(result SecurityScanResult, processedFiles int) {
 	completedAt := time.Now()
-	job.update(func(status *SecurityScanStatus) {
+	job.lifecycle.finish("completed", func(status *SecurityScanStatus) {
 		status.Status = "completed"
 		status.CompletedAt = &completedAt
 		status.Message = result.Message
@@ -567,7 +533,7 @@ func enhancedScanScenarioHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func buildSecurityScanTargets(scenarioName string) ([]securityScanTarget, error) {
-	standardsTargets, err := buildStandardsScanTargets(scenarioName, "" /* no sandbox path override */)
+	standardsTargets, err := buildStandardsScanTargets(scenarioName, standardsScanRequestContext{})
 	if err != nil {
 		return nil, err
 	}
@@ -697,86 +663,31 @@ func cancelSecurityScanHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getSecurityScanSummaryHandler(w http.ResponseWriter, r *http.Request) {
-	jobID := strings.TrimSpace(mux.Vars(r)["jobId"])
-	if jobID == "" {
-		HTTPError(w, "Job ID is required", http.StatusBadRequest, nil)
-		return
-	}
-
-	job, ok := securityScanManager.Get(jobID)
-	if !ok {
-		HTTPError(w, "Security scan not found", http.StatusNotFound, errSecurityScanNotFound)
-		return
-	}
-
-	limit, minSeverity, groupBy := parseSummaryFilters(r)
-	status := job.snapshot()
-	if status.Result == nil || status.Result.Summary == nil {
-		HTTPError(w, "Summary not available; scan still running", http.StatusAccepted, nil)
-		return
-	}
-
-	responseSummary := cloneSummary(status.Result.Summary, limit, minSeverity)
-	if responseSummary == nil {
-		HTTPError(w, "Summary unavailable", http.StatusInternalServerError, nil)
-		return
-	}
-
-	resp := map[string]any{
-		"summary": responseSummary,
-		"filters": map[string]any{
-			"limit":        limit,
-			"min_severity": minSeverity,
-			"group_by":     groupBy,
-		},
-	}
-	if groupBy == "rule" {
-		resp["groups"] = responseSummary.ByRule
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	serveScanSummary(w, r, "Security scan", errSecurityScanNotFound, func(jobID string) (*ViolationSummary, bool) {
+		job, ok := securityScanManager.Get(jobID)
+		if !ok {
+			return nil, false
+		}
+		status := job.snapshot()
+		if status.Result == nil {
+			return nil, true
+		}
+		return status.Result.Summary, true
+	})
 }
 
 func downloadSecurityScanArtifactHandler(w http.ResponseWriter, r *http.Request) {
-	jobID := strings.TrimSpace(mux.Vars(r)["jobId"])
-	if jobID == "" {
-		HTTPError(w, "Job ID is required", http.StatusBadRequest, nil)
-		return
-	}
-	job, ok := securityScanManager.Get(jobID)
-	if !ok {
-		HTTPError(w, "Security scan not found", http.StatusNotFound, errSecurityScanNotFound)
-		return
-	}
-	status := job.snapshot()
-	if status.Result == nil || status.Result.Summary == nil || status.Result.Summary.Artifact == nil {
-		HTTPError(w, "No artifact recorded for this scan", http.StatusNotFound, nil)
-		return
-	}
-
-	artifactPath, err := resolveArtifactAbsolutePath(status.Result.Summary.Artifact.Path)
-	if err != nil {
-		HTTPError(w, "Artifact path invalid", http.StatusBadRequest, err)
-		return
-	}
-
-	file, err := os.Open(artifactPath)
-	if err != nil {
-		HTTPError(w, "Artifact not found", http.StatusNotFound, err)
-		return
-	}
-	defer file.Close()
-
-	info, err := file.Stat()
-	if err != nil {
-		HTTPError(w, "Unable to read artifact", http.StatusInternalServerError, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=security-%s.json", jobID))
-	http.ServeContent(w, r, filepath.Base(artifactPath), info.ModTime(), file)
+	serveScanArtifact(w, r, "security", "Security scan not found", errSecurityScanNotFound, func(jobID string) (string, bool, bool) {
+		job, ok := securityScanManager.Get(jobID)
+		if !ok {
+			return "", false, false
+		}
+		status := job.snapshot()
+		if status.Result == nil || status.Result.Summary == nil || status.Result.Summary.Artifact == nil {
+			return "", true, false
+		}
+		return status.Result.Summary.Artifact.Path, true, true
+	})
 }
 
 func parseSummaryFilters(r *http.Request) (int, string, string) {

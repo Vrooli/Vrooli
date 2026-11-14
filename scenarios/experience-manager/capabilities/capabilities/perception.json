@@ -1,0 +1,157 @@
+{
+  "$schema": "../../../../.vrooli/schemas/experience-capability-registry.schema.json",
+  "kind": "capability-group",
+  "schemaVersion": "1.0.0",
+  "group": {
+    "id": "perception",
+    "description": "What a surface looks like and whether that appearance survives contrast requirements, interaction states, geometry constraints, and user display preferences."
+  },
+  "capabilities": [
+    {
+      "id": "tap-target-size",
+      "title": "Usable touch targets",
+      "facets": ["promises"],
+      "description": "Every interactive element meets the 44px minimum touch target at mobile viewports, so it is operable by touch without mis-taps.",
+      "proves": {
+        "axes": { "viewport": ["mobile"] },
+        "evidence": ["ax-tree", "layout-box"],
+        "claimTypes": ["tap-target-size"]
+      },
+      "tierCeiling": "machine",
+      "appliesTo": ["component", "page", "page-template", "navigation"],
+      "rationale": "Provable today, and currently failing on Button, ControlBase, IconButton, DrawerShell, and VoiceInputButton at 40px and 36px. The floor is declared in DESIGN.md; the findings are downgraded to warnings and nothing acts on them."
+    },
+    {
+      "id": "contrast-floor",
+      "title": "Contrast floor",
+      "facets": ["promises"],
+      "description": "Text and meaningful non-text elements meet the WCAG AA contrast ratio against their actual rendered background in every declared state.",
+      "proves": {
+        "evidence": ["computed-style"],
+        "claimTypes": ["state-contrast"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "Fully deterministic and blocked solely on the computed-style evidence channel. Contrast is arithmetic once the resolved colors are readable."
+    },
+    {
+      "id": "hover-contrast",
+      "title": "Hover state remains legible",
+      "facets": ["promises"],
+      "description": "An element's hover treatment stays above the contrast floor rather than washing out the label or losing its boundary.",
+      "proves": {
+        "axes": { "interaction-state": ["hover"] },
+        "evidence": ["computed-style"],
+        "claimTypes": ["state-contrast"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "Already authored as a machine claim on ControlBase, where it reports `unverifiable: state-contrast requires computed appearance evidence`. Blocked on two things at once — the interaction-state axis is unwired and computed-style does not exist — which is exactly the distinction this registry exists to make visible."
+    },
+    {
+      "id": "focus-visible-indicator",
+      "title": "Visible keyboard focus",
+      "facets": ["promises"],
+      "description": "Keyboard focus produces a perceivable indicator that is distinguishable from both the resting and hover treatments.",
+      "proves": {
+        "axes": { "interaction-state": ["rest", "focus-visible"] },
+        "evidence": ["computed-style", "layout-box"],
+        "claimTypes": ["state-distinct"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "ui-health lints for the presence of focus-visible styles statically, but nothing verifies the rendered indicator is actually distinguishable. The static check passes on a focus ring that is the same color as the background."
+    },
+    {
+      "id": "spacing-rhythm",
+      "title": "Consistent internal spacing",
+      "facets": ["promises"],
+      "description": "Related elements inside a component maintain their declared separation, so icon-and-label pairs and grouped controls do not collide or drift apart.",
+      "proves": {
+        "evidence": ["ax-tree", "layout-box"],
+        "claimTypes": ["spacing", "size-parity"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "The evaluators exist. Both live claims of this kind (`start-icon-spacing` on Button, `error-dismiss-size-parity` on VoiceInputButton) report unverifiable because bounds are absent for one or both elements — an evidence-population problem rather than a missing checker."
+    },
+    {
+      "id": "ramp-conformance",
+      "title": "Dimensions come from the declared ramps",
+      "facets": ["promises"],
+      "description": "Every spacing, radius, elevation, duration, and type value a component renders resolves to a value in its kit's declared ramp rather than an improvised one.",
+      "proves": {
+        "evidence": ["computed-style"],
+        "claimTypes": ["ramp-conformance"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "The mechanism behind most of the perceived polish gap. Colors are systematized through 16 semantic tokens and enforced by ui-health's no-raw-hex check; nothing equivalent exists for dimension, so components draw freely from Tailwind's default 30-step scale. No evaluator exists yet, so this derives `no-checker` until one is written."
+    },
+    {
+      "id": "dark-parity",
+      "title": "Dark mode is a first-class rendering",
+      "facets": ["promises"],
+      "description": "Every declared state renders legibly in dark mode with the same information hierarchy as light, rather than inheriting light-mode assumptions.",
+      "proves": {
+        "axes": { "color-scheme": ["light", "dark"] },
+        "evidence": ["computed-style", "screenshot"],
+        "claimTypes": ["state-contrast", "state-distinct"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "The catalog's browser sweep already captures every example in both schemes and rejects blank or identical captures, so the pixels exist. The experience reconciler has no color-scheme axis, so none of that evidence reaches a claim."
+    },
+    {
+      "id": "forced-colors-legibility",
+      "title": "Usable under forced colors",
+      "facets": ["promises"],
+      "description": "Under operating-system high-contrast mode the surface remains operable and no meaning is lost, because status is never encoded in color alone.",
+      "proves": {
+        "axes": { "forced-colors": ["active"] },
+        "evidence": ["ax-tree", "computed-style"],
+        "claimTypes": ["element-present", "state-distinct"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "DESIGN.md already forbids color-only status communication across every kit. This is the axis that would actually test it."
+    },
+    {
+      "id": "text-scale-resilience",
+      "title": "Survives 200% text scaling",
+      "facets": ["promises"],
+      "description": "At doubled text size the surface remains usable with no clipped labels, no overlapping controls, and no horizontal document overflow.",
+      "proves": {
+        "axes": { "text-scale": ["double"] },
+        "evidence": ["layout-box"],
+        "claimTypes": ["no-document-horizontal-overflow", "element-present"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "WCAG 1.4.4, and DESIGN.md commits every kit to supporting user font-size scaling. Fixed-height controls are the usual failure, which makes this a direct consequence of the ramp work."
+    },
+    {
+      "id": "density-preference",
+      "title": "Renders correctly at both densities",
+      "facets": ["promises", "port"],
+      "description": "A surface renders legibly at comfortable and compact density — and reaches the current density through the host rather than deciding it locally.",
+      "proves": {
+        "axes": { "density": ["comfortable", "compact"] },
+        "evidence": ["layout-box", "computed-style"],
+        "claimTypes": ["spacing", "tap-target-size"]
+      },
+      "port": {
+        "contract": "Supplies the active density preference and notifies subscribers when it changes, so no component reads or persists density on its own.",
+        "satisfiedBy": ["template-provides", "asset"],
+        "minimumVersion": "1.0.0"
+      },
+      "tierCeiling": "machine",
+      "rationale": "The canonical dual-facet entry: an asset both promises correct rendering at each density and depends on the host to tell it which density is active. Splitting this across two registries would have required declaring it twice and let the halves drift."
+    },
+    {
+      "id": "optical-alignment",
+      "title": "Optically aligned, not merely mathematically aligned",
+      "facets": ["promises"],
+      "description": "Icons, glyphs, and shapes are positioned so they read as aligned to the eye, correcting for the difference between a bounding box and perceived visual weight.",
+      "proves": {
+        "evidence": ["screenshot", "computed-style"],
+        "claimTypes": ["optical-alignment"]
+      },
+      "tierCeiling": "manual",
+      "appliesTo": ["component", "pattern"],
+      "rationale": "Deliberately capped at manual. Partial determinism is reachable — a centered triangle in a circular button is provably off-center by a computable amount — but the general case depends on perceived weight, so a human attestation with expiry is the honest ceiling until a perception tier exists."
+    }
+  ]
+}

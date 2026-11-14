@@ -1,0 +1,252 @@
+{
+  "metadata": {
+    "name": "e21-device-read-failure-light-phone",
+    "description": "Verify device-list failure and explicit retry recovery on light phone using a disposable owner fixture; no enrollment or notification effects.",
+    "requirement": "NOTIFICA-P0-003",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "e21-reach-device-read-recovery"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Capture the selected light Reach device-read failure, then retry and prove the disposable owner list recovers.",
+      "requirement": "NOTIFICA-P0-003",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-settings-theme",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?view=all&vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-device-read-failure-light-phone&e22_fault=device-read-failure",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open Settings through the disposable owner fixture"
+          }
+        }
+      },
+      {
+        "id": "wait-settings",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/layout.main",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for Settings"
+          }
+        }
+      },
+      {
+        "id": "select-theme",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.themeOption(choice=light)"
+          },
+          "metadata": {
+            "label": "Select light appearance"
+          }
+        }
+      },
+      {
+        "id": "open-reach",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/reach?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-device-read-failure-light-phone&e22_fault=device-read-failure",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open owner-routed Reach with the leased device-read fixture"
+          }
+        }
+      },
+      {
+        "id": "wait-reach",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/reach.root",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for Reach"
+          }
+        }
+      },
+      {
+        "id": "wait-read-failure",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "text=Couldn’t load registered devices. This is not an empty list.",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the device-list failure state"
+          }
+        }
+      },
+      {
+        "id": "assert-no-false-empty",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=reach-settings]');const alert=root?.querySelector('[role=alert]');const text=alert?.innerText||'';if(!text.includes('Couldn’t load registered devices. This is not an empty list.')||root?.querySelector('[data-testid=reach-empty-devices]'))throw new Error('device failure was presented as empty or omitted: '+text);return {readFailed:true,explicitNonEmptyDisclaimer:true,emptyState:false,retryAvailable:Boolean(alert?.querySelector('button'))}})()"
+          },
+          "metadata": {
+            "label": "Confirm failure stays distinct from an empty device list and offers retry"
+          }
+        }
+      },
+      {
+        "id": "normalize-capture",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{document.activeElement instanceof HTMLElement&&document.activeElement.blur();const r=document.documentElement;r.style.setProperty('--safe-area-inset-top','0px');r.style.setProperty('--safe-area-inset-bottom','0px');const theme=r.getAttribute('data-theme');if(innerWidth!==390||innerHeight!==844||theme!=='light')throw new Error('selected viewport/theme mismatch');return {viewport:{width:innerWidth,height:innerHeight},theme,safeAreaInsets:'0px'}})()"
+          },
+          "metadata": {
+            "label": "Confirm selected phone viewport, theme, and normalized safe areas"
+          }
+        }
+      },
+      {
+        "id": "capture-failure",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the selected device-list failure recovery state"
+          }
+        }
+      },
+      {
+        "id": "retry-device-read",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Try again"
+          },
+          "metadata": {
+            "label": "Retry the owner-scoped device read"
+          }
+        }
+      },
+      {
+        "id": "wait-recovered-device",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"reach-device-e22-settings-device\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the disposable device list to recover"
+          }
+        }
+      },
+      {
+        "id": "assert-recovered",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=reach-settings]');const card=document.querySelector('[data-testid=reach-device-e22-settings-device]');if(!card||root?.querySelector('[role=alert]'))throw new Error('device read retry did not recover');return {retryRecovered:true,deviceId:'e22-settings-device',readErrorCleared:true,noEnrollmentOrPermissionAction:true}})()"
+          },
+          "metadata": {
+            "label": "Confirm retry recovers without enrollment or permission actions"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e21-device-read-failure-light-phone-00",
+        "source": "open-settings-theme",
+        "target": "wait-settings",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-device-read-failure-light-phone-01",
+        "source": "wait-settings",
+        "target": "select-theme",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-device-read-failure-light-phone-02",
+        "source": "select-theme",
+        "target": "open-reach",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-device-read-failure-light-phone-03",
+        "source": "open-reach",
+        "target": "wait-reach",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-device-read-failure-light-phone-04",
+        "source": "wait-reach",
+        "target": "wait-read-failure",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-device-read-failure-light-phone-05",
+        "source": "wait-read-failure",
+        "target": "assert-no-false-empty",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-device-read-failure-light-phone-06",
+        "source": "assert-no-false-empty",
+        "target": "normalize-capture",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-device-read-failure-light-phone-07",
+        "source": "normalize-capture",
+        "target": "capture-failure",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-device-read-failure-light-phone-08",
+        "source": "capture-failure",
+        "target": "retry-device-read",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-device-read-failure-light-phone-09",
+        "source": "retry-device-read",
+        "target": "wait-recovered-device",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-device-read-failure-light-phone-10",
+        "source": "wait-recovered-device",
+        "target": "assert-recovered",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

@@ -1,117 +1,91 @@
 package preflight
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"strconv"
 	"strings"
 
-	"scenario-to-cloud/cli/deployment"
+	"scenario-to-cloud/cli/internal/selector"
 )
 
+// targetContext is the target a preflight fix acts on, resolved from the
+// deployment's identity (locator) and its manifest. The transport
+// authenticates through the deployment's credential binding (or the
+// operator's ambient identity); no key path travels on the wire.
 type targetContext struct {
 	Host         string
 	Port         int
 	User         string
-	KeyPath      string
 	Workdir      string
 	ScenarioID   string
 	DeploymentID string
 }
 
 type preflightTargetFlags struct {
-	host       *string
-	scenarioID *string
-	domain     *string
-	target     *string
-	user       *string
-	keyPath    *string
-	sshPort    *int
-	workdir    *string
+	sel     *selector.Flags
+	user    *string
+	sshPort *int
+	workdir *string
 }
 
 func registerPreflightTargetFlags(fs *flag.FlagSet) preflightTargetFlags {
 	return preflightTargetFlags{
-		host:       fs.String("host", "", "VPS host selector"),
-		scenarioID: fs.String("scenario", "", "Scenario ID selector"),
-		domain:     fs.String("domain", "", "Domain selector"),
-		target:     fs.String("target", "", "Convenience selector (domain or host)"),
-		user:       fs.String("user", "", "Override SSH user"),
-		keyPath:    fs.String("key-path", "", "Override SSH key path"),
-		sshPort:    fs.Int("ssh-port", 0, "Override SSH port"),
-		workdir:    fs.String("workdir", "", "Override VPS workdir (used by fix-processes)"),
+		sel:     selector.Register(fs),
+		user:    fs.String("user", "", "Override SSH user"),
+		sshPort: fs.Int("ssh-port", 0, "Override SSH port"),
+		workdir: fs.String("workdir", "", "Override VPS workdir (used by fix-processes)"),
 	}
 }
 
-func (f preflightTargetFlags) resolve(client *Client) (targetContext, error) {
-	selector, err := f.toSelector()
+// resolve maps the selector to one deployment through the API and reads the
+// SSH facts from its identity and manifest. Explicit overrides win.
+func (f preflightTargetFlags) resolve(client *Client, positional []string) (targetContext, error) {
+	chosen, err := f.sel.Selector(positional)
 	if err != nil {
 		return targetContext{}, err
 	}
-
-	deploymentClient := deployment.NewClient(client.APIClient())
-	dep, err := deployment.ResolveLatestBySelector(deploymentClient, selector)
+	ref, err := client.Deployments.Resolve(context.Background(), chosen)
 	if err != nil {
-		return targetContext{}, fmt.Errorf("resolve deployment by selector: %w", err)
+		return targetContext{}, err
 	}
-	if dep == nil {
-		return targetContext{}, fmt.Errorf(
-			"no deployment found for selector host=%s scenario=%s domain=%s target=%s",
-			displayOrNA(selector.Host),
-			displayOrNA(selector.ScenarioID),
-			displayOrNA(selector.Domain),
-			displayOrNA(selector.Target),
-		)
-	}
-
-	_, getResp, err := deploymentClient.Get(dep.ID)
+	record, err := client.Deployments.Get(context.Background(), ref.GetId())
 	if err != nil {
-		return targetContext{}, fmt.Errorf("get deployment %s: %w", dep.ID, err)
+		return targetContext{}, fmt.Errorf("get deployment %s: %w", ref.GetId(), err)
 	}
-	if getResp.Deployment == nil {
-		return targetContext{}, fmt.Errorf("deployment %s not found", dep.ID)
-	}
-
-	manifest := make(map[string]interface{})
-	if len(getResp.Deployment.Manifest) > 0 {
-		if err := json.Unmarshal(getResp.Deployment.Manifest, &manifest); err != nil {
-			return targetContext{}, fmt.Errorf("decode deployment manifest: %w", err)
-		}
-	}
-
+	manifest := record.GetDeployment().GetManifest().AsMap()
 	ctx := targetContext{
 		Host:         strings.TrimSpace(getNestedString(manifest, "target", "vps", "host")),
 		Port:         getNestedInt(manifest, "target", "vps", "port"),
 		User:         strings.TrimSpace(getNestedString(manifest, "target", "vps", "user")),
-		KeyPath:      strings.TrimSpace(getNestedString(manifest, "target", "vps", "key_path")),
 		Workdir:      strings.TrimSpace(getNestedString(manifest, "target", "vps", "workdir")),
-		ScenarioID:   strings.TrimSpace(getNestedString(manifest, "scenario", "id")),
-		DeploymentID: dep.ID,
+		ScenarioID:   ref.GetScenarioId(),
+		DeploymentID: ref.GetId(),
 	}
-
-	if ctx.Host == "" {
-		ctx.Host = strings.TrimSpace(dep.Host)
+	if loc := ref.GetTarget().GetLocator(); loc != nil {
+		if ctx.Host == "" {
+			ctx.Host = strings.TrimSpace(loc.GetHost())
+		}
+		if ctx.Port == 0 {
+			ctx.Port = int(loc.GetPort())
+		}
+		if ctx.User == "" {
+			ctx.User = strings.TrimSpace(loc.GetUser())
+		}
+		if ctx.Workdir == "" {
+			ctx.Workdir = strings.TrimSpace(loc.GetWorkdir())
+		}
 	}
 	if ctx.Port == 0 {
 		ctx.Port = 22
 	}
-	if ctx.ScenarioID == "" {
-		ctx.ScenarioID = strings.TrimSpace(dep.ScenarioID)
-	}
 	if ctx.Workdir == "" {
 		ctx.Workdir = "/root/Vrooli"
 	}
-
-	// Explicit command flags take precedence over resolved deployment values.
-	if v := strings.TrimSpace(*f.host); v != "" {
-		ctx.Host = v
-	}
 	if v := strings.TrimSpace(*f.user); v != "" {
 		ctx.User = v
-	}
-	if v := strings.TrimSpace(*f.keyPath); v != "" {
-		ctx.KeyPath = v
 	}
 	if v := *f.sshPort; v > 0 {
 		ctx.Port = v
@@ -119,39 +93,10 @@ func (f preflightTargetFlags) resolve(client *Client) (targetContext, error) {
 	if v := strings.TrimSpace(*f.workdir); v != "" {
 		ctx.Workdir = v
 	}
-	if v := strings.TrimSpace(*f.scenarioID); v != "" {
-		ctx.ScenarioID = v
-	}
-
 	if ctx.Host == "" {
-		return targetContext{}, fmt.Errorf("resolved deployment %s is missing target.vps.host", dep.ID)
+		return targetContext{}, fmt.Errorf("resolved deployment %s has no target host", ref.GetId())
 	}
-	if ctx.KeyPath == "" {
-		return targetContext{}, fmt.Errorf("resolved deployment %s is missing target.vps.key_path; provide --key-path", dep.ID)
-	}
-
 	return ctx, nil
-}
-
-func (f preflightTargetFlags) toSelector() (deployment.ManifestSelector, error) {
-	host := strings.TrimSpace(*f.host)
-	scenarioID := strings.TrimSpace(*f.scenarioID)
-	domain := strings.TrimSpace(*f.domain)
-	target := strings.TrimSpace(*f.target)
-
-	if target != "" && (host != "" || domain != "") {
-		return deployment.ManifestSelector{}, fmt.Errorf("--target cannot be combined with --host or --domain")
-	}
-	if host == "" && domain == "" && target == "" {
-		return deployment.ManifestSelector{}, fmt.Errorf("at least one selector is required: --host, --domain, or --target")
-	}
-
-	return deployment.ManifestSelector{
-		Host:       host,
-		ScenarioID: scenarioID,
-		Domain:     domain,
-		Target:     target,
-	}, nil
 }
 
 func getNestedInt(m map[string]interface{}, path ...string) int {
@@ -202,12 +147,4 @@ func getNestedValue(m map[string]interface{}, path ...string) interface{} {
 		current = value
 	}
 	return nil
-}
-
-func displayOrNA(v string) string {
-	v = strings.TrimSpace(v)
-	if v == "" {
-		return "n/a"
-	}
-	return v
 }

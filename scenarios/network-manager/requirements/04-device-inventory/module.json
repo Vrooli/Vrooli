@@ -1,0 +1,28 @@
+{
+  "_metadata": {
+    "module": "device-inventory",
+    "description": "LAN-visible client inventory and identity confidence.",
+    "prd_ref": "OT-P0-004",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NM-P0-004",
+      "title": "Device inventory tracks identity with confidence notes",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "inventory",
+      "criticality": "P0",
+      "description": "The scenario shall discover and track LAN-visible clients with IP, hostname, MAC or stable identifier when available, resolver usage, group assignment, last seen time, and confidence notes for randomized or ambiguous identities.",
+      "tags": ["devices", "inventory", "identity-confidence"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add inventory merge tests tagged [REQ:NM-P0-004] for DHCP/resolver/ARP-like fake sources, randomized identity warnings, and group assignment."
+        }
+      ]
+    }
+  ]
+}

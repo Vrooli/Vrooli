@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Extraction Workbench",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Let a tool builder choose an owned extraction challenge, score exact result records, and review the persistent best-score board.",
+    "prd_refs": [
+      "OT-P0-001"
+    ]
+  },
+  "priorities": [
+    { "statement": "Make the next challenge and its task instructions immediately findable." },
+    { "statement": "Keep the score submission attached to the selected challenge and name every result by tool." },
+    { "statement": "Show the best saved results and distinguish passing scores from partial results." }
+  ],
+  "states": [
+    { "id": "default", "description": "Challenge catalog, selected challenge, submission form and best-score board are ready." },
+    { "id": "loading", "description": "Initial catalog and scoreboard requests are announced while the workbench is loading." },
+    { "id": "empty", "description": "An empty filtered family or an empty scoreboard explains what to do next." },
+    { "id": "partial", "description": "A refresh fails after data loaded; the last loaded catalog or scores remain visible with a refresh warning." },
+    { "id": "stale", "description": "Previously loaded data is shown after a refresh failure and can be retried." },
+    { "id": "request-error", "description": "Initial API failure is visible with a retry action." },
+    { "id": "submitting", "description": "Score submission is in progress and duplicate submission is disabled." },
+    { "id": "validation-error", "description": "The tool name or JSON record array needs correction; entered data is preserved." },
+    { "id": "success", "description": "The score result is shown and the persistent scoreboard refreshes." }
+  ],
+  "regions": [
+    {
+      "id": "workbench-data",
+      "purpose": "Load the owned challenge catalog and persisted best-score board that make extraction scoring operable.",
+      "required": true,
+      "component": { "library": { "component": "async-panel", "version": "1.0.5" } },
+      "lifecycle": { "kind": "async", "states": ["loading", "ready", "empty", "partial", "error"] }
+    }
+  ],
+  "elements": [
+    { "id": "workbench-region", "role": "region", "name": "Extraction workbench" }
+  ],
+  "claims": [
+    { "id": "workbench-visible", "type": "element-present", "statement": "The extraction workbench remains a named, operable primary region while its range data loads or recovers.", "tier": "machine", "elements": ["workbench-region"], "states": ["default", "loading", "empty", "partial", "stale", "request-error", "submitting", "validation-error", "success"] }
+  ],
+  "bindings": {
+    "regions": {
+      "workbench-data": { "selector": "[data-experience-surface=\"workbench-data\"]" }
+    },
+    "elements": {
+      "workbench-region": { "testid": "page-dashboard" }
+    }
+  }
+}

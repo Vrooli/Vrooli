@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package vrooli.content_desk.v1.review;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/review;review_v1";
+
+// ReviewService owns re-runnable craft and policy verdicts, not truth checks.
+service ReviewService {
+  rpc ListReviewRuns(ListReviewRunsRequest) returns (ListReviewRunsResponse);
+  rpc RecordReviewRun(RecordReviewRunRequest) returns (RecordReviewRunResponse);
+}
+
+message ReviewRun {
+  string id = 1;
+  string draft_id = 2;
+  string outcome = 3;
+}
+
+message ListReviewRunsRequest {}
+
+message ListReviewRunsResponse {
+  repeated ReviewRun review_runs = 1;
+}
+
+message Verdict {
+  string mode = 1;
+  bool passed = 2;
+  string evidence = 3;
+  string finding = 4;
+}
+message RecordReviewRunRequest {
+  string draft_id = 1;
+  repeated Verdict verdicts = 2;
+}
+message RecordReviewRunResponse {
+  ReviewRun review_run = 1;
+}

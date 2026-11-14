@@ -1,0 +1,9 @@
+syntax = "proto3";
+package vrooli.nutrition_planner.v1.cost;
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/cost;cost_v1";
+service CostService { rpc ListPriceObservations(ListPriceObservationsRequest) returns (ListPriceObservationsResponse); rpc CreatePriceObservation(CreatePriceObservationRequest) returns (CreatePriceObservationResponse); }
+message PriceObservation { string id=1; string workspace_id=2; string item_id=3; string product_id=4; string package_label=5; string package_amount=6; string package_unit=7; int64 price_minor=8; string currency=9; int32 currency_exponent=10; string retailer=11; string observed_at=12; string valid_through=13; bool available=14; bool membership_required=15; bool coupon_required=16; string minimum_buy=17; string source=18; }
+message ListPriceObservationsRequest { string workspace_id=1; string item_id=2; }
+message ListPriceObservationsResponse { repeated PriceObservation observations=1; }
+message CreatePriceObservationRequest { string workspace_id=1; string item_id=2; string product_id=3; string package_label=4; string package_amount=5; string package_unit=6; int64 price_minor=7; string currency=8; int32 currency_exponent=9; string retailer=10; string observed_at=11; string valid_through=12; bool available=13; bool membership_required=14; bool coupon_required=15; string minimum_buy=16; string source=17; }
+message CreatePriceObservationResponse { PriceObservation observation=1; }

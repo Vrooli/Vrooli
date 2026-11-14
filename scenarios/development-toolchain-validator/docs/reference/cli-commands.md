@@ -1,169 +1,184 @@
-# CLI Reference
+# CLI Commands — Development Toolchain Validator
 
-## Installation
+The scenario CLI is a thin Go wrapper over the API. Every command
+calls a single API endpoint and renders the result; there is no
+business logic in the CLI. If a command needs to make a decision the
+API doesn't expose, the correct fix is to add the API endpoint —
+**not** to compute it locally.
 
-```bash
-cd scenarios/development-toolchain-validator/cli && ./install.sh
-```
+The CLI binary is built from `cli/`, installed by `make setup` to
+`~/.vrooli/bin/development-toolchain-validator`, and rebuilt automatically when its
+sources change (cli-core's stale-detection rebuilds before any command
+that touches the API).
 
-Binary installs to `~/.vrooli/bin/development-toolchain-validator`.
+For environment-variable precedence and CLI config-file shape, see
+[`configuration.md`](configuration.md).
 
-## Configuration
+## Global flags (provided by cli-core)
 
-```bash
-development-toolchain-validator configure api_base http://localhost:${API_PORT}/api/v1
-development-toolchain-validator configure token <optional-auth-token>
-```
+Every command supports the following flags. **Do not reimplement them
+in scenario commands.**
 
-## Commands
+| Flag | Purpose |
+|---|---|
+| `--api-base <url>` | Override the API endpoint for this invocation |
+| `--auto-start` | Run `vrooli scenario start development-toolchain-validator` if the API is unreachable |
+| `--json` | Emit machine-readable JSON instead of the human report |
+| `--no-color` | Disable ANSI color (also respects the `NO_COLOR` env var) |
+| `--color` | Force-enable color (overrides terminal detection) |
+| `--help`, `-h` | Show command help |
+| `--version`, `-v` | Show the CLI version |
 
-### References
+## Built-in commands (auto-provided by `cli-core`)
 
-```bash
-# List all registered reference scenarios
-development-toolchain-validator references list [--json]
+### `development-toolchain-validator status`
 
-# Register a reference scenario
-development-toolchain-validator references add <name> --template <template>
-
-# Show reference details
-development-toolchain-validator references show <name> [--json]
-
-# Remove a reference
-development-toolchain-validator references remove <name>
-```
-
-### Skills
-
-```bash
-# List skill connections for a reference
-development-toolchain-validator skills list --reference <name> [--json]
-
-# Connect a skill to a reference
-development-toolchain-validator skills connect <skill-id> --reference <name>
-
-# Show connection details (version, drift, expectations)
-development-toolchain-validator skills show <skill-id> --reference <name> [--json]
-
-# Disconnect a skill from a reference
-development-toolchain-validator skills disconnect <skill-id> --reference <name>
-
-# Refresh version pin after reviewing drift
-development-toolchain-validator skills refresh <skill-id> --reference <name>
-```
-
-### Expectations
+Health check. Calls `GET /health` and renders status + dependency
+details. The output uses the **operational contract**:
+`Status → Triage → Next Steps`.
 
 ```bash
-# List expectations for a connection
-development-toolchain-validator expectations list \
-  --connection <skill-id>:<reference> [--json]
-
-# Add a structural expectation
-development-toolchain-validator expectations add structural \
-  --connection <skill-id>:<reference> \
-  --type <folder|file|snippet> \
-  --path <path-or-glob> \
-  [--required true|false] \
-  [--snippet-content <content>] \
-  [--snippet-location <location>] \
-  --description <text>
-
-# Add a CLI tool assertion
-development-toolchain-validator expectations add cli-tool \
-  --connection <skill-id>:<reference> \
-  --command <command-string> \
-  --path <jsonpath-expression> \
-  --op <operator> \
-  [--value <expected-value>] \
-  [--timeout <seconds>] \
-  --description <text>
-
-# Remove an expectation
-development-toolchain-validator expectations remove <expectation-id>
-```
-
-### Validation
-
-```bash
-# Run full validation for a reference
-development-toolchain-validator validate <reference> [--json]
-
-# Run validation for a specific skill connection only
-development-toolchain-validator validate <reference> --skill <skill-id> [--json]
-
-# View validation history
-development-toolchain-validator validate history <reference> [--limit 10] [--json]
-```
-
-### Drift
-
-```bash
-# Check drift for all connections on a reference
-development-toolchain-validator drift check --reference <reference> [--json]
-
-# Show drift details for a specific skill
-development-toolchain-validator drift show <skill-id> --reference <reference>
-```
-
-### Baselines [P1]
-
-```bash
-# Run all tooling baselines
-development-toolchain-validator baselines run <reference> [--json]
-
-# Run specific baseline
-development-toolchain-validator baselines run <reference> --tool <auditor|test-genie|completeness>
-
-# Configure baseline expectations
-development-toolchain-validator baselines configure <tool> \
-  --reference <reference> \
-  [--expected-violations 0] \
-  [--expected-all-pass true] \
-  [--expected-min-score 96]
-
-# View baseline history
-development-toolchain-validator baselines history <reference> [--json]
-
-# Check for regressions
-development-toolchain-validator baselines regressions <reference> [--json]
-```
-
-### Reports [P1]
-
-```bash
-# Full report for a reference
-development-toolchain-validator report <reference> [--json]
-
-# Coverage map
-development-toolchain-validator coverage <reference> [--json]
-
-# Maturity scores
-development-toolchain-validator maturity <reference> [--json]
-```
-
-### System
-
-```bash
-# Check API health
 development-toolchain-validator status
-
-# Show version
-development-toolchain-validator version
-
-# Show help
-development-toolchain-validator help
+development-toolchain-validator status --json
 ```
 
-## Output Modes
+### `development-toolchain-validator configure <key> <value>`
 
-All commands support `--json` for machine-readable output. Default output is human-readable formatted text.
+Persist a setting to the per-user CLI config file (location resolved
+per [`configuration.md`](configuration.md#cli-config-file)).
 
-## Exit Codes
+```bash
+development-toolchain-validator configure api_base http://localhost:15001/api/v1
+development-toolchain-validator configure token <token>
+```
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1 | Validation failures detected |
-| 2 | Configuration or connection error |
-| 3 | API unreachable |
+Read values back without an argument:
+
+```bash
+development-toolchain-validator configure api_base
+```
+
+## Scenario commands — `notes` (CRUD reference)
+
+The `notes` domain is the canonical worked example. Copy its layout
+when adding the first non-trivial domain to your scenario.
+
+### `development-toolchain-validator notes list`
+
+List notes, newest-first. Calls the generated Connect-RPC
+`Notes/List` method. Uses the
+**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
+
+```bash
+development-toolchain-validator notes list
+development-toolchain-validator notes list --json
+```
+
+### `development-toolchain-validator notes create --title <title> [--body <body>]`
+
+Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
+contract**: `Result → What Changed → Next Command`.
+
+```bash
+development-toolchain-validator notes create --title "First note" --body "Hello world"
+```
+
+`--title` is required. `--body` is optional. Validation lives in the
+API service, so an empty title surfaces as an `invalid_argument`
+Connect error rather than a CLI-side check.
+
+### `development-toolchain-validator notes get <id>`
+
+Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
+
+```bash
+development-toolchain-validator notes get abc123
+```
+
+A non-existent id surfaces as `not_found`; the CLI translates the
+typed Connect code to an actionable error message.
+
+### `development-toolchain-validator notes attach <id> --file <path>`
+
+Attach a file to a note. This is the documented REST multipart
+exception because the request body contains opaque bytes. The response
+is proto-typed attachment metadata.
+
+```bash
+development-toolchain-validator notes attach abc123 --file ./example.png
+```
+
+## Output contracts
+
+Every scenario command should render through one of three human
+contracts. Proto-backed commands should use `cliapp.RenderProtoList`
+or `cliapp.RenderProtoMutation`: human consumers see the report, while
+`--json` consumers receive the proto JSON response shape.
+
+| Contract | Used by | Structure |
+|---|---|---|
+| **Operational** | `status`, `health`, `audit`, `validate`, `doctor` | Status → Triage → Next Steps |
+| **Data Retrieval** | `list`, `get`, `view`, `search` | Summary → Results → Retrieval Hints |
+| **Mutation** | `create`, `update`, `delete`, `start`, `stop` | Result → What Changed → Next Command |
+
+For commands that aggregate multiple API calls or produce a
+non-proto report, use the `RunContext` render helpers directly
+(`ctx.RenderList`, `ctx.RenderMutation`, or the operational report
+helpers).
+
+## Adding a new command
+
+For a new domain, copy the notes command group first, then replace it
+once your real domain is green.
+
+For a command inside an existing domain:
+
+1. If the command needs a new API endpoint, add it first per
+   [`api-endpoints.md`](api-endpoints.md#adding-a-new-endpoint).
+2. Add the command to `cli/domains/<domain>/register.go`.
+3. Implement its handler in `cli/domains/<domain>/handlers.go` or a
+   focused sibling file.
+4. The handler should:
+   - Declare flags and positionals in `cliapp.ArgSchema`; cli-core
+     uses the schema for parsing and help output.
+   - Implement `RunCtx func(ctx cliapp.RunContext) error`, then read
+     values with `ctx.Flag(...)`, `ctx.Positional(...)`, and
+     `ctx.JSON()`.
+   - Construct generated Connect clients with
+     `cliapp.NewConnectHTTPClient(core)` for proto-typed operations.
+   - Use `cliapp.UploadFile` only for documented multipart REST
+     exceptions.
+   - Mark the command with `NeedsAPI: true` so stale-checking,
+     token validation, and `--auto-start` preflight all stay
+     connected automatically
+   - Render proto-backed responses with `cliapp.RenderProtoList` or
+     `cliapp.RenderProtoMutation`.
+5. Add endpoint metadata in the API handler module and add a matching
+   row to `api/cmd/gen-endpoints/cli_commands_seed.json`. Then run
+   `make endpoints`; do not edit [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json)
+   by hand.
+6. Add a row to this document.
+7. Add a handler test in
+   `cli/domains/<domain>/handlers_test.go` using `clitest.NewTestApp`
+   + `clitest.NewAPIServer` + `clitest.CaptureStdout` (see
+   [`../internal/TESTING.md`](../internal/TESTING.md)).
+
+## Command structure principles
+
+- **Subcommand groups** (`notes list`, `notes create`) over flat
+  verbs (`list-notes`, `create-note`). Discoverability via `--help`
+  is the goal.
+- **Positional for required, flags for optional.** `notes get <id>`
+  not `notes get --id <id>`.
+- **One command per API endpoint.** If you find yourself making two
+  endpoint calls, the API is missing a use-case.
+- **Error messages must be actionable.** "API unreachable" is bad;
+  "API unreachable at http://localhost:15001 — try `--auto-start` or
+  `vrooli scenario start development-toolchain-validator`" is good.
+
+## Cross-references
+
+- [`api-endpoints.md`](api-endpoints.md) — API endpoints these commands mirror
+- [`configuration.md`](configuration.md) — env vars and config-file precedence
+- [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for "API unreachable", auth, stale binary
+- [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#inside-the-cli-thin-wrapper-domain-organized) — CLI architecture

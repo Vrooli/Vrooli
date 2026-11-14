@@ -40,7 +40,13 @@ export function PendingApprovalCard({
     } else if (args && typeof args === "object") {
       return JSON.stringify(args, null, 2);
     }
-    return String(args ?? "{}");
+    if (args === null || args === undefined) {
+      return "{}";
+    }
+    if (typeof args === "number" || typeof args === "boolean" || typeof args === "bigint") {
+      return String(args);
+    }
+    return JSON.stringify(args);
   };
 
   const formattedArgs = formatArguments(approval.arguments);

@@ -45,4 +45,3 @@ func (s *WorkflowService) DeleteProjectWorkflows(ctx context.Context, projectID 
 
 	return nil
 }
-

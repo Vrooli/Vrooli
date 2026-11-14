@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package landing_page_react_vite.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1";
+
+// =============================================================================
+// ASSETS DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain assets
+// @imports none
+// @stability stable
+//
+// Image asset library for branding (logos, favicons, OG images, general).
+// Upload is a deliberate REST multipart exception (binary body cannot ride a
+// unary proto call); the response payload and every other operation are
+// proto-typed. Uploaded bytes are served publicly under /api/v1/uploads/.
+//
+// =============================================================================
+
+// Asset is an uploaded image with its stored derivatives.
+message Asset {
+  int64 id = 1;
+  string filename = 2;
+  string original_filename = 3;
+  string mime_type = 4;
+  int64 size_bytes = 5;
+  string storage_path = 6;
+  optional string thumbnail_path = 7;
+  optional string alt_text = 8;
+  // Category: logo|favicon|og_image|general.
+  string category = 9;
+  optional string uploaded_by = 10;
+  google.protobuf.Timestamp created_at = 11;
+  // Public URL: /api/v1/uploads/<storage_path>.
+  string url = 12;
+  // Derivative slot -> public path (e.g. "logo_256", "favicon_32").
+  map<string, string> derivatives = 13;
+}
+
+// ListAssetsRequest lists assets, optionally filtered by category.
+message ListAssetsRequest {
+  string category = 1;
+}
+
+// ListAssetsResponse returns the matching assets.
+message ListAssetsResponse {
+  repeated Asset assets = 1;
+}
+
+// GetAssetRequest fetches a single asset by id.
+message GetAssetRequest {
+  int64 id = 1;
+}
+
+// AssetResponse returns a single asset (also the multipart upload response).
+message AssetResponse {
+  Asset asset = 1;
+}
+
+// DeleteAssetRequest deletes an asset (DB row then file) by id.
+message DeleteAssetRequest {
+  int64 id = 1;
+}
+
+// DeleteAssetResponse acknowledges a deletion.
+message DeleteAssetResponse {
+  bool deleted = 1;
+}
+
+// AssetsService manages the branding image library. UploadAsset is served as a
+// REST multipart exception (see the endpoint descriptor) and returns AssetResponse.
+service AssetsService {
+  // Lists assets by category (admin).
+  rpc ListAssets(ListAssetsRequest) returns (ListAssetsResponse);
+  // Fetches a single asset (admin).
+  rpc GetAsset(GetAssetRequest) returns (AssetResponse);
+  // Deletes an asset (admin).
+  rpc DeleteAsset(DeleteAssetRequest) returns (DeleteAssetResponse);
+}

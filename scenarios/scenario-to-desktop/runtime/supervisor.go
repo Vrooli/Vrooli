@@ -38,28 +38,35 @@ package bundleruntime
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	"scenario-to-desktop-runtime/api"
-	"scenario-to-desktop-runtime/assets"
-	"scenario-to-desktop-runtime/config"
-	"scenario-to-desktop-runtime/env"
-	"scenario-to-desktop-runtime/gpu"
-	"scenario-to-desktop-runtime/health"
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/migrations"
-	"scenario-to-desktop-runtime/ports"
-	"scenario-to-desktop-runtime/secrets"
-	"scenario-to-desktop-runtime/telemetry"
+	"github.com/vrooli/vrooli/internal/peerrecord"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/assets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/components"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/config"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/env"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/gpu"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/health"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/migrations"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/ports"
+	resourceplan "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/resources"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/secrets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/telemetry"
 )
 
 // =============================================================================
@@ -120,8 +127,12 @@ type Supervisor struct {
 	envReader     EnvReader
 	portAllocator PortAllocator
 	secretStore   secrets.Store
-	healthChecker HealthChecker
-	telemetry     telemetry.Recorder
+	// secretInjector is retained so the paths of materialized file-target
+	// secrets survive long enough to be cleaned up.
+	secretInjector     *secrets.Injector
+	secretInjectorOnce sync.Once
+	healthChecker      HealthChecker
+	telemetry          telemetry.Recorder
 
 	// Cached domain objects (created once, reused).
 	envRenderer       *env.Renderer
@@ -130,30 +141,43 @@ type Supervisor struct {
 	migrationExecutor migrations.Runner
 
 	// Paths and auth.
-	authToken      string
-	appData        string
-	telemetryPath  string
-	migrationsPath string
-	instanceID     string
-	manifestHash   string
-	startedAt      time.Time
+	authToken          string
+	appData            string
+	telemetryPath      string
+	migrationsPath     string
+	instanceID         string
+	manifestHash       string
+	startedAt          time.Time
+	peerHome           string
+	peerPublished      bool
+	components         *components.Manager
+	activeComponents   map[string]components.Installation
+	componentOverrides map[string][]manifest.Service
+	resourcePlan       *resourceplan.Plan
+	resourceServer     *resourceplan.ServiceSupervisor
+	authModes          *authenticationModeManager
 
 	// Runtime state.
 	serviceStatus   map[string]ServiceStatus
+	statusChanges   chan struct{}
 	procs           map[string]*serviceProcess
 	migrations      MigrationsState
 	gpuStatus       GPUStatus
 	servicesStarted bool
 	started         bool
+	isolation       []api.IsolationObservation
 
 	// HTTP server.
 	server *http.Server
 
 	// Concurrency control.
-	mu         sync.RWMutex
-	wg         sync.WaitGroup
-	cancel     context.CancelFunc
-	runtimeCtx context.Context
+	mu           sync.RWMutex
+	componentMu  sync.Mutex
+	stateMu      sync.RWMutex
+	wg           sync.WaitGroup
+	cancel       context.CancelFunc
+	runtimeCtx   context.Context
+	shutdownDone chan struct{}
 }
 
 // Manifest is an alias for the manifest package type for convenience.
@@ -165,109 +189,165 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 	if opts.Manifest == nil {
 		return nil, errors.New("manifest is required")
 	}
-
-	appData := opts.AppDataDir
-	if appData == "" {
-		base, err := os.UserConfigDir()
-		if err != nil {
-			return nil, fmt.Errorf("resolve app data dir: %w", err)
+	resourcePlan, err := loadResourcePlan(opts.BundlePath)
+	if err != nil {
+		return nil, err
+	}
+	appData, err := resolveAppDataDir(opts)
+	if err != nil {
+		return nil, err
+	}
+	componentManager := components.New(appData, opts.Manifest.App.Version, opts.Manifest.Components)
+	activeComponents := map[string]components.Installation{}
+	if opts.Manifest.Components != nil {
+		raw, marshalErr := json.Marshal(opts.Manifest)
+		if marshalErr != nil {
+			return nil, marshalErr
 		}
-		appData = filepath.Join(base, config.SanitizeAppName(opts.Manifest.App.Name))
+		var merged manifest.Manifest
+		if mergeErr := json.Unmarshal(raw, &merged); mergeErr != nil {
+			return nil, mergeErr
+		}
+		if mergeErr := componentManager.Merge(context.Background(), &merged); mergeErr != nil {
+			return nil, mergeErr
+		}
+		rows, err := componentManager.Installed(context.Background())
+		if err != nil {
+			return nil, err
+		}
+		for _, row := range rows {
+			if row.State == components.Installed {
+				activeComponents[row.Signed.Entry.ID] = row
+			}
+		}
+		opts.Manifest = &merged
 	}
-
-	// Set default implementations for nil dependencies.
-	clock := opts.Clock
-	if clock == nil {
-		clock = RealClock{}
-	}
-
-	fileSystem := opts.FileSystem
-	if fileSystem == nil {
-		fileSystem = RealFileSystem{}
-	}
-
-	dialer := opts.NetworkDialer
-	if dialer == nil {
-		dialer = RealNetworkDialer{}
-	}
-
-	procRunner := opts.ProcessRunner
-	if procRunner == nil {
-		procRunner = infra.RealProcessRunner{}
-	}
-
-	cmdRunner := opts.CommandRunner
-	if cmdRunner == nil {
-		cmdRunner = infra.RealCommandRunner{}
-	}
-
-	envReader := opts.EnvReader
-	if envReader == nil {
-		envReader = infra.RealEnvReader{}
-	}
-
-	gpuDetector := opts.GPUDetector
-	if gpuDetector == nil {
-		gpuDetector = gpu.NewDetector(cmdRunner, envReader)
-	}
-
-	portAllocator := opts.PortAllocator
-	if portAllocator == nil {
-		portAllocator = ports.NewManager(opts.Manifest, dialer)
-	}
-
-	// Compute paths for secret manager.
-	secretsPath := filepath.Join(appData, "secrets.json")
-
-	// Create or use provided SecretStore.
-	secretStore := opts.SecretStore
-	if secretStore == nil {
-		secretStore = secrets.NewManager(opts.Manifest, fileSystem, secretsPath)
-	}
+	deps := resolveDependencies(opts, appData)
 
 	s := &Supervisor{
-		opts:          opts,
-		clock:         clock,
-		fs:            fileSystem,
-		dialer:        dialer,
-		procRunner:    procRunner,
-		cmdRunner:     cmdRunner,
-		gpuDetector:   gpuDetector,
-		envReader:     envReader,
-		portAllocator: portAllocator,
-		secretStore:   secretStore,
-		appData:       appData,
-		serviceStatus: make(map[string]ServiceStatus),
-		procs:         make(map[string]*serviceProcess),
-		instanceID:    newInstanceID(),
-		manifestHash:  hashManifest(opts.Manifest),
+		components:       componentManager,
+		activeComponents: activeComponents,
+		opts:             opts,
+		clock:            deps.clock,
+		fs:               deps.fileSystem,
+		dialer:           deps.dialer,
+		procRunner:       deps.procRunner,
+		cmdRunner:        deps.cmdRunner,
+		gpuDetector:      deps.gpuDetector,
+		envReader:        deps.envReader,
+		portAllocator:    deps.portAllocator,
+		secretStore:      deps.secretStore,
+		appData:          appData,
+		peerHome:         opts.PeerHomeDir,
+		serviceStatus:    make(map[string]ServiceStatus),
+		statusChanges:    make(chan struct{}, 1),
+		shutdownDone:     make(chan struct{}),
+		procs:            make(map[string]*serviceProcess),
+		instanceID:       newInstanceID(),
+		manifestHash:     hashManifest(opts.Manifest),
+		resourcePlan:     resourcePlan,
 		// Create envRenderer now since all dependencies are available.
-		envRenderer: env.NewRenderer(appData, opts.BundlePath, portAllocator, envReader),
+		envRenderer: env.NewRenderer(appData, opts.BundlePath, deps.portAllocator, deps.envReader),
 	}
 
-	// Create or use provided HealthChecker.
-	if opts.HealthChecker != nil {
-		s.healthChecker = opts.HealthChecker
-	} else {
-		s.healthChecker = health.NewMonitor(health.MonitorConfig{
-			Manifest:     opts.Manifest,
-			Ports:        portAllocator,
-			Dialer:       dialer,
-			CmdRunner:    cmdRunner,
-			FS:           fileSystem,
-			Clock:        clock,
-			AppData:      appData,
-			StatusGetter: s.getStatus, // Closure captures supervisor
+	s.healthChecker = resolveHealthChecker(opts, deps, appData, s.getStatus, func(serviceID string, attempt int, success bool, at time.Time) {
+		_ = s.recordTelemetry("service_health_probe", map[string]interface{}{
+			"service_id": serviceID, "attempt": attempt, "success": success,
+			"observed_at": at.UTC().Format(time.RFC3339Nano),
 		})
+	})
+	if s.authModes, err = newAuthenticationModeManager(s.fs, s.clock, s.appData, opts.Manifest.Authentication); err != nil {
+		return nil, err
 	}
 
 	return s, nil
+}
+
+type runtimeDependencies struct {
+	clock         Clock
+	fileSystem    FileSystem
+	dialer        NetworkDialer
+	procRunner    ProcessRunner
+	cmdRunner     CommandRunner
+	gpuDetector   GPUDetector
+	envReader     EnvReader
+	portAllocator PortAllocator
+	secretStore   secrets.Store
+}
+
+func loadResourcePlan(bundlePath string) (*resourceplan.Plan, error) {
+	if bundlePath == "" {
+		return nil, nil
+	}
+	plan, err := resourceplan.Load(bundlePath)
+	if err != nil {
+		return nil, fmt.Errorf("validate resolved resource deployment plan: %w", err)
+	}
+	return plan, nil
+}
+
+func resolveAppDataDir(opts Options) (string, error) {
+	if opts.AppDataDir != "" {
+		return opts.AppDataDir, nil
+	}
+	base, err := os.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve app data dir: %w", err)
+	}
+	return filepath.Join(base, config.SanitizeAppName(opts.Manifest.App.Name)), nil
+}
+
+func resolveDependencies(opts Options, appData string) runtimeDependencies {
+	deps := runtimeDependencies{clock: opts.Clock, fileSystem: opts.FileSystem, dialer: opts.NetworkDialer, procRunner: opts.ProcessRunner, cmdRunner: opts.CommandRunner, gpuDetector: opts.GPUDetector, envReader: opts.EnvReader, portAllocator: opts.PortAllocator, secretStore: opts.SecretStore}
+	if deps.clock == nil {
+		deps.clock = RealClock{}
+	}
+	if deps.fileSystem == nil {
+		deps.fileSystem = RealFileSystem{}
+	}
+	if deps.dialer == nil {
+		deps.dialer = RealNetworkDialer{}
+	}
+	if deps.procRunner == nil {
+		deps.procRunner = infra.RealProcessRunner{}
+	}
+	if deps.cmdRunner == nil {
+		deps.cmdRunner = infra.RealCommandRunner{}
+	}
+	if deps.envReader == nil {
+		deps.envReader = infra.RealEnvReader{}
+	}
+	if deps.gpuDetector == nil {
+		deps.gpuDetector = gpu.NewDetector(deps.cmdRunner, deps.envReader)
+	}
+	if deps.portAllocator == nil {
+		deps.portAllocator = ports.NewManager(opts.Manifest, deps.dialer)
+	}
+	if deps.secretStore == nil {
+		nativeStore, err := secrets.NewNativeManager(opts.Manifest)
+		if err != nil {
+			deps.secretStore = secrets.NewUnavailableManager(opts.Manifest, err)
+		} else {
+			deps.secretStore = nativeStore
+		}
+	}
+	return deps
+}
+
+func resolveHealthChecker(opts Options, deps runtimeDependencies, appData string, statusGetter func(string) (health.Status, bool), onReadinessProbe func(string, int, bool, time.Time)) HealthChecker {
+	if opts.HealthChecker != nil {
+		return opts.HealthChecker
+	}
+	return health.NewMonitor(health.MonitorConfig{Manifest: opts.Manifest, Ports: deps.portAllocator, Dialer: deps.dialer, CmdRunner: deps.cmdRunner, FS: deps.fileSystem, Clock: deps.clock, AppData: appData, StatusGetter: statusGetter, OnReadinessProbe: onReadinessProbe})
 }
 
 // Start initializes the supervisor and begins service orchestration.
 // It sets up the control API, loads secrets and migrations, allocates ports,
 // and starts services asynchronously once all required secrets are available.
 func (s *Supervisor) Start(ctx context.Context) error {
+	if err := s.validateAuthenticationStartup(); err != nil {
+		return err
+	}
 	if err := s.initPaths(); err != nil {
 		return err
 	}
@@ -300,18 +380,30 @@ func (s *Supervisor) Start(ctx context.Context) error {
 		return err
 	}
 
+	s.stateMu.Lock()
 	s.started = true
 	s.startedAt = s.clock.Now()
+	s.stateMu.Unlock()
+	if err := s.publishPeerRecord(); err != nil {
+		_ = ln.Close()
+		return err
+	}
 
 	runtimeCtx, cancel := context.WithCancel(ctx)
 	s.runtimeCtx = runtimeCtx
 	s.cancel = cancel
+	if err := s.startBundledResources(runtimeCtx); err != nil {
+		cancel()
+		return err
+	}
 
 	s.triggerServicesOrWait()
 
 	go func() {
 		<-ctx.Done()
-		_ = s.Shutdown(context.Background())
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer shutdownCancel()
+		_ = s.Shutdown(shutdownCtx)
 	}()
 	go func() {
 		if serveErr := s.server.Serve(ln); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
@@ -319,6 +411,35 @@ func (s *Supervisor) Start(ctx context.Context) error {
 		}
 	}()
 
+	return nil
+}
+
+func (s *Supervisor) validateAuthenticationStartup() error {
+	var profile *manifest.AuthenticationProfile
+	if s.authModes != nil {
+		profile = s.authModes.currentProfile()
+	} else {
+		profile = s.opts.Manifest.Authentication
+	}
+	if profile == nil {
+		return nil
+	}
+	if err := s.opts.Manifest.Validate(runtime.GOOS, runtime.GOARCH); err != nil {
+		return fmt.Errorf("validate authentication startup: %w", err)
+	}
+	if profile.Mode != "shared_provider" || strings.TrimSpace(profile.LeasePath) == "" {
+		return nil
+	}
+	lease, err := readSharedProviderLeaseMetadata(s.fs, s.appData, profile)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("shared_provider authentication lease is unavailable: %w", err)
+		}
+		return fmt.Errorf("shared_provider authentication lease is invalid: %w", err)
+	}
+	if !lease.ExpiresAt.After(s.clock.Now()) {
+		return fmt.Errorf("shared_provider authentication lease has expired at %s", lease.ExpiresAt.UTC().Format(time.RFC3339))
+	}
 	return nil
 }
 
@@ -405,6 +526,81 @@ func (s *Supervisor) initAuthAndPorts() error {
 	return s.portAllocator.Allocate()
 }
 
+func (s *Supervisor) resolvePeerHome() (string, error) {
+	if s.peerHome != "" {
+		return s.peerHome, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve peer registry home: %w", err)
+	}
+	s.peerHome = home
+	return home, nil
+}
+
+func (s *Supervisor) publishPeerRecord() error {
+	scenarioName := strings.TrimSpace(s.opts.Manifest.App.Scenario)
+	if scenarioName == "" {
+		return nil
+	}
+	home, err := s.resolvePeerHome()
+	if err != nil {
+		return err
+	}
+	if err := manifest.ValidateFeatureExports(s.opts.Manifest.Features, s.opts.Manifest.Services); err != nil {
+		return err
+	}
+	rootServices := map[string]bool{}
+	for _, service := range s.opts.Manifest.Services {
+		if service.ComponentSlice == "" && !strings.Contains(service.ID, "--") {
+			rootServices[service.ID] = true
+		}
+	}
+	allocated := s.portAllocator.Map()
+	features := map[string]peerrecord.Feature{}
+	for id, feature := range s.opts.Manifest.Features {
+		if port := allocated[feature.Service][feature.Port]; port > 0 && port <= 65535 {
+			features[id] = peerrecord.Feature{OwnerVersion: feature.OwnerVersion, Port: feature.Port}
+		}
+	}
+	flattened := map[string]int{"ipc": s.opts.Manifest.IPC.Port}
+	for serviceID, servicePorts := range allocated {
+		if !rootServices[serviceID] {
+			continue
+		}
+		for name, port := range servicePorts {
+			if prior, exists := flattened[name]; exists && prior != port {
+				return fmt.Errorf("cannot publish peer %s: port name %s is ambiguous", scenarioName, name)
+			}
+			flattened[name] = port
+		}
+	}
+	provides := make([]string, 0, len(flattened))
+	for name := range flattened {
+		if name != "ipc" {
+			provides = append(provides, name)
+		}
+	}
+	sort.Strings(provides)
+	tokenPath := manifest.ResolvePath(s.appData, s.opts.Manifest.IPC.AuthTokenRel)
+	if err := peerrecord.Write(home, peerrecord.Record{
+		Scenario:      scenarioName,
+		Instance:      "live",
+		Tier:          2,
+		Version:       s.opts.Manifest.App.Version,
+		Provides:      provides,
+		Features:      features,
+		OwnerPID:      os.Getpid(),
+		StartedAt:     s.startedAt,
+		Ports:         flattened,
+		AuthTokenPath: tokenPath,
+	}); err != nil {
+		return fmt.Errorf("publish peer record: %w", err)
+	}
+	s.peerPublished = true
+	return nil
+}
+
 // initGPUAndDomainObjects detects GPU and creates cached domain objects.
 func (s *Supervisor) initGPUAndDomainObjects() {
 	s.gpuStatus = s.gpuDetector.Detect()
@@ -435,14 +631,24 @@ func (s *Supervisor) startControlAPI() (net.Listener, error) {
 	actualAddr := ln.Addr().(*net.TCPAddr)
 	s.opts.Manifest.IPC.Port = actualAddr.Port
 
+	// The published port is a contract, not a diagnostic: the desktop shell and
+	// vrooli-shim both learn the control API address only from this file. Failing
+	// to publish it leaves them unable to reach a runtime that is otherwise up, so
+	// surface the error instead of starting unreachable.
 	portPath := filepath.Join(s.appData, "runtime", "ipc_port")
-	if err := s.fs.MkdirAll(filepath.Dir(portPath), 0o700); err == nil {
-		_ = s.fs.WriteFile(portPath, []byte(fmt.Sprintf("%d", actualAddr.Port)), 0o600)
+	if err := s.fs.MkdirAll(filepath.Dir(portPath), 0o700); err != nil {
+		_ = ln.Close()
+		return nil, fmt.Errorf("publish IPC port: create %s: %w", filepath.Dir(portPath), err)
+	}
+	if err := s.fs.WriteFile(portPath, []byte(fmt.Sprintf("%d", actualAddr.Port)), 0o600); err != nil {
+		_ = ln.Close()
+		return nil, fmt.Errorf("publish IPC port: write %s: %w", portPath, err)
 	}
 
 	s.server = &http.Server{
-		Addr:    fmt.Sprintf("%s:%d", s.opts.Manifest.IPC.Host, actualAddr.Port),
-		Handler: apiServer.AuthMiddleware(mux),
+		Addr:              fmt.Sprintf("%s:%d", s.opts.Manifest.IPC.Host, actualAddr.Port),
+		Handler:           apiServer.AuthMiddleware(mux),
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 	return ln, nil
 }
@@ -463,17 +669,32 @@ func (s *Supervisor) triggerServicesOrWait() {
 
 // Shutdown gracefully stops all services and the control API.
 func (s *Supervisor) Shutdown(ctx context.Context) error {
+	s.stateMu.Lock()
 	if !s.started {
-		return nil
+		s.stateMu.Unlock()
+		if s.runtimeCtx == nil {
+			return nil
+		}
+		select {
+		case <-s.shutdownDone:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 	s.started = false
+	s.stateMu.Unlock()
+	defer close(s.shutdownDone)
 
+	// Stop services before cancelling their process contexts, so native cleanup
+	// hooks can finish instead of exec.CommandContext killing them immediately.
+	s.stopServices(ctx)
+	if s.resourceServer != nil {
+		_ = s.resourceServer.Stop(ctx)
+	}
 	if s.cancel != nil {
 		s.cancel()
 	}
-
-	// Stop services in reverse dependency order.
-	s.stopServices(ctx)
 	done := make(chan struct{})
 	go func() {
 		s.wg.Wait()
@@ -485,10 +706,16 @@ func (s *Supervisor) Shutdown(ctx context.Context) error {
 	}
 
 	_ = s.recordTelemetry("runtime_shutdown", nil)
+	var peerErr error
+	if s.peerPublished {
+		peerErr = peerrecord.Remove(s.peerHome, s.opts.Manifest.App.Scenario, os.Getpid())
+		s.peerPublished = false
+	}
 
 	if s.server != nil {
-		return s.server.Shutdown(ctx)
+		if err := s.server.Shutdown(ctx); err != nil {
+			return err
+		}
 	}
-	return nil
+	return peerErr
 }
-

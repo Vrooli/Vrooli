@@ -1,0 +1,425 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "target-detail",
+    "title": "Target",
+    "routes": [
+      "/targets/:targetId"
+    ],
+    "purpose": "Explain one target completely: what was probed, what it proved, how it is reached, which device-control strategy would drive it, and precisely what is missing when it is unavailable.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P0-006"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Every probed capability is listed with its result and the time it was probed.",
+      "notes": "A stale probe presented as current is worse than no probe. Age is part of the answer."
+    },
+    {
+      "statement": "Transport is explicit — local host, a named bridge node, or a device-control attachment.",
+      "notes": "The operator must be able to tell where work will actually execute, because that changes what can fail."
+    },
+    {
+      "statement": "A remote target whose host node is offline says so, and is never omitted.",
+      "notes": "A vanishing target reads as 'not mine' rather than 'temporarily unreachable'."
+    },
+    {
+      "statement": "An unavailable target names its missing capability and offers exactly one next action.",
+      "notes": "Missing SDK, missing acceleration, and an offline node fail for unrelated reasons and each needs its own remedy."
+    }
+  ],
+  "elements": [
+    {
+      "id": "target-disposition",
+      "role": "status",
+      "name": "Target disposition",
+      "description": "The closed-vocabulary disposition for this target, carrying a text label as well as a status colour."
+    },
+    {
+      "id": "capability-list",
+      "role": "list",
+      "name": "Probed capabilities",
+      "description": "One entry per probed prerequisite with its individual result."
+    },
+    {
+      "id": "probe-timestamp",
+      "role": "note",
+      "name": "Probed at",
+      "description": "When the capability snapshot was taken."
+    },
+    {
+      "id": "missing-capability",
+      "role": "note",
+      "name": "Missing capability",
+      "description": "The specific prerequisite that is absent, named rather than generalised."
+    },
+    {
+      "id": "next-action",
+      "role": "button",
+      "name": "Next action",
+      "description": "The single action that would resolve this target's blocked state."
+    },
+    {
+      "id": "transport",
+      "role": "note",
+      "name": "Transport",
+      "description": "Local host, the named bridge node, or the USB/wireless attachment through which this target is reached."
+    },
+    {
+      "id": "strategy-tier",
+      "role": "note",
+      "name": "Driving strategy",
+      "description": "The device-control strategy that would drive this target and whether it is semantic or pixel-grade."
+    },
+    {
+      "id": "lease-holder",
+      "role": "note",
+      "name": "Lease holder",
+      "description": "The consumer currently holding the device-control lease on this target, and since when."
+    },
+    {
+      "id": "device-identity",
+      "role": "note",
+      "name": "Device",
+      "description": "The model, serial, and Android version of an attached physical device, and the host node it is attached to."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A fully available local emulator target.",
+      "setup": {
+        "route": "/targets/local-emulator"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "The capability snapshot is being fetched; no results are asserted yet.",
+      "setup": {
+        "route": "/targets/local-emulator",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "empty",
+      "description": "The target has never been probed. Explains that no snapshot exists rather than showing an empty capability list.",
+      "setup": {
+        "route": "/targets/local-emulator",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some capabilities were probed and others could not be reached; the unprobed ones are explicitly unknown rather than assumed absent.",
+      "setup": {
+        "route": "/targets/local-emulator",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "The capability snapshot is old enough that it may no longer hold. Age is shown prominently.",
+      "setup": {
+        "route": "/targets/local-emulator",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The probe request failed. Reported as a failure rather than as an unavailable target.",
+      "setup": {
+        "route": "/targets/local-emulator",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "missing-toolchain",
+      "description": "Android SDK absent. Every dependent capability is unavailable and names the acquisition next action.",
+      "setup": {
+        "route": "/targets/local-emulator",
+        "query": {
+          "fixture": "missing-toolchain"
+        }
+      }
+    },
+    {
+      "id": "no-acceleration",
+      "description": "/dev/kvm absent or not writable. The target is unavailable rather than slow, because unaccelerated video evidence is unusable.",
+      "setup": {
+        "route": "/targets/local-emulator",
+        "query": {
+          "fixture": "no-acceleration"
+        }
+      }
+    },
+    {
+      "id": "bridge-offline",
+      "description": "A remote target whose host node is offline, shown with that exact reason.",
+      "setup": {
+        "route": "/targets/bridge-minimouse",
+        "query": {
+          "fixture": "bridge-offline"
+        }
+      }
+    },
+    {
+      "id": "device-leased-elsewhere",
+      "description": "The device is healthy and fully capable, but another consumer holds its device-control lease. Availability is a scheduling fact here, not a capability gap.",
+      "setup": {
+        "route": "/targets/android-physical",
+        "query": {
+          "fixture": "device-leased-elsewhere"
+        }
+      }
+    },
+    {
+      "id": "physical-attached",
+      "description": "A physical phone attached over USB to a host node, authorized and driven by the semantic strategy. The healthy physical baseline.",
+      "setup": {
+        "route": "/targets/android-physical",
+        "query": {
+          "fixture": "physical-attached"
+        }
+      }
+    },
+    {
+      "id": "physical-unpaired",
+      "description": "A phone is visible to the host but has not authorized debugging. Only a person holding the device can resolve it, and the surface says so rather than offering a retry that cannot succeed.",
+      "setup": {
+        "route": "/targets/android-physical",
+        "query": {
+          "fixture": "physical-unpaired"
+        }
+      }
+    },
+    {
+      "id": "physical-wireless-expired",
+      "description": "A wireless debugging pairing lapsed after a device reboot. The device is reachable on the network but no longer authorized, which is a different remedy from never having been paired.",
+      "setup": {
+        "route": "/targets/android-physical",
+        "query": {
+          "fixture": "physical-wireless-expired"
+        }
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "blocked-always-offers-an-action",
+      "type": "element-present",
+      "elements": [
+        "next-action",
+        "missing-capability"
+      ],
+      "states": [
+        "missing-toolchain",
+        "no-acceleration",
+        "bridge-offline"
+      ],
+      "tier": "machine",
+      "statement": "Every unavailable target names both the missing capability and one next action.",
+      "rationale": "S2A-P0-003. An unavailable state with no reason is indistinguishable from a bug, and sends the operator to the CLI."
+    },
+    {
+      "id": "distinct-causes-give-distinct-remedies",
+      "type": "state-distinct",
+      "states": [
+        "missing-toolchain",
+        "no-acceleration"
+      ],
+      "tier": "machine",
+      "statement": "A missing toolchain and missing hardware acceleration render as different states on the same target.",
+      "rationale": "S2A-P0-003. These fail for unrelated reasons; a single generic 'emulator not ready' would make both undiagnosable."
+    },
+    {
+      "id": "probe-age-is-visible",
+      "type": "element-present",
+      "elements": [
+        "probe-timestamp",
+        "capability-list"
+      ],
+      "states": [
+        "default",
+        "missing-toolchain",
+        "no-acceleration",
+        "stale"
+      ],
+      "tier": "machine",
+      "statement": "Every capability result is accompanied by when it was probed.",
+      "rationale": "S2A-P0-003. Capability is a measurement, and a measurement without a timestamp cannot be judged current."
+    },
+    {
+      "id": "transport-is-named",
+      "type": "element-present",
+      "elements": [
+        "transport"
+      ],
+      "states": [
+        "default",
+        "missing-toolchain",
+        "bridge-offline"
+      ],
+      "tier": "machine",
+      "statement": "Every target names the transport through which work will execute.",
+      "rationale": "S2A-P1-001. USB and wireless fail differently, and a bridge node fails differently again."
+    },
+    {
+      "id": "strategy-tier-shown-before-running",
+      "type": "element-present",
+      "elements": [
+        "strategy-tier"
+      ],
+      "states": [
+        "default"
+      ],
+      "tier": "machine",
+      "statement": "A target names which strategy would drive it and whether that strategy is semantic or pixel-grade, before a run is started.",
+      "rationale": "S2A-P0-004. Evidence tier determines whether a run can gate a release, so it must be known before the run is spent."
+    },
+    {
+      "id": "offline-target-is-present-not-absent",
+      "type": "element-present",
+      "elements": [
+        "target-disposition",
+        "missing-capability"
+      ],
+      "states": [
+        "bridge-offline"
+      ],
+      "tier": "machine",
+      "statement": "A target whose host node is offline remains listed, carrying the offline reason.",
+      "rationale": "Omitting it would make a temporary reachability failure look like a configuration change."
+    },
+    {
+      "id": "no-acceleration-offers-no-run-anyway",
+      "type": "custom",
+      "statement": "A target without hardware acceleration reports unavailable and offers no option to run anyway.",
+      "tier": "manual",
+      "rationale": "S2A-P0-003. An unaccelerated emulator runs at 3–5 FPS; its video evidence cannot support a release claim, so offering the run would manufacture a worthless pass. The next-action control is present but must acquire acceleration rather than bypass it, which needs human judgement to attest."
+    },
+    {
+      "id": "leased-device-names-its-holder",
+      "type": "element-present",
+      "elements": [
+        "lease-holder",
+        "next-action"
+      ],
+      "states": [
+        "device-leased-elsewhere"
+      ],
+      "tier": "machine",
+      "statement": "A target blocked by a held device-control lease names the holder and offers a next action rather than reporting a bare unavailable.",
+      "rationale": "S2A-P0-004. A device is a single-occupancy resource. Without the holder named, contention is indistinguishable from a broken probe, and the operator goes looking for a fault that does not exist."
+    },
+    {
+      "id": "contention-differs-from-incapacity",
+      "type": "state-distinct",
+      "states": [
+        "device-leased-elsewhere",
+        "default"
+      ],
+      "tier": "machine",
+      "statement": "A target that is merely leased elsewhere renders distinguishably from one that is free and ready.",
+      "rationale": "S2A-P0-004. A busy device becomes available by waiting; an incapable one never does. Collapsing them turns a queue into a phantom capability gap."
+    },
+    {
+      "id": "physical-device-is-identified",
+      "type": "element-present",
+      "elements": [
+        "device-identity",
+        "transport"
+      ],
+      "states": [
+        "physical-attached",
+        "physical-unpaired",
+        "physical-wireless-expired"
+      ],
+      "tier": "machine",
+      "statement": "Every physical-device target names the device and the transport through which it is reached.",
+      "rationale": "S2A-P0-003. A phone is reachable only through a host node, and more than one may be attached. An unidentified physical row cannot be acted on, because the operator cannot tell which handset on the desk it refers to."
+    },
+    {
+      "id": "on-device-action-is-named-as-such",
+      "type": "element-present",
+      "elements": [
+        "missing-capability",
+        "next-action"
+      ],
+      "states": [
+        "physical-unpaired",
+        "physical-wireless-expired"
+      ],
+      "tier": "machine",
+      "statement": "A physical target blocked on device authorization names the missing authorization and states the action to take on the handset itself.",
+      "rationale": "S2A-P0-003. Only a person holding the phone can accept a debugging prompt. An action rendered as a retry button implies the host can resolve it and produces a loop instead of a fix."
+    },
+    {
+      "id": "emulator-and-physical-are-distinct",
+      "type": "state-distinct",
+      "states": [
+        "default",
+        "physical-attached"
+      ],
+      "tier": "machine",
+      "statement": "A physical-device target renders distinguishably from an emulator target.",
+      "rationale": "S2A-P0-003. They fail for unrelated reasons, carry different evidence weight, and only one of them can be recreated on demand."
+    },
+    {
+      "id": "expired-pairing-differs-from-never-paired",
+      "type": "state-distinct",
+      "states": [
+        "physical-unpaired",
+        "physical-wireless-expired"
+      ],
+      "tier": "machine",
+      "statement": "A lapsed wireless pairing renders distinguishably from a device that has never authorized debugging.",
+      "rationale": "S2A-P1-001. One needs a re-pair over the network, the other needs a prompt accepted on the handset. A single generic authorization error makes both undiagnosable."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "target-disposition": {
+        "testid": "target-detail-disposition"
+      },
+      "capability-list": {
+        "testid": "target-detail-capability-list"
+      },
+      "probe-timestamp": {
+        "testid": "target-detail-probe-timestamp"
+      },
+      "missing-capability": {
+        "testid": "target-detail-missing-capability"
+      },
+      "next-action": {
+        "testid": "target-detail-next-action"
+      },
+      "transport": {
+        "testid": "target-detail-transport"
+      },
+      "strategy-tier": {
+        "testid": "target-detail-strategy-tier"
+      },
+      "lease-holder": {
+        "testid": "target-detail-lease-holder"
+      },
+      "device-identity": {
+        "testid": "target-detail-device-identity"
+      }
+    }
+  }
+}

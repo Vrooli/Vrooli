@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "document-manager.corpus",
+      "provider_group": "document-manager",
+      "bucket": "BUCKET_KNOW",
+      "type": "document",
+      "lifecycle": "experimental",
+      "description": "Privacy-filtered lexical and semantic search over this document corpus. Federated exposure is opt-in per collection and never includes confidential or secret units.",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_live",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "document-manager",
+          "path": "/vrooli.document_manager.v1.retrieval.RetrievalService/Query",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"text\":\"{{query}}\",\"limit\":{{limit}},\"federated\":true}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "unit_id",
+        "title_field": "document_hash",
+        "score_field": "score",
+        "snippet_field": "anchor_uri",
+        "path_field": "anchor_uri",
+        "score_scale": "SCORE_SCALE_RAW"
+      },
+      "performance": { "p95_ms": 800, "degraded_rate_max": 0.1, "telemetry_required": true, "minimum_samples": 8 }
+    }
+  ]
+}

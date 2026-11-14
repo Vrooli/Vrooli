@@ -209,6 +209,9 @@ export interface IRuntimeControlClient {
      */
     waitForHealth(timeoutMs: number): Promise<void>;
 
+    /** Wait once for service status change notifications instead of polling /readyz. */
+    waitForReady(timeoutMs: number, criticalOnly?: boolean): Promise<RuntimeReadyResponse>;
+
     /**
      * Get runtime diagnostics.
      */

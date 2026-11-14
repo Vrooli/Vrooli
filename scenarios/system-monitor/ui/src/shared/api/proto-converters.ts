@@ -4,14 +4,22 @@
  * Extracted from useInvestigationAgents to share across the codebase.
  */
 
-import type { MessageShape } from '@bufbuild/protobuf';
+import type { JsonObject } from '@bufbuild/protobuf';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
-import { InvestigationSchema } from './proto-contracts';
 import { InvestigationStatus } from '../../types/api';
 import type { InvestigationAgentState } from '../../types';
 import { str, num, bool } from '../utils/typeGuards';
 
-type ProtoInvestigation = MessageShape<typeof InvestigationSchema>;
+interface ProtoInvestigation {
+  id?: string;
+  status: InvestigationStatus;
+  startTime?: Parameters<typeof timestampDate>[0];
+  endTime?: Parameters<typeof timestampDate>[0];
+  progress?: number;
+  details?: JsonObject;
+  triggerReason?: unknown;
+  anomalyId?: string;
+}
 
 /** Convert an InvestigationStatus enum value to a lowercase string. */
 export const statusEnumToString = (status: InvestigationStatus): string => {
@@ -36,7 +44,7 @@ export const statusEnumToString = (status: InvestigationStatus): string => {
 export const protoToAgentState = (inv: ProtoInvestigation): InvestigationAgentState | null => {
   if (!inv.id) return null;
 
-  const details = inv.details as Record<string, unknown> | undefined;
+  const details = inv.details;
 
   return {
     id: inv.id,

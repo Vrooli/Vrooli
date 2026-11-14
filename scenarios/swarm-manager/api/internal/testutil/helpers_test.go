@@ -1,10 +1,14 @@
 package testutil
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/vrooli/api-core/apihttptest"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestWriteJSONFile(t *testing.T) {
@@ -12,14 +16,14 @@ func TestWriteJSONFile(t *testing.T) {
 	path := filepath.Join(dir, "test.json")
 
 	data := map[string]string{"key": "value"}
-	WriteJSONFile(t, path, data)
+	repocontracttest.WriteJSON(t, path, data)
 
 	// Verify file was created
 	content, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("File not created: %v", err)
 	}
-	if string(content) != "{\n  \"key\": \"value\"\n}" {
+	if string(content) != "{\n  \"key\": \"value\"\n}\n" {
 		t.Errorf("Unexpected content: %s", content)
 	}
 }
@@ -29,7 +33,7 @@ func TestWriteJSONFile_CreatesParentDirs(t *testing.T) {
 	path := filepath.Join(dir, "nested", "dir", "test.json")
 
 	data := map[string]int{"num": 42}
-	WriteJSONFile(t, path, data)
+	repocontracttest.WriteJSON(t, path, data)
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		t.Error("File not created in nested directory")
@@ -40,7 +44,7 @@ func TestWriteFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.txt")
 
-	WriteFile(t, path, "hello world")
+	repocontracttest.WriteFile(t, path, "hello world")
 
 	content, err := os.ReadFile(path)
 	if err != nil {
@@ -66,16 +70,7 @@ func TestMakeDir(t *testing.T) {
 	}
 }
 
-func TestAssertStatus(t *testing.T) {
-	rec := httptest.NewRecorder()
-	rec.WriteHeader(200)
-
-	// This should not fail (we're just checking it doesn't panic)
-	mockT := &testing.T{}
-	AssertStatus(mockT, rec, 200)
-}
-
-func TestDecodeJSON(t *testing.T) {
+func TestResponseJSONDecoding(t *testing.T) {
 	rec := httptest.NewRecorder()
 	if _, err := rec.WriteString(`{"name": "test", "value": 123}`); err != nil {
 		t.Fatalf("Failed to write response: %v", err)
@@ -86,7 +81,7 @@ func TestDecodeJSON(t *testing.T) {
 		Value int    `json:"value"`
 	}
 
-	result := DecodeJSON[testStruct](t, rec)
+	result := apihttptest.MustDecodeJSON[testStruct](t, rec.Body.Bytes())
 	if result.Name != "test" {
 		t.Errorf("Expected name 'test', got '%s'", result.Name)
 	}
@@ -106,7 +101,7 @@ func TestReadJSONFile(t *testing.T) {
 		Items []string `json:"items"`
 	}
 
-	result := ReadJSONFile[testData](t, path)
+	result := repocontracttest.ReadJSONFileInto[testData](t, path)
 	if len(result.Items) != 3 {
 		t.Errorf("Expected 3 items, got %d", len(result.Items))
 	}
@@ -119,16 +114,31 @@ func TestAssertFileExists(t *testing.T) {
 		t.Fatalf("Failed to write file: %v", err)
 	}
 
-	// This should not cause a test failure
-	mockT := &testing.T{}
-	AssertFileExists(mockT, path)
+	AssertFileExists(t, path)
 }
 
 func TestAssertFileNotExists(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "does-not-exist.txt")
 
-	// This should not cause a test failure
-	mockT := &testing.T{}
-	AssertFileNotExists(mockT, path)
+	AssertFileNotExists(t, path)
+}
+
+func TestAssertStatus(t *testing.T) {
+	cases := []struct {
+		name   string
+		status int
+	}{
+		{name: "ok", status: http.StatusOK},
+		{name: "accepted", status: http.StatusAccepted},
+		{name: "server_error", status: http.StatusInternalServerError},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			rec.WriteHeader(tc.status)
+			apihttptest.AssertStatus(t, rec.Result(), tc.status)
+		})
+	}
 }

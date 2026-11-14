@@ -1,0 +1,72 @@
+{
+  "description": "First-class support for re-export edges (`export * from './x'`, `export { Y } from './y'`) as a distinct `EdgeKind`; expose `module → declaration` mappings even when nothing is imported directly.",
+  "module_id": "MOD-P1-015",
+  "prd_ref": "OT-P1-003",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-002"
+      ],
+      "description": "The graph extraction must provide first-class support for TypeScript re-export patterns. Export-all statements (export * from './x') and named re-exports (export { Y } from './y') must be represented as distinct RE_EXPORT EdgeKind entries in the graph. Module-to-declaration mappings must be present in the graph even for declarations that are never directly imported by other files, enabling analysis of barrel-file exposure surfaces. The re-export chain must be traceable through multiple barrel levels.",
+      "id": "REQ-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "draft",
+      "title": "Barrel-File and Re-Export Edge Coverage",
+      "validation": [
+        {
+          "notes": "Test that 'export * from ./x' produces a RE_EXPORT edge from the barrel module to the source module",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that 'export { Y } from ./y' produces a RE_EXPORT edge with Y as the exported symbol identifier",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that a declaration only exposed via barrel (never directly imported) still appears in the graph",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test multi-level re-export chain (A re-exports from B which re-exports from C) produces correct edge chain",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-REEXPORT: Extract a fixture with an index.ts barrel file using export * and export { } patterns; verify RE_EXPORT edges in the graph",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify module-to-declaration mappings are present for unexported declarations in a barrel-only scenario",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "react-component-library can identify all publicly re-exported components via the graph without manually tracing barrel files",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Barrel-File and Re-Export Coverage"
+}

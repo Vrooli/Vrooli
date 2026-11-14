@@ -4,23 +4,26 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/api"
-	"scenario-to-desktop-runtime/assets"
-	"scenario-to-desktop-runtime/config"
-	"scenario-to-desktop-runtime/health"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/secrets"
-	"scenario-to-desktop-runtime/telemetry"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/internal/peerrecord"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/assets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/config"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/health"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/secrets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/telemetry"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
 
 func TestEnsureAssetsSizeBudget(t *testing.T) {
@@ -134,7 +137,7 @@ func TestHandleSecretsGetReturnsStatus(t *testing.T) {
 			{ID: "OPTIONAL_HINT", Class: "per_install_generated", Required: ptrBool(false)},
 		},
 	}
-	sm := secrets.NewManager(manifestData, testutil.NewMockFileSystem(), "/tmp/secrets.json")
+	sm := secrets.NewManager(manifestData)
 	sm.Set(map[string]string{"OPTIONAL_HINT": "seed"})
 
 	rt := &mockSupervisorRuntime{
@@ -339,7 +342,7 @@ func TestNewSupervisor_SanitizesAppName(t *testing.T) {
 		want string
 	}{
 		{"My App", "my-app"},
-		{"Test_App", "test_app"},
+		{"Test_App", "test-app"},
 		{"App-Name", "app-name"},
 	}
 
@@ -630,6 +633,67 @@ func TestStart_PersistsAuthTokenAndIpcPort(t *testing.T) {
 	}
 }
 
+// ipcPortPublishFailureFS fails exactly the ipc_port write so the supervisor's
+// publish path can be exercised without disturbing any other file operation.
+type ipcPortPublishFailureFS struct {
+	*testutil.MockFileSystem
+	failSuffix string
+}
+
+func (f *ipcPortPublishFailureFS) WriteFile(path string, data []byte, perm os.FileMode) error {
+	if strings.HasSuffix(path, f.failSuffix) {
+		return errors.New("disk full")
+	}
+	return f.MockFileSystem.WriteFile(path, data, perm)
+}
+
+// The desktop shell and vrooli-shim learn the control API address only from
+// runtime/ipc_port. A runtime that binds but cannot publish is unreachable, so
+// Start must fail rather than report success.
+func TestStart_FailsWhenIpcPortCannotBePublished(t *testing.T) {
+	tmp := t.TempDir()
+	appDataDir := filepath.Join(tmp, "appdata")
+	mockFS := &ipcPortPublishFailureFS{
+		MockFileSystem: testutil.NewMockFileSystem(),
+		failSuffix:     filepath.Join("runtime", "ipc_port"),
+	}
+
+	m := &manifest.Manifest{
+		App:       manifest.App{Name: "test-app", Version: "1.0.0"},
+		IPC:       manifest.IPC{Host: "127.0.0.1", Port: 0, AuthTokenRel: "runtime/auth-token"},
+		Telemetry: manifest.Telemetry{File: "telemetry.jsonl"},
+	}
+
+	s, err := NewSupervisor(Options{
+		Manifest:      m,
+		BundlePath:    tmp,
+		AppDataDir:    appDataDir,
+		Clock:         testutil.NewMockClock(time.Now()),
+		FileSystem:    mockFS,
+		SecretStore:   testutil.NewMockSecretStore(nil),
+		PortAllocator: testutil.NewMockPortAllocator(),
+		HealthChecker: testutil.NewMockHealthChecker(),
+	})
+	if err != nil {
+		t.Fatalf("NewSupervisor() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err = s.Start(ctx)
+	if err == nil {
+		_ = s.Shutdown(context.Background())
+		t.Fatal("Start() should fail when the IPC port cannot be published")
+	}
+	if !strings.Contains(err.Error(), "publish IPC port") {
+		t.Fatalf("Start() error = %v, want it to name the IPC port publish failure", err)
+	}
+	if s.started {
+		t.Fatal("Start() must not mark the supervisor started when the port was never published")
+	}
+}
+
 func TestStart_FailsOnMigrationStateError(t *testing.T) {
 	tmp := t.TempDir()
 	appDataDir := filepath.Join(tmp, "appdata")
@@ -669,5 +733,340 @@ func TestStart_FailsOnMigrationStateError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "load migrations") {
 		t.Errorf("Start() error = %q, want 'load migrations'", err)
+	}
+}
+
+func TestPublishPeerRecordUsesAllocatedPorts(t *testing.T) {
+	home := t.TempDir()
+	allocator := testutil.NewMockPortAllocator()
+	allocator.SetPort("api", "api", 23117)
+	allocator.SetPort("landing-page-business-suite--api", "api", 23119)
+	m := &manifest.Manifest{
+		App:      manifest.App{Scenario: "browser-automation-studio", Version: "1.2.3"},
+		IPC:      manifest.IPC{Port: 23118, AuthTokenRel: "runtime/auth-token"},
+		Services: []manifest.Service{{ID: "api"}, {ID: "landing-page-business-suite--api"}},
+	}
+	s := &Supervisor{
+		opts:          Options{Manifest: m},
+		appData:       t.TempDir(),
+		peerHome:      home,
+		portAllocator: allocator,
+		startedAt:     time.Now(),
+	}
+	if err := s.publishPeerRecord(); err != nil {
+		t.Fatalf("publishPeerRecord() error = %v", err)
+	}
+	record, err := peerrecord.Read(home, "browser-automation-studio")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.Tier != 2 || record.Version != "1.2.3" || record.Ports["api"] != 23117 || record.Ports["ipc"] != 23118 || len(record.Ports) != 2 || len(record.Provides) != 1 || record.Provides[0] != "api" {
+		t.Fatalf("published peer record = %#v", record)
+	}
+}
+
+func TestTwoBundlesAllocateDistinctIPCPorts(t *testing.T) {
+	newManifest := func(name string) *manifest.Manifest {
+		return &manifest.Manifest{
+			App:       manifest.App{Name: name, Version: "1.0.0"},
+			IPC:       manifest.IPC{Host: "127.0.0.1", Port: 0, AuthTokenRel: "runtime/auth-token"},
+			Telemetry: manifest.Telemetry{File: "telemetry/events.jsonl"},
+			Ports:     &manifest.PortRules{DefaultRange: &manifest.PortRange{Min: 47000, Max: 48000}},
+		}
+	}
+	newSupervisor := func(name string) *Supervisor {
+		s, err := NewSupervisor(Options{
+			Manifest:      newManifest(name),
+			BundlePath:    t.TempDir(),
+			AppDataDir:    t.TempDir(),
+			DryRun:        true,
+			SecretStore:   testutil.NewMockSecretStore(nil),
+			HealthChecker: testutil.NewMockHealthChecker(),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	first := newSupervisor("first-bundle")
+	second := newSupervisor("second-bundle")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := first.Start(ctx); err != nil {
+		t.Fatalf("start first bundle: %v", err)
+	}
+	t.Cleanup(func() { _ = first.Shutdown(context.Background()) })
+	if err := second.Start(ctx); err != nil {
+		t.Fatalf("start second bundle: %v", err)
+	}
+	t.Cleanup(func() { _ = second.Shutdown(context.Background()) })
+	if first.opts.Manifest.IPC.Port == 0 || second.opts.Manifest.IPC.Port == 0 || first.opts.Manifest.IPC.Port == second.opts.Manifest.IPC.Port {
+		t.Fatalf("allocated IPC ports collide: first=%d second=%d", first.opts.Manifest.IPC.Port, second.opts.Manifest.IPC.Port)
+	}
+	if _, err := os.Stat(filepath.Join(first.appData, "runtime", "ipc_port")); err != nil {
+		t.Fatalf("first bundle did not publish its allocated IPC port: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(second.appData, "runtime", "ipc_port")); err != nil {
+		t.Fatalf("second bundle did not publish its allocated IPC port: %v", err)
+	}
+}
+
+func TestPublishPeerRecordDeclaresOnlyRootOwnerFeatures(t *testing.T) {
+	home := t.TempDir()
+	allocator := testutil.NewMockPortAllocator()
+	allocator.SetPort("api", "api", 23117)
+	allocator.SetPort("component-api", "component", 23119)
+	allocator.SetPort("unlisted", "unknown", 23120)
+	m := &manifest.Manifest{
+		App:      manifest.App{Scenario: "audio-tools", Version: "9.9.9"},
+		Features: map[string]manifest.FeatureExport{"audio.processing": {OwnerVersion: "0.0.1", Service: "api", Port: "api"}},
+		Services: []manifest.Service{
+			{ID: "api", Health: manifest.HealthCheck{Type: "http"}, Readiness: manifest.ReadinessCheck{Type: "port"}, Ports: &manifest.ServicePorts{Requested: []manifest.PortRequest{{Name: "api"}}}},
+			{ID: "component-api", ComponentSlice: "usage", Health: manifest.HealthCheck{Type: "http"}, Readiness: manifest.ReadinessCheck{Type: "port"}, Ports: &manifest.ServicePorts{Requested: []manifest.PortRequest{{Name: "component"}}}},
+		},
+	}
+	s := &Supervisor{opts: Options{Manifest: m}, appData: t.TempDir(), peerHome: home, portAllocator: allocator, startedAt: time.Now()}
+	if err := s.publishPeerRecord(); err != nil {
+		t.Fatal(err)
+	}
+	record, err := peerrecord.Read(home, "audio-tools")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(record.Features) != 1 || record.Features["audio.processing"].OwnerVersion != "0.0.1" || record.Features["audio.processing"].Port != "api" {
+		t.Fatalf("wrong owner feature: %#v", record.Features)
+	}
+	if record.Ports["component"] != 0 || record.Ports["unknown"] != 0 {
+		t.Fatalf("non-root ports leaked: %#v", record.Ports)
+	}
+	m.Features["usage.live"] = manifest.FeatureExport{OwnerVersion: "0.0.1", Service: "component-api", Port: "component"}
+	if err := s.publishPeerRecord(); err == nil {
+		t.Fatal("component feature published as a full peer")
+	}
+}
+
+func TestSM11FullFeatureRejectsChangedProbeIdentity(t *testing.T) {
+	for _, change := range []string{"owner_version", "feature_withdrawn", "instance_replaced", "route_moved", "record_removed"} {
+		t.Run(change, func(t *testing.T) {
+			home := t.TempDir()
+			record := peerrecord.Record{Scenario: "audio-tools", Version: "1.2.0", OwnerPID: os.Getpid(), StartedAt: time.Now(), Ports: map[string]int{}, Features: map[string]peerrecord.Feature{"audio.processing": {OwnerVersion: "1.2.0", Port: "api"}}}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/health" {
+					http.NotFound(w, r)
+					return
+				}
+				switch change {
+				case "owner_version":
+					record.Features["audio.processing"] = peerrecord.Feature{OwnerVersion: "2.0.0", Port: "api"}
+				case "feature_withdrawn":
+					delete(record.Features, "audio.processing")
+				case "instance_replaced":
+					record.StartedAt = record.StartedAt.Add(time.Second)
+				case "route_moved":
+					record.Ports["api"]++
+				case "record_removed":
+					if err := peerrecord.Remove(home, "audio-tools", os.Getpid()); err != nil {
+						t.Error(err)
+					}
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+				if err := peerrecord.Write(home, record); err != nil {
+					t.Error(err)
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer server.Close()
+			port, err := strconv.Atoi(strings.TrimPrefix(server.URL, "http://127.0.0.1:"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			record.Ports["api"] = port
+			if err := peerrecord.Write(home, record); err != nil {
+				t.Fatal(err)
+			}
+			s := &Supervisor{opts: Options{Manifest: &manifest.Manifest{App: manifest.App{Scenario: "web-console"}, Peers: []manifest.Peer{{Scenario: "audio-tools", VersionRange: ">=1 <2"}}}}, peerHome: home}
+			selected, err := s.resolveFullFeature(context.Background(), nil, "audio-tools", "audio.processing", ">=1 <2")
+			if err == nil || selected.Source != "" {
+				t.Fatalf("changed provider returned after probe: selected=%+v error=%v", selected, err)
+			}
+		})
+	}
+}
+
+// These states describe observations at a call boundary. Registry publication
+// precedes readiness; only the feature resolver's successful probe permits
+// stand-down. Bare discovery deliberately does not promise health.
+func TestSM11SupervisorTopologyEventMatrix(t *testing.T) {
+	states := []string{"closed", "unready", "full", "out_of_range"}
+	events := []string{"lookup_again", "publish_ready", "publish_incompatible", "lose_health", "close"}
+	next := [][]int{{0, 2, 3, 0, 0}, {1, 2, 3, 1, 0}, {2, 2, 3, 1, 0}, {3, 2, 3, 3, 0}}
+	for _, local := range []bool{false, true} {
+		for from := range states {
+			for event := range events {
+				t.Run(fmt.Sprintf("embedded_%t/%s/%s", local, states[from], events[event]), func(t *testing.T) {
+					s, publish, healthCode := newSM11SelectionFixture(t, local)
+					current := from
+					applyState := func(state int) {
+						t.Helper()
+						healthCode.Store(200)
+						switch state {
+						case 0:
+							publish("")
+						case 1:
+							healthCode.Store(503)
+							publish("1.2.0")
+						case 2:
+							publish("1.2.0")
+						case 3:
+							publish("2.0.0")
+						}
+					}
+					assert := func(state int) {
+						t.Helper()
+						selected, err := s.ResolveFeature(context.Background(), "audio-tools", "audio.processing", ">=1 <2")
+						want := ""
+						if state == 2 {
+							want = "full_app"
+						} else if local {
+							want = "embedded"
+						}
+						if selected.Source != want || (want != "" && err != nil) || (want == "" && err == nil) {
+							t.Fatalf("state%s selected=%+v error=%v want%s", states[state], selected, err, want)
+						}
+						if state == 2 && local {
+							status, _ := s.getStatus("audio-tools--api")
+							if !status.Skipped || s.getProc("audio-tools--api") != nil {
+								t.Fatal("full selection did not stand down embedded owner")
+							}
+						}
+					}
+					applyState(current)
+					assert(current)
+					switch event {
+					case 0:
+					case 1:
+						publish("1.2.0")
+						healthCode.Store(200)
+					case 2:
+						publish("2.0.0")
+					case 3:
+						healthCode.Store(503)
+					case 4:
+						publish("")
+					}
+					current = next[from][event]
+					assert(current)
+				})
+			}
+		}
+	}
+}
+
+func TestSM11SupervisorPublicationFallbackReplay(t *testing.T) {
+	s, publish, healthCode := newSM11SelectionFixture(t, true)
+	assert := func(label, want string) {
+		t.Helper()
+		selected, err := s.ResolveFeature(context.Background(), "audio-tools", "audio.processing", ">=1 <2")
+		if err != nil || selected.Source != want {
+			t.Fatalf("%s selected=%+v error=%v want%s", label, selected, err, want)
+		}
+		t.Logf("%s -> %s", label, selected.Source)
+	}
+	assert("embedded available", "embedded")
+	healthCode.Store(503)
+	publish("1.2.0")
+	assert("published before ready", "embedded")
+	healthCode.Store(200)
+	assert("full ready and local stand-down", "full_app")
+	assert("repeat lookup is stable", "full_app")
+	healthCode.Store(503)
+	assert("health lost, local fallback", "embedded")
+	healthCode.Store(200)
+	assert("full recovers", "full_app")
+	publish("")
+	assert("full closed, local fallback", "embedded")
+	checker := s.healthChecker.(*testutil.MockHealthChecker)
+	checker.SetWaitReadinessErr(errors.New("embedded not ready"))
+	if selected, err := s.ResolveFeature(context.Background(), "audio-tools", "audio.processing", ">=1 <2"); err == nil || selected.Source != "" {
+		t.Fatalf("unready fallback selected: %+v %v", selected, err)
+	}
+	checker.SetWaitReadinessErr(nil)
+	assert("local readiness recovers", "embedded")
+}
+
+func newSM11SelectionFixture(t *testing.T, embedded bool) (*Supervisor, func(string), *atomic.Int32) {
+	t.Helper()
+	home := t.TempDir()
+	healthCode := &atomic.Int32{}
+	healthCode.Store(200)
+	endpoint := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/health" {
+			http.NotFound(w, r)
+			return
+		}
+		w.WriteHeader(int(healthCode.Load()))
+	}))
+	t.Cleanup(endpoint.Close)
+	port, err := strconv.Atoi(strings.TrimPrefix(endpoint.URL, "http://127.0.0.1:"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ports := testutil.NewMockPortAllocator()
+	ports.SetPort("audio-tools--api", "api", 24569)
+	m := &manifest.Manifest{App: manifest.App{Scenario: "web-console"}, Peers: []manifest.Peer{{Scenario: "audio-tools", VersionRange: ">=1 <2"}}}
+	if embedded {
+		m.Services = []manifest.Service{{ID: "audio-tools--api", Type: "api-binary"}}
+		m.Peers[0].BundlePolicy = "embed"
+		m.Peers[0].Features = map[string]manifest.FeatureExport{"audio.processing": {OwnerVersion: "1.2.0", Service: "audio-tools--api", Port: "api"}}
+	}
+	s, err := NewSupervisor(Options{Manifest: m, BundlePath: t.TempDir(), AppDataDir: t.TempDir(), PeerHomeDir: home, DryRun: true, PortAllocator: ports, SecretStore: testutil.NewMockSecretStore(nil), HealthChecker: testutil.NewMockHealthChecker()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.runtimeCtx = context.Background()
+	if embedded {
+		s.setProc("audio-tools--api", &serviceProcess{started: time.Now()})
+		s.setStatus("audio-tools--api", ServiceStatus{Ready: true})
+	}
+	publisherPorts := testutil.NewMockPortAllocator()
+	publisherPorts.SetPort("api", "api", port)
+	publisher := &Supervisor{opts: Options{Manifest: &manifest.Manifest{App: manifest.App{Scenario: "audio-tools", Version: "1.2.0"}, Services: []manifest.Service{{ID: "api", Health: manifest.HealthCheck{Type: "http"}, Readiness: manifest.ReadinessCheck{Type: "port"}, Ports: &manifest.ServicePorts{Requested: []manifest.PortRequest{{Name: "api"}}}}}, Features: map[string]manifest.FeatureExport{"audio.processing": {OwnerVersion: "1.2.0", Service: "api", Port: "api"}}}}, appData: t.TempDir(), peerHome: home, portAllocator: publisherPorts, startedAt: time.Now()}
+	publish := func(version string) {
+		t.Helper()
+		if version == "" {
+			if err := peerrecord.Remove(home, "audio-tools", os.Getpid()); err != nil {
+				t.Fatal(err)
+			}
+			return
+		}
+		publisher.opts.Manifest.App.Version = version
+		feature := publisher.opts.Manifest.Features["audio.processing"]
+		feature.OwnerVersion = version
+		publisher.opts.Manifest.Features["audio.processing"] = feature
+		if err := publisher.publishPeerRecord(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return s, publish, healthCode
+}
+
+func TestSM11EmbeddedFeatureUsesProgramBindingRange(t *testing.T) {
+	for _, tc := range []struct {
+		name, ordinary, binding string
+		want                    bool
+	}{{"binding_restricts", ">=1 <2", ">=2 <3", false}, {"binding_overrides", ">=2 <3", ">=1 <2", true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, _, _ := newSM11SelectionFixture(t, true)
+			s.opts.Manifest.Peers[0].VersionRange = tc.ordinary
+			s.opts.Manifest.ProgramBindingPeers = []manifest.Peer{{Scenario: "audio-tools", VersionRange: tc.binding}}
+			selected, err := s.ResolveFeature(context.Background(), "audio-tools", "audio.processing", "")
+			if tc.want && (err != nil || selected.Source != "embedded") {
+				t.Fatalf("eligible binding not used: %+v %v", selected, err)
+			}
+			if !tc.want && (err == nil || selected.Source != "") {
+				t.Fatalf("ineligible binding bypassed: %+v %v", selected, err)
+			}
+		})
 	}
 }

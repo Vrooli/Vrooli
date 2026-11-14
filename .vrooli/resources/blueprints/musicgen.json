@@ -1,0 +1,52 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "musicgen",
+  "display_name": "MusicGen",
+  "category": "media-generation",
+  "summary": "Generative audio and music synthesis capability for soundtrack, prototyping, and media workflows.",
+  "why_it_matters": "Music generation remains potentially useful capability knowledge, but the old registry-only entry was stale and unsupported.",
+  "when_to_use": [
+    "A media or creative scenario needs generative soundtrack or prompt-to-audio capability.",
+    "A future content pipeline wants local or controlled music synthesis rather than external SaaS."
+  ],
+  "example_scenarios": [
+    "Creative asset generation studio",
+    "Campaign audio prototyping workflows"
+  ],
+  "integration_kind": "native-cli",
+  "platform_support": {
+    "notes": "Future support likely depends on model runtime, GPU expectations, and media pipeline decisions.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "A validated use case for generative music inside Vrooli",
+    "A clear runtime choice for inference and model storage"
+  ],
+  "dependencies": [],
+  "suggested_template": "native-cli",
+  "implementation_notes": [
+    "Keep this as blueprint knowledge until there is a concrete scenario and runtime choice.",
+    "Promotion should decide whether the support model is local inference, hosted API, or both."
+  ],
+  "operational_notes": [
+    "Model size, GPU support, and output quality expectations must be explicit.",
+    "Media licensing and provenance concerns should be documented up front."
+  ],
+  "risks": [
+    "Generative media support can become expensive without strong usage pull.",
+    "Quality expectations may exceed what a thin wrapper can honestly promise."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "musicgen"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

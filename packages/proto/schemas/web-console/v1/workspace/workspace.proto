@@ -1,0 +1,272 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.workspace;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/workspace;workspace_v1";
+
+// =============================================================================
+// WORKSPACE DOMAIN — panes, tab groups, layout
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain workspace
+// @stability stable
+//
+// Wire contract for the WorkspaceService Connect-RPC service. Manages the
+// cross-device workspace layout: ordered panes (one per session), tab
+// groups, and the active-pane selection.
+//
+// Consumed by:
+//   - API: handlers/workspace/connect_handler.go
+//   - UI:  ui/src/api/workspace.ts (Connect-Web client)
+//   - CLI: cli/domains/workspace/register.go (Connect-Go client)
+// =============================================================================
+
+service WorkspaceService {
+  rpc GetLayout(GetLayoutRequest) returns (GetLayoutResponse);
+  rpc SaveLayout(SaveLayoutRequest) returns (SaveLayoutResponse);
+  rpc UpdatePane(UpdatePaneRequest) returns (UpdatePaneResponse);
+  rpc DeletePane(DeletePaneRequest) returns (DeletePaneResponse);
+  rpc CreateGroup(CreateGroupRequest) returns (CreateGroupResponse);
+  rpc UpdateGroup(UpdateGroupRequest) returns (UpdateGroupResponse);
+  rpc DeleteGroup(DeleteGroupRequest) returns (DeleteGroupResponse);
+
+  // Roles are named positions inside a group. They are additive: a group
+  // with no roles behaves exactly as it did before roles existed.
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
+  rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);
+  rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
+  rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
+}
+
+// Pane is one terminal pane's persisted metadata. session_id is the
+// primary key; group_id is empty when ungrouped.
+message Pane {
+  string session_id = 1;
+  string name = 2;
+  string header_color = 3;
+  string theme_id = 4;
+  int32 font_size = 5;
+  int32 sort_order = 6;
+  string group_id = 7;
+  bool supports_messages_view = 8;
+  // manually_unread is a user-set "come back to this" flag, deliberately
+  // independent of the conversation read cursor. The cursor is a factual
+  // record of what was displayed and only ever moves forward, so it cannot
+  // express "I have seen this but want it to look unread" — and it exists
+  // only for message-capable sessions, while this applies to any pane.
+  bool manually_unread = 11;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+// Group is a named tab group with a display color and collapsed flag.
+message Group {
+  string id = 1;
+  string name = 2;
+  string color = 3;
+  int32 sort_order = 4;
+  bool is_collapsed = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+message GetLayoutRequest {}
+
+// Role is a named position inside a group.
+//
+// session_id is EMPTY while the role is waiting: the role holds a command
+// and no process, costs no PTY, and renders as a placeholder. When the
+// operator starts the role, session_id names the session it now runs as.
+//
+// A role stores a command string, never an enum of known agents, so any
+// executable an operator can type is expressible as a role.
+message Role {
+  string id = 1;
+  string group_id = 2;
+  string label = 3;
+  string command = 4;
+  string working_dir = 5;
+  // incoming_prompt may contain at most one {{payload}} placeholder. It is
+  // stored on the RECEIVING role, so any sender that hands off to this role
+  // gets this role's framing. Empty means "compose the message by hand".
+  string incoming_prompt = 6;
+  // session_id is empty while the role is waiting.
+  string session_id = 7;
+  int32 sort_order = 8;
+  string backend = 9;
+  string target_id = 10;
+  string created_at = 11;
+  string updated_at = 12;
+}
+
+// GetLayoutResponse returns the whole workspace in one round trip. `roles`
+// was added after `groups`; an older client ignores the unknown field.
+message GetLayoutResponse {
+  string active_pane = 1;
+  repeated Pane panes = 2;
+  repeated Group groups = 3;
+  repeated Role roles = 4;
+}
+
+// SaveLayoutRequest persists pane ordering and the active pane selection.
+// pane_order is the full ordered list of session_ids.
+message SaveLayoutRequest {
+  string active_pane = 1;
+  repeated string pane_order = 2;
+}
+
+message SaveLayoutResponse {}
+
+// UpdatePaneRequest creates or updates a single pane. Only fields with
+// has_* = true are applied; unset fields preserve the existing value
+// (or fall back to defaults if the pane is new).
+message UpdatePaneRequest {
+  string session_id = 1;
+
+  string name = 2;
+  bool has_name = 3;
+
+  string header_color = 4;
+  bool has_header_color = 5;
+
+  string theme_id = 6;
+  bool has_theme_id = 7;
+
+  int32 font_size = 8;
+  bool has_font_size = 9;
+
+  int32 sort_order = 10;
+  bool has_sort_order = 11;
+
+  string group_id = 12;
+  bool has_group_id = 13;
+
+  bool supports_messages_view = 14;
+  bool has_supports_messages_view = 15;
+
+  bool manually_unread = 16;
+  bool has_manually_unread = 17;
+}
+
+message UpdatePaneResponse {
+  Pane pane = 1;
+}
+
+// DeletePaneRequest is idempotent: deleting a missing session_id succeeds.
+message DeletePaneRequest {
+  string session_id = 1;
+}
+
+message DeletePaneResponse {}
+
+message CreateGroupRequest {
+  string name = 1;
+  string color = 2;
+}
+
+message CreateGroupResponse {
+  Group group = 1;
+}
+
+// UpdateGroupRequest modifies a group. Only fields with has_* = true are
+// applied; the rest are left unchanged. Returns group_not_found if id
+// doesn't exist.
+message UpdateGroupRequest {
+  string id = 1;
+
+  string name = 2;
+  bool has_name = 3;
+
+  string color = 4;
+  bool has_color = 5;
+
+  bool is_collapsed = 6;
+  bool has_is_collapsed = 7;
+}
+
+message UpdateGroupResponse {
+  Group group = 1;
+}
+
+// DeleteGroupRequest is idempotent. Panes in the group get group_id
+// cleared (via ON DELETE SET NULL in the SQL store).
+message DeleteGroupRequest {
+  string id = 1;
+}
+
+message DeleteGroupResponse {}
+
+// ListRolesRequest returns every role, ordered by group then sort_order.
+// group_id filters to one group when non-empty.
+message ListRolesRequest {
+  string group_id = 1;
+}
+
+message ListRolesResponse {
+  repeated Role roles = 1;
+}
+
+// CreateRoleRequest adds a role to a group. group_id is required; a blank
+// group_id returns invalid_argument. session_id is empty for a waiting role.
+message CreateRoleRequest {
+  string group_id = 1;
+  string label = 2;
+  string command = 3;
+  string working_dir = 4;
+  string incoming_prompt = 5;
+  string session_id = 6;
+  int32 sort_order = 7;
+  string backend = 8;
+  string target_id = 9;
+}
+
+message CreateRoleResponse {
+  Role role = 1;
+}
+
+// UpdateRoleRequest modifies a role. Only fields with has_* = true are
+// applied; the rest are left unchanged. Returns role_not_found if id does
+// not exist. Clearing session_id (has_session_id = true, session_id = "")
+// returns the role to waiting.
+message UpdateRoleRequest {
+  string id = 1;
+
+  string label = 2;
+  bool has_label = 3;
+
+  string command = 4;
+  bool has_command = 5;
+
+  string working_dir = 6;
+  bool has_working_dir = 7;
+
+  string incoming_prompt = 8;
+  bool has_incoming_prompt = 9;
+
+  string session_id = 10;
+  bool has_session_id = 11;
+
+  int32 sort_order = 12;
+  bool has_sort_order = 13;
+
+  string backend = 14;
+  bool has_backend = 15;
+
+  string target_id = 16;
+  bool has_target_id = 17;
+
+  string group_id = 18;
+  bool has_group_id = 19;
+}
+
+message UpdateRoleResponse {
+  Role role = 1;
+}
+
+// DeleteRoleRequest is idempotent: deleting a missing id succeeds.
+message DeleteRoleRequest {
+  string id = 1;
+}
+
+message DeleteRoleResponse {}

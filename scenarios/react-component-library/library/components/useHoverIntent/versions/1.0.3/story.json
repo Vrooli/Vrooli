@@ -1,0 +1,109 @@
+{
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "closeDelay": 120,
+        "openDelay": 120
+      },
+      "composition": {
+        "specimen": {
+          "export": "HoverIntentStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Preview submenu",
+          "role": "button"
+        },
+        {
+          "kind": "text",
+          "value": "The submenu is closed; mouse hover opens it after the configured delay."
+        },
+        {
+          "kind": "text",
+          "value": "Open delay: 120 ms"
+        }
+      ],
+      "id": "default",
+      "name": "Pointer intent preview",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "closeDelay": 120,
+        "openDelay": 120
+      },
+      "composition": {
+        "specimen": {
+          "export": "HoverIntentStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "The submenu is closed; mouse hover opens it after the configured delay."
+        },
+        {
+          "kind": "notVisible",
+          "selector": "[data-hover-intent-panel]"
+        }
+      ],
+      "id": "keyboard-focus",
+      "interactions": [
+        {
+          "kind": "focus",
+          "target": {
+            "name": "Preview submenu",
+            "role": "button"
+          }
+        }
+      ],
+      "mode": "live",
+      "name": "Keyboard focus does not open",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "closeDelay": 120,
+        "openDelay": 500
+      },
+      "composition": {
+        "specimen": {
+          "export": "HoverIntentStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Preview submenu",
+          "role": "button"
+        },
+        {
+          "kind": "text",
+          "value": "Open delay: 500 ms"
+        },
+        {
+          "kind": "text",
+          "value": "The submenu is closed; mouse hover opens it after the configured delay."
+        }
+      ],
+      "id": "longer-delay",
+      "mode": "pinned",
+      "name": "Longer configured open delay",
+      "role": "boundary"
+    }
+  ],
+  "title": "useHoverIntent"
+}

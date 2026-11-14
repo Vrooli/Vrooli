@@ -1,0 +1,10 @@
+{
+  "gate": "manifest-identity",
+  "assetId": "react-component-library:WrongIdentity",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.manifest_identity",
+  "source": "clean.tsx",
+  "catalogAsset": "asset.json",
+  "description": "The declared catalog identity does not match the library identity."
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "ai-money-fixtures",
+    "display_name": "github.com/vrooli/vrooli/packages/ai-money-fixtures",
+    "description": "Standard-library-only contract fixtures for Vrooli AI money integrations.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": ["github.com/vrooli/vrooli/packages/ai-money-fixtures"],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": ["scenario_test"],
+      "adoption_modes": ["go_module_replace"]
+    },
+    "lifecycle": {},
+    "refresh": {"strategy": "none", "restart_running_consumers": false},
+    "docs": ["packages/ai-money-fixtures/README.md"]
+  }
+}

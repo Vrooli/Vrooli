@@ -30,7 +30,7 @@ func WithBuildService(svc build.Service) BuildStageOption {
 	}
 }
 
-// WithBuildStore sets the build store for status polling.
+// WithBuildStore sets the build status store.
 func WithBuildStore(store build.Store) BuildStageOption {
 	return func(s *BuildStage) {
 		s.store = store
@@ -203,6 +203,10 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 		result.Logs = append(result.Logs, fmt.Sprintf("Bundle configuration validated: %s", bundleValidation.BundlePath))
 	}
 
+	if s.store == nil {
+		failStage(result, s.timeProvider, errors.ErrBuildStoreNotConfigured())
+		return result
+	}
 	scenarioName := input.Config.ScenarioName
 	platforms := input.Config.Platforms
 
@@ -215,24 +219,24 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 	// Generate build ID
 	buildID := fmt.Sprintf("build-%s-%d", scenarioName, time.Now().UnixMilli())
 
-	// Initialize build status in store BEFORE launching async goroutine.
+	// Initialize build status before executing the build.
 	// The build service checks if the status exists and exits immediately if not,
 	// so we must create it here first.
 	s.initBuildStore(buildID, scenarioName, platforms, input.Provenance)
 
-	// Start the async build
-	go s.service.PerformScenarioDesktopBuild(
-		buildID,
-		scenarioName,
-		desktopPath,
-		platforms,
-		input.Config.Clean,
-	)
-
-	// Wait for build to complete
-	buildStatus, waitErr := s.waitForBuild(ctx, buildID)
-	if waitErr != nil {
-		failStage(result, s.timeProvider, s.buildWaitError(waitErr, buildID, platforms))
+	buildCtx, cancel := context.WithTimeout(ctx, build.DefaultBuildTimeout)
+	defer cancel()
+	s.service.PerformScenarioDesktopBuild(buildCtx, buildID, scenarioName, desktopPath, platforms, input.Config.Clean)
+	if checkCancellation(ctx, result, s.timeProvider) {
+		return result
+	}
+	if buildCtx.Err() != nil {
+		failStage(result, s.timeProvider, errors.ErrBuildTimedOut(buildID, build.DefaultBuildTimeout.String()))
+		return result
+	}
+	buildStatus, ok := s.store.Get(buildID)
+	if !ok {
+		failStage(result, s.timeProvider, errors.ErrBuildStoreNotConfigured())
 		return result
 	}
 
@@ -261,37 +265,7 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 	return result
 }
 
-// waitForBuild polls for build completion using the generic Poller.
-func (s *BuildStage) waitForBuild(ctx context.Context, buildID string) (*build.Status, *WaitError) {
-	if s.store == nil {
-		return nil, &WaitError{
-			Kind:       WaitErrorStore,
-			EntityType: "build",
-			EntityID:   buildID,
-		}
-	}
-
-	poller := &Poller[*build.Status]{
-		Config: PollerConfig{
-			EntityType:   "Build",
-			Timeout:      DefaultBuildTimeout,
-			PollInterval: DefaultBuildPollInterval,
-			LogInterval:  10, // Log every ~20 seconds
-		},
-		GetStatus: s.store.Get,
-		IsComplete: func(status *build.Status) bool {
-			switch status.Status {
-			case BuildStatusReady, BuildStatusPartial, BuildStatusFailed:
-				return true
-			}
-			return false
-		},
-	}
-
-	return poller.Wait(ctx, buildID)
-}
-
-// initBuildStore creates the initial build status in the store so the async build goroutine can find it.
+// initBuildStore creates the status that the build service updates during execution.
 func (s *BuildStage) initBuildStore(buildID, scenarioName string, platforms []string, provenance *BuildProvenance) {
 	if s.store == nil {
 		return
@@ -324,20 +298,6 @@ func (s *BuildStage) initBuildStore(buildID, scenarioName string, platforms []st
 		}
 	}
 	s.store.Save(initialStatus)
-}
-
-// buildWaitError converts a WaitError into a domain error for the build stage.
-func (s *BuildStage) buildWaitError(waitErr *WaitError, buildID string, platforms []string) *errors.DomainError {
-	switch waitErr.Kind {
-	case WaitErrorStore:
-		return errors.ErrBuildStoreNotConfigured()
-	case WaitErrorTimeout:
-		return errors.ErrBuildTimedOut(buildID, DefaultBuildTimeout.String())
-	case WaitErrorCancelled:
-		return errors.New(errors.CodePipelineCancelled, "build cancelled").InDomain("build")
-	default:
-		return errors.ErrBuildStartFailed(waitErr, strings.Join(platforms, ","))
-	}
 }
 
 // handleBuildResult logs and checks the build status. Returns true if the stage should fail.

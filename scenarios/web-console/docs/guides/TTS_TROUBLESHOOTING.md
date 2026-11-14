@@ -26,11 +26,11 @@ During `make start`, you should see:
 tts-hook: registered Stop hook -> localhost:<port>
 ```
 
-The hook is now reconciled by the `claude-code` resource and written to the project-level Claude file at `.claude/settings.json` in the repository root. `tts-hooks.sh` no longer writes the file directly; it delegates to the resource-owned reconciliation seam.
+The hook is now reconciled by the `claude-code` resource and written to the project-level Claude file at `.claude/settings.json` in the repository root. The portable `web-console hooks register` command delegates to the resource-owned reconciliation seam.
 
 If Settings shows `Claude hook: Not registered`, `hook_missing`, or `hook_stale`, or you saw `hook token not available after 5 attempts`, fix:
 ```bash
-source lib/tts-hooks.sh && wc::register_tts_hook
+web-console hooks register
 ```
 
 To inspect the project-level Claude settings file directly:
@@ -81,6 +81,17 @@ Browsers require a user interaction (click, keypress) before audio can play. Set
 
 If `backend=auto` and Kokoro fails at runtime, the frontend attempts a browser fallback and updates the backend reason accordingly. If both fail, a transient amber error banner appears in the terminal pane for 5 seconds.
 
+When browser speech is active, the expanded playback pill also shows a visible notice:
+`Kokoro is unavailable, so browser speech synthesis is active`. This is an
+intentional fallback, not a claim that Kokoro is healthy. To restore Kokoro,
+check the capability message and run the displayed operator command (usually
+`vrooli resource start kokoro`).
+
+If audio-tools reports a degraded scenario, the microphone remains in the
+toolbar as a disabled control. Its accessible label and tooltip identify the
+provider that failed and the command that repairs it; the control is not
+removed and voice input is not silently replaced by browser speech.
+
 ### Check 7: Use the built-in Test button
 
 Settings -> Voice Output (TTS) -> `Test`
@@ -90,6 +101,15 @@ This plays a short sample through the current runtime backend decision and is th
 - browser audio lockout
 - strict `kokoro` mode with Kokoro down
 - browser-only playback issues
+
+## "The playback pill does not move"
+
+The pill follows the provider's own events; nothing polls. Kokoro moves it about
+four times a second through the audio element's `timeupdate`. Browser speech
+synthesis reports no position: with that backend the pill shows `--:--` for the
+length and the scrub stays disabled, which is expected. If Kokoro audio plays
+and the time stays at `0:00`, the pane is not publishing its transport — reload
+the page and check the browser console for errors from `usePaneSpeech`.
 
 ## "TTS plays but sounds wrong"
 

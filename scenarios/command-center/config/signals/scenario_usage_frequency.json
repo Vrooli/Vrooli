@@ -1,0 +1,34 @@
+{
+  "id": "scenario_usage_frequency",
+  "label": "App opens · 7 days",
+  "description": "How often apps are opened or invoked.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "series",
+  "source": {
+    "team": "meta-optimization",
+    "binding": "none",
+    "read": "",
+    "select": "scenario_usage_frequency",
+    "ttlSeconds": 30,
+    "integrationId": "none",
+    "featureId": "scenario_usage_frequency",
+    "contractVersion": "legacy.v1",
+    "selector": "scenario_usage_frequency",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "MISSING",
+  "sample": {
+    "value": 1840,
+    "series": [
+      1200,
+      1320,
+      1510,
+      1490,
+      1700,
+      1840
+    ],
+    "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+  }
+}

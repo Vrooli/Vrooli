@@ -1,0 +1,13 @@
+{
+  "componentId": "react-component-library:Timeline",
+  "items": {
+    "labelField": "label",
+    "maximumCount": 40,
+    "maximumLabelCharacters": 64,
+    "primaryAction": "not-applicable",
+    "property": "events",
+    "stableIdField": "label",
+    "typicalCount": 5
+  },
+  "version": "1.0.9"
+}

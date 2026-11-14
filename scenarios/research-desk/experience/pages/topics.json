@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "topics",
+    "title": "Topics",
+    "routes": [
+      "/topics"
+    ],
+    "purpose": "Every research topic with its last research write (source on tap), its mode, open workstreams, commissions on it and the size of its start-up read, with bloat flagged; filtered by name.",
+    "prd_refs": [
+      "OT-P0-004",
+      "OT-P0-007"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "A filter box; one row per topic, newest research write first, with 'written while paused' when it came under a paused or ended commission."
+    },
+    {
+      "id": "empty",
+      "description": "The research home has no topics."
+    },
+    {
+      "id": "request-error",
+      "description": "The API cannot be reached or refused the read; the page names which and offers retry, and nothing else on the page pretends to know."
+    },
+    {
+      "id": "loading",
+      "description": "The page announces that it is reading the research home; nothing is shown as known until it is."
+    },
+    {
+      "id": "partial",
+      "description": "An optional scenario is down: only the values it feeds read unknown, each with the reason; everything read from files is still shown."
+    },
+    {
+      "id": "stale",
+      "description": "A refresh failed after a good read: the earlier read stays on screen under a 'Not current' notice with its time and the reason."
+    }
+  ]
+}

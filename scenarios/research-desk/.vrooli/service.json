@@ -1,0 +1,319 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "branding": {
+    "brand": "research-desk",
+    "targets": [
+      "web-public-v1"
+    ]
+  },
+  "cli": {
+    "enabled": true,
+    "command": "research-desk",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "research-desk"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "cwd": "api",
+        "port": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "web-console": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Hosts supervisor terminal sessions; the desk creates a session and types the two launch messages and control slash commands, only on an operator tap.",
+        "degraded_behavior": "Launch is manual: the desk shows the stance message and kernel to paste. Pause, resume and stop say Web Console is unavailable. Reading research state is unaffected.",
+        "uses": [
+          {
+            "id": "launch-session",
+            "name": "Automatic launch",
+            "description": "Create a Codex session through the governed launcher and send the stance message and goal kernel",
+            "group": "launch"
+          },
+          {
+            "id": "session-control",
+            "name": "Pause, resume, stop",
+            "description": "Type /goal pause, /goal resume or quit Codex in a supervisor session on the operator's tap",
+            "group": "launch"
+          }
+        ]
+      },
+      "vrooli-events": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Carries the courier's decision and notice events to Notification Hub (research_desk.needs_you.decision_requested.v1 and .notification.v1), the route every scenario-originated decision takes.",
+        "degraded_behavior": "Nothing is sent; the desk says why in the needs-you feed and the operator answers in the desk. The scheduler's own delivery covers items without a delivered entry.",
+        "uses": [
+          {
+            "id": "decision-events",
+            "name": "Decision events",
+            "description": "Publish needs-you decisions and notices for Notification Hub",
+            "group": "decisions"
+          }
+        ]
+      },
+      "data-backup-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Registers the research home that the desk owns as a filesystem backup target.",
+        "degraded_behavior": "Research remains available; the live desk retries target registration while Data Backup Manager is unavailable.",
+        "uses": [
+          {
+            "id": "research-home-backup",
+            "name": "Research home backup",
+            "description": "Register the desk's research home for scheduled recovery snapshots",
+            "group": "recovery"
+          }
+        ]
+      },
+      "notification-hub": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Shows needs-you items on the operator's phone as decision asks or plain notices; the courier reads asks, notices and answers back (reads need no credential).",
+        "degraded_behavior": "Needs-you items stay in the desk and in the research files; the operator answers them in the desk, and the courier sends them on its next pass once the Hub answers.",
+        "uses": [
+          {
+            "id": "decision-delivery",
+            "name": "Decision delivery",
+            "description": "Raise one ask per needs-you item with a recommendation, or a plain notice for the rest, when the operator's courier switch is on; both go out as events through vrooli-events",
+            "group": "decisions"
+          },
+          {
+            "id": "decision-readback",
+            "name": "Answer read-back",
+            "description": "Read answered asks back into OPERATOR.md and record delivery; an ask the desk no longer needs stays open until its deadline",
+            "group": "decisions"
+          }
+        ]
+      }
+    }
+  },
+  "environment": {},
+  "generation": {
+    "content_sha": "5b674a2c7be4c28d1b68582dea6b40c5eb5b0fe466ba7e025deeaa192282ef2d",
+    "design": {
+      "adapter": "react-vite-tailwind",
+      "id": "vrooli-default",
+      "version": "0.2.0"
+    },
+    "generated_at": "2026-11-11T21:15:26Z",
+    "manifest_sha": "f25dddd48885fad4d4416d6a25c234080d7c34b42b3b197df6fd3e3a3636f42a",
+    "template": {
+      "id": "react-vite",
+      "version": "6.0.1"
+    }
+  },
+  "hostTools": [],
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "startup_grace_period": 15000,
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "research-desk",
+    "displayName": "Research Desk",
+    "description": "Configure, launch, watch, steer and review supervised research from a phone, without being in the research loop.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/research-desk"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/research-desk/SKILL.md"
+    }
+  },
+  "storage": {
+    "entries": {
+      "courier_switches": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "courier.json",
+        "regenerable": false,
+        "agent_removal": "deny",
+        "rationale": "The operator's courier switches per commission and for global items, with when each was turned on. Losing it turns delivery off.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "A few hundred bytes per commission; alarm-only because it records operator choices."
+        }
+      },
+      "first_sightings": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "first-sightings.json",
+        "regenerable": false,
+        "agent_removal": "deny",
+        "rationale": "When each needs-you item was first found. An item first sighted before its switch was turned on is never sent; deleting the file would make old items look new, so it is never removed by a sweep.",
+        "budget": {
+          "max_bytes": "4MiB",
+          "rationale": "One line per open item; items that leave the files are forgotten. Alarm-only."
+        }
+      },
+      "looks": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "looks",
+        "regenerable": false,
+        "rationale": "The operator's recorded looks (mark-seen), one JSON file per commission or topic; `changes` reports from them. Deleting one resets its 'since'.",
+        "budget": {
+          "max_bytes": "4MiB",
+          "rationale": "One small file per commission or topic. Alarm-only because the looks are operator history."
+        }
+      },
+      "launch_tests": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "launch-tests",
+        "regenerable": false,
+        "rationale": "One report per launch test run against a throwaway session; the newest is read by GetLaunchTest.",
+        "budget": {
+          "max_bytes": "16MiB",
+          "rationale": "A report is a few kilobytes and the operator starts each test; alarm-only because the reports are evidence."
+        }
+      },
+      "instance_lock": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "subpath": "instance.lock",
+        "regenerable": true,
+        "rationale": "Empty lock file held by the one desk instance allowed to write.",
+        "budget": {
+          "max_bytes": "1KiB",
+          "rationale": "Always empty; recreated at start."
+        }
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "retention/enforcement-receipt.json",
+        "regenerable": true,
+        "rationale": "Shared storage retention enforcement writes the latest compact receipt under the desk's state namespace.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "The receipt is bounded regenerable operational state and is replaced on each enforcement run."
+        }
+      }
+    },
+    "rationale": "The desk writes only its state namespace; the research home under ~/.vrooli/research belongs to the operator's research skills and is not claimed here."
+  },
+  "version": "1.0.0"
+}

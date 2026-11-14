@@ -30,6 +30,14 @@ interface PromptTabProps {
   hasUnsavedChanges?: boolean
   /** Switch to Files tab and highlight a specific file */
   onNavigateToFile?: (filePath: string) => void
+  /**
+   * Controlled team context. When `onSelectedTeamIdChange` is supplied the
+   * shared persona selector owns the selection and this tab must not render its
+   * own selector, so the prompt preview always matches the selected chat
+   * context. Omit both for the standalone, self-managed selector.
+   */
+  selectedTeamId?: string
+  onSelectedTeamIdChange?: (teamId: string | undefined) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -40,6 +48,8 @@ export function PromptTab({
   agent,
   hasUnsavedChanges = false,
   onNavigateToFile,
+  selectedTeamId: controlledTeamId,
+  onSelectedTeamIdChange,
 }: PromptTabProps) {
   const [sections, setSections] = useState<PromptSection[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -51,7 +61,10 @@ export function PromptTab({
 
   // Team selector
   const [memberships, setMemberships] = useState<AgentTeamMembership[]>([])
-  const [selectedTeamId, setSelectedTeamId] = useState<string>('')
+  const [internalTeamId, setInternalTeamId] = useState<string>('')
+
+  const isControlled = onSelectedTeamIdChange !== undefined
+  const selectedTeamId = isControlled ? controlledTeamId ?? '' : internalTeamId
 
   // Load team memberships
   useEffect(() => {
@@ -112,6 +125,17 @@ export function PromptTab({
     })
   }, [])
 
+  const handleTeamChange = useCallback(
+    (value: string) => {
+      if (isControlled) {
+        onSelectedTeamIdChange(value || undefined)
+      } else {
+        setInternalTeamId(value)
+      }
+    },
+    [isControlled, onSelectedTeamIdChange],
+  )
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -120,11 +144,11 @@ export function PromptTab({
     <div className="flex h-full flex-col space-y-3">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
-        {/* Team selector */}
-        {memberships.length > 0 && (
+        {/* Team selector (hidden when a shared persona control owns the context) */}
+        {!isControlled && memberships.length > 0 && (
           <select
             value={selectedTeamId}
-            onChange={(e) => setSelectedTeamId(e.target.value)}
+            onChange={(e) => handleTeamChange(e.target.value)}
             className="rounded-md border border-border bg-muted px-2 py-1.5 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="">Agent only</option>

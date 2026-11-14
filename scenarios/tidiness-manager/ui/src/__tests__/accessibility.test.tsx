@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../test-utils";
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppShell } from '../components/layout/AppShell';
@@ -13,12 +14,13 @@ function renderWithRouter(ui: React.ReactElement) {
     },
   });
 
-  return render(
+  return renderWithProviders(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
         {ui}
       </MemoryRouter>
-    </QueryClientProvider>
+    </QueryClientProvider>,
+    { withoutRouter: true },
   );
 }
 
@@ -31,9 +33,9 @@ describe('Accessibility - WCAG AAA Compliance', () => {
         </AppShell>
       );
 
-      const skipLink = container.querySelector('.skip-to-content');
+      const skipLink = container.querySelector('[data-rcl-app-shell-skip]');
       expect(skipLink).toBeInTheDocument();
-      expect(skipLink).toHaveAttribute('href', '#main-content');
+      expect(skipLink).toHaveAttribute('href', '#tidiness-manager-app-shell-main');
       expect(skipLink).toHaveTextContent('Skip to content');
     });
 
@@ -45,7 +47,7 @@ describe('Accessibility - WCAG AAA Compliance', () => {
       );
 
       const main = container.querySelector('main');
-      expect(main).toHaveAttribute('id', 'main-content');
+      expect(main).toHaveAttribute('id', 'tidiness-manager-app-shell-main');
     });
   });
 
@@ -128,7 +130,7 @@ describe('Accessibility - WCAG AAA Compliance', () => {
       );
 
       // Root should use dark background
-      const root = container.querySelector('.bg-slate-950');
+      const root = container.querySelector('[data-rcl-app-shell]');
       expect(root).toBeInTheDocument();
 
       // Text should use light color
@@ -161,8 +163,7 @@ describe('Accessibility - WCAG AAA Compliance', () => {
       const menuButton = screen.getByLabelText('Toggle navigation menu');
 
       // Button should have padding for adequate touch target (44x44px minimum)
-      const classes = menuButton.className;
-      expect(classes).toMatch(/p-2\.5/); // Tailwind padding class provides adequate spacing
+      expect(menuButton).toHaveAttribute('data-rcl-app-shell-menu');
     });
 
     it('[REQ:TM-UI-004] Buttons should have proper spacing for touch interfaces', () => {
@@ -175,12 +176,8 @@ describe('Accessibility - WCAG AAA Compliance', () => {
         </AppShell>
       );
 
-      const buttons = container.querySelectorAll('button');
-      buttons.forEach((button) => {
-        // Should have padding classes for touch targets
-        expect(button.className).toBeTruthy();
-        expect(button.className.length).toBeGreaterThan(0);
-      });
+      expect(screen.getByRole('button', { name: 'Action 1' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Action 2' })).toBeInTheDocument();
     });
   });
 

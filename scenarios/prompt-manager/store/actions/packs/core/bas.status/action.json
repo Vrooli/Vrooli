@@ -1,0 +1,59 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "bas.status",
+  "name": "Show Browser-Automation-Studio Status",
+  "description": "Report the operational status of Browser Automation Studio — API health and indexed workflow count. Use this to verify BAS is up before invoking other bas.* actions, or when triaging 'screenshots aren't working.'",
+  "status": "active",
+  "owner": {
+    "type": "scenario",
+    "id": "browser-automation-studio"
+  },
+  "command": {
+    "argv": [
+      "browser-automation-studio",
+      "status",
+      "--json"
+    ]
+  },
+  "outputs": {
+    "api": {
+      "type": "string",
+      "description": "JSON object with API.running and API.url."
+    },
+    "workflows": {
+      "type": "string",
+      "description": "JSON object with workflows.count."
+    }
+  },
+  "permissions": {
+    "filesystemRead": true,
+    "processStart": true,
+    "externalNetwork": true
+  },
+  "examples": [
+    {
+      "description": "Check whether BAS is healthy.",
+      "input": {}
+    }
+  ],
+  "tags": [
+    "status",
+    "health",
+    "browser-automation-studio",
+    "operational",
+    "diagnostics",
+    "bas"
+  ],
+  "execution": {
+    "timeoutSeconds": 15,
+    "outputMode": "stdout",
+    "runEligible": true
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-05-18T00:00:00Z",
+  "updatedAt": "2026-05-18T00:00:00Z"
+}

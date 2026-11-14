@@ -1,0 +1,175 @@
+{
+  "metadata": {
+    "name": "e22-order-editor-light-desktop",
+    "description": "Capture the selected unsaved reordered escalation order on light desktop through the leased owner fixture.",
+    "requirement": "NOTIFICA-P0-006",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "settings-e22-order-editor-light-desktop"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Open canonical Web Push then Email, stage Email before Web Push, assert draft and policy disclosure, then capture in light appearance.",
+      "requirement": "NOTIFICA-P0-006",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 1440,
+      "viewport_height": 1000
+    },
+    "nodes": [
+      {
+        "id": "open-settings",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1&e22_fixture=settings-owner&e22_order=canonical&e22_case=e22-order-channel-editor-light-desktop",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open the leased owner fixture with canonical Web Push then Email order"
+          }
+        }
+      },
+      {
+        "id": "wait-settings",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/escalationOrder.root",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the routed escalation-order read"
+          }
+        }
+      },
+      {
+        "id": "select-dark-theme",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.themeOption(choice=light)"
+          },
+          "metadata": {
+            "label": "Set light appearance for the selected desktop comparison"
+          }
+        }
+      },
+      {
+        "id": "open-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.openButton"
+          },
+          "metadata": {
+            "label": "Open the focused escalation-order editor"
+          }
+        }
+      },
+      {
+        "id": "stage-email-first",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.moveDown(channel=web_push)"
+          },
+          "metadata": {
+            "label": "Stage Email before Web Push without saving"
+          }
+        }
+      },
+      {
+        "id": "assert-draft",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector(\"[data-testid=\\\"escalation-order-root\\\"]\");const rows=[...document.querySelectorAll(\"[data-testid^=\\\"escalation-order-channel-\\\"] h3\")].map(n=>n.textContent||\"\");const text=root?.textContent||\"\";if(rows.length!==2||!rows[0].includes(\"Email\")||!rows[1].includes(\"Web Push\")||!text.includes(\"Saved order\")||!text.includes(\"Web Push\")||!text.includes(\"Only overdue critical asks use this order.\")||!text.includes(\"Non-critical asks expire unless a separately governed reversible default applies\"))throw new Error(`draft order or critical-only policy disclosure mismatch rows=${JSON.stringify(rows)} text=${text}`);return {rows,savedOrderVisible:true,criticalOnlyDisclosureVisible:true}})()"
+          },
+          "metadata": {
+            "label": "Verify Email then Web Push is a local draft and saved order plus held eligibility remain disclosed"
+          }
+        }
+      },
+      {
+        "id": "assert-selected-zero-insets",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.documentElement;for(const key of ['top','right','bottom','left'])root.style.setProperty('--safe-area-inset-'+key,'0px');const insets=Object.fromEntries(['top','right','bottom','left'].map(key=>[key,getComputedStyle(root).getPropertyValue('--safe-area-inset-'+key).trim()]));if(innerWidth!==1440||innerHeight!==1000||Object.values(insets).some(value=>value!=='0px'))throw new Error('selected viewport/inset mismatch '+JSON.stringify({width:innerWidth,height:innerHeight,insets}));return {viewport:{width:innerWidth,height:innerHeight},insets}})()",
+            "store_result": "selectedCaptureEnvironment"
+          },
+          "metadata": {
+            "label": "Assert selected 1440 by 1000 CSS viewport with zero safe-area insets before screenshot"
+          }
+        }
+      },
+      {
+        "id": "capture-order-editor",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the selected reordered draft at 1440 by 1000 light desktop"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e22-order-light-desktop-00",
+        "source": "open-settings",
+        "target": "wait-settings",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-order-light-desktop-01",
+        "source": "wait-settings",
+        "target": "select-dark-theme",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-order-light-desktop-02",
+        "source": "select-dark-theme",
+        "target": "open-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-order-light-desktop-03",
+        "source": "open-editor",
+        "target": "stage-email-first",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-order-light-desktop-04",
+        "source": "stage-email-first",
+        "target": "assert-draft",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-order-light-desktop-05",
+        "source": "assert-selected-zero-insets",
+        "target": "capture-order-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-order-editor-safe-area",
+        "source": "assert-draft",
+        "target": "assert-selected-zero-insets",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

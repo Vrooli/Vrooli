@@ -1,0 +1,227 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='navigation.tabs']"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Overflowing",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='navigation.tabs.Links']"
+        }
+      ],
+      "id": "overflowing",
+      "mode": "live",
+      "name": "Overflowing",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "WithIconsAndBadges",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-tab-icon]"
+        }
+      ],
+      "id": "with-icons-and-badges",
+      "mode": "live",
+      "name": "With icons and badges",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ControlledWithPanels",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-tab-panel]"
+        }
+      ],
+      "id": "controlled-with-panels",
+      "mode": "live",
+      "name": "Controlled with panels",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "CustomItemTestIds",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='settings-tab-sessions']"
+        }
+      ],
+      "id": "custom-item-test-ids",
+      "mode": "live",
+      "name": "Custom item test ids",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Compact",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-tabs-density='compact']"
+        }
+      ],
+      "id": "compact",
+      "mode": "live",
+      "name": "Compact",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Segmented",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-tabs-variant='segmented']"
+        }
+      ],
+      "id": "segmented",
+      "mode": "live",
+      "name": "Segmented",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='navigation.tabs']"
+        }
+      ],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty tabs",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='navigation.tabs']"
+        }
+      ],
+      "id": "one",
+      "mode": "pinned",
+      "name": "One tab",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Overflowing",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='navigation.tabs.Links']"
+        }
+      ],
+      "id": "many",
+      "mode": "pinned",
+      "name": "Many tabs",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ResponsiveNavigation",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-tabs]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-tab][aria-selected='true']"
+        }
+      ],
+      "id": "responsive-navigation",
+      "mode": "live",
+      "name": "Responsive navigation",
+      "role": "boundary"
+    }
+  ],
+  "title": "Tabs"
+}

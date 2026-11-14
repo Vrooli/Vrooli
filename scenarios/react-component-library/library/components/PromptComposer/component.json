@@ -1,0 +1,21 @@
+{
+  "catalogId": "ai.prompt-composer",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "0.1.0",
+    "1.0.3"
+  ],
+  "latest": "1.0.5",
+  "libraryId": "react-component-library:PromptComposer",
+  "displayName": "PromptComposer",
+  "description": "The message composer with auto-resizing entry, attachments, slash commands, mentions, model and tool context, submit, stop, retry, draft persistence, and keyboard behavior that never traps the user.",
+  "tags": []
+}

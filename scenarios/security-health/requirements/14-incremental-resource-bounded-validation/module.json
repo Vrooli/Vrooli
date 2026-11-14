@@ -1,0 +1,87 @@
+{
+  "module_id": "MOD-P0-014",
+  "prd_ref": "OT-P0-007",
+  "priority": "P0",
+  "description": "Reuse sanitized security evidence only while every scanner-specific correctness input remains unchanged, and coordinate scanner misses through shared resource limits.",
+  "requirements": [
+    {
+      "id": "REQ-P0-022",
+      "title": "Correctness-keyed sanitized scanner evidence",
+      "prd_ref": "OT-P0-007",
+      "category": "core",
+      "status": "planned",
+      "description": "When scanner inputs, tool identity, normalization policy identity, and advisory freshness are unchanged, security-health shall reuse sanitized typed findings; when a represented input changes, security-health shall rerun only the affected scanner and replace its cached findings.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/validation/incremental_test.go::TestServiceIncrementalEvidencePreservesOutputAndRerunsOnlyChangedScanner",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Proves cold/warm finding equivalence, zero warm scanner calls, and affected-scanner-only invalidation."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/incremental_test.go::TestScannerEvidencePlanInvalidatesRelevantSourceToolAndAdvisoryEpoch",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Proves relevant source, scanner tool, and advisory-day changes invalidate while generated dependency content does not."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validationcache/store_test.go::TestStorePersistsOnlyNormalizedFindingPayload",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Proves persistence uses an explicit normalized-field allowlist and excludes scanner-native secret material."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-023",
+      "title": "Shared scanner admission and request coalescing",
+      "prd_ref": "OT-P0-007",
+      "category": "core",
+      "status": "planned",
+      "description": "When concurrent validation requests need the same scanner key, security-health shall execute that work once and share its typed result; when distinct cache misses execute, security-health shall admit them through one bounded weighted resource budget.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/validation/evidence_test.go::TestEvidenceCoordinatorCoalescesIdenticalMisses",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Concurrent requests for one scanner key invoke the command once and receive equivalent results."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/evidence_test.go::TestWeightedGateBoundsUsageAndReleasesCancellation",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Concurrent distinct misses never exceed the configured scanner-class admission limit."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/evidence_test.go::TestEvidenceCoordinatorDoesNotCacheFailures",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Canceled and malformed scanner executions are not persisted as reusable security verdicts."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-024",
+      "title": "Scanner-level performance evidence",
+      "prd_ref": "OT-P0-007",
+      "category": "observability",
+      "status": "planned",
+      "description": "When an applicable scanner is evaluated, security-health shall emit a scanner child stage containing availability, fingerprint time, cache outcome, coalescing, admission wait, execution time, finding count, and resource measurements.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/validation/incremental_test.go::TestServiceEmitsPerScannerEvidenceMetrics",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Validation metrics contain one child stage per applicable scanner with cache and execution gauges."
+        }
+      ]
+    }
+  ]
+}

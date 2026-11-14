@@ -1,0 +1,920 @@
+package activityedge
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"syscall"
+	"testing"
+	"time"
+)
+
+func TestIsTranscription(t *testing.T) {
+	cases := []struct {
+		method, path string
+		want         bool
+	}{
+		{http.MethodPost, "/asr", true},
+		{http.MethodPost, "/asr?task=transcribe", true},
+		{http.MethodPost, "/detect-language", false},
+		{http.MethodPost, "/asr/segment", true},
+		{http.MethodGet, "/asr", false}, // GET is not work
+		{http.MethodGet, "/", false},    // health/docs
+		{http.MethodPost, "/", false},
+	}
+	for _, c := range cases {
+		r, _ := http.NewRequest(c.method, "http://x"+c.path, nil)
+		if got := isTranscription(r); got != c.want {
+			t.Errorf("isTranscription(%s %s) = %v, want %v", c.method, c.path, got, c.want)
+		}
+	}
+}
+
+func TestReportAcceptsDemandSignalsButCannotReportPlacementOrRelease(t *testing.T) {
+	var calls [][]string
+	h := &Handlers{
+		Stdout: io.Discard, Stderr: io.Discard,
+		Exec: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+			calls = append(calls, append([]string(nil), args...))
+			if len(args) > 1 && args[0] == "capacity" && args[1] == "list" {
+				return []byte(`{"claims":[{"claim_id":"claim-1","owner_id":"whisper","owner_kind":"resource","resource_kind":"vram","gpu_index":0,"status":"granted","generation":2}]}`), nil
+			}
+			return []byte(`{}`), nil
+		},
+	}
+	h.report("whisper", "unloaded")
+	if len(calls) != 0 {
+		t.Fatalf("placement/release state reached capacity CLI: %v", calls)
+	}
+	h.report("whisper", "active")
+	if len(calls) != 2 || calls[1][0] != "capacity" || calls[1][1] != "activity" {
+		t.Fatalf("active demand signal calls = %v, want claim lookup then activity", calls)
+	}
+	for _, arg := range calls[1] {
+		if arg == "unloaded" || arg == "release" || arg == "placement" {
+			t.Fatalf("activity report contains placement/release claim: %v", calls[1])
+		}
+	}
+}
+
+func TestProxyForwardsTransparentlyAndBrackets(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Upstream", "yes")
+		_, _ = io.WriteString(w, "ok:"+r.URL.Path)
+	}))
+	defer upstream.Close()
+
+	var mu sync.Mutex
+	var states []string
+	h := &Handlers{
+		Stdout: io.Discard, Stderr: io.Discard,
+		GetEnv:   func(string) string { return "" },
+		Debounce: 30 * time.Millisecond,
+		Exec: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+			if len(args) >= 2 && args[1] == "list" {
+				return []byte(`{"claims":[{"claim_id":"clm-w","owner_id":"whisper","owner_kind":"resource","resource_kind":"vram","gpu_index":0,"status":"granted","generation":1}]}`), nil
+			}
+			if len(args) >= 2 && args[1] == "activity" {
+				mu.Lock()
+				for i, a := range args {
+					if a == "--state" && i+1 < len(args) {
+						states = append(states, args[i+1])
+					}
+				}
+				mu.Unlock()
+			}
+			return []byte(`{}`), nil
+		},
+	}
+	srv, err := h.server("127.0.0.1:0", strings.TrimPrefix(upstream.URL, "http://"), 30*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	front := httptest.NewServer(srv.Handler)
+	defer front.Close()
+
+	// GET / is transparent and does NOT bracket.
+	resp, err := http.Get(front.URL + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if string(body) != "ok:/" || resp.Header.Get("X-Upstream") != "yes" {
+		t.Fatalf("GET / not transparent: body=%q header=%q", body, resp.Header.Get("X-Upstream"))
+	}
+	if got := snapshot(&mu, &states); len(got) != 0 {
+		t.Fatalf("GET / must not report activity; got %v", got)
+	}
+
+	// POST /asr is transparent AND brackets: active now, idle after debounce.
+	resp, err = http.Post(front.URL+"/asr", "audio/wav", strings.NewReader("audio"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ = io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if string(body) != "ok:/asr" {
+		t.Fatalf("POST /asr not forwarded: body=%q", body)
+	}
+
+	if !waitForState(&mu, &states, "active", time.Second) {
+		t.Fatalf("active never reported; states=%v", snapshot(&mu, &states))
+	}
+	if !waitForState(&mu, &states, "idle", time.Second) {
+		t.Fatalf("idle never reported after debounce; states=%v", snapshot(&mu, &states))
+	}
+}
+
+func TestStableAudio3CanonicalBoundaryMatchesOnlyComposeWork(t *testing.T) {
+	h, err := ForResource("stable-audio-3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.DefaultListen != "127.0.0.1:8896" || h.DefaultUpstream != "127.0.0.1:18896" || h.Native {
+		t.Fatalf("wrong resource binding: %+v", h)
+	}
+	for _, tc := range []struct {
+		method, path string
+		want         bool
+	}{
+		{http.MethodPost, "/v1/compose", true},
+		{http.MethodGet, "/v1/compose", false},
+		{http.MethodGet, "/health", false},
+		{http.MethodGet, "/v1/outputs/abc/audio", false},
+		{http.MethodPost, "/v1/capacity/degrade", false},
+	} {
+		if got := h.Match(httptest.NewRequest(tc.method, tc.path, nil)); got != tc.want {
+			t.Errorf("%s %s matched=%t want=%t", tc.method, tc.path, got, tc.want)
+		}
+	}
+}
+
+func TestOllayaBoundaryDistinguishesDecisionsFromObservation(t *testing.T) {
+	h, err := ForResource("ollaya")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.DefaultListen != "127.0.0.1:11435" || h.DefaultUpstream != "127.0.0.1:21435" || h.Native {
+		t.Fatalf("wrong resource binding: %+v", h)
+	}
+	for _, tc := range []struct {
+		method, path string
+		work         bool
+	}{
+		{http.MethodPost, "/api/decide", true},
+		{http.MethodGet, "/api/decide", false},
+		{http.MethodGet, "/api/version", false},
+		{http.MethodGet, "/api/ps", false},
+		{http.MethodGet, "/api/tags", false},
+		{http.MethodGet, "/", false},
+		{http.MethodPost, "/api/pull", false},
+	} {
+		if got := h.Match(httptest.NewRequest(tc.method, tc.path, nil)); got != tc.work {
+			t.Errorf("%s %s work=%t, want %t", tc.method, tc.path, got, tc.work)
+		}
+	}
+}
+
+func TestOllamaBoundaryTracksInferenceAndModelMutationsForDrain(t *testing.T) {
+	h, err := ForResource("ollama")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.DefaultListen != "127.0.0.1:11434" || h.DefaultUpstream != "127.0.0.1:21434" {
+		t.Fatalf("wrong Ollama binding: %+v", h)
+	}
+	for _, path := range []string{
+		"/api/generate", "/api/chat", "/api/embed", "/api/embeddings",
+		"/api/delete", "/api/create", "/api/copy", "/api/push",
+	} {
+		if !h.Match(httptest.NewRequest(http.MethodPost, path, nil)) {
+			t.Errorf("POST %s did not enter the managed work fence", path)
+		}
+	}
+	if h.Match(httptest.NewRequest(http.MethodPost, "/api/pull", nil)) {
+		t.Fatal("public pull was classified as supported work")
+	}
+	if h.Reject == nil || !h.Reject(httptest.NewRequest(http.MethodPost, "/api/pull", nil)) {
+		t.Fatal("public pull did not enter the fail-closed rejection boundary")
+	}
+	for _, path := range []string{"/api/tags", "/api/ps", "/api/show"} {
+		if h.Match(httptest.NewRequest(http.MethodGet, path, nil)) {
+			t.Errorf("GET %s was classified as mutating or inference work", path)
+		}
+	}
+}
+
+func TestOllamaDrainWaitsForActiveInferenceAndRejectsDeleteWithoutForwarding(t *testing.T) {
+	started := make(chan struct{}, 1)
+	release := make(chan struct{})
+	var calls atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		started <- struct{}{}
+		<-release
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+
+	h, err := ForResource("ollama")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.Debounce = 0
+	h.Exec = func(context.Context, string, ...string) ([]byte, error) { return nil, nil }
+	server, _, err := h.serverWithTrackerMode("127.0.0.1:0", upstream.URL, 0, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edge := httptest.NewServer(server.Handler)
+	defer edge.Close()
+
+	firstDone := make(chan error, 1)
+	go func() {
+		resp, err := http.Post(edge.URL+"/api/generate", "application/json", strings.NewReader(`{"model":"fixture"}`))
+		if err == nil {
+			_ = resp.Body.Close()
+		}
+		firstDone <- err
+	}()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("active pull did not reach the upstream")
+	}
+
+	drainDone := make(chan error, 1)
+	go func() { drainDone <- h.Drain(context.Background()) }()
+	select {
+	case err := <-drainDone:
+		t.Fatalf("drain returned while pull was active: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+	resp, err := http.Post(edge.URL+"/api/delete", "application/json", strings.NewReader(`{"name":"fixture"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("delete during drain returned %s, want 503", resp.Status)
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("upstream calls during drained delete=%d, want only the active pull", got)
+	}
+	close(release)
+	if err := <-firstDone; err != nil {
+		t.Fatalf("active pull: %v", err)
+	}
+	if err := <-drainDone; err != nil {
+		t.Fatalf("drain after active pull completed: %v", err)
+	}
+}
+
+func TestOllamaPublicPullIsRejectedWithoutForwarding(t *testing.T) {
+	var calls atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+
+	h, err := ForResource("ollama")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, _, err := h.serverWithTrackerMode("127.0.0.1:0", upstream.URL, 0, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edge := httptest.NewServer(server.Handler)
+	defer edge.Close()
+
+	resp, err := http.Post(edge.URL+"/api/pull", "application/json", strings.NewReader(`{"name":"fixture","stream":false}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, readErr := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("public pull status = %s, want 403; body=%s", resp.Status, body)
+	}
+	if !strings.Contains(string(body), "resource-ollama ensure") || !strings.Contains(string(body), "shared disk admission") {
+		t.Fatalf("public pull refusal lacks managed admission guidance: %s", body)
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("upstream received %d direct pull requests, want zero", got)
+	}
+}
+
+func TestEveryAcceleratorResourceTransitionsActiveThenIdle(t *testing.T) {
+	cases := []struct {
+		resource   string
+		method     string
+		path       string
+		wantNative bool
+	}{
+		// whisper legitimately uses the /asr -> /inference native adapter; it has
+		// dedicated native-contract coverage in TestNativeAdapter* and exercises a
+		// multipart body below. Every other resource is a transparent JSON/binary
+		// proxy and MUST NOT be native — pii-detector in particular speaks JSON
+		// POST /detect with no /inference endpoint, so a stray native:true here
+		// 400s every request (the bug this test now guards).
+		{resource: "whisper", method: http.MethodPost, path: "/asr", wantNative: true},
+		{resource: "kokoro", method: http.MethodPost, path: "/v1/audio/speech"},
+		{resource: "kyutai-stt", method: http.MethodGet, path: "/v1/stream"},
+		{resource: "ace-step", method: http.MethodPost, path: "/v1/compose"},
+		{resource: "stable-audio-3", method: http.MethodPost, path: "/v1/compose"},
+		{resource: "speaker-verification", method: http.MethodPost, path: "/v1/verify"},
+		{resource: "ollama", method: http.MethodPost, path: "/api/chat"},
+		{resource: "ollaya", method: http.MethodPost, path: "/api/decide"},
+		{resource: "reranker", method: http.MethodPost, path: "/rerank"},
+		{resource: "pii-detector", method: http.MethodPost, path: "/detect"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.resource, func(t *testing.T) {
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = io.WriteString(w, "ok")
+			}))
+			defer upstream.Close()
+
+			h, err := ForResource(tc.resource)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Assert the resource's real wiring rather than masking it: only
+			// whisper may be native. Previously this test force-set Native=false,
+			// which hid a production-breaking native:true on pii-detector.
+			if h.Native != tc.wantNative {
+				t.Fatalf("%s native=%t, want %t", tc.resource, h.Native, tc.wantNative)
+			}
+			h.Stdout = io.Discard
+			h.Stderr = io.Discard
+			h.Debounce = 5 * time.Millisecond
+			var mu sync.Mutex
+			var states []string
+			h.Exec = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+				if len(args) >= 2 && args[1] == "list" {
+					return []byte(`{"claims":[{"claim_id":"clm-edge","owner_id":"` + tc.resource + `","owner_kind":"resource","resource_kind":"vram","gpu_index":0,"status":"granted","generation":1}]}`), nil
+				}
+				if len(args) >= 2 && args[1] == "activity" {
+					for i, arg := range args {
+						if arg == "--state" && i+1 < len(args) {
+							mu.Lock()
+							states = append(states, args[i+1])
+							mu.Unlock()
+						}
+					}
+				}
+				return []byte(`{}`), nil
+			}
+
+			srv, err := h.server("127.0.0.1:0", strings.TrimPrefix(upstream.URL, "http://"), h.Debounce)
+			if err != nil {
+				t.Fatal(err)
+			}
+			front := httptest.NewServer(srv.Handler)
+			defer front.Close()
+			var req *http.Request
+			if tc.wantNative {
+				// The native adapter requires a multipart audio body.
+				var body bytes.Buffer
+				writer := multipart.NewWriter(&body)
+				part, err := writer.CreateFormFile("audio_file", "speech.wav")
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, _ = io.WriteString(part, "wav")
+				if err := writer.Close(); err != nil {
+					t.Fatal(err)
+				}
+				req, err = http.NewRequest(tc.method, front.URL+tc.path, &body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				req.Header.Set("Content-Type", writer.FormDataContentType())
+			} else {
+				req, err = http.NewRequest(tc.method, front.URL+tc.path, strings.NewReader("work"))
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_ = resp.Body.Close()
+			if !waitForState(&mu, &states, "active", time.Second) || !waitForState(&mu, &states, "idle", time.Second) {
+				t.Fatalf("states = %v, want active then idle", snapshot(&mu, &states))
+			}
+		})
+	}
+}
+
+// TestPIIDetectorDetectJSONReachesUpstreamUnaltered pins the fix for the
+// production-breaking native:true: it drives a real JSON POST /detect through
+// ForResource("pii-detector") WITHOUT overriding Native, and asserts the body
+// and path arrive at the upstream unchanged. With native:true this request is
+// mangled into whisper's multipart /inference contract and 400s.
+func TestPIIDetectorDetectJSONReachesUpstreamUnaltered(t *testing.T) {
+	const detectBody = `{"text":"email bob@example.com"}`
+	var gotPath, gotBody, gotContentType string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotContentType = r.Header.Get("Content-Type")
+		b, _ := io.ReadAll(r.Body)
+		gotBody = string(b)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"spans":[],"model_available":false}`)
+	}))
+	defer upstream.Close()
+
+	h, err := ForResource("pii-detector")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.Native {
+		t.Fatal("pii-detector must not be native: /detect is JSON, not whisper multipart")
+	}
+	h.Stdout = io.Discard
+	h.Stderr = io.Discard
+	h.Debounce = 5 * time.Millisecond
+	h.Exec = func(context.Context, string, ...string) ([]byte, error) { return []byte(`{}`), nil }
+
+	srv, err := h.server("127.0.0.1:0", strings.TrimPrefix(upstream.URL, "http://"), h.Debounce)
+	if err != nil {
+		t.Fatal(err)
+	}
+	front := httptest.NewServer(srv.Handler)
+	defer front.Close()
+
+	resp, err := http.Post(front.URL+"/detect", "application/json", strings.NewReader(detectBody))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status=%d body=%q, want 200 (native:true would 400)", resp.StatusCode, body)
+	}
+	if gotPath != "/detect" {
+		t.Errorf("upstream path=%q, want /detect (native would rewrite to /inference)", gotPath)
+	}
+	if gotBody != detectBody {
+		t.Errorf("upstream body=%q, want %q unaltered", gotBody, detectBody)
+	}
+	if gotContentType != "application/json" {
+		t.Errorf("upstream content-type=%q, want application/json", gotContentType)
+	}
+}
+
+func TestNativeAdapterMapsHistoricalASRContract(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/inference" {
+			t.Fatalf("native path=%q, want /inference", r.URL.Path)
+		}
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatalf("parse native form: %v", err)
+		}
+		if len(r.MultipartForm.File["file"]) != 1 || len(r.MultipartForm.File["audio_file"]) != 0 {
+			t.Fatalf("native files=%v, want file only", r.MultipartForm.File)
+		}
+		if got := r.FormValue("response_format"); got != "verbose_json" {
+			t.Fatalf("response_format=%q, want verbose_json", got)
+		}
+		if got := r.FormValue("language"); got != "en" {
+			t.Fatalf("language=%q, want en from query", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"text":"hello","segments":[]}`)
+	}))
+	defer upstream.Close()
+
+	h := &Handlers{
+		Stdout: io.Discard, Stderr: io.Discard, Native: true,
+		GetEnv: func(string) string { return "" },
+		Exec:   func(context.Context, string, ...string) ([]byte, error) { return []byte(`{}`), nil },
+	}
+	srv, err := h.server("127.0.0.1:0", strings.TrimPrefix(upstream.URL, "http://"), 10*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	front := httptest.NewServer(srv.Handler)
+	defer front.Close()
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("audio_file", "speech.wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.WriteString(part, "wav")
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	request, err := http.NewRequest(http.MethodPost, front.URL+"/asr?output=json&language=en", &body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status=%d, want 200", response.StatusCode)
+	}
+	data, _ := io.ReadAll(response.Body)
+	if string(data) != `{"text":"hello","segments":[]}` {
+		t.Fatalf("response=%q", data)
+	}
+}
+
+func TestNativeAdapterMapsDetectLanguageResponse(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/inference" {
+			t.Fatalf("native path=%q, want /inference", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"language":"english","detected_language":"english","detected_language_probability":0.97}`)
+	}))
+	defer upstream.Close()
+
+	h := &Handlers{
+		Stdout: io.Discard, Stderr: io.Discard, Native: true,
+		GetEnv: func(string) string { return "" },
+		Exec:   func(context.Context, string, ...string) ([]byte, error) { return []byte(`{}`), nil },
+	}
+	srv, err := h.server("127.0.0.1:0", strings.TrimPrefix(upstream.URL, "http://"), 10*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	front := httptest.NewServer(srv.Handler)
+	defer front.Close()
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("audio_file", "speech.wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.WriteString(part, "wav")
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	request, err := http.NewRequest(http.MethodPost, front.URL+"/detect-language", &body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	var payload map[string]any
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if got := payload["language_code"]; got != "en" {
+		t.Fatalf("language_code=%v, want en", got)
+	}
+	if got := payload["confidence"]; got != 0.97 {
+		t.Fatalf("confidence=%v, want 0.97", got)
+	}
+}
+
+func TestWhisperDetectLanguageIsAdaptedButNotCapacityDemand(t *testing.T) {
+	h, err := ForResource("whisper")
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/detect-language", strings.NewReader("audio"))
+	if h.Match(request) {
+		t.Fatal("/detect-language counted as transcription demand")
+	}
+	if !isNativeWhisperRequest(request) {
+		t.Fatal("/detect-language lost native API adaptation")
+	}
+}
+
+func TestWhisperWakeUsesOrdinaryResourceStartOwner(t *testing.T) {
+	h, err := ForResource("whisper")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var gotName string
+	var gotArgs []string
+	h.Exec = func(_ context.Context, name string, args ...string) ([]byte, error) {
+		gotName, gotArgs = name, append([]string(nil), args...)
+		return nil, nil
+	}
+	if h.Wake == nil {
+		t.Fatal("Whisper production edge has no governed wake callback")
+	}
+	if err := h.Wake(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if gotName != "vrooli" || strings.Join(gotArgs, " ") != "resource start whisper" {
+		t.Fatalf("wake owner command = %q %v", gotName, gotArgs)
+	}
+}
+
+func TestTrackerReportsConcurrentActiveThenIdleInSequenceOrder(t *testing.T) {
+	activeStarted := make(chan struct{})
+	releaseActive := make(chan struct{})
+	var mu sync.Mutex
+	var states []string
+	appendState := func(state string) {
+		mu.Lock()
+		states = append(states, state)
+		mu.Unlock()
+	}
+	tr := &tracker{
+		debounce:   time.Millisecond,
+		markActive: func() { close(activeStarted); <-releaseActive; appendState(activityActive) },
+		markIdle:   func() { appendState(activityIdle) },
+	}
+	tr.begin()
+	<-activeStarted
+	tr.end()
+	time.Sleep(5 * time.Millisecond)
+	close(releaseActive)
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		complete := len(states) == 2
+		mu.Unlock()
+		if complete {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(states) != 2 || states[0] != activityActive || states[1] != activityIdle {
+		t.Fatalf("activity report order = %v, want active then idle", states)
+	}
+}
+
+func TestTrackerDrainRejectsNewWorkAndWaitsForInflightWork(t *testing.T) {
+	tr := &tracker{drained: make(chan struct{})}
+	close(tr.drained)
+	if !tr.begin() {
+		t.Fatal("initial work was rejected")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	if err := tr.drain(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("drain with active work = %v, want deadline", err)
+	}
+	if tr.begin() {
+		t.Fatal("new work entered while draining")
+	}
+	tr.end()
+	if err := tr.drain(context.Background()); err != nil {
+		t.Fatalf("drain after active work completed = %v", err)
+	}
+	tr.resume()
+	if !tr.begin() {
+		t.Fatal("work remained blocked after resume")
+	}
+	tr.end()
+}
+
+// Fail-open: when every capacity call errors, transcription still forwards.
+func TestProxyFailOpenOnCapacityError(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, "transcribed")
+	}))
+	defer upstream.Close()
+
+	h := &Handlers{
+		Stdout: io.Discard, Stderr: io.Discard,
+		GetEnv:   func(string) string { return "" },
+		Debounce: 10 * time.Millisecond,
+		Exec: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+			return nil, context.DeadlineExceeded // broker down / vrooli missing
+		},
+	}
+	srv, _ := h.server("127.0.0.1:0", strings.TrimPrefix(upstream.URL, "http://"), 10*time.Millisecond)
+	front := httptest.NewServer(srv.Handler)
+	defer front.Close()
+
+	resp, err := http.Post(front.URL+"/asr", "audio/wav", strings.NewReader("audio"))
+	if err != nil {
+		t.Fatalf("request must succeed even when capacity is down: %v", err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if string(body) != "transcribed" {
+		t.Fatalf("body=%q, want transcribed (fail-open)", body)
+	}
+}
+
+func TestRunLogsSignalExit(t *testing.T) {
+	sigCh := make(chan os.Signal, 1)
+	sigCh <- syscall.SIGTERM
+	var stderr bytes.Buffer
+	h := &Handlers{
+		Stdout:    io.Discard,
+		Stderr:    &stderr,
+		GetEnv:    func(string) string { return "" },
+		Exec:      func(context.Context, string, ...string) ([]byte, error) { return []byte(`{}`), nil },
+		SignalCh:  sigCh,
+		ParentPID: os.Getpid(),
+	}
+	if err := h.Run([]string{"--listen", "127.0.0.1:0", "--upstream", "127.0.0.1:1"}); err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	got := stderr.String()
+	if !strings.Contains(got, "activity-edge exit: reason=signal") || !strings.Contains(got, "sig=terminated") {
+		t.Fatalf("signal exit log = %q", got)
+	}
+}
+
+func TestRunLogsServeError(t *testing.T) {
+	var stderr bytes.Buffer
+	h := &Handlers{
+		Stdout: io.Discard,
+		Stderr: &stderr,
+		GetEnv: func(string) string { return "" },
+		Exec:   func(context.Context, string, ...string) ([]byte, error) { return []byte(`{}`), nil },
+		Listen: func(string, string) (net.Listener, error) {
+			return failingListener{err: errors.New("accept boom")}, nil
+		},
+		SignalCh:  make(chan os.Signal),
+		ParentPID: os.Getpid(),
+	}
+	if err := h.Run([]string{"--listen", "127.0.0.1:0", "--upstream", "127.0.0.1:1"}); err == nil {
+		t.Fatal("Run should return the serve error")
+	}
+	got := stderr.String()
+	if !strings.Contains(got, "activity-edge exit: reason=serve-error") || !strings.Contains(got, "accept boom") {
+		t.Fatalf("serve-error log = %q", got)
+	}
+}
+
+func TestHeartbeatFormatting(t *testing.T) {
+	var stdout bytes.Buffer
+	h := &Handlers{Stdout: &stdout}
+	tr := &tracker{requests: 3, active: true}
+	since := time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC)
+
+	h.logHeartbeat(tr, since)
+
+	want := "activity-edge alive: resource=whisper requests=3 active=true since=2026-06-24T12:00:00Z\n"
+	if got := stdout.String(); got != want {
+		t.Fatalf("heartbeat = %q, want %q", got, want)
+	}
+}
+
+func TestParentGoneIsDetected(t *testing.T) {
+	h := &Handlers{ParentAlive: func(pid int) bool { return pid != 42 }}
+	if !h.parentGone(42) {
+		t.Fatal("dead parent was not detected")
+	}
+	if h.parentGone(1) {
+		t.Fatal("init parent must disable the guard")
+	}
+}
+
+func snapshot(mu *sync.Mutex, states *[]string) []string {
+	mu.Lock()
+	defer mu.Unlock()
+	return append([]string(nil), (*states)...)
+}
+
+func waitForState(mu *sync.Mutex, states *[]string, want string, timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		for _, s := range snapshot(mu, states) {
+			if s == want {
+				return true
+			}
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	return false
+}
+
+type failingListener struct {
+	err error
+}
+
+func (l failingListener) Accept() (net.Conn, error) { return nil, l.err }
+func (l failingListener) Close() error              { return nil }
+func (l failingListener) Addr() net.Addr            { return testAddr("127.0.0.1:0") }
+
+type testAddr string
+
+func (a testAddr) Network() string { return "tcp" }
+func (a testAddr) String() string  { return string(a) }
+
+func TestIdleEdgeRenewsOwnClaimWithoutActivityOrResize(t *testing.T) {
+	var mu sync.Mutex
+	var calls []string
+	renewed := make(chan struct{}, 8)
+	h := &Handlers{Resource: "stable-audio-3", Stdout: io.Discard, Stderr: io.Discard, HeartbeatInterval: time.Millisecond, Exec: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		mu.Lock()
+		calls = append(calls, strings.Join(args, " "))
+		mu.Unlock()
+		if len(args) > 1 && args[1] == "list" {
+			return []byte(`{"claims":[{"claim_id":"other","owner_id":"ollama","owner_kind":"resource","resource_kind":"vram","gpu_index":0,"status":"granted","generation":9},{"claim_id":"owned","owner_kind":"resource","owner_id":"stable-audio-3","resource_kind":"vram","gpu_index":0,"generation":3,"status":"granted"}]}`), nil
+		}
+		if len(args) > 1 && args[1] == "heartbeat" {
+			select {
+			case renewed <- struct{}{}:
+			default:
+			}
+		}
+		return []byte(`{}`), nil
+	}}
+	stop, _ := h.startHeartbeat(&tracker{}, time.Now())
+	defer stop()
+	select {
+	case <-renewed:
+	case <-time.After(time.Second):
+		t.Fatal("idle resident never renewed its admitted claim")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	for _, call := range calls {
+		if strings.Contains(call, "activity") || strings.Contains(call, "resize") || strings.Contains(call, "release") || strings.Contains(call, "claim-id other") {
+			t.Fatalf("liveness changed activity/footprint/another owner: %s", call)
+		}
+	}
+}
+
+func TestOldEdgeStopsRenewalOnParentGoneOrShutdownWithoutRelease(t *testing.T) {
+	for _, dead := range []bool{false, true} {
+		t.Run(fmt.Sprint(dead), func(t *testing.T) {
+			var gone atomic.Bool
+			renewed := make(chan struct{}, 8)
+			var callsMu sync.Mutex
+			var calls []string
+			h := &Handlers{Resource: "stable-audio-3", ParentPID: 42, ParentAlive: func(int) bool { return !gone.Load() }, Stdout: io.Discard, Stderr: io.Discard, HeartbeatInterval: time.Millisecond, Exec: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+				callsMu.Lock()
+				calls = append(calls, strings.Join(args, " "))
+				callsMu.Unlock()
+				if len(args) > 1 && args[1] == "list" {
+					return []byte(`{"claims":[{"claim_id":"reused-on-restart","owner_id":"stable-audio-3","owner_kind":"resource","resource_kind":"vram","gpu_index":0,"status":"granted","generation":4}]}`), nil
+				}
+				if len(args) > 1 && args[1] == "heartbeat" {
+					select {
+					case renewed <- struct{}{}:
+					default:
+					}
+				}
+				return []byte(`{}`), nil
+			}}
+			stop, finished := h.startHeartbeat(&tracker{}, time.Now())
+			defer stop()
+			select {
+			case <-renewed:
+			case <-time.After(time.Second):
+				t.Fatal("missing immediate handoff renewal")
+			}
+			if dead {
+				gone.Store(true)
+				select {
+				case <-finished:
+				case <-time.After(time.Second):
+					t.Fatal("parent-death tick did not autonomously end renewal")
+				}
+			}
+			stop()
+			stop() // bounded joined, idempotent cleanup, no background ledger writes.
+			callsMu.Lock()
+			n := len(calls)
+			for _, call := range calls {
+				if strings.Contains(call, "release") {
+					t.Fatalf("old edge released replacement: %s", call)
+				}
+			}
+			callsMu.Unlock()
+			time.Sleep(3 * time.Millisecond)
+			callsMu.Lock()
+			defer callsMu.Unlock()
+			if len(calls) != n {
+				t.Fatal("renewal leaked after joined shutdown")
+			}
+		})
+	}
+}

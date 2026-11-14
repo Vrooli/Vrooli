@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { renderWithProviders } from "../../../test-utils";
 import { ToastProvider, useToast } from "../toast";
 
 // Test component to trigger toasts
@@ -27,7 +28,7 @@ describe("ToastProvider", () => {
   });
 
   it("renders children correctly", () => {
-    render(
+    renderWithProviders(
       <ToastProvider>
         <div>Test Child</div>
       </ToastProvider>
@@ -36,7 +37,7 @@ describe("ToastProvider", () => {
   });
 
   it("renders notification region with proper aria-label", () => {
-    render(
+    renderWithProviders(
       <ToastProvider>
         <div>Test</div>
       </ToastProvider>
@@ -55,14 +56,14 @@ describe("ToastProvider", () => {
           useToast();
           return null;
         };
-        render(<Component />);
+        renderWithProviders(<Component />);
       }).toThrow("useToast must be used within ToastProvider");
 
       consoleError.mockRestore();
     });
 
     it("provides showToast function inside ToastProvider", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -73,7 +74,7 @@ describe("ToastProvider", () => {
 
   describe("toast variants", () => {
     it("displays info toast", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -84,7 +85,7 @@ describe("ToastProvider", () => {
     });
 
     it("displays success toast", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -95,7 +96,7 @@ describe("ToastProvider", () => {
     });
 
     it("displays error toast", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -106,7 +107,7 @@ describe("ToastProvider", () => {
     });
 
     it("displays warning toast", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -119,7 +120,7 @@ describe("ToastProvider", () => {
 
   describe("toast accessibility", () => {
     it("has role='alert' on toast items", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -131,7 +132,7 @@ describe("ToastProvider", () => {
     });
 
     it("has aria-live='polite' on toast items", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -143,7 +144,7 @@ describe("ToastProvider", () => {
     });
 
     it("dismiss button has proper aria-label", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -155,7 +156,7 @@ describe("ToastProvider", () => {
     });
 
     it("icons have aria-hidden=true", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -170,7 +171,7 @@ describe("ToastProvider", () => {
 
   describe("toast lifecycle", () => {
     it("automatically dismisses toast after default duration (5000ms)", async () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -188,7 +189,7 @@ describe("ToastProvider", () => {
     });
 
     it("does not auto-dismiss when duration is 0", async () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -203,7 +204,7 @@ describe("ToastProvider", () => {
     });
 
     it("dismisses toast when dismiss button is clicked", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -219,7 +220,7 @@ describe("ToastProvider", () => {
     });
 
     it("supports multiple toasts at once", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -237,7 +238,7 @@ describe("ToastProvider", () => {
 
   describe("toast styling", () => {
     it("has slide-in animation", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -249,7 +250,7 @@ describe("ToastProvider", () => {
     });
 
     it("applies correct styling for info variant", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -261,7 +262,7 @@ describe("ToastProvider", () => {
     });
 
     it("applies correct styling for success variant", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -273,7 +274,7 @@ describe("ToastProvider", () => {
     });
 
     it("applies correct styling for error variant", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -285,7 +286,7 @@ describe("ToastProvider", () => {
     });
 
     it("applies correct styling for warning variant", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -297,7 +298,7 @@ describe("ToastProvider", () => {
     });
 
     it("has proper layout classes", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -309,7 +310,7 @@ describe("ToastProvider", () => {
     });
 
     it("notification region is positioned fixed bottom-right", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <div>Test</div>
         </ToastProvider>
@@ -322,7 +323,7 @@ describe("ToastProvider", () => {
 
   describe("toast content", () => {
     it("renders message in monospace font", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>
@@ -334,7 +335,7 @@ describe("ToastProvider", () => {
     });
 
     it("supports multiline messages with whitespace-pre-line", () => {
-      render(
+      renderWithProviders(
         <ToastProvider>
           <TestComponent />
         </ToastProvider>

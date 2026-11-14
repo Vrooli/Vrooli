@@ -144,7 +144,6 @@ func TestWorkflowService_Create(t *testing.T) {
 **Tag placement:**
 - Go: In `t.Run()` description or test function comment
 - Vitest: In `it()` or `test()` description
-- BATS: In `@test` description
 
 ---
 
@@ -225,7 +224,7 @@ The sync process updates requirement files:
 ```bash
 # Automatic after test execution
 # Or manual trigger:
-test-genie sync browser-automation-studio
+test-genie requirements sync --scenario "browser-automation-studio"
 ```
 
 **Sync logic:**

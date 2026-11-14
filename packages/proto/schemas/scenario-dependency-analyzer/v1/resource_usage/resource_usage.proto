@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package vrooli.scenario_dependency_analyzer.v1.resource_usage;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/resource_usage;resource_usage_v1";
+
+// =============================================================================
+// RESOURCE USAGE DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for the federated AI-search leaf over resource usage: which
+// scenarios declare (use) a given local resource (postgres, redis, qdrant,
+// ollama, vault, ...). The corpus is built from a fleet scan of each scenario's
+// .vrooli/service.json, inverting scenario->resources into
+// resource->consuming-scenarios. It is kept in its own service (separate from
+// DependencyGovernanceService, which governs third-party packages) so each
+// federated leaf has a distinct endpoint and the governance service stays
+// cohesive.
+// =============================================================================
+
+service ResourceUsageService {
+  // SearchResourceUsage is the federated AI-search leaf: a natural-language query
+  // ("which scenarios use postgres", "what uses qdrant") returns the resources
+  // whose usage record best matches, ranked by relevance, each carrying the list
+  // of consuming scenarios.
+  rpc SearchResourceUsage(SearchResourceUsageRequest) returns (SearchResourceUsageResponse);
+}
+
+message SearchResourceUsageRequest {
+  // Natural-language resource-usage query.
+  string query = 1;
+  // Maximum hits to return. Zero means the service default.
+  int32 limit = 2;
+}
+
+message SearchResourceUsageResponse {
+  repeated ResourceUsageHit results = 1;
+}
+
+message ResourceUsageHit {
+  // Resource name (the natural ID / title): postgres, qdrant, ollama, ...
+  string resource = 1;
+  // Resource type when declared in service.json (often equal to the name).
+  string type = 2;
+  // Scenarios that declare/use this resource.
+  repeated string used_by = 3;
+  // Human-readable usage summary, used as the federated snippet.
+  string summary = 4;
+  // Relevance score in [0,1] (cosine/rerank regime).
+  double relevance_score = 5;
+}

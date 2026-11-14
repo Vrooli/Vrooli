@@ -2,7 +2,6 @@ package phases
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	"test-genie/internal/shared"
@@ -117,34 +116,4 @@ func CheckContext(ctx context.Context) *RunReport {
 		return &RunReport{Err: err, FailureClassification: FailureClassSystem}
 	}
 	return nil
-}
-
-// LoadExpectationsResult holds the result of loading expectations.
-type LoadExpectationsResult[T any] struct {
-	Expectations T
-	FailReport   *RunReport
-}
-
-// LoadExpectationsOrFail attempts to load expectations and returns a failure report on error.
-// The phaseName is used in error messages.
-func LoadExpectationsOrFail[T any](
-	logWriter io.Writer,
-	scenarioDir string,
-	loader func(string) (T, error),
-	phaseName string,
-) LoadExpectationsResult[T] {
-	expectations, err := loader(scenarioDir)
-	if err != nil {
-		shared.LogError(logWriter, "Failed to load %s expectations: %v", phaseName, err)
-		var zero T
-		return LoadExpectationsResult[T]{
-			Expectations: zero,
-			FailReport: &RunReport{
-				Err:                   err,
-				FailureClassification: FailureClassMisconfiguration,
-				Remediation:           fmt.Sprintf("Fix .vrooli/testing.json so %s settings can be parsed.", phaseName),
-			},
-		}
-	}
-	return LoadExpectationsResult[T]{Expectations: expectations}
 }

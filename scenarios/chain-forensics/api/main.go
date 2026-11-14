@@ -1,0 +1,110 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+
+	"chain-forensics/internal/capabilities"
+	"chain-forensics/internal/modules"
+	"chain-forensics/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
+
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/preflight"
+	apiserver "github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	_ "modernc.org/sqlite"
+
+	capsH "chain-forensics/handlers/capabilities"
+	casesH "chain-forensics/handlers/cases"
+	healthH "chain-forensics/handlers/health"
+)
+
+// scenarioStorageRoots resolves all filesystem storage classes once at
+// startup. Domain file stores receive the routed roots and select the
+// request-appropriate class at their own storage seam.
+func scenarioStorageRoots() (storage.Paths, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("create storage resolver: %w", err)
+	}
+	scenarioID, err := storage.ScenarioNamespace("chain-forensics")
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("resolve chain-forensics storage namespace: %w", err)
+	}
+	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
+}
+
+func main() {
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "chain-forensics"}) {
+		return
+	}
+
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		Scenario:     "chain-forensics",
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		log.Fatalf("Database connection failed: %v", err)
+	}
+
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
+	}
+	primaryFileRoots, err := scenarioStorageRoots()
+	if err != nil {
+		log.Fatalf("file storage configuration failed: %v", err)
+	}
+	fileRoots := filerouting.New(primaryFileRoots)
+
+	srv := server.New(
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+		healthH.Module(db, "chain-forensics-api", "1.0.0"),
+		capsH.Module(capabilities.NewRegistry()),
+		casesH.Module(db, schedule.System(), log.Default()),
+	)
+
+	// Top-level mux that mounts the API handler plus, when in development
+	// mode, the dev-only RoutingService used by test-genie to install a
+	// runtime test DB pool without restarting this scenario.
+	rootMux := http.NewServeMux()
+	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
+
+	rootMux.Handle("/", srv.Handler())
+	authConfig, err := authn.FromEnvironment(os.Getenv)
+	if err != nil {
+		log.Fatalf("authentication configuration failed: %v", err)
+	}
+	var sharedAuth *authn.Config
+	if authConfig.Enabled() {
+		sharedAuth = &authConfig
+	}
+
+	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
+	// request context so *database.RoutedDB routes the call to the
+	// installed test pool. Self-disables in production mode.
+	handler := apihttp.TestModeMiddleware(rootMux)
+
+	if err := apiserver.Run(apiserver.Config{
+		Handler:        handler,
+		Authentication: sharedAuth,
+		Cleanup:        func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
+}

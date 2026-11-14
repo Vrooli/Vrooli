@@ -66,7 +66,7 @@ flowchart TB
         H[HTTP Handlers]
         S[Sandbox Service]
         D[Driver Layer]
-        DB[(PostgreSQL)]
+        DB[(SQLite)]
     end
 
     subgraph Storage["Filesystem"]
@@ -74,9 +74,9 @@ flowchart TB
         SB[Sandbox Storage<br/>~/.local/share/workspace-sandbox/]
     end
 
-    AM -->|"POST /sandboxes"| H
-    UI -->|"GET /sandboxes/:id/diff"| H
-    CLI -->|"DELETE /sandboxes/:id"| H
+    AM -->|"Connect RPC"| H
+    UI -->|"Connect RPC / REST compatibility"| H
+    CLI -->|"Connect RPC"| H
 
     H --> S
     S --> D
@@ -87,11 +87,16 @@ flowchart TB
 
 **Key Components:**
 
-1. **API Server** - HTTP endpoints for all sandbox operations
+1. **API Server** - Connect-RPC is the typed application contract; existing REST routes remain for compatibility and operational integration.
 2. **Sandbox Service** - Business logic for create, diff, approve, etc.
 3. **Driver Layer** - Abstracts the actual filesystem isolation mechanism
-4. **PostgreSQL** - Stores sandbox metadata (not the actual files)
+4. **SQLite** - Stores sandbox metadata (not the actual files)
 5. **Filesystem** - Where the magic happens via overlayfs
+
+The governed change path is `WorkspaceSandboxService`: `CreateSandbox`,
+`GetSandboxDiff`, `PromoteSandbox`, and `ResolveWorkspace`. Each handler
+delegates to the existing sandbox service, so typed callers and compatibility
+routes share the same lifecycle, policy, and path validation rules.
 
 ---
 
@@ -183,15 +188,15 @@ A user namespace is a Linux feature that creates an isolated view of user/group 
 ```mermaid
 sequenceDiagram
     participant User as Your Shell<br/>(UID 1000)
-    participant API1 as API Process<br/>(starts as UID 1000)
+    participant Launcher as Launcher<br/>(starts as UID 1000)
     participant NS as User Namespace
     participant API2 as API Process<br/>(appears as UID 0)
     participant FS as Filesystem
 
-    User->>API1: vrooli scenario start workspace-sandbox
-    API1->>API1: Check: Can we create user namespace?
-    API1->>NS: unshare --user --mount --map-root-user
-    NS->>API2: Re-exec same binary inside namespace
+    User->>Launcher: vrooli scenario start workspace-sandbox
+    Launcher->>Launcher: Read driver-preference.json
+    Launcher->>NS: aa-exec/unshare -U -m -r
+    NS->>API2: Exec API binary inside namespace
     Note over API2: Now appears as UID 0<br/>Can mount overlayfs!
     API2->>FS: mount -t overlay ...
     FS-->>API2: Mount successful
@@ -199,27 +204,23 @@ sequenceDiagram
     Note over User,API2: All API requests go to process in namespace
 ```
 
-### The Re-exec Pattern
+### The Launcher Pattern
 
-The API uses a clever pattern:
+The lifecycle uses a small Go launcher:
 
-1. **First run**: Process starts as normal user, detects it's not in a namespace
-2. **Re-exec**: Calls `unshare` to create namespace and re-run itself
-3. **Second run**: Now inside namespace, detects this, continues normally
+1. **Launcher starts**: Reads the file-backed driver preference before the API exists.
+2. **Launch decision**: Uses direct exec for `copy`/`fuse-overlayfs`, or `aa-exec` + `unshare -U -m -r` for the default `overlayfs-userns` path on Linux.
+3. **API starts**: The API verifies it is inside a user namespace when `overlayfs-userns` is selected, then starts normally.
 
 ```go
-// Simplified version of what happens in main.go
+// Simplified version of the launcher decision
 func main() {
-    status := namespace.Check()
-
-    if !status.InUserNamespace && status.CanCreateUserNamespace {
-        // Re-exec ourselves inside a user namespace
-        namespace.EnterUserNamespace()
-        // This never returns - we've been replaced
+    pref := driverpref.Load(baseDir)
+    if pref == "" || pref == "overlayfs-userns" {
+        exec("aa-exec", "-p", "vrooli-workspace-sandbox", "--",
+             "unshare", "-U", "-m", "-r", "./workspace-sandbox-api")
     }
-
-    // If we get here, we're in the namespace (or fallback mode)
-    startServer()
+    exec("./workspace-sandbox-api")
 }
 ```
 
@@ -264,7 +265,7 @@ sequenceDiagram
     participant AM as Agent Manager
     participant API as Workspace Sandbox API
     participant Agent as Agent Process
-    participant DB as PostgreSQL
+    participant DB as SQLite
     participant FS as Filesystem
 
     Note over AM,FS: Phase 1: Create Sandbox
@@ -287,8 +288,18 @@ sequenceDiagram
     API->>FS: Compare upper/ vs lower/
     API-->>AM: {unifiedDiff: "...", files: [...]}
 
-    Note over AM,FS: Phase 4: Approve or Reject
-    alt Approve Changes
+    Note over AM,FS: Phase 4: Turn Checkpoint or Final Review
+    alt Agent turn checkpoint
+        AM->>API: POST /sandboxes/abc-123/turn-checkpoint
+        API->>FS: Apply accepted files to repo
+        API->>FS: Unmount project/home overlays
+        API->>DB: Mark sandbox as checkpointed
+        API-->>AM: {status: "checkpointed"}
+        AM->>API: POST /sandboxes/abc-123/resume
+        API->>FS: Remount overlays
+        API->>DB: Mark sandbox as active
+        API-->>AM: {mergedDir: "..."}
+    else Final approve
         AM->>API: POST /sandboxes/abc-123/approve<br/>{files: ["file1.go", "file2.go"]}
         API->>FS: Copy approved files from upper/ to repo
         API->>DB: Mark sandbox as approved
@@ -307,6 +318,8 @@ sequenceDiagram
 |-------|----------|---------|
 | Create | `POST /sandboxes` | Create new sandbox |
 | Execute | `POST /sandboxes/:id/exec` | Run command in sandbox |
+| Turn checkpoint | `POST /sandboxes/:id/turn-checkpoint` | Apply accepted turn changes and park the sandbox as resumable |
+| Resume | `POST /sandboxes/:id/resume` | Remount a checkpointed sandbox for the next turn |
 | Review | `GET /sandboxes/:id/diff` | Get unified diff of changes |
 | Approve | `POST /sandboxes/:id/approve` | Apply changes to repo |
 | Reject | `POST /sandboxes/:id/reject` | Discard changes |
@@ -522,7 +535,7 @@ The overlayfs mount only exists inside the user namespace where the API runs. Yo
 
 ### Q: What happens if the API crashes?
 
-- Sandbox metadata persists in PostgreSQL
+- Sandbox metadata persists in SQLite
 - Upper layer files persist on disk
 - On restart, sandboxes can be recovered
 - Stale sandboxes are cleaned by garbage collection
@@ -646,6 +659,25 @@ What do you want to control?
 | Scope too broad (project root) | Large overlay, slow creation | Scope to the specific scenario being worked on |
 
 ---
+
+## Operator-tunable Behavior Config
+
+A subset of runtime knobs are exposed in
+`scenarios/workspace-sandbox/.vrooli/config.json` under the top-level
+`behavior` key so operators can tune them without rebuilding. Today this
+covers:
+
+- `behavior.protected.gitAllowlist` — API-side default allowlist of `git`
+  verbs (per-sandbox wire payloads still win when non-empty).
+- `behavior.protected.gitDenyMessageTemplate` — rejection-message template
+  for blocked verbs. Supports `{verb}` and `{allowlist}` placeholders.
+- `behavior.protected.gitNoVerbMessageTemplate` — message template for bare
+  `git` (no verb) calls. Supports `{allowlist}`.
+
+Empty templates fall back to the hardcoded strong defaults in
+`internal/runtime/git_allowlist.go`. A missing config file or missing
+`behavior` key is fine; only a malformed JSON file aborts startup. See
+[SEAMS.md "Behavior config seam"](./SEAMS.md) for the loader contract.
 
 ## Further Reading
 

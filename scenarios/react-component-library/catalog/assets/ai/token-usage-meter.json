@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.token-usage-meter",
+    "name": "TokenUsageMeter",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "ai",
+    "description": "The contextual capacity indicator showing used, estimated, and remaining context with semantic thresholds and explicit uncertainty on the estimated portion.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.meter",
+        "reason": "Bounded-capacity semantics are shared and are deliberately not task progress."
+      },
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Certainty and urgency are expressed on the shared orthogonal axes rather than as one flat variant set."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "non-color-status",
+    "freshness-disclosure"
+  ],
+  "rationale": "Estimated usage must be visibly distinct from measured usage. Presenting a projection as a fact is the kind of quiet dishonesty that erodes trust in every other number on the surface."
+}

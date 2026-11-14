@@ -37,7 +37,9 @@ describe("writeToClipboard", () => {
   });
 
   it("returns error when clipboard write fails", async () => {
-    vi.mocked(navigator.clipboard.writeText).mockRejectedValue(new Error("Permission denied"));
+    vi.mocked(navigator.clipboard.writeText).mockRejectedValue(
+      new Error("Permission denied"),
+    );
 
     const result = await writeToClipboard("test content");
 
@@ -131,13 +133,19 @@ describe("triggerDownload", () => {
   it("opens URL in new window by default", () => {
     triggerDownload({ url: "http://example.com/file.zip" });
 
-    expect(windowOpenMock).toHaveBeenCalledWith("http://example.com/file.zip", "_blank");
+    expect(windowOpenMock).toHaveBeenCalledWith(
+      "http://example.com/file.zip",
+      "_blank",
+    );
   });
 
   it("opens URL in new window when newWindow is true", () => {
     triggerDownload({ url: "http://example.com/file.zip", newWindow: true });
 
-    expect(windowOpenMock).toHaveBeenCalledWith("http://example.com/file.zip", "_blank");
+    expect(windowOpenMock).toHaveBeenCalledWith(
+      "http://example.com/file.zip",
+      "_blank",
+    );
   });
 
   it("navigates current window when newWindow is false", () => {
@@ -154,7 +162,11 @@ describe("triggerBlobDownload", () => {
   let originalCreateElement: typeof document.createElement;
   let originalAppendChild: typeof document.body.appendChild;
   let originalRemoveChild: typeof document.body.removeChild;
-  let mockLink: { href: string; download: string; click: ReturnType<typeof vi.fn> };
+  let mockLink: {
+    href: string;
+    download: string;
+    click: ReturnType<typeof vi.fn>;
+  };
   let createdUrls: Blob[];
   let revokedUrls: string[];
 
@@ -182,9 +194,15 @@ describe("triggerBlobDownload", () => {
       click: vi.fn(),
     };
 
-    document.createElement = vi.fn().mockReturnValue(mockLink) as typeof document.createElement;
-    document.body.appendChild = vi.fn().mockReturnValue(mockLink) as typeof document.body.appendChild;
-    document.body.removeChild = vi.fn().mockReturnValue(mockLink) as typeof document.body.removeChild;
+    document.createElement = vi
+      .fn()
+      .mockReturnValue(mockLink) as typeof document.createElement;
+    document.body.appendChild = vi
+      .fn()
+      .mockReturnValue(mockLink) as typeof document.body.appendChild;
+    document.body.removeChild = vi
+      .fn()
+      .mockReturnValue(mockLink) as typeof document.body.removeChild;
   });
 
   afterEach(() => {

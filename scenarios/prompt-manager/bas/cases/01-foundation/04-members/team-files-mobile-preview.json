@@ -1,0 +1,84 @@
+{
+  "metadata": {
+    "name": "team-files-mobile-preview",
+    "description": "Proves the Team Files mobile browse-to-preview transition uses the full inspector surface and remains contained at 390px.",
+    "labels": { "reset": "none", "safety": "fixture-only", "routed_isolation": "true", "requires_confirmation": "true" },
+    "requirement": "UX-CAMPAIGN-003",
+    "execution_mode": "EXECUTION_MODE_MUTATING"
+  },
+  "settings": { "viewport_width": 390, "viewport_height": 844 },
+  "nodes": [
+    {
+      "id": "open",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prompt-manager",
+          "scenario_path": "/teams/rcl-prompt-manager-ux-design-campaign?tab=files",
+          "wait_until": "NAVIGATE_WAIT_EVENT_LOAD",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/teamFiles.filter",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "select-file",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/teamFiles.linkedFile" }
+      }
+    },
+    {
+      "id": "preview",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/teamFiles.artifactPreview",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "mobile-inspector",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/teamFiles.inspectorPane",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "data-mobile-pane",
+          "expected": { "string_value": "inspector" },
+          "timeout_ms": 15000,
+          "failure_message": "Selecting a Team Files artifact did not enter the mobile preview mode"
+        }
+      }
+    },
+    {
+      "id": "containment",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{if(document.documentElement.scrollWidth>window.innerWidth)throw Error(`Team Files preview horizontal overflow: ${document.documentElement.scrollWidth}px > ${window.innerWidth}px`);return true;})()"
+        }
+      }
+    },
+    {
+      "id": "screenshot",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": { "full_page": false }
+      }
+    }
+  ]
+}

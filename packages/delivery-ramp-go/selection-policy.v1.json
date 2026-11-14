@@ -1,0 +1,17 @@
+{
+  "version": "selection-policy.v1",
+  "policy_state": "default_only_until_packaged_evidence_is_promoted",
+  "weights": {},
+  "metrics": [
+    "cold_time_to_interactive_p50",
+    "cold_time_to_interactive_p95",
+    "steady_pss",
+    "idle_cpu",
+    "artifact_size",
+    "update_size"
+  ],
+  "hard_gates": [
+    "journey_parity_pass",
+    "launch_reliability_floor"
+  ]
+}

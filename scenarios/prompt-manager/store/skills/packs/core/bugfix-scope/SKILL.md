@@ -1,3 +1,23 @@
+---
+name: "bugfix-scope"
+description: "Minimal targeted changes with regression tests"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["scope"]
+  tags: ["scope","bugfix","constraints"]
+  icon: "bug"
+  status: "active"
+  revision: 19
+  createdAt: "2026-02-04T12:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 # Bugfix Scope
 
 Session constraints for bug fixes. These boundaries ensure fixes are targeted and don't introduce new issues.

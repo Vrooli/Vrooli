@@ -8,184 +8,135 @@ import (
 	"time"
 )
 
-// Collector collects and aggregates frame timing data.
-// Thread-safe for concurrent access.
-type Collector struct {
-	sessionID  string
-	targetFps  int
-	bufferSize int
-
-	mu          sync.RWMutex
-	timings     []FrameTimings
-	frameCount  int
-	skipCount   int
-	windowStart time.Time
+// frameSample keeps the local observation interval separate from the driver's clock.
+type frameSample struct {
+	timing FrameTimings
+	start  time.Time
 }
 
-// NewCollector creates a new performance collector.
+// Collector owns a fixed-capacity sample ring. Lifetime count is only for cadence.
+// All access is synchronized; caller-provided timing values are copied.
+type Collector struct {
+	sessionID    string
+	targetFps    int
+	mu           sync.RWMutex
+	samples      []frameSample
+	next         int
+	frameCount   int
+	lastRecorded time.Time
+	now          func() time.Time
+}
+
 func NewCollector(sessionID string, targetFps, bufferSize int) *Collector {
 	return &Collector{
-		sessionID:   sessionID,
-		targetFps:   targetFps,
-		bufferSize:  bufferSize,
-		timings:     make([]FrameTimings, 0, bufferSize),
-		windowStart: time.Now(),
+		sessionID: sessionID, targetFps: targetFps,
+		samples:      make([]frameSample, 0, max(1, bufferSize)),
+		lastRecorded: time.Now(), now: time.Now,
 	}
 }
 
-// Record adds a frame timing to the collector.
 func (c *Collector) Record(t *FrameTimings) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
+	sample := frameSample{timing: *t, start: c.lastRecorded}
+	c.lastRecorded = c.now()
+	if len(c.samples) < cap(c.samples) {
+		c.samples = append(c.samples, sample)
+	} else {
+		c.samples[c.next] = sample
+	}
+	c.next = (c.next + 1) % cap(c.samples)
 	c.frameCount++
-	if t.Skipped {
-		c.skipCount++
-	}
-
-	// Ring buffer: evict oldest if full
-	if len(c.timings) >= c.bufferSize {
-		c.timings = c.timings[1:]
-	}
-	c.timings = append(c.timings, *t)
 }
 
-// GetFrameCount returns the total number of frames recorded.
+// GetFrameCount returns the lifetime count, including evicted samples.
 func (c *Collector) GetFrameCount() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.frameCount
 }
 
-// ShouldBroadcast returns true if stats should be broadcast (every 60 frames).
 func (c *Collector) ShouldBroadcast() bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.frameCount > 0 && c.frameCount%60 == 0
+	count := c.GetFrameCount()
+	return count > 0 && count%60 == 0
 }
 
-// GetAggregated returns aggregated statistics from the ring buffer.
+// GetAggregated uses the same retained window for every count, size and rate.
+// The interval begins before its first sample and includes subsequent idle time.
 func (c *Collector) GetAggregated() FrameStatsAggregated {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-
-	now := time.Now()
-	windowDuration := now.Sub(c.windowStart)
-
-	if len(c.timings) == 0 {
-		return FrameStatsAggregated{
-			SessionID:             c.sessionID,
-			WindowStartTime:       c.windowStart,
-			WindowDurationMs:      windowDuration.Milliseconds(),
-			FrameCount:            0,
-			SkippedCount:          0,
-			TargetFps:             c.targetFps,
-			PrimaryBottleneck:     BottleneckNone,
-			BottleneckDescription: "No frames recorded yet",
-		}
+	start := c.lastRecorded
+	if len(c.samples) > 0 {
+		start = c.samples[c.next%len(c.samples)].start
 	}
-
-	// Extract timing arrays for percentile calculation
-	captureTimes := make([]float64, 0, len(c.timings))
-	e2eTimes := make([]float64, 0, len(c.timings))
+	duration := max(time.Duration(0), c.now().Sub(start))
+	stats := FrameStatsAggregated{
+		SessionID: c.sessionID, WindowStartTime: start, WindowDurationMs: duration.Milliseconds(),
+		FrameCount: len(c.samples), TargetFps: c.targetFps, PrimaryBottleneck: BottleneckNone,
+		BottleneckDescription: "No frames recorded yet",
+	}
+	if len(c.samples) == 0 {
+		return stats
+	}
+	captureTimes := make([]float64, 0, len(c.samples))
+	processingTimes := make([]float64, 0, len(c.samples))
 	var totalBytes int64
-
-	for _, t := range c.timings {
+	for _, sample := range c.samples {
+		t := sample.timing
 		captureTimes = append(captureTimes, t.DriverCaptureMs)
-		e2e := t.DriverTotalMs + t.APITotalMs
-		e2eTimes = append(e2eTimes, e2e)
-		if !t.Skipped {
+		if t.Skipped {
+			stats.SkippedCount++
+		} else {
+			processingTimes = append(processingTimes, t.DriverTotalMs+t.APITotalMs)
 			totalBytes += int64(t.FrameBytes)
 		}
 	}
-
-	// Sort for percentile calculation
 	sort.Float64s(captureTimes)
-	sort.Float64s(e2eTimes)
-
-	// Calculate percentiles
-	captureP50 := percentile(captureTimes, 0.5)
-	captureP90 := percentile(captureTimes, 0.9)
-	captureP99 := percentile(captureTimes, 0.99)
-	captureMax := captureTimes[len(captureTimes)-1]
-
-	e2eP50 := percentile(e2eTimes, 0.5)
-	e2eP90 := percentile(e2eTimes, 0.9)
-	e2eP99 := percentile(e2eTimes, 0.99)
-	e2eMax := e2eTimes[len(e2eTimes)-1]
-
-	// Calculate throughput
-	windowSec := windowDuration.Seconds()
-	actualFps := 0.0
-	if windowSec > 0 {
-		actualFps = float64(c.frameCount) / windowSec
+	sort.Float64s(processingTimes)
+	stats.CaptureP50Ms = round2(percentile(captureTimes, .5))
+	stats.CaptureP90Ms = round2(percentile(captureTimes, .9))
+	stats.CaptureP99Ms = round2(percentile(captureTimes, .99))
+	stats.CaptureMaxMs = round2(percentile(captureTimes, 1))
+	stats.E2EP50Ms = round2(percentile(processingTimes, .5))
+	stats.E2EP90Ms = round2(percentile(processingTimes, .9))
+	stats.E2EP99Ms = round2(percentile(processingTimes, .99))
+	stats.E2EMaxMs = round2(percentile(processingTimes, 1))
+	delivered := len(processingTimes)
+	if delivered > 0 {
+		stats.AvgFrameBytes = int(totalBytes / int64(delivered))
 	}
-
-	nonSkipped := len(c.timings) - c.skipCount
-	avgFrameBytes := 0
-	if nonSkipped > 0 {
-		avgFrameBytes = int(totalBytes / int64(nonSkipped))
+	if duration > 0 {
+		stats.ActualFps = round2(float64(delivered) / duration.Seconds())
+		stats.BandwidthBytesPerSec = int64(float64(totalBytes) / duration.Seconds())
 	}
-
-	bandwidthBytesPerSec := int64(0)
-	if windowSec > 0 {
-		bandwidthBytesPerSec = int64(float64(totalBytes) / windowSec)
-	}
-
-	// Identify bottleneck
-	bottleneck, description := identifyBottleneck(captureP50, captureP90, e2eP90, c.targetFps)
-
-	return FrameStatsAggregated{
-		SessionID:             c.sessionID,
-		WindowStartTime:       c.windowStart,
-		WindowDurationMs:      windowDuration.Milliseconds(),
-		FrameCount:            c.frameCount,
-		SkippedCount:          c.skipCount,
-		CaptureP50Ms:          round2(captureP50),
-		CaptureP90Ms:          round2(captureP90),
-		CaptureP99Ms:          round2(captureP99),
-		CaptureMaxMs:          round2(captureMax),
-		E2EP50Ms:              round2(e2eP50),
-		E2EP90Ms:              round2(e2eP90),
-		E2EP99Ms:              round2(e2eP99),
-		E2EMaxMs:              round2(e2eMax),
-		ActualFps:             round2(actualFps),
-		TargetFps:             c.targetFps,
-		AvgFrameBytes:         avgFrameBytes,
-		BandwidthBytesPerSec:  bandwidthBytesPerSec,
-		PrimaryBottleneck:     bottleneck,
-		BottleneckDescription: description,
-	}
+	stats.PrimaryBottleneck, stats.BottleneckDescription = identifyBottleneck(
+		stats.CaptureP50Ms, stats.CaptureP90Ms, stats.E2EP90Ms, c.targetFps)
+	return stats
 }
 
-// GetRecentFrames returns the most recent frame timings.
+// GetRecentFrames returns detached values in chronological order.
 func (c *Collector) GetRecentFrames(limit int) []FrameTimings {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-
-	if limit <= 0 || limit > len(c.timings) {
-		limit = len(c.timings)
+	if limit <= 0 || limit > len(c.samples) {
+		limit = len(c.samples)
 	}
-
-	start := len(c.timings) - limit
-	if start < 0 {
-		start = 0
-	}
-
 	result := make([]FrameTimings, limit)
-	copy(result, c.timings[start:])
+	for i := range result {
+		result[i] = c.samples[(c.next+len(c.samples)-limit+i)%len(c.samples)].timing
+	}
 	return result
 }
 
-// Reset clears all collected data.
 func (c *Collector) Reset() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
-	c.timings = c.timings[:0]
+	clear(c.samples)
+	c.samples = c.samples[:0]
+	c.next = 0
 	c.frameCount = 0
-	c.skipCount = 0
-	c.windowStart = time.Now()
+	c.lastRecorded = c.now()
 }
 
 // percentile calculates the p-th percentile of a sorted slice.
@@ -233,16 +184,13 @@ func identifyBottleneck(captureP50, captureP90, e2eP90 float64, targetFps int) (
 		)
 	}
 
-	// If E2E P90 > 150% of target frame time and capture is fine, it's likely network
-	if e2eP90 > targetFrameTime*1.5 && captureP90 < targetFrameTime*0.5 {
-		networkTime := e2eP90 - captureP90
-		return BottleneckNetwork, fmt.Sprintf(
-			"End-to-end P90 (%.1fms) indicates network latency. Estimated network overhead: %.1fms.",
-			e2eP90, networkTime,
-		)
+	// Component processing sums do not measure transit or client paint.
+	if e2eP90 > targetFrameTime*1.5 {
+		return BottleneckProcessing, fmt.Sprintf(
+			"Processing P90 (%.1fms) exceeds the frame budget. Network transit and client rendering are not measured.", e2eP90)
 	}
 
-	return BottleneckNone, "No significant bottlenecks detected. Performance is within expected bounds."
+	return BottleneckNone, "No significant bottlenecks in measured processing. Network transit and client rendering are not measured."
 }
 
 // CollectorRegistry manages collectors for multiple sessions.

@@ -11,8 +11,8 @@
  * The fix: only set `groupingLoadedKey` inside the branches that actually
  * process data (data available, or done loading with no data).
  */
-import "@testing-library/jest-dom";
-import { renderHook, waitFor } from "@testing-library/react";
+import { waitFor } from "@testing-library/react";
+import { renderHookWithQueryClient } from "../test-utils/render";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
@@ -57,7 +57,6 @@ function useGroupingLoaderLogic(
   );
   const [groupingRules, setGroupingRules] = useState<GroupingRule[]>([]);
   const [groupingLoadedKey, setGroupingLoadedKey] = useState<string | null>(null);
-  const [groupingDefaultsPending, setGroupingDefaultsPending] = useState(false);
   const [saveCallCount, setSaveCallCount] = useState(0);
   const [lastSavedRules, setLastSavedRules] = useState<GroupingRule[]>([]);
 
@@ -77,11 +76,9 @@ function useGroupingLoaderLogic(
         mode: r.mode as "prefix" | "segment",
       }));
       setGroupingRules(normalizeGroupingRules(uiRules));
-      setGroupingDefaultsPending(apiRules.length === 0);
       setGroupingLoadedKey(repoKey);
     } else if (!groupingRulesQuery.isLoading) {
       setGroupingRules([]);
-      setGroupingDefaultsPending(true);
       setGroupingLoadedKey(repoKey);
     }
     // When isLoading=true and data=undefined, do NOT set groupingLoadedKey.
@@ -90,11 +87,12 @@ function useGroupingLoaderLogic(
   // --- Mirrors the save effect at App.tsx lines 1406-1421 ---
   useEffect(() => {
     if (!repoDir || groupingLoadedKey !== repoKey) return;
+    if (groupingRules.length === 0) return;
     setSaveCallCount((c) => c + 1);
     setLastSavedRules([...groupingRules]);
   }, [repoDir, repoKey, groupingLoadedKey, groupingRules]);
 
-  return { groupingRules, groupingLoadedKey, groupingDefaultsPending, saveCallCount, lastSavedRules };
+  return { groupingRules, groupingLoadedKey, saveCallCount, lastSavedRules };
 }
 
 // ---------------------------------------------------------------------------
@@ -122,7 +120,7 @@ describe("grouping loader race condition (regression)", () => {
     };
 
     // Phase 1: repoDir available, grouping query still loading
-    const { result, rerender } = renderHook(
+    const { result, rerender } = renderHookWithQueryClient(
       ({ repoDir, query }: HookProps) =>
         useGroupingLoaderLogic(repoDir, query),
       {
@@ -159,7 +157,7 @@ describe("grouping loader race condition (regression)", () => {
       ],
     };
 
-    const { result } = renderHook(() =>
+    const { result } = renderHookWithQueryClient(() =>
       useGroupingLoaderLogic("/home/user/repo", {
         data: savedRules,
         isLoading: false,
@@ -180,7 +178,7 @@ describe("grouping loader race condition (regression)", () => {
     };
 
     // Phase 1: loading
-    const { result, rerender } = renderHook(
+    const { result, rerender } = renderHookWithQueryClient(
       ({ repoDir, query }: HookProps) =>
         useGroupingLoaderLogic(repoDir, query),
       {
@@ -209,8 +207,8 @@ describe("grouping loader race condition (regression)", () => {
     expect((result.current.lastSavedRules[0] as { label: string } | undefined)?.label).toBe("Scenarios");
   });
 
-  it("falls back to defaults when API returns empty and is done loading", () => {
-    const { result } = renderHook(() =>
+  it("keeps manual rules empty when API returns no stored rules", () => {
+    const { result } = renderHookWithQueryClient(() =>
       useGroupingLoaderLogic("/home/user/repo", {
         data: undefined,
         isLoading: false,
@@ -219,11 +217,11 @@ describe("grouping loader race condition (regression)", () => {
 
     expect(result.current.groupingLoadedKey).not.toBeNull();
     expect(result.current.groupingRules).toEqual([]);
-    expect(result.current.groupingDefaultsPending).toBe(true);
+    expect(result.current.saveCallCount).toBe(0);
   });
 
   it("does not load when repoDir is undefined", () => {
-    const { result } = renderHook(() =>
+    const { result } = renderHookWithQueryClient(() =>
       useGroupingLoaderLogic(undefined, {
         data: { enabled: true, rules: [{ id: "g1", label: "X", prefixes: ["x/"], mode: "prefix" }] },
         isLoading: false,
@@ -244,7 +242,7 @@ describe("grouping loader race condition (regression)", () => {
     };
 
     // Phase 1: no repoDir yet, but API data is ready
-    const { result, rerender } = renderHook(
+    const { result, rerender } = renderHookWithQueryClient(
       ({ repoDir, query }: HookProps) =>
         useGroupingLoaderLogic(repoDir, query),
       {

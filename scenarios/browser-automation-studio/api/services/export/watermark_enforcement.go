@@ -2,6 +2,8 @@ package export
 
 import (
 	"strings"
+
+	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 )
 
 const (
@@ -35,18 +37,21 @@ func IsBuiltInAssetID(assetID string) bool {
 // - If a non-built-in asset is set, it will be replaced with VrooliAscensionAssetID
 //
 // Returns information about what was enforced.
-func EnforceWatermarkRequirements(spec *ReplayMovieSpec, requiresWatermark bool) WatermarkEnforcementResult {
+func EnforceWatermarkRequirements(spec *exportsv1.ReplaySpec, requiresWatermark bool) WatermarkEnforcementResult {
 	result := WatermarkEnforcementResult{}
 
 	if !requiresWatermark {
 		return result
 	}
+	if spec == nil {
+		return result
+	}
 
 	// Ensure watermark struct exists
 	if spec.Watermark == nil {
-		spec.Watermark = &ExportWatermark{
+		spec.Watermark = &exportsv1.ReplayWatermark{
 			Enabled:  true,
-			AssetID:  VrooliAscensionAssetID,
+			AssetId:  VrooliAscensionAssetID,
 			Position: "bottom-right",
 			Size:     15,
 			Opacity:  80,
@@ -57,7 +62,7 @@ func EnforceWatermarkRequirements(spec *ReplayMovieSpec, requiresWatermark bool)
 	}
 
 	result.OriginalEnabled = spec.Watermark.Enabled
-	result.OriginalAssetID = spec.Watermark.AssetID
+	result.OriginalAssetID = spec.Watermark.AssetId
 
 	// Enforce watermark enabled
 	if !spec.Watermark.Enabled {
@@ -66,11 +71,11 @@ func EnforceWatermarkRequirements(spec *ReplayMovieSpec, requiresWatermark bool)
 	}
 
 	// Enforce built-in asset or set default
-	if spec.Watermark.AssetID == "" {
-		spec.Watermark.AssetID = VrooliAscensionAssetID
+	if spec.Watermark.AssetId == "" {
+		spec.Watermark.AssetId = VrooliAscensionAssetID
 		result.WasEnforced = true
-	} else if !IsBuiltInAssetID(spec.Watermark.AssetID) {
-		spec.Watermark.AssetID = VrooliAscensionAssetID
+	} else if !IsBuiltInAssetID(spec.Watermark.AssetId) {
+		spec.Watermark.AssetId = VrooliAscensionAssetID
 		result.WasEnforced = true
 	}
 
@@ -95,7 +100,7 @@ func EnforceWatermarkRequirements(spec *ReplayMovieSpec, requiresWatermark bool)
 // are valid for export given the entitlement restrictions.
 //
 // Returns an error if the settings violate entitlement requirements.
-func ValidateWatermarkForExport(spec *ReplayMovieSpec, requiresWatermark bool) error {
+func ValidateWatermarkForExport(spec *exportsv1.ReplaySpec, requiresWatermark bool) error {
 	if !requiresWatermark {
 		return nil // No restrictions
 	}
@@ -107,7 +112,7 @@ func ValidateWatermarkForExport(spec *ReplayMovieSpec, requiresWatermark bool) e
 		}
 	}
 
-	if spec.Watermark.AssetID != "" && !IsBuiltInAssetID(spec.Watermark.AssetID) {
+	if spec.Watermark.AssetId != "" && !IsBuiltInAssetID(spec.Watermark.AssetId) {
 		return &WatermarkValidationError{
 			Code:    "CUSTOM_LOGO_NOT_ALLOWED",
 			Message: "Custom logos are not available on your subscription tier. Upgrade to use your own logo.",

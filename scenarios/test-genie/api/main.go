@@ -2,13 +2,18 @@ package main
 
 import (
 	"log"
-
-	"github.com/vrooli/api-core/preflight"
+	"os"
 
 	"test-genie/internal/app"
+	"test-genie/internal/orchestrator/phases/seeds"
+
+	"github.com/vrooli/api-core/preflight"
 )
 
 func main() {
+	if handled, code := seeds.RunWorker(os.Args[1:], os.Stderr); handled {
+		os.Exit(code)
+	}
 	if preflight.Run(preflight.Config{
 		ScenarioName: "test-genie",
 	}) {

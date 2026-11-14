@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package vrooli.personal_planner.v1.commitments;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/commitments;commitments_v1";
+
+message Commitment {
+  string id = 1;
+  string result = 2;
+  string definition_of_done = 3;
+  string promised_boundary = 4;
+  string timezone = 5;
+  string beneficiary = 6;
+  string assumptions = 7;
+  string scope_exclusions = 8;
+  string state = 9;
+  string risk = 10;
+  string acknowledgment_status = 11;
+  int64 created_at_unix_seconds = 12;
+  int64 updated_at_unix_seconds = 13;
+  int64 revision = 14;
+}
+
+message CommitmentRevision {
+  string id = 1;
+  string commitment_id = 2;
+  string promised_boundary = 3;
+  string assumptions = 4;
+  string scope_exclusions = 5;
+  string reason = 6;
+  string acknowledgment_status = 7;
+  int64 created_at_unix_seconds = 8;
+  int64 revision = 9;
+}
+
+message ListCommitmentsRequest {}
+message ListCommitmentsResponse { repeated Commitment commitments = 1; }
+
+message CreateCommitmentRequest {
+  string result = 1;
+  string definition_of_done = 2;
+  string promised_boundary = 3;
+  string timezone = 4;
+  string beneficiary = 5;
+  string assumptions = 6;
+  string scope_exclusions = 7;
+  string state = 8;
+}
+message CreateCommitmentResponse { Commitment commitment = 1; }
+
+message UpdateCommitmentStateRequest {
+  string id = 1;
+  string state = 2;
+  int64 expected_revision = 3;
+}
+message UpdateCommitmentStateResponse { Commitment commitment = 1; }
+
+message ReviseCommitmentRequest {
+  string id = 1;
+  string promised_boundary = 2;
+  string assumptions = 3;
+  string scope_exclusions = 4;
+  string reason = 5;
+  string acknowledgment_status = 6;
+  int64 expected_revision = 7;
+}
+message ReviseCommitmentResponse { Commitment commitment = 1; CommitmentRevision revision = 2; }
+
+service CommitmentsService {
+  rpc ListCommitments(ListCommitmentsRequest) returns (ListCommitmentsResponse);
+  rpc CreateCommitment(CreateCommitmentRequest) returns (CreateCommitmentResponse);
+  rpc UpdateCommitmentState(UpdateCommitmentStateRequest) returns (UpdateCommitmentStateResponse);
+  rpc ReviseCommitment(ReviseCommitmentRequest) returns (ReviseCommitmentResponse);
+}

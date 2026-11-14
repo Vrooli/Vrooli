@@ -15,23 +15,16 @@
 import { useState, useCallback, useEffect } from 'react';
 import { ChevronDown, ChevronRight, Settings2 } from 'lucide-react';
 import type { NavigationWaitUntil } from '@/types/workflow';
-import type { ArtifactProfile } from '@/domains/executions/store';
 import { ArtifactProfileSelector } from '@/domains/executions/components/ArtifactProfileSelector';
 import { ViewportPicker } from '@shared/ui';
 import { DEFAULT_EXECUTION_SETTINGS, NAVIGATION_WAIT_OPTIONS } from './executionConfigConstants';
+import type { ExecutionConfigSettings } from './executionConfigTypes';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export interface ExecutionConfigSettings {
-  navigationWaitUntil: NavigationWaitUntil;
-  actionTimeoutSeconds: number;
-  viewportWidth: number;
-  viewportHeight: number;
-  continueOnError: boolean;
-  artifactProfile?: ArtifactProfile;
-}
+export type { ExecutionConfigSettings } from './executionConfigTypes';
 
 export interface ExecutionConfigPanelProps {
   /** Initial values from workflow settings */

@@ -1,6 +1,13 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	re "scenario-auditor/internal/ruleengine"
+)
 
 func TestBuildViolationSummaryAggregates(t *testing.T) {
 	records := []violationRecord{
@@ -54,5 +61,72 @@ func TestCloneSummaryFiltersBySeverityAndLimit(t *testing.T) {
 	}
 	if filtered.TopViolations[0].Severity != "high" {
 		t.Fatalf("expected remaining violation to be high severity, got %s", filtered.TopViolations[0].Severity)
+	}
+}
+
+func TestPersistScanArtifactUsesContractResolvedRepoRoot(t *testing.T) {
+	h := newRepoHarness(t)
+	h.UseRepoContext(t)
+
+	artifact, err := persistScanArtifact("standards", "demo", "job-123", map[string]any{"ok": true})
+	if err != nil {
+		t.Fatalf("persistScanArtifact: %v", err)
+	}
+	if !strings.HasPrefix(artifact.Path, "logs/scenario-auditor/standards/demo/") {
+		t.Fatalf("artifact path = %q", artifact.Path)
+	}
+
+	fullPath, err := resolveArtifactAbsolutePath(artifact.Path)
+	if err != nil {
+		t.Fatalf("resolveArtifactAbsolutePath: %v", err)
+	}
+	if !strings.HasPrefix(fullPath, filepath.Join(h.Root, "logs", "scenario-auditor")) {
+		t.Fatalf("artifact absolute path = %q", fullPath)
+	}
+}
+
+func TestGetRootsUseRepoContractHelpers(t *testing.T) {
+	h := newRepoHarness(t)
+	h.UseRepoContext(t)
+
+	ctx, err := repoContext()
+	if err != nil {
+		t.Fatalf("repoContext: %v", err)
+	}
+	if got := ctx.RepoRoot(); got != h.Root {
+		t.Fatalf("RepoRoot = %q, want %q", got, h.Root)
+	}
+	if got := ctx.ScenarioAuditorRoot(); got != filepath.Join(h.Root, "scenarios", "scenario-auditor") {
+		t.Fatalf("ScenarioAuditorRoot = %q", got)
+	}
+}
+
+func TestRelativeToRepoRootUsesResolvedRepoRoot(t *testing.T) {
+	h := newRepoHarness(t)
+	h.UseRepoContext(t)
+
+	ctx, err := repoContext()
+	if err != nil {
+		t.Fatalf("repoContext: %v", err)
+	}
+	got := ctx.RelativeToRepoRoot(filepath.Join(h.Root, "scenarios", "demo", "api", "main.go"))
+	if got != "scenarios/demo/api/main.go" {
+		t.Fatalf("RelativeToRepoRoot = %q", got)
+	}
+}
+
+func TestDiscoverRuleDirsUsesContractResolvedScenarioAuditorPath(t *testing.T) {
+	h := newRepoHarness(t)
+	rulesDir := filepath.Join(h.Root, "scenarios", "scenario-auditor", "api", "rules")
+	if err := os.MkdirAll(rulesDir, 0o755); err != nil {
+		t.Fatalf("mkdir rules dir: %v", err)
+	}
+
+	dirs, err := re.DiscoverRuleDirs(h.ContextOrBuild(t).ScenarioAuditorRoot())
+	if err != nil {
+		t.Fatalf("DiscoverRuleDirs: %v", err)
+	}
+	if len(dirs) != 1 || dirs[0] != rulesDir {
+		t.Fatalf("DiscoverRuleDirs = %#v, want [%q]", dirs, rulesDir)
 	}
 }

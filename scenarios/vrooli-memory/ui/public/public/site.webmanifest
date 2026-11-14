@@ -1,0 +1,24 @@
+{
+  "background_color": "#ffffff",
+  "description": "Unified append-only agent memory with semantic recall and pressure-driven compaction, shared across every agent harness",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any maskable",
+      "sizes": "192x192",
+      "src": "manifest-icon-192.maskable.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any maskable",
+      "sizes": "512x512",
+      "src": "manifest-icon-512.maskable.png",
+      "type": "image/png"
+    }
+  ],
+  "name": "Vrooli Memory",
+  "scope": "../",
+  "short_name": "vrooli-memory",
+  "start_url": "../",
+  "theme_color": "#ffffff"
+}

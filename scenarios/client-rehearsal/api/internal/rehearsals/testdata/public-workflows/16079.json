@@ -1,0 +1,657 @@
+{
+  "name": "Sales Lead Auto-Router with Scoring & CRM Logging",
+  "nodes": [
+    {
+      "id": "f91eeb15-1247-40e9-9f35-8b98a3012cbc",
+      "name": "Webhook — Inbound Lead",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -2272,
+        -304
+      ],
+      "parameters": {
+        "path": "synthetic-inbound-lead",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "fd364ac4-1849-4f4e-b2c7-1754e6b9e511",
+      "name": "Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -2064,
+        -304
+      ],
+      "parameters": {
+        "jsCode": "// Payload Validation\nconst body = $input.first().json.body || {};\n\nconst errors = [];\n\n// Required field checks\nif (!body.email || typeof body.email !== 'string' || !body.email.includes('@')) {\n  errors.push('Missing or invalid email');\n}\nif (!body.first_name && !body.firstName) {\n  errors.push('Missing first name');\n}\nif (!body.last_name && !body.lastName) {\n  errors.push('Missing last name');\n}\n\n// Email format check\nconst emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\nif (body.email && !emailRegex.test(body.email.trim())) {\n  errors.push('Email format is invalid');\n}\n\nif (errors.length > 0) {\n  return [{\n    json: {\n      valid: false,\n      errors,\n      originalBody: body\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    body\n  }\n}];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "be92113c-1163-404f-b9e3-41a6db0bf8e4",
+      "name": "Is Valid?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -1856,
+        -304
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 1,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "valid1",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              },
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true
+            }
+          ]
+        }
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "b972b115-b53d-4446-8a84-a7e445dd180f",
+      "name": "Respond 400 — Bad Request",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        -1648,
+        -208
+      ],
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'error', message: 'Validation failed', errors: $json.errors }) }}"
+      },
+      "typeVersion": 1.1
+    },
+    {
+      "id": "2f35551b-0d19-456a-8933-c4ac2662c5ce",
+      "name": "Normalise Lead Data",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -1648,
+        -400
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f1",
+              "name": "firstName",
+              "type": "string",
+              "value": "={{ $json.body.first_name?.trim() || $json.body.firstName?.trim() || '' }}"
+            },
+            {
+              "id": "f2",
+              "name": "lastName",
+              "type": "string",
+              "value": "={{ $json.body.last_name?.trim() || $json.body.lastName?.trim() || '' }}"
+            },
+            {
+              "id": "f3",
+              "name": "email",
+              "type": "string",
+              "value": "={{ $json.body.email?.toLowerCase().trim() }}"
+            },
+            {
+              "id": "f4",
+              "name": "company",
+              "type": "string",
+              "value": "={{ $json.body.company?.trim() || 'Unknown' }}"
+            },
+            {
+              "id": "f5",
+              "name": "region",
+              "type": "string",
+              "value": "={{ $json.body.region?.toLowerCase().trim() || 'unassigned' }}"
+            },
+            {
+              "id": "f6",
+              "name": "leadSource",
+              "type": "string",
+              "value": "={{ $json.body.lead_source || $json.body.leadSource || 'organic' }}"
+            },
+            {
+              "id": "f7",
+              "name": "companySize",
+              "type": "number",
+              "value": "={{ parseInt($json.body.company_size || $json.body.companySize || '0') }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "78f42b11-9cfe-44ad-9e3c-820a9dbfd0dc",
+      "name": "Score & Route Lead",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -1424,
+        -304
+      ],
+      "parameters": {
+        "jsCode": "// Lead Scoring Logic\nconst item = $input.first().json;\n\nlet score = 0;\n\n// Source scoring\nconst sourceScores = {\n  'paid': 30,\n  'referral': 25,\n  'webinar': 20,\n  'organic': 15,\n  'social': 10,\n  'direct': 10,\n  'cold': 5\n};\nscore += sourceScores[item.leadSource] || 5;\n\n// Company size scoring\nif (item.companySize >= 500) score += 30;\nelse if (item.companySize >= 100) score += 20;\nelse if (item.companySize >= 20) score += 10;\nelse score += 5;\n\n// Email domain scoring (not free email = B2B)\nconst freeEmailDomains = ['gmail.com','yahoo.com','hotmail.com','outlook.com'];\nconst domain = item.email.split('@')[1] || '';\nif (!freeEmailDomains.includes(domain)) score += 20;\n\n// Score tier\nlet tier;\nif (score >= 60) tier = 'hot';\nelse if (score >= 35) tier = 'warm';\nelse tier = 'cold';\n\n// Territory to rep mapping\nconst repMap = {\n  'north': { hot: 'lead@example.invalid', warm: 'lead@example.invalid', cold: 'lead@example.invalid' },\n  'south': { hot: 'lead@example.invalid', warm: 'lead@example.invalid', cold: 'lead@example.invalid' },\n  'east':  { hot: 'lead@example.invalid',   warm: 'lead@example.invalid',   cold: 'lead@example.invalid' },\n  'west':  { hot: 'lead@example.invalid', warm: 'lead@example.invalid', cold: 'lead@example.invalid' },\n  'unassigned': { hot: 'lead@example.invalid', warm: 'lead@example.invalid', cold: 'lead@example.invalid' }\n};\n\nconst region = item.region in repMap ? item.region : 'unassigned';\nconst assignedRep = repMap[region][tier];\n\nreturn [{\n  json: {\n    ...item,\n    leadScore: score,\n    scoreTier: tier,\n    assignedRep,\n    routedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "811552fb-0832-4e21-8fed-0654554083a4",
+      "name": "HubSpot — Check Duplicate",
+      "type": "n8n-nodes-base.hubspot",
+      "position": [
+        -1216,
+        -304
+      ],
+      "parameters": {
+        "operation": "search",
+        "authentication": "oAuth2",
+        "additionalFields": {}
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "9ff0e63e-10b3-4faf-ae52-52bb8c38c4b7",
+      "name": "Merge Duplicate Flag",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -1008,
+        -304
+      ],
+      "parameters": {
+        "jsCode": "// Merge duplicate check result back onto lead data\nconst leadData = $('Score & Route Lead').first().json;\nconst searchResult = $input.first().json;\n\n// HubSpot returns results array; if any results exist, contact already exists\nconst existingContacts = searchResult.results || [];\nconst isDuplicate = existingContacts.length > 0;\nconst existingContactId = isDuplicate ? existingContacts[0].id : null;\n\nreturn [{\n  json: {\n    ...leadData,\n    isDuplicate,\n    existingContactId\n  }\n}];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "52686fe3-b656-4632-a5da-84690a4a9a83",
+      "name": "Slack — Duplicate Warning",
+      "type": "n8n-nodes-base.slack",
+      "position": [
+        -592,
+        -208
+      ],
+      "parameters": {
+        "resource": "chat",
+        "authentication": "oAuth2"
+      },
+      "typeVersion": 2.3
+    },
+    {
+      "id": "6e53846b-4088-4fb6-b132-7493b62a7ad7",
+      "name": "Is New Lead?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -800,
+        -304
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 1,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "dup1",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              },
+              "leftValue": "={{ $json.isDuplicate }}",
+              "rightValue": false
+            }
+          ]
+        }
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "0c6255ea-f06f-4cf9-ae9e-67f356b300cf",
+      "name": "Attach Draft to Lead",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -384,
+        -400
+      ],
+      "parameters": {
+        "jsCode": "// Attach AI draft to lead data\nconst leadData = $('Is New Lead?').first().json;\nconst aiResponse = $input.first().json;\n\nconst emailDraft = aiResponse.message?.content || aiResponse.choices?.[0]?.message?.content || 'Draft unavailable — please write a personalised intro.';\n\nreturn [{\n  json: {\n    ...leadData,\n    emailDraft\n  }\n}];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "af7924f0-8f23-45bb-9d9e-d413625f4230",
+      "name": "Hot or Warm?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -192,
+        -304
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 1,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "cond1",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              },
+              "leftValue": "={{ $json.scoreTier }}",
+              "rightValue": "cold"
+            }
+          ]
+        }
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "2d9b3f31-cbd8-44c8-bc11-96cf1003c658",
+      "name": "HubSpot — Upsert Contact",
+      "type": "n8n-nodes-base.hubspot",
+      "position": [
+        32,
+        -400
+      ],
+      "parameters": {
+        "email": "={{ $json.email }}",
+        "options": {},
+        "authentication": "oAuth2",
+        "additionalFields": {
+          "lastName": "={{ $json.lastName }}",
+          "firstName": "={{ $json.firstName }}"
+        }
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "75139778-efd5-4612-8c80-6bee73fe23fa",
+      "name": "HubSpot — Log Cold Lead",
+      "type": "n8n-nodes-base.hubspot",
+      "position": [
+        32,
+        -208
+      ],
+      "parameters": {
+        "email": "={{ $json.email }}",
+        "options": {},
+        "authentication": "oAuth2",
+        "additionalFields": {
+          "lastName": "={{ $json.lastName }}",
+          "firstName": "={{ $json.firstName }}"
+        }
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "901f40a0-b013-46b3-a57c-603cee6d03d9",
+      "name": "Slack — Notify Rep",
+      "type": "n8n-nodes-base.slack",
+      "position": [
+        240,
+        -400
+      ],
+      "parameters": {
+        "text": ":dart: *New {{ $json.scoreTier.toUpperCase() }} Lead Assigned to you!*\n\n*Name:* {{ $json.firstName }} {{ $json.lastName }}\n*Email:* {{ $json.email }}\n*Company:* {{ $json.company }} ({{ $json.companySize }} employees)\n*Region:* {{ $json.region }}\n*Source:* {{ $json.leadSource }}\n*Score:* {{ $json.leadScore }} — {{ $json.scoreTier }}\n*Routed at:* {{ $json.routedAt }}\n\nAssigned to: *{{ $json.assignedRep }}*\n\n:writing_hand: *AI Outreach Draft:*\n{{ $json.emailDraft }}",
+        "otherOptions": {},
+        "authentication": "oAuth2"
+      },
+      "typeVersion": 2.3
+    },
+    {
+      "id": "5bbbfee5-db61-41c5-b42f-283e468bdd5a",
+      "name": "Gmail — Email Rep with Draft",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        240,
+        -208
+      ],
+      "parameters": {
+        "sendTo": "={{ $json.assignedRep }}",
+        "message": "Hi,\n\nA new {{ $json.scoreTier }} lead has been assigned to you.\n\nLead Details:\n- Name: {{ $json.firstName }} {{ $json.lastName }}\n- Email: {{ $json.email }}\n- Company: {{ $json.company }} ({{ $json.companySize }} employees)\n- Region: {{ $json.region }}\n- Source: {{ $json.leadSource }}\n- Score: {{ $json.leadScore }} ({{ $json.scoreTier }})\n- Routed at: {{ $json.routedAt }}\n\n---\nAI-GENERATED OUTREACH DRAFT\n(Review and personalise before sending)\n\n{{ $json.emailDraft }}\n---\n\nGood luck!\nYour Sales Ops Automation",
+        "options": {},
+        "subject": "[{{ $json.scoreTier.toUpperCase() }} Lead] {{ $json.firstName }} {{ $json.lastName }} from {{ $json.company }} — Score {{ $json.leadScore }}",
+        "emailType": "text"
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "e7ff948b-34f6-4a75-bd54-77064e464035",
+      "name": "Google Sheets — Log Lead",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        448,
+        -304
+      ],
+      "parameters": {
+        "columns": {
+          "value": {
+            "Date": "={{ $json.routedAt }}",
+            "Tier": "={{ $json.scoreTier }}",
+            "Email": "={{ $json.email }}",
+            "Score": "={{ $json.leadScore }}",
+            "Region": "={{ $json.region }}",
+            "Source": "={{ $json.leadSource }}",
+            "Company": "={{ $json.company }}",
+            "Duplicate": "={{ $json.isDuplicate }}",
+            "Last Name": "={{ $json.lastName }}",
+            "First Name": "={{ $json.firstName }}",
+            "Assigned Rep": "={{ $json.assignedRep }}",
+            "Existing Contact ID": "={{ $json.existingContactId || '' }}"
+          },
+          "mappingMode": "defineBelow"
+        },
+        "options": {},
+        "operation": "append",
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sheet1"
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "synthetic-sheet-document"
+        },
+        "authentication": "serviceAccount"
+      },
+      "typeVersion": 4.5
+    },
+    {
+      "id": "1be56b6c-15ba-44e5-9748-1b47c9ca03b1",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        656,
+        -304
+      ],
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'success', message: 'Lead routed', assignedTo: $('Score & Route Lead').first().json.assignedRep, tier: $('Score & Route Lead').first().json.scoreTier, isDuplicate: $('Merge Duplicate Flag').first().json.isDuplicate }) }}"
+      },
+      "typeVersion": 1.1
+    },
+    {
+      "id": "77ecb2a8-e288-45b6-994d-68c1334b6fbe",
+      "name": "HTTP — Draft Outreach Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -592,
+        -400
+      ],
+      "parameters": {
+        "url": "https://openai.synthetic.invalid/v1/chat/completions",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "sendHeaders": false,
+        "authentication": "genericCredentialType",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-4o-mini"
+            },
+            {
+              "name": "messages",
+              "value": "={{ JSON.stringify([{ role: 'system', content: 'You are a helpful sales assistant. Write concise, friendly B2B outreach emails.' }, { role: 'user', content: 'Write a short first-touch outreach email to ' + $json.firstName + ' ' + $json.lastName + ' at ' + $json.company + '. They came via ' + $json.leadSource + ' and are in the ' + $json.region + ' region. Keep it under 100 words, no subject line.' }]) }}"
+            },
+            {
+              "name": "max_tokens",
+              "value": "300"
+            }
+          ]
+        },
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "source-httpHeaderAuth",
+          "name": "Public source httpHeaderAuth"
+        }
+      },
+      "typeVersion": 4.3
+    }
+  ],
+  "connections": {
+    "Is Valid?": {
+      "main": [
+        [
+          {
+            "node": "Normalise Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 400 — Bad Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hot or Warm?": {
+      "main": [
+        [
+          {
+            "node": "HubSpot — Upsert Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HubSpot — Log Cold Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is New Lead?": {
+      "main": [
+        [
+          {
+            "node": "HTTP — Draft Outreach Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack — Duplicate Warning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Payload": {
+      "main": [
+        [
+          {
+            "node": "Is Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score & Route Lead": {
+      "main": [
+        [
+          {
+            "node": "HubSpot — Check Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalise Lead Data": {
+      "main": [
+        [
+          {
+            "node": "Score & Route Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach Draft to Lead": {
+      "main": [
+        [
+          {
+            "node": "Hot or Warm?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Duplicate Flag": {
+      "main": [
+        [
+          {
+            "node": "Is New Lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack — Notify Rep": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets — Log Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook — Inbound Lead": {
+      "main": [
+        [
+          {
+            "node": "Validate Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot — Log Cold Lead": {
+      "main": [
+        [
+          {
+            "node": "Gmail — Email Rep with Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets — Log Lead": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot — Upsert Contact": {
+      "main": [
+        [
+          {
+            "node": "Slack — Notify Rep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot — Check Duplicate": {
+      "main": [
+        [
+          {
+            "node": "Merge Duplicate Flag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack — Duplicate Warning": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP — Draft Outreach Email": {
+      "main": [
+        [
+          {
+            "node": "Attach Draft to Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail — Email Rep with Draft": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets — Log Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

@@ -1,0 +1,27 @@
+{
+  "_metadata": {
+    "description": "Network Manager requirements registry linking PRD operational targets to falsifiable implementation requirements.",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-network-health-snapshot/module.json",
+    "02-adguard-home-resolver-management/module.json",
+    "03-conservative-dns-filtering/module.json",
+    "04-device-inventory/module.json",
+    "05-safe-optimization-experiments/module.json",
+    "06-capability-adapter-model/module.json",
+    "07-device-control-integration/module.json",
+    "08-privacy-preserving-defaults/module.json",
+    "09-operator-ui-cli-workflows/module.json",
+    "10-household-policy-profiles/module.json",
+    "11-scheduled-access-controls/module.json",
+    "12-router-adapter-pilot/module.json",
+    "13-ipv6-encrypted-dns-guidance/module.json",
+    "14-pihole-adapter/module.json",
+    "15-small-office-audit-mode/module.json",
+    "16-continuous-monitoring/module.json",
+    "17-browser-endpoint-doh-guidance/module.json",
+    "18-p2-expansion/module.json"
+  ]
+}

@@ -1,0 +1,229 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "cleanup_providers": [
+      {
+        "id": "architecture-cartographer-snapshots",
+        "name": "Architecture Cartographer graph snapshots",
+        "safety_tier": "safe_with_owner",
+        "default_mode": "disabled",
+        "default_approval": "owner"
+      }
+    ],
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "architecture-cartographer",
+    "displayName": "Architecture Cartographer",
+    "description": "Map, validate, and guide migrations between actual scenario architecture and manifest-defined target architecture.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
+    },
+    "generated_at": "2026-05-21T14:22:11Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "bf981a854ff9ecb47f454d773e57bb1ee262138035e02d26bf5226c00b8961ea",
+    "content_sha": "18f4f18a35fff00577f790c466c274ec6177f11631acccc3602698cf8f7fde73"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "architecture-cartographer",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "architecture-cartographer"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "scenarios": {
+      "code-facts": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "freshness_policy": "reuse_running",
+        "description": "Provides import, endpoint, CLI, and proto adoption facts used to enrich domain evidence.",
+        "degraded_behavior": "Audit still runs with graph/domain evidence, but domain enrichment omits code-facts-backed proofs while the dependency is unavailable.",
+        "supervision_precedence": "required"
+      },
+      "go-code-graph": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "freshness_policy": "reuse_running",
+        "description": "Extracts Go code graphs for cartographer graph snapshots.",
+        "degraded_behavior": "Go graph extraction fails for scenarios with Go surfaces until go-code-graph is available.",
+        "supervision_precedence": "required"
+      },
+      "typescript-code-graph": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "freshness_policy": "reuse_running",
+        "description": "Extracts TypeScript code graphs for cartographer graph snapshots.",
+        "degraded_behavior": "TypeScript graph extraction fails for scenarios with TypeScript surfaces until typescript-code-graph is available.",
+        "supervision_precedence": "required"
+      }
+    },
+    "resources": {
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Vector database for cross-scenario domain-map semantic search (collection: architecture-cartographer-domains).",
+        "degraded_behavior": "Domain-map search falls back to BM25-style text matching over freshly derived domains; reindex is deferred."
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Local embedding role for the domain-map index.",
+        "degraded_behavior": "Embedding generation is unavailable; text-mode domain search still works.",
+        "model_roles": [
+          "embedding.default"
+        ]
+      },
+      "reranker": {
+        "type": "reranker",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Cross-encoder reranker (BAAI/bge-reranker-v2-m3 via TEI) that reorders the dense domain-search shortlist and collapses gibberish leakage to ~0, separating junk from weak-but-real domain matches that overlap in the dense cosine band.",
+        "degraded_behavior": "Reranking falls back to raw dense (cosine) order; search still returns results, but honest no-match rejection is weaker until the reranker is reachable."
+      }
+    }
+  },
+  "environment": {},
+  "retention": {
+    "budgets": {
+      "graph_snapshots": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "architecture-cartographer.db",
+          "table": "graph_snapshots",
+          "time_column": "extracted_at"
+        },
+        "max_bytes": "5GiB",
+        "pruner": "custom",
+        "rationale": "graph_snapshots grows without bound by construction: a unique index on (scenario, content_hash) retains every distinct code state forever. Selection is keep-newest-N-per-scenario and cannot be an age rule - a generic age bound would delete the only snapshot of a stable scenario while keeping twenty of a noisy one. The scenario registers a custom Pruner under this budget key; the framework still owns whether the table is within budget. 5GiB is a starting figure, not a measured optimum: the 2026-07-31 incident cleanup took this table from 77.2 GB to 3.26 GB."
+      }
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

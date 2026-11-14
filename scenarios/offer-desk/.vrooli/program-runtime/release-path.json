@@ -1,0 +1,138 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "offer-desk.release-path",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Join the ranked release ladder with enabling urgency and optional stream prerequisites into one table answering what ships next and what blocks it.",
+  "inputs": {
+    "stream_node_id": {
+      "type": "string",
+      "required": false,
+      "description": "Stream node whose prerequisite tree is read. Omitted means prerequisites are not requested; the signal reports that rather than an empty tree.",
+      "default": ""
+    },
+    "include_retired": {
+      "type": "boolean",
+      "required": false,
+      "description": "Include retired deliverables in the ladder and enabling reads.",
+      "default": false
+    }
+  },
+  "assumptions": [
+    "The board owns release ranking; this program joins and never re-ranks.",
+    "A deliverable is shipped when its status is TRIGGER_MET or RETIRED."
+  ],
+  "invariants": [
+    "No writes.",
+    "Release rank is copied from the board and never recomputed.",
+    "When every board read fails the status is unavailable, never an empty ladder.",
+    "Prerequisites are reported as not requested when no stream node is supplied."
+  ],
+  "bindings": [
+    {
+      "id": "offer-desk/offers/release-ladder",
+      "effect": "read"
+    },
+    {
+      "id": "offer-desk/offers/enabling-list",
+      "effect": "read",
+      "optional": true,
+      "note": "Optional: a failed read leaves enabling urgency null and degrades to partial."
+    },
+    {
+      "id": "offer-desk/offers/release-prerequisites",
+      "effect": "read",
+      "note": "Called only when stream_node_id is supplied; the binding requires it.",
+      "optional": true
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "path": "One row per ladder deliverable with rank, class, finish bar, unlocked ramp count, actuals mapping and the unshipped enablers blocking it.",
+      "next_ready": "Up to five unblocked, unshipped deliverables in board rank order.",
+      "enabling_ranked": "Enabling deliverables by the board's derived urgency.",
+      "unmapped_actuals_count": "Ladder deliverables with no ledger account, whose earnings are therefore unreadable.",
+      "prerequisites": "The requested stream's prerequisite deliverables, or null when not requested."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "The board binding ids that answered."
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 40,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "live-no-stream",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "note": "prerequisites_requested is false; prerequisites is null.",
+      "requires": [
+        "offer-desk"
+      ]
+    },
+    {
+      "id": "unknown-stream",
+      "inputs": {
+        "stream_node_id": "00000000-0000-0000-0000-000000000000"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "note": "An unknown stream degrades the prerequisite read only; the ladder join still reports.",
+      "requires": [
+        "offer-desk"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "offer-desk"
+}

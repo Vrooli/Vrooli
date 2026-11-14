@@ -22,6 +22,7 @@ import { useAppLimitsForm } from '../hooks/useAppLimitsForm';
 import {
   APP_OPTIONS,
   getSelectedAppLabel,
+  getAppMeterKind,
 } from '../services/appLimits.service';
 
 export function AppLimitsSettings() {
@@ -66,7 +67,6 @@ export function AppLimitsSettings() {
     <AdminLayout maxWidth="default">
       <div className={LAYOUT.pageSpacing}>
         <PageHeader
-          variant="icon-title"
           title="App Limits"
           description="Configure per-app limits for each subscription tier"
           icon={AppWindow}
@@ -86,7 +86,7 @@ export function AppLimitsSettings() {
               <Button
                 key={app.value}
                 variant={selectedApp === app.value ? 'default' : 'outline'}
-                onClick={() => setSelectedApp(app.value)}
+                onClick={() => { setSelectedApp(app.value); }}
                 className="gap-2"
               >
                 <AppWindow className="h-4 w-4" />
@@ -99,7 +99,7 @@ export function AppLimitsSettings() {
         <Callout
           type="info"
           title="Understanding App Limits"
-          message="App limits allow you to set specific restrictions for individual applications beyond the global AI credit limits. These are app-specific quotas like workflow exports, API calls, or feature usage counts."
+          message="App limits allow you to set specific restrictions for individual applications beyond the global AI credit limits. Cost limits use dollars and count quotas use whole units. Limits with an unspecified meter kind must be classified before they can be edited."
         />
 
         {loading ? (
@@ -111,7 +111,7 @@ export function AppLimitsSettings() {
               <p className="text-slate-400 mb-4">
                 No app-specific limits configured for {getSelectedAppLabel(selectedApp)}
               </p>
-              <Button onClick={() => setShowAddLimit(true)} className="gap-2">
+              <Button onClick={() => { setShowAddLimit(true); }} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Add First Limit
               </Button>
@@ -138,6 +138,7 @@ export function AppLimitsSettings() {
                       if (!limit) return null;
 
                       const editKey = getEditKey(tierID, limitKey);
+                      const meterKind = getAppMeterKind(limit);
                       const currentValue = limit.limit_value;
                       const isUnlimited = isUnlimitedValue(currentValue);
 
@@ -158,7 +159,7 @@ export function AppLimitsSettings() {
                                     <InfinityIcon className="h-4 w-4" /> Unlimited
                                   </span>
                                 ) : (
-                                  formatDollars(currentValue, limit.cost_multiplier)
+                                  meterKind === null ? 'Meter kind required' : meterKind === 'count_based' ? `${currentValue.toLocaleString()} units` : formatDollars(currentValue, limit.cost_multiplier)
                                 )}
                               </span>
                               /month
@@ -170,21 +171,22 @@ export function AppLimitsSettings() {
                                 Limit
                               </Label>
                               <div className="relative">
-                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                {meterKind === 'cost_based' && <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />}
                                 <Input
                                   id={editKey}
                                   type="text"
                                   value={getEditedOrDisplayValue(editKey, limit)}
-                                  onChange={(e) => setEditedValue(editKey, e.target.value)}
-                                  className="w-32 pl-8"
-                                  placeholder="0.00"
+                                  onChange={(e) => { setEditedValue(editKey, e.target.value); }}
+                                  className={meterKind === 'cost_based' ? 'w-32 pl-8' : 'w-32'}
+                                  disabled={meterKind === null}
+                                  placeholder={meterKind === 'count_based' ? '0' : '0.00'}
                                 />
                               </div>
                             </div>
                             <Button
                               size="sm"
-                              onClick={() => onSave(tierID, limit)}
-                              disabled={!isEdited(editKey) || saving === editKey}
+                              onClick={() => { void onSave(tierID, limit); }}
+                              disabled={meterKind === null || !isEdited(editKey) || saving === editKey}
                               className="gap-1"
                             >
                               <Save className="h-4 w-4" />
@@ -193,7 +195,8 @@ export function AppLimitsSettings() {
                             <Button
                               size="sm"
                               variant="destructive"
-                              onClick={() => onDeleteLimit(tierID, limitKey)}
+                              aria-label={`Delete ${limitKey} limit for ${getTierLabel(tierID)}`}
+                              onClick={() => { void onDeleteLimit(tierID, limitKey); }}
                               disabled={saving === `delete:${tierID}:${limitKey}`}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -207,7 +210,7 @@ export function AppLimitsSettings() {
             ))}
 
             {/* Add New Limit Button */}
-            <Button onClick={() => setShowAddLimit(true)} variant="outline" className="gap-2 w-full">
+            <Button onClick={() => { setShowAddLimit(true); }} variant="outline" className="gap-2 w-full">
               <Plus className="h-4 w-4" />
               Add New Limit Type
             </Button>
@@ -229,7 +232,7 @@ export function AppLimitsSettings() {
                   <select
                     id="new-tier"
                     value={newLimit.tier_id}
-                    onChange={(e) => setNewLimit({ tier_id: e.target.value })}
+                    onChange={(e) => { setNewLimit({ tier_id: e.target.value }); }}
                     className={inputClassName}
                   >
                     {TIER_OPTIONS.map((tier) => (
@@ -247,8 +250,8 @@ export function AppLimitsSettings() {
                   <input
                     id="new-limit-key"
                     value={newLimit.limit_key}
-                    onChange={(e) => setNewLimit({ limit_key: e.target.value })}
-                    placeholder="e.g., workflow_exports"
+                    onChange={(e) => { setNewLimit({ limit_key: e.target.value }); }}
+                    placeholder="e.g., ai_credits"
                     className={inputClassName}
                   />
                 </FormField>
@@ -263,7 +266,7 @@ export function AppLimitsSettings() {
                       id="new-display-dollars"
                       type="text"
                       value={newLimit.display_dollars}
-                      onChange={(e) => setNewLimit({ display_dollars: e.target.value })}
+                      onChange={(e) => { setNewLimit({ display_dollars: e.target.value }); }}
                       placeholder="0.00"
                       className={`${inputClassName} pl-8`}
                     />
@@ -279,7 +282,7 @@ export function AppLimitsSettings() {
                   >
                     Cancel
                   </Button>
-                  <Button onClick={onAddLimit} disabled={saving === 'new'}>
+                  <Button onClick={() => { void onAddLimit(); }} disabled={saving === 'new'}>
                     {saving === 'new' ? 'Creating...' : 'Create Limit'}
                   </Button>
                 </div>

@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "pybullet",
+  "display_name": "PyBullet",
+  "category": "robotics",
+  "summary": "Physics simulation toolkit for rigid-body dynamics, robotics experiments, and reinforcement-learning environments.",
+  "why_it_matters": "PyBullet preserves lightweight robotics and physics capability knowledge, but there is no current validated scenario that justifies active maintenance.",
+  "when_to_use": [
+    "A future scenario needs robotics or physics simulation without a heavier simulator stack.",
+    "Operators want Python-driven environments for control or RL experimentation.",
+    "The workflow depends on rigid-body simulation tied to programmatic agents."
+  ],
+  "example_scenarios": [
+    "Robotics experimentation",
+    "Physics-based training environments",
+    "Control-system prototypes"
+  ],
+  "integration_kind": "native-cli",
+  "platform_support": {
+    "notes": "The Python package is portable, but headless rendering, GPU use, and simulation assumptions vary by host environment.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Python environment strategy",
+    "Defined simulation assets and sample tasks",
+    "Clarity on headless versus GUI simulation support"
+  ],
+  "dependencies": [],
+  "suggested_template": "native-cli",
+  "implementation_notes": [
+    "Promotion should validate a specific simulation workflow, not generic package presence.",
+    "Keep training-environment support separate from desktop visualization support.",
+    "Do not treat this as active support unless a real scenario consumes it."
+  ],
+  "operational_notes": [
+    "Physics determinism and rendering behavior vary by environment.",
+    "Validation should run a known simulation and assert expected outputs.",
+    "Asset and result handling need explicit conventions."
+  ],
+  "risks": [
+    "Simulation libraries create maintenance load without active workflows.",
+    "Portable package installation does not guarantee portable behavior."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "pybullet"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/pybullet"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

@@ -8,13 +8,14 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
 	"agent-inbox/config"
 	"agent-inbox/resilience"
 
+	repocontract "github.com/vrooli/repo-contract-go"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -26,9 +27,10 @@ var (
 	protoUnmarshalOpts = protojson.UnmarshalOptions{DiscardUnknown: true}
 )
 
+var cliClient = vroolicli.New()
+
 // AgentManagerClient provides direct REST API access to agent-manager.
 // This client is used for reconciliation during server restart recovery.
-// Tool execution flows through the Tool Execution Protocol (ProtocolHandler) instead.
 //
 // URL Resolution: The client resolves the agent-manager URL lazily and
 // re-resolves on connection failures (e.g., after agent-manager restarts
@@ -87,14 +89,13 @@ func getAgentManagerURL() (string, error) {
 		return url, nil
 	}
 
-	// Fall back to port discovery via CLI
-	cmd := exec.Command("vrooli", "scenario", "port", "agent-manager", "API_PORT")
-	output, err := cmd.Output()
+	// Fall back to port discovery via the typed CLI client.
+	resp, err := cliClient.ScenarioPort(context.Background(), "agent-manager", "API_PORT")
 	if err == nil {
-		port := strings.TrimSpace(string(output))
-		if port != "" {
-			return fmt.Sprintf("http://localhost:%s", port), nil
+		if resp.GetSuccess() && resp.GetPort() != 0 {
+			return fmt.Sprintf("http://localhost:%d", resp.GetPort()), nil
 		}
+		err = fmt.Errorf("API_PORT unresolved: %s", resp.GetError())
 	}
 
 	// Fall back to reading agent-manager's service.json for a static port
@@ -108,11 +109,15 @@ func getAgentManagerURL() (string, error) {
 
 // readAgentManagerPortFromServiceJSON reads the API port from agent-manager's service.json.
 func readAgentManagerPortFromServiceJSON() (string, error) {
-	root := os.Getenv("VROOLI_ROOT")
-	if root == "" {
-		return "", fmt.Errorf("VROOLI_ROOT not set")
+	repoRoot, err := resolveRepoRoot()
+	if err != nil {
+		return "", err
 	}
-	data, err := os.ReadFile(root + "/scenarios/agent-manager/.vrooli/service.json")
+	servicePath, err := repocontract.ResolveScenarioFile(repoRoot, "agent-manager", "service")
+	if err != nil {
+		return "", fmt.Errorf("resolve service.json: %w", err)
+	}
+	data, err := os.ReadFile(servicePath)
 	if err != nil {
 		return "", fmt.Errorf("read service.json: %w", err)
 	}
@@ -128,6 +133,13 @@ func readAgentManagerPortFromServiceJSON() (string, error) {
 		return fmt.Sprintf("%d", api.Port), nil
 	}
 	return "", fmt.Errorf("no api port in service.json")
+}
+
+func resolveRepoRoot() (string, error) {
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+		return repocontract.FindRepoRootFromPath(root)
+	}
+	return repocontract.ResolveRepoRoot()
 }
 
 // reResolveURL attempts to re-discover the agent-manager URL.

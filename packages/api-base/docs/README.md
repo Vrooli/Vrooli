@@ -12,6 +12,7 @@ Step-by-step instructions for common tasks:
 - **[Client Usage](./api/client.md)** - Using the client-side API in your UI
 - **[Server Usage](./api/server.md)** - Setting up your scenario server
 - **[Proxy Setup](./guides/host-scenario-pattern.md)** - Hosting embedded scenarios
+- **[App Notifications](./guides/app-notifications.md)** - Let a scenario's installed app show its own notifications
 - **[Testing Guide](../TESTING.md)** - Testing scenarios in all contexts
 - **[Migration Guide](./guides/migration.md)** - Migrating from existing patterns
 

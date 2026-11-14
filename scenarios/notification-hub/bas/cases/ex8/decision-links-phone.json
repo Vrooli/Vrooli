@@ -1,0 +1,124 @@
+{
+  "metadata": {
+    "name": "ex8-decision-links-phone",
+    "description": "On a 390px phone, render a synthetic decision whose question and context contain safe web links, then follow one link and verify the destination opens in a separate tab.",
+    "requirement": "NOTIFICA-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "false",
+      "surface": "decision-links-phone"
+    },
+    "execution_mode": "read_only"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "mock-synthetic-decision",
+      "action": {
+        "type": "ACTION_TYPE_NETWORK_MOCK",
+        "networkMock": {
+          "operation": "NETWORK_MOCK_OPERATION_MOCK",
+          "urlPattern": "**/notification.hub.v1.conversations.ConversationsService/GetAsk",
+          "method": "POST",
+          "statusCode": 200,
+          "headers": { "Content-Type": "application/json" },
+          "body": "{\"ask\":{\"id\":\"ex8-phone-links\",\"question\":\"Review [the run](https://example.test/decision-proof)\",\"options\":[{\"key\":\"keep\",\"label\":\"Keep it\"},{\"key\":\"drop\",\"label\":\"Drop it\"}],\"recommended\":\"keep\",\"recommendationReason\":\"Evidence: [the report](https://example.test/report)\",\"deadline\":\"2099-01-01T00:00:00Z\",\"state\":\"pending\",\"bigPicture\":\"Purpose: [overview](https://example.test/decision-proof)\",\"technicalDetails\":\"Technical detail [reference](https://example.test/technical)\"}}",
+          "delayMs": 0
+        },
+        "metadata": { "label": "Supply a local synthetic decision response; no owner data is read" }
+      }
+    },
+    {
+      "id": "mock-safe-link-destination",
+      "action": {
+        "type": "ACTION_TYPE_NETWORK_MOCK",
+        "networkMock": {
+          "operation": "NETWORK_MOCK_OPERATION_MOCK",
+          "urlPattern": "https://example.test/decision-proof",
+          "method": "GET",
+          "statusCode": 200,
+          "headers": { "Content-Type": "text/html; charset=utf-8" },
+          "body": "<!doctype html><html><head><title>Decision evidence</title></head><body><main><h1>Decision evidence opened</h1></main></body></html>",
+          "delayMs": 0
+        },
+        "metadata": { "label": "Keep the link destination inside a synthetic local browser response" }
+      }
+    },
+    {
+      "id": "open-synthetic-phone-decision",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/asks/ex8-phone-links?vrooli_test_mode=1",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open the decision on a phone viewport" }
+      }
+    },
+    {
+      "id": "assert-phone-links-and-safe-tap-area",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const question=document.querySelector('[data-testid=\"ask-question\"]');const link=[...document.querySelectorAll('a')].find(node=>node.textContent.trim()==='the run');if(!question||!question.innerText.includes('Review the run'))throw new Error('linked decision question is missing');if(!link||link.href!=='https://example.test/decision-proof')throw new Error('decision link has no safe expected destination');const rect=link.getBoundingClientRect();if(rect.height<44)throw new Error('decision link tap target is shorter than 44 CSS pixels: '+rect.height);if(link.target!=='_blank'||link.rel!=='noopener noreferrer')throw new Error('external decision link does not open safely in a separate tab');return {question:question.innerText,href:link.href,tapTargetHeight:rect.height,target:link.target,rel:link.rel}})()",
+          "store_result": "decisionLinkEvidence"
+        },
+        "metadata": { "label": "Verify rendered decision prose, safe destination and phone-sized tap target" }
+      }
+    },
+    {
+      "id": "capture-phone-decision-with-links",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": { "full_page": false },
+        "metadata": { "label": "Capture the served phone decision with its tappable link" }
+      }
+    },
+    {
+      "id": "tap-decision-link",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "a[href='https://example.test/decision-proof']" },
+        "metadata": { "label": "Tap the decision link and open its evidence in a new tab" }
+      }
+    },
+    {
+      "id": "switch-to-opened-evidence-tab",
+      "action": {
+        "type": "ACTION_TYPE_TAB_SWITCH",
+        "tab_switch": { "action": "TAB_SWITCH_ACTION_SWITCH", "urlPattern": "https://example.test/decision-proof" },
+        "metadata": { "label": "Confirm the tap opened the exact external destination separately" }
+      }
+    },
+    {
+      "id": "assert-opened-evidence-content",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "main h1",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": { "string_value": "Decision evidence opened" },
+          "timeout_ms": 10000,
+          "failure_message": "Tapping the decision link did not open the expected evidence page"
+        },
+        "metadata": { "label": "Read the destination opened by the phone tap" }
+      }
+    },
+    {
+      "id": "capture-opened-evidence-tab",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": { "full_page": false },
+        "metadata": { "label": "Capture the page reached by tapping the decision link" }
+      }
+    }
+  ]
+}

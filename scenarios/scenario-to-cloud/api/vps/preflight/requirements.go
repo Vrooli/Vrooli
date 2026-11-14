@@ -7,13 +7,37 @@ const (
 	SupportedUbuntuAltVersion = "22.04"
 	LegacyUbuntuAltVersion    = "20.04"
 
-	MinDiskFreeKB    int64 = 5 * 1024 * 1024 // 5 GiB
+	// MinDiskFreeKB is the minimum operational cushion for a deployment with
+	// no release artifact size available.  It is deliberately not a fixed
+	// multi-gigabyte VPS gate: the actual transaction budget is calculated
+	// from the built release in RequiredDiskFreeKB.
+	MinDiskFreeKB    int64 = 512 * 1024      // 512 MiB
 	MinRAMKB         int64 = 512 * 1024      // 512 MiB
 	RecommendedRAMKB int64 = 2 * 1024 * 1024 // 2 GiB
 	DefaultSSHPort         = 22
 	DefaultHTTPPort        = 80
 	DefaultHTTPSPort       = 443
 )
+
+const deploymentStagingHeadroomKB int64 = 256 * 1024 // 256 MiB
+
+// RequiredDiskFreeKB calculates the free space needed to stage one release.
+// A deployment can temporarily hold the compressed archive, its extracted
+// release, and a filesystem-copy/metadata cushion. Analyzer disk values are
+// persistent-footprint estimates and must not be substituted for this
+// transaction budget; doing so made low-confidence resource metadata refuse
+// otherwise viable redeployments.
+func RequiredDiskFreeKB(bundleSizeBytes int64) int64 {
+	if bundleSizeBytes <= 0 {
+		return MinDiskFreeKB
+	}
+	bundleKB := (bundleSizeBytes + 1023) / 1024
+	needed := bundleKB*3 + deploymentStagingHeadroomKB
+	if needed < MinDiskFreeKB {
+		return MinDiskFreeKB
+	}
+	return needed
+}
 
 // RequirementsResponse is returned by GET /api/v1/preflight/requirements.
 type RequirementsResponse struct {
@@ -66,8 +90,8 @@ func BuildRequirementsResponse() RequirementsResponse {
 	resp.VPS.Network.RequiredInboundPorts = []int{DefaultSSHPort, DefaultHTTPPort, DefaultHTTPSPort}
 	resp.VPS.Network.SSHPort = DefaultSSHPort
 
-	resp.VPS.Authentication.RequiredMethod = "ssh_key"
-	resp.VPS.Authentication.BootstrapFlow = "scenario-to-cloud ssh bootstrap"
+	resp.VPS.Authentication.RequiredMethod = "bridge_enrollment_or_ssh_key_binding"
+	resp.VPS.Authentication.BootstrapFlow = "vrooli-bridge onboard (or authorise the operator key with ssh-copy-id; the cloud reaches it through the credential binding vrooli/scenario-to-cloud:ssh-key)"
 
 	return resp
 }

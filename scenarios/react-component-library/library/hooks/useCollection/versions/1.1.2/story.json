@@ -1,0 +1,72 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "hook",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "listbox"
+        },
+        {
+          "kind": "role",
+          "name": "Alpha",
+          "role": "option"
+        },
+        {
+          "kind": "role",
+          "name": "Beta",
+          "role": "option"
+        },
+        {
+          "attribute": "aria-selected",
+          "kind": "attribute",
+          "selector": "[data-testid='collection-option-alpha']",
+          "value": "true"
+        },
+        {
+          "attribute": "aria-selected",
+          "kind": "attribute",
+          "selector": "[data-testid='collection-option-beta']",
+          "value": "false"
+        },
+        {
+          "kind": "text",
+          "value": "Alpha"
+        },
+        {
+          "kind": "text",
+          "value": "Beta"
+        }
+      ],
+      "id": "default",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Alpha",
+            "role": "option"
+          }
+        }
+      ],
+      "mode": "live",
+      "name": "Multi-select collection",
+      "role": "anatomy"
+    }
+  ],
+  "title": "useCollection"
+}

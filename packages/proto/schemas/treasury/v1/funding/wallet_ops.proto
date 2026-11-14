@@ -1,0 +1,111 @@
+syntax = "proto3";
+package vrooli.treasury.v1.funding;
+
+import "google/protobuf/timestamp.proto";
+import "money-ledger/v1/ingest/ingest.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/funding;funding_v1";
+
+message BudgetWallet {
+  string budget_id = 1;
+  string wallet_id = 2;
+  string network = 3;
+  string address = 4;
+  string agent_subject = 5;
+  string agent_run_id = 6;
+  string mandate_id = 7;
+  int64 session_generation = 8;
+  google.protobuf.Timestamp session_expires_at = 9;
+}
+message ProvisionBudgetWalletRequest {
+  string budget_id = 1;
+  string network = 2;
+  string agent_subject = 3;
+  string agent_run_id = 4;
+  // Optional mandate creates or rotates a mandate-scoped derived session key.
+  string mandate_id = 5;
+  bool rotate_session = 6;
+}
+message GetBudgetWalletRequest {
+  string budget_id = 1;
+  // When present, return the public address of this live mandate session.
+  string mandate_id = 2;
+}
+message BudgetWalletResponse { BudgetWallet wallet = 1; }
+message RevokeMandateSessionRequest { string mandate_id = 1; }
+message RevokeMandateSessionResponse { bool revoked = 1; }
+
+message FundingIntent {
+  string id = 1;
+  string budget_id = 2;
+  BudgetWallet wallet = 3;
+  string atomic_amount = 4;
+  string payment_uri = 5;
+  string state = 6;
+  string transaction_hash = 7;
+  string receipt_delivery_id = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+  string notification_state = 11;
+  string last_error = 12;
+}
+message CreateFundingIntentRequest {
+  string id = 1;
+  string budget_id = 2;
+  string atomic_amount = 3;
+  vrooli.money_ledger.v1.ingest.CryptoValuation valuation = 4;
+  string ledger_book_id = 5;
+  string ledger_account_id = 6;
+  // Optional customer and credit-lot identity. The payer address is checked
+  // against the verified Transfer sender before Money Ledger acceptance.
+  vrooli.money_ledger.v1.ingest.CryptoPayerAttribution attribution = 7;
+}
+message FundingIntentRequest { string id = 1; }
+message FundingIntentResponse { FundingIntent intent = 1; }
+message ConfirmFundingTransferRequest { string id = 1; string transaction_hash = 2; }
+message ListFundingIntentsRequest { string budget_id = 1; }
+message ListFundingIntentsResponse { repeated FundingIntent intents = 1; }
+
+message WithdrawalDestination { string budget_id = 1; string address = 2; string label = 3; }
+message SetWithdrawalDestinationRequest { WithdrawalDestination destination = 1; }
+message WithdrawalDestinationResponse { WithdrawalDestination destination = 1; }
+message PreviewWithdrawalRequest {
+  string budget_id = 1;
+  string destination = 2;
+  string atomic_amount = 3;
+  vrooli.money_ledger.v1.ingest.CryptoValuation valuation = 4;
+  // Explicit conservative fee valuation; token quantity never implies fiat.
+  int64 fee_valuation_minor = 5;
+  string max_fee_wei = 6;
+  // Live mandate selected for this withdrawal preview. The owner revalidates
+  // its budget, principal, run and destination scope before persisting a quote.
+  string mandate_id = 7;
+}
+message WithdrawalQuote {
+  string id = 1;
+  string budget_id = 2;
+  string destination = 3;
+  string atomic_amount = 4;
+  string network = 5;
+  string max_fee_wei = 6;
+  int64 value_minor = 7;
+  int64 fee_valuation_minor = 8;
+  string currency = 9;
+  uint32 estimated_seconds = 10;
+  google.protobuf.Timestamp expires_at = 11;
+  string execution_mode = 12;
+  string mandate_id = 13;
+}
+message WithdrawalQuoteResponse { WithdrawalQuote quote = 1; }
+message ExecuteWithdrawalRequest { string quote_id = 1; string idempotency_key = 2; }
+message GetWithdrawalRequest { string id = 1; }
+message Withdrawal {
+  string id = 1;
+  string quote_id = 2;
+  string authorization_id = 3;
+  string settlement_id = 4;
+  string state = 5;
+  string transaction_hash = 6;
+  string last_error = 7;
+}
+message WithdrawalResponse { Withdrawal withdrawal = 1; }

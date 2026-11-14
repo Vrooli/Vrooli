@@ -9,23 +9,20 @@
     {
       "id": "edge-app-ready-wait",
       "source": "wait-app-ready",
-      "target": "wait-for-page",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "edge-wait-screenshot-bridge-edge-screenshot-assert",
-      "source": "wait-for-page",
       "target": "assert-dashboard",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ],
   "metadata": {
     "description": "Smoke test for AI workflow generation feature - verifies UI elements are present",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Generated Smoke",
+    "version": "1"
   },
   "nodes": [
     {
@@ -56,18 +53,6 @@
         }
       },
       "id": "wait-app-ready"
-    },
-    {
-      "action": {
-        "metadata": {
-          "label": "Wait for page load"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 2000
-        }
-      },
-      "id": "wait-for-page"
     },
     {
       "action": {

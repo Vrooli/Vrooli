@@ -1,0 +1,2 @@
+LEFT COLUMN        RIGHT COLUMN
+alpha              beta

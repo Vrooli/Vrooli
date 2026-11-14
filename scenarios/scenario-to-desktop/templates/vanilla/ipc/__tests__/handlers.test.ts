@@ -58,7 +58,7 @@ function createMockIpcMain(): MockIpcMain {
         async _invoke(channel: string, ...args: unknown[]): Promise<unknown> {
             const handler = handlers.get(channel);
             if (!handler) throw new Error(`No handler for channel: ${channel}`);
-            return handler({}, ...args);
+            return handler({ senderFrame: { url: "file:///app/index.html" }, sender: { getURL: () => "file:///app/index.html" } }, ...args);
         },
     };
 }
@@ -139,8 +139,15 @@ function createMockStorage(): IAppStorage & { _files: Map<string, string | Buffe
 function createMockAuthManager(): IAuthManager {
     return {
         signIn: vi.fn(async (opts?: { state?: string }) => ({ state: opts?.state ?? "test-state" })),
+        connectDesktop: vi.fn(async () => ({ state: "linked" as const, scopes: ["demo:read"] })),
+        getDesktopLinkStatus: vi.fn(async () => ({ state: "unlinked" as const, scopes: [] })),
+        disconnectDesktop: vi.fn(async () => ({ localCleared: true as const, remoteRevocation: "uncertain" as const })),
+        getCreditSessionShareStatus: vi.fn(async () => ({ state: "not_shared" as const })),
+        getCreditBalance: vi.fn(async () => ({ state: "unavailable" as const })),
+        setCreditSessionSharing: vi.fn(async () => ({ state: "shared" as const })),
         signOut: vi.fn(async () => {}),
         getAccessToken: vi.fn(async () => "mock-access-token"),
+        getEntitlementLease: vi.fn(async () => null),
         getUser: vi.fn(async () => ({ id: "user1", email: "test@example.com", emailVerified: true })),
         isAuthenticated: vi.fn(async () => true),
         refresh: vi.fn(async () => true),
@@ -359,18 +366,20 @@ describe("registerAuthHandlers", () => {
 
     beforeEach(() => {
         ipcMain = createMockIpcMain();
-        deps = { authManager: createMockAuthManager() };
+        deps = { authManager: createMockAuthManager(), isTrustedRenderer: (event) => event.senderFrame?.url === "file:///app/index.html" };
     });
 
     it("registers all auth handlers", () => {
         registerAuthHandlers(ipcMain, deps);
 
         expect(ipcMain._handlers.has(AUTH_CHANNELS.SIGN_IN)).toBe(true);
+        expect(ipcMain._handlers.has(AUTH_CHANNELS.CONNECT_DESKTOP)).toBe(true);
         expect(ipcMain._handlers.has(AUTH_CHANNELS.SIGN_OUT)).toBe(true);
         expect(ipcMain._handlers.has(AUTH_CHANNELS.GET_ACCESS_TOKEN)).toBe(true);
         expect(ipcMain._handlers.has(AUTH_CHANNELS.GET_USER)).toBe(true);
         expect(ipcMain._handlers.has(AUTH_CHANNELS.IS_AUTHENTICATED)).toBe(true);
         expect(ipcMain._handlers.has(AUTH_CHANNELS.REFRESH)).toBe(true);
+        expect(ipcMain._handlers.has(AUTH_CHANNELS.GET_CREDIT_BALANCE)).toBe(true);
     });
 
     it("auth:sign-in calls authManager.signIn", async () => {
@@ -382,12 +391,65 @@ describe("registerAuthHandlers", () => {
         expect(result).toEqual({ state: "my-state" });
     });
 
+    it("auth:connect-desktop calls authManager.connectDesktop", async () => {
+        registerAuthHandlers(ipcMain, deps);
+        const options = { installationId: "install-1", resource: "demo", audience: "scenario:demo", scopes: ["demo:read"], state: "state-1" };
+
+        await ipcMain._invoke(AUTH_CHANNELS.CONNECT_DESKTOP, options);
+
+        expect(deps.authManager.connectDesktop).toHaveBeenCalledWith(options);
+    });
+
+    it("routes account status and disconnect through the trusted local owner", async () => {
+        registerAuthHandlers(ipcMain, deps);
+        const query = { resource: "demo" };
+        await expect(ipcMain._invoke(AUTH_CHANNELS.GET_DESKTOP_LINK_STATUS, query)).resolves.toMatchObject({ state: "unlinked" });
+        await expect(ipcMain._invoke(AUTH_CHANNELS.DISCONNECT_DESKTOP, query)).resolves.toMatchObject({ localCleared: true, remoteRevocation: "uncertain" });
+        expect(deps.authManager.getDesktopLinkStatus).toHaveBeenCalledWith(query);
+        expect(deps.authManager.disconnectDesktop).toHaveBeenCalledWith(query);
+
+        await expect(ipcMain._invoke(AUTH_CHANNELS.GET_CREDIT_SESSION_STATUS)).resolves.toEqual({ state: "not_shared" });
+        await expect(ipcMain._invoke(AUTH_CHANNELS.GET_CREDIT_BALANCE)).resolves.toEqual({ state: "unavailable" });
+        await expect(ipcMain._invoke(AUTH_CHANNELS.SET_CREDIT_SESSION_SHARING, true)).resolves.toEqual({ state: "shared" });
+        expect(deps.authManager.setCreditSessionSharing).toHaveBeenCalledWith(true);
+
+        const statusHandler = ipcMain._handlers.get(AUTH_CHANNELS.GET_DESKTOP_LINK_STATUS);
+        if (!statusHandler) throw new Error("desktop status handler was not registered");
+        await expect(statusHandler({ senderFrame: { url: "https://attacker.example" }, sender: { getURL: () => "https://attacker.example" } }, query)).rejects.toThrow("trusted local renderer");
+
+        const balanceHandler = ipcMain._handlers.get(AUTH_CHANNELS.GET_CREDIT_BALANCE);
+        if (!balanceHandler) throw new Error("credit balance handler was not registered");
+        await expect(balanceHandler({ senderFrame: { url: "https://attacker.example" }, sender: { getURL: () => "https://attacker.example" } })).rejects.toThrow("trusted local renderer");
+
+        const shareHandler = ipcMain._handlers.get(AUTH_CHANNELS.SET_CREDIT_SESSION_SHARING);
+        if (!shareHandler) throw new Error("credit sharing handler was not registered");
+        await expect(shareHandler({ senderFrame: { url: "https://attacker.example" }, sender: { getURL: () => "https://attacker.example" } }, true)).rejects.toThrow("trusted local renderer");
+        await expect(ipcMain._invoke(AUTH_CHANNELS.SET_CREDIT_SESSION_SHARING, "yes")).rejects.toThrow("explicit boolean choice");
+    });
+
     it("auth:get-access-token returns token", async () => {
         registerAuthHandlers(ipcMain, deps);
 
         const result = await ipcMain._invoke(AUTH_CHANNELS.GET_ACCESS_TOKEN);
 
         expect(result).toBe("mock-access-token");
+    });
+
+    it("binds local session authority to the owned origin and main frame", async () => {
+        const getLocalSessionToken = vi.fn(async () => "runtime-session-token");
+        const frame = { url: "http://127.0.0.1:22000/" };
+        const sender = { getURL: () => frame.url };
+        const trustedEvent = { senderFrame: frame, sender };
+        const isTrustedRenderer = (event: Electron.IpcMainInvokeEvent) => event.sender === sender && event.senderFrame === frame && event.senderFrame.url === "http://127.0.0.1:22000/";
+        registerAuthHandlers(ipcMain, { ...deps, getLocalSessionToken, isTrustedRenderer });
+        const handler = ipcMain._handlers.get(AUTH_CHANNELS.GET_LOCAL_SESSION_TOKEN)!;
+        await expect(handler(trustedEvent)).resolves.toBe("runtime-session-token");
+        frame.url = "http://127.0.0.1:34335/";
+        await expect(handler(trustedEvent)).resolves.toBeNull();
+        frame.url = "http://127.0.0.1:22000/";
+        await expect(handler({ sender, senderFrame: { url: frame.url } })).resolves.toBeNull();
+        await expect(handler({ sender: { getURL: () => frame.url }, senderFrame: frame })).resolves.toBeNull();
+        expect(getLocalSessionToken).toHaveBeenCalledTimes(1);
     });
 
     it("auth:is-authenticated returns boolean", async () => {
@@ -400,14 +462,16 @@ describe("registerAuthHandlers", () => {
 });
 
 describe("registerAllHandlers", () => {
-    it("registers all handler groups", () => {
+    it("registers all handler groups", async () => {
         const ipcMain = createMockIpcMain();
         const deps = {
             ipcMain,
+            isTrustedRenderer: (event: Electron.IpcMainInvokeEvent) => event.senderFrame?.url === "file:///app/index.html",
             dialog: createMockDialog(),
             fs: createMockFileFs(),
             storage: createMockStorage(),
             authManager: createMockAuthManager(),
+            getLocalSessionToken: async () => "runtime-session-token",
             getMainWindow: () => createMockWindow(),
             systemInfo: { platform: "linux" as const, arch: "x64", version: "1.0.0" },
         };
@@ -420,6 +484,9 @@ describe("registerAllHandlers", () => {
         expect(ipcMain._handlers.has(APP_CHANNELS.MINIMIZE)).toBe(true);
         expect(ipcMain._handlers.has(STORAGE_CHANNELS.GET_PATH)).toBe(true);
         expect(ipcMain._handlers.has(AUTH_CHANNELS.SIGN_IN)).toBe(true);
+        const local = ipcMain._handlers.get(AUTH_CHANNELS.GET_LOCAL_SESSION_TOKEN);
+        expect(local).toBeDefined();
+        await expect(ipcMain._invoke(AUTH_CHANNELS.GET_LOCAL_SESSION_TOKEN)).resolves.toBe("runtime-session-token");
 
         // Check channels list
         expect(registration.channels.length).toBeGreaterThan(10);
@@ -429,6 +496,7 @@ describe("registerAllHandlers", () => {
         const ipcMain = createMockIpcMain();
         const deps = {
             ipcMain,
+            isTrustedRenderer: (event: Electron.IpcMainInvokeEvent) => event.senderFrame?.url === "file:///app/index.html",
             dialog: createMockDialog(),
             fs: createMockFileFs(),
             storage: createMockStorage(),

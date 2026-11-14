@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 4,
+  "kind": "component",
+  "args": { "fields": [{ "path": "children", "kind": "structured", "default": { "$text": "button" } }] },
+  "environment": { "fixtures": [] },
+  "stories": [{ "id": "broken", "name": "Broken", "args": { "children": { "$text": "button" } } }]
+}

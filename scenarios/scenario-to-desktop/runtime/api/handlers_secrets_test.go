@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 func TestHandleShutdown(t *testing.T) {
@@ -41,7 +41,7 @@ func TestHandleShutdown(t *testing.T) {
 	}
 
 	time.Sleep(150 * time.Millisecond)
-	if !rt.shutdownCalled {
+	if !rt.shutdownCalled.Load() {
 		t.Error("handleShutdown() should have called Shutdown()")
 	}
 }

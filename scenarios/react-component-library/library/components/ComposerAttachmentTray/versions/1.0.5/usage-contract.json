@@ -1,0 +1,15 @@
+{
+  "collections": [
+    {
+      "labelField": "name",
+      "maximumCount": 6,
+      "maximumLabelCharacters": 48,
+      "primaryAction": "not-applicable",
+      "property": "items",
+      "stableIdField": "id",
+      "typicalCount": 2
+    }
+  ],
+  "componentId": "react-component-library:ComposerAttachmentTray",
+  "version": "1.0.5"
+}

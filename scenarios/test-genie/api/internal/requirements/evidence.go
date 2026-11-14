@@ -5,13 +5,15 @@ package requirements
 import "test-genie/internal/requirements/types"
 
 // Type aliases for evidence types
-type EvidenceRecord = types.EvidenceRecord
-type EvidenceMap = types.EvidenceMap
-type ManualValidation = types.ManualValidation
-type PhaseResult = types.PhaseResult
-type VitestResult = types.VitestResult
-type EvidenceBundle = types.EvidenceBundle
-type ManualManifest = types.ManualManifest
+type (
+	EvidenceRecord   = types.EvidenceRecord
+	EvidenceMap      = types.EvidenceMap
+	ManualValidation = types.ManualValidation
+	PhaseResult      = types.PhaseResult
+	VitestResult     = types.VitestResult
+	EvidenceBundle   = types.EvidenceBundle
+	ManualManifest   = types.ManualManifest
+)
 
 // Function re-exports
 var (

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { ExecutionCard } from "./execution-card";
 import type { ExecutionRecord, Finalization, ReviewResult } from "../../types";
 
@@ -68,7 +69,7 @@ const noopHandlers = {
 
 describe("ExecutionCard", () => {
   it("renders status, title, and mode", () => {
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution()}
         isBusy={false}
@@ -86,7 +87,7 @@ describe("ExecutionCard", () => {
 
   it("title is clickable and fires onViewBacklog", () => {
     const onViewBacklog = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution()}
         isBusy={false}
@@ -103,7 +104,7 @@ describe("ExecutionCard", () => {
   });
 
   it("shows operation badge when operation is present", () => {
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution({ operation: "generator" })}
         isBusy={false}
@@ -118,7 +119,7 @@ describe("ExecutionCard", () => {
   });
 
   it("shows startedBy in metadata", () => {
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution({ startedBy: "swarm-manager-ui" })}
         isBusy={false}
@@ -133,7 +134,7 @@ describe("ExecutionCard", () => {
   });
 
   it("shows timestamps", () => {
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution()}
         isBusy={false}
@@ -149,7 +150,7 @@ describe("ExecutionCard", () => {
   });
 
   it("shows failure reason when present", () => {
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution({ status: "failed", failureReason: "Agent crashed" })}
         isBusy={false}
@@ -165,7 +166,7 @@ describe("ExecutionCard", () => {
 
   it("shows Start button when canStart is true", () => {
     const onStart = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution({ status: "pending" })}
         isBusy={false}
@@ -183,7 +184,7 @@ describe("ExecutionCard", () => {
 
   it("shows Cancel button when canCancel is true", () => {
     const onCancel = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution({ status: "running" })}
         isBusy={false}
@@ -201,7 +202,7 @@ describe("ExecutionCard", () => {
 
   it("shows Retry button when canRetry is true", () => {
     const onRetry = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution({ status: "failed" })}
         isBusy={false}
@@ -219,7 +220,7 @@ describe("ExecutionCard", () => {
 
   it("shows Follow Up button for completed executions when handler provided", () => {
     const onFollowUp = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution({ status: "completed" })}
         isBusy={false}
@@ -236,7 +237,7 @@ describe("ExecutionCard", () => {
   });
 
   it("disables action buttons when isBusy is true", () => {
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution({ status: "pending" })}
         isBusy={true}
@@ -253,7 +254,7 @@ describe("ExecutionCard", () => {
 
   it("shows Trace button and fires onViewTrace", () => {
     const onViewTrace = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution()}
         isBusy={false}
@@ -270,7 +271,7 @@ describe("ExecutionCard", () => {
   });
 
   it("shows Run link when runId and agentManagerUiUrl are provided", () => {
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution({ runId: "run-123" })}
         isBusy={false}
@@ -287,7 +288,7 @@ describe("ExecutionCard", () => {
   });
 
   it("hides Run link when runId is absent", () => {
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution({ runId: undefined })}
         isBusy={false}
@@ -307,7 +308,7 @@ describe("ExecutionCard", () => {
   });
 
   it("toggles ID details panel", () => {
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution({ runId: "run-456", taskId: "task-789" })}
         isBusy={false}
@@ -330,7 +331,7 @@ describe("ExecutionCard", () => {
   });
 
   it("shows prompt trace when provided", () => {
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution()}
         isBusy={false}
@@ -347,7 +348,7 @@ describe("ExecutionCard", () => {
   });
 
   it("shows post-run status badge when finalization is present", () => {
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution({
           finalization: makeFinalization(),
@@ -364,7 +365,7 @@ describe("ExecutionCard", () => {
   });
 
   it("shows validating indicator when status is validating", () => {
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution({ status: "validating" })}
         isBusy={false}
@@ -380,7 +381,7 @@ describe("ExecutionCard", () => {
 
   it("shows Run Post-Run Checks button for completed executions without finalization", () => {
     const onTriggerReview = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution({ status: "completed" })}
         isBusy={false}
@@ -398,7 +399,7 @@ describe("ExecutionCard", () => {
 
   it("shows the rerun post-run checks button when finalization already exists", () => {
     const onTriggerReview = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution({
           status: "completed",
@@ -438,7 +439,7 @@ describe("ExecutionCard", () => {
   });
 
   it("maps backlog kinds to readable labels", () => {
-    render(
+    renderWithCanonicalProviders(
       <ExecutionCard
         item={makeExecution({ backlogKind: "research" })}
         isBusy={false}

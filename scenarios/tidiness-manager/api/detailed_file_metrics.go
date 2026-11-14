@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+
+	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
 
 // DetailedFileMetrics contains comprehensive per-file metrics for refactor prioritization
@@ -30,31 +32,44 @@ type DetailedFileMetrics struct {
 	NonNullAssertionCount int      `json:"non_null_assertion_count,omitempty"`
 }
 
-// CollectDetailedFileMetrics analyzes files and returns detailed per-file metrics
-// This is a convenience wrapper that doesn't include complexity/duplication data
-func CollectDetailedFileMetrics(scenarioPath string, files []string) ([]DetailedFileMetrics, error) {
-	return CollectDetailedFileMetricsWithLangMetrics(scenarioPath, files, nil)
+// CollectDetailedFileMetricsFromInventory consumes the file inventory already
+// supplied by Code Facts, avoiding a second path walk and line-count pass.
+func CollectDetailedFileMetricsFromInventory(scenarioPath string, inventory []FileMetric, langMetrics map[Language]*LanguageMetrics) ([]DetailedFileMetrics, error) {
+	files := make([]string, 0, len(inventory))
+	lineCounts := make(map[string]int, len(inventory))
+	metricsByPath := make(map[string]FileMetric, len(inventory))
+	for _, metric := range inventory {
+		files = append(files, metric.Path)
+		lineCounts[metric.Path] = metric.Lines
+		metricsByPath[metric.Path] = metric
+	}
+	return collectDetailedFileMetrics(scenarioPath, files, lineCounts, metricsByPath, langMetrics)
 }
 
-// CollectDetailedFileMetricsWithLangMetrics analyzes files with optional language metrics
-// for complexity and duplication data
-func CollectDetailedFileMetricsWithLangMetrics(scenarioPath string, files []string, langMetrics map[Language]*LanguageMetrics) ([]DetailedFileMetrics, error) {
+func collectDetailedFileMetrics(scenarioPath string, files []string, inventoryLines map[string]int, metricsByPath map[string]FileMetric, langMetrics map[Language]*LanguageMetrics) ([]DetailedFileMetrics, error) {
 	if len(files) == 0 {
 		return []DetailedFileMetrics{}, nil
 	}
 
-	// Detect languages first
-	detector := NewLanguageDetector(scenarioPath)
-	languages, err := detector.DetectLanguages()
-	if err != nil {
-		return nil, fmt.Errorf("language detection failed: %w", err)
-	}
-
-	// Build file->language mapping
+	// Code Facts owns file-language classification. Reuse that catalog result
+	// instead of maintaining a second extension-to-language table here.
 	fileLangMap := make(map[string]Language)
-	for lang, langInfo := range languages {
-		for _, file := range langInfo.Files {
+	languages := make(map[Language]*LanguageInfo)
+	for _, file := range files {
+		if metric, exists := metricsByPath[file]; exists {
+			lang, ok := languageForCodeFacts(metric.Language)
+			if !ok {
+				continue
+			}
 			fileLangMap[file] = lang
+			info := languages[lang]
+			if info == nil {
+				info = &LanguageInfo{Language: lang}
+				languages[lang] = info
+			}
+			info.Files = append(info.Files, file)
+			info.FileCount++
+			info.TotalLines += inventoryLines[file]
 		}
 	}
 
@@ -62,14 +77,8 @@ func CollectDetailedFileMetricsWithLangMetrics(scenarioPath string, files []stri
 	// Maps file path -> (avgComplexity, maxComplexity) for functions in that file
 	fileComplexity := buildFileComplexityMap(langMetrics)
 
-	// Build per-file line counts for accurate duplication percentage calculation
-	fileLineCounts := make(map[string]int, len(files))
-	for _, relPath := range files {
-		absPath := filepath.Join(scenarioPath, relPath)
-		if lc, err := countLines(absPath); err == nil {
-			fileLineCounts[relPath] = lc
-		}
-	}
+	// Line counts come exclusively from the Code Facts inventory.
+	fileLineCounts := inventoryLines
 
 	// Build per-file duplication map from language metrics
 	// Maps file path -> percentage of lines that are duplicated
@@ -78,12 +87,19 @@ func CollectDetailedFileMetricsWithLangMetrics(scenarioPath string, files []stri
 	// Collect metrics per file
 	results := make([]DetailedFileMetrics, 0, len(files))
 	codeMetricsAnalyzer := NewCodeMetricsAnalyzer(scenarioPath)
-
+	var graphReport *facts.CodeFactsReport
+	for _, metrics := range langMetrics {
+		if metrics != nil && metrics.facts != nil {
+			graphReport = metrics.facts
+			break
+		}
+	}
+	graphMetrics := graphFileMetrics(graphReport)
 	for _, relPath := range files {
 		lang, hasLang := fileLangMap[relPath]
 		if !hasLang {
 			// Unknown language - skip detailed metrics, just store basic info
-			lineCount, _ := countLines(filepath.Join(scenarioPath, relPath))
+			lineCount := fileLineCounts[relPath]
 			results = append(results, DetailedFileMetrics{
 				FilePath:      relPath,
 				Language:      "unknown",
@@ -93,21 +109,22 @@ func CollectDetailedFileMetricsWithLangMetrics(scenarioPath string, files []stri
 			continue
 		}
 
-		// Analyze individual file
-		absPath := filepath.Join(scenarioPath, relPath)
-		fileMetrics, err := codeMetricsAnalyzer.analyzeFile(absPath, lang)
-		if err != nil {
-			// Skip files we can't analyze
+		metric, exists := metricsByPath[relPath]
+		if !exists {
 			continue
+		}
+		fileMetrics := codeMetricsFromFileMetric(metric)
+		if graphMetric, ok := graphMetrics[relPath][lang]; ok && graphMetric.graphBacked {
+			fileMetrics.ImportCount, fileMetrics.FunctionCount = graphMetric.imports, graphMetric.functions
 		}
 
 		// Build test file map for this language to check test coverage
 		allFilesForLang := languages[lang].Files
-		testFiles := codeMetricsAnalyzer.buildTestFileMap(allFilesForLang, lang)
+		testFiles, sourceFiles := codeMetricsAnalyzer.buildTestFileMaps(allFilesForLang, lang)
 
 		// If this file itself is a test file, mark hasTest as true
 		// Otherwise, check if it has a corresponding test file
-		hasTest := testFiles[relPath] || codeMetricsAnalyzer.hasTestFile(relPath, testFiles, lang)
+		hasTest := testFiles[relPath] || codeMetricsAnalyzer.hasTestFile(relPath, testFiles, sourceFiles, lang)
 
 		detailed := DetailedFileMetrics{
 			FilePath:              relPath,

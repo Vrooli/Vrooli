@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "case_id": "RELEASE-09",
+  "verdict": "passed",
+  "lane": "package",
+  "requirement_refs": [
+    "STC-P0-026",
+    "STC-P0-027",
+    "STC-P0-028"
+  ],
+  "candidate": {
+    "release_digest": "sha256:package-lane-fixture-release",
+    "configuration_digest": "",
+    "closure_digest": "sha256:fixture-sql-uploads"
+  },
+  "target": {
+    "machine_id": "fake-target",
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "operation_refs": [
+    "op-1",
+    "op-2",
+    "op-3"
+  ],
+  "validation_receipt_ref": "go test ./reconcile/ ./backup/ ./bundle/ (2026-09-09, PASS)",
+  "artifact_refs": [
+    "api/reconcile/reconcile_test.go#TestCleanupProtectionSurvivesStaleLeases",
+    "api/backup/retention_test.go#TestRetentionNeverDeletesProtectedPoints",
+    "api/bundle/release_protection_test.go"
+  ],
+  "assertions": [
+    "artifact garbage collection race: protection is reference-based (active pointer, rollback predecessor, releases referenced by recovery points, recovery points held by non-terminal operations); an expired lease left by a crashed owner does not expose them",
+    "bundle retention on the target merges the deployment bundle, lease-protected releases and recovery-point releases into the protected set (deployment.enforceVPSBundleRetentionBestEffort)"
+  ],
+  "observed_at": "2026-09-09T18:30:00Z",
+  "limitations": [
+    "package lane only: the target owner (vrooli cloud-target) is exercised through internal/cloudtarget tests and a stateful fake target in api/vps; QEMU and real-VPS activation subsets are pending EXT-06 (disposable target lane) and EXT-01 (real VPS)",
+    "side_by_side is selected only for workloads without persistent data and without pinned manifest ports; the target activator delegates candidate allocation to the lifecycle owner's restart, so a candidate never runs beside the current release yet (recorded limitation)"
+  ]
+}

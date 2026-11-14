@@ -36,6 +36,9 @@ export interface Capture {
   created: string;
   status: CaptureStatus;
   failureReason?: CaptureFailureReason;
+  workflowExecutionId?: string;
+  workflowDefinitionDigest?: string;
+  workflowEntityVersion?: string;
   classification: CaptureClassification | null;
   note?: string;
 }

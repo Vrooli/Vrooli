@@ -1,11 +1,11 @@
 package main
 
 import (
-	"bufio"
-	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
+
+	"github.com/vrooli/api-core/factgraph"
+	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
 
 // CodeMetrics contains language-agnostic code quality metrics
@@ -34,7 +34,6 @@ type CodeMetrics struct {
 
 // FileCodeMetrics contains metrics for a single file
 type FileCodeMetrics struct {
-	FilePath              string  `json:"file_path"`
 	TodoCount             int     `json:"todo_count"`
 	FixmeCount            int     `json:"fixme_count"`
 	HackCount             int     `json:"hack_count"`
@@ -43,7 +42,7 @@ type FileCodeMetrics struct {
 	CodeLines             int     `json:"code_lines"`
 	CommentLines          int     `json:"comment_lines"`
 	CommentToCodeRatio    float64 `json:"comment_to_code_ratio"`
-	HasTestFile           bool    `json:"has_test_file"`
+	HasTestFile           bool    `json:"has_test_file"` // Filename heuristic only; it does not prove behavioral coverage.
 	AsAnyCount            int     `json:"as_any_count"`
 	AsTypeAssertionCount  int     `json:"as_type_assertion_count"`
 	TsIgnoreCount         int     `json:"ts_ignore_count"`
@@ -57,14 +56,17 @@ type CodeMetricsAnalyzer struct {
 
 // NewCodeMetricsAnalyzer creates an analyzer for the specified scenario
 func NewCodeMetricsAnalyzer(scenarioPath string) *CodeMetricsAnalyzer {
-	return &CodeMetricsAnalyzer{
-		scenarioPath: scenarioPath,
-	}
+	return &CodeMetricsAnalyzer{scenarioPath: scenarioPath}
 }
 
-// AnalyzeFiles computes metrics for a list of files
-func (cma *CodeMetricsAnalyzer) AnalyzeFiles(files []string, lang Language) (*CodeMetrics, error) {
-	if len(files) == 0 {
+// AnalyzeInventory aggregates the lexical metrics already supplied by Code
+// Facts and structural counts from its language graph.
+func (cma *CodeMetricsAnalyzer) AnalyzeInventory(inventory []FileMetric, lang Language, report *facts.CodeFactsReport) (*CodeMetrics, error) {
+	return cma.AnalyzeInventoryWithGraphMetrics(inventory, lang, graphFileMetrics(report))
+}
+
+func (cma *CodeMetricsAnalyzer) AnalyzeInventoryWithGraphMetrics(inventory []FileMetric, lang Language, graphMetrics map[string]map[Language]graphFileMetric) (*CodeMetrics, error) {
+	if len(inventory) == 0 {
 		return &CodeMetrics{}, nil
 	}
 
@@ -75,8 +77,15 @@ func (cma *CodeMetricsAnalyzer) AnalyzeFiles(files []string, lang Language) (*Co
 	var filesWithTests, filesWithoutTests int
 	var totalAsAny, totalAsType, totalTsIgnore, totalNonNull int
 
-	// Build test file map for this language
-	testFiles := cma.buildTestFileMap(files, lang)
+	files := make([]string, 0, len(inventory))
+	for _, metric := range inventory {
+		files = append(files, metric.Path)
+	}
+	testFiles, sourceFiles := cma.buildTestFileMaps(files, lang)
+	metricsByPath := make(map[string]FileMetric, len(inventory))
+	for _, metric := range inventory {
+		metricsByPath[metric.Path] = metric
+	}
 
 	for _, relPath := range files {
 		// Skip test files themselves when counting coverage
@@ -84,14 +93,13 @@ func (cma *CodeMetricsAnalyzer) AnalyzeFiles(files []string, lang Language) (*Co
 			continue
 		}
 
-		absPath := filepath.Join(cma.scenarioPath, relPath)
-		fileMetrics, err := cma.analyzeFile(absPath, lang)
-		if err != nil {
-			continue // Skip files we can't analyze
-		}
+		fileMetrics := codeMetricsFromFileMetric(metricsByPath[relPath])
 
 		// Check if this source file has a test
-		fileMetrics.HasTestFile = cma.hasTestFile(relPath, testFiles, lang)
+		fileMetrics.HasTestFile = cma.hasTestFile(relPath, testFiles, sourceFiles, lang)
+		if graphMetric, ok := graphMetrics[relPath][lang]; ok && graphMetric.graphBacked {
+			fileMetrics.ImportCount, fileMetrics.FunctionCount = graphMetric.imports, graphMetric.functions
+		}
 
 		totalTodos += fileMetrics.TodoCount
 		totalFixmes += fileMetrics.FixmeCount
@@ -154,302 +162,67 @@ func (cma *CodeMetricsAnalyzer) AnalyzeFiles(files []string, lang Language) (*Co
 	}, nil
 }
 
-// analyzeFile computes metrics for a single file
-func (cma *CodeMetricsAnalyzer) analyzeFile(path string, lang Language) (*FileCodeMetrics, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	metrics := &FileCodeMetrics{
-		FilePath: path,
-	}
-
-	// Compile regex patterns
-	todoPattern := regexp.MustCompile(`(?i)\bTODO\b`)
-	fixmePattern := regexp.MustCompile(`(?i)\bFIXME\b`)
-	hackPattern := regexp.MustCompile(`(?i)\bHACK\b`)
-
-	// Type safety patterns (TS/JS only)
-	isTS := lang == LanguageTypeScript || lang == LanguageJavaScript
-	var asAnyPattern, asTypePattern, tsIgnorePattern, nonNullPattern *regexp.Regexp
-	if isTS {
-		asAnyPattern = regexp.MustCompile(`\bas\s+any\b|\bas\s+unknown\s+as\b`)
-		asTypePattern = regexp.MustCompile(`\bas\s+[A-Z]\w+`)
-		tsIgnorePattern = regexp.MustCompile(`@ts-ignore|@ts-expect-error`)
-		nonNullPattern = regexp.MustCompile(`[a-zA-Z0-9_)\]]\s*!\s*[.\[]`)
-	}
-
-	inMultiLineComment := false
-	inGoImportBlock := false // Track Go grouped import blocks
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
-
-		// Skip blank lines
-		if trimmed == "" {
-			continue
-		}
-
-		// Detect if this is a comment line
-		isComment, newMultiLineState := cma.isCommentLine(line, lang, inMultiLineComment)
-		inMultiLineComment = newMultiLineState
-
-		if isComment {
-			metrics.CommentLines++
-		} else {
-			metrics.CodeLines++
-		}
-
-		// Count technical debt markers (can be in comments or code)
-		if todoPattern.MatchString(line) {
-			metrics.TodoCount++
-		}
-		if fixmePattern.MatchString(line) {
-			metrics.FixmeCount++
-		}
-		if hackPattern.MatchString(line) {
-			metrics.HackCount++
-		}
-
-		// Type safety pattern detection (TS/JS only)
-		if isTS {
-			// @ts-ignore/@ts-expect-error can appear in comments
-			if tsIgnorePattern.MatchString(line) {
-				metrics.TsIgnoreCount++
-			}
-		}
-
-		// Only count imports/functions in code lines
-		if !isComment {
-			// Handle Go grouped import blocks: import ( ... )
-			if lang == LanguageGo {
-				if strings.HasPrefix(trimmed, "import (") {
-					inGoImportBlock = true
-					continue
-				}
-				if inGoImportBlock {
-					if trimmed == ")" {
-						inGoImportBlock = false
-						continue
-					}
-					// Each non-empty line inside import block is an import
-					// Skip comment lines within import block
-					if !strings.HasPrefix(trimmed, "//") && !strings.HasPrefix(trimmed, "/*") {
-						metrics.ImportCount++
-					}
-					continue
-				}
-			}
-
-			// Count imports (language-specific)
-			if cma.isImportLine(line, lang) {
-				metrics.ImportCount++
-			}
-
-			// Count function definitions (language-specific)
-			if cma.isFunctionDefinition(line, lang) {
-				metrics.FunctionCount++
-			}
-
-			// Type safety patterns (non-comment lines only)
-			if isTS {
-				if asAnyPattern.MatchString(line) {
-					metrics.AsAnyCount++
-				}
-				if asTypePattern.MatchString(line) {
-					metrics.AsTypeAssertionCount++
-				}
-				if nonNullPattern.MatchString(line) && !strings.Contains(line, "!==") && !strings.Contains(line, "!=") {
-					metrics.NonNullAssertionCount++
-				}
-			}
-		}
-	}
-
-	// Calculate comment-to-code ratio
-	if metrics.CodeLines > 0 {
-		metrics.CommentToCodeRatio = float64(metrics.CommentLines) / float64(metrics.CodeLines)
-	}
-
-	return metrics, scanner.Err()
-}
-
-// isImportLine detects import statements based on language
-func (cma *CodeMetricsAnalyzer) isImportLine(line string, lang Language) bool {
-	trimmed := strings.TrimSpace(line)
-
-	switch lang {
-	case LanguageGo:
-		// Go single-line imports: import "..." (NOT import block starts handled separately)
-		if !strings.HasPrefix(trimmed, "import ") {
-			return false
-		}
-		// Skip grouped import block start (handled separately in analyzeFile)
-		if strings.HasPrefix(trimmed, "import (") {
-			return false
-		}
-		// Single import statement: import "fmt"
-		return !strings.Contains(trimmed, "//")
-
-	case LanguageTypeScript, LanguageJavaScript:
-		// TS/JS imports: import ... from '...' or import '...'
-		// Exclude type imports inside blocks
-		return (strings.HasPrefix(trimmed, "import ") || strings.HasPrefix(trimmed, "import{")) &&
-			!strings.HasPrefix(trimmed, "//")
-
-	case LanguagePython:
-		// Python imports: import ... or from ... import ...
-		return (strings.HasPrefix(trimmed, "import ") || strings.HasPrefix(trimmed, "from ")) &&
-			!strings.HasPrefix(trimmed, "#")
-
-	case LanguageRust:
-		// Rust imports: use ...
-		return strings.HasPrefix(trimmed, "use ") && !strings.HasPrefix(trimmed, "//")
-
-	default:
-		return false
+func codeMetricsFromFileMetric(metric FileMetric) *FileCodeMetrics {
+	return &FileCodeMetrics{
+		TodoCount: metric.TodoCount, FixmeCount: metric.FixmeCount, HackCount: metric.HackCount,
+		ImportCount: metric.FallbackImportCount, FunctionCount: metric.FallbackFunctionCount,
+		CodeLines: metric.CodeLines, CommentLines: metric.CommentLines,
+		HasTestFile: false,
+		AsAnyCount:  metric.AsAnyCount, AsTypeAssertionCount: metric.AsTypeAssertionCount,
+		TsIgnoreCount: metric.TsIgnoreCount, NonNullAssertionCount: metric.NonNullAssertionCount,
+		CommentToCodeRatio: commentRatio(metric.CommentLines, metric.CodeLines),
 	}
 }
 
-// isFunctionDefinition detects function/method definitions based on language
-func (cma *CodeMetricsAnalyzer) isFunctionDefinition(line string, lang Language) bool {
-	trimmed := strings.TrimSpace(line)
-
-	switch lang {
-	case LanguageGo:
-		return cma.isGoFunctionDef(trimmed)
-	case LanguageTypeScript, LanguageJavaScript:
-		return cma.isJSFunctionDef(trimmed)
-	case LanguagePython:
-		return cma.isPythonFunctionDef(trimmed)
-	case LanguageRust:
-		return cma.isRustFunctionDef(trimmed)
-	default:
-		return false
+func commentRatio(numerator, denominator int) float64 {
+	if denominator == 0 {
+		return 0
 	}
+	return float64(numerator) / float64(denominator)
 }
 
-// isGoFunctionDef detects Go function definitions
-func (cma *CodeMetricsAnalyzer) isGoFunctionDef(trimmed string) bool {
-	// Go functions: func name(...) or func (receiver) name(...)
-	return strings.HasPrefix(trimmed, "func ") && !strings.Contains(trimmed, "//")
+type graphFileMetric struct {
+	imports, functions int
+	graphBacked        bool
 }
 
-// isJSFunctionDef detects TypeScript/JavaScript function definitions
-func (cma *CodeMetricsAnalyzer) isJSFunctionDef(trimmed string) bool {
-	// Check explicit function declarations
-	patterns := []string{"function ", "async function ", "const ", "let ", "var "}
-	for _, pattern := range patterns {
-		if strings.HasPrefix(trimmed, pattern) {
-			// Simple heuristic: contains ( and either => or {
-			if strings.Contains(trimmed, "(") && (strings.Contains(trimmed, "=>") || strings.Contains(trimmed, "{")) {
-				return !strings.HasPrefix(trimmed, "//")
+// graphFileMetrics projects each graph once into file-level counts. Previously
+// AnalyzeInventory rebuilt module paths and rescanned every graph for every
+// source file, making this path O(files × (nodes + edges)).
+func graphFileMetrics(report *facts.CodeFactsReport) map[string]map[Language]graphFileMetric {
+	result := make(map[string]map[Language]graphFileMetric)
+	for _, file := range factgraph.NewIndex(report).Files() {
+		language := Language(file.Language())
+		metric := graphFileMetric{imports: file.Imports(), graphBacked: true}
+		for _, node := range file.Nodes() {
+			kind := node.Attribute("kind")
+			if language == LanguageGo && (kind == "go_func" || kind == "go_method") ||
+				(language == LanguageTypeScript || language == LanguageJavaScript) && node.Attribute("body_hash") != "" {
+				metric.functions++
 			}
 		}
+		byLanguage := result[file.Path()]
+		if byLanguage == nil {
+			byLanguage = make(map[Language]graphFileMetric)
+			result[file.Path()] = byLanguage
+		}
+		byLanguage[language] = metric
 	}
-
-	// Method definitions: methodName(...) {
-	if strings.Contains(trimmed, "(") && strings.Contains(trimmed, "{") && !strings.HasPrefix(trimmed, "//") {
-		// Exclude control flow and other non-function lines
-		excludes := []string{"if ", "while ", "for ", "switch ", "catch "}
-		for _, exclude := range excludes {
-			if strings.HasPrefix(trimmed, exclude) {
-				return false
-			}
-		}
-		return true
-	}
-	return false
+	return result
 }
 
-// isPythonFunctionDef detects Python function definitions
-func (cma *CodeMetricsAnalyzer) isPythonFunctionDef(trimmed string) bool {
-	// Python functions: def name(...):
-	return strings.HasPrefix(trimmed, "def ") && !strings.HasPrefix(trimmed, "#")
-}
-
-// isRustFunctionDef detects Rust function definitions
-func (cma *CodeMetricsAnalyzer) isRustFunctionDef(trimmed string) bool {
-	// Rust functions: fn name(...) or pub fn name(...)
-	return (strings.HasPrefix(trimmed, "fn ") || strings.HasPrefix(trimmed, "pub fn ")) &&
-		!strings.HasPrefix(trimmed, "//")
-}
-
-// isCommentLine detects if a line is a comment, tracking multi-line comment state
-func (cma *CodeMetricsAnalyzer) isCommentLine(line string, lang Language, inMultiLineComment bool) (isComment bool, newMultiLineState bool) {
-	trimmed := strings.TrimSpace(line)
-
-	switch lang {
-	case LanguageGo, LanguageTypeScript, LanguageJavaScript, LanguageRust:
-		// Check for multi-line comment start
-		if strings.HasPrefix(trimmed, "/*") {
-			// Check if it also ends on the same line
-			if strings.Contains(trimmed, "*/") {
-				// Single-line /* */ comment
-				return true, false
-			}
-			return true, true
-		}
-
-		// If currently in multi-line comment
-		if inMultiLineComment {
-			// Check for multi-line comment end
-			if strings.Contains(trimmed, "*/") {
-				return true, false
-			}
-			return true, true
-		}
-
-		// Check for single-line comment
-		return strings.HasPrefix(trimmed, "//"), false
-
-	case LanguagePython:
-		// Check for multi-line string literals used as comments (docstrings)
-		if strings.HasPrefix(trimmed, `"""`) || strings.HasPrefix(trimmed, `'''`) {
-			// Check if it ends on the same line
-			quote := `"""`
-			if strings.HasPrefix(trimmed, `'''`) {
-				quote = `'''`
-			}
-			// Count occurrences to see if it closes on same line
-			count := strings.Count(trimmed, quote)
-			if count >= 2 {
-				// Starts and ends on same line
-				return true, false
-			}
-			// Toggle multi-line state
-			return true, !inMultiLineComment
-		}
-
-		// If in multi-line string
-		if inMultiLineComment {
-			// Check for end of multi-line string
-			if strings.Contains(trimmed, `"""`) || strings.Contains(trimmed, `'''`) {
-				return true, false
-			}
-			return true, true
-		}
-
-		// Single-line comment
-		return strings.HasPrefix(trimmed, "#"), false
-
-	default:
-		return false, false
-	}
-}
-
-// buildTestFileMap creates a map of test files for quick lookup
-func (cma *CodeMetricsAnalyzer) buildTestFileMap(files []string, lang Language) map[string]bool {
+// buildTestFileMaps separates test paths from source paths for companion lookup.
+func (cma *CodeMetricsAnalyzer) buildTestFileMaps(files []string, lang Language) (map[string]bool, map[string]bool) {
 	testFiles := make(map[string]bool)
+	sourceFiles := make(map[string]bool)
 	for _, file := range files {
 		if cma.isTestFile(file, lang) {
 			testFiles[file] = true
+		} else {
+			sourceFiles[file] = true
 		}
 	}
-	return testFiles
+	return testFiles, sourceFiles
 }
 
 // IsTestFilePath checks if a file path looks like a test file based on common
@@ -508,8 +281,9 @@ func (cma *CodeMetricsAnalyzer) isTestFile(filePath string, lang Language) bool 
 	}
 }
 
-// hasTestFile checks if a source file has a corresponding test file
-func (cma *CodeMetricsAnalyzer) hasTestFile(sourceFile string, testFiles map[string]bool, lang Language) bool {
+// hasTestFile matches by exact stem or same-directory longest source stem.
+// This filename heuristic does not prove that tests cover the source behavior.
+func (cma *CodeMetricsAnalyzer) hasTestFile(sourceFile string, testFiles, sourceFiles map[string]bool, lang Language) bool {
 	dir := filepath.Dir(sourceFile)
 	base := filepath.Base(sourceFile)
 	ext := filepath.Ext(base)
@@ -517,9 +291,41 @@ func (cma *CodeMetricsAnalyzer) hasTestFile(sourceFile string, testFiles map[str
 
 	switch lang {
 	case LanguageGo:
-		// Go: file.go -> file_test.go
+		// Go: file.go -> file_test.go or file_behavior_test.go.
 		testFile := filepath.Join(dir, nameWithoutExt+"_test.go")
-		return testFiles[testFile]
+		if testFiles[testFile] {
+			return true
+		}
+		// A descriptive suffix is common for package tests that cover one
+		// production file (for example, overlap_agree_behavior_test.go).
+		for candidate := range testFiles {
+			if filepath.Dir(candidate) != dir {
+				continue
+			}
+			candidateBase := filepath.Base(candidate)
+			if !strings.HasPrefix(candidateBase, nameWithoutExt+"_") || !strings.HasSuffix(candidateBase, "_test.go") {
+				continue
+			}
+			candidateStem := strings.TrimSuffix(candidateBase, "_test.go")
+			mostSpecificSource := ""
+			if sourceFiles[filepath.Join(dir, candidateStem+".go")] {
+				mostSpecificSource = filepath.Join(dir, candidateStem+".go")
+			}
+			for i, char := range candidateStem {
+				if char != '_' {
+					continue
+				}
+				possibleSource := filepath.Join(dir, candidateStem[:i]+".go")
+				if sourceFiles[possibleSource] && len(candidateStem[:i]) > len(strings.TrimSuffix(filepath.Base(mostSpecificSource), ".go")) {
+					mostSpecificSource = possibleSource
+				}
+			}
+			if mostSpecificSource != "" && mostSpecificSource != sourceFile {
+				continue
+			}
+			return true
+		}
+		return false
 
 	case LanguageTypeScript, LanguageJavaScript:
 		// TS/JS: multiple possible test file patterns

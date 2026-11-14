@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 
+	schema "seo-optimizer-api/internal/seo"
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 )
@@ -44,6 +46,15 @@ func main() {
 		ScenarioName: "seo-optimizer",
 	}) {
 		return // Process was re-exec'd after rebuild
+	}
+
+	db, err := database.Connect(context.Background(), database.Config{Driver: database.DriverPostgres})
+	if err != nil {
+		log.Fatalf("database connection failed: %v", err)
+	}
+	defer db.Close()
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		log.Fatalf("database schema initialization failed: %v", err)
 	}
 
 	port := getEnv("API_PORT", getEnv("PORT", ""))

@@ -1,0 +1,59 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.citation",
+    "name": "Citation",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "ai",
+    "description": "The compact source reference carrying state, confidence or relevance metadata, preview affordance, navigation to source, and grouping when several support one claim.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.badge",
+        "reason": "Reference markers use shared compact treatment."
+      },
+      {
+        "asset": "primitives.link",
+        "reason": "Navigation to source uses shared link semantics."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "ai.citation-preview",
+        "reason": "Inline inspection needs a preview surface; a reference list may simply navigate."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "non-color-status",
+    "tap-target-size"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "request-error"
+  ],
+  "rationale": "Confidence must be visible on the reference itself. A citation rendered identically whether it strongly supports a claim or merely mentions it makes sourcing decorative."
+}

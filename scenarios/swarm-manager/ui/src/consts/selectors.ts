@@ -1,51 +1,6 @@
-/**
- * Vrooli Ascension selector registry
- *
- * This file is the single source of truth for every selector used by the UI and
- * by Vrooli Ascension workflows. Selectors are defined as typed constant objects
- * to ensure TypeScript can statically verify all accesses.
- *
- * ## Auto-Generated Manifest
- *
- * The `selectors.manifest.json` file is automatically generated from this file
- * during the testing process. If you need to add or modify selectors:
- *
- * 1. Update the `literalSelectors` object below for static selectors
- * 2. Update the `dynamicSelectorDefinitions` object for parameterized selectors
- * 3. The manifest will be regenerated automatically when tests run
- *
- * DO NOT manually edit `selectors.manifest.json` - your changes will be overwritten!
- */
-
-// =============================================================================
-// Dynamic Selector Types
-// =============================================================================
-
-type ParamType = "string" | "number" | "enum";
-
-type ParamDefinition =
-  | { readonly type: "string" }
-  | { readonly type: "number" }
-  | { readonly type: "enum"; readonly values: readonly (string | number)[] };
-
-type ParamSchema = Readonly<Record<string, ParamDefinition>>;
-
-interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefined> {
-  readonly kind: "dynamic-selector";
-  readonly description: string;
-  readonly params?: P;
-  readonly testIdPattern?: string;
-  readonly selectorPattern?: string;
-}
-
-// =============================================================================
-// Literal Selectors - Static test IDs with deterministic types
-// =============================================================================
-
-/**
- * Literal (static) selectors organized by UI area.
- * Each value is a data-testid string.
- */
+import { createSelectorRegistry, defineDynamicSelector } from "@vrooli/ui-selectors";
+import { librarySelectors } from "./selectors.library";
+export { librarySelectors };
 export const literalSelectors = {
   // Layout selectors
   layout: {
@@ -54,7 +9,13 @@ export const literalSelectors = {
     desktopTabs: "desktop-tabs",
     mobileNav: "mobile-nav",
     agentsToggle: "layout-agents-toggle",
-    agentsDropdown: "layout-agents-dropdown",
+  },
+  // Unified Graph/Plan workspace controls
+  workspace: {
+    header: "workspace-header",
+    settingsGear: "settings-gear",
+    settingsDrawer: "settings-drawer",
+    drawerSettingsTab: "settings-drawer-tab-settings",
   },
   // Error state selectors (shared across pages)
   error: {
@@ -80,6 +41,16 @@ export const literalSelectors = {
     timestamp: "error-boundary-timestamp",
     userAgent: "error-boundary-user-agent",
     errorCategory: "error-boundary-error-category",
+  },
+  scenarioHealth: {
+    section: "scenario-health-section",
+    state: "scenario-health-state",
+    remediationPreview: "scenario-remediation-preview",
+    remediationPreviewButton: "scenario-remediation-preview-button",
+    remediationAcceptButton: "scenario-remediation-accept-button",
+    maturityCampaignPreview: "scenario-maturity-campaign-preview",
+    maturityCampaignPreviewButton: "scenario-maturity-campaign-preview-button",
+    maturityCampaignConfirmButton: "scenario-maturity-campaign-confirm-button",
   },
   // Not Found page selectors
   notFound: {
@@ -129,6 +100,8 @@ export const literalSelectors = {
   captures: {
     quickInput: "captures-quick-input",
     quickInputSubmit: "captures-quick-input-submit",
+    quickInputMic: "captures-quick-input-mic",
+    quickComposer: "captures-quick-composer",
     quickInputAttach: "captures-quick-input-attach",
     quickInputSend: "captures-quick-input-send",
     card: "capture-card",
@@ -138,6 +111,35 @@ export const literalSelectors = {
     itemAcceptButton: "capture-item-accept-button",
     itemEditButton: "capture-item-edit-button",
     itemDismissButton: "capture-item-dismiss-button",
+  },
+  agentSessions: {
+    composer: "agent-session-composer",
+    composerMic: "agent-session-composer-mic",
+    composerImageAttach: "agent-session-composer-attach",
+    composerContextAttach: "agent-session-composer-context",
+    composerImagePreviewRemove: "attachment-preview-remove",
+    contextPicker: "session-context-picker",
+    contextSearch: "session-context-search",
+    contextEntityList: "session-context-entity-list",
+    contextRow: "session-context-row",
+    contextSelectedTray: "session-context-selected-tray",
+    contextAttachButton: "session-context-attach",
+    entityAttachAction: "entity-attach-session-action",
+    entityAttachSheet: "entity-attach-session-sheet",
+    entityAttachSearch: "entity-attach-session-search",
+    entityAttachSessionList: "entity-attach-session-list",
+    entityAttachConfirm: "entity-attach-session-confirm",
+    entityAttachQuickStart: "entity-attach-session-quick-start",
+    entityAttachKindSelect: "entity-attach-session-kind-select",
+    entityAttachModeNew: "entity-attach-mode-new",
+    entityAttachModeExisting: "entity-attach-mode-existing",
+    entityAttachSuggestion: "entity-attach-suggestion",
+    proposalStart: "proposal-session-start",
+    messageContextChips: "session-message-context-chips",
+    messageImageThumbnails: "session-message-image-thumbnails",
+    starterSuggestions: "agent-session-starter-suggestions",
+    starterSuggestion: "agent-session-starter-suggestion",
+    starterSuggestionCount: "agent-session-starter-suggestion-count",
   },
   // Inline question stepper selectors
   questionStepper: {
@@ -153,7 +155,6 @@ export const literalSelectors = {
   // Backlog details page selectors
   backlogDetails: {
     page: "backlog-details-page",
-    header: "backlog-details-header",
     title: "backlog-details-title",
     description: "backlog-details-description",
     backButton: "backlog-details-back",
@@ -164,32 +165,28 @@ export const literalSelectors = {
     deleteDialog: "backlog-delete-dialog",
     deleteConfirmButton: "backlog-delete-confirm",
     deleteCancelButton: "backlog-delete-cancel",
+    deleteCopyButton: "backlog-delete-copy",
     fileTree: "backlog-details-file-tree",
     filePreview: "backlog-details-file-preview",
     fileUpload: "backlog-details-file-upload",
     uploadDropzone: "file-upload-dropzone",
     uploadList: "file-upload-list",
-    clarifyPanel: "backlog-clarify-panel",
-    clarifyNextMode: "backlog-clarify-next-mode",
-    clarifyNextModeNone: "backlog-clarify-next-mode-none",
-    clarifySubmit: "backlog-clarify-submit",
     suggestionsPanel: "backlog-suggestions-panel",
     suggestionsSubmit: "backlog-suggestions-submit",
     // Experience architecture additions (Phase 29)
     breadcrumb: "backlog-details-breadcrumb",
-    statusSelect: "backlog-details-status-select",
     activityTimeline: "backlog-details-activity-timeline",
     activeRunBanner: "backlog-details-active-run-banner",
     tabRow: "backlog-details-tab-row",
     tabInfo: "backlog-details-tab-info",
     tabPrompt: "backlog-details-tab-prompt",
     tabFiles: "backlog-details-tab-files",
-    tabOutput: "backlog-details-tab-output",
     tabActivity: "backlog-details-tab-activity",
-    outputTab: "backlog-details-output-tab",
+    tabRelated: "backlog-details-tab-related",
+    relatedContent: "backlog-details-related-content",
     activityTab: "backlog-details-activity-tab",
     promptPanel: "backlog-details-prompt-panel",
-    initiativeChip: "backlog-details-initiative-chip",
+    milestoneChip: "backlog-details-milestone-chip",
   },
   // Backlog form dialog selectors
   backlogForm: {
@@ -249,6 +246,7 @@ export const literalSelectors = {
     deleteDialog: "scenario-delete-dialog",
     deleteConfirmButton: "scenario-delete-confirm",
     deleteCancelButton: "scenario-delete-cancel",
+    deleteCopyButton: "scenario-delete-copy",
     archiveCheckbox: "scenario-delete-archive",
     // Experience architecture additions (Phase 29)
     breadcrumb: "scenario-details-breadcrumb",
@@ -263,6 +261,7 @@ export const literalSelectors = {
     themeLight: "theme-light",
     themeSystem: "theme-system",
     executionDefaults: "execution-defaults",
+    fixBeforeFeature: "fix-before-feature-settings",
     workshopSettings: "workshop-settings",
     agentSettings: "agent-settings",
     uiPreferences: "ui-preferences",
@@ -272,6 +271,13 @@ export const literalSelectors = {
     tabExecution: "settings-tab-execution",
     tabWorkshop: "settings-tab-workshop",
     tabReview: "settings-tab-review",
+    tabAudio: "settings-tab-audio",
+    audioAutoSpeak: "settings-audio-auto-speak",
+    audioVoice: "settings-audio-voice",
+    audioSpeed: "settings-audio-speed",
+    audioSummarize: "settings-audio-summarize",
+    audioUnavailableBanner: "settings-audio-unavailable",
+    integrations: "settings-integrations",
     saveButton: "settings-save",
   },
   // Execution list page selectors
@@ -309,14 +315,6 @@ export const literalSelectors = {
     runChecksButton: "execution-details-run-checks",
     viewRunButton: "execution-details-view-run",
   },
-  // Run backlog modal selectors
-  runBacklog: {
-    dialog: "run-backlog-dialog",
-    submitButton: "run-backlog-submit",
-    blockingReasons: "run-backlog-blocking-reasons",
-    readinessWarning: "run-backlog-readiness-warning",
-    error: "run-backlog-error",
-  },
   followUp: {
     dialog: "follow-up-dialog",
     typeFixup: "follow-up-type-fixup",
@@ -330,10 +328,10 @@ export const literalSelectors = {
     reviewSummary: "follow-up-review-summary",
     runHealth: "follow-up-run-health",
   },
-  // Shared review flow selectors
+  // Shared review surface selectors
   review: {
-    flow: "review-flow",
     statusHeader: "review-status-header",
+    statusHeaderRunLink: "review-status-header-run-link",
     primaryAction: "review-primary-action",
     rerunAction: "review-rerun-action",
     stopAction: "review-stop-action",
@@ -349,22 +347,19 @@ export const literalSelectors = {
     evidenceContextSummary: "review-evidence-context-summary",
     followUpSheet: "review-follow-up-sheet",
   },
-  // Initiative details page selectors
-  initiativeDetails: {
-    page: "initiative-details-page",
-    title: "initiative-details-title",
-    status: "initiative-details-status",
-    description: "initiative-details-description",
-    rollup: "initiative-details-rollup",
-    itemsList: "initiative-details-items-list",
-    itemsViewToggle: "initiative-items-view-toggle",
-    itemsListView: "initiative-items-list-view",
-    itemsGraphView: "initiative-items-graph-view",
-    backLink: "initiative-details-back-link",
-    tabRow: "initiative-details-tab-row",
-    tabInfo: "initiative-details-tab-info",
-    tabFiles: "initiative-details-tab-files",
+  goalDetails: {
+    conceptExplainerDialog: "concept-explainer-dialog",
+    page: "goal-details-page",
+    tabRow: "goal-details-tab-row",
+    files: "goal-details-files",
   },
+  related: {
+    tab: "related-tab",
+    groupLinked: "related-group-linked",
+    groupSameScope: "related-group-same_scope",
+    groupSimilar: "related-group-similar",
+  },
+  // Goal and milestone review surfaces.
   prompts: {
     page: "prompts-page",
     tabs: "prompts-tabs",
@@ -382,12 +377,8 @@ export const literalSelectors = {
     versions: "prompts-versions",
     preview: "prompts-preview",
   },
-  // Command Post selectors
+  // Decision stream (hosted in the Plan board's decision drawer).
   commandPost: {
-    overlay: "command-post-overlay",
-    overlayHeader: "command-post-overlay-header",
-    close: "command-post-close",
-    summary: "command-post-summary",
     decisionStream: {
       container: "ds-container",
       header: "ds-header",
@@ -411,6 +402,15 @@ export const literalSelectors = {
       navigatorSnooze: "ds-navigator-snooze",
     },
   },
+  // Graph sidebar shared empty-state composite.
+  sidebar: {
+    emptyState: "sidebar-empty-state",
+    emptyStateTitle: "sidebar-empty-state-title",
+    emptyStateClear: "sidebar-empty-state-clear",
+  },
+  detailHeader: {
+    sidebarButton: "page-sidebar-button",
+  },
   graphNavControls: {
     container: "graph-nav-controls",
     panUp: "graph-nav-pan-up",
@@ -420,6 +420,72 @@ export const literalSelectors = {
     zoomIn: "graph-nav-zoom-in",
     zoomOut: "graph-nav-zoom-out",
     fitView: "graph-nav-fit-view",
+  },
+  // Plan lens board (/plan): Now/Next/Later/Done kanban.
+  plan: {
+    board: "plan-board",
+    boardLoading: "plan-board-loading",
+    boardError: "plan-board-error",
+    boardRefresh: "plan-board-refresh",
+    cycleWarning: "plan-cycle-warning",
+    columnNow: "plan-column-now",
+    columnNowHeader: "plan-column-now-header",
+    columnNext: "plan-column-next",
+    columnLater: "plan-column-later",
+    columnDone: "plan-column-done",
+    nowEmpty: "plan-now-empty",
+    nowSpawnCta: "plan-now-spawn-cta",
+    nextEmpty: "plan-next-empty",
+    laterEmpty: "plan-later-empty",
+    doneEmpty: "plan-done-empty",
+    doneWindow: "plan-done-window",
+    beyondHorizon: "plan-beyond-horizon",
+    groupToggle: "plan-group-toggle",
+    cardGateBadge: "plan-card-gate-badge",
+    cardWaveBadge: "plan-card-wave-badge",
+    cardOutcomeGlyph: "plan-card-outcome-glyph",
+    boardFilters: "plan-board-filters",
+    snoozedHiddenCount: "plan-snoozed-hidden-count",
+    nowSelectToggle: "plan-now-select-toggle",
+    nowRefresh: "plan-now-refresh",
+    nowSpawn: "plan-now-spawn",
+    nowLanesToggle: "plan-now-lanes-toggle",
+    nowLanesHelp: "plan-now-lanes-help",
+    filterDrawer: "plan-filter-drawer",
+    filterSearch: "plan-filter-search",
+    filterStatus: "plan-filter-status",
+    filterLane: "plan-filter-lane",
+    filterOwnerType: "plan-filter-owner-type",
+    filterGroupBy: "plan-filter-group-by",
+    filterShowSnoozed: "plan-filter-show-snoozed",
+    filterReset: "plan-filter-reset",
+    decisionDrawer: "plan-decision-drawer",
+    decisionDrawerEmpty: "plan-decision-drawer-empty",
+    nextRunAll: "plan-next-run-all",
+    nextAnswerAll: "plan-next-answer-all",
+    cardMenu: "plan-card-menu",
+    cardMenuOpen: "plan-card-menu-open",
+    cardMenuAnswer: "plan-card-menu-answer",
+    cardMenuRun: "plan-card-menu-run",
+    cardMenuWorkshop: "plan-card-menu-workshop",
+    cardMenuFinalize: "plan-card-menu-finalize",
+    cardMenuArchive: "plan-card-menu-archive",
+  },
+  // Live-activity primitives shared with the Plan board's Now column
+  // (ActivityRow, LaneBar, OpsBulkActions). The standalone Operations
+  // Center page is retired; running-agent visibility lives on the Plan
+  // lens tab badge (`lens-plan-badge`) and the sidebar home badge.
+  operationsCenter: {
+    laneBar: "operations-center-lane-bar",
+    activityRow: "operations-center-activity-row",
+    activityRowCheckbox: "operations-center-activity-row-checkbox",
+    bulkActionBar: "operations-center-bulk-action-bar",
+    bulkStopSelected: "operations-center-bulk-stop-selected",
+    bulkStopAll: "operations-center-bulk-stop-all",
+    bulkClearSelection: "operations-center-bulk-clear-selection",
+    bulkStopConfirmDialog: "operations-center-bulk-stop-confirm",
+    bulkStopAllConfirmDialog: "operations-center-bulk-stop-all-confirm",
+    bulkStopOutcomeToast: "operations-center-bulk-stop-outcome",
   },
   // Evidence renderer selectors
   evidence: {
@@ -449,24 +515,6 @@ export const literalSelectors = {
 // Dynamic Selectors - Parameterized selectors for data-driven elements
 // =============================================================================
 
-const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
-
-const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
-  template.replace(TEMPLATE_TOKEN, (_match, token: string) => {
-    if (!(token in values)) {
-      throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
-    }
-    return String(values[token]);
-  });
-
-const defineDynamicSelector = <P extends ParamSchema | undefined>(
-  definition: Omit<DynamicSelectorDefinition<P>, "kind">,
-): DynamicSelectorDefinition<P> => ({
-  ...definition,
-  kind: "dynamic-selector",
-});
-
-// Dynamic selector definitions (used for manifest generation)
 export const dynamicSelectorDefinitions = {
   backlog: {
     cardByName: defineDynamicSelector({
@@ -476,6 +524,28 @@ export const dynamicSelectorDefinitions = {
         kind: { type: "enum", values: ["idea", "research", "fix", "execute", "chore"] },
         name: { type: "string" },
       },
+    }),
+  },
+  plan: {
+    cardById: defineDynamicSelector({
+      description: "Plan board card by canonical node id",
+      testIdPattern: "plan-card-${id}",
+      params: { id: { type: "string" } },
+    }),
+    groupById: defineDynamicSelector({
+      description: "Plan column card group by group id",
+      testIdPattern: "plan-group-${id}",
+      params: { id: { type: "string" } },
+    }),
+    nowGroup: defineDynamicSelector({
+      description: "Now column group (milestone name or 'standalone')",
+      testIdPattern: "plan-now-group-${key}",
+      params: { key: { type: "string" } },
+    }),
+    doneWindowChoice: defineDynamicSelector({
+      description: "Done column window preset button",
+      testIdPattern: "plan-done-window-${label}",
+      params: { label: { type: "enum", values: ["1h", "6h", "24h"] } },
     }),
   },
   scenarios: {
@@ -500,127 +570,18 @@ export const dynamicSelectorDefinitions = {
       params: { name: { type: "string" } },
     }),
   },
-} as const;
-
-// =============================================================================
-// Dynamic Selector Functions
-// =============================================================================
-
-/**
- * Dynamic selectors - functions that generate test IDs from parameters
- */
-export const dynamicSelectors = {
-  backlog: {
-    cardByName: (params: { kind: string; name: string }) =>
-      formatTemplate("backlog-card-${kind}-${name}", params, "backlog.cardByName"),
-  },
-  scenarios: {
-    cardByName: (params: { name: string }) =>
-      formatTemplate("scenario-card-${name}", params, "scenarios.cardByName"),
-    actionStart: (params: { name: string }) =>
-      formatTemplate("scenario-action-start-${name}", params, "scenarios.actionStart"),
-    actionStop: (params: { name: string }) =>
-      formatTemplate("scenario-action-stop-${name}", params, "scenarios.actionStop"),
-    actionRestart: (params: { name: string }) =>
-      formatTemplate("scenario-action-restart-${name}", params, "scenarios.actionRestart"),
+  related: {
+    rowByEntity: defineDynamicSelector({
+      description: "Related-work result row by entity kind and key",
+      testIdPattern: "related-row-${entity}-${id}",
+      params: { entity: { type: "enum", values: ["backlog", "goal", "record"] }, id: { type: "string" } },
+    }),
   },
 } as const;
 
-// =============================================================================
-// Combined Selectors Export
-// =============================================================================
 
-/**
- * Combined selector registry - literal selectors merged with dynamic functions.
- * This is the primary export for UI components.
- *
- * Usage:
- * - Literal: selectors.backlog.page
- * - Dynamic: selectors.backlog.cardByName({ kind: "idea", name: "my-idea" })
- */
-export const selectors = {
-  ...literalSelectors,
-  backlog: {
-    ...literalSelectors.backlog,
-    ...dynamicSelectors.backlog,
-  },
-  scenarios: {
-    ...literalSelectors.scenarios,
-    ...dynamicSelectors.scenarios,
-  },
-} as const;
-
+export const dynamicSelectors = createSelectorRegistry({}, dynamicSelectorDefinitions).selectors;
+const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions, librarySelectors);
+export const selectors = registry.selectors;
+export const selectorsManifest = registry.manifest;
 export type Selectors = typeof selectors;
-
-// =============================================================================
-// Manifest Generation (for workflow tools)
-// =============================================================================
-
-const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
-
-type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree };
-
-const flattenLiteralSelectors = (
-  tree: LiteralSelectorTree,
-  prefix: string[] = [],
-  target: Record<string, { testId: string; selector: string }> = {},
-) => {
-  for (const [key, value] of Object.entries(tree)) {
-    const nextPath = [...prefix, key];
-    if (typeof value === "string") {
-      const manifestKey = nextPath.join(".");
-      target[manifestKey] = {
-        testId: value,
-        selector: toDataTestIdSelector(value),
-      };
-      continue;
-    }
-    flattenLiteralSelectors(value as LiteralSelectorTree, nextPath, target);
-  }
-  return target;
-};
-
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<ParamSchema | undefined> =>
-  Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition<ParamSchema | undefined>).kind === "dynamic-selector");
-
-type DynamicSelectorBranch = {
-  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<ParamSchema | undefined>;
-};
-
-const flattenDynamicSelectors = (
-  tree: DynamicSelectorBranch,
-  prefix: string[] = [],
-  target: Record<string, {
-    description: string;
-    selectorPattern: string;
-    testIdPattern?: string;
-    params: Array<{ name: string; type: ParamType; values?: readonly (string | number)[] }>;
-  }> = {},
-) => {
-  for (const [key, value] of Object.entries(tree)) {
-    const nextPath = [...prefix, key];
-    if (isDynamicDefinition(value)) {
-      const manifestKey = nextPath.join(".");
-      const paramEntries = Object.entries(value.params ?? {}) as Array<[string, ParamDefinition]>;
-      target[manifestKey] = {
-        description: value.description,
-        selectorPattern:
-          value.selectorPattern ?? (value.testIdPattern ? toDataTestIdSelector(value.testIdPattern) : ""),
-        testIdPattern: value.testIdPattern,
-        params: paramEntries.map(([name, config]) => ({
-          name,
-          type: config.type,
-          values: config.type === "enum" ? config.values : undefined,
-        })),
-      };
-      continue;
-    }
-    flattenDynamicSelectors(value as DynamicSelectorBranch, nextPath, target);
-  }
-  return target;
-};
-
-export const selectorsManifest = {
-  selectors: flattenLiteralSelectors(literalSelectors),
-  dynamicSelectors: flattenDynamicSelectors(dynamicSelectorDefinitions),
-};

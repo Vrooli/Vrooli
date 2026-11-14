@@ -1,0 +1,10 @@
+{
+  "metadata": {"name":"scenario-to-desktop-preflight-surface","description":"Given an operator opens a selected desktop target, when they inspect its pipeline, then the bundled-runtime preflight control is visible.","labels":{"reset":"none","requirements_json":"[\"STD-E2E-GENERATION\"]","purpose":"desktop-preflight-surface"},"execution_mode":"observer"},
+  "settings":{"viewport_width":1440,"viewport_height":900},
+  "nodes":[
+    {"id":"navigate","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"scenario-to-desktop","scenario_path":"/?view=generator&scenario=scenario-to-desktop","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"Open a selected desktop target"}}},
+    {"id":"assert-preflight","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/generator.preflightRun","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Preflight control is visible"}}},
+    {"id":"capture","action":{"type":"ACTION_TYPE_SCREENSHOT","screenshot":{"full_page":true},"metadata":{"label":"Capture preflight readiness"}}}
+  ],
+  "edges":[{"id":"c7c1c1e0-77f1-4b39-9f21-2f0000000001","source":"navigate","target":"assert-preflight"},{"id":"c7c1c1e0-77f1-4b39-9f21-2f0000000002","source":"assert-preflight","target":"capture"}]
+}

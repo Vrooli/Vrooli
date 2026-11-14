@@ -1,0 +1,109 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": [
+      "/settings"
+    ],
+    "purpose": "Hold every preference and every scenario-level control in one place, including the controls that stop spending. Theme and locale sit here alongside the kill switch because an operator should not have to learn two places.",
+    "prd_refs": [
+      "OT-P1-006",
+      "OT-P1-004",
+      "OT-P0-010"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The global freeze is present, unmistakable, and reversible"
+    },
+    {
+      "statement": "The active book is switchable and the current book is never ambiguous"
+    },
+    {
+      "statement": "Approval defaults are visible so an operator knows what will and will not be gated"
+    },
+    {
+      "statement": "Appearance, locale and accessibility preferences are all present, not a subset"
+    },
+    {
+      "statement": "The operator-funds-only boundary is stated where custody is configured"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Settings load with current values."
+    },
+    {
+      "id": "loading",
+      "description": "Settings are being fetched."
+    },
+    {
+      "id": "saving",
+      "description": "A preference is being persisted."
+    },
+    {
+      "id": "success",
+      "description": "A change was saved and is confirmed in terms of its effect."
+    },
+    {
+      "id": "validation-error",
+      "description": "A proposed setting conflicts with existing state; the page names the conflict."
+    },
+    {
+      "id": "request-error",
+      "description": "Settings could not be fetched or saved."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Policy-bearing controls are absent for a non-operator caller rather than present-and-refusing."
+    },
+    {
+      "id": "empty",
+      "description": "There is nothing to show yet, stated as a resting state rather than a failure."
+    },
+    {
+      "id": "partial",
+      "description": "Some data resolved and some did not; the page names which rather than showing a blank."
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its refresh interval and states its age."
+    }
+  ],
+  "claims": [
+    {
+      "id": "settings-freeze-present",
+      "type": "affordance-present",
+      "statement": "A global freeze control is present and reachable without scrolling past unrelated preferences.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "settings-freeze-separated",
+      "type": "spacing",
+      "statement": "The freeze control is separated from routine preference controls.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "settings-full-preference-set",
+      "type": "element-present",
+      "statement": "Theme, locale, font scale and reduced-motion preferences are all present.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "settings-book-unambiguous",
+      "type": "element-present",
+      "statement": "The active book is stated, not implied by which data is shown.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "settings-keyboard",
+      "type": "keyboard-reachable",
+      "statement": "Every control including the freeze is keyboard-operable with a visible focus state.",
+      "tier": "aspirational"
+    }
+  ]
+}

@@ -1,0 +1,452 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "architecture-cartographer.per-domain-apply.ui",
+  "domain": "apply",
+  "description": "UI projection of the per-domain apply lifecycle. Mirrors docs/concepts/FLOWS.md::Per-domain apply. transition.ts is the runtime authority; flow.test.ts replays this declaration to guarantee they agree. Adding states or transitions requires updating transition.ts + flow.json + flow.test.ts together (and the API-side handler when it lands).",
+  "states": [
+    {
+      "id": "baseline_captured",
+      "quint": "BaselineCaptured",
+      "initial": true
+    },
+    {
+      "id": "plan_generated",
+      "quint": "PlanGenerated"
+    },
+    {
+      "id": "dry_run_ok",
+      "quint": "DryRunOk"
+    },
+    {
+      "id": "applied",
+      "quint": "Applied"
+    },
+    {
+      "id": "committed",
+      "quint": "Committed",
+      "terminal": true
+    },
+    {
+      "id": "refused_build_break",
+      "quint": "RefusedBuildBreak"
+    },
+    {
+      "id": "force_committed",
+      "quint": "ForceCommitted",
+      "terminal": true
+    }
+  ],
+  "events": [
+    {
+      "id": "plan",
+      "quint": "Plan"
+    },
+    {
+      "id": "dry_run",
+      "quint": "DryRun"
+    },
+    {
+      "id": "apply",
+      "quint": "Apply"
+    },
+    {
+      "id": "commit",
+      "quint": "Commit"
+    },
+    {
+      "id": "refuse",
+      "quint": "Refuse"
+    },
+    {
+      "id": "force_commit",
+      "quint": "ForceCommit"
+    },
+    {
+      "id": "rebaseline",
+      "quint": "Rebaseline"
+    }
+  ],
+  "transitionDefaults": {
+    "invalid": {
+      "to": "self",
+      "wantError": false
+    }
+  },
+  "transitions": [
+    {
+      "from": "baseline_captured",
+      "event": "plan",
+      "to": "plan_generated"
+    },
+    {
+      "from": "baseline_captured",
+      "event": "dry_run",
+      "to": "plan_generated"
+    },
+    {
+      "from": "baseline_captured",
+      "event": "apply",
+      "to": "baseline_captured"
+    },
+    {
+      "from": "baseline_captured",
+      "event": "commit",
+      "to": "baseline_captured"
+    },
+    {
+      "from": "baseline_captured",
+      "event": "refuse",
+      "to": "baseline_captured"
+    },
+    {
+      "from": "baseline_captured",
+      "event": "force_commit",
+      "to": "baseline_captured"
+    },
+    {
+      "from": "baseline_captured",
+      "event": "rebaseline",
+      "to": "baseline_captured"
+    },
+    {
+      "from": "plan_generated",
+      "event": "plan",
+      "to": "plan_generated"
+    },
+    {
+      "from": "plan_generated",
+      "event": "dry_run",
+      "to": "dry_run_ok"
+    },
+    {
+      "from": "plan_generated",
+      "event": "apply",
+      "to": "applied"
+    },
+    {
+      "from": "plan_generated",
+      "event": "commit",
+      "to": "plan_generated"
+    },
+    {
+      "from": "plan_generated",
+      "event": "refuse",
+      "to": "plan_generated"
+    },
+    {
+      "from": "plan_generated",
+      "event": "force_commit",
+      "to": "plan_generated"
+    },
+    {
+      "from": "plan_generated",
+      "event": "rebaseline",
+      "to": "plan_generated"
+    },
+    {
+      "from": "dry_run_ok",
+      "event": "plan",
+      "to": "plan_generated"
+    },
+    {
+      "from": "dry_run_ok",
+      "event": "dry_run",
+      "to": "dry_run_ok"
+    },
+    {
+      "from": "dry_run_ok",
+      "event": "apply",
+      "to": "applied"
+    },
+    {
+      "from": "dry_run_ok",
+      "event": "commit",
+      "to": "dry_run_ok"
+    },
+    {
+      "from": "dry_run_ok",
+      "event": "refuse",
+      "to": "dry_run_ok"
+    },
+    {
+      "from": "dry_run_ok",
+      "event": "force_commit",
+      "to": "dry_run_ok"
+    },
+    {
+      "from": "dry_run_ok",
+      "event": "rebaseline",
+      "to": "dry_run_ok"
+    },
+    {
+      "from": "applied",
+      "event": "plan",
+      "to": "applied"
+    },
+    {
+      "from": "applied",
+      "event": "dry_run",
+      "to": "applied"
+    },
+    {
+      "from": "applied",
+      "event": "apply",
+      "to": "applied"
+    },
+    {
+      "from": "applied",
+      "event": "commit",
+      "to": "committed"
+    },
+    {
+      "from": "applied",
+      "event": "refuse",
+      "to": "refused_build_break"
+    },
+    {
+      "from": "applied",
+      "event": "force_commit",
+      "to": "applied"
+    },
+    {
+      "from": "applied",
+      "event": "rebaseline",
+      "to": "applied"
+    },
+    {
+      "from": "committed",
+      "event": "plan",
+      "to": "committed"
+    },
+    {
+      "from": "committed",
+      "event": "dry_run",
+      "to": "committed"
+    },
+    {
+      "from": "committed",
+      "event": "apply",
+      "to": "committed"
+    },
+    {
+      "from": "committed",
+      "event": "commit",
+      "to": "committed"
+    },
+    {
+      "from": "committed",
+      "event": "refuse",
+      "to": "committed"
+    },
+    {
+      "from": "committed",
+      "event": "force_commit",
+      "to": "committed"
+    },
+    {
+      "from": "committed",
+      "event": "rebaseline",
+      "to": "committed"
+    },
+    {
+      "from": "refused_build_break",
+      "event": "plan",
+      "to": "plan_generated"
+    },
+    {
+      "from": "refused_build_break",
+      "event": "dry_run",
+      "to": "refused_build_break"
+    },
+    {
+      "from": "refused_build_break",
+      "event": "apply",
+      "to": "refused_build_break"
+    },
+    {
+      "from": "refused_build_break",
+      "event": "commit",
+      "to": "refused_build_break"
+    },
+    {
+      "from": "refused_build_break",
+      "event": "refuse",
+      "to": "refused_build_break"
+    },
+    {
+      "from": "refused_build_break",
+      "event": "force_commit",
+      "to": "force_committed"
+    },
+    {
+      "from": "refused_build_break",
+      "event": "rebaseline",
+      "to": "baseline_captured"
+    },
+    {
+      "from": "force_committed",
+      "event": "plan",
+      "to": "force_committed"
+    },
+    {
+      "from": "force_committed",
+      "event": "dry_run",
+      "to": "force_committed"
+    },
+    {
+      "from": "force_committed",
+      "event": "apply",
+      "to": "force_committed"
+    },
+    {
+      "from": "force_committed",
+      "event": "commit",
+      "to": "force_committed"
+    },
+    {
+      "from": "force_committed",
+      "event": "refuse",
+      "to": "force_committed"
+    },
+    {
+      "from": "force_committed",
+      "event": "force_commit",
+      "to": "force_committed"
+    },
+    {
+      "from": "force_committed",
+      "event": "rebaseline",
+      "to": "force_committed"
+    }
+  ],
+  "invariants": [
+    {
+      "id": "type_ok",
+      "quint": "TypeOK",
+      "description": "Apply state and event remain in their declared sets."
+    },
+    {
+      "id": "terminal_closure",
+      "quint": "TerminalClosure",
+      "description": "Committed and force_committed states cannot be escaped."
+    },
+    {
+      "id": "illegal_transitions_preserve_state",
+      "quint": "IllegalTransitionsPreserveState",
+      "description": "Every no-op transition preserves the current state."
+    },
+    {
+      "id": "applied_must_commit_or_refuse",
+      "quint": "AppliedMustCommitOrRefuse",
+      "description": "Only commit/refuse move an applied run onward."
+    },
+    {
+      "id": "force_commit_only_from_refused",
+      "quint": "ForceCommitOnlyFromRefused",
+      "description": "force_commit only advances refused_build_break."
+    }
+  ],
+  "model": {
+    "module": "PerDomainApply",
+    "seed": "2026110903",
+    "maxSteps": 8,
+    "traceCount": 8,
+    "verify": {
+      "invariants": [
+        "TypeOK",
+        "TerminalClosure",
+        "IllegalTransitionsPreserveState"
+      ]
+    }
+  },
+  "traces": [
+    {
+      "name": "green_build",
+      "initial": "baseline_captured",
+      "steps": [
+        {
+          "event": "plan",
+          "want": "plan_generated",
+          "wantError": false
+        },
+        {
+          "event": "dry_run",
+          "want": "dry_run_ok",
+          "wantError": false
+        },
+        {
+          "event": "apply",
+          "want": "applied",
+          "wantError": false
+        },
+        {
+          "event": "commit",
+          "want": "committed",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "refuse_then_force_commit",
+      "initial": "baseline_captured",
+      "steps": [
+        {
+          "event": "plan",
+          "want": "plan_generated",
+          "wantError": false
+        },
+        {
+          "event": "apply",
+          "want": "applied",
+          "wantError": false
+        },
+        {
+          "event": "refuse",
+          "want": "refused_build_break",
+          "wantError": false
+        },
+        {
+          "event": "force_commit",
+          "want": "force_committed",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "runtime": {
+    "typescript": {
+      "statusType": "ApplyState",
+      "eventType": "ApplyEvent",
+      "statusesConst": "APPLY_STATES",
+      "eventsConst": "APPLY_EVENTS",
+      "formalExpectationConst": "APPLY_FORMAL_EXPECTATIONS",
+      "stateUnionType": "ApplyState",
+      "eventUnionType": "ApplyEvent",
+      "stateVariants": {
+        "baseline_captured": {},
+        "plan_generated": {},
+        "dry_run_ok": {},
+        "applied": {},
+        "committed": {},
+        "refused_build_break": {},
+        "force_committed": {}
+      },
+      "eventVariants": {
+        "plan": {},
+        "dry_run": {},
+        "apply": {},
+        "commit": {},
+        "refuse": {},
+        "force_commit": {},
+        "rebaseline": {}
+      }
+    }
+  },
+  "replay": {
+    "transition": {
+      "function": "transitionState",
+      "statusAccessor": "state.status"
+    }
+  }
+}

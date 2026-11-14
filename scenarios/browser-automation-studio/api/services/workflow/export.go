@@ -90,22 +90,22 @@ func (s *WorkflowService) DescribeExecutionExport(ctx context.Context, execution
 		return preview, nil
 	}
 
-	exportPackage, err := export.BuildReplayMovieSpec(execution, workflow, timeline)
+	exportPackage, err := export.BuildReplaySpecFromExecution(execution, workflow, timeline)
 	if err != nil {
 		return nil, err
 	}
 
-	frameCount := exportPackage.Summary.FrameCount
+	frameCount := int(exportPackage.GetSummary().GetFrameCount())
 	if frameCount == 0 {
 		frameCount = len(timeline.Frames)
 	}
-	message := fmt.Sprintf("Replay export ready (%d frames, %dms)", frameCount, exportPackage.Summary.TotalDurationMs)
+	message := fmt.Sprintf("Replay export ready (%d frames, %dms)", frameCount, exportPackage.GetSummary().GetTotalDurationMs())
 	assetCount = len(exportPackage.Assets)
-	if exportPackage.Summary.TotalDurationMs > 0 {
-		totalDurationMs = exportPackage.Summary.TotalDurationMs
+	if exportPackage.GetSummary().GetTotalDurationMs() > 0 {
+		totalDurationMs = int(exportPackage.GetSummary().GetTotalDurationMs())
 	}
-	if exportPackage.Execution.ExecutionID != uuid.Nil {
-		specID = exportPackage.Execution.ExecutionID.String()
+	if exportPackage.GetExecution().GetExecutionId() != "" {
+		specID = exportPackage.GetExecution().GetExecutionId()
 	}
 
 	preview := &ExecutionExportPreview{

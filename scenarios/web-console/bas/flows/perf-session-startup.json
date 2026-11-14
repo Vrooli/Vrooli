@@ -1,0 +1,66 @@
+{
+  "metadata": {
+    "name": "perf-session-startup",
+    "description": "Read-only real-session startup journey. Open the existing heartbeat investigation messages view, wait for rendered messages and background work, report resource timings, restore the view. No create, send, archive, deletion or terminal input.",
+    "labels": {
+      "intent": "performance",
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "version": "1",
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-existing-session",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "web-console",
+          "scenario_path": "/?session=af38f804-b18f-4fcd-b910-49bd44bed50b",
+          "timeout_ms": 45000
+        }
+      }
+    },
+    {
+      "id": "load-existing-session",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => {\n const wait = async (find) => { const until=Date.now()+45000; while(Date.now()<until){const v=find();if(v)return v;await new Promise(r=>setTimeout(r,100));}throw new Error('long-session control unavailable'); };\n window.__longSessionWait=wait;\n const toggle=await wait(()=>document.querySelector('[data-testid=\"workspace-toggle-view\"]'));\n window.__longSessionInitialMode=toggle.dataset.viewMode;\n const title=document.querySelector('[data-testid=\"workspace-sidebar-active-title\"]');\n window.__longSessionInitialTitle=title?.getAttribute('title');\n if(!window.__longSessionInitialTitle?.includes('Investigate prompt-manager heartbeat')){\n  if(!document.querySelector('[data-testid^=\"sidebar-session-\"]'))document.querySelector('[data-testid=\"workspace-sidebar-toggle\"]')?.click();\n  const target=await wait(()=>[...document.querySelectorAll('[data-testid^=\"sidebar-session-\"]')].find(e=>e.textContent.includes('Investigate prompt-manager heartbeat')));\n  target.click();await new Promise(r=>setTimeout(r,300));\n }\n const selectedToggle=document.querySelector('[data-testid=\"workspace-toggle-view\"]');\n if(selectedToggle.dataset.viewMode!=='messages')selectedToggle.click();\n const scroller=await wait(()=>document.querySelector('[data-testid=\"messages-scroll\"]'));\n await wait(()=>scroller.querySelector('[data-event-id]'));\n await new Promise(r=>setTimeout(r,1000));\n await new Promise(r=>setTimeout(r,5000));\n const resources=performance.getEntriesByType('resource');\n window.__sessionStartup={conversationLoads:resources.filter(r=>r.name.includes('ConversationService/Get')).map(r=>({start:r.startTime,duration:r.duration})),scriptBytes:resources.filter(r=>r.initiatorType==='script').reduce((n,r)=>n+r.decodedBodySize,0),readyAt:performance.now()};\n return {session:document.querySelector('[data-testid=\"workspace-sidebar-active-title\"]')?.getAttribute('title'),count:document.querySelector('[data-testid=\"messages-search-field\"]')?.dataset.count,viewport:[innerWidth,innerHeight],startup:window.__sessionStartup};\n})()"
+        }
+      }
+    },
+    {
+      "id": "restore-pane",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async()=>{const want=window.__longSessionInitialTitle;const prior=[...document.querySelectorAll('[data-testid^=\"sidebar-session-\"]')].find(e=>want&&e.textContent.includes(want));if(prior)prior.click();await new Promise(r=>setTimeout(r,200));const toggle=document.querySelector('[data-testid=\"workspace-toggle-view\"]');if(toggle&&toggle.dataset.viewMode!==window.__longSessionInitialMode)toggle.click();return {restored:document.querySelector('[data-testid=\"workspace-sidebar-active-title\"]')?.getAttribute('title')===want};})()"
+        },
+        "metadata": {
+          "label": "restore-pane"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "existing-session-start",
+      "source": "navigate-existing-session",
+      "target": "load-existing-session",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "startup-restore",
+      "source": "load-existing-session",
+      "target": "restore-pane"
+    }
+  ]
+}

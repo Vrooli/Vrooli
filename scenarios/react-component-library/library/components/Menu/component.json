@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "overlays.menu",
+  "deprecatedVersions": [
+    "1.1.1",
+    "1.1.2",
+    "1.2.0",
+    "1.2.1",
+    "1.2.2",
+    "1.2.3",
+    "1.2.4"
+  ],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "2.0.3-draft.1",
+  "evictedVersions": [
+    "1.1.1",
+    "1.2.1",
+    "1.2.0",
+    "1.1.2",
+    "1.2.2",
+    "1.2.3",
+    "1.2.4",
+    "1.2.5",
+    "2.0.0"
+  ],
+  "latest": "2.0.2",
+  "libraryId": "react-component-library:Menu",
+  "displayName": "Menu",
+  "description": "The menu family covering dropdowns and submenus with roving focus, typeahead, check and radio items, safe pointer corridors, shortcut hints, and async item actions.",
+  "tags": []
+}

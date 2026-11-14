@@ -1,0 +1,8 @@
+{
+  "cols": 79,
+  "rows": 47,
+  "cursor_x": 1,
+  "cursor_y": 20,
+  "in_alt_buffer": true,
+  "plain_text": "matthalloran8@swarminator:/tmp/claude-1000/-home-matthalloran8-Vrooli/52bc7618-\n3003-43c0-b94d-98442d2bf96a/scratchpad/claude-fixture-dir$ claude --permission-\nmode default\n2026/09/11 03:26:43 agent launch attribution degraded agent=claude-code base=ht\ntp://127.0.0.1:18800\n\n───────────────────────────────────────────────────────────────────────────────\n Accessing workspace:\n\n /tmp/claude-1000/-home-matthalloran8-Vrooli/52bc7618-3003-43c0-b94d-98442d2bf\n 96a/scratchpad/claude-fixture-dir\n\n Quick safety check: Is this a project you created or one you trust? (Like\n your own code, a well-known open source project, or work from your team). If\n not, take a moment to review what's in this folder first.\n\n Claude Code'll be able to read, edit, and execute files here.\n\n Security guide\n\n ❯ No, exit\n   Yes, I trust this folder\n\n Enter to confirm · Esc to cancel\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[wc-2584e20:claude*                         [0,0] \"swarminator\" 03:26 11-Sep-26"
+}

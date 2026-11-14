@@ -1,0 +1,213 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "measures-health",
+  "description": "measures-health CLI surface. Single source of truth for the `validate` and `search` domains: schema-validated against cli-manifest/v1 and cross-validated against the ScenarioValidationService/ValidationService/SearchService proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "validate",
+      "description": "Validate scenario measure coverage and grade adoption",
+      "commands": [
+        {
+          "name": "scenario",
+          "description": "Grade a scenario's measure coverage (expected/covered/waived) and optionally probe its declared measures end-to-end",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario id (directory name under scenarios/)",
+              "bind": {
+                "field": "scenario"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "probe",
+              "bool": true,
+              "description": "Run the behavioral adoption probe against live measure endpoints",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ValidateScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "coverage",
+          "description": "Roll up measure coverage across every discovered scenario (the fleet view)",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "ListFleetCoverage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "search",
+      "description": "Query the central measures index (the federated measures provider)",
+      "commands": [
+        {
+          "name": "query",
+          "description": "Match an analytical question to a measure and return the computed answer (the search-hub measure provider)",
+          "positionals": [
+            {
+              "name": "question",
+              "required": true,
+              "description": "Natural-language analytical question",
+              "bind": {
+                "field": "query"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "default": "1",
+              "description": "Maximum number of measure hits to return"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Search"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Report measure-index and backend availability",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Status"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "measures",
+      "description": "measures-health's own declared analytical measures over its validation_run history (the gold-star dogfood)",
+      "commands": [
+        {
+          "name": "failed",
+          "description": "Count scenarios that failed measures validation in a window",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CountFailedValidations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "validation_run",
+            "intent": "How many scenarios failed measures validation in a time window.",
+            "questions": [
+              "how many scenarios failed measures validation this week",
+              "measures validation failures last month",
+              "how many scenarios failed the measures gate in the last 7 days"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "scenarios",
+              "summary_template": "{count} scenarios failed measures validation ({window})"
+            }
+          }
+        },
+        {
+          "name": "coverage",
+          "description": "Count scenarios that passed measures validation in a window (fleet measure-coverage over time)",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CountValidationCoverage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "validation_run",
+            "intent": "How many scenarios passed measures validation in a time window.",
+            "questions": [
+              "how many scenarios passed measures validation this week",
+              "measures coverage this month",
+              "how many scenarios had clean measures validation in the last 30 days"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "scenarios",
+              "summary_template": "{count} scenarios passed measures validation ({window})"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "omitted": []
+}

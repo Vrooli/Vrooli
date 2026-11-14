@@ -1,6 +1,8 @@
 import express, { type Request, type Response, type Router } from 'express'
 import * as http from 'node:http'
 import * as net from 'node:net'
+import { createBrotliDecompress, createUnzip } from 'node:zlib'
+import type { Readable } from 'node:stream'
 import type {
   ScenarioProxyHostOptions,
   ScenarioProxyHostController,
@@ -482,6 +484,9 @@ async function streamProxiedHtml(options: {
         headers: {
           ...options.requestHeaders,
           host: `${options.upstreamHost}:${options.upstreamPort}`,
+          // HTML must be decoded before metadata/base-tag injection. Ask for
+          // identity, while still handling servers that insist on compression.
+          'accept-encoding': 'identity',
         },
         timeout: options.timeout,
         agent: options.upstreamAgent,
@@ -489,6 +494,17 @@ async function streamProxiedHtml(options: {
       (upstreamRes) => {
         const status = upstreamRes.statusCode || 500
         const headers = upstreamRes.headers
+        const encoding = String(headers['content-encoding'] || 'identity').trim().toLowerCase()
+        let body: Readable = upstreamRes
+        if (encoding === 'gzip' || encoding === 'deflate') {
+          body = upstreamRes.pipe(createUnzip())
+        } else if (encoding === 'br') {
+          body = upstreamRes.pipe(createBrotliDecompress())
+        } else if (encoding !== 'identity' && encoding !== '') {
+          upstreamRes.resume()
+          fail(new Error('Unsupported hosted HTML content encoding'))
+          return
+        }
         const injector = new StreamingHeadInjector({
           metadata: options.metadata,
           patchFetch: options.patchFetch,
@@ -511,9 +527,9 @@ async function streamProxiedHtml(options: {
 
         options.res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
 
-        upstreamRes.setEncoding('utf8')
+        body.setEncoding('utf8')
 
-        upstreamRes.on('data', (chunk: string) => {
+        body.on('data', (chunk: string) => {
           const output = injector.process(chunk)
           if (!output) {
             return
@@ -524,7 +540,7 @@ async function streamProxiedHtml(options: {
           }
         })
 
-        upstreamRes.on('end', () => {
+        body.on('end', () => {
           const tail = injector.flush()
           if (tail) {
             options.res.write(tail)
@@ -551,6 +567,7 @@ async function streamProxiedHtml(options: {
         upstreamRes.on('error', (error: Error) => {
           fail(error)
         })
+        if (body !== upstreamRes) body.on('error', (error: Error) => fail(error))
       }
     )
 
@@ -591,7 +608,9 @@ function cloneHeaders(headers: http.IncomingHttpHeaders): Record<string, string 
     if (value === undefined) {
       continue
     }
-    if (key.toLowerCase() === 'content-length') {
+    // These validators describe upstream wire bytes. Injection changes those
+    // bytes, and decompression means the downstream body is now identity HTML.
+    if (['content-length', 'content-encoding', 'content-md5', 'etag'].includes(key.toLowerCase())) {
       continue
     }
     result[key] = value

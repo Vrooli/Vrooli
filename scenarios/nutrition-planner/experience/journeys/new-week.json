@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "new-week",
+    "title": "A new week",
+    "purpose": "Move to next week, carry forward locked anchors and credible stock, review a generated draft, apply it, and get the matching grocery list.",
+    "prd_refs": [
+      "OT-P0-009",
+      "OT-P0-007",
+      "OT-P0-011",
+      "OT-P1-005"
+    ]
+  },
+  "steps": [
+    {
+      "page": "week",
+      "intent": "Move to the next week and see locks and anchors carried forward.",
+      "via": "week-range-nav"
+    },
+    {
+      "page": "week",
+      "state": "plan-preview",
+      "intent": "Generate a draft and review changed, unchanged, and locked slots.",
+      "via": "plan-week-action"
+    },
+    {
+      "page": "week",
+      "state": "stale-proposal",
+      "intent": "Revalidate a draft whose inputs changed instead of applying it stale.",
+      "via": "stale-note"
+    },
+    {
+      "page": "groceries",
+      "intent": "Open the new week's grocery list.",
+      "via": "list-scope"
+    }
+  ],
+  "claims": [
+    {
+      "id": "draft-never-replaces-silently",
+      "type": "custom",
+      "statement": "A generated draft never replaces an accepted plan without review.",
+      "tier": "aspirational"
+    }
+  ]
+}

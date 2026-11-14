@@ -10,12 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"scenario-to-cloud/domain"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/identity"
+	"scenario-to-cloud/reach"
+	"scenario-to-cloud/reach/sshadapter"
 	"scenario-to-cloud/tlsinfo"
-	"scenario-to-cloud/vps"
+
+	"github.com/gorilla/mux"
 )
 
 type fakeTLSService struct {
@@ -72,17 +73,35 @@ func buildTestDeployment(domainName string) *domain.Deployment {
 	}
 }
 
-func newTLSHandlerServer(repo DeploymentRepository, sshRunner ssh.Runner, tlsSvc tlsinfo.Service, alpnRunner tlsinfo.ALPNRunner) *Server {
+func newTLSHandlerServer(repo DeploymentRepository, sshRunner sshadapter.Runner, tlsSvc tlsinfo.Service, alpnRunner tlsinfo.ALPNRunner) *Server {
 	srv := &Server{
-		config:         &Config{Port: "0"},
+		config:         &ServerConfig{Port: "0"},
 		router:         mux.NewRouter(),
 		deploymentRepo: repo,
 		sshRunner:      sshRunner,
 		tlsService:     tlsSvc,
 		tlsALPNRunner:  alpnRunner,
 	}
+	srv.authz = newTestEnforcer(srv, testOperator())
 	srv.setupRoutes()
 	return srv
+}
+
+type tlsReach struct {
+	result reach.Result
+	err    error
+}
+
+func (r *tlsReach) Exec(context.Context, identity.TargetRef, reach.Command) (reach.Result, error) {
+	return r.result, r.err
+}
+
+func (r *tlsReach) Deliver(context.Context, identity.TargetRef, reach.Delivery) (reach.DeliveryReceipt, error) {
+	return reach.DeliveryReceipt{}, nil
+}
+
+func (r *tlsReach) Negotiate(context.Context, identity.TargetRef) (reach.Capabilities, error) {
+	return reach.Capabilities{}, nil
 }
 
 func TestHandleTLSInfoOK(t *testing.T) {
@@ -170,15 +189,10 @@ func TestHandleTLSRenewOK(t *testing.T) {
 	deployment := buildTestDeployment("example.com")
 	repo := &FakeDeploymentRepo{Deployment: deployment}
 
-	cmd := vps.CaddyTLSRenewCommand("example.com")
+	sshRunner := &FakeSSHRunner{}
 
-	sshRunner := &FakeSSHRunner{
-		Responses: map[string]ssh.Result{
-			cmd: {ExitCode: 0, Stdout: "Certificate valid"},
-		},
-	}
-
-	srv := newTLSHandlerServer(repo, sshRunner, fakeTLSService{}, tlsinfo.DefaultALPNRunner)
+	srv := newTLSHandlerServer(repo, sshRunner, fakeTLSService{result: tlsinfo.ProbeResult{Valid: true}}, tlsinfo.DefaultALPNRunner)
+	srv.reach = &tlsReach{result: reach.Result{ExitCode: 0, Stdout: "Certificate valid"}}
 	ts := httptest.NewServer(srv.router)
 	defer ts.Close()
 
@@ -205,15 +219,10 @@ func TestHandleTLSRenewCommandFailure(t *testing.T) {
 	deployment := buildTestDeployment("example.com")
 	repo := &FakeDeploymentRepo{Deployment: deployment}
 
-	cmd := vps.CaddyTLSRenewCommand("example.com")
-
-	sshRunner := &FakeSSHRunner{
-		Responses: map[string]ssh.Result{
-			cmd: {ExitCode: 1, Stderr: "reload failed"},
-		},
-	}
+	sshRunner := &FakeSSHRunner{}
 
 	srv := newTLSHandlerServer(repo, sshRunner, fakeTLSService{}, tlsinfo.DefaultALPNRunner)
+	srv.reach = &tlsReach{result: reach.Result{ExitCode: 1, Stderr: "reload failed"}}
 	ts := httptest.NewServer(srv.router)
 	defer ts.Close()
 
@@ -243,15 +252,10 @@ func TestHandleTLSRenewSSHError(t *testing.T) {
 	deployment := buildTestDeployment("example.com")
 	repo := &FakeDeploymentRepo{Deployment: deployment}
 
-	cmd := vps.CaddyTLSRenewCommand("example.com")
-
-	sshRunner := &FakeSSHRunner{
-		Errs: map[string]error{
-			cmd: fmt.Errorf("ssh failed"),
-		},
-	}
+	sshRunner := &FakeSSHRunner{}
 
 	srv := newTLSHandlerServer(repo, sshRunner, fakeTLSService{}, tlsinfo.DefaultALPNRunner)
+	srv.reach = &tlsReach{err: fmt.Errorf("ssh failed")}
 	ts := httptest.NewServer(srv.router)
 	defer ts.Close()
 

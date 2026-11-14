@@ -2,14 +2,28 @@ package procmetrics
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 )
 
-// LinuxProcReader reads process stats from the /proc filesystem.
-type LinuxProcReader struct{}
+// LinuxProcReader reads from /proc by default. FS and Readlink are injectable
+// so attribution rules can be tested against deterministic process trees.
+type LinuxProcReader struct {
+	FS       fs.FS
+	Readlink func(string) (string, error)
+}
+
+func (r *LinuxProcReader) ApplicationPID(rootPID int, options ProcessTreeOptions) (int, error) {
+	processes, err := r.ProcessTreeWithOptions(rootPID, options)
+	if err != nil {
+		return 0, err
+	}
+	return findApplicationPID(processes, options.AppExecutableName), nil
+}
 
 // ReadStat parses /proc/<pid>/stat and returns utime and stime in clock ticks.
 // Fields 14 and 15 (0-indexed from the comm field end) are utime and stime.
@@ -146,4 +160,267 @@ func (r *LinuxProcReader) IsAlive(pid int) bool {
 		return false
 	}
 	return proc.Signal(syscall.Signal(0)) == nil
+}
+
+// ProcessTree returns the unique descendants of rootPID that remain visible
+// in /proc. A disappearing process is skipped because short-lived Electron
+// helpers are expected during startup.
+func (r *LinuxProcReader) ProcessTree(rootPID int) ([]ProcessInfo, error) {
+	return r.ProcessTreeWithOptions(rootPID, ProcessTreeOptions{})
+}
+
+func (r *LinuxProcReader) ProcessTreeWithOptions(rootPID int, options ProcessTreeOptions) ([]ProcessInfo, error) {
+	procFS := r.FS
+	if procFS == nil {
+		procFS = os.DirFS("/proc")
+	}
+	entries, err := fs.ReadDir(procFS, ".")
+	if err != nil {
+		return nil, fmt.Errorf("read /proc: %w", err)
+	}
+	// First read only stat files to build the parent graph. Process-tree polls
+	// run once per second, so reading smaps_rollup, status, cmdline, and exe for
+	// every host process would make each sample scale with the whole machine.
+	all := make(map[int]ProcessInfo)
+	for _, entry := range entries {
+		pid, parseErr := strconv.Atoi(entry.Name())
+		if parseErr != nil || !entry.IsDir() {
+			continue
+		}
+		statData, readErr := fs.ReadFile(procFS, filepath.Join(entry.Name(), "stat"))
+		if readErr != nil {
+			continue
+		}
+		ppid, command, utime, stime, parseErr := parseProcessStat(string(statData))
+		if parseErr != nil {
+			continue
+		}
+		all[pid] = ProcessInfo{PID: pid, PPID: ppid, Command: command, CPUJiffies: utime + stime}
+	}
+	if _, ok := all[rootPID]; !ok {
+		return nil, fmt.Errorf("root process %d is not visible", rootPID)
+	}
+	children := make(map[int][]int)
+	for pid, info := range all {
+		children[info.PPID] = append(children[info.PPID], pid)
+	}
+	result := make([]ProcessInfo, 0, len(all))
+	queue := []int{rootPID}
+	seen := make(map[int]bool)
+	for len(queue) > 0 {
+		pid := queue[0]
+		queue = queue[1:]
+		if seen[pid] {
+			continue
+		}
+		seen[pid] = true
+		if info, ok := all[pid]; ok {
+			statusData, readErr := fs.ReadFile(procFS, filepath.Join(strconv.Itoa(pid), "status"))
+			if readErr == nil {
+				rss, peak, threads, statusErr := parseStatus(string(statusData))
+				if statusErr == nil {
+					info.RSSBytes, info.PeakBytes, info.Threads = rss, peak, threads
+					if smapsData, smapsErr := fs.ReadFile(procFS, filepath.Join(strconv.Itoa(pid), "smaps_rollup")); smapsErr == nil {
+						info.PSSBytes, info.USSBytes, statusErr = parseSmapsRollup(string(smapsData))
+						info.MemoryStatsAvailable = statusErr == nil
+					}
+					cmdlineData, _ := fs.ReadFile(procFS, filepath.Join(strconv.Itoa(pid), "cmdline"))
+					info.Cmdline = splitCmdline(cmdlineData)
+					info.Exe = r.readExe(filepath.Join(strconv.Itoa(pid), "exe"), filepath.Join(strconv.Itoa(pid), "exe-target"))
+					result = append(result, info)
+				}
+			}
+		}
+		queue = append(queue, children[pid]...)
+	}
+	rootIncluded := false
+	for _, process := range result {
+		if process.PID == rootPID {
+			rootIncluded = true
+			break
+		}
+	}
+	if !rootIncluded {
+		return nil, fmt.Errorf("root process %d is not readable", rootPID)
+	}
+	anchor := findApplicationPID(result, options.AppExecutableName)
+	for i := range result {
+		result[i].Role = classifyProcess(result[i], anchor, options)
+	}
+	return result, nil
+}
+
+func parseSmapsRollup(content string) (pssBytes, ussBytes int64, err error) {
+	var foundPSS bool
+	var privateClean, privateDirty bool
+	for _, line := range strings.Split(content, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		if fields[0] != "Pss:" && fields[0] != "Private_Clean:" && fields[0] != "Private_Dirty:" && fields[0] != "Private_Hugetlb:" {
+			continue
+		}
+		value, parseErr := strconv.ParseInt(fields[1], 10, 64)
+		if parseErr != nil {
+			return 0, 0, fmt.Errorf("parse smaps_rollup %s: %w", fields[0], parseErr)
+		}
+		switch fields[0] {
+		case "Pss:":
+			pssBytes, foundPSS = value*1024, true
+		case "Private_Clean:":
+			ussBytes, privateClean = ussBytes+value*1024, true
+		case "Private_Dirty:":
+			ussBytes, privateDirty = ussBytes+value*1024, true
+		case "Private_Hugetlb:":
+			ussBytes += value * 1024
+		}
+	}
+	if !foundPSS || !privateClean || !privateDirty {
+		return 0, 0, fmt.Errorf("smaps_rollup is missing Pss, Private_Clean, or Private_Dirty")
+	}
+	return pssBytes, ussBytes, nil
+}
+
+func splitCmdline(data []byte) []string {
+	if len(data) == 0 {
+		return nil
+	}
+	if !strings.ContainsRune(string(data), '\x00') {
+		return strings.Fields(string(data))
+	}
+	parts := strings.Split(strings.TrimRight(string(data), "\x00"), "\x00")
+	if len(parts) == 1 && parts[0] == "" {
+		return nil
+	}
+	return parts
+}
+
+func (r *LinuxProcReader) readExe(path, fixturePath string) string {
+	if r.Readlink != nil {
+		if value, err := r.Readlink("/proc/" + strings.TrimSuffix(path, "/exe") + "/exe"); err == nil {
+			return strings.TrimSuffix(value, " (deleted)")
+		}
+	}
+	if r.FS == nil {
+		if value, err := os.Readlink(filepath.Join("/proc", path)); err == nil {
+			return strings.TrimSuffix(value, " (deleted)")
+		}
+	}
+	procFS := r.FS
+	if procFS == nil {
+		procFS = os.DirFS("/proc")
+	}
+	if data, err := fs.ReadFile(procFS, fixturePath); err == nil {
+		return strings.TrimSpace(string(data))
+	}
+	if data, err := fs.ReadFile(procFS, path); err == nil {
+		return strings.TrimSpace(string(data))
+	}
+	return ""
+}
+
+func findApplicationPID(processes []ProcessInfo, expected string) int {
+	for _, p := range processes {
+		if expected != "" && filepath.Base(p.Exe) == expected {
+			return p.PID
+		}
+	}
+	for _, p := range processes {
+		if hasTypeArg(p.Cmdline) || p.Exe == "" {
+			continue
+		}
+		base := strings.ToLower(filepath.Base(p.Exe))
+		if isLauncherExecutable(base) {
+			continue
+		}
+		return p.PID
+	}
+	return 0
+}
+
+func hasTypeArg(args []string) bool {
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "--type=") {
+			return true
+		}
+	}
+	return false
+}
+
+func classifyProcess(p ProcessInfo, anchor int, options ProcessTreeOptions) ProcessRole {
+	if p.PID == anchor && anchor != 0 {
+		return RoleElectronMain
+	}
+	base := strings.ToLower(filepath.Base(p.Exe))
+	// WebKitGTK runs renderer, GPU, and network work in separate helper
+	// processes. Keep these roles distinct from Chromium's --type process
+	// arguments so packaged Wails launches can use the shared process taxonomy.
+	if strings.Contains(base, "webkitwebprocess") {
+		return RoleWebviewRenderer
+	}
+	if strings.Contains(base, "webkitgpuprocess") {
+		return RoleWebviewGPU
+	}
+	if strings.Contains(base, "webkitnetworkprocess") {
+		return RoleWebviewOther
+	}
+	for _, arg := range p.Cmdline {
+		switch arg {
+		case "--type=renderer", "--type=zygote":
+			return RoleElectronRender
+		case "--type=gpu-process":
+			return RoleElectronGPU
+		case "--type=utility":
+			return RoleElectronUtility
+		}
+	}
+	if strings.HasPrefix(base, "chrome_crashpad") {
+		return RoleElectronCrashpad
+	}
+	if p.PID != anchor && anchor != 0 {
+		if strings.Contains(p.Exe, "/resources/bundle/runtime/") {
+			return RoleBundledRuntime
+		}
+		if strings.Contains(p.Exe, "/resources/bundle/bin/") {
+			return RoleScenarioService
+		}
+	}
+	if p.PID != anchor && isLauncherExecutable(base) {
+		return RoleLauncher
+	}
+	return RoleUnknown
+}
+
+func isLauncherExecutable(base string) bool {
+	return base == "sh" || base == "bash" || base == "xvfb-run" || base == "apprun" || strings.HasSuffix(base, ".appimage") || strings.Contains(base, "appimage")
+}
+
+func parseProcessStat(content string) (ppid int, command string, utime, stime int64, err error) {
+	closing := strings.LastIndex(content, ")")
+	if closing < 0 || closing+2 >= len(content) {
+		return 0, "", 0, 0, fmt.Errorf("malformed /proc/pid/stat")
+	}
+	command = strings.TrimPrefix(content[strings.Index(content, "(")+1:closing], "")
+	fields := strings.Fields(content[closing+2:])
+	if len(fields) < 13 {
+		return 0, "", 0, 0, fmt.Errorf("malformed /proc/pid/stat fields")
+	}
+	ppid, err = strconv.Atoi(fields[1])
+	if err != nil {
+		return 0, "", 0, 0, fmt.Errorf("parse ppid: %w", err)
+	}
+	utime, err = strconv.ParseInt(fields[11], 10, 64)
+	if err != nil {
+		return 0, "", 0, 0, fmt.Errorf("parse utime: %w", err)
+	}
+	stime, err = strconv.ParseInt(fields[12], 10, 64)
+	if err != nil {
+		return 0, "", 0, 0, fmt.Errorf("parse stime: %w", err)
+	}
+	return ppid, command, utime, stime, nil
+}
+
+func classifyRole(pid, rootPID int, command string) ProcessRole {
+	return classifyProcess(ProcessInfo{PID: pid, Command: command, Cmdline: []string{command}, Exe: command}, rootPID, ProcessTreeOptions{})
 }

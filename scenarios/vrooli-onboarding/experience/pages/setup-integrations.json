@@ -1,0 +1,119 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "setup-integrations",
+    "title": "Integrations",
+    "routes": [
+      "/setup/integrations"
+    ],
+    "purpose": "State plainly that integration binding is deferred to integration-hub, and create nothing.",
+    "prd_refs": [
+      "OT-P2-002"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "A deferred step reads as a deliberate decision, not as a broken one."
+    },
+    {
+      "statement": "No control on this step implies a connection can be made."
+    }
+  ],
+  "states": [
+    {
+      "id": "deferred",
+      "description": "Integration Hub is unavailable; the step declares the deferral.",
+      "setup": {
+        "route": "/setup/integrations"
+      }
+    },
+    {
+      "id": "deferred-with-declared-requirement",
+      "description": "A selected scenario declares an integration; it is named as deferred and nothing is bound."
+    }
+  ],
+  "elements": [
+    {
+      "id": "deferral-notice",
+      "role": "status",
+      "description": "Explains that connector and connection models are owned by integration-hub."
+    },
+    {
+      "id": "contract-link",
+      "role": "link",
+      "description": "Links to the integration contract.",
+      "name": "Read the integration contract"
+    },
+    {
+      "id": "declared-requirement",
+      "role": "note",
+      "description": "Names an integration a selected scenario declares, marked deferred."
+    }
+  ],
+  "claims": [
+    {
+      "id": "deferral-is-stated",
+      "type": "element-present",
+      "statement": "The step states that integration setup is deferred and who owns it.",
+      "tier": "machine",
+      "elements": [
+        "deferral-notice"
+      ],
+      "states": [
+        "deferred"
+      ]
+    },
+    {
+      "id": "no-binding-controls",
+      "type": "element-absent",
+      "statement": "The step offers no control that would create or imply a connection binding.",
+      "tier": "aspirational",
+      "elements": [
+        "declared-requirement"
+      ],
+      "states": [
+        "deferred"
+      ],
+      "rationale": "A fabricated connection produces state nothing can honour, discovered at the worst possible time."
+    },
+    {
+      "id": "declared-requirement-is-named",
+      "type": "state-covered",
+      "statement": "A declared integration requirement is named as deferred rather than silently dropped.",
+      "tier": "aspirational",
+      "elements": [
+        "declared-requirement"
+      ],
+      "states": [
+        "deferred-with-declared-requirement"
+      ]
+    },
+    {
+      "id": "contract-link-resolves",
+      "type": "element-present",
+      "statement": "The contract link points at a resolvable document from the served application.",
+      "tier": "machine",
+      "elements": [
+        "contract-link"
+      ],
+      "states": [
+        "deferred"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "deferral-notice": {
+        "testid": "step-integrations-deferred"
+      },
+      "contract-link": {
+        "testid": "integrations-contract-link"
+      },
+      "declared-requirement": {
+        "testid": "step-integrations-deferred"
+      }
+    }
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "device_control.session.lifecycle",
+  "domain": "device_control",
+  "description": "Exclusive device leases are single-owner and terminal states cannot be reacquired.",
+  "model": {
+    "module": "DeviceLeaseLifecycle",
+    "seed": "20260810",
+    "maxSteps": 6,
+    "traceCount": 6,
+    "verify": { "invariants": ["TypeOK", "ExclusiveLease", "TerminalClosure", "IllegalTransitionsPreserveState"] }
+  },
+  "states": [
+    { "id": "idle", "quint": "Idle", "initial": true },
+    { "id": "held", "quint": "Held" },
+    { "id": "released", "quint": "Released", "terminal": true },
+    { "id": "killed", "quint": "Killed", "terminal": true },
+    { "id": "expired", "quint": "Expired", "terminal": true }
+  ],
+  "events": [
+    { "id": "acquire", "quint": "Acquire" },
+    { "id": "release", "quint": "Release" },
+    { "id": "kill", "quint": "Kill" },
+    { "id": "expire", "quint": "Expire" }
+  ],
+  "transitionDefaults": {
+    "invalid": { "to": "self", "wantError": true },
+    "terminal": { "to": "self", "wantError": true }
+  },
+  "transitions": [
+    { "from": "idle", "event": "acquire", "to": "held" },
+    { "from": "held", "event": "release", "to": "released" },
+    { "from": "held", "event": "kill", "to": "killed" },
+    { "from": "held", "event": "expire", "to": "expired" }
+  ],
+  "invariants": [
+    { "id": "type_ok", "quint": "TypeOK", "description": "Lease states and events remain declared." },
+    { "id": "exclusive_lease", "quint": "ExclusiveLease", "description": "A held device lease has one owner and one active token." },
+    { "id": "terminal_closure", "quint": "TerminalClosure", "description": "Released, killed, and expired leases cannot transition." },
+    { "id": "illegal_transitions_preserve_state", "quint": "IllegalTransitionsPreserveState", "description": "Rejected lease events preserve state." }
+  ],
+  "traces": [
+    {
+      "name": "operator_release",
+      "initial": "idle",
+      "steps": [
+        { "event": "acquire", "want": "held", "wantError": false },
+        { "event": "release", "want": "released", "wantError": false }
+      ]
+    },
+    { "name": "operator_kill", "initial": "idle", "steps": [{ "event": "acquire", "want": "held", "wantError": false }, { "event": "kill", "want": "killed", "wantError": false }] },
+    { "name": "lease_expiry", "initial": "idle", "steps": [{ "event": "acquire", "want": "held", "wantError": false }, { "event": "expire", "want": "expired", "wantError": false }] }
+  ],
+  "runtime": {
+    "go": {
+      "package": "flow",
+      "statusType": "Status",
+      "eventType": "Event",
+      "constantPrefix": "DeviceLease"
+    }
+  },
+  "replay": {
+    "transition": {
+      "function": "TransitionDeviceLease",
+      "stateType": "State",
+      "statusField": "Status"
+    }
+  }
+}

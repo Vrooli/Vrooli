@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Profiler, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import clsx from 'clsx';
@@ -32,20 +32,30 @@ import { appService } from '@/services/api';
 import { logger } from '@/services/logger';
 import { useAppsStore } from '@/state/appsStore';
 import { usePreviewWorkspaceStore } from '../state/previewWorkspaceStore';
+import { usePreviewPaneRuntimeStore } from '../state/previewPaneRuntimeStore';
 import type { App } from '@/types';
 import type { BridgeComplianceResult } from '@/hooks/useIframeBridge';
 import { isRunningStatus, locateAppByIdentifier, resolveAppIdentifier, resolvePreviewContext } from '@/utils/appPreview';
 import PreviewFallbackState from '@/components/preview/PreviewFallbackState';
+import { onProfilerRender } from '@/lib/profiler';
 import { usePaneMetadata } from './usePaneMetadata';
 import './PreviewPane.css';
 
-// AI_CHECK: APP_MONITOR_RENDER_PERF=1 | LAST: 2026-02-13
+// Iframes default-deny powerful features. Without delegating these explicitly,
+// the proxied scenario's getUserMedia / clipboard / fullscreen calls fail with
+// NotAllowedError and the browser never prompts. Same-origin proxy paths
+// inherit the parent policy when listed here.
+const PREVIEW_IFRAME_ALLOW =
+  'microphone; camera; clipboard-read; clipboard-write; autoplay; fullscreen';
+
+// AI_CHECK: APP_MONITOR_RENDER_PERF=2 | LAST: 2026-05-04
 const EMPTY_APPS: App[] = [];
 
 export interface PreviewPaneProps {
   paneId: string;
   appId: string | null;
   isFocused: boolean;
+  isPreviewEager?: boolean;
   isArrangeMode: boolean;
   isBeingDragged: boolean;
   canRemove: boolean;
@@ -54,10 +64,11 @@ export interface PreviewPaneProps {
   onArrangeDragStart: (paneId: string, event: ReactPointerEvent<HTMLButtonElement>) => void;
 }
 
-const PreviewPane = memo(function PreviewPane({
+function PreviewPaneImpl({
   paneId,
   appId,
   isFocused,
+  isPreviewEager = true,
   isArrangeMode,
   isBeingDragged,
   canRemove,
@@ -68,14 +79,19 @@ const PreviewPane = memo(function PreviewPane({
   const { openOverlay } = useOverlayRouter();
   const apps = useAppsStore((state) => state.apps ?? EMPTY_APPS);
   const setAppsState = useAppsStore((state) => state.setAppsState);
-  const paneViewState = usePreviewWorkspaceStore((state) => state.paneViewState[paneId]);
+  const persistedPaneViewState = usePreviewWorkspaceStore((state) => state.paneViewState[paneId]);
+  const paneViewState = usePreviewPaneRuntimeStore((state) => state.paneViewState[paneId]);
   const workspaceZoom = usePreviewWorkspaceStore((state) => state.workspaceZoom);
-  const setPaneViewState = usePreviewWorkspaceStore((state) => state.setPaneViewState);
+  const setPersistedPaneViewState = usePreviewWorkspaceStore((state) => state.setPaneViewState);
+  const hydratePaneViewState = usePreviewPaneRuntimeStore((state) => state.hydratePaneViewState);
+  const setPaneViewState = usePreviewPaneRuntimeStore((state) => state.setPaneViewState);
+  const resetPaneViewState = usePreviewPaneRuntimeStore((state) => state.resetPaneViewState);
+  const initialPaneViewState = paneViewState ?? persistedPaneViewState;
   const [statusMessage, setStatusMessage] = useState<string | null>('Select an app to preview.');
   const [isIframeLoading, setIsIframeLoading] = useState(false);
-  const [isLogsVisible, setIsLogsVisible] = useState(() => paneViewState?.isLogsVisible ?? false);
+  const [isLogsVisible, setIsLogsVisible] = useState(() => initialPaneViewState?.isLogsVisible ?? false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [isFullView, setIsFullView] = useState(() => paneViewState?.isFullView ?? false);
+  const [isFullView, setIsFullView] = useState(() => initialPaneViewState?.isFullView ?? false);
   const [isSmallScreen, setIsSmallScreen] = useState(() => (
     typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       ? window.matchMedia('(max-width: 640px)').matches
@@ -84,6 +100,12 @@ const PreviewPane = memo(function PreviewPane({
   const [previewReloadToken, setPreviewReloadToken] = useState(0);
   const [iframeLoadedAt, setIframeLoadedAt] = useState<number | null>(null);
   const [iframeLoadError, setIframeLoadError] = useState<string | null>(null);
+  const [isPaneVisible, setIsPaneVisible] = useState(() => (
+    isPreviewEager
+    || typeof window === 'undefined'
+    || typeof window.IntersectionObserver === 'undefined'
+  ));
+  const [hasActivatedPreview, setHasActivatedPreview] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [bridgeCompliance, setBridgeCompliance] = useState<BridgeComplianceResult | null>(null);
   const [paneSurfaceNode, setPaneSurfaceNode] = useState<HTMLDivElement | null>(null);
@@ -92,6 +114,7 @@ const PreviewPane = memo(function PreviewPane({
   const paneRef = useRef<HTMLDivElement | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const lastAssignedAppIdentifierRef = useRef<string | null>(null);
+  const persistPaneStateTimerRef = useRef<number | null>(null);
   const setPaneSurfaceRef = useCallback((node: HTMLDivElement | null) => {
     paneRef.current = node;
     setPaneSurfaceNode((current) => (current === node ? current : node));
@@ -100,6 +123,38 @@ const PreviewPane = memo(function PreviewPane({
     previewContainerRef.current = node;
     setPreviewContainerNode((current) => (current === node ? current : node));
   }, []);
+
+  useEffect(() => {
+    if (isPreviewEager) {
+      setIsPaneVisible(true);
+      return;
+    }
+    if (typeof window === 'undefined' || typeof window.IntersectionObserver === 'undefined') {
+      setIsPaneVisible(true);
+      return;
+    }
+    const node = paneSurfaceNode;
+    if (!node) {
+      return;
+    }
+
+    const observer = new window.IntersectionObserver((entries) => {
+      const entry = entries[0];
+      setIsPaneVisible(Boolean(entry?.isIntersecting));
+    }, {
+      root: null,
+      rootMargin: '320px 0px',
+      threshold: 0.01,
+    });
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+    };
+  }, [isPreviewEager, paneSurfaceNode]);
+
+  useEffect(() => {
+    hydratePaneViewState(paneId, persistedPaneViewState);
+  }, [hydratePaneViewState, paneId, persistedPaneViewState]);
 
   const activeAppIdentifier = useMemo(() => {
     if (!appId) {
@@ -127,7 +182,7 @@ const PreviewPane = memo(function PreviewPane({
   const navigationSession = usePreviewNavigationSession({
     iframeRef,
     setStatusMessage,
-    initialState: paneViewState,
+    initialState: initialPaneViewState,
     onStateChange: useCallback((nextState: PreviewNavigationSessionSnapshot) => {
       setPaneViewState(paneId, nextState);
     }, [paneId, setPaneViewState]),
@@ -191,6 +246,7 @@ const PreviewPane = memo(function PreviewPane({
     () => bridgeState.href || previewUrl || '',
     [bridgeState.href, previewUrl],
   );
+  const shouldLoadPreview = Boolean(previewUrl && (isPreviewEager || isPaneVisible || isFullView || hasActivatedPreview));
   const { setPreviewOverlay, fallbackState } = usePreviewOverlay({
     previewUrl,
     previewReloadToken,
@@ -351,6 +407,34 @@ const PreviewPane = memo(function PreviewPane({
   }, [isFullView, paneId, setPaneViewState]);
 
   useEffect(() => {
+    if (!paneViewState || typeof window === 'undefined') {
+      return;
+    }
+    if (persistPaneStateTimerRef.current !== null) {
+      window.clearTimeout(persistPaneStateTimerRef.current);
+    }
+
+    persistPaneStateTimerRef.current = window.setTimeout(() => {
+      persistPaneStateTimerRef.current = null;
+      setPersistedPaneViewState(paneId, {
+        previewUrl: paneViewState.previewUrl,
+        previewUrlInput: paneViewState.previewUrlInput,
+        hasCustomPreviewUrl: paneViewState.hasCustomPreviewUrl,
+        initialPreviewUrl: paneViewState.initialPreviewUrl,
+        isLogsVisible: paneViewState.isLogsVisible,
+        isFullView: paneViewState.isFullView,
+      });
+    }, 500);
+
+    return () => {
+      if (persistPaneStateTimerRef.current !== null) {
+        window.clearTimeout(persistPaneStateTimerRef.current);
+        persistPaneStateTimerRef.current = null;
+      }
+    };
+  }, [paneId, paneViewState, setPersistedPaneViewState]);
+
+  useEffect(() => {
     if (!paneViewState) {
       return;
     }
@@ -382,6 +466,7 @@ const PreviewPane = memo(function PreviewPane({
     // Changing the pane's assigned app should reset stale per-pane URL state so
     // a prior custom/invalid proxy target cannot keep the pane stuck.
     clearNavigationSession();
+    resetPaneViewState(paneId);
     resetBridgeState();
     setIsIframeLoading(false);
     setIframeLoadedAt(null);
@@ -393,7 +478,9 @@ const PreviewPane = memo(function PreviewPane({
   }, [
     activeAppIdentifier,
     clearNavigationSession,
+    paneId,
     resetBridgeState,
+    resetPaneViewState,
     resetReportDraftState,
     setPreviewOverlay,
   ]);
@@ -420,11 +507,21 @@ const PreviewPane = memo(function PreviewPane({
   }, [currentApp, syncPreviewUrl]);
 
   useEffect(() => {
+    if (!previewUrl) {
+      setHasActivatedPreview(false);
+      return;
+    }
+    if (shouldLoadPreview) {
+      setHasActivatedPreview(true);
+    }
+  }, [previewUrl, shouldLoadPreview]);
+
+  useEffect(() => {
     setPreviewOverlay(null);
     setIframeLoadError(null);
     setIframeLoadedAt(null);
-    setIsIframeLoading(Boolean(previewUrl));
-  }, [previewReloadToken, previewUrl, setPreviewOverlay]);
+    setIsIframeLoading(Boolean(previewUrl && shouldLoadPreview));
+  }, [previewReloadToken, previewUrl, setPreviewOverlay, shouldLoadPreview]);
 
   const logsState = useAppLogs({
     app: currentApp,
@@ -744,34 +841,9 @@ const PreviewPane = memo(function PreviewPane({
             )}
             ref={setPreviewContainerRef}
           >
-            {useDeviceViewport ? (
-              <DeviceEmulationViewport {...deviceViewport}>
-                <iframe
-                  key={previewReloadToken}
-                  ref={iframeRef}
-                  src={previewUrl}
-                  title={`${currentApp?.name ?? 'Application'} preview pane`}
-                  className="preview-pane__iframe"
-                  loading="eager"
-                  onLoad={onIframeLoad}
-                  onError={onIframeError}
-                />
-              </DeviceEmulationViewport>
-            ) : (
-              <div
-                className={clsx(
-                  'preview-pane__iframe-scale',
-                  standardPreviewZoom !== 1 && 'preview-pane__iframe-scale--zoomed',
-                  isDeviceEmulationActive && `device-emulation-viewport__scheme--${deviceViewport.colorScheme}`,
-                )}
-                style={standardPreviewStyle}
-              >
-                <div
-                  className={clsx(
-                    'preview-pane__iframe-scale-inner',
-                    isDeviceEmulationActive && `device-emulation-viewport__vision--${deviceViewport.vision}`,
-                  )}
-                >
+            {shouldLoadPreview ? (
+              useDeviceViewport ? (
+                <DeviceEmulationViewport {...deviceViewport}>
                   <iframe
                     key={previewReloadToken}
                     ref={iframeRef}
@@ -779,10 +851,43 @@ const PreviewPane = memo(function PreviewPane({
                     title={`${currentApp?.name ?? 'Application'} preview pane`}
                     className="preview-pane__iframe"
                     loading="eager"
+                    allow={PREVIEW_IFRAME_ALLOW}
                     onLoad={onIframeLoad}
                     onError={onIframeError}
                   />
+                </DeviceEmulationViewport>
+              ) : (
+                <div
+                  className={clsx(
+                    'preview-pane__iframe-scale',
+                    standardPreviewZoom !== 1 && 'preview-pane__iframe-scale--zoomed',
+                    isDeviceEmulationActive && `device-emulation-viewport__scheme--${deviceViewport.colorScheme}`,
+                  )}
+                  style={standardPreviewStyle}
+                >
+                  <div
+                    className={clsx(
+                      'preview-pane__iframe-scale-inner',
+                      isDeviceEmulationActive && `device-emulation-viewport__vision--${deviceViewport.vision}`,
+                    )}
+                  >
+                    <iframe
+                      key={previewReloadToken}
+                      ref={iframeRef}
+                      src={previewUrl}
+                      title={`${currentApp?.name ?? 'Application'} preview pane`}
+                      className="preview-pane__iframe"
+                      loading="eager"
+                      allow={PREVIEW_IFRAME_ALLOW}
+                      onLoad={onIframeLoad}
+                      onError={onIframeError}
+                    />
+                  </div>
                 </div>
+              )
+            ) : (
+              <div className="preview-pane__empty" role="status">
+                Preview will load when this pane is visible.
               </div>
             )}
             {fallbackState && <PreviewFallbackState state={fallbackState} variant="overlay" />}
@@ -860,6 +965,14 @@ const PreviewPane = memo(function PreviewPane({
         </ErrorBoundary>
       )}
     </div>
+  );
+}
+
+const PreviewPane = memo(function PreviewPane(props: PreviewPaneProps) {
+  return (
+    <Profiler id="PreviewPane" onRender={onProfilerRender}>
+      <PreviewPaneImpl {...props} />
+    </Profiler>
   );
 });
 

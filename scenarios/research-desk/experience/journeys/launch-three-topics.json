@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "launch-three-topics",
+    "title": "Launch three topics with the desk's defaults",
+    "purpose": "Launching is tick, tick, tick, Launch, Confirm: the desk fills the quotes from the newest commission on those topics, selects its recommendation for each earlier commission that blocks, and names what is superseded and the Web Console access in the one confirmation; no typing, no agent and no command line.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-002",
+      "OT-P0-010"
+    ]
+  },
+  "steps": [
+    {
+      "page": "now",
+      "state": "default",
+      "intent": "Start a launch from the first button on Now.",
+      "via": "Launch button"
+    },
+    {
+      "page": "launch",
+      "state": "default",
+      "intent": "Tick three topics; the quotes fill with their source, workstreams show titles and earlier commissions that block arrive with the desk's choice selected and why.",
+      "via": "topic checkboxes"
+    },
+    {
+      "page": "launch",
+      "state": "validation-error",
+      "intent": "When a size gate fails, read which part to cut; Launch stays disabled until it passes.",
+      "via": "live preflight"
+    },
+    {
+      "page": "launch",
+      "state": "submitting",
+      "intent": "Confirm once, seeing what is superseded or run alongside, the Web Console access in plain words and where the messages go.",
+      "via": "Launch"
+    },
+    {
+      "page": "launch-status",
+      "state": "default",
+      "intent": "Follow created, composer ready, stance sent, ready seen, goal sent and goal verified.",
+      "via": "Confirm"
+    }
+  ]
+}

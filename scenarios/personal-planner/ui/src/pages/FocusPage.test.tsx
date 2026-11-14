@@ -1,0 +1,153 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+
+import { correctActual, endFocus, fetchActualCorrections, fetchActuals, fetchCurrentFocus, pauseFocus, recordManualActual, resumeFocus, saveSessionNote, startFocus, type Actual } from "../api/focus";
+import { fetchWorkItems } from "../api/work";
+import { selectors } from "../consts/selectors";
+import { renderWithProviders } from "../test-utils";
+import { FocusPage } from "./FocusPage";
+
+vi.mock("../api/focus", () => ({ correctActual: vi.fn(), endFocus: vi.fn(), fetchActualCorrections: vi.fn().mockResolvedValue([]), fetchActuals: vi.fn().mockResolvedValue([]), fetchCurrentFocus: vi.fn(), pauseFocus: vi.fn(), recordManualActual: vi.fn(), recordPauseReason: vi.fn(), resumeFocus: vi.fn(), saveSessionNote: vi.fn(), startFocus: vi.fn() }));
+vi.mock("../api/work", () => ({ fetchWorkItems: vi.fn() }));
+
+afterEach(() => { cleanup(); window.localStorage.clear(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
+
+const work = [{ id: "work-1", title: "Draft the launch story", description: "Keep it useful.", remainingMinutes: 45, sourceLabel: "Cadence" }];
+const session = { id: "focus-1", workItemId: "work-1", title: "Draft the launch story", mode: "open", state: "running", startedAtUnixSeconds: 1000n, endedAtUnixSeconds: 0n, activeSeconds: 0n, wallSeconds: 0n, revision: 1n, activeStartedAtUnixSeconds: 1000n };
+
+describe("FocusPage", () => {
+  it("uses the thumb-zone mobile start composition", async () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    vi.mocked(fetchCurrentFocus).mockResolvedValue(null);
+    vi.mocked(fetchActuals).mockResolvedValue([]);
+    vi.mocked(fetchWorkItems).mockResolvedValue(work as never);
+    renderWithProviders(<FocusPage />);
+    expect(await screen.findByText("Protect the next small stretch.")).toBeInTheDocument();
+  });
+
+  it("starts a real session for the selected work item", async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchCurrentFocus).mockResolvedValue(null);
+    vi.mocked(fetchActuals).mockResolvedValue([]);
+    vi.mocked(fetchWorkItems).mockResolvedValue(work as never);
+    vi.mocked(startFocus).mockResolvedValue(session as never);
+
+    renderWithProviders(<FocusPage />);
+
+    expect(await screen.findByRole("heading", { name: "Draft the launch story" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Start focus" }));
+    expect(startFocus).toHaveBeenCalledWith({ workItemId: "work-1", title: "Draft the launch story", mode: "countdown" });
+  });
+
+  it("starts a persisted pomodoro mode with an explicit cycle plan", async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchCurrentFocus).mockResolvedValue(null);
+    vi.mocked(fetchActuals).mockResolvedValue([]);
+    vi.mocked(fetchWorkItems).mockResolvedValue(work as never);
+    vi.mocked(startFocus).mockResolvedValue(session as never);
+    renderWithProviders(<FocusPage />);
+    await user.click(await screen.findByRole("button", { name: "Pomodoro" }));
+    const cycles = screen.getAllByLabelText("Pomodoro cycles").at(-1);
+    if (!cycles) throw new Error("pomodoro cycles select missing");
+    await user.selectOptions(cycles, "2");
+    await user.click(screen.getByRole("button", { name: "Start focus" }));
+    expect(startFocus).toHaveBeenCalledWith({ workItemId: "work-1", title: "Draft the launch story", mode: "pomodoro" });
+  });
+
+  it("turns a completed pomodoro cycle into an explicit break pause", async () => {
+    const user = userEvent.setup();
+    const pomodoro = { ...session, mode: "pomodoro", activeStartedAtUnixSeconds: BigInt(Math.floor(Date.now() / 1000) - 120) };
+    vi.mocked(fetchCurrentFocus).mockResolvedValue(pomodoro as never);
+    vi.mocked(fetchActuals).mockResolvedValue([]);
+    vi.mocked(fetchWorkItems).mockResolvedValue(work as never);
+    vi.mocked(pauseFocus).mockResolvedValue({ ...pomodoro, state: "paused", revision: 2n } as never);
+    window.localStorage.setItem("personal-planner.focus-target:work-1", "30");
+    renderWithProviders(<FocusPage />);
+    await user.click(await screen.findByRole("button", { name: "Start 5-minute break" }));
+    expect(pauseFocus).toHaveBeenCalledWith(pomodoro);
+  });
+
+  it("exposes pause and resume as persisted transitions", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    vi.mocked(fetchCurrentFocus).mockResolvedValueOnce(session as never).mockResolvedValue({ ...session, state: "paused", revision: 2n } as never);
+    vi.mocked(fetchActuals).mockResolvedValue([]);
+    vi.mocked(fetchWorkItems).mockResolvedValue(work as never);
+    vi.mocked(pauseFocus).mockResolvedValue({ ...session, state: "paused", revision: 2n } as never);
+    vi.mocked(resumeFocus).mockResolvedValue({ ...session, revision: 3n } as never);
+
+    renderWithProviders(<FocusPage />);
+    expect((await screen.findByTestId(selectors.pages.focus)).closest(".focus-active")).not.toBeNull();
+    await user.click(await screen.findByRole("button", { name: "Pause" }));
+    expect(pauseFocus).toHaveBeenCalledWith(session);
+
+    await user.click(await screen.findByRole("button", { name: "Resume" }));
+    expect(resumeFocus).toHaveBeenCalledWith({ ...session, state: "paused", revision: 2n });
+  });
+
+  it("reports an honest transition failure", async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchCurrentFocus).mockResolvedValue(session as never);
+    vi.mocked(fetchActuals).mockResolvedValue([]);
+    vi.mocked(fetchWorkItems).mockResolvedValue(work as never);
+    vi.mocked(pauseFocus).mockRejectedValue(new Error("conflict"));
+
+    renderWithProviders(<FocusPage />);
+    await user.click(await screen.findByRole("button", { name: "Pause" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("That transition did not save");
+    expect(endFocus).not.toHaveBeenCalled();
+  });
+
+  it("captures an end-of-session note and attaches it to the ended session", async () => {
+    const user = userEvent.setup();
+    const ended = { ...session, state: "ended", endedAtUnixSeconds: 1900n, revision: 2n };
+    vi.mocked(fetchCurrentFocus).mockResolvedValueOnce(session as never).mockResolvedValue(null);
+    vi.mocked(fetchActuals).mockResolvedValue([]);
+    vi.mocked(fetchWorkItems).mockResolvedValue(work as never);
+    vi.mocked(endFocus).mockResolvedValue(ended as never);
+    vi.mocked(saveSessionNote).mockResolvedValue({ sessionId: session.id, localDate: "2026-09-19", note: "Shipped the outline", updatedAt: "2026-09-19T10:00:00Z" });
+    renderWithProviders(<FocusPage />);
+    await user.click(await screen.findByRole("button", { name: "End session" }));
+    const note = await screen.findByLabelText("End-of-session note");
+    await user.type(note, "Shipped the outline");
+    await user.click(screen.getByRole("button", { name: "Save note" }));
+    expect(saveSessionNote).toHaveBeenCalledWith({ sessionId: "focus-1", note: "Shipped the outline" });
+  });
+
+  it("does not invent a session when the current read is unavailable", async () => {
+    vi.mocked(fetchCurrentFocus).mockRejectedValue(new Error("offline"));
+    vi.mocked(fetchActuals).mockResolvedValue([]);
+    vi.mocked(fetchWorkItems).mockResolvedValue([]);
+    renderWithProviders(<FocusPage />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("focus session is unavailable");
+    expect(screen.queryByRole("button", { name: "Start focus" })).not.toBeInTheDocument();
+  });
+
+  it("records a manual actual and preserves an explicit correction path", async () => {
+    const user = userEvent.setup();
+    const actual: Actual = { id: "actual-1", workItemId: "", title: "Review launch brief", localDate: "2026-09-19", reportedMinutes: 45n, certainty: "user_reported_approximate", note: "", createdAtUnixSeconds: 0n, revision: 1n };
+    vi.mocked(fetchCurrentFocus).mockResolvedValue(null);
+    vi.mocked(fetchWorkItems).mockResolvedValue(work as never);
+    vi.mocked(fetchActuals).mockResolvedValue([actual]);
+    vi.mocked(fetchActualCorrections).mockResolvedValue([{ id: "correction-1", actualId: actual.id, previousMinutes: 45n, newMinutes: 30n, previousCertainty: "user_reported_approximate", newCertainty: "user_reported_approximate", reason: "Removed interruption", createdAtUnixSeconds: 0n }] as never);
+    vi.mocked(recordManualActual).mockResolvedValue(actual);
+    vi.mocked(correctActual).mockResolvedValue({ ...actual, reportedMinutes: 30n, revision: 2n });
+    renderWithProviders(<FocusPage />);
+    expect(screen.queryByLabelText("What did you work on?")).not.toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "Open actuals ledger" }));
+    expect(await screen.findByText("1 correction preserved")).toBeInTheDocument();
+    await user.type(await screen.findByLabelText("What did you work on?"), "Review launch brief");
+    await user.type(screen.getByLabelText("Minutes"), "45");
+    await user.click(screen.getByRole("button", { name: "Record actual" }));
+    expect(recordManualActual).toHaveBeenCalledWith(expect.objectContaining({ title: "Review launch brief", reportedMinutes: 45 }));
+    await user.click(await screen.findByRole("button", { name: "Correct" }));
+    const correctionInput = screen.getAllByLabelText("Minutes")[1];
+    if (!correctionInput) throw new Error("correction minutes input missing");
+    await user.clear(correctionInput);
+    await user.type(correctionInput, "30");
+    await user.type(screen.getByLabelText("Why did it change?"), "Removed interruption");
+    await user.click(screen.getByRole("button", { name: "Save correction" }));
+    expect(correctActual).toHaveBeenCalledWith(actual, expect.objectContaining({ reportedMinutes: 30 }));
+  });
+});

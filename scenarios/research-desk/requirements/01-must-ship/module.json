@@ -1,0 +1,414 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "last_validated_at": "2026-11-12T02:29:23-05:00",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "RD-P0-001",
+      "title": "One-action launch",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "Choose topics, allowance and emphasis and receive a complete packet (charter, stance message, goal kernel) with size gates, launched into a Web Console Codex session automatically or shown as two messages to paste.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/skillscripts/packet_test.go::TestCheckGatesARealPreparedPacket",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "packet.py gates (charter bytes, stance, kernel) on a prepared packet"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/launch/launch_test.go::TestAPreparedPacketLaunchesAndEveryStepIsRecorded",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "automatic launch types the stance and kernel and records each step in LAUNCH.json"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/launchapi/handler_test.go::TestTheTwoLaunchMessagesAreARead",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "the two messages to paste are a read (GetLaunchMessages) and write nothing"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/launch/launch_test.go::TestALaunchRefusesBadTextsAndSettingsBeforeCreatingASession",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "a failed gate refuses before any session exists"
+        },
+        {
+          "type": "manual",
+          "status": "implemented",
+          "notes": "one automatic launch into a throwaway Web Console session (docs/internal/evidence/launch-proof.txt)"
+        }
+      ]
+    },
+    {
+      "id": "RD-P0-002",
+      "title": "Clean-start verdict",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "description": "Before launch, state per selected topic whether an earlier commission touches it, its observed state (live, paused, limited, stopped, ended, prepared, unknown), and what this launch does about it; refuse to double-supervise a live topic unless the operator explicitly runs alongside.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/launch/launch_test.go::TestBlockersAreFewAndResolvedInTheRequest",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "only an open commission blocks; supersede or run alongside resolves it in the request"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/home/home_test.go::TestPreparedNeedsEvidenceOfAbsence",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "prepared only with proof nothing started it"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/home/walk_test.go::TestOverlapsArePairs",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "overlapping commissions per topic"
+        }
+      ]
+    },
+    {
+      "id": "RD-P0-003",
+      "title": "Discard and relaunch",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "description": "A bad start is stopped (never deleted), verified inactive, marked discarded with the operator's reason, and relaunched as a new commission rebuilt from the same packet inputs, superseding the old one.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/launch/launch_test.go::TestStopPausesTheGoalQuitsCodexAndEndsOnlyTheSessionsProcesses",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "stop never deletes the session"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/launch/launch_test.go::TestARelaunchIsANewCommissionFromTheOldSpec",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "relaunch is a new commission from the same inputs"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/launch/launch_test.go::TestABadStartRelaunchesThroughPacketPyWithOrWithoutABaseline",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "discard and relaunch through packet.py"
+        }
+      ]
+    },
+    {
+      "id": "RD-P0-004",
+      "title": "Activity projection",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "Show active research, last activity per topic, running supervisors, the topics each supervises and commissions overlapping in time, derived only from research-home files and harness session records, with unknown where a value cannot be derived.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/home/home_test.go::TestEveryDerivedFieldNamesItsSourceOrIsUnknown",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "every derived value has a source or is unknown"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/home/home_test.go::TestStateFromSessionRecords",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "state from Codex session records"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/home/walk_test.go::TestRunFoldersBelongToTheirCommissionAndALaterEditIsNotActivity",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "last activity per run folder"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/home/operator_test.go::TestAnUnreadableStateIsUnknownNotNoItems",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "an unreadable file is unknown, never empty"
+        },
+        {
+          "type": "manual",
+          "status": "implemented",
+          "notes": "Re-run with `make real-home-check` on the machine that holds the research home; it reads the home only, and fails when the home is absent (REAL_HOME_CHECK_SKIP=1 skips it, loudly). docs/internal/evidence/real-home-check.txt is one frozen run from 2026-11-12, not a live result."
+        }
+      ]
+    },
+    {
+      "id": "RD-P0-005",
+      "title": "File-only steering",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "description": "Operator direction is appended verbatim to a desk-owned operator file the supervisor already re-reads at unit start; nothing is sent into a supervisor conversation.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/writer/writer_test.go::TestAppendOperatorKeepsTheGrammar",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "entries appended verbatim to OPERATOR.md"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/writer/writer_test.go::TestOperatorTextIsBounded",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "4,000-character entries"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/operatorapi/handler_test.go::TestAddEntryAndSteering",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "say and enable steering"
+        }
+      ]
+    },
+    {
+      "id": "RD-P0-006",
+      "title": "Decision courier",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "description": "Needs-you items written by supervisors become one feed, are delivered to Notification Hub as decisions, and answers are read back from the Hub into the operator file, so a desk or webhook outage loses no answer; the UI answers directly when the Hub is down.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/courier/courier_test.go::TestDeskLaunchedCommissionAsksAndReadsTheAnswerBack",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "ask raised and answer read back into OPERATOR.md"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/courier/courier_test.go::TestOldItemsAreNeverSentByDefault",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "old items are never sent"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/courier/courier_test.go::TestNothingIsDeliveredWhileAnswersCannotBeRead",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "nothing delivered while answers cannot be read"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/operatorapi/handler_test.go::TestAnswer",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "the desk answers directly"
+        }
+      ]
+    },
+    {
+      "id": "RD-P0-007",
+      "title": "Focus measurement",
+      "status": "complete",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "description": "Measure and display each supervisor and owner role's read set, as listed in the research-coordination skill's limits.json, in bytes and estimated tokens, and flag sets over their ceilings, an oversized charter and appended amendments.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/home/home_test.go::TestReadSetsFollowTheLimitsLists",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "read sets measured from limits.json with flags"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/skillscripts/ceilings_test.go::TestReadSetsStayWithinTheirCeilings",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "no-growth: role totals within ceilings"
+        }
+      ]
+    },
+    {
+      "id": "RD-P0-008",
+      "title": "Review support",
+      "status": "complete",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "description": "A research-review skill and desk support for an operator review session over selected topics: evidence of accomplishment, tidy-up proposals, verdicts recorded verbatim and missions realigned only by explicit operator action.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/operatorapi/handler_test.go::TestAReviewListsItsTopicsAndRecordsAVerdictVerbatim",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "review topics, proposals and verbatim verdicts; MISSION.md untouched"
+        }
+      ]
+    },
+    {
+      "id": "RD-P0-009",
+      "title": "Scenario-owned research skills",
+      "status": "complete",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "description": "Research skills move into scenarios/research-desk/skills through the supported ownership route with prompt-manager skill read and the direct-file fallback still working, and the supervisor procedure gains written route discipline for failing optional routes.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/skillscripts/packet_test.go::TestTheScenarioOwnedSkillsRenderRouteDiscipline",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "the five skills live in this scenario; the rendered charter carries route discipline and the needs-you decision line"
+        },
+        {
+          "type": "test",
+          "ref": "skills/research-coordination/scripts/test_packet.py",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "packet.py renders the contract lines, holds skill files to their ceilings, and the three needs-you grammar copies agree"
+        },
+        {
+          "type": "test",
+          "phase": "skill-set",
+          "status": "implemented",
+          "notes": "prompt-manager skill-set validation of research-desk passes"
+        },
+        {
+          "type": "manual",
+          "ref": "docs/internal/evidence/stop-test.txt",
+          "status": "implemented",
+          "notes": "with the desk stopped, all five skills read through prompt-manager and by path, and packet.py and mission_check.py ran (2026-11-12)"
+        }
+      ]
+    },
+    {
+      "id": "RD-P0-010",
+      "title": "Detached by construction",
+      "status": "complete",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "description": "Stopping the desk mid-commission changes nothing for supervisors or owners; every packet launches by hand from its folder; commissions launched by hand are recognised.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/wiring_test.go::TestOnlyTheLiveLifecycleInstanceWrites",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "only the live instance writes"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/launch/launch_test.go::TestAnUnfinishedDeskLaunchIsMarkedInterruptedAtTheNextStep",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "a desk stop mid-launch is recorded, nothing else changes"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/home/home_test.go::TestDeskRecordsAreRead",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "hand-launched and desk-launched commissions are recognised"
+        }
+      ]
+    },
+    {
+      "id": "RD-P0-011",
+      "title": "Phone-first interface",
+      "status": "complete",
+      "prd_ref": "OT-P0-011",
+      "criticality": "P0",
+      "description": "API and CLI first, then a UI designed for phone width on the tunnel hostname that replaces the generated placeholder completely.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/pages/flows.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "the phone UI's outward flows: Needs you, commission controls and steering, review verdicts and launch, each through its confirmation"
+        },
+        {
+          "type": "test",
+          "phase": "ui-health",
+          "status": "implemented",
+          "notes": "the served UI renders its pages without runtime errors"
+        }
+      ]
+    },
+    {
+      "id": "RD-P0-012",
+      "title": "Control without chat",
+      "status": "complete",
+      "prd_ref": "OT-P0-012",
+      "criticality": "P0",
+      "description": "Pause, resume, wind down, stop and discard a commission from the desk without writing a message in its conversation; wind down is an operator-file entry, the others act on the session only on an operator tap and are recorded.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/launch/launch_test.go::TestControlsActOnlyOnAnOpenWindowAndAreRecorded",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "pause, resume and stop act only on an open window and are recorded"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/launch/launch_test.go::TestControlsReachTheCommissionsOwnThreadOrNothing",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "controls reach only the commission's own thread"
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/launch/launch_test.go::TestControlWordsAndWindDown",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "wind down is an operator-file entry"
+        }
+      ]
+    },
+    {
+      "id": "RD-P0-013",
+      "title": "Since last look",
+      "status": "complete",
+      "prd_ref": "OT-P0-013",
+      "criticality": "P0",
+      "description": "Per commission and per topic, show what changed since the operator last looked: new ledger text, changed checkpoints, showcase lines and workstream status changes.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/activityapi/handler_test.go::TestChangesSinceTheRecordedLook",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "changes since the recorded look or --since"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/home/operator_test.go::TestChangesSinceLastLook",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "ledger text, checkpoints, showcase lines and statuses"
+        }
+      ]
+    }
+  ]
+}

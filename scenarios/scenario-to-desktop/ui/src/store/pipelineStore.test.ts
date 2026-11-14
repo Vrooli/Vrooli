@@ -6,15 +6,23 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { act } from "@testing-library/react";
 import { usePipelineStore } from "./pipelineStore";
+import { createRateLimiter } from "./pipelineRateLimit";
 import type { PipelineRunStatus } from "./pipelineTypes";
 import type { VerbosePipelineStatus } from "../lib/api";
+import { createPipelineStatus } from "../test-utils/mocks";
+import {
+  StageName,
+  StageStatus,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 
 // Mock the API module — keep ApiError so error-utils instanceof checks work
 vi.mock("../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/api")>();
   return {
     ...actual,
-    runPipeline: vi.fn().mockResolvedValue({ pipeline_id: "test-pipeline-123" }),
+    runPipeline: vi
+      .fn()
+      .mockResolvedValue({ pipeline_id: "test-pipeline-123" }),
     getPipelineStatus: vi.fn().mockResolvedValue({
       pipeline_id: "test-pipeline-123",
       status: "running",
@@ -27,7 +35,9 @@ vi.mock("../lib/api", async (importOriginal) => {
       },
     }),
     cancelPipeline: vi.fn().mockResolvedValue({ success: true }),
-    getActivePipeline: vi.fn().mockResolvedValue({ pipeline: null, created: false }),
+    getActivePipeline: vi
+      .fn()
+      .mockResolvedValue({ pipeline: null, created: false }),
   };
 });
 
@@ -40,6 +50,108 @@ beforeEach(() => {
 });
 
 describe("pipelineStore", () => {
+  describe("pipeline creation rate limiting", () => {
+    it("allows the configured burst, throttles excess creation, and resets after a quiet period", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-08T00:00:00Z"));
+
+      try {
+        const limiter = createRateLimiter();
+
+        expect(limiter.checkRateLimit()).toBeNull();
+        for (let index = 0; index < 3; index += 1) {
+          limiter.recordPipelineCreation();
+        }
+
+        expect(limiter.checkRateLimit()).toContain("3 pipelines created");
+        expect(limiter.checkRateLimit()).toContain("wait 1 seconds");
+
+        vi.advanceTimersByTime(1_001);
+        expect(limiter.checkRateLimit()).toContain("3 pipelines created");
+        expect(limiter.checkRateLimit()).toContain("wait 2 seconds");
+
+        vi.advanceTimersByTime(2_001);
+        limiter.recordPipelineCreation();
+        limiter.recordPipelineCreation();
+        limiter.recordPipelineCreation();
+        expect(limiter.checkRateLimit()).toContain("3 pipelines created");
+
+        vi.advanceTimersByTime(60_001);
+        expect(limiter.checkRateLimit()).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  describe("pipeline cache pruning", () => {
+    it("removes the least recently used idle scenario and preserves running scenarios", () => {
+      const now = Date.now();
+      const scenarioPipelineCache = new Map(
+        Array.from({ length: 11 }, (_, index) => [
+          `scenario-${index}`,
+          {
+            pipelineId: `pipeline-${index}`,
+            status: index === 0 ? ("running" as const) : ("completed" as const),
+            lastAccessed: now + index,
+          },
+        ]),
+      );
+      usePipelineStore.setState({
+        scenarioPipelineCache,
+        runningScenarios: new Set(["scenario-0"]),
+      });
+
+      usePipelineStore.getState()._pruneCache();
+
+      const remaining = usePipelineStore.getState().scenarioPipelineCache;
+      expect(remaining).toHaveLength(10);
+      expect(remaining.has("scenario-0")).toBe(true);
+      expect(remaining.has("scenario-1")).toBe(false);
+      expect(remaining.has("scenario-10")).toBe(true);
+      usePipelineStore.setState({
+        scenarioPipelineCache: new Map(),
+        runningScenarios: new Set(),
+      });
+    });
+  });
+
+  describe("pipeline submission guards", () => {
+    it("rejects without a selected scenario and reuses an in-flight pipeline id", async () => {
+      const store = usePipelineStore.getState();
+      await expect(store._startPipeline({}, "test")).rejects.toThrow(
+        "No scenario selected",
+      );
+
+      usePipelineStore.setState({
+        scenarioName: "test-scenario",
+        isSubmitting: true,
+        pipelineId: "pipeline-in-flight",
+      });
+      await expect(
+        usePipelineStore.getState()._startPipeline({}, "test"),
+      ).resolves.toBe("pipeline-in-flight");
+      usePipelineStore.setState({
+        scenarioName: null,
+        isSubmitting: false,
+        pipelineId: null,
+      });
+    });
+
+    it("rejects an in-flight request that has not received an id yet", async () => {
+      usePipelineStore.setState({
+        scenarioName: "test-scenario",
+        isSubmitting: true,
+        pipelineId: null,
+      });
+
+      await expect(
+        usePipelineStore.getState()._startPipeline({}, "test"),
+      ).rejects.toThrow("A pipeline request is already in progress");
+      usePipelineStore.setState({ scenarioName: null, isSubmitting: false });
+    });
+  });
+
   describe("initial state", () => {
     it("starts with correct default values", () => {
       const state = usePipelineStore.getState();
@@ -104,10 +216,12 @@ describe("pipelineStore", () => {
 
       act(() => {
         store.setScenario("scenario-1");
-        store._setPipelineStatus({
-          pipeline_id: "pipeline-1",
-          status: "running",
-        } as VerbosePipelineStatus);
+        store._setPipelineStatus(
+          createPipelineStatus({
+            pipelineId: "pipeline-1",
+            status: StageStatus.RUNNING,
+          }),
+        );
       });
 
       const pipelineId = usePipelineStore.getState().pipelineId;
@@ -126,16 +240,22 @@ describe("pipelineStore", () => {
     it("sets pipeline status from verbose status", () => {
       const store = usePipelineStore.getState();
 
-      const verboseStatus: VerbosePipelineStatus = {
-        pipeline_id: "test-pipeline",
-        status: "running",
-        current_stage: "bundle",
-        stage_order: ["bundle", "preflight"],
+      const verboseStatus = createPipelineStatus({
+        pipelineId: "test-pipeline",
+        status: StageStatus.RUNNING,
+        currentStage: StageName.BUNDLE,
+        stageOrder: [StageName.BUNDLE, StageName.PREFLIGHT],
         stages: {
-          bundle: { stage: "bundle", status: "completed", started_at: Date.now() },
-          preflight: { stage: "preflight", status: "running", started_at: Date.now() },
+          bundle: {
+            stage: StageName.BUNDLE,
+            status: StageStatus.COMPLETED,
+          },
+          preflight: {
+            stage: StageName.PREFLIGHT,
+            status: StageStatus.RUNNING,
+          },
         },
-      } as VerbosePipelineStatus;
+      });
 
       act(() => {
         store._setPipelineStatus(verboseStatus);
@@ -150,20 +270,22 @@ describe("pipelineStore", () => {
     it("maps status to runStatus correctly", () => {
       const store = usePipelineStore.getState();
 
-      const testCases: Array<{ apiStatus: string; expectedRunStatus: PipelineRunStatus }> = [
-        { apiStatus: "pending", expectedRunStatus: "running" },
-        { apiStatus: "running", expectedRunStatus: "running" },
-        { apiStatus: "completed", expectedRunStatus: "completed" },
-        { apiStatus: "failed", expectedRunStatus: "failed" },
-        { apiStatus: "cancelled", expectedRunStatus: "cancelled" },
+      const testCases: Array<{
+        apiStatus: StageStatus;
+        expectedRunStatus: PipelineRunStatus;
+      }> = [
+        { apiStatus: StageStatus.PENDING, expectedRunStatus: "running" },
+        { apiStatus: StageStatus.RUNNING, expectedRunStatus: "running" },
+        { apiStatus: StageStatus.COMPLETED, expectedRunStatus: "completed" },
+        { apiStatus: StageStatus.FAILED, expectedRunStatus: "failed" },
+        { apiStatus: StageStatus.CANCELLED, expectedRunStatus: "cancelled" },
       ];
 
       for (const { apiStatus, expectedRunStatus } of testCases) {
         act(() => {
-          store._setPipelineStatus({
-            pipeline_id: "test",
-            status: apiStatus,
-          } as VerbosePipelineStatus);
+          store._setPipelineStatus(
+            createPipelineStatus({ pipelineId: "test", status: apiStatus }),
+          );
         });
 
         expect(usePipelineStore.getState().runStatus).toBe(expectedRunStatus);
@@ -175,10 +297,12 @@ describe("pipelineStore", () => {
 
       // First set a status
       act(() => {
-        store._setPipelineStatus({
-          pipeline_id: "test",
-          status: "running",
-        } as VerbosePipelineStatus);
+        store._setPipelineStatus(
+          createPipelineStatus({
+            pipelineId: "test",
+            status: StageStatus.RUNNING,
+          }),
+        );
       });
 
       expect(usePipelineStore.getState().pipelineStatus).not.toBeNull();
@@ -214,7 +338,9 @@ describe("pipelineStore", () => {
         store.setPreflightSecret("API_KEY", "secret-value");
       });
 
-      expect(usePipelineStore.getState().preflightSecrets.API_KEY).toBe("secret-value");
+      expect(usePipelineStore.getState().preflightSecrets.API_KEY).toBe(
+        "secret-value",
+      );
     });
 
     it("setPreflightSecret preserves other secrets", () => {
@@ -255,7 +381,9 @@ describe("pipelineStore", () => {
         store.setPreflightOverride(true);
       });
 
-      expect(usePipelineStore.getState().preflightSecrets).toEqual({ KEY: "value" });
+      expect(usePipelineStore.getState().preflightSecrets).toEqual({
+        KEY: "value",
+      });
       expect(usePipelineStore.getState().preflightOverride).toBe(true);
 
       // Reset
@@ -276,10 +404,12 @@ describe("pipelineStore", () => {
       act(() => {
         store.setScenario("test-scenario");
         usePipelineStore.setState({ pipelineId: "test-pipeline" });
-        store._setPipelineStatus({
-          pipeline_id: "test",
-          status: "running",
-        } as VerbosePipelineStatus);
+        store._setPipelineStatus(
+          createPipelineStatus({
+            pipelineId: "test",
+            status: StageStatus.RUNNING,
+          }),
+        );
         store.setPreflightSecrets({ KEY: "value" });
         store.setPreflightOverride(true);
       });
@@ -445,15 +575,19 @@ describe("pipelineStore", () => {
 
       // Set up a pipeline
       act(() => {
-        store._setPipelineStatus({
-          pipeline_id: "pipeline-1",
-          status: "completed",
-        } as VerbosePipelineStatus);
+        store._setPipelineStatus(
+          createPipelineStatus({
+            pipelineId: "pipeline-1",
+            status: StageStatus.COMPLETED,
+          }),
+        );
       });
 
       // The history tracking depends on implementation
       // but we can verify the history field exists
-      expect(Array.isArray(usePipelineStore.getState().pipelineHistory)).toBe(true);
+      expect(Array.isArray(usePipelineStore.getState().pipelineHistory)).toBe(
+        true,
+      );
     });
   });
 

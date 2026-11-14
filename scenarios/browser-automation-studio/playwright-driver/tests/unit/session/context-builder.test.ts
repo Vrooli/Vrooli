@@ -2,6 +2,8 @@ import { buildContext } from '../../../src/session/context-builder';
 import type { SessionSpec } from '../../../src/types';
 import type { BrowserContextOptions } from 'rebrowser-playwright';
 import { createMockBrowser, createTestConfig } from '../../helpers';
+import { interactionStateForContext } from '../../../src/session/interaction-state';
+import { installRoutedWebSocketMarker } from '../../../src/session/routed-websocket';
 
 describe('ContextBuilder', () => {
   let mockBrowser: ReturnType<typeof createMockBrowser>;
@@ -31,6 +33,12 @@ describe('ContextBuilder', () => {
   });
 
   describe('buildContext', () => {
+    it('installs browser WebSocket routing only for a routed context', async () => {
+      sessionSpec.browser_profile = { extra_headers: { 'X-Vrooli-Test-Mode': '1' } };
+      const result = await buildContext(mockBrowser, sessionSpec, config);
+      expect(result.context.addInitScript).toHaveBeenCalledWith(installRoutedWebSocketMarker);
+    });
+
     it('should create browser context with viewport', async () => {
       const result = await buildContext(mockBrowser, sessionSpec, config);
 
@@ -43,6 +51,20 @@ describe('ContextBuilder', () => {
       );
       expect(result.context).toBeDefined();
     });
+
+    it.each(['rest', 'hover', 'focus-visible', 'pressed', 'disabled'] as const)(
+      'should apply declared interaction state %s to the browser context',
+      async (interactionState) => {
+        const specWithInteractionState: SessionSpec = {
+          ...sessionSpec,
+          browser_profile: { interaction_state: interactionState },
+        };
+
+        const result = await buildContext(mockBrowser, specWithInteractionState, config);
+
+        expect(interactionStateForContext(result.context)).toBe(interactionState);
+      }
+    );
 
     it('should create context without HAR when disabled', async () => {
       const configNoHAR = createTestConfig({
@@ -201,6 +223,15 @@ describe('ContextBuilder', () => {
       );
     });
 
+    it('grants microphone only in the explicit deterministic media driver', async () => {
+      const fixtureConfig = createTestConfig({
+        browser: { fakeMicrophoneFile: '/fixtures/reference.wav' },
+      });
+      const result = await buildContext(mockBrowser, sessionSpec, fixtureConfig);
+
+      expect(result.context.grantPermissions).toHaveBeenCalledWith(['microphone']);
+    });
+
     it('should apply ignoreHTTPSErrors from config', async () => {
       const configWithHTTPS = createTestConfig({
         browser: { headless: true, ignoreHTTPSErrors: true },
@@ -248,6 +279,37 @@ describe('ContextBuilder', () => {
   });
 
   describe('viewport source attribution', () => {
+    it('emulates coarse no-hover input for a mobile capture', async () => {
+      const mobileSpec: SessionSpec = {
+        ...sessionSpec,
+        viewport: { width: 390, height: 844 },
+      };
+
+      await buildContext(mockBrowser, mobileSpec, config);
+
+      const [options] = mockBrowser.newContext.mock.calls[0] ?? [];
+      expect(options).toEqual(expect.objectContaining({ hasTouch: true, isMobile: true }));
+    });
+
+    it('retains mobile input emulation when a phone rotates to landscape', async () => {
+      const mobileLandscapeSpec: SessionSpec = {
+        ...sessionSpec,
+        viewport: { width: 844, height: 390 },
+      };
+
+      await buildContext(mockBrowser, mobileLandscapeSpec, config);
+
+      const [options] = mockBrowser.newContext.mock.calls[0] ?? [];
+      expect(options).toEqual(expect.objectContaining({ hasTouch: true, isMobile: true }));
+    });
+
+    it('retains fine hover input for a desktop capture', async () => {
+      await buildContext(mockBrowser, sessionSpec, config);
+
+      const [options] = mockBrowser.newContext.mock.calls[0] ?? [];
+      expect(options).toEqual(expect.objectContaining({ hasTouch: false, isMobile: false }));
+    });
+
     it('should return actualViewport with requested source when using spec viewport', async () => {
       const result = await buildContext(mockBrowser, sessionSpec, config);
 
@@ -352,5 +414,52 @@ describe('ContextBuilder', () => {
       expect(result.actualViewport.height).toBe(720);
       expect(result.actualViewport.reason).toContain('default');
     });
+  });
+});
+
+describe('mobile safe-area insets', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { isMobileViewport, applySafeAreaInsets, MOBILE_SAFE_AREA_INSETS } =
+    require('../../../src/session/context-builder');
+
+  it('classifies phone-class viewports by their shorter edge', () => {
+    expect(isMobileViewport({ width: 390, height: 844 })).toBe(true);
+    expect(isMobileViewport({ width: 844, height: 390 })).toBe(true); // landscape phone
+    expect(isMobileViewport({ width: 1280, height: 720 })).toBe(false);
+    expect(isMobileViewport(undefined)).toBe(false);
+  });
+
+  it('overrides safe-area insets via CDP for a mobile viewport', async () => {
+    const send = jest.fn().mockResolvedValue(undefined);
+    const detach = jest.fn().mockResolvedValue(undefined);
+    const page = { context: () => ({ newCDPSession: jest.fn().mockResolvedValue({ send, detach }) }), once: jest.fn() };
+
+    await applySafeAreaInsets(page as never, { width: 390, height: 844 });
+
+    expect(send).toHaveBeenCalledWith('Emulation.setSafeAreaInsetsOverride', {
+      insets: MOBILE_SAFE_AREA_INSETS,
+    });
+    // Detaching drops the override on the next navigation.
+    expect(detach).not.toHaveBeenCalled();
+    expect(page.once).toHaveBeenCalledWith('close', expect.any(Function));
+    page.once.mock.calls[0][1]();
+    expect(detach).toHaveBeenCalledTimes(1);
+    expect(MOBILE_SAFE_AREA_INSETS.bottom).toBeGreaterThan(0); // home indicator must be non-zero
+  });
+
+  it('is a no-op for a desktop viewport', async () => {
+    const newCDPSession = jest.fn();
+    const page = { context: () => ({ newCDPSession }) };
+
+    await applySafeAreaInsets(page as never, { width: 1280, height: 720 });
+
+    expect(newCDPSession).not.toHaveBeenCalled();
+  });
+
+  it('never fails the capture when the CDP command is unavailable', async () => {
+    const page = {
+      context: () => ({ newCDPSession: jest.fn().mockRejectedValue(new Error('unsupported')) }),
+    };
+    await expect(applySafeAreaInsets(page as never, { width: 390, height: 844 })).resolves.toBeUndefined();
   });
 });

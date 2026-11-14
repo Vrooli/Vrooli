@@ -1,0 +1,64 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "docker",
+  "description": "Container runtime for running resources and services",
+  "storage": {
+    "entries": {
+      "graph_root": {
+        "rung": "relocatable",
+        "path": {
+          "linux": "/var/lib/docker",
+          "macos": null,
+          "windows": "C:/ProgramData/docker"
+        },
+      "kind": "dir",
+      "regenerable": false,
+        "relocation": {
+          "config": "daemon.json:data-root",
+          "scope": "daemon"
+        },
+        "rationale": "Docker Engine uses /var/lib/docker on Linux and C:/ProgramData/docker on Windows. Docker Desktop stores its VM disk image at an operator-selected location on macOS, so no guessed host path is declared there; relocation must use Docker's settings or daemon configuration while stopped."
+      }
+    }
+  },
+  "handler": "docker",
+  "commands": [
+    "docker"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "defaultPackage": "docker.io",
+  "packages": {
+    "brew": "docker",
+    "winget": "Docker.DockerDesktop",
+    "dnf": "docker",
+    "pacman": "docker",
+    "apk": "docker"
+  },
+  "installHint": "The container-runtime ladder adopts a healthy daemon or DOCKER_HOST, adopts an existing macOS runtime, or installs headless Colima when no provider is present",
+  "verificationCheck": {
+    "command": "docker",
+    "args": [
+      "info"
+    ],
+    "expectExitCode": 0
+  },
+  "bundling": "host-required",
+  "capability": "container-runtime",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  }
+}

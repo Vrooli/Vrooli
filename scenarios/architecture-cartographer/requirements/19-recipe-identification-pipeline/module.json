@@ -1,0 +1,71 @@
+{
+  "description": "Surface candidate-recipe reports when ≥10 instances of the same manual edit pattern are observed; recipe authoring remains human-in-the-loop and is never auto-generated.",
+  "module_id": "MOD-P2-019",
+  "prd_ref": "OT-P2-004",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-009"
+      ],
+      "description": "Cartographer must surface candidate-recipe reports when ≥10 instances of the same manual edit pattern are observed in analytics override history. The report must identify the pattern, its frequency, representative examples, and a suggested recipe name. Recipe authoring must remain human-in-the-loop; the pipeline must never auto-generate or auto-apply recipes.",
+      "id": "REQ-P2-004",
+      "prd_ref": "OT-P2-004",
+      "status": "draft",
+      "title": "Recipe Identification Pipeline — Candidate Report from Override History",
+      "validation": [
+        {
+          "notes": "Pattern frequency counter correctly groups override events by edit pattern type and counts instances",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Report is only generated for patterns with ≥10 confirmed instances; patterns with \u003c10 instances are omitted",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Report output is clearly labeled as 'candidate — human authoring required' and contains no executable recipe code",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Seed analytics with 12 override events of the same pattern type; arch-cart recipes identify surfaces a candidate report for that pattern",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Seed analytics with 9 override events of the same pattern type; arch-cart recipes identify produces no output for that pattern",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Recipe authors can use the candidate report as a starting specification without reverse-engineering the override history manually",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "No candidate recipe is ever auto-applied or auto-committed",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Recipe Identification Pipeline"
+}

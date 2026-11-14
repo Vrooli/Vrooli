@@ -34,6 +34,8 @@ func successResponse(data interface{}) gin.H {
 // ServiceCallFunc represents a service method that returns data and an error
 type ServiceCallFunc[T any] func(context.Context) (T, error)
 
+type AppServiceCallFunc[T any] func(context.Context, string) (T, error)
+
 // HandleServiceCall is a generic wrapper for service calls that automatically
 // handles errors and generates appropriate responses
 func HandleServiceCall[T any](
@@ -59,7 +61,7 @@ func HandleServiceCall[T any](
 			status = http.StatusServiceUnavailable
 		case errors.Is(err, services.ErrScenarioAuditorUnavailable):
 			status = http.StatusServiceUnavailable
-		case errors.Is(err, services.ErrIssueTrackerUnavailable):
+		case errors.Is(err, services.ErrSwarmManagerUnavailable):
 			status = http.StatusServiceUnavailable
 		}
 
@@ -67,6 +69,24 @@ func HandleServiceCall[T any](
 		return
 	}
 
+	c.JSON(http.StatusOK, successResponse(result))
+}
+
+// HandleAppServiceCall preserves an app diagnostic error's message and maps the
+// shared identifier errors to their handler status codes.
+func HandleAppServiceCall[T any](c *gin.Context, appID string, fn AppServiceCallFunc[T]) {
+	result, err := fn(c.Request.Context(), appID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, services.ErrAppIdentifierRequired):
+			status = http.StatusBadRequest
+		case errors.Is(err, services.ErrAppNotFound):
+			status = http.StatusNotFound
+		}
+		c.JSON(status, errorResponse(err.Error()))
+		return
+	}
 	c.JSON(http.StatusOK, successResponse(result))
 }
 
@@ -95,7 +115,7 @@ func HandleServiceCallRaw[T any](
 			status = http.StatusServiceUnavailable
 		case errors.Is(err, services.ErrScenarioAuditorUnavailable):
 			status = http.StatusServiceUnavailable
-		case errors.Is(err, services.ErrIssueTrackerUnavailable):
+		case errors.Is(err, services.ErrSwarmManagerUnavailable):
 			status = http.StatusServiceUnavailable
 		}
 
@@ -134,7 +154,7 @@ func HandleServiceAction(
 			status = http.StatusServiceUnavailable
 		case errors.Is(err, services.ErrScenarioAuditorUnavailable):
 			status = http.StatusServiceUnavailable
-		case errors.Is(err, services.ErrIssueTrackerUnavailable):
+		case errors.Is(err, services.ErrSwarmManagerUnavailable):
 			status = http.StatusServiceUnavailable
 		}
 

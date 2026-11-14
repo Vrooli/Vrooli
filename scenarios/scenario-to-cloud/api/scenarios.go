@@ -6,20 +6,19 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/discovery"
 
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/manifest"
-	"scenario-to-cloud/ssh"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/discovery"
 )
 
 // ScenarioInfo represents a scenario with its configuration
@@ -136,7 +135,15 @@ func (s *Server) handleListScenarios(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scenariosDir := filepath.Join(repoRoot, "scenarios")
+	scenariosDir, err := bundle.ResolveScenariosDir(repoRoot)
+	if err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
+			Code:    "scenarios_dir_resolve_failed",
+			Message: "Unable to resolve scenarios directory",
+			Hint:    err.Error(),
+		})
+		return
+	}
 	entries, err := os.ReadDir(scenariosDir)
 	if err != nil {
 		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
@@ -154,24 +161,26 @@ func (s *Server) handleListScenarios(w http.ResponseWriter, r *http.Request) {
 		}
 
 		scenarioID := entry.Name()
-		serviceJSONPath := filepath.Join(scenariosDir, scenarioID, ".vrooli", "service.json")
+		serviceJSONPath, pathErr := bundle.ResolveScenarioFile(repoRoot, scenarioID, "service")
 
 		info := ScenarioInfo{
 			ID: scenarioID,
 		}
 
 		// Try to read service.json for additional metadata
-		if data, err := os.ReadFile(serviceJSONPath); err == nil {
-			var svc ServiceJSON
-			if json.Unmarshal(data, &svc) == nil {
-				if svc.Service.DisplayName != "" {
-					info.DisplayName = svc.Service.DisplayName
-				}
-				if svc.Service.Description != "" {
-					info.Description = svc.Service.Description
-				}
-				if len(svc.Ports) > 0 {
-					info.Ports = svc.Ports
+		if pathErr == nil {
+			if data, err := os.ReadFile(serviceJSONPath); err == nil {
+				var svc ServiceJSON
+				if json.Unmarshal(data, &svc) == nil {
+					if svc.Service.DisplayName != "" {
+						info.DisplayName = svc.Service.DisplayName
+					}
+					if svc.Service.Description != "" {
+						info.Description = svc.Service.Description
+					}
+					if len(svc.Ports) > 0 {
+						info.Ports = svc.Ports
+					}
 				}
 			}
 		}
@@ -207,7 +216,15 @@ func (s *Server) handleScenarioPorts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	serviceJSONPath := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
+	serviceJSONPath, err := bundle.ResolveScenarioFile(repoRoot, scenarioID, "service")
+	if err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
+			Code:    "service_json_path_resolve_failed",
+			Message: "Unable to resolve service.json path",
+			Hint:    err.Error(),
+		})
+		return
+	}
 	data, err := os.ReadFile(serviceJSONPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -290,20 +307,20 @@ func checkHostReachability(ctx context.Context, host string) ReachabilityResult 
 		errStr := err.Error()
 
 		// Check for IPv6-specific errors
-		if ssh.IsIPv6(host) && (strings.Contains(errStr, "no route to host") ||
+		if isIPv6(host) && (strings.Contains(errStr, "no route to host") ||
 			strings.Contains(errStr, "network is unreachable")) {
 			result.Reachable = false
 			result.Message = "IPv6 not available"
-			result.Hint = ssh.IPv6ConnectivityHint
+			result.Hint = ipv6ConnectivityHint
 			return result
 		}
 
 		// Check if it's a timeout or connection refused
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 			result.Reachable = false
-			if ssh.IsIPv6(host) {
+			if isIPv6(host) {
 				result.Message = "Connection timed out (IPv6)"
-				result.Hint = ssh.IPv6ConnectivityHint
+				result.Hint = ipv6ConnectivityHint
 			} else {
 				result.Message = "Connection timed out"
 				result.Hint = "The host may be unreachable, or SSH port 22 may be blocked. You can proceed if the server is not yet configured."
@@ -397,17 +414,21 @@ func (s *Server) fetchDependenciesFromAnalyzer(ctx context.Context, scenarioID s
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover analyzer URL: %w", err)
 	}
+	baseURL, err = httputil.ValidateServiceBaseURL(baseURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid analyzer service URL: %w", err)
+	}
 
 	// Call the analyzer API
-	url := fmt.Sprintf("%s/api/v1/analyze/%s", strings.TrimSuffix(baseURL, "/"), scenarioID)
+	endpoint := fmt.Sprintf("%s/api/v1/analyze/%s", baseURL, url.PathEscape(scenarioID))
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil) // #nosec G704 -- endpoint is composed from a validated discovery URL and a path-escaped scenario identifier.
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) // #nosec G704 -- request target is the validated scenario-dependency-analyzer service.
 	if err != nil {
 		return nil, fmt.Errorf("analyzer request failed: %w", err)
 	}
@@ -490,7 +511,10 @@ func (s *Server) extractDependenciesFromServiceJSON(scenarioID string) (*Scenari
 		return nil, err
 	}
 
-	serviceJSONPath := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
+	serviceJSONPath, err := bundle.ResolveScenarioFile(repoRoot, scenarioID, "service")
+	if err != nil {
+		return nil, fmt.Errorf("resolve service.json path: %w", err)
+	}
 	data, err := os.ReadFile(serviceJSONPath)
 	if err != nil {
 		return nil, err
@@ -603,7 +627,15 @@ func (s *Server) handleGetExpectedSecrets(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	serviceJSONPath := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
+	serviceJSONPath, err := bundle.ResolveScenarioFile(repoRoot, scenarioID, "service")
+	if err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
+			Code:    "service_json_path_resolve_failed",
+			Message: "Unable to resolve service.json path",
+			Hint:    err.Error(),
+		})
+		return
+	}
 	data, err := os.ReadFile(serviceJSONPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -679,4 +711,13 @@ func (s *Server) handleGetExpectedSecrets(w http.ResponseWriter, r *http.Request
 		Summary:         summary,
 		Timestamp:       time.Now().UTC().Format(time.RFC3339),
 	})
+}
+
+// ipv6ConnectivityHint explains the usual cause of an unreachable IPv6 host.
+const ipv6ConnectivityHint = "You entered an IPv6 address, but your network may not have IPv6 connectivity. Most ISPs still only provide IPv4. Try using the IPv4 address of your server instead."
+
+// isIPv6 reports whether host is a literal IPv6 address.
+func isIPv6(host string) bool {
+	ip := net.ParseIP(host)
+	return ip != nil && ip.To4() == nil
 }

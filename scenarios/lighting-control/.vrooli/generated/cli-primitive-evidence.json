@@ -1,0 +1,186 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "lighting-control",
+  "generator": "v1.0.0",
+  "manifest_hash": "5b544735a9a0b727c0aa7f5167e1a8ed3793ce8e7d7fd8b870132eff749c141e",
+  "commands": [
+    {
+      "path": "control backend-status",
+      "group": "control",
+      "command": "backend-status",
+      "binding": "ControlService.GetBackendStatus",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "control configure-zone",
+      "group": "control",
+      "command": "configure-zone",
+      "binding": "ControlService.ConfigureZone",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "control controllers",
+      "group": "control",
+      "command": "controllers",
+      "binding": "ControlService.ListControllers",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "control desired",
+      "group": "control",
+      "command": "desired",
+      "binding": "ControlService.GetDesiredState",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "control enroll",
+      "group": "control",
+      "command": "enroll",
+      "binding": "ControlService.EnrollController",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "control off",
+      "group": "control",
+      "command": "off",
+      "binding": "ControlService.SetManualOff",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "control off-clear",
+      "group": "control",
+      "command": "off-clear",
+      "binding": "ControlService.ClearManualOverride",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "control reconcile",
+      "group": "control",
+      "command": "reconcile",
+      "binding": "ControlService.Reconcile",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "control set",
+      "group": "control",
+      "command": "set",
+      "binding": "ControlService.SetZoneState",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "policy clear-manual",
+      "group": "policy",
+      "command": "clear-manual",
+      "binding": "PolicyService.ClearManualPreset",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "policy evaluate",
+      "group": "policy",
+      "command": "evaluate",
+      "binding": "PolicyService.EvaluatePolicy",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "policy get",
+      "group": "policy",
+      "command": "get",
+      "binding": "PolicyService.GetPolicy",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "policy set",
+      "group": "policy",
+      "command": "set",
+      "binding": "PolicyService.SetPolicy",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "policy set-manual",
+      "group": "policy",
+      "command": "set-manual",
+      "binding": "PolicyService.SetManualPreset",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "setup apply-devices",
+      "group": "setup",
+      "command": "apply-devices",
+      "binding": "SetupService.ApplyLightingDevices",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "setup devices",
+      "group": "setup",
+      "command": "devices",
+      "binding": "SetupService.GetSetupDevices",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "setup disable",
+      "group": "setup",
+      "command": "disable",
+      "binding": "SetupService.DisableLighting",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "setup enable",
+      "group": "setup",
+      "command": "enable",
+      "binding": "SetupService.EnableLighting",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "setup install",
+      "group": "setup",
+      "command": "install",
+      "binding": "SetupService.SetupLighting",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "setup plan-devices",
+      "group": "setup",
+      "command": "plan-devices",
+      "binding": "SetupService.PlanLightingDevices",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "setup rollback-devices",
+      "group": "setup",
+      "command": "rollback-devices",
+      "binding": "SetupService.RollbackLightingDevices",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "setup status",
+      "group": "setup",
+      "command": "status",
+      "binding": "SetupService.GetSetupStatus",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "cases",
+    "title": "Chain forensics",
+    "routes": ["/cases"],
+    "purpose": "Review persistent source-backed case evidence, keep attribution gaps visible, and explicitly export a private packet locally.",
+    "prd_refs": ["OT-P0-001"]
+  },
+  "states": [
+    { "id": "default", "description": "The selected case shows its sources, observed occurrences, supported edges, labels, gaps, and private export action." },
+    { "id": "loading", "description": "Case list or selected case data is loading." },
+    { "id": "empty", "description": "No cases are stored; the operator can import a validated case file." },
+    { "id": "partial", "description": "Some source history or attribution links remain unavailable and are shown as explicit gaps." },
+    { "id": "stale", "description": "The case shows previously captured evidence with its original capture timestamp and source digest." },
+    { "id": "request-error", "description": "A case request failed; the error is shown while stored cases remain available for retry." }
+  ]
+}

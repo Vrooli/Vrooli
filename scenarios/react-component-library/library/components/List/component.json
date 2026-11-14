@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "data-display.list",
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3",
+    "1.0.0",
+    "1.0.2",
+    "1.0.4",
+    "1.0.5"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3",
+    "1.0.1",
+    "1.0.2",
+    "1.0.0",
+    "1.0.4",
+    "1.0.5"
+  ],
+  "latest": "1.0.7",
+  "libraryId": "react-component-library:List",
+  "displayName": "List",
+  "description": "The semantic collection with sections, item actions, selection, keyboard navigation, loading placeholders, separators, and responsive density.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
+}

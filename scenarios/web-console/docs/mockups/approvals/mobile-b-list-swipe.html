@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Approvals — Mobile card-stack + swipe actions</title>
+<style>
+:root{
+  --wc-surface-base:2 6 23; --wc-surface-raised:15 23 42; --wc-surface-input:30 41 59; --wc-card:23 32 51;
+  --wc-text-primary:248 250 252; --wc-text-secondary:226 232 240; --wc-text-muted:148 163 184; --wc-text-faint:100 116 139;
+  --wc-border-default:255 255 255; --wc-accent:34 211 238; --wc-accent-fg:15 23 42;
+  --wc-success:74 222 128; --wc-warning:245 178 63; --wc-error-detail:248 113 113; --wc-error-border:239 68 68; --wc-error-surface:69 10 10; --wc-error-text:252 165 165; --wc-swarm:183 166 255;
+  --font-sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --r-ctrl:.375rem;--r-pill:9999px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:#0a0f1e;min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:12px;padding:24px;color:rgb(var(--wc-text-faint))}
+.caption{font-size:12px;text-align:center;max-width:390px}
+.phone{width:390px;height:800px;background:rgb(var(--wc-surface-base));border-radius:34px;border:1px solid rgb(var(--wc-border-default)/.12);overflow:hidden;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.6);display:flex;flex-direction:column}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:150px;height:26px;background:#000;border-radius:0 0 16px 16px;z-index:40}
+/* full-screen inbox header */
+.ihead{padding:18px 16px 12px;padding-top:34px;display:flex;align-items:center;gap:10px;background:rgb(var(--wc-surface-raised));border-bottom:1px solid rgb(var(--wc-border-default)/.1)}
+.back{width:34px;height:34px;display:flex;align-items:center;justify-content:center;color:rgb(var(--wc-text-muted));font-size:20px}
+.ihead h1{font-size:17px;font-weight:600;color:rgb(var(--wc-text-primary))}
+.pending-count{background:rgb(var(--wc-accent));color:rgb(var(--wc-accent-fg));border-radius:var(--r-pill);font-size:11px;font-weight:700;padding:1px 8px}
+.filters{display:flex;gap:6px;padding:10px 14px;overflow-x:auto;background:rgb(var(--wc-surface-raised)/.6)}
+.chip{font-size:12px;padding:4px 11px;border-radius:var(--r-pill);border:1px solid rgb(var(--wc-border-default)/.12);background:transparent;color:rgb(var(--wc-text-muted));white-space:nowrap}
+.chip.on{background:rgb(var(--wc-accent)/.14);border-color:rgb(var(--wc-accent)/.4);color:rgb(var(--wc-text-primary))}
+.stack{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:12px}
+/* swipe row: action layer behind the card */
+.swipe{position:relative;border-radius:14px;overflow:hidden}
+.actions{position:absolute;inset:0;display:flex}
+.act{flex:1;display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;padding:0 20px}
+.act.approve{background:rgb(var(--wc-success)/.9);color:rgb(var(--wc-accent-fg));justify-content:flex-start}
+.act.reject{background:rgb(var(--wc-error-detail)/.9);color:#1a0505;justify-content:flex-end}
+/* the card itself */
+.card{position:relative;background:rgb(var(--wc-card));border:1px solid rgb(var(--wc-border-default)/.1);border-radius:14px;padding:14px;z-index:2}
+.card.swiped{transform:translateX(96px);box-shadow:-8px 0 20px rgba(0,0,0,.4)}
+.ctop{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.src{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:var(--r-pill)}
+.src .dot{width:7px;height:7px;border-radius:50%}
+.src-dep{background:rgb(var(--wc-warning)/.14);color:rgb(var(--wc-warning))}
+.src-am{background:rgb(var(--wc-accent)/.14);color:rgb(var(--wc-accent))}
+.src-swarm{background:rgb(var(--wc-swarm)/.16);color:rgb(var(--wc-swarm))}
+.src-heal{background:rgb(var(--wc-success)/.14);color:rgb(var(--wc-success))}
+.ctime{margin-left:auto;font-size:10.5px;color:rgb(var(--wc-text-faint))}
+.ctitle{font-size:15px;font-weight:600;color:rgb(var(--wc-text-primary));line-height:21px}
+.cq{font-size:13px;color:rgb(var(--wc-text-muted));margin-top:4px;line-height:19px}
+.cmeta{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}
+.pill{font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:var(--r-pill)}
+.pill-rev{color:rgb(var(--wc-success));background:rgb(var(--wc-success)/.12)}
+.pill-irr{color:rgb(var(--wc-error-text));background:rgb(var(--wc-error-surface)/.5);border:1px solid rgb(var(--wc-error-border)/.3)}
+.pill-dl{color:rgb(var(--wc-warning));background:rgb(var(--wc-warning)/.1)}
+.pill-rec{color:rgb(var(--wc-accent));background:rgb(var(--wc-accent)/.12)}
+.hint{font-size:11px;color:rgb(var(--wc-text-faint));margin-top:9px;display:flex;align-items:center;gap:6px}
+.tapopen{font-size:11px;color:rgb(var(--wc-accent));background:rgb(var(--wc-accent)/.08);border:1px solid rgb(var(--wc-accent)/.3);border-radius:var(--r-pill);padding:2px 9px}
+</style>
+</head>
+<body>
+<div class="caption">Mobile · card-stack list (full-screen inbox). Reversible cards use RCL SwipeActions — swipe right = Approve, left = Reject. Irreversible cards have NO swipe; they must open the detail to confirm (open question #1).</div>
+<div class="phone">
+  <div class="notch"></div>
+  <div class="ihead"><span class="back">‹</span><h1>Approvals</h1><span class="pending-count">4</span></div>
+  <div class="filters"><span class="chip on">Pending · 4</span><span class="chip">All sources</span><span class="chip">Resolved</span><span class="chip">Expired</span></div>
+  <div class="stack">
+    <!-- reversible card, mid-swipe revealing Approve -->
+    <div class="swipe">
+      <div class="actions"><div class="act approve">✓ Approve</div></div>
+      <div class="card swiped">
+        <div class="ctop"><span class="src src-am"><span class="dot" style="background:rgb(var(--wc-accent))"></span>agent-manager</span><span class="ctime">8m</span></div>
+        <div class="ctitle">Run r-7f2a needs review</div>
+        <div class="cq">Approve the proposed diff and resume the run?</div>
+        <div class="cmeta"><span class="pill pill-rev">Reversible</span><span class="pill pill-rec">★ Approve</span></div>
+      </div>
+    </div>
+    <!-- irreversible deployment: no swipe, tap-to-open -->
+    <div class="swipe">
+      <div class="card">
+        <div class="ctop"><span class="src src-dep"><span class="dot" style="background:rgb(var(--wc-warning))"></span>deployment-manager</span><span class="ctime">2m</span></div>
+        <div class="ctitle">Release web-console v3.4.0 to production</div>
+        <div class="cq">Promote build sha256:9f3c…a1 to production (2 targets)?</div>
+        <div class="cmeta"><span class="pill pill-irr">Not reversible</span><span class="pill pill-dl">1h 48m</span></div>
+        <div class="hint"><span class="tapopen">Tap to review</span> irreversible — no swipe</div>
+      </div>
+    </div>
+    <!-- reversible swarm -->
+    <div class="swipe">
+      <div class="card">
+        <div class="ctop"><span class="src src-swarm"><span class="dot" style="background:rgb(var(--wc-swarm))"></span>swarm-manager</span><span class="ctime">31m</span></div>
+        <div class="ctitle">Raise nutrition-planner image cap to $25</div>
+        <div class="cq">Accept the proposed scenario-config mutation?</div>
+        <div class="cmeta"><span class="pill pill-rev">Reversible</span><span class="pill pill-rec">★ Accept</span></div>
+        <div class="hint">◂ swipe to reject · swipe to approve ▸</div>
+      </div>
+    </div>
+    <!-- reversible autoheal with auto-apply default -->
+    <div class="swipe">
+      <div class="card">
+        <div class="ctop"><span class="src src-heal"><span class="dot" style="background:rgb(var(--wc-success))"></span>vrooli-autoheal</span><span class="ctime">1h</span></div>
+        <div class="ctitle">Restart wedged secret-service on minimouse</div>
+        <div class="cq">Apply remediation now, or hold for manual review?</div>
+        <div class="cmeta"><span class="pill pill-rev">Reversible</span><span class="pill pill-dl">Auto-applies in 40m</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

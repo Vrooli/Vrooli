@@ -1,0 +1,126 @@
+{
+  "id": "owned-bot-checks-03",
+  "family": "owned-bot-checks",
+  "family_name": "Bot checks on owned ground",
+  "difficulty": 3,
+  "title": "Bot checks on owned ground: level 3",
+  "task": "Complete the explicitly owned practice challenge, then extract every record with id, name, category, value and active. This is a synthetic challenge, not a real website.",
+  "mechanism": "bot_check",
+  "tags": [
+    "difficulty-3",
+    "bot_check"
+  ],
+  "page": {
+    "title": "Bot checks on owned ground Practice 3",
+    "records": [
+      {
+        "id": "OWN-03-001",
+        "name": "Bot Item 3-1",
+        "category": "beta",
+        "value": 1031,
+        "active": true
+      },
+      {
+        "id": "OWN-03-002",
+        "name": "Bot Item 3-2",
+        "category": "gamma",
+        "value": 1032,
+        "active": true
+      },
+      {
+        "id": "OWN-03-003",
+        "name": "Bot Item 3-3",
+        "category": "alpha",
+        "value": 1033,
+        "active": true
+      },
+      {
+        "id": "OWN-03-004",
+        "name": "Bot Item 3-4",
+        "category": "beta",
+        "value": 1034,
+        "active": false
+      },
+      {
+        "id": "OWN-03-005",
+        "name": "Bot Item 3-5",
+        "category": "gamma",
+        "value": 1035,
+        "active": true
+      },
+      {
+        "id": "OWN-03-006",
+        "name": "Bot Item 3-6",
+        "category": "alpha",
+        "value": 1036,
+        "active": true
+      },
+      {
+        "id": "OWN-03-007",
+        "name": "Bot Item 3-7",
+        "category": "beta",
+        "value": 1037,
+        "active": true
+      }
+    ],
+    "page_size": 7,
+    "variant": 3,
+    "search_fields": [],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "",
+    "behavior": {},
+    "bot_gate": "simulated-token"
+  },
+  "answer": [
+    {
+      "id": "OWN-03-001",
+      "name": "Bot Item 3-1",
+      "category": "beta",
+      "value": 1031,
+      "active": true
+    },
+    {
+      "id": "OWN-03-002",
+      "name": "Bot Item 3-2",
+      "category": "gamma",
+      "value": 1032,
+      "active": true
+    },
+    {
+      "id": "OWN-03-003",
+      "name": "Bot Item 3-3",
+      "category": "alpha",
+      "value": 1033,
+      "active": true
+    },
+    {
+      "id": "OWN-03-004",
+      "name": "Bot Item 3-4",
+      "category": "beta",
+      "value": 1034,
+      "active": false
+    },
+    {
+      "id": "OWN-03-005",
+      "name": "Bot Item 3-5",
+      "category": "gamma",
+      "value": 1035,
+      "active": true
+    },
+    {
+      "id": "OWN-03-006",
+      "name": "Bot Item 3-6",
+      "category": "alpha",
+      "value": 1036,
+      "active": true
+    },
+    {
+      "id": "OWN-03-007",
+      "name": "Bot Item 3-7",
+      "category": "beta",
+      "value": 1037,
+      "active": true
+    }
+  ]
+}

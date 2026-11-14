@@ -20,21 +20,8 @@ func TestIsOriginAllowed_NilHandler(t *testing.T) {
 	}
 }
 
-func TestIsOriginAllowed_AllowAll(t *testing.T) {
-	handler, _, _, _, _, _ := createTestHandler()
-	handler.wsAllowAll = true
-
-	req := httptest.NewRequest(http.MethodGet, "/ws", nil)
-	req.Header.Set("Origin", "http://any-origin.com")
-
-	if !handler.isOriginAllowed(req) {
-		t.Error("expected isOriginAllowed to return true when wsAllowAll is true")
-	}
-}
-
 func TestIsOriginAllowed_EmptyOrigin(t *testing.T) {
 	handler, _, _, _, _, _ := createTestHandler()
-	handler.wsAllowAll = false
 	handler.wsAllowedOrigins = []string{"http://allowed.com"}
 
 	req := httptest.NewRequest(http.MethodGet, "/ws", nil)
@@ -47,7 +34,6 @@ func TestIsOriginAllowed_EmptyOrigin(t *testing.T) {
 
 func TestIsOriginAllowed_MatchingOrigin(t *testing.T) {
 	handler, _, _, _, _, _ := createTestHandler()
-	handler.wsAllowAll = false
 	handler.wsAllowedOrigins = []string{"http://allowed.com", "http://also-allowed.com"}
 
 	req := httptest.NewRequest(http.MethodGet, "/ws", nil)
@@ -60,7 +46,6 @@ func TestIsOriginAllowed_MatchingOrigin(t *testing.T) {
 
 func TestIsOriginAllowed_CaseInsensitiveMatch(t *testing.T) {
 	handler, _, _, _, _, _ := createTestHandler()
-	handler.wsAllowAll = false
 	handler.wsAllowedOrigins = []string{"http://ALLOWED.com"}
 
 	req := httptest.NewRequest(http.MethodGet, "/ws", nil)
@@ -73,7 +58,6 @@ func TestIsOriginAllowed_CaseInsensitiveMatch(t *testing.T) {
 
 func TestIsOriginAllowed_NonMatchingOrigin(t *testing.T) {
 	handler, _, _, _, _, _ := createTestHandler()
-	handler.wsAllowAll = false
 	handler.wsAllowedOrigins = []string{"http://allowed.com"}
 
 	req := httptest.NewRequest(http.MethodGet, "/ws", nil)
@@ -86,7 +70,6 @@ func TestIsOriginAllowed_NonMatchingOrigin(t *testing.T) {
 
 func TestIsOriginAllowed_WhitespaceOrigin(t *testing.T) {
 	handler, _, _, _, _, _ := createTestHandler()
-	handler.wsAllowAll = false
 	handler.wsAllowedOrigins = []string{"http://allowed.com"}
 
 	req := httptest.NewRequest(http.MethodGet, "/ws", nil)
@@ -171,87 +154,6 @@ func TestEventBufferLimits_ReturnsValidLimits(t *testing.T) {
 	}
 }
 
-// ============================================================================
-// AI Handler Delegation Tests
-// ============================================================================
-
-func TestTakePreviewScreenshot_DelegatesToHandler(t *testing.T) {
-	handler, _, _, _, _, _ := createTestHandler()
-
-	// Initialize AI subhandlers (nil in basic test handler)
-	// These will panic if called on nil, but we just want to verify delegation
-	// In production, these are initialized in NewHandlerWithDeps
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/screenshot", nil)
-	rr := httptest.NewRecorder()
-
-	// This will panic because screenshotHandler is nil, but that's expected
-	// We're testing that the method exists and attempts delegation
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic when screenshotHandler is nil")
-		}
-	}()
-
-	handler.TakePreviewScreenshot(rr, req)
-}
-
-func TestGetDOMTree_DelegatesToHandler(t *testing.T) {
-	handler, _, _, _, _, _ := createTestHandler()
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/dom", nil)
-	rr := httptest.NewRecorder()
-
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic when domHandler is nil")
-		}
-	}()
-
-	handler.GetDOMTree(rr, req)
-}
-
-func TestAnalyzeElements_DelegatesToHandler(t *testing.T) {
-	handler, _, _, _, _, _ := createTestHandler()
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/elements", nil)
-	rr := httptest.NewRecorder()
-
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic when elementAnalysisHandler is nil")
-		}
-	}()
-
-	handler.AnalyzeElements(rr, req)
-}
-
-func TestGetElementAtCoordinate_DelegatesToHandler(t *testing.T) {
-	handler, _, _, _, _, _ := createTestHandler()
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/element-at", nil)
-	rr := httptest.NewRecorder()
-
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic when elementAnalysisHandler is nil")
-		}
-	}()
-
-	handler.GetElementAtCoordinate(rr, req)
-}
-
-func TestAIAnalyzeElements_DelegatesToHandler(t *testing.T) {
-	handler, _, _, _, _, _ := createTestHandler()
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/analyze", nil)
-	rr := httptest.NewRecorder()
-
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic when aiAnalysisHandler is nil")
-		}
-	}()
-
-	handler.AIAnalyzeElements(rr, req)
-}
+// AI helper delegation tests were removed in the Phase 9 migration of AI
+// endpoints to AIService (Connect-RPC). Coverage now lives in
+// handlers/ai_service/service_test.go.

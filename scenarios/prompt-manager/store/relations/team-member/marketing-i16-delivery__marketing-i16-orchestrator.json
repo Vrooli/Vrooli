@@ -1,0 +1,10 @@
+{
+  "kind": "team-member",
+  "schemaVersion": 1,
+  "teamId": "marketing-i16-delivery",
+  "agentId": "marketing-i16-orchestrator",
+  "roles": [
+    "orchestrator"
+  ],
+  "status": "active"
+}

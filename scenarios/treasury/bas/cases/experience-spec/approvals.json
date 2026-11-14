@@ -1,0 +1,50 @@
+{
+  "metadata": {
+    "name": "experience-approvals-spec-smoke",
+    "description": "Generated observer smoke for active experience page approvals.",
+    "requirement": "OT-P0-006",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "approvals",
+      "surface": "experience-approvals"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-approvals",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "treasury",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Approvals"
+        }
+      }
+    },
+    {
+      "id": "wait-approvals-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.approvals",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Approvals page visible"
+        }
+      }
+    }
+  ]
+}

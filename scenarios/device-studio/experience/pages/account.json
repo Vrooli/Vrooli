@@ -1,0 +1,175 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "account",
+    "title": "Account and providers",
+    "routes": [
+      "/settings/account"
+    ],
+    "purpose": "Separate local operator access, optional Vrooli account linking, provider credentials and funding while keeping local authoring available.",
+    "prd_refs": [
+      "OT-P0-010",
+      "OT-P0-011",
+      "OT-P0-012"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Understand local identity versus optional cloud account."
+    },
+    {
+      "statement": "Connect only the account/provider needed for the intended operation."
+    },
+    {
+      "statement": "See balance, authority and credential health without exposing secrets."
+    }
+  ],
+  "states": [
+    {
+      "id": "idle",
+      "description": "No operation is pending; identify the current task and available next action."
+    },
+    {
+      "id": "pending",
+      "description": "Work is acknowledged and queued or in flight with observed progress or an honest indeterminate state."
+    },
+    {
+      "id": "retrying",
+      "description": "A safe retry is actively reconciling or executing without blind duplicate side effects."
+    },
+    {
+      "id": "default",
+      "description": "Explain the current task, saved revision and next meaningful action."
+    },
+    {
+      "id": "loading",
+      "description": "Name what is loading; retain stable layout and existing local content."
+    },
+    {
+      "id": "submitting",
+      "description": "Acknowledge the requested operation once and prevent duplicate costly submissions."
+    },
+    {
+      "id": "saving",
+      "description": "Distinguish local draft changes from durably saved revision; never claim saved early."
+    },
+    {
+      "id": "syncing",
+      "description": "Explain local versus remote state and conflict resolution without silently overwriting edits."
+    },
+    {
+      "id": "refreshing",
+      "description": "Retain usable content and identify the specific information being refreshed."
+    },
+    {
+      "id": "empty",
+      "description": "Explain why there is no content and offer a relevant low-risk first action."
+    },
+    {
+      "id": "partial",
+      "description": "Show which inputs, output or services are available and which remain incomplete."
+    },
+    {
+      "id": "stale",
+      "description": "Show age, affected decisions and explicit refresh; never silently spend on refresh."
+    },
+    {
+      "id": "success",
+      "description": "Confirm the concrete durable result and offer inspection or the next task."
+    },
+    {
+      "id": "validation-error",
+      "description": "Associate actionable correction with each invalid field while preserving input."
+    },
+    {
+      "id": "request-error",
+      "description": "Explain the failed operation, preserved work and safe next action with diagnostic reference."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Identify the unavailable operation and authority boundary without requesting unrelated access."
+    },
+    {
+      "id": "offline",
+      "description": "Keep supported local work usable; mark online operations unavailable and never auto-submit paid work on reconnect."
+    },
+    {
+      "id": "retry",
+      "description": "Explain whether retry reuses an operation identity, reconciles prior work or starts a newly authorized operation."
+    },
+    {
+      "id": "signed-out",
+      "description": "Local authoring works; explain optional account-backed operations."
+    },
+    {
+      "id": "linking",
+      "description": "Show trusted destination, selected scope, callback progress and cancellation."
+    },
+    {
+      "id": "linked",
+      "description": "Show account identity and verified capabilities separately from unavailable paid execution."
+    },
+    {
+      "id": "expired",
+      "description": "Mark account operations unavailable and preserve local work while reauthentication occurs."
+    },
+    {
+      "id": "balance-stale",
+      "description": "Show age and unknown spendability until authoritative refresh."
+    },
+    {
+      "id": "credential-invalid",
+      "description": "Name provider connection issue without disclosing or echoing secret text."
+    },
+    {
+      "id": "integration-unavailable",
+      "description": "Explain a missing account/credit execution adapter honestly; do not present a successful dummy integration."
+    }
+  ],
+  "claims": [
+    {
+      "id": "account-intent-1",
+      "type": "custom",
+      "statement": "Local identity, cloud session, provider credential, entitlement, authoritative spendable balance and per-operation authority are separate visible concepts.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    },
+    {
+      "id": "account-intent-2",
+      "type": "custom",
+      "statement": "Account connection never authorizes external media upload or paid work by itself, and sign-out never erases local project data.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    }
+  ],
+  "x-route-status": "partially-implemented",
+  "x-design": {
+    "layout": "Keep local workspace identity and offline rendering first. Provide an optional desktop-owned Vrooli link card with separate local identity, verified link/account/scopes, remote availability and local disconnect state. Show provider funding and paid execution as unavailable until a supported delegation adapter exists.",
+    "controls": [
+      "Connect or switch the Vrooli business account through the desktop owner’s scoped browser PKCE flow; show cancellation and unavailable states",
+      "Refresh the owner-verified local link status for this installation and Device Studio audience",
+      "Disconnect locally through the declared local identity proof; report remote revocation only when its owner confirms it",
+      "Sign out of any website session separately from unlinking; preserve all local projects and shots",
+      "Show linked principal, selected business account, active verified link scopes, expiry/unavailable state, and funded AI as unavailable",
+      "Keep provider credentials, tokens, callbacks and account data out of shot JSON, localStorage and exported bundles"
+    ],
+    "details": [
+      "The account settings surface is being connected to the existing scenario-to-desktop auth IPC and LPBS desktop-link owner; no account success is inferred from a decoded lease or local UI state.",
+      "The LPBS local-link status endpoint is authoritative for the local-principal, installation, resource, account and scope relationship. The signed lease remains a separate credential and is not treated as ordinary bearer authorization.",
+      "Personal-local authoring and rendering remain usable offline and signed out. BYOK, credit-funded managed inference, local execution and credits-only entitlement stay distinct; this slice exposes no funded AI execution adapter.",
+      "Local disconnect clears the locally held lease even if remote revocation is unreachable. The UI must report remote revocation as uncertain unless the owner confirms it; it must never claim that local clearing revoked the remote link.",
+      "The desktop owner obtains local proof from the declared local identity provider, stores the durable installation identity in its existing private bootstrap state, and exposes only typed, sanitized status through trusted local IPC.",
+      "Connecting an account or key is not consent to upload project media or start AI calls."
+    ]
+  },
+  "x-requirements": [
+    "DS-COMMERCE-PERSONAL",
+    "DS-COMMERCE-LINK",
+    "DS-COMMERCE-FUNDING",
+    "DS-COMMERCE-PRICING",
+    "DS-SAFETY-DISCLOSURE"
+  ],
+  "x-evidence-policy": "No fake selectors, region bindings, setup hooks, captures or attestations. Planned controls are metadata until implemented and grounded."
+}

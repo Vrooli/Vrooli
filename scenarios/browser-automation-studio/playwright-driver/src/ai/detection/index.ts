@@ -6,7 +6,6 @@
 
 export {
   detectCaptcha,
-  createMockCaptchaDetector,
   NO_CAPTCHA_RESULT,
   type CaptchaDetectionResult,
 } from './captcha-detector';

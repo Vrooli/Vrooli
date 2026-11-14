@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "navigation.navigation-tree",
+  "deprecatedVersions": [
+    "1.1.4",
+    "1.1.6",
+    "1.1.5",
+    "1.1.7",
+    "1.1.0"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.1.6",
+    "1.1.4",
+    "1.1.5",
+    "1.1.7",
+    "1.1.0"
+  ],
+  "latest": "1.1.8",
+  "libraryId": "react-component-library:NavigationTree"
+}

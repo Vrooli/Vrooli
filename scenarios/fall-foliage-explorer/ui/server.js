@@ -20,7 +20,10 @@ if (typeof window !== 'undefined' && window.parent !== window && !window.__FALL_
     }
 }
 
-const PORT = process.env.UI_PORT || process.env.PORT || 3000;
+const PORT = requireConfiguredPort('UI_PORT');
+const API_PORT = requireConfiguredPort('API_PORT');
+const LOOPBACK_HOST = process.env.UI_API_HOST || '127.0.0.1';
+const LOOPBACK_PROTOCOL = process.env.UI_API_PROTOCOL || 'http';
 
 const mimeTypes = {
     '.html': 'text/html',
@@ -66,8 +69,67 @@ const ROOT_DIR = __dirname;
 const DIST_DIR = path.join(ROOT_DIR, 'dist');
 const SRC_DIR = path.join(ROOT_DIR, 'src');
 
+function requirePort(value, name) {
+    if (!value || !/^\d+$/.test(String(value))) {
+        throw new Error(`${name} must be configured with a numeric port by the Vrooli lifecycle`);
+    }
+    return String(value);
+}
+
+function requireConfiguredPort(name) {
+    return requirePort(process.env[name], name);
+}
+
+function setSecurityHeaders(res) {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-XSS-Protection', '0');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+}
+
+function injectProxyMetadata(content) {
+    const apiBase = `${LOOPBACK_PROTOCOL}://${LOOPBACK_HOST}:${API_PORT}`;
+    const metadata = `<script>window.__APP_MONITOR_PROXY_INFO__=${JSON.stringify({ apiBase })};</script>`;
+    return content.replace('</head>', `${metadata}</head>`);
+}
+
+function proxyToApi(req, res) {
+    const targetPath = req.url || '/api';
+    const options = {
+        hostname: LOOPBACK_HOST,
+        port: API_PORT,
+        path: targetPath,
+        method: req.method,
+        headers: {
+            ...req.headers,
+            host: `${LOOPBACK_HOST}:${API_PORT}`
+        },
+        timeout: 5000
+    };
+
+    const proxyReq = http.request(options, proxyRes => {
+        res.writeHead(proxyRes.statusCode || 502, proxyRes.headers);
+        proxyRes.pipe(res);
+    });
+
+    proxyReq.on('timeout', () => {
+        proxyReq.destroy(new Error('API proxy timed out'));
+    });
+
+    proxyReq.on('error', error => {
+        setSecurityHeaders(res);
+        res.writeHead(502, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            status: 'error',
+            error: 'API proxy unavailable',
+            detail: error.message
+        }));
+    });
+
+    req.pipe(proxyReq);
+}
+
 const server = http.createServer((req, res) => {
-    console.log(`${req.method} ${req.url}`);
+    setSecurityHeaders(res);
 
     // Health check endpoint for orchestrator
     if (req.url === '/health') {
@@ -78,6 +140,11 @@ const server = http.createServer((req, res) => {
             port: PORT,
             timestamp: new Date().toISOString()
         }));
+        return;
+    }
+
+    if (req.url && req.url.startsWith('/api/')) {
+        proxyToApi(req, res);
         return;
     }
 
@@ -108,6 +175,9 @@ const server = http.createServer((req, res) => {
                 res.writeHead(500);
                 res.end(`Server Error: ${error.code}`, 'utf-8');
             }
+        } else if (extname === '.html') {
+            res.writeHead(200, { 'Content-Type': contentType });
+            res.end(injectProxyMetadata(content.toString('utf-8')), 'utf-8');
         } else {
             res.writeHead(200, { 'Content-Type': contentType });
             res.end(content, 'utf-8');
@@ -116,5 +186,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-    console.log(`Fall Foliage Explorer UI running at http://localhost:${PORT}`);
+    console.log(`Fall Foliage Explorer UI running on port ${PORT}`);
 });

@@ -1,0 +1,31 @@
+{
+  "metadata": {
+    "name": "hello-mobile-smoke",
+    "description": "Types a deterministic value into hello-mobile, submits it, and verifies the visible derived response.",
+    "requirement": "HELLO-MOBILE-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "flow_id": "hello-mobile-smoke",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {"viewport_width": 412, "viewport_height": 915},
+  "nodes": [
+    {"id":"open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"hello-mobile","scenario_path":"/","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"Open Hello Mobile"}}},
+    {"id":"wait-title","action":{"type":"ACTION_TYPE_WAIT","wait":{"selector":"@selector/helloMobile.title","state":"WAIT_STATE_VISIBLE","timeout_ms":10000},"metadata":{"label":"Wait for fixture title"}}},
+    {"id":"input","action":{"type":"ACTION_TYPE_INPUT","input":{"selector":"@selector/helloMobile.input","value":"android","clear_first":true},"metadata":{"label":"Enter deterministic input"}}},
+    {"id":"dismiss-keyboard","action":{"type":"ACTION_TYPE_KEYBOARD","keyboard":{"key":"Escape","action":"KEY_ACTION_PRESS"},"metadata":{"label":"Dismiss the mobile keyboard"}}},
+    {"id":"submit","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/helloMobile.submit","scroll_into_view":true},"metadata":{"label":"Submit the fixture input"}}},
+    {"id":"assert-result","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/helloMobile.result","mode":"ASSERTION_MODE_TEXT_CONTAINS","expected":{"stringValue":"Result: DIORDNA"},"timeout_ms":10000,"failure_message":"Hello Mobile should render the deterministic transformed value"},"metadata":{"label":"Verify the visible response"}}}
+  ],
+  "edges": [
+    {"id":"edge-open-title","source":"open","target":"wait-title","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"edge-title-input","source":"wait-title","target":"input","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"edge-input-keyboard","source":"input","target":"dismiss-keyboard","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"edge-keyboard-submit","source":"dismiss-keyboard","target":"submit","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"edge-submit-assert","source":"submit","target":"assert-result","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}
+  ]
+}

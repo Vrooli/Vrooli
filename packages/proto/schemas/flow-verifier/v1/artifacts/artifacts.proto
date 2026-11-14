@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package vrooli.flow_verifier.v1.artifacts;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/artifacts;artifacts_v1";
+
+// =============================================================================
+// ARTIFACTS DOMAIN — codegen lifecycle
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain artifacts
+// @imports none (external only: google.protobuf.Timestamp)
+// @stability stable
+//
+// Wire contract for per-flow generated/ tree inspection, generation,
+// and clearing. Scenario-level generate is a server-streaming RPC on
+// ScenariosService — see scenarios.proto — so the UI renders per-flow
+// progress as messages arrive.
+// =============================================================================
+
+service ArtifactsService {
+  rpc GetArtifactStatus(GetArtifactStatusRequest) returns (GetArtifactStatusResponse);
+  rpc GenerateArtifacts(GenerateArtifactsRequest) returns (GenerateArtifactsResponse);
+  rpc ClearArtifacts(ClearArtifactsRequest) returns (ClearArtifactsResponse);
+}
+
+// ArtifactStatus describes the on-disk state of one flow's generated/
+// tree. STALE is reserved for the future content-hash comparison; v1
+// reports FRESH or MISSING.
+enum ArtifactStatus {
+  ARTIFACT_STATUS_UNSPECIFIED = 0;
+  ARTIFACT_STATUS_FRESH = 1;
+  ARTIFACT_STATUS_MISSING = 2;
+  ARTIFACT_STATUS_STALE = 3;
+}
+
+// ArtifactFile is one row in the artifacts inspection response.
+message ArtifactFile {
+  // Path relative to the scenario root.
+  string path = 1;
+  bool exists = 2;
+  // Size in bytes; zero when the file is absent.
+  int64 size = 3;
+  // Last-modified timestamp; unset when the file is absent.
+  google.protobuf.Timestamp mtime = 4;
+}
+
+// ArtifactReport is the per-flow inspection result.
+message ArtifactReport {
+  string flow_id = 1;
+  // Scenario root containing this flow.
+  string scenario_path = 2;
+  // Absolute generated dir path; useful for CLI text output.
+  string generated_dir = 3;
+  ArtifactStatus status = 4;
+  repeated ArtifactFile files = 5;
+  // Subset of files[*].path with exists=false. Drives the UI's
+  // "Generate" CTA copy.
+  repeated string missing = 6;
+}
+
+message GetArtifactStatusRequest {
+  string flow_id = 1;
+  // Optional. When set, narrows discovery to this scenario.
+  string scenario_id = 2;
+  // Optional Vrooli root override; falls back to server default.
+  string root = 3;
+}
+message GetArtifactStatusResponse {
+  ArtifactReport report = 1;
+}
+
+message GenerateArtifactsRequest {
+  string flow_id = 1;
+  string scenario_id = 2;
+  string root = 3;
+}
+message GenerateArtifactsResponse {
+  ArtifactReport report = 1;
+  // ID of the runs.Run row recorded by the generation. Empty when
+  // generation was a no-op (everything already fresh).
+  string run_id = 2;
+}
+
+message ClearArtifactsRequest {
+  string flow_id = 1;
+  string scenario_id = 2;
+  string root = 3;
+}
+message ClearArtifactsResponse {
+  string flow_id = 1;
+  // Paths the clear removed, relative to the scenario root.
+  repeated string removed = 2;
+}

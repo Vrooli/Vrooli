@@ -129,9 +129,6 @@ func applyTemplateUpdates(base *Template, updates *Template) {
 	if updates.SuggestedSkillIDs != nil {
 		base.SuggestedSkillIDs = updates.SuggestedSkillIDs
 	}
-	if updates.SuggestedToolIDs != nil {
-		base.SuggestedToolIDs = updates.SuggestedToolIDs
-	}
 	// Always apply Draft (boolean field)
 	base.Draft = updates.Draft
 }

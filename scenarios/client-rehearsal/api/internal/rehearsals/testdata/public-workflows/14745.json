@@ -1,0 +1,195 @@
+{
+  "nodes": [
+    {
+      "id": "5756a95d-b6ff-4a78-b4c6-7ad6bc8733b8",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        -544,
+        -16
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "daysInterval": 4
+            }
+          ]
+        }
+      },
+      "typeVersion": 1.3
+    },
+    {
+      "id": "0698ceea-1ea3-4606-a905-d13d6effb299",
+      "name": "Create a row",
+      "type": "n8n-nodes-base.supabase",
+      "position": [
+        560,
+        16
+      ],
+      "parameters": {
+        "tableId": "ping",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "source-supabaseApi",
+          "name": "Public source supabaseApi"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "c0084d94-d281-4de2-842d-2a1367024c05",
+      "name": "When clicking ‘Execute workflow’",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        -544,
+        176
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "a7230917-3e63-4dae-b49a-9d602275e0b4",
+      "name": "Code in JavaScript",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -304,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return Array.from({ length: 25 }, () => ({\n  json: {\n    value: 1\n  }\n}));"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "826f8668-07d9-457f-b762-3539680e5647",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [
+        32,
+        0
+      ],
+      "parameters": {
+        "options": {}
+      },
+      "typeVersion": 3
+    },
+    {
+      "id": "851b0d53-ce1a-44ca-bb8a-f4c0724569af",
+      "name": "Code in JavaScript1",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        240,
+        16
+      ],
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  return {\n    json: {\n      ...item.json,\n      seconds: Math.floor(Math.random() * (60 - 20 + 1)) + 20\n    }\n  };\n});"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "2ca743c9-5595-4468-85f3-53ce577074d0",
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "position": [
+        384,
+        16
+      ],
+      "parameters": {
+        "amount": "={{ $json.seconds }}"
+      },
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "name": "Keep Supabase free plan projects alive with scheduled database pings",
+  "active": false
+}

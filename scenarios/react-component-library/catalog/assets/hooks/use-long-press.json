@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-long-press",
+    "name": "useLongPress",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A token-backed long-press hook with movement tolerance, pointer cancellation, origin capture, and click/context-menu coordination.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "hook",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.gesture-direction",
+        "reason": "Pointer capture uses the shared gesture capability helper."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "gesture-alternative",
+    "pointer-independence",
+    "keyboard-operable"
+  ]
+}

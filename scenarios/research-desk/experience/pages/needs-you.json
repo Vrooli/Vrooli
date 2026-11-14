@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "needs-you",
+    "title": "Needs you",
+    "routes": [
+      "/needs-you"
+    ],
+    "purpose": "One feed of everything supervisors are waiting on, answered with the offered options or in the operator's own words, with delivery status and the reason an item was not sent.",
+    "prd_refs": [
+      "OT-P0-006"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "Collapsed rows (title, where it came from, delivery state, recommended answer) that open on tap; a link to commission plus ID scrolls to the item and opens it; answered items show the answer and whether the supervisor has read it; an item whose ID was already answered or delivered reads 'ID reused, not delivered' and offers no answer; a global item without a commission says what to do and links where it is answered; an older-format list is a row in the same feed, readable on tap, never sent or answerable, and counted with the items; files that cannot be read are listed, never shown as an empty feed; the courier's real state and its confirmed self-test; with items open and nothing delivered, one warning line."
+    },
+    {
+      "id": "empty",
+      "description": "Nothing is waiting for the operator."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The desk is not authorized: a banner says answers cannot be recorded until it is, and answer buttons are disabled."
+    },
+    {
+      "id": "submitting",
+      "description": "The confirm dialog shows the exact entry from the API's dry run, where it is appended and when it is read, and stays open on failure with the API's reason."
+    },
+    {
+      "id": "request-error",
+      "description": "The API cannot be reached or refused the read; the page names which and offers retry, and nothing else on the page pretends to know."
+    },
+    {
+      "id": "loading",
+      "description": "The page announces that it is reading the research home; nothing is shown as known until it is."
+    },
+    {
+      "id": "partial",
+      "description": "An optional scenario is down: only the values it feeds read unknown, each with the reason; everything read from files is still shown."
+    },
+    {
+      "id": "stale",
+      "description": "A refresh failed after a good read: the earlier read stays on screen under a 'Not current' notice with its time and the reason."
+    }
+  ]
+}

@@ -14,7 +14,7 @@
  * - Resizable width with persistence
  */
 
-import { useEffect, useCallback, useMemo, useRef } from 'react';
+import { Profiler, useEffect, useCallback, useMemo, useRef } from 'react';
 import { X } from 'lucide-react';
 import { TimelineTab, type TimelineTabProps } from './TimelineTab';
 import { AutoTab, type AutoTabProps } from './AutoTab';
@@ -22,6 +22,7 @@ import { ArtifactsTab, type ArtifactsTabProps } from './ArtifactsTab';
 import { HistoryTab, type HistoryTabProps } from './HistoryTab';
 import { useUnifiedSidebar, type UseUnifiedSidebarOptions } from './useUnifiedSidebar';
 import { getVisibleTabs, isTabVisible, getDefaultTab, type TabId, type ArtifactSubType } from './types';
+import { onProfilerRender } from '@/lib/profiler';
 import type { TimelineMode } from '../types/timeline-unified';
 
 // ============================================================================
@@ -64,7 +65,7 @@ export type HistoryTabPassthroughProps = Omit<HistoryTabProps, 'className'>;
 
 export interface UnifiedSidebarProps {
   /** Current mode (determines which tabs are visible) */
-  mode: TimelineMode;
+  mode?: TimelineMode;
   /** Props to pass through to TimelineTab */
   timelineProps: TimelineTabPassthroughProps;
   /** Props to pass through to AutoTab */
@@ -96,7 +97,7 @@ export interface UnifiedSidebarProps {
 // ============================================================================
 
 export function UnifiedSidebar({
-  mode,
+  mode = 'recording',
   timelineProps,
   autoProps,
   artifactsProps,
@@ -291,6 +292,7 @@ export function UnifiedSidebar({
   }
 
   return (
+    <Profiler id="UnifiedSidebar" onRender={onProfilerRender}>
     <div
       className={`relative flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 ${className}`}
       style={{ width: `${width}px`, minWidth: `${width}px` }}
@@ -353,6 +355,7 @@ export function UnifiedSidebar({
         aria-valuenow={width}
       />
     </div>
+    </Profiler>
   );
 }
 

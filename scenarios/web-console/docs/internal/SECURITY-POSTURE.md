@@ -4,7 +4,7 @@
 2026-02-19
 
 ## Trust Model
-Web console is designed for single-operator use on a personal Vrooli server. It runs behind an authenticated parent scenario's proxy — the console itself performs **no authentication or authorization**. This is by design ([CODE: api/main.go], PRD non-goals).
+Web Console is designed for single-operator use on a personal Vrooli server. Its API applies `authn.UIAvailabilityFallback` to every request and treats each caller as an operator when the request reaches the scenario. The API does not enforce effective identity or capability restrictions. This keeps UI actions available during identity-provider or scope failures and intentionally allows any caller that can reach the API to use operator-level features.
 
 ## Hardening Status by Category
 
@@ -16,10 +16,9 @@ Web console is designed for single-operator use on a personal Vrooli server. It 
 Status: **hardened** (for single-operator model)
 
 ### Authentication & Authorization
-- [ ] No auth middleware — delegated to parent proxy
-- [ ] No session ownership enforcement (single operator)
-- [ ] No RBAC or permission checks
-Status: **by-design** — auth is parent's responsibility. If web-console is ever exposed directly, auth must be added.
+- [x] API records provider identity status, then applies a synthetic `ui_fail_open` operator principal with wildcard scopes to every request.
+- [ ] No effective session ownership or role restriction at the API boundary; any caller that reaches the API can perform operator-level actions.
+Status: **fail-open by operator preference**. The parent proxy is the remaining access boundary. Exposing Web Console outside that boundary grants callers full operator access.
 
 ### Input Validation
 - [x] All JSON request bodies decoded with size limits (1MB default via api-core)
@@ -56,8 +55,28 @@ Status: **hardened** — verified in [CODE: api/shortcut_profiles_pg.go] and [CO
 - [ ] No command injection surface — user input goes to PTY stdin, not shell exec
 Status: **hardened** — PTY is the intended execution surface, not a vulnerability
 
+### Local File Preview (file-preview subsystem)
+- [x] Blob route accepts only an opaque, session-bound `preview_id` — never a raw path query string. Directory traversal is impossible because path resolution + classification happen before id issuance.
+- [x] Preview ids are short-lived (`DefaultTTL` 30m) and expire; a session mismatch, unknown, or expired id all return 404 (no existence oracle).
+- [x] The blob handler re-stats the file on every request and returns 409 if size/mtime changed since resolve, 404 if deleted — a swapped file is never served under a stale id.
+- [x] Responses set `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`, an explicit resolved `Content-Type`, and `Content-Disposition: attachment` for download-only (unsupported) kinds.
+- [x] SVG is served as `image/svg+xml` and rendered via a blob URL in `<img>`, never injected into the DOM (no `dangerouslySetInnerHTML`), so it cannot execute as page script.
+- [x] HTML interactive previews use a short-lived, session-bound runtime URL. The document and relative CSS/JS/media resources are confined to the resolved HTML directory; traversal, absolute paths, disallowed resource types, and symlink escapes are rejected. The iframe remains opaque-origin sandboxed (`allow-scripts` only), with network/API access blocked by CSP. Runtime documents omit `frame-ancestors` because framing is intentionally supported through reverse proxies/tunnels and the sandboxed capability has no credentials, parent access, forms, navigation, or network access.
+- [x] Filesystem permissions remain the only access gate — consistent with the single-operator trust model. The preview surface discloses no more path information than the already-visible resolved path the operator clicked.
+
+Status: **hardened for the single-operator model.** Note for a future multi-user posture: the resolver intentionally previews any file the operator's process can read (e.g. `~/.vrooli`, configs). If web-console is ever exposed multi-user, the blob/resolve surface must gain the same auth layer as the rest of the API — the opaque-id + session-binding shape was chosen so that auth can be added without redesign.
+
 ## Known Vulnerabilities
-None identified. The primary security boundary is the parent proxy — if bypassed, an unauthenticated user could create terminal sessions on the host.
+
+### Remote desktop pane
+
+The browser receives only short-lived, session-scoped WebRTC material from
+Bridge. Credentials are never displayed or persisted. Pointer/keyboard,
+semantic actions, and clipboard writes are disabled unless the server grants
+the current controller lease; viewer panes are read-only. Frames and
+clipboard contents are not logged. A revoked/expired session must stop media
+and input immediately.
+None identified. The primary security boundary is the parent proxy — if bypassed, an unauthenticated user could create terminal sessions on the host (and, via the file-preview resolver, read any file that host process can read — see Local File Preview above).
 
 ## Priority Hardening Areas
 1. **If direct exposure is ever needed**: Add JWT or session-based auth middleware

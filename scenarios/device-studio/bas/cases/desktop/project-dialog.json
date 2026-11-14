@@ -1,0 +1,173 @@
+{
+  "edges": [
+    {
+      "id": "e1",
+      "source": "wait-projects",
+      "target": "remember-saved-projects"
+    },
+    {
+      "id": "e2",
+      "source": "remember-saved-projects",
+      "target": "open-new-project"
+    },
+    {
+      "id": "e3",
+      "source": "open-new-project",
+      "target": "wait-name-input"
+    },
+    {
+      "id": "e4",
+      "source": "wait-name-input",
+      "target": "type-project-name"
+    },
+    {
+      "id": "e5",
+      "source": "type-project-name",
+      "target": "verify-dialog-input"
+    },
+    {
+      "id": "e6",
+      "source": "verify-dialog-input",
+      "target": "capture-dialog"
+    },
+    {
+      "id": "e7",
+      "source": "capture-dialog",
+      "target": "cancel-dialog"
+    },
+    {
+      "id": "e8",
+      "source": "cancel-dialog",
+      "target": "wait-dialog-closed"
+    },
+    {
+      "id": "e9",
+      "source": "wait-dialog-closed",
+      "target": "verify-no-project-created"
+    }
+  ],
+  "metadata": {
+    "description": "Exercise the packaged project dialog with real pointer/keyboard input and cancel without persisting project changes. Starts on the target-owned Projects renderer.",
+    "execution_mode": "mutating",
+    "labels": {
+      "desktop_target": "true",
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true",
+      "surface": "projects",
+      "required": "true"
+    },
+    "name": "desktop-project-dialog-input",
+    "requirement": "DS-DESKTOP-PACKAGE",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"projects-create-button\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        }
+      },
+      "id": "wait-projects"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() => { const root=document.querySelector('[data-testid=\"projects-surface\"]'); if(!root)throw new Error('Project workspace missing'); if(root.querySelector('[role=alert]'))throw new Error('Project surface has an error'); window.__nativeProjectLinks=[...root.querySelectorAll('a[href^=\"/projects/\"]')].map(a=>a.getAttribute('href')); return {projectLinks:window.__nativeProjectLinks,heading:root.querySelector('h1')?.textContent};})()",
+          "store_result": "initial_projects"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "remember-saved-projects"
+    },
+    {
+      "action": {
+        "click": {
+          "scroll_into_view": true,
+          "selector": "[data-testid=\"projects-create-button\"]"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "open-new-project"
+    },
+    {
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[role=\"dialog\"] [data-testid=\"projects-name-input\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        }
+      },
+      "id": "wait-name-input"
+    },
+    {
+      "action": {
+        "input": {
+          "clear_first": true,
+          "selector": "[data-testid=\"projects-name-input\"]",
+          "submit": false,
+          "value": "Native input verification"
+        },
+        "type": "ACTION_TYPE_INPUT"
+      },
+      "id": "type-project-name"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() => {const dialog=document.querySelector('[role=\"dialog\"]');const input=dialog?.querySelector('[data-testid=\"projects-name-input\"]');const submit=dialog?.querySelector('[data-testid=\"confirm-create-project\"]');if(input?.value!=='Native input verification'||!submit||submit.disabled)throw new Error('Native text input or form validation did not respond');return {typedValue:input.value,submitEnabled:!submit.disabled,projectNotSubmitted:true};})()",
+          "store_result": "native_input_response"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "verify-dialog-input"
+    },
+    {
+      "action": {
+        "screenshot": {
+          "full_page": false
+        },
+        "type": "ACTION_TYPE_SCREENSHOT"
+      },
+      "id": "capture-dialog"
+    },
+    {
+      "action": {
+        "keyboard": {
+          "key": "Escape"
+        },
+        "type": "ACTION_TYPE_KEYBOARD"
+      },
+      "id": "cancel-dialog"
+    },
+    {
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[role=\"dialog\"]",
+          "state": "WAIT_STATE_HIDDEN",
+          "timeout_ms": 10000
+        }
+      },
+      "id": "wait-dialog-closed"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() => {const root=document.querySelector('[data-testid=\"projects-surface\"]');const links=[...root.querySelectorAll('a[href^=\"/projects/\"]')].map(a=>a.getAttribute('href'));if(JSON.stringify(links)!==JSON.stringify(window.__nativeProjectLinks))throw new Error('Unsaved dialog changed the project list');if(document.activeElement?.getAttribute('data-testid')!=='projects-create-button')throw new Error('Dialog did not restore keyboard focus');return {projectLinks:links,unchanged:true,focusRestored:true};})()",
+          "store_result": "native_cancel_response"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "verify-no-project-created"
+    }
+  ],
+  "settings": {
+    "viewport_height": 900,
+    "viewport_width": 1440
+  }
+}

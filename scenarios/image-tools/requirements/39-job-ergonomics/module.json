@@ -1,0 +1,95 @@
+{
+  "_metadata": {
+    "description": "Job ergonomics: waits that survive the write deadline, request/result echo, result download, typed JSON submit, a role flag, and a network lane for remote tiers.",
+    "module": "job-ergonomics",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "JOB-001",
+      "title": "Waits outlive the server write deadline",
+      "status": "complete",
+      "prd_ref": "OT-P0-018",
+      "category": "jobs",
+      "criticality": "P0",
+      "description": "WaitJob and WatchJob clear their per-request write deadline, and the CLI waits with no client timeout, re-issuing WaitJob once on Unavailable. A regression test serves the handler with a short write timeout and a slow fake provider.",
+      "tags": [
+        "jobs",
+        "reliability"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "api",
+          "status": "passing",
+          "notes": "handlers/jobs wait-deadline regression; internal/jobs network-lane test; live six-way parallel waits, jobs get echo, jobs download, typed --json submit, --role."
+        }
+      ]
+    },
+    {
+      "id": "JOB-002",
+      "title": "Job echoes its request and every result ref",
+      "status": "complete",
+      "prd_ref": "OT-P0-017",
+      "category": "jobs",
+      "criticality": "P0",
+      "description": "The Job message carries a JobRequest (operation, model_id, backend, tier, role, prompt, negative_prompt, seed, width, height, variations, adapters) and repeated result_refs, populated from the stored payload; every variation output key is persisted, not only the first.",
+      "tags": [
+        "jobs",
+        "proto"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "proto",
+          "status": "passing",
+          "notes": "handlers/jobs wait-deadline regression; internal/jobs network-lane test; live six-way parallel waits, jobs get echo, jobs download, typed --json submit, --role."
+        }
+      ]
+    },
+    {
+      "id": "JOB-003",
+      "title": "jobs download and typed JSON submit",
+      "status": "complete",
+      "prd_ref": "OT-P0-017",
+      "category": "jobs",
+      "criticality": "P0",
+      "description": "jobs download <id> [--index N] --out fetches a result through the blob endpoint; --json submit emits the typed SubmitAIResponse (job_id, estimated_seconds, model_id, tier, warnings); a --role flag maps to AIParams.openrouter_role.",
+      "tags": [
+        "jobs",
+        "cli"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "handlers/jobs wait-deadline regression; internal/jobs network-lane test; live six-way parallel waits, jobs get echo, jobs download, typed --json submit, --role."
+        }
+      ]
+    },
+    {
+      "id": "JOB-004",
+      "title": "Remote tiers run on a network lane",
+      "status": "complete",
+      "prd_ref": "OT-P0-018",
+      "category": "jobs",
+      "criticality": "P0",
+      "description": "JOB_LANE_NETWORK with a bounded worker pool (IMAGE_TOOLS_NETWORK_WORKERS, default 4) carries remote and byok-cloud tiers so they never queue behind the single local GPU worker; the selector stops emitting the CPU warning and CPU ETA for remote backends; fallback_policy is forwarded into the resolver.",
+      "tags": [
+        "jobs",
+        "scheduling"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "handlers/jobs wait-deadline regression; internal/jobs network-lane test; live six-way parallel waits, jobs get echo, jobs download, typed --json submit, --role."
+        }
+      ]
+    }
+  ]
+}

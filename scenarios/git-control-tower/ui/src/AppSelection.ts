@@ -2,6 +2,23 @@ import type { LayoutSection } from "./components/LayoutSettingsModal";
 
 export const layoutOrder: LayoutSection[] = ["changes", "history", "diff", "commit"];
 
+/** Allocate each sidebar slot from the remaining panels. In particular,
+ * choosing Commit as the main panel must leave Diff reachable in the stack. */
+export function selectStackSlots(primary: LayoutSection) {
+  const remaining = new Set(layoutOrder.filter(section => section !== primary));
+  const take = (preferred: LayoutSection, last = false): LayoutSection => {
+    const candidates = Array.from(remaining);
+    const chosen = remaining.has(preferred) ? preferred : candidates[last ? candidates.length - 1 : 0];
+    if (!chosen) throw new Error("Workspace layout requires three distinct stack panels");
+    remaining.delete(chosen);
+    return chosen;
+  };
+  const middle = take(remaining.has("history") ? "history" : "diff");
+  const bottom = take("commit", true);
+  const top = take("changes");
+  return { top, middle, bottom };
+}
+
 export type SelectionEntry = { path: string; staged: boolean };
 
 /** Pure helper: compute the next selection given a mode ("single" | "toggle" | "range"). */

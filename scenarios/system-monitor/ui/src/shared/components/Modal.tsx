@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { X } from 'lucide-react';
-import { useEscapeKey } from '../hooks/useEscapeKey';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface ModalProps {
   isOpen: boolean;
@@ -19,7 +19,7 @@ export const Modal = ({ isOpen, onClose, children, className, ariaLabel }: Modal
   useEscapeKey(onClose, isOpen);
 
   const handleOverlayClick = useCallback((e: React.MouseEvent) => {
-    if (contentRef.current && !contentRef.current.contains(e.target as Node)) {
+    if (contentRef.current && e.target instanceof Node && !contentRef.current.contains(e.target)) {
       onClose();
     }
   }, [onClose]);
@@ -51,7 +51,7 @@ interface ModalHeaderProps {
 
 export const ModalHeader = ({ children, onClose }: ModalHeaderProps) => (
   <div className="modal-header">
-    <div style={{ flex: 1 }}>{children}</div>
+    <div data-sm-style="sm-style-634a28bea4">{children}</div>
     <button className="modal-close" onClick={onClose} type="button" aria-label="Close">
       <X size={20} />
     </button>

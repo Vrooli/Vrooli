@@ -1,0 +1,313 @@
+syntax = "proto3";
+
+package vrooli.tech_tree_designer.v1.ontology;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/tech-tree-designer/v1/ontology;ontology_v1";
+
+// =============================================================================
+// ONTOLOGY DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Top-down capability ontology for Tech Tree Designer. Capabilities are
+// authorable independently from live or planned scenarios and are joined to the
+// scenario graph through binary fulfillment links.
+// =============================================================================
+
+service OntologyService {
+  rpc ListCapabilities(ListCapabilitiesRequest) returns (ListCapabilitiesResponse);
+  rpc GetCapability(GetCapabilityRequest) returns (Capability);
+  rpc UpsertCapability(UpsertCapabilityRequest) returns (Capability);
+  rpc DeleteCapability(DeleteCapabilityRequest) returns (DeleteCapabilityResponse);
+  rpc UpsertCapabilityEdge(UpsertCapabilityEdgeRequest) returns (CapabilityEdge);
+  rpc DeleteCapabilityEdge(DeleteCapabilityEdgeRequest) returns (DeleteCapabilityEdgeResponse);
+  rpc ImportTopology(ImportTopologyRequest) returns (ImportTopologyResponse);
+  rpc LinkFulfillment(LinkFulfillmentRequest) returns (Fulfillment);
+  rpc UnlinkFulfillment(UnlinkFulfillmentRequest) returns (UnlinkFulfillmentResponse);
+  rpc ListFulfillments(ListFulfillmentsRequest) returns (ListFulfillmentsResponse);
+  rpc GetCoverage(GetCoverageRequest) returns (CoverageSummary);
+  rpc ListFocus(ListFocusRequest) returns (ListFocusResponse);
+  rpc GetCapabilityScenarios(GetCapabilityScenariosRequest) returns (CapabilityScenarios);
+  rpc GetScenarioCapabilities(GetScenarioCapabilitiesRequest) returns (ScenarioCapabilities);
+  rpc DescribeOverlayGraph(DescribeOverlayGraphRequest) returns (DescribeOverlayGraphResponse);
+}
+
+message Capability {
+  string id = 1;
+  string slug = 2;
+  string name = 3;
+  string description = 4;
+  CapabilityKind kind = 5;
+  string parent_id = 6;
+  int32 sort_order = 7;
+  double importance = 8;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+message CapabilityEdge {
+  string from_id = 1;
+  string to_id = 2;
+  CapabilityEdgeType type = 3;
+}
+
+message Fulfillment {
+  string capability_id = 1;
+  string scenario_slug = 2;
+  string note = 3;
+  string created_at = 4;
+}
+
+message ListCapabilitiesRequest {
+  string parent_id = 1;
+  CapabilityKind kind = 2;
+  bool include_descendants = 3;
+}
+
+message ListCapabilitiesResponse {
+  repeated Capability capabilities = 1;
+}
+
+message GetCapabilityRequest {
+  string id = 1;
+  string slug = 2;
+}
+
+message UpsertCapabilityRequest {
+  Capability capability = 1;
+}
+
+message DeleteCapabilityRequest {
+  string id = 1;
+  string slug = 2;
+}
+
+message DeleteCapabilityResponse {
+  bool deleted = 1;
+}
+
+message UpsertCapabilityEdgeRequest {
+  CapabilityEdge edge = 1;
+}
+
+message DeleteCapabilityEdgeRequest {
+  CapabilityEdge edge = 1;
+}
+
+message DeleteCapabilityEdgeResponse {
+  bool deleted = 1;
+}
+
+message ImportTopologyRequest {
+  string json = 1;
+}
+
+message ImportTopologyResponse {
+  int32 sectors_imported = 1;
+  int32 capabilities_imported = 2;
+  int32 edges_imported = 3;
+  int32 sectors_total = 4;
+  int32 capabilities_total = 5;
+  int32 edges_total = 6;
+}
+
+message LinkFulfillmentRequest {
+  Fulfillment fulfillment = 1;
+}
+
+message UnlinkFulfillmentRequest {
+  string capability_id = 1;
+  string scenario_slug = 2;
+}
+
+message UnlinkFulfillmentResponse {
+  bool deleted = 1;
+}
+
+message ListFulfillmentsRequest {
+  string capability_id = 1;
+  string scenario_slug = 2;
+}
+
+message ListFulfillmentsResponse {
+  repeated Fulfillment fulfillments = 1;
+}
+
+message GetCoverageRequest {
+  bool include_subtree_rollup = 1;
+}
+
+message CoverageSummary {
+  int32 built_capabilities = 1;
+  int32 inflight_capabilities = 2;
+  int32 gap_capabilities = 3;
+  int32 unmapped_scenarios = 4;
+  int32 total_capabilities = 5;
+  int32 total_scenarios = 6;
+  double ontology_completeness = 7;
+  double implementation_situatedness = 8;
+  repeated SectorCoverage sectors = 9;
+  repeated CoverageClassification classifications = 10;
+  string graph_error = 11;
+}
+
+message SectorCoverage {
+  string sector_id = 1;
+  string sector_slug = 2;
+  string sector_name = 3;
+  int32 built_capabilities = 4;
+  int32 inflight_capabilities = 5;
+  int32 gap_capabilities = 6;
+  int32 total_capabilities = 7;
+  double ontology_completeness = 8;
+}
+
+message CoverageClassification {
+  string capability_id = 1;
+  string capability_slug = 2;
+  CoverageState state = 3;
+  bool directly_fulfilled = 4;
+  bool subtree_covered = 5;
+  repeated string built_scenarios = 6;
+  repeated string planned_scenarios = 7;
+}
+
+message ListFocusRequest {
+  int32 limit = 1;
+}
+
+message ListFocusResponse {
+  repeated FocusItem items = 1;
+}
+
+message FocusItem {
+  string capability_id = 1;
+  string capability_slug = 2;
+  string capability_name = 3;
+  FocusReason reason = 4;
+  double score = 5;
+  int32 downstream_dependents = 6;
+  repeated string related_scenarios = 7;
+}
+
+message GetCapabilityScenariosRequest {
+  string capability_id = 1;
+  string capability_slug = 2;
+  bool include_descendants = 3;
+}
+
+message CapabilityScenarios {
+  string capability_id = 1;
+  string capability_slug = 2;
+  repeated string built_scenarios = 3;
+  repeated string planned_scenarios = 4;
+  repeated Fulfillment fulfillments = 5;
+}
+
+message GetScenarioCapabilitiesRequest {
+  string scenario_slug = 1;
+}
+
+message ScenarioCapabilities {
+  string scenario_slug = 1;
+  repeated Capability capabilities = 2;
+  repeated Fulfillment fulfillments = 3;
+}
+
+message DescribeOverlayGraphRequest {
+  bool include_implementation = 1;
+  bool include_ontology = 2;
+  bool include_fulfillment = 3;
+}
+
+message DescribeOverlayGraphResponse {
+  OverlayGraph graph = 1;
+}
+
+message OverlayGraph {
+  repeated OverlayNode nodes = 1;
+  repeated OverlayEdge edges = 2;
+  repeated OverlayError errors = 3;
+}
+
+message OverlayNode {
+  string scenario = 1;
+  OverlayNodeKind kind = 2;
+  string display_name = 3;
+  string transport_world = 4;
+  repeated string stability = 5;
+  string sector = 6;
+  string tier = 7;
+  string parent = 8;
+}
+
+message OverlayEdge {
+  string from_scenario = 1;
+  string to_scenario = 2;
+  repeated OverlayEvidence evidence = 3;
+  string transport_world = 4;
+  repeated string stability = 5;
+}
+
+message OverlayEvidence {
+  OverlayEvidenceSource source = 1;
+  string import_path = 2;
+  string from_file = 3;
+  string to_file = 4;
+  string path = 5;
+  string analyzer = 6;
+}
+
+message OverlayError {
+  string source = 1;
+  string scenario = 2;
+  string message = 3;
+}
+
+enum CapabilityKind {
+  CAPABILITY_KIND_UNSPECIFIED = 0;
+  CAPABILITY_KIND_SECTOR = 1;
+  CAPABILITY_KIND_CAPABILITY = 2;
+  CAPABILITY_KIND_COMPONENT = 3;
+  CAPABILITY_KIND_CAPSTONE = 4;
+  CAPABILITY_KIND_SIMULATION = 5;
+}
+
+enum CapabilityEdgeType {
+  CAPABILITY_EDGE_TYPE_UNSPECIFIED = 0;
+  CAPABILITY_EDGE_TYPE_DECOMPOSES = 1;
+  CAPABILITY_EDGE_TYPE_PROGRESSION = 2;
+  CAPABILITY_EDGE_TYPE_REQUIRES = 3;
+}
+
+enum CoverageState {
+  COVERAGE_STATE_UNSPECIFIED = 0;
+  COVERAGE_STATE_BUILT = 1;
+  COVERAGE_STATE_IN_FLIGHT = 2;
+  COVERAGE_STATE_GAP = 3;
+  COVERAGE_STATE_UNMAPPED = 4;
+}
+
+enum FocusReason {
+  FOCUS_REASON_UNSPECIFIED = 0;
+  FOCUS_REASON_GAP = 1;
+  FOCUS_REASON_CLOSEST_TO_DONE = 2;
+  FOCUS_REASON_UNMAPPED_SCENARIO = 3;
+}
+
+enum OverlayNodeKind {
+  OVERLAY_NODE_KIND_UNSPECIFIED = 0;
+  OVERLAY_NODE_KIND_LIVE = 1;
+  OVERLAY_NODE_KIND_PLANNED = 2;
+  OVERLAY_NODE_KIND_CAPABILITY = 3;
+}
+
+enum OverlayEvidenceSource {
+  OVERLAY_EVIDENCE_SOURCE_UNSPECIFIED = 0;
+  OVERLAY_EVIDENCE_SOURCE_PROTO_IMPORT = 1;
+  OVERLAY_EVIDENCE_SOURCE_GO_IMPORT = 2;
+  OVERLAY_EVIDENCE_SOURCE_PLANNED_PROTO_IMPORT = 3;
+  OVERLAY_EVIDENCE_SOURCE_DECOMPOSES = 4;
+  OVERLAY_EVIDENCE_SOURCE_FULFILLS = 5;
+}

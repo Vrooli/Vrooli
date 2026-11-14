@@ -4,10 +4,12 @@ import {
   Trash2,
   EyeOff,
   BarChart3,
+  FolderTree,
+  History,
 } from "lucide-react";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
-import { resolveGroupForFile } from "../lib/grouping";
-import type { FileCategory, GroupingRule } from "./FileListTypes";
+import type { ChangeGroupAPI } from "../lib/api";
+import type { FileCategory } from "./FileListTypes";
 
 interface MobileActionFileInfo {
   path: string;
@@ -26,7 +28,10 @@ export interface FileListMobileActionsProps {
   onDiscardFile: (path: string, untracked: boolean) => void;
   onIgnoreFile: (path: string, level?: "project" | "group", groupDir?: string) => void;
   openFileMetrics: (path: string, category?: FileCategory) => void;
-  groupingRules: GroupingRule[];
+  resolvedGroups?: ChangeGroupAPI[];
+  onRevealInTree?: (path: string) => void;
+  onOpenRun?: (runId: string) => void;
+  runId?: string;
 }
 
 export function FileListMobileActions({
@@ -38,7 +43,10 @@ export function FileListMobileActions({
   onDiscardFile,
   onIgnoreFile,
   openFileMetrics,
-  groupingRules,
+  resolvedGroups,
+  onRevealInTree,
+  onOpenRun,
+  runId,
 }: FileListMobileActionsProps) {
   if (!mobileActionFileInfo) return null;
 
@@ -94,7 +102,9 @@ export function FileListMobileActions({
 
         {/* Ignore action */}
         {(() => {
-          const group = groupingRules ? resolveGroupForFile(mobileActionFileInfo.path, groupingRules) : null;
+          const group = resolvedGroups?.find((candidate) =>
+            candidate.source !== "builtin" && candidate.files.includes(mobileActionFileInfo.path),
+          );
           if (group) {
             return (
               <>
@@ -109,10 +119,10 @@ export function FileListMobileActions({
                 />
                 <BottomSheetAction
                   icon={<EyeOff className="h-5 w-5 text-amber-300" />}
-                  label={`Ignore (${group.groupLabel})`}
-                  description={`Add to ${group.groupDir}.gitignore`}
+                  label={`Ignore (${group.label})`}
+                  description={`Add to ${group.root ?? ""}.gitignore`}
                   onClick={() => {
-                    onIgnoreFile(mobileActionFileInfo.path, "group", group.groupDir);
+                    onIgnoreFile(mobileActionFileInfo.path, "group", group.root ?? "");
                     onClose();
                   }}
                 />
@@ -149,6 +159,30 @@ export function FileListMobileActions({
                 mobileActionFileInfo.path,
                 mobileActionFileInfo.isUntracked,
               );
+              onClose();
+            }}
+          />
+        )}
+
+        {onRevealInTree && (
+          <BottomSheetAction
+            icon={<FolderTree className="h-5 w-5 text-cyan-300" />}
+            label="Reveal in file tree"
+            description="Open the full tree and scroll to this file"
+            testId="reveal-in-tree-action"
+            onClick={() => {
+              onRevealInTree(mobileActionFileInfo.path);
+              onClose();
+            }}
+          />
+        )}
+        {runId && onOpenRun && (
+          <BottomSheetAction
+            icon={<History className="h-5 w-5 text-cyan-300" />}
+            label="Show the run that changed this"
+            description="Open the sandbox run attribution"
+            onClick={() => {
+              onOpenRun(runId);
               onClose();
             }}
           />

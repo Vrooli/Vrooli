@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package vrooli.persona.v1.capabilities;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/capabilities;capabilities_v1";
+
+import "google/protobuf/struct.proto";
+
+// DescribeResponse is the typed envelope for the operator-facing capability
+// probe. The registry intentionally owns the shape of each definition/state,
+// so Struct preserves that external registry contract while keeping the
+// endpoint's request/response intent machine-readable.
+message DescribeResponse {
+  repeated google.protobuf.Struct definitions = 1;
+  repeated google.protobuf.Struct states = 2;
+}

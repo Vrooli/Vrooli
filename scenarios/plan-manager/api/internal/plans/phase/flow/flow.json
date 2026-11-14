@@ -1,0 +1,234 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "plan-manager.phase.api",
+  "domain": "plans",
+  "description": "Plan phases have explicit status transitions. Execution validates evidence before delegating persistence to plans.",
+  "model": {
+    "module": "PlanPhaseLifecycle",
+    "seed": "2026110902",
+    "maxSteps": 8,
+    "traceCount": 6,
+    "verify": {
+      "invariants": [
+        "TypeOK",
+        "IllegalTransitionsPreserveState"
+      ]
+    }
+  },
+  "states": [
+    {
+      "id": "todo",
+      "quint": "Todo",
+      "initial": true
+    },
+    {
+      "id": "active",
+      "quint": "Active"
+    },
+    {
+      "id": "blocked",
+      "quint": "Blocked"
+    },
+    {
+      "id": "done",
+      "quint": "Done"
+    }
+  ],
+  "events": [
+    {
+      "id": "set_todo",
+      "quint": "SetTodo"
+    },
+    {
+      "id": "set_active",
+      "quint": "SetActive"
+    },
+    {
+      "id": "set_blocked",
+      "quint": "SetBlocked"
+    },
+    {
+      "id": "set_done",
+      "quint": "SetDone"
+    }
+  ],
+  "transitionDefaults": {
+    "invalid": {
+      "to": "self",
+      "wantError": true
+    }
+  },
+  "transitions": [
+    {
+      "from": "todo",
+      "event": "set_todo",
+      "to": "todo"
+    },
+    {
+      "from": "todo",
+      "event": "set_active",
+      "to": "active"
+    },
+    {
+      "from": "todo",
+      "event": "set_blocked",
+      "to": "blocked"
+    },
+    {
+      "from": "todo",
+      "event": "set_done",
+      "to": "done"
+    },
+    {
+      "from": "active",
+      "event": "set_todo",
+      "to": "todo"
+    },
+    {
+      "from": "active",
+      "event": "set_active",
+      "to": "active"
+    },
+    {
+      "from": "active",
+      "event": "set_blocked",
+      "to": "blocked"
+    },
+    {
+      "from": "active",
+      "event": "set_done",
+      "to": "done"
+    },
+    {
+      "from": "blocked",
+      "event": "set_todo",
+      "to": "todo"
+    },
+    {
+      "from": "blocked",
+      "event": "set_active",
+      "to": "active"
+    },
+    {
+      "from": "blocked",
+      "event": "set_blocked",
+      "to": "blocked"
+    },
+    {
+      "from": "done",
+      "event": "set_active",
+      "to": "active"
+    },
+    {
+      "from": "done",
+      "event": "set_done",
+      "to": "done"
+    }
+  ],
+  "invariants": [
+    {
+      "id": "type_ok",
+      "quint": "TypeOK",
+      "description": "Phase status and event remain in their declared sets."
+    },
+    {
+      "id": "illegal_transitions_preserve_state",
+      "quint": "IllegalTransitionsPreserveState",
+      "description": "Rejected status transitions preserve the original phase state."
+    }
+  ],
+  "traces": [
+    {
+      "name": "start_and_complete",
+      "initial": "todo",
+      "steps": [
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        },
+        {
+          "event": "set_done",
+          "want": "done",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "blocked_retry",
+      "initial": "todo",
+      "steps": [
+        {
+          "event": "set_blocked",
+          "want": "blocked",
+          "wantError": false
+        },
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "validated_direct_completion",
+      "initial": "todo",
+      "steps": [
+        {
+          "event": "set_done",
+          "want": "done",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "reopen_completed_phase",
+      "initial": "done",
+      "steps": [
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "blocked_cannot_complete",
+      "initial": "blocked",
+      "steps": [
+        {
+          "event": "set_done",
+          "want": "blocked",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "idempotent_todo",
+      "initial": "todo",
+      "steps": [
+        {
+          "event": "set_todo",
+          "want": "todo",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "runtime": {
+    "go": {
+      "package": "phaseflow",
+      "statusType": "PhaseStatus",
+      "eventType": "PhaseEvent",
+      "constantPrefix": "Phase"
+    }
+  },
+  "replay": {
+    "transition": {
+      "function": "TransitionPhase",
+      "stateType": "PhaseState",
+      "statusField": "Status"
+    }
+  }
+}

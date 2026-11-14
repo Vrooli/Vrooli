@@ -1,29 +1,35 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"log/slog"
 	"os"
 
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/server"
+	"github.com/vrooli/api-core/preflight"
+
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/server"
 )
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+	os.Exit(run(preflight.Run, config.Load, server.Run))
+}
 
-🚀 Instead, use:
-   vrooli scenario start system-monitor
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+// run is main's testable body. preflight.Run performs the staleness/rebuild
+// check and the lifecycle guard (direct execution outside
+// `vrooli scenario start` is rejected); returning true means it already
+// handled the process, so the server must not start.
+func run(checkPreflight func(preflight.Config) bool, load func() (*config.Config, error), serve func(*config.Config) error) int {
+	if checkPreflight(preflight.Config{ScenarioName: "system-monitor"}) {
+		return 0
 	}
-
-	cfg := config.Load()
-	if err := server.Run(cfg); err != nil {
-		log.Fatalf("System Monitor API failed: %v", err)
+	cfg, err := load()
+	if err != nil {
+		slog.Error("System Monitor API configuration failed", "error", err)
+		return 1
 	}
+	if err := serve(cfg); err != nil {
+		slog.Error("System Monitor API failed", "error", err)
+		return 1
+	}
+	return 0
 }

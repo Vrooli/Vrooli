@@ -16,7 +16,11 @@ export {
   useStopTask,
   usePipelineInvestigation,
 } from "./useInvestigation";
-export { useSigningConfig, type UseSigningConfigOptions, type UseSigningConfigResult } from "./useSigningConfig";
+export {
+  useSigningConfig,
+  type UseSigningConfigOptions,
+  type UseSigningConfigResult,
+} from "./useSigningConfig";
 export { useUrlState, parseSearchParams, type ViewMode } from "./useUrlState";
 export {
   usePipelineMutation,
@@ -24,7 +28,11 @@ export {
   usePlatformSelection,
   useWineCheck,
 } from "./usePipelineButton";
-export { useGeneratorModals, type ModalStates, type UseGeneratorModalsReturn } from "./useGeneratorModals";
+export {
+  useGeneratorModals,
+  type ModalStates,
+  type UseGeneratorModalsReturn,
+} from "./useGeneratorModals";
 export {
   usePreflightSection,
   type UsePreflightSectionProps,
@@ -39,6 +47,7 @@ export {
 
 // Responsive breakpoint hooks
 export { useMediaQuery, useIsMobile, MOBILE_QUERY } from "./useMediaQuery";
+export { useEscapeDismiss } from "./useEscapeDismiss";
 
 // New micro-hooks for decomposed architecture
 export {

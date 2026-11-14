@@ -28,6 +28,8 @@ func TestEndToEnd_LightScanViaAPI(t *testing.T) {
 		t.Fatalf("Failed to create server: %v", err)
 	}
 	defer srv.db.Close()
+	srv.reductionFacts = localCatalogFactsSource()
+	srv.scanCoordinator.codeFacts = srv.reductionFacts
 
 	// Create a temporary scenario directory with realistic content
 	tmpDir := t.TempDir()
@@ -189,7 +191,7 @@ func TestEndToEnd_LongFileDetectionAndPerformance(t *testing.T) {
 	}
 
 	// Run light scan and measure performance
-	scanner := NewLightScanner(tmpDir, 60*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 60*time.Second)
 	startTime := time.Now()
 
 	ctx := context.Background()
@@ -235,6 +237,8 @@ func TestEndToEnd_ParserEdgeCases(t *testing.T) {
 		t.Fatalf("Failed to create server: %v", err)
 	}
 	defer srv.db.Close()
+	srv.reductionFacts = localCatalogFactsSource()
+	srv.scanCoordinator.codeFacts = srv.reductionFacts
 
 	tmpDir := t.TempDir()
 
@@ -305,6 +309,8 @@ func TestEndToEnd_InvalidScanRequests(t *testing.T) {
 		t.Fatalf("Failed to create server: %v", err)
 	}
 	defer srv.db.Close()
+	srv.reductionFacts = localCatalogFactsSource()
+	srv.scanCoordinator.codeFacts = srv.reductionFacts
 
 	tests := []struct {
 		name           string
@@ -370,7 +376,7 @@ func TestEndToEnd_ScanPerformanceMetrics(t *testing.T) {
 	}
 
 	// Measure scan performance
-	scanner := NewLightScanner(tmpDir, 60*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 60*time.Second)
 	startTime := time.Now()
 
 	result, err := scanner.Scan(context.Background())
@@ -412,6 +418,8 @@ func TestEndToEnd_LargeParserOutput(t *testing.T) {
 		t.Fatalf("Failed to create server: %v", err)
 	}
 	defer srv.db.Close()
+	srv.reductionFacts = localCatalogFactsSource()
+	srv.scanCoordinator.codeFacts = srv.reductionFacts
 
 	tmpDir := t.TempDir()
 
@@ -485,7 +493,7 @@ func TestEndToEnd_ScanTimeout(t *testing.T) {
 	}
 
 	// Use very short timeout (1 second)
-	scanner := NewLightScanner(tmpDir, 1*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 1*time.Second)
 
 	startTime := time.Now()
 	result, err := scanner.Scan(context.Background())
@@ -561,7 +569,7 @@ if __name__ == "__main__":
 	}
 
 	// Scan multi-language scenario
-	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 30*time.Second)
 	result, err := scanner.Scan(context.Background())
 	if err != nil {
 		t.Fatalf("Multi-language scan failed: %v", err)

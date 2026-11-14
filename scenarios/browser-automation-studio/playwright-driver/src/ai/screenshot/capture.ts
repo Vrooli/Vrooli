@@ -98,18 +98,3 @@ export async function captureScreenshot(
     height: viewport?.height ?? 0,
   };
 }
-
-/**
- * Create a mock screenshot capture for testing.
- */
-export function createMockScreenshotCapture(
-  mockBuffer?: Buffer
-): ScreenshotCaptureInterface {
-  const defaultBuffer = mockBuffer ?? Buffer.from('mock-screenshot-data');
-
-  return {
-    capture(_page: Page, _options?: ScreenshotOptions): Promise<Buffer> {
-      return Promise.resolve(defaultBuffer);
-    },
-  };
-}

@@ -145,6 +145,9 @@ func (s *Scheduler) Start() error {
 	if s.isRunning {
 		return fmt.Errorf("scheduler is already running")
 	}
+	if s.ctx.Err() != nil {
+		s.ctx, s.cancel = context.WithCancel(context.Background())
+	}
 
 	s.log.Info("Starting scheduler service...")
 
@@ -176,25 +179,38 @@ func (s *Scheduler) Start() error {
 	return nil
 }
 
-// Stop gracefully stops the scheduler service.
+// Stop gracefully stops the scheduler service and waits for scheduled work to
+// finish. Call StopContext from a managed shutdown so the owner cleanup budget
+// is not exceeded by a workflow that ignores cancellation.
 func (s *Scheduler) Stop() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	return s.StopContext(context.Background())
+}
 
+// StopContext cancels scheduled work before draining cron's running jobs. The
+// scheduler context is the parent of every scheduled workflow, so cancellation
+// reaches the executor instead of waiting for its full execution timeout.
+func (s *Scheduler) StopContext(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	s.mu.Lock()
 	if !s.isRunning {
+		s.mu.Unlock()
 		return nil
 	}
 
 	s.log.Info("Stopping scheduler service...")
+	s.isRunning = false
+	s.cancel()
+	s.mu.Unlock()
 
 	// Stop accepting new jobs and wait for running jobs to complete
-	ctx := s.cron.Stop()
-	<-ctx.Done()
-
-	// Cancel the context
-	s.cancel()
-
-	s.isRunning = false
+	stopped := s.cron.Stop()
+	select {
+	case <-stopped.Done():
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 	s.log.Info("Scheduler service stopped")
 	return nil
 }
@@ -333,7 +349,7 @@ func (s *Scheduler) createJob(schedule *database.ScheduleIndex) func() {
 		}
 
 		// Execute the workflow
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		ctx, cancel := context.WithTimeout(s.ctx, 30*time.Minute)
 		defer cancel()
 
 		execution, err := s.executor.ExecuteWorkflow(ctx, workflowID, execParams)

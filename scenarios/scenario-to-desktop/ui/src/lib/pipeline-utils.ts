@@ -2,22 +2,24 @@
  * Shared utility functions for pipeline status mapping.
  */
 
+import { StageStatus } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
+
 /** UI-friendly build status */
 export type MappedBuildStatus = "building" | "ready" | "partial" | "failed";
 
 /**
- * Maps raw pipeline status strings to UI-friendly build status.
+ * Maps generated pipeline statuses to UI-friendly build status.
  * Used by components that poll pipeline status and display results.
  */
-export function mapPipelineStatus(status: string): MappedBuildStatus {
+export function mapPipelineStatus(status: StageStatus): MappedBuildStatus {
   switch (status) {
-    case "pending":
-    case "running":
+    case StageStatus.PENDING:
+    case StageStatus.RUNNING:
       return "building";
-    case "completed":
+    case StageStatus.COMPLETED:
       return "ready";
-    case "failed":
-    case "cancelled":
+    case StageStatus.FAILED:
+    case StageStatus.CANCELLED:
       return "failed";
     default:
       return "building";

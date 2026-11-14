@@ -17,6 +17,9 @@ type DiscardDeps struct {
 // For tracked files (untracked=false), this reverts modifications using git checkout.
 // For untracked files (untracked=true), this deletes them using git clean.
 func DiscardFiles(ctx context.Context, deps DiscardDeps, req DiscardRequest) (*DiscardResponse, error) {
+	if err := requireHumanMutation(ctx, "discard files"); err != nil {
+		return nil, err
+	}
 	if deps.Git == nil {
 		return nil, fmt.Errorf("git runner is required")
 	}

@@ -1,0 +1,17 @@
+{
+  "componentId": "react-component-library:Combobox",
+  "items": {
+    "labelField": "label",
+    "maximumCount": 30,
+    "maximumLabelCharacters": 36,
+    "primaryAction": "not-applicable",
+    "property": "options",
+    "requiredFields": [
+      "value",
+      "label"
+    ],
+    "stableIdField": "value",
+    "typicalCount": 6
+  },
+  "version": "1.0.11"
+}

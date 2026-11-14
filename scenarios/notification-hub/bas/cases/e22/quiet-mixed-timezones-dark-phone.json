@@ -1,0 +1,139 @@
+{
+  "metadata": {
+    "name": "e22-quiet-mixed-timezones-dark-phone",
+    "description": "Capture the selected mixed-zone quiet-hours week on dark phone from its explicit disposable owner fixture; perform no saves.",
+    "requirement": "NOTIFICA-P0-005",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "e22-quiet-mixed-timezones-dark-phone"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Capture the selected mixed-zone quiet-hours week on dark phone from its explicit disposable owner fixture; perform no saves.",
+      "requirement": "NOTIFICA-P0-005",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-settings",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e22-quiet-mixed-timezones-dark-phone",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open the selected dark mixed-zone state in the leased owner fixture"
+          }
+        }
+      },
+      {
+        "id": "wait-settings",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/quietHours.root",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the quiet-hours week"
+          }
+        }
+      },
+      {
+        "id": "select-dark-theme",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.themeOption(choice=dark)"
+          },
+          "metadata": {
+            "label": "Select dark appearance"
+          }
+        }
+      },
+      {
+        "id": "assert-selected-state-and-normalize",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const text=document.body.innerText;const expected=['Monday\\n13:00\u201314:00 \u00b7 Europe/London','Tuesday\\n13:00\u201314:00 \u00b7 Etc/UTC','Wednesday\\n13:00\u201314:00 \u00b7 Etc/UTC','Thursday\\n13:00\u201314:00 \u00b7 Etc/UTC','Friday\\n13:00\u201314:00 \u00b7 Etc/UTC'];if(expected.some(value=>!text.includes(value)))throw new Error(`selected mixed-zone values mismatch: ${text}`);const emptyDays=(text.match(/No quiet window/g)||[]).length;if(emptyDays!==2)throw new Error(`selected weekend values mismatch: ${emptyDays}`);document.querySelector('[data-testid=\\\"quiet-hours-root\\\"]')?.scrollIntoView({block:'start'});document.activeElement instanceof HTMLElement&&document.activeElement.blur();const root=document.documentElement;root.style.setProperty('--safe-area-inset-top','0px');root.style.setProperty('--safe-area-inset-bottom','0px');const top=getComputedStyle(root).getPropertyValue('--safe-area-inset-top').trim(),bottom=getComputedStyle(root).getPropertyValue('--safe-area-inset-bottom').trim();if(innerWidth!==390||innerHeight!==844||devicePixelRatio!==2||top!=='0px'||bottom!=='0px')throw new Error(`selected viewport/insets mismatch: ${innerWidth}x${innerHeight}@${devicePixelRatio} ${top}/${bottom}`);return {expected,emptyDays,viewport:{width:innerWidth,height:innerHeight,dpr:devicePixelRatio},top,bottom}})()",
+            "store_result": "selectedCaptureState"
+          },
+          "metadata": {
+            "label": "Assert selected weekday/time-zone values and normalize phone viewport"
+          }
+        }
+      },
+      {
+        "id": "open-quiet-week",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.openWeek"
+          },
+          "metadata": {
+            "label": "Open the focused weekly quiet-hours view"
+          }
+        }
+      },
+      {
+        "id": "capture-selected-state",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture selected dark mixed-zone quiet-hours state without saving"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "mixed-dark-00",
+        "source": "open-settings",
+        "target": "wait-settings",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "mixed-dark-01",
+        "source": "wait-settings",
+        "target": "select-dark-theme",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "mixed-dark-02",
+        "source": "select-dark-theme",
+        "target": "assert-selected-state-and-normalize",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "mixed-dark-03",
+        "source": "assert-selected-state-and-normalize",
+        "target": "open-quiet-week",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "mixed-dark-04",
+        "source": "open-quiet-week",
+        "target": "capture-selected-state",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

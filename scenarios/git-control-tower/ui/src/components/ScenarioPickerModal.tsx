@@ -1,3 +1,4 @@
+import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Search, X, Loader2, CheckCircle2 } from "lucide-react";
@@ -160,15 +161,17 @@ export function ScenarioPickerModal({ isOpen, onClose, currentScenario, onSelect
     [filtered, focusedIndex, handleSelect, onClose]
   );
 
-  // Scroll focused card into view
+  // Reveal keyboard selection inside the owned list, without panning the host page.
   useEffect(() => {
-    if (!gridRef.current) return;
-    const cards = gridRef.current.querySelectorAll("[data-scenario-card]");
-    const card = cards[focusedIndex];
-    if (card) {
-      card.scrollIntoView({ block: "nearest" });
-    }
-  }, [focusedIndex]);
+    const list = gridRef.current;
+    const scroller = isMobile ? list?.closest<HTMLElement>(".rcl-full-page-drawer__content") : list;
+    const card = list?.querySelectorAll<HTMLElement>("[data-scenario-card]")[focusedIndex];
+    if (!scroller || !card) return;
+    const bounds = scroller.getBoundingClientRect();
+    const item = card.getBoundingClientRect();
+    if (item.top < bounds.top) scroller.scrollTop -= bounds.top - item.top;
+    else if (item.bottom > bounds.bottom) scroller.scrollTop += item.bottom - bounds.bottom;
+  }, [focusedIndex, isMobile, isOpen, filtered.length]);
 
   if (!isOpen) return null;
 
@@ -184,41 +187,8 @@ export function ScenarioPickerModal({ isOpen, onClose, currentScenario, onSelect
     { value: "status", label: "Status" },
   ];
 
-  const content = (
-    <div
-      className={
-        isMobile
-          ? "fixed inset-0 z-[60] flex flex-col bg-slate-950 animate-in slide-in-from-bottom duration-200"
-          : "fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 px-4"
-      }
-      role="dialog"
-      aria-modal="true"
-      aria-label="Select Scenario"
-      onKeyDown={handleKeyDown}
-    >
-      <div
-        className={
-          isMobile
-            ? "flex flex-col h-full"
-            : "w-full max-w-2xl max-h-[80vh] flex flex-col rounded-xl border border-slate-800 bg-slate-950 shadow-xl"
-        }
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
-          <h3 className="font-semibold text-slate-100 text-sm">Switch Scenario</h3>
-          <button
-            type="button"
-            className={`inline-flex items-center justify-center rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800/60 ${isMobile ? "h-11 w-11" : "h-8 w-8"}`}
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <X className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
-          </button>
-        </div>
-
-        {/* Search + Controls */}
-        <div className="px-4 py-3 space-y-2 border-b border-slate-800/50">
+  const controls = (
+<div className="px-4 py-3 space-y-2 border-b border-slate-800/50">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
             <input
@@ -267,9 +237,9 @@ export function ScenarioPickerModal({ isOpen, onClose, currentScenario, onSelect
             </select>
           </div>
         </div>
-
-        {/* Results */}
-        <div ref={gridRef} className="flex-1 overflow-y-auto px-4 py-3">
+  );
+  const results = (
+<div ref={gridRef} className={isMobile ? "px-4 py-3" : "flex-1 overflow-y-auto px-4 py-3"}>
           {scenariosQuery.isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
@@ -329,11 +299,50 @@ export function ScenarioPickerModal({ isOpen, onClose, currentScenario, onSelect
             </div>
           )}
         </div>
-
-        {/* Footer with count */}
-        <div className="border-t border-slate-800 px-4 py-2 text-xs text-slate-500">
+  );
+  const countFooter = (
+<div className="border-t border-slate-800 px-4 py-2 text-xs text-slate-500">
           {filtered.length} of {scenarios.length} scenarios
         </div>
+  );
+  if (isMobile) {
+    return <FullPageDrawer open={isOpen} onClose={onClose} title="Switch Scenario"
+      ariaLabel="Select Scenario" closeLabel="Close" dismissAffordance="close"
+      initialFocusRef={searchRef}
+      subheader={<div onKeyDown={handleKeyDown}>{controls}</div>}
+      footer={countFooter}>
+      <div onKeyDown={handleKeyDown}>{results}</div>
+    </FullPageDrawer>;
+  }
+
+  const content = (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 px-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Select Scenario"
+      onKeyDown={handleKeyDown}
+    >
+      <div
+        className="w-full max-w-2xl max-h-[80vh] flex flex-col rounded-xl border border-slate-800 bg-slate-950 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+          <h3 className="font-semibold text-slate-100 text-sm">Switch Scenario</h3>
+          <button
+            type="button"
+            className={`inline-flex items-center justify-center rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800/60 ${isMobile ? "h-11 w-11" : "h-8 w-8"}`}
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <X className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
+          </button>
+        </div>
+
+        {controls}
+        {results}
+        {countFooter}
       </div>
     </div>
   );

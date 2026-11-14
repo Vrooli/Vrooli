@@ -1,0 +1,28 @@
+{
+  "catalogId": "react-component-library:NotificationBadge",
+  "deprecatedVersions": [
+    "0.1.0",
+    "1.0.0",
+    "1.0.1",
+    "1.0.2"
+  ],
+  "description": "Reusable notification badge component implementation for the React component library.",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "Notification Badge",
+  "draft": "1.0.6-draft.1",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.0",
+    "0.1.0",
+    "1.0.2"
+  ],
+  "latest": "1.0.5",
+  "libraryId": "react-component-library:NotificationBadge",
+  "tags": []
+}

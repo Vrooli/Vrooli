@@ -21,7 +21,7 @@
  * │                                                                         │
  * │ - HTTP request/response handling (route layer)                          │
  * │ - Session phase management (session manager)                            │
- * │ - Idempotency caching (infra layer)                                     │
+ * │ - Lease receipt caching (route layer)                                     │
  * │ - Replay detection (route layer)                                        │
  * └─────────────────────────────────────────────────────────────────────────┘
  *
@@ -40,10 +40,12 @@ import type { Metrics } from '../utils/metrics';
 import {
   CompiledInstructionSchema,
   toHandlerInstruction,
+  getActionType,
   parseProtoLenient,
   type HandlerInstruction,
   type StepOutcome,
 } from '../proto';
+import { ScreenshotCapturePolicy } from '@vrooli/proto-types/browser-automation-studio/v1/execution/driver_pb';
 import { TelemetryOrchestrator, type StepTelemetry } from '../telemetry';
 import {
   buildStepOutcome,
@@ -52,6 +54,12 @@ import {
   type DriverOutcome,
 } from '../outcome';
 import { logger, scopedLog, LogContext } from '../utils';
+import {
+  resolveInstrumentation,
+  safeInvoke,
+  type Instrumentation,
+  type InstructionInstrumentationContext,
+} from '../instrumentation';
 
 // =============================================================================
 // Types
@@ -124,12 +132,10 @@ function validateInstructionStructure(rawInstruction: unknown): string | null {
   // Accept both node_id (wire format) and nodeId (proto format)
   const nodeId = inst.node_id ?? inst.nodeId;
   if (!nodeId || typeof nodeId !== 'string') return 'Missing or invalid instruction.node_id: must be a non-empty string';
-  const hasLegacyType = typeof inst.type === 'string' && inst.type.length > 0;
   const action = inst.action as Record<string, unknown> | undefined;
   const actionType = action?.type;
   const hasTypedAction = typeof actionType === 'string' || typeof actionType === 'number';
-  if (!hasLegacyType && !hasTypedAction) return 'Missing or invalid instruction.type: must be a non-empty string';
-  if (hasLegacyType && (!inst.params || typeof inst.params !== 'object')) return 'Missing or invalid instruction.params: must be an object';
+  if (!hasTypedAction) return 'Missing or invalid instruction.action.type';
   return null;
 }
 
@@ -156,11 +162,29 @@ export function validateInstruction(rawInstruction: unknown): ValidationResult {
 }
 
 /**
- * Create a unique key for an instruction based on nodeId and index.
- * Used to track which instructions have been executed in a session.
+ * Apply the API's per-step screenshot directive.
+ *
+ * The API decides intent (it knows the execution's artifact profile and the
+ * step's action type); the driver only resolves the one case the API cannot,
+ * because success is not knowable until the handler has run.
+ *
+ * An absent or unspecified directive means "capture", so an API build that does
+ * not send one behaves exactly as it did before the directive existed.
+ *
+ * Pure by design so the policy can be tested without a browser.
  */
-export function createInstructionKey(instruction: HandlerInstruction): string {
-  return `${instruction.nodeId}:${instruction.index}`;
+export function shouldCaptureStepScreenshot(
+  policy: ScreenshotCapturePolicy | undefined,
+  stepSucceeded: boolean
+): boolean {
+  switch (policy) {
+    case ScreenshotCapturePolicy.NEVER:
+      return false;
+    case ScreenshotCapturePolicy.ON_FAILURE:
+      return !stepSucceeded;
+    default:
+      return true;
+  }
 }
 
 // =============================================================================
@@ -186,17 +210,23 @@ export function createInstructionKey(instruction: HandlerInstruction): string {
 export async function executeInstruction(
   instruction: HandlerInstruction,
   context: ExecutionContext,
-  handlerRegistry: HandlerRegistry
+  handlerRegistry: HandlerRegistry,
+  instrumentation?: Instrumentation
 ): Promise<ExecutionResult> {
   const startedAt = new Date();
+  const instr = resolveInstrumentation(instrumentation);
+  const instrCtx: InstructionInstrumentationContext = {
+    sessionId: context.sessionId,
+    type: getActionType(instruction),
+    index: instruction.index,
+    nodeId: instruction.nodeId,
+  };
 
   logger.info(scopedLog(LogContext.INSTRUCTION, 'executing'), {
     sessionId: context.sessionId,
-    type: instruction.type,
+    type: getActionType(instruction),
     stepIndex: instruction.index,
     nodeId: instruction.nodeId,
-    selector: instruction.params.selector,
-    url: instruction.params.url,
   });
 
   // Get handler for this instruction type
@@ -204,76 +234,94 @@ export async function executeInstruction(
 
   // Setup telemetry collection
   const telemetryOrchestrator = new TelemetryOrchestrator(context.page, context.config);
-  telemetryOrchestrator.start();
-
-  // Execute the instruction
-  let handlerResult: HandlerResult;
-  let instructionDuration: number;
-
   try {
+    await telemetryOrchestrator.start();
+    await safeInvoke(instr.onInstructionStart?.bind(instr), instrCtx);
+
     const instructionStart = Date.now();
-    // Context is now unified - pass directly to handler
-    handlerResult = await handler.execute(instruction, context);
-    instructionDuration = Date.now() - instructionStart;
-  } catch (error) {
-    // Ensure telemetry is disposed on error
-    telemetryOrchestrator.dispose();
-    throw error;
+    let handlerResult: HandlerResult;
+    let handlerError: unknown;
+    try {
+      handlerResult = await handler.execute(instruction, context);
+    } catch (error) {
+      // A thrown handler may already have changed the browser. Preserve that
+      // uncertainty while collecting the same diagnostics as a declared failure.
+      handlerError = error;
+      handlerResult = { success: false, error: {
+        code: 'INSTRUCTION_OUTCOME_UNCERTAIN', kind: 'infra', retryable: false,
+        message: `Instruction may have taken effect: ${error instanceof Error ? error.message : String(error)}`,
+      } };
+    }
+    const instructionDuration = Date.now() - instructionStart;
+    const telemetry = await telemetryOrchestrator.collectForStep(handlerResult, {
+      skipScreenshot: !shouldCaptureStepScreenshot(instruction.telemetry?.screenshot, handlerResult.success),
+    });
+    if (telemetry.captureErrors?.length && handlerResult.success) {
+      handlerResult = { ...handlerResult, success: false, error: {
+        code: 'INSTRUCTION_EVIDENCE_FAILED', kind: 'infra', retryable: false,
+        message: `Instruction completed but evidence collection failed: ${telemetry.captureErrors.join('; ')}`,
+      } };
+    }
+    await safeInvoke(instr.onInstructionEnd?.bind(instr), instrCtx, {
+      success: handlerResult.success, durationMs: instructionDuration,
+      error: handlerError ?? handlerResult.error,
+    });
+    // Metrics are observers; their failure must not discard completed evidence.
+    await safeInvoke(recordMetrics, context.metrics, getActionType(instruction), handlerResult, instructionDuration);
+
+    // Build outcome
+    const completedAt = new Date();
+    const outcome = buildStepOutcome({
+      instruction,
+      result: handlerResult,
+      startedAt,
+      completedAt,
+      finalUrl: context.page.url(),
+      screenshot: telemetry.screenshot,
+      domSnapshot: telemetry.domSnapshot,
+      consoleLogs: telemetry.consoleLogs,
+      networkEvents: telemetry.networkEvents,
+    });
+
+    if (telemetry.captureErrors?.length) {
+      outcome.notes.telemetry_errors = JSON.stringify(telemetry.captureErrors);
+    }
+
+    logger.info(scopedLog(LogContext.INSTRUCTION, handlerResult.success ? 'completed' : 'failed'), {
+      sessionId: context.sessionId,
+      type: getActionType(instruction),
+      stepIndex: instruction.index,
+      success: handlerResult.success,
+      durationMs: outcome.durationMs,
+      finalUrl: context.page.url(),
+      ...(handlerResult.error && {
+        errorCode: handlerResult.error.code,
+        errorKind: handlerResult.error.kind,
+        errorMessage: handlerResult.error.message,
+      }),
+    });
+
+    // Convert to wire format
+    // Pass raw extracted_data to avoid proto JsonValue wrapper issues with Go API
+    const driverOutcome = toDriverOutcome(
+      outcome,
+      telemetry.screenshot,
+      telemetry.domSnapshot,
+      handlerResult.extracted_data
+    );
+
+    return {
+      success: handlerResult.success,
+      outcome,
+      driverOutcome,
+      telemetry,
+      handlerResult,
+      durationMs: instructionDuration,
+      instruction,
+    };
+  } finally {
+    await telemetryOrchestrator.dispose();
   }
-
-  // Record metrics
-  recordMetrics(context.metrics, instruction.type, handlerResult, instructionDuration);
-
-  // Collect telemetry
-  const telemetry = await telemetryOrchestrator.collectForStep(handlerResult);
-  telemetryOrchestrator.dispose();
-
-  // Build outcome
-  const completedAt = new Date();
-  const outcome = buildStepOutcome({
-    instruction,
-    result: handlerResult,
-    startedAt,
-    completedAt,
-    finalUrl: context.page.url(),
-    screenshot: telemetry.screenshot,
-    domSnapshot: telemetry.domSnapshot,
-    consoleLogs: telemetry.consoleLogs,
-    networkEvents: telemetry.networkEvents,
-  });
-
-  logger.info(scopedLog(LogContext.INSTRUCTION, handlerResult.success ? 'completed' : 'failed'), {
-    sessionId: context.sessionId,
-    type: instruction.type,
-    stepIndex: instruction.index,
-    success: handlerResult.success,
-    durationMs: outcome.durationMs,
-    finalUrl: context.page.url(),
-    ...(handlerResult.error && {
-      errorCode: handlerResult.error.code,
-      errorKind: handlerResult.error.kind,
-      errorMessage: handlerResult.error.message,
-    }),
-  });
-
-  // Convert to wire format
-  // Pass raw extracted_data to avoid proto JsonValue wrapper issues with Go API
-  const driverOutcome = toDriverOutcome(
-    outcome,
-    telemetry.screenshot,
-    telemetry.domSnapshot,
-    handlerResult.extracted_data as Record<string, unknown> | undefined
-  );
-
-  return {
-    success: handlerResult.success,
-    outcome,
-    driverOutcome,
-    telemetry,
-    handlerResult,
-    durationMs: instructionDuration,
-    instruction,
-  };
 }
 
 // =============================================================================

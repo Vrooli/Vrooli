@@ -3,23 +3,34 @@
  * Supports both pipeline sections (with status) and simple sections.
  */
 
-import { forwardRef, useMemo, useState, type ReactNode, type HTMLAttributes } from "react";
+import {
+  forwardRef,
+  useState,
+  type ReactNode,
+  type HTMLAttributes,
+} from "react";
 import type { LucideIcon } from "lucide-react";
 import { Card } from "../../ui/card";
 import { SectionHeader } from "./SectionHeader";
-import { useSidebarStore, SECTION_TO_STAGE, SECTION_ICONS, type SectionId } from "../../../store/sidebarStore";
-import { usePipelineStore } from "../../../store";
+import {
+  useSidebarStore,
+  SECTION_TO_STAGE,
+  SECTION_ICONS,
+  type SectionId,
+} from "../../../store/sidebarStore";
+import { usePipelineStore, selectStageStatus } from "../../../store";
 import { useIsMobile } from "../../../hooks/useMediaQuery";
 import { cn } from "../../../lib/utils";
+import { StageStatus } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 
 /** Status-based border colors for pipeline variant */
-const STATUS_BORDER_STYLES = {
-  pending: "border-slate-700/50",
-  running: "border-blue-500/50 shadow-blue-500/10 shadow-lg",
-  completed: "border-green-500/30",
-  failed: "border-red-500/30",
-  skipped: "border-slate-700/50",
-} as const;
+const STATUS_BORDER_STYLES: Partial<Record<StageStatus, string>> = {
+  [StageStatus.PENDING]: "border-slate-700/50",
+  [StageStatus.RUNNING]: "border-blue-500/50 shadow-blue-500/10 shadow-lg",
+  [StageStatus.COMPLETED]: "border-green-500/30",
+  [StageStatus.FAILED]: "border-red-500/30",
+  [StageStatus.SKIPPED]: "border-slate-700/50",
+};
 
 interface SectionCardProps extends HTMLAttributes<HTMLDivElement> {
   /** Section title */
@@ -60,31 +71,33 @@ export const SectionCard = forwardRef<HTMLDivElement, SectionCardProps>(
       className,
       ...props
     },
-    ref
+    ref,
   ) => {
     const [collapsed, setCollapsed] = useState(defaultCollapsed);
     const isMobile = useIsMobile();
 
     // Pipeline-specific state (only used when variant='pipeline' and sectionId is provided)
     const activeSection = useSidebarStore((s) => s.activeSection);
-    const isActive = variant === "pipeline" && sectionId ? activeSection === sectionId : false;
+    const isActive =
+      variant === "pipeline" && sectionId ? activeSection === sectionId : false;
 
     // Get stage status for pipeline sections
     const stage = sectionId ? SECTION_TO_STAGE[sectionId] : undefined;
-    const stageSelector = useMemo(
-      () => (state: { pipelineStatus: { stages?: Record<string, { status?: string }> } | null }) =>
-        stage ? (state.pipelineStatus?.stages?.[stage]?.status ?? "pending") : null,
-      [stage]
+    const stageStatus = usePipelineStore(
+      stage ? selectStageStatus(stage) : () => null,
     );
-    const stageStatus = usePipelineStore(stageSelector);
 
     // Only apply status styling for pipeline variant with non-configuration sections
-    const isPipelineWithStatus = variant === "pipeline" && sectionId && sectionId !== "configuration";
-    const status = isPipelineWithStatus ? (stageStatus ?? "pending") : null;
-    const borderStyle = status ? STATUS_BORDER_STYLES[status as keyof typeof STATUS_BORDER_STYLES] : "";
+    const isPipelineWithStatus =
+      variant === "pipeline" && sectionId && sectionId !== "configuration";
+    const status = isPipelineWithStatus
+      ? (stageStatus ?? StageStatus.PENDING)
+      : null;
+    const borderStyle = status ? STATUS_BORDER_STYLES[status] : "";
 
     // Resolve icon: explicit prop > sectionId lookup > undefined
-    const resolvedIcon = icon ?? (sectionId ? SECTION_ICONS[sectionId] : undefined);
+    const resolvedIcon =
+      icon ?? (sectionId ? SECTION_ICONS[sectionId] : undefined);
 
     const handleToggleCollapse = () => {
       setCollapsed((prev) => !prev);
@@ -97,7 +110,7 @@ export const SectionCard = forwardRef<HTMLDivElement, SectionCardProps>(
           "transition-all duration-200",
           borderStyle,
           isActive && "ring-2 ring-blue-500/20",
-          className
+          className,
         )}
         {...props}
       >
@@ -115,13 +128,19 @@ export const SectionCard = forwardRef<HTMLDivElement, SectionCardProps>(
         )}
         {/* Content area with internal padding */}
         {!collapsed && (
-          <div className={cn(isMobile ? "p-2.5" : "p-4", showHeader && "pt-0", contentClassName)}>
+          <div
+            className={cn(
+              isMobile ? "p-2.5" : "p-4",
+              showHeader && "pt-0",
+              contentClassName,
+            )}
+          >
             {children}
           </div>
         )}
       </Card>
     );
-  }
+  },
 );
 
 SectionCard.displayName = "SectionCard";

@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+package vrooli.infrastructure_manager.v1.focus;
+
+import "google/protobuf/timestamp.proto";
+import "infrastructure-manager/v1/coverage/coverage.proto";
+import "infrastructure-manager/v1/condition/condition.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/focus;focus_v1";
+
+// Focus is the read-only ranked surface. It combines independent error
+// contributors and explains the cascade order beside every finding.
+
+service FocusService {
+  rpc GetNext(GetNextRequest) returns (GetNextResponse);
+  rpc GetFinding(GetFindingRequest) returns (GetFindingResponse);
+  rpc ListSources(ListSourcesRequest) returns (ListSourcesResponse);
+  rpc GetEfficacy(GetEfficacyRequest) returns (GetEfficacyResponse);
+}
+
+enum EfficacyVerdict {
+  EFFICACY_VERDICT_UNSPECIFIED = 0;
+  EFFICACY_VERDICT_MOVED = 1;
+  EFFICACY_VERDICT_DID_NOT_MOVE = 2;
+  EFFICACY_VERDICT_AWAITING_WORK = 3;
+  EFFICACY_VERDICT_UNMEASURABLE = 4;
+}
+
+message GapSource {
+  string id = 1;
+  string label = 2;
+  bool available = 3;
+  string reason = 4;
+  int32 finding_count = 5;
+}
+
+message RankingRationale {
+  int32 rank = 1;
+  string cascade_stage = 2;
+  string explanation = 3;
+}
+
+message Finding {
+  string id = 1;
+  string source = 2;
+  string cell_ref = 3;
+  string title = 4;
+  string message = 5;
+  string sensor_ref = 6;
+  string expected_return = 7;
+  condition.TrustVerdict trust_verdict = 8;
+  condition.BandVerdict band_verdict = 9;
+  RankingRationale rationale = 10;
+  google.protobuf.Timestamp observed_at = 11;
+}
+
+message EfficacyRecord {
+  string finding_id = 1;
+  string sensor_ref = 2;
+  string expected_return = 3;
+  string observed_return = 4;
+  EfficacyVerdict verdict = 5;
+  google.protobuf.Timestamp observed_at = 6;
+}
+
+message GetNextRequest {
+  int32 limit = 1;
+}
+
+message GetNextResponse {
+  repeated Finding findings = 1;
+  repeated GapSource sources = 2;
+  bool no_findings = 3;
+  bool all_sources_unavailable = 4;
+  google.protobuf.Timestamp computed_at = 5;
+}
+
+message GetFindingRequest {
+  string finding_id = 1;
+}
+
+message GetFindingResponse {
+  Finding finding = 1;
+}
+
+message ListSourcesRequest {
+  coverage.Projection projection = 1;
+}
+
+message ListSourcesResponse {
+  repeated GapSource sources = 1;
+}
+
+message GetEfficacyRequest {
+  string finding_id = 1;
+}
+
+message GetEfficacyResponse {
+  repeated EfficacyRecord records = 1;
+}

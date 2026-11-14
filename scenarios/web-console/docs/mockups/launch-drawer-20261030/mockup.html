@@ -1,0 +1,438 @@
+<title>Launch Drawer Review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout concept: a review document on instrument-panel neutrals, with live product mockups set into it as fixed-dark devices. */
+:root{
+  --bg:#f5f7f9;--paper:#ffffff;--fg:#14202c;--muted:#566575;--line:#d8e0e7;--accent:#0b7f8f;--accent-soft:#e0f3f5;
+  --crit:#b42318;--crit-soft:#fdecea;--warn:#a15c07;--warn-soft:#fdf1dc;--ok:#157347;--ok-soft:#e3f4ea;
+  --display:"Bricolage Grotesque","Avenir Next",system-ui,sans-serif;--body:"Source Sans 3","Segoe UI",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c1219;--paper:#141c26;--fg:#e8eef4;--muted:#9aa9b8;--line:#2a3644;--accent:#3fd0e0;--accent-soft:#12303a;
+  --crit:#ff8d82;--crit-soft:#3a1a18;--warn:#f2b95c;--warn-soft:#352610;--ok:#66d39a;--ok-soft:#12301f;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1219;--paper:#141c26;--fg:#e8eef4;--muted:#9aa9b8;--line:#2a3644;--accent:#3fd0e0;--accent-soft:#12303a;
+  --crit:#ff8d82;--crit-soft:#3a1a18;--warn:#f2b95c;--warn-soft:#352610;--ok:#66d39a;--ok-soft:#12301f;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:400 17px/1.55 var(--body);padding-block:40px 80px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:1080px;margin:0 auto;display:grid;gap:56px}
+section{display:grid;gap:18px;min-width:0}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:clamp(32px,5vw,46px);font-weight:700;letter-spacing:-.015em}
+h2{font-size:27px;font-weight:600;letter-spacing:-.01em}
+h3{font-size:18.5px;font-weight:600}
+p{margin:0;max-width:72ch}
+.lede{font-size:20px;color:var(--muted);max-width:66ch}
+code,.mono{font:500 .84em var(--mono);overflow-wrap:anywhere}
+.eyebrow{font:600 13px var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--accent)}
+.stack{display:grid;gap:10px}
+.top3{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.callout{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:grid;gap:6px;min-width:0}
+.callout.crit{background:var(--crit-soft);border-color:transparent}
+.callout b{font-weight:700}
+.tag{display:inline-block;font:700 12px var(--body);letter-spacing:.03em;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.P0{background:var(--crit-soft);color:var(--crit)}.P1{background:var(--warn-soft);color:var(--warn)}.P2{background:var(--accent-soft);color:var(--accent)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--paper)}
+table{border-collapse:collapse;width:100%;font-size:15.5px;min-width:640px}
+th,td{padding:10px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+th{font-weight:600;font-size:13.5px;color:var(--muted);white-space:nowrap}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.note{font-size:15px;color:var(--muted)}
+.findings{display:grid;gap:0;border:1px solid var(--line);border-radius:10px;background:var(--paper)}
+.finding{display:grid;grid-template-columns:42px minmax(0,1fr);gap:4px 12px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.finding:last-child{border-bottom:0}
+.finding .tag{justify-self:start;align-self:start;margin-top:3px}
+.finding div{min-width:0}
+.finding p{font-size:16px}
+.finding .where{font-size:14px;color:var(--muted);margin-top:3px}
+ol.plan{margin:0;padding:0;list-style:none;display:grid;gap:0;border:1px solid var(--line);border-radius:10px;background:var(--paper);counter-reset:s}
+ol.plan li{counter-increment:s;padding:14px 16px 14px 56px;position:relative;border-bottom:1px solid var(--line)}
+ol.plan li:last-child{border-bottom:0}
+ol.plan li::before{content:counter(s);position:absolute;left:16px;top:14px;width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font:700 14px/26px var(--body);text-align:center}
+ol.plan p{font-size:16px}
+.decisions{display:grid;gap:14px}
+.decision{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:grid;gap:6px}
+.decision .rec{color:var(--accent);font-weight:600}
+a{color:var(--accent)}
+
+/* Simulator controls, outside the device */
+.sim{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;font-size:14.5px;color:var(--muted);background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.simgroup{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.simbtn{font:600 14px var(--body);color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:7px;padding:5px 10px;min-height:32px;cursor:pointer}
+.simbtn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.simbtn:focus-visible,.m button:focus-visible,.m select:focus-visible,.m input:focus-visible{outline:2px solid #22d3ee;outline-offset:2px}
+#measure{font-variant-numeric:tabular-nums;color:var(--fg);font-weight:600}
+.devices{display:flex;flex-wrap:wrap;gap:28px;justify-content:center;align-items:flex-start}
+.devicecol{display:grid;gap:8px;min-width:0;max-width:100%}
+.devicecap{font-size:14.5px;color:var(--muted);text-align:center}
+
+/* The product mock: fixed Web Console palette */
+.m{--s0:#020617;--s1:#0f172a;--s2:#172033;--s3:#1e293b;--ln:#334155;--t1:#f1f5f9;--t2:#94a3b8;--t3:#64748b;--ac:#22d3ee;--acbg:rgba(34,211,238,.13);--am:#f59e0b;--ambg:rgba(245,158,11,.13);--rd:#f87171;--gn:#34d399;--gnbg:rgba(52,211,153,.13);
+  color:var(--t1);font:400 14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color-scheme:dark;background:var(--s1)}
+.phone{width:376px;max-width:100%;height:760px;border-radius:30px;border:7px solid #05070c;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 18px 40px rgba(2,6,23,.3)}
+.desk{width:880px;height:640px;border-radius:12px;border:1px solid #05070c;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 18px 40px rgba(2,6,23,.3)}
+.deskwrap{overflow-x:auto;padding:6px 2px 24px;max-width:100%}
+.grab{width:36px;height:4px;border-radius:9px;background:var(--ln);margin:8px auto 0;flex:none}
+.desk .grab{display:none}
+.mh{flex:none;display:flex;align-items:center;gap:8px;padding:10px 16px 12px}
+.mh h4{font-size:19px;font-weight:600;line-height:1.2;margin:0;font-family:inherit;flex:1;min-width:0}
+.back{background:none;border:0;color:var(--t2);font-size:22px;line-height:1;width:36px;height:36px;margin-left:-8px;cursor:pointer}
+.target{background:var(--s3);border:1px solid var(--ln);color:var(--t1);border-radius:99px;font-size:13px;font-weight:500;font-family:inherit;padding:5px 12px;min-height:34px;display:flex;align-items:center;gap:7px;cursor:pointer;white-space:nowrap}
+.lamp{width:7px;height:7px;border-radius:50%;background:var(--ac)}
+.scroll{flex:1;min-height:0;overflow-y:auto;padding:0 0 12px}
+.pad{padding:0 16px}
+.seg{display:flex;background:var(--s0);border:1px solid var(--s3);border-radius:10px;padding:3px;gap:2px}
+.seg button{flex:1;background:none;border:0;color:var(--t2);font-size:13.5px;font-weight:600;font-family:inherit;border-radius:7px;min-height:36px;cursor:pointer;padding:0 8px;white-space:nowrap}
+.seg button[aria-checked="true"],.seg button[aria-selected="true"]{background:var(--s3);color:var(--t1)}
+.sechead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:16px 16px 8px}
+.sechead h5{margin:0;font-size:12px;font-weight:600;font-family:inherit;letter-spacing:.07em;text-transform:uppercase;color:var(--t2)}
+.link{position:relative;background:none;border:0;color:var(--ac);font-size:13.5px;font-weight:600;font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:6px;min-height:36px;padding:0}
+.bubble{min-width:18px;height:18px;border-radius:9px;background:var(--am);color:#1c1204;font-size:11px;font-weight:700;line-height:18px;font-family:inherit;text-align:center;padding:0 5px;font-variant-numeric:tabular-nums}
+.rail{display:flex;gap:9px;overflow-x:auto;padding:1px 40px 3px 16px;scroll-snap-type:x proximity;scroll-padding-left:16px;scrollbar-width:none}
+.rail::-webkit-scrollbar{display:none}
+.desk .rail{padding-right:40px}
+.card{flex:none;width:164px;scroll-snap-align:start;background:var(--s2);border:1px solid var(--s3);border-radius:12px;padding:10px;text-align:left;color:inherit;font:inherit;cursor:pointer;display:flex;flex-direction:column;gap:9px;position:relative}
+.card[aria-checked="true"]{border-color:var(--ac);background:#14283a;box-shadow:0 0 0 1px var(--ac)}
+.cardtop{display:flex;align-items:center;gap:7px;min-width:0}
+.mark{flex:none;width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:var(--s0);color:var(--mc,var(--t2));border:1px solid var(--s3)}
+.mark svg{width:15px;height:15px;display:block}
+.cname{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
+.flag{flex:none;width:8px;height:8px;border-radius:50%;background:var(--am)}
+.meters{display:grid;gap:7px;align-content:start}
+.meter{display:grid;gap:3px;height:27px;align-content:start}
+.mrow{display:flex;justify-content:space-between;gap:6px;font-size:11.5px;line-height:16px;color:var(--t2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.mrow b{font-weight:600;color:var(--t1)}
+.mrow.hot b{color:var(--am)}.mrow.full b{color:var(--rd)}
+.bar{height:4px;background:var(--s0);border-radius:9px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ac);border-radius:9px}
+.hot .bar i,.bar.hot i{background:var(--am)}.bar.full i{background:var(--rd)}
+.skel{background:var(--s3);border-radius:4px;height:9px;margin-top:3px;animation:pulse 1.2s ease-in-out infinite}
+.skel.b{height:4px;margin-top:4px}
+@keyframes pulse{50%{opacity:.5}}
+@media (prefers-reduced-motion:reduce){.skel{animation:none}}
+.nousage{font-size:11.5px;line-height:16px;color:var(--t3)}
+.panel{margin:12px 16px 0;background:var(--s2);border:1px solid var(--s3);border-radius:12px}
+.row{padding:11px 12px;border-bottom:1px solid var(--s3);display:grid;gap:7px}
+.row:last-child{border-bottom:0}
+.rowh{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:28px}
+.rowh label,.rowl{font-weight:500;font-size:14px}
+.m select{background:var(--s3);color:var(--t1);border:1px solid var(--ln);border-radius:8px;font-size:13.5px;font-weight:500;font-family:inherit;padding:6px 8px;min-height:34px;max-width:190px}
+.val{color:var(--t2);font-size:13.5px}
+.hint{font-size:12.5px;line-height:1.4;color:var(--t2)}
+.gauge{height:6px;border-radius:9px;background:var(--s0);position:relative;overflow:hidden}
+.gauge i{position:absolute;inset:0 auto 0 0;background:var(--ac);opacity:.75;border-radius:9px}
+.switch{flex:none;width:44px;height:26px;border-radius:99px;background:var(--ln);border:0;position:relative;cursor:pointer;padding:0}
+.switch::after{content:"";position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:3px;left:3px;transition:left .12s}
+.switch[aria-checked="true"]{background:var(--ac)}
+.switch[aria-checked="true"]::after{left:21px}
+@media (prefers-reduced-motion:reduce){.switch::after{transition:none}}
+.notice{display:flex;gap:9px;align-items:flex-start;background:var(--ambg);padding:9px 12px;font-size:12.5px;line-height:1.4;color:#fcd9a0;border-radius:11px 11px 0 0;border-bottom:1px solid var(--s3)}
+.notice .link{color:#fcd9a0;font-size:12.5px;text-decoration:underline;min-height:0;flex:none;margin-left:auto}
+.foot{flex:none;padding:10px 16px 16px;border-top:1px solid var(--s3);background:var(--s1);display:grid;gap:5px}
+.sum{font-size:12.5px;color:var(--t2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cta{width:100%;background:var(--ac);color:#04222a;border:0;border-radius:11px;min-height:46px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer}
+.cta[disabled]{background:var(--s3);color:var(--t2);cursor:default}
+.disc{display:flex;justify-content:space-between;align-items:center;padding:0;width:100%;background:none;border:0;color:var(--t2);font-size:13.5px;font-weight:500;font-family:inherit;min-height:44px;cursor:default}
+.cmd{display:flex;align-items:center;gap:8px;background:var(--s0);border:1px solid var(--ln);border-radius:10px;padding:0 12px;min-height:46px;font-family:var(--mono);font-size:13.5px}
+.cmd input{flex:1;background:none;border:0;color:var(--t1);font:inherit;min-width:0;outline:0}
+.cmd span{color:var(--t3)}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{background:var(--s3);border:1px solid var(--ln);color:var(--t1);border-radius:8px;font:500 13px var(--mono);padding:5px 10px;min-height:34px;cursor:pointer}
+.mrowlist{margin:0 16px;background:var(--s2);border:1px solid var(--s3);border-radius:12px}
+.mitem{display:flex;align-items:center;gap:9px;padding:10px;border-bottom:1px solid var(--s3);min-height:60px}
+.mitem:last-child{border-bottom:0}
+.mitem.off{opacity:.55}
+.mopen{flex:1;min-width:0;display:flex;align-items:center;gap:9px;background:none;border:0;color:inherit;font:inherit;text-align:left;cursor:pointer;padding:0;min-height:44px}
+.mname{font-weight:600;font-size:14px}
+.msub{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);white-space:nowrap}
+.pill{font-size:11px;font-weight:600;padding:1px 7px;border-radius:99px;white-space:nowrap}
+.pill.ok{background:var(--gnbg);color:var(--gn)}.pill.up{background:var(--acbg);color:var(--ac)}.pill.fix{background:var(--ambg);color:var(--am)}
+.move{display:grid;gap:2px}
+.move button{background:none;border:0;color:var(--t2);width:24px;height:20px;cursor:pointer;font-size:11px;padding:0}
+.move button[disabled]{opacity:.25;cursor:default}
+.act{margin:0 16px 10px;background:var(--s2);border:1px solid var(--s3);border-radius:12px;padding:12px;display:grid;gap:8px}
+.act.done{border-color:rgba(52,211,153,.4)}
+.act h6{margin:0;font-size:14px;font-weight:600;font-family:inherit}
+.act p{margin:0;font-size:13px;line-height:1.42;color:var(--t2);max-width:none}
+.act code{font-family:var(--mono);font-size:12px;color:var(--t1);background:var(--s0);border-radius:5px;padding:1px 4px}
+.btn{background:var(--ac);color:#04222a;border:0;border-radius:9px;min-height:40px;font-size:13.5px;font-weight:700;font-family:inherit;cursor:pointer;padding:0 12px}
+.btn.sec{background:var(--s3);color:var(--t1);border:1px solid var(--ln)}
+.btn[disabled]{opacity:.65;cursor:progress}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 14px;font-size:13px}
+.kv dt{color:var(--t2)}.kv dd{margin:0;text-align:right;overflow-wrap:anywhere}
+.checks{display:grid;gap:5px;font-size:13px;margin:0;padding:0;list-style:none}
+.checks li{display:grid;grid-template-columns:18px minmax(0,1fr);gap:4px}
+.checks .y{color:var(--gn)}.checks .n{color:var(--am)}
+.dtitle{display:flex;align-items:center;gap:10px;padding:0 16px 12px}
+.dtitle .mark{width:36px;height:36px;border-radius:10px}.dtitle .mark svg{width:20px;height:20px}
+.dmeter{display:grid;gap:4px}
+.dmeter .mrow{font-size:13px;line-height:18px}
+.subh{padding:6px 16px 8px;margin:0;font-size:12px;font-weight:600;font-family:inherit;letter-spacing:.07em;text-transform:uppercase;color:var(--t2)}
+/* Desktop composition */
+.desk .body{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:0;flex:1;min-height:0}
+.desk .left{overflow-y:auto;padding-bottom:12px;border-right:1px solid var(--s3);min-width:0}
+.desk .right{display:flex;flex-direction:column;min-height:0;background:var(--s1)}
+.desk .right .scroll{padding-top:12px}
+.desk .right .panel{margin-top:0}
+.desk .card{width:172px}
+.desk .tabs{max-width:320px}
+</style>
+
+<main>
+<header class="stack">
+  <span class="eyebrow">Web Console · New Terminal drawer</span>
+  <h1>Launch drawer review</h1>
+  <p class="lede">The drawer's layout problems are fixable, but the launch data underneath isn't yet reliable enough to charge for. This covers what's wrong, a redesign you can click through, and the order I'd fix things in. Nothing has been changed.</p>
+</header>
+
+<section>
+  <h2>The three things that matter most</h2>
+  <div class="top3">
+    <div class="callout crit"><b>Your Claude weekly reading is being hidden.</b><p>The card said "Weekly: Unavailable" while the newest sample showed 86%. Tonight it's 87%. That's the number you most need before launching.</p></div>
+    <div class="callout"><b>An update button can't be added on top of today's data.</b><p>All five cards show an arrow. Only Claude and probably Codex could update today. Grok's arrow is false, and OpenCode's card reports the wrong copy.</p></div>
+    <div class="callout"><b>Agent settings come before the choice they depend on.</b><p>You were right. Context limit sits above the choice of agent or shell, yet it only works for plain Claude and Codex launches. Its 1M and 150k values never look at the model.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Try the redesign</h2>
+  <p>Both phones are clickable. Pick agents, change models, turn on Save usage, open a harness in Manage and run its update. Versions, usage and problems are this host's real readings from tonight. Claude's context sizes are placeholders, because no data source for them exists yet.</p>
+  <div class="sim" role="group" aria-label="Mockup controls">
+    <div class="simgroup"><span>Usage data</span>
+      <button class="simbtn" data-sim="usage:loaded">Loaded</button>
+      <button class="simbtn" data-sim="usage:loading">Still loading</button>
+      <button class="simbtn" data-sim="usage:weekly">Claude drops 5-hour</button>
+    </div>
+    <div class="simgroup"><span>Layout</span>
+      <button class="simbtn" data-sim="layout:tabs">A: Type first</button>
+      <button class="simbtn" data-sim="layout:rail">B: Shell in the rail</button>
+    </div>
+    <span>Card height: <span id="measure">–</span></span>
+  </div>
+  <div class="devices">
+    <div class="devicecol"><div class="m phone" id="launcher"></div><div class="devicecap">New session, phone</div></div>
+    <div class="devicecol"><div class="m phone" id="manage"></div><div class="devicecap">Manage, phone</div></div>
+  </div>
+  <div class="deskwrap"><div class="m desk" id="desktop" style="margin:0 auto"></div><div class="devicecap" style="margin-top:8px">New session, desktop: same data, with settings beside the choice instead of below it</div></div>
+
+  <div class="tablewrap"><table>
+    <thead><tr><th>You asked for</th><th>What the redesign does</th></tr></thead>
+    <tbody>
+      <tr><td>Agent settings shouldn't come before picking agent or shell</td><td>Order is now where, what, how, launch. Settings appear only for the selected harness and only if it supports them.</td></tr>
+      <tr><td>Context controls with real numbers</td><td>Options come from the selected model. They're shown as tokens with a gauge against that model's window. Harnesses without support don't show the control.</td></tr>
+      <tr><td>Horizontal cards, stable height</td><td>A rail with a peek at the next card. Space comes from how many windows each harness declares, so it's fixed before usage arrives. The readout above stays the same between Loaded and Still loading.</td></tr>
+      <tr><td>Data-driven usage windows</td><td>Bars are drawn from whatever windows the provider reports. Press "Claude drops 5-hour" to see the bar go away cleanly.</td></tr>
+      <tr><td>Reset time without clutter</td><td>The card shows <code>87% · 4d</code>. Manage spells out "Resets Wed, Nov 4, 10:00 AM". Screen readers hear the full sentence.</td></tr>
+      <tr><td>Update from Manage, with a badge</td><td>The badge counts things you can act on. Each harness detail page gives one plain problem, one action and the checks behind it.</td></tr>
+      <tr><td>Custom or recent order</td><td>A Custom / Recent switch in Manage reorders the rail. Recent needs a small last-launched record, which doesn't exist today.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>What's wrong today</h2>
+  <p>Sorted by harm. <span class="tag P0">P0</span> gives you wrong information or blocks launch. <span class="tag P1">P1</span> causes misclicks, confusion or dead ends. <span class="tag P2">P2</span> is polish and upkeep.</p>
+
+  <h3>Usage</h3>
+  <div class="findings">
+    <div class="finding"><span class="tag P0">P0</span><div><p><b>Weekly usage disappears whenever it hasn't changed.</b> The store skips a repeated reading, but the live endpoint only accepts windows stamped with the newest sample's exact time. Live right now: the endpoint returned 5-hour only, while the sample file held both windows and weekly at 87%. The same mechanism can hide either window.</p><p class="where"><code>agent-manager/api/internal/adapters/database/repository_pricing.go:131,144</code>; <code>internal/handlers/live_quota.go</code>, in <code>claudeLiveQuota</code>'s window loop</p></div></div>
+    <div class="finding"><span class="tag P0">P0</span><div><p><b>Claude usage goes blank after 15 quiet minutes.</b> In your 22:39 screenshot the newest sample was 29 minutes old, so the Web Console adapter rejected the whole reading. Agent Manager and the UI both allow 6 hours. A weekly reading that's 29 minutes old is still useful if it's labeled with its age.</p><p class="where"><code>web-console/api/agent_usage.go:92</code>; <code>pricing/quota.go:200</code>; <code>AgentUsage.tsx:6</code></p></div></div>
+    <div class="finding"><span class="tag P1">P1</span><div><p><b>Windows are hardcoded twice.</b> The UI draws only 300-minute and 10,080-minute rows, and the Claude reader only knows <code>five_hour</code> and <code>seven_day</code>. If a provider drops a window, the row stays as "Unavailable". A new window is ignored. The API already returns a list, so the fix is mostly removing code.</p><p class="where"><code>AgentUsage.tsx:35-36</code>; <code>pricing/claude_statusline.go:27</code>; <code>statusline.go:52-55</code>; <code>capabilities.proto:42</code></p></div></div>
+    <div class="finding"><span class="tag P1">P1</span><div><p><b>Every 5-minute refresh blanks the cards.</b> Each refresh empties usage, so cards shrink to one line and grow back. That shift is the misclick you noticed. Each card also makes its own request, and Codex starts a process that can take up to 10 seconds.</p><p class="where"><code>useAgentUsage.ts</code> (<code>setSnapshot</code> at the start of the effect); <code>AgentGridSection.tsx</code> <code>CARD_BODY</code></p></div></div>
+    <div class="finding"><span class="tag P1">P1</span><div><p><b>"Estimated account" repeats on every card and names no account.</b> The adapter can never return "verified". One line in Manage is enough. Nearby text is raw server output, unparsed version strings and three different date formats.</p><p class="where"><code>agent_usage.go:82</code>; <code>AgentUsage.tsx</code>; <code>AgentGridSection.tsx:367</code></p></div></div>
+  </div>
+
+  <h3>Context limit and Save usage</h3>
+  <div class="findings">
+    <div class="finding"><span class="tag P0">P0</span><div><p><b>The numbers ignore the model.</b> Keep long is always 1M and Tight is always 150k. This host's Codex data says <code>gpt-6.1-terra</code> has a 500k window and <code>gpt-6-luna</code> has 272k, so "Keep long" promises a size neither has by default. The Codex list exists on disk, but nothing reads it. Claude has no list at all, although its status line sends <code>context_window_size</code> and the feed discards it.</p><p class="where"><code>contextLimit.ts:13</code>; <code>~/.codex/models_cache.json</code>; <code>statusline.go:48-55</code></p></div></div>
+    <div class="finding"><span class="tag P1">P1</span><div><p><b>The chips can do nothing, with no sign of it.</b> They stay active for OpenCode, Grok, Antigravity and shell. They also skip any command containing a pipe or <code>&amp;&amp;</code>, and the custom command bar ignores them completely. Typing <code>claude</code> there with Tight selected launches without the limit.</p><p class="where"><code>TerminalLauncher.tsx:446,511</code>; <code>contextLimit.ts:30-48</code></p></div></div>
+    <div class="finding"><span class="tag P1">P1</span><div><p><b>"Standard leaves the usual limit" isn't always true.</b> An active Save usage mode can set its own limit, which the launcher never shows. "Keep long" can also override that cap.</p><p class="where"><code>managed_codex.go:90-94</code>; <code>docs/configuration/usage-modes.md</code></p></div></div>
+    <div class="finding"><span class="tag P1">P1</span><div><p><b>"Compact idle sessions" doesn't belong here.</b> It acts on sessions already running, but it sits beside a setting for the next launch. "Save usage" also reads like a save button. It actually starts a timed mode that lowers the model for new sessions.</p><p class="where"><code>TerminalLauncher.tsx:495-528</code>; <code>UsageModeSheet.tsx</code></p></div></div>
+  </div>
+
+  <h3>Models and providers</h3>
+  <div class="findings">
+    <div class="finding"><span class="tag P0">P0</span><div><p><b>You can't choose a Claude model on this host.</b> The Claude model list is 50 days old against a 14-day budget, which switches off overrides. The message offers no fix, and I found no fix in the UI. The list is genuinely out of date: it has no <code>claude-opus-5-5</code>, the model this review ran on. Other Claude states also hide the picker, and it only appears below the fold after you select a card.</p><p class="where"><code>resources/claude-code/model-policy.json</code>; <code>.vrooli/agent-manager/model-policy-drift.json</code>; <code>model_selection.go:99-103</code>; <code>TerminalLauncher.tsx:656-664</code></p></div></div>
+    <div class="finding"><span class="tag P2">P2</span><div><p><b>Only OpenCode offers provider selection.</b> That's correct. It's decided by a code table, though, and Grok and Antigravity show no model control because of that same table. The launcher's billing section also has hardcoded English and raw controls.</p><p class="where"><code>model_selection.go:129-136</code>; <code>TerminalLauncher.tsx:52-53,701-721</code></p></div></div>
+  </div>
+
+  <h3>Updates: the state of each harness tonight</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Harness</th><th>Shown / latest</th><th>What's really going on</th><th>Works today?</th><th>What the UI should offer</th></tr></thead>
+    <tbody>
+      <tr><td>Claude Code</td><td class="num">2.1.312 / 2.1.316</td><td>Managed, user-owned copy is first on PATH</td><td>Yes</td><td>Update</td></tr>
+      <tr><td>Codex</td><td class="num">0.165.0 / 0.166.0</td><td>Managed copy is first. An older root-owned copy in <code>/usr/bin</code> sits behind it</td><td>Probably; not run</td><td>Update, with verification after</td></tr>
+      <tr><td>OpenCode</td><td class="num">1.18.35 / 1.19.5</td><td><code>~/.opencode/bin</code> runs first and hides the managed 1.19.4, so the update would install and then fail its check</td><td>No</td><td>Use Vrooli's copy, then update</td></tr>
+      <tr><td>Grok</td><td class="num">0.2.72 / 1.0.70</td><td>False alarm. Package 1.0.70's binary reports itself as 0.2.72, so the arrow would never clear. Also, a standalone file blocks the managed link</td><td>No</td><td>Link Vrooli's copy. No update is pending</td></tr>
+      <tr><td>Antigravity</td><td class="num">1.1.22 / 1.4.12</td><td>Root-owned file, which the blocker check misses, and no update command exists</td><td>No</td><td>Explain, and repair through <code>sudo vrooli setup</code> only</td></tr>
+    </tbody>
+  </table></div>
+  <div class="findings">
+    <div class="finding"><span class="tag P1">P1</span><div><p><b>"Pinned 2.1.185" looks like a lock, but it isn't.</b> It's the version the permission policy was last reviewed against. The update check doesn't use it. I'd rename it "Permissions reviewed for".</p><p class="where"><code>resources/claude-code/resource.json:362</code>; <code>web-console/api/agent_updates.go:262</code></p></div></div>
+    <div class="finding"><span class="tag P1">P1</span><div><p><b>There's no control-plane update command.</b> Only <code>resource-&lt;name&gt; update</code> exists. Host repair logic isn't allowed in scenarios, so Web Console needs a verb to call. Its remote install flow is a good pattern to reuse. There's no login or auth state either, so "5/5 agents ready" only means the binaries exist.</p><p class="where"><code>internal/resources/agentinstall/update.go</code>; <code>web-console/api/remote_capability_install.go</code>; <code>packages/capabilityprobe/probe.go:20-23</code></p></div></div>
+  </div>
+
+  <h3>Code debt</h3>
+  <div class="findings">
+    <div class="finding"><span class="tag P1">P1</span><div><p><b>No single definition of a harness.</b> The five are re-declared in at least 16 files, and "grok" appears in about 45. A sixth harness means editing 25 or more files, and missing one doesn't fail the build. The schema's <code>capabilities</code> field is an open slot for this.</p><p class="where"><code>.vrooli/schemas/resource.schema.json</code>; <code>capabilityprobe/probe.go:48</code>; <code>cliutil/agentlauncher.go:615</code>; <code>web-console/api/internal/capabilities/registry.go</code></p></div></div>
+    <div class="finding"><span class="tag P1">P1</span><div><p><b><code>vrooli agent launch --runner antigravity</code> is rejected</b>, while the launcher's own table accepts it. Antigravity's catalog is also left out of the freshness audit.</p><p class="where"><code>internal/cli/vroolicli/agent.go:210-222</code>; <code>cliutil/agentlauncher.go:625</code>; <code>agent-manager wiring/routes.go:316</code></p></div></div>
+    <div class="finding"><span class="tag P1">P1</span><div><p><b>Launch settings travel as edited command strings.</b> The UI rewrites shell text with regexes, which is why pipes silently skip the limit. A structured request (agent, model, context) composed on the server removes that kind of bug.</p><p class="where"><code>contextLimit.ts</code>; <code>TerminalLauncher.tsx:440,618</code></p></div></div>
+    <div class="finding"><span class="tag P2">P2</span><div><p><b>Oversized components and clones.</b> <code>TerminalLauncher.tsx</code> is 822 lines covering six concerns. <code>AgentGridSection.tsx</code> (491) holds both the grid and the whole Manage drawer. Grok and Antigravity's <code>main.go</code> overlap about 80%. Transcript and goal parsing exists in both Web Console and Agent Manager. Hardcoded English remains, and several toggles lack focus styles.</p><p class="where"><code>TerminalLauncher.tsx:195-217</code>; <code>context_compaction.go:215-350</code>; <code>codecs/goal_markers.go</code></p></div></div>
+  </div>
+</section>
+
+<section>
+  <h2>Recommended order</h2>
+  <p>Each step ships on its own. The first two fix wrong information, so they should go first whichever design you pick.</p>
+  <ol class="plan">
+    <li><p><b>Make the readings true.</b> Use each window's newest reading, drop the 15-minute cutoff in favor of showing age, keep old values during refresh, and stop treating a reset moment as a missing window. <span class="note">Proof: a regression test where one window changes and the other doesn't, plus live comparison with the sample file.</span></p></li>
+    <li><p><b>Fix the small launch bugs.</b> Refresh the Claude model list, hide the chips where they do nothing, apply limits to the custom bar or say they don't apply, and accept Antigravity in <code>vrooli agent launch</code>. Fix Grok's version comparison.</p></li>
+    <li><p><b>Add one harness descriptor.</b> A typed block in <code>resource.json</code> covers identity, features and expected usage windows, with a test that fails when a hand-kept table disagrees. Move tables over one at a time. Proof: a fake sixth harness changes one file, and the "grok" count keeps falling.</p></li>
+    <li><p><b>Add model context data.</b> Capture <code>context_window_size</code> from Claude's status line, read Codex's model list, and return the resolved number with the launcher data.</p></li>
+    <li><p><b>Rebuild the drawer.</b> Move the rail into a shared component with snap, ship the new order, fixed card heights and a real Manage detail page. Split the two oversized components along the way, and verify on a real iPhone as well as headless.</p></li>
+    <li><p><b>Add real updates.</b> Add <code>vrooli resource update</code> and a status per harness with one action. Add eligibility checks, repairs for the shadowed and unlinked copies, and an Antigravity updater. The badge goes live here. Proof: a real update of each harness, including one remote node.</p></li>
+    <li><p><b>Finish the cleanup.</b> Send launches as structured requests, build a shared resource CLI shell, and give transcript parsing one owner. This last one has the highest risk, so it comes last.</p></li>
+  </ol>
+</section>
+
+<section>
+  <h2>Decisions for you</h2>
+  <p>I've picked a default for each, so none of these block the work. Tell me if you'd go the other way.</p>
+  <div class="decisions">
+    <div class="decision"><h3>Type first, or shell in the rail?</h3><p class="rec">Recommended: A, type first.</p><p>A makes "agent or plain terminal?" the first decision, which is the flow you described, and gives Group a proper home. B is one less control, but shell is scrolled out of view at the end of a rail. Switching later costs about a day, since both use the same data. Try both with the Layout control above.</p></div>
+    <div class="decision"><h3>Should a stale model list block overrides?</h3><p class="rec">Recommended: warn instead of blocking.</p><p>An out-of-date list doesn't make its models invalid, and a bad choice fails right at launch. The catch is that billing class comes from the same list, so a new, pricier model could be mislabeled. Metered models should keep a hard block. The refresh itself also has no governed command yet, so step 2 needs to add one.</p></div>
+    <div class="decision"><h3>Update with one tap, or qualify first?</h3><p class="rec">Recommended: one tap, with rollback available.</p><p>The drift report says updates should be qualified with rollback kept. Installs are already versioned, so going back is just relinking, although a rollback command needs adding because the updater refuses downgrades. New versions could quietly change permission behavior, so the page should say when a version is newer than the one the permission policy was reviewed against.</p></div>
+    <div class="decision"><h3>Should Claude's 5-hour window be removed now?</h3><p class="rec">Recommended: no. Let the data decide.</p><p>This account still reports it tonight, with a reset at 3:10 AM. I found no public confirmation of the removal, and reports on Codex's 5-hour window conflict. The redesign doesn't care: a window shows only while it's reported, and the descriptor's expected list gets updated when the change reaches you.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>How far to trust this</h2>
+  <p class="note">I re-checked the weekly-usage bug, the 15-minute gap, the 5-hour samples, the Claude and Codex model data and the file sizes myself. One sub-agent reported that the live endpoint returned weekly usage, which was wrong, and I corrected it. The 14 samples missing 5-hour all fall on the 5-hour reset boundary, so they aren't a sign of the rollout. The harness table comes from read-only checks, and no update was run, so "works today" is a reading of the code and disk state. These are also unverified: what an update does to running sessions (the symlink swap suggests they continue), whether Codex or Claude clamp a 1M limit, and how the drawer renders on a real device. Line numbers in long files may be off by a few. Vendor limit reports came from third-party sources.</p>
+  <p class="note">Sources: <a href="https://github.com/openai/codex/discussions/32632">Codex discussion on the missing 5-hour limit</a> · <a href="https://www.eesel.ai/blog/gpt-remove-5-hour-limits">OpenAI 5-hour limit removal coverage</a> · <a href="https://fast.inference.net/guides/codex-usage">Codex usage guide</a> · <a href="https://alexcloudstar.com/blog/claude-code-usage-limits-2026/">Claude Code usage limits overview</a> · <a href="https://github.com/quickbeard/codev-hub/pull/171">Compaction settings PR</a> · <a href="https://codex.danielvaughan.com/2026/04/16/codex-cli-context-compaction-tuning-long-sessions/">Codex compaction tuning</a></p>
+</section>
+</main>
+
+<script>
+(function(){
+const ICON={
+ claude:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 2v12M2.8 5l10.4 6M13.2 5 2.8 11"/></svg>',
+ codex:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 8a5 5 0 1 0 2-4"/><circle cx="8" cy="8" r="1.8"/></svg>',
+ opencode:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4 2.5 8 6 12M10 4l3.5 4L10 12"/></svg>',
+ grok:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13 13 3M6 3h7v7"/></svg>',
+ agy:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M8 2.5 13 11H3z"/><path d="M3 13.5h10" stroke-linecap="round"/></svg>',
+ shell:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 4 4 4-4 4M8.5 12.5H13"/></svg>'
+};
+const H={
+ claude:{name:'Claude Code',color:'#5eead4',recent:1,windows:[
+   {id:'5h',label:'5h',long:'5 hours',pct:3,rel:'4h',abs:'Today, 3:10 AM',relLong:'4 hours'},
+   {id:'week',label:'Week',long:'Weekly',pct:87,rel:'4d',abs:'Wed, Nov 4, 10:00 AM',relLong:'4 days'}],
+   declared:2,source:'Claude Code status line, 3 min ago',
+   models:[{id:'Sonnet 5',win:1000000,low:null},{id:'Opus 5',win:1000000,low:'Sonnet 5'},{id:'Fable 5.1',win:1000000,low:'Opus 5'},{id:'Haiku 5.5',win:200000,low:null}],
+   ctx:{full:true},saver:true,active:'2.1.312',latest:'2.1.316',policy:'2.1.185',install:'Vrooli, your user account',
+   checks:[[1,'Your user account owns this copy'],[1,'It runs first on PATH'],[1,'Update command available']],
+   sessionNote:'Sessions already running keep 2.1.312. New sessions use 2.1.316.',
+   issues:[{id:'update',kind:'up',title:'Update to 2.1.316',body:'A newer version is ready from npm. Running sessions aren’t interrupted.',cta:'Update',steps:['Installing 2.1.316…','Verifying…'],done:'Updated to 2.1.316. Sessions already running keep 2.1.312.',apply:h=>{h.active='2.1.316'}},
+           {id:'catalog',kind:'fix',title:'Model list is 50 days old',body:'Choosing a Claude model is off until the list is refreshed. Newer models such as Opus 5.5 are missing from it.',cta:'Refresh model list',steps:['Reading available models…'],done:'Model list refreshed. You can choose a model again.',notice:'Model choice is off because the list is 50 days old.'}]},
+ codex:{name:'Codex',color:'#2dd4bf',recent:0,windows:[{id:'week',label:'Week',long:'Weekly',pct:55,rel:'4d',abs:'Wed, Nov 4, 1:57 AM',relLong:'4 days'}],declared:1,source:'Local Codex login, 1 min ago',
+   models:[{id:'gpt-6.1-terra',win:500000,low:'gpt-6-luna'},{id:'gpt-6.1-sol',win:500000,low:null},{id:'gpt-6-luna',win:272000,low:null}],
+   ctx:{full:false},saver:true,active:'0.165.0',latest:'0.166.0',policy:'0.161.0',install:'Vrooli, your user account',
+   checks:[[1,'Your user account owns this copy'],[1,'It runs first on PATH'],[1,'Update command available'],[0,'An older copy is in /usr/bin. It isn’t used, so it isn’t blocking']],
+   sessionNote:'Sessions already running keep 0.165.0. New sessions use 0.166.0.',
+   issues:[{id:'update',kind:'up',title:'Update to 0.166.0',body:'A newer version is ready from npm. Running sessions aren’t interrupted.',cta:'Update',steps:['Installing 0.166.0…','Verifying…'],done:'Updated to 0.166.0.',apply:h=>{h.active='0.166.0'}}]},
+ opencode:{name:'OpenCode',color:'#4ade80',recent:3,windows:[],declared:0,models:[{id:'deepseek-v4.1-flash',win:null},{id:'mimo-v2.5',win:null}],providers:['OpenRouter','OpenCode Go','Ollama'],ctx:null,saver:false,active:'1.18.35',latest:'1.19.5',policy:'1.18.30',install:'Upstream installer, in ~/.opencode/bin',
+   checks:[[1,'Your user account owns this copy'],[0,'An older copy in ~/.opencode/bin runs before Vrooli’s 1.19.4'],[1,'Update command available']],
+   issues:[{id:'shadow',kind:'fix',title:'An older copy runs first',body:'<code>~/.opencode/bin</code> comes before Vrooli’s copy on PATH, so sessions use 1.18.35 and an update could not take effect.',cta:'Use Vrooli’s copy',steps:['Changing PATH order…','Verifying…'],done:'Now using 1.19.4. Update available: 1.19.5.',apply:h=>{h.active='1.19.4';h.install='Vrooli, your user account';h.checks[1]=[1,'It runs first on PATH']}}]},
+ grok:{name:'Grok',color:'#fda4af',recent:4,windows:[],declared:0,models:[{id:'grok-build',win:null}],modelFixed:true,ctx:null,saver:false,active:'1.0.70 package',latest:'1.0.70',policy:'0.2.72',install:'Standalone file at ~/.local/bin/grok',
+   checks:[[1,'Your user account owns this copy'],[0,'The file blocks Vrooli’s link'],[1,'Update command available']],
+   issues:[{id:'link',kind:'fix',title:'Not linked to Vrooli’s copy',body:'A standalone file at <code>~/.local/bin/grok</code> blocks future updates. It can be moved aside, then restored if needed. No update is pending now.',cta:'Link Vrooli’s copy',steps:['Moving the old file aside…','Verifying…'],done:'Linked. The old file is kept beside it.',apply:h=>{h.install='Vrooli, your user account';h.checks[1]=[1,'It runs first on PATH']}}]},
+ agy:{name:'Antigravity',color:'#fbbf24',recent:2,windows:[],declared:0,models:[{id:'Default',win:null}],modelFixed:true,ctx:null,saver:false,active:'1.1.22',latest:'1.4.12',policy:'1.0.13',install:'Root-owned file at ~/.local/bin/agy',
+   checks:[[0,'Root owns this file'],[1,'It runs first on PATH'],[0,'No update command exists yet']],
+   issues:[{id:'root',kind:'fix',title:'Needs setup to repair',body:'Root owns this copy, so Web Console can’t change it. Run this once in a terminal, then update from here.',command:'sudo vrooli setup --include-optional'}]}
+};
+const S={usage:'loaded',layout:'tabs',type:'agent',sel:'claude',order:['claude','codex','opencode','grok','agy'],orderMode:'custom',hidden:{},model:{},provider:{},ctx:{},saver:{},screen:'list',open:null,run:{},done:{}};
+const issuesLeft=id=>H[id].issues.filter(i=>!S.done[id+':'+i.id]);
+const badge=()=>Object.keys(H).filter(id=>!S.hidden[id]).reduce((n,id)=>n+issuesLeft(id).length,0);
+const visible=()=>{const l=S.orderMode==='recent'?Object.keys(H).sort((a,b)=>H[a].recent-H[b].recent):S.order;return l.filter(id=>!S.hidden[id])};
+const fmt=n=>n>=1e6?(n/1e6)+'M':Math.round(n/1e3)+'k';
+const modelOf=id=>{const h=H[id];const m=S.model[id]||h.models[0].id;return h.models.find(x=>x.id===m)||h.models[0]};
+const catalogBlocked=id=>id==='claude'&&!S.done['claude:catalog'];
+function winsFor(id){let w=H[id].windows;if(S.usage==='weekly'&&id==='claude')w=w.filter(x=>x.id!=='5h');return w}
+function declared(id){return S.usage==='weekly'&&id==='claude'?1:H[id].declared}
+function slots(){return Math.max(1,...visible().map(declared))}
+function meter(w){const c=w.pct>=95?'full':w.pct>=80?'hot':'';return `<div class="meter" aria-label="${w.long} ${w.pct}% used, resets in ${w.relLong}"><div class="mrow ${c}"><span>${w.label}</span><span><b>${w.pct}%</b> · ${w.rel}</span></div><div class="bar ${c}"><i style="width:${w.pct}%"></i></div></div>`}
+function skeleton(){return `<div class="meter" aria-hidden="true"><div class="skel"></div><div class="skel b"></div></div>`}
+function card(id){const h=H[id],on=S.type==='agent'&&S.sel===id,n=slots();let inner;
+  if(!declared(id))inner='<div class="meter nousage">Usage not reported</div>'+Array(n-1).fill('<div class="meter"></div>').join('');
+  else if(S.usage==='loading')inner=Array(declared(id)).fill(skeleton()).join('')+Array(n-declared(id)).fill('<div class="meter"></div>').join('');
+  else{const w=winsFor(id);inner=w.map(meter).join('')+Array(n-w.length).fill('<div class="meter"></div>').join('')}
+  const left=issuesLeft(id).length;
+  return `<button class="card" role="radio" aria-checked="${on}" data-act="pick:${id}"><span class="cardtop"><span class="mark" style="--mc:${h.color}">${ICON[id]}</span><span class="cname">${h.name}</span>${left?`<span class="flag" title="${left} action${left>1?'s':''} in Manage"><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)">${left} action in Manage</span></span>`:''}</span><span class="meters">${inner}</span></button>`}
+function shellCard(){const on=S.type==='shell';return `<button class="card" role="radio" aria-checked="${on}" data-act="type:shell"><span class="cardtop"><span class="mark">${ICON.shell}</span><span class="cname">Shell</span></span><span class="meters"><div class="meter nousage">No agent, no capture</div>${Array(slots()-1).fill('<div class="meter"></div>').join('')}</span></button>`}
+function ctxOptions(id){const h=H[id],m=modelOf(id);const opts=[{v:'default',l:'Default'}];if(h.ctx.full&&m.win>=1e6)opts.push({v:String(m.win),l:fmt(m.win)});[300000,150000].forEach(v=>{if(v<m.win)opts.push({v:String(v),l:fmt(v)})});return opts}
+function settings(p){const id=S.sel,h=H[id],m=modelOf(id);const saving=h.saver&&S.saver[id];let shown=m.id;if(saving&&m.low&&!S.model[id+':explicit'])shown=m.low;const eff=h.models.find(x=>x.id===shown)||m;
+  let out='';const blk=issuesLeft(id).find(i=>i.notice);if(blk)out+=`<div class="notice"><span>${blk.notice}</span><button class="link" data-act="openissue:${id}">Fix</button></div>`;
+  out+=`<div class="row"><div class="rowh"><label for="${p}-model">Model</label>`;
+  if(h.modelFixed||catalogBlocked(id))out+=`<span class="val">${h.modelFixed?shown:'Default ('+shown+')'}</span>`;
+  else out+=`<select id="${p}-model" data-chg="model">${h.models.map(x=>`<option${x.id===m.id?' selected':''}>${x.id}</option>`).join('')}</select>`;
+  out+='</div>';if(saving&&m.low)out+=`<span class="hint">Save usage lowers ${m.id} to ${m.low} for new sessions.</span>`;out+='</div>';
+  if(h.providers)out+=`<div class="row"><div class="rowh"><label for="${p}-prov">Provider</label><select id="${p}-prov" data-chg="provider">${h.providers.map(x=>`<option${S.provider[id]===x?' selected':''}>${x}</option>`).join('')}</select></div></div>`;
+  if(h.ctx&&eff.win){const opts=ctxOptions(id);let cur=S.ctx[id]||'default';if(!opts.find(o=>o.v===cur))cur='default';const lim=cur==='default'?null:+cur;const pct=lim?Math.min(100,lim/eff.win*100):100;
+    out+=`<div class="row"><div class="rowh"><span class="rowl">Compact at</span><span class="val">${fmt(eff.win)} model window</span></div><div class="seg" role="radiogroup" aria-label="Compact at">${opts.map(o=>`<button role="radio" aria-checked="${o.v===cur}" data-act="ctx:${o.v}">${o.l}</button>`).join('')}</div><div class="gauge"><i style="width:${pct}%"></i></div><span class="hint">${lim?(lim>=eff.win?`Uses this model’s full ${fmt(eff.win)} before compacting.`:`Compacts near ${fmt(lim)}, so each turn re-reads less. Older detail gets summarized sooner.`):`Uses ${h.name}’s own limit for ${eff.id}.`}</span></div>`}
+  if(h.saver){const w=H[id].windows.filter(x=>x.id==='week')[0];out+=`<div class="row"><div class="rowh"><span class="rowl" id="${p}-sv">Save usage</span><button class="switch" role="switch" aria-labelledby="${p}-sv" aria-checked="${!!saving}" data-act="saver"></button></div><span class="hint">${saving?`On until the weekly reset (${w?w.abs:'Wed'}). Applies to new ${h.name} sessions.`:'Starts new sessions on a lower model until a time you choose.'}</span></div>`}
+  return `<div class="panel">${out}</div>`}
+function ctaBlock(){if(S.type==='shell')return{sum:'This machine · No agent',label:'Open shell'};if(S.type==='group')return{sum:'This machine · 2 agents',label:'Start group'};const id=S.sel,h=H[id],m=modelOf(id);const saving=h.saver&&S.saver[id]&&m.low;let c='';if(h.ctx&&m.win){const v=S.ctx[id];c=v&&v!=='default'?' · compacts at '+fmt(+v):''}return{sum:`This machine · ${catalogBlocked(id)?'Default model':saving?m.low:m.id}${c}${saving?' · saving':''}`,label:'Launch '+h.name}}
+function shellPanel(p){return `<div class="pad" style="display:grid;gap:12px;padding-top:14px"><label class="cmd" for="${p}-cmd"><span>$</span><input id="${p}-cmd" placeholder="Optional command" autocomplete="off"></label><div><div class="hint" style="margin-bottom:6px">Your shortcuts</div><div class="chips"><button class="chip">make logs</button><button class="chip">htop</button><button class="chip">vrooli status</button></div></div><span class="hint">Opens a plain terminal. Agent settings don’t apply.</span></div>`}
+function groupPanel(){return `<div class="pad" style="padding-top:14px"><div class="panel" style="margin:0"><div class="row"><div class="rowh"><span class="rowl">Saved groups</span><span class="val">Choose ▾</span></div></div><div class="row"><div class="rowh"><span class="rowl">Roles</span><span class="val">Implementer, Reviewer</span></div><span class="hint">The current group picker moves here as it is. Each role keeps its own agent.</span></div></div></div>`}
+const disc=`<div class="pad" style="margin-top:8px"><button class="disc"><span>Appearance</span><span>Default · slate-ocean · 14px ›</span></button></div>`;
+function renderLauncher(el,p,desk){const scr=el.querySelector('.scroll,.left'),rail=el.querySelector('.rail');const sTop=scr?scr.scrollTop:0,rLeft=rail?rail.scrollLeft:0;
+  const b=badge();const c=ctaBlock();
+  const tabs=S.layout==='tabs'?`<div class="pad tabs"><div class="seg" role="tablist" aria-label="Session type">${['agent','shell','group'].map(t=>`<button role="tab" aria-selected="${S.type===t}" data-act="type:${t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div></div>`:'';
+  const manage=`<button class="link" data-act="openmanage">Manage ${b?`<span class="bubble" aria-label="${b} actions">${b}</span>`:''}</button>`;
+  const railHTML=(S.type==='agent'||S.layout==='rail')?`<div class="sechead"><h5>Coding agents</h5>${manage}</div><div class="rail" role="radiogroup" aria-label="Choose an agent">${visible().map(card).join('')}${S.layout==='rail'?shellCard():''}</div>`:'';
+  const panel=S.type==='agent'?settings(p):S.type==='shell'?shellPanel(p):groupPanel();
+  const head=`<div class="grab"></div><div class="mh"><h4>New session</h4>${S.layout==='rail'?'<button class="target" data-act="type:group">Group</button>':''}<button class="target"><span class="lamp"></span>This machine ▾</button></div>`;
+  const foot=`<div class="foot"><div class="sum">${c.sum}</div><button class="cta">${c.label}</button></div>`;
+  if(desk){el.innerHTML=`${head}<div class="body"><div class="left">${tabs}${railHTML}${S.type==='agent'?'':panel}${disc}</div><div class="right"><div class="scroll">${S.type==='agent'?panel:'<div class="pad hint" style="padding-top:4px">Nothing else to configure for this session type.</div>'}</div>${foot}</div></div>`}
+  else el.innerHTML=`${head}<div class="scroll">${tabs}${railHTML}${panel}${disc}</div>${foot}`;
+  const nscr=el.querySelector('.scroll,.left'),nrail=el.querySelector('.rail');if(nscr)nscr.scrollTop=sTop;if(nrail)nrail.scrollLeft=rLeft}
+function statusPill(id){const left=issuesLeft(id);if(left.some(i=>i.kind==='fix'))return '<span class="pill fix">Needs attention</span>';if(left.length)return '<span class="pill up">Update ready</span>';return '<span class="pill ok">Up to date</span>'}
+function renderManage(el){const scr=el.querySelector('.scroll');const sTop=scr?scr.scrollTop:0;
+  if(S.screen==='list'){const list=S.orderMode==='recent'?Object.keys(H).sort((a,b)=>H[a].recent-H[b].recent):S.order;const ups=list.filter(id=>!S.hidden[id]&&issuesLeft(id).some(i=>i.kind==='up'));
+    el.innerHTML=`<div class="grab"></div><div class="mh"><button class="back" aria-label="Back to New session" data-act="noop">‹</button><h4>Manage agents</h4></div><div class="scroll"><div class="pad" style="display:grid;gap:10px;margin-bottom:12px"><div class="rowh"><span class="rowl">Card order</span><div class="seg" role="radiogroup" aria-label="Card order" style="width:180px">${['custom','recent'].map(o=>`<button role="radio" aria-checked="${S.orderMode===o}" data-act="order:${o}">${o[0].toUpperCase()+o.slice(1)}</button>`).join('')}</div></div>${ups.length?`<button class="btn" data-act="updateall">Update ${ups.length} ready ${ups.length>1?'agents':'agent'}</button>`:''}</div>
+    <div class="mrowlist">${list.map((id,i)=>{const h=H[id];return `<div class="mitem${S.hidden[id]?' off':''}">${S.orderMode==='custom'?`<div class="move"><button aria-label="Move ${h.name} up" ${i?'':'disabled'} data-act="move:${id}:-1">▲</button><button aria-label="Move ${h.name} down" ${i<list.length-1?'':'disabled'} data-act="move:${id}:1">▼</button></div>`:''}<button class="mopen" data-act="openissue:${id}"><span class="mark" style="--mc:${h.color}">${ICON[id]}</span><span style="min-width:0"><span class="mname">${h.name}</span><span class="msub">${statusPill(id)}</span></span></button><button class="switch" role="switch" aria-label="Show ${h.name}" aria-checked="${!S.hidden[id]}" data-act="hide:${id}"></button></div>`}).join('')}</div>
+    <div class="pad hint" style="padding-top:12px">Turning off an agent hides it from New session. Updates and usage were checked 3 minutes ago.</div><div class="pad" style="padding-top:6px"><button class="link">Edit shell shortcuts ›</button></div></div>`}
+  else{const id=S.open,h=H[id],wins=winsFor(id);
+    const acts=h.issues.map(i=>{const key=id+':'+i.id;if(S.done[key])return `<div class="act done"><h6 style="color:var(--gn)">Done</h6><p>${i.done}</p></div>`;const r=S.run[key];return `<div class="act"><h6>${i.title}</h6><p>${i.body}</p>${i.command?`<div class="cmd" style="min-height:40px;font-size:12px;overflow-x:auto;white-space:nowrap">${i.command}</div><button class="btn sec" data-act="copy">Copy command</button>`:`<button class="btn" ${r?'disabled':''} data-act="run:${id}:${i.id}">${r||i.cta}</button>`}</div>`}).join('');
+    const usage=h.declared?`<h6 class="subh" style="padding-top:12px">Usage</h6><div class="act">${S.usage==='loading'?skeleton():wins.map(w=>`<div class="dmeter"><div class="mrow ${w.pct>=80?'hot':''}"><span>${w.long}</span><span><b>${w.pct}% used</b></span></div><div class="bar ${w.pct>=80?'hot':''}"><i style="width:${w.pct}%"></i></div><span class="hint">Resets ${w.abs}</span></div>`).join('')}<span class="hint">From ${h.source}. Your launch may use a different account.</span></div>`:`<h6 class="subh" style="padding-top:12px">Usage</h6><div class="act"><p>${h.name} doesn’t report usage limits to Vrooli yet.</p></div>`;
+    el.innerHTML=`<div class="grab"></div><div class="mh"><button class="back" aria-label="Back to Manage agents" data-act="closeissue">‹</button><h4>${h.name}</h4></div><div class="scroll"><div class="dtitle"><span class="mark" style="--mc:${h.color}">${ICON[id]}</span><div>${statusPill(id)}</div></div>${acts}${usage}
+    <h6 class="subh" style="padding-top:12px">Version</h6><div class="act"><dl class="kv" style="margin:0"><dt>Running</dt><dd>${h.active}</dd><dt>Latest</dt><dd>${h.latest}</dd><dt>Permissions reviewed for</dt><dd>${h.policy}</dd><dt>Installed by</dt><dd>${h.install}</dd></dl></div>
+    <h6 class="subh" style="padding-top:12px">Update checks</h6><div class="act"><ul class="checks">${h.checks.map(c=>`<li><span class="${c[0]?'y':'n'}" aria-label="${c[0]?'Pass':'Problem'}">${c[0]?'✓':'!'}</span><span>${c[1]}</span></li>`).join('')}</ul></div></div>`}
+  if(scr){const n=el.querySelector('.scroll');if(n)n.scrollTop=sTop}}
+function renderSim(){document.querySelectorAll('[data-sim]').forEach(b=>{const [k,v]=b.dataset.sim.split(':');b.setAttribute('aria-pressed',S[k]===v)});const c=document.querySelector('#launcher .card');const m=document.getElementById('measure');if(m)m.textContent=c?Math.round(c.getBoundingClientRect().height)+'px':'–'}
+function render(){renderLauncher(document.getElementById('launcher'),'p',false);renderLauncher(document.getElementById('desktop'),'d',true);renderManage(document.getElementById('manage'));renderSim()}
+function runIssue(id,iid){const i=H[id].issues.find(x=>x.id===iid),key=id+':'+iid;if(S.run[key]||S.done[key])return;let n=0;const tick=()=>{if(n<i.steps.length){S.run[key]=i.steps[n++];render();setTimeout(tick,850)}else{delete S.run[key];S.done[key]=true;if(i.apply)i.apply(H[id]);render()}};tick()}
+document.addEventListener('click',e=>{const sim=e.target.closest('[data-sim]');if(sim){const [k,v]=sim.dataset.sim.split(':');S[k]=v;if(k==='layout'&&v==='rail'&&S.type==='group')S.type='agent';render();return}
+  const t=e.target.closest('[data-act]');if(!t||!t.closest('.m'))return;const [a,x,y]=t.dataset.act.split(':');
+  if(a==='pick'){S.type='agent';S.sel=x}
+  else if(a==='type'){S.type=x}
+  else if(a==='ctx'){S.ctx[S.sel]=x}
+  else if(a==='saver'){S.saver[S.sel]=!S.saver[S.sel]}
+  else if(a==='openmanage'){S.screen='list';document.getElementById('manage').scrollIntoView({behavior:'smooth',block:'nearest'})}
+  else if(a==='openissue'){S.screen='detail';S.open=x;document.getElementById('manage').scrollIntoView({behavior:'smooth',block:'nearest'})}
+  else if(a==='closeissue'){S.screen='list'}
+  else if(a==='order'){S.orderMode=x}
+  else if(a==='hide'){S.hidden[x]=!S.hidden[x];if(S.hidden[S.sel]){S.sel=visible()[0]||S.sel}}
+  else if(a==='move'){const i=S.order.indexOf(x),j=i+ +y;if(j>=0&&j<S.order.length){S.order.splice(i,1);S.order.splice(j,0,x)}}
+  else if(a==='run'){runIssue(x,y);return}
+  else if(a==='updateall'){Object.keys(H).forEach(id=>{if(!S.hidden[id])H[id].issues.filter(i=>i.kind==='up'&&!S.done[id+':'+i.id]).forEach(i=>runIssue(id,i.id))});return}
+  else if(a==='copy'){const c=t.previousElementSibling.textContent;try{navigator.clipboard.writeText(c).catch(()=>{})}catch(_){ }t.textContent='Copied';return}
+  else return;
+  render()});
+document.addEventListener('change',e=>{const c=e.target.closest('[data-chg]');if(!c)return;if(c.dataset.chg==='model'){S.model[S.sel]=c.value}else{S.provider[S.sel]=c.value}render()});
+render();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(renderSim);
+})();
+</script>

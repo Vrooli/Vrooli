@@ -140,10 +140,8 @@ This keeps deployments organized and makes it easy to add future platforms (iOS,
 
 3. **Add template metadata** to API's template list
 
-4. **Test generation**:
-```bash
-scenario-to-desktop generate test-scenario --template my-template
-```
+4. **Test generation** through the scenario UI, then inspect the durable
+   pipeline with `scenario-to-desktop pipeline list`.
 
 ## Development
 

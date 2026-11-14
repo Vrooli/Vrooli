@@ -1,0 +1,24 @@
+{
+  "background_color": "#020817",
+  "description": "Manage prompts, skills, and agent operating models.",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any",
+      "sizes": "192x192",
+      "src": "prompt-manager-icon.svg",
+      "type": "image/svg+xml"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "512x512",
+      "src": "prompt-manager-icon.svg",
+      "type": "image/svg+xml"
+    }
+  ],
+  "name": "Personal Prompt Manager",
+  "scope": "../",
+  "short_name": "Prompt Manager",
+  "start_url": "../",
+  "theme_color": "#020817"
+}

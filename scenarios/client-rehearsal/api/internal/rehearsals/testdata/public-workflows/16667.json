@@ -1,0 +1,371 @@
+{
+  "id": "synthetic-public-16667",
+  "name": "Synthetic server restart notifications via Discord, Telegram, and Slack",
+  "nodes": [
+    {
+      "id": "cfddcdd0-aac1-551c-b251-bed729ce59d5",
+      "name": "When Server Restarted",
+      "type": "n8n-nodes-base.n8nTrigger",
+      "position": [
+        624,
+        256
+      ],
+      "parameters": {
+        "events": [
+          "init"
+        ]
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "1185d152-29ee-5cfe-b4e2-3bf50d980f62",
+      "name": "Ping Discord Channel",
+      "type": "n8n-nodes-base.discord",
+      "disabled": true,
+      "position": [
+        2416,
+        256
+      ],
+      "webhookId": "a2fbe242-c45d-4e98-adf0-27b083fe2a09",
+      "parameters": {
+        "content": "Synthetic restart notification",
+        "options": {},
+        "authentication": "webhook"
+      },
+      "retryOnFail": true,
+      "typeVersion": 2,
+      "waitBetweenTries": 2000
+    },
+    {
+      "id": "9eb13312-1cb2-5044-ab8d-c4cfe64b8225",
+      "name": "Fetch Execution Logs",
+      "type": "n8n-nodes-base.n8n",
+      "position": [
+        1072,
+        256
+      ],
+      "parameters": {
+        "limit": "={{ $json.get_max_execution }}",
+        "filters": {},
+        "options": {},
+        "resource": "execution",
+        "requestOptions": {}
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "720f408a-e140-5037-b9cb-9bdab97b2b03",
+      "name": "Set Execution Parameters",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        848,
+        256
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "28ae002e-d81c-47b9-9a34-7cdf4e3c1d3b",
+              "name": "minutes_to_fetch_execution",
+              "type": "number",
+              "value": 20
+            },
+            {
+              "id": "ce4a2a5d-28b6-4569-a933-b2fb3d876a65",
+              "name": "get_max_execution",
+              "type": "number",
+              "value": 200
+            },
+            {
+              "id": "6af37469-eb9b-4293-b928-e5b1f3d5af46",
+              "name": "time_instance_start",
+              "type": "string",
+              "value": "={{ $json.timestamp }}"
+            },
+            {
+              "id": "be363bfd-a792-45d4-83de-7b40ede809c3",
+              "name": "discord_mentions",
+              "type": "array",
+              "value": "[]"
+            },
+            {
+              "id": "b6ab33e5-c6d2-4317-bf1f-27a53c7a229a",
+              "name": "slack_mentions",
+              "type": "array",
+              "value": "[]"
+            },
+            {
+              "id": "ba919a79-76f5-4a67-9ad4-b314b917c59c",
+              "name": "telegram_mentions",
+              "type": "array",
+              "value": "[]"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "58176e67-e01c-5012-bce5-fad266537590",
+      "name": "Filter Recent Executions",
+      "type": "n8n-nodes-base.filter",
+      "position": [
+        1296,
+        192
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 3,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "24678c75-22dc-4209-a20c-757f35ae3385",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              },
+              "leftValue": "={{ $json.finished }}",
+              "rightValue": false
+            },
+            {
+              "id": "621b743e-45e4-496a-8563-174f0f26db02",
+              "operator": {
+                "type": "dateTime",
+                "operation": "afterOrEquals"
+              },
+              "leftValue": "={{ $json.startedAt }}",
+              "rightValue": "={{ $('Set Execution Parameters').first().json.time_instance_start.toDateTime().minus($('Set Execution Parameters').first().json.minutes_to_fetch_execution, 'minutes') }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 2.3,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "1ead1c19-897a-5b6d-a839-538128807fe7",
+      "name": "Summarize Execution Data",
+      "type": "n8n-nodes-base.summarize",
+      "position": [
+        1520,
+        192
+      ],
+      "parameters": {
+        "options": {},
+        "fieldsToSplitBy": "workflowId",
+        "fieldsToSummarize": {
+          "values": [
+            {
+              "field": "id"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1.1,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "afc4dd8d-613a-5811-afd5-ba55008cccd5",
+      "name": "Sort Execution Summary",
+      "type": "n8n-nodes-base.sort",
+      "position": [
+        1744,
+        192
+      ],
+      "parameters": {
+        "options": {},
+        "sortFieldsUi": {
+          "sortField": [
+            {
+              "order": "descending",
+              "fieldName": "count_id"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "b60e2dd9-90a9-5618-b742-1611d23988a3",
+      "name": "Merge Execution Data",
+      "type": "n8n-nodes-base.merge",
+      "position": [
+        1968,
+        256
+      ],
+      "parameters": {
+        "mode": "chooseBranch",
+        "useDataOfInput": 2
+      },
+      "typeVersion": 3.2
+    },
+    {
+      "id": "e458b9e2-34b7-5eff-b0a1-62b730387931",
+      "name": "Process Data in JavaScript",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        2192,
+        256
+      ],
+      "parameters": {
+        "jsCode": "// ==================================================================\n// 1. GLOBAL CONFIGURATION (Edit these values easily)\n// ==================================================================\nconst CONFIG = {\n  fallbackBaseUrl: 'https://n8n.synthetic.invalid',\n  fallbackMinutes: 3600,\n};\n\n// ==================================================================\n// 2. SAFE DATA EXTRACTION & FALLBACKS\n// ==================================================================\n// Safely extract Base URL\nlet baseUrl = CONFIG.fallbackBaseUrl;\nif ($execution?.resumeUrl) {\n  const match = $execution.resumeUrl.match(/^https?:\\/\\/[^/]+/);\n  if (match) baseUrl = match[0];\n}\n\n// Safely fetch variables (Using '?.' prevents crashes if the node is empty)\nconst editFieldsNode = $('Set Execution Parameters').first()?.json || {};\nconst getExecutionsNode = $('Fetch Execution Logs').first()?.json || {};\n\nconst timeInstanceStart = editFieldsNode.time_instance_start || new Date().toISOString();\nconst startedAt = getExecutionsNode.startedAt || new Date().toISOString();\nconst fetchMinutes = editFieldsNode.minutes_to_fetch_execution || CONFIG.fallbackMinutes;\nconst {discord_mentions: discordMentions, slack_mentions: slackMentions, telegram_mentions: telegramMentions} = editFieldsNode\n\n// ==================================================================\n// 3. TIME MATH & FORMATTING\n// ==================================================================\nconst diff = DateTime.fromISO(timeInstanceStart).diff(\n  DateTime.fromISO(startedAt), \n  ['hours', 'minutes', 'seconds']\n);\n\n// Format gap and strip minus signs\nconst gapTimeStr = `${diff.hours}h ${diff.minutes}m ${Math.round(diff.seconds)}s`.replace(/-/g, '');\nconst formattedRestartTime = DateTime.fromISO(timeInstanceStart).toFormat('yyyy-MM-dd HH:mm:ss');\n\n// Parse Mentions into formatted strings\nconst discordTags = discordMentions.map(id => `<@${id}>`).join(' ');\nconst slackTags = slackMentions.map(id => `<@${id}>`).join(' ');\nconst telegramTags = telegramMentions.join(' ');\n// ==================================================================\n// 4. BUILD THE LISTS (Discord vs Slack)\n// ==================================================================\nconst sortedItems = $('Sort Execution Summary').all().filter(i => !!i?.json?.workflowId);\n\nlet discordList = '';\nlet slackList = '';\nlet telegramList = '';\n\nif (sortedItems.length > 0) {\n  let dLines = [];\n  let sLines = [];\n  let tLines = []; \n\n  sortedItems.forEach(item => {\n    const workflowId = item.json.workflowId;\n    const count = item.json.count_id;\n    const workflowLink = `${baseUrl}/workflow/${workflowId}/executions`;\n\n    dLines.push(`- [${workflowId}](${workflowLink}): ${count} times`);\n    sLines.push(`- <${workflowLink}|${workflowId}>: ${count} times`);\n    tLines.push(`- [${workflowId}](${workflowLink}): ${count} times`);\n  });\n\n  discordList = dLines.join('\\n').trim();\n  slackList = sLines.join('\\n').trim();\n  telegramList = tLines.join('\\n').trim();\n\n} else {\n  discordList = slackList = telegramList = '- 🟢 All good no failed workflow recently!';\n}\n\n// ==================================================================\n// 5. COMPOSE FINAL MESSAGES\n// ==================================================================\nconst discordMessage = `⚠️ **n8n Server Restarted At:** ${formattedRestartTime} ${discordTags}\n\n**Downtime / Gap:** ${gapTimeStr}\n\n**Workflow Run Failed (Last ${fetchMinutes} Minutes):**\n${discordList}`;\n\nconst slackMessage = `⚠️ *n8n Server Restarted At:* ${formattedRestartTime} ${slackTags}\n\n*Downtime / Gap:* ${gapTimeStr}\n\n*Workflow Run Failed (Last ${fetchMinutes} Minutes):*\n${slackList}`;\n\n// ... final message construction\nconst telegramMessage = `⚠️ *n8n Server Restarted At:* ${formattedRestartTime} ${telegramTags}\n\n*Downtime / Gap:* ${gapTimeStr}\n\n*Workflow Run Failed (Last ${fetchMinutes} Minutes):*\n${telegramList}`;\n\n// ==================================================================\n// FINAL OUTPUT\n// ==================================================================\nreturn {\n  json: {\n    discord_message: discordMessage,\n    slack_message: slackMessage,\n    telegram_message: telegramMessage\n  }\n};"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "a3eb9f21-f575-55ed-b765-f0665d863e82",
+      "name": "Send Telegram Message",
+      "type": "n8n-nodes-base.telegram",
+      "disabled": true,
+      "position": [
+        2416,
+        448
+      ],
+      "webhookId": "03b35e0e-a860-4eeb-8299-7069361ebefa",
+      "parameters": {
+        "text": "Synthetic restart notification",
+        "chatId": "synthetic-chat-id",
+        "additionalFields": {}
+      },
+      "typeVersion": 1.2
+    },
+    {
+      "id": "c17c93b5-97f5-511b-84b1-d962f177a786",
+      "name": "Post to Slack Channel",
+      "type": "n8n-nodes-base.slack",
+      "position": [
+        2416,
+        64
+      ],
+      "webhookId": "451022d7-5255-4ca5-a0ee-bd0fed31dbed",
+      "parameters": {
+        "text": "Synthetic restart notification",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "synthetic-channel-id",
+          "mode": "id"
+        },
+        "otherOptions": {}
+      },
+      "typeVersion": 2.5
+    }
+  ],
+  "connections": {
+    "Fetch Execution Logs": {
+      "main": [
+        [
+          {
+            "node": "Merge Execution Data",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Filter Recent Executions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Execution Data": {
+      "main": [
+        [
+          {
+            "node": "Process Data in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Server Restarted": {
+      "main": [
+        [
+          {
+            "node": "Set Execution Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sort Execution Summary": {
+      "main": [
+        [
+          {
+            "node": "Merge Execution Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Recent Executions": {
+      "main": [
+        [
+          {
+            "node": "Summarize Execution Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Execution Parameters": {
+      "main": [
+        [
+          {
+            "node": "Fetch Execution Logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Execution Data": {
+      "main": [
+        [
+          {
+            "node": "Sort Execution Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Data in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Ping Discord Channel",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Telegram Message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Post to Slack Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "AsyncPanel",
+      "Button",
+      "Form",
+      "Chart",
+      "DataTable",
+      "Text"
+    ],
+    "maximumCount": 8,
+    "typicalCount": 2
+  },
+  "collections": [
+    {
+      "labelField": "label",
+      "maximumCount": 8,
+      "maximumLabelCharacters": 28,
+      "primaryAction": "not-applicable",
+      "property": "metrics",
+      "stableIdField": "id",
+      "typicalCount": 4
+    }
+  ],
+  "componentId": "react-component-library:CommandCenterShell",
+  "version": "1.0.5"
+}

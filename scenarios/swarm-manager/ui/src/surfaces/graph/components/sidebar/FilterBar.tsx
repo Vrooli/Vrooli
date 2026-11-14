@@ -2,21 +2,23 @@
  * FilterBar - Collapsible per-tab filter and sort controls.
  */
 
-import { useState } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, X } from "lucide-react";
+import type { Dispatch } from "react";
+import { ArrowDown, ArrowUp, X } from "lucide-react";
 import { cn } from "../../../../lib/utils";
+import { CollapsibleSection } from "../../../../components/ui/collapsible-section";
 import type { SidebarAction } from "./useSidebarState";
-import type { BacklogFilters, CaptureFilters, ExecutionFilters, InitiativeFilters, SidebarTab, SortConfig, SortDirection, SortField, ValidationStatusFilter } from "./types";
+import type { BacklogFilters, CaptureFilters, ExecutionFilters, ScenarioFilters, SessionFilters, SidebarTab, SortConfig, SortDirection, SortField } from "./types";
 import { DEFAULT_SORT } from "./types";
 
 interface FilterBarProps {
   activeTab: SidebarTab;
   backlogFilters: BacklogFilters;
   captureFilters: CaptureFilters;
-  initiativeFilters: InitiativeFilters;
   executionFilters: ExecutionFilters;
+  scenarioFilters: ScenarioFilters;
+  sessionFilters: SessionFilters;
   sort: SortConfig;
-  dispatch: React.Dispatch<SidebarAction>;
+  dispatch: Dispatch<SidebarAction>;
 }
 
 // ============================================================================
@@ -51,7 +53,7 @@ const SORT_OPTIONS: { field: SortField; label: string }[] = [
   { field: "alphabetical", label: "A-Z" },
 ];
 
-function SortControls({ sort, tab, dispatch }: { sort: SortConfig; tab: SidebarTab; dispatch: React.Dispatch<SidebarAction> }) {
+function SortControls({ sort, tab, dispatch }: { sort: SortConfig; tab: SidebarTab; dispatch: Dispatch<SidebarAction> }) {
   return (
     <div className="flex flex-wrap items-center gap-1">
       {SORT_OPTIONS.map((opt) => (
@@ -87,23 +89,23 @@ function SortControls({ sort, tab, dispatch }: { sort: SortConfig; tab: SidebarT
 // Per-Tab Filters
 // ============================================================================
 
-const BACKLOG_STATUSES = ["backlog", "researching", "ready", "queued", "in_progress", "completed", "failed"] as const;
+const BACKLOG_STATUSES = ["suggested", "backlog", "researching", "ready", "queued", "in_progress", "completed", "failed"] as const;
 const BACKLOG_KINDS = ["idea", "research", "fix", "execute", "chore"] as const;
-const VALIDATION_STATUSES: { value: ValidationStatusFilter; label: string }[] = [
-  { value: "passed", label: "Valid" },
-  { value: "failed", label: "Invalid" },
-  { value: "none", label: "No report" },
-];
 const CAPTURE_STATUSES = ["classifying", "classified", "failed"] as const;
-const INITIATIVE_STATUSES = ["active", "completed"] as const;
 const EXECUTION_STATUSES = ["pending", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "canceled"] as const;
 const EXECUTION_MODES = ["manual", "yolo"] as const;
+const SESSION_STATUSES = ["starting", "running", "waiting_for_user", "proposal_ready", "applying", "complete", "failed", "canceled"] as const;
+const SESSION_KINDS = [
+  { value: "meta_orchestration", label: "Plan work" },
+  { value: "swarm_operations", label: "Operations" },
+	{ value: "workflow_authoring", label: "Workflow authoring" },
+] as const;
 
 function toggleInArray<T>(arr: T[], value: T): T[] {
   return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
 }
 
-function BacklogFilterChips({ filters, dispatch }: { filters: BacklogFilters; dispatch: React.Dispatch<SidebarAction> }) {
+function BacklogFilterChips({ filters, dispatch }: { filters: BacklogFilters; dispatch: Dispatch<SidebarAction> }) {
   return (
     <>
       <div>
@@ -133,22 +135,6 @@ function BacklogFilterChips({ filters, dispatch }: { filters: BacklogFilters; di
         </div>
       </div>
       <div>
-        <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">Validation</p>
-        <div className="flex flex-wrap gap-1">
-          {VALIDATION_STATUSES.map((vs) => (
-            <Chip
-              key={vs.value}
-              label={vs.label}
-              active={filters.validationStatus === vs.value}
-              onClick={() => dispatch({
-                type: "SET_BACKLOG_FILTERS",
-                filters: { validationStatus: filters.validationStatus === vs.value ? "" : vs.value },
-              })}
-            />
-          ))}
-        </div>
-      </div>
-      <div>
         <label className="flex items-center gap-1.5 cursor-pointer">
           <input
             type="checkbox"
@@ -163,7 +149,7 @@ function BacklogFilterChips({ filters, dispatch }: { filters: BacklogFilters; di
   );
 }
 
-function CaptureFilterChips({ filters, dispatch }: { filters: CaptureFilters; dispatch: React.Dispatch<SidebarAction> }) {
+function CaptureFilterChips({ filters, dispatch }: { filters: CaptureFilters; dispatch: Dispatch<SidebarAction> }) {
   return (
     <div>
       <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">Status</p>
@@ -181,38 +167,7 @@ function CaptureFilterChips({ filters, dispatch }: { filters: CaptureFilters; di
   );
 }
 
-function InitiativeFilterChips({ filters, dispatch }: { filters: InitiativeFilters; dispatch: React.Dispatch<SidebarAction> }) {
-  return (
-    <>
-      <div>
-        <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">Status</p>
-        <div className="flex flex-wrap gap-1">
-          {INITIATIVE_STATUSES.map((s) => (
-            <Chip
-              key={s}
-              label={s}
-              active={filters.statuses.includes(s)}
-              onClick={() => dispatch({ type: "SET_INITIATIVE_FILTERS", filters: { statuses: toggleInArray(filters.statuses, s) } })}
-            />
-          ))}
-        </div>
-      </div>
-      <div>
-        <label className="flex items-center gap-1.5 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={filters.showArchived}
-            onChange={() => dispatch({ type: "SET_INITIATIVE_FILTERS", filters: { showArchived: !filters.showArchived } })}
-            className="h-3 w-3 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500/30"
-          />
-          <span className="text-[11px] text-slate-400">Show Archived</span>
-        </label>
-      </div>
-    </>
-  );
-}
-
-function ExecutionFilterChips({ filters, dispatch }: { filters: ExecutionFilters; dispatch: React.Dispatch<SidebarAction> }) {
+function ExecutionFilterChips({ filters, dispatch }: { filters: ExecutionFilters; dispatch: Dispatch<SidebarAction> }) {
   return (
     <>
       <div>
@@ -245,44 +200,114 @@ function ExecutionFilterChips({ filters, dispatch }: { filters: ExecutionFilters
   );
 }
 
+function SessionFilterChips({ filters, dispatch }: { filters: SessionFilters; dispatch: Dispatch<SidebarAction> }) {
+  return (
+    <>
+      <div>
+        <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">Status</p>
+        <div className="flex flex-wrap gap-1">
+          {SESSION_STATUSES.map((s) => (
+            <Chip
+              key={s}
+              label={s.replace(/_/g, " ")}
+              active={filters.statuses.includes(s)}
+              onClick={() => dispatch({ type: "SET_SESSION_FILTERS", filters: { statuses: toggleInArray(filters.statuses, s) } })}
+            />
+          ))}
+        </div>
+      </div>
+      <div>
+        <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">Kind</p>
+        <div className="flex flex-wrap gap-1">
+          {SESSION_KINDS.map((kind) => (
+            <Chip
+              key={kind.value}
+              label={kind.label}
+              active={filters.kinds.includes(kind.value)}
+              onClick={() => dispatch({ type: "SET_SESSION_FILTERS", filters: { kinds: toggleInArray(filters.kinds, kind.value) } })}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1">
+        <label className="flex cursor-pointer items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={filters.activeOnly}
+            onChange={() => dispatch({ type: "SET_SESSION_FILTERS", filters: { activeOnly: !filters.activeOnly } })}
+            className="h-3 w-3 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500/30"
+          />
+          <span className="text-[11px] text-slate-400">Active only</span>
+        </label>
+        <label className="flex cursor-pointer items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={filters.hasProposals}
+            onChange={() => dispatch({ type: "SET_SESSION_FILTERS", filters: { hasProposals: !filters.hasProposals } })}
+            className="h-3 w-3 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500/30"
+          />
+          <span className="text-[11px] text-slate-400">Has proposals</span>
+        </label>
+        <label className="flex cursor-pointer items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={filters.hasAppliedArtifacts}
+            onChange={() => dispatch({ type: "SET_SESSION_FILTERS", filters: { hasAppliedArtifacts: !filters.hasAppliedArtifacts } })}
+            className="h-3 w-3 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500/30"
+          />
+          <span className="text-[11px] text-slate-400">Has applied artifacts</span>
+        </label>
+      </div>
+    </>
+  );
+}
+
+function ScenarioFilterChips({ filters, dispatch }: { filters: ScenarioFilters; dispatch: Dispatch<SidebarAction> }) {
+  const groups: Array<[string, string[], keyof ScenarioFilters]> = [
+    ["Lifecycle", ["running", "stopped", "error", "unknown"], "lifecycle"],
+    ["Evidence", ["fresh", "stale", "degraded", "unavailable", "no_evidence"], "evidenceStates"],
+    ["Remediation", ["none", "suggested", "backlog", "completed", "dismissed"], "remediationStates"],
+  ];
+  return <>{groups.map(([label, values, key]) => <div key={key}><p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">{label}</p><div className="flex flex-wrap gap-1">{values.map((value) => <Chip key={value} label={value.replace(/_/g, " ")} active={filters[key].includes(value)} onClick={() => dispatch({ type: "SET_SCENARIO_FILTERS", filters: { [key]: toggleInArray(filters[key], value) } })} />)}</div></div>)}</>;
+}
+
 // ============================================================================
 // FilterBar
 // ============================================================================
 
-function hasActiveFiltersForTab(tab: SidebarTab, backlog: BacklogFilters, captures: CaptureFilters, initiatives: InitiativeFilters, executions: ExecutionFilters, sort: SortConfig): boolean {
+function hasActiveFiltersForTab(tab: SidebarTab, backlog: BacklogFilters, captures: CaptureFilters, executions: ExecutionFilters, scenarios: ScenarioFilters, sessions: SessionFilters, sort: SortConfig): boolean {
   const defaultSort = DEFAULT_SORT[tab];
   const sortChanged = sort.field !== defaultSort.field || sort.direction !== defaultSort.direction;
 
   switch (tab) {
-    case "activity": return sortChanged;
-    case "backlog": return backlog.statuses.length > 0 || backlog.kinds.length > 0 || backlog.priorityMin !== null || backlog.priorityMax !== null || backlog.showArchived || backlog.validationStatus !== "" || sortChanged;
+    case "backlog": return backlog.statuses.length > 0 || backlog.kinds.length > 0 || backlog.priorityMin !== null || backlog.priorityMax !== null || backlog.showArchived || sortChanged;
     case "captures": return captures.statuses.length > 0 || sortChanged;
-    case "initiatives": return initiatives.statuses.length > 0 || initiatives.showArchived || sortChanged;
+    case "goals": return sortChanged;
     case "executions": return executions.statuses.length > 0 || executions.modes.length > 0 || sortChanged;
+    case "scenarios": return scenarios.lifecycle.length > 0 || scenarios.evidenceStates.length > 0 || scenarios.remediationStates.length > 0 || sortChanged;
+    case "sessions": return sessions.statuses.length > 0 || sessions.kinds.length > 0 || sessions.activeOnly || sessions.hasProposals || sessions.hasAppliedArtifacts || sortChanged;
   }
 }
 
-export function FilterBar({ activeTab, backlogFilters, captureFilters, initiativeFilters, executionFilters, sort, dispatch }: FilterBarProps) {
-  const [expanded, setExpanded] = useState(false);
-
-  if (activeTab === "activity") return null;
-
-  const hasActive = hasActiveFiltersForTab(activeTab, backlogFilters, captureFilters, initiativeFilters, executionFilters, sort);
+export function FilterBar({ activeTab, backlogFilters, captureFilters, executionFilters, scenarioFilters, sessionFilters, sort, dispatch }: FilterBarProps) {
+  const hasActive = hasActiveFiltersForTab(activeTab, backlogFilters, captureFilters, executionFilters, scenarioFilters, sessionFilters, sort);
 
   return (
-    <div className="border-b border-slate-200/20">
-      <div className="flex items-center justify-between px-3 py-1.5">
-        <button
-          type="button"
-          onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-slate-200"
-          data-testid="filter-bar-toggle"
-        >
-          {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+    <CollapsibleSection
+      storageKey="sidebar-filters"
+      className="border-b border-slate-200/20"
+      headerClassName="px-3 py-1.5"
+      contentClassName="space-y-2.5 px-3 pb-2.5"
+      toggleTestId="filter-bar-toggle"
+      contentTestId="filter-bar-content"
+      label={
+        <>
           Filters & Sort
           {hasActive && <span className="ml-1 h-1.5 w-1.5 rounded-full bg-cyan-400" />}
-        </button>
-        {hasActive && (
+        </>
+      }
+      headerRight={
+        hasActive ? (
           <button
             type="button"
             onClick={() => dispatch({ type: "CLEAR_FILTERS", tab: activeTab })}
@@ -291,20 +316,18 @@ export function FilterBar({ activeTab, backlogFilters, captureFilters, initiativ
             <X className="h-3 w-3" />
             Clear
           </button>
-        )}
+        ) : undefined
+      }
+    >
+      <div>
+        <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">Sort by</p>
+        <SortControls sort={sort} tab={activeTab} dispatch={dispatch} />
       </div>
-      {expanded && (
-        <div className="space-y-2.5 px-3 pb-2.5" data-testid="filter-bar-content">
-          <div>
-            <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">Sort by</p>
-            <SortControls sort={sort} tab={activeTab} dispatch={dispatch} />
-          </div>
-          {activeTab === "backlog" && <BacklogFilterChips filters={backlogFilters} dispatch={dispatch} />}
-          {activeTab === "captures" && <CaptureFilterChips filters={captureFilters} dispatch={dispatch} />}
-          {activeTab === "initiatives" && <InitiativeFilterChips filters={initiativeFilters} dispatch={dispatch} />}
-          {activeTab === "executions" && <ExecutionFilterChips filters={executionFilters} dispatch={dispatch} />}
-        </div>
-      )}
-    </div>
+      {activeTab === "backlog" && <BacklogFilterChips filters={backlogFilters} dispatch={dispatch} />}
+      {activeTab === "captures" && <CaptureFilterChips filters={captureFilters} dispatch={dispatch} />}
+      {activeTab === "executions" && <ExecutionFilterChips filters={executionFilters} dispatch={dispatch} />}
+      {activeTab === "scenarios" && <ScenarioFilterChips filters={scenarioFilters} dispatch={dispatch} />}
+      {activeTab === "sessions" && <SessionFilterChips filters={sessionFilters} dispatch={dispatch} />}
+    </CollapsibleSection>
   );
 }

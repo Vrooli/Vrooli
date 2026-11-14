@@ -1,0 +1,25 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "desktop-packaging-orchestrator",
+  "displayName": "Desktop Packaging Orchestrator",
+  "description": "Product-delivery orchestrator for desktop-packaging-delivery; current home: .vrooli/work/delivery/desktop-packaging-delivery/. Own strategy, substantial outcome delegation and independent acceptance.",
+  "status": "active",
+  "appearance": {
+    "body": "#3B82F6",
+    "head": "#F59E0B",
+    "accent": "#10B981"
+  },
+  "tags": [
+    "delivery",
+    "orchestration",
+    "scenario-to-desktop",
+    "performance"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 2,
+  "createdAt": "2026-10-06T20:11:53Z",
+  "updatedAt": "2026-10-24T03:15:34.545803Z"
+}

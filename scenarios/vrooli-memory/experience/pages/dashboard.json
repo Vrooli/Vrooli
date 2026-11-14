@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Dashboard",
+    "routes": ["/"],
+    "purpose": "Give the operator the first useful view of Vrooli Memory and make the primary next action clear.",
+    "prd_refs": ["OT-P0-001"]
+  },
+  "states": [
+    {"id": "default", "description": "Harness projection, import, capture, and maintenance status are visible."},
+    {"id": "loading", "description": "Harness status is loading."},
+    {"id": "partial", "description": "Some harness status is available while another source is pending."},
+    {"id": "request-error", "description": "Harness status could not be loaded."},
+    {"id": "stale", "description": "The displayed harness status is older than the latest run."}
+  ]
+}

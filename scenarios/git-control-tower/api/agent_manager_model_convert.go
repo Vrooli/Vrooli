@@ -14,7 +14,7 @@ func wireRunSummaryToAPI(w *wireRunSummary) *AgentRunSummary {
 		FilesModified: w.FilesModified,
 		FilesCreated:  w.FilesCreated,
 		FilesDeleted:  w.FilesDeleted,
-		TokensUsed:    w.TokensUsed,
+		TokensUsed:    int64(w.TokensUsed),
 		TurnsUsed:     w.TurnsUsed,
 		CostEstimate:  w.CostEstimate,
 	}
@@ -51,6 +51,7 @@ func wireRunToAPI(w *wireRun) AgentRun {
 		ApprovalState:   normalizeEnum(w.ApprovalState, "APPROVAL_STATE_"),
 		PromptPreview:   w.PromptPreview,
 		SandboxID:       w.SandboxID,
+		CommitHash:      w.CommitHash,
 		Summary:         wireRunSummaryToAPI(w.Summary),
 		Actions:         wireRunActionsToAPI(w.Actions),
 		CreatedAt:       w.CreatedAt,
@@ -179,7 +180,6 @@ func wireProfileToAPI(w *wireAgentProfile) AgentProfile {
 		Key:         w.ProfileKey,
 		Name:        w.Name,
 		Description: w.Description,
-		Model:       w.Model,
-		RunnerType:  runnerTypeToString(w.RunnerType),
+		RoleRef:     w.RoleRef,
 	}
 }

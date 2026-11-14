@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "preview.navigation-context",
+  "version": "1.0.0",
+  "resolvedAt": "2026-11-07T14:33:57Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:AppShell",
+      "major": 2,
+      "observed": "2.1.3"
+    }
+  ]
+}

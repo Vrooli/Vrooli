@@ -72,7 +72,7 @@ func TestStepDefinitionsCLISupportedCount(t *testing.T) {
 // TestStepDefinitionsNonCLISupported verifies which types are NOT CLI-supported.
 // These are types that require workflow JSON files instead of --step syntax.
 func TestStepDefinitionsNonCLISupported(t *testing.T) {
-	expectedNonCLI := []string{"subflow", "dragDrop", "loop"}
+	expectedNonCLI := []string{"subflow", "dragDrop", "gesture", "loop"}
 
 	for _, stepType := range expectedNonCLI {
 		def, ok := GetStepDefinition(stepType)

@@ -1,0 +1,24 @@
+{
+  "entryWorkflowId": "main-flow",
+  "workflows": [
+    {
+      "id": "main-flow",
+      "name": "Primary workflow",
+      "settings": {"errorWorkflow": "error-flow"},
+      "nodes": [
+        {"id": "trigger", "name": "Manual", "type": "n8n-nodes-base.manualTrigger", "parameters": {}},
+        {"id": "request", "name": "Failing request", "type": "n8n-nodes-base.httpRequest", "parameters": {"method": "GET", "url": "https://crm.synthetic.invalid/v1/broken"}}
+      ],
+      "connections": {"Manual": {"main": [[{"node": "Failing request", "type": "main", "index": 0}]]}}
+    },
+    {
+      "id": "error-flow",
+      "name": "Error handler",
+      "nodes": [
+        {"id": "error-trigger", "name": "Error Trigger", "type": "n8n-nodes-base.errorTrigger", "parameters": {}},
+        {"id": "write-error", "name": "Record synthetic failure", "type": "n8n-nodes-base.httpRequest", "parameters": {"method": "POST", "url": "https://crm.synthetic.invalid/v1/events"}}
+      ],
+      "connections": {"Error Trigger": {"main": [[{"node": "Record synthetic failure", "type": "main", "index": 0}]]}}
+    }
+  ]
+}

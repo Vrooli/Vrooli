@@ -1,0 +1,56 @@
+package resources
+
+import (
+ "context"
+ "errors"
+ "testing"
+
+ "github.com/vrooli/vrooli/internal/lightingruntime"
+)
+
+// F probes the complete public recovery roster after repeated failed restore
+// launches, rather than a single primary-role cleanup. Native leaves are modeled.
+func TestNativeFExhaustedRestoresRemainRevokedAcrossPartialDisable(t *testing.T) {
+ for _, target := range []string{openRGBPlatformDarwin, openRGBPlatformWindows} {
+  t.Run(target, func(t *testing.T) {
+   f := newOpenRGBPublicFixtureFor(t, target)
+   control, model := enablePublicLighting(t, f)
+   u := f.admit(t, "f-exhausted-restores")
+   f.failTarget = true
+   f.c.updateEffects.wait = func(context.Context, ManagedServiceUpdate, ManagedUpdateProcess, ManagedUpdateContract) (ManagedUpdateProcess,error) {
+    return ManagedUpdateProcess{}, errors.New("modeled native SDK readiness lost")
+   }
+   got, err := f.c.AdvanceManagedServiceUpdate(t.Context(),openRGBResourceName,u.RequestID,false)
+   if err == nil || got.Phase != UpdateRecoveryNeeded || len(got.RetiredRestores) != managedUpdateRestoreAttempts-1 || got.Restored.Intent == nil {
+    t.Fatalf("no bounded exhausted-restoration checkpoint: phase=%s retired=%d err=%v",got.Phase,len(got.RetiredRestores),err)
+   }
+   starts, claims := f.starts,f.execs
+   if starts != managedUpdateRestoreAttempts+1 || claims != starts { t.Fatalf("recovery dispatch bound starts=%d claims=%d",starts,claims) }
+   refused := got.RetiredRestores[0].Process.Intent.InstanceID
+   cleanup := f.c.updateEffects.cleanup
+   denied := errors.New("modeled one historical manager temporarily unavailable")
+   attempted := map[string]int{}
+   f.c.updateEffects.cleanup = func(ctx context.Context,u ManagedServiceUpdate,p ManagedUpdateProcess) error {
+    if p.Intent != nil { attempted[p.Intent.InstanceID]++; if p.Intent.InstanceID == refused { return denied } }
+    return cleanup(ctx,u,p)
+   }
+   if err=control.Disable(t.Context()); !errors.Is(err,denied) {t.Fatalf("partial disable acknowledged: %v",err)}
+   intent,err:=control.Current()
+   if err!=nil || intent.Phase!=lightingruntime.Disabling || model.bound!="" {t.Fatalf("lost durable opt-out: %+v %v bound=%q",intent,err,model.bound)}
+   for _,p:=range openRGBUpdateRoles(got) {
+    if p.Intent==nil {continue}
+    if attempted[p.Intent.InstanceID]==0 {t.Fatalf("one failed cleanup skipped another role %s",p.Intent.InstanceID)}
+    fs,e:=newManagedUpdateExecStore(openRGBResourceName,u.ID,p.Intent.InstanceID);if e!=nil {t.Fatal(e)}
+    fence,e:=fs.read();if e!=nil || fence.State!=managedUpdateExecFenceRevoked || fence.Claim==nil {t.Fatalf("role %s lost consumed revoked fence: %v",p.Intent.InstanceID,e)}
+    if _,e=fs.ClaimOpenRGB(t.Context(),fence,*fence.Claim,*fence.OpenRGBWitness);!errors.Is(e,ErrManagedUpdateExecRevoked){t.Fatalf("role %s replay admitted: %v",p.Intent.InstanceID,e)}
+   }
+   if _,err=f.c.AdvanceManagedServiceUpdate(t.Context(),openRGBResourceName,u.RequestID,false);err==nil {t.Fatal("pending disable admitted exhausted recovery")}
+   f.c.updateEffects.cleanup=cleanup
+   if err=control.Disable(t.Context());err!=nil {t.Fatal(err)}
+   intent,err=control.Current(); retired,e:=LookupManagedServiceUpdate(openRGBResourceName,u.RequestID)
+   if err!=nil || e!=nil || intent.Phase!=lightingruntime.Disabled || retired.Phase!=UpdateResourceDisabled || f.starts!=starts || f.execs!=claims || len(f.active)!=0 {
+    t.Fatalf("retry failed to retire without dispatch: intent=%s update=%s starts=%d claims=%d active=%d err=%v/%v",intent.Phase,retired.Phase,f.starts,f.execs,len(f.active),err,e)
+   }
+  })
+ }
+}

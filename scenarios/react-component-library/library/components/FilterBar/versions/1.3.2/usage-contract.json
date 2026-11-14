@@ -1,0 +1,13 @@
+{
+  "componentId": "react-component-library:FilterBar",
+  "items": {
+    "labelField": "label",
+    "maximumCount": 8,
+    "maximumLabelCharacters": 40,
+    "primaryAction": "not-applicable",
+    "property": "options",
+    "stableIdField": "id",
+    "typicalCount": 4
+  },
+  "version": "1.3.2"
+}

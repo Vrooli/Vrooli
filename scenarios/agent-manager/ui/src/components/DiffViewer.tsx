@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { cn } from "../lib/utils";
 import { parseHunks, type Hunk } from "../lib/diffHunks";
 import type { RunDiff } from "../types";

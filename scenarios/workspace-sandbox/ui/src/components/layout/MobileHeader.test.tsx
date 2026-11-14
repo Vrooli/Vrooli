@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import userEvent from "@testing-library/user-event";
 import { MobileHeader } from "./MobileHeader";
 import type { HealthResponse, SandboxStats } from "../../lib/api";
@@ -17,6 +18,8 @@ const mockStats: SandboxStats = {
   total: 10,
   active: 5,
   stopped: 2,
+  checkpointing: 0,
+  checkpointed: 0,
   approved: 1,
   rejected: 1,
   error: 1,
@@ -35,24 +38,24 @@ const defaultProps = {
 
 describe("MobileHeader", () => {
   it("renders with data-testid", () => {
-    render(<MobileHeader {...defaultProps} />);
+    renderWithProviders(<MobileHeader {...defaultProps} />);
     expect(screen.getByTestId("mobile-header")).toBeInTheDocument();
   });
 
   it("renders refresh button", () => {
-    render(<MobileHeader {...defaultProps} />);
+    renderWithProviders(<MobileHeader {...defaultProps} />);
     expect(screen.getByTestId("refresh-button")).toBeInTheDocument();
   });
 
   it("renders create button", () => {
-    render(<MobileHeader {...defaultProps} />);
+    renderWithProviders(<MobileHeader {...defaultProps} />);
     expect(screen.getByTestId("create-sandbox-button")).toBeInTheDocument();
   });
 
   it("calls onCreateClick when create button is clicked", async () => {
     const user = userEvent.setup();
     const onCreateClick = vi.fn();
-    render(<MobileHeader {...defaultProps} onCreateClick={onCreateClick} />);
+    renderWithProviders(<MobileHeader {...defaultProps} onCreateClick={onCreateClick} />);
 
     await user.click(screen.getByTestId("create-sandbox-button"));
     expect(onCreateClick).toHaveBeenCalledOnce();
@@ -61,20 +64,20 @@ describe("MobileHeader", () => {
   it("calls onRefresh when refresh button is clicked", async () => {
     const user = userEvent.setup();
     const onRefresh = vi.fn();
-    render(<MobileHeader {...defaultProps} onRefresh={onRefresh} />);
+    renderWithProviders(<MobileHeader {...defaultProps} onRefresh={onRefresh} />);
 
     await user.click(screen.getByTestId("refresh-button"));
     expect(onRefresh).toHaveBeenCalledOnce();
   });
 
   it("renders the more options button", () => {
-    render(<MobileHeader {...defaultProps} />);
+    renderWithProviders(<MobileHeader {...defaultProps} />);
     expect(screen.getByTestId("mobile-header-more")).toBeInTheDocument();
   });
 
   it("opens bottom sheet when more button is clicked", async () => {
     const user = userEvent.setup();
-    render(<MobileHeader {...defaultProps} />);
+    renderWithProviders(<MobileHeader {...defaultProps} />);
 
     await user.click(screen.getByTestId("mobile-header-more"));
     expect(screen.getByText("Settings")).toBeInTheDocument();

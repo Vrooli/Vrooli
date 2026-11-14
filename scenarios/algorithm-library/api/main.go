@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
+
+	schema "algorithm-library-api/internal/algorithm"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
@@ -70,8 +71,10 @@ type TestResult struct {
 	ErrorMessage   string `json:"error_message,omitempty"`
 }
 
-var db *sql.DB
-var algorithmProcessor *AlgorithmProcessor
+var (
+	db                 *sql.DB
+	algorithmProcessor *AlgorithmProcessor
+)
 
 func main() {
 	// Preflight checks - must be first, before any initialization
@@ -92,23 +95,14 @@ func main() {
 
 	log.Println("🎉 Database connection established and verified!")
 
-	// Initialize Algorithm Processor
-	judge0URL := os.Getenv("JUDGE0_URL")
-	if judge0URL == "" {
-		judge0URL = "http://localhost:2358" // Default Judge0 port
-	}
-	algorithmProcessor = NewAlgorithmProcessor(judge0URL)
-	log.Printf("🔧 Algorithm processor initialized with Judge0 at %s", judge0URL)
+	algorithmProcessor = NewAlgorithmProcessor()
+	log.Println("🔧 Algorithm processor initialized with the local executor")
 
 	// Set up routes
 	router := mux.NewRouter()
 
 	// Health check - use api-core/health for standardized response
-	healthHandler := health.New().
-		Version("1.0.0").
-		Check(health.DB(db), health.Critical).
-		Handler()
-	router.HandleFunc("/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", newHealthHandler(db)).Methods("GET")
 
 	// Algorithm routes - Specific routes MUST come before parameterized routes
 	router.HandleFunc("/api/v1/algorithms/search", searchAlgorithmsHandler).Methods("GET")
@@ -161,6 +155,10 @@ func main() {
 	handler := c.Handler(router)
 
 	log.Printf("Algorithm Library API starting")
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		log.Fatalf("database schema initialization failed: %v", err)
+	}
 	if err := server.Run(server.Config{
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {
@@ -173,7 +171,6 @@ func main() {
 		log.Fatalf("Server error: %v", err)
 	}
 }
-
 
 // searchAlgorithmsHandler searches for algorithms based on query parameters.
 // Supports filtering by query text, category, complexity, language, and difficulty.
@@ -321,7 +318,6 @@ func executionTraceHandler(w http.ResponseWriter, r *http.Request) {
 			WHERE algorithm_id = $1 AND language = $2 AND is_primary = true
 			LIMIT 1
 		`, req.AlgorithmID, req.Language).Scan(&impl.Code)
-
 		if err != nil {
 			// Try without is_primary constraint
 			err = db.QueryRow(`
@@ -535,7 +531,6 @@ func validateAlgorithmHandler(w http.ResponseWriter, r *http.Request) {
 			WHERE LOWER(name) = LOWER($1) OR LOWER(display_name) = LOWER($1)
 			LIMIT 1
 		`, algorithmID).Scan(&foundID, &algorithmName)
-
 		if err != nil {
 			log.Printf("Failed to find algorithm by name: %v", err)
 			http.Error(w, fmt.Sprintf("Algorithm not found: %s", algorithmID), http.StatusNotFound)
@@ -560,7 +555,6 @@ func validateAlgorithmHandler(w http.ResponseWriter, r *http.Request) {
 		ORDER BY sequence_order
 		LIMIT 10
 	`, algorithmID)
-
 	if err != nil {
 		log.Printf("Failed to get test cases: %v", err)
 		http.Error(w, "Failed to retrieve test cases", http.StatusInternalServerError)
@@ -810,3 +804,11 @@ func algorithmValidateBatchHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Test change for rebuild detection
+
+// newHealthHandler reports service health; the database is a critical dependency.
+func newHealthHandler(db *sql.DB) http.HandlerFunc {
+	return health.New().
+		Version("1.0.0").
+		Check(health.DB(db), health.Critical).
+		Handler()
+}

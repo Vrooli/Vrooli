@@ -1,0 +1,12 @@
+package platform
+import("os";"testing")
+func TestRetainedLauncherParsesActualGoWindowsBuilds(t *testing.T){
+ for _,target:=range []struct{path,architecture string}{
+ {"/tmp/platform-retained-launcher-amd64.test.exe","amd64"},
+ {"/tmp/platform-retained-launcher-arm64.test.exe","arm64"},
+ } {
+ image,e:=os.Open(target.path);if e!=nil{t.Fatal(e)}
+ e=verifyWindowsMaintainedLauncherPE(image,target.architecture);image.Close()
+ if e!=nil{t.Fatal(target.architecture,e)}
+ }
+}

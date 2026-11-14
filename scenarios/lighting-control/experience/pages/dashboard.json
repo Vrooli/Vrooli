@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Home",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Give the operator the first useful view of Lighting Control and make the primary next action clear.",
+    "prd_refs": [
+      "OT-P0-001"
+    ]
+  },
+  "states": [
+    { "id": "default", "description": "The dashboard shows the current service health and the next useful action." },
+    { "id": "loading", "description": "The dashboard announces that health information is still loading." },
+    { "id": "empty", "description": "No controllers are currently available; the operator sees the backend state, saved policy, and next recovery action." },
+    { "id": "partial", "description": "Some controllers or zones are available while others are disconnected, unsupported, or not enrolled; each zone keeps its own result." },
+    { "id": "request-error", "description": "A failed refresh is shown while previously loaded state remains visible and is marked as last known." },
+    { "id": "stale", "description": "Telemetry age and source health are visible; stale inputs use the configured static fallback without claiming physical output." }
+  ]
+}

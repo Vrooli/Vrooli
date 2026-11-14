@@ -1,0 +1,366 @@
+{
+  "schema_version": "v1",
+  "runner": "codex",
+  "roles": {
+    "code.cheap": {
+      "model": "gpt-6-luna",
+      "canonical_model": "codex/gpt-6-luna",
+      "description": "Research and evidence gathering with the latest verified Luna model.",
+      "capabilities": [
+        "code",
+        "tools"
+      ],
+      "models": [
+        {
+          "model": "gpt-6-luna",
+          "source": "codex-subscription",
+          "effort": "medium"
+        }
+      ]
+    },
+    "code.default": {
+      "model": "gpt-6.1-terra",
+      "canonical_model": "codex/gpt-6.1-terra",
+      "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+      "capabilities": [
+        "code",
+        "tools"
+      ],
+      "models": [
+        {
+          "model": "gpt-6.1-terra",
+          "source": "codex-subscription",
+          "effort": "high"
+        }
+      ]
+    },
+    "code.delivery": {
+      "model": "gpt-6.1-terra",
+      "canonical_model": "codex/gpt-6.1-terra",
+      "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+      "capabilities": [
+        "code",
+        "tools",
+        "reasoning"
+      ],
+      "models": [
+        {
+          "model": "gpt-6.1-terra",
+          "source": "codex-subscription",
+          "effort": "medium"
+        }
+      ]
+    },
+    "code.fallback": {
+      "model": "gpt-6.1-sol",
+      "canonical_model": "codex/gpt-6.1-sol",
+      "description": "Explicit fallback after a recorded native or managed harness failure; Agent Manager requires VROOLI_MODEL_FALLBACK_REASON at admission.",
+      "capabilities": [
+        "code",
+        "tools",
+        "reasoning"
+      ],
+      "models": [
+        {
+          "model": "gpt-6.1-sol",
+          "source": "codex-subscription",
+          "effort": "medium"
+        }
+      ]
+    },
+    "code.fast": {
+      "model": "gpt-6.1-terra",
+      "canonical_model": "codex/gpt-6.1-terra",
+      "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+      "capabilities": [
+        "code",
+        "tools"
+      ],
+      "models": [
+        {
+          "model": "gpt-6.1-terra",
+          "source": "codex-subscription",
+          "effort": "medium"
+        }
+      ]
+    },
+    "code.inspection": {
+      "model": "gpt-6-luna",
+      "canonical_model": "codex/gpt-6-luna",
+      "description": "Research and evidence gathering with the latest verified Luna model.",
+      "capabilities": [
+        "code",
+        "tools"
+      ],
+      "models": [
+        {
+          "model": "gpt-6-luna",
+          "source": "codex-subscription",
+          "effort": "high"
+        }
+      ]
+    },
+    "code.judgment": {
+      "model": "gpt-6.1-terra",
+      "canonical_model": "codex/gpt-6.1-terra",
+      "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+      "capabilities": [
+        "code",
+        "tools",
+        "reasoning"
+      ],
+      "models": [
+        {
+          "model": "gpt-6.1-terra",
+          "source": "codex-subscription",
+          "effort": "medium"
+        }
+      ]
+    },
+    "code.longrun": {
+      "model": "gpt-6.1-terra",
+      "canonical_model": "codex/gpt-6.1-terra",
+      "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+      "capabilities": [
+        "code",
+        "tools",
+        "reasoning"
+      ],
+      "models": [
+        {
+          "model": "gpt-6.1-terra",
+          "source": "codex-subscription",
+          "effort": "high"
+        }
+      ]
+    },
+    "code.research": {
+      "model": "gpt-6-luna",
+      "canonical_model": "codex/gpt-6-luna",
+      "description": "Research with the latest verified Luna model.",
+      "capabilities": [
+        "code",
+        "tools",
+        "reasoning"
+      ],
+      "models": [
+        {
+          "model": "gpt-6-luna",
+          "source": "codex-subscription",
+          "effort": "medium"
+        }
+      ]
+    },
+    "code.reserve": {
+      "model": "gpt-6.1-terra",
+      "canonical_model": "codex/gpt-6.1-terra",
+      "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+      "capabilities": [
+        "code",
+        "tools"
+      ],
+      "models": [
+        {
+          "model": "gpt-6.1-terra",
+          "source": "codex-subscription",
+          "effort": "medium"
+        }
+      ]
+    },
+    "code.review": {
+      "model": "gpt-6.1-terra",
+      "canonical_model": "codex/gpt-6.1-terra",
+      "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+      "capabilities": [
+        "code",
+        "tools"
+      ],
+      "models": [
+        {
+          "model": "gpt-6.1-terra",
+          "source": "codex-subscription",
+          "effort": "high"
+        }
+      ]
+    },
+    "code.smart": {
+      "model": "gpt-6.1-terra",
+      "canonical_model": "codex/gpt-6.1-terra",
+      "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+      "capabilities": [
+        "code",
+        "tools",
+        "reasoning"
+      ],
+      "models": [
+        {
+          "model": "gpt-6.1-terra",
+          "source": "codex-subscription",
+          "effort": "high"
+        }
+      ]
+    },
+    "code.terra": {
+      "model": "gpt-6.1-terra",
+      "canonical_model": "codex/gpt-6.1-terra",
+      "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+      "capabilities": [
+        "code",
+        "tools",
+        "reasoning"
+      ],
+      "models": [
+        {
+          "model": "gpt-6.1-terra",
+          "source": "codex-subscription",
+          "effort": "high"
+        }
+      ]
+    },
+    "code.ux": {
+      "model": "gpt-6.1-terra",
+      "canonical_model": "codex/gpt-6.1-terra",
+      "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+      "capabilities": [
+        "code",
+        "tools",
+        "ux"
+      ],
+      "models": [
+        {
+          "model": "gpt-6.1-terra",
+          "source": "codex-subscription",
+          "effort": "high"
+        }
+      ]
+    },
+    "judgment.supervision": {
+      "model": "gpt-6.1-terra",
+      "canonical_model": "codex/gpt-6.1-terra",
+      "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+      "capabilities": [
+        "code",
+        "tools",
+        "reasoning"
+      ],
+      "models": [
+        {
+          "model": "gpt-6.1-terra",
+          "source": "codex-subscription",
+          "effort": "medium"
+        }
+      ]
+    },
+    "write.default": {
+      "model": "gpt-6.1-terra",
+      "canonical_model": "codex/gpt-6.1-terra",
+      "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+      "capabilities": [
+        "writing",
+        "tools"
+      ],
+      "models": [
+        {
+          "model": "gpt-6.1-terra",
+          "source": "codex-subscription",
+          "effort": "high"
+        }
+      ]
+    }
+  },
+  "excluded_models": [
+    "gpt-6-astra",
+    "gpt-6-sol",
+    "gpt-5.5",
+    "gpt-5.6-luna",
+    "gpt-5.6-sol",
+    "gpt-5.6-terra",
+    "codex-auto-review",
+    "gpt-reserve"
+  ],
+  "restricted_models": {
+    "gpt-6.1-sol": [
+      "code.fallback"
+    ]
+  },
+  "model_aliases": {
+    "codex-auto-review": {
+      "canonical_model": "codex/codex-auto-review",
+      "provider": "codex"
+    },
+    "gpt-5.5": {
+      "canonical_model": "codex/gpt-5.5",
+      "provider": "codex"
+    },
+    "gpt-5.6-luna": {
+      "canonical_model": "codex/gpt-5.6-luna",
+      "provider": "codex"
+    },
+    "gpt-5.6-sol": {
+      "canonical_model": "codex/gpt-5.6-sol",
+      "provider": "codex"
+    },
+    "gpt-5.6-terra": {
+      "canonical_model": "codex/gpt-5.6-terra",
+      "provider": "codex"
+    },
+    "gpt-6-astra": {
+      "canonical_model": "codex/gpt-6-astra",
+      "provider": "codex"
+    },
+    "gpt-6-luna": {
+      "canonical_model": "codex/gpt-6-luna",
+      "provider": "codex"
+    },
+    "gpt-6-sol": {
+      "canonical_model": "codex/gpt-6-sol",
+      "provider": "codex"
+    },
+    "gpt-6.1-sol": {
+      "canonical_model": "codex/gpt-6.1-sol",
+      "provider": "codex"
+    },
+    "gpt-6.1-terra": {
+      "canonical_model": "codex/gpt-6.1-terra",
+      "provider": "codex"
+    },
+    "gpt-reserve": {
+      "canonical_model": "codex/gpt-reserve",
+      "provider": "codex"
+    }
+  },
+  "usage_tiers": {
+    "model_map": {
+      "gpt-6.1-sol": "gpt-6-luna",
+      "gpt-6.1-terra": "gpt-6-luna"
+    },
+    "session_model": "gpt-6-luna",
+    "exempt_roles": [
+      "code.fallback",
+      "code.review",
+      "judgment.supervision",
+      "code.judgment"
+    ]
+  },
+  "interactive_default": {
+    "model": "gpt-6.1-sol",
+    "effort": "high"
+  },
+  "provenance": {
+    "source": "policy refresh by local user matthalloran8 (no agent signal) from codex-cli 0.167.0 codex debug models; earlier: Operator policy 2026-10-27: GPT-6.1 Terra capable default, live-discovered GPT-6 Luna research, GPT-6.1 Sol only explicit recorded failure fallback. Live Codex 0.162.1 catalog verified before migration; discovery, updates and launches share the PATH resolver. No automatic provider fallback.",
+    "observed_at": "2026-11-11"
+  },
+  "billing": {
+    "mode": "subscription",
+    "source": "operator-declared-codex-cli-subscription",
+    "sources": [
+      {
+        "id": "codex-subscription",
+        "label": "Codex Subscription",
+        "billing_mode": "subscription",
+        "credential_key": "CODEX_API_KEY",
+        "endpoint": "https://api.openai.com/v1"
+      }
+    ]
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "autoheal_recovery_privileges",
+  "description": "Verify the fixed host-service recovery capability installed by the project setup privilege broker; no runtime sudoers grant is created.",
+  "handler": "autoheal_recovery_privileges",
+  "risk": "medium",
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "service-resource-limits",
+  "capability_role": "control",
+  "storage": {
+    "entries": {
+      "sudoers": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/sudoers.d/vrooli-autoheal",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "regenerable": false,
+        "class": "config",
+        "sensitive": true,
+        "rationale": "Legacy setup-owned grant retained for explicit operator cleanup only. Runtime service recovery uses the root-owned privilege broker, and setup no longer creates this file."
+      }
+    },
+    "rationale": "The grant is setup-managed host state, never scenario data."
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "not_applicable",
+      "evidence": "Windows does not expose the Linux host interface used by safeguard autoheal_recovery_privileges; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
+    },
+    "windows": {
+      "status": "not_applicable",
+      "evidence": "Windows does not expose the Linux host interface used by safeguard autoheal_recovery_privileges; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
+    }
+  },
+  "risk_class": "restore_absent"
+}

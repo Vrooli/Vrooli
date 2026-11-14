@@ -1,0 +1,62 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.date-picker",
+    "name": "DatePicker",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "forms",
+    "description": "The localized date field combining direct entry with calendar selection, constraints, presets, keyboard navigation, an explicit timezone policy, and responsive overlay presentation.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.input",
+        "reason": "Direct entry shares field presentation."
+      },
+      {
+        "asset": "forms.calendar",
+        "reason": "Selection uses the shared calendar surface."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "overlays.responsive-dialog",
+        "reason": "Mobile presentation benefits from a sheet, though a compact inline picker may not need one."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "date-time-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "error-association",
+    "tap-target-size",
+    "contrast-floor",
+    "ramp-conformance",
+    "text-scale-resilience",
+    "input-preservation",
+    "responsive-transformation"
+  ],
+  "requiredStates": [
+    "default",
+    "validation-error"
+  ]
+}

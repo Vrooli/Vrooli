@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "today",
+    "title": "Today",
+    "routes": ["/", "/today"],
+    "purpose": "Answer 'what can I usefully do now?' and 'what needs my attention?' with a single next-action surface, scoped capacity, and commitment notices — fully usable manually before any automation, provider, or model is configured.",
+    "prd_refs": ["OT-P0-005", "OT-P0-004", "OT-P0-006"]
+  },
+  "priorities": [
+    { "statement": "The single next useful action is unmistakable: one dominant Start focus, a quieter Open source, and a session objective distinct from the task's full completion criteria.", "notes": "Avoid more than one primary action (plan §6.2, §7.1)." },
+    { "statement": "Capacity is honest and scoped: 'Xh planned / Yh available / Zh breathing room' only when all three use the same accounting model; unknown estimates show as '3h known + N unestimated'.", "notes": "Never claim all white space is usable capacity (plan §7.1, §10)." },
+    { "statement": "The Observatory scene creates a sense of place without ever competing with the task text, capacity numerals, or timeline; contrast holds in its brightest and darkest regions.", "notes": "Decorative, below the working area (DESIGN.md)." },
+    { "statement": "Time geometry on the day timeline is truthful — block width is proportional to duration and the now-indicator is accurate.", "notes": "Fixture F14." }
+  ],
+  "states": [
+    { "id": "loading", "description": "Shell and cached context resolve promptly, then the day; 'updating' is shown separately from 'no data'." },
+    { "id": "success", "description": "A next action, scoped capacity, commitment notice, and a truthful day timeline are visible." },
+    { "id": "empty", "description": "No tasks: offer capture, routine setup, or optional source connection — never a fabricated personal plan." },
+    { "id": "partial", "description": "Some tasks are unestimated: capacity shows known time plus an explicit count of unestimated demand." },
+    { "id": "over-capacity", "description": "Demand exceeds room: show the known excess and unknown demand with a review action." },
+    { "id": "nothing-fits", "description": "Nothing fits the next window: explain the limiting window/block/missing estimate and offer a smaller session or another task." },
+    { "id": "stale", "description": "A forecast is stale: mark why and recompute when possible; never present an old result as current." },
+    { "id": "request-error", "description": "A load failed: keep the accepted schedule visible; a provider or forecast outage never blanks the whole app." }
+  ]
+}

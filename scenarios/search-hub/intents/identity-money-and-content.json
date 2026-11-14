@@ -1,0 +1,201 @@
+{
+ "scenario": "*",
+ "description": "Identity, money, content and media scenarios: plain requests an operator makes about accounts, spend, writing and generated media.",
+ "cases": [
+  {
+   "id": "spend-grant",
+   "owner": "treasury",
+   "query": "what may an agent spend"
+  },
+  {
+   "id": "charge-grant",
+   "owner": "treasury",
+   "query": "check a spend attempt against a grant"
+  },
+  {
+   "id": "agent-identity",
+   "owner": "persona",
+   "query": "which identity does an agent act as"
+  },
+  {
+   "id": "receive-code",
+   "owner": "persona",
+   "query": "fetch a verification code the machine cannot receive"
+  },
+  {
+   "id": "login-realm",
+   "owner": "scenario-authenticator",
+   "query": "create a user account and login for a scenario"
+  },
+  {
+   "id": "jwt-tokens",
+   "owner": "scenario-authenticator",
+   "query": "issue and verify JWT tokens"
+  },
+  {
+   "id": "mint-tokens",
+   "owner": "token-economy",
+   "query": "mint local tokens and grant them"
+  },
+  {
+   "id": "redeem-tokens",
+   "owner": "token-economy",
+   "query": "settle token earning and redemption"
+  },
+  {
+   "id": "source-ledger-recall",
+   "owner": "source-ledger",
+   "query": "recall what the source ledger recorded in a scope"
+  },
+  {
+   "id": "append-source",
+   "owner": "source-ledger",
+   "query": "append a source record to a ledger"
+  },
+  {
+   "id": "ingest-document",
+   "owner": "document-manager",
+   "query": "ingest and parse a pdf document"
+  },
+  {
+   "id": "document-anchor",
+   "owner": "document-manager",
+   "query": "cite a passage from an ingested document"
+  },
+  {
+   "id": "write-style",
+   "owner": "prose-studio",
+   "query": "write text in a named writing style"
+  },
+  {
+   "id": "candidate-prose",
+   "owner": "prose-studio",
+   "query": "generate candidate drafts of a paragraph"
+  },
+  {
+   "id": "meal-plan",
+   "owner": "nutrition-planner",
+   "query": "plan what to eat this week"
+  },
+  {
+   "id": "shopping-list",
+   "owner": "nutrition-planner",
+   "query": "make a grocery shopping list for a diet"
+  },
+  {
+   "id": "play-music",
+   "owner": "music-library",
+   "query": "play my music and learn my taste"
+  },
+  {
+   "id": "taste-profile",
+   "owner": "music-library",
+   "query": "what kind of music do I like"
+  },
+  {
+   "id": "seo-audit",
+   "owner": "seo-optimizer",
+   "query": "audit a page for SEO"
+  },
+  {
+   "id": "search-ranking",
+   "owner": "seo-optimizer",
+   "query": "improve search ranking of a site"
+  },
+  {
+   "id": "build-funnel",
+   "owner": "funnel-builder",
+   "query": "build a conversion funnel with lead capture"
+  },
+  {
+   "id": "funnel-branching",
+   "owner": "funnel-builder",
+   "query": "add branching logic to a funnel"
+  },
+  {
+   "id": "marketing-video",
+   "owner": "asset-studio",
+   "query": "produce marketing images and videos"
+  },
+  {
+   "id": "render-provenance",
+   "owner": "asset-studio",
+   "query": "show how a marketing asset was rendered"
+  },
+  {
+   "id": "hero-image",
+   "owner": "backdrop-studio",
+   "query": "generate a hero background image for a landing page"
+  },
+  {
+   "id": "ambient-imagery",
+   "owner": "backdrop-studio",
+   "query": "make ambient imagery that matches the design system"
+  },
+  {
+   "id": "send-file",
+   "owner": "device-sync-hub",
+   "query": "send a file from my phone to my laptop"
+  },
+  {
+   "id": "push-text",
+   "owner": "device-sync-hub",
+   "query": "push a snippet of text to another device"
+  },
+  {
+   "id": "account-warming",
+   "owner": "channel-manager",
+   "query": "warm up a social media account"
+  },
+  {
+   "id": "action-queue",
+   "owner": "channel-manager",
+   "query": "release approved posts from the action queue"
+  },
+  {
+   "id": "what-to-sell",
+   "owner": "offer-desk",
+   "query": "what should we sell next"
+  },
+  {
+   "id": "offer-gates",
+   "owner": "offer-desk",
+   "query": "which offers passed their promotion gates"
+  },
+  {
+   "id": "landing-page",
+   "owner": "landing-page-business-suite",
+   "query": "create a landing page for a business"
+  },
+  {
+   "id": "landing-page-deploy",
+   "owner": "landing-page-business-suite",
+   "query": "launch my landing page"
+  },
+  {
+   "id": "track-files",
+   "owner": "visited-tracker",
+   "query": "remember which files I already visited across conversations"
+  },
+  {
+   "id": "unvisited-files",
+   "owner": "visited-tracker",
+   "query": "which files have I not looked at yet"
+  },
+  {
+   "id": "find-prompt",
+   "owner": "prompt-manager",
+   "query": "find a saved prompt or skill"
+  },
+  {
+   "id": "front-door",
+   "owner": "portal",
+   "query": "open the chat front door to vrooli"
+  },
+  {
+   "id": "portal-apps",
+   "owner": "portal",
+   "query": "list the apps in my portal"
+  }
+ ]
+}

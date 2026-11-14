@@ -325,3 +325,9 @@ func main() {
     // ... rest of main
 }
 ```
+## Target-aware scenario reach
+
+Callers that operate on either the local machine or a registered node should
+resolve the scenario URL with the target option and use the same typed client
+shape. The resolver owns address discovery; callers must not fork a remote CLI
+relay path for a typed scenario read.

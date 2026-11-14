@@ -1,0 +1,27 @@
+{
+  "assetKind": "component",
+  "catalogId": "react-component-library:Portal",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.1.0",
+    "1.1.1"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.1.0",
+    "1.0.0",
+    "1.1.1"
+  ],
+  "latest": "1.1.3",
+  "libraryId": "react-component-library:Portal",
+  "displayName": "Portal",
+  "description": "Reusable portal component implementation for the React component library.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
+}

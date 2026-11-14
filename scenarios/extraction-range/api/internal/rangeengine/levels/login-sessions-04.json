@@ -1,0 +1,141 @@
+{
+  "id": "login-sessions-04",
+  "family": "login-sessions",
+  "family_name": "Login and sessions",
+  "difficulty": 4,
+  "title": "Login and sessions: level 4",
+  "task": "Sign in with the public synthetic practice code range-4, then extract every record in source order with id, name, category, value and active.",
+  "mechanism": "session",
+  "tags": [
+    "difficulty-4",
+    "session"
+  ],
+  "page": {
+    "title": "Login and sessions Practice 4",
+    "records": [
+      {
+        "id": "LOG-04-001",
+        "name": "Login Item 4-1",
+        "category": "gamma",
+        "value": 541,
+        "active": true
+      },
+      {
+        "id": "LOG-04-002",
+        "name": "Login Item 4-2",
+        "category": "alpha",
+        "value": 542,
+        "active": true
+      },
+      {
+        "id": "LOG-04-003",
+        "name": "Login Item 4-3",
+        "category": "beta",
+        "value": 543,
+        "active": true
+      },
+      {
+        "id": "LOG-04-004",
+        "name": "Login Item 4-4",
+        "category": "gamma",
+        "value": 544,
+        "active": false
+      },
+      {
+        "id": "LOG-04-005",
+        "name": "Login Item 4-5",
+        "category": "alpha",
+        "value": 545,
+        "active": true
+      },
+      {
+        "id": "LOG-04-006",
+        "name": "Login Item 4-6",
+        "category": "beta",
+        "value": 546,
+        "active": true
+      },
+      {
+        "id": "LOG-04-007",
+        "name": "Login Item 4-7",
+        "category": "gamma",
+        "value": 547,
+        "active": true
+      },
+      {
+        "id": "LOG-04-008",
+        "name": "Login Item 4-8",
+        "category": "alpha",
+        "value": 548,
+        "active": false
+      }
+    ],
+    "page_size": 8,
+    "variant": 4,
+    "search_fields": [],
+    "requires_session": true,
+    "download_format": "",
+    "layout_variant": "",
+    "behavior": {},
+    "bot_gate": "",
+    "session_code": "range-4"
+  },
+  "answer": [
+    {
+      "id": "LOG-04-001",
+      "name": "Login Item 4-1",
+      "category": "gamma",
+      "value": 541,
+      "active": true
+    },
+    {
+      "id": "LOG-04-002",
+      "name": "Login Item 4-2",
+      "category": "alpha",
+      "value": 542,
+      "active": true
+    },
+    {
+      "id": "LOG-04-003",
+      "name": "Login Item 4-3",
+      "category": "beta",
+      "value": 543,
+      "active": true
+    },
+    {
+      "id": "LOG-04-004",
+      "name": "Login Item 4-4",
+      "category": "gamma",
+      "value": 544,
+      "active": false
+    },
+    {
+      "id": "LOG-04-005",
+      "name": "Login Item 4-5",
+      "category": "alpha",
+      "value": 545,
+      "active": true
+    },
+    {
+      "id": "LOG-04-006",
+      "name": "Login Item 4-6",
+      "category": "beta",
+      "value": 546,
+      "active": true
+    },
+    {
+      "id": "LOG-04-007",
+      "name": "Login Item 4-7",
+      "category": "gamma",
+      "value": 547,
+      "active": true
+    },
+    {
+      "id": "LOG-04-008",
+      "name": "Login Item 4-8",
+      "category": "alpha",
+      "value": 548,
+      "active": false
+    }
+  ]
+}

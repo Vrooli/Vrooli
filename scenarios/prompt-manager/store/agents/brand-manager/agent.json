@@ -1,0 +1,26 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "brand-manager",
+  "displayName": "Brand Manager",
+  "description": "Owns Vrooli's brand, campaign, audience, and narrative canon for the marketing-crew team. Drains typed marketing-craft observations as managed evidence, proposes promotion or retirement through owned work items, and queues lane-specific artifact requests when accepted planning should become draft work. Long-horizon strategic voice, not per-post review.",
+  "status": "active",
+  "appearance": {
+    "body": "#2563EB",
+    "head": "#60A5FA",
+    "accent": "#DBEAFE"
+  },
+  "tags": [
+    "marketing",
+    "brand",
+    "curator",
+    "learning",
+    "strategy"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 2,
+  "createdAt": "2026-04-21T00:00:00Z",
+  "updatedAt": "2026-04-22T02:52:55Z"
+}

@@ -1,0 +1,59 @@
+package com.vrooli.portal.tv;
+import java.util.*;
+/** Dependency-free JVM checks for the actual native navigation model. */
+public final class NavigationStateTest {
+    private static void equal(Object expected, Object actual, String message) {
+        if (!Objects.equals(expected, actual)) throw new AssertionError(message + ": expected " + expected + ", got " + actual);
+    }
+    public static void main(String[] args) {
+        NavigationState state = new NavigationState();
+        state.navigate("Vrooli"); equal("Home", state.back(), "Library Back returns to Home");
+        state.navigate("Settings"); state.navigate("Vrooli"); equal("Home", state.back(), "Reconnect cannot create Settings/library Back cycle");
+        state.page = "TV apps"; state.navigate("Vrooli"); equal("TV apps", state.back(), "Library remembers its real entry page");
+        state.navigate("Settings"); equal("Vrooli", state.back(), "Cancel settings returns to library");
+        state.navigate("Vrooli"); equal("TV apps", state.back(), "Reconnect preserves existing library return");
+        state.focused.put("Vrooli", "experience:nutrition-planner"); state.filter = "Nooch"; state.scroll.put("Vrooli", 220);
+        state.navigate("Home"); state.navigate("Vrooli");
+        equal("experience:nutrition-planner", state.focused.get("Vrooli"), "Tab entry preserves card identity");
+        equal("Nooch", state.filter, "Tab entry preserves search"); equal(220, state.scroll.get("Vrooli"), "Tab entry preserves scroll");
+        equal(Arrays.asList("a", "b"), NavigationState.favorites(Arrays.asList("a", "b", "c"), Arrays.asList("missing", "a", "a", "b", "c"), 2), "Installed unique favorites keep explicit order and bound");
+        equal(Collections.emptyList(), NavigationState.favorites(Arrays.asList("a"), Collections.emptyList(), 4), "Intentionally empty favorites stay empty");
+        List<String> order = new ArrayList<>(Arrays.asList("a", "b", "c"));
+        equal(false, NavigationState.move(order, "a", -1), "First favorite cannot move left");
+        equal(true, NavigationState.move(order, "c", -1), "Favorite moves left");
+        equal(Arrays.asList("a", "c", "b"), order, "Move preserves neighboring order");
+        equal(false, NavigationState.move(order, "missing", 1), "Unknown favorite cannot be inserted by reorder");
+        equal(Arrays.asList("b", "a", "c", "d"), NavigationState.homeApps(Arrays.asList("a", "b", "c", "d"), Arrays.asList("gone", "c", "c", "b"), Arrays.asList("b", "a")), "All favorites lead; recent use orders each group independently");
+        equal(Arrays.asList("b", "a", "c"), NavigationState.homeApps(Arrays.asList("a", "b", "c"), Collections.emptyList(), Arrays.asList("b", "gone")), "Cleared history keeps pins then installed order");
+        equal(Arrays.asList("b", "a", "d", "c", "e"), NavigationState.homeApps(Arrays.asList("a", "b", "c", "d", "e"), Arrays.asList("d", "b", "c", "a", "gone", "b"), Arrays.asList("a", "gone", "b", "b")), "Favorites and other apps each use recency; unavailable and duplicate entries disappear");
+        equal(Arrays.asList("c", "a", "b"), NavigationState.homeApps(Arrays.asList("a", "b", "c"), Arrays.asList("c", "a"), Collections.emptyList()), "Removing every favorite restores normal recent-first order");
+        List<String> many = new ArrayList<>(); for (int i = 0; i < 50; i++) many.add("app" + i);
+        List<String> shortcuts = NavigationState.homeApps(many, Arrays.asList("app49"), Arrays.asList("app48"));
+        equal(12, shortcuts.size(), "Home keeps end destinations reachable with a large installed inventory");
+        equal(Arrays.asList("app48", "app49"), shortcuts.subList(0, 2), "A non-favorite cannot displace a favorite even when recently opened");
+        for (String previous : Arrays.asList("Home", "Vrooli", "TV apps", "Inputs", "Settings")) {
+            state.page = previous; state.libraryReturn = "Settings"; state.settingsReturn = "Vrooli";
+            state.systemHome();
+            equal(previous, state.page, "Returning to the launcher preserves " + previous);
+            equal("experience:nutrition-planner", state.focused.get("Vrooli"), "App return preserves card identity");
+            equal(220, state.scroll.get("Vrooli"), "App return preserves scroll");
+            equal("Nooch", state.filter, "System Home preserves useful library query");
+            equal(false, state.exitsOnBack(true), "Daily Home cannot exit on Back");
+            equal("Home".equals(previous), state.exitsOnBack(false), "Ordinary preview exits only from Home");
+        }
+        List<String> apps = Arrays.asList("zulu", "alpha", "Beta", "apple");
+        equal(Arrays.asList("apple", "zulu", "alpha", "Beta"), NavigationState.libraryApps(apps, value -> value, value -> value, Arrays.asList("zulu", "apple", "missing")), "Both libraries sort alphabetically within favorites and other apps");
+        equal(Arrays.asList("alpha", "apple", "Beta", "zulu"), NavigationState.libraryApps(apps, value -> value, value -> value, Collections.emptyList()), "Removing favorites preserves case-insensitive alphabetical order");
+        equal(apps, Arrays.asList("zulu", "alpha", "Beta", "apple"), "Library sort cannot mutate its source snapshot");
+        for (String origin : Arrays.asList("Home", "TV apps", "Vrooli", "Inputs", "Settings")) {
+            state.page = origin; state.appOpened(); state.page = "Home";
+            state.systemHome(); equal(origin, state.page, "App return survives platform default focus recovery from " + origin);
+            equal(null, state.appReturn, "App-return marker is consumed once");
+        }
+        equal("TV apps", NavigationState.adjacentTab("Home", 1), "Right selects TV apps directly");
+        equal("Vrooli", NavigationState.adjacentTab("TV apps", 1), "Right selects Vrooli directly");
+        equal("TV apps", NavigationState.adjacentTab("Vrooli", -1), "Left selects the previous tab");
+        equal(null, NavigationState.adjacentTab("Inputs", 1), "The right edge remains available to Settings focus");
+        System.out.println("PASS: navigation returns, reconnect, focus/filter/scroll, favorites and reorder");
+    }
+}

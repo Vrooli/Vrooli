@@ -1,0 +1,10 @@
+{
+  "gate": "style-ownership",
+  "assetId": "calibration.style-ownership",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.style-ownership",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "description": "Imports a stylesheet from an external package instead of an authored companion."
+}

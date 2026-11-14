@@ -1,0 +1,118 @@
+{
+  "archived": false,
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "local-inference-maturity-supervisor",
+    "reportingMode": "leader",
+    "messagingMode": "async-inbox",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": true,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "createdAt": "2026-11-11T06:41:18Z",
+  "creationProof": {
+    "kind": "agent",
+    "subject": "5010ec85-d6c0-4c89-9829-5538b71b4eff",
+    "owner": "d47163a3-1ba3-5e7b-96dd-e6f8fc450b3f",
+    "source": "agent_provenance"
+  },
+  "displayName": "local-inference-maturity-supervision",
+  "effortRefs": [
+    "effort:local-inference-maturity"
+  ],
+  "enabled": true,
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "id": "local-inference-maturity-supervision",
+  "kind": "team",
+  "lifetime": "standing",
+  "mission": "Supervise only local-inference-maturity delivery: maintain full ambition, repair shared friction, audit every third acceptance and step-back; no unrelated effort inspection or mutation.",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "local-inference-charter",
+          "hub": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/local-inference-maturity/CHARTER.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/local-inference-maturity/CHARTER.md"
+            },
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/local-inference-maturity/STATUS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/local-inference-maturity/LOG.md"
+            },
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/local-inference-maturity/FEEDBACK.md"
+            }
+          ],
+          "writePolicy": "operator destination; orchestrator maintains allocation and evidence",
+          "consumers": [
+            "local-inference-maturity-orchestrator"
+          ],
+          "useFor": "whole delivery destination and execution ledger"
+        }
+      ],
+      "sharedState": []
+    },
+    "knowledgeTopics": {
+      "supervision-assessment/*": {
+        "ownerMemberId": "local-inference-maturity-supervisor",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {
+      "local-inference-maturity-supervisor": {
+        "lane": "Independent supervision of exactly effort:local-inference-maturity",
+        "allowedWrites": [
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/local-inference-maturity/FEEDBACK.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/local-inference-maturity/setup/supervision-checkpoint.md"
+          },
+          {
+            "kind": "knowledge"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Do not select, admit or accept epochs; do not implement product code.",
+          "Read only the exact effort board, never fleet discovery.",
+          "No global team or heartbeat changes.",
+          "Keep required destination full-scale; preserve native commission and human-only decisions."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": false,
+          "stillWriteHandoff": false
+        }
+      }
+    }
+  },
+  "purpose": "supervision",
+  "revision": 3,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
+  "updatedAt": "2026-11-11T06:47:56Z"
+}

@@ -45,7 +45,7 @@ issue_report:
   basic_info:
     app_name: ""
     version: ""
-    framework: "electron|tauri|neutralino"
+    framework: "electron"
     template_type: "basic|advanced|multi_window|kiosk"
     
   environment:

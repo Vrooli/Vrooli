@@ -1,0 +1,24 @@
+{
+  "_metadata": {
+    "description": "OT-P2-003 Stash operations",
+    "last_validated_at": "2026-09-06T14:54:24-04:00",
+    "module": "stash-operations"
+  },
+  "requirements": [
+    {
+      "id": "GCT-OT-P2-003",
+      "title": "Stash operations",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "operational_target.p2",
+      "description": "Save, apply, and drop stashes programmatically",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Stash mutation endpoints are not implemented; the P2 capability remains visible as planned rather than silently removed."
+        }
+      ]
+    }
+  ]
+}

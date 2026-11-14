@@ -1,0 +1,90 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.0.0",
+  "component": {
+    "id": "budget-meter",
+    "title": "Budget meter",
+    "purpose": "Shows how much of a turn budget or spend cap remains, encoding pressure in its form so it is readable without parsing the number.",
+    "storyRef": "../../../react-component-library/library/components/BudgetBar/versions/1.0.14/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Remaining budget with no pressure."
+    }
+  ],
+  "elements": [
+    {
+      "id": "meter-root",
+      "role": "meter",
+      "name": "Budget remaining"
+    },
+    {
+      "id": "meter-value",
+      "role": "status",
+      "name": "Remaining"
+    }
+  ],
+  "claims": [
+    {
+      "id": "pressure-is-form",
+      "type": "custom",
+      "statement": "Approaching exhaustion changes the meter's form, not only its numeric value.",
+      "tier": "manual",
+      "elements": [
+        "meter-root"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "The meter exists so an owner notices before an agent goes silent; a number alone is not noticed."
+    },
+    {
+      "id": "tabular-figures",
+      "type": "custom",
+      "statement": "Numeric values use tabular figures so they do not jump as they change.",
+      "tier": "manual",
+      "elements": [
+        "meter-value"
+      ]
+    },
+    {
+      "id": "named-for-screen-readers",
+      "type": "accessible-name",
+      "statement": "The meter announces what is being measured and how much remains.",
+      "tier": "aspirational",
+      "elements": [
+        "meter-root"
+      ]
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "Pressure remains legible in both themes.",
+      "tier": "aspirational",
+      "elements": [
+        "meter-root"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "meter-root": {
+        "testid": "budget-meter"
+      },
+      "meter-value": {
+        "testid": "budget-meter-value"
+      }
+    }
+  },
+  "priorities": [
+    {
+      "statement": "How much is left"
+    },
+    {
+      "statement": "Whether that is about to become a problem"
+    }
+  ]
+}

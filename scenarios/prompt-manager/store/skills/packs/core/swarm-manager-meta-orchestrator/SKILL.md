@@ -1,292 +1,170 @@
-# Meta-Orchestrator: Vision to Backlog Pipeline
+---
+name: "swarm-manager-meta-orchestrator"
+description: "Human-led shaping of raw operator material into goals, milestones, and backlog items, resolved in-session as a reviewed proposal, one research item, or a recorded reason not to build."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools","conversation"]
+  tags: ["swarm-manager","backlog","session","initiative","proposal","workflow"]
+  status: "active"
+  revision: 4
+  createdAt: "2026-03-23T00:00:00Z"
+  updatedAt: "2026-08-11T00:00:00Z"
+  requires:
+    scenarios: ["swarm-manager"]
+    commands: ["swarm-manager", "swarm-manager backlog", "swarm-manager goals", "swarm-manager portfolio", "swarm-manager sessions"]
+  origin:
+    kind: "authored"
+---
+# Swarm Manager Plan Work Session
 
-## Purpose
-
-Translate a high-level vision into a reviewed, dependency-aware backlog import plan for Swarm Manager, then create the items only after the user approves.
-
-This skill supports long, iterative planning before creation. If the user wants to front-load context, avoid premature workshop auto-spawn, or work one cluster at a time, stay in planning mode until they explicitly ask to create items.
-
-**Required reading:**
-- `prompt-manager skill read swarm-manager-backlog-tools`
-
-## Canonical Contract
-
-When shaping backlog items, use the real Swarm Manager contract:
-
-- `kind`: `idea | research | fix | execute | chore`
-- `name`: kebab-case item id
-- `title`
-- `description`
-- `priority`: `1-10`
-- `effort`: `XS | S | M | L | XL`
-- `research_target`: only for research items
-- `depends_on`: `["kind/name", ...]`
-- `initiative`: per-item initiative name
-- `acceptance_allow`
-- `acceptance_deny`
-
-Do not use `scope`. It is not part of the backlog contract.
-
-Initiative metadata is supplied separately in the batch-create request's top-level `initiatives` array.
+Help the operator turn raw material — an idea, a complaint, a screenshot, a half-formed objective —
+into goals, milestones, and backlog items the project can execute. Resolve it in this session: end
+with a reviewed proposal or a recorded reason not to build it.
 
 ## Scope
 
-**In scope**
-- parse messy input into candidate work items
-- discuss the work with the user before creation
-- preserve visual/theme clusters when clarifying
-- inspect the codebase when existing scenarios or seams are involved
-- identify dependencies, initiative groupings, and likely item splits
-- preview and create backlog items through Swarm Manager CLI
-- update existing backlog items instead of duplicating them when appropriate
+The subject of this session is **the product**: what Swarm Manager and the wider ecosystem should
+do, and what work makes that true.
 
-**Out of scope**
-- managing workshop rounds after creation
-- executing the work
-- making code changes outside Swarm Manager itself
+| The change is about | Session |
+| --- | --- |
+| New capability, feature, fix, or objective for the product | **This session** |
+| How the operator and agents work together — prompts, skills, workflows, briefs, profiles | `workflow_authoring` (Improve the System) |
+| Moving work that already exists through the ledger | `swarm_operations` (Manage Swarm) |
 
-## Workflow
+Out of scope: executing the work, mutating the ledger, and authoring the plan that will implement an
+accepted item. Plan authoring belongs to `plan.author`.
 
-### Phase 1: Intake
+## Resolve in this session
 
-1. Read the full input.
-2. If images or whiteboards are involved, transcribe with confidence flags.
-3. Check existing backlog for likely duplicates.
-4. Break the vision into candidate work clusters before forcing item boundaries.
-5. Present the candidate clusters/items back to the user.
+A session must reach its outcome while the operator is present. Do not route a conclusion to an
+autonomous agent's inbox, a team heartbeat, or a queue that only a scheduled loop drains. If the
+material is too thin to shape, propose one `research` item — that is a resolution, not a deferral.
 
-Use the user's grouping when it is meaningful:
-- whiteboard columns
-- color-coded regions
-- numbered lists that appear thematic rather than priority-based
-- user-directed "let's start with this section first"
+## Use retrieved precedent
 
-### Phase 2: Clarify In Planning Mode
+Read the attached `related-work` section before the first answer. The server queried it with the
+operator's message, so a solved instance elsewhere in the repository can outrank a fresh design.
+Use hits to sharpen the reframe and recommendation. If retrieval is unavailable, do not infer that
+no precedent exists. This orientation replaces a drill-down, so keep the one targeted drill-down
+budget unchanged.
 
-This phase may last many turns.
+## Start with bounded truth
 
-The default pattern is:
-1. work one cluster at a time
-2. clarify intent, value, and dependencies
-3. note what is still unknown
-4. keep a running planned-item list without creating anything
+Read the attached `startup_brief` first. If it is absent or stale, refresh once with
+`swarm-manager sessions startup-brief --id "$VROOLI_SWARM_MANAGER_SESSION_ID" --refresh --json`;
+without a session ID use `swarm-manager portfolio brief --json`. Answer from that brief, and run at
+most one targeted drill-down before the first answer.
 
-When the user says not to create items yet, do not create them.
+## The first response
 
-Ask clarifying questions in small batches:
-- prefer 2-5 related questions
-- preserve the current cluster/theme
-- ask confirmation-style questions when possible
+The operator's opening message is raw material, not a specification. Their thinking is not yet
+organized — organizing it is the work. Every first response covers four things, in this order:
 
-Good planning outputs:
-- major sub-initiatives
-- provisional backlog items
-- dependency chain
-- implementation-order hypothesis
-- what should be left for workshop agents to discover later
+1. **Reframe.** State the operator's idea back in better words than they used. Name what it
+   actually is. If the reframe is wrong, they will correct it immediately, and that correction is
+   worth more than a clarifying question.
+2. **Place it.** Say where it fits: which goal owns it, which existing items overlap, what it
+   depends on, what it would replace. Search before claiming novelty — run
+   `swarm-manager backlog search-ai "<intent>"` and inspect the owning goal's scope.
+3. **Recommend.** Give the specific disposition — new goal, new items under an existing goal, an
+   update to an item that already covers it, one research item, or don't build it. Recommend; do
+   not present a menu.
+4. **Name what is unresolved.** State the open questions and what you assumed. The operator steers
+   from this list.
 
-### Phase 3: Inspect Existing Code Before Finalizing Items
+Do not ask a clarifying question in place of steps 1–3. Answer first from what you have, then say
+what would change the answer. A first response that only asks questions wastes the turn the
+operator was present for.
 
-If the work touches scenarios, APIs, CLIs, or skills that already exist, inspect the codebase before finalizing the backlog plan.
+## Shape work before committing it
 
-Minimum expectations:
-- read the relevant scenario docs/PRDs if they exist
-- inspect existing APIs, stores, handlers, and command flows
-- identify whether a requested capability already partially exists
-- decide whether the work is:
-  - extension of an existing scenario
-  - cross-scenario integration work
-  - greenfield replacement
+1. Preserve the operator's goals, constraints, uncertainty, and natural grouping before forcing
+   backlog-item boundaries.
+2. Inspect code and scenario documentation when existing capability materially affects the proposal.
+3. Sort the objective into the right layer. A goal states what becomes true in the world. A
+   milestone states how you would prove it. An item is one thing someone does. See
+   `swarm-manager-work-authoring` for the shape of each.
+4. Propose new work only when no existing item can absorb it, and say so in the rationale.
+5. Give each item a goal, scope, dependencies, priority, acceptance boundaries, and a reason it is
+   independently reviewable.
+6. Apply only after explicit operator approval through the typed Swarm proposal path. Never write
+   project state as a side effect of chat.
 
-Do not finalize backlog items from whiteboard text alone when code already exists and that inspection can materially improve the plan.
+Goal structure is goal-owned. Create a goal and its milestones through `swarm-manager goals ...`,
+where every milestone carries acceptance criteria. Backlog batch import attaches items to a
+milestone that already exists; it cannot create one, and it has no field for acceptance criteria.
+Attach an existing goal to its work with `swarm-manager goals targets-add` before proposing the
+batch import.
 
-### Phase 4: Shape Backlog Items
-
-Split work into backlog items when that improves:
-- ownership
-- dependency clarity
-- scenario locality
-- execution order
-
-Common split triggers:
-- one whiteboard bullet spans multiple scenarios
-- API and UI work should be separated
-- research is needed before execution
-- a greenfield replacement needs separate research/spec/runtime items
-
-Useful item patterns:
-- `research` for architecture audits, signal extraction, and contract definition
-- `execute` for feature/runtime implementation
-- `fix` for targeted bug/risk correction
-- `chore` for archiving/removing legacy structures
-- `idea` for greenfield specification or concept-definition work when implementation is intentionally deferred
-
-### Phase 5: Preview Before Create
-
-Before creating, present the planned items to the user in review form.
-
-The review should include:
-- item title
-- kind
-- initiative
-- priority
-- effort
-- dependencies
-- a short description
-
-Then preview the import with the CLI:
-
-```bash
-cat > /tmp/meta-orch-items.json <<'EOF'
+```json
 {
   "items": [
     {
-      "kind": "research",
-      "name": "desktop-release-control-plane-audit",
-      "title": "Audit desktop release control plane",
-      "description": "Trace the real desktop release flow across deployment-manager, scenario-to-desktop, LPBS, and prompt-manager deployment skills.",
-      "priority": 1,
-      "effort": "M",
-      "initiative": "desktop-release-governance",
-      "acceptance_allow": [
-        "scenarios/deployment-manager/**",
-        "scenarios/scenario-to-desktop/**",
-        "scenarios/landing-page-business-suite/**",
-        "scenarios/prompt-manager/**"
-      ]
-    }
-  ],
-  "initiatives": [
-    {
-      "name": "desktop-release-governance",
-      "title": "Desktop Release Governance",
-      "description": "Shared release-control, traceability, and LPBS-delivery work for desktop monetization.",
-      "status": "active"
+      "kind": "execute",
+      "name": "ship-control-plane",
+      "milestone": "desktop-deploy-v1/release-control",
+      "acceptance_allow": ["scenarios/swarm-manager/**"],
+      "acceptance_deny": ["packages/proto/**"]
     }
   ]
 }
-EOF
-
-swarm-manager backlog batch-create --file /tmp/meta-orch-items.json --preview
 ```
 
-Preview is the default safety gate for large imports. Use it before creation unless the user explicitly wants immediate creation and the plan is already tightly reviewed.
+Use `swarm-manager backlog batch-create --preview <proposal.json>` first. For a substantial approved
+objective, record the operator-facing rationale in `orchestration-summary.md` alongside the normal
+proposal and evidence trail.
 
-### Phase 6: Create
+## Transition guidance
 
-Only create after user approval.
-
-```bash
-swarm-manager backlog batch-create --file /tmp/meta-orch-items.json
-```
-
-Workshop round 1 auto-initializes on item creation. Do not manually trigger it.
-
-If the session produced significant architecture context, upload it so workshop agents inherit the planning context. You can upload to either a backlog item or the initiative itself:
-
-**Upload to a backlog item** (for item-specific context):
-```bash
-swarm-manager backlog file-upload --kind <kind> --name <name> --path orchestration-summary.md --stdin <<'EOF'
-# Meta-Orchestrator Summary
-
-## Source
-[what the planning session covered]
-
-## Decisions Made
-- ...
-
-## Dependency Notes
-- ...
-
-## Unresolved Questions Deferred To Workshop
-- ...
-EOF
-```
-
-**Upload to the initiative** (for cross-item strategic context):
-```bash
-swarm-manager initiatives file-upload --name <initiative> --path orchestration-summary.md --stdin <<'EOF'
-# Initiative Context
-
-## Strategic Rationale
-[why this initiative exists and what success looks like]
-
-## Cross-Item Decisions
-[decisions that affect multiple items in this initiative]
-
-## Sequencing Notes
-[implementation order rationale, dependency reasoning]
-EOF
-```
-
-Prefer initiative-level uploads when the context spans multiple items. Prefer item-level uploads when context is specific to one item.
-
-## Duplicate Handling
-
-Check duplicates at two levels:
-
-1. **Within the session**
-   If the same concept appears in multiple clusters, prefer one item with multiple dependents.
-
-2. **Against the existing backlog**
-   If an item already exists, update it with the new context instead of creating a duplicate unless the user clearly wants a separate item.
-
-## Greenfield Replacement Pattern
-
-When an existing scenario should not be evolved in place:
-
-1. create a research item to extract reusable signal from the legacy implementation
-2. optionally create a chore item to archive/remove the legacy scenario
-3. create new greenfield spec/runtime items built from first principles
-
-Do not frame this as "adapt the old scenario" if the actual intent is replacement.
-
-## Questioning Rules
-
-- Preserve user grouping by default.
-- Prefer cluster-by-cluster clarification over giant cross-cutting interrogations.
-- Ask only what is needed to improve the plan materially.
-- If the user has already given all they know, stop interrogating and move to codebase inspection plus planning.
-- It is acceptable to leave some ambiguity for workshop agents as long as the backlog descriptions capture what is already known.
-
-## Output Template Before Creation
-
-Use a concise review structure like:
+After work is accepted, select the next step by ownership:
 
 ```text
-Planned backlog import:
-
-Initiative: desktop-release-governance
-- research/desktop-release-control-plane-audit
-- execute/deployment-manager-approval-gate-surfaces
-- execute/deployment-manager-visual-validation-approval-flow
-
-Initiative: emulator-platform
-- research/emulator-extraction-plan
-- execute/build-vrooli-emulator-linux-first
-
-Critical path:
-- research/desktop-release-control-plane-audit
-- execute/deployment-manager-approval-gate-surfaces
-- execute/deployment-manager-visual-validation-approval-flow
+human is still exploring or deciding -> continue this session
+code needs an agent result           -> registered declared workflow
+no agent judgment                    -> deterministic Swarm action
 ```
 
-## Anti-Patterns
+Use Plan Manager as the authority for plan readiness. Recommend a workflow by its registered
+transition (`backlog.refine`, `plan.author`, `plan.repair`, `plan.execute`), not by an operating mode
+or an ad-hoc session loop.
 
-- do not create items before the user approves
-- do not use `scope`
-- do not skip codebase inspection when the target scenarios already exist
-- do not flatten everything into one initiative if the work naturally separates
-- do not manually trigger workshop round 1
-- do not ask one tiny question at a time for long planning sessions
-- do not preserve a legacy scenario by inertia when the actual need is a greenfield replacement
+For an existing registered transition, produce a `start_transition` proposal for operator approval;
+never hand-run a transition command. Use this envelope and copy the projection verdict exactly:
 
-## Troubleshooting
+```json
+{"transition_key":"<registered key>","subject_ref":"<declared-subject>:<subject value>","projection_action":"<server next action>","projection_agrees":true,"reason":"<required when false>"}
+```
 
-| Problem | Response |
-|---------|----------|
-| User wants to discuss only, not create | Stay in planning mode and produce a planned-item list only |
-| Vision is large and messy | Group into clusters first, then clarify one cluster at a time |
-| Existing code contradicts the whiteboard assumption | Surface the mismatch explicitly and adjust the backlog plan |
-| Many items span multiple scenarios | Split by seam and link with `depends_on` |
-| The user wants context preserved for spawned workshop agents | Add `orchestration-summary.md` after creation |
+The operator approves the proposal in this session. If the session disagrees with the projection,
+set `projection_agrees` to `false` and explain the evidence in `reason`.
+
+## Durable continuity
+
+Recall prior knowledge with `source-ledger recall "<query>" --scope=session:meta-orchestration` and,
+when useful, record rejected or deferred dispositions with
+`source-ledger journal note "<prose>" --scope=session:meta-orchestration --kind=session-knowledge`.
+Swarm Manager records terminal proposal resolutions automatically. Recording other knowledge is
+your choice. Record knowledge and evidence, never accepted work and never a task for another agent
+to pick up.
+
+## Guardrails
+
+- Do not create an untyped generic chat workflow or a persistent milestone agent engine.
+- Do not propose a milestone without acceptance criteria. The criteria are the goal's only
+  definition of done; milestone review reads them, and close-out is gated on that review.
+- Do not copy a goal's title or description into its milestone. If the two read the same, the
+  milestone is not stating how delivery would be proven.
+- Do not recommend retired operating modes or direct programmatic Runs.
+- Do not claim a plan is ready, tests pass, or a regression is absent without the corresponding Plan
+  Manager, Test Genie, or Git Control Tower evidence.
+- Do not apply, execute, reprioritize, or delete work without explicit operator authorization
+  through Swarm.
+
+## Response style
+
+Keep the conversation natural. Lead with the reframe, then the placement, then the recommendation
+and its tradeoff, then one clear operator question. Use typed references such as `goal:<name>`,
+`milestone:<name>`, `backlog:<kind>/<name>`, `capture:<id>`, or `session:<id>`.

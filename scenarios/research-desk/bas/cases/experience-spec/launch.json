@@ -1,0 +1,57 @@
+{
+  "metadata": {
+    "name": "experience-launch-spec-smoke",
+    "description": "Observer smoke: the Launch page renders at phone width against the real research home.",
+    "requirement": "OT-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "launch",
+      "surface": "experience-launch"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate-launch",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "research-desk",
+          "scenario_path": "/launch",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Launch"
+        }
+      }
+    },
+    {
+      "id": "wait-launch-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.launch",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Launch page visible"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-launch",
+      "source": "navigate-launch",
+      "target": "wait-launch-page"
+    }
+  ]
+}

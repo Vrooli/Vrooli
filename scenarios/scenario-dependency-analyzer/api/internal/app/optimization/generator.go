@@ -8,10 +8,34 @@ import (
 
 	"github.com/google/uuid"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
-func GenerateRecommendations(scenarioName string, analysis *types.DependencyAnalysisResponse, cfg *types.ServiceConfig) []types.OptimizationRecommendation {
+// SelectRecommendations applies the caller's scope before either presentation
+// or mutation. Exact scenario selection never includes resource removals.
+func SelectRecommendations(recommendations []types.OptimizationRecommendation, req types.OptimizationRequest) []types.OptimizationRecommendation {
+	selected := make(map[string]bool, len(req.OnlyScenarios))
+	for _, name := range req.OnlyScenarios {
+		selected[name] = true
+	}
+	result := make([]types.OptimizationRecommendation, 0, len(recommendations))
+	for _, rec := range recommendations {
+		if req.Type != "" && req.Type != "all" && rec.RecommendationType != req.Type {
+			continue
+		}
+		if len(selected) > 0 {
+			action, _ := rec.RecommendedState["action"].(string)
+			name, _ := rec.RecommendedState["scenario_name"].(string)
+			if action != "remove_scenario_dependency" || !selected[name] {
+				continue
+			}
+		}
+		result = append(result, rec)
+	}
+	return result
+}
+
+func GenerateRecommendations(scenarioName string, analysis *types.DependencyAnalysisResponse) []types.OptimizationRecommendation {
 	if analysis == nil {
 		return nil
 	}
@@ -20,7 +44,6 @@ func GenerateRecommendations(scenarioName string, analysis *types.DependencyAnal
 	recommendations = append(recommendations, buildUnusedResourceRecommendations(scenarioName, analysis, timestamp)...)
 	recommendations = append(recommendations, buildUnusedScenarioRecommendations(scenarioName, analysis, timestamp)...)
 	recommendations = append(recommendations, buildTierBlockerRecommendations(scenarioName, analysis, timestamp)...)
-	recommendations = append(recommendations, buildSecretStrategyRecommendations(scenarioName, cfg, timestamp)...)
 	sort.SliceStable(recommendations, func(i, j int) bool {
 		if recommendations[i].Priority == recommendations[j].Priority {
 			return recommendations[i].Title < recommendations[j].Title
@@ -146,47 +169,6 @@ func buildTierBlockerRecommendations(scenarioName string, analysis *types.Depend
 		}
 		for _, tier := range tiers {
 			recommendations = append(recommendations, buildBlockerRecommendation(scenarioName, node, tier, timestamp))
-		}
-	}
-	return recommendations
-}
-
-func buildSecretStrategyRecommendations(scenarioName string, cfg *types.ServiceConfig, timestamp time.Time) []types.OptimizationRecommendation {
-	if cfg == nil || cfg.Deployment == nil || len(cfg.Deployment.Tiers) == 0 {
-		return nil
-	}
-	recommendations := []types.OptimizationRecommendation{}
-	for tierName, tier := range cfg.Deployment.Tiers {
-		for _, secret := range tier.Secrets {
-			if strings.TrimSpace(secret.StrategyRef) != "" {
-				continue
-			}
-			recommendations = append(recommendations, types.OptimizationRecommendation{
-				ID:                 uuid.New().String(),
-				ScenarioName:       scenarioName,
-				RecommendationType: "performance_improvement",
-				Title:              fmt.Sprintf("Annotate secret '%s' on %s", secret.SecretID, tierName),
-				Description:        fmt.Sprintf("Secret '%s' on tier '%s' lacks a strategy reference. Link it to a secrets-manager playbook to unblock deployment readiness.", secret.SecretID, tierName),
-				CurrentState: map[string]interface{}{
-					"tier":           tierName,
-					"secret_id":      secret.SecretID,
-					"classification": secret.Classification,
-				},
-				RecommendedState: map[string]interface{}{
-					"action":    "annotate_secret_strategy",
-					"tier":      tierName,
-					"secret_id": secret.SecretID,
-					"guidance":  "Use secrets-manager playbooks to define strategy_ref",
-				},
-				EstimatedImpact: map[string]interface{}{
-					"risk":        "secrets_gap",
-					"description": "Missing secret strategies block deployment",
-				},
-				ConfidenceScore: 0.75,
-				Priority:        "high",
-				Status:          "pending",
-				CreatedAt:       timestamp,
-			})
 		}
 	}
 	return recommendations

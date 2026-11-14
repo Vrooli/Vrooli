@@ -1,0 +1,455 @@
+{
+  "metadata": {
+    "name": "workspace-object-removal-c04",
+    "description": "C04 object-removal journey through the served Create workspace using the non-person Aquila pointer fixture and its explicit binary mask. It submits a masked removal on the resolved CPU tier, renders the edit and returns it to the canvas; full execution requires shared CPU/RAM and disk admission.",
+    "requirement": "IMAGE-TOOLS-C04",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "purpose": "object-removal-c04",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-workspace",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "@scenario/self",
+          "scenario_path": "/workspace",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to the Workspace"
+        }
+      }
+    },
+    {
+      "id": "wait-mode-switcher",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.modeSwitcher",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeoutMs": 15000
+        },
+        "metadata": {
+          "label": "Mode switcher visible"
+        }
+      }
+    },
+    {
+      "id": "switch-to-create",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.modeOption(mode=\"create\")"
+        },
+        "metadata": {
+          "label": "Switch to Create mode"
+        }
+      }
+    },
+    {
+      "id": "wait-create-panel",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.create.panel",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeoutMs": 15000
+        },
+        "metadata": {
+          "label": "Create panel composes"
+        }
+      }
+    },
+    {
+      "id": "load-aquila-source-image",
+      "action": {
+        "type": "ACTION_TYPE_UPLOAD_FILE",
+        "upload_file": {
+          "selector": "@selector/workspace.fileInput",
+          "file_paths": [
+            "/home/matthalloran8/Vrooli/scenarios/image-tools/api/internal/ai/testdata/aquila-original-512.png"
+          ]
+        },
+        "metadata": {
+          "label": "Load the non-person Aquila source with a pointer over the emblem"
+        }
+      }
+    },
+    {
+      "id": "wait-aquila-canvas-image",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.canvas.image",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeoutMs": 15000
+        },
+        "metadata": {
+          "label": "Confirm source is loaded on the canvas"
+        }
+      }
+    },
+    {
+      "id": "assert-object-removal-action",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.createAction(name=\"object_removal\")",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000,
+          "failureMessage": "The object-removal action must be present in the live operation catalog."
+        },
+        "metadata": {
+          "label": "Discover object removal"
+        }
+      }
+    },
+    {
+      "id": "select-object-removal-action",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.createAction(name=\"object_removal\")"
+        },
+        "metadata": {
+          "label": "Select object removal"
+        }
+      }
+    },
+    {
+      "id": "wait-mask-upload",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.mask.upload",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeoutMs": 15000
+        },
+        "metadata": {
+          "label": "Wait for the mask control"
+        }
+      }
+    },
+    {
+      "id": "upload-pointer-mask",
+      "action": {
+        "type": "ACTION_TYPE_UPLOAD_FILE",
+        "upload_file": {
+          "selector": "@selector/workspace.mask.upload",
+          "file_paths": [
+            "/home/matthalloran8/Vrooli/scenarios/image-tools/api/internal/ai/testdata/mask-pointer-512.png"
+          ]
+        },
+        "metadata": {
+          "label": "Upload the explicit pointer mask"
+        }
+      }
+    },
+    {
+      "id": "wait-mask-ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.mask.status",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeoutMs": 15000
+        },
+        "metadata": {
+          "label": "Confirm the mask is attached"
+        }
+      }
+    },
+    {
+      "id": "open-advanced-settings",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.create.advanced"
+        },
+        "metadata": {
+          "label": "Open execution settings"
+        }
+      }
+    },
+    {
+      "id": "request-cpu-only",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.create.forceCpu"
+        },
+        "metadata": {
+          "label": "Choose CPU-only execution"
+        }
+      }
+    },
+    {
+      "id": "assert-cpu-tier",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/models.pickerTrigger",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "Runs on CPU (requested)"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 15000,
+          "failure_message": "The selected inpaint model must resolve to local CPU when CPU-only execution is requested."
+        },
+        "metadata": {
+          "label": "Confirm CPU execution is selected"
+        }
+      }
+    },
+    {
+      "id": "run-object-removal",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.create.run"
+        },
+        "metadata": {
+          "label": "Submit the masked object-removal job"
+        }
+      }
+    },
+    {
+      "id": "check-install-gate",
+      "action": {
+        "type": "ACTION_TYPE_CONDITIONAL",
+        "conditional": {
+          "conditionType": "CONDITIONAL_TYPE_ELEMENT",
+          "selector": "@selector/workspace.create.installGate",
+          "timeoutMs": 1000
+        },
+        "metadata": {
+          "label": "Check whether the installed model is ready"
+        }
+      }
+    },
+    {
+      "id": "assert-install-gate",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.create.installGate",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000,
+          "failureMessage": "A clean host should show the install gate before attempting inference."
+        },
+        "metadata": {
+          "label": "Model install gate appears"
+        }
+      }
+    },
+    {
+      "id": "wait-object-removal-result",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.create.succeeded",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeoutMs": 300000
+        },
+        "metadata": {
+          "label": "Wait for the local object-removal result"
+        }
+      }
+    },
+    {
+      "id": "assert-result-grid",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.create.results",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000,
+          "failureMessage": "A completed object-removal job must render its result grid."
+        },
+        "metadata": {
+          "label": "Edited result renders"
+        }
+      }
+    },
+    {
+      "id": "assert-first-result",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.createVariation(index=1)",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000,
+          "failureMessage": "The result grid must contain the object-removed image."
+        },
+        "metadata": {
+          "label": "Edited image is present"
+        }
+      }
+    },
+    {
+      "id": "send-result-to-canvas",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.createSend(index=1)"
+        },
+        "metadata": {
+          "label": "Open the object-removal result on the canvas"
+        }
+      }
+    },
+    {
+      "id": "assert-edited-canvas",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.canvas.image",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000,
+          "failureMessage": "The object-removal output must load as the current canvas image."
+        },
+        "metadata": {
+          "label": "Edited image loads on canvas"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "c04-e1",
+      "source": "navigate-workspace",
+      "target": "wait-mode-switcher",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c04-e2",
+      "source": "wait-mode-switcher",
+      "target": "switch-to-create",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c04-e3",
+      "source": "switch-to-create",
+      "target": "wait-create-panel",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c04-e4",
+      "source": "wait-create-panel",
+      "target": "load-aquila-source-image",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c04-e5",
+      "source": "load-aquila-source-image",
+      "target": "wait-aquila-canvas-image",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c04-e6",
+      "source": "wait-aquila-canvas-image",
+      "target": "assert-object-removal-action",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c04-e7",
+      "source": "assert-object-removal-action",
+      "target": "select-object-removal-action",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c04-e8",
+      "source": "select-object-removal-action",
+      "target": "wait-mask-upload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c04-e9",
+      "source": "wait-mask-upload",
+      "target": "upload-pointer-mask",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c04-e10",
+      "source": "upload-pointer-mask",
+      "target": "wait-mask-ready",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c04-e15",
+      "source": "assert-cpu-tier",
+      "target": "run-object-removal",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c04-e16",
+      "source": "run-object-removal",
+      "target": "check-install-gate",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c04-e19",
+      "source": "wait-object-removal-result",
+      "target": "assert-result-grid",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c04-e20",
+      "source": "assert-result-grid",
+      "target": "assert-first-result",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c04-e21",
+      "source": "assert-first-result",
+      "target": "send-result-to-canvas",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c04-install-needed",
+      "source": "check-install-gate",
+      "target": "assert-install-gate",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP",
+      "label": "true"
+    },
+    {
+      "id": "c04-model-ready",
+      "source": "check-install-gate",
+      "target": "wait-object-removal-result",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP",
+      "label": "false"
+    },
+    {
+      "id": "c04-canvas-loaded",
+      "source": "send-result-to-canvas",
+      "target": "assert-edited-canvas",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c04-adv",
+      "source": "wait-mask-ready",
+      "target": "open-advanced-settings",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c04-cpu",
+      "source": "open-advanced-settings",
+      "target": "request-cpu-only",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

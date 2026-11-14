@@ -5,7 +5,7 @@ import type { WorkflowSchedule, CreateScheduleInput, UpdateScheduleInput } from 
 import { CRON_PRESETS, COMMON_TIMEZONES, describeCron } from '@stores/scheduleStore';
 import { useWorkflowStore } from '@stores/workflowStore';
 import { ProjectSelector } from '@/domains/recording/conversion/ProjectSelector';
-import { useProjectStore, type Project } from '@/domains/projects';
+import { useProjectStore, type Project } from '@/domains/projects/store';
 
 interface WorkflowOption {
   id: string;

@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "status": "candidate_only_unqualified",
+  "artifact_id": "vrooli-generic-smart-display-concept-v6",
+  "output": {
+    "path": "scenarios/device-studio/api/internal/physicalruntime/assets/smart-display-v6/generic-smart-display-v6.glb",
+    "sha256": "0b77cc12cf175c5c2d8640e0b81b3b1d5ac216233db3fc1fff4ba2d8b4f428e4",
+    "size_bytes": 337656
+  },
+  "source": {
+    "asset_id": "vrooli-generic-smart-display-concept-v5",
+    "path": "scenarios/device-studio/api/internal/physicalruntime/assets/smart-display-v5/generic-smart-display-v5.glb",
+    "sha256": "3ee98ae0dd5ce505f0de566055fffe8134fa1cccdad9c4ababab40a5a1ec84c2",
+    "license": "AGPL-3.0-only",
+    "authored_by": "Vrooli"
+  },
+  "derivation": {
+    "generator": "derive_smart_display_v6.py",
+    "runtime": "Python standard library; deterministic and offline",
+    "changes": [
+      "Preserve v5 48-segment rounded shell contour, positions, topology, material, and display mapping.",
+      "Recompute only shell normals by area-weighted averaging triangle normals over coincident positions rounded to 1e-7; separated positions retain hard edges."
+    ],
+    "shell_node_index": 6,
+    "shell_mesh_index": 4,
+    "shell_position_count": 4608,
+    "coincident_position_groups": 770,
+    "screen_node": "MainDisplayActivePlane",
+    "screen_mesh_index": 6,
+    "screen_primitive_index": 0,
+    "uv_orientation": "V=0 top"
+  },
+  "qualification_limits": [
+    "Generic authored concept; comparison dimensions are not product CAD or identity.",
+    "Candidate requires a native appearance review."
+  ]
+}

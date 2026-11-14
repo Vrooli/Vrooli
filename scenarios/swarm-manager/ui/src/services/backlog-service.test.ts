@@ -107,6 +107,7 @@ describe("Backlog Service", () => {
         depends_on: [],
         acceptance_allow: [],
         acceptance_deny: [],
+        creates: [],
       });
       expect(result).toEqual(createdItem);
     });
@@ -221,64 +222,4 @@ describe("Backlog Service", () => {
     });
   });
 
-  describe("workshopSave", () => {
-    it("calls the correct endpoint with round data", async () => {
-      vi.mocked(mockApiClient.post).mockResolvedValue({
-        file: { name: "round-001.json", path: "workshop/round-001.json", type: "file", size: 200 },
-        auto_advance: { triggered: false, reason: "disabled", next_mode: "finalize" },
-      });
-
-      const result = await service.workshopSave("idea", "my-idea", 1, '{"round":1}');
-
-      expect(mockApiClient.post).toHaveBeenCalledWith(
-        "/backlog/idea/my-idea/workshop/save",
-        { round_number: 1, content: '{"round":1}' }
-      );
-      expect(result.file.name).toBe("round-001.json");
-      expect(result.autoAdvance.triggered).toBe(false);
-      expect(result.autoAdvance.reason).toBe("disabled");
-      expect(result.autoAdvance.nextMode).toBe("finalize");
-    });
-
-    it("returns auto-advance data when triggered", async () => {
-      vi.mocked(mockApiClient.post).mockResolvedValue({
-        file: { name: "round-002.json", path: "workshop/round-002.json", type: "file", size: 300 },
-        auto_advance: { triggered: true, run_id: "run-123", task_id: "task-456", reason: "finalizing", next_mode: "finalize" },
-      });
-
-      const result = await service.workshopSave("idea", "my-idea", 2, '{"round":2}');
-
-      expect(result.autoAdvance.triggered).toBe(true);
-      expect(result.autoAdvance.runId).toBe("run-123");
-      expect(result.autoAdvance.taskId).toBe("task-456");
-      expect(result.autoAdvance.reason).toBe("finalizing");
-      expect(result.autoAdvance.nextMode).toBe("finalize");
-    });
-
-  });
-
-  describe("getClarification", () => {
-    it("calls the correct endpoint with threadId", async () => {
-      const threadResponse = {
-        thread: {
-          id: "thread-1",
-          round_number: 1,
-          item_id: "d1",
-          run_id: "run-abc",
-          messages: [{ role: "user", content: "Why?", created_at: "2026-04-01T00:00:00Z" }],
-          status: "active",
-          created_at: "2026-04-01T00:00:00Z",
-          updated_at: "2026-04-01T00:00:00Z",
-        },
-      };
-      vi.mocked(mockApiClient.get).mockResolvedValue(threadResponse);
-
-      const result = await service.getClarification("idea", "test-item", "thread-1");
-
-      expect(mockApiClient.get).toHaveBeenCalledWith(
-        "/backlog/idea/test-item/workshop/clarification/thread-1",
-      );
-      expect(result.thread.id).toBe("thread-1");
-    });
-  });
 });

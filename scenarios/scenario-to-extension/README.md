@@ -11,7 +11,7 @@ The `scenario-to-extension` scenario provides a complete system for generating b
 - **🔧 Full Extension Generation**: Complete extensions with background services, content scripts, and popup interfaces
 - **📄 Specialized Templates**: Content script only, background only, or popup only variants
 - **🚀 Automated Build System**: Complete development tooling with hot reload and production builds  
-- **🧪 Integrated Testing**: Browserless-powered testing with screenshot validation
+- **🧪 Integrated Testing**: BAS/Playwright-powered testing with screenshot validation
 - **⚙️ API Integration**: Seamless connection between extensions and scenario APIs
 - **🎨 Modern UI**: Web-based management interface for generation and testing
 
@@ -20,17 +20,14 @@ The `scenario-to-extension` scenario provides a complete system for generating b
 ### Prerequisites
 
 - Vrooli platform running locally
-- Browserless resource available (for testing)
+- browser-automation-studio available (for testing)
 - Node.js 18+ (for extension builds)
 - Chrome or Firefox (for testing)
 
 ### Installation
 
 1. **Install the CLI**:
-   ```bash
-   cd scenarios/scenario-to-extension
-   ./cli/install.sh
-   ```
+   The control plane installs the declared Go CLI when the scenario starts.
 
 2. **Start the service**:
    ```bash
@@ -54,9 +51,29 @@ scenario-to-extension generate web-scraper \
 # Build the extension  
 scenario-to-extension build ./platforms/extension
 
-# Test the extension
-scenario-to-extension test ./platforms/extension --sites https://example.com
+# Test the extension. This requires a browser producer executable.
+SCENARIO_TO_EXTENSION_BROWSER_RUNNER=/absolute/path/to/browser-runner \
+  scenario-to-extension test ./platforms/extension --sites https://example.com
 ```
+
+The API invokes `SCENARIO_TO_EXTENSION_BROWSER_RUNNER` with `--extension-path`,
+`--test-sites`, `--headless`, and `--screenshot`. The producer must write one JSON
+`ExtensionTestResult` document to stdout. If the variable is unset, validation is
+reported as `status: unavailable`; the service never fabricates a successful browser
+result when no browser is available.
+
+The generic ramp can package a caller-owned extension source directory with
+`--source-path /absolute/path/to/extension-source`. The source must contain an
+MV3 `manifest.json`; the ramp processes its standard variables, excludes build
+dependencies and VCS metadata, validates the manifest, and records the exact
+artifact digest. Product extensions can therefore use the same durable packaging
+and receipt path without product-specific logic in the ramp.
+
+Generation is restart-safe. Build state is stored beside the generated output,
+running jobs resume after an API restart, and `POST /api/v1/extension/cancel/{build_id}`
+records a terminal `canceled` state for an interrupted job. A ready build includes an
+artifact SHA-256 receipt and byte count; the download endpoint rehashes the ZIP before
+serving it and returns `409 Conflict` if the bytes changed.
 
 ## 📋 Extension Templates
 
@@ -296,7 +313,7 @@ scenario-to-extension/
 │   ├── vanilla/           # Base templates
 │   └── advanced/          # Specialized variants
 ├── prompts/               # AI generation prompts
-├── initialization/        # N8n workflows
+├── api/internal/<domain>/        # N8n workflows
 └── test/                  # Test suites
 ```
 
@@ -343,7 +360,7 @@ Create specialized templates for specific use cases:
 - **Extension Documentation**: Generated extensions include complete README files
 - **Chrome Extension APIs**: https://developer.chrome.com/extensions
 - **Firefox WebExtensions**: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions
-- **Browserless Testing**: https://browserless.io/docs
+- **Browser Automation (BAS/Playwright)**: scenarios/browser-automation-studio
 - **Vrooli Platform**: https://github.com/vrooli/vrooli
 
 ## 🐛 Troubleshooting

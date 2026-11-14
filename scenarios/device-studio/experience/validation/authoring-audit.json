@@ -1,0 +1,483 @@
+{
+  "kind": "design-contract-audit",
+  "status": "PASSED",
+  "scope": "Read-only semantic and source-link audit, not UI tests, journey execution, accessibility or visual acceptance.",
+  "counts": {
+    "pages": 16,
+    "real_template_pages": 3,
+    "partially_implemented_product_routes": 2,
+    "planned_product_pages": 11,
+    "journeys": 8,
+    "aspirational_claims": 38,
+    "runtime_machine_claims": 0,
+    "manual_attestations": 0,
+    "checks": 86
+  },
+  "checks": [
+    {
+      "check": "all-index-entries-draft",
+      "passed": true,
+      "detail": "Draft route status is intentionally distinct from actual template route existence."
+    },
+    {
+      "check": "exact-page-file-parity",
+      "passed": true,
+      "detail": "No orphan page documents or missing index entries."
+    },
+    {
+      "check": "exact-journey-file-parity",
+      "passed": true,
+      "detail": "No orphan journey documents or missing index entries."
+    },
+    {
+      "check": "dashboard:common-intended-states",
+      "passed": true,
+      "detail": "Declared intended state vocabulary only; no runtime setup or coverage proof."
+    },
+    {
+      "check": "dashboard:operational-targets",
+      "passed": true,
+      "detail": "Every OT id appears in populated PRD."
+    },
+    {
+      "check": "dashboard:requirement-ids",
+      "passed": true,
+      "detail": "All optional x-requirements ids resolve to actual requirement modules."
+    },
+    {
+      "check": "notes:common-intended-states",
+      "passed": true,
+      "detail": "Declared intended state vocabulary only; no runtime setup or coverage proof."
+    },
+    {
+      "check": "notes:operational-targets",
+      "passed": true,
+      "detail": "Every OT id appears in populated PRD."
+    },
+    {
+      "check": "notes:requirement-ids",
+      "passed": true,
+      "detail": "All optional x-requirements ids resolve to actual requirement modules."
+    },
+    {
+      "check": "settings:common-intended-states",
+      "passed": true,
+      "detail": "Declared intended state vocabulary only; no runtime setup or coverage proof."
+    },
+    {
+      "check": "settings:operational-targets",
+      "passed": true,
+      "detail": "Every OT id appears in populated PRD."
+    },
+    {
+      "check": "settings:requirement-ids",
+      "passed": true,
+      "detail": "All optional x-requirements ids resolve to actual requirement modules."
+    },
+    {
+      "check": "projects:common-intended-states",
+      "passed": true,
+      "detail": "Declared intended state vocabulary only; no runtime setup or coverage proof."
+    },
+    {
+      "check": "projects:operational-targets",
+      "passed": true,
+      "detail": "Every OT id appears in populated PRD."
+    },
+    {
+      "check": "projects:requirement-ids",
+      "passed": true,
+      "detail": "All optional x-requirements ids resolve to actual requirement modules."
+    },
+    {
+      "check": "projects:no-fake-runtime-bindings",
+      "passed": true,
+      "detail": "Future controls use x-design metadata; no invented selectors, grounded regions or state hooks."
+    },
+    {
+      "check": "project:common-intended-states",
+      "passed": true,
+      "detail": "Declared intended state vocabulary only; no runtime setup or coverage proof."
+    },
+    {
+      "check": "project:operational-targets",
+      "passed": true,
+      "detail": "Every OT id appears in populated PRD."
+    },
+    {
+      "check": "project:requirement-ids",
+      "passed": true,
+      "detail": "All optional x-requirements ids resolve to actual requirement modules."
+    },
+    {
+      "check": "project:no-fake-runtime-bindings",
+      "passed": true,
+      "detail": "Future controls use x-design metadata; no invented selectors, grounded regions or state hooks."
+    },
+    {
+      "check": "library:common-intended-states",
+      "passed": true,
+      "detail": "Declared intended state vocabulary only; no runtime setup or coverage proof."
+    },
+    {
+      "check": "library:operational-targets",
+      "passed": true,
+      "detail": "Every OT id appears in populated PRD."
+    },
+    {
+      "check": "library:requirement-ids",
+      "passed": true,
+      "detail": "All optional x-requirements ids resolve to actual requirement modules."
+    },
+    {
+      "check": "library:no-fake-runtime-bindings",
+      "passed": true,
+      "detail": "Future controls use x-design metadata; no invented selectors, grounded regions or state hooks."
+    },
+    {
+      "check": "asset:common-intended-states",
+      "passed": true,
+      "detail": "Declared intended state vocabulary only; no runtime setup or coverage proof."
+    },
+    {
+      "check": "asset:operational-targets",
+      "passed": true,
+      "detail": "Every OT id appears in populated PRD."
+    },
+    {
+      "check": "asset:requirement-ids",
+      "passed": true,
+      "detail": "All optional x-requirements ids resolve to actual requirement modules."
+    },
+    {
+      "check": "asset:no-fake-runtime-bindings",
+      "passed": true,
+      "detail": "Future controls use x-design metadata; no invented selectors, grounded regions or state hooks."
+    },
+    {
+      "check": "import:common-intended-states",
+      "passed": true,
+      "detail": "Declared intended state vocabulary only; no runtime setup or coverage proof."
+    },
+    {
+      "check": "import:operational-targets",
+      "passed": true,
+      "detail": "Every OT id appears in populated PRD."
+    },
+    {
+      "check": "import:requirement-ids",
+      "passed": true,
+      "detail": "All optional x-requirements ids resolve to actual requirement modules."
+    },
+    {
+      "check": "import:no-fake-runtime-bindings",
+      "passed": true,
+      "detail": "Future controls use x-design metadata; no invented selectors, grounded regions or state hooks."
+    },
+    {
+      "check": "creation:common-intended-states",
+      "passed": true,
+      "detail": "Declared intended state vocabulary only; no runtime setup or coverage proof."
+    },
+    {
+      "check": "creation:operational-targets",
+      "passed": true,
+      "detail": "Every OT id appears in populated PRD."
+    },
+    {
+      "check": "creation:requirement-ids",
+      "passed": true,
+      "detail": "All optional x-requirements ids resolve to actual requirement modules."
+    },
+    {
+      "check": "creation:no-fake-runtime-bindings",
+      "passed": true,
+      "detail": "Future controls use x-design metadata; no invented selectors, grounded regions or state hooks."
+    },
+    {
+      "check": "review:common-intended-states",
+      "passed": true,
+      "detail": "Declared intended state vocabulary only; no runtime setup or coverage proof."
+    },
+    {
+      "check": "review:operational-targets",
+      "passed": true,
+      "detail": "Every OT id appears in populated PRD."
+    },
+    {
+      "check": "review:requirement-ids",
+      "passed": true,
+      "detail": "All optional x-requirements ids resolve to actual requirement modules."
+    },
+    {
+      "check": "review:no-fake-runtime-bindings",
+      "passed": true,
+      "detail": "Future controls use x-design metadata; no invented selectors, grounded regions or state hooks."
+    },
+    {
+      "check": "shot:common-intended-states",
+      "passed": true,
+      "detail": "Declared intended state vocabulary only; no runtime setup or coverage proof."
+    },
+    {
+      "check": "shot:operational-targets",
+      "passed": true,
+      "detail": "Every OT id appears in populated PRD."
+    },
+    {
+      "check": "shot:requirement-ids",
+      "passed": true,
+      "detail": "All optional x-requirements ids resolve to actual requirement modules."
+    },
+    {
+      "check": "shot:no-fake-runtime-bindings",
+      "passed": true,
+      "detail": "Future controls use x-design metadata; no invented selectors, grounded regions or state hooks."
+    },
+    {
+      "check": "jobs:common-intended-states",
+      "passed": true,
+      "detail": "Declared intended state vocabulary only; no runtime setup or coverage proof."
+    },
+    {
+      "check": "jobs:operational-targets",
+      "passed": true,
+      "detail": "Every OT id appears in populated PRD."
+    },
+    {
+      "check": "jobs:requirement-ids",
+      "passed": true,
+      "detail": "All optional x-requirements ids resolve to actual requirement modules."
+    },
+    {
+      "check": "jobs:no-fake-runtime-bindings",
+      "passed": true,
+      "detail": "Future controls use x-design metadata; no invented selectors, grounded regions or state hooks."
+    },
+    {
+      "check": "job:common-intended-states",
+      "passed": true,
+      "detail": "Declared intended state vocabulary only; no runtime setup or coverage proof."
+    },
+    {
+      "check": "job:operational-targets",
+      "passed": true,
+      "detail": "Every OT id appears in populated PRD."
+    },
+    {
+      "check": "job:requirement-ids",
+      "passed": true,
+      "detail": "All optional x-requirements ids resolve to actual requirement modules."
+    },
+    {
+      "check": "job:no-fake-runtime-bindings",
+      "passed": true,
+      "detail": "Future controls use x-design metadata; no invented selectors, grounded regions or state hooks."
+    },
+    {
+      "check": "result:common-intended-states",
+      "passed": true,
+      "detail": "Declared intended state vocabulary only; no runtime setup or coverage proof."
+    },
+    {
+      "check": "result:operational-targets",
+      "passed": true,
+      "detail": "Every OT id appears in populated PRD."
+    },
+    {
+      "check": "result:requirement-ids",
+      "passed": true,
+      "detail": "All optional x-requirements ids resolve to actual requirement modules."
+    },
+    {
+      "check": "result:no-fake-runtime-bindings",
+      "passed": true,
+      "detail": "Future controls use x-design metadata; no invented selectors, grounded regions or state hooks."
+    },
+    {
+      "check": "account:common-intended-states",
+      "passed": true,
+      "detail": "Declared intended state vocabulary only; no runtime setup or coverage proof."
+    },
+    {
+      "check": "account:operational-targets",
+      "passed": true,
+      "detail": "Every OT id appears in populated PRD."
+    },
+    {
+      "check": "account:requirement-ids",
+      "passed": true,
+      "detail": "All optional x-requirements ids resolve to actual requirement modules."
+    },
+    {
+      "check": "account:no-fake-runtime-bindings",
+      "passed": true,
+      "detail": "Future controls use x-design metadata; no invented selectors, grounded regions or state hooks."
+    },
+    {
+      "check": "project-settings:common-intended-states",
+      "passed": true,
+      "detail": "Declared intended state vocabulary only; no runtime setup or coverage proof."
+    },
+    {
+      "check": "project-settings:operational-targets",
+      "passed": true,
+      "detail": "Every OT id appears in populated PRD."
+    },
+    {
+      "check": "project-settings:requirement-ids",
+      "passed": true,
+      "detail": "All optional x-requirements ids resolve to actual requirement modules."
+    },
+    {
+      "check": "project-settings:no-fake-runtime-bindings",
+      "passed": true,
+      "detail": "Future controls use x-design metadata; no invented selectors, grounded regions or state hooks."
+    },
+    {
+      "check": "first-photographic-shot:journey-links",
+      "passed": true,
+      "detail": "Every planned step references a declared page and intended state."
+    },
+    {
+      "check": "first-photographic-shot:operational-targets",
+      "passed": true,
+      "detail": "Every journey OT id appears in populated PRD."
+    },
+    {
+      "check": "controlled-device-motion:journey-links",
+      "passed": true,
+      "detail": "Every planned step references a declared page and intended state."
+    },
+    {
+      "check": "controlled-device-motion:operational-targets",
+      "passed": true,
+      "detail": "Every journey OT id appears in populated PRD."
+    },
+    {
+      "check": "agent-creation-and-release:journey-links",
+      "passed": true,
+      "detail": "Every planned step references a declared page and intended state."
+    },
+    {
+      "check": "agent-creation-and-release:operational-targets",
+      "passed": true,
+      "detail": "Every journey OT id appears in populated PRD."
+    },
+    {
+      "check": "offline-recovery:journey-links",
+      "passed": true,
+      "detail": "Every planned step references a declared page and intended state."
+    },
+    {
+      "check": "offline-recovery:operational-targets",
+      "passed": true,
+      "detail": "Every journey OT id appears in populated PRD."
+    },
+    {
+      "check": "account-and-funded-work:journey-links",
+      "passed": true,
+      "detail": "Every planned step references a declared page and intended state."
+    },
+    {
+      "check": "account-and-funded-work:operational-targets",
+      "passed": true,
+      "detail": "Every journey OT id appears in populated PRD."
+    },
+    {
+      "check": "mobile-calibration:journey-links",
+      "passed": true,
+      "detail": "Every planned step references a declared page and intended state."
+    },
+    {
+      "check": "mobile-calibration:operational-targets",
+      "passed": true,
+      "detail": "Every journey OT id appears in populated PRD."
+    },
+    {
+      "check": "scoped-library-release:journey-links",
+      "passed": true,
+      "detail": "Every planned step references a declared page and intended state."
+    },
+    {
+      "check": "scoped-library-release:operational-targets",
+      "passed": true,
+      "detail": "Every journey OT id appears in populated PRD."
+    },
+    {
+      "check": "portable-replay-and-handoff:journey-links",
+      "passed": true,
+      "detail": "Every planned step references a declared page and intended state."
+    },
+    {
+      "check": "portable-replay-and-handoff:operational-targets",
+      "passed": true,
+      "detail": "Every journey OT id appears in populated PRD."
+    },
+    {
+      "check": "all-claims-aspirational",
+      "passed": true,
+      "detail": "No runtime machine claim or manual attestation has been manufactured."
+    },
+    {
+      "check": "template-notes-real-binding",
+      "passed": true,
+      "detail": "Inherited Notes testid is present in actual selector registry; no runtime interaction claimed."
+    },
+    {
+      "check": "template-major-export-resolves-pin",
+      "passed": true,
+      "detail": "Actual ExperienceSurface/1 package export resolves to pinned1.0.3 canonical contract."
+    },
+    {
+      "check": "observed-project-routes",
+      "passed": true,
+      "detail": "Read-only source inspection: root and /projects render the real Projects workspace; /projects/:projectId loads and revision-safely renames a project. Other product routes remain proposed; no page-level product acceptance is implied."
+    },
+    {
+      "check": "all-p0-targets-covered",
+      "passed": true,
+      "detail": "Design references cover all14 committed P0 target groups, not only first photographic milestone."
+    },
+    {
+      "check": "no-attestation-files",
+      "passed": true,
+      "detail": "No attestations created; visual/operator approval remains absent."
+    }
+  ],
+  "artifact_sha256": {
+    "DESIGN.md": "017817d7974262194fa75636481ab98ece42b07888839c3a5060e4bce9d975a1",
+    "experience/index.json": "6d839a14c4517545fa536b8214f019f02616cc7ad145b72270eb4dc876933e5c",
+    "experience/pages/account.json": "37e57b5ed30a8ec81a71e1bc78a16cb788eed5bb9155b248333b3c3dea88b1dc",
+    "experience/pages/asset.json": "a04bc2e62fd9ca2b633077a46ea4ab9b366c66fb906148baacbb0eecf3902589",
+    "experience/pages/creation.json": "348f95e6872ca8ad043800b7b5fe996c17860cfd7e4d8c85445e6d7dff9b7e3c",
+    "experience/pages/dashboard.json": "65fa4e5af2fbdc24496e11ab87608723ef5115fe63fb9f7c0402bf7e89a65f4c",
+    "experience/pages/import.json": "bcc15202a1b8a117da13351b86b197e6c3a984c977be274163c77ea777bcc560",
+    "experience/pages/job.json": "9f34e5da6b288e3306a6d5a3a131998477fb14ccd684c10333a357edbae9d685",
+    "experience/pages/jobs.json": "f5a3dd8ea7e25c79068102a6446254771c48f5c82c022b77f072c3398144ae50",
+    "experience/pages/library.json": "244a5b609475e243569d3a4fef9e6cfa5d391a2d4c95cb7ca3eaa22b098d291f",
+    "experience/pages/notes.json": "bb7fb79168033f7072c45c781cc591fe8486f6373ce445f41d87a487ad1f9385",
+    "experience/pages/project-settings.json": "09133e4d436ac11d32186df80d3a64f0f2824974c96ded537888de7afcbfea15",
+    "experience/pages/project.json": "1d17f5c58080b6eb5dd590fd75173e4abc28eb6c48d7688def0da18adc576b78",
+    "experience/pages/projects.json": "a3ef7d6dfb4b7181230c3163de935015fa11adcde42762516294115ec7801e1f",
+    "experience/pages/result.json": "ae636e1e227c839897ad32dc1b98fcc6164aef3e9458f122390c832f4b005293",
+    "experience/pages/review.json": "b4e39c2b1d5f3ebc26b020333acda0b6603db4e3ff3153caad5043ae0b1c389c",
+    "experience/pages/settings.json": "489d42137160089c70ac47db186deb93fafc20984f78b7cacaf35daeae29e51a",
+    "experience/pages/shot.json": "e170c1ab58057716c0ac9c24f66feef44c4d3aec031704f306d75ba0a99aa907",
+    "experience/journeys/account-and-funded-work.json": "d2b2c95d8c8ec369a61521c42f28421e0c58285f6f879f955c8648914bd81353",
+    "experience/journeys/agent-creation-and-release.json": "6c779de338b4b4aa25a24557562dfcb689d3ae4b50029a33e54f49882d1abb61",
+    "experience/journeys/controlled-device-motion.json": "3cf9928b55f43e9ce2c6fe7c3fbcb70d893aee75bbcfdc29bb578c2926a8eb95",
+    "experience/journeys/first-photographic-shot.json": "c37746bd286ef860e3e10d7ded23556ad3dec500b0f922af61801d7d5e5a83f5",
+    "experience/journeys/mobile-calibration.json": "09bc4c48397f2c5a231829314c66f1a31dce7f60e6cce8f8eb48bbf809b15adb",
+    "experience/journeys/offline-recovery.json": "83cd12cde19fa39866def9d663820e85643e59ef9f52bc9370bf24397edd29b8",
+    "experience/journeys/portable-replay-and-handoff.json": "bba53dddaa9f116d17312665074771f71183ab6c857a0597eeb0607fecc06f2d",
+    "experience/journeys/scoped-library-release.json": "5da8b26a922265e77761a7c092e627856a0430891ed4570709497400e78bcd84"
+  },
+  "remaining": [
+    "Ratified concept and paired desktop/mobile mockups",
+    "Remaining product routes and deterministic state setup/bindings",
+    "Real BAS structure/capture and interactive journey evidence",
+    "Accessibility, responsive, renderer and final-look acceptance",
+    "Real worker, credit, privacy and cancellation integration proofs"
+  ]
+}

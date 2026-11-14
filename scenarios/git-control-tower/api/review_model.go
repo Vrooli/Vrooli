@@ -28,12 +28,13 @@ var validReviewChecks = map[string]bool{
 
 // ReviewSummaryResponse is the unified review summary for a scenario.
 type ReviewSummaryResponse struct {
-	ScenarioName      string            `json:"scenarioName"`
-	Readiness         Readiness         `json:"readiness"`
-	Dimensions        ReviewDimensions  `json:"dimensions"`
-	DimensionStatuses map[string]string `json:"dimensionStatuses,omitempty"`
-	Capabilities      map[string]bool   `json:"capabilities"`
-	Timestamp         string            `json:"timestamp"`
+	ScenarioName      string                 `json:"scenarioName"`
+	Readiness         Readiness              `json:"readiness"`
+	Dimensions        ReviewDimensions       `json:"dimensions"`
+	DimensionStatuses map[string]string      `json:"dimensionStatuses,omitempty"`
+	CheckStatuses     map[string]CheckStatus `json:"checkStatuses,omitempty"`
+	Capabilities      map[string]bool        `json:"capabilities"`
+	Timestamp         string                 `json:"timestamp"`
 }
 
 // ReviewDimensions holds per-dimension review data.
@@ -148,10 +149,11 @@ type ReviewRunResponse struct {
 
 // ReviewJobStatus tracks the progress and result of a review run.
 type ReviewJobStatus struct {
-	JobID     string                 `json:"jobId"`
-	Status    string                 `json:"status"`
-	Checks    map[string]CheckStatus `json:"checks"`
-	Summary   *ReviewSummaryResponse `json:"summary,omitempty"`
-	StartedAt string                 `json:"startedAt"`
-	Error     string                 `json:"error,omitempty"`
+	JobID             string                 `json:"jobId"`
+	Status            string                 `json:"status"`
+	Checks            map[string]CheckStatus `json:"checks"`
+	CheckExecutionIDs map[string]string      `json:"checkExecutionIds,omitempty"`
+	Summary           *ReviewSummaryResponse `json:"summary,omitempty"`
+	StartedAt         string                 `json:"startedAt"`
+	Error             string                 `json:"error,omitempty"`
 }

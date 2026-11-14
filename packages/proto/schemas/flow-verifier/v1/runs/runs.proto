@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package vrooli.flow_verifier.v1.runs;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/runs;runs_v1";
+
+// =============================================================================
+// RUNS DOMAIN — verification history
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain runs
+// @imports none (external only: google.protobuf.Timestamp)
+// @stability stable
+//
+// Wire contract for persisted verification runs. One Run row per
+// invocation of pipeline.Verify; `failure_reason` narrows a failed
+// status into a typed category the UI renders as a distinct pill.
+// =============================================================================
+
+service RunsService {
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+}
+
+// RunStatus is the terminal outcome of one verification of one flow.
+enum RunStatus {
+  RUN_STATUS_UNSPECIFIED = 0;
+  RUN_STATUS_PASSED = 1;
+  RUN_STATUS_FAILED = 2;
+  RUN_STATUS_ERROR = 3;
+}
+
+// RunMode mirrors pipeline.Mode for storage; recorded so history can
+// distinguish "check" from "regenerate" at a glance.
+enum RunMode {
+  RUN_MODE_UNSPECIFIED = 0;
+  RUN_MODE_RUN = 1;
+  RUN_MODE_CHECK = 2;
+}
+
+// FailureReason narrows RunStatus=FAILED|ERROR into a typed category so
+// the UI can render a distinct, recoverable state and offer one-click
+// remediation (e.g. "Generate" for MISSING_ARTIFACTS).
+enum FailureReason {
+  FAILURE_REASON_UNSPECIFIED = 0;
+  FAILURE_REASON_MISSING_ARTIFACTS = 1;
+  FAILURE_REASON_STALE_ARTIFACTS = 2;
+  FAILURE_REASON_COUNTEREXAMPLE = 3;
+  FAILURE_REASON_LINT = 4;
+  FAILURE_REASON_QUINT_FAILURE = 5;
+  FAILURE_REASON_IO = 6;
+}
+
+// Run is one persisted verification of one flow.
+message Run {
+  string id = 1;
+  string flow_id = 2;
+  string flow_path = 3;
+  string root = 4;
+
+  // Content-addressed digests captured at run time; zero-valued until
+  // the recorder is upgraded to populate them (Phase F+ work).
+  string source_sha256 = 5;
+  string model_sha256 = 6;
+  string gen_sha256 = 7;
+
+  RunMode mode = 8;
+  RunStatus status = 9;
+
+  // Populated only on FAILED with counterexample/lint reasons.
+  string counterexample = 10;
+  // Populated only on FAILED/ERROR; rendered verbatim in the UI's
+  // run-detail "Error" card.
+  string error_message = 11;
+
+  FailureReason failure_reason = 12;
+  // Per-flow artifact paths reported by *pipeline.FreshnessError.
+  // Drives the UI's "Needs generate" affordance.
+  repeated string missing_artifacts = 13;
+
+  // Captured stdout + stderr of the verify invocation, surfaced in the
+  // run-detail "Logs" tab.
+  string output = 14;
+
+  google.protobuf.Timestamp started_at = 15;
+  google.protobuf.Timestamp finished_at = 16;
+  int64 duration_ms = 17;
+}
+
+message ListRunsRequest {
+  // Optional flow id filter. Empty returns history for every flow.
+  string flow_id = 1;
+  // Optional cap; zero means "use server default (50)."
+  uint32 limit = 2;
+}
+
+message ListRunsResponse {
+  repeated Run runs = 1;
+}
+
+message GetRunRequest {
+  string id = 1;
+}
+message GetRunResponse {
+  Run run = 1;
+}

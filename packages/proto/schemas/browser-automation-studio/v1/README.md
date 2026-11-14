@@ -32,6 +32,9 @@ v1/
 ├── execution/      Layer 4: Execution runtime (imports workflows/, domain/)
 │   └── execution.proto     Execution, ExecutionResult, ExecutionParameters
 │
+├── evidence/       Layer 4: Capture evidence and replay handoff (imports timeline/)
+│   └── evidence.proto       ArtifactManifest, EvidenceManifest, ReplayPackage
+│
 ├── api/            Layer 5: Service definitions (imports all layers)
 │   └── service.proto       WorkflowService gRPC, CRUD request/response types
 │
@@ -47,8 +50,9 @@ v1/
 │   ├── api/service.proto (WorkflowService, CRUD operations)                   │
 │   └── projects/project.proto (Project, ProjectStats)                         │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│ Layer 4: execution/                                                          │
+│ Layer 4: execution/, evidence/                                                │
 │   └── execution/execution.proto (Execution, ExecutionResult)                 │
+│   └── evidence/evidence.proto (artifact policy and replay handoff)            │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Layer 3: timeline/, recording/                                               │
 │   ├── timeline/entry.proto (TimelineEntry - unified format)                  │
@@ -80,6 +84,7 @@ v1/
 | `timeline/` | TimelineEntry, ExecutionTimeline | Execution history (streaming + batch) |
 | `recording/` | RecordingState, *Request/*Response | Recording session lifecycle |
 | `execution/` | Execution, ExecutionResult, ExecutionParameters | Runtime execution state |
+| `evidence/` | ArtifactManifest, EvidenceManifest, ReplayPackage | Storage-independent evidence and replay handoff |
 | `api/` | WorkflowService, WorkflowSummary, CRUD messages | gRPC service definitions |
 | `projects/` | Project, ProjectStats | Project organization |
 
@@ -109,6 +114,7 @@ See `base/shared.proto` for the detailed design rationale.
 | `timeline/` | `github.com/.../v1/timeline` (alias: `bastimeline`) |
 | `recording/` | `github.com/.../v1/recording` (alias: `basrecording`) |
 | `execution/` | `github.com/.../v1/execution` (alias: `basexecution`) |
+| `evidence/` | `github.com/.../v1/evidence` (alias: `basevidence`) |
 | `api/` | `github.com/.../v1/api` (alias: `basapi`) |
 | `projects/` | `github.com/.../v1/projects` (alias: `basprojects`) |
 
@@ -119,6 +125,7 @@ import { ActionType } from '@vrooli/proto-types/browser-automation-studio/v1/act
 import { ExecutionStatus } from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
 import { TimelineEntry } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
 import { WorkflowDefinitionV2 } from '@vrooli/proto-types/browser-automation-studio/v1/workflows/definition_pb';
+import { ReplayPackage } from '@vrooli/proto-types/browser-automation-studio/v1/evidence/evidence_pb';
 ```
 
 ## Adding New Types

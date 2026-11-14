@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "forms.form-section",
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.2",
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.0.0"
+  ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.2",
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.0.0",
+    "1.0.1"
+  ],
+  "latest": "1.0.8",
+  "libraryId": "react-component-library:FormSection",
+  "displayName": "FormSection",
+  "description": "The semantic grouping component with heading, description, responsive layout, optional collapse, summary, error badge, and compatibility with sticky section navigation.",
+  "tags": []
+}

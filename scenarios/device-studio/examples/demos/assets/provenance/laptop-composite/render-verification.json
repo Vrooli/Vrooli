@@ -1,0 +1,43 @@
+{
+  "project_id": "be160ed2-08ac-4a90-95f0-569962d8bea2",
+  "shot_id": "a2e0756a-fbe6-4442-a153-ca20f2165872",
+  "shot_revision": 2,
+  "render_job_id": "e1cb98b3-46a6-41dc-acf1-3c0200e03d1d",
+  "idempotency_key": "laptop-vflip-native-10s-20261021-03-4f9f",
+  "status": "RENDER_JOB_STATUS_SUCCEEDED",
+  "render_mode": "RENDER_MODE_PHYSICAL_VIDEO_FINAL_MP4",
+  "worker_sha256": "693c7ec4cb007fdcf7af266232d2aa3bd049428721c008f24af41baf9dd872a2",
+  "attempt_id": "a1fe1a63-f176-4054-bc55-70510e30709a",
+  "output": {
+    "path": "laptop-vflip-native-api-provisional.mp4",
+    "mime_type": "video/mp4",
+    "width": 1920,
+    "height": 1080,
+    "size_bytes": 3843081,
+    "sha256": "9e6d9047e1425e0dd54f6516af070318d95f5248e66f4688265748291842d314"
+  },
+  "validation": {
+    "ffmpeg_full_decode": "pass",
+    "frame_count": 240,
+    "frame_rate": "24/1",
+    "duration_seconds": 10.0,
+    "first_pts": 0,
+    "last_pts": 122368,
+    "strictly_increasing_pts": true,
+    "sample_frames": [
+      "frames/laptop-01.png",
+      "frames/laptop-02.png",
+      "frames/laptop-03.png",
+      "frames/laptop-04.png",
+      "frames/laptop-05.png"
+    ]
+  },
+  "cli_export": {
+    "command": "API_BASE_URL=http://127.0.0.1:19349 DEVICE_STUDIO_TEST_MODE=1 device-studio renders export e1cb98b3-46a6-41dc-acf1-3c0200e03d1d --project-id be160ed2-08ac-4a90-95f0-569962d8bea2 --out <new-file>",
+    "result": "blocked during auto-refresh: DevicesService.ReviewDeviceCandidate binding has no registered handler; CLI process panicked before export"
+  },
+  "browser_playback": {
+    "direct_mp4": "unsupported by active BAS Chromium demuxer; evidence in bas-mp4-codec-diagnostic.json",
+    "vp9_derivative": "played successfully in BAS; does not qualify original MP4 browser decoding; evidence in bas-vp9-playback.json"
+  }
+}

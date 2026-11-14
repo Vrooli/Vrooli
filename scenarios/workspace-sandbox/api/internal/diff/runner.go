@@ -22,12 +22,20 @@
 // With this seam, tests can inject a mock that returns predetermined outputs,
 // enabling fast, deterministic, and safe testing.
 //
+// # Round 4 Phase 7
+//
+// The production CommandRunner now delegates to process.Starter so the
+// canonical syscall-spawn seam owns every external invocation in
+// workspace-sandbox. The diff-package CommandRunner stays as a
+// domain-specific seam for tests that want to script git/diff/patch
+// outputs without booting up a real Starter+Run pipeline.
+//
 // # Usage in Production
 //
-// Use DefaultCommandRunner() which wraps exec.CommandContext:
+// Use NewExecCommandRunner(starter) which routes through process.Starter:
 //
-//	gen := diff.NewGeneratorWithRunner(diff.DefaultCommandRunner())
-//	patcher := diff.NewPatcherWithRunner(diff.DefaultCommandRunner())
+//	gen := diff.NewGeneratorWithRunner(diff.NewExecCommandRunner(starter))
+//	patcher := diff.NewPatcherWithRunner(diff.NewExecCommandRunner(starter))
 //
 // # Usage in Tests
 //
@@ -48,11 +56,12 @@
 package diff
 
 import (
-	"bytes"
 	"context"
+	"errors"
 	"fmt"
-	"os/exec"
 	"strings"
+
+	"workspace-sandbox/internal/process"
 )
 
 // CommandResult represents the output of a command execution.
@@ -67,7 +76,7 @@ type CommandResult struct {
 // This is the primary seam for test isolation in the diff package.
 //
 // Implementations:
-//   - ExecCommandRunner: Production implementation using exec.CommandContext
+//   - ExecCommandRunner: Production implementation backed by process.Starter
 //   - MockCommandRunner: Test implementation with configurable responses
 type CommandRunner interface {
 	// Run executes a command and returns the result.
@@ -78,45 +87,52 @@ type CommandRunner interface {
 }
 
 // ExecCommandRunner is the production implementation of CommandRunner.
-// It wraps exec.CommandContext to run real external commands.
-type ExecCommandRunner struct{}
-
-// DefaultCommandRunner returns the production command runner.
-func DefaultCommandRunner() CommandRunner {
-	return &ExecCommandRunner{}
+// It delegates to process.Starter so every git/diff/patch invocation
+// stays inside the canonical syscall-spawn seam (Round 4 Phase 7).
+type ExecCommandRunner struct {
+	starter process.Starter
 }
 
-// Run executes a command using exec.CommandContext.
+// NewExecCommandRunner constructs an ExecCommandRunner backed by the
+// supplied Starter. Required: nil panics with a structured message.
+func NewExecCommandRunner(starter process.Starter) *ExecCommandRunner {
+	if starter == nil {
+		panic("diff.NewExecCommandRunner: starter is required")
+	}
+	return &ExecCommandRunner{starter: starter}
+}
+
+// Run executes a command via process.Starter. ExitCode reflects the
+// process's exit code; non-zero exit returns Err with the formatted
+// message so legacy callers that only look at Err still see a failure.
 func (r *ExecCommandRunner) Run(ctx context.Context, dir string, stdin string, args ...string) CommandResult {
 	if len(args) == 0 {
 		return CommandResult{Err: fmt.Errorf("no command specified")}
 	}
-
-	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
-	if dir != "" {
-		cmd.Dir = dir
+	opts := process.StartOpts{
+		Path: args[0],
+		Args: append([]string(nil), args[1:]...),
+		Dir:  dir,
 	}
 	if stdin != "" {
-		cmd.Stdin = strings.NewReader(stdin)
+		opts.Stdin = strings.NewReader(stdin)
 	}
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
+	res, err := process.Run(ctx, r.starter, opts)
 	result := CommandResult{
-		Stdout: stdout.String(),
-		Stderr: stderr.String(),
-		Err:    err,
+		Stdout:   string(res.Stdout),
+		Stderr:   string(res.Stderr),
+		ExitCode: res.Exit.ExitCode,
 	}
-
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			result.ExitCode = exitErr.ExitCode()
+		result.Err = err
+		return result
+	}
+	if res.Exit.ExitCode != 0 {
+		result.Err = errors.New(strings.TrimSpace(string(res.Stderr)))
+		if result.Err.Error() == "" {
+			result.Err = fmt.Errorf("exit code %d", res.Exit.ExitCode)
 		}
 	}
-
 	return result
 }
 

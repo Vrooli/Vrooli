@@ -1,12 +1,19 @@
 import { logger } from '@/services/logger';
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { installChunkReloadGuard } from '@vrooli/api-base'
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 import App from './App.tsx'
 import { SnackStackProvider } from '@/notifications/SnackStackProvider'
+import { onProfilerRender } from '@/lib/profiler'
 import './index.css'
 import './shared.css'
 import './components/app-modal/TabStateView.css'
+
+// Code-split routes use lazy(); after a rebuild the old hashed chunks are
+// gone, so a tab opened before the deploy would crash on its next
+// navigation. This guard reloads once (rate-limited) instead.
+installChunkReloadGuard()
 
 const sendDebugEvent = (event: string, detail?: Record<string, unknown>) => {
   try {
@@ -116,7 +123,9 @@ if (currentDepth > APP_MONITOR_MAX_DEPTH) {
   ReactDOM.createRoot(rootEl).render(
     <React.StrictMode>
       <SnackStackProvider>
-        <App />
+        <React.Profiler id="App" onRender={onProfilerRender}>
+          <App />
+        </React.Profiler>
       </SnackStackProvider>
     </React.StrictMode>,
   )

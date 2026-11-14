@@ -6,6 +6,7 @@ import {
   apiPost,
   apiPut,
   apiDelete,
+  getApiErrorMessage,
   isApiError,
   type ApiErrorType,
 } from './common';
@@ -260,7 +261,7 @@ describe('common API utilities', () => {
           ok: false,
           status: 500,
           statusText: 'Internal Server Error',
-          text: async () => 'Not JSON',
+          text: () => Promise.resolve('Not JSON'),
         });
 
         try {
@@ -271,6 +272,48 @@ describe('common API utilities', () => {
           expect((err as ApiError).type).toBe('server_error');
         }
       });
+
+      it('uses status text when a failed response has no text reader or its reader rejects', async () => {
+        fetchMock.mockResolvedValueOnce({ ok: false, status: 503, statusText: 'Temporarily unavailable' });
+        try {
+          await apiCall('/status-text');
+          expect.fail('Expected the failed response to reject');
+        } catch (error) {
+          expect(error).toMatchObject({ type: 'server_error' });
+          expect((error as ApiError).message).toContain('Temporarily unavailable');
+        }
+
+        fetchMock.mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          statusText: 'Bad request fallback',
+          text: () => Promise.reject(new Error('stream closed')),
+        });
+        try {
+          await apiCall('/unreadable-error');
+          expect.fail('Expected the failed response to reject');
+        } catch (error) {
+          expect(error).toMatchObject({ type: 'validation' });
+          expect((error as ApiError).message).toContain('Bad request fallback');
+        }
+      });
+
+      it('honors server-provided valid error classification and retryability', async () => {
+        fetchMock.mockResolvedValue({
+          ok: false,
+          status: 400,
+          statusText: 'Bad request',
+          text: () => Promise.resolve(JSON.stringify({ error: 'Wait before retrying', error_type: 'rate_limited', retryable: false })),
+        });
+        await expect(apiCall('/rate-limit-override')).rejects.toMatchObject({
+          type: 'rate_limited', retryable: false, userMessage: 'Wait before retrying',
+        });
+      });
+    });
+
+    it('returns undefined for a successful compatibility response without a JSON reader', async () => {
+      fetchMock.mockResolvedValue({ ok: true, status: 204, statusText: 'No Content' });
+      await expect(apiCall('/empty-response')).resolves.toBeUndefined();
     });
 
     describe('network errors', () => {
@@ -413,6 +456,13 @@ describe('common API utilities', () => {
       const [, options] = getFetchCall(fetchMock);
       expect(options.body).toBeUndefined();
     });
+
+    it.each([0, false, null])('serializes valid falsy JSON body %p instead of silently dropping it', async (body) => {
+      fetchMock.mockResolvedValue(mockResponses.success({}));
+      await apiPost('/test', body);
+      const [, options] = getFetchCall(fetchMock);
+      expect(options.body).toBe(JSON.stringify(body));
+    });
   });
 
   describe('apiPut', () => {
@@ -433,6 +483,13 @@ describe('common API utilities', () => {
 
       const [, options] = getFetchCall(fetchMock);
       expect(options.body).toBe(JSON.stringify(body));
+    });
+
+    it('serializes false as a meaningful update payload', async () => {
+      fetchMock.mockResolvedValue(mockResponses.success({}));
+      await apiPut('/test', false);
+      const [, options] = getFetchCall(fetchMock);
+      expect(options.body).toBe('false');
     });
   });
 
@@ -463,6 +520,23 @@ describe('common API utilities', () => {
 
       const [, options] = getFetchCall(fetchMock);
       expect(options.body).toBeUndefined();
+    });
+
+    it('serializes a null DELETE body when the endpoint requires an explicit JSON null', async () => {
+      fetchMock.mockResolvedValue(mockResponses.success({}));
+      await apiDelete('/test', null);
+      const [, options] = getFetchCall(fetchMock);
+      expect(options.body).toBe('null');
+    });
+  });
+
+  describe('getApiErrorMessage', () => {
+    it('uses the most specific safe message for API, generic, string, and unknown failures', () => {
+      expect(getApiErrorMessage(new ApiError('technical', 'validation', 400, 'Correct the form'), 'Fallback')).toBe('Correct the form');
+      expect(getApiErrorMessage(new Error('Readable error'), 'Fallback')).toBe('Readable error');
+      expect(getApiErrorMessage('Server said no', 'Fallback')).toBe('Server said no');
+      expect(getApiErrorMessage('   ', 'Fallback')).toBe('Fallback');
+      expect(getApiErrorMessage(null, 'Fallback')).toBe('Fallback');
     });
   });
 });

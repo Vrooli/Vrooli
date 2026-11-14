@@ -1,0 +1,31 @@
+package heartbeat
+
+import (
+	"context"
+	"time"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+)
+
+// AgentClient abstracts the agent-manager HTTP API so callers can be tested
+// with a mock implementation. The concrete *AgentManagerClient satisfies this
+// interface.
+type AgentClient interface {
+	Health(ctx context.Context) (bool, error)
+	ResolveProfile(ctx context.Context, key string) (*AgentProfile, error)
+	CreateTask(ctx context.Context, task *Task) (*Task, error)
+	GetTask(ctx context.Context, taskID string) (*Task, error)
+	CancelTask(ctx context.Context, taskID string) error
+	DeleteTask(ctx context.Context, taskID string) error
+	CreateRun(ctx context.Context, req *CreateRunRequest) (*Run, error)
+	GetRun(ctx context.Context, runID string) (*Run, error)
+	WaitForRun(ctx context.Context, runID string, pollInterval time.Duration) (*Run, error)
+	StopRun(ctx context.Context, runID string) error
+	GetRunEvents(ctx context.Context, runID string, afterSequence int64, limit int) ([]byte, error)
+	ListRuns(ctx context.Context, opts ListRunsOptions) (*ListRunsResponse, error)
+	GetEffortEnrollment(ctx context.Context, effortRef string) (*domainpb.EffortEnrollment, error)
+	ContinueRun(ctx context.Context, runID string, message string, idempotencyKey string) (*Run, error)
+	CreateTypedInvestigation(ctx context.Context, request []byte) ([]byte, error)
+	ListTypedInvestigations(ctx context.Context, limit int) ([]byte, error)
+	CreateInvestigationApplyRun(ctx context.Context, investigationRunID string, customContext string) (*Run, error)
+}

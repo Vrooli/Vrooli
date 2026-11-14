@@ -1,7 +1,7 @@
 /**
  * Copy set storage - CRUD operations for saved selection sets.
  *
- * Each entity type (skills, agents, teams, topics) stores its copy sets
+ * Each entity type (skills, agents, teams, topics, actions) stores its copy sets
  * separately in localStorage. Sets are deduplicated by strict ID equality
  * (order-independent). Named sets are pinned and never evicted.
  */

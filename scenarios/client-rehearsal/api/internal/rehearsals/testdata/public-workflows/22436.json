@@ -1,0 +1,499 @@
+{
+  "nodes": [
+    {
+      "id": "node-001",
+      "name": "Every day at 7:05",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "disabled": true,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "5 7 * * *"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1.2
+    },
+    {
+      "id": "node-002",
+      "name": "Run now (webhook)",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "path": "kpi-report-run",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "node-003",
+      "name": "Configure KPI report",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        432,
+        100
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-001",
+              "name": "reports_dir",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "id": "field-002",
+              "name": "alerts_path",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "id": "field-003",
+              "name": "runs_log_path",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "id": "field-004",
+              "name": "sales_url",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "id": "field-005",
+              "name": "support_url",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "id": "field-006",
+              "name": "timezone",
+              "type": "string",
+              "value": "UTC"
+            },
+            {
+              "id": "field-007",
+              "name": "orders_drop_pct",
+              "type": "number",
+              "value": 20
+            },
+            {
+              "id": "field-008",
+              "name": "revenue_drop_pct",
+              "type": "number",
+              "value": 20
+            },
+            {
+              "id": "field-009",
+              "name": "new_tickets_max",
+              "type": "number",
+              "value": 60
+            },
+            {
+              "id": "field-010",
+              "name": "first_response_max_minutes",
+              "type": "number",
+              "value": 60
+            },
+            {
+              "id": "field-011",
+              "name": "trigger",
+              "type": "string",
+              "value": "={{ $json.headers ? 'webhook' : 'schedule' }}"
+            },
+            {
+              "id": "field-012",
+              "name": "request_body",
+              "type": "string",
+              "value": "={{ $json.headers ? JSON.stringify($json.body ?? null) : '' }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "node-004",
+      "name": "Check config and pick date",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        828,
+        100
+      ],
+      "parameters": {
+        "jsCode": "const c = $('Configure KPI report').first().json;\nconst needed = ['reports_dir', 'alerts_path', 'runs_log_path', 'sales_url', 'support_url'];\nif (needed.some(k => !String(c[k] || '').trim())) {\n  throw new Error('Not set up: fill in reports_dir, alerts_path, runs_log_path, sales_url and support_url in the Config node before running this workflow.');\n}\nfor (const k of ['orders_drop_pct', 'revenue_drop_pct', 'new_tickets_max', 'first_response_max_minutes']) {\n  if (typeof c[k] !== 'number' || !isFinite(c[k]) || c[k] <= 0) throw new Error(`Config: ${k} must be a number above 0.`);\n}\nconst tz = String(c.timezone || '').trim() || 'UTC';\n\n// Today's date in the report time zone, written YYYY-MM-DD.\nconst parts = {};\nfor (const p of new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())) {\n  parts[p.type] = p.value;\n}\nconst today = `${parts.year}-${parts.month}-${parts.day}`;\nconst shift = (day, n) => {\n  const t = new Date(day + 'T12:00:00Z');\n  t.setUTCDate(t.getUTCDate() + n);\n  return t.toISOString().slice(0, 10);\n};\nconst fail = error => [{ json: { valid: false, error } }];\n\n// A webhook call may name the day to report on (a re-run of a missed day). The schedule always reports on yesterday.\nlet report_date = shift(today, -1);\nif (c.trigger === 'webhook') {\n  let body = null;\n  try { body = JSON.parse(c.request_body || 'null'); } catch (e) { body = null; }\n  const asked = body && typeof body === 'object' && !Array.isArray(body) ? body.report_date : undefined;\n  if (asked !== undefined && asked !== null && asked !== '') {\n    if (typeof asked !== 'string' || !/^\\d{4}-\\d{2}-\\d{2}$/.test(asked)) {\n      return fail('report_date must be a date written as YYYY-MM-DD, for example 2026-10-20.');\n    }\n    const t = new Date(asked + 'T12:00:00Z');\n    if (isNaN(t.getTime()) || t.toISOString().slice(0, 10) !== asked) return fail(`report_date ${asked} is not a real calendar date.`);\n    if (asked >= today) return fail(`report_date must be before today (${today} in ${tz}).`);\n    report_date = asked;\n  }\n}\nreturn [{ json: { valid: true, report_date, prior_date: shift(report_date, -1), today, timezone: tz, trigger: c.trigger } }];\n"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "node-005",
+      "name": "Date OK?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        1224,
+        100
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "field-013",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": ""
+            }
+          ]
+        }
+      },
+      "typeVersion": 2.2
+    },
+    {
+      "id": "node-006",
+      "name": "Reply 400",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        1620,
+        300
+      ],
+      "parameters": {
+        "options": {
+          "responseCode": 400
+        },
+        "respondWith": "json",
+        "responseBody": "={{ ({ ok: false, error: $json.error }) }}"
+      },
+      "typeVersion": 1.5
+    },
+    {
+      "id": "node-007",
+      "name": "Get sales numbers",
+      "type": "n8n-nodes-base.httpRequest",
+      "onError": "continueRegularOutput",
+      "position": [
+        1620,
+        0
+      ],
+      "parameters": {
+        "url": "={{ $('Configure KPI report').first().json.sales_url }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        },
+        "sendQuery": true,
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "start",
+              "value": "={{ $('Check config and pick date').first().json.prior_date }}"
+            },
+            {
+              "name": "end",
+              "value": "={{ $('Check config and pick date').first().json.report_date }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 4.2,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "node-008",
+      "name": "Get support numbers",
+      "type": "n8n-nodes-base.httpRequest",
+      "onError": "continueRegularOutput",
+      "position": [
+        2016,
+        0
+      ],
+      "parameters": {
+        "url": "={{ $('Configure KPI report').first().json.support_url }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        },
+        "sendQuery": true,
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "start",
+              "value": "={{ $('Check config and pick date').first().json.prior_date }}"
+            },
+            {
+              "name": "end",
+              "value": "={{ $('Check config and pick date').first().json.report_date }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 4.2,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "node-009",
+      "name": "Build report",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        2412,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const c = $('Configure KPI report').first().json;\nconst d = $('Check config and pick date').first().json;\n\nconst SOURCES = {\n  sales: { label: 'sales', fields: ['orders', 'revenue'] },\n  support: { label: 'support', fields: ['new_tickets', 'first_response_minutes'] },\n};\nconst METRICS = [\n  { key: 'orders', source: 'sales', label: 'Orders', money: false, rule: 'drop', limit: Number(c.orders_drop_pct) },\n  { key: 'revenue', source: 'sales', label: 'Revenue', money: true, rule: 'drop', limit: Number(c.revenue_drop_pct) },\n  { key: 'new_tickets', source: 'support', label: 'New support tickets', money: false, rule: 'above', limit: Number(c.new_tickets_max) },\n  { key: 'first_response_minutes', source: 'support', label: 'Median first response (minutes)', money: false, rule: 'above', limit: Number(c.first_response_max_minutes) },\n];\n\nconst isNum = v => typeof v === 'number' && isFinite(v) && v >= 0;\nconst rowOk = (row, fields) => row && fields.every(f => isNum(row[f]));\n\n// Reads one source's reply. Anything but a usable row for the report date is a gap, never a zero.\nfunction readSource(name, reply) {\n  const label = SOURCES[name].label;\n  const fields = SOURCES[name].fields;\n  const code = Number(reply.statusCode) || 0;\n  if (!code) return { ok: false, reason: `no reply from the ${label} API (it timed out after 10 seconds or could not be reached)` };\n  if (code !== 200) return { ok: false, reason: `the ${label} API answered HTTP ${code}` };\n  let body = reply.body;\n  if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = null; } }\n  if (!body || typeof body !== 'object') return { ok: false, reason: `the ${label} API reply was not JSON` };\n  if (!Array.isArray(body.days)) return { ok: false, reason: `the ${label} API reply had no list of days` };\n  const day = body.days.find(x => x && x.date === d.report_date);\n  if (!day) return { ok: false, reason: `the ${label} API had no numbers for ${d.report_date}` };\n  if (!rowOk(day, fields)) return { ok: false, reason: `the ${label} API numbers for ${d.report_date} were missing or not numbers` };\n  const prior = body.days.find(x => x && x.date === d.prior_date);\n  return { ok: true, day, prior: rowOk(prior, fields) ? prior : null };\n}\n\nconst src = {\n  sales: readSource('sales', $('Get sales numbers').first().json),\n  support: readSource('support', $('Get support numbers').first().json),\n};\n\nconst gaps = [];\nfor (const name of Object.keys(SOURCES)) {\n  const s = src[name];\n  if (!s.ok) {\n    gaps.push({ source: name, what: 'day', note: `${name === 'sales' ? 'Sales' : 'Support'} numbers are missing: ${s.reason}. They are shown as \"missing\", not as zero.` });\n  } else if (!s.prior) {\n    gaps.push({ source: name, what: 'prior_day', note: `${name === 'sales' ? 'Sales' : 'Support'} numbers for ${d.prior_date} are missing, so there is no day-over-day change for them.` });\n  }\n}\n\nconst fmt = (v, money) => v === null || v === undefined ? 'missing'\n  : money ? v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(v);\nconst fmtPct = p => p === null ? 'n/a' : (p > 0 ? '+' : '') + p.toFixed(1) + '%';\n\nconst metrics = {};\nconst alerts = [];\nfor (const m of METRICS) {\n  const s = src[m.source];\n  const value = s.ok ? s.day[m.key] : null;\n  const prior = s.ok && s.prior ? s.prior[m.key] : null;\n  // The change is rounded to one decimal, and the alert rule reads that same rounded number.\n  const change_pct = value === null || prior === null || prior === 0 ? null : Math.round(((value - prior) / prior) * 1000) / 10;\n  let alert = null;\n  if (m.rule === 'drop' && change_pct !== null && change_pct <= -m.limit) {\n    alert = `${m.label} fell ${fmtPct(change_pct).slice(1)} (from ${fmt(prior, m.money)} to ${fmt(value, m.money)}). Rule: a drop of ${m.limit}% or more from the day before.`;\n  }\n  if (m.rule === 'above' && value !== null && value > m.limit) {\n    alert = `${m.label} was ${fmt(value, m.money)}. Rule: above ${m.limit}.`;\n  }\n  metrics[m.key] = { value, prior, change_pct };\n  if (alert) alerts.push({ metric: m.key, message: alert, value, prior, change_pct });\n}\n\nconst nice = day => new Date(day + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });\nconst short = day => new Date(day + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' });\nconst flagged = gaps.length > 0;\nconst made = new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';\n\nconst md = [];\nmd.push(`# Daily KPI report for ${nice(d.report_date)}`, '');\nmd.push(flagged ? 'Status: FLAGGED. Some numbers are missing. Read the gap notes before using this report.'\n                : 'Status: OK. All numbers are in.');\nmd.push('');\nmd.push(`Compared with ${nice(d.prior_date)}. Made ${made} by the ${d.trigger} run.`, '');\nmd.push(`| Metric | ${short(d.report_date)} | ${short(d.prior_date)} | Change | Alert |`);\nmd.push('|---|---:|---:|---:|---|');\nfor (const m of METRICS) {\n  const x = metrics[m.key];\n  md.push(`| ${m.label} | ${fmt(x.value, m.money)} | ${fmt(x.prior, m.money)} | ${fmtPct(x.change_pct)} | ${alerts.some(a => a.metric === m.key) ? 'ALERT' : ''} |`);\n}\nmd.push('', '## Alerts', '');\nif (alerts.length) for (const a of alerts) md.push(`- ${a.message}`); else md.push('- None.');\nmd.push('', '## Gaps', '');\nif (gaps.length) for (const g of gaps) md.push(`- ${g.note}`); else md.push('- None.');\nmd.push('');\n\nreturn [{ json: {\n  report_date: d.report_date, prior_date: d.prior_date, trigger: d.trigger,\n  flagged, gaps, alerts, metrics, markdown: md.join('\\n'),\n} }];\n"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "node-010",
+      "name": "Save report, alerts and run line",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        2808,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst path = require('path');\nconst c = $('Configure KPI report').first().json;\nconst r = $input.first().json;\nconst at = new Date().toISOString().replace(/\\.\\d{3}Z$/, 'Z');\nconst fileName = `kpi-report-${r.report_date}.md`;\nconst file = path.join(c.reports_dir, fileName);\nconst tmp = path.join(c.reports_dir, `.${fileName}.tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);\nconst failed = (step, e) => [{ json: { saved: false, error: `${step} could not be written (${e.code || e.message})` } }];\n\n// 1. The report. Written to a temporary file, then renamed, so a reader never sees half a report.\ntry {\n  fs.writeFileSync(tmp, r.markdown);\n  fs.renameSync(tmp, file);\n} catch (e) {\n  try { fs.unlinkSync(tmp); } catch (e2) { /* nothing to clean up */ }\n  return failed('the report', e);\n}\n\n// 2. Alert lines: one per threshold crossed and one per gap. A re-run for the same day does not repeat a line.\nconst entries = [\n  ...r.alerts.map(a => ({ key: `${r.report_date}|threshold|${a.metric}`, line: {\n    at, report_date: r.report_date, kind: 'threshold', metric: a.metric, value: a.value, prior: a.prior,\n    change_pct: a.change_pct, message: a.message } })),\n  ...r.gaps.map(g => ({ key: `${r.report_date}|gap|${g.source}|${g.what}`, line: {\n    at, report_date: r.report_date, kind: 'gap', source: g.source, what: g.what, message: g.note } })),\n];\nlet newLines = 0;\ntry {\n  const seen = new Set();\n  if (fs.existsSync(c.alerts_path)) {\n    for (const text of fs.readFileSync(c.alerts_path, 'utf8').split('\\n')) {\n      if (!text.trim()) continue;\n      try {\n        const o = JSON.parse(text);\n        seen.add(o.kind === 'gap' ? `${o.report_date}|gap|${o.source}|${o.what}` : `${o.report_date}|threshold|${o.metric}`);\n      } catch (e) { /* a line that is not JSON is left alone */ }\n    }\n  }\n  const fresh = entries.filter(x => !seen.has(x.key));\n  if (fresh.length) fs.appendFileSync(c.alerts_path, fresh.map(x => JSON.stringify(x.line)).join('\\n') + '\\n');\n  newLines = fresh.length;\n} catch (e) {\n  return failed('the alert lines', e);\n}\n\n// 3. One run line.\nconst status = r.flagged ? 'flagged' : 'ok';\nconst gapList = [...new Set(r.gaps.map(g => g.source))].join(',') || 'none';\ntry {\n  fs.appendFileSync(c.runs_log_path,\n    `${at} trigger=${r.trigger} report_date=${r.report_date} status=${status} gaps=${gapList} alerts=${r.alerts.length} new_alert_lines=${newLines} report=${fileName}\\n`);\n} catch (e) {\n  return failed('the run line', e);\n}\n\nreturn [{ json: { saved: true, reply: {\n  ok: true, report_date: r.report_date, prior_date: r.prior_date, trigger: r.trigger, flagged: r.flagged,\n  gaps: r.gaps.map(g => ({ source: g.source, what: g.what, note: g.note })),\n  alerts: r.alerts.map(a => ({ metric: a.metric, message: a.message, change_pct: a.change_pct, value: a.value })),\n  new_alert_lines: newLines, report_file: fileName, metrics: r.metrics,\n} } }];\n"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "node-011",
+      "name": "Saved?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        3204,
+        0
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "field-014",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.saved }}",
+              "rightValue": ""
+            }
+          ]
+        }
+      },
+      "typeVersion": 2.2
+    },
+    {
+      "id": "node-012",
+      "name": "Reply 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        3600,
+        -100
+      ],
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        },
+        "respondWith": "json",
+        "responseBody": "={{ $json.reply }}"
+      },
+      "typeVersion": 1.5
+    },
+    {
+      "id": "node-013",
+      "name": "Reply 500",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        3600,
+        100
+      ],
+      "parameters": {
+        "options": {
+          "responseCode": 500
+        },
+        "respondWith": "json",
+        "responseBody": "={{ ({ ok: false, error: $json.error }) }}"
+      },
+      "typeVersion": 1.5
+    }
+  ],
+  "settings": {
+    "timezone": "UTC",
+    "executionOrder": "v1"
+  },
+  "connections": {
+    "Saved?": {
+      "main": [
+        [
+          {
+            "node": "Reply 200",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply 500",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Date OK?": {
+      "main": [
+        [
+          {
+            "node": "Get sales numbers",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply 400",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build report": {
+      "main": [
+        [
+          {
+            "node": "Save report, alerts and run line",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every day at 7:05": {
+      "main": [
+        [
+          {
+            "node": "Configure KPI report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get sales numbers": {
+      "main": [
+        [
+          {
+            "node": "Get support numbers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run now (webhook)": {
+      "main": [
+        [
+          {
+            "node": "Configure KPI report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get support numbers": {
+      "main": [
+        [
+          {
+            "node": "Build report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configure KPI report": {
+      "main": [
+        [
+          {
+            "node": "Check config and pick date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check config and pick date": {
+      "main": [
+        [
+          {
+            "node": "Date OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save report, alerts and run line": {
+      "main": [
+        [
+          {
+            "node": "Saved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "id": "public-template-22436",
+  "name": "Public template 22436 (sanitized)",
+  "active": false
+}

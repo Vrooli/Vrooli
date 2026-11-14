@@ -1,0 +1,9 @@
+{
+  "children": {
+    "allowedChildComponents": [],
+    "maximumCount": 1,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:Button",
+  "version": "2.2.13"
+}

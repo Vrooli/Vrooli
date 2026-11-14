@@ -7,11 +7,24 @@ import { useToast } from '../../../shared/components/ToastProvider';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { str, bool } from '../../../shared/utils/typeGuards';
 import { getRiskLevelColor } from '../../../shared/utils/colors';
+import { ReportBody } from '../../../shared/report/ReportBody';
 
 interface InvestigationsPanelProps {
   investigations: Investigation[];
   embedded?: boolean;
 }
+
+const investigationStatusLabel = (status: InvestigationStatus): string => {
+  switch (status) {
+    case InvestigationStatus.QUEUED: return 'queued';
+    case InvestigationStatus.IN_PROGRESS: return 'in progress';
+    case InvestigationStatus.COMPLETED: return 'completed';
+    case InvestigationStatus.FAILED: return 'failed';
+    case InvestigationStatus.STOPPED: return 'stopped';
+    case InvestigationStatus.CANCELLED: return 'cancelled';
+    default: return 'unknown';
+  }
+};
 
 export const InvestigationsPanel = ({ investigations, embedded = false }: InvestigationsPanelProps) => {
   const { showApiError } = useToast();
@@ -29,7 +42,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
     }
   };
 
-  const getStatusBadgeClass = (status: InvestigationStatus | string) => {
+  const getStatusBadgeClass = (status: InvestigationStatus) => {
     if (status === InvestigationStatus.COMPLETED) return 'badge-success';
     if (status === InvestigationStatus.IN_PROGRESS) return 'badge-warning';
     if (status === InvestigationStatus.FAILED) return 'badge-error';
@@ -38,10 +51,10 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
 
   const renderInvestigationCard = (investigation: Investigation, options?: { compact?: boolean }) => {
     const compact = options?.compact ?? false;
-    const details = (investigation.details ?? {}) as Record<string, unknown>;
     const formattedStart = investigation.startTime
       ? timestampDate(investigation.startTime).toLocaleString()
       : 'Unknown';
+    const details = investigation.details ?? {};
     const operationMode = str(details['operation_mode']) ?? 'report-only';
     const riskLevel = str(details['risk_level']);
     const agentModel = str(details['agent_model']);
@@ -50,6 +63,9 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
     const autoFix = bool(details['auto_fix']) ?? false;
     const progress = typeof investigation.progress === 'number' ? investigation.progress : undefined;
     const confidenceScore = typeof investigation.confidenceScore === 'number' ? investigation.confidenceScore : undefined;
+    const confidencePercent = confidenceScore !== undefined && Number.isFinite(confidenceScore)
+      ? Math.round(Math.max(0, Math.min(1, confidenceScore)) * 100)
+      : undefined;
 
     const riskColor = getRiskLevelColor(riskLevel);
 
@@ -62,12 +78,12 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
           <span className="text-sm font-bold text-bright">
             Investigation {investigation.id}
           </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+          <div data-sm-style="sm-style-67bc078b69">
             {autoFix && (
               <span className="badge badge-success">Auto-Fix</span>
             )}
             <span className={`badge ${getStatusBadgeClass(investigation.status)}`}>
-              {investigation.status}
+              {investigationStatusLabel(investigation.status)}
             </span>
           </div>
         </div>
@@ -85,7 +101,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
         </div>
 
         {typeof progress === 'number' && !compact && (
-          <div style={{ marginBottom: 'var(--spacing-sm)' }}>
+          <div data-sm-style="sm-style-c08663b577">
             <div className="progress-bar">
               <div
                 className="progress-fill"
@@ -97,31 +113,31 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
         )}
 
         {investigation.findings && (
-          <div className="text-sm mb-sm">{investigation.findings}</div>
+          <ReportBody text={investigation.findings} className="report-body-inset mb-sm" />
         )}
 
         {userNote && (
-          <div className="text-xs text-muted" style={{ fontStyle: 'italic', marginBottom: 'var(--spacing-sm)' }}>
+          <div className="text-xs text-muted" data-sm-style="sm-style-912591a331">
             User Note: {userNote}
           </div>
         )}
 
-        {typeof confidenceScore === 'number' && !Number.isNaN(confidenceScore) && (
+        {confidencePercent !== undefined && (
           <div className="investigation-confidence">
             <span className="text-xs text-muted">Confidence:</span>
             <div className="investigation-confidence-bar">
               <div style={{
-                width: `${Math.max(0, Math.min(10, confidenceScore)) * 10}%`,
+                width: `${confidencePercent}%`,
                 height: '100%',
-                background: confidenceScore >= 8
+                background: confidencePercent >= 80
                   ? 'var(--color-success)'
-                  : confidenceScore >= 6
+                  : confidencePercent >= 60
                   ? 'var(--color-warning)'
                   : 'var(--color-error)',
                 transition: 'width var(--transition-normal)'
               }} />
             </div>
-            <span className="text-xs text-accent">{confidenceScore}/10</span>
+            <span className="text-xs text-accent">{confidencePercent}%</span>
           </div>
         )}
       </div>
@@ -153,7 +169,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
         </h2>
         <button
           className="btn btn-action"
-          onClick={triggerInvestigation}
+          onClick={() => { void triggerInvestigation(); }}
         >
           RUN ANOMALY CHECK
         </button>

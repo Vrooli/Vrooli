@@ -1,0 +1,80 @@
+[
+  {
+    "log": "disable-durability-linux.txt",
+    "result": "PASS",
+    "seconds": 1.209,
+    "sha256": "8534121c04017211530520b384e5140dd68f9fd1b91e5d8b1fd422ffec7540d4"
+  },
+  {
+    "log": "runtime-state-config.txt",
+    "result": "PASS",
+    "seconds": null,
+    "sha256": "a379162c9cc595c59e1673656a7e5af2c36953875897f720d4305b7470d92def"
+  },
+  {
+    "log": "control-transport.txt",
+    "result": "INVALID SELECTOR; control PASS, nonexistent transport package",
+    "seconds": null,
+    "sha256": "46071c2961ca4c5aa6a7d6f57c294cb6afa78a0a45612c28ce44fc13c23d672a"
+  },
+  {
+    "log": "control-auth-server.txt",
+    "result": "INVALID SELECTOR; control/server PASS, nonexistent auth package",
+    "seconds": null,
+    "sha256": "4786ae7be4d8e3cb57ad15b886ed9e7d23908bee5485a7e90aacbb0ba50c795f"
+  },
+  {
+    "log": "control-apiauth-server.txt",
+    "result": "PASS",
+    "seconds": null,
+    "sha256": "e9e6297bd811af27286761a2ce0a732d8cd828b6d5252fb76ab160931dcad42d"
+  },
+  {
+    "log": "integrated-resource.txt",
+    "result": "PASS",
+    "seconds": 107.169,
+    "sha256": "591239400c8468053a35c98c1c65808234d0453a8dbf68e7cd2ce7b519950a84"
+  },
+  {
+    "log": "post-repair-durability-policy.txt",
+    "result": "PASS",
+    "seconds": 3.341,
+    "sha256": "a6dad268e4bc8436ccc7275baceea6d8c5179e0d9cb4c6f1b34658fb4ef942c7"
+  },
+  {
+    "log": "disable-durability-windows-build.txt",
+    "result": "COMPILE PASS; no execution",
+    "seconds": null,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "log": "post-repair-windows-build.txt",
+    "result": "COMPILE PASS; no execution",
+    "seconds": null,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "log": "persistent-contract.txt",
+    "result": "PASS",
+    "seconds": 1.077,
+    "sha256": "18bf5b9d259f3d535833b1b7523a6024cd95d692c858163933da2e993e7fc66c"
+  },
+  {
+    "log": "lighting-cli.txt",
+    "result": "PASS",
+    "seconds": null,
+    "sha256": "a702e16da690a0a329cd230cb036c4b616daad47d70833ae8297990c54010bcf"
+  },
+  {
+    "log": "ui-controls.txt",
+    "result": "INVALID SELECTOR; no test files",
+    "seconds": null,
+    "sha256": "45a7bf02af0fcc163ba2f0dcd6d9b5a929ab643ecb8d109eadc8df29d93924fd"
+  },
+  {
+    "log": "ui-lights-pages.txt",
+    "result": "PASS 82 tests",
+    "seconds": 2.4,
+    "sha256": "f4f9209435838334539129083e58db505ff01daf44d3bdb20fca9a344bf01689"
+  }
+]

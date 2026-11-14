@@ -1,0 +1,201 @@
+import { test } from "vitest";
+import assert from "node:assert/strict";
+import {
+  buildTimelineEntries,
+  buildToolGroupSummary,
+  filterTimelineEntries,
+  createDefaultTimelineFilterState,
+  groupTimelineEntries,
+  type TimelineToolGroup,
+  type ToolCallPair,
+} from "./runTimeline.js";
+import { makeMessageEvent, makeToolCallEvent, makeToolResultEvent } from "../test-utils/fixtures/runEvents.js";
+import { makeRunEvent, RUN_EVENT_TYPE_LOG } from "../test-utils/fixtures/runEvents.js";
+
+test("single tool call+result is not grouped", () => {
+  const events = [
+    makeToolCallEvent("tc-1", 1n, "Edit", "call-1"),
+    makeToolResultEvent("tr-1", 2n, "Edit", "call-1"),
+  ];
+  const entries = buildTimelineEntries(events);
+  const filtered = filterTimelineEntries(entries, createDefaultTimelineFilterState());
+  const items = groupTimelineEntries(filtered);
+
+  // Single pair -> ungrouped, emits call + result as separate entries
+  assert.equal(items.length, 2);
+  assert.equal(items[0]!.kind, "event");
+  assert.equal(items[1]!.kind, "event");
+});
+
+test("two consecutive tool calls are grouped", () => {
+  const events = [
+    makeToolCallEvent("tc-1", 1n, "Edit", "call-1"),
+    makeToolResultEvent("tr-1", 2n, "Edit", "call-1"),
+    makeToolCallEvent("tc-2", 3n, "Read", "call-2"),
+    makeToolResultEvent("tr-2", 4n, "Read", "call-2"),
+  ];
+  const entries = buildTimelineEntries(events);
+  const filtered = filterTimelineEntries(entries, createDefaultTimelineFilterState());
+  const items = groupTimelineEntries(filtered);
+
+  assert.equal(items.length, 1);
+  assert.equal(items[0]!.kind, "tool-group");
+  const group = items[0] as TimelineToolGroup;
+  assert.equal(group.pairs.length, 2);
+  assert.equal(group.pairs[0]!.toolName, "Edit");
+  assert.equal(group.pairs[1]!.toolName, "Read");
+  assert.equal(group.summary, "Edit, Read");
+});
+
+test("tool calls split by message are not grouped", () => {
+  const events = [
+    makeToolCallEvent("tc-1", 1n, "Edit", "call-1"),
+    makeToolResultEvent("tr-1", 2n, "Edit", "call-1"),
+    makeMessageEvent("msg-1", 3n, "Done editing"),
+    makeToolCallEvent("tc-2", 4n, "Read", "call-2"),
+    makeToolResultEvent("tr-2", 5n, "Read", "call-2"),
+  ];
+  const entries = buildTimelineEntries(events);
+  const filtered = filterTimelineEntries(entries, createDefaultTimelineFilterState());
+  const items = groupTimelineEntries(filtered);
+
+  // Each single tool pair stays ungrouped, message in between
+  assert.equal(items.length, 5); // call, result, message, call, result
+  assert.equal(items[0]!.kind, "event");
+  assert.equal(items[2]!.kind, "message");
+  assert.equal(items[3]!.kind, "event");
+});
+
+test("mixed tool names produce correct summary with counts", () => {
+  const events = [
+    makeToolCallEvent("tc-1", 1n, "Edit", "c1"),
+    makeToolResultEvent("tr-1", 2n, "Edit", "c1"),
+    makeToolCallEvent("tc-2", 3n, "Edit", "c2"),
+    makeToolResultEvent("tr-2", 4n, "Edit", "c2"),
+    makeToolCallEvent("tc-3", 5n, "Edit", "c3"),
+    makeToolResultEvent("tr-3", 6n, "Edit", "c3"),
+    makeToolCallEvent("tc-4", 7n, "Read", "c4"),
+    makeToolResultEvent("tr-4", 8n, "Read", "c4"),
+    makeToolCallEvent("tc-5", 9n, "Read", "c5"),
+    makeToolResultEvent("tr-5", 10n, "Read", "c5"),
+  ];
+  const entries = buildTimelineEntries(events);
+  const filtered = filterTimelineEntries(entries, createDefaultTimelineFilterState());
+  const items = groupTimelineEntries(filtered);
+
+  assert.equal(items.length, 1);
+  const group = items[0] as TimelineToolGroup;
+  assert.equal(group.pairs.length, 5);
+  assert.equal(group.summary, "Edit 3, Read 2");
+});
+
+test("orphan toolResult passes through ungrouped", () => {
+  const events = [
+    makeToolResultEvent("tr-orphan", 1n, "Bash", "no-match"),
+    makeToolCallEvent("tc-1", 2n, "Edit", "c1"),
+    makeToolResultEvent("tr-1", 3n, "Edit", "c1"),
+  ];
+  const entries = buildTimelineEntries(events);
+  const filtered = filterTimelineEntries(entries, createDefaultTimelineFilterState());
+  const items = groupTimelineEntries(filtered);
+
+  // Orphan result + single call/result pair (ungrouped)
+  assert.equal(items.length, 3);
+  assert.equal(items[0]!.kind, "event"); // orphan result
+  assert.equal(items[1]!.kind, "event"); // call
+  assert.equal(items[2]!.kind, "event"); // result
+});
+
+test("pending tool call (no result yet) stays ungrouped when solo", () => {
+  const events = [
+    makeToolCallEvent("tc-1", 1n, "Bash", "c1"),
+    // No result yet
+  ];
+  const entries = buildTimelineEntries(events);
+  const filtered = filterTimelineEntries(entries, createDefaultTimelineFilterState());
+  const items = groupTimelineEntries(filtered);
+
+  assert.equal(items.length, 1);
+  assert.equal(items[0]!.kind, "event");
+});
+
+test("pending tool calls group when 2+ consecutive", () => {
+  const events = [
+    makeToolCallEvent("tc-1", 1n, "Edit", "c1"),
+    makeToolCallEvent("tc-2", 2n, "Read", "c2"),
+    // No results yet
+  ];
+  const entries = buildTimelineEntries(events);
+  const filtered = filterTimelineEntries(entries, createDefaultTimelineFilterState());
+  const items = groupTimelineEntries(filtered);
+
+  assert.equal(items.length, 1);
+  assert.equal(items[0]!.kind, "tool-group");
+  const group = items[0] as TimelineToolGroup;
+  assert.equal(group.pairs.length, 2);
+  assert.equal(group.pairs[0]!.result, undefined);
+  assert.equal(group.pairs[1]!.result, undefined);
+});
+
+test("buildToolGroupSummary formats tool name counts", () => {
+  const pairs: ToolCallPair[] = [
+    { call: {} as never, toolName: "Edit" },
+    { call: {} as never, toolName: "Edit" },
+    { call: {} as never, toolName: "Edit" },
+    { call: {} as never, toolName: "Read" },
+    { call: {} as never, toolName: "Bash" },
+  ];
+  assert.equal(buildToolGroupSummary(pairs), "Edit 3, Read, Bash");
+});
+
+test("buildToolGroupSummary with single tool type", () => {
+  const pairs: ToolCallPair[] = [
+    { call: {} as never, toolName: "Edit" },
+    { call: {} as never, toolName: "Edit" },
+  ];
+  assert.equal(buildToolGroupSummary(pairs), "Edit 2");
+});
+
+test("three consecutive tool calls form one group", () => {
+  const events = [
+    makeToolCallEvent("tc-1", 1n, "Edit", "c1"),
+    makeToolResultEvent("tr-1", 2n, "Edit", "c1"),
+    makeToolCallEvent("tc-2", 3n, "Edit", "c2"),
+    makeToolResultEvent("tr-2", 4n, "Edit", "c2"),
+    makeToolCallEvent("tc-3", 5n, "Bash", "c3"),
+    makeToolResultEvent("tr-3", 6n, "Bash", "c3"),
+  ];
+  const entries = buildTimelineEntries(events);
+  const filtered = filterTimelineEntries(entries, createDefaultTimelineFilterState());
+  const items = groupTimelineEntries(filtered);
+
+  assert.equal(items.length, 1);
+  const group = items[0] as TimelineToolGroup;
+  assert.equal(group.pairs.length, 3);
+  assert.equal(group.summary, "Edit 2, Bash");
+  assert.equal(group.id, "tool-group-tc-1");
+});
+
+test("grouping pairs positional results and preserves interleaved and trailing reasoning", () => {
+  const events = [
+    makeToolCallEvent("tc-1", 1n, "Read"),
+    makeRunEvent({
+      id: "reason-between", sequence: 2n, eventType: RUN_EVENT_TYPE_LOG,
+      data: { case: "log", value: { message: "thinking: inspect first result" } },
+    }),
+    makeToolResultEvent("tr-1", 3n, "Read"),
+    makeToolCallEvent("tc-2", 4n, "Write"),
+    makeRunEvent({
+      id: "reason-trailing", sequence: 5n, eventType: RUN_EVENT_TYPE_LOG,
+      data: { case: "log", value: { message: "reasoning: verify update" } },
+    }),
+  ];
+  const group = groupTimelineEntries(filterTimelineEntries(buildTimelineEntries(events), createDefaultTimelineFilterState()))[0] as TimelineToolGroup;
+  assert.equal(group.kind, "tool-group");
+  assert.equal(group.pairs[0]?.result?.id, "tr-1");
+  assert.equal(group.pairs[1]?.result, undefined);
+  assert.deepEqual(group.items.map((item) => item.kind === "reasoning" ? item.entry.id : item.pair.call.id), [
+    "tc-1", "reason-between", "tc-2", "reason-trailing",
+  ]);
+  assert.equal(group.lastTimestamp, events[3]?.timestamp);
+});

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "status": "candidate_only_unqualified",
+  "artifact_id": "vrooli-generic-television-thin-bezel-v3",
+  "output": {
+    "path": "scenarios/device-studio/api/internal/physicalruntime/assets/television-v3/television-thin-bezel-v3.glb",
+    "sha256": "bdf42b10916cffcc1bbdf540a91b80236db0fc1be3ff5658954b8bed132a16c3",
+    "size_bytes": 126404
+  },
+  "authorship": {"creator":"Vrooli","license":"AGPL-3.0-only","identity":"Generic 43-inch-class television concept, not Samsung product CAD."},
+  "comparison_reference": {
+    "url": "https://www.samsung.com/ca/tvs/uhd-4k-tv/du8000-43-inch-crystal-uhd-4k-tizen-os-smart-tv-un43du8000fxzc/",
+    "published_set_with_stand_mm": [965.5, 599.0, 205.6],
+    "published_set_without_stand_mm": [965.5, 559.9, 25.7],
+    "use": "Published 43-inch dimensions and product imagery are held-out comparison only; none of the model geometry, identity, or claims are copied. Regional product listings vary slightly."
+  },
+  "geometry": {
+    "recipe": "televisionThinBezelRecipe in television_starter.go",
+    "units": "millimeters in recipe; GLB meters",
+    "authored_mesh_bounds_mm": [965.0, 623.5, 160.0],
+    "housing_mm": [965.0, 559.0, 36.0],
+    "display_node": "display",
+    "display_mesh": 2,
+    "screen_primitive": 1,
+    "screen_material_name": "screen-glass",
+    "screen_origin": "upper-left after V-only UV derivative",
+    "screen_active_fraction": [0.997, 0.997],
+    "bezel_border_approx_mm": 4.0
+  },
+  "limitations": ["Stand stability, wall-mount pattern, physical measurement and active display are unverified candidate geometry.", "No manufacturer identity, endorsement, VESA compatibility or physical qualification is claimed.", "The GLB remains candidate-only until root-owned native appearance review."]
+}

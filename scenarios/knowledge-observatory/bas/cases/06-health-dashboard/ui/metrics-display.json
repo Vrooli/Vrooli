@@ -1,66 +1,92 @@
 {
   "metadata": {
+    "name": "metrics-display",
     "description": "Verifies health metrics visualization displays quality scores",
-    "version": 1,
-    "reset": "full",
-    "requirements": [
-      "KO-HD-002"
-    ],
-    "execution_mode": "mutating"
+    "version": "1",
+    "requirement": "KO-HD-002",
+    "execution_mode": "observer",
+    "labels": {
+      "reset": "none",
+      "execution_viewport_preset": "desktop",
+      "requirements_json": "[\"KO-HD-002\"]"
+    }
   },
   "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
+    "viewport_width": 1440,
+    "viewport_height": 900
   },
   "nodes": [
     {
       "id": "navigate-home",
-      "type": "navigate",
-      "data": {
-        "label": "Open Knowledge Observatory dashboard",
-        "destinationType": "scenario",
-        "scenario": "knowledge-observatory",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle",
-        "timeoutMs": 30000,
-        "waitForMs": 1000
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "metadata": {
+          "label": "Open Knowledge Observatory dashboard"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "knowledge-observatory",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "navigate-home-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for page to settle"
+        },
+        "wait": {
+          "duration_ms": 1000
+        }
       }
     },
     {
       "id": "wait-for-load",
-      "type": "wait",
-      "data": {
-        "label": "Wait for dashboard to load",
-        "waitForMs": 2000
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for dashboard to load"
+        },
+        "wait": {
+          "duration_ms": 2000
+        }
       }
     },
     {
       "id": "assert-content-exists",
-      "type": "assert",
-      "data": {
-        "label": "Dashboard content rendered",
-        "selector": "body",
-        "assertMode": "exists",
-        "timeoutMs": 10000,
-        "failureMessage": "Dashboard should display content"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Dashboard content rendered"
+        },
+        "assert": {
+          "selector": "body",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 10000,
+          "failure_message": "Dashboard should display content"
+        }
       }
     }
   ],
   "edges": [
     {
-      "id": "e1",
+      "id": "e1-settle-in",
       "source": "navigate-home",
-      "target": "wait-for-load",
-      "type": "smoothstep"
+      "target": "navigate-home-settle"
+    },
+    {
+      "id": "e1",
+      "source": "navigate-home-settle",
+      "target": "wait-for-load"
     },
     {
       "id": "e2",
       "source": "wait-for-load",
-      "target": "assert-content-exists",
-      "type": "smoothstep"
+      "target": "assert-content-exists"
     }
   ]
 }

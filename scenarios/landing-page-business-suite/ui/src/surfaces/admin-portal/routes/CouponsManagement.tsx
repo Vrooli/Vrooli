@@ -97,7 +97,7 @@ export function CouponsManagement() {
         <div className="space-y-4">
           <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4">
             <p className="text-red-400">Error: {error}</p>
-            <Button onClick={loadCoupons} variant="outline" className="mt-4">
+            <Button onClick={() => { void loadCoupons(); }} variant="outline" className="mt-4">
               Retry
             </Button>
           </div>
@@ -118,7 +118,6 @@ export function CouponsManagement() {
       <div className={LAYOUT.pageSpacing}>
         <div className="flex items-start justify-between gap-4">
           <PageHeader
-            variant="icon-title"
             title="Coupon Management"
             description="Create, view, and manage Stripe coupons for discounts and intro pricing."
             icon={Tag}
@@ -138,7 +137,7 @@ export function CouponsManagement() {
             <Button
               variant="outline"
               size="sm"
-              onClick={couponImport.openModal}
+              onClick={() => { void couponImport.openModal(); }}
               className="gap-2"
             >
               <Download className="h-4 w-4" />
@@ -147,7 +146,7 @@ export function CouponsManagement() {
             <Button
               variant="outline"
               size="sm"
-              onClick={loadCoupons}
+              onClick={() => { void loadCoupons(); }}
               className="gap-2"
             >
               <RefreshCcw className="h-4 w-4" />
@@ -186,20 +185,20 @@ export function CouponsManagement() {
           <Callout
             type="info"
             title="Intro Pricing Configured"
-            message={`Environment variables are set for ${Object.keys(introCouponMap).length} tier(s): ${Object.entries(introCouponMap)
+            message={`Environment variables are set for ${String(Object.keys(introCouponMap).length)} tier(s): ${Object.entries(introCouponMap)
               .map(([tier, couponId]) => `${tier} = ${couponId}`)
               .join(', ')}`}
           />
         )}
 
         {/* Filter tabs */}
-        <Card className={`${LAYOUT.card.base}`}>
+        <Card className={LAYOUT.card.base}>
           <CardContent className="py-3">
             <div className="flex items-center gap-2">
               {filterOptions.map((option) => (
                 <button
                   key={option.value}
-                  onClick={() => setFilter(option.value)}
+                  onClick={() => { setFilter(option.value); }}
                   className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
                     filter === option.value
                       ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'

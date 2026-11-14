@@ -1,0 +1,13 @@
+{
+  "componentId": "react-component-library:MasterDetail",
+  "items": {
+    "labelField": "title",
+    "maximumCount": 20,
+    "maximumLabelCharacters": 48,
+    "primaryAction": "not-applicable",
+    "property": "items",
+    "stableIdField": "id",
+    "typicalCount": 6
+  },
+  "version": "1.0.10"
+}

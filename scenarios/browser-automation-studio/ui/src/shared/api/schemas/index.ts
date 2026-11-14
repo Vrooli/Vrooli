@@ -12,23 +12,14 @@ export * from './common.schema';
 // Workflow schemas and types
 export * from './workflow.schema';
 
-// Entitlement schemas and types
-export * from './entitlement.schema';
-
 // WebSocket message schemas and types
 export * from './websocket.schema';
-
-// Schedule schemas and types
-export * from './schedule.schema';
 
 // UX Metrics schemas and types
 export * from './uxMetrics.schema';
 
 // Export schemas and types
 export * from './export.schema';
-
-// Scenario schemas and types
-export * from './scenario.schema';
 
 // Dashboard schemas and types
 export * from './dashboard.schema';

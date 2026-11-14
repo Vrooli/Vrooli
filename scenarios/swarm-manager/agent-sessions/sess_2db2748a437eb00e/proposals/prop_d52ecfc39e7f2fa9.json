@@ -1,0 +1,23 @@
+{
+  "id": "prop_d52ecfc39e7f2fa9",
+  "kind": "mutation_list",
+  "status": "ready",
+  "summary": "Mutation proposal for Design Team Schema v2 With Organizational Properties",
+  "payload_json": "{\n  \"form\": \"mutation_list\",\n  \"rationale\": \"Keep research/team-schema-v2-design as-is. The item is stale by timestamp, but the brief still shows a valid, specific research/design task and provides no evidence that the work was completed, superseded, or structurally invalid. No reset or recreation is warranted without evidence of stale artifacts or changed scope.\",\n  \"mutations\": []\n}",
+  "created_at": "2026-07-20T18:49:12Z",
+  "updated_at": "2026-07-20T18:49:12Z",
+  "attribution": {
+    "type": "agent",
+    "run_id": "1972218d-c761-483f-b3dc-77a124164e52",
+    "task_id": "0791d48e-6e32-476d-8e5f-4f3319e0da97",
+    "profile_key": "swarm-manager/default",
+    "session_id": "sess_2db2748a437eb00e",
+    "session_kind": "swarm_operations",
+    "source": "session/sess_2db2748a437eb00e"
+  },
+  "target": {
+    "type": "backlog_item",
+    "ref": "research/team-schema-v2-design",
+    "name": "Design Team Schema v2 With Organizational Properties"
+  }
+}

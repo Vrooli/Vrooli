@@ -305,7 +305,7 @@ export function SecretsTab({ deploymentId }: SecretsTabProps) {
 
       {/* Info alert */}
       <Alert variant="info" title="Secrets are stored on the VPS">
-        Changes here directly modify <code className="text-blue-300">.vrooli/secrets.json</code> on the deployed server.
+        Changes here directly modify <code className="text-blue-300">~/.vrooli/secrets.json</code> on the deployed server.
         Some secrets may require a scenario restart to take effect.
       </Alert>
 

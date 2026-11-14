@@ -6,6 +6,7 @@ import type { DownloadStorageSettingsSnapshot } from '../../../../shared/api';
 import { Callout } from '../Callout';
 import { HelpModal } from './HelpModal';
 import { AwsCredentialsHelp, CloudflareR2SetupHelp, MinioSetupHelp } from './help-content';
+import { SetupTask, type SetupTaskStatus } from '@vrooli/react-component-library/SetupTask/0';
 
 interface StepCredentialsProps {
   provider: StorageProviderId;
@@ -61,7 +62,36 @@ export function StepCredentials({
   };
 
   const help = getProviderHelp();
-  const hasEnvCredentials = existingSettings?.credentials_from_env ?? false;
+  const hasStoredCredentials = Boolean(
+    existingSettings?.access_key_id_set && existingSettings.secret_access_key_set,
+  );
+  const credentialsAvailable = hasStoredCredentials;
+  const taskStatus: SetupTaskStatus = credentialsAvailable ? 'unknown' : 'needs_attention';
+
+  const stateFor = (state: string | undefined, fallback: boolean | undefined) => {
+    if (state === 'unavailable') return { label: 'authority unavailable', tone: 'text-amber-400' };
+    if (state === 'authority_error') return { label: 'authority error', tone: 'text-red-400' };
+    if (state === 'configured' || (state === undefined && fallback)) {
+      return { label: 'configured', tone: 'text-emerald-400' };
+    }
+    return { label: 'missing', tone: 'text-slate-400' };
+  };
+  const accessKeyState = stateFor(existingSettings?.access_key_id_state, existingSettings?.access_key_id_set);
+  const secretKeyState = stateFor(existingSettings?.secret_access_key_state, existingSettings?.secret_access_key_set);
+  const sessionTokenState = stateFor(existingSettings?.session_token_state, existingSettings?.session_token_set);
+
+  const provisionCommands = [
+    'vrooli credentials provision --identity vrooli/landing-page-business-suite --field delivery-s3-access-key-id',
+    'vrooli credentials provision --identity vrooli/landing-page-business-suite --field delivery-s3-secret-access-key',
+    'vrooli credentials doctor --format json',
+  ];
+  const providerLabel = provider === 'aws-s3'
+    ? 'AWS S3'
+    : provider === 'cloudflare-r2'
+      ? 'Cloudflare R2'
+      : provider === 'minio'
+        ? 'MinIO'
+        : 'S3-compatible storage';
 
   const getCredentialsHelpContent = () => {
     switch (provider) {
@@ -105,29 +135,38 @@ export function StepCredentials({
   const credentialsCalloutMessage = getCredentialsCalloutMessage();
 
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h3 className="text-lg font-semibold text-white">{help.title}</h3>
-        <p className="mt-1 text-sm text-slate-400">
-          Enter your credentials to authenticate with {provider === 'aws-s3' ? 'AWS S3' : provider === 'cloudflare-r2' ? 'Cloudflare R2' : provider === 'minio' ? 'MinIO' : 'your storage provider'}
-        </p>
-      </div>
+    <SetupTask
+      title={help.title}
+      purpose={`Authenticate the ${providerLabel} storage destination used by the download service.`}
+      target="local admin settings"
+      account={providerLabel}
+      status={taskStatus}
+      statusLabel={credentialsAvailable ? 'Stored · verify next' : 'Credentials needed'}
+      guidance={
+        credentialsAvailable
+          ? 'Values are available to the server, but storage access is not considered verified until the connection test succeeds on the Verify step.'
+          : 'Provide the access identity and secret, then save and test the connection on the Verify step.'
+      }
+      testId="storage-credentials-task"
+    >
+      <div className="space-y-6">
 
       {credentialsCalloutMessage && (
         <Callout
           type="info"
           message={credentialsCalloutMessage}
-          actions={[{ label: 'Credentials guide', onClick: () => setShowCredentialsHelp(true) }]}
+          actions={[{ label: 'Credentials guide', onClick: () => { setShowCredentialsHelp(true); } }]}
         />
       )}
 
-      {hasEnvCredentials && (
+      {hasStoredCredentials && (
         <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
           <CheckCircle2 className="h-5 w-5 text-emerald-400 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-emerald-300">Environment credentials detected</p>
+            <p className="text-sm font-medium text-emerald-300">Credentials stored</p>
             <p className="mt-1 text-xs text-emerald-400/80">
-              Your server is configured to use credentials from environment variables. You can leave these fields empty to use them, or enter values here to override.
+              The access key and secret are held in this host&apos;s credential authority and are never
+              returned to the browser. Enter new values to rotate them, or clear them below.
             </p>
           </div>
         </div>
@@ -139,17 +178,17 @@ export function StepCredentials({
           <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
             <Key className="h-4 w-4" />
             Access Key ID
-            {existingSettings?.access_key_id_set && (
-              <span className="text-xs text-emerald-400">(configured)</span>
+            {existingSettings && (
+              <span className={`text-xs ${accessKeyState.tone}`}>({accessKeyState.label})</span>
             )}
           </label>
           <input
             value={credentials.accessKeyId}
             onChange={(e) =>
-              onCredentialsChange({
+              { onCredentialsChange({
                 accessKeyId: e.target.value,
                 clearAccessKeyId: false,
-              })
+              }); }
             }
             className={inputBaseClassName}
             placeholder={existingSettings?.access_key_id_set ? '••••••••••••' : 'AKIA...'}
@@ -162,10 +201,10 @@ export function StepCredentials({
                 type="checkbox"
                 checked={credentials.clearAccessKeyId}
                 onChange={(e) =>
-                  onCredentialsChange({
+                  { onCredentialsChange({
                     clearAccessKeyId: e.target.checked,
                     accessKeyId: e.target.checked ? '' : credentials.accessKeyId,
-                  })
+                  }); }
                 }
                 className="rounded border-white/20 bg-transparent text-amber-400 focus:ring-amber-400"
               />
@@ -179,18 +218,18 @@ export function StepCredentials({
           <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
             <Key className="h-4 w-4" />
             Secret Access Key
-            {existingSettings?.secret_access_key_set && (
-              <span className="text-xs text-emerald-400">(configured)</span>
+            {existingSettings && (
+              <span className={`text-xs ${secretKeyState.tone}`}>({secretKeyState.label})</span>
             )}
           </label>
           <input
             type="password"
             value={credentials.secretAccessKey}
             onChange={(e) =>
-              onCredentialsChange({
+              { onCredentialsChange({
                 secretAccessKey: e.target.value,
                 clearSecretAccessKey: false,
-              })
+              }); }
             }
             className={inputBaseClassName}
             placeholder={existingSettings?.secret_access_key_set ? '••••••••••••' : 'Enter secret key'}
@@ -203,10 +242,10 @@ export function StepCredentials({
                 type="checkbox"
                 checked={credentials.clearSecretAccessKey}
                 onChange={(e) =>
-                  onCredentialsChange({
+                  { onCredentialsChange({
                     clearSecretAccessKey: e.target.checked,
                     secretAccessKey: e.target.checked ? '' : credentials.secretAccessKey,
-                  })
+                  }); }
                 }
                 className="rounded border-white/20 bg-transparent text-amber-400 focus:ring-amber-400"
               />
@@ -224,8 +263,8 @@ export function StepCredentials({
               </svg>
             </span>
             Session Token (optional)
-            {existingSettings?.session_token_set && (
-              <span className="text-xs text-emerald-400">(configured)</span>
+            {existingSettings && (
+              <span className={`text-xs ${sessionTokenState.tone}`}>({sessionTokenState.label})</span>
             )}
           </summary>
           <div className="mt-3 space-y-2 pl-6">
@@ -233,10 +272,10 @@ export function StepCredentials({
               type="password"
               value={credentials.sessionToken}
               onChange={(e) =>
-                onCredentialsChange({
+                { onCredentialsChange({
                   sessionToken: e.target.value,
                   clearSessionToken: false,
-                })
+                }); }
               }
               className={inputBaseClassName}
               placeholder="Optional session token"
@@ -249,10 +288,10 @@ export function StepCredentials({
                   type="checkbox"
                   checked={credentials.clearSessionToken}
                   onChange={(e) =>
-                    onCredentialsChange({
+                    { onCredentialsChange({
                       clearSessionToken: e.target.checked,
                       sessionToken: e.target.checked ? '' : credentials.sessionToken,
-                    })
+                    }); }
                   }
                   className="rounded border-white/20 bg-transparent text-amber-400 focus:ring-amber-400"
                 />
@@ -263,13 +302,37 @@ export function StepCredentials({
         </details>
       </div>
 
+      {/* Provisioning reference */}
+      <div className="rounded-xl border border-white/10 bg-slate-900/40 p-4 space-y-3">
+        <p className="text-sm font-medium text-white">Provision with the credential authority</p>
+        <p className="text-xs text-slate-400">
+          Use a separate credential pair for this host and for production
+          (<code className="text-blue-300">vrooli-lpbs-local</code> /{' '}
+          <code className="text-blue-300">vrooli-lpbs-prod</code>). They should not be identical. Input uses a
+          secure prompt or stdin; never pass a value as a command-line argument.
+        </p>
+        <pre className="overflow-x-auto rounded-lg bg-slate-800 p-3 text-xs text-slate-300">
+          {provisionCommands.join('\n')}
+        </pre>
+        <p className="text-xs text-slate-500">
+          The bucket stays private. Free and paid downloads both use short-lived presigned URLs, so a free
+          download never needs a public S3 object or AWS credentials on the client.
+        </p>
+        <p className="text-xs text-slate-500">
+          The secret access key is shown by AWS only once. If it is lost, create a replacement key and
+          deactivate the old one. AWS allows at most two access keys per IAM user.
+        </p>
+      </div>
+
       {/* Security notice */}
       <div className="flex items-start gap-3 rounded-xl border border-blue-500/30 bg-blue-500/10 p-4">
         <AlertCircle className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-medium text-blue-300">Security note</p>
           <p className="mt-1 text-xs text-blue-400/80">
-            Credentials are encrypted at rest and never logged. For production environments, consider using environment variables or IAM roles instead of storing credentials.
+            Credentials are stored in this host&apos;s credential authority, encrypted at rest, and never
+            logged or returned to the browser. Leave the fields empty to keep any existing values, or
+            use an IAM role on the host instead of storing long-lived keys.
           </p>
           {help.docsUrl && (
             <a
@@ -290,12 +353,13 @@ export function StepCredentials({
       {provider !== 'custom' && (
         <HelpModal
           open={showCredentialsHelp}
-          onClose={() => setShowCredentialsHelp(false)}
+          onClose={() => { setShowCredentialsHelp(false); }}
           title={getCredentialsHelpTitle()}
         >
           {getCredentialsHelpContent()}
         </HelpModal>
       )}
-    </div>
+      </div>
+    </SetupTask>
   );
 }

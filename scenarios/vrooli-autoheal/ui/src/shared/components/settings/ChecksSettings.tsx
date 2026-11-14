@@ -76,6 +76,11 @@ export function ChecksSettings({
                         <span className="shrink-0 text-xs text-text-muted">({check.intervalSeconds}s)</span>
                       </div>
                       <p className="truncate text-xs text-text-muted">{check.description}</p>
+                      {check.protectionReason ? (
+                        <p className="mt-1 text-xs text-accent-primary">
+                          Protected recovery check ({check.protectionReason.replace("_", "-")}); it stays enabled so auto-heal can recover the platform.
+                        </p>
+                      ) : null}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 sm:ml-4">
@@ -84,7 +89,7 @@ export function ChecksSettings({
                         <Switch
                           checked={check.config.enabled}
                           onCheckedChange={(checked) => onToggleEnabled(check.id, checked)}
-                          disabled={isUpdating}
+                          disabled={isUpdating || Boolean(check.protectionReason)}
                           size="sm"
                           tone="success"
                           className="ml-2"
@@ -96,7 +101,7 @@ export function ChecksSettings({
                         <Switch
                           checked={check.config.autoHeal && check.config.enabled}
                           onCheckedChange={(checked) => onToggleAutoHeal(check.id, checked)}
-                          disabled={isUpdating || !check.config.enabled}
+                          disabled={isUpdating || !check.config.enabled || Boolean(check.protectionReason)}
                           size="sm"
                           tone="primary"
                           className="ml-2"

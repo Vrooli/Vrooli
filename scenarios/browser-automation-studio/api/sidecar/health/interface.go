@@ -30,22 +30,3 @@ type Monitor interface {
 
 // compile-time check that HealthMonitor implements Monitor
 var _ Monitor = (*HealthMonitor)(nil)
-
-// MockChecker is a Checker implementation for testing.
-type MockChecker struct {
-	Response *DriverHealthResponse
-	Error    error
-	Calls    int
-}
-
-// Check implements Checker.
-func (m *MockChecker) Check(ctx context.Context) (*DriverHealthResponse, error) {
-	m.Calls++
-	if m.Error != nil {
-		return nil, m.Error
-	}
-	return m.Response, nil
-}
-
-// compile-time check
-var _ Checker = (*MockChecker)(nil)

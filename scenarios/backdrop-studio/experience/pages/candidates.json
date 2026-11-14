@@ -1,0 +1,107 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "candidates",
+    "title": "Candidates",
+    "routes": [
+      "/renders/:renderId"
+    ],
+    "purpose": "Judge a candidate set against the legibility gate and select one to proceed. This is where a pretty picture is separated from a usable backdrop.",
+    "prd_refs": [
+      "OT-P0-009",
+      "OT-P0-011",
+      "OT-P0-012",
+      "OT-P0-016",
+      "OT-P1-008",
+      "OT-P0-024"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Every candidate is shown standalone and in context, side by side.",
+      "notes": "An ambient backdrop judged alone is judged against the wrong question — its job is to sit behind something. The in-context view draws real foreground content into every reserved region; an empty mockup would be as misleading as no mockup (UIX-007)."
+    },
+    {
+      "statement": "The contrast verdict is legible without colour.",
+      "notes": "Every verdict shows the measured ratio as a number and a text label alongside any colour encoding. A contrast tool that conveys its own verdicts by hue would fail exactly the users it exists to protect."
+    },
+    {
+      "statement": "Each candidate reads as a recipe, not an accident.",
+      "notes": "Strategy, seed, execution path, and the full resolved plan are attached to every tile and copyable. Two operators looking at the same candidate should be able to reproduce it."
+    },
+    {
+      "statement": "A specimen is framed against its own declared ground.",
+      "notes": "The frame must not inherit the page background, or the same candidate reads differently in light and dark themes and neither reading is trustworthy."
+    },
+    {
+      "statement": "Selection is explicit even when there is one candidate.",
+      "notes": "No auto-selection, so the selection record always names who chose."
+    }
+  ],
+  "states": [
+    { "id": "loading", "description": "Candidate slots hold their geometry while renders arrive.", "setup": { "route": "/candidates" } },
+    { "id": "stale", "description": "The last candidate set remains visible with its freshness state.", "setup": { "route": "/candidates" } },
+    { "id": "request-error", "description": "Candidate retrieval names the failed request and keeps a retry action available.", "setup": { "route": "/candidates" } },
+    { "id": "partial", "description": "Completed candidates remain judgeable while other slots are pending.", "setup": { "route": "/candidates" } },
+    { "id": "empty", "description": "No candidates exist yet and the surface routes back to compose.", "setup": { "route": "/candidates" } },
+    {
+      "id": "rendering",
+      "description": "Candidates arrive progressively. Each slot holds its aspect and shows the execution path being used.",
+      "setup": {
+        "route": "/renders/r-1"
+      }
+    },
+    {
+      "id": "all-passing",
+      "description": "Every candidate cleared its threshold. Each shows its measured ratio; selection is available.",
+      "setup": {
+        "route": "/renders/r-1"
+      }
+    },
+    {
+      "id": "mixed-verdicts",
+      "description": "Some candidates fail the gate. Failing tiles state measured value, threshold, and the region measured, and offer the minimum scrim that would pass.",
+      "setup": {
+        "route": "/renders/r-2"
+      }
+    },
+    {
+      "id": "all-failing",
+      "description": "No candidate clears the threshold. Offers scrim amendment, a reserved-region adjustment, or a re-render with a different seed — rather than presenting a dead end.",
+      "setup": {
+        "route": "/renders/r-3"
+      }
+    },
+    {
+      "id": "degraded-execution",
+      "description": "The render was routed onward because local hardware could not serve it. States which path ran and which model tier served, so a lower-quality result is attributable rather than mysterious.",
+      "setup": {
+        "route": "/renders/r-4"
+      }
+    },
+    {
+      "id": "render-failed",
+      "description": "Execution failed. States the cause reported by image-tools and offers retry, without discarding candidates that already succeeded.",
+      "setup": {
+        "route": "/renders/r-5"
+      }
+    },
+    {
+      "id": "in-context",
+      "description": "Each candidate composed into a mockup of its target surface with representative foreground in place, alongside the bare render. Toggling between them does not re-render.",
+      "setup": {
+        "route": "/renders/r-1",
+        "hash": "context"
+      }
+    },
+    {
+      "id": "model-unavailable",
+      "description": "A model-backed render cannot run: no capable local backend and no configured route. Names what is missing and what would resolve it, and keeps the procedural catalog reachable rather than presenting a dead end.",
+      "setup": {
+        "route": "/renders/r-5"
+      }
+    }
+  ]
+}

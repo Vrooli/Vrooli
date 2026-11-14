@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:DataTable",
+  "version": "1.4.6",
+  "resolvedAt": "2026-11-13T21:18:56Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:AsyncBoundary",
+      "major": 1,
+      "observed": "1.0.10",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.6",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:SelectionStore",
+      "major": 2,
+      "observed": "2.0.2",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:Table",
+      "major": 1,
+      "observed": "1.0.3",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "major": 1,
+      "observed": "1.1.2",
+      "rank": 2
+    }
+  ]
+}

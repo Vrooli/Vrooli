@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "navigation.tabs",
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.4",
+    "1.2.1",
+    "1.0.0",
+    "1.1.0",
+    "1.2.0"
+  ],
+  "description": "The content-switching component with roving focus, a shared moving indicator, lazily mounted panels, optional URL synchronization, overflow handling, and reduced-motion behavior.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Tabs",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3",
+    "1.0.4",
+    "1.2.1",
+    "1.1.0",
+    "1.2.0",
+    "1.0.0",
+    "1.3.1",
+    "1.3.3"
+  ],
+  "latest": "1.3.6",
+  "libraryId": "react-component-library:Tabs",
+  "tags": []
+}

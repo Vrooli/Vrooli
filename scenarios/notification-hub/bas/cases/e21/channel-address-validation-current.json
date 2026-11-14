@@ -1,0 +1,158 @@
+{
+  "metadata": {
+    "name": "e21-channel-address-validation-current",
+    "description": "Capture invalid email editing for an existing disposable owner destination; verify saved state remains unchanged and never submit.",
+    "requirement": "NOTIFICA-P0-005",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "settings-e21-channel-address-validation-current"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Exercise selected E21 invalid address validation on an existing leased example destination without saving or triggering external effects.",
+      "requirement": "NOTIFICA-P0-005",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-reach",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/reach?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-channel-address-validation-current",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open the leased fixture with the saved example email destination"
+          }
+        }
+      },
+      {
+        "id": "wait-owner-device",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"reach-device-e22-settings-device\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the fixture owner device"
+          }
+        }
+      },
+      {
+        "id": "open-existing-email-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Edit email content access"
+          },
+          "metadata": {
+            "label": "Open the selected saved example destination for review"
+          }
+        }
+      },
+      {
+        "id": "enter-invalid-address",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "[data-testid=\"reach-channel-editor\"] input[type=email]",
+            "value": "review@",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Enter a synthetic incomplete draft without submitting"
+          }
+        }
+      },
+      {
+        "id": "assert-capture-viewport",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.documentElement;root.setAttribute('data-theme','light');root.setAttribute('data-resolved-theme','light');for(const key of ['top','right','bottom','left'])root.style.setProperty('--safe-area-inset-'+key,'0px');const insets=Object.fromEntries(['top','right','bottom','left'].map(key=>[key,getComputedStyle(root).getPropertyValue('--safe-area-inset-'+key).trim()]));if(innerWidth!==390||innerHeight!==844||Object.values(insets).some(value=>value!=='0px')||root.getAttribute('data-resolved-theme')!=='light')throw new Error('selected viewport/theme/inset mismatch '+JSON.stringify({width:innerWidth,height:innerHeight,insets,theme:root.getAttribute('data-resolved-theme')}));return {viewport:{width:innerWidth,height:innerHeight},theme:'light',insets}})()"
+          },
+          "metadata": {
+            "label": "Assert exact selected viewport, light appearance, and zero browser insets"
+          }
+        }
+      },
+      {
+        "id": "assert-invalid-address",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=reach-channel-editor]');const input=root?.querySelector('input[type=email]');const error=root?.querySelector('[data-rcl-form-field-error]');const unchanged=root?.querySelector('[data-testid=reach-invalid-email-preserves-saved]');const review=[...(root?.querySelectorAll('button')||[])].find(button=>button.textContent?.includes('Review changes'));if(input?.value!=='review@'||input.getAttribute('aria-invalid')!=='true'||!error||!unchanged||!review?.hasAttribute('disabled'))throw new Error('expected accessible validation with unchanged saved state '+JSON.stringify({value:input?.value,invalid:input?.getAttribute('aria-invalid'),error:error?.textContent,unchanged:unchanged?.textContent,reviewDisabled:review?.hasAttribute('disabled')}));return {syntheticAddress:input.value,invalid:true,savedAddressUnchanged:true,approvalsUnchanged:true,saveUnavailable:true}})()"
+          },
+          "metadata": {
+            "label": "Confirm the invalid draft leaves the saved address and approvals unchanged and saving unavailable"
+          }
+        }
+      },
+      {
+        "id": "capture-address-validation",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the current E21 email address validation state on phone"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e21-address-validation-01",
+        "source": "open-reach",
+        "target": "wait-owner-device",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-address-validation-02",
+        "source": "wait-owner-device",
+        "target": "open-existing-email-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-address-validation-03",
+        "source": "open-existing-email-editor",
+        "target": "enter-invalid-address",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-address-validation-04",
+        "source": "enter-invalid-address",
+        "target": "assert-capture-viewport",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-address-validation-05",
+        "source": "assert-capture-viewport",
+        "target": "assert-invalid-address",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-address-validation-06",
+        "source": "assert-invalid-address",
+        "target": "capture-address-validation",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

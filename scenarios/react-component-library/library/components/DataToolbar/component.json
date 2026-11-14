@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "data-display.data-toolbar",
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.4",
+    "1.0.0",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7"
+  ],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3",
+    "1.0.4",
+    "1.0.0",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7"
+  ],
+  "latest": "1.0.13",
+  "libraryId": "react-component-library:DataToolbar",
+  "displayName": "DataToolbar",
+  "description": "The collection action surface holding search, filters, saved views, sort, refresh, export, density, and column controls with responsive overflow.",
+  "tags": []
+}

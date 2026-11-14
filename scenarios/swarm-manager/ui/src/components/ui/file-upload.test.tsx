@@ -5,7 +5,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FileUpload } from "./file-upload";
 import { FileServiceProvider } from "../../contexts/FileServiceContext";
@@ -44,12 +45,12 @@ const createTestQueryClient = () =>
 const renderWithProviders = (ui: React.ReactElement, fileService?: IFileService) => {
   const queryClient = createTestQueryClient();
   const svc = fileService ?? createMockFileService();
-  return render(
+  return renderWithCanonicalProviders(
     <QueryClientProvider client={queryClient}>
       <FileServiceProvider value={svc}>
         {ui}
       </FileServiceProvider>
-    </QueryClientProvider>
+    </QueryClientProvider>, { withoutQueryClient: true }
   );
 };
 

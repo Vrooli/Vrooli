@@ -42,6 +42,5 @@
       "placeholder": "What should happen at each step?",
       "required": false
     }
-  ],
-  "suggestedToolIds": ["spawn_coding_agent"]
+  ]
 }

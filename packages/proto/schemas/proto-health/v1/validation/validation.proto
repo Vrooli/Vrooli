@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package vrooli.proto_health.v1.validation;
+
+import "proto-health/v1/shared/surface.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/validation;validation_v1";
+
+// =============================================================================
+// VALIDATION DOMAIN - proto contract health
+// =============================================================================
+//
+// @stability stable
+//
+// Wire contract for the ProtoHealthService Connect-RPC service. Validates one
+// scenario's proto contracts and exposes the same scenario-scoped surface facts
+// to downstream tools. Cross-scenario graph construction is intentionally out
+// of scope for this service.
+// =============================================================================
+
+service ProtoHealthService {
+  rpc DescribeScenarioProtos(DescribeScenarioProtosRequest) returns (DescribeScenarioProtosResponse);
+  rpc DescribeScenariosProtos(DescribeScenariosProtosRequest) returns (DescribeScenariosProtosResponse);
+}
+
+// DescribeScenarioProtosRequest names a scenario by its directory slug.
+message DescribeScenarioProtosRequest {
+  string scenario = 1;
+}
+
+// DescribeScenarioProtosResponse returns the scenario-scoped proto surface.
+message DescribeScenarioProtosResponse {
+  vrooli.proto_health.v1.shared.ProtoSurface surface = 1;
+}
+
+// DescribeScenariosProtosRequest requests proto surfaces for many scenarios.
+// An empty scenario list means all scenarios present in the descriptor image.
+message DescribeScenariosProtosRequest {
+  repeated string scenarios = 1;
+  int32 limit = 2;
+  string stability_filter = 3;
+}
+
+// ProtoSurfaceResult wraps one scenario's surface or per-scenario error.
+message ProtoSurfaceResult {
+  string scenario = 1;
+  vrooli.proto_health.v1.shared.ProtoSurface surface = 2;
+  string error = 3;
+}
+
+// DescribeScenariosProtosResponse returns independent per-scenario results.
+message DescribeScenariosProtosResponse {
+  repeated ProtoSurfaceResult results = 1;
+}

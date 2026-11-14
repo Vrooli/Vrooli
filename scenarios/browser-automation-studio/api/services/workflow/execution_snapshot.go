@@ -1,17 +1,15 @@
 package workflow
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/storage"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
@@ -54,7 +52,9 @@ func (s *WorkflowService) readExecutionSnapshot(ctx context.Context, executionID
 	return &pb, nil
 }
 
-func (s *WorkflowService) writeExecutionSnapshot(ctx context.Context, execIndex *database.ExecutionIndex, pb *basexecution.Execution) error {
+// createExecution commits immutable recovery inputs before admitting a runner.
+// Only the DB index changes with lifecycle; hydration joins it with this receipt.
+func (s *WorkflowService) createExecution(ctx context.Context, execIndex *database.ExecutionIndex, pb *basexecution.Execution) error {
 	if s == nil {
 		return errors.New("workflow service is nil")
 	}
@@ -64,44 +64,25 @@ func (s *WorkflowService) writeExecutionSnapshot(ctx context.Context, execIndex 
 	if pb == nil {
 		return errors.New("execution proto is nil")
 	}
-	_ = ctx
-
-	now := time.Now().UTC()
-	if strings.TrimSpace(pb.ExecutionId) == "" {
-		pb.ExecutionId = execIndex.ID.String()
-	}
-	if strings.TrimSpace(pb.WorkflowId) == "" && execIndex.WorkflowID != uuid.Nil {
-		pb.WorkflowId = execIndex.WorkflowID.String()
-	}
-	if pb.StartedAt == nil && !execIndex.StartedAt.IsZero() {
-		pb.StartedAt = autocontracts.TimeToTimestamp(execIndex.StartedAt)
-	}
-	if pb.CreatedAt == nil && !execIndex.CreatedAt.IsZero() {
-		pb.CreatedAt = autocontracts.TimeToTimestamp(execIndex.CreatedAt)
-	}
-	pb.UpdatedAt = autocontracts.TimeToTimestamp(now)
+	pb.ExecutionId = execIndex.ID.String()
+	pb.WorkflowId = execIndex.WorkflowID.String()
+	pb.Status = enums.StringToExecutionStatus(execIndex.Status)
+	pb.StartedAt = autocontracts.TimeToTimestamp(execIndex.StartedAt)
+	pb.CreatedAt = autocontracts.TimeToTimestamp(execIndex.CreatedAt)
+	pb.UpdatedAt = autocontracts.TimeToTimestamp(execIndex.UpdatedAt)
 
 	path := s.executionSnapshotPath(execIndex.ID)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("ensure execution snapshot dir: %w", err)
-	}
-
-	raw, err := protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: false}.Marshal(pb)
+	raw, err := protojson.MarshalOptions{UseProtoNames: true, Indent: "  "}.Marshal(pb)
 	if err != nil {
 		return fmt.Errorf("marshal execution snapshot: %w", err)
 	}
-	indented := raw
-	var buf bytes.Buffer
-	if err := json.Indent(&buf, raw, "", "  "); err == nil {
-		indented = buf.Bytes()
+	if err := storage.WriteFileAtomic(path, raw, storage.SecretFilePerm); err != nil {
+		return fmt.Errorf("commit execution %s admission metadata: %w", execIndex.ID, err)
 	}
-
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, indented, 0o644); err != nil {
-		return fmt.Errorf("write execution snapshot tmp: %w", err)
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		return fmt.Errorf("finalize execution snapshot: %w", err)
+	if err := s.repo.CreateExecution(ctx, execIndex); err != nil {
+		// A database error may have an uncertain commit outcome. Keep the sole
+		// recovery receipt, report its ID, and never start the runner on error.
+		return fmt.Errorf("index execution %s after metadata commit: %w", execIndex.ID, err)
 	}
 	return nil
 }
@@ -123,6 +104,10 @@ func (s *WorkflowService) HydrateExecutionProto(ctx context.Context, execIndex *
 	}
 	if execIndex.CompletedAt != nil {
 		base.CompletedAt = autocontracts.TimePtrToTimestamp(execIndex.CompletedAt)
+	}
+	if execIndex.ResumedFromID != nil {
+		id := execIndex.ResumedFromID.String()
+		base.ResumedFrom = &id
 	}
 	if strings.TrimSpace(execIndex.ErrorMessage) != "" {
 		msg := execIndex.ErrorMessage
@@ -146,7 +131,7 @@ func (s *WorkflowService) HydrateExecutionProto(ctx context.Context, execIndex *
 	merged.CreatedAt = base.CreatedAt
 	merged.UpdatedAt = base.UpdatedAt
 	merged.Error = base.Error
+	merged.ResumedFrom = base.ResumedFrom
 
 	return merged, nil
 }
-

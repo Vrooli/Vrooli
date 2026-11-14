@@ -1,0 +1,113 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+    "provider_id": "content-desk.editorial-history",
+    "lifecycle": "production",
+      "provider_group": "content-desk",
+      "bucket": "BUCKET_KNOW",
+      "type": "editorial-history",
+      "description": "Verified editorial drafts and durable publish history from Content Desk. Use for questions about a draft, an approved claim-bearing post, or a previously published editorial record.",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_live",
+      "index_timestamp_field": "last_indexed_at",
+      "routing_profile": {
+        "answer_spaces": [
+          "marketing capability inventory",
+          "marketing production material",
+          "campaign and draft state",
+          "editorial drafts and publish history",
+          "launch readiness and blockers",
+          "approved marketing artifacts",
+          "marketing claims and their evidence",
+          "remaining marketing work and next action",
+          "campaign performance and measurement",
+          "product truth and positioning"
+        ],
+        "intents": [
+          "find current marketing capabilities",
+          "list existing campaigns and drafts",
+          "identify what blocks a product launch",
+          "locate the latest approved screenshots",
+          "qualify a demonstration recording recipe",
+          "select claims that are safe to publish",
+          "plan the remaining marketing work",
+          "read current launch or campaign status",
+          "find the owner of a marketing deliverable"
+        ],
+        "positive_examples": [
+          "what marketing material can we produce today",
+          "which marketing capability should we improve next",
+          "what campaigns and drafts already exist",
+          "what prevents aquila from launching",
+          "which claims can we safely use in the launch article",
+          "what marketing work remains before launch"
+        ],
+        "exclusions": [
+          "source code symbol lookup",
+          "gibberish or off-domain questions"
+        ]
+      },
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "content-desk",
+          "path": "/vrooli.content_desk.v1.search.SearchService/Search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "content-desk",
+          "path": "/vrooli.content_desk.v1.search.SearchService/Status",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "snippet_field": "snippet",
+        "score_field": "score",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "performance": { "p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 1 },
+      "tuning": { "engine": "dense", "rerank_enabled": false, "floor": { "max_gap": 0, "hard_floor": 0 } },
+      "tests": {
+        "name": "content desk editorial history — primary",
+        "description": "Reviewed owner corpus over the live editorial store. Every marketed editorial format (blog essay, technical tutorial, launch thread, demo storyboard, single-image ad) has a labelled positive against the real Aquila drafts, and cross-product coverage is proven with the non-Aquila Prose Studio evaluation essays, so recall is not narrowed to the Aquila campaign. Ids are the live authoritative draft ids in this scenario's non-regenerable editorial store; re-verify after any bulk draft change.",
+        "coverage": {
+          "required_tags": ["draft", "blog", "tutorial", "thread", "storyboard", "ad", "essay", "non-aquila", "ledger"],
+          "required_tag_groups": [
+            { "id": "editorial-format", "description": "Every marketed editorial format resolves as its real draft.", "tags": ["blog", "tutorial", "thread", "storyboard", "ad"], "min_reviewed_positive": 5 },
+            { "id": "cross-product", "description": "Non-Aquila editorial records remain discoverable (not narrowed to the Aquila campaign).", "tags": ["non-aquila"], "min_reviewed_positive": 1 },
+            { "id": "editorial-ledger", "description": "A plain editorial draft/ledger record resolves.", "tags": ["ledger"], "min_reviewed_positive": 1 }
+          ]
+        },
+        "minimum": {
+          "reviewed_positive": 10,
+          "negative": 2,
+          "required_tags": ["draft", "blog", "tutorial", "thread", "storyboard", "ad", "essay", "non-aquila", "ledger"]
+        },
+        "cases": [
+          { "id": "blog-session-unit", "query": "the problem with the tab", "tags": ["draft", "blog", "strong"], "expect_ids": ["draft:c3fe4048-b99c-48c6-b2fb-e5e727a51681"], "expect_within_top_k": 5, "status": "reviewed", "note": "Distinctive heading from the Aquila long-form essay; observed provider-direct rank 2." },
+          { "id": "blog-browser-workspace", "query": "why put a terminal workspace in the browser", "tags": ["draft", "blog", "weak-real"], "expect_ids": ["draft:c3fe4048-b99c-48c6-b2fb-e5e727a51681"], "expect_within_top_k": 5, "status": "reviewed" },
+          { "id": "tutorial-reconnect", "query": "tutorial reconnecting a dropped workspace session", "tags": ["draft", "tutorial", "strong"], "expect_ids": ["draft:8d80f973-b846-4d29-82b1-432f96170bc0"], "expect_within_top_k": 3, "status": "reviewed" },
+          { "id": "thread-launch-announcement", "query": "launch announcement thread for twitter", "tags": ["draft", "thread", "strong"], "expect_ids": ["draft:7713e7a5-fcb6-411b-bc8f-174f96c60d3e"], "expect_within_top_k": 3, "status": "reviewed" },
+          { "id": "storyboard-demo", "query": "demo recording storyboard with shot list", "tags": ["draft", "storyboard", "strong"], "expect_ids": ["draft:234c4e93-4185-46a1-a67b-da2677748b22"], "expect_within_top_k": 3, "status": "reviewed" },
+          { "id": "ad-panes-not-tabs", "query": "panes not tabs multi-pane workspace ad", "tags": ["draft", "ad", "strong"], "expect_ids": ["draft:f5cfe66f-0ecb-462d-9adf-95c9cf48e66b"], "expect_within_top_k": 3, "status": "reviewed" },
+          { "id": "ad-mobile-one-hand", "query": "mobile fallback terminal work one hand", "tags": ["draft", "ad", "weak-real"], "expect_ids": ["draft:df593fa1-d678-427d-b799-c00d2971d9d7"], "expect_within_top_k": 5, "status": "reviewed" },
+          { "id": "non-aquila-validation-survives", "query": "validation suite survives a disconnected terminal session", "tags": ["draft", "essay", "non-aquila", "hard"], "expect_ids": ["draft:bb000a09-d546-4842-9269-80142ce083be", "draft:48f2e267-61d6-4fe2-9841-7a6f62fa7af4", "draft:85964f3d-6d67-4056-b8ef-f4494c6066ba", "draft:07d2c33f-f22e-4ef2-ab3e-3e56194b62cc", "draft:061a7859-fa70-4071-9907-802cd22fe732", "draft:d158b81c-a3b4-412b-89ba-a26114e4cbfc"], "expect_within_top_k": 5, "status": "reviewed", "note": "A cross-product Prose Studio evaluation essay; the six labelled ids are interchangeable near-duplicate drafts, so any one within top-5 proves non-Aquila coverage." },
+          { "id": "non-aquila-broken-pipe", "query": "broken pipe when an agent session drops mid validation", "tags": ["draft", "essay", "non-aquila", "weak-real"], "expect_ids": ["draft:bb000a09-d546-4842-9269-80142ce083be", "draft:48f2e267-61d6-4fe2-9841-7a6f62fa7af4", "draft:d74aaf8c-de91-4028-bf3f-2f8d3880e8eb"], "expect_within_top_k": 5, "status": "reviewed", "note": "Near-duplicate Prose Studio evaluation essays; any labelled id within top-5 is acceptable." },
+          { "id": "custody-editorial-ledger", "query": "single editorial ledger custody check", "tags": ["draft", "ledger", "weak"], "expect_ids": ["draft:b345b9fd-9e94-47a5-be11-3ce29d0611c0"], "expect_within_top_k": 5, "status": "reviewed" },
+          { "id": "junk", "query": "florbnax zzqq nonsense", "tags": ["gibberish"], "expect_no_strong_hit": true, "expect_max_score": 0.55, "status": "reviewed", "note": "Dense-baseline junk band; tighten after the pending rerank/floor sweep." },
+          { "id": "off-domain-react", "query": "how do I write a react component", "tags": ["gibberish", "off-domain"], "expect_no_strong_hit": true, "expect_max_score": 0.55, "status": "reviewed", "note": "Off-domain query must not produce a strong editorial hit." }
+        ]
+      }
+    }
+  ]
+}

@@ -751,9 +751,9 @@ func TestTask_CheckTerminalTransition(t *testing.T) {
 		{"running to needs_review - valid", TaskStatusRunning, TaskStatusNeedsReview, true},
 		{"approved to running - invalid (terminal)", TaskStatusApproved, TaskStatusRunning, false},
 		{"rejected to queued - invalid (terminal)", TaskStatusRejected, TaskStatusQueued, false},
-		{"failed to running - invalid (terminal)", TaskStatusFailed, TaskStatusRunning, false},
+		{"failed to running - valid new attempt", TaskStatusFailed, TaskStatusRunning, true},
 		{"cancelled to running - invalid (terminal)", TaskStatusCancelled, TaskStatusRunning, false},
-		{"approved to failed - valid (terminal to terminal)", TaskStatusApproved, TaskStatusFailed, true},
+		{"approved to failed - invalid (failed can be retried)", TaskStatusApproved, TaskStatusFailed, false},
 	}
 
 	for _, tt := range tests {

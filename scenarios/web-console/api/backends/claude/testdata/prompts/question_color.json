@@ -1,0 +1,9 @@
+{
+  "cols": 79,
+  "rows": 47,
+  "in_alt_buffer": true,
+  "scrollback_lines": 0,
+  "cursor_x": 0,
+  "cursor_y": 23,
+  "plain_text": "\n ▐▛███▛█   Claude Code v2.1.268\n▝▜██████▀  Fable 5.1 with high effort · Claude Max\n  ▝▝ ▝▝    /…/scratchpad/claude-perm-fixture2 · /rc\n\n\n❯ Use the Bash tool to run exactly this command and nothing else: touch\n  perm-probe.txt\n\n● Running the requested command now.\n\n  Ran 1 shell command\n  ⎿  Interrupted · What should Claude do instead?\n\n✻ Sautéed for 2s · done 7:07 AM\n\n❯ Use the AskUserQuestion tool to ask me which color I prefer, with exactly\n  two options: Red and Blue.\n───────────────────────────────────────────────────────────────────────────────\n ☐ Color\n\nWhich color do you prefer?\n\n❯ 1. Red\n     Choose red.\n  2. Blue\n     Choose blue.\n  3. Type something.\n───────────────────────────────────────────────────────────────────────────────\n  4. Chat about this\n\nEnter to select · ↑/↓ to navigate · Esc to cancel\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n[wc-91a9450:claude*                    [0,0] \"✳ perm-probe.txt\" 07:07 11-Sep-26"
+}

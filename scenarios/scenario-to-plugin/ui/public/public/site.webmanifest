@@ -1,0 +1,24 @@
+{
+  "background_color": "#ffffff",
+  "description": "Deployment ramp that packages, signs, and publishes a Vrooli scenario as an Agent Plugin — Agent Skills plus MCP servers — to agent runtimes and skill registries",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any maskable",
+      "sizes": "192x192",
+      "src": "manifest-icon-192.maskable.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any maskable",
+      "sizes": "512x512",
+      "src": "manifest-icon-512.maskable.png",
+      "type": "image/png"
+    }
+  ],
+  "name": "Scenario to Plugin",
+  "scope": "../",
+  "short_name": "scenario-to-plugin",
+  "start_url": "../",
+  "theme_color": "#ffffff"
+}

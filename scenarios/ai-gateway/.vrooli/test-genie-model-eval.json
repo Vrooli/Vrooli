@@ -1,0 +1,80 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "ai-gateway",
+  "phase": "model-eval",
+  "displayName": "Local Model Evaluation",
+    "description": "Checks whether independently reviewed policy-role, gateway-task-role and retrieval evidence is complete, then remains blocked until separate LM2 inference admission allows execution.",
+  "source": "validation-provider",
+  "findingSource": "model-eval",
+  "orderHint": 91,
+  "timeout": "90s",
+  "freshnessRequirement": "always",
+  "phaseClass": "quality",
+  "runtimeClass": "static",
+  "dimensions": ["tests", "operational-targets"],
+  "evidenceKinds": ["model-eval.readiness", "model-eval.accepted-suite"],
+  "validation": {
+    "contract": "scenario-validation/v1",
+      "capabilitySubset": ["retrieval-denominators", "caller-role-coverage", "gateway-task-role-coverage"],
+    "includeExecution": true
+  },
+  "targets": {
+    "kinds": ["scenario"],
+    "selection": "enumerate"
+  },
+  "applicability": {
+    "default": "not_applicable",
+    "any": [{"serviceCapability": "model-eval"}]
+  },
+  "runnability": {
+    "needsAPI": true,
+    "needsUI": false,
+    "mutatesLifecycle": false,
+    "dbIsolation": "none"
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "docs": {
+    "path": "scenarios/ai-gateway/docs/operations/model-eval.md"
+  },
+  "maturity": {
+    "version": "1.0.0",
+    "levels": [
+      {"id": "L0", "name": "Evidence incomplete", "description": "Accepted caller and retrieval denominator evidence is unavailable or below mission floors.", "entry_criteria": ["Model evaluation phase requested."], "exit_criteria": ["All required retrieval snapshots and per-role caller cases are independently reviewed."], "next_unlock": "Freeze all fixed retrieval denominators and reach 20 accepted source-linked cases per role."},
+      {"id": "L1", "name": "Evidence ready; execution held", "description": "Accepted suites are complete, but live model execution still requires operator admission.", "entry_criteria": ["Accepted-suite evidence meets all coverage floors."], "exit_criteria": ["Operator-routed inference admission exists and a truthful model evaluation run is persisted."], "next_unlock": "Obtain the separate LM2 inference admission and execute the fixed suites."},
+      {"id": "L2", "name": "Evaluation executed", "description": "The unified model evaluation phase ran on the exact accepted suites and persisted results.", "entry_criteria": ["Model execution was admitted."], "exit_criteria": ["The run binds all suite, denominator, role, runtime, model and caller identities."], "next_unlock": "Review the completed report and compare candidate models."}
+    ],
+    "capabilities": [
+      {"id": "retrieval_denominators", "label": "Fixed retrieval denominators", "levels": [
+        {"id": "L0", "name": "Missing", "description": "One or more required Search Hub suites lack a valid immutable independent review."},
+        {"id": "L1", "name": "Reviewed", "description": "Every registered retrieval suite has a valid fixed denominator."},
+        {"id": "L2", "name": "Graded", "description": "The unified phase scored every result against those fixed snapshots."}
+      ]},
+      {"id": "caller_role_coverage", "label": "Real caller role coverage", "levels": [
+        {"id": "L0", "name": "Missing", "description": "At least one actual policy role has fewer than 20 independently reviewed source-linked cases."},
+        {"id": "L1", "name": "Covered", "description": "Every actual policy role has at least 20 accepted real caller cases."},
+        {"id": "L2", "name": "Evaluated", "description": "Every role suite has a persisted model evaluation result."}
+      ]},
+      {"id": "gateway_task_role_coverage", "label": "AI Gateway task-role coverage", "levels": [
+        {"id": "L0", "name": "Missing", "description": "At least one task role in the authoritative AI Gateway inference-role catalog has fewer than 20 independently reviewed real caller cases."},
+        {"id": "L1", "name": "Covered", "description": "Every catalog task role has at least 20 accepted source-linked caller cases."},
+        {"id": "L2", "name": "Evaluated", "description": "Every task-role suite has a persisted model evaluation result."}
+      ]}
+    ],
+    "findings": {
+      "model_eval.readiness_source_unavailable": {"capability_id": "retrieval_denominators", "local_level_impact": "L0", "global_impact": "capability_gap", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": [], "fix_class": "manual", "reason": "The resource policy or accepted-suite owner must be restored before readiness can be established."},
+      "model_eval.retrieval_denominators_incomplete": {"capability_id": "retrieval_denominators", "local_level_impact": "L0", "global_impact": "capability_gap", "dimension": "tests", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": [], "fix_class": "manual", "reason": "Independent denominator labels require source review and a persisted owner snapshot."},
+      "model_eval.real_caller_coverage_incomplete": {"capability_id": "caller_role_coverage", "local_level_impact": "L0", "global_impact": "capability_gap", "dimension": "tests", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": [], "fix_class": "manual", "reason": "Real caller acquisition and label review require source-linked owner evidence."},
+      "model_eval.gateway_task_role_coverage_incomplete": {"capability_id": "gateway_task_role_coverage", "local_level_impact": "L0", "global_impact": "capability_gap", "dimension": "tests", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": [], "fix_class": "manual", "reason": "The AI Gateway task-role catalog is a separate caller contract and needs its own source-linked coverage."},
+      "model_eval.operator_inference_admission_required": {"capability_id": "caller_role_coverage", "local_level_impact": "L1", "global_impact": "capability_gap", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": [], "fix_class": "manual", "reason": "Inference execution remains under the separate operator-routed admission boundary."}
+    },
+    "fallback": {"capability_id": "retrieval_denominators", "local_level_impact": "L0", "global_impact": "capability_gap", "dimension": "tests", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required"}
+  }
+}

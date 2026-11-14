@@ -1,0 +1,17 @@
+{
+  "componentId": "react-component-library:Tabs",
+  "items": {
+    "labelField": "label",
+    "maximumCount": 8,
+    "maximumLabelCharacters": 24,
+    "primaryAction": "not-applicable",
+    "property": "items",
+    "requiredFields": [
+      "id",
+      "label"
+    ],
+    "stableIdField": "id",
+    "typicalCount": 4
+  },
+  "version": "1.3.5"
+}

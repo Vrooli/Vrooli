@@ -4,6 +4,7 @@ import { RefreshCw, Copy, ExternalLink, Pencil, Link } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import * as agentService from '@/services/agentService'
+import type { PromptSection } from '@/lib/schemas'
 
 interface MemberPromptPipelineSectionProps {
   teamId: string
@@ -12,25 +13,8 @@ interface MemberPromptPipelineSectionProps {
   onNavigateToAgentFiles?: (filePath?: string) => void
 }
 
-type PipelineSectionKey =
-  | 'agent-files'
-  | 'responsibilities'
-  | 'relationships'
-  | 'inbox'
-  | 'heartbeat-task'
-
-interface PipelineSectionDefinition {
-  key: PipelineSectionKey
-  title: string
-  headers: string[]
+interface PipelineSectionMeta {
   description: string
-  emptyMessage: string
-}
-
-interface PipelineSection extends PipelineSectionDefinition {
-  content: string
-  missing: boolean
-  note?: string
 }
 
 interface AgentFileBlock {
@@ -38,86 +22,58 @@ interface AgentFileBlock {
   content: string
 }
 
-const PIPELINE_SECTIONS: PipelineSectionDefinition[] = [
-  {
-    key: 'agent-files',
-    title: 'Agent Files',
-    headers: ['Agent Files (Markdown)'],
-    description: 'SOUL.md and other agent markdown files (personality + operating notes).',
-    emptyMessage: 'No agent markdown files were included.',
+const SECTION_META: Record<string, PipelineSectionMeta> = {
+  'agent-file': {
+    description: 'SOUL.md and other agent markdown files.',
   },
-  {
-    key: 'responsibilities',
-    title: 'Responsibilities',
-    headers: ['Team Responsibilities (RESPONSIBILITIES.md)'],
+  'active-task-brief': {
+    description: 'Generated orientation for this member and heartbeat prompt.',
+  },
+  'team-operating-policy': {
+    description: 'Generated runtime, coordination, charter, governance, and member policy.',
+  },
+  'team-responsibilities': {
     description: 'Role-specific instructions for this team member.',
-    emptyMessage: 'No responsibilities are set for this member yet.',
   },
-  {
-    key: 'relationships',
-    title: 'Relationships',
-    headers: ['Team Relationships'],
-    description: 'Reporting lines plus coordination commands.',
-    emptyMessage: 'No relationship context is available yet.',
+  'team-org-context': {
+    description: 'Reporting context for this team member.',
   },
-  {
-    key: 'inbox',
-    title: 'Inbox',
-    headers: ['Team Inbox'],
+  'team-storage-map': {
+    description: 'Persistent storage primitives, authority order, and available commands.',
+  },
+  'team-inbox': {
     description: 'Pending messages from other team members.',
-    emptyMessage: 'No pending inbox messages.',
   },
-  {
-    key: 'heartbeat-task',
-    title: 'Heartbeat Task',
-    headers: ['Heartbeat Task (HEARTBEAT.md)', 'Heartbeat Task'],
+  'last-handoff': {
+    description: 'Continuity notes from the member’s previous heartbeat.',
+  },
+  'heartbeat-task': {
     description: 'The exact task this member will execute on each heartbeat.',
-    emptyMessage: 'No heartbeat task is defined yet.',
   },
-]
-
-function parsePromptSections(prompt: string): Map<string, string> {
-  const sections = new Map<string, string>()
-  if (!prompt) {
-    return sections
-  }
-  const chunks = prompt.split(/\n\n---\n\n/)
-  for (const chunk of chunks) {
-    const trimmed = chunk.trim()
-    if (!trimmed) continue
-    const firstLine = trimmed.split('\n')[0]?.trim()
-    if (!firstLine) continue
-    const header = firstLine.replace(/^#+\s*/, '').trim()
-    if (!header) continue
-    sections.set(header, trimmed)
-  }
-  return sections
+  'task-reminder': {
+    description: 'Generated final anchor for the heartbeat task and write rules.',
+  },
 }
 
-function stripHeader(section: string): string {
-  const lines = section.split('\n')
-  if (lines.length <= 1) return ''
-  return lines.slice(1).join('\n').trim()
-}
-
-function buildPipelineSections(prompt: string): PipelineSection[] {
-  const sections = parsePromptSections(prompt)
-  return PIPELINE_SECTIONS.map((def) => {
-    const matchedHeader = def.headers.find((entry) => sections.has(entry))
-    const rawSection = matchedHeader ? sections.get(matchedHeader) ?? '' : ''
-    const content = rawSection ? stripHeader(rawSection) : ''
-    const missing = !rawSection || !content
-    let note: string | undefined
-    if (def.key === 'heartbeat-task' && matchedHeader === 'Heartbeat Task') {
-      note = 'No heartbeat instructions defined. Default task inserted.'
+function reassemblePrompt(sections: PromptSection[]): string {
+  if (sections.length === 0) return ''
+  const parts: string[] = []
+  for (let i = 0; i < sections.length; i += 1) {
+    const section = sections[i]
+    if (!section) continue
+    if (section.kind === 'agent-file') {
+      let block = '# Agent Files (Markdown)\n\n'
+      while (i < sections.length && sections[i]?.kind === 'agent-file') {
+        block += sections[i]?.content ?? ''
+        i += 1
+      }
+      i -= 1
+      parts.push(block)
+    } else {
+      parts.push(section.content)
     }
-    return {
-      ...def,
-      content,
-      missing,
-      note,
-    }
-  })
+  }
+  return parts.join('\n\n---\n\n')
 }
 
 function extractAgentFileBlocks(sectionContent: string): AgentFileBlock[] {
@@ -141,7 +97,7 @@ function extractAgentFileBlocks(sectionContent: string): AgentFileBlock[] {
 }
 
 export function MemberPromptPipelineSection({ teamId, memberId, onNavigateToTab, onNavigateToAgentFiles }: MemberPromptPipelineSectionProps) {
-  const [promptPreview, setPromptPreview] = useState('')
+  const [promptSections, setPromptSections] = useState<PromptSection[]>([])
   const [promptError, setPromptError] = useState<string | null>(null)
   const [isPromptLoading, setIsPromptLoading] = useState(false)
 
@@ -150,18 +106,18 @@ export function MemberPromptPipelineSection({ teamId, memberId, onNavigateToTab,
     setIsPromptLoading(true)
     setPromptError(null)
     try {
-      const response = await agentService.previewAgentPrompt(memberId, teamId)
-      setPromptPreview(response.prompt)
+      const response = await agentService.previewAgentPromptStructured(memberId, teamId)
+      setPromptSections(response.sections)
     } catch (err) {
       console.error('Failed to load prompt preview:', err)
-      setPromptPreview('')
+      setPromptSections([])
       setPromptError('Unable to build prompt preview. Check the API and try again.')
     } finally {
       setIsPromptLoading(false)
     }
   }, [memberId, teamId])
 
-  const pipelineSections = useMemo(() => buildPipelineSections(promptPreview), [promptPreview])
+  const promptPreview = useMemo(() => reassemblePrompt(promptSections), [promptSections])
 
   const handleCopyPrompt = useCallback(async () => {
     if (!promptPreview) return
@@ -182,9 +138,9 @@ export function MemberPromptPipelineSection({ teamId, memberId, onNavigateToTab,
 
   // Auto-load prompt preview on mount
   useEffect(() => {
-    if (promptPreview || isPromptLoading) return
+    if (promptSections.length > 0 || isPromptLoading) return
     void loadPromptPreview()
-  }, [promptPreview, isPromptLoading, loadPromptPreview])
+  }, [promptSections.length, isPromptLoading, loadPromptPreview])
 
   return (
     <div className="space-y-4">
@@ -243,29 +199,30 @@ export function MemberPromptPipelineSection({ teamId, memberId, onNavigateToTab,
         </div>
       ) : (
         <div className="space-y-3">
-          {pipelineSections.map((section, index) => {
-            const agentFiles = section.key === 'agent-files'
+          {promptSections.map((section, index) => {
+            const agentFiles = section.kind === 'agent-file'
               ? extractAgentFileBlocks(section.content)
               : []
+            const meta = SECTION_META[section.kind]
 
             // Determine navigation action for this section
-            const navAction = section.key === 'agent-files' && onNavigateToAgentFiles
+            const navAction = section.kind === 'agent-file' && onNavigateToAgentFiles
               ? () => onNavigateToAgentFiles()
-              : section.key === 'responsibilities' && onNavigateToTab
+              : section.kind === 'team-responsibilities' && onNavigateToTab
                 ? () => onNavigateToTab('responsibilities')
-                : section.key === 'heartbeat-task' && onNavigateToTab
+                : section.kind === 'heartbeat-task' && onNavigateToTab
                   ? () => onNavigateToTab('heartbeat')
                   : null
 
-            const navLabel = section.key === 'agent-files'
+            const navLabel = section.kind === 'agent-file'
               ? 'Open in Agent Editor'
-              : section.key === 'responsibilities' || section.key === 'heartbeat-task'
+              : section.kind === 'team-responsibilities' || section.kind === 'heartbeat-task'
                 ? 'Edit'
                 : null
 
             return (
               <div
-                key={section.key}
+                key={`${section.kind}-${section.label}-${index}`}
                 className="rounded-lg border border-border bg-background px-3 py-2"
               >
                 <div className="flex items-center justify-between gap-2">
@@ -273,7 +230,7 @@ export function MemberPromptPipelineSection({ teamId, memberId, onNavigateToTab,
                     <span className="text-[11px] font-semibold text-muted-foreground">
                       {index + 1}
                     </span>
-                    <p className="text-xs font-medium text-foreground">{section.title}</p>
+                    <p className="text-xs font-medium text-foreground">{section.label}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     {navAction && navLabel && (
@@ -282,7 +239,7 @@ export function MemberPromptPipelineSection({ teamId, memberId, onNavigateToTab,
                         onClick={navAction}
                         className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
                       >
-                        {section.key === 'agent-files' ? (
+                        {section.kind === 'agent-file' ? (
                           <ExternalLink className="h-3 w-3" />
                         ) : (
                           <Pencil className="h-3 w-3" />
@@ -293,22 +250,17 @@ export function MemberPromptPipelineSection({ teamId, memberId, onNavigateToTab,
                     <span
                       className={cn(
                         'px-2 py-0.5 text-[11px] rounded-full',
-                        section.missing
-                          ? 'bg-amber-500/10 text-amber-500'
-                          : 'bg-emerald-500/10 text-emerald-500'
+                        'bg-emerald-500/10 text-emerald-500'
                       )}
                     >
-                      {section.missing ? 'Not set' : 'Included'}
+                      Included
                     </span>
                   </div>
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-1">{section.description}</p>
-                {section.note && (
-                  <p className="text-[11px] text-amber-500 mt-2">{section.note}</p>
-                )}
-                {section.missing ? (
-                  <p className="text-[11px] text-muted-foreground mt-2">{section.emptyMessage}</p>
-                ) : section.key === 'agent-files' && agentFiles.length > 0 ? (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {meta?.description ?? section.kind}
+                </p>
+                {section.kind === 'agent-file' && agentFiles.length > 0 ? (
                   <div className="mt-3 space-y-2">
                     {agentFiles.map((file) => (
                       <details
@@ -340,7 +292,7 @@ export function MemberPromptPipelineSection({ teamId, memberId, onNavigateToTab,
                   </div>
                 ) : (
                   <pre className="mt-3 max-h-40 overflow-y-auto whitespace-pre-wrap text-[11px] text-muted-foreground">
-                    {section.content || section.emptyMessage}
+                    {section.content || 'Empty section.'}
                   </pre>
                 )}
               </div>

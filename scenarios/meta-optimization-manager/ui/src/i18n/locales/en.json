@@ -1,0 +1,125 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Meta-Optimization Manager are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Meta-Optimization Manager"
+  },
+  "layout": {
+    "sidebarLabel": "Primary navigation",
+    "bottomNavLabel": "Primary navigation (mobile)",
+    "mainContentLabel": "Main content",
+    "nav": {
+      "dashboard": "Readiness",
+      "focus": "Focus",
+      "convergence": "Convergence",
+      "trials": "Trials",
+      "settings": "Settings"
+    }
+  },
+  "theme": {
+    "switcherLabel": "Theme",
+    "choice": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`."
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Readiness scoreboard",
+      "description": "Per-projection coverage joined live against each owner, paired with denominator-confidence and the latest empirical trial trend.",
+      "projectionHeading": "Projections",
+      "coverageLabel": "coverage",
+      "confidenceLabel": "confidence",
+      "cellsLabel": "{{now}}/{{total}} now · {{inReach}} in reach · {{missing}} missing",
+      "trendHeading": "Latest trial trend",
+      "trendValue": "{{rate}}% success · {{tokens}} median tokens",
+      "noTrend": "No trial runs recorded yet.",
+      "unavailableReason": "Unavailable: {{reason}}",
+      "empty": "No projections returned. Is the scenario running?"
+    },
+    "focus": {
+      "title": "Focus & gaps",
+      "description": "The ranked next-best gaps (impact × importance) and the full gaps registry with qualitative context.",
+      "focusHeading": "Ranked next-best gaps",
+      "gapsHeading": "Gaps registry",
+      "conditionHeading": "Condition findings",
+      "conditionEmpty": "No condition findings reported.",
+      "priorityLabel": "priority",
+      "globalBadge": "cross-cutting",
+      "empty": "No gaps surfaced — every cell is covered, or the owners are unreachable."
+    },
+    "convergence": {
+      "title": "Convergence",
+      "description": "Per-template four-lens fitness and gold-star generated-golden health/eligibility.",
+      "methodologyNote": "Lens counts are filesystem proxies (LOC, comment-grep) — structural signals, not semantic analysis.",
+      "templatesHeading": "Template fitness",
+      "referencesHeading": "Reference health",
+      "lensLabel": "per-replica {{cost}} · drift {{drift}} · comment-contracts {{contracts}} · coordinated-edits {{edits}}",
+      "referenceLabel": "stability {{days}}d · breadth {{breadth}}",
+      "cleanBadge": "clean",
+      "empty": "No templates or references found."
+    },
+    "trials": {
+      "title": "Trials",
+      "description": "The empirical local-model gate: success-rate / tokens / wall-time over time, plus Guide-gate coverage.",
+      "coverageHeading": "Guide-gate coverage",
+      "coverageValue": "{{rate}}% ({{withGate}}/{{total}} Guide tasks have a live gate)",
+      "historyHeading": "Trend",
+      "recentHeading": "Recent runs",
+      "historyPoint": "{{date}} — {{rate}}% success · {{tokens}} median tokens · {{runs}} runs",
+      "runMetrics": "{{tokens}} tokens · {{ms}}ms",
+      "empty": "No trial runs recorded yet — trials run on explicit invocation only (`trials run`)."
+    },
+    "settings": {
+      "title": "Settings",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language"
+    }
+  },
+  "health": {
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
+  }
+}

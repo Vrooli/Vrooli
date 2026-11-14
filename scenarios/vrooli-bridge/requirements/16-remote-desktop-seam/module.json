@@ -1,0 +1,39 @@
+{
+  "_metadata": {
+    "description": "Expose the node identity/trust/reach/signaling seam so Device Control can provide desktop sessions without reimplementing fleet authority.",
+    "last_validated_at": "2026-06-18T09:13:58-04:00",
+    "module": "remote-desktop-seam",
+    "prd_ref": "OT-P2-002",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BRG-P2-002",
+      "title": "Device Control Desktop Integration Seam",
+      "status": "in_progress",
+      "delivery_scope": "roadmap",
+      "deferred_reason": "Bridge owns the interactive transport seam, while Device Control owns native desktop operation and Web Console owns the viewer. The production WebRTC consumer is outside the original Bridge foundation scope.",
+      "revisit_trigger": "Device Control and Web Console begin the production WebRTC desktop session and require the Bridge-owned signaling/revocation seam.",
+      "prd_ref": "OT-P2-002",
+      "category": "integration",
+      "description": "Device Control opens real-time desktop sessions through Bridge's node identity, trust, signaling, revocation, and reach layer rather than reimplementing fleet authority. Device Control owns native capture, input, clipboard, leases, and receipts; Web Console owns the operator viewer. P2: the consumer integration is deferred from the Bridge foundation but must use the documented interactive channel contract and must not create a second remote-desktop authority.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/SEAMS.md",
+          "phase": "design",
+          "status": "in_progress",
+          "notes": "Typed Bridge interactive and companion seams are implemented and race-tested; live Device Control media qualification remains open."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/concepts/INTEGRATIONS.md#remote-desktop",
+          "phase": "business",
+          "status": "in_progress",
+          "notes": "Owner-gated signaling, companion lifecycle, node admission, and bounded typed transport are implemented; live desktop readiness and media evidence remain open."
+        }
+      ]
+    }
+  ]
+}

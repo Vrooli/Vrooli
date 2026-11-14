@@ -1,0 +1,512 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "IconButton 3.0",
+  "args": {
+    "fields": [
+      {
+        "default": "Close panel",
+        "kind": "text",
+        "label": "Accessible label",
+        "path": "aria-label"
+      },
+      {
+        "default": "",
+        "kind": "structured",
+        "label": "Icon",
+        "path": "children"
+      },
+      {
+        "default": "ghost",
+        "kind": "enum",
+        "label": "Surface",
+        "options": [
+          "ghost",
+          "soft",
+          "solid",
+          "danger"
+        ],
+        "path": "surface",
+        "required": true
+      },
+      {
+        "default": "circle",
+        "kind": "enum",
+        "label": "Shape",
+        "options": [
+          "circle",
+          "rounded",
+          "square"
+        ],
+        "path": "shape",
+        "required": true
+      },
+      {
+        "default": "md",
+        "kind": "enum",
+        "label": "Size",
+        "options": [
+          "xs",
+          "sm",
+          "md",
+          "lg"
+        ],
+        "path": "size",
+        "required": true
+      },
+      {
+        "default": "auto",
+        "kind": "enum",
+        "label": "Icon transition",
+        "options": [
+          "auto",
+          "morph",
+          "crossfade",
+          "none"
+        ],
+        "path": "morph",
+        "required": true
+      },
+      {
+        "default": false,
+        "kind": "boolean",
+        "label": "Selected",
+        "path": "selected"
+      },
+      {
+        "default": false,
+        "kind": "boolean",
+        "label": "Pending",
+        "path": "pending"
+      },
+      {
+        "default": false,
+        "kind": "boolean",
+        "label": "Disabled",
+        "path": "disabled"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Ghost, circular",
+      "role": "anatomy",
+      "mode": "live",
+      "description": "The default an icon button should have had: no chrome at rest, circular, and named.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Default"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Close panel"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='controls.icon-button']",
+          "attribute": "data-rcl-surface",
+          "value": "ghost"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='controls.icon-button']",
+          "attribute": "data-rcl-shape",
+          "value": "circle"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='controls.icon-button']",
+          "attribute": "title",
+          "value": "Close panel"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='controls.icon-button']",
+          "attribute": "data-rcl-tap-target",
+          "value": "comfortable"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-testid='controls.icon-button'][aria-pressed]",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "id": "surface-soft",
+      "name": "Soft standing surface",
+      "role": "axis",
+      "axis": "surface",
+      "covers": {
+        "surface": [
+          "ghost",
+          "soft",
+          "solid",
+          "danger"
+        ]
+      },
+      "mode": "live",
+      "description": "The findable-at-rest treatment, one prop away from the default.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "SurfaceSoft"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='controls.icon-button']",
+          "attribute": "data-rcl-surface",
+          "value": "soft"
+        }
+      ]
+    },
+    {
+      "id": "surface-solid",
+      "name": "Solid",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "SurfaceSolid"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='controls.icon-button']",
+          "attribute": "data-rcl-surface",
+          "value": "solid"
+        }
+      ]
+    },
+    {
+      "id": "surface-danger",
+      "name": "Danger",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "SurfaceDanger"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Delete"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='controls.icon-button']",
+          "attribute": "data-rcl-surface",
+          "value": "danger"
+        }
+      ]
+    },
+    {
+      "id": "shape-rounded",
+      "name": "Rounded",
+      "role": "axis",
+      "axis": "shape",
+      "covers": {
+        "shape": [
+          "circle",
+          "rounded",
+          "square"
+        ]
+      },
+      "mode": "live",
+      "description": "2.x could not express any shape but this one, and could not opt out of it.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "ShapeRounded"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='controls.icon-button']",
+          "attribute": "data-rcl-shape",
+          "value": "rounded"
+        }
+      ]
+    },
+    {
+      "id": "shape-square",
+      "name": "Square",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "ShapeSquare"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='controls.icon-button']",
+          "attribute": "data-rcl-shape",
+          "value": "square"
+        }
+      ]
+    },
+    {
+      "id": "size-small",
+      "name": "Small",
+      "role": "axis",
+      "axis": "size",
+      "covers": {
+        "size": [
+          "xs",
+          "sm",
+          "md",
+          "lg"
+        ]
+      },
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "SizeSmall"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='controls.icon-button']",
+          "attribute": "data-rcl-size",
+          "value": "sm"
+        }
+      ]
+    },
+    {
+      "id": "size-large",
+      "name": "Large",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "SizeLarge"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='controls.icon-button']",
+          "attribute": "data-rcl-size",
+          "value": "lg"
+        }
+      ]
+    },
+    {
+      "id": "selected",
+      "name": "Selected toggle",
+      "role": "boundary",
+      "mode": "live",
+      "description": "A toggle announces itself. A coloured background alone is invisible to assistive technology.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Selected"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='controls.icon-button']",
+          "attribute": "aria-pressed",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "id": "pending",
+      "name": "Pending",
+      "role": "boundary",
+      "states": [
+        "loading"
+      ],
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Pending"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='controls.icon-button']",
+          "attribute": "aria-busy",
+          "value": "true"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='controls.icon-button']",
+          "attribute": "disabled"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-icon-button-spinner]",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "id": "disabled",
+      "name": "Disabled",
+      "role": "boundary",
+      "states": [
+        "disabled"
+      ],
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Disabled"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='controls.icon-button']",
+          "attribute": "disabled"
+        }
+      ]
+    },
+    {
+      "id": "legacy-variant",
+      "name": "2.x variant still maps",
+      "role": "boundary",
+      "mode": "live",
+      "description": "An unmodified 2.x call site lands on the surface it was reaching for.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "LegacyVariant"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='controls.icon-button']",
+          "attribute": "data-rcl-surface",
+          "value": "soft"
+        }
+      ]
+    },
+    {
+      "id": "icon-swap",
+      "name": "Changing the icon animates it",
+      "role": "axis",
+      "covers": {
+        "morph": [
+          "auto",
+          "morph",
+          "crossfade",
+          "none"
+        ]
+      },
+      "mode": "live",
+      "description": "No call-site motion code: the child icon changes and the control animates the change.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "IconSwap"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Show terminal"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Show messages"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-morphing-icon]",
+          "attribute": "data-rcl-transition-mode",
+          "value": "auto"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-morphing-icon-current] rect",
+          "value": "1"
+        }
+      ],
+      "axis": "morph"
+    },
+    {
+      "id": "size-xs",
+      "name": "Extra small",
+      "role": "boundary",
+      "mode": "live",
+      "description": "The 32px rung dense toolbars are built on.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "SizeXSmall"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='controls.icon-button']",
+          "attribute": "data-rcl-size",
+          "value": "xs"
+        }
+      ]
+    }
+  ]
+}

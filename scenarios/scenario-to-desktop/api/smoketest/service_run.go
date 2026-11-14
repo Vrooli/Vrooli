@@ -2,32 +2,149 @@ package smoketest
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math"
+	"os"
 	"path/filepath"
+	"runtime"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/discovery"
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
+	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
 	"scenario-to-desktop-api/shared/errors"
+	"scenario-to-desktop-api/validationdesktop"
+
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain/domainconnect"
 )
 
 // DefaultDemoHoldMs is the default duration (in milliseconds) to hold the
 // demo app visible for screen recording.
-const DefaultDemoHoldMs = 8000
+const DefaultDemoHoldMs = 30000
+
+const measuredDemoHoldMs = 6 * 60 * 1000
+
+func demoHoldTiming(measured bool) (int, time.Duration) {
+	if measured {
+		return measuredDemoHoldMs, 7 * time.Minute
+	}
+	return DefaultDemoHoldMs, 90 * time.Second
+}
+
+func packagedLaunchPath(smokeTestID, kind string) string {
+	return filepath.Join(os.TempDir(), "scenario-to-desktop", "packaged-launches", smokeTestID+"-"+kind+".json")
+}
+
+func profileDirPath(smokeTestID, kind string) string {
+	return filepath.Join(os.TempDir(), "scenario-to-desktop", "profiles", smokeTestID+"-"+kind)
+}
+
+func measuredProfileDirPath(smokeTestID string) string {
+	return filepath.Join(os.TempDir(), "scenario-to-desktop", "profiles", smokeTestID+"-measured")
+}
+
+func smokeUserDataDirPath(smokeTestID, stage string, status *Status) string {
+	// Keep the job root short enough for Chromium's temporary Unix sockets.
+	key := filepath.Join(os.TempDir(), "s2d-"+smokeTestID)
+	// Cold protocol validation must not initialize the measured launch's user
+	// data. Warm measurement deliberately reuses protocol state for the second
+	// immediate launch.
+	if status != nil && status.Condition == "cold" {
+		key = filepath.Join(key, stage)
+	}
+	return key
+}
 
 // recordingState holds the active screen recording context during a smoke test.
 type recordingState struct {
-	captureID     string
-	displayID     string
-	displayWidth  int
-	displayHeight int
-	cleanup       func()
+	captureID          string
+	displayID          string
+	displayWidth       int
+	displayHeight      int
+	windowManager      string
+	titlebar           bool
+	recordingStartedAt time.Time
+	cleanup            func()
 }
 
 // PerformSmokeTest runs a smoke test on a built application.
 func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scenarioName, artifactPath, platform string) {
+	s.performSmokeTest(ctx, smokeTestID, scenarioName, artifactPath, platform)
+}
+
+// PerformSmokeTestRequest runs a smoke test with deployment and pipeline
+// identity persisted before any child process is launched.
+func (s *DefaultService) PerformSmokeTestRequest(ctx context.Context, request SmokeTestRequest) {
+	if request.DeploymentMode == "proxy" && s.targetResolver != nil {
+		status, exists := s.store.Get(request.SmokeTestID)
+		if exists {
+			target, err := s.targetResolver(ctx, status)
+			if err != nil {
+				completed := time.Now().UTC()
+				s.store.Update(request.SmokeTestID, func(status *Status) {
+					status.Status = "failed"
+					status.JourneyDisposition = string(deliveryramp.DispositionUnavailable)
+					status.Error = err.Error()
+					status.CompletedAt = &completed
+					status.Logs = append(status.Logs, "Smoke test unavailable: "+err.Error())
+				})
+				return
+			}
+			if target.Isolation != nil {
+				if err := validateIsolationObservations([]deliveryramp.IsolationObservation{*target.Isolation}); err != nil {
+					completed := time.Now().UTC()
+					s.store.Update(request.SmokeTestID, func(status *Status) {
+						status.Status = "failed"
+						status.Error = err.Error()
+						status.CompletedAt = &completed
+						status.Logs = append(status.Logs, err.Error())
+					})
+					return
+				}
+			}
+			s.store.Update(request.SmokeTestID, func(status *Status) {
+				status.ScreenContentSource = target.Source
+				if target.Isolation != nil {
+					status.IsolationObservations = []deliveryramp.IsolationObservation{*target.Isolation}
+					status.ScreenContentSource = deriveScreenContentSource(status.IsolationObservations)
+				}
+			})
+		}
+	}
+	if s.store != nil {
+		s.store.Update(request.SmokeTestID, func(status *Status) {
+			status.DeploymentMode = request.DeploymentMode
+			status.ProxyURL = request.ProxyURL
+			status.PipelineID = request.PipelineID
+			status.Measured = request.Measured
+			status.Condition = request.Condition
+			status.Strategy = request.Strategy
+			status.ExperimentID = request.ExperimentID
+			status.ArtifactDigest = request.ArtifactDigest
+			if request.DeploymentMode == "bundled" {
+				status.ScreenContentSource = "unknown"
+			} else if request.DeploymentMode == "proxy" {
+				status.ScreenContentSource = "isolated_instance"
+			}
+		})
+	}
+	s.performSmokeTestWithJourney(ctx, request.SmokeTestID, request.ScenarioName, request.ArtifactPath, request.Platform, request.JourneyID)
+}
+
+func (s *DefaultService) performSmokeTest(ctx context.Context, smokeTestID, scenarioName, artifactPath, platform string) {
+	s.performSmokeTestWithJourney(ctx, smokeTestID, scenarioName, artifactPath, platform, "")
+}
+
+func (s *DefaultService) performSmokeTestWithJourney(ctx context.Context, smokeTestID, scenarioName, artifactPath, platform, journeyID string) {
 	if _, ok := s.store.Get(smokeTestID); !ok {
 		return
 	}
@@ -40,6 +157,16 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 	}
 	defer s.cancelManager.Clear(smokeTestID)
 	defer s.recoverFromPanic(smokeTestID)
+	jobRoot := smokeUserDataDirPath(smokeTestID, "", nil)
+	defer func() {
+		if err := os.RemoveAll(jobRoot); err != nil {
+			s.recordTypedFailure(smokeTestID, NewExecutionError("user-data cleanup failed", err, nil))
+		}
+	}()
+	if err := os.MkdirAll(jobRoot, 0o700); err != nil {
+		s.recordTypedFailure(smokeTestID, NewExecutionError("create smoke job directory", err, nil))
+		return
+	}
 
 	s.store.Update(smokeTestID, func(status *Status) {
 		status.Logs = append(status.Logs, fmt.Sprintf(
@@ -50,6 +177,7 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 
 	rec := s.setupScreenRecording(ctx, smokeTestID)
 	if rec.cleanup != nil {
+		rec.cleanup = sync.OnceFunc(rec.cleanup)
 		defer rec.cleanup()
 	}
 
@@ -65,14 +193,32 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 	s.transitionTo(smokeTestID, StateExecuting, displayCommand)
 	execResult, execErr := s.executeWithRetry(ctx, smokeTestID, artifactPath, cmd, args, displayCommand, rec.displayID, rec.displayWidth, rec.displayHeight)
 
-	// Demo launch for screen recording if smoke test passed
+	// Demo launch for screen recording if smoke test passed. The journey is
+	// returned so reporting can happen only after finalizeRecording has moved
+	// the producer-owned recording into the captures ledger.
+	var journey *deliveryramp.JourneyResult
+	var evidenceErr error
 	if rec.captureID != "" && rec.displayID != "" && execErr == nil && execResult != nil {
 		if strings.Contains(execResult.Combined, s.config.SuccessMarker) {
-			s.executeDemoLaunch(ctx, smokeTestID, artifactPath, platform, rec.displayID)
+			s.store.Update(smokeTestID, func(status *Status) { status.ProtocolPassed = true })
+			journey = s.executeDemoLaunch(ctx, smokeTestID, scenarioName, artifactPath, platform, rec, journeyID)
+			if journey == nil {
+				evidenceErr = fmt.Errorf("desktop evidence demo launch did not produce a journey")
+			} else if journey.Disposition != deliveryramp.Disposition(journeyPass) {
+				reason := journey.DegradedReason
+				if reason == "" {
+					reason = "journey_validation_failed"
+				}
+				evidenceErr = fmt.Errorf("desktop evidence journey %s: %s", journey.Disposition, reason)
+			}
 		}
 	}
 
-	s.finalizeRecording(ctx, smokeTestID, rec.captureID)
+	recordingErr := s.finalizeRecording(ctx, smokeTestID, rec.captureID)
+	if journey != nil {
+		s.reportJourneyEvidence(ctx, smokeTestID, platform, journey)
+	}
+	manifestErr := s.writeEvidenceManifest(ctx, smokeTestID, artifactPath, platform, journey)
 
 	// Process results
 	outputLen := 0
@@ -80,6 +226,22 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 		outputLen = len(execResult.Combined)
 	}
 	s.transitionTo(smokeTestID, StateParsingOutput, fmt.Sprintf("%d bytes of output", outputLen))
+	if execErr == nil && evidenceErr != nil {
+		execErr = evidenceErr
+	}
+	if execErr == nil && recordingErr != nil {
+		execErr = recordingErr
+	}
+	if execErr == nil && manifestErr != nil {
+		execErr = manifestErr
+	}
+	if rec.cleanup != nil {
+		rec.cleanup()
+	}
+	if err := os.RemoveAll(jobRoot); err != nil {
+		s.recordTypedFailure(smokeTestID, NewExecutionError("job cleanup failed", err, nil))
+		return
+	}
 	s.processResults(smokeTestID, scenarioName, platform, artifactPath, displayCommand, execResult, execErr)
 }
 
@@ -116,22 +278,25 @@ func (s *DefaultService) setupScreenRecording(ctx context.Context, smokeTestID s
 	if err != nil {
 		s.logger.Warn("screen_recording_display_failed", "smoke_test_id", smokeTestID, "error", err.Error())
 		s.store.Update(smokeTestID, func(status *Status) {
-			status.ScreenRecording = &ScreenRecordingResult{Error: fmt.Sprintf("display creation failed: %v", err)}
+			status.ScreenRecording = &RecordingStatus{Error: fmt.Sprintf("display creation failed: %v", err)}
 		})
 		return recordingState{}
 	}
 
+	recordingStartedAt := time.Now().UTC()
 	cID, err := s.recorder.StartCapture(ctx, screenrecording.CaptureConfig{
-		Display:    displayID,
-		Width:      width,
-		Height:     height,
-		FPS:        fps,
-		OutputPath: "", // let FFmpeg resource choose path
+		Display: displayID,
+		Width:   width,
+		Height:  height,
+		FPS:     fps,
+		// The recorder writes to a producer-owned temporary path. finalizeRecording
+		// immediately moves it into the canonical captures domain.
+		OutputPath: filepath.Join(os.TempDir(), "vrooli-screen-recordings", smokeTestID+".mp4"),
 	})
 	if err != nil {
 		s.logger.Warn("screen_recording_start_failed", "smoke_test_id", smokeTestID, "error", err.Error())
 		s.store.Update(smokeTestID, func(status *Status) {
-			status.ScreenRecording = &ScreenRecordingResult{Error: fmt.Sprintf("capture start failed: %v", err)}
+			status.ScreenRecording = &RecordingStatus{Error: fmt.Sprintf("capture start failed: %v", err)}
 		})
 		displayCleanup()
 		return recordingState{}
@@ -141,12 +306,24 @@ func (s *DefaultService) setupScreenRecording(ctx context.Context, smokeTestID s
 		status.Logs = append(status.Logs, fmt.Sprintf("Screen recording started (ID: %s, display: %s)", cID, displayID))
 	})
 
+	windowManager := ""
+	titlebar := false
+	if provider, ok := s.displayMgr.(interface {
+		WindowManagerInfo(string) screenrecording.WindowManagerMetadata
+	}); ok {
+		metadata := provider.WindowManagerInfo(displayID)
+		windowManager, titlebar = metadata.Name, metadata.Titlebar
+	}
+
 	return recordingState{
-		captureID:     cID,
-		displayID:     displayID,
-		displayWidth:  width,
-		displayHeight: height,
-		cleanup:       displayCleanup,
+		captureID:          cID,
+		displayID:          displayID,
+		displayWidth:       width,
+		displayHeight:      height,
+		windowManager:      windowManager,
+		titlebar:           titlebar,
+		recordingStartedAt: recordingStartedAt,
+		cleanup:            displayCleanup,
 	}
 }
 
@@ -160,29 +337,49 @@ func (s *DefaultService) resolveTestCommand(smokeTestID, platform, artifactPath,
 }
 
 // finalizeRecording stops the screen recording and stores the result.
-func (s *DefaultService) finalizeRecording(ctx context.Context, smokeTestID, captureID string) {
+func (s *DefaultService) finalizeRecording(ctx context.Context, smokeTestID, captureID string) error {
 	if captureID == "" {
-		return
+		return nil
 	}
 
 	captureResult, err := s.recorder.StopCapture(ctx, captureID)
 	if err != nil {
 		s.logger.Warn("screen_recording_stop_failed", "smoke_test_id", smokeTestID, "error", err.Error())
 		s.store.Update(smokeTestID, func(status *Status) {
-			status.ScreenRecording = &ScreenRecordingResult{Recorded: false, Error: fmt.Sprintf("capture stop failed: %v", err)}
+			status.ScreenRecording = &RecordingStatus{Recorded: false, Error: fmt.Sprintf("capture stop failed: %v", err)}
 		})
-		return
+		return fmt.Errorf("capture finalization failed: %w", err)
+	}
+	inspection, err := screenrecording.InspectVideo(ctx, captureResult.VideoPath)
+	if err != nil {
+		s.logger.Warn("screen_recording_integrity_failed", "smoke_test_id", smokeTestID, "error", err.Error())
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.ScreenRecording = &RecordingStatus{Recorded: false, Error: fmt.Sprintf("capture integrity failed: %v", err)}
+		})
+		return fmt.Errorf("capture integrity failed: %w", err)
 	}
 
+	status, ok := s.store.Get(smokeTestID)
+	if !ok || s.captures == nil {
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.ScreenRecording = &RecordingStatus{Error: "screen recording completed but capture storage is unavailable"}
+		})
+		return fmt.Errorf("capture persistence unavailable")
+	}
+	capture, err := s.captures.SaveCapture(status.ScenarioName, captures.CaptureRecording, "smoke-test:"+smokeTestID, captureResult.VideoPath, inspection.Width, inspection.Height, inspection.DurationMs)
+	if err != nil {
+		s.logger.Warn("screen_recording_persist_failed", "smoke_test_id", smokeTestID, "error", err.Error())
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.ScreenRecording = &RecordingStatus{Error: fmt.Sprintf("persisting recording evidence: %v", err)}
+		})
+		return fmt.Errorf("persisting recording evidence: %w", err)
+	}
+	s.annotateCapture(capture, status.PipelineID)
 	s.store.Update(smokeTestID, func(status *Status) {
-		status.ScreenRecording = &ScreenRecordingResult{
-			Recorded:      true,
-			VideoPath:     captureResult.VideoPath,
-			DurationMs:    captureResult.DurationMs,
-			FileSizeBytes: captureResult.FileSizeBytes,
-		}
-		status.Logs = append(status.Logs, fmt.Sprintf("Screen recording saved: %s", captureResult.VideoPath))
+		status.ScreenRecording = &RecordingStatus{Recorded: true, CaptureID: capture.ID, Checksum: capture.Checksum}
+		status.Logs = append(status.Logs, fmt.Sprintf("Screen recording saved as capture %s", capture.ID))
 	})
+	return nil
 }
 
 func (s *DefaultService) validatePreconditions(ctx context.Context, smokeTestID, artifactPath, platform string) bool {
@@ -295,12 +492,36 @@ func (s *DefaultService) resolveCommand(smokeTestID, platform, artifactPath stri
 }
 
 func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, artifactPath, cmd string, args []string, displayCommand, displayID string, displayWidth, displayHeight int) (*ExecutionResult, error) {
+	smokeTimeout := s.config.Timeout()
+	smokeTimeoutMS := s.config.TimeoutMS()
+	if status, ok := s.store.Get(smokeTestID); ok {
+		smokeTimeout = s.config.TimeoutForDeploymentMode(status.DeploymentMode)
+		smokeTimeoutMS = s.config.TimeoutMSForDeploymentMode(status.DeploymentMode)
+		args = append(args, "--user-data-dir="+smokeUserDataDirPath(smokeTestID, "protocol", status))
+	}
 	// Build environment
-	uploadURL := fmt.Sprintf("http://127.0.0.1:%d/api/v1/deployment/telemetry", s.port)
+	uploadURL := telemetryIngestURL(s.port)
+	profile := profileDirPath(smokeTestID, "protocol")
+	if status, ok := s.store.Get(smokeTestID); ok && status.Measured {
+		profile = measuredProfileDirPath(smokeTestID)
+	}
 	env := []string{
 		"SMOKE_TEST=1",
-		fmt.Sprintf("SMOKE_TEST_TIMEOUT_MS=%d", s.config.TimeoutMS()),
+		fmt.Sprintf("SMOKE_TEST_TIMEOUT_MS=%d", smokeTimeoutMS),
 		fmt.Sprintf("SMOKE_TEST_UPLOAD_URL=%s", uploadURL),
+		fmt.Sprintf("SMOKE_TEST_RUN_ID=%s", smokeTestID),
+		fmt.Sprintf("S2D_PACKAGED_LAUNCH_PATH=%s", packagedLaunchPath(smokeTestID, "protocol")),
+		fmt.Sprintf("S2D_PROFILE_MODE=%s", configuredProfileMode()),
+		fmt.Sprintf("S2D_PROFILE_DIR=%s", profile),
+	}
+	if runtime.GOOS == "linux" {
+		env = append(env, "TMPDIR="+smokeUserDataDirPath(smokeTestID, "", nil))
+	}
+	if status, ok := s.store.Get(smokeTestID); ok {
+		env = appendMeasuredLaunchEnvironment(env, status)
+	}
+	if status, ok := s.store.Get(smokeTestID); ok {
+		env = append(env, s.validationRendererEnvForStatus(ctx, status)...)
 	}
 
 	// When screen recording manages the display, tell Electron to render on it.
@@ -314,7 +535,10 @@ func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, arti
 
 	// Execute
 	workDir := filepath.Dir(artifactPath)
-	result, err := s.executor.ExecuteWithResult(ctx, workDir, cmd, args, env, s.config.Timeout())
+	// Leave a small grace period after the app's readiness budget so it can
+	// report a bounded startup diagnostic (including bundled service logs)
+	// instead of being killed in the same tick as its deadline.
+	result, err := s.executor.ExecuteWithResult(ctx, workDir, cmd, args, env, smokeTimeout+5*time.Second)
 
 	// Harvest process metrics.
 	s.harvestMonitor(monitor, smokeTestID)
@@ -326,6 +550,11 @@ func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, arti
 			status.LastStdout = truncateOutput(result.Stdout, 10000)
 			status.LastStderr = truncateOutput(result.Stderr, 10000)
 			status.OutputTruncated = result.Truncated
+			status.ProcessLifetimeChecks = append(status.ProcessLifetimeChecks, processLifetimeCheck("protocol", result, err))
+		})
+	} else {
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.ProcessLifetimeChecks = append(status.ProcessLifetimeChecks, ProcessLifetimeCheck{Stage: "protocol", Assertion: "launch did not produce an execution result"})
 		})
 	}
 
@@ -335,11 +564,18 @@ func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, arti
 	return result, err
 }
 
+func telemetryIngestURL(port int) string {
+	return fmt.Sprintf("http://127.0.0.1:%d%s", port, domainconnect.TelemetryServiceIngestTelemetryProcedure)
+}
+
 // executeDemoLaunch runs the app in normal mode for screen recording.
 // This is purely for capturing a realistic startup experience on video.
-// Errors are logged but do not affect the smoke test pass/fail result.
-func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, artifactPath, platform, displayID string) {
-	s.logger.Info("demo_launch_starting", "smoke_test_id", smokeTestID, "display", displayID)
+// The process completion is diagnostic; the desktop journey is the acceptance
+// gate for the recording. A normal demo process may remain alive until the
+// configured hold expires, but an absent/invalid application window must fail
+// the smoke test when evidence was requested.
+func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, scenarioName, artifactPath, platform string, rec recordingState, journeyID string) *deliveryramp.JourneyResult {
+	s.logger.Info("demo_launch_starting", "smoke_test_id", smokeTestID, "display", rec.displayID)
 	s.store.Update(smokeTestID, func(status *Status) {
 		status.Logs = append(status.Logs, "Starting demo launch for screen recording...")
 	})
@@ -347,26 +583,159 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, art
 	cmd, args, _, err := s.platformResolver.ResolveCommand(platform, artifactPath)
 	if err != nil {
 		s.logger.Warn("demo_launch_resolve_failed", "smoke_test_id", smokeTestID, "error", err.Error())
-		return
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.Logs = append(status.Logs, fmt.Sprintf("Demo launch could not resolve artifact: %v", err))
+		})
+		return nil
 	}
 
 	// Strip --smoke-test from args so the app launches in normal mode
 	args = StripSmokeTestFlag(args)
+	if status, ok := s.store.Get(smokeTestID); ok {
+		args = append(args, "--user-data-dir="+smokeUserDataDirPath(smokeTestID, "demo", status))
+	}
+	releaseFile := filepath.Join(os.TempDir(), "scenario-to-desktop", "demo-release-"+smokeTestID)
+	_ = os.Remove(releaseFile)
+	_ = os.MkdirAll(filepath.Dir(releaseFile), 0o700)
+	measured := false
+	profile := profileDirPath(smokeTestID, "demo")
+	if status, ok := s.store.Get(smokeTestID); ok && status.Measured {
+		measured = true
+		profile = measuredProfileDirPath(smokeTestID)
+	}
+	holdMs, demoTimeout := demoHoldTiming(measured)
 
 	env := []string{
-		fmt.Sprintf("DISPLAY=%s", displayID),
+		fmt.Sprintf("DISPLAY=%s", rec.displayID),
 		"SMOKE_TEST_DEMO=1",
-		fmt.Sprintf("SMOKE_TEST_DEMO_HOLD_MS=%d", DefaultDemoHoldMs),
+		fmt.Sprintf("SMOKE_TEST_DEMO_HOLD_MS=%d", holdMs),
+		fmt.Sprintf("SMOKE_TEST_RUN_ID=%s", smokeTestID),
+		fmt.Sprintf("S2D_PACKAGED_LAUNCH_PATH=%s", packagedLaunchPath(smokeTestID, "demo")),
+		fmt.Sprintf("S2D_PROFILE_MODE=%s", configuredProfileMode()),
+		fmt.Sprintf("S2D_PROFILE_DIR=%s", profile),
+		fmt.Sprintf("S2D_BUNDLED_TARGET_PATH=%s", bundledTargetPath(smokeTestID)),
+		fmt.Sprintf("SMOKE_TEST_DEMO_RELEASE_FILE=%s", releaseFile),
 	}
+	if runtime.GOOS == "linux" {
+		env = append(env, "TMPDIR="+smokeUserDataDirPath(smokeTestID, "", nil))
+	}
+	if status, ok := s.store.Get(smokeTestID); ok {
+		env = appendMeasuredLaunchEnvironment(env, status)
+		env = append(env, s.validationRendererEnvForStatus(ctx, status)...)
+	}
+	if status, ok := s.store.Get(smokeTestID); ok && status.Measured && status.Condition == "cold" {
+		residency, evictErr := evictAndMeasureArtifactPageCache(artifactPath)
+		if evictErr != nil {
+			s.store.Update(smokeTestID, func(status *Status) { status.Error = fmt.Sprintf("cold page-cache eviction unavailable: %v", evictErr) })
+			return nil
+		}
+		s.store.Update(smokeTestID, func(status *Status) { status.ArtifactPageCacheResidencyPct = &residency })
+	}
+	var monitor procmetrics.Monitor
+	s.installMonitorHook(rec.displayID, rec.displayWidth, rec.displayHeight, func(m procmetrics.Monitor) { monitor = m })
 
-	demoTimeout := 90 * time.Second
-	result, err := s.executor.ExecuteWithResult(ctx, filepath.Dir(artifactPath), cmd, args, env, demoTimeout)
+	// The measured hold includes readiness discovery, both required 60-second
+	// windows, the desktop journey, and its final shutdown observation.
+	resultCh := make(chan struct {
+		result *ExecutionResult
+		err    error
+	}, 1)
+	// The executor owns process-group cleanup; running it in parallel lets the
+	// journey interact with the application while the configured demo hold is
+	// still active.
+	go func() {
+		result, err := s.executor.ExecuteWithResult(ctx, filepath.Dir(artifactPath), cmd, args, env, demoTimeout)
+		resultCh <- struct {
+			result *ExecutionResult
+			err    error
+		}{result: result, err: err}
+	}()
+
+	if status, ok := s.store.Get(smokeTestID); ok && status.Measured {
+		mark, markErr := waitForPackagedMark(ctx, packagedLaunchPath(smokeTestID, "demo"), "app_interactive", 90*time.Second)
+		if markErr != nil {
+			s.logger.Warn("measured_interactive_mark_unavailable", "smoke_test_id", smokeTestID, "error", markErr)
+		} else {
+			interactiveAt := mark
+			if snapshotter, ok := monitor.(interface {
+				SnapshotAt(time.Time) (*procmetrics.ProcessTreeReport, bool)
+			}); ok {
+				if snapshot, available := snapshotter.SnapshotAt(interactiveAt); available {
+					s.store.Update(smokeTestID, func(status *Status) { status.InteractiveProcessTree = snapshot })
+				}
+			}
+			if err := waitUntil(ctx, interactiveAt.Add(60*time.Second)); err == nil {
+				if windower, ok := monitor.(interface {
+					Window(time.Time, time.Time) procmetrics.ProcessTreeWindow
+				}); ok {
+					window := windower.Window(interactiveAt, interactiveAt.Add(60*time.Second))
+					s.store.Update(smokeTestID, func(status *Status) { status.IdleCPUWindow = &window })
+				}
+			}
+		}
+	}
+	measureSteadyWindow := func() {
+		windowStarted := time.Now()
+		if waitUntil(ctx, windowStarted.Add(60*time.Second)) != nil {
+			return
+		}
+		if windower, ok := monitor.(interface {
+			Window(time.Time, time.Time) procmetrics.ProcessTreeWindow
+		}); ok {
+			window := windower.Window(windowStarted, windowStarted.Add(60*time.Second))
+			s.store.Update(smokeTestID, func(status *Status) { status.SteadyPSSWindow = &window })
+		}
+	}
+	journey := deliveryramp.JourneyResult{}
+	if status, ok := s.store.Get(smokeTestID); ok && status.Measured {
+		// The steady window follows all journey interactions and settles before
+		// the final quit step, so shutdown does not erase the measured process tree.
+		journey = s.runDesktopJourneyWithCapabilityBeforeQuit(ctx, smokeTestID, scenarioName, platform, rec, journeyID, measureSteadyWindow)
+	} else {
+		journey = s.runDesktopJourneyWithCapability(ctx, smokeTestID, scenarioName, platform, rec, journeyID)
+	}
+	// Give the final journey observation its normal settle window before
+	// releasing the demo. The desktop process remains bounded by demoTimeout.
+	select {
+	case <-ctx.Done():
+	case <-time.After(1500 * time.Millisecond):
+	}
+	_ = os.WriteFile(releaseFile, []byte("release\n"), 0o600)
+	attachWorkflowReference(&journey)
+	s.attachProviderJourney(ctx, &journey, smokeTestID, scenarioName, artifactPath, platform, journeyID)
+	journeyCaptureID := s.persistJourney(journey)
+	s.store.Update(smokeTestID, func(status *Status) {
+		status.JourneyCaptureID = journeyCaptureID
+		status.JourneyDisposition = string(journey.Disposition)
+		status.JourneyDegradedReason = journey.DegradedReason
+		status.EvidenceReview = reviewFromJourney(journey)
+		status.Logs = append(status.Logs, fmt.Sprintf("Desktop journey %s", journey.Disposition))
+	})
+
+	completed := <-resultCh
+	s.clearMonitorHook()
+	s.harvestDemoMonitor(monitor, smokeTestID)
+	result, err := completed.result, completed.err
+	if result != nil {
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.ProcessLifetimeChecks = append(status.ProcessLifetimeChecks, processLifetimeCheck("demo", result, err))
+		})
+	} else {
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.ProcessLifetimeChecks = append(status.ProcessLifetimeChecks, ProcessLifetimeCheck{Stage: "demo", Assertion: "launch did not produce an execution result"})
+		})
+	}
 
 	if err != nil {
 		s.logger.Warn("demo_launch_failed", "smoke_test_id", smokeTestID, "error", err.Error())
 		s.store.Update(smokeTestID, func(status *Status) {
-			status.Logs = append(status.Logs, fmt.Sprintf("Demo launch error (non-fatal): %v", err))
+			status.Logs = append(status.Logs, fmt.Sprintf("Demo launch completion warning: %v", err))
 		})
+		if strings.Contains(err.Error(), "post-launch descendant assertion") {
+			journey.Disposition = deliveryramp.DispositionFailed
+			journey.DegradedReason = "post_launch_descendant_assertion_failed"
+			s.store.Update(smokeTestID, func(status *Status) { status.Error = err.Error() })
+		}
 	} else {
 		exitCode := 0
 		if result != nil {
@@ -376,6 +745,336 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, art
 		s.store.Update(smokeTestID, func(status *Status) {
 			status.Logs = append(status.Logs, fmt.Sprintf("Demo launch completed (exit code: %d)", exitCode))
 		})
+	}
+	return &journey
+}
+
+func processLifetimeCheck(stage string, result *ExecutionResult, err error) ProcessLifetimeCheck {
+	check := ProcessLifetimeCheck{Stage: stage}
+	if result != nil {
+		check.SessionID = result.ProcessSessionID
+		check.Remaining = append([]int(nil), result.RemainingDescendantPIDs...)
+	}
+	check.Passed = result != nil && check.SessionID != "" && len(check.Remaining) == 0 && (err == nil || !strings.Contains(err.Error(), "post-launch descendant assertion"))
+	if !check.Passed {
+		if err != nil {
+			check.Assertion = err.Error()
+		} else {
+			check.Assertion = "post-launch descendant assertion did not pass"
+		}
+	}
+	return check
+}
+
+func appendMeasuredLaunchEnvironment(env []string, status *Status) []string {
+	if status == nil || !status.Measured {
+		return env
+	}
+	env = append(env, "SMOKE_TEST_MEASURED=1")
+	return append(env,
+		fmt.Sprintf("SMOKE_TEST_CONDITION=%s", status.Condition),
+		fmt.Sprintf("S2D_SCENARIO=%s", status.ScenarioName),
+		fmt.Sprintf("S2D_STRATEGY=%s", status.Strategy),
+		fmt.Sprintf("S2D_EXPERIMENT_ID=%s", status.ExperimentID),
+		fmt.Sprintf("S2D_ARTIFACT_DIGEST=%s", status.ArtifactDigest),
+	)
+}
+
+func (s *DefaultService) attachProviderJourney(ctx context.Context, journey *deliveryramp.JourneyResult, smokeTestID, scenarioName, artifactPath, platform, journeyID string) {
+	if s == nil || s.providerJourney == nil || journey == nil || !isProviderJourneyCapability(journeyID) {
+		return
+	}
+	workflowPath := strings.TrimSpace(journeyID)
+	if parts := strings.SplitN(workflowPath, ":", 2); len(parts) == 2 {
+		workflowPath = parts[1]
+	}
+	if !filepath.IsAbs(workflowPath) {
+		workflowPath = filepath.Join(s.providerScenarioRoot, scenarioName, workflowPath)
+	}
+	digest := ""
+	if data, err := os.ReadFile(artifactPath); err == nil {
+		hash := sha256.Sum256(data)
+		digest = "sha256:" + hex.EncodeToString(hash[:])
+	}
+	profileID := strings.TrimSpace(os.Getenv("S2D_JOURNEY_PROFILE"))
+	if profileID == "" && journey != nil {
+		profileID = strings.TrimSpace(journey.Profile)
+	}
+	if profileID == "" {
+		profileID = "normal-review"
+	}
+	validationTargetID := "local-" + platform
+	validationCellID := "cell-" + smokeTestID
+	journey.TargetID = validationTargetID
+	journey.CellID = validationCellID
+	provider := s.providerJourney.Execute(ctx, validationdesktop.Request{
+		RunID: smokeTestID, CellID: validationCellID, ScenarioName: scenarioName,
+		ScenarioRoot: s.providerScenarioRoot, ArtifactPath: artifactPath, ArtifactDigest: digest,
+		JourneyID: journeyID, WorkflowPath: workflowPath, TargetID: validationTargetID,
+		ProfileID: profileID, TargetAvailable: true,
+	})
+	journey.WorkflowRequired = true
+	ref := workflowReferenceFromProvider(provider, smokeTestID, validationTargetID, validationCellID, journeyID, digest)
+	journey.WorkflowReference = &ref
+	appendWorkflowChapter(journey, &ref, provider.Reason)
+	if provider.Disposition != "pass" {
+		journey.Disposition = deliveryramp.DispositionFailed
+		journey.DegradedReason = firstNonEmpty(provider.Reason, "provider workflow failed")
+	}
+}
+
+func workflowReferenceFromProvider(result validationdesktop.Result, runID, targetID, cellID, journeyID, digest string) deliveryramp.WorkflowExecutionReference {
+	artifacts := make([]deliveryramp.EvidenceReference, 0, len(result.Evidence))
+	for _, item := range result.Evidence {
+		if item == nil || item.GetKind() != domainv1.LayeredEvidence_KIND_BAS_WORKFLOW {
+			continue
+		}
+		artifacts = append(artifacts, deliveryramp.EvidenceReference{ID: item.GetEvidenceId(), Kind: item.GetKind().String(), URI: item.GetUri(), MediaType: item.GetMediaType(), Checksum: item.GetSha256(), Redacted: item.GetRedacted()})
+	}
+	disposition := result.Disposition
+	return deliveryramp.WorkflowExecutionReference{Provider: "workflow-health", AssetID: journeyID, ExecutionID: result.ProviderRunID, RunID: runID, ArtifactDigest: digest, TargetID: targetID, CellID: cellID, Disposition: disposition, Artifacts: artifacts}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+// attachWorkflowReference consumes the provider-neutral handoff produced by
+// the semantic workflow owner. The desktop runner does not discover or run a
+// provider; it only binds an optional reference to the target/cell identity
+// supplied by the validation orchestrator.
+func attachWorkflowReference(journey *deliveryramp.JourneyResult) {
+	if journey == nil {
+		return
+	}
+	journey.TargetID = strings.TrimSpace(os.Getenv("S2D_VALIDATION_TARGET_ID"))
+	journey.CellID = strings.TrimSpace(os.Getenv("S2D_VALIDATION_CELL_ID"))
+	path := strings.TrimSpace(os.Getenv("S2D_WORKFLOW_EVIDENCE_REFERENCE"))
+	if path == "" {
+		return
+	}
+	journey.WorkflowRequired = true
+	data, err := os.ReadFile(path)
+	if err != nil {
+		journey.Disposition = deliveryramp.DispositionFailed
+		journey.DegradedReason = fmt.Sprintf("workflow evidence reference unavailable: %v", err)
+		appendWorkflowChapter(journey, nil, journey.DegradedReason)
+		return
+	}
+	var reference deliveryramp.WorkflowExecutionReference
+	if err := json.Unmarshal(data, &reference); err != nil {
+		journey.Disposition = deliveryramp.DispositionFailed
+		journey.DegradedReason = fmt.Sprintf("workflow evidence reference is invalid: %v", err)
+		appendWorkflowChapter(journey, nil, journey.DegradedReason)
+		return
+	}
+	// The provider may finish before the desktop smoke run receives its
+	// server-generated ID. In that case the orchestrator leaves the shared run
+	// identity empty and this target-owned ingestion seam binds it exactly once
+	// to the desktop journey. Provider execution identity remains separate.
+	if strings.TrimSpace(reference.RunID) == "" {
+		reference.RunID = journey.SmokeTestID
+	}
+	if strings.TrimSpace(reference.TargetID) == "" {
+		reference.TargetID = journey.TargetID
+	}
+	if strings.TrimSpace(reference.CellID) == "" {
+		reference.CellID = journey.CellID
+	}
+	journey.WorkflowReference = &reference
+	if !strings.EqualFold(reference.Disposition, string(deliveryramp.DispositionPass)) && !strings.EqualFold(reference.Disposition, "passed") {
+		journey.Disposition = deliveryramp.DispositionFailed
+	}
+	appendWorkflowChapter(journey, &reference, "")
+}
+
+func appendWorkflowChapter(journey *deliveryramp.JourneyResult, reference *deliveryramp.WorkflowExecutionReference, reason string) {
+	if journey == nil {
+		return
+	}
+	start := journey.CompletedAt
+	if start.IsZero() {
+		start = time.Now().UTC()
+	}
+	monotonicStart := int64(0)
+	if len(journey.Steps) > 0 {
+		monotonicStart = journey.Steps[len(journey.Steps)-1].MonotonicEndMs + 1
+	}
+	end := start.Add(time.Millisecond)
+	monotonicEnd := monotonicStart + 1
+	disposition := deliveryramp.StepFailed
+	observed := "unavailable"
+	assertionID := "workflow-reference"
+	if reference != nil {
+		observed = reference.Disposition
+		assertionID = "workflow-execution:" + reference.ExecutionID
+		switch strings.ToLower(strings.TrimSpace(reference.Disposition)) {
+		case string(deliveryramp.DispositionPass), "passed":
+			disposition = deliveryramp.StepPassed
+		case string(deliveryramp.DispositionDegraded):
+			disposition = deliveryramp.StepDegraded
+		case string(deliveryramp.DispositionUnavailable), string(deliveryramp.DispositionUnsupported), string(deliveryramp.DispositionNotRun):
+			disposition = deliveryramp.StepUnavailable
+		}
+	}
+	step := deliveryramp.JourneyStep{
+		ID: "workflow", Name: "semantic_workflow", Purpose: "Prove the provider-owned scenario workflow passes in the generated desktop target.",
+		Action: "workflow_execution", Disposition: disposition, AssertionID: assertionID,
+		ExpectedState: "provider workflow passed", ObservedState: observed, Error: reason,
+		StartedAt: start, CompletedAt: end, MonotonicStartMs: monotonicStart, MonotonicEndMs: monotonicEnd,
+	}
+	if reference != nil {
+		step.Evidence = append(step.Evidence, reference.Artifacts...)
+	}
+	journey.Steps = append(journey.Steps, step)
+	journey.Events = append(journey.Events, deliveryramp.JourneyEvent{Type: "workflow_completed", StepID: step.ID, Observed: observed, StartedAt: start, CompletedAt: end, MonotonicStartMs: monotonicStart, MonotonicEndMs: monotonicEnd, Reason: reason})
+	journey.CompletedAt = end
+}
+
+// reportJourneyEvidence is deliberately called after finalizeRecording. A
+// verdict is not useful if it references the journey but omits the recording
+// that a reviewer must inspect. Reporting remains non-fatal to the local
+// smoke-test result, but its failure is recorded explicitly in status.
+func (s *DefaultService) reportJourneyEvidence(ctx context.Context, smokeTestID, platform string, journey *deliveryramp.JourneyResult) {
+	if s.evidenceReporter == nil || journey == nil {
+		return
+	}
+	profileID := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_PROFILE_ID"))
+	gitCommit := strings.TrimSpace(os.Getenv("VROOLI_GIT_COMMIT"))
+	if profileID == "" || gitCommit == "" || s.captures == nil {
+		return
+	}
+	status, ok := s.store.Get(smokeTestID)
+	if !ok || strings.TrimSpace(status.JourneyCaptureID) == "" {
+		return
+	}
+	items, err := s.captures.Store().List(status.ScenarioName)
+	if err != nil {
+		s.recordEvidenceReportFailure(smokeTestID, fmt.Errorf("list captures for evidence report: %w", err))
+		return
+	}
+	producerBaseURL, _ := discovery.ResolveScenarioURLDefault(ctx, "scenario-to-desktop")
+	artifactDigest := strings.TrimSpace(os.Getenv("VROOLI_ARTIFACT_DIGEST"))
+	if artifactDigest == "" && journey.WorkflowReference != nil {
+		artifactDigest = strings.TrimSpace(journey.WorkflowReference.ArtifactDigest)
+	}
+	if artifactDigest == "" && journey.ProviderObservation != nil {
+		artifactDigest = strings.TrimSpace(journey.ProviderObservation.ArtifactDigest)
+	}
+	reportErr := s.evidenceReporter.ReportJourney(ctx, EvidenceReportInput{
+		ProfileID: profileID, GitCommit: gitCommit, ArtifactDigest: artifactDigest,
+		CandidateID:           strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_CANDIDATE_ID")),
+		DestinationRevisionID: strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_DESTINATION_REVISION_ID")),
+		Channel:               strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_CHANNEL")), PolicyVersion: 2,
+		ScenarioName: status.ScenarioName,
+		Platform:     platform, RunID: smokeTestID, Disposition: string(journey.Disposition),
+		Target: &domainv1.EvidenceTarget{Kind: domainv1.EvidenceTarget_KIND_LOCAL}, Captures: items,
+		Journey: journey, ProducerBaseURL: producerBaseURL,
+	})
+	if reportErr != nil {
+		s.recordEvidenceReportFailure(smokeTestID, reportErr)
+		return
+	}
+	s.store.Update(smokeTestID, func(status *Status) {
+		status.EvidenceReportDisposition = "reported"
+		status.EvidenceReportError = ""
+		status.Logs = append(status.Logs, "Evidence verdict reported to deployment-manager")
+	})
+}
+
+func (s *DefaultService) recordEvidenceReportFailure(smokeTestID string, err error) {
+	s.store.Update(smokeTestID, func(status *Status) {
+		status.EvidenceReportDisposition = "failed"
+		status.EvidenceReportError = err.Error()
+		status.Logs = append(status.Logs, "Evidence report failed: "+err.Error())
+	})
+}
+
+func (s *DefaultService) writeEvidenceManifest(ctx context.Context, smokeTestID, artifactPath, platform string, journey *deliveryramp.JourneyResult) error {
+	if s.manifestWriter == nil || journey == nil || s.captures == nil {
+		return nil
+	}
+	status, ok := s.store.Get(smokeTestID)
+	if !ok {
+		return fmt.Errorf("read smoke test status for evidence manifest")
+	}
+	items, err := s.captures.Store().List(status.ScenarioName)
+	if err != nil {
+		return fmt.Errorf("list captures for evidence manifest: %w", err)
+	}
+	profile := strings.TrimSpace(os.Getenv("S2D_EVIDENCE_PROFILE"))
+	if profile == "" {
+		profile = "visual"
+	}
+	governanceReported := status.EvidenceReportDisposition == "reported"
+	journeyCaptureID, recordingCaptureID := status.JourneyCaptureID, ""
+	for _, item := range items {
+		if item.Type == captures.CaptureRecording && item.SourceSession == "smoke-test:"+smokeTestID {
+			recordingCaptureID = item.ID
+		}
+	}
+	visualReadiness := "unavailable"
+	if journey != nil {
+		for _, step := range journey.Steps {
+			if step.Disposition == deliveryramp.StepPassed && step.Geometry != nil && step.Geometry.Width > 0 && step.Geometry.Height > 0 {
+				visualReadiness = "usable"
+				break
+			}
+		}
+	}
+	demoTracePath := status.DemoTracePath
+	if strings.TrimSpace(demoTracePath) != "" {
+		if _, statErr := os.Stat(demoTracePath); statErr != nil {
+			// Launch traces are transient runtime files. Preserve strict trace
+			// validation when the file is present, but do not turn a durable
+			// journey/capture into a false visual-gate failure after cleanup.
+			demoTracePath = ""
+		}
+	}
+	err = s.manifestWriter.WriteManifest(ctx, EvidenceManifestInput{
+		RunID: smokeTestID, ScenarioName: status.ScenarioName, Platform: platform,
+		ArtifactPath: artifactPath, Profile: profile, StartedAt: status.StartedAt,
+		CompletedAt: time.Now().UTC(), Journey: journey, Captures: items,
+		GovernanceReported:      governanceReported,
+		ProtocolTracePath:       status.ProtocolTracePath,
+		DemoTracePath:           demoTracePath,
+		ProtocolResourceSummary: status.ProtocolResourceSummary,
+		DemoResourceSummary:     status.DemoResourceSummary,
+		DemoProcessTree:         status.DemoProcessTree,
+		ProtocolProcessTree:     status.ProtocolProcessTree,
+		ProtocolProfileDir:      status.ProtocolProfileDir,
+		DemoProfileDir:          status.DemoProfileDir,
+		ProfileMode:             configuredProfileMode(),
+		ProtocolPassed:          status.ProtocolPassed, VisualReadiness: visualReadiness,
+		JourneyCaptureID: journeyCaptureID, RecordingCaptureID: recordingCaptureID,
+		ScreenContentSource:   status.ScreenContentSource,
+		IsolationObservations: status.IsolationObservations,
+	})
+	if err != nil {
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.EvidenceReportDisposition = "manifest_failed"
+			status.EvidenceReportError = err.Error()
+			status.Logs = append(status.Logs, "Evidence manifest failed: "+err.Error())
+		})
+		return fmt.Errorf("write evidence manifest: %w", err)
+	}
+	s.store.Update(smokeTestID, func(status *Status) {
+		status.Logs = append(status.Logs, "Evidence manifest persisted")
+	})
+	return nil
+}
+
+func configuredProfileMode() string {
+	switch mode := strings.ToLower(strings.TrimSpace(os.Getenv("S2D_PROFILE_MODE"))); mode {
+	case "chromium", "cpu", "heap", "all":
+		return mode
+	default:
+		return "disabled"
 	}
 }
 
@@ -407,8 +1106,8 @@ func (s *DefaultService) executeWithRetry(ctx context.Context, smokeTestID, arti
 		result, err := s.executeSmokeTest(ctx, smokeTestID, artifactPath, cmd, args, displayCommand, displayID, displayWidth, displayHeight)
 		lastResult = result
 
-		if err == nil {
-			return result, nil
+		if status, ok := s.store.Get(smokeTestID); err == nil || ok && status.Measured {
+			return result, err
 		}
 
 		// Check if this is a retryable error
@@ -562,5 +1261,214 @@ func (s *DefaultService) harvestMonitor(monitor procmetrics.Monitor, smokeTestID
 		status.SplashDurationMs = report.Startup.SplashDurationMs
 		status.ReadyDurationMs = report.Startup.ReadyMs
 		status.ResourceSummary = report.Summary
+		status.ProtocolResourceSummary = report.Summary
+		status.ProtocolProcessTree = report.ProcessTree
+		status.ProtocolTracePath = packagedLaunchPath(smokeTestID, "protocol")
+		status.ProtocolProfileDir = profileDirPath(smokeTestID, "protocol")
+		refreshPerformanceStatus(status)
 	})
+}
+
+func (s *DefaultService) harvestDemoMonitor(monitor procmetrics.Monitor, smokeTestID string) {
+	if monitor == nil {
+		return
+	}
+	monitor.Stop()
+	report := monitor.Report()
+	if report == nil {
+		return
+	}
+	s.store.Update(smokeTestID, func(status *Status) {
+		status.DemoResourceSummary = report.Summary
+		status.DemoProcessTree = report.ProcessTree
+		status.SplashDurationMs = report.Startup.SplashDurationMs
+		status.ReadyDurationMs = report.Startup.ReadyMs
+		status.DemoTracePath = packagedLaunchPath(smokeTestID, "demo")
+		status.DemoProfileDir = profileDirPath(smokeTestID, "demo")
+		refreshPerformanceStatus(status)
+	})
+	if status, ok := s.store.Get(smokeTestID); ok && status.Measured {
+		if err := enrichPackagedLaunch(status); err != nil {
+			s.logger.Warn("packaged_launch_enrichment_failed", "smoke_test_id", smokeTestID, "error", err)
+			s.store.Update(smokeTestID, func(status *Status) { status.Error = err.Error() })
+		}
+	}
+}
+
+func enrichPackagedLaunch(status *Status) error {
+	if status == nil || status.DemoTracePath == "" {
+		return fmt.Errorf("measured packaged-launch path is missing")
+	}
+	sample, err := ReadPackagedLaunch(status.DemoTracePath)
+	if err != nil {
+		return err
+	}
+	sample.Scenario = status.ScenarioName
+	sample.Ramp = "desktop"
+	sample.Strategy = status.Strategy
+	sample.Platform = status.Platform
+	sample.ExperimentID = status.ExperimentID
+	sample.ArtifactDigest = status.ArtifactDigest
+	sample.Condition = status.Condition
+	sample.Display = "xvfb"
+	sample.HostFingerprint = localHostFingerprint()
+	if sample.AppInteractiveSource == "" {
+		sample.AppInteractiveSource = "unavailable"
+	}
+	// Packaged launch memory is defined at the renderer's interactive mark.
+	// The final whole-run process-tree report is useful diagnostics but is not a
+	// substitute for a timestamp-aligned observation.
+	processTree := status.InteractiveProcessTree
+	if processTree != nil {
+		sample.ProcessRoles = mergePackagedProcessRoles(sample.ProcessRoles, processTree)
+		var pss, uss int64
+		memoryComplete := true
+		for _, summary := range processTree.Roles {
+			if summary.ProcessCount == 0 {
+				continue
+			}
+			if !summary.MemoryStatsAvailable {
+				memoryComplete = false
+			}
+			if summary.MemoryStatsAvailable {
+				pss += summary.PSSBytes
+				uss += summary.USSBytes
+			}
+		}
+		setPackagedMetric(&sample, "tree_pss_mb", float64(pss)/1048576, "MB", memoryComplete, "PSS is summed across the process tree by role at app_interactive", "process smaps_rollup was unavailable")
+		setPackagedMetric(&sample, "tree_uss_mb", float64(uss)/1048576, "MB", memoryComplete, "USS is summed across the process tree by role at app_interactive", "process smaps_rollup was unavailable")
+	}
+	if status.ArtifactPath != "" {
+		if info, statErr := os.Stat(status.ArtifactPath); statErr == nil {
+			setPackagedMetric(&sample, "artifact_bytes", float64(info.Size()), "bytes", true, "built AppImage file size", "")
+			setPackagedMetric(&sample, "installed_bytes", 0, "bytes", false, "", "AppImage contents were not extracted, so installed tree size was not measured")
+		}
+	}
+	if status.IdleCPUWindow != nil {
+		window := status.IdleCPUWindow
+		setPackagedMetric(&sample, "idle_cpu_pct", window.AverageCPUPercent, "%", window.CPUAvailable, window.Reason, window.Reason)
+	} else {
+		setPackagedMetric(&sample, "idle_cpu_pct", 0, "%", false, "", "the required 60-second no-input window was not collected")
+	}
+	if status.SteadyPSSWindow != nil {
+		window := status.SteadyPSSWindow
+		setPackagedMetric(&sample, "steady_pss_mb", float64(window.PSSBytes)/1048576, "MB", window.MemoryAvailable, window.Reason, window.Reason)
+	} else {
+		setPackagedMetric(&sample, "steady_pss_mb", 0, "MB", false, "", "the required post-journey 60-second PSS window was not collected")
+	}
+	setPackagedMetric(&sample, "update_bytes", 0, "bytes", false, "", "this strategy does not provide a delta update artifact")
+	if status.Condition == "cold" && status.ArtifactPageCacheResidencyPct != nil {
+		sample.PlatformDetail = &PackagedPlatformDetail{LinuxDesktop: &LinuxDesktopDetail{ArtifactPageCacheResidencyPct: *status.ArtifactPageCacheResidencyPct}}
+	}
+	if err := sample.Validate(); err != nil {
+		return fmt.Errorf("validate enriched packaged launch: %w", err)
+	}
+	data, err := json.MarshalIndent(sample, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode enriched packaged launch: %w", err)
+	}
+	tmpPath := status.DemoTracePath + ".enriched.tmp"
+	if err := os.WriteFile(tmpPath, append(data, '\n'), 0o600); err != nil {
+		return fmt.Errorf("persist enriched packaged launch: %w", err)
+	}
+	if err := os.Rename(tmpPath, status.DemoTracePath); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("publish enriched packaged launch: %w", err)
+	}
+	return nil
+}
+
+func mergePackagedProcessRoles(existing []PackagedProcessRole, tree *procmetrics.ProcessTreeReport) []PackagedProcessRole {
+	if tree == nil || !tree.Supported {
+		return existing
+	}
+	roles := make([]procmetrics.ProcessRole, 0, len(tree.Roles))
+	for role := range tree.Roles {
+		roles = append(roles, role)
+	}
+	sort.Slice(roles, func(i, j int) bool { return roles[i] < roles[j] })
+	merged := make([]PackagedProcessRole, 0, len(roles))
+	for _, role := range roles {
+		summary := tree.Roles[role]
+		available := summary.ProcessCount == 0 || summary.MemoryStatsAvailable
+		reason := "Linux process census observed no process for this role"
+		if summary.ProcessCount > 0 {
+			reason = "smaps_rollup supplied PSS and USS for every process"
+			if !summary.MemoryStatsAvailable {
+				reason = "one or more processes did not expose smaps_rollup PSS/USS"
+			}
+		}
+		merged = append(merged, PackagedProcessRole{
+			Role: string(role), GenericRole: string(procmetrics.GenericProcessRole(role)),
+			ProcessCount: int32(summary.ProcessCount), RSSMB: float64(summary.RSSBytes) / 1048576,
+			PSSMB: float64(summary.PSSBytes) / 1048576, USSMB: float64(summary.USSBytes) / 1048576,
+			Availability: LaunchAvailability{State: availabilityState(available), Reason: reason},
+		})
+	}
+	return merged
+}
+
+func waitForPackagedMark(ctx context.Context, path, name string, timeout time.Duration) (time.Time, error) {
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if sample, err := ReadPackagedLaunch(path); err == nil {
+			if mark, ok := sample.Mark(name); ok && mark.Availability.State == "available" {
+				return sample.CapturedAt.Add(time.Duration(mark.ElapsedNs)), nil
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return time.Time{}, ctx.Err()
+		case <-deadline.C:
+			return time.Time{}, fmt.Errorf("timed out waiting for %s mark", name)
+		case <-ticker.C:
+		}
+	}
+}
+
+func waitUntil(ctx context.Context, target time.Time) error {
+	delay := time.Until(target)
+	if delay <= 0 {
+		return nil
+	}
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func availabilityState(available bool) string {
+	if available {
+		return "available"
+	}
+	return "unavailable"
+}
+
+func setPackagedMetric(sample *PackagedLaunchSample, name string, value float64, unit string, available bool, availableReason, unavailableReason string) {
+	reason := unavailableReason
+	if available {
+		reason = availableReason
+	}
+	metric := PackagedLaunchMetric{Name: name, Value: value, Unit: unit, Availability: LaunchAvailability{State: availabilityState(available), Reason: reason}}
+	for i := range sample.Metrics {
+		if sample.Metrics[i].Name == name {
+			sample.Metrics[i] = metric
+			return
+		}
+	}
+	sample.Metrics = append(sample.Metrics, metric)
+}
+
+func localHostFingerprint() string {
+	hostname, _ := os.Hostname()
+	identity := strings.Join([]string{runtime.GOOS, runtime.GOARCH, hostname}, "|")
+	digest := sha256.Sum256([]byte(identity))
+	return "sha256:" + hex.EncodeToString(digest[:])
 }

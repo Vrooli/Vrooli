@@ -1,0 +1,1867 @@
+{
+  "id": "us-v-1hq3-public-forfeiture",
+  "title": "United States v. 1HQ3 \u2014 public BTC flow excerpt",
+  "summary": "Reconstructs the 2013 confirmed 54-input transaction from the two addresses named in the complaint to 1HQ3, then the 2015 101 BTC output and same-address return. It does not recreate the complaint\u2019s 54 upstream Silk Road transfers.",
+  "private": true,
+  "sources": [
+    {
+      "id": "doj-complaint",
+      "name": "U.S. v. Approximately 69,370 Bitcoin \u2014 Complaint for Forfeiture",
+      "url": "https://www.justice.gov/d9/press-releases/attachments/2020/11/05/complaint_crypto_seizure.pdf",
+      "retrieved_at": "2026-11-12T10:05:12Z",
+      "sha256": "b1c377d146883fe754731c93939632fdbfe775224c6d4448bc47f8d3e4e7665c",
+      "citation": "Case 3:20-cv-07811-VC, filed 2020-11-05, paragraphs 15-19 (PDF pages 4-5).",
+      "limitations": "A complaint records allegations, not a final finding about address control or identity."
+    },
+    {
+      "id": "doj-complaint-recapture",
+      "name": "U.S. Department of Justice complaint PDF capture",
+      "url": "https://www.justice.gov/d9/press-releases/attachments/2020/11/05/complaint_crypto_seizure.pdf",
+      "retrieved_at": "2026-11-12T10:05:12Z",
+      "sha256": "b1c377d146883fe754731c93939632fdbfe775224c6d4448bc47f8d3e4e7665c",
+      "citation": "Case 3:20-cv-07811-VC, paragraphs 15-19, PDF pages 4-5; raw file bundled under complaint-captures/.",
+      "limitations": "The complaint records allegations, not a final finding about address control or identity."
+    },
+    {
+      "id": "mempool-tx-2013",
+      "name": "mempool.space Bitcoin transaction API",
+      "url": "https://mempool.space/api/tx/5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "retrieved_at": "2026-11-09T22:00:54Z",
+      "sha256": "493c5148a9a8570952d59ebb361ab42dcbc1d90e4f3f4bbc6ed13fdfe60320c5",
+      "citation": "Transaction 5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c; block 230514.",
+      "limitations": "Public explorer API response captured at retrieval time; this project does not operate the provider or guarantee its availability."
+    },
+    {
+      "id": "mempool-tx-2015",
+      "name": "mempool.space Bitcoin transaction API",
+      "url": "https://mempool.space/api/tx/97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff",
+      "retrieved_at": "2026-11-09T22:00:54Z",
+      "sha256": "90be90cb9d859c5420c4427b5a6f4a63f3a21cddb39276be69836e1f5eeff57e",
+      "citation": "Transaction 97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff; block 353375.",
+      "limitations": "Public explorer API response captured at retrieval time; transaction output destination is not itself an exchange identity."
+    },
+    {
+      "id": "blockstream-tx-2013",
+      "name": "Blockstream Esplora Bitcoin transaction API",
+      "url": "https://blockstream.info/api/tx/5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "retrieved_at": "2026-11-12T09:59:57Z",
+      "sha256": "394201b302986fe5cd9d330ee4693223c2c4308b404afb1067a4e5e0d85ae4fa",
+      "citation": "Independent Esplora response for transaction 5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c; bundled as counterexample-captures/<txid>.json.",
+      "limitations": "Public explorer API response captured at retrieval time; it independently corroborates chain fields, not address identity."
+    },
+    {
+      "id": "blockstream-tx-2015",
+      "name": "Blockstream Esplora Bitcoin transaction API",
+      "url": "https://blockstream.info/api/tx/97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff",
+      "retrieved_at": "2026-11-12T09:59:57Z",
+      "sha256": "5cb07b9a62568387d2a6928b17811d58ec8443f245a37a307a08ad106c738760",
+      "citation": "Independent Esplora response for transaction 97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff; bundled as counterexample-captures/<txid>.json.",
+      "limitations": "Public explorer API response captured at retrieval time; it independently corroborates chain fields, not address identity."
+    }
+  ],
+  "claims": [
+    {
+      "id": "complaint-1hq3-history",
+      "text": "The complaint states that a third-party attribution company found 54 Silk Road transfers totaling 70,411.46 BTC to 1BADznNF3W1gi47R65MQs754KB7zTaGuYZ and 1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN; it says these addresses later sent 69,471.082201 BTC to 1HQ3 and that 1HQ3 later sent 101 BTC to BTC-e.",
+      "source_id": "doj-complaint-recapture",
+      "kind": "legal_claim"
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:0",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 0,
+      "direction": "input",
+      "previous_transaction_id": "fae7b816c159c42cd3b5784e1b99998afa2d3b088a6eea89562724e7e7511d18",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "100000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:1",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 1,
+      "direction": "input",
+      "previous_transaction_id": "deacfccbd80ba33d30a02c804a32e3cded4849b610e449a41ceca6cfc8c2770f",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "50000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:2",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 2,
+      "direction": "input",
+      "previous_transaction_id": "dd31b49e4691ac7041679f39e8800e6da5f315da5d0dcc30bdadde6628299c08",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "100000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:3",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 3,
+      "direction": "input",
+      "previous_transaction_id": "00b6dc5aee0b6c0bd38ee7f7bb5d4e24cc413b97e095a89682e96885317f4225",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "25000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:4",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 4,
+      "direction": "input",
+      "previous_transaction_id": "b5fbb7ff3aafe2353418974e36da3786dafaa7b061fb506e50c09adc6dbecd1c",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "250000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:5",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 5,
+      "direction": "input",
+      "previous_transaction_id": "72234f47d04a2ce23b9af86dbc57863eeb0402b9e1fa299815d2e7c9cd0ad010",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "250000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:6",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 6,
+      "direction": "input",
+      "previous_transaction_id": "08c22b663feecc3dcc88c12efda61a733998ce5bec0ebd2bff6d8d56bf9c8211",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "25000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:7",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 7,
+      "direction": "input",
+      "previous_transaction_id": "25046bc0e253c504e5db231e07fe75f0846e40d3146cc01b221ced4f46af2615",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "60000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:8",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 8,
+      "direction": "input",
+      "previous_transaction_id": "55f48659d94ad503c31d4daa6dc21b1b3273cf1036572be604f437ad7a240d04",
+      "previous_output_index": 4,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "976300",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:9",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 9,
+      "direction": "input",
+      "previous_transaction_id": "55f48659d94ad503c31d4daa6dc21b1b3273cf1036572be604f437ad7a240d04",
+      "previous_output_index": 18,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "976300",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:10",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 10,
+      "direction": "input",
+      "previous_transaction_id": "fa726513bf4686a0fabfa2f6e93e0671d4ab299c9c86633d5999f199e54e6e09",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "25000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:11",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 11,
+      "direction": "input",
+      "previous_transaction_id": "2cde26a48fe8e4df185e93efb17a101d60c36045d596babd10c10b6893fd39fd",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "25000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:12",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 12,
+      "direction": "input",
+      "previous_transaction_id": "42d49182c0c93123768768a28ce5a1646523a26858eeec534cc1fb069be187d8",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "250000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:13",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 13,
+      "direction": "input",
+      "previous_transaction_id": "8bdbd07f98db99438b40d8c33487c5ab26d6d2869f2f0c23daa9c6fc0776b1da",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "100000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:14",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 14,
+      "direction": "input",
+      "previous_transaction_id": "691c1ae2e6c06d2015e285801b239e18836f1ed2a9426f1c56036c1559972ce2",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "18000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:15",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 15,
+      "direction": "input",
+      "previous_transaction_id": "8b8f4c7e953473d3235ceca9819008797f9ab8b12425bc4fe2ed5e28fd3522eb",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "100000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:16",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 16,
+      "direction": "input",
+      "previous_transaction_id": "160bbc1ec5a6168984e53873956e8f6da24684089454ddb5ce7c43883e3760df",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "250000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:17",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 17,
+      "direction": "input",
+      "previous_transaction_id": "2c49de39a8229817d30149823cbf0d07fbe7054c83cc89c944008c3c6e8529da",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "250000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:18",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 18,
+      "direction": "input",
+      "previous_transaction_id": "3d32363fc7097ded27b2702680b6c9495e4770326bc1b375bb7cdd7ace11b9f3",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "100000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:19",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 19,
+      "direction": "input",
+      "previous_transaction_id": "2da17cc64afc99b9966a4a40c40f0b3e19cdc3dbbdde2ba133707731362aa4be",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "198700000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:20",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 20,
+      "direction": "input",
+      "previous_transaction_id": "abb2346b9e130a9277a2f8e070f0a439497add373e6a157d1aab640c8bf09cc9",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "100000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:21",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 21,
+      "direction": "input",
+      "previous_transaction_id": "14e8266424159798fd77f9922105cf97724252d6b8d3251d4a8e45a4e99f61d1",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "185200000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:22",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 22,
+      "direction": "input",
+      "previous_transaction_id": "b0345e007c83746572db436aa73b84c219ee5a61027a573a7b5dc8e85f49b4c9",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "250000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:23",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 23,
+      "direction": "input",
+      "previous_transaction_id": "c08dedb6f11e6be931c6920a736ae5f621a82de08b0b21bc5d1e53222acc6fcf",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "25000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:24",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 24,
+      "direction": "input",
+      "previous_transaction_id": "c6378bf939af76fc1414bb93046de2467da7b91ac920f88dca6bfea7f4a36fcd",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "163900000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:25",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 25,
+      "direction": "input",
+      "previous_transaction_id": "2368291c68642d7d91109c5763b3b9401ed40fa48b44f716c5ee3974e0c030c9",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "25000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:26",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 26,
+      "direction": "input",
+      "previous_transaction_id": "c336a39f8ad9484483e5cbe5e06d278b6cc30391f17fd2a78faa8d5eacce4ab4",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "250000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:27",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 27,
+      "direction": "input",
+      "previous_transaction_id": "112b2cd65f2922c889ce1e76aa7fa45b955c83457e9bb8d0af1f38dd753f3ebc",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "173500000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:28",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 28,
+      "direction": "input",
+      "previous_transaction_id": "0672475663eafa5c92c33b0fced4ce05d401c20f3f7952cc1cfb83d55db5bfc6",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "250000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:29",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 29,
+      "direction": "input",
+      "previous_transaction_id": "855cbfc3142c8f48de06f3fd37a3dbb23140e97dfce1ecb0669bb9e578f31334",
+      "previous_output_index": 0,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "100",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:30",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 30,
+      "direction": "input",
+      "previous_transaction_id": "3995cbe9c1c16bb4c1e445d2b2009623b1e015b9f0babaf1a99bd79758a9e875",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "250000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:31",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 31,
+      "direction": "input",
+      "previous_transaction_id": "f216c0a9eecbb01d224933ee584e1bcaa5b5eb0d76852f19e9d3557f752c6c74",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "250000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:32",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 32,
+      "direction": "input",
+      "previous_transaction_id": "4473c24423f83397d0ace7ae6dc331952452e98739c2062ea0cbd88dcc31c388",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "100000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:33",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 33,
+      "direction": "input",
+      "previous_transaction_id": "c58b1bc62eafe5db8d125ce14d7ee88969546240ea50afef4bf18e0e8c73b699",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "250000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:34",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 34,
+      "direction": "input",
+      "previous_transaction_id": "d82f95b16fb5a34b37471b526682ffac04cf55fb308a494bd57a4f420d546f82",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "250000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:35",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 35,
+      "direction": "input",
+      "previous_transaction_id": "4a9801d91da665d89014a4af1efd4f387dd36c16aaa5f420cb5abcbf227e3e8c",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "250000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:36",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 36,
+      "direction": "input",
+      "previous_transaction_id": "b56d0678b793daf63bcb13cfc8ca67779ec8fd76d5aacf2552b0d35a71ef3363",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "69964000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:37",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 37,
+      "direction": "input",
+      "previous_transaction_id": "9dd69a7f67edfe2a0ea9595ed1519d26fc5f21be97c8820187894b8ef939778f",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "25000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:38",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 38,
+      "direction": "input",
+      "previous_transaction_id": "fb4c5175775187d07aff036ca345d8005dda5f609c9d4887b764648f76322891",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "100000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:39",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 39,
+      "direction": "input",
+      "previous_transaction_id": "8e435f13290421241a4206a22e449c82a687cf847b9435517b4e44137877b598",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "50000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:40",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 40,
+      "direction": "input",
+      "previous_transaction_id": "23f32af6da39992bf2853d0c83bb6a69f3167dc0023a0d28f9963fe6defbfa9b",
+      "previous_output_index": 4,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "57133700",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:41",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 41,
+      "direction": "input",
+      "previous_transaction_id": "23f32af6da39992bf2853d0c83bb6a69f3167dc0023a0d28f9963fe6defbfa9b",
+      "previous_output_index": 23,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "3133700",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:42",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 42,
+      "direction": "input",
+      "previous_transaction_id": "e32c9ab9b6555dd89d4ad4868859d664999958b6fd510ae3574dd9b68cfd2b80",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "100000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:43",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 43,
+      "direction": "input",
+      "previous_transaction_id": "6a97b814453a25e3329b94142b3f96c3884a9b1ded40f61347d227872af8d063",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "250000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:44",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 44,
+      "direction": "input",
+      "previous_transaction_id": "e8b499843ad7d27cbf3e1b11fa10ad519a88ca011e954ee6e2fae9afa1dd677f",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "145746000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:45",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 45,
+      "direction": "input",
+      "previous_transaction_id": "84f7c52ea5476d93b01b3af710d69c7ce23a1f844189696c8c32a96f6a351327",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "250000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:46",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 46,
+      "direction": "input",
+      "previous_transaction_id": "a1818472b5c561bd732e0cf70111aca267990b89316c8ad6f31bd04d93547243",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "18000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:47",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 47,
+      "direction": "input",
+      "previous_transaction_id": "1173f4397800fde616400c617412f2086e2feef2666ffa39db34e387411d1231",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "250000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:48",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 48,
+      "direction": "input",
+      "previous_transaction_id": "4693a2ace6c1628b5cb98e9eeec7c9720ead680806d3366f7bcb86c2a163b35e",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "250000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:49",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 49,
+      "direction": "input",
+      "previous_transaction_id": "00124469822288bf10667cb27beb86eaa151fb5438c02aa3a4da73ebf7542548",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "50000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:50",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 50,
+      "direction": "input",
+      "previous_transaction_id": "8887b85f4ad9cf92598e3847c2cf1b2b6d46aa02d203d92bf68c7a7256394237",
+      "previous_output_index": 1,
+      "from": "1BBqjKsYuLEUE9Y5WzdbzCtYzCiQgHqtPN",
+      "asset": "BTC",
+      "atomic_quantity": "250000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:51",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 51,
+      "direction": "input",
+      "previous_transaction_id": "13a43e68ad7a055232d9165435eec065303447d207c7b68b2c9bc267be645f50",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "100000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:52",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 52,
+      "direction": "input",
+      "previous_transaction_id": "d398a470da6232f26967aeb121f3345af19c1e625e37107027543ccf0e849950",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "25000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:53",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 53,
+      "direction": "input",
+      "previous_transaction_id": "0fa36008a734769fa46a027231a35944a773785ba5d5fa021d7c6c564366da54",
+      "previous_output_index": 1,
+      "from": "1BADznNF3W1gi47R65MQs754KB7zTaGuYZ",
+      "asset": "BTC",
+      "atomic_quantity": "100000000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 0,
+      "direction": "output",
+      "to": "1HQ3Go3ggs8pFnXuHVHRytPCq5fGG8Hbhx",
+      "asset": "BTC",
+      "atomic_quantity": "6947108220100",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:in:0",
+      "chain": "bitcoin",
+      "transaction_id": "97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff",
+      "block_height": 353375,
+      "timestamp": "2015-04-23T14:10:25Z",
+      "event_index": 0,
+      "direction": "input",
+      "previous_transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "previous_output_index": 0,
+      "from": "1HQ3Go3ggs8pFnXuHVHRytPCq5fGG8Hbhx",
+      "asset": "BTC",
+      "atomic_quantity": "6947108220100",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2015"
+    },
+    {
+      "id": "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:out:0",
+      "chain": "bitcoin",
+      "transaction_id": "97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff",
+      "block_height": 353375,
+      "timestamp": "2015-04-23T14:10:25Z",
+      "event_index": 0,
+      "direction": "output",
+      "from": "1HQ3Go3ggs8pFnXuHVHRytPCq5fGG8Hbhx",
+      "to": "1PLbnu8oYYyyXftkCBW4so6KHNKkpnexCB",
+      "asset": "BTC",
+      "atomic_quantity": "10100000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2015"
+    },
+    {
+      "id": "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:out:1",
+      "chain": "bitcoin",
+      "transaction_id": "97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff",
+      "block_height": 353375,
+      "timestamp": "2015-04-23T14:10:25Z",
+      "event_index": 1,
+      "direction": "output",
+      "from": "1HQ3Go3ggs8pFnXuHVHRytPCq5fGG8Hbhx",
+      "to": "1HQ3Go3ggs8pFnXuHVHRytPCq5fGG8Hbhx",
+      "asset": "BTC",
+      "atomic_quantity": "6937008220100",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2015"
+    }
+  ],
+  "edges": [
+    {
+      "id": "transaction-input-to-sole-output-00",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:0",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:0",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-01",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:1",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:1",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-02",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:2",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:2",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-03",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:3",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:3",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-04",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:4",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:4",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-05",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:5",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:5",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-06",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:6",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:6",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-07",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:7",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:7",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-08",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:8",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:8",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-09",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:9",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:9",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-10",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:10",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:10",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-11",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:11",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:11",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-12",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:12",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:12",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-13",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:13",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:13",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-14",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:14",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:14",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-15",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:15",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:15",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-16",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:16",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:16",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-17",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:17",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:17",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-18",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:18",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:18",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-19",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:19",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:19",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-20",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:20",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:20",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-21",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:21",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:21",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-22",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:22",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:22",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-23",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:23",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:23",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-24",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:24",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:24",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-25",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:25",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:25",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-26",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:26",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:26",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-27",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:27",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:27",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-28",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:28",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:28",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-29",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:29",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:29",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-30",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:30",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:30",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-31",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:31",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:31",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-32",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:32",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:32",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-33",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:33",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:33",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-34",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:34",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:34",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-35",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:35",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:35",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-36",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:36",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:36",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-37",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:37",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:37",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-38",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:38",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:38",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-39",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:39",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:39",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-40",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:40",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:40",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-41",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:41",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:41",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-42",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:42",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:42",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-43",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:43",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:43",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-44",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:44",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:44",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-45",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:45",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:45",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-46",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:46",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:46",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-47",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:47",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:47",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-48",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:48",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:48",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-49",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:49",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:49",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-50",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:50",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:50",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-51",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:51",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:51",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-52",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:52",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:52",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-sole-output-53",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:53",
+      "to_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "grade": "observed",
+      "rule": "single-output-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:in:53",
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0"
+      ],
+      "caveats": [
+        "This confirmed transaction has 54 inputs from the two published receiving addresses and one output to 1HQ3. The transaction does not independently prove where those inputs originated before arriving at those addresses, or assign particular satoshis to a distinct downstream output."
+      ]
+    },
+    {
+      "id": "utxo-spend-2013-to-2015-payment",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "to_occurrence": "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:in:0",
+      "grade": "observed",
+      "rule": "bitcoin-input-outpoint-linked-to-explicit-output",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+        "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:in:0"
+      ],
+      "caveats": [
+        "The chain proves an output was spent into this transaction; it does not identify a natural person or prove intent.",
+        "The complaint calls the 101 BTC destination BTC-e; this transaction alone does not prove that service label."
+      ]
+    },
+    {
+      "id": "transaction-input-to-payment-output",
+      "from_occurrence": "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:in:0",
+      "to_occurrence": "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:out:0",
+      "grade": "observed",
+      "rule": "single-input-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:in:0",
+        "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:out:0"
+      ],
+      "caveats": [
+        "The chain shows this one input and its outputs in the same transaction; it does not allocate particular satoshis to a particular output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-change-output",
+      "from_occurrence": "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:in:0",
+      "to_occurrence": "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:out:1",
+      "grade": "observed",
+      "rule": "single-input-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:in:0",
+        "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:out:1"
+      ],
+      "caveats": [
+        "The chain shows this one input and its outputs in the same transaction; it does not allocate particular satoshis to a particular output."
+      ]
+    }
+  ],
+  "gaps": [
+    "The complaint alleges 54 upstream Silk Road transfers totaling 70,411.46 BTC to the two named addresses. This case captures the later 54-input consolidation spend from those addresses to 1HQ3, but not all upstream transfer transactions.",
+    "The BTC-e label is retained as a complaint assertion and is not independently corroborated by a public deposit-cluster label.",
+    "This selected excerpt does not establish ownership, identity, intent, liability, or a complete case history."
+  ],
+  "counterexamples": [
+    "The 2015 transaction spends one 69,471.08220100 BTC outpoint into both a 101 BTC output to 1PLbnu8oYYyyXftkCBW4so6KHNKkpnexCB and a 69,370.08220100 BTC output back to 1HQ3. A transaction-level rule that labels every output as BTC-e flow would misclassify the large same-address return output; exact outpoint linkage proves transaction membership, not an allocation of input satoshis to either output.",
+    "The 101 BTC destination is a single address in this excerpt. No bundled source identifies it as a BTC-e deposit cluster, and a public service label would still not establish who controlled the address at the time."
+  ],
+  "source_disagreements": [
+    "For the 2015 transaction, mempool.space includes sigops=8 while Blockstream Esplora omits the sigops field. Both raw captures agree on the txid, confirmed block, timestamp, exact input outpoint/value, and both output addresses/values; this metadata difference does not alter the reconstructed flow. The complaint's BTC-e label remains an allegation without a corroborating deposit-cluster source in this packet."
+  ]
+}

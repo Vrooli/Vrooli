@@ -1,0 +1,40 @@
+{
+  "metadata": {
+    "name": "nutrition-planner-week-desktop-surface",
+    "description": "Open the weekly plan at desktop width and verify its dated surface renders.",
+    "requirement": "ACT-019",
+    "version": "1",
+    "labels": { "reset": "none", "surface": "week", "viewport": "desktop" },
+    "execution_mode": "observer"
+  },
+  "settings": { "viewport_width": 1280, "viewport_height": 800 },
+  "nodes": [
+    {
+      "id": "open-week",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "nutrition-planner",
+          "scenario_path": "/week",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open Week" }
+      }
+    },
+    {
+      "id": "assert-week",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.week",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "Week heading did not render at desktop width"
+        },
+        "metadata": { "label": "Week surface is visible" }
+      }
+    }
+  ]
+}

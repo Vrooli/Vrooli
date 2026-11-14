@@ -1,0 +1,10 @@
+{
+  "gate": "i18n",
+  "assetId": "calibration.i18n",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.i18n",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "description": "Contains an intentional hard-coded user-facing label."
+}

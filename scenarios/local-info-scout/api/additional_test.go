@@ -42,11 +42,11 @@ func TestInitRedis(t *testing.T) {
 		os.Setenv("REDIS_HOST", "invalid-host-xyz")
 		os.Setenv("REDIS_PORT", "9999")
 
-		// Should not panic
 		initRedis()
 
-		// Redis client should be nil or disconnected
-		t.Log("Handled invalid Redis config gracefully")
+		if redisClient != nil {
+			t.Fatal("unreachable Redis must disable caching")
+		}
 	})
 }
 
@@ -88,7 +88,7 @@ func TestInitDB(t *testing.T) {
 		os.Setenv("POSTGRES_DB", "local_info_scout_test")
 
 		// Call initDB
-		initDB()
+		initDB(boundedStartup(t))
 
 		// DB may or may not be available, just verify no panic
 		if db != nil {
@@ -102,11 +102,11 @@ func TestInitDB(t *testing.T) {
 		os.Setenv("POSTGRES_HOST", "invalid-host-xyz")
 		os.Setenv("POSTGRES_PORT", "9999")
 
-		// Should not panic
-		initDB()
+		initDB(boundedStartup(t))
 
-		// DB should be nil
-		t.Log("Handled invalid DB config gracefully")
+		if db != nil {
+			t.Fatal("unreachable database must disable persistence")
+		}
 	})
 }
 
@@ -138,7 +138,6 @@ func TestSavePlaceToDb(t *testing.T) {
 
 		place := createTestPlace("1", "Test Place", "restaurant", 0.5, 4.5)
 		err := savePlaceToDb(place)
-
 		if err != nil {
 			t.Logf("Expected nil error with nil DB, got: %v", err)
 		}
@@ -367,7 +366,6 @@ func TestClearCacheNilClient(t *testing.T) {
 	defer func() { redisClient = origClient }()
 
 	err := clearCache()
-
 	if err != nil {
 		t.Errorf("Should not error with nil client, got: %v", err)
 	}

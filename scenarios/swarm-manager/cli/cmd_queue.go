@@ -16,7 +16,7 @@ func (a *App) cmdQueueList(args []string) error {
 		return err
 	}
 
-	body, err := a.getV1("/queue", nil)
+	body, err := a.core.Get("/queue", nil)
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func (a *App) cmdQueueCreate(args []string) error {
 		return fmt.Errorf("failed to build request: %w", err)
 	}
 
-	body, err := a.requestV1("POST", "/queue", nil, json.RawMessage(requestBody))
+	body, err := a.core.Request("POST", "/queue", nil, json.RawMessage(requestBody))
 	if err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func (a *App) cmdQueueDelete(args []string) error {
 	}
 	id := strings.TrimSpace(*idFlag)
 
-	body, err := a.requestV1("DELETE", "/queue/"+id, nil, nil)
+	body, err := a.core.Request("DELETE", "/queue/"+id, nil, nil)
 	if err != nil {
 		return err
 	}

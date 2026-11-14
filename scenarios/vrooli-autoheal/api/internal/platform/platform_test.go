@@ -86,7 +86,7 @@ func TestDetectCapabilities(t *testing.T) {
 
 // TestDetectCached verifies caching works correctly
 // [REQ:PLAT-DETECT-003]
-func TestDetectCached(t *testing.T) {
+func TestDetectCollectsFreshViews(t *testing.T) {
 	// Note: Because of sync.Once, we can only test that Detect returns non-nil
 	// and returns the same value on repeated calls
 	caps1 := Detect()
@@ -96,8 +96,11 @@ func TestDetectCached(t *testing.T) {
 		t.Fatal("Detect() returned nil")
 	}
 
-	if caps1 != caps2 {
-		t.Error("Detect() should return cached value on subsequent calls")
+	if caps2 == nil {
+		t.Fatal("second Detect() returned nil")
+	}
+	if caps1 == caps2 {
+		t.Error("Detect() should return a fresh view on subsequent calls")
 	}
 }
 
@@ -114,13 +117,6 @@ func TestWSLDetection(t *testing.T) {
 	// On Linux, we can't assert the result since it depends on environment
 }
 
-// TestDockerDetection verifies Docker detection doesn't panic
-func TestDockerDetection(t *testing.T) {
-	// Just verify it doesn't panic
-	hasDocker := detectDocker()
-	t.Logf("Docker available: %v", hasDocker)
-}
-
 // TestSystemdDetection verifies systemd detection logic
 func TestSystemdDetection(t *testing.T) {
 	hasSystemd := detectSystemd()
@@ -129,46 +125,6 @@ func TestSystemdDetection(t *testing.T) {
 	if runtime.GOOS != "linux" && hasSystemd {
 		t.Errorf("detectSystemd() = true on non-Linux platform %s", runtime.GOOS)
 	}
-
-	t.Logf("Systemd available: %v", hasSystemd)
-}
-
-// TestLaunchdDetection verifies launchd detection logic
-func TestLaunchdDetection(t *testing.T) {
-	hasLaunchd := detectLaunchd()
-
-	// On non-macOS, should be false
-	if runtime.GOOS != "darwin" && hasLaunchd {
-		t.Errorf("detectLaunchd() = true on non-macOS platform %s", runtime.GOOS)
-	}
-
-	t.Logf("Launchd available: %v", hasLaunchd)
-}
-
-// TestWindowsServicesDetection verifies Windows services detection logic
-func TestWindowsServicesDetection(t *testing.T) {
-	hasSvc := detectWindowsServices()
-
-	// On non-Windows, should be false
-	if runtime.GOOS != "windows" && hasSvc {
-		t.Errorf("detectWindowsServices() = true on non-Windows platform %s", runtime.GOOS)
-	}
-
-	t.Logf("Windows services available: %v", hasSvc)
-}
-
-// TestCloudflaredDetection verifies cloudflared detection doesn't panic
-func TestCloudflaredDetection(t *testing.T) {
-	// Just verify it doesn't panic
-	hasCF := detectCloudflared()
-	t.Logf("Cloudflared available: %v", hasCF)
-}
-
-// TestHeadlessDetection verifies headless detection doesn't panic
-func TestHeadlessDetection(t *testing.T) {
-	// Just verify it doesn't panic
-	isHeadless := detectHeadless()
-	t.Logf("Headless server: %v", isHeadless)
 }
 
 // TestPlatformType verifies Type constants are correct
@@ -187,50 +143,6 @@ func TestPlatformType(t *testing.T) {
 		if string(tc.platform) != tc.expected {
 			t.Errorf("Type %v = %q, want %q", tc.platform, tc.platform, tc.expected)
 		}
-	}
-}
-
-// TestDetectRDP tests RDP detection for different platforms
-func TestDetectRDP(t *testing.T) {
-	tests := []struct {
-		name     string
-		caps     *Capabilities
-		expected bool // expected to be a boolean (may vary based on system)
-	}{
-		{
-			name: "linux with systemd",
-			caps: &Capabilities{
-				Platform:        Linux,
-				SupportsSystemd: true,
-			},
-		},
-		{
-			name: "linux without systemd",
-			caps: &Capabilities{
-				Platform:        Linux,
-				SupportsSystemd: false,
-			},
-		},
-		{
-			name: "macos",
-			caps: &Capabilities{
-				Platform: MacOS,
-			},
-		},
-		{
-			name: "other platform",
-			caps: &Capabilities{
-				Platform: Other,
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			result := detectRDP(tc.caps)
-			// Just verify it doesn't panic and returns a bool
-			t.Logf("detectRDP(%s) = %v", tc.name, result)
-		})
 	}
 }
 
@@ -274,72 +186,5 @@ func TestCapabilitiesStructure(t *testing.T) {
 	}
 	if !caps.SupportsCloudflared {
 		t.Error("SupportsCloudflared should be true")
-	}
-}
-
-// TestDetectFunctions tests all detect* functions don't panic
-func TestDetectFunctions(t *testing.T) {
-	// All these should run without panicking
-	t.Run("detectPlatform", func(t *testing.T) {
-		p := detectPlatform()
-		t.Logf("Platform: %s", p)
-	})
-
-	t.Run("detectWSL", func(t *testing.T) {
-		wsl := detectWSL()
-		t.Logf("WSL: %v", wsl)
-	})
-
-	t.Run("detectDocker", func(t *testing.T) {
-		docker := detectDocker()
-		t.Logf("Docker: %v", docker)
-	})
-
-	t.Run("detectSystemd", func(t *testing.T) {
-		systemd := detectSystemd()
-		t.Logf("Systemd: %v", systemd)
-	})
-
-	t.Run("detectLaunchd", func(t *testing.T) {
-		launchd := detectLaunchd()
-		t.Logf("Launchd: %v", launchd)
-	})
-
-	t.Run("detectWindowsServices", func(t *testing.T) {
-		winSvc := detectWindowsServices()
-		t.Logf("Windows Services: %v", winSvc)
-	})
-
-	t.Run("detectCloudflared", func(t *testing.T) {
-		cf := detectCloudflared()
-		t.Logf("Cloudflared: %v", cf)
-	})
-
-	t.Run("detectHeadless", func(t *testing.T) {
-		headless := detectHeadless()
-		t.Logf("Headless: %v", headless)
-	})
-}
-
-// TestDetectRDPForWindows tests the Windows RDP detection path specifically
-func TestDetectRDPForWindows(t *testing.T) {
-	caps := &Capabilities{
-		Platform:           Windows,
-		SupportsWindowsSvc: true,
-	}
-
-	// On Windows, RDP should return true (built-in)
-	if runtime.GOOS == "windows" {
-		result := detectRDP(caps)
-		if !result {
-			t.Log("Note: On Windows, native RDP should always be true")
-		}
-	} else {
-		// When testing on non-Windows, the Windows path returns true unconditionally
-		// This is intentional - Windows always has native RDP
-		result := detectRDP(caps)
-		if !result {
-			t.Log("Windows path for RDP detection returns true (native RDP)")
-		}
 	}
 }

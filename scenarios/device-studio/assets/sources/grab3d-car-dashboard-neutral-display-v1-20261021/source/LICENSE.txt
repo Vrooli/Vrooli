@@ -1,0 +1,14 @@
+CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
+
+To the extent possible under law, Grab3D has waived all copyright and related or neighboring rights to the
+3D models, textures and images in this package. This work is published from: Germany.
+
+https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+Origin / AI disclosure
+----------------------
+Method: procedural (no AI-generated geometry or textures, AI-assisted code)
+Built procedurally with Blender scripts. The scripts were written with the help of an AI coding assistant. No
+generative AI model produced the geometry or textures directly.
+If your platform asks whether AI was used in the creation process, note that the generator scripts were
+written with an AI coding assistant.
