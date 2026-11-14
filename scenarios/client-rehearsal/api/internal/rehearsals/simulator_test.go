@@ -426,6 +426,21 @@ func TestSyntheticizePreservesOnlyExplicitlySyntheticURLs(t *testing.T) {
 	}
 }
 
+func TestSyntheticizePreservesDistinctReservedSyntheticEmails(t *testing.T) {
+	got := syntheticize(map[string]any{
+		"Email":         "  ",
+		"fixture_email": "bob@example.invalid",
+		"unsafe_email":  "client@example.com",
+		"bad_email":     "bob@example.invalid.evil",
+	}, "").(map[string]any)
+	if got["fixture_email"] != "bob@example.invalid" {
+		t.Fatalf("reserved synthetic address should remain controllable: %#v", got)
+	}
+	if got["unsafe_email"] != "person@example.invalid" || got["bad_email"] != "person@example.invalid" {
+		t.Fatalf("non-reserved or suffix-confusion address must be normalized: %#v", got)
+	}
+}
+
 func TestSimulatorPreservesOnlySanitizedBoundedBase64JSONFixtures(t *testing.T) {
 	payload := map[string]any{"id": "real-secret-id", "name": "Client Person", "status": "open", "email": "client@example.com", "token": "private-token"}
 	plain, err := json.Marshal(payload)

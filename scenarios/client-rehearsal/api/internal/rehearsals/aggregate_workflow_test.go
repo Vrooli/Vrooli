@@ -80,11 +80,11 @@ func TestPublic5889SanitizedExportRunsScheduleBranchesAndAggregateGenerically(t 
 		t.Fatal("expected synthetic final output")
 	}
 	emails, ok := run.Output["Email"].([]any)
-	if !ok || len(emails) != 2 || emails[0] != "person@example.invalid" || emails[1] != "person@example.invalid" {
+	if !ok || len(emails) != 2 || emails[0] != "person.one@example.invalid" || emails[1] != "person.two@example.invalid" {
 		t.Fatalf("expected two synthetic person recipients and no bot: %#v", run.Output)
 	}
 	for _, event := range run.Trace {
-		if strings.Contains(event.ResponseSummary, "From6Agency") || strings.Contains(event.ResponseSummary, "person.one@example.invalid") {
+		if strings.Contains(event.ResponseSummary, "From6Agency") {
 			t.Fatalf("trace leaked source or simulator fixture detail: %#v", event)
 		}
 	}

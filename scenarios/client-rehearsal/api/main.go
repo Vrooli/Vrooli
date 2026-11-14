@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"client-rehearsal/internal/capabilities"
@@ -26,7 +27,9 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	bountyCasesH "client-rehearsal/handlers/bountycases"
 	capsH "client-rehearsal/handlers/capabilities"
+	codingjobsH "client-rehearsal/handlers/codingjobs"
 	healthH "client-rehearsal/handlers/health"
 	notesH "client-rehearsal/handlers/notes" // EXAMPLE-DOMAIN:notes
 	rehearsalsH "client-rehearsal/handlers/rehearsals"
@@ -75,6 +78,10 @@ func main() {
 		log.Fatalf("file storage configuration failed: %v", err)
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
+	bountyCasesModule, err := bountyCasesH.Module(db, filepath.Join(primaryFileRoots.DataDir, "bounty-cases"))
+	if err != nil {
+		log.Fatalf("bounty case registry initialization failed: %v", err)
+	}
 
 	var sandboxClient *rehearsals.WorkspaceSandboxProfileClient
 	if sandboxURL := strings.TrimSpace(os.Getenv("CLIENT_REHEARSAL_WORKSPACE_SANDBOX_URL")); sandboxURL != "" {
@@ -100,6 +107,8 @@ func main() {
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "client-rehearsal-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry(), log.Default()),
+		codingjobsH.Module(db, schedule.System(), log.Default()),
+		bountyCasesModule,
 		notesH.Module(db, schedule.System(), log.Default()), // EXAMPLE-DOMAIN:notes
 		rehearsalModule,
 	)

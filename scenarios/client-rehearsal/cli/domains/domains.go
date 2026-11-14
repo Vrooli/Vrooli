@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"client-rehearsal/cli/domains/codingjobs"
 	"client-rehearsal/cli/domains/notes" // EXAMPLE-DOMAIN:notes
 	"client-rehearsal/cli/domains/rehearsals"
 
@@ -38,6 +39,11 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
+	codingJobsGroup, err := codingjobs.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, codingJobsGroup)
 	rehearsalGroup, err := rehearsals.Register(core, manifest)
 	if err != nil {
 		return nil, err

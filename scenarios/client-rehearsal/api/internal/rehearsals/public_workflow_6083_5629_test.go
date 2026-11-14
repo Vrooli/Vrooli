@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func TestPublic6083LeadFollowupImportGapIsRecorded(t *testing.T) {
+func TestPublic6083LeadFollowupMissingIfConditionsGapIsRecorded(t *testing.T) {
 	workflowJSON := readFixture(t, "public-workflows/6083.json")
 	if got := fmt.Sprintf("%x", sha256.Sum256([]byte(workflowJSON))); got != "81c4cbb7a1ed9039bb808405e863970be3471cc0541757da38714a6b64554d5e" {
 		t.Fatalf("sanitized fixture hash changed without provenance update: %s", got)
@@ -20,8 +20,8 @@ func TestPublic6083LeadFollowupImportGapIsRecorded(t *testing.T) {
 		}
 	}
 	_, _, _, err := normalizeWorkflow(workflowJSON)
-	if err == nil || !strings.Contains(err.Error(), "first graph adapter supports exactly one condition per If node") {
-		t.Fatalf("expected unsupported multi-condition If import to remain unqualified until generic support is coordinated, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "If supports one to eight bounded conditions") {
+		t.Fatalf("expected missing source If conditions to remain unqualified, got %v", err)
 	}
 }
 

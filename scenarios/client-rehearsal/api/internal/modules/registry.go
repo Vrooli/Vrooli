@@ -17,8 +17,12 @@
 package modules
 
 import (
+	bountycasesH "client-rehearsal/handlers/bountycases"
+	codingjobsH "client-rehearsal/handlers/codingjobs"
 	rehearsalsH "client-rehearsal/handlers/rehearsals"
 	"client-rehearsal/internal/module"
+	bountycasesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/client-rehearsal/v1/bountycases"
+	codingjobsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/client-rehearsal/v1/codingjobs"
 	rehearsalsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/client-rehearsal/v1/rehearsals"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/client-rehearsal/v1/shared"
 
@@ -42,6 +46,8 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
+	out = append(out, codingjobsH.Endpoints...)
+	out = append(out, bountycasesH.Endpoints...)
 	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
 	out = append(out, rehearsalsH.Endpoints...)
 	return out
@@ -70,6 +76,8 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "coding-jobs", File: codingjobsv1.File_client_rehearsal_v1_codingjobs_codingjobs_proto},
+		{Module: "bounty-cases", File: bountycasesv1.File_client_rehearsal_v1_bountycases_bountycases_proto},
 		{Module: "notes", File: notesv1.File_client_rehearsal_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
 		{Module: "rehearsals", File: rehearsalsv1.File_client_rehearsal_v1_rehearsals_rehearsals_proto},
 		{Module: "capabilities", File: sharedv1.File_client_rehearsal_v1_shared_capabilities_proto},
@@ -88,6 +96,8 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(codingjobsH.Schema),
+		apidb.SchemaProviderFunc(bountycasesH.Schema),
 		apidb.SchemaProviderFunc(rehearsalsH.Schema),
 	}
 }

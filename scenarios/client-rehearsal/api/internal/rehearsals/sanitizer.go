@@ -442,11 +442,16 @@ func normalizeWorkflowNodeVersion(id, name, typeName string, params map[string]a
 		node.Request = &request
 		node.RequestURLExpression = expression
 	case "n8n-nodes-base.if":
-		condition, err := normalizeCondition(params)
+		conditions, combinator, err := normalizeCondition(params)
 		if err != nil {
 			return WorkflowNode{}, err
 		}
-		node.Condition = &condition
+		if len(conditions) == 1 {
+			node.Condition = &conditions[0]
+		} else {
+			node.IfConditions = conditions
+			node.IfCombinator = combinator
+		}
 	case "n8n-nodes-base.filter":
 		conditions, combinator, err := normalizeFilter(params)
 		if err != nil {
@@ -612,8 +617,14 @@ func normalizeWorkflowNodeVersion(id, name, typeName string, params map[string]a
 		}
 		rawURL, _ := params["url"].(string)
 		path, ok := parseJSONExpression(rawURL)
+		// Public n8n templates often encode a required URL as a UI placeholder
+		// instead of an expression. Treat the value as required rehearsal input;
+		// never preserve the example text as a network destination.
+		if !ok && strings.HasPrefix(rawURL, "<__PLACEHOLDER_VALUE__") && strings.HasSuffix(rawURL, "__>") && len(rawURL) <= 512 {
+			path, ok = ".feedUrl", true
+		}
 		if !ok || strings.Contains(rawURL, "$node[") {
-			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.url", Reason: "RSS Feed Read requires a simple current-item JSON path; external URLs are never fetched"}
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.url", Reason: "RSS Feed Read requires a simple current-item JSON path or bounded template placeholder; external URLs are never fetched"}
 		}
 		node.RSSURLPath = path
 		// RSS input is always resolved into the synthetic service adapter below.
@@ -861,10 +872,10 @@ func normalizeWorkflowNodeVersion(id, name, typeName string, params map[string]a
 		}
 		if typeName == "@n8n/n8n-nodes-langchain.openAi" {
 			if resource == "" && action == "" {
-				model, _ := params["modelId"].(string)
+				_, modelOK := boundedModelSelector(params["modelId"])
 				messages, _ := params["messages"].(map[string]any)
 				values, _ := messages["values"].([]any)
-				if model == "" || len(model) > 100 || strings.ContainsAny(model, "\x00\r\n") || strings.Contains(model, "={{") || strings.Contains(model, "{{") || len(values) == 0 || len(values) > 16 {
+				if !modelOK || len(values) == 0 || len(values) > 16 {
 					return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters", Reason: "OpenAI chat simulation requires a bounded model selector and 1 to 16 message descriptors"}
 				}
 				for _, rawMessage := range values {
@@ -925,6 +936,42 @@ func normalizeWorkflowNodeVersion(id, name, typeName string, params map[string]a
 		node.Request = request
 	}
 	return node, nil
+}
+
+// boundedModelSelector accepts either the plain model identifier used by older
+// exports or n8n's resource-locator object. Only the selected literal ID is
+// retained; UI labels and selector metadata never enter the normalized graph.
+func boundedModelSelector(raw any) (string, bool) {
+	model, ok := raw.(string)
+	if !ok {
+		locator, isMap := raw.(map[string]any)
+		if !isMap || locator["__rl"] != true {
+			return "", false
+		}
+		mode, modeOK := locator["mode"].(string)
+		if !modeOK || (mode != "list" && mode != "id") {
+			return "", false
+		}
+		model, ok = locator["value"].(string)
+		if !ok {
+			return "", false
+		}
+		if label, exists := locator["cachedResultName"]; exists {
+			name, valid := label.(string)
+			if !valid || len(name) > 120 || strings.ContainsAny(name, "\x00\r\n") {
+				return "", false
+			}
+		}
+	}
+	if model == "" || len(model) > 100 || strings.ContainsAny(model, "\x00\r\n") || strings.Contains(model, "={{") || strings.Contains(model, "{{") {
+		return "", false
+	}
+	for _, r := range model {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || strings.ContainsRune("._-", r)) {
+			return "", false
+		}
+	}
+	return model, true
 }
 
 func positiveBoundedInteger(value any, max int) (int, bool) {
@@ -1733,9 +1780,10 @@ func normalizeHTTPNode(id, name string, params map[string]any) (Step, string, er
 	return Step{ID: id, Operation: method + " " + path, Method: method, Host: parsed.Hostname(), URL: path}, "", nil
 }
 
-func normalizeCondition(params map[string]any) (Condition, error) {
+func normalizeCondition(params map[string]any) ([]Condition, string, error) {
 	conditionsRoot, _ := params["conditions"].(map[string]any)
 	conditions, _ := conditionsRoot["conditions"].([]any)
+	combinator, _ := conditionsRoot["combinator"].(string)
 	if len(conditions) == 0 {
 		for _, legacy := range []string{"string", "number", "boolean", "dateTime", "array", "object"} {
 			if values, ok := conditionsRoot[legacy].([]any); ok && len(values) > 0 {
@@ -1744,11 +1792,28 @@ func normalizeCondition(params map[string]any) (Condition, error) {
 			}
 		}
 	}
-	if len(conditions) != 1 {
-		return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions", Reason: "first graph adapter supports exactly one condition per If node"}
+	if len(conditions) == 0 || len(conditions) > 8 {
+		return nil, "", ErrInvalid{Field: "nodes.parameters.conditions", Reason: "If supports one to eight bounded conditions"}
 	}
-	first, _ := conditions[0].(map[string]any)
-	return conditionFromEntry(first)
+	if combinator == "" {
+		combinator = "and"
+	}
+	if combinator != "and" && combinator != "or" {
+		return nil, "", ErrInvalid{Field: "nodes.parameters.conditions.combinator", Reason: "If combinator must be and or or"}
+	}
+	result := make([]Condition, 0, len(conditions))
+	for _, raw := range conditions {
+		entry, ok := raw.(map[string]any)
+		if !ok {
+			return nil, "", ErrInvalid{Field: "nodes.parameters.conditions.conditions", Reason: "If conditions must be bounded objects"}
+		}
+		condition, err := conditionFromEntry(entry)
+		if err != nil {
+			return nil, "", err
+		}
+		result = append(result, condition)
+	}
+	return result, combinator, nil
 }
 
 func normalizeFilter(params map[string]any) ([]Condition, string, error) {
@@ -1890,6 +1955,9 @@ func conditionFromEntry(entry map[string]any) (Condition, error) {
 	if operator == "" {
 		operator, _ = entry["operation"].(string)
 	}
+	if operator == "notEmpty" && operatorRoot["type"] != "string" {
+		return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions.operator", Reason: "notEmpty is supported only for string conditions"}
+	}
 	if operator == "notEqual" {
 		// Legacy IF nodes use notEqual; normalize it to the shared condition model.
 		operator = "notEquals"
@@ -1898,7 +1966,7 @@ func conditionFromEntry(entry map[string]any) (Condition, error) {
 		operator = "equals"
 	}
 	switch operator {
-	case "equals", "notEquals", "contains", "gt", "gte", "lt", "lte", "true", "false":
+	case "equals", "notEquals", "contains", "gt", "gte", "lt", "lte", "true", "false", "notEmpty":
 	default:
 		return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions.operator", Reason: "operator must be equals, notEquals, contains, gt, gte, lt, or lte"}
 	}
@@ -2171,6 +2239,9 @@ func validateGraph(workflow Workflow) error {
 		if source.Condition != nil {
 			maxPort = 1
 		}
+		if len(source.IfConditions) > 0 {
+			maxPort = 1
+		}
 		if source.FilterCondition != nil {
 			maxPort = 1
 		}
@@ -2327,6 +2398,10 @@ func workflowStructureFingerprint(root *Workflow) any {
 			}
 			if node.Condition != nil {
 				entry["condition"] = node.Condition
+			}
+			if len(node.IfConditions) > 0 {
+				entry["if_conditions"] = node.IfConditions
+				entry["if_combinator"] = node.IfCombinator
 			}
 			if node.FilterCondition != nil {
 				entry["filter_condition"] = node.FilterCondition

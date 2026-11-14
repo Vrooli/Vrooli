@@ -10,19 +10,43 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/client-rehearsal/v1/rehearsals"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type taskScopedServiceStub struct {
-	task internal.WorkspaceSandboxTaskRequest
-	got  bool
+	task  internal.WorkspaceSandboxTaskRequest
+	input internal.CreateInput
+	got   bool
 }
 
-func (s *taskScopedServiceStub) CreateAndRun(context.Context, internal.CreateInput) (internal.Rehearsal, error) {
-	return internal.Rehearsal{}, nil
+func (s *taskScopedServiceStub) CreateAndRun(_ context.Context, input internal.CreateInput) (internal.Rehearsal, error) {
+	s.input = input
+	return internal.Rehearsal{ID: "saved-run", Title: "synthetic route proof"}, nil
 }
-func (s *taskScopedServiceStub) CreateAndRunTaskScoped(_ context.Context, _ internal.CreateInput, task internal.WorkspaceSandboxTaskRequest) (internal.TaskScopedRun, error) {
-	s.task, s.got = task, true
+func (s *taskScopedServiceStub) CreateAndRunTaskScoped(_ context.Context, input internal.CreateInput, task internal.WorkspaceSandboxTaskRequest) (internal.TaskScopedRun, error) {
+	s.task, s.input, s.got = task, input, true
 	return internal.TaskScopedRun{Rehearsal: internal.Rehearsal{ID: "saved-run", Title: "synthetic route proof", HandoffMarkdown: "Companion route hits: 1"}}, nil
+}
+
+func TestCreateAndRunMapsSyntheticTriggerInputFromConnectRequest(t *testing.T) {
+	service := &taskScopedServiceStub{}
+	handler := NewConnectHandler(service, log.New(io.Discard, "", 0))
+	triggerInput, err := structpb.NewStruct(map[string]any{"body": map[string]any{"id": "synthetic-event-1"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = handler.CreateAndRunRehearsal(context.Background(), connect.NewRequest(&v1.CreateAndRunRehearsalRequest{
+		Title:        "synthetic trigger input",
+		WorkflowJson: `{"nodes":[]}`,
+		TriggerInput: triggerInput,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, ok := service.input.TriggerInput["body"].(map[string]any)
+	if !ok || body["id"] != "synthetic-event-1" {
+		t.Fatalf("mapped trigger input = %#v", service.input.TriggerInput)
+	}
 }
 func (*taskScopedServiceStub) List(context.Context, int) ([]internal.Rehearsal, error) {
 	return nil, nil

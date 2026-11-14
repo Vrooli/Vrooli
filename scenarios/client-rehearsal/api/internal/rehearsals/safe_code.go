@@ -12,6 +12,7 @@ import (
 	"io"
 	"math"
 	"math/rand"
+	"net/url"
 	"regexp"
 	"sort"
 	"strconv"
@@ -47,6 +48,7 @@ type (
 		left, right *codeExpr
 		args        []*codeExpr
 		params      []string
+		restParam   bool
 		fields      []string
 		body        []codeStmt
 	}
@@ -112,7 +114,7 @@ func parseSafeCodeMode(source string, legacyFunction, currentJSON bool) (*safeCo
 	if lastExecutable < 0 || program[lastExecutable].kind != "return" {
 		return nil, fmt.Errorf("program must end with return before optional function declarations")
 	}
-	scope := map[string]bool{"$input": false, "$json": false, "$now": false, "$execution": false, "$": false, "$items": false, "String": false, "Number": false, "Array": false, "Math": false, "DateTime": false, "JSON": false, "Object": false, "parseInt": false}
+	scope := map[string]bool{"$input": false, "$json": false, "$now": false, "$execution": false, "$": false, "$items": false, "String": false, "Number": false, "Boolean": false, "Array": false, "Math": false, "DateTime": false, "JSON": false, "Object": false, "parseInt": false, "isNaN": false}
 	_ = currentJSON // $json is bounded to the current/first input item in either mode.
 	if legacyFunction {
 		scope["__legacy_function__"] = true
@@ -544,7 +546,32 @@ func (p *codeParser) statement() (codeStmt, error) {
 			return codeStmt{}, err
 		}
 		e, err := p.expr(0)
-		return codeStmt{kind: "decl", name: name, expr: e}, err
+		if err != nil {
+			return codeStmt{}, err
+		}
+		declarations := []codeStmt{{kind: "decl", name: name, expr: e}}
+		for p.take(",") {
+			next := p.peek().text
+			if p.peek().kind != "ident" || !safeCodeIdentifier(next) {
+				return codeStmt{}, fmt.Errorf("multi-binding declaration requires bounded local names")
+			}
+			p.pos++
+			if err := p.need("="); err != nil {
+				return codeStmt{}, err
+			}
+			expr, err := p.expr(0)
+			if err != nil {
+				return codeStmt{}, err
+			}
+			declarations = append(declarations, codeStmt{kind: "decl", name: next, expr: expr})
+			if len(declarations) > 32 {
+				return codeStmt{}, fmt.Errorf("multi-binding declaration exceeds 32 names")
+			}
+		}
+		if len(declarations) == 1 {
+			return declarations[0], nil
+		}
+		return codeStmt{kind: "group", body: declarations}, nil
 	}
 	if p.take("let") {
 		name := p.peek().text
@@ -552,11 +579,39 @@ func (p *codeParser) statement() (codeStmt, error) {
 			return codeStmt{}, fmt.Errorf("expected local variable")
 		}
 		p.pos++
+		declarations := []codeStmt{}
 		if p.take("=") {
 			e, err := p.expr(0)
-			return codeStmt{kind: "letdecl", name: name, expr: e}, err
+			if err != nil {
+				return codeStmt{}, err
+			}
+			declarations = append(declarations, codeStmt{kind: "letdecl", name: name, expr: e})
+		} else {
+			declarations = append(declarations, codeStmt{kind: "letdecl", name: name})
 		}
-		return codeStmt{kind: "letdecl", name: name}, nil
+		for p.take(",") {
+			next := p.peek().text
+			if p.peek().kind != "ident" || !safeCodeIdentifier(next) {
+				return codeStmt{}, fmt.Errorf("multi-binding declaration requires bounded local names")
+			}
+			p.pos++
+			decl := codeStmt{kind: "letdecl", name: next}
+			if p.take("=") {
+				expr, err := p.expr(0)
+				if err != nil {
+					return codeStmt{}, err
+				}
+				decl.expr = expr
+			}
+			declarations = append(declarations, decl)
+			if len(declarations) > 32 {
+				return codeStmt{}, fmt.Errorf("multi-binding declaration exceeds 32 names")
+			}
+		}
+		if len(declarations) == 1 {
+			return declarations[0], nil
+		}
+		return codeStmt{kind: "group", body: declarations}, nil
 	}
 	if p.take("var") {
 		name := p.peek().text
@@ -733,6 +788,10 @@ func (p *codeParser) statement() (codeStmt, error) {
 	if p.take("continue") {
 		return codeStmt{kind: "continue"}, nil
 	}
+	if p.take("throw") {
+		expression, err := p.expr(0)
+		return codeStmt{kind: "throw", expr: expression}, err
+	}
 	if p.take("try") {
 		body, err := p.block()
 		if err != nil {
@@ -820,6 +879,10 @@ func validateSafeStatements(statements []codeStmt, scope map[string]bool) error 
 	}
 	for _, statement := range statements {
 		switch statement.kind {
+		case "group":
+			if err := validateSafeStatements(statement.body, scope); err != nil {
+				return err
+			}
 		case "function":
 			inner := cloneBoolMap(scope)
 			for _, param := range statement.params {
@@ -837,7 +900,12 @@ func validateSafeStatements(statements []codeStmt, scope map[string]bool) error 
 			}
 			if statement.expr.op == "lambda" {
 				inner := cloneBoolMap(scope)
-				inner[statement.expr.value.(string)] = false
+				for _, parameter := range safeLambdaParameters(statement.expr) {
+					if !safeCodeIdentifier(parameter) {
+						return fmt.Errorf("arrow function parameter is invalid")
+					}
+					inner[parameter] = false
+				}
 				if statement.expr.left != nil {
 					if err := validateSafeExpr(statement.expr.left, inner); err != nil {
 						return err
@@ -935,7 +1003,7 @@ func validateSafeStatements(statements []codeStmt, scope map[string]bool) error 
 			if err := validateSafeExpr(statement.expr, scope); err != nil {
 				return err
 			}
-		case "expr", "return":
+		case "expr", "return", "throw":
 			if err := validateSafeExpr(statement.expr, scope); err != nil {
 				return err
 			}
@@ -1055,6 +1123,11 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 			return validateSafeExpr(expr.left, scope)
 		}
 		return nil
+	case "error":
+		if expr.left != nil {
+			return validateSafeExpr(expr.left, scope)
+		}
+		return nil
 	case "var":
 		if expr.value == "__legacy_function__" {
 			return fmt.Errorf("identifier %q is not allowed", expr.value)
@@ -1093,12 +1166,12 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 			return fmt.Errorf("property %q is not allowed", expr.value)
 		}
 		return nil
-	case "call":
+	case "call", "optcall":
 		if err := validateSafeExpr(expr.left, scope); err != nil {
 			return err
 		}
 		switch expr.value {
-		case "all", "first", "toString", "toISOString", "toISO", "toLocaleString", "toLocaleDateString", "toLocaleTimeString", "getDay", "getDate", "getMonth", "getFullYear", "test", "trim", "toLowerCase", "toUpperCase", "replace", "replaceAll", "match", "slice", "split", "padStart", "push", "join", "map", "filter", "forEach", "some", "includes", "indexOf", "has", "add", "concat", "from", "isArray", "fromCodePoint", "ceil", "floor", "round", "random", "fromISO", "diff", "toFormat", "stringify", "parse", "keys":
+		case "all", "first", "toString", "toISOString", "toISO", "toLocaleString", "toLocaleDateString", "toLocaleTimeString", "getDay", "getDate", "getMonth", "getFullYear", "test", "trim", "toLowerCase", "toUpperCase", "replace", "replaceAll", "match", "slice", "split", "padStart", "push", "join", "map", "filter", "forEach", "some", "find", "includes", "startsWith", "indexOf", "has", "add", "concat", "from", "fromEntries", "isArray", "fromCodePoint", "ceil", "floor", "round", "max", "min", "random", "now", "fromISO", "setZone", "minus", "diff", "toFormat", "stringify", "parse", "keys":
 		default:
 			return fmt.Errorf("method %q is not allowed", expr.value)
 		}
@@ -1127,9 +1200,13 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 			return fmt.Errorf("Array.isArray requires one bounded value")
 		}
 		for index, a := range expr.args {
-			if (expr.value == "map" || expr.value == "filter" || expr.value == "forEach" || expr.value == "some") && index == 0 {
-				if a.op != "lambda" || len(safeLambdaParameters(a)) != 1 {
+			if (expr.value == "map" || expr.value == "filter" || expr.value == "forEach" || expr.value == "some" || expr.value == "find") && index == 0 {
+				booleanFilter := expr.value == "filter" && a.op == "var" && a.value == "Boolean"
+				if !booleanFilter && (a.op != "lambda" || len(safeLambdaParameters(a)) != 1) {
 					return fmt.Errorf("array %s requires one bounded arrow callback", expr.value)
+				}
+				if booleanFilter {
+					continue
 				}
 				inner := cloneBoolMap(scope)
 				inner[safeLambdaParameters(a)[0]] = true
@@ -1175,7 +1252,8 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 			}
 		}
 		if expr.value == "map" || expr.value == "filter" || expr.value == "forEach" || expr.value == "some" {
-			if len(expr.args) != 1 || expr.args[0].op != "lambda" {
+			booleanFilter := expr.value == "filter" && len(expr.args) == 1 && expr.args[0].op == "var" && expr.args[0].value == "Boolean"
+			if len(expr.args) != 1 || (expr.args[0].op != "lambda" && !booleanFilter) {
 				return fmt.Errorf("array %s supports one bounded arrow callback", expr.value)
 			}
 		}
@@ -1185,11 +1263,14 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 		if expr.value == "ceil" && (expr.left.op != "var" || expr.left.value != "Math" || len(expr.args) != 1) {
 			return fmt.Errorf("Math.ceil requires one numeric argument")
 		}
+		if (expr.value == "max" || expr.value == "min") && (expr.left.op != "var" || expr.left.value != "Math" || len(expr.args) < 1 || len(expr.args) > 16) {
+			return fmt.Errorf("Math.%s requires one to sixteen bounded numeric arguments", expr.value)
+		}
 		if expr.value == "random" && (expr.left.op != "var" || expr.left.value != "Math" || len(expr.args) != 0) {
 			return fmt.Errorf("Math.random takes no arguments")
 		}
-		if expr.value == "includes" && len(expr.args) != 1 {
-			return fmt.Errorf("includes supports one bounded argument")
+		if (expr.value == "includes" || expr.value == "startsWith") && len(expr.args) != 1 {
+			return fmt.Errorf("%s supports one bounded argument", expr.value)
 		}
 		if expr.value == "concat" && len(expr.args) != 1 {
 			return fmt.Errorf("array concat supports one bounded argument")
@@ -1203,6 +1284,15 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 	case "lambda", "lambda0":
 		return fmt.Errorf("arrow callback is allowed only as an array map/filter argument")
 	case "invoke":
+		if expr.left.op == "lambda0" {
+			if len(expr.args) != 0 {
+				return fmt.Errorf("invoked zero-argument arrow does not accept parameters")
+			}
+			if expr.left.left != nil {
+				return validateSafeExpr(expr.left.left, scope)
+			}
+			return validateSafeStatements(expr.left.body, cloneBoolMap(scope))
+		}
 		if expr.left.op == "var" && expr.left.value == "$" {
 			if len(expr.args) != 1 {
 				return fmt.Errorf("named-node lookup requires one bounded node-name value")
@@ -1227,12 +1317,13 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 			}
 			return nil
 		}
-		staticBuiltin := expr.left.op == "var" && (expr.left.value == "String" || expr.left.value == "parseInt" || expr.left.value == "Number")
+		staticBuiltin := expr.left.op == "var" && (expr.left.value == "String" || expr.left.value == "parseInt" || expr.left.value == "Number" || expr.left.value == "Boolean" || expr.left.value == "isNaN" || expr.left.value == "isFinite" || expr.left.value == "encodeURIComponent")
 		staticStringCodePoint := expr.left.op == "prop" && expr.left.value == "fromCodePoint" && expr.left.left.op == "var" && expr.left.left.value == "String"
-		if !staticBuiltin && !staticStringCodePoint {
+		staticObjectFromEntries := expr.left.op == "prop" && expr.left.value == "fromEntries" && expr.left.left.op == "var" && expr.left.left.value == "Object"
+		if !staticBuiltin && !staticStringCodePoint && !staticObjectFromEntries {
 			name, _ := expr.left.value.(string)
 			if expr.left.op != "var" || !scopeHas(scope, name) {
-				return fmt.Errorf("function invocation is not allowed")
+				return fmt.Errorf("function invocation %q is not allowed", name)
 			}
 		}
 		for _, a := range expr.args {
@@ -1242,6 +1333,13 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 		}
 		return nil
 	case "!":
+		return validateSafeExpr(expr.left, scope)
+	case "negate":
+		return validateSafeExpr(expr.left, scope)
+	case "delete":
+		if expr.left == nil || (expr.left.op != "prop" && expr.left.op != "index") {
+			return fmt.Errorf("delete requires a bounded object property")
+		}
 		return validateSafeExpr(expr.left, scope)
 	case "typeof":
 		return validateSafeExpr(expr.left, scope)
@@ -1311,9 +1409,17 @@ func (p *codeParser) expr(min int) (*codeExpr, error) {
 			left = &codeExpr{op: "lit", value: false}
 		case "null":
 			left = &codeExpr{op: "lit", value: nil}
+		case "undefined":
+			left = &codeExpr{op: "lit", value: safeUndefined{}}
 		case "typeof":
 			x, e := p.expr(8)
 			left = &codeExpr{op: "typeof", left: x}
+			if e != nil {
+				return nil, e
+			}
+		case "delete":
+			x, e := p.expr(8)
+			left = &codeExpr{op: "delete", left: x}
 			if e != nil {
 				return nil, e
 			}
@@ -1337,8 +1443,27 @@ func (p *codeParser) expr(min int) (*codeExpr, error) {
 				left = &codeExpr{op: "set", left: values}
 				break
 			}
+			if p.peek().text == "Error" {
+				p.pos++
+				if err := p.need("("); err != nil {
+					return nil, err
+				}
+				var message *codeExpr
+				if !p.take(")") {
+					var err error
+					message, err = p.expr(0)
+					if err != nil {
+						return nil, err
+					}
+					if err = p.need(")"); err != nil {
+						return nil, err
+					}
+				}
+				left = &codeExpr{op: "error", left: message}
+				break
+			}
 			if p.peek().text != "Date" {
-				return nil, fmt.Errorf("only synthetic Date() or bounded Set() is supported")
+				return nil, fmt.Errorf("only synthetic Date(), Error(), or bounded Set() is supported")
 			}
 			p.pos++
 			if err := p.need("("); err != nil {
@@ -1366,6 +1491,12 @@ func (p *codeParser) expr(min int) (*codeExpr, error) {
 			if e != nil {
 				return nil, e
 			}
+		} else if t.text == "-" {
+			x, e := p.expr(8)
+			left = &codeExpr{op: "negate", left: x}
+			if e != nil {
+				return nil, e
+			}
 		} else if t.text == "(" {
 			start := p.pos
 			if p.take(")") && p.take("=>") {
@@ -1385,15 +1516,24 @@ func (p *codeParser) expr(min int) (*codeExpr, error) {
 			} else {
 				p.pos = start
 				params := []string{}
+				restParam := false
 				parsedLambda := false
-				if p.peek().kind == "ident" {
+				if p.peek().kind == "ident" || p.peek().text == "..." {
 					for {
-						if p.peek().kind != "ident" {
+						isRest := p.take("...")
+						if p.peek().kind != "ident" || !safeCodeIdentifier(p.peek().text) {
 							params = nil
 							break
 						}
 						params = append(params, p.peek().text)
 						p.pos++
+						if isRest {
+							restParam = true
+							if p.peek().text == "," {
+								params = nil
+							}
+							break
+						}
 						if !p.take(",") {
 							break
 						}
@@ -1407,13 +1547,13 @@ func (p *codeParser) expr(min int) (*codeExpr, error) {
 							if e != nil {
 								return nil, e
 							}
-							left = &codeExpr{op: "lambda", value: params[0], params: params, body: body}
+							left = &codeExpr{op: "lambda", value: params[0], params: params, restParam: restParam, body: body}
 						} else {
 							body, e := p.expr(0)
 							if e != nil {
 								return nil, e
 							}
-							left = &codeExpr{op: "lambda", value: params[0], params: params, left: body}
+							left = &codeExpr{op: "lambda", value: params[0], params: params, restParam: restParam, left: body}
 						}
 						parsedLambda = true
 					}
@@ -1547,7 +1687,7 @@ func (p *codeParser) expr(min int) (*codeExpr, error) {
 							}
 						}
 					}
-					left = &codeExpr{op: "call", value: prop, left: left, args: args}
+					left = &codeExpr{op: "optcall", value: prop, left: left, args: args}
 				} else {
 					left = &codeExpr{op: "optprop", value: prop, left: left}
 				}
@@ -1664,14 +1804,16 @@ func (p *codeParser) expr(min int) (*codeExpr, error) {
 }
 
 type safeCodeContext struct {
-	locals      map[string]any
-	nodeOutputs map[string]safeInput
-	now         time.Time
-	rng         *rand.Rand
-	steps       int
-	callDepth   int
-	rootLocals  map[string]any
-	returnValue any
+	locals           map[string]any
+	nodeOutputs      map[string]safeInput
+	currentItemIndex int
+	currentItemCount int
+	now              time.Time
+	rng              *rand.Rand
+	steps            int
+	callDepth        int
+	rootLocals       map[string]any
+	returnValue      any
 }
 
 var errSafeContinue = fmt.Errorf("safe-code continue")
@@ -1727,7 +1869,11 @@ func executeSafeLegacyFunctionWithNodeOutputs(source string, input []map[string]
 }
 
 func executeSafeCodePerItemWithNodeOutputs(source string, input map[string]any, nodeOutputs map[string][]map[string]any, now time.Time) (map[string]any, error) {
-	output, err := executeSafeCodeWithNodeOutputsMode(source, []map[string]any{input}, nodeOutputs, now, false, true)
+	return executeSafeCodePerItemWithNodeOutputsAtIndex(source, input, nodeOutputs, now, 0, 1)
+}
+
+func executeSafeCodePerItemWithNodeOutputsAtIndex(source string, input map[string]any, nodeOutputs map[string][]map[string]any, now time.Time, itemIndex, itemCount int) (map[string]any, error) {
+	output, err := executeSafeCodeWithNodeOutputsModeAtIndex(source, []map[string]any{input}, nodeOutputs, now, false, true, itemIndex, itemCount)
 	if err != nil {
 		return nil, err
 	}
@@ -1738,6 +1884,10 @@ func executeSafeCodePerItemWithNodeOutputs(source string, input map[string]any, 
 }
 
 func executeSafeCodeWithNodeOutputsMode(source string, input []map[string]any, nodeOutputs map[string][]map[string]any, now time.Time, legacyFunction, runOnceForEachItem bool) ([]map[string]any, error) {
+	return executeSafeCodeWithNodeOutputsModeAtIndex(source, input, nodeOutputs, now, legacyFunction, runOnceForEachItem, 0, len(input))
+}
+
+func executeSafeCodeWithNodeOutputsModeAtIndex(source string, input []map[string]any, nodeOutputs map[string][]map[string]any, now time.Time, legacyFunction, runOnceForEachItem bool, currentItemIndex, currentItemCount int) ([]map[string]any, error) {
 	program, err := parseSafeCodeMode(source, legacyFunction, runOnceForEachItem)
 	if err != nil {
 		return nil, err
@@ -1798,7 +1948,7 @@ func executeSafeCodeWithNodeOutputsMode(source string, input []map[string]any, n
 	}
 	seedInput := append(append([]byte(source), inputJSON...), []byte(now.UTC().Format(time.RFC3339Nano))...)
 	seed := sha256.Sum256(seedInput)
-	ctx := &safeCodeContext{locals: map[string]any{"__input": safeInput{items: items}, "$now": safeDate{at: now.UTC()}}, nodeOutputs: named, now: now.UTC(), rng: rand.New(rand.NewSource(int64(binary.BigEndian.Uint64(seed[:8]))))}
+	ctx := &safeCodeContext{locals: map[string]any{"__input": safeInput{items: items}, "$now": safeDate{at: now.UTC()}}, nodeOutputs: named, currentItemIndex: currentItemIndex, currentItemCount: currentItemCount, now: now.UTC(), rng: rand.New(rand.NewSource(int64(binary.BigEndian.Uint64(seed[:8]))))}
 	returned, err := ctx.run(program.statements)
 	if err == errSafeReturn {
 		returned = ctx.returnValue
@@ -1896,6 +2046,10 @@ func (c *safeCodeContext) run(ss []codeStmt) (any, error) {
 			return nil, e
 		}
 		switch s.kind {
+		case "group":
+			if _, e := c.run(s.body); e != nil {
+				return nil, e
+			}
 		case "function":
 			continue
 		case "decl":
@@ -2159,6 +2313,21 @@ func (c *safeCodeContext) run(ss []codeStmt) (any, error) {
 				}
 			}
 			delete(c.locals, s.name)
+		case "throw":
+			value, err := c.eval(s.expr)
+			if err != nil {
+				return nil, err
+			}
+			message := jsString(value)
+			if object, ok := value.(map[string]any); ok {
+				if text, ok := object["message"].(string); ok {
+					message = text
+				}
+			}
+			if len(message) > maxSafeCodeItemBytes {
+				return nil, fmt.Errorf("thrown error exceeds the item bound")
+			}
+			return nil, fmt.Errorf("synthetic workflow error: %s", message)
 		case "return":
 			ret, e := c.eval(s.expr)
 			if e == nil {
@@ -2185,6 +2354,19 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 		return e.value, nil
 	case "regex":
 		return e.value.(safeRegex), nil
+	case "error":
+		message := ""
+		if e.left != nil {
+			value, err := c.eval(e.left)
+			if err != nil {
+				return nil, err
+			}
+			message = jsString(value)
+		}
+		if len(message) > maxSafeCodeItemBytes {
+			return nil, fmt.Errorf("synthetic Error message exceeds the item bound")
+		}
+		return map[string]any{"message": message}, nil
 	case "template":
 		parts, ok := e.value.([]string)
 		if !ok || len(parts) != len(e.args)+1 {
@@ -2298,6 +2480,18 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 		if e.value == "Number" {
 			return safeBuiltin("Number"), nil
 		}
+		if e.value == "Boolean" {
+			return safeBuiltin("Boolean"), nil
+		}
+		if e.value == "isNaN" {
+			return safeBuiltin("isNaN"), nil
+		}
+		if e.value == "isFinite" {
+			return safeBuiltin("isFinite"), nil
+		}
+		if e.value == "encodeURIComponent" {
+			return safeBuiltin("encodeURIComponent"), nil
+		}
 		if e.value == "Array" {
 			return safeBuiltin("Array"), nil
 		}
@@ -2387,6 +2581,42 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 	case "!":
 		v, er := c.eval(e.left)
 		return !truthy(v), er
+	case "negate":
+		v, err := c.eval(e.left)
+		if err != nil {
+			return nil, err
+		}
+		n, ok := numberValue(v)
+		if !ok || math.IsNaN(n) || math.IsInf(n, 0) {
+			return nil, fmt.Errorf("unary minus requires a finite number")
+		}
+		return -n, nil
+	case "delete":
+		target := e.left
+		object, err := c.eval(target.left)
+		if err != nil {
+			return nil, err
+		}
+		key := ""
+		if target.op == "prop" {
+			key, _ = target.value.(string)
+		} else {
+			value, err := c.eval(target.right)
+			if err != nil {
+				return nil, err
+			}
+			var ok bool
+			key, ok = value.(string)
+			if !ok || !safeCodePropertyName(key) {
+				return nil, fmt.Errorf("delete key must be a bounded property name")
+			}
+		}
+		fields, ok := object.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("delete target must be a bounded object")
+		}
+		delete(fields, key)
+		return true, nil
 	case "??":
 		a, er := c.eval(e.left)
 		if er != nil {
@@ -2465,6 +2695,22 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 			right, rightOK := b.(safeDate)
 			if !rightOK {
 				return nil, fmt.Errorf("date comparison requires two bounded dates")
+			}
+			switch e.op {
+			case ">":
+				return left.at.After(right.at), nil
+			case ">=":
+				return !left.at.Before(right.at), nil
+			case "<":
+				return left.at.Before(right.at), nil
+			default:
+				return !left.at.After(right.at), nil
+			}
+		}
+		if left, ok := a.(safeDateTime); ok {
+			right, rightOK := b.(safeDateTime)
+			if !rightOK || !left.valid || !right.valid {
+				return nil, fmt.Errorf("DateTime comparison requires two valid dates")
 			}
 			switch e.op {
 			case ">":
@@ -2562,8 +2808,8 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 		if er != nil {
 			return nil, er
 		}
-		if v == nil {
-			return nil, nil
+		if v == nil || isSafeUndefined(v) {
+			return safeUndefined{}, nil
 		}
 		return safeProperty(v, e.value.(string))
 	case "index", "optindex":
@@ -2571,8 +2817,8 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 		if er != nil {
 			return nil, er
 		}
-		if e.op == "optindex" && v == nil {
-			return nil, nil
+		if e.op == "optindex" && (v == nil || isSafeUndefined(v)) {
+			return safeUndefined{}, nil
 		}
 		key, er := c.eval(e.right)
 		if er != nil {
@@ -2580,32 +2826,39 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 		}
 		switch x := v.(type) {
 		case map[string]any:
-			return x[jsString(key)], nil
+			value, exists := x[jsString(key)]
+			if !exists {
+				return safeUndefined{}, nil
+			}
+			return toSafeJSON(value, 0)
 		case []any:
 			n, ok := safeIndexNumber(key)
 			if !ok || n < 0 || n >= float64(len(x)) || n != math.Trunc(n) {
-				return nil, nil
+				return safeUndefined{}, nil
 			}
 			return x[int(n)], nil
 		case *safeArray:
 			n, ok := safeIndexNumber(key)
 			if !ok || n < 0 || n >= float64(len(x.values)) || n != math.Trunc(n) {
-				return nil, nil
+				return safeUndefined{}, nil
 			}
 			return x.values[int(n)], nil
 		case string:
 			n, ok := safeIndexNumber(key)
 			if !ok || n < 0 || n >= float64(len(x)) || n != math.Trunc(n) {
-				return nil, nil
+				return safeUndefined{}, nil
 			}
 			return string(x[int(n)]), nil
 		default:
 			return nil, fmt.Errorf("computed access is unsupported on %T", v)
 		}
-	case "call":
+	case "call", "optcall":
 		receiver, er := c.eval(e.left)
 		if er != nil {
 			return nil, er
+		}
+		if e.op == "optcall" && (receiver == nil || isSafeUndefined(receiver)) {
+			return safeUndefined{}, nil
 		}
 		method := e.value.(string)
 		if method == "concat" {
@@ -2631,8 +2884,9 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 			}
 			return boundedSafeArray(result)
 		}
-		if method == "map" || method == "filter" || method == "forEach" || method == "some" {
-			if len(e.args) != 1 || e.args[0].op != "lambda" {
+		if method == "map" || method == "filter" || method == "forEach" || method == "some" || method == "find" {
+			booleanFilter := method == "filter" && len(e.args) == 1 && e.args[0].op == "var" && e.args[0].value == "Boolean"
+			if len(e.args) != 1 || (!booleanFilter && e.args[0].op != "lambda") {
 				return nil, fmt.Errorf("array %s requires one bounded arrow callback", method)
 			}
 			array, ok := receiver.(*safeArray)
@@ -2644,9 +2898,18 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 			}
 			result := make([]any, 0, len(array.values))
 			for _, item := range array.values {
-				value, evalErr := c.evalLambda(e.args[0], item)
-				if evalErr != nil {
-					return nil, evalErr
+				value := any(nil)
+				if booleanFilter {
+					value = truthy(item)
+				} else {
+					var evalErr error
+					value, evalErr = c.evalLambda(e.args[0], item)
+					if evalErr != nil {
+						return nil, evalErr
+					}
+				}
+				if method == "find" && truthy(value) {
+					return item, nil
 				}
 				if method == "some" && truthy(value) {
 					return true, nil
@@ -2662,6 +2925,9 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 			}
 			if method == "some" {
 				return false, nil
+			}
+			if method == "find" {
+				return safeUndefined{}, nil
 			}
 			return boundedSafeArray(result)
 		}
@@ -2681,6 +2947,14 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 		if builtin, ok := receiver.(safeBuiltin); ok && builtin == "Array" && method == "isArray" && len(args) == 1 {
 			_, ok := args[0].(*safeArray)
 			return ok, nil
+		}
+		if builtin, ok := receiver.(safeBuiltin); ok && builtin == "Object" && len(args) == 1 {
+			if method == "keys" {
+				return safeObjectKeys(args[0])
+			}
+			if method == "fromEntries" {
+				return safeObjectFromEntries(args[0])
+			}
 		}
 		if array, ok := receiver.(safeBuiltin); ok && array == "Array" && method == "from" {
 			return c.safeArrayFrom(args)
@@ -2732,7 +3006,32 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 					return nil, fmt.Errorf("Math.round requires a numeric argument")
 				}
 				return math.Round(n), nil
+			case "max", "min":
+				if len(args) < 1 || len(args) > 16 {
+					return nil, fmt.Errorf("Math.%s requires one to sixteen bounded numeric arguments", method)
+				}
+				values := make([]float64, len(args))
+				for i, arg := range args {
+					value, ok := numberValue(arg)
+					if !ok || math.IsNaN(value) || math.IsInf(value, 0) {
+						return nil, fmt.Errorf("Math.%s arguments must be finite numbers", method)
+					}
+					values[i] = value
+				}
+				result := values[0]
+				for _, value := range values[1:] {
+					if method == "max" && value > result || method == "min" && value < result {
+						result = value
+					}
+				}
+				return result, nil
 			}
+		}
+		if receiver == safeBuiltin("DateTime") && method == "now" {
+			if len(args) != 0 {
+				return nil, fmt.Errorf("DateTime.now takes no arguments")
+			}
+			return safeDateTime{at: c.now, loc: time.UTC, valid: true}, nil
 		}
 		if receiver == safeBuiltin("DateTime") && method == "fromISO" {
 			if len(args) != 1 {
@@ -2744,9 +3043,9 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 			}
 			parsed, err := parseSafeISODate(raw)
 			if err != nil {
-				return nil, err
+				return safeDateTime{loc: time.UTC, valid: false}, nil
 			}
-			return safeDateTime{at: parsed}, nil
+			return safeDateTime{at: parsed, loc: time.UTC, valid: true}, nil
 		}
 		if namedNode, ok := receiver.(safeBuiltin); ok && namedNode == "named-node" {
 			if len(args) != 1 {
@@ -2760,7 +3059,7 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 			if !exists {
 				return nil, fmt.Errorf("prior node %q has not executed or has no available output", name)
 			}
-			return safeNodeLookup{items: items.items}, nil
+			return safeNodeLookup{items: items.items, currentIndex: c.currentItemIndex, currentCount: c.currentItemCount}, nil
 		}
 		if lookup, ok := receiver.(safeNodeLookup); ok && method == "first" {
 			if len(args) != 0 || len(lookup.items) == 0 {
@@ -2785,8 +3084,14 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 		if local, ok := fn.(safeLocalFunction); ok {
 			return c.callLocalFunction(local, args)
 		}
+		if callback, ok := fn.(*codeExpr); ok && (callback.op == "lambda" || callback.op == "lambda0") {
+			return c.evalLambdaArguments(callback, args)
+		}
 		if fn == safeBuiltin("Object.keys") && len(args) == 1 {
 			return safeObjectKeys(args[0])
+		}
+		if fn == safeBuiltin("Object.fromEntries") && len(args) == 1 {
+			return safeObjectFromEntries(args[0])
 		}
 		if fn == safeBuiltin("Array.isArray") && len(args) == 1 {
 			_, ok := args[0].(*safeArray)
@@ -2794,6 +3099,9 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 		}
 		if fn == safeBuiltin("String") && len(args) == 1 {
 			return jsString(args[0]), nil
+		}
+		if fn == safeBuiltin("Boolean") && len(args) == 1 {
+			return truthy(args[0]), nil
 		}
 		if fn == safeBuiltin("Number") && len(args) == 1 {
 			switch value := args[0].(type) {
@@ -2823,6 +3131,22 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 				}
 			}
 			return nil, fmt.Errorf("Number requires a safely parseable scalar")
+		}
+		if fn == safeBuiltin("isNaN") && len(args) == 1 {
+			value, ok := numberValue(args[0])
+			return !ok || math.IsNaN(value), nil
+		}
+		if fn == safeBuiltin("isFinite") && len(args) == 1 {
+			value, ok := numberValue(args[0])
+			return ok && !math.IsNaN(value) && !math.IsInf(value, 0), nil
+		}
+		if fn == safeBuiltin("encodeURIComponent") && len(args) == 1 {
+			encoded := url.QueryEscape(jsString(args[0]))
+			encoded = strings.ReplaceAll(encoded, "+", "%20")
+			for from, to := range map[string]string{"%21": "!", "%27": "'", "%28": "(", "%29": ")", "%2A": "*"} {
+				encoded = strings.ReplaceAll(encoded, from, to)
+			}
+			return encoded, nil
 		}
 		if fn == safeBuiltin("String.fromCodePoint") && len(args) == 1 {
 			number, ok := numberValue(args[0])
@@ -2863,7 +3187,7 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 			if !exists {
 				return nil, fmt.Errorf("prior node %q has not executed or has no available output", name)
 			}
-			return safeNodeLookup{items: items.items}, nil
+			return safeNodeLookup{items: items.items, currentIndex: c.currentItemIndex, currentCount: c.currentItemCount}, nil
 		}
 		if fn == safeBuiltin("items") && len(args) == 1 {
 			name, ok := args[0].(string)
@@ -2947,11 +3271,19 @@ func safeSetKey(value any) (string, bool) {
 
 type (
 	safeInput      struct{ items []any }
-	safeNodeLookup struct{ items []any }
-	safeExecution  struct{ resumeURL string }
-	safeDate       struct{ at time.Time }
-	safeDateTime   struct{ at time.Time }
-	safeSet        struct {
+	safeNodeLookup struct {
+		items        []any
+		currentIndex int
+		currentCount int
+	}
+	safeExecution struct{ resumeURL string }
+	safeDate      struct{ at time.Time }
+	safeDateTime  struct {
+		at    time.Time
+		loc   *time.Location
+		valid bool
+	}
+	safeSet struct {
 		values  map[string]any
 		ordered []any
 	}
@@ -2966,6 +3298,15 @@ type (
 		bytes  int
 	}
 )
+
+type safeUndefined struct{}
+
+func (safeUndefined) String() string { return "undefined" }
+
+func isSafeUndefined(value any) bool {
+	_, ok := value.(safeUndefined)
+	return ok
+}
 
 func (r safeRegex) flags() string {
 	var flags string
@@ -3058,7 +3399,7 @@ func toSafeJSON(value any, depth int) (any, error) {
 			values[index] = converted
 		}
 		return boundedSafeArray(values)
-	case string, bool, nil:
+	case string, bool, nil, safeUndefined:
 		return typed, nil
 	default:
 		return nil, fmt.Errorf("JSON value type %T is unsupported", typed)
@@ -3067,8 +3408,60 @@ func toSafeJSON(value any, depth int) (any, error) {
 
 func (a *safeArray) MarshalJSON() ([]byte, error) { return json.Marshal(a.values) }
 
+func safeJSONForStringify(value any, depth int, inArray bool) (any, bool, error) {
+	if depth > 32 {
+		return nil, false, fmt.Errorf("JSON nesting exceeds 32 levels")
+	}
+	if _, ok := value.(safeUndefined); ok {
+		if inArray {
+			return nil, false, nil
+		}
+		return nil, true, nil
+	}
+	switch typed := value.(type) {
+	case map[string]any:
+		result := make(map[string]any, len(typed))
+		for key, child := range typed {
+			if !safeJSONPropertyName(key) {
+				return nil, false, fmt.Errorf("JSON property %q is unsupported", key)
+			}
+			converted, omit, err := safeJSONForStringify(child, depth+1, false)
+			if err != nil {
+				return nil, false, err
+			}
+			if !omit {
+				result[key] = converted
+			}
+		}
+		return result, false, nil
+	case []any:
+		if len(typed) > maxSyntheticItems {
+			return nil, false, fmt.Errorf("JSON array item bound exceeded")
+		}
+		result := make([]any, len(typed))
+		for index, child := range typed {
+			converted, _, err := safeJSONForStringify(child, depth+1, true)
+			if err != nil {
+				return nil, false, err
+			}
+			result[index] = converted
+		}
+		return result, false, nil
+	case *safeArray:
+		if typed == nil {
+			return nil, false, fmt.Errorf("JSON array item bound exceeded")
+		}
+		return safeJSONForStringify(typed.values, depth, inArray)
+	default:
+		converted, err := toSafeJSON(value, depth)
+		return converted, false, err
+	}
+}
+
 func safeProperty(v any, k string) (any, error) {
 	switch x := v.(type) {
+	case safeUndefined:
+		return safeUndefined{}, nil
 	case float64:
 		if k == "toString" {
 			return safeBuiltin("number.toString:" + strconv.FormatFloat(x, 'g', -1, 64)), nil
@@ -3078,7 +3471,11 @@ func safeProperty(v any, k string) (any, error) {
 			return safeBuiltin("number.toString:" + strconv.Itoa(x)), nil
 		}
 	case map[string]any:
-		return toSafeJSON(x[k], 0)
+		value, exists := x[k]
+		if !exists {
+			return safeUndefined{}, nil
+		}
+		return toSafeJSON(value, 0)
 	case *safeArray:
 		if k == "length" {
 			return float64(len(x.values)), nil
@@ -3107,10 +3504,7 @@ func safeProperty(v any, k string) (any, error) {
 		}
 	case safeNodeLookup:
 		if k == "item" {
-			if len(x.items) != 1 {
-				return nil, fmt.Errorf("prior-node .item requires exactly one linked output item")
-			}
-			return x.items[0], nil
+			return linkedSafeNodeItem(x)
 		}
 		if k == "all" || k == "first" {
 			return safeBuiltin("node." + k), nil
@@ -3125,6 +3519,13 @@ func safeProperty(v any, k string) (any, error) {
 		}
 		if k == "getDay" || k == "getDate" || k == "getMonth" || k == "getFullYear" {
 			return safeBuiltin("date." + k), nil
+		}
+	case safeDateTime:
+		if k == "isValid" {
+			return x.valid, nil
+		}
+		if oneOfFold(k, "setZone", "minus", "diff", "toFormat", "toISO") {
+			return safeBuiltin("datetime." + k), nil
 		}
 	case *safeSet:
 		if x == nil {
@@ -3147,11 +3548,17 @@ func safeProperty(v any, k string) (any, error) {
 			return safeBuiltin("regex.test:" + x.flags() + "\x00" + x.pattern), nil
 		}
 	case safeBuiltin:
+		if x == "DateTime" && (k == "now" || k == "fromISO") {
+			return safeBuiltin("DateTime"), nil
+		}
 		if x == "String" && k == "fromCodePoint" {
 			return safeBuiltin("String.fromCodePoint"), nil
 		}
 		if x == "Object" && k == "keys" {
 			return safeBuiltin("Object.keys"), nil
+		}
+		if x == "Object" && k == "fromEntries" {
+			return safeBuiltin("Object.fromEntries"), nil
 		}
 		if x == "JSON" && (k == "stringify" || k == "parse") {
 			return safeBuiltin("JSON." + k), nil
@@ -3162,7 +3569,7 @@ func safeProperty(v any, k string) (any, error) {
 		if x == "Array" && k == "isArray" {
 			return safeBuiltin("Array.isArray"), nil
 		}
-		if x == "Math" && (k == "floor" || k == "random") {
+		if x == "Math" && oneOfFold(k, "floor", "random", "max", "min", "ceil", "round") {
 			return safeBuiltin("Math"), nil
 		}
 	}
@@ -3292,25 +3699,104 @@ func safeCall(c *safeCodeContext, receiver any, method string, args []any) (any,
 			}
 		}
 	case safeDateTime:
+		if method == "setZone" && len(args) == 1 {
+			zone, ok := args[0].(string)
+			if !ok || len(zone) == 0 || len(zone) > 64 {
+				return nil, fmt.Errorf("DateTime.setZone requires one bounded IANA zone")
+			}
+			if strings.HasPrefix(zone, "/") || strings.Contains(zone, "..") || strings.ContainsAny(zone, `\\:`) {
+				return safeDateTime{at: x.at, valid: false}, nil
+			}
+			location, err := time.LoadLocation(zone)
+			if err != nil {
+				return safeDateTime{at: x.at, valid: false}, nil
+			}
+			return safeDateTime{at: x.at, loc: location, valid: x.valid}, nil
+		}
+		if method == "minus" && len(args) == 1 {
+			units, ok := args[0].(map[string]any)
+			if !ok || len(units) != 1 {
+				return nil, fmt.Errorf("DateTime.minus requires one bounded unit")
+			}
+			for unit, raw := range units {
+				amount, numeric := numberValue(raw)
+				if !numeric || math.IsNaN(amount) || math.IsInf(amount, 0) || math.Abs(amount) > 36500 {
+					return nil, fmt.Errorf("DateTime.minus amount exceeds its bound")
+				}
+				switch unit {
+				case "days":
+					if amount != math.Trunc(amount) {
+						return nil, fmt.Errorf("DateTime.minus days must be an integer")
+					}
+					x.at = x.at.AddDate(0, 0, -int(amount))
+				case "hours":
+					x.at = x.at.Add(-time.Duration(amount * float64(time.Hour)))
+				case "minutes":
+					x.at = x.at.Add(-time.Duration(amount * float64(time.Minute)))
+				case "seconds":
+					x.at = x.at.Add(-time.Duration(amount * float64(time.Second)))
+				default:
+					return nil, fmt.Errorf("DateTime.minus unit %q is unsupported", unit)
+				}
+			}
+			return x, nil
+		}
+		if method == "toISO" && len(args) == 0 {
+			if !x.valid {
+				return nil, fmt.Errorf("DateTime.toISO requires a valid date")
+			}
+			location := x.loc
+			if location == nil {
+				location = time.UTC
+			}
+			return x.at.In(location).Format(time.RFC3339Nano), nil
+		}
 		if method == "toFormat" && len(args) == 1 {
 			format, ok := args[0].(string)
-			if !ok || format != "yyyy-MM-dd HH:mm:ss" {
-				return nil, fmt.Errorf("DateTime.toFormat supports only the bounded yyyy-MM-dd HH:mm:ss format")
+			if !ok || !oneOfFold(format, "yyyy-MM-dd HH:mm:ss", "LLL d", "ccc") || !x.valid {
+				return nil, fmt.Errorf("DateTime.toFormat supports only bounded formats on valid dates")
 			}
-			return x.at.UTC().Format("2006-01-02 15:04:05"), nil
+			location := x.loc
+			if location == nil {
+				location = time.UTC
+			}
+			layout := map[string]string{"yyyy-MM-dd HH:mm:ss": "2006-01-02 15:04:05", "LLL d": "Jan 2", "ccc": "Mon"}[format]
+			return x.at.In(location).Format(layout), nil
 		}
 		if method == "diff" && len(args) == 2 {
 			other, ok := args[0].(safeDateTime)
-			units, unitsOK := args[1].(*safeArray)
-			if !ok || !unitsOK || len(units.values) != 3 || units.values[0] != "hours" || units.values[1] != "minutes" || units.values[2] != "seconds" {
-				return nil, fmt.Errorf("DateTime.diff supports only another ISO date and ordered hours, minutes, seconds units")
+			if !ok || !x.valid || !other.valid {
+				return nil, fmt.Errorf("DateTime.diff supports another valid ISO date and bounded units")
 			}
 			seconds := x.at.Sub(other.at).Seconds()
-			hours := math.Trunc(seconds / 3600)
-			seconds -= hours * 3600
-			minutes := math.Trunc(seconds / 60)
-			seconds -= minutes * 60
-			return map[string]any{"hours": hours, "minutes": minutes, "seconds": seconds}, nil
+			divisors := map[string]float64{"days": 86400, "hours": 3600, "minutes": 60, "seconds": 1}
+			if unit, unitOK := args[1].(string); unitOK && oneOfFold(unit, "days", "hours", "minutes", "seconds") {
+				return map[string]any{unit: seconds / divisors[unit]}, nil
+			}
+			units, unitsOK := args[1].(safeArray)
+			var unitValues []any
+			if unitsOK {
+				unitValues = units.values
+			} else if unitsPtr, ok := args[1].(*safeArray); ok && unitsPtr != nil {
+				unitValues = unitsPtr.values
+			} else if plain, ok := args[1].([]any); ok {
+				unitValues = plain
+			}
+			if len(unitValues) == 0 || len(unitValues) > 4 {
+				return nil, fmt.Errorf("DateTime.diff supports one unit or 1..4 bounded units (got %T)", args[1])
+			}
+			result := map[string]any{}
+			remaining := seconds
+			for _, rawUnit := range unitValues {
+				unit, ok := rawUnit.(string)
+				if !ok || !oneOfFold(unit, "days", "hours", "minutes", "seconds") {
+					return nil, fmt.Errorf("DateTime.diff supports one unit or 1..4 bounded units")
+				}
+				part := math.Trunc(remaining / divisors[unit])
+				result[unit] = part
+				remaining -= part * divisors[unit]
+			}
+			return result, nil
 		}
 	case *safeSet:
 		if x == nil {
@@ -3369,10 +3855,7 @@ func safeCall(c *safeCodeContext, receiver any, method string, args []any) (any,
 			return boundedSafeArray(x.items)
 		}
 		if method == "item" && len(args) == 0 {
-			if len(x.items) != 1 {
-				return nil, fmt.Errorf("prior-node .item requires exactly one linked output item")
-			}
-			return x.items[0], nil
+			return linkedSafeNodeItem(x)
 		}
 	case safeRegex:
 		if method == "test" && len(args) == 1 {
@@ -3386,6 +3869,13 @@ func safeCall(c *safeCodeContext, receiver any, method string, args []any) (any,
 			return r.MatchString(fmt.Sprint(args[0])), nil
 		}
 	case string:
+		if method == "startsWith" && len(args) == 1 {
+			prefix, ok := args[0].(string)
+			if !ok || len(x) > maxSafeCodeItemBytes || len(prefix) > maxSafeCodeItemBytes {
+				return nil, fmt.Errorf("string startsWith requires one bounded string")
+			}
+			return strings.HasPrefix(x, prefix), nil
+		}
 		if method == "includes" && len(args) == 1 {
 			search, ok := args[0].(string)
 			if !ok || len(x) > maxSafeCodeItemBytes || len(search) > maxSafeCodeItemBytes {
@@ -3467,6 +3957,8 @@ func safeCall(c *safeCodeContext, receiver any, method string, args []any) (any,
 		}
 		if len(args) == 0 {
 			switch method {
+			case "toString":
+				return x, nil
 			case "trim":
 				return strings.TrimSpace(x), nil
 			case "toLowerCase":
@@ -3595,6 +4087,16 @@ func safeCall(c *safeCodeContext, receiver any, method string, args []any) (any,
 		}
 	}
 	return nil, fmt.Errorf("call %q on %T is not allowed", method, receiver)
+}
+
+func linkedSafeNodeItem(lookup safeNodeLookup) (any, error) {
+	if lookup.currentCount > 0 && lookup.currentCount == len(lookup.items) && lookup.currentIndex >= 0 && lookup.currentIndex < len(lookup.items) {
+		return lookup.items[lookup.currentIndex], nil
+	}
+	if len(lookup.items) == 1 && lookup.currentIndex == 0 {
+		return lookup.items[0], nil
+	}
+	return nil, fmt.Errorf("prior-node .item requires one uniquely paired output item")
 }
 
 func formatSafeNumberRadix(value float64, radix int) string {
@@ -3771,7 +4273,14 @@ func safeJSONCall(method string, args []any) (any, error) {
 	}
 	switch method {
 	case "stringify":
-		encoded, err := json.Marshal(args[0])
+		value, omit, err := safeJSONForStringify(args[0], 0, false)
+		if err != nil {
+			return nil, fmt.Errorf("JSON.stringify value exceeds the bounded JSON size")
+		}
+		if omit {
+			return nil, nil
+		}
+		encoded, err := json.Marshal(value)
 		if err != nil || len(encoded) > maxSafeCodeItemBytes {
 			return nil, fmt.Errorf("JSON.stringify value exceeds the bounded JSON size")
 		}
@@ -3836,11 +4345,15 @@ func (c *safeCodeContext) evalLambda(lambda *codeExpr, value any) (any, error) {
 }
 
 func (c *safeCodeContext) evalLambdaArguments(lambda *codeExpr, values []any) (any, error) {
-	if lambda == nil || lambda.op != "lambda" {
+	if lambda == nil || (lambda.op != "lambda" && lambda.op != "lambda0") {
 		return nil, fmt.Errorf("callback is not a bounded arrow expression")
 	}
 	params := safeLambdaParameters(lambda)
-	if len(params) != len(values) {
+	if lambda.restParam {
+		if len(values) < len(params)-1 {
+			return nil, fmt.Errorf("callback argument count is smaller than its bounded parameters")
+		}
+	} else if len(params) != len(values) {
 		return nil, fmt.Errorf("callback argument count does not match bounded parameters")
 	}
 	previousLocals := c.locals
@@ -3854,6 +4367,15 @@ func (c *safeCodeContext) evalLambdaArguments(lambda *codeExpr, values []any) (a
 		if !safeCodeIdentifier(name) {
 			c.locals = previousLocals
 			return nil, fmt.Errorf("callback parameter is invalid")
+		}
+		if lambda.restParam && index == len(params)-1 {
+			rest, err := boundedSafeArray(values[index:])
+			if err != nil {
+				c.locals = previousLocals
+				return nil, err
+			}
+			c.locals[name] = rest
+			break
 		}
 		c.locals[name] = values[index]
 	}
@@ -4046,6 +4568,9 @@ func anyStrings(a []any) []string {
 }
 
 func jsString(v any) string {
+	if _, ok := v.(safeUndefined); ok {
+		return "undefined"
+	}
 	if v == nil {
 		return ""
 	}
@@ -4053,6 +4578,9 @@ func jsString(v any) string {
 }
 
 func truthy(v any) bool {
+	if _, ok := v.(safeUndefined); ok {
+		return false
+	}
 	if v == nil || v == false {
 		return false
 	}
@@ -4168,6 +4696,32 @@ func safeObjectKeys(value any) (*safeArray, error) {
 		values[i] = key
 	}
 	return boundedSafeArray(values)
+}
+
+func safeObjectFromEntries(value any) (map[string]any, error) {
+	entries, ok := value.(*safeArray)
+	if !ok || len(entries.values) > maxSyntheticItems {
+		return nil, fmt.Errorf("Object.fromEntries requires a bounded array of entry pairs")
+	}
+	result := make(map[string]any, len(entries.values))
+	for _, raw := range entries.values {
+		pair, ok := raw.(*safeArray)
+		if !ok || len(pair.values) != 2 {
+			return nil, fmt.Errorf("Object.fromEntries entries must be two-item arrays")
+		}
+		rawKey := pair.values[0]
+		switch rawKey.(type) {
+		case string, float64, int, bool, nil, safeUndefined:
+		default:
+			return nil, fmt.Errorf("Object.fromEntries keys must be bounded primitives")
+		}
+		key := jsString(rawKey)
+		if len(key) > 256 {
+			return nil, fmt.Errorf("Object.fromEntries key exceeds the bounded length")
+		}
+		result[key] = pair.values[1]
+	}
+	return result, nil
 }
 
 func safeIndexNumber(value any) (float64, bool) {

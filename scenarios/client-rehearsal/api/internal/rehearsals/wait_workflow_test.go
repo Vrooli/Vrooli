@@ -157,3 +157,69 @@ func TestPublic8995NodeAdaptersRunOnlyThroughSyntheticProfiles(t *testing.T) {
 		}
 	}
 }
+
+func TestPublic7032OpenAIResourceLocatorIsBoundedAndNormalized(t *testing.T) {
+	workflowJSON := readFixture(t, "public-workflows/7032.json")
+	var document struct {
+		Nodes []map[string]any `json:"nodes"`
+	}
+	if err := json.Unmarshal([]byte(workflowJSON), &document); err != nil {
+		t.Fatal(err)
+	}
+	var openAINode map[string]any
+	for _, node := range document.Nodes {
+		if node["type"] == "@n8n/n8n-nodes-langchain.openAi" {
+			openAINode = node
+			break
+		}
+	}
+	if openAINode == nil {
+		t.Fatal("public 7032 fixture must retain its OpenAI node")
+	}
+	params, _ := openAINode["parameters"].(map[string]any)
+	normalized, err := normalizeWorkflowNode("model", "Model", "@n8n/n8n-nodes-langchain.openAi", params)
+	if err != nil {
+		t.Fatalf("normalize public resource-locator model selector: %v", err)
+	}
+	if normalized.Request == nil || normalized.Request.Operation != "@n8n/n8n-nodes-langchain.openAi:chat.completion" {
+		t.Fatalf("unexpected normalized adapter: %#v", normalized.Request)
+	}
+
+	base := map[string]any{"messages": map[string]any{"values": []any{map[string]any{"content": "static prompt"}}}}
+	for name, selector := range map[string]any{
+		"plain model ID":   "gpt-4.1",
+		"n8n list locator": map[string]any{"__rl": true, "mode": "list", "value": "gpt-4.1", "cachedResultName": "GPT-4.1"},
+		"n8n ID locator":   map[string]any{"__rl": true, "mode": "id", "value": "model_123"},
+	} {
+		params := map[string]any{"modelId": selector, "messages": base["messages"]}
+		if _, err := normalizeWorkflowNode("model", "Model", "@n8n/n8n-nodes-langchain.openAi", params); err != nil {
+			t.Errorf("accept %s: %v", name, err)
+		}
+	}
+	for name, selector := range map[string]any{
+		"unmarked locator": map[string]any{"mode": "list", "value": "gpt-4.1"},
+		"expression value": map[string]any{"__rl": true, "mode": "list", "value": "={{$json.model}}"},
+		"invalid mode":     map[string]any{"__rl": true, "mode": "expression", "value": "gpt-4.1"},
+		"non-string ID":    map[string]any{"__rl": true, "mode": "list", "value": 42},
+	} {
+		params := map[string]any{"modelId": selector, "messages": base["messages"]}
+		if _, err := normalizeWorkflowNode("model", "Model", "@n8n/n8n-nodes-langchain.openAi", params); err == nil {
+			t.Errorf("reject %s", name)
+		}
+	}
+}
+
+func TestPublic7032WorkflowNormalizesWithoutChangingFixture(t *testing.T) {
+	workflowJSON := readFixture(t, "public-workflows/7032.json")
+	workflow, sourceHash, _, err := normalizeWorkflow(workflowJSON)
+	if err != nil {
+		t.Fatalf("normalize original public 7032 workflow: %v", err)
+	}
+	rawDigest := sha256.Sum256([]byte(workflowJSON))
+	if hex.EncodeToString(rawDigest[:]) != "53447d4861db07cf400a5bb6fcfaba0b6e5c24f0f3479640fcd5641be5cfca45" || sourceHash == "" || len(workflow.Nodes) != 12 || len(workflow.Connections) != 12 {
+		t.Fatalf("unexpected normalized public graph shape: source=%q nodes=%d connections=%d", sourceHash, len(workflow.Nodes), len(workflow.Connections))
+	}
+	if len(workflow.EntryNodeIDs) != 2 {
+		t.Errorf("both manual and schedule triggers should remain represented; got %v", workflow.EntryNodeIDs)
+	}
+}

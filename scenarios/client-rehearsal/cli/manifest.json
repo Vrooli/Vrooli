@@ -4,6 +4,73 @@
   "description": "Stable command surface for importing, rehearsing, and reviewing synthetic workflows.",
   "groups": [
     {
+      "name": "coding-jobs",
+      "description": "Persist blind coding bounty practice jobs and their immutable evaluation receipts",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create a solver-visible coding practice job",
+          "flags": [
+            {"name": "case-id", "required": true, "description": "Opaque sealed case id"},
+            {"name": "project", "required": true, "description": "Public project name"},
+            {"name": "title", "required": true, "description": "Public issue title"},
+            {"name": "task", "required": true, "description": "Solver-visible bounty task"},
+            {"name": "source-seal-ref", "required": true, "description": "Sandbox-owned source seal reference; contains no evaluator payload"},
+            {"name": "replay-key", "required": true, "description": "Stable idempotency key for create or resume"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "vrooli.client_rehearsal.v1.codingjobs.CodingJobService", "method": "CreateCodingJob"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "record-stage",
+          "description": "Append a role-specific solver or scorer lifecycle event",
+          "positionals": [{"name": "id", "required": true, "description": "Coding job id"}],
+          "flags": [
+            {"name": "stage", "required": true, "description": "Closed lifecycle stage"},
+            {"name": "actor", "required": true, "description": "Owner role name checked by the service"},
+            {"name": "evidence-ref", "required": true, "description": "Opaque owner evidence reference"},
+            {"name": "evidence-sha256", "description": "Evidence digest when required"},
+            {"name": "expected-revision", "required": true, "description": "Revision loaded before this transition"},
+            {"name": "note", "description": "Bounded non-sensitive note"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "vrooli.client_rehearsal.v1.codingjobs.CodingJobService", "method": "RecordCodingJobStage"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "record-evaluation",
+          "description": "Record exactly one frozen Test Genie three-way receipt",
+          "positionals": [{"name": "id", "required": true, "description": "Coding job id"}],
+          "flags": [
+            {"name": "receipt-ref", "required": true, "description": "Immutable Test Genie receipt reference"},
+            {"name": "receipt-sha256", "required": true, "description": "Immutable receipt digest"},
+            {"name": "score", "required": true, "description": "Closed three-way result emitted by Test Genie"},
+            {"name": "expected-revision", "required": true, "description": "Revision loaded before evaluation"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "vrooli.client_rehearsal.v1.codingjobs.CodingJobService", "method": "RecordCodingJobEvaluation"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "get",
+          "description": "Read a coding job and its bounded event history",
+          "positionals": [{"name": "id", "required": true, "description": "Coding job id"}],
+          "binding": {"kind": "connect-rpc", "service": "vrooli.client_rehearsal.v1.codingjobs.CodingJobService", "method": "GetCodingJob"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "list",
+          "description": "List recent coding practice jobs",
+          "flags": [{"name": "limit", "description": "Maximum records, capped by the API"}],
+          "binding": {"kind": "connect-rpc", "service": "vrooli.client_rehearsal.v1.codingjobs.CodingJobService", "method": "ListCodingJobs"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        }
+      ]
+    },
+    {
       "name": "notes",
       "description": "Manage notes (CRUD reference)",
       "commands": [
@@ -154,6 +221,10 @@
               "description": "Select one imported trigger when the workflow has multiple trigger nodes"
             },
             {
+              "name": "trigger-input-json",
+              "description": "Optional synthetic JSON object for the selected trigger; bounded to 64 KiB, sanitized, and used for this run only"
+            },
+            {
               "name": "simulator-source-json",
               "description": "OpenAPI or recorded-exchange JSON; omitted uses the synthetic CRM/Sheets catalog"
             },
@@ -298,6 +369,23 @@
       "service": "vrooli.client_rehearsal.v1.shared.CapabilitiesService",
       "method": "DescribeCapabilities",
       "reason": "The optional system capability snapshot is API-only; it is consumed by machine integrations and is not an operator CLI workflow."
+    },
+    {
+      "service": "vrooli.client_rehearsal.v1.bountycases.BountyCaseService",
+      "method": "ResolveBountyReplayCase",
+      "reason": "Returns hidden immutable reference/evaluator metadata for the F9 replay flow; only the exact pinned Program Runtime bounty-replay binding may consume it.",
+      "program_only": {
+        "binding_id": "client-rehearsal/bounty-cases/resolve",
+        "program": "program-runtime.bounty-replay",
+        "digest": "88476240333e656c8ed063337978843bbe3d55b349d085c741f4dd89348a19f9",
+        "effect": "read",
+        "permissions": ["network:internal", "filesystem:read"]
+      }
+    },
+    {
+      "service": "vrooli.client_rehearsal.v1.bountycases.BountyCaseService",
+      "method": "GetFrozenEvaluatorBundle",
+      "reason": "Returns bounded frozen evaluator bytes by opaque bundle identity for Test Genie's internal evaluator runner; no general CLI command or filesystem path is exposed."
     }
   ]
 }

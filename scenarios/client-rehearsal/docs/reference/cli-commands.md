@@ -176,6 +176,30 @@ client-rehearsal notes attach abc123 --file ./example.png
 ```
 <!-- EXAMPLE-DOMAIN:notes END -->
 
+## Supplying a synthetic trigger event
+
+`client-rehearsal rehearsals create-and-run` accepts an optional
+`--trigger-input-json` object for the selected trigger. This is useful for
+webhook or event-shaped exports whose expected body differs from the default
+generic fixture. Input is limited to 64 KiB, 16 nested object/array levels,
+and 4096 values. Secret-shaped keys are replaced before execution. The raw
+object is used for one in-process synthetic run and is not saved in the run,
+trace, or handoff. If the flag is omitted, existing synthetic trigger behavior
+is unchanged.
+
+```bash
+client-rehearsal rehearsals create-and-run \
+  --title "Synthetic attendance webhook" \
+  --workflow-json "$(cat workflow.json)" \
+  --trigger-node-id webhook \
+  --trigger-input-json '{"body":{"name":"Synthetic attendee","email":"attendee@synthetic.invalid"}}' \
+  --simulator-source-json "$(cat simulator.json)"
+```
+
+The selected workflow still runs only through its declared simulator profile;
+caller-supplied payloads do not authorize live services or task-scoped/native
+execution.
+
 ## Output contracts
 
 Every scenario command should render through one of three human

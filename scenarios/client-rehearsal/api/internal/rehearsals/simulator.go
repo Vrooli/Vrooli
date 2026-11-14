@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/mail"
 	"net/url"
 	"regexp"
 	"sort"
@@ -829,6 +830,9 @@ func syntheticize(value any, key string) any {
 			// or secret material. Other status strings remain syntheticized below.
 			return typed
 		case strings.Contains(lower, "email"):
+			if isSyntheticEmailAddress(typed) {
+				return typed
+			}
 			return "person@example.invalid"
 		case lower == "id" || strings.HasSuffix(lower, "id"):
 			return "synthetic-id"
@@ -850,6 +854,22 @@ func syntheticize(value any, key string) any {
 	default:
 		return typed
 	}
+}
+
+// Addresses in the reserved .invalid domain are useful synthetic fixtures:
+// unlike real email addresses, they cannot identify or contact a person, and
+// keeping their distinct values lets workflow tests exercise exact-match and
+// non-match branches. All other email-shaped profile values are normalized.
+func isSyntheticEmailAddress(value string) bool {
+	address, err := mail.ParseAddress(value)
+	if err != nil || address.Address != value {
+		return false
+	}
+	separator := strings.LastIndexByte(address.Address, '@')
+	if separator <= 0 || separator == len(address.Address)-1 {
+		return false
+	}
+	return strings.HasSuffix(strings.ToLower(address.Address[separator+1:]), ".invalid")
 }
 
 const syntheticHTMLDocument = `<!doctype html><html><head><title>Synthetic page</title></head><body><h1>Synthetic heading</h1><p>Synthetic body</p></body></html>`

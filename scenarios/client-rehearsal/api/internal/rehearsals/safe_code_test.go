@@ -11,6 +11,96 @@ import (
 	"time"
 )
 
+func TestSafeCodeCatchesBoundedSyntheticError(t *testing.T) {
+	now := time.Date(2026, 11, 13, 12, 0, 0, 0, time.UTC)
+	output, err := executeSafeCode(`try { throw new Error('synthetic validation failure'); } catch (e) { return [{ json: { caught: true } }]; } return [];`, nil, now)
+	if err != nil {
+		t.Fatalf("catch bounded synthetic Error: %v", err)
+	}
+	if len(output) != 1 || output[0]["json"].(map[string]any)["caught"] != true {
+		t.Fatalf("unexpected caught Error result: %#v", output)
+	}
+	_, err = executeSafeCode(`throw new Error('synthetic uncaught failure'); return [];`, nil, now)
+	if err == nil || !strings.Contains(err.Error(), "synthetic uncaught failure") {
+		t.Fatalf("uncaught synthetic Error should stop the run, got %v", err)
+	}
+}
+
+func TestSafeCodeDistinguishesMissingUndefinedFromExplicitNull(t *testing.T) {
+	input := []map[string]any{{"explicitNull": nil}}
+	output, err := executeSafeCode(`return [{ json: { missing: $json.absent === undefined, explicitNull: $json.explicitNull === null, text: String($json.absent) } }];`, input, time.Time{})
+	if err != nil {
+		t.Fatalf("evaluate missing JSON property: %v", err)
+	}
+	data := output[0]["json"].(map[string]any)
+	if data["missing"] != true || data["explicitNull"] != true || data["text"] != "undefined" {
+		t.Fatalf("missing and explicit null were not distinguished: %#v", data)
+	}
+}
+
+func TestSafeCodeDateTimeZoneAndBoundedDiff(t *testing.T) {
+	now := time.Date(2026, 11, 13, 15, 0, 0, 0, time.UTC)
+	source := `const local = DateTime.now().setZone('America/New_York');
+const week = local.minus({ days: 7 });
+const parsed = DateTime.fromISO('2026-11-10T12:00:00Z').setZone('America/New_York');
+return [{ json: { valid: local.isValid, day: local.toFormat('LLL d'), weekday: local.toFormat('ccc'), iso: local.toISO(), days: local.diff(week, 'days').days, parsed: parsed.isValid } }];`
+	output, err := executeSafeCode(source, nil, now)
+	if err != nil {
+		t.Fatalf("execute bounded DateTime zone operations: %v", err)
+	}
+	data := output[0]["json"].(map[string]any)
+	if data["valid"] != true || data["day"] != "Nov 13" || data["weekday"] != "Fri" || data["days"] != float64(7) || data["parsed"] != true || !strings.HasSuffix(data["iso"].(string), "-05:00") {
+		t.Fatalf("unexpected synthetic DateTime result: %#v", data)
+	}
+	invalid, err := executeSafeCode(`return [{json:{zone:DateTime.now().setZone('Bad/../Zone').isValid, parsed:DateTime.fromISO('invalid').isValid}}];`, nil, now)
+	if err != nil {
+		t.Fatalf("invalid DateTime inputs should remain inspectable: %v", err)
+	}
+	result := invalid[0]["json"].(map[string]any)
+	if result["zone"] != false || result["parsed"] != false {
+		t.Fatalf("invalid zone/date must be marked invalid: %#v", result)
+	}
+}
+
+func TestSafeCodeBoundedRestParameters(t *testing.T) {
+	source := `const first = (...values) => values[0]; return [{json:{first:first('alpha','beta')}}];`
+	output, err := executeSafeCode(source, nil, time.Time{})
+	if err != nil {
+		t.Fatalf("execute bounded rest parameter: %v", err)
+	}
+	if got := output[0]["json"].(map[string]any)["first"]; got != "alpha" {
+		t.Fatalf("first rest value = %#v", got)
+	}
+	if _, err := parseSafeCode(`const invalid = (...values, later) => later; return [];`); err == nil {
+		t.Fatal("rest parameter must be last")
+	}
+}
+
+func TestSafeCodeBoundedMultiBindingDeclarations(t *testing.T) {
+	source := `let raw = {name:'Ada'}, source = 'webhook', empty; const name = raw.name, label = source + ':' + name; return [{json:{name,label,empty}}];`
+	output, err := executeSafeCode(source, nil, time.Time{})
+	if err != nil {
+		t.Fatalf("execute bounded multi-binding declarations: %v", err)
+	}
+	got := output[0]["json"].(map[string]any)
+	if got["name"] != "Ada" || got["label"] != "webhook:Ada" || got["empty"] != nil {
+		t.Fatalf("unexpected grouped declarations: %#v", got)
+	}
+}
+
+func TestSafeCodeBoundedFormHelpers(t *testing.T) {
+	source := `const record={keep:'yes',remove:'no'}; const key='remove'; delete record[key]; const found=Object.keys(record).find(k=>k==='keep'); const rebuilt=Object.fromEntries([[found,record[found]]]); const valid=isFinite(-3); return [{json:{removed:record.remove===undefined,found,rebuilt,encoded:encodeURIComponent('a b/'),valid}}];`
+	output, err := executeSafeCode(source, nil, time.Time{})
+	if err != nil {
+		t.Fatalf("execute bounded form helpers: %v", err)
+	}
+	got := output[0]["json"].(map[string]any)
+	rebuilt := got["rebuilt"].(map[string]any)
+	if got["removed"] != true || got["found"] != "keep" || rebuilt["keep"] != "yes" || got["encoded"] != "a%20b%2F" || got["valid"] != true {
+		t.Fatalf("unexpected bounded form-helper result: %#v", got)
+	}
+}
+
 func TestSafeCodeSupportsBoundedPublicLoopExpressions(t *testing.T) {
 	created, err := executeSafeCode(`return Array.from({ length: 25 }, () => ({ json: { value: 1 } }));`, nil, time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC))
 	if err != nil {
@@ -276,6 +366,74 @@ func TestSafeCodeStringIncludesUsesBoundedLiteralSemantics(t *testing.T) {
 	}
 }
 
+func TestSafeCodeStringStartsWithUsesBoundedLiteralSemantics(t *testing.T) {
+	source := `const phone='+15550100'; return [{json:{international:phone.startsWith('+'),local:phone.startsWith('0')}}];`
+	if _, err := parseSafeCode(source); err != nil {
+		t.Fatalf("parse bounded string startsWith: %v", err)
+	}
+	got, err := executeSafeCode(source, nil, time.Time{})
+	if err != nil {
+		t.Fatalf("evaluate bounded string startsWith: %v", err)
+	}
+	data := got[0]["json"].(map[string]any)
+	if data["international"] != true || data["local"] != false {
+		t.Fatalf("string startsWith results = %#v, want true/false", data)
+	}
+	if _, err := executeSafeCode(`return [{json:{bad:'x'.startsWith(1)}}];`, nil, time.Time{}); err == nil {
+		t.Fatal("string startsWith must reject non-string prefix values")
+	}
+}
+
+func TestSafeCodeLeadPhoneNormalizationUsesBoundedArrowAndReplacement(t *testing.T) {
+	source := `const body = $input.first().json.body; const phone = (() => { if (!body.phone) return body.phone; const raw = body.phone.toString().trim(); const cleaned = raw.replace(/[^\d+]/g, ''); if (cleaned.startsWith('+')) return cleaned; const digits = cleaned.replace(/^0+/, ''); if (digits.length >= 11) return '+' + digits; return cleaned; })(); return [{json:{phone}}];`
+	input := []map[string]any{{"body": map[string]any{"phone": "+1 (555) 010-0100"}}}
+	got, err := executeSafeCode(source, input, time.Date(2026, 11, 14, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("evaluate bounded lead phone normalization: %v", err)
+	}
+	if got[0]["json"].(map[string]any)["phone"] != "+15550100100" {
+		t.Fatalf("normalized phone = %#v, want +15550100100", got[0])
+	}
+}
+
+func TestSafeCodeComputedMissingKeyIsUndefined(t *testing.T) {
+	source := `const record={Email:''}; const present={Email:'lead@example.invalid'}; return [{json:{missing:({})['Email']===undefined,missingNotEmpty:({})['Email']!=='',emptyNotDuplicate:record['Email']==='',present:present['Email']!=='',outOfRange:['a'][4]===undefined}}];`
+	got, err := executeSafeCode(source, nil, time.Time{})
+	if err != nil {
+		t.Fatalf("evaluate computed property and array bounds: %v", err)
+	}
+	data := got[0]["json"].(map[string]any)
+	for key, want := range map[string]bool{"missing": true, "missingNotEmpty": true, "emptyNotDuplicate": true, "present": true, "outOfRange": true} {
+		if data[key] != want {
+			t.Errorf("%s = %#v, want %t", key, data[key], want)
+		}
+	}
+}
+
+func TestSafeCodeLeadDuplicateGuardTreatsAlwaysOutputEmptyItemAsNew(t *testing.T) {
+	source := `const lookupRows=$input.all(); const sanitized=$('Sanitize Data').first().json; const isDuplicate=lookupRows.length>0 && lookupRows[0].json['Email']!==undefined && lookupRows[0].json['Email']!==''; return [{json:{...sanitized,isDuplicate}}];`
+	prior := map[string][]map[string]any{"Sanitize Data": {{"name": "Synthetic lead", "email": "asha@example.invalid"}}}
+	for _, test := range []struct {
+		name string
+		rows []map[string]any
+		want bool
+	}{
+		{name: "empty always-output item", rows: []map[string]any{{}}, want: false},
+		{name: "empty email result", rows: []map[string]any{{"Email": ""}}, want: false},
+		{name: "existing email result", rows: []map[string]any{{"Email": "asha@example.invalid"}}, want: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := executeSafeCodeWithNodeOutputs(source, test.rows, prior, time.Time{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got[0]["json"].(map[string]any)["isDuplicate"] != test.want {
+				t.Fatalf("duplicate flag = %#v, want %t", got[0], test.want)
+			}
+		})
+	}
+}
+
 func TestSafeCodeSubsetRejectsUnboundedAndEffectfulSyntax(t *testing.T) {
 	for name, source := range map[string]string{
 		"unsafe property write":          `const a = {}; a.__proto__ = 1; return [];`,
@@ -382,6 +540,28 @@ return out;`
 	jsonData := got[0]["json"].(map[string]any)
 	if jsonData["name"] != "Ada" || jsonData["email"] != "ada@example.invalid" || jsonData["valid"] != true || jsonData["errors"] != "" {
 		t.Fatalf("unexpected interpreted output: %#v", jsonData)
+	}
+}
+
+func TestSafeCodeOptionalMethodCallShortCircuitsForMissingAndNullValues(t *testing.T) {
+	source := `const body = $input.first().json.body || {};
+const name = body.name?.trim();
+const role = body.role?.trim() || 'Participant';
+const firstName = body.people?.[0]?.name;
+return [{json:{missingName:!name, missingFirstName:!firstName, role}}];`
+	inputs := []map[string]any{
+		{"body": map[string]any{}},
+		{"body": map[string]any{"name": nil, "role": nil}},
+	}
+	for index, input := range inputs {
+		got, err := executeSafeCode(source, []map[string]any{input}, time.Time{})
+		if err != nil {
+			t.Fatalf("case %d optional method call: %v", index, err)
+		}
+		result := got[0]["json"].(map[string]any)
+		if result["missingName"] != true || result["missingFirstName"] != true || result["role"] != "Participant" {
+			t.Errorf("case %d optional method result = %#v", index, result)
+		}
 	}
 }
 

@@ -13,6 +13,12 @@ func (SyntheticEngine) ExecuteDetailed(ctx context.Context, workflow Workflow, t
 	return executeDetailedWithInput(ctx, workflow, triggerNodeID, simulator, injectFault, now, nil)
 }
 
+// ExecuteDetailedWithInput evaluates one selected trigger using a bounded,
+// sanitized per-run JSON object supplied by the owning service.
+func (SyntheticEngine) ExecuteDetailedWithInput(ctx context.Context, workflow Workflow, triggerNodeID string, simulator Simulator, injectFault bool, now time.Time, input map[string]any) (ExecutionResult, error) {
+	return executeDetailedWithInput(ctx, workflow, triggerNodeID, simulator, injectFault, now, input)
+}
+
 func executeDetailedWithInput(ctx context.Context, workflow Workflow, triggerNodeID string, simulator Simulator, injectFault bool, now time.Time, supplied map[string]any) (ExecutionResult, error) {
 	result := ExecutionResult{Trace: make([]TraceEvent, 0, len(workflow.Nodes)*2)}
 	if len(workflow.EntryNodeIDs) == 0 {

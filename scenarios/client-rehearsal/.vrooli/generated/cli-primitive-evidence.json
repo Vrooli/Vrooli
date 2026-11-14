@@ -4,8 +4,48 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "client-rehearsal",
   "generator": "v1.0.0",
-  "manifest_hash": "3ecda4be21b3f621de8285c17136ad528e8f8c77f36c16c927b59b2c68919e93",
+  "manifest_hash": "3ceedd61dcfa607bcbaa4001698c1528b0b79be6a06845e4544dfe425b713018",
   "commands": [
+    {
+      "path": "coding-jobs create",
+      "group": "coding-jobs",
+      "command": "create",
+      "binding": "vrooli.client_rehearsal.v1.codingjobs.CodingJobService.CreateCodingJob",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "coding-jobs get",
+      "group": "coding-jobs",
+      "command": "get",
+      "binding": "vrooli.client_rehearsal.v1.codingjobs.CodingJobService.GetCodingJob",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "coding-jobs list",
+      "group": "coding-jobs",
+      "command": "list",
+      "binding": "vrooli.client_rehearsal.v1.codingjobs.CodingJobService.ListCodingJobs",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "coding-jobs record-evaluation",
+      "group": "coding-jobs",
+      "command": "record-evaluation",
+      "binding": "vrooli.client_rehearsal.v1.codingjobs.CodingJobService.RecordCodingJobEvaluation",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "coding-jobs record-stage",
+      "group": "coding-jobs",
+      "command": "record-stage",
+      "binding": "vrooli.client_rehearsal.v1.codingjobs.CodingJobService.RecordCodingJobStage",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
     {
       "path": "notes attach",
       "group": "notes",

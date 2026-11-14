@@ -7,3 +7,10 @@
 - Current JSON import is capped at 512 KiB and the simulator does not stream payloads. Large-payload workflow coverage is open until a bounded storage/streaming policy is implemented and measured.
 - F7 remains full scale: the current synthetic corpus is 23/30 public workflows and has 10/10 repair records; the complete 30-workflow trigger-family matrix and native lifecycle acceptance remain open. One synthetic Gmail/Sheets/CRM handoff exists and still needs operator review; Make A1 and requested-tool A2/A3 replays remain open.
 - Readiness contract reconciliation (2026-11-13): the generated PRD/requirement registry now places the 30-workflow/10-repair showcase, the one-sitting synthetic Gmail/Sheets/CRM handoff, and named-tool A1–A3 handoffs at P0. The corrected contract and registry structure validate, and all six requirements link to six operational targets; all remain `planned`. A stale-evidence warning persists because no requirements-sync snapshot exists. No Test Genie phase or native n8n/Sandbox runtime was run for this contract-only correction. See the current F7 run checkpoint for exact receipts and the outstanding gates.
+
+## Work ladder
+
+- Rung: W3
+- Evidence: F7 in the freelance mission requires thirty unlike public workflows, ten seeded repairs, and a synthetic Gmail/Sheets/CRM handoff. `PRD.md` states the same P0 outcomes (W0 aligned). `business-health validate scenario client-rehearsal --json` passed at L3 with only an advisory missing requirements-sync snapshot (W1). `vrooli scenario requirements validate client-rehearsal --json` passed (W2). W3 remains incomplete: `docs/concepts/FLOWS.md` records 23/30 workflow runs and seven remaining; the retained public candidate qualification shows workflows 7950 and 20541 fail the generic importer and receive zero run credit. Native n8n execution and the task-scoped Sandbox bridge remain unverified in `docs/internal/SEAMS.md`.
+- Blocker: implement generic workflow coverage and prove it with owner tests; native runtime work remains gated on the n8n/Sandbox owners' admission and isolation contracts.
+- Measured: 2026-11-13

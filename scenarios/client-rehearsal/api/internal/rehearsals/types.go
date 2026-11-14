@@ -56,6 +56,8 @@ type (
 		Request                     *Step             `json:"request,omitempty"`
 		RequestURLExpression        string            `json:"request_url_expression,omitempty"`
 		Condition                   *Condition        `json:"condition,omitempty"`
+		IfConditions                []Condition       `json:"if_conditions,omitempty"`
+		IfCombinator                string            `json:"if_combinator,omitempty"`
 		FilterCondition             *Condition        `json:"filter_condition,omitempty"`
 		FilterConditions            []Condition       `json:"filter_conditions,omitempty"`
 		FilterCombinator            string            `json:"filter_combinator,omitempty"`
@@ -202,6 +204,7 @@ type CreateInput struct {
 	Title               string
 	WorkflowJSON        string
 	TriggerNodeID       string
+	TriggerInput        map[string]any
 	SimulatorProfile    string
 	SimulatorSourceJSON string
 	InjectSeededFault   bool
@@ -226,6 +229,9 @@ type Engine interface {
 }
 type DetailedEngine interface {
 	ExecuteDetailed(context.Context, Workflow, string, Simulator, bool, time.Time) (ExecutionResult, error)
+}
+type TriggerInputEngine interface {
+	ExecuteDetailedWithInput(context.Context, Workflow, string, Simulator, bool, time.Time, map[string]any) (ExecutionResult, error)
 }
 type ExecutionResult struct {
 	Trace  []TraceEvent

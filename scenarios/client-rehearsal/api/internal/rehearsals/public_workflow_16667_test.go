@@ -82,3 +82,26 @@ func TestPublic16667InstanceEventRunsGenericExecutionSummaryAndEnabledSyntheticA
 		}
 	}
 }
+
+func TestPublic16667QuietWindowUsesFallbackAlertThroughAlwaysOutputFilter(t *testing.T) {
+	workflow, _, _, err := normalizeWorkflow(readFixture(t, "public-workflows/16667.json"))
+	if err != nil {
+		t.Fatalf("normalize sanitized public instance-event workflow: %v", err)
+	}
+	simulator, err := NewDescriptionSimulator(readFixture(t, "public-workflow-16667-profile.json"), false)
+	if err != nil {
+		t.Fatalf("load synthetic n8n and notification profiles: %v", err)
+	}
+	startedAt := time.Date(2026, 11, 12, 12, 0, 0, 0, time.UTC)
+	run, err := executeDetailedWithInput(context.Background(), workflow, workflow.EntryNodeIDs[0], simulator, false, startedAt, map[string]any{"timestamp": startedAt.Format(time.RFC3339Nano)})
+	if err != nil {
+		t.Fatalf("execute quiet-window public restart event: %v; trace=%#v", err, run.Trace)
+	}
+	if !traceHasSuccessfulOperation(run.Trace, "n8n-nodes-base.slack:message.post") {
+		t.Fatalf("quiet-window fallback did not send its synthetic Slack alert: %#v", run.Trace)
+	}
+	message, _ := run.Output["slack_message"].(string)
+	if !strings.Contains(message, "All good no failed workflow recently") {
+		t.Fatalf("quiet-window output omitted the healthy fallback message: %#v", run.Output)
+	}
+}

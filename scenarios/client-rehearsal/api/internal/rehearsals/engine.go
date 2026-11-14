@@ -280,8 +280,8 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 				if len(contexts) > maxSafeCodeEachItems {
 					return last, fmt.Errorf("Code node %s input exceeds the %d per-item execution bound", node.Name, maxSafeCodeEachItems)
 				}
-				for _, contextItem := range contexts {
-					itemOutput, err := executeSafeCodePerItemWithNodeOutputs(node.SafeCode, contextItem, priorNodeOutputs, now)
+				for itemIndex, contextItem := range contexts {
+					itemOutput, err := executeSafeCodePerItemWithNodeOutputsAtIndex(node.SafeCode, contextItem, priorNodeOutputs, now, itemIndex, len(contexts))
 					if err != nil {
 						return last, fmt.Errorf("Code node %s rejected or failed in safe per-item interpreter: %w", node.Name, err)
 					}
@@ -431,11 +431,22 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 					outputPort = 1
 				}
 				operation = "If " + node.Condition.Path + " " + node.Condition.Operator
+			case len(node.IfConditions) > 0:
+				matches := evaluateFilterConditions(node.IfConditions, node.IfCombinator, input, priorNodeOutputs, now)
+				if !matches {
+					outputPort = 1
+				}
+				operation = formatIfConditions(node.IfConditions, node.IfCombinator)
 			case len(node.FilterConditions) > 0:
 				matches := evaluateFilterConditions(node.FilterConditions, node.FilterCombinator, input, priorNodeOutputs, now)
 				if !matches {
 					outputPort = 1
-					responseSummary = "sent item to discarded output"
+					if node.AlwaysOutputData {
+						outputs = nil
+						responseSummary = "discarded item; no matching output"
+					} else {
+						responseSummary = "sent item to discarded output"
+					}
 				} else {
 					responseSummary = "kept matching item"
 				}
@@ -444,7 +455,12 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 				matches := evaluateGraphCondition(*node.FilterCondition, input, priorNodeOutputs, now)
 				if !matches {
 					outputPort = 1
-					responseSummary = "sent item to discarded output"
+					if node.AlwaysOutputData {
+						outputs = nil
+						responseSummary = "discarded item; no matching output"
+					} else {
+						responseSummary = "sent item to discarded output"
+					}
 				} else {
 					responseSummary = "kept matching item"
 				}
@@ -564,7 +580,7 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 			case node.Type == "n8n-nodes-base.noOp":
 				operation = "No Operation"
 			}
-			if node.AlwaysOutputData && len(outputs) == 0 {
+			if node.AlwaysOutputData && len(outputs) == 0 && len(node.FilterConditions) == 0 && node.FilterCondition == nil {
 				outputs = []map[string]any{{}}
 				output = outputs[0]
 			}
@@ -579,6 +595,20 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 					for _, item := range outputs {
 						appendRoutedInput(inputs, inputsByPort, edge, item)
 					}
+				}
+			}
+		}
+		if node.AlwaysOutputData && len(nodeOutputs) == 0 && (len(node.FilterConditions) > 0 || node.FilterCondition != nil) {
+			// n8n's Always Output Data keeps a filtering node's primary
+			// continuation alive only when no items passed its filter.
+			empty := map[string]any{}
+			nodeOutputs = []map[string]any{empty}
+			if captured != nil && id == captureNode {
+				*captured = cloneMapSlice(nodeOutputs)
+			}
+			for _, edge := range workflow.Connections {
+				if edge.From == id && edge.OutputPort == 0 {
+					appendRoutedInput(inputs, inputsByPort, edge, empty)
 				}
 			}
 		}
@@ -939,6 +969,20 @@ func evaluateCondition(condition Condition, input map[string]any) bool {
 	left := fmt.Sprint(value)
 	right := fmt.Sprint(condition.Value)
 	switch condition.Operator {
+	case "notEmpty":
+		if value == nil {
+			return false
+		}
+		switch typed := value.(type) {
+		case string:
+			return typed != ""
+		case []any:
+			return len(typed) > 0
+		case map[string]any:
+			return len(typed) > 0
+		default:
+			return true
+		}
 	case "true":
 		return value == true
 	case "false":
@@ -1037,6 +1081,14 @@ func evaluateFilterConditions(conditions []Condition, combinator string, input m
 		}
 	}
 	return true
+}
+
+func formatIfConditions(conditions []Condition, combinator string) string {
+	parts := make([]string, 0, len(conditions))
+	for _, condition := range conditions {
+		parts = append(parts, condition.Path+" "+condition.Operator)
+	}
+	return "If " + strings.Join(parts, " "+strings.ToUpper(combinator)+" ")
 }
 
 func conditionValue(nodeName, path string, input map[string]any, prior map[string][]map[string]any) (any, bool) {

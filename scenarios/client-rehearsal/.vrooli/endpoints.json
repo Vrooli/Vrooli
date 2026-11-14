@@ -53,6 +53,62 @@
       "category": "capabilities"
     },
     {
+      "id": "coding_jobs_create",
+      "path": "/vrooli.client_rehearsal.v1.codingjobs.CodingJobService/CreateCodingJob",
+      "method": "POST",
+      "summary": "Create a coding practice job",
+      "description": "Persists the solver-visible task and source seal reference without exposing the frozen evaluator or reference fix.",
+      "category": "coding-jobs"
+    },
+    {
+      "id": "coding_jobs_record_stage",
+      "path": "/vrooli.client_rehearsal.v1.codingjobs.CodingJobService/RecordCodingJobStage",
+      "method": "POST",
+      "summary": "Record a coding job stage",
+      "description": "Appends a role-checked event using optimistic revision control.",
+      "category": "coding-jobs"
+    },
+    {
+      "id": "coding_jobs_record_evaluation",
+      "path": "/vrooli.client_rehearsal.v1.codingjobs.CodingJobService/RecordCodingJobEvaluation",
+      "method": "POST",
+      "summary": "Record a frozen evaluation receipt",
+      "description": "Stores one immutable Test Genie receipt reference, digest, and closed three-way score.",
+      "category": "coding-jobs"
+    },
+    {
+      "id": "coding_jobs_get",
+      "path": "/vrooli.client_rehearsal.v1.codingjobs.CodingJobService/GetCodingJob",
+      "method": "POST",
+      "summary": "Get a coding practice job",
+      "description": "Reads a durable coding job and bounded event history.",
+      "category": "coding-jobs"
+    },
+    {
+      "id": "coding_jobs_list",
+      "path": "/vrooli.client_rehearsal.v1.codingjobs.CodingJobService/ListCodingJobs",
+      "method": "POST",
+      "summary": "List coding practice jobs",
+      "description": "Lists recent coding practice jobs with an explicit bounded limit.",
+      "category": "coding-jobs"
+    },
+    {
+      "id": "bounty_cases_resolve",
+      "path": "/vrooli.client_rehearsal.v1.bountycases.BountyCaseService/ResolveBountyReplayCase",
+      "method": "POST",
+      "summary": "Resolve a registered bounty replay case",
+      "description": "Resolves one immutable registered issue or case ID for the pinned bounty replay owner flow; returns hidden evaluator and reference roots, and is not for general CLI access.",
+      "category": "bounty-cases"
+    },
+    {
+      "id": "bounty_cases_evaluator_bundle",
+      "path": "/vrooli.client_rehearsal.v1.bountycases.BountyCaseService/GetFrozenEvaluatorBundle",
+      "method": "POST",
+      "summary": "Resolve frozen evaluator bytes by opaque bundle ID",
+      "description": "Returns only the content-addressed evaluator file manifest for the internal Test Genie owner path, never a host root.",
+      "category": "bounty-cases"
+    },
+    {
       "id": "notes_list",
       "path": "/vrooli.client_rehearsal.v1.notes.NotesService/ListNotes",
       "method": "POST",

@@ -2,6 +2,7 @@ package rehearsals
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,7 +11,10 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/client-rehearsal/v1/rehearsals"
 	connectclient "github.com/vrooli/vrooli/packages/proto/gen/go/client-rehearsal/v1/rehearsals/rehearsals_v1connect"
+	"google.golang.org/protobuf/types/known/structpb"
 )
+
+const maxTriggerInputJSONBytes = 64 * 1024
 
 type handlers struct {
 	client connectclient.RehearsalServiceClient
@@ -25,7 +29,11 @@ func (h *handlers) createCall(ctx cliapp.OperationContext) (*v1.CreateAndRunRehe
 	if raw := strings.TrimSpace(ctx.Flag("required-output-paths")); raw != "" {
 		requiredOutputPaths = strings.Split(raw, ",")
 	}
-	resp, err := h.client.CreateAndRunRehearsal(context.Background(), connect.NewRequest(&v1.CreateAndRunRehearsalRequest{Title: ctx.Flag("title"), WorkflowJson: ctx.Flag("workflow-json"), TriggerNodeId: ctx.Flag("trigger-node-id"), SimulatorSourceJson: ctx.Flag("simulator-source-json"), InjectSeededFault: ctx.Flag("inject-seeded-fault") == "true", RequiredOutputPaths: requiredOutputPaths, RepairOfId: ctx.Flag("repair-of-id")}))
+	triggerInput, err := triggerInputFromJSON(ctx.Flag("trigger-input-json"))
+	if err != nil {
+		return nil, err
+	}
+	resp, err := h.client.CreateAndRunRehearsal(context.Background(), connect.NewRequest(&v1.CreateAndRunRehearsalRequest{Title: ctx.Flag("title"), WorkflowJson: ctx.Flag("workflow-json"), TriggerNodeId: ctx.Flag("trigger-node-id"), TriggerInput: triggerInput, SimulatorSourceJson: ctx.Flag("simulator-source-json"), InjectSeededFault: ctx.Flag("inject-seeded-fault") == "true", RequiredOutputPaths: requiredOutputPaths, RepairOfId: ctx.Flag("repair-of-id")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("create and run rehearsal", err, nil)
 	}
@@ -33,6 +41,24 @@ func (h *handlers) createCall(ctx cliapp.OperationContext) (*v1.CreateAndRunRehe
 		return nil, fmt.Errorf("server returned no rehearsal")
 	}
 	return resp.Msg, nil
+}
+
+func triggerInputFromJSON(raw string) (*structpb.Struct, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+	if len(raw) > maxTriggerInputJSONBytes {
+		return nil, fmt.Errorf("trigger-input-json must not exceed 64 KiB")
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil || payload == nil {
+		return nil, fmt.Errorf("trigger-input-json must be a JSON object")
+	}
+	value, err := structpb.NewStruct(payload)
+	if err != nil {
+		return nil, fmt.Errorf("trigger-input-json must be a JSON object")
+	}
+	return value, nil
 }
 func (h *handlers) createReport(_ cliapp.OperationContext, msg *v1.CreateAndRunRehearsalResponse) cliapp.MutationReport {
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Created rehearsal %s (%s).", msg.Rehearsal.Id, msg.Rehearsal.State)}, Changes: []string{formatRehearsal(msg.Rehearsal)}, NextCommand: []string{fmt.Sprintf("`rehearsals get %s` — inspect trace and handoff", msg.Rehearsal.Id), fmt.Sprintf("`rehearsals review %s --decision approve` — record human approval", msg.Rehearsal.Id)}}

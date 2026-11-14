@@ -71,6 +71,11 @@ func (s *service) CreateAndRun(ctx context.Context, in CreateInput) (Rehearsal, 
 	if err != nil {
 		return Rehearsal{}, err
 	}
+	triggerInput, inputReplacements, err := normalizeTriggerInput(in.TriggerInput)
+	if err != nil {
+		return Rehearsal{}, err
+	}
+	replacements += inputReplacements
 	simulator, err := NewDescriptionSimulator(in.SimulatorSourceJSON, in.InjectSeededFault)
 	if err != nil {
 		return Rehearsal{}, err
@@ -113,6 +118,24 @@ func (s *service) CreateAndRun(ctx context.Context, in CreateInput) (Rehearsal, 
 	}
 	if triggerNodeID == "" {
 		return Rehearsal{}, ErrInvalid{Field: "trigger_node_id", Reason: "required when the imported workflow has more than one trigger"}
+	}
+	if triggerInput != nil {
+		if in.taskSandbox != nil {
+			return Rehearsal{}, ErrInvalid{Field: "trigger_input", Reason: "per-run trigger input is supported only by the synthetic in-process engine"}
+		}
+		selected := false
+		for _, entryID := range workflow.EntryNodeIDs {
+			if entryID == triggerNodeID {
+				selected = true
+				break
+			}
+		}
+		if !selected {
+			return Rehearsal{}, ErrInvalid{Field: "trigger_input", Reason: "requires exactly one valid selected trigger node"}
+		}
+		if _, ok := s.engine.(TriggerInputEngine); !ok {
+			return Rehearsal{}, ErrInvalid{Field: "trigger_input", Reason: "selected execution engine does not support synthetic trigger input"}
+		}
 	}
 	if _, detailed := s.engine.(DetailedEngine); !detailed && len(requiredPaths) > 0 {
 		return Rehearsal{}, ErrInvalid{Field: "required_output_paths", Reason: "the selected engine does not return internal assertion output"}
@@ -176,7 +199,10 @@ func (s *service) CreateAndRun(ctx context.Context, in CreateInput) (Rehearsal, 
 		}
 		execution.Trace = append(execution.Trace, TraceEvent{Sequence: uint32(len(execution.Trace) + 1), Operation: "n8n owner workflow import and execution", RequestSummary: "manual trigger; credentials replaced by n8n owner", ResponseSummary: string(summary), Status: status, OccurredAt: now})
 	} else if runErr == nil {
-		if detailed, ok := s.engine.(DetailedEngine); ok {
+		if triggerInput != nil {
+			detailed := s.engine.(TriggerInputEngine)
+			execution, runErr = detailed.ExecuteDetailedWithInput(ctx, workflow, triggerNodeID, engineSimulator, in.InjectSeededFault, now, triggerInput)
+		} else if detailed, ok := s.engine.(DetailedEngine); ok {
 			execution, runErr = detailed.ExecuteDetailed(ctx, workflow, triggerNodeID, engineSimulator, in.InjectSeededFault, now)
 		} else {
 			execution.Trace, runErr = s.engine.Execute(ctx, workflow, triggerNodeID, engineSimulator, in.InjectSeededFault, now)
