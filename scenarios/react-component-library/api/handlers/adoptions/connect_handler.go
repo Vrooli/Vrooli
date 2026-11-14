@@ -127,12 +127,17 @@ func (h *connectHandler) PreflightAdoption(ctx context.Context, req *connect.Req
 		MaturityFloor:         out.Verdict.Maturity.Floor,
 		I18NVerdict:           out.I18n,
 		SelectorVerdict:       out.Selectors,
+		CatalogAssetId:        out.CatalogAssetID,
+		CatalogLatestVersion:  out.CatalogLatestVersion,
 		Warnings:              out.Verdict.Warnings,
 	}), nil
 }
 
 func (h *connectHandler) SyncScenarioTokens(ctx context.Context, req *connect.Request[adoptionsv1.SyncScenarioTokensRequest]) (*connect.Response[adoptionsv1.SyncScenarioTokensResponse], error) {
-	out, err := h.deps.Service.SyncScenarioTokens(ctx, adoptions.TokenSyncInput{Scenario: req.Msg.Scenario, DryRun: req.Msg.DryRun})
+	out, err := h.deps.Service.SyncScenarioTokens(ctx, adoptions.TokenSyncInput{
+		Scenario: req.Msg.Scenario, DryRun: req.Msg.DryRun,
+		CandidateComponentID: req.Msg.CandidateComponentId, CandidateVersion: req.Msg.CandidateVersion,
+	})
 	if err != nil {
 		return nil, adoptions.ToConnectError(err)
 	}

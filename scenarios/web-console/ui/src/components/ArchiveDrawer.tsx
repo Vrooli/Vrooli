@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Archive, Download, RotateCcw, Search, Trash2 } from "lucide-react";
+import { Archive, RotateCcw, Search } from "lucide-react";
 import { SwipeActions } from "@vrooli/react-component-library/SwipeActions";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useTranslation } from "react-i18next";
@@ -28,6 +28,7 @@ import { cn } from "../lib/classnames";
 import { formatRelativeTime } from "./MessageJumpList.helpers";
 import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
+import type { OverlayActionList } from "@vrooli/react-component-library/OverlayActionBar/1";
 import MessageExportDrawer from "./MessageExportDrawer";
 import MessagesPane from "./MessagesPane";
 
@@ -326,6 +327,43 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
     }
   }, [selectedSession, t]);
 
+  const GermanContractShowcase = import.meta.env.DEV && new URLSearchParams(window.location.search).get("rcl-contract-showcase") === "1";
+  const archiveActions: OverlayActionList | undefined = selectedSession ? [
+    {
+      id: "reopen",
+      testId: selectedSession.awaiting_recovery ? "archive-reattach" : "archive-reopen",
+      label: GermanContractShowcase ? "Archivierte Sitzung vollständig wiederherstellen" : (selectedSession.awaiting_recovery ? t(strings.recoverableSessions.reattach) : t(strings.archiveDrawer.reopen)),
+      primary: true,
+      disabled: selectedSession.awaiting_recovery
+        ? !recoverableById.get(selectedSession.id)?.recoverable || reopeningId !== null
+        : selectedSession.restore_state !== "reopenable" || reopeningId !== null,
+      onSelect: () => selectedSession.awaiting_recovery ? void recoverOne(selectedSession.id) : void reopenSelected(),
+    },
+    {
+      id: "export",
+      label: GermanContractShowcase ? "Vollständigen Gesprächsverlauf sicher exportieren" : t(strings.archiveDrawer.export),
+      disabled: !selectedIsArchived,
+      onSelect: () => void openExport(),
+    },
+    {
+      id: "receipt",
+      label: GermanContractShowcase ? "Dauerhaften Kontinuitätsbeleg anzeigen" : t(strings.archiveDrawer.receipt),
+      disabled: receiptLoading,
+      onSelect: () => void inspectReceipt(),
+    },
+    {
+      id: "delete",
+      label: GermanContractShowcase ? "Archivierte Sitzung dauerhaft löschen" : t(strings.archiveDrawer.delete),
+      disabled: !selectedIsArchived,
+      onSelect: () => setDeleteTarget(selectedSession),
+    },
+    {
+      id: "close",
+      label: GermanContractShowcase ? "Sitzungsarchiv schließen und zur vorherigen Ansicht zurückkehren" : t(strings.archiveDrawer.close),
+      onSelect: onClose,
+    },
+  ] : undefined;
+
   return (
     <>
       <FullPageDrawer
@@ -335,6 +373,7 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
         title={t(strings.archiveDrawer.title)}
         closeLabel={t(strings.archiveDrawer.close)}
         testId="archive-drawer"
+        actions={archiveActions}
         headerExtra={
           <div className="mt-3 space-y-2">
             <div className="flex flex-col gap-2 md:flex-row md:items-center">
@@ -482,26 +521,6 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
                       <div className="truncate text-xs text-wc-text-muted">{t(strings.archiveDrawer.archivedAt, { time: formatRelativeTime(selectedSession.archived_at) })} · {t(strings.archiveDrawer.messageCount, { count: selectedSession.message_count })}{selectedSession.cwd ? ` · ${selectedSession.cwd}` : ""}</div>
                       <div className="mt-1 text-xs text-wc-text-secondary">{t(RESTORE_STATE_LABEL[selectedSession.restore_state])}{selectedSession.restore_state_reason ? ` — ${selectedSession.restore_state_reason}` : ""}</div>
                     </div>
-                    {selectedSession.awaiting_recovery ? <button
-                      type="button"
-                      data-testid="archive-reattach"
-                      disabled={!recoverableById.get(selectedSession.id)?.recoverable || reopeningId !== null}
-                      title={recoverableById.get(selectedSession.id)?.recoverable ? t(strings.recoverableSessions.reattachTitle) : recoverableById.get(selectedSession.id)?.not_recoverable_reason}
-                      onClick={() => void recoverOne(selectedSession.id)}
-                      className="rounded border border-amber-400/50 px-2 py-1 text-xs text-amber-100 disabled:opacity-50"
-                    >{reopeningId === selectedSession.id ? t(strings.archiveDrawer.reopening) : t(strings.recoverableSessions.reattach)}</button> : <button
-                      type="button"
-                      data-testid="archive-reopen"
-                      disabled={selectedSession.restore_state !== "reopenable" || reopeningId !== null}
-                      title={selectedSession.restore_state === "reopenable" ? t(strings.archiveDrawer.reopen) : selectedSession.restore_state_reason}
-                      onClick={() => void reopenSelected()}
-                      className="rounded border border-wc-default px-2 py-1 text-xs text-wc-text-secondary disabled:text-wc-text-faint disabled:opacity-60"
-                    >
-                      {reopeningId === selectedSession.id ? t(strings.archiveDrawer.reopening) : t(strings.archiveDrawer.reopen)}
-                    </button>}
-                    {selectedIsArchived && <button type="button" onClick={() => void openExport()} className="inline-flex items-center gap-1 rounded border border-wc-default px-2 py-1 text-xs text-wc-text-secondary"><Download className="h-3 w-3" />{t(strings.archiveDrawer.export)}</button>}
-                    {selectedIsArchived && <button type="button" onClick={() => void inspectReceipt()} disabled={receiptLoading} className="rounded border border-wc-default px-2 py-1 text-xs text-wc-text-secondary disabled:opacity-60">{receiptLoading ? t(strings.archiveDrawer.receiptLoading) : t(strings.archiveDrawer.receipt)}</button>}
-                    {selectedIsArchived && <button type="button" onClick={() => setDeleteTarget(selectedSession)} className="inline-flex items-center gap-1 rounded border border-red-500/40 px-2 py-1 text-xs text-red-300"><Trash2 className="h-3 w-3" />{t(strings.archiveDrawer.delete)}</button>}
                   </div>
                   {receipt && <div data-testid="archive-receipt" className="mt-2 rounded border border-wc-default/70 bg-wc-surface-input px-2 py-1.5 text-[11px] text-wc-text-muted">
                     <span className="font-medium text-wc-text-secondary">{receipt.status}</span> · {receipt.command} · {receipt.fromState} → {receipt.toState}

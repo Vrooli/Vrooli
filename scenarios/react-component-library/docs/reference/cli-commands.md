@@ -139,7 +139,14 @@ filesystem-only deletion mode.
 
 Use `adoptions preflight`, `adoptions link`, and `adoptions obligations` for
 current governed adoption operations. Consult each command's `--help` for its
-required arguments. The former `apply` and `suggest` command paths are retired.
+required arguments. Before first adoption, prepare the token ramp with
+`adoptions tokens-sync <scenario> --candidate <component-id> --version <released-version>`.
+Preflight is read-only and blocks until the selected release's dependency,
+style, token, i18n and selector checks pass. If i18n or selector evidence is
+missing for the current catalog release, the report prints the exact `catalog
+gates` command for its asset ID; run it and repeat the exact-version preflight
+before linking. Older pins need exact-version gate evidence. The former `apply`
+and `suggest` command paths are retired.
 
 ## Output contracts
 

@@ -6,21 +6,23 @@
     "1.0.0",
     "1.0.1"
   ],
+  "description": "Reusable workspace header component implementation for the React component library.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Workspace Header",
   "draft": "",
   "evictedVersions": [
     "1.0.1",
-    "1.0.0"
+    "1.0.0",
+    "1.0.4",
+    "1.0.3"
   ],
   "latest": "1.0.5",
   "libraryId": "react-component-library:WorkspaceHeader",
-  "displayName": "Workspace Header",
-  "description": "Reusable workspace header component implementation for the React component library.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "tags": []
 }

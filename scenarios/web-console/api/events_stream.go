@@ -44,6 +44,11 @@ func (s *Server) handleEventStream(w http.ResponseWriter, r *http.Request) {
 
 	sub, replay, gap := s.hub.Subscribe(lastEventID)
 	defer s.hub.Unsubscribe(sub)
+	select {
+	case <-sub.stop:
+		return
+	default:
+	}
 
 	// On a gap, nudge the client to backfill the sessions it may have missed
 	// before we stream the (possibly partial) replay + live tail. Scope to the
@@ -78,6 +83,8 @@ func (s *Server) handleEventStream(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case <-ctx.Done():
+			return
+		case <-sub.stop:
 			return
 		case env := <-sub.events:
 			if !writeEnvelopeFrame(w, env) {

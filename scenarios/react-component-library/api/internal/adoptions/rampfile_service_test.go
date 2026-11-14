@@ -117,6 +117,7 @@ func TestAdoptTokenContractRejectsAndNamesEveryMissingProperty(t *testing.T) {
 	require.Equal(t, []string{"--space-sm", "--tap-target-min"}, unsatisfied.Properties)
 	require.Contains(t, unsatisfied.Error(), "--space-sm")
 	require.Contains(t, unsatisfied.Error(), "--tap-target-min")
+	require.Contains(t, unsatisfied.Error(), "--candidate cmp-button")
 	require.NotContains(t, files.bytes, "target::ui/src/Button.tsx")
 }
 
@@ -134,6 +135,69 @@ func TestSyncScenarioTokensMissingFileIsIdempotent(t *testing.T) {
 	require.Empty(t, second.Added)
 	require.False(t, second.Changed)
 	require.Equal(t, written, files.bytes["target::ui/src/design-tokens.css"])
+}
+
+func TestSyncScenarioTokensIncludesCandidateBeforeFirstAdoption(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"cmp-chart": {ID: "cmp-chart", LibraryID: "react-component-library:Chart", LatestVersion: "1.0.12"},
+		},
+		versions: map[string]components.ComponentVersion{
+			"cmp-chart@1.0.12": {
+				ComponentID: "cmp-chart", LibraryID: "react-component-library:Chart", Version: "1.0.12",
+				Status: components.VersionStatusReleased, RequiredTokens: []string{"--chart-axis", "--chart-grid"},
+			},
+		},
+	}
+	files := &fakeFiles{bytes: map[string][]byte{}}
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Unix(0, 0)))
+	adoptions.SetTokenNamespaceReader(svc, rampTokenInventory{files: files})
+
+	result, err := svc.SyncScenarioTokens(context.Background(), adoptions.TokenSyncInput{
+		Scenario: "target", CandidateComponentID: "react-component-library:Chart",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"--chart-axis", "--chart-grid"}, result.Added)
+	require.True(t, result.Changed)
+	require.Contains(t, string(files.bytes["target::ui/src/design-tokens.css"]), "--chart-axis: initial;")
+}
+
+func TestSyncScenarioTokensUsesExplicitCandidateRelease(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"cmp-chart": {ID: "cmp-chart", LibraryID: "react-component-library:Chart", LatestVersion: "1.0.13"},
+		},
+		versions: map[string]components.ComponentVersion{
+			"cmp-chart@1.0.12": {
+				ComponentID: "cmp-chart", LibraryID: "react-component-library:Chart", Version: "1.0.12",
+				Status: components.VersionStatusReleased, RequiredTokens: []string{"--chart-axis-v112"},
+			},
+			"cmp-chart@1.0.13": {
+				ComponentID: "cmp-chart", LibraryID: "react-component-library:Chart", Version: "1.0.13",
+				Status: components.VersionStatusReleased, RequiredTokens: []string{"--chart-axis-v113"},
+			},
+		},
+	}
+	files := &fakeFiles{bytes: map[string][]byte{}}
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Unix(0, 0)))
+	adoptions.SetTokenNamespaceReader(svc, rampTokenInventory{files: files})
+
+	result, err := svc.SyncScenarioTokens(context.Background(), adoptions.TokenSyncInput{
+		Scenario: "target", CandidateComponentID: "react-component-library:Chart", CandidateVersion: "1.0.12",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"--chart-axis-v112"}, result.Added)
+	require.NotContains(t, result.Added, "--chart-axis-v113")
+}
+
+func TestSyncScenarioTokensRequiresCandidateIDWhenVersionIsSet(t *testing.T) {
+	svc, _ := newRampService("")
+	_, err := svc.SyncScenarioTokens(context.Background(), adoptions.TokenSyncInput{
+		Scenario: "target", CandidateVersion: "1.0.12",
+	})
+	require.ErrorContains(t, err, "candidate_component_id")
 }
 
 func TestSyncScenarioTokensReportsScenarioOwnedCollision(t *testing.T) {
@@ -367,6 +431,34 @@ func TestPreflightSurfacesContractCoverageVerdicts(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "fail", preflight.I18n)
 	require.Equal(t, "fail", preflight.Selectors)
+	require.True(t, preflight.Blocking)
+}
+
+func TestPreflightReturnsStableCatalogAssetIDForRemediation(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"cmp-chart": {ID: "cmp-chart", LibraryID: "react-component-library:Chart", CatalogID: "visualization.chart", LatestVersion: "1.0.12"},
+		},
+		versions: map[string]components.ComponentVersion{
+			"cmp-chart@1.0.12": {
+				ComponentID: "cmp-chart", LibraryID: "react-component-library:Chart", Version: "1.0.12",
+				Status: components.VersionStatusReleased,
+			},
+		},
+	}
+	files := &fakeFiles{bytes: map[string][]byte{}}
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Unix(0, 0)))
+	adoptions.SetTokenNamespaceReader(svc, rampTokenInventory{files: files})
+	adoptions.SetContractCoverageReader(svc, contractCoverageVerdicts{"default": "not-measured"})
+
+	preflight, err := svc.Preflight(context.Background(), adoptions.PreflightInput{
+		ComponentID: "cmp-chart", Scenario: "target", Version: "1.0.12",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "visualization.chart", preflight.CatalogAssetID)
+	require.Equal(t, "not-measured", preflight.I18n)
+	require.Equal(t, "not-measured", preflight.Selectors)
 	require.True(t, preflight.Blocking)
 }
 

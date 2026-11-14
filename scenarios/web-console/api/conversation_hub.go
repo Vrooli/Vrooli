@@ -70,6 +70,7 @@ type conversationEventPayload struct {
 type hubSubscriber struct {
 	events chan HubEnvelope
 	resync chan string
+	stop   chan struct{}
 }
 
 // ConversationHub is the process-wide conversation event channel. Every
@@ -85,6 +86,7 @@ type ConversationHub struct {
 	ring        []HubEnvelope
 	subscribers map[*hubSubscriber]struct{}
 	dropCount   int64
+	quiescing   bool
 }
 
 // NewConversationHub returns a ready-to-use hub with an empty ring buffer.
@@ -93,6 +95,33 @@ func NewConversationHub() *ConversationHub {
 		ring:        make([]HubEnvelope, 0, hubRingSize),
 		subscribers: make(map[*hubSubscriber]struct{}),
 	}
+}
+
+// CloseSubscribers asks connected SSE handlers to return so lifecycle drain
+// can finish. The EventSource clients reconnect automatically after restart.
+func (h *ConversationHub) CloseSubscribers() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	// Close admission to the hub before snapshotting subscribers. A request
+	// may have entered HTTP middleware before lifecycle admission closed, then
+	// reach Subscribe after this method returns. Marking the hub quiescing makes
+	// that late subscriber terminate immediately instead of holding Drain open.
+	h.quiescing = true
+	for sub := range h.subscribers {
+		select {
+		case <-sub.stop:
+		default:
+			close(sub.stop)
+		}
+	}
+}
+
+// OpenSubscribers re-enables subscriptions when a lifecycle attempt resumes
+// the same process after a replacement was abandoned.
+func (h *ConversationHub) OpenSubscribers() {
+	h.mu.Lock()
+	h.quiescing = false
+	h.mu.Unlock()
 }
 
 // Publish assigns the next monotonic global id to env, retains it in the ring
@@ -145,8 +174,13 @@ func (h *ConversationHub) Subscribe(lastEventID int64) (sub *hubSubscriber, repl
 	sub = &hubSubscriber{
 		events: make(chan HubEnvelope, hubSubscriberBuffer),
 		resync: make(chan string, hubSubscriberBuffer),
+		stop:   make(chan struct{}),
 	}
 	h.subscribers[sub] = struct{}{}
+	if h.quiescing {
+		delete(h.subscribers, sub)
+		close(sub.stop)
+	}
 
 	if lastEventID > 0 {
 		oldest := int64(0)

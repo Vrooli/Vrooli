@@ -3,6 +3,7 @@ import { ExternalLink } from "lucide-react";
 import type { ApprovalDecision } from "../../api/approvals";
 import { strings } from "../../consts/strings";
 import { safeContextUrl, sourceLabel } from "./approvalsFormat";
+import ApprovalLinkedText from "./ApprovalLinkedText";
 
 /**
  * Pluggable per-source context panel.
@@ -66,9 +67,7 @@ export default function ApprovalContextPanel({
           <summary className="cursor-pointer text-[13px] font-semibold text-wc-text-primary">
             {t(strings.approvals.bigPicture)}
           </summary>
-          <p className="mt-2 whitespace-pre-wrap break-words text-[13px] text-wc-text-secondary">
-            {decision.bigPicture}
-          </p>
+          <ApprovalLinkedText content={decision.bigPicture} className="mt-2 whitespace-pre-wrap break-words text-[13px] text-wc-text-secondary" />
         </details>
       )}
       {decision.technicalDetails && (
@@ -76,9 +75,7 @@ export default function ApprovalContextPanel({
           <summary className="cursor-pointer text-[13px] font-semibold text-wc-text-primary">
             {t(strings.approvals.technicalDetails)}
           </summary>
-          <p className="mt-2 whitespace-pre-wrap break-words text-[13px] text-wc-text-secondary">
-            {decision.technicalDetails}
-          </p>
+          <ApprovalLinkedText content={decision.technicalDetails} className="mt-2 whitespace-pre-wrap break-words text-[13px] text-wc-text-secondary" />
         </details>
       )}
       {linkHref ? (

@@ -111,8 +111,17 @@ Preflight resolves the complete pinned closure without writing files. It
 returns the dependency verdict, style-fit verdict, version status, achieved
 maturity rung, required and defined CSS properties, and the blocking decision.
 Apply and reapply use the same verdict. A missing managed token ramp is
-remediated with `adoptions tokens-sync`; an explicit override is recorded as
-an operator decision rather than hiding the finding.
+remediated with `adoptions tokens-sync`. Before a first adoption, pass the
+candidate component and pinned release with
+`adoptions tokens-sync <scenario> --candidate <component-id> --version <released-version>`
+so its required-token closure exists before preflight. A
+plain sync can only derive requirements from recorded adoptions and package
+imports. If i18n or selector coverage is `not-measured`, run the exact
+catalog-gate commands shown by preflight for the current catalog release, then
+repeat preflight; linking stays blocked until both measurements pass. Older
+pins remain blocked if the catalog has no exact-version gate evidence. An
+explicit override is recorded as an operator decision rather than hiding the
+finding.
 
 ## Asset update and batch adoption
 

@@ -77,6 +77,11 @@ necessary technical terms in familiar words, and lead with the practical
 effect. A phone notification should make the update clear by itself; use its
 link for more evidence, not as a substitute for the explanation.
 
+Agents writing a decision or notification by hand follow the
+[`notification-hub` skill](../../skills/notification-hub/SKILL.md), which applies
+these rules field by field. After `conversations ask`, the CLI reminds a run that
+has no recorded read of that skill; the reminder never blocks the ask.
+
 Examples in the tree: `web-console/api/session_notifications.go`,
 `agent-manager/api/internal/orchestration/run_outcome_events.go`,
 `git-control-tower/api/gct_notifications.go`.

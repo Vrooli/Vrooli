@@ -328,12 +328,29 @@ func (h *handlers) preflightReport(_ cliapp.OperationContext, msg *adoptionsv1.P
 		rows = append(rows, "UNSATISFIED "+token)
 	}
 	rows = append(rows, fmt.Sprintf("version=%s maturity=%s (floor=%s)", msg.VersionStatus, msg.MaturityRung, msg.MaturityFloor))
+	rows = append(rows, fmt.Sprintf("i18n coverage=%s; selector coverage=%s", msg.I18NVerdict, msg.SelectorVerdict))
+	if msg.CatalogAssetId != "" && msg.Version == msg.CatalogLatestVersion {
+		if msg.I18NVerdict != "pass" {
+			rows = append(rows, fmt.Sprintf("Measure i18n coverage: react-component-library catalog gates i18n --asset-id %s", msg.CatalogAssetId))
+		}
+		if msg.SelectorVerdict != "pass" {
+			rows = append(rows, fmt.Sprintf("Measure selector coverage: react-component-library catalog gates selector-coverage --asset-id %s", msg.CatalogAssetId))
+		}
+	} else if msg.CatalogAssetId != "" && msg.Version != msg.CatalogLatestVersion && (msg.I18NVerdict != "pass" || msg.SelectorVerdict != "pass") {
+		rows = append(rows, fmt.Sprintf("Catalog gates measure current %s@%s; selected %s@%s needs exact-version gate evidence", msg.CatalogAssetId, msg.CatalogLatestVersion, msg.ComponentId, msg.Version))
+	}
+	if msg.I18NVerdict != "pass" || msg.SelectorVerdict != "pass" {
+		rows = append(rows, fmt.Sprintf("Rerun: react-component-library adoptions preflight %s %s --version %s; linking stays blocked until both measures pass", msg.ComponentId, msg.Scenario, msg.Version))
+	}
 	rows = append(rows, msg.Warnings...)
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Preflight %s@%s for %s: blocking=%t", msg.ComponentId, msg.Version, msg.Scenario, msg.Blocking)}, ResultsHeading: "Adoptability verdict", Results: rows}
 }
 
 func (h *handlers) syncTokens(ctx cliapp.RunContext) error {
-	resp, err := h.client.SyncScenarioTokens(context.Background(), connect.NewRequest(&adoptionsv1.SyncScenarioTokensRequest{Scenario: ctx.Positional("scenario"), DryRun: ctx.Flag("dry-run") == "true"}))
+	resp, err := h.client.SyncScenarioTokens(context.Background(), connect.NewRequest(&adoptionsv1.SyncScenarioTokensRequest{
+		Scenario: ctx.Positional("scenario"), DryRun: ctx.Flag("dry-run") == "true",
+		CandidateComponentId: ctx.Flag("candidate"), CandidateVersion: ctx.Flag("version"),
+	}))
 	if err != nil {
 		return cliapp.WrapAPIError("sync scenario tokens", err, nil)
 	}

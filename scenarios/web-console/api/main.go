@@ -39,6 +39,7 @@ import (
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
@@ -75,11 +76,12 @@ import (
 // triple (ttsHookConfigState), and the auto-summarize policy cache
 // (summarizeAutoPolicy*).
 type Server struct {
-	db       *database.RoutedDB
-	roots    *filerouting.RoutedRoots
-	router   *mux.Router
-	sessions *session.Manager
-	hub      *ConversationHub
+	db         *database.RoutedDB
+	roots      *filerouting.RoutedRoots
+	router     *mux.Router
+	sessions   *session.Manager
+	hub        *ConversationHub
+	webSockets *webSocketQuiescer
 	// agentTypes caches each session's agent harness for activity detection.
 	agentTypes agentTypeCache
 	// promptAnswering is the host policy for answering prompts from Messages.
@@ -338,6 +340,7 @@ func NewServer(db *database.RoutedDB) *Server {
 		resolveConsoleURL: discovery.ResolveExternalURL,
 		sessions:          sessions,
 		hub:               NewConversationHub(),
+		webSockets:        newWebSocketQuiescer(),
 		sessionNotifier:   newSessionNotifier(),
 		events:            eventLog,
 		metrics:           metrics,
@@ -1189,6 +1192,18 @@ func main() {
 		Authentication: pointerToManagedAuthentication(authConfig),
 		Handler:        srv.Handler(),
 		WriteTimeout:   httpWriteTimeout,
+		LifecycleHooks: lifecycle.Hooks{
+			Quiesce: func(context.Context) error {
+				srv.hub.CloseSubscribers()
+				srv.webSockets.CloseAll()
+				return nil
+			},
+			Resume: func(context.Context) error {
+				srv.hub.OpenSubscribers()
+				srv.webSockets.Open()
+				return nil
+			},
+		},
 		Cleanup: func(ctx context.Context) error {
 			stopContinuityPublisher()
 			srv.sweeper.Stop()

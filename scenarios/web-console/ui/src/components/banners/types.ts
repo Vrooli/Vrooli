@@ -29,6 +29,9 @@ export type {
  * the band is the design decision, the number is just an ordering.
  */
 export const BANNER_PRIORITY = {
+  // A file notification is an explicit operator request. Keep its recovery
+  // action visible even while unrelated background notices are present.
+  fileLinkFailure: 91,
   connectionLost: 90,
   // Approvals waiting on a human are actionable and about work outside this
   // tab (a release, a run, a remediation). They sit just under a lost

@@ -1,6 +1,7 @@
 {
   "catalogId": "react-component-library:TargetSwitcher",
   "deprecatedVersions": [],
+  "description": "",
   "designStyles": [
     {
       "affinity": "native",
@@ -8,6 +9,7 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "TargetSwitcher",
   "draft": "",
   "entry": "TargetSwitcher.tsx",
   "evictedVersions": [
@@ -21,11 +23,12 @@
     "0.1.2",
     "0.1.1",
     "0.1.0",
-    "0.3.4"
+    "0.3.4",
+    "0.3.7",
+    "0.3.6",
+    "0.3.5"
   ],
   "latest": "0.3.8",
   "libraryId": "react-component-library:TargetSwitcher",
-  "displayName": "TargetSwitcher",
-  "description": "",
   "tags": []
 }

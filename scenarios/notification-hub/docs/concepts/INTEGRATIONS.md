@@ -149,7 +149,8 @@ action. Keep the question short and plain; explain its practical consequence in
 `big_picture` and state each option's result. If the owner needs answers to
 independent or multi-part decisions, publish separate events so the operator
 can answer each one with a tap. Do not require an operator to compose JSON or
-combine unrelated choices in the free-text `Other` answer.
+combine unrelated choices in the free-text `Other` answer. An agent that writes
+the decision text follows the [`notification-hub` skill](../../skills/notification-hub/SKILL.md).
 
 | Field | Required | Meaning |
 |---|---|---|

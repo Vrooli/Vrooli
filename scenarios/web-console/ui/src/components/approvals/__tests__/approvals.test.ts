@@ -151,6 +151,23 @@ describe("ApprovalContextPanel", () => {
 });
 
 describe("ApprovalsDrawer context interactions", () => {
+  it("renders safe links in the actual approval question detail", async () => {
+    await setLocale("en");
+    vi.mocked(useApprovals).mockReturnValue({
+      data: [decision({ question: "Review [the run](https://example.com/run) or [unsafe](javascript:alert(1))." })],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    } as never);
+
+    renderWithProviders(createElement(ApprovalsDrawer, { open: true, onClose: vi.fn() }));
+
+    const link = await screen.findByRole("link", { name: "the run" });
+    expect(link).toHaveAttribute("href", "https://example.com/run");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(screen.queryByRole("link", { name: "unsafe" })).not.toBeInTheDocument();
+  });
+
   it("loads a deep-linked resolved decision outside the pending list", async () => {
     await setLocale("en");
     const resolved = decision({ id: "history", question: "Previously decided?", state: "answered", answer: "yes", answerLabel: "Yes" });

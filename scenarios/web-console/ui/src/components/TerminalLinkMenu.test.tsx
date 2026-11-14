@@ -36,4 +36,17 @@ describe("TerminalLinkMenu", () => {
     expect(open).toHaveBeenCalledWith(url, "_blank", "noopener,noreferrer");
     open.mockRestore();
   });
+
+  it("opens localhost URLs through the same-origin local port proxy", () => {
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    const url = "http://localhost:22705/commission?job=active";
+    render(<TerminalLinkMenu activation={activation({ kind: "url", value: url, text: url })} onOpenFile={vi.fn()} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByTestId("link-open-url"));
+    expect(open).toHaveBeenCalledWith(
+      `${window.location.origin}/_local/22705/commission?job=active`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+    open.mockRestore();
+  });
 });

@@ -255,17 +255,19 @@ type PreflightInput struct {
 }
 
 type PreflightResult struct {
-	ComponentID    string
-	Scenario       string
-	Version        string
-	Verdict        AdoptionVerdict
-	Tokens         TokenVerdict
-	Dependency     string
-	StyleFit       string
-	StyleFitDetail string
-	I18n           string
-	Selectors      string
-	Blocking       bool
+	ComponentID          string
+	CatalogAssetID       string
+	CatalogLatestVersion string
+	Scenario             string
+	Version              string
+	Verdict              AdoptionVerdict
+	Tokens               TokenVerdict
+	Dependency           string
+	StyleFit             string
+	StyleFitDetail       string
+	I18n                 string
+	Selectors            string
+	Blocking             bool
 }
 
 // MaturityVerdict is the evidence-backed readiness projection consumed by

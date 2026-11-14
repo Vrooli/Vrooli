@@ -68,6 +68,14 @@ describe("MarkdownRenderer local images", () => {
 });
 
 describe("MarkdownRenderer link scheme handling", () => {
+  it("renders localhost web links directly through the current tunnel proxy route", () => {
+    render(<MarkdownRenderer content="[open app](http://localhost:21238/tasks?state=active#latest)" />);
+    expect(screen.getByRole("link", { name: "open app" })).toHaveAttribute(
+      "href",
+      `${window.location.origin}/_local/21238/tasks?state=active#latest`,
+    );
+  });
+
   it("preserves a webapp:// href (installed-PWA scheme) instead of stripping it", () => {
     render(
       <MarkdownRenderer content="[open hub](webapp://notification-hub.itsagitime.com/settings)" />,

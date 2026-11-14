@@ -397,8 +397,25 @@ func (h *connectHandler) SetTemplate(ctx context.Context, req *connect.Request[s
 	return connect.NewResponse(out), nil
 }
 
-func (h *connectHandler) BuildBrief(context.Context, *connect.Request[sketchv1.BuildBriefRequest]) (*connect.Response[sketchv1.BuildBriefResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sketch briefs are not implemented"))
+func (h *connectHandler) BuildBrief(ctx context.Context, req *connect.Request[sketchv1.BuildBriefRequest]) (*connect.Response[sketchv1.BuildBriefResponse], error) {
+	h, err := h.forRequest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	target, err := requestTarget(req.Msg.GetTarget())
+	if err != nil {
+		return nil, err
+	}
+	snapshot, err := h.deps.Store.Read(target.scenario, target.page)
+	if err != nil {
+		return nil, h.connectError("BuildBrief", err)
+	}
+	markdown, items, closing := internal.BuildBrief(target.scenario, target.page, snapshot.Document)
+	response := &sketchv1.BuildBriefResponse{Markdown: markdown, ClosingGate: closing}
+	for _, item := range items {
+		response.Items = append(response.Items, &sketchv1.BriefItem{Order: item.Order, Tier: item.Tier, Region: item.Region, Action: item.Action, Asset: item.Asset, Constraint: item.Constraint})
+	}
+	return connect.NewResponse(response), nil
 }
 
 type target struct{ scenario, page string }

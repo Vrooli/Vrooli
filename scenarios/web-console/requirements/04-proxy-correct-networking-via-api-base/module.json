@@ -11,7 +11,8 @@
       "category": "integration",
       "description": "All HTTP REST calls (health, sessions CRUD) route through api-base resolveApiBase/buildApiUrl helpers. No hardcoded origins.",
       "children": [
-        "REQ-P0-004b"
+        "REQ-P0-004b",
+        "REQ-P0-004c"
       ],
       "validation": [
         {
@@ -64,6 +65,30 @@
           "phase": "unit",
           "status": "failing",
           "notes": "WebSocket URL resolution uses api-base WS helpers"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-004c",
+      "title": "Terminal localhost links use the secure loopback proxy",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "integration",
+      "description": "Opening an HTTP localhost or loopback URL detected in terminal output routes it through the Web Console origin, including temporary ports outside scenario metadata. The shared api-base proxy accepts only loopback client connections, dials 127.0.0.1 or ::1 as selected, excludes Web Console listener ports, requires a short-lived capability bound to loopback family and port, preserves path/query behavior, and sandboxes HTML without exposing its token through wildcard CORS.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/lib/terminalFileLinks.test.ts",
+          "phase": "unit",
+          "status": "passed",
+          "notes": "Loopback URL rewriting preserves the URL while selecting the same-origin IPv4 or IPv6 proxy route."
+        },
+        {
+          "type": "test",
+          "ref": "packages/api-base/src/__tests__/server/local-port-proxy.test.ts",
+          "phase": "unit",
+          "status": "passed",
+          "notes": "Covers arbitrary ports, capability and CORS boundaries, HTML/CSS/redirect rewriting, WebSockets, and IPv6 loopback."
         }
       ]
     }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Terminal } from "@xterm/xterm";
-import { linkAtCell, matchTerminalFilePaths, matchTerminalLinks } from "./terminalFileLinks";
+import { linkAtCell, matchTerminalFilePaths, matchTerminalLinks, rewriteLocalhostUrlForProxy } from "./terminalFileLinks";
 
 describe("matchTerminalLinks", () => {
   it("recognizes relative paths with optional line and column", () => {
@@ -28,6 +28,42 @@ describe("matchTerminalLinks", () => {
     const links = matchTerminalLinks("ref https://host/a/b.ts end");
     expect(links).toHaveLength(1);
     expect(links[0]).toMatchObject({ kind: "url", value: "https://host/a/b.ts" });
+  });
+});
+
+describe("rewriteLocalhostUrlForProxy", () => {
+  const origin = "https://web-console.example.test";
+
+  it.each([
+    "http://localhost:22705/jobs?id=1#latest",
+    "http://127.0.0.1:22705/jobs?id=1#latest",
+    "http://127.12.0.9:22705/jobs",
+    "http://0.0.0.0:22705/jobs",
+  ])("routes %s through the Web Console origin", (url) => {
+    expect(rewriteLocalhostUrlForProxy(url, origin)).toBe(
+      "https://web-console.example.test/_local/22705/jobs" + (url.includes("?") ? "?id=1#latest" : ""),
+    );
+  });
+
+  it("routes IPv6 loopback through the fixed IPv6 loopback target", () => {
+    expect(rewriteLocalhostUrlForProxy("http://[::1]:22705/jobs", origin)).toBe(
+      "https://web-console.example.test/_local/ipv6/22705/jobs",
+    );
+  });
+
+  it("defaults an omitted HTTP port to port 80", () => {
+    expect(rewriteLocalhostUrlForProxy("http://localhost/status", origin)).toBe(
+      "https://web-console.example.test/_local/80/status",
+    );
+  });
+
+  it.each([
+    "https://localhost:22705/",
+    "http://example.test:22705/",
+    "http://localhost:0/",
+    "http://user:secret@localhost:22705/",
+  ])("leaves unsupported or unsafe target %s unchanged", (url) => {
+    expect(rewriteLocalhostUrlForProxy(url, origin)).toBeNull();
   });
 });
 

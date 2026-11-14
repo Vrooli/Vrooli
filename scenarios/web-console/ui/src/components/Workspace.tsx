@@ -60,6 +60,7 @@ import {
   closeErrorBanner,
   createErrorBanner,
   enableAudioBanner,
+  filePreviewDeepLinkErrorBanner,
   summarizeErrorBanner,
   trackingDegradedBanner,
   ttsSpeakingBanner,
@@ -71,6 +72,7 @@ import {
 } from "./banners/descriptors";
 import { useApprovalsBadgePoll } from "../hooks/useApprovals";
 import { useApprovalsStore } from "../stores/useApprovalsStore";
+import { useFilePreviewDeepLink } from "../hooks/useFilePreviewDeepLink";
 import {
   useCrashRecoveryBanner,
   useSessionRecoveryBanner,
@@ -512,6 +514,15 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     setFilePreviewFocus(false);
     setFilePreviewRequest({ sessionId, path, source });
   }, [activatePane]);
+  const openDeepLinkedFile = useCallback((sessionId: string, path: string) => {
+    openFilePreview(sessionId, path, "message_link");
+  }, [openFilePreview]);
+  const filePreviewDeepLink = useFilePreviewDeepLink({
+    hydrated: isHydrated,
+    activeSessionId: workspace.activePane,
+    hasActiveSession: Boolean(workspace.activePane && workspacePanes.some((pane) => pane.sessionId === workspace.activePane)),
+    open: openDeepLinkedFile,
+  });
   const closeFilePreview = useCallback(() => {
     setFilePreviewRequest(null);
     setFilePreviewFocus(false);
@@ -1856,6 +1867,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
 
   const banners: MaybeBanner[] = [
     ...appBanners,
+    filePreviewDeepLink.error && filePreviewDeepLinkErrorBanner(filePreviewDeepLink.error, filePreviewDeepLink.retry),
     sessionRecoveryNotice,
     crashRecoveryNotice,
     // Mobile primary entrance to the approvals inbox: shown ONLY when something

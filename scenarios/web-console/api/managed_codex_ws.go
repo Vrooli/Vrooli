@@ -24,6 +24,11 @@ func (s *Server) handleManagedCodexWS(w http.ResponseWriter, r *http.Request, se
 		return
 	}
 	defer conn.Close()
+	unregister, accepted := s.webSockets.Register(conn)
+	if !accepted {
+		return
+	}
+	defer unregister()
 	var writeMu sync.Mutex
 	write := func(message TerminalMessage) error {
 		return writeTerminalJSON(conn, &writeMu, message)

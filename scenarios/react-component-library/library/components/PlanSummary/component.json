@@ -4,6 +4,7 @@
     "0.1.1",
     "0.1.2"
   ],
+  "description": "An accept-or-adjust summary card for a proposed action, with direct and implied facts distinguished in form and text.",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,15 +12,17 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "PlanSummary",
   "draft": "",
   "evictedVersions": [
     "0.1.0",
     "0.1.1",
-    "0.1.2"
+    "0.1.2",
+    "0.1.5",
+    "0.1.4",
+    "0.1.3"
   ],
   "latest": "0.1.6",
   "libraryId": "react-component-library:PlanSummary",
-  "displayName": "PlanSummary",
-  "description": "An accept-or-adjust summary card for a proposed action, with direct and implied facts distinguished in form and text.",
   "tags": []
 }

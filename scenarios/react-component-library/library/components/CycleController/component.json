@@ -1,19 +1,21 @@
 {
   "catalogId": "react-component-library:CycleController",
   "deprecatedVersions": [],
+  "description": "",
   "designStyles": [
     {
-      "styleId": "vrooli-command-display",
       "affinity": "native",
-      "reason": "Coordinates the ambient display cycle without adding persistent chrome."
+      "reason": "Coordinates the ambient display cycle without adding persistent chrome.",
+      "styleId": "vrooli-command-display"
     }
   ],
+  "displayName": "CycleController",
   "draft": "",
   "entry": "BoardController.tsx",
-  "evictedVersions": [],
+  "evictedVersions": [
+    "0.1.2"
+  ],
   "latest": "0.1.3",
   "libraryId": "react-component-library:CycleController",
-  "displayName": "CycleController",
-  "description": "",
   "tags": []
 }

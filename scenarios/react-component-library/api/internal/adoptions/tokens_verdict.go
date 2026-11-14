@@ -38,8 +38,8 @@ type ErrAdoptionTokensUnsatisfied struct {
 }
 
 func (e ErrAdoptionTokensUnsatisfied) Error() string {
-	return fmt.Sprintf("adoption %s into %s requires unsatisfied CSS custom properties %s; run `react-component-library adoptions tokens-sync %s` or pass --override-validation",
-		e.ComponentID, e.Scenario, strings.Join(e.Properties, ", "), e.Scenario)
+	return fmt.Sprintf("adoption %s into %s requires unsatisfied CSS custom properties %s; prepare the selected release with `react-component-library adoptions tokens-sync %s --candidate %s`, then rerun preflight",
+		e.ComponentID, e.Scenario, strings.Join(e.Properties, ", "), e.Scenario, e.ComponentID)
 }
 
 type ScenarioTokenInventoryReader interface {

@@ -159,7 +159,9 @@ func (s *service) Link(ctx context.Context, in LinkInput) (LinkResult, error) {
 	}
 	// A governed link must leave its consumer's token contract satisfied.
 	if s.tokenInventory != nil {
-		tokenSync, err := s.SyncScenarioTokens(ctx, TokenSyncInput{Scenario: in.Scenario})
+		tokenSync, err := s.SyncScenarioTokens(ctx, TokenSyncInput{
+			Scenario: in.Scenario, CandidateComponentID: component.ID, CandidateVersion: version,
+		})
 		if err != nil {
 			return LinkResult{}, fmt.Errorf("sync adopter design tokens: %w", err)
 		}

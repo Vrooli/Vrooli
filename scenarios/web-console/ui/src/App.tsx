@@ -18,6 +18,7 @@ import { useAppViewport } from "./hooks/useAppViewport";
 import LaunchScreen from "./components/LaunchScreen";
 import ContextCompactionSheet from "./components/ContextCompactionSheet";
 import { parseApprovalsDeepLink, useApprovalsStore } from "./stores/useApprovalsStore";
+import { parseFilePreviewDeepLink, stripFilePreviewDeepLink, useFilePreviewDeepLinkStore } from "./stores/useFilePreviewDeepLinkStore";
 
 const Workspace = lazy(() => import("./components/Workspace"));
 
@@ -28,17 +29,24 @@ export default function App() {
   // the same deferred-intent discipline it uses for a reopened session. We strip
   // the query afterward so a refresh does not reopen the inbox.
   const requestApprovalsOpen = useApprovalsStore((state) => state.requestOpen);
+  const requestFilePreview = useFilePreviewDeepLinkStore((state) => state.request);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const link = parseApprovalsDeepLink(window.location.search);
-    if (!link.open) return;
-    requestApprovalsOpen(link.decisionId);
+    const filePath = parseFilePreviewDeepLink(window.location.search);
+    const hasFileParam = new URLSearchParams(window.location.search).has("file");
+    if (!link.open && !hasFileParam) return;
+    if (link.open) requestApprovalsOpen(link.decisionId);
+    if (filePath) requestFilePreview(filePath);
     try {
       const url = new URL(window.location.href);
-      for (const key of ["approval", "decision", "authorization", "run", "approvals"]) url.searchParams.delete(key);
-      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+      if (link.open) {
+        for (const key of ["approval", "decision", "authorization", "run", "approvals"]) url.searchParams.delete(key);
+      }
+      const nextUrl = hasFileParam ? stripFilePreviewDeepLink(url.href) : `${url.pathname}${url.search}${url.hash}`;
+      window.history.replaceState({}, "", nextUrl);
     } catch { /* non-fatal: the intent is already recorded */ }
-  }, [requestApprovalsOpen]);
+  }, [requestApprovalsOpen, requestFilePreview]);
 
   // Size the canvas during health/chunk loading too. Workspace hydration and
   // terminal followers consume this same keyboard state after they mount.

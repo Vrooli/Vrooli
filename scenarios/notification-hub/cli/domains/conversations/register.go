@@ -50,6 +50,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 				Reversible:            ctx.BoolFlag("reversible"),
 				Urgency:               ctx.Flag("urgency"),
 				ContextUrl:            ctx.Flag("context-url"),
+				BigPicture:            ctx.Flag("big-picture"),
+				TechnicalDetails:      ctx.Flag("technical-details"),
 				Deadline:              deadline,
 				SensitivityLabel:      ctx.Flag("sensitivity-label"),
 				IdempotencyKey:        ctx.Flag("idempotency-key"),
@@ -59,7 +61,11 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 			if callErr != nil {
 				return cliapp.WrapAPIError("ask notification question", callErr, nil)
 			}
-			return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{askOutcomeLine(resp.Msg)}})
+			if err := cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{askOutcomeLine(resp.Msg)}}); err != nil {
+				return err
+			}
+			writeGuideReminder(ctx.Stderr(), checkGuide(context.Background()), askGuideContext{AskID: resp.Msg.GetAskId(), SubjectKey: ctx.Flag("subject-key"), Outcome: resp.Msg.GetOutcome()})
+			return nil
 		},
 		"ConversationsService.Answer": func(ctx cliapp.RunContext) error {
 			resp, callErr := client.Answer(context.Background(), connect.NewRequest(&v1.AnswerRequest{

@@ -24,11 +24,16 @@ import (
 // Wire shape is opaque text/binary frames — web-console doesn't
 // interpret them; it bridges them byte-for-byte both directions.
 type voiceStreamProxy struct {
-	resolver audiotoolsint.URLResolver
+	resolver   audiotoolsint.URLResolver
+	webSockets *webSocketQuiescer
 }
 
-func newVoiceStreamProxy(resolver audiotoolsint.URLResolver) *voiceStreamProxy {
-	return &voiceStreamProxy{resolver: resolver}
+func newVoiceStreamProxy(resolver audiotoolsint.URLResolver, webSockets ...*webSocketQuiescer) *voiceStreamProxy {
+	proxy := &voiceStreamProxy{resolver: resolver}
+	if len(webSockets) > 0 {
+		proxy.webSockets = webSockets[0]
+	}
+	return proxy
 }
 
 var voiceStreamUpgrader = websocket.Upgrader{
@@ -71,6 +76,11 @@ func (p *voiceStreamProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer client.Close()
+	unregister, accepted := p.webSockets.Register(client, func() { _ = upstream.Close() })
+	if !accepted {
+		return
+	}
+	defer unregister()
 
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()

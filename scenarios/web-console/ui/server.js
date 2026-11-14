@@ -27,4 +27,8 @@ startScenarioServer({
   corsOrigins: '*',
   wsPathPrefix: '/api/v1',
   wsPathTransform: (path) => path,
+  // Terminal localhost links use this same-origin path so secure tunnel
+  // browsers can reach host services without forwarding arbitrary ports.
+  // API Base pins each request to 127.0.0.1 and refuses these control ports.
+  localPortProxy: { pathPrefix: '/_local', excludedPorts: [uiPort, apiPort] },
 })

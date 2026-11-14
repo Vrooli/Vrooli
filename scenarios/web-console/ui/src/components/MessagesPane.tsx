@@ -15,6 +15,7 @@ import { executeConversationControl, getAllConversationEvents, preflightConversa
 import { cn } from "../lib/classnames";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { looksLikeFileReference } from "../lib/fileReferences";
+import { rewriteLocalhostUrlForProxy } from "../lib/terminalFileLinks";
 import { useVirtualList } from "../hooks/useVirtualList";
 import { useReleaseOnElementInteraction } from "../hooks/useKeyboardListeners";
 import MessageJumpList, { type MessageExportSelection, type SearchOptionsState } from "./MessageJumpList";
@@ -716,6 +717,12 @@ export default function MessagesPane({
   }, [focusAndScroll, playbackFocusRequest]);
 
   const handleMarkdownLinkClick = useCallback((href: string, event: React.MouseEvent<HTMLAnchorElement>) => {
+    const proxiedUrl = rewriteLocalhostUrlForProxy(href, window.location.origin);
+    if (proxiedUrl) {
+      event.preventDefault();
+      window.open(proxiedUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
     if (!looksLikeFileReference(href)) return;
     event.preventDefault();
     onOpenFilePreview?.(href, "message_link");

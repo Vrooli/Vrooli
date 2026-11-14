@@ -25,6 +25,7 @@ import {
 } from "../../api/approvals";
 import { useAuthStore } from "../../stores/authStore";
 import ApprovalContextPanel from "./ApprovalContextPanel";
+import ApprovalLinkedText from "./ApprovalLinkedText";
 import {
   approveOptionKey,
   isActionable,
@@ -613,7 +614,7 @@ function ApprovalDetail({
             </span>
           )}
         </div>
-        <h2 className="text-lg font-semibold text-wc-text-primary md:text-xl">{decision.question}</h2>
+        <ApprovalLinkedText content={decision.question} className="text-lg font-semibold text-wc-text-primary md:text-xl" />
       </div>
 
       <div className="flex-1 space-y-5 p-4 md:p-6">
@@ -625,7 +626,7 @@ function ApprovalDetail({
             {(decision.answeredBy || decision.answeredAt) && (
               <div className="mt-1 text-wc-text-muted">{t(strings.approvals.answeredBy, { who: decision.answeredBy || "you", when: relativeTime(decision.answeredAt) })}</div>
             )}
-            {decision.note && <div className="mt-2 text-wc-text-secondary">“{decision.note}”</div>}
+            {decision.note && <div className="mt-2 text-wc-text-secondary">“<ApprovalLinkedText content={decision.note} />”</div>}
           </div>
         ) : expired ? (
           <div className="rounded-lg border border-wc-error-border bg-wc-error-surface/50 p-4" data-testid="approvals-expired-note">
@@ -638,11 +639,11 @@ function ApprovalDetail({
           <div data-testid="approvals-answer-block">
             <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-wide text-wc-text-faint">{t(strings.approvals.yourDecision)}</h3>
             {rec && (
-              <p className="mb-3 text-sm leading-relaxed text-wc-text-muted">
+              <div className="mb-3 text-sm leading-relaxed text-wc-text-muted">
                 {decision.recommendationReason
-                  ? t(strings.approvals.recommendedReason, { reason: decision.recommendationReason })
+                  ? <ApprovalLinkedText content={t(strings.approvals.recommendedReason, { reason: decision.recommendationReason })} />
                   : t(strings.approvals.recommends, { label: rec.label })}
-              </p>
+              </div>
             )}
             <div className="flex flex-wrap gap-2.5">
               {rec && (

@@ -156,6 +156,31 @@ describe("Design workspace", () => {
     expect(workspace).toBeInTheDocument();
   });
 
+  it("keeps the brief open by default and reopens it from workflow shortcuts", async () => {
+    setup();
+    renderPage();
+    await screen.findByText(i18n.t("design.proposeTitle"));
+    const brief = document.querySelector<HTMLDetailsElement>("#design-brief");
+    expect(brief?.open).toBe(true);
+
+    fireEvent.click(within(brief!).getByText(i18n.t("design.proposeTitle")));
+    await waitFor(() => expect(brief?.open).toBe(false));
+    const shortcuts = [
+      document.querySelector<HTMLAnchorElement>(
+        'nav[aria-label="Design workflow"] a[href$="#design-brief"]',
+      ),
+      document.querySelector<HTMLAnchorElement>('header > div:last-child a[href$="#design-brief"]'),
+    ];
+    for (const shortcut of shortcuts) {
+      if (brief?.open) {
+        fireEvent.click(within(brief!).getByText(i18n.t("design.proposeTitle")));
+        await waitFor(() => expect(brief!.open).toBe(false));
+      }
+      fireEvent.click(shortcut!);
+      await waitFor(() => expect(brief?.open).toBe(true));
+    }
+  });
+
   it("keeps workflow chrome usable at short landscape heights", async () => {
     setup();
     renderPage();
@@ -399,6 +424,7 @@ describe("Design workspace", () => {
       "href",
       "/design/demo",
     );
+    expect(screen.getByText(/Enter its goal, audience, and main tasks/)).toBeInTheDocument();
   });
   it("ranks declared work first and makes empty scenarios available on request", async () => {
     api.listDesignPages.mockResolvedValue({
@@ -546,7 +572,16 @@ it("proposes from typed intent and only writes after draft selection", async () 
     candidates: [
       {
         title: "Collection",
-        sketch: { ...sketch, template: { asset: "templates.collection-page", version: "1.0.7" } },
+        sketch: {
+          ...sketch,
+          template: { asset: "templates.collection-page", version: "1.0.7" },
+          placements: [
+            {
+              region: "body",
+              fills: { asset: "react-component-library:Tabs", version: "1.3.6" },
+            },
+          ],
+        },
         obligations: ["Configure ports"],
       },
     ],
@@ -569,6 +604,14 @@ it("proposes from typed intent and only writes after draft selection", async () 
   });
   fireEvent.click(screen.getByRole("button", { name: i18n.t("design.proposeAction") }));
   await screen.findByRole("button", { name: i18n.t("design.proposeChoose") });
+  expect(screen.getByRole("link", { name: "react-component-library:Tabs · 1.3.6" })).toHaveAttribute(
+    "href",
+    "/assets/react-component-library%3ATabs?tab=overview",
+  );
+  expect(screen.getByRole("link", { name: "templates.collection-page · 1.0.7" })).toHaveAttribute(
+    "href",
+    "/assets/templates.collection-page?tab=overview",
+  );
   expect(api.proposeSketch).toHaveBeenCalledWith(
     expect.objectContaining({
       expectedContentHash: "current-hash",

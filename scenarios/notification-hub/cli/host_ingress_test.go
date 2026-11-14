@@ -18,10 +18,11 @@ import (
 
 func TestHostCommandsSendAndAskWithoutIdentityOrPermission(t *testing.T) {
 	var sendCalled, askCalled bool
+	var askSeen conversationsv1.AskRequest
 	router := http.NewServeMux()
 	path, sendHandler := notificationsconnect.NewNotificationsServiceHandler(notificationIngressStub{sendCalled: &sendCalled})
 	router.Handle(path, sendHandler)
-	path, askHandler := conversationsconnect.NewConversationsServiceHandler(conversationIngressStub{askCalled: &askCalled})
+	path, askHandler := conversationsconnect.NewConversationsServiceHandler(conversationIngressStub{askCalled: &askCalled, seen: &askSeen})
 	router.Handle(path, askHandler)
 	cliapptest.NewAPIServer(t, router)
 
@@ -37,8 +38,12 @@ func TestHostCommandsSendAndAskWithoutIdentityOrPermission(t *testing.T) {
 	require.NoError(t, app.Run([]string{
 		"conversations", "ask", "--question", "Host-shell test choice?", "--option", "yes=Yes", "--option", "no=No",
 		"--deadline", "24h", "--sensitivity-label", "private", "--idempotency-key", "host-ask-test",
+		"--big-picture", "Why this matters to a reader with no context.", "--technical-details", "Run 42; packet at /tmp/x.",
 	}))
 	require.True(t, askCalled)
+	// The context fields are how an agent explains a decision; the CLI must carry them.
+	require.Equal(t, "Why this matters to a reader with no context.", askSeen.GetBigPicture())
+	require.Equal(t, "Run 42; packet at /tmp/x.", askSeen.GetTechnicalDetails())
 }
 
 type notificationIngressStub struct{ sendCalled *bool }
@@ -61,13 +66,17 @@ func (notificationIngressStub) List(context.Context, *connect.Request[notificati
 	return nil, connect.NewError(connect.CodeUnimplemented, nil)
 }
 
-type conversationIngressStub struct{ askCalled *bool }
+type conversationIngressStub struct {
+	askCalled *bool
+	seen      *conversationsv1.AskRequest
+}
 
 func (s conversationIngressStub) Ask(_ context.Context, req *connect.Request[conversationsv1.AskRequest]) (*connect.Response[conversationsv1.AskResponse], error) {
 	if req.Header().Get("Authorization") != "" || req.Header().Get(cliutil.HeaderAgentIdentityToken) != "" {
 		return nil, connect.NewError(connect.CodeUnauthenticated, nil)
 	}
 	*s.askCalled = true
+	s.seen.BigPicture, s.seen.TechnicalDetails = req.Msg.GetBigPicture(), req.Msg.GetTechnicalDetails()
 	return connect.NewResponse(&conversationsv1.AskResponse{AskId: "host-ask-test", Notification: &shared.Notification{Id: "host-ask-notification", RequestedBy: "configured-owner"}}), nil
 }
 

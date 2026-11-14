@@ -95,6 +95,34 @@ func TestEventStream_SetsHeaders(t *testing.T) {
 	<-done
 }
 
+func TestEventStream_QuiesceClosesActiveStream(t *testing.T) {
+	srv := newEventStreamServer()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/events/stream", nil)
+	_, cancel, done := startStream(t, srv, req)
+	defer cancel()
+
+	deadline := time.Now().Add(time.Second)
+	for {
+		srv.hub.mu.Lock()
+		subscribed := len(srv.hub.subscribers) > 0
+		srv.hub.mu.Unlock()
+		if subscribed {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("event stream did not subscribe")
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	srv.hub.CloseSubscribers()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("event stream stayed open after lifecycle quiesce")
+	}
+}
+
 func TestEventStream_RejectsNonFlusher(t *testing.T) {
 	srv := newEventStreamServer()
 	rec := &nonFlusherRecorder{}

@@ -222,15 +222,16 @@
     },
     {
       "name": "conversations",
-      "description": "Ask, answer, dismiss, or withdraw operator decisions.",
+      "description": "Ask, answer, dismiss, or withdraw operator decisions. Before writing a decision, read the writing guide: prompt-manager skill read notification-hub",
       "commands": [
         {
           "name": "ask",
-          "description": "Ask the operator a question and persist its deadline. Direct asks include a free-text Other answer. With --subject-key an ask about an ongoing situation stays one open ask.",
+          "description": "Ask the operator a question and persist its deadline. The operator reads it cold on a phone: write it by the guide in `prompt-manager skill read notification-hub` (plain question, --big-picture for why it matters, --technical-details for IDs and paths). Direct asks include a free-text Other answer. With --subject-key an ask about an ongoing situation stays one open ask, and you can fix its text in place.",
           "flags": [
             {
               "name": "question",
-              "required": true
+              "required": true,
+              "description": "One plain sentence the operator can answer from the push alone: the choice and what it affects. No internal IDs, codes, or file paths."
             },
             {
               "name": "option",
@@ -267,7 +268,15 @@
             },
             {
               "name": "context-url",
-              "description": "Link for more detail."
+              "description": "A web page that opens on the operator's phone. Never a local file path or localhost link; put those in --technical-details."
+            },
+            {
+              "name": "big-picture",
+              "description": "Plain sentences for a reader with no context: what this is about, why it matters now, what each answer leads to, and what happens with no answer. At most 4,000 characters."
+            },
+            {
+              "name": "technical-details",
+              "description": "Evidence, IDs, commands, and file paths for the agent that acts on the answer. The only place internal names belong. At most 12,000 characters."
             },
             {
               "name": "deadline",

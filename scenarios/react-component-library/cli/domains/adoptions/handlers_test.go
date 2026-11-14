@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -46,6 +47,7 @@ type adoptionsService struct {
 	reconvergeResp    *adoptionsv1.ReconvergeAdoptionsResponse
 	reconvergeReqs    []*adoptionsv1.ReconvergeAdoptionsRequest
 	listReqs          []*adoptionsv1.ListAdoptionsRequest
+	tokenSyncReqs     []*adoptionsv1.SyncScenarioTokensRequest
 	listScenariosReqs []*adoptionsv1.ListScenariosRequest
 	applyReqs         []*adoptionsv1.ApplyAdoptionRequest
 	reapplyReqs       []*adoptionsv1.ReapplyAdoptionRequest
@@ -110,7 +112,10 @@ func (s *adoptionsService) PreflightAdoption(_ context.Context, _ *connect.Reque
 	return connect.NewResponse(&adoptionsv1.PreflightAdoptionResponse{ComponentId: "cmp-btn", Scenario: "swarm-manager", Version: "1.0.0"}), nil
 }
 
-func (s *adoptionsService) SyncScenarioTokens(_ context.Context, _ *connect.Request[adoptionsv1.SyncScenarioTokensRequest]) (*connect.Response[adoptionsv1.SyncScenarioTokensResponse], error) {
+func (s *adoptionsService) SyncScenarioTokens(_ context.Context, req *connect.Request[adoptionsv1.SyncScenarioTokensRequest]) (*connect.Response[adoptionsv1.SyncScenarioTokensResponse], error) {
+	s.mu.Lock()
+	s.tokenSyncReqs = append(s.tokenSyncReqs, req.Msg)
+	s.mu.Unlock()
 	return connect.NewResponse(&adoptionsv1.SyncScenarioTokensResponse{}), nil
 }
 
@@ -265,6 +270,51 @@ func TestAdoptionsList_ForwardsFiltersAndRenders(t *testing.T) {
 	require.Equal(t, int32(50), svc.listReqs[0].Limit)
 	require.Contains(t, out.String(), "Found 1 adoption(s).")
 	require.Contains(t, out.String(), "behind")
+}
+
+func TestTokensSync_ForwardsCandidateAndVersion(t *testing.T) {
+	svc := &adoptionsService{}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "scenario", Required: true}},
+		Flags:       []cliapp.Flag{{Name: "dry-run"}, {Name: "candidate"}, {Name: "version"}},
+	}, cliapptest.TestRunContextOptions{
+		Positionals: map[string]string{"scenario": "system-monitor"},
+		Flags:       map[string]string{"dry-run": "true", "candidate": "react-component-library:Chart", "version": "1.0.12"},
+	})
+	require.NoError(t, h.syncTokens(ctx))
+	require.Len(t, svc.tokenSyncReqs, 1)
+	require.Equal(t, "system-monitor", svc.tokenSyncReqs[0].Scenario)
+	require.True(t, svc.tokenSyncReqs[0].DryRun)
+	require.Equal(t, "react-component-library:Chart", svc.tokenSyncReqs[0].CandidateComponentId)
+	require.Equal(t, "1.0.12", svc.tokenSyncReqs[0].CandidateVersion)
+}
+
+func TestPreflightReportGuidesMissingCatalogEvidence(t *testing.T) {
+	h := &handlers{}
+	report := h.preflightReport(nil, &adoptionsv1.PreflightAdoptionResponse{
+		ComponentId: "react-component-library:Chart", Scenario: "system-monitor", Version: "1.0.12",
+		CatalogAssetId: "visualization.chart", CatalogLatestVersion: "1.0.12", I18NVerdict: "not-measured", SelectorVerdict: "not-measured",
+	})
+	joined := strings.Join(report.Results, "\n")
+	require.Contains(t, joined, "i18n coverage=not-measured; selector coverage=not-measured")
+	require.Contains(t, joined, "catalog gates i18n --asset-id visualization.chart")
+	require.Contains(t, joined, "catalog gates selector-coverage --asset-id visualization.chart")
+	require.Contains(t, joined, "adoptions preflight react-component-library:Chart system-monitor --version 1.0.12")
+	require.Contains(t, joined, "linking stays blocked until both measures pass")
+}
+
+func TestPreflightReportDoesNotSuggestLatestGateForOlderPin(t *testing.T) {
+	h := &handlers{}
+	report := h.preflightReport(nil, &adoptionsv1.PreflightAdoptionResponse{
+		ComponentId: "react-component-library:Chart", Scenario: "system-monitor", Version: "1.0.11",
+		CatalogAssetId: "visualization.chart", CatalogLatestVersion: "1.0.12", I18NVerdict: "not-measured", SelectorVerdict: "not-measured",
+	})
+	joined := strings.Join(report.Results, "\n")
+	require.NotContains(t, joined, "catalog gates i18n --asset-id visualization.chart")
+	require.Contains(t, joined, "Catalog gates measure current visualization.chart@1.0.12")
+	require.Contains(t, joined, "selected react-component-library:Chart@1.0.11 needs exact-version gate evidence")
 }
 
 func TestAdoptionsListScenarios_RendersTypedDisplayOptions(t *testing.T) {

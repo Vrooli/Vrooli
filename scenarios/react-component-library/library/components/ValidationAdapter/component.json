@@ -1,22 +1,24 @@
 {
   "catalogId": "adapters.validation",
   "deprecatedVersions": [],
+  "description": "Connects the form runtime to JSON Schema, Zod-like schemas, or server-side validation through one normalized issue format carrying field path, message, and severity.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "ValidationAdapter",
   "draft": "",
   "evictedVersions": [
     "1.0.1",
     "1.0.0",
-    "1.0.2"
+    "1.0.2",
+    "1.0.4",
+    "1.0.3"
   ],
   "latest": "1.0.5",
   "libraryId": "react-component-library:ValidationAdapter",
-  "displayName": "ValidationAdapter",
-  "description": "Connects the form runtime to JSON Schema, Zod-like schemas, or server-side validation through one normalized issue format carrying field path, message, and severity.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "tags": []
 }

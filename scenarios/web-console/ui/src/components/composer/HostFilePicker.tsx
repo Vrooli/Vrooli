@@ -128,22 +128,11 @@ export default function HostFilePicker({ open, sessionId, onClose, onAttach }: H
     </div>
   );
 
-  // The drawer's footer is already a padded, bordered row; these are its items.
+  // The drawer keeps its selection context beside the shared action bar.
   const footer = (
-    <>
-      <p className="min-w-0 flex-1 self-center text-xs text-wc-text-muted" data-testid="host-picker-summary">
-        {selected.size > 0 ? t(strings.composer.hostPickerSelected, { count: selected.size }) : t(strings.composer.hostPickerHint)}
-      </p>
-      <button
-        type="button"
-        onClick={attach}
-        disabled={selected.size === 0}
-        data-testid="host-picker-attach"
-        className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg bg-wc-accent px-4 text-sm font-medium text-white transition disabled:opacity-50"
-      >
-        {selected.size > 0 ? t(strings.composer.hostPickerAttachCount, { count: selected.size }) : t(strings.composer.hostPickerAttach)}
-      </button>
-    </>
+    <p className="min-w-0 flex-1 self-center text-xs text-wc-text-muted" data-testid="host-picker-summary">
+      {selected.size > 0 ? t(strings.composer.hostPickerSelected, { count: selected.size }) : t(strings.composer.hostPickerHint)}
+    </p>
   );
 
   let content: React.JSX.Element;
@@ -193,6 +182,16 @@ export default function HostFilePicker({ open, sessionId, onClose, onAttach }: H
       closeLabel={t(strings.composer.hostPickerClose)}
       subheader={subheader}
       footer={footer}
+      actions={[{
+        id: "attach",
+        label: selected.size > 0
+          ? t(strings.composer.hostPickerAttachCount, { count: selected.size })
+          : t(strings.composer.hostPickerAttach),
+        primary: true,
+        disabled: selected.size === 0,
+        testId: "host-picker-attach",
+        onSelect: attach,
+      }]}
       testId="host-file-picker"
     >
       <div className="flex h-full min-h-0 flex-col">{content}</div>

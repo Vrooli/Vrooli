@@ -258,7 +258,7 @@ func (s *Server) setupRoutes() {
 	}).Mount(s.router)
 
 	if s.audioToolsResolver != nil {
-		s.router.Handle("/api/v1/voice/stream", newVoiceStreamProxy(s.audioToolsResolver))
+		s.router.Handle("/api/v1/voice/stream", newVoiceStreamProxy(s.audioToolsResolver, s.webSockets))
 	}
 	s.router.HandleFunc("/api/v1/events/stream", s.handleEventStream).Methods("GET")
 	hooksH.Module(hooksH.Deps{Stop: s.handleHookStop, PromptSubmit: s.handleHookPromptSubmit, Notification: s.handleHookNotification}).Mount(s.router)

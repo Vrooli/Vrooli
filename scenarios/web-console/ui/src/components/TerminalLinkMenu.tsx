@@ -1,6 +1,6 @@
 import { Copy, ExternalLink, FileText } from "lucide-react";
 import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1";
-import type { TerminalLinkActivation } from "../lib/terminalFileLinks";
+import { rewriteLocalhostUrlForProxy, type TerminalLinkActivation } from "../lib/terminalFileLinks";
 import { copyText } from "../lib/clipboard";
 
 interface TerminalLinkMenuProps {
@@ -45,7 +45,10 @@ export default function TerminalLinkMenu({ activation, onOpenFile, onClose }: Te
           label: "Open link",
           icon: <ExternalLink className="h-4 w-4 shrink-0" />,
           testId: "link-open-url",
-          onSelect: () => { window.open(value, "_blank", "noopener,noreferrer"); },
+          onSelect: () => {
+            const target = rewriteLocalhostUrlForProxy(value, window.location.origin) ?? value;
+            window.open(target, "_blank", "noopener,noreferrer");
+          },
         },
     {
       id: "copy",

@@ -1,4 +1,4 @@
-import { History, Loader2, Mic, RefreshCw, RotateCcw, ShieldCheck, Volume2, VolumeX } from "lucide-react";
+import { AlertTriangle, History, Loader2, Mic, RefreshCw, RotateCcw, ShieldCheck, Volume2, VolumeX } from "lucide-react";
 import type { TFunction } from "i18next";
 import type { VoiceRejection } from "../../audio-integration";
 import type { ErrorInfo } from "../../lib/errors";
@@ -146,7 +146,7 @@ export function createErrorBanner(
     id: "create-error",
     testId: "create-error-banner",
     tone: "danger",
-    priority: BANNER_PRIORITY.createError,
+    priority: BANNER_PRIORITY.fileLinkFailure,
     title: error.message,
     description: error.recovery,
     actions: opts.onRetry
@@ -534,5 +534,21 @@ export function approvalsBanner(
         primary: true,
       },
     ],
+  };
+}
+
+export function filePreviewDeepLinkErrorBanner(
+  message: string,
+  onRetry: () => void,
+): BannerDescriptor {
+  return {
+    id: "file-preview-deep-link-error",
+    testId: "file-preview-deep-link-error",
+    tone: "warning",
+    priority: BANNER_PRIORITY.createError,
+    icon: AlertTriangle,
+    title: "Couldn't open linked file",
+    description: message,
+    actions: [{ id: "retry", label: "Retry", onSelect: onRetry, primary: true, icon: RefreshCw }],
   };
 }

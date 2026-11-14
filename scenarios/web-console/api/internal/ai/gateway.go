@@ -22,6 +22,9 @@ import (
 type GatewayProvider struct {
 	Source       string
 	ProviderName string
+	// PrivacyClass must be supplied from a caller or policy source. The normal
+	// Web Console chain has no classification input, so remote sources remain
+	// ineligible until that owner adds one.
 	PrivacyClass sharedv1.PrivacyClass
 	ResolveURL   func(context.Context) (string, error)
 	Client       *http.Client
@@ -104,5 +107,8 @@ func gatewaySourceProfile(source string) (sharedv1.Profile, error) {
 }
 
 func NewGatewayChain() *Chain {
+	// The caller currently has no privacy-classification source. Keep remote
+	// options visible for source-consent compatibility, while Generate refuses
+	// them until a class is explicitly provided.
 	return NewChain(&GatewayProvider{Source: "local", ProviderName: "ollama"}, &GatewayProvider{Source: "own-key", ProviderName: "openrouter"}, &GatewayProvider{Source: "vrooli-credits", ProviderName: "vrooli"})
 }

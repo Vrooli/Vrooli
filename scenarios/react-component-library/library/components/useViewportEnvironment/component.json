@@ -19,7 +19,8 @@
   "entry": "useViewportEnvironment.tsx",
   "evictedVersions": [
     "1.1.0",
-    "1.1.3"
+    "1.1.3",
+    "1.1.5"
   ],
   "latest": "1.1.6",
   "libraryId": "react-component-library:useViewportEnvironment",

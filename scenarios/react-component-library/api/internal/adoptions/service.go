@@ -989,7 +989,7 @@ func (s *service) Preflight(ctx context.Context, in PreflightInput) (PreflightRe
 	if err != nil {
 		return PreflightResult{}, err
 	}
-	result := PreflightResult{ComponentID: componentID, Scenario: scenario, Version: version, Verdict: readiness, Tokens: tokens, Dependency: readiness.Dependency, StyleFit: readiness.StyleFit, I18n: readiness.I18n, Selectors: readiness.Selectors, Blocking: readiness.Blocking()}
+	result := PreflightResult{ComponentID: componentID, CatalogAssetID: root.CatalogID, CatalogLatestVersion: root.LatestVersion, Scenario: scenario, Version: version, Verdict: readiness, Tokens: tokens, Dependency: readiness.Dependency, StyleFit: readiness.StyleFit, I18n: readiness.I18n, Selectors: readiness.Selectors, Blocking: readiness.Blocking()}
 	return result, nil
 }
 

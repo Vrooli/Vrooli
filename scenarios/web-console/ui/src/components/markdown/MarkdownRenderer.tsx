@@ -8,6 +8,7 @@ import { MermaidDiagram } from "./components/MermaidDiagram";
 import { ResizableMarkdownTable } from "@vrooli/react-component-library/markdown-renderer/0";
 import { MarkdownTimeMention, TimeMentionProvider, remarkTimeMentions, type TimeAnchorInput } from "@vrooli/react-component-library/TimeMention/1";
 import { isExternalHref } from "../../lib/fileReferences";
+import { rewriteLocalhostUrlForProxy } from "../../lib/terminalFileLinks";
 import { resolveFilePreview } from "../../api/filePreview";
 import { splitMarkdownChunks } from "./utils/splitMarkdownChunks";
 import { observeNear } from "./utils/lazyVisibility";
@@ -198,19 +199,25 @@ const markdownComponents = {
   a: function MarkdownLink({ href, children, ...props }: ComponentPropsWithoutRef<"a"> & { "data-prose-path"?: string }) {
     const { onLinkClick } = useContext(MarkdownCallbacksContext);
     const safeHref = href ?? "";
+    // Put the tunnel route in the anchor itself so mobile browsers, context
+    // menus, and non-JavaScript navigation do not open localhost on the
+    // viewer's device. The click callback remains responsible for file links.
+    const proxyHref = typeof window === "undefined"
+      ? null
+      : rewriteLocalhostUrlForProxy(safeHref, window.location.origin);
     const external = isExternalHref(safeHref);
     // Auto-detected bare paths get a quieter treatment than authored
     // links: dotted underline, solid on hover.
     const isProsePath = props["data-prose-path"] === "true";
     return (
       <a
-        href={safeHref}
+        href={proxyHref ?? safeHref}
         target={external ? "_blank" : undefined}
         rel={external ? "noopener noreferrer" : undefined}
         className={
           isProsePath
-            ? "text-wc-accent/90 underline decoration-dotted underline-offset-2 hover:decoration-solid hover:text-wc-accent"
-            : "text-wc-accent underline underline-offset-2 hover:text-wc-accent/80"
+            ? "relative after:absolute after:-inset-y-3 after:inset-x-0 after:content-[''] text-wc-accent/90 underline decoration-dotted underline-offset-2 hover:decoration-solid hover:text-wc-accent"
+            : "relative after:absolute after:-inset-y-3 after:inset-x-0 after:content-[''] text-wc-accent underline underline-offset-2 hover:text-wc-accent/80"
         }
         title={isProsePath ? `Open ${safeHref}` : undefined}
         onClick={(event) => onLinkClick?.(safeHref, event)}

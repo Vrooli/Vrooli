@@ -160,6 +160,11 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.Close()
+	unregister, accepted := s.webSockets.Register(conn)
+	if !accepted {
+		return
+	}
+	defer unregister()
 	// Bound half-open connections. The server sends protocol-level pings from
 	// the output forwarder; a client pong proves the peer is still reachable
 	// and extends the read deadline. Application-level JSON pings are not a

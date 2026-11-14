@@ -20,6 +20,28 @@ export interface TerminalLinkActivation extends TerminalLink {
   position: { x: number; y: number };
 }
 
+/** Convert a localhost HTTP URL to Web Console's same-origin loopback route. */
+export function rewriteLocalhostUrlForProxy(value: string, origin: string): string | null {
+  let target: URL;
+  let base: URL;
+  try {
+    target = new URL(value);
+    base = new URL(origin);
+  } catch {
+    return null;
+  }
+  if (target.protocol !== "http:" || target.username || target.password) return null;
+  const host = target.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  const isLoopback = host === "localhost" || host === "localhost." || host === "0.0.0.0" || host === "::1" || /^127(?:\.\d{1,3}){3}$/.test(host);
+  if (!isLoopback) return null;
+  const octets = host.startsWith("127.") ? host.split(".").slice(1).map(Number) : [];
+  if (octets.some((part) => part < 0 || part > 255)) return null;
+  const port = target.port || "80";
+  if (!/^[1-9]\d{0,4}$/.test(port) || Number(port) > 65535) return null;
+  const route = host === "::1" ? `/_local/ipv6/${port}` : `/_local/${port}`;
+  return `${base.origin}${route}${target.pathname}${target.search}${target.hash}`;
+}
+
 // Keep path matching intentionally conservative. A token must look like a path
 // and have either a separator, a dot-prefixed segment, or a known file
 // extension; ordinary shell prose should never become interactive by accident.

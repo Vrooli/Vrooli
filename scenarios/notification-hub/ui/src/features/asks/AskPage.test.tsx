@@ -361,6 +361,8 @@ describe("AskPage", () => {
     ]) {
       const link = screen.getByRole("link", { name: label });
       expect(link).toHaveAttribute("href", href);
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
       expect(link).toHaveClass("min-h-11");
     }
   });

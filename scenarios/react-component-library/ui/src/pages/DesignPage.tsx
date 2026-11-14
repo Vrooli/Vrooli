@@ -18,6 +18,12 @@ import type {
 import {
   DesignConstraintsSchema,
   DesignIntentSchema,
+  CriticIdentitySchema,
+  CritiqueEvidenceSchema,
+  CritiqueFindingSchema,
+  CritiqueRatingSchema,
+  CritiqueTargetSchema,
+  VisualCritiqueSchema,
 } from "@vrooli/proto-types/react-component-library/v1/sketch/sketch_pb";
 import { listComponentStories } from "../api/components";
 import { API_BASE } from "../api/client";
@@ -28,9 +34,8 @@ import {
   uploadReferenceAsset,
 } from "../api/sketch";
 import { strings } from "../consts/strings";
-import { designPath } from "../routes";
+import { assetPath, designPath } from "../routes";
 import { useTranslation } from "../i18n";
-import { useIsMobile } from "../hooks/useMediaQuery";
 
 function Failure({
   error,
@@ -53,6 +58,28 @@ function Failure({
       </p>
       {retry && <Button onClick={retry}>{t("design.reload")}</Button>}
     </div>
+  );
+}
+
+function catalogAssetsFor(sketch?: Sketch): { asset: string; version: string }[] {
+  const references = [
+    ...(sketch?.template
+      ? [{ asset: sketch.template.asset, version: sketch.template.version }]
+      : []),
+    ...(sketch?.placements.map((placement) => ({
+      asset: placement.fills?.asset,
+      version: placement.fills?.version,
+    })) ?? []),
+  ];
+  return Array.from(
+    new Map(
+      references
+        .filter(
+          (reference): reference is { asset: string; version: string } =>
+            Boolean(reference?.asset && reference.version),
+        )
+        .map((reference) => [`${reference.asset}@${reference.version}`, reference]),
+    ).values(),
   );
 }
 
@@ -230,6 +257,7 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
   const [note, setNote] = useState("");
   const [panel, setPanel] = useState("structure");
   const [adoptionAcknowledged, setAdoptionAcknowledged] = useState(false);
+  const [briefOpen, setBriefOpen] = useState(true);
   const selectedRevision = history.data?.revisions.find((item) => item.contentHash === revision);
   const doc = revision ? selectedRevision?.sketch : current.data?.sketch;
   const hash = revision || current.data?.contentHash || "";
@@ -413,6 +441,9 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
             <a
               key={step.id}
               href={`${designPath(scenario, page)}#${step.anchor}`}
+              onClick={() => {
+                if (step.id === "brief") setBriefOpen(true);
+              }}
               className={`relative min-h-touch rounded-control border p-space-xs transition-colors hover:border-app-primary/60 ${step.complete ? "border-emerald-500/40 bg-emerald-500/5" : step.id === nextStep.id ? "border-app-primary/50 bg-app-primary/5" : "border-app-border bg-app-surface-muted"}`}
             >
               <div className="flex items-center gap-2">
@@ -434,6 +465,9 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
           <span className="font-medium">Next best action</span>
           <a
             href={`${designPath(scenario, page)}#${nextStep.anchor}`}
+            onClick={() => {
+              if (nextStep.id === "brief") setBriefOpen(true);
+            }}
             className="inline-flex min-h-touch items-center font-semibold text-app-primary underline-offset-2 hover:underline"
           >
             {nextStep.label}
@@ -451,6 +485,8 @@ function PageWorkspace({ scenario, page }: { scenario: string; page: string }) {
               hash={hash}
               sketch={doc}
               readOnly={readOnly}
+              briefOpen={briefOpen}
+              onBriefOpenChange={setBriefOpen}
               onSaved={refresh}
             />
           </div>
@@ -1773,16 +1809,19 @@ function IntentProposals({
   hash,
   sketch,
   readOnly,
+  briefOpen,
+  onBriefOpenChange,
   onSaved,
 }: {
   target: { scenario: string; page: string };
   hash: string;
   sketch?: Sketch;
   readOnly: boolean;
+  briefOpen: boolean;
+  onBriefOpenChange: (open: boolean) => void;
   onSaved: () => Promise<void>;
 }) {
   const { t } = useTranslation();
-  const isMobile = useIsMobile();
   const [intent, setIntent] = useState("");
   const [users, setUsers] = useState("");
   const [tasks, setTasks] = useState("");
@@ -1902,10 +1941,17 @@ function IntentProposals({
   return (
     <details
       id="design-brief"
-      open={!isMobile}
+      open={briefOpen}
       className="scroll-mt-24 rounded-control border border-app-border p-space-sm"
     >
-      <summary>{t("design.proposeTitle")}</summary>
+      <summary
+        onClick={(event) => {
+          event.preventDefault();
+          onBriefOpenChange(!briefOpen);
+        }}
+      >
+        {t("design.proposeTitle")}
+      </summary>
       <div className="grid gap-space-sm pt-space-sm">
         <p>{t("design.proposeHelp")}</p>
         <p className="rounded-control border border-app-border bg-app-surface-muted p-space-xs text-sm text-app-muted-foreground">
@@ -2045,6 +2091,23 @@ function IntentProposals({
                   <p>
                     {candidate.sketch?.template?.asset} · {candidate.sketch?.template?.version}
                   </p>
+                  {catalogAssetsFor(candidate.sketch).length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium">{t("design.catalogAssets")}</p>
+                      <ul className="flex flex-wrap gap-x-space-sm gap-y-space-2xs">
+                        {catalogAssetsFor(candidate.sketch).map((asset) => (
+                          <li key={`${asset.asset}@${asset.version}`}>
+                            <Link
+                              to={assetPath(asset.asset, { tab: "overview" })}
+                              className="inline-flex min-h-11 items-center text-sm text-app-primary underline underline-offset-2"
+                            >
+                              {asset.asset} · {asset.version}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   <ul>
                     {candidate.sketch?.regions.map((region) => (
                       <li key={region.id}>{region.id}</li>
@@ -2662,6 +2725,17 @@ function CandidateCapture({
           )}
           {current.previousId && <PreviousCaptureReceipt id={current.previousId} />}
           {current.state === "completed" && <p>{t("design.captureEvidenceOnly")}</p>}
+          {current.state === "completed" && current.artifacts.some((artifact) => artifact.kind === "screenshot") && (
+            <CritiqueSubmission
+              candidate={candidate}
+              renderHash={renderHash}
+              captureId={current.id}
+              artifact={current.artifacts.find((item) => item.kind === "screenshot")?.reference ?? ""}
+              state={appearance.previewState || "initial"}
+              width={current.width}
+              height={current.height}
+            />
+          )}
           <details className="break-all">
             <summary>{t("design.captureReceipt")}</summary>
             <p>{t("design.captureOperation", { id: current.id })}</p>
@@ -2785,6 +2859,150 @@ const critiqueDimensionKeys = {
   terminology_i18n: "design.reviewLanguage",
   visual_consistency: "design.reviewConsistency",
 } as const;
+
+const critiqueDimensions = Object.keys(critiqueDimensionKeys) as (keyof typeof critiqueDimensionKeys)[];
+const critiqueSeverityKeys = {
+  critical: "design.reviewCritical",
+  major: "design.reviewMajor",
+  minor: "design.reviewMinor",
+  informational: "design.reviewInformational",
+} as const;
+
+function CritiqueSubmission({
+  candidate,
+  renderHash,
+  captureId,
+  artifact,
+  state,
+  width,
+  height,
+}: {
+  candidate: { scenario: string; designId: string; hash: string };
+  renderHash: string;
+  captureId: string;
+  artifact: string;
+  state: string;
+  width: number;
+  height: number;
+}) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const target = { scenario: candidate.scenario, designId: candidate.designId, revision: candidate.hash, renderHash };
+  const [criticId, setCriticId] = useState("operator");
+  const [scores, setScores] = useState<Record<string, number>>({});
+  const [rationales, setRationales] = useState<Record<string, string>>({});
+  const [findings, setFindings] = useState<Array<{ dimension: string; severity: string; rationale: string; correction: string }>>([]);
+  const submit = useMutation({
+    mutationFn: async () => {
+      const rubric = await sketchClient.getCritiqueRubric({});
+      const evidence = create(CritiqueEvidenceSchema, {
+        renderHash,
+        captureId,
+        artifact,
+        region: "$page",
+        state,
+        width,
+        height,
+      });
+      const review = create(VisualCritiqueSchema, {
+        target: create(CritiqueTargetSchema, target),
+        rubricVersion: rubric.rubricVersion,
+        policyVersion: rubric.policyVersion,
+        critic: create(CriticIdentitySchema, { kind: "human", id: criticId.trim(), version: "1" }),
+        ratings: critiqueDimensions.map((dimension) => create(CritiqueRatingSchema, {
+          dimension,
+          score: scores[dimension] ?? 3,
+          rationale: rationales[dimension]?.trim() ?? "",
+          evidence: [evidence],
+        })),
+        findings: findings.map((finding) => create(CritiqueFindingSchema, { ...finding, evidence })),
+      });
+      return sketchClient.recordCritique({ idempotencyKey: crypto.randomUUID(), review });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["candidate-critiques", target] });
+    },
+  });
+  return (
+    <form
+      className="grid gap-space-sm rounded-control border border-app-border p-space-sm"
+      onSubmit={(event) => { event.preventDefault(); submit.mutate(); }}
+      aria-label={t("design.reviewSubmitTitle")}
+    >
+      <h4>{t("design.reviewSubmitTitle")}</h4>
+      <p>{t("design.reviewSubmitHelp", { width, height })}</p>
+      <label>
+        {t("design.reviewCriticId")}
+        <Input value={criticId} onChange={(event) => setCriticId(event.target.value)} required maxLength={200} />
+      </label>
+      {critiqueDimensions.map((dimension) => (
+        <fieldset key={dimension} className="grid gap-space-2xs">
+          <legend>{t(critiqueDimensionKeys[dimension])}</legend>
+          <label>
+            {t("design.reviewScore")}
+            <select
+              className="block min-h-touch rounded-control border border-app-border bg-app-surface px-space-xs"
+              value={scores[dimension] ?? 3}
+              onChange={(event) => setScores({ ...scores, [dimension]: Number(event.target.value) })}
+            >
+              {[0, 1, 2, 3, 4].map((score) => <option key={score} value={score}>{score} / 4</option>)}
+            </select>
+          </label>
+          <label>
+            {t("design.reviewRationale")}
+            <textarea
+              className="block w-full"
+              value={rationales[dimension] ?? ""}
+              onChange={(event) => setRationales({ ...rationales, [dimension]: event.target.value })}
+              required
+              maxLength={4000}
+            />
+          </label>
+        </fieldset>
+      ))}
+      <fieldset className="grid gap-space-sm">
+        <legend>{t("design.reviewFindings")}</legend>
+        {findings.map((finding, index) => (
+          <div key={index} className="grid gap-space-xs rounded-control border border-app-border p-space-xs">
+            <label>
+              {t("design.reviewFindingDimension")}
+              <select
+                className="block min-h-touch rounded-control border border-app-border bg-app-surface px-space-xs"
+                value={finding.dimension}
+                onChange={(event) => setFindings(findings.map((item, i) => i === index ? { ...item, dimension: event.target.value } : item))}
+                required
+              >
+                <option value="">{t("design.reviewFindingChooseDimension")}</option>
+                {critiqueDimensions.map((dimension) => <option key={dimension} value={dimension}>{t(critiqueDimensionKeys[dimension])}</option>)}
+              </select>
+            </label>
+            <label>
+              {t("design.reviewSeverityLabel")}
+              <select
+                className="block min-h-touch rounded-control border border-app-border bg-app-surface px-space-xs"
+                value={finding.severity}
+                onChange={(event) => setFindings(findings.map((item, i) => i === index ? { ...item, severity: event.target.value } : item))}
+                required
+              >
+                <option value="">{t("design.reviewFindingChooseSeverity")}</option>
+                {Object.entries(critiqueSeverityKeys).map(([severity, key]) => <option key={severity} value={severity}>{t(key)}</option>)}
+              </select>
+            </label>
+            <label>{t("design.reviewFindingRationale")}<textarea className="block w-full" value={finding.rationale} onChange={(event) => setFindings(findings.map((item, i) => i === index ? { ...item, rationale: event.target.value } : item))} required maxLength={4000} /></label>
+            <label>{t("design.reviewFindingCorrection")}<textarea className="block w-full" value={finding.correction} onChange={(event) => setFindings(findings.map((item, i) => i === index ? { ...item, correction: event.target.value } : item))} required maxLength={4000} /></label>
+            <Button type="button" onClick={() => setFindings(findings.filter((_, i) => i !== index))}>{t("design.reviewFindingRemove")}</Button>
+          </div>
+        ))}
+        <Button type="button" onClick={() => setFindings([...findings, { dimension: "", severity: "", rationale: "", correction: "" }])}>{t("design.reviewFindingAdd")}</Button>
+      </fieldset>
+      <Button disabled={submit.isPending || !criticId.trim() || critiqueDimensions.some((dimension) => !rationales[dimension]?.trim())}>
+        {submit.isPending ? t("design.reviewSubmitting") : t("design.reviewSubmit")}
+      </Button>
+      {submit.error && <Failure error={submit.error} />}
+      {submit.isSuccess && <p role="status">{t("design.reviewSubmitted", { id: submit.data.id })}</p>}
+    </form>
+  );
+}
 
 function CandidateCritiques({
   candidate,

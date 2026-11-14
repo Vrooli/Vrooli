@@ -3924,3 +3924,39 @@ source harnesses, screenshots and focused logs are retained in the existing
 research run's review-qa/link-navigation-fix/. Findings artifact:
 artifact_e781165955e2fa6a4f2dced8196f7bc4; SHA-256
 47087e58b1a115b28d776b718f6cf652e5203e0bd973a470d0d67c9c629f5edc.
+
+## Work ladder — localhost links through the secure-tunnel proxy (2026-11-12)
+
+- Rung: scoped W3 in Web Console link rendering and shared `api-base` proxy behavior;
+  expected behavior is established by the operator request. No W0–W2 readiness claim.
+- Evidence: a local HTTPS tunnel-edge replay of the actual Mizar service in
+  Playwright WebKit loads the proxied HTML and assets, then Mizar's router fails
+  at `history.replaceState('/')`. WebKit reports that paths must match for a
+  sandboxed document because the proxy URL is `/_local/<port>/<capability>/`
+  while the app asks for `/`. This is a rendering/runtime failure after the
+  proxy is reached, not a Safari reachability failure. Chromium renders the
+  same Mizar service through the path proxy. The package-owned HTTPS-edge test
+  also covers external-site click → capability bootstrap → assets/cookie/RPC.
+- Repair: render localhost HTTP links directly to the same-origin `/_local/<port>`
+  route, retain the click handler for file previews, and add browser-level
+  HTTPS-edge coverage in `packages/api-base` for the shared proxy.
+- Validation: shared local proxy unit and HTTPS-edge browser tests pass (16
+  selected tests across Chromium and WebKit); package type-check and build pass;
+  MarkdownRenderer tests pass (18); Web Console was restarted healthy before
+  the latest shared-proxy edits. The WebKit fixture proves the current path-based
+  sandbox architecture is incompatible with Mizar's root-path history update.
+  A production fix remains open: it must preserve an origin isolated from Web
+  Console while allowing the app to use `/` as its document path. Native iPhone
+  Safari and actual Cloudflare Access routing remain unverified.
+
+## Work ladder — approval decision prose links (2026-11-12)
+
+- Rung: scoped W3 in approval detail rendering; expected behavior is established by
+  operator feedback F2. No W0–W2 readiness claim.
+- Evidence: approval question and explanatory fields were rendered as plain text, so
+  embedded links could not open from the phone. The approval detail now uses the existing
+  safe Markdown renderer for the question, recommendation reason, answer note, big picture,
+  and technical details; `context_url` remains a distinct source link. The Test Genie unit
+  phase failed on unrelated API identity/model/tmux cases and one PCM voice diagnostic test;
+  no whole-scenario pass is claimed. Focused approval-renderer validation is recorded in the
+  delegation return.

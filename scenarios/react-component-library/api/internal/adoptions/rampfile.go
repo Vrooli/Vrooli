@@ -19,8 +19,10 @@ const (
 )
 
 type TokenSyncInput struct {
-	Scenario string
-	DryRun   bool
+	Scenario             string
+	DryRun               bool
+	CandidateComponentID string
+	CandidateVersion     string
 }
 
 type TokenSyncResult struct {
@@ -107,7 +109,7 @@ func (s *service) SyncScenarioTokens(ctx context.Context, in TokenSyncInput) (To
 	if scenario == "" {
 		return TokenSyncResult{}, ErrInvalidAdoption{Field: "scenario", Reason: "required"}
 	}
-	required, err := s.requiredTokensForScenario(ctx, scenario)
+	required, err := s.requiredTokensForScenario(ctx, scenario, in.CandidateComponentID, in.CandidateVersion)
 	if err != nil {
 		return TokenSyncResult{}, err
 	}
@@ -207,7 +209,7 @@ func (s *service) PruneScenarioTokens(ctx context.Context, in TokenPruneInput) (
 	if scenario == "" {
 		return TokenPruneResult{}, ErrInvalidAdoption{Field: "scenario", Reason: "required"}
 	}
-	required, err := s.requiredTokensForScenario(ctx, scenario)
+	required, err := s.requiredTokensForScenario(ctx, scenario, "", "")
 	if err != nil {
 		return TokenPruneResult{}, err
 	}
@@ -249,7 +251,12 @@ func (s *service) PruneScenarioTokens(ctx context.Context, in TokenPruneInput) (
 	return result, nil
 }
 
-func (s *service) requiredTokensForScenario(ctx context.Context, scenario string) (map[string]struct{}, error) {
+func (s *service) requiredTokensForScenario(ctx context.Context, scenario, candidateComponentID, candidateVersion string) (map[string]struct{}, error) {
+	candidateComponentID = strings.TrimSpace(candidateComponentID)
+	candidateVersion = strings.TrimSpace(candidateVersion)
+	if candidateVersion != "" && candidateComponentID == "" {
+		return nil, ErrInvalidAdoption{Field: "candidate_component_id", Reason: "required when candidate_version is set"}
+	}
 	rows, err := s.repo.List(ctx, ListQuery{Scenario: scenario, Limit: 100000})
 	if err != nil {
 		return nil, err
@@ -304,6 +311,32 @@ func (s *service) requiredTokensForScenario(ctx context.Context, scenario string
 		version, err := s.library.GetVersion(ctx, root.ID, versionName)
 		if err != nil {
 			return nil, err
+		}
+		if err := collect(root, version); err != nil {
+			return nil, err
+		}
+	}
+	if candidateComponentID != "" {
+		root, getErr := s.library.Get(ctx, candidateComponentID)
+		if getErr != nil {
+			return nil, fmt.Errorf("resolve candidate component %q: %w", candidateComponentID, getErr)
+		}
+		versionName := candidateVersion
+		if versionName == "" {
+			versionName = firstNonEmpty(root.LatestVersion, root.Version)
+		}
+		if versionName == "" {
+			return nil, ErrInvalidAdoption{Field: "candidate_version", Reason: "candidate component has no released version"}
+		}
+		if err := s.ensureVersionMaterialized(ctx, root.ID, versionName); err != nil {
+			return nil, err
+		}
+		version, getVersionErr := s.library.GetVersion(ctx, root.ID, versionName)
+		if getVersionErr != nil {
+			return nil, fmt.Errorf("resolve candidate version %s@%s: %w", candidateComponentID, versionName, getVersionErr)
+		}
+		if version.Status != components.VersionStatusReleased {
+			return nil, ErrInvalidAdoption{Field: "candidate_version", Reason: "candidate must be a released version"}
 		}
 		if err := collect(root, version); err != nil {
 			return nil, err

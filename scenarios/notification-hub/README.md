@@ -146,6 +146,7 @@ without an Access login, such as `http://localhost:<UI_PORT>`.
 | Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
 | Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
 | Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
+| Ask the operator for a decision, or send a notification, as an agent | [`skills/notification-hub/SKILL.md`](skills/notification-hub/SKILL.md) (`prompt-manager skill read notification-hub`) |
 
 ## Working Rules
 

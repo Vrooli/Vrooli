@@ -144,6 +144,14 @@
             {
               "name": "dry-run",
               "description": "Report token changes without writing the managed region"
+            },
+            {
+              "name": "candidate",
+              "description": "Optional first-adoption component ID; include its released token requirements before adoption or package import exists"
+            },
+            {
+              "name": "version",
+              "description": "Released candidate version; defaults to the component's latest version and requires --candidate"
             }
           ],
           "binding": {

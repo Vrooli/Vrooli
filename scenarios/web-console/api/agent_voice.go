@@ -211,6 +211,7 @@ func (s *Server) acquireAgentVoice(id string, lease *agentVoiceLease) bool {
 	s.agentVoiceControllers[id] = lease
 	return true
 }
+
 func (s *Server) releaseAgentVoice(id string, lease *agentVoiceLease) {
 	s.agentVoiceMu.Lock()
 	defer s.agentVoiceMu.Unlock()
@@ -252,6 +253,11 @@ func (s *Server) handleAgentVoiceWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.Close()
+	unregister, accepted := s.webSockets.Register(conn)
+	if !accepted {
+		return
+	}
+	defer unregister()
 	conn.SetReadLimit(128 * 1024)
 	var writeMu sync.Mutex
 	write := func(value any) error {

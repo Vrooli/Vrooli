@@ -90,9 +90,13 @@ vi.mock("../components/markdown", () => ({
       {content.includes("[")
         ? (
           <a
-            href="/tmp/example.ts:12"
+            href={content.includes("http://localhost")
+              ? content.match(/\[[^\]]+\]\(([^)]+)\)/)?.[1] ?? "/tmp/example.ts:12"
+              : "/tmp/example.ts:12"}
             data-testid="mock-markdown-link"
-            onClick={(event) => onLinkClick?.("/tmp/example.ts:12", event)}
+            onClick={(event) => onLinkClick?.(content.includes("http://localhost")
+              ? content.match(/\[[^\]]+\]\(([^)]+)\)/)?.[1] ?? "/tmp/example.ts:12"
+              : "/tmp/example.ts:12", event)}
           >
             example.ts
           </a>
@@ -449,6 +453,21 @@ describe("MessagesPane", () => {
     fireEvent.click(screen.getByTestId("mock-markdown-link"));
 
     expect(defaultProps.onOpenFilePreview).toHaveBeenCalledWith("/tmp/example.ts:12", "message_link");
+  });
+
+  it("opens chat localhost links through the current Web Console origin", () => {
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    const localUrl = "http://localhost:24148/jobs?state=active#latest";
+    seedEvents([makeEvent({ id: "e1", sequence: 1, text: `[job viewer](${localUrl})` })]);
+    render(<MessagesPane {...defaultProps} />);
+
+    const link = screen.getByTestId("mock-markdown-link");
+    const expected = `${window.location.origin}/_local/24148/jobs?state=active#latest`;
+    fireEvent.click(link);
+
+    expect(open).toHaveBeenCalledWith(expected, "_blank", "noopener,noreferrer");
+    expect(defaultProps.onOpenFilePreview).not.toHaveBeenCalled();
+    open.mockRestore();
   });
 
   it("renders SVG file references as image previews", async () => {
