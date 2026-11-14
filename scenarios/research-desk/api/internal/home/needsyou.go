@@ -29,6 +29,12 @@ type NeedsYouItem struct {
 	Options            []Option
 	Packet             string
 	Secret             string
+	// Reason is the optional `Reason:` line: one plain sentence on why the
+	// recommendation is right.
+	Reason string
+	// Details is the optional `Details:` line: IDs, paths and evidence for
+	// the agent that acts on the answer, kept out of the operator's text.
+	Details string
 	// Delivered is the scheduler's `Delivered: <route> <UTC>` line: it
 	// delivered the item itself, so the courier never sends it.
 	Delivered string
@@ -153,6 +159,10 @@ func (it *NeedsYouItem) field(line string) {
 		}
 	case "Packet":
 		it.Packet = value
+	case "Reason":
+		it.Reason = value
+	case "Details":
+		it.Details = value
 	case "Secret":
 		it.Secret = value
 	case "Delivered":
@@ -160,6 +170,30 @@ func (it *NeedsYouItem) field(line string) {
 	case "Commission":
 		it.Commission = value
 	}
+}
+
+// fieldNames are the `Name:` lines field reads; they are data for the desk,
+// not prose for the operator.
+var fieldNames = map[string]bool{
+	"Recommended": true, "Options": true, "Packet": true, "Secret": true,
+	"Reason": true, "Details": true, "Delivered": true, "Commission": true,
+}
+
+// Prose is the item's body without its field lines: the explanation written
+// for the operator.
+func (it *NeedsYouItem) Prose() string {
+	var keep []string
+	for _, line := range strings.Split(it.Body, "\n") {
+		t := strings.TrimSpace(line)
+		if strings.HasPrefix(t, "- **Delivered") {
+			continue
+		}
+		if name, _, ok := strings.Cut(t, ":"); ok && fieldNames[name] {
+			continue
+		}
+		keep = append(keep, line)
+	}
+	return strings.TrimSpace(strings.Join(keep, "\n"))
 }
 
 // Choices returns the item's options, or the defaults without an Options: line.

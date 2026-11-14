@@ -327,6 +327,11 @@ func (h *recordingHub) Ask(_ context.Context, spec courier.AskSpec) error {
 	return nil
 }
 
+func (h *recordingHub) RequestRef(courier.AskSpec) string { return "" }
+func (h *recordingHub) Withdraw(context.Context, courier.Ask, string, time.Time) error {
+	return nil
+}
+
 func (h *recordingHub) Notify(_ context.Context, spec courier.NoticeSpec) error {
 	h.notices = append(h.notices, spec.Key)
 	return nil

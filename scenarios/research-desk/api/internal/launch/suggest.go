@@ -2,7 +2,6 @@ package launch
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -110,15 +109,12 @@ func (n *newest) offer(c *home.Commission, at time.Time) {
 
 // packetQuotes reads the stance_quotes of a desk-built PACKET.json.
 func packetQuotes(c *home.Commission) []SuggestedQuote {
-	var spec struct {
-		StanceQuotes []string `json:"stance_quotes"`
-	}
-	if json.Unmarshal(c.Packet.Spec, &spec) != nil {
+	if c.Spec == nil {
 		return nil
 	}
 	path := filepath.Join(c.Dir, home.PacketFile)
 	var out []SuggestedQuote
-	for _, q := range spec.StanceQuotes {
+	for _, q := range c.Spec.StanceQuotes {
 		if q = unquote(q); q != "" {
 			out = append(out, SuggestedQuote{Text: q, Source: path, CommissionID: c.ID})
 		}

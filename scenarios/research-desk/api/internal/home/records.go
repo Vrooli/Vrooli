@@ -101,6 +101,7 @@ type PacketRecord struct {
 // PacketRecord.Spec.
 type PacketSpec struct {
 	Topics           []string `json:"topics"`
+	StanceQuotes     []string `json:"stance_quotes"`
 	AllowanceHours   int      `json:"allowance_hours"`
 	SupervisorModel  string   `json:"supervisor_model"`
 	SupervisorEffort string   `json:"supervisor_effort"`

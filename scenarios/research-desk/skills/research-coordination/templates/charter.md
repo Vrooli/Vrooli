@@ -37,16 +37,19 @@ Put one item per decision under `## Needs you` and copy it, adding the line
 (edit only this commission's items there):
 
 ```markdown
-### YTDLP-TARGET — yt-dlp target choice
-One to three plain sentences: what is needed and why; no hashes or run ids.
-Recommended: keep — Keep yt-dlp uninstalled; use openly licensed footage.
+### YTDLP-TARGET — Keep the video download tool uninstalled?
+Two to six plain sentences for a stranger: what this is about, why only the operator
+decides, what each answer leads to, what happens without one. No IDs, run names or paths.
+Recommended: keep — Keep it uninstalled and use openly licensed footage instead.
+Reason: Nothing is lost, and installing it needs a maintained source we do not have yet.
 Options: keep — Keep it uninstalled; propose — Ask for a maintained target proposal.
 Packet: /absolute/path/to/details.md
+Details: IDs, paths and evidence for the agent that acts on the answer.
 ```
 
 IDs match `[A-Z0-9][A-Z0-9_-]{0,127}` and name the decision, never a workstream; option keys
 `[a-z0-9-]{1,32}`. A decision always has `Recommended:`; a notice has none; a secret has
-`Secret: <where it goes>`, never its value. Empty section: `No actionable items are recorded.`
+`Secret: <where it goes>`, never its value. Empty section: `No actionable items are recorded.` The title becomes the decision's question (and the push text) and the plain sentences its explanation; `Reason:`, `Packet:` and `Details:` go to the agent-facing detail. Write the title and sentences by the `notification-hub` skill (`prompt-manager skill read notification-hub`).
 Before writing either file, draft its full updated text and run
 `python3 <research-desk>/skills/research-coordination/scripts/needs_you.py validate --file <draft> --section "Needs you"`
 (use `Actionable now` for `ATTENTION.md`). The validator rejects a recommendation not present

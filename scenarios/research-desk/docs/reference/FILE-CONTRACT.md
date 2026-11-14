@@ -133,20 +133,31 @@ that does not match is reported with its line number as unreadable, never droppe
 One grammar for `STATE.md` `## Needs you` and `ATTENTION.md` `## Actionable now`:
 
 ```markdown
-### YTDLP-TARGET — yt-dlp target choice
-One to three sentences: what is needed and why.
-Recommended: keep — Keep yt-dlp uninstalled; use openly licensed footage.
+### YTDLP-TARGET — Keep the video download tool uninstalled?
+Two to six plain sentences for a reader with none of your context: what this is about,
+why only the operator can decide, what each answer leads to, what happens without one.
+Recommended: keep — Keep it uninstalled and use openly licensed footage instead.
+Reason: Nothing is lost, and installing it needs a maintained source we do not have yet.
 Options: keep — Keep it uninstalled; propose — Ask for a maintained target proposal.
 Packet: /abs/path/to/details.md
+Details: IDs, paths and evidence for the agent that acts on the answer.
 Secret: where the operator puts it
 Delivered: hub 2026-11-12T14:00:00Z
 Commission: programme-five-20261112
 ```
 
 - An item starts at `### <ID> — <title>` (ID regex `[A-Z0-9][A-Z0-9_-]{0,127}`) inside
-  the section and ends at the next `### ` or `## `. `Recommended:`, `Options:`, `Packet:`
-  and `Secret:` lines are optional. Option keys match `[a-z0-9-]{1,32}`; without `Options:`
+  the section and ends at the next `### ` or `## `. `Recommended:`, `Reason:`, `Options:`,
+  `Packet:`, `Details:` and `Secret:` lines are optional. Option keys match `[a-z0-9-]{1,32}`; without `Options:`
   they are `accept — Accept the recommendation` and `hold — Hold this for now`.
+- **Write for the operator.** A sent item becomes a Notification Hub decision read cold on a
+  phone: the title is its question (and the push text), the prose (the body without its
+  field lines) is its big picture, `Reason:` (else the recommended label) is the
+  recommendation reason, and the option labels are its answers. The desk puts its key
+  (`Desk key: research-desk/<commission>/<ID>`), the commission, the ID, the item file,
+  `Packet:` and `Details:` in the decision's technical details. So the title and prose hold
+  no IDs, run names or paths; write them by the `notification-hub` skill
+  (`prompt-manager skill read notification-hub`).
 - An empty section's only line is `No actionable items are recorded.`
 - IDs name the decision, never a workstream. `Delivered: <route> <UTC>` is written by a
   scheduler that delivered the item itself, or that copied the desk's receipt; a line whose
@@ -186,16 +197,25 @@ are its rules, stated only here.
   for every commission) exists but cannot be read, nothing is sent for it, its records are
   kept as they were, and answering it and turning its switch on are refused.
 - **A pass**, every 60 seconds in the lock holder, reads the items of non-ended commissions
-  and `ATTENTION.md`, and the Hub's asks (source `research-desk`, matched by the question
+  and `ATTENTION.md`, and the Hub's asks (source `research-desk`, matched by the
+  `Desk key:` line of their technical details, or for an older ask by its question
   `<commission> · <ID> — <title>`) and notices (dedupe key `research-desk-notice/<owner>/<ID>`).
   If Vrooli Events or the Hub cannot be read, it sends nothing and says why. Per item, first
   match wins: answered in the Hub, not in `OPERATOR.md` → append `answer <ID> · via hub`; an
-  open ask for an item answered in the desk or delivered → shown open until its deadline; an
-  ask that reached a device, or a notice the Hub reports delivered → append `delivered <ID> ·
-  via desk`; any other ask → shown with its state (an expired one leaves the item answerable
-  in the desk); otherwise send. An open ask whose item left the files is listed with its
-  deadline.
+  open ask for an item answered in the desk → withdrawn ("You answered this in the research
+  desk."); an open ask that is not the item's current question (its text, technical details
+  or options changed, or it was raised before asks carried a subject key) → raised again,
+  even when a scheduler's `Delivered:` line means the desk would not send it new; an open
+  ask for an item with `Delivered:` → kept open; an ask that reached a device, or a notice the Hub reports delivered → append
+  `delivered <ID> · via desk`; any other ask → shown with its state (an expired, dismissed or withdrawn one leaves the item
+  answerable in the desk); otherwise send. An open ask whose item left the files is
+  withdrawn, unless the item's files cannot be read, when it is listed and kept. An open ask
+  that is not the newest for its item is withdrawn as replaced.
 - An unchanged item is the same event, so a repeat is deduplicated and an outage loses
-  nothing. The desk cannot withdraw an ask: an unneeded one stays open until its deadline,
-  and a later answer to it is ignored. `needs-you` shows each item's planned action without
+  nothing. An item's ask carries the item key as its Hub subject key, so the Hub keeps one open
+  decision per item: a changed item updates it (or replaces it when its options changed), and
+  the desk withdraws it with `research_desk.needs_you.decision_withdrawn.v1`, by the request
+  event id the Hub reports, when the item is answered in the desk or leaves the files. A
+  withdrawal is never an answer; a withdrawn ask leaves the item waiting.
+  `needs-you` shows each item's planned action without
   acting; `courier-test` raises one 15-minute test ask, only when the operator asks.

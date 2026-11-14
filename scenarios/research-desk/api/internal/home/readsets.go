@@ -77,7 +77,11 @@ var datedHeading = regexp.MustCompile(`^#{2,6} .*\b20\d\d-\d\d-\d\d\b`)
 // ceiling. Without limits.json there is no list, so none (the caller says
 // why).
 func (s *Snapshot) ReadSets(c *Commission) []ReadSet {
-	sets := c.readSets(s.Ceilings)
+	return s.readSets(c, false)
+}
+
+func (s *Snapshot) readSets(c *Commission, ownerOnly bool) []ReadSet {
+	sets := c.readSets(s.Ceilings, ownerOnly)
 	for i := range sets {
 		if topic, ok := strings.CutPrefix(sets[i].Role, ownerRole+":"); ok {
 			s.addOwnerTopic(&sets[i], topic)
@@ -93,13 +97,7 @@ func (s *Snapshot) OwnerReading(topics []string) []ReadSet {
 	for _, t := range topics {
 		c.Topics = append(c.Topics, TopicRef{Topic: t})
 	}
-	var out []ReadSet
-	for _, set := range s.ReadSets(c) {
-		if strings.HasPrefix(set.Role, ownerRole+":") {
-			out = append(out, set)
-		}
-	}
-	return out
+	return s.readSets(c, true)
 }
 
 // ownerRole is the owner read set's role name.
@@ -131,13 +129,16 @@ func (s *Snapshot) addOwnerTopic(set *ReadSet, topic string) {
 }
 
 // readSets measures the read sets without topic files.
-func (c *Commission) readSets(ceilings *Ceilings) []ReadSet {
+func (c *Commission) readSets(ceilings *Ceilings, ownerOnly bool) []ReadSet {
 	if ceilings == nil {
 		return nil
 	}
 	var sets []ReadSet
 	charterFlagged := false
 	for _, role := range ceilings.Roles {
+		if ownerOnly && role.Key != OwnerStartKey {
+			continue
+		}
 		set := ReadSet{}
 		readsCharter := false
 		for _, item := range role.Items {

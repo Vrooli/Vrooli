@@ -134,14 +134,14 @@ func TestNowSaysTheWebConsoleAccessAndTheCourier(t *testing.T) {
 	svc := &service{overview: &activityv1.GetOverviewResponse{Lenses: []*activityv1.Lens{
 		{Name: "codex sessions", Available: true, Reason: "/codex"},
 		{Name: "web-console access", Available: true, Reason: "Web Console access: local availability policy (no desk credential)"},
-		{Name: "courier", Available: false, Reason: "no pass yet; the desk cannot withdraw an ask once sent"},
+		{Name: "courier", Available: false, Reason: "no pass yet; an ask closes when its item is answered in the desk or leaves the files"},
 		{Name: "notification-hub", Available: false, Reason: "notification-hub is not running: no port", Command: "vrooli scenario start notification-hub"},
 	}}}
 	cmd, core := command(t, svc, "now")
 	out, err := cliapptest.RunCommand(t, cmd, core)
 	require.NoError(t, err)
 	require.Contains(t, out, "Web Console access: local availability policy (no desk credential)")
-	require.Contains(t, out, "Courier: no pass yet; the desk cannot withdraw an ask once sent")
+	require.Contains(t, out, "Courier: no pass yet; an ask closes when its item is answered in the desk or leaves the files")
 	require.NotContains(t, out, "codex sessions")
 	// The reason names no command; the CLI prints the lens's command beside it.
 	require.Contains(t, out, "lens notification-hub unavailable: notification-hub is not running: no port (next: vrooli scenario start notification-hub)")

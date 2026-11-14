@@ -432,8 +432,8 @@ func (l *Launcher) Stop(ctx context.Context, t Target, windowOpen bool) (Stopped
 	if signal == nil {
 		signal = func(pid int) error { return syscall.Kill(pid, syscall.SIGTERM) }
 	}
-	deadline := time.Now().Add(l.patience().Stop)
 	signalled := map[int]bool{}
+	deadline := time.Now().Add(l.patience().Stop)
 	for {
 		procs, err := l.Sessions.SessionProcesses(t.Session)
 		if err != nil {

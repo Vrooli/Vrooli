@@ -48,10 +48,20 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ### 2026-11-12 — not built or not proven
 
-- **Web Console credential client: not built.** Automatic launch uses Web Console's local
-  availability policy; `web_console_access` says so on every launch. Real fix: the desk's
-  service principal (`scripts/issue-service-principal.sh`, run by the operator) and a client
-  in `webConsoleCredential` (`api/wiring.go`).
+- **Hub ask reads: credential not issued.** The Hub shows the desk its asks only to the
+  `research-desk-ask-reader` service principal. The desk reads that credential from the
+  credential authority (`api/ask_reader_credential.go`, linked 2026-11-14) and exchanges it
+  through the shared client (`askreader.Tokens`). Until the operator runs
+  `scenarios/notification-hub/scripts/issue-ask-reader-principals.sh` the courier cannot read
+  asks back and says so; it still raises and withdraws. Real fix: that one operator command.
+- **Web Console credential: not issued.** The desk's client is built (`api/web_console_credential.go`,
+  on the shared `api-core/servicetoken`): once the operator runs
+  `scenarios/research-desk/scripts/issue-service-principal.sh` the desk presents its own
+  `research-desk` principal (read and write, exactly) to Web Console, and `research-desk now`
+  reports "service credential". Until then automatic launch uses Web Console's local availability
+  policy, and `web_console_access` says so on every launch. A credential that exists but cannot be
+  used (revoked, rejected, or not exactly that identity) stops the desk calling rather than
+  dropping to the weaker policy. Real fix: that one operator command.
 - **Remaining-quota lens: not built.** `limited` shows only once Codex has hit a limit (goal
   status `usage_limited`, `budget_limited` or `blocked`), never before a launch. Real fix: a
   quota read from the owner of usage data, shown in preflight. Owner: unassigned.

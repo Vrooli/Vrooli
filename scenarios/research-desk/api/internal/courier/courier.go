@@ -3,7 +3,9 @@
 // holding the write lock; no watcher, no pending store: every pass re-reads
 // the files and the Hub. Items go out as decision and notification events
 // through Vrooli Events; an unchanged item is the same event, so a repeated
-// send is harmless.
+// send is harmless. An item's ask carries a Hub subject key, so the Hub keeps
+// one open decision per item: the courier updates it when the item changes and
+// withdraws it when the item is answered in the desk or leaves the files.
 package courier
 
 import (
@@ -175,6 +177,12 @@ const (
 	ActNotice          Action = "notice"
 	ActRecordDelivered Action = "record-delivered"
 	ActRecordAnswer    Action = "record-answer"
+	// ActRefreshAsk raises an open ask again because its item changed, or
+	// because it was raised before asks carried a subject key: the Hub updates
+	// or replaces the one open decision for the item.
+	ActRefreshAsk Action = "refresh-ask"
+	// ActWithdraw closes an open ask the operator no longer needs to answer.
+	ActWithdraw Action = "withdraw"
 )
 
 // Step is the courier's decision for one item or one orphaned ask.
@@ -201,8 +209,8 @@ type Step struct {
 }
 
 // Waiting is whether the item still waits on the operator: it has no answer of
-// its own in OPERATOR.md and its Hub ask was not answered. An expired or
-// withdrawn ask leaves the item waiting; it is answered in the desk.
+// its own in OPERATOR.md and its Hub ask was not answered. An expired,
+// dismissed or withdrawn ask leaves the item waiting; it is answered in the desk.
 func (s Step) Waiting() bool {
 	switch {
 	case s.Item == nil:
@@ -284,7 +292,7 @@ func (c *Courier) Health() Health {
 }
 
 // Withdraw is said wherever the operator sees the courier.
-const Withdraw = "the desk cannot withdraw an ask once sent; an answered or expired ask closes it"
+const Withdraw = "an ask closes when its item is answered in the desk or leaves the files"
 
 // Say is the courier's health in the operator's words: whether it works,
 // and the times behind that.
@@ -519,7 +527,7 @@ func (c *Courier) Plan(ctx context.Context) (Plan, *home.Snapshot, error) {
 	if plan.sightings, err = c.sightings(); err != nil {
 		return Plan{}, nil, err
 	}
-	plan.Steps = decide(feed, sw, asks, notices, plan.HubRead, plan.HubSkipped, plan.sightings, snap.Now)
+	plan.Steps = decide(c.Hub, feed, sw, asks, notices, plan.HubRead, plan.HubSkipped, plan.sightings, snap.Now)
 	return plan, snap, nil
 }
 
@@ -546,14 +554,22 @@ func selfDelivering(f *home.FeedItem) bool {
 }
 
 // decide is the pure core of a pass.
-func decide(feed home.Feed, sw Switches, asks []Ask, notices map[string]Notice, hubErr error, hubSkipped bool, sightings Sightings, now time.Time) []Step {
-	// An item whose text changed while its ask was open has two asks; the
-	// open one, then the newest, speaks for it.
+func decide(hub Hub, feed home.Feed, sw Switches, asks []Ask, notices map[string]Notice, hubErr error, hubSkipped bool, sightings Sightings, now time.Time) []Step {
+	// An item may have several asks: an earlier one that ended, or an open one
+	// raised before asks carried a subject key and a newer one that replaced
+	// it. The open one, then the newest, speaks for the item; any other open
+	// ask is a duplicate and is withdrawn.
 	byKey := make(map[string]*Ask, len(asks))
 	for i := range asks {
 		a := &asks[i]
 		if old := byKey[a.Key]; old == nil || (a.Open() && !old.Open()) || (a.Open() == old.Open() && a.CreatedAt.After(old.CreatedAt)) {
 			byKey[a.Key] = a
+		}
+	}
+	var duplicates []*Ask
+	for i := range asks {
+		if a := &asks[i]; a.Open() && byKey[a.Key] != a {
+			duplicates = append(duplicates, a)
 		}
 	}
 	listed := map[string]bool{}
@@ -582,13 +598,17 @@ func decide(feed home.Feed, sw Switches, asks []Ask, notices map[string]Notice, 
 			s.Reused, s.Reason, s.Why = true, home.ReasonIDReused, reusedWhy
 		case a != nil && a.State == "answered" && f.Answer == nil && answerable:
 			s.Action, s.Reason, s.Why = ActRecordAnswer, home.ReasonHubAnswered, "answered in Notification Hub"
-		case a != nil && a.Open() && (f.Answer != nil || f.Item.Delivered != ""):
-			s.Reason, s.Why = home.ReasonInHub, stillOpen(a, "answered or delivered elsewhere")
+		case a != nil && a.Open() && f.Answer != nil:
+			s.Action, s.Reason, s.Why = ActWithdraw, home.ReasonAnswered, withdrawAnswered
+		case a != nil && a.Open() && s.On && hubErr == nil && askStale(hub, a, f):
+			s.Action, s.Reason, s.Why = ActRefreshAsk, home.ReasonInHub, "the Hub ask is not the item's current question; raised again so the Hub updates or replaces it"
+		case a != nil && a.Open() && f.Item.Delivered != "":
+			s.Reason, s.Why = home.ReasonInHub, "delivered by its scheduler; the Hub ask stays open until it is answered or the item leaves the files"
 		case a != nil && !a.FirstDelivered.IsZero() && f.Delivered == nil && f.Answer == nil:
 			s.Action, s.Reason, s.Why = ActRecordDelivered, home.ReasonHubDelivered, "the Hub delivered the ask"
 		case a != nil:
 			s.Reason, s.Why = home.ReasonInHub, "Hub ask "+a.State
-			if !a.Open() && a.State != "answered" {
+			if !a.Open() && a.State != "answered" && f.Answer == nil {
 				s.Why += "; answer it in the desk"
 			}
 		case s.Delivery == home.DeliverNone:
@@ -625,14 +645,26 @@ func decide(feed home.Feed, sw Switches, asks []Ask, notices map[string]Notice, 
 		if listed[a.Key] || !a.Open() {
 			continue
 		}
-		why := "its item left STATE.md and ATTENTION.md, or its commission ended"
 		if commission, _, _ := strings.Cut(strings.TrimPrefix(a.Key, AskPrefix), "/"); feed.Blocked(commission) != "" {
-			why = "its item's files cannot be read: " + feed.Blocked(commission)
+			steps = append(steps, Step{Key: a.Key, Ask: a, Delivery: home.DeliverNone, Action: ActNone, Reason: home.ReasonOrphaned,
+				Why: "its item's files cannot be read, so the Hub ask stays open until they can: " + feed.Blocked(commission)})
+			continue
 		}
-		steps = append(steps, Step{Key: a.Key, Ask: a, Delivery: home.DeliverNone, Action: ActNone, Reason: home.ReasonOrphaned, Why: stillOpen(a, why)})
+		steps = append(steps, Step{Key: a.Key, Ask: a, Delivery: home.DeliverNone, Action: ActWithdraw, Reason: home.ReasonOrphaned, Why: withdrawOrphaned})
+	}
+	for _, a := range duplicates {
+		if feed.Blocked(commissionOf(a.Key)) != "" {
+			continue
+		}
+		steps = append(steps, Step{Key: a.Key, Ask: a, Delivery: home.DeliverNone, Action: ActWithdraw, Reason: home.ReasonInHub, Why: withdrawDuplicate})
 	}
 	n := len(feed.Items)
-	sort.SliceStable(steps[n:], func(i, j int) bool { return steps[n+i].Key < steps[n+j].Key })
+	sort.SliceStable(steps[n:], func(i, j int) bool {
+		if a, b := steps[n+i], steps[n+j]; a.Key != b.Key {
+			return a.Key < b.Key
+		}
+		return steps[n+i].Ask.ID < steps[n+j].Ask.ID
+	})
 	return steps
 }
 
@@ -688,15 +720,42 @@ func (c *Courier) recordSightings(plan Plan) error {
 	return c.writeSightings(old, next)
 }
 
-// stillOpen explains an open ask the desk no longer needs: Notification Hub
-// lets only its producer withdraw through a verified identity or an Agent
-// Manager event, so the ask stays until its deadline.
-func stillOpen(a *Ask, why string) string {
-	out := why + "; the Hub ask stays open"
-	if !a.Deadline.IsZero() {
-		out += " until " + a.Deadline.UTC().Format(time.RFC3339)
+// Reasons shown to the operator on a closed Hub decision, in plain words.
+const (
+	withdrawAnswered  = "You answered this in the research desk."
+	withdrawOrphaned  = "This item is no longer in the research desk's files, so it no longer needs you."
+	withdrawDuplicate = "Replaced by an updated copy of this decision."
+)
+
+// commissionOf is the commission an ask key names.
+func commissionOf(key string) string {
+	commission, _, _ := strings.Cut(strings.TrimPrefix(key, AskPrefix), "/")
+	return commission
+}
+
+// askStale reports whether an open ask is no longer the question the courier
+// would raise for the item: its text or answer menu changed. An ask raised
+// before asks carried a subject key, and still saying what the item says, is
+// left as it is (raising it again would page the operator twice for nothing);
+// it is withdrawn by its request id when the item is answered or leaves.
+func askStale(hub Hub, a *Ask, f *home.FeedItem) bool {
+	spec := askSpec(f)
+	ref := hub.RequestRef(spec)
+	return ref != "" && a.RequesterRef != ref && !a.says(spec)
+}
+
+// says reports whether the Hub holds the decision spec describes.
+func (a Ask) says(spec AskSpec) bool {
+	same := strings.TrimSpace
+	if same(a.Question) != same(spec.Question) || same(a.BigPicture) != same(spec.BigPicture) || same(a.TechnicalDetails) != same(spec.TechnicalDetails) || a.Recommended != spec.Recommended || len(a.Options) != len(spec.Options) {
+		return false
 	}
-	return out + " (the desk has no way to withdraw it); an answer there is ignored"
+	for i, o := range spec.Options {
+		if a.Options[i].Key != o.Key || same(a.Options[i].Label) != same(o.Label) {
+			return false
+		}
+	}
+	return true
 }
 
 func owner(f *home.FeedItem) string {
@@ -733,8 +792,10 @@ func (c *Courier) Pass(ctx context.Context) (plan Plan, err error) {
 func (c *Courier) act(ctx context.Context, s *Step, now time.Time) error {
 	f := s.Item
 	switch s.Action {
-	case ActAsk:
+	case ActAsk, ActRefreshAsk:
 		return c.Hub.Ask(ctx, askSpec(f))
+	case ActWithdraw:
+		return c.Hub.Withdraw(ctx, *s.Ask, s.Why, now)
 	case ActNotice:
 		return c.Hub.Notify(ctx, noticeSpec(f, s.Key))
 	case ActRecordDelivered:
@@ -762,16 +823,46 @@ func (c *Courier) record(f *home.FeedItem, kind string, at time.Time, body strin
 const questionLimit = 600
 
 // askSpec is a pure function of the item, so an unchanged item is the same
-// event on every pass; the Hub's default deadline applies.
+// event on every pass; the Hub's default deadline applies. The operator reads
+// the question and big picture cold on a phone, so they hold only the item's
+// title and prose; the desk's key, the commission, the packet and any
+// `Details:` line go to the technical details for the agent that acts on the
+// answer (FILE-CONTRACT.md §5).
 func askSpec(f *home.FeedItem) AskSpec {
-	return AskSpec{
-		Key:         AskPrefix + f.CommissionID + "/" + f.Item.ID,
-		Question:    clip(f.CommissionID+" · "+f.Item.ID+" — "+f.Item.Title, questionLimit),
-		BigPicture:  clip(f.Item.Body, 4000),
-		Options:     f.Item.Choices(),
-		Recommended: f.Item.Recommended.Key,
-		Reason:      clip(f.Item.Recommended.Label, 300),
+	key := AskPrefix + f.CommissionID + "/" + f.Item.ID
+	reason := f.Item.Reason
+	if reason == "" && f.Item.Recommended != nil {
+		reason = f.Item.Recommended.Label
 	}
+	return AskSpec{
+		Key:              key,
+		Subject:          f.Item.Title,
+		Question:         clip(f.Item.Title, questionLimit),
+		BigPicture:       clip(f.Item.Prose(), 4000),
+		TechnicalDetails: clip(technicalDetails(f, key), 12000),
+		Options:          f.Item.Choices(),
+		Recommended:      f.Item.Recommended.Key,
+		Reason:           clip(reason, 300),
+	}
+}
+
+// technicalDetails says where the item lives and what the next agent needs.
+func technicalDetails(f *home.FeedItem, key string) string {
+	lines := []string{deskKeyLine(key)}
+	if f.CommissionID != "" {
+		lines = append(lines, "Research commission: "+f.CommissionID)
+	}
+	lines = append(lines, "Needs-you item: "+f.Item.ID)
+	if src := f.Item.Source; src != "" {
+		lines = append(lines, "Item file: "+src)
+	}
+	if f.Item.Packet != "" {
+		lines = append(lines, "Packet: "+f.Item.Packet)
+	}
+	if f.Item.Details != "" {
+		lines = append(lines, "Details: "+f.Item.Details)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func noticeSpec(f *home.FeedItem, key string) NoticeSpec {
@@ -852,12 +943,14 @@ func (c *Courier) Test(ctx context.Context, wait time.Duration) (TestResult, err
 	stamp := now.UTC().Format("20060102T150405Z")
 	result := TestResult{Key: TestPrefix + stamp, Expires: now.Add(testLifetime)}
 	err := c.Hub.Ask(ctx, AskSpec{
-		Key:         result.Key,
-		Question:    testQuestion + stamp + " — no answer needed; it expires unanswered in 15 minutes.",
-		Options:     []home.Option{{Key: "seen", Label: "Seen"}, {Key: "not-seen", Label: "Not seen"}},
-		Recommended: "seen",
-		Reason:      "This only checks that research-desk decisions reach you.",
-		Deadline:    result.Expires,
+		Key:              result.Key,
+		Subject:          "Research desk delivery test",
+		Question:         testQuestion + stamp + " — no answer needed; it expires unanswered in 15 minutes.",
+		TechnicalDetails: deskKeyLine(result.Key),
+		Options:          []home.Option{{Key: "seen", Label: "Seen"}, {Key: "not-seen", Label: "Not seen"}},
+		Recommended:      "seen",
+		Reason:           "This only checks that research-desk decisions reach you.",
+		Deadline:         result.Expires,
 	})
 	if err != nil {
 		return result, err

@@ -13,9 +13,9 @@
 #      `scenario-authenticator auth issue-service-principal --name research-desk`,
 #      which stores it in the credential authority and never prints it.
 #
-# Until the desk's credential client is built, the desk keeps reaching Web
-# Console under Web Console's local availability policy and says so in
-# `research-desk now` and /health.
+# Until this runs, the desk keeps reaching Web Console under Web Console's local
+# availability policy and says so in `research-desk now` and /health; after it
+# runs, the desk presents the credential (api/web_console_credential.go).
 set -euo pipefail
 
 root="${VROOLI_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"

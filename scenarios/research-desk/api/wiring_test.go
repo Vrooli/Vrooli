@@ -83,7 +83,7 @@ func TestRoutesShowTheWebConsoleAccessAndARefusal(t *testing.T) {
 	defer server.Close()
 	root := t.TempDir()
 	w := &wiring{
-		webConsole: &peer.Peer{Name: "web-console", BaseURL: func(context.Context) (string, error) { return server.URL, nil }, Credential: webConsoleCredential},
+		webConsole: &peer.Peer{Name: "web-console", BaseURL: func(context.Context) (string, error) { return server.URL, nil }, Credential: webConsoleAuthorization(newWebConsoleTokens(func(context.Context) (string, error) { return "", errors.New("not issued") }))},
 		writer:     writer.New(root, root+"/state", testutil.EntryChars),
 	}
 	w.writer.ReadOnly("boot check")
@@ -162,6 +162,11 @@ func (b *blockingHub) wait(ctx context.Context) error {
 func (b *blockingHub) Sendable(ctx context.Context) error                     { return b.wait(ctx) }
 func (b *blockingHub) Ask(ctx context.Context, _ courier.AskSpec) error       { return b.wait(ctx) }
 func (b *blockingHub) Notify(ctx context.Context, _ courier.NoticeSpec) error { return b.wait(ctx) }
+func (b *blockingHub) RequestRef(courier.AskSpec) string                      { return "" }
+func (b *blockingHub) Withdraw(ctx context.Context, _ courier.Ask, _ string, _ time.Time) error {
+	return b.wait(ctx)
+}
+
 func (b *blockingHub) Asks(ctx context.Context, _ string) ([]courier.Ask, error) {
 	return nil, b.wait(ctx)
 }

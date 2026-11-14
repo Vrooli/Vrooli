@@ -39,7 +39,15 @@ const commission = "local-models-w1-20261111"
 // fakeHub stands in for Vrooli Events plus Notification Hub: a published
 // ask or notice becomes a Hub record, read back by its key.
 type fakeHub struct {
-	asks      map[string]*Ask
+	asks map[string]*Ask
+	// older holds asks the Hub kept besides the one in asks for a key: an ask
+	// raised before asks carried a subject key stays open next to its replacement.
+	older []*Ask
+	// unkeyed is the ids of asks raised without a subject key: a request
+	// does not update them, it opens a new decision.
+	unkeyed map[string]bool
+	// withdrawn is the reason given for each ask the courier closed, by ask id.
+	withdrawn map[string]string
 	notices   map[string]*Notice
 	raised    []AskSpec
 	sent      []NoticeSpec
@@ -54,11 +62,61 @@ func (h *fakeHub) Sendable(context.Context) error { return h.sendErr }
 
 func (h *fakeHub) Ask(_ context.Context, spec AskSpec) error {
 	h.raised = append(h.raised, spec)
-	if keyOf(spec.Question) != spec.Key {
-		return errors.New("the question does not lead with the key")
+	if keyOf(spec.Question, spec.TechnicalDetails) != spec.Key {
+		return errors.New("the technical details do not name the key")
 	}
-	h.asks[spec.Key] = &Ask{ID: "ask-" + spec.Key, Key: spec.Key, State: "pending", CreatedAt: h.clock.Now(), Deadline: spec.Deadline}
+	ref := h.RequestRef(spec)
+	if open := h.asks[spec.Key]; open != nil && open.Open() && !h.unkeyed[open.ID] {
+		// One open decision per subject: the Hub updates it in place.
+		open.RequesterRef = ref
+		open.Question, open.BigPicture, open.TechnicalDetails, open.Recommended, open.Options = spec.Question, spec.BigPicture, spec.TechnicalDetails, spec.Recommended, spec.Options
+		return nil
+	} else if open != nil && open.Open() {
+		h.older = append(h.older, open)
+	}
+	h.asks[spec.Key] = &Ask{ID: "ask-" + spec.Key + "-" + ref, Key: spec.Key, State: "pending", RequesterRef: ref, CreatedAt: h.clock.Now(), Deadline: spec.Deadline,
+		Question: spec.Question, BigPicture: spec.BigPicture, TechnicalDetails: spec.TechnicalDetails, Recommended: spec.Recommended, Options: spec.Options}
 	return nil
+}
+
+func (h *fakeHub) RequestRef(spec AskSpec) string {
+	ref := "ref:" + spec.Key + "|" + spec.Question + "|" + spec.BigPicture + "|" + spec.TechnicalDetails + "|" + spec.Recommended
+	for _, o := range spec.Options {
+		ref += "|" + o.Key + "=" + o.Label
+	}
+	return ref
+}
+
+func (h *fakeHub) Withdraw(_ context.Context, ask Ask, reason string, _ time.Time) error {
+	if ask.RequesterRef == "" {
+		return errors.New("no request id")
+	}
+	for _, a := range append([]*Ask{}, append(h.older, mapValues(h.asks)...)...) {
+		if a.ID == ask.ID && a.Open() {
+			a.State = "withdrawn"
+			h.withdrawn[a.ID] = reason
+		}
+	}
+	return nil
+}
+
+func mapValues(m map[string]*Ask) []*Ask {
+	var out []*Ask
+	for _, a := range m {
+		out = append(out, a)
+	}
+	return out
+}
+
+// open is how many asks for key are open at the Hub.
+func (h *fakeHub) open(key string) int {
+	var n int
+	for _, a := range append(append([]*Ask{}, h.older...), mapValues(h.asks)...) {
+		if a.Key == key && a.Open() {
+			n++
+		}
+	}
+	return n
 }
 
 func (h *fakeHub) Notify(_ context.Context, spec NoticeSpec) error {
@@ -75,6 +133,11 @@ func (h *fakeHub) Asks(_ context.Context, prefix string) ([]Ask, error) {
 	var out []Ask
 	for key, a := range h.asks {
 		if strings.HasPrefix(key, prefix) {
+			out = append(out, *a)
+		}
+	}
+	for _, a := range h.older {
+		if strings.HasPrefix(a.Key, prefix) {
 			out = append(out, *a)
 		}
 	}
@@ -122,7 +185,7 @@ func newRig(t *testing.T, launchedBy string) *rig {
 			t.Fatal(err)
 		}
 	}
-	hub := &fakeHub{asks: map[string]*Ask{}, notices: map[string]*Notice{}, clock: clock}
+	hub := &fakeHub{asks: map[string]*Ask{}, unkeyed: map[string]bool{}, withdrawn: map[string]string{}, notices: map[string]*Notice{}, clock: clock}
 	r := &rig{
 		courier:  &Courier{Reader: reader, Writer: w, Hub: hub, Clock: clock, Logger: log.New(io.Discard, "", 0)},
 		hub:      hub,
@@ -219,26 +282,177 @@ func TestDeskLaunchedCommissionAsksAndReadsTheAnswerBack(t *testing.T) {
 	}
 }
 
-func TestAnAskTheDeskNoLongerNeedsStaysOpenAndSaysSo(t *testing.T) {
-	r := newRig(t, "desk")
-	r.hub.asks[AskPrefix+commission+"/AV1"] = &Ask{ID: "old", Key: AskPrefix + commission + "/AV1", State: "pending", Deadline: r.clock.Now().Add(time.Hour)}
-	r.pass(t)
-	if _, err := r.courier.Writer.AppendOperator(commission, home.Entry{At: r.clock.Now().Add(time.Minute), Kind: home.EntryAnswer, Subject: "AV4", Via: home.ViaDesk, Body: "keep — Keep it uninstalled"}); err != nil {
+// answerInDesk records the operator's answer to AV4 in OPERATOR.md, as the desk does.
+func (r *rig) answerInDesk(t *testing.T) {
+	t.Helper()
+	r.clock.Advance(time.Minute)
+	if _, err := r.courier.Writer.AppendOperator(commission, home.Entry{At: r.clock.Now(), Kind: home.EntryAnswer, Subject: "AV4", Via: home.ViaDesk, Body: "keep — Keep it uninstalled"}); err != nil {
 		t.Fatal(err)
 	}
-	r.hub.asks[AskPrefix+commission+"/AV4"].State, r.hub.asks[AskPrefix+commission+"/AV4"].Answer = "pending", ""
-	plan := r.pass(t)
-	var orphan, answered bool
+	r.clock.Advance(time.Minute)
+}
+
+func (r *rig) step(plan Plan, key string) Step {
 	for _, s := range plan.Steps {
-		switch {
-		case s.Item == nil && s.Key == AskPrefix+commission+"/AV1":
-			orphan = s.Action == ActNone && strings.Contains(s.Why, "stays open until") && strings.Contains(s.Why, "no way to withdraw")
-		case s.Item != nil && s.Item.Item.ID == "AV4":
-			answered = s.Action == ActNone && strings.Contains(s.Why, "stays open")
+		if s.Key == key {
+			return s
 		}
 	}
-	if !orphan || !answered {
-		t.Fatalf("an ask whose item left, and one answered in the desk, stay open and say so: %+v", plan.Steps)
+	return Step{}
+}
+
+// An ask for an item the operator answered in the desk is withdrawn, once,
+// with a plain reason; it is never read as an answer.
+func TestAnAskForAnItemAnsweredInTheDeskIsWithdrawn(t *testing.T) {
+	r := newRig(t, "desk")
+	key := AskPrefix + commission + "/AV4"
+	r.pass(t)
+	r.answerInDesk(t)
+	plan := r.pass(t)
+	if s := r.step(plan, key); s.Action != ActWithdraw || s.Reason != home.ReasonAnswered || !s.Done {
+		t.Fatalf("the ask is withdrawn: %+v", s)
+	}
+	if a := r.hub.asks[key]; a.State != "withdrawn" || r.hub.withdrawn[a.ID] != withdrawAnswered || r.hub.open(key) != 0 {
+		t.Fatalf("the Hub ask closes with the reason: %+v %v", a, r.hub.withdrawn)
+	}
+	if got := r.operatorFile(t); len(got) != 1 || got[0].Via != home.ViaDesk {
+		t.Fatalf("a withdrawal is not an answer; only the desk's own answer is in OPERATOR.md: %+v", got)
+	}
+	if s := r.step(r.pass(t), key); s.Action != ActNone || strings.Contains(s.Why, "answer it in the desk") {
+		t.Fatalf("a closed ask is left alone and the answered item is not asked for again: %+v", s)
+	}
+	if len(r.hub.withdrawn) != 1 {
+		t.Fatalf("withdrawn once: %v", r.hub.withdrawn)
+	}
+}
+
+// An open ask whose item left the files is withdrawn; one whose files cannot
+// be read is kept, because the item may still be there.
+func TestAnAskWhoseItemLeftIsWithdrawnButNotWhileFilesAreUnreadable(t *testing.T) {
+	r := newRig(t, "desk")
+	gone := AskPrefix + commission + "/AV1"
+	r.hub.asks[gone] = &Ask{ID: "old", Key: gone, State: "pending", RequesterRef: "ref-old", Deadline: r.clock.Now().Add(time.Hour)}
+	plan := r.pass(t)
+	if s := r.step(plan, gone); s.Item != nil || s.Action != ActWithdraw || s.Reason != home.ReasonOrphaned || !s.Done {
+		t.Fatalf("an ask with no item is withdrawn: %+v", s)
+	}
+	if r.hub.asks[gone].State != "withdrawn" || r.hub.withdrawn["old"] != withdrawOrphaned {
+		t.Fatalf("the Hub ask closes with the reason: %+v %v", r.hub.asks[gone], r.hub.withdrawn)
+	}
+
+	// STATE.md cannot be read, so its items are not known to be gone.
+	kept := AskPrefix + commission + "/AV4"
+	unlock := lock(t, filepath.Join(r.research, "cohorts", commission, home.StateFile))
+	defer unlock()
+	plan = r.pass(t)
+	if s := r.step(plan, kept); s.Action != ActNone || r.hub.asks[kept].State != "pending" || !strings.Contains(s.Why, "cannot be read") {
+		t.Fatalf("an ask is kept while its item's files cannot be read: %+v", s)
+	}
+}
+
+// An item whose text changed while its ask was open updates that ask: the Hub
+// keeps one open decision for it. A closed ask is never raised again.
+func TestAChangedItemUpdatesItsOpenAsk(t *testing.T) {
+	r := newRig(t, "desk")
+	key := AskPrefix + commission + "/AV4"
+	r.pass(t)
+	r.pass(t)
+	if len(r.hub.raised) != 1 {
+		t.Fatalf("an unchanged item is raised once: %d", len(r.hub.raised))
+	}
+	r.setItems(t, strings.Replace(items, "yt-dlp target choice", "yt-dlp target choice (revised)", 1))
+	r.clock.Advance(time.Minute)
+	plan := r.pass(t)
+	if s := r.step(plan, key); s.Action != ActRefreshAsk || !s.Done {
+		t.Fatalf("the changed item is raised again: %+v", s)
+	}
+	if len(r.hub.raised) != 2 || !strings.Contains(r.hub.raised[1].Question, "(revised)") || r.hub.open(key) != 1 || len(r.hub.older) != 0 {
+		t.Fatalf("one open ask carries the new text: raised %+v open %d older %d", r.hub.raised, r.hub.open(key), len(r.hub.older))
+	}
+	r.pass(t)
+	if len(r.hub.raised) != 2 {
+		t.Fatalf("the updated ask is current, so it is not raised again: %d", len(r.hub.raised))
+	}
+
+	// The operator dismissed it: the desk does not raise it again.
+	r.hub.asks[key].State = "dismissed"
+	r.setItems(t, strings.Replace(items, "yt-dlp target choice", "yt-dlp target choice (revised twice)", 1))
+	r.pass(t)
+	if len(r.hub.raised) != 2 {
+		t.Fatalf("a dismissed ask stays closed: %d", len(r.hub.raised))
+	}
+}
+
+// An ask raised before asks carried a subject key and still saying what its
+// item says is left alone, not raised again (that would page the operator twice
+// for nothing); it is withdrawn by its request id when the item is answered.
+// When its item changes it is replaced by a keyed ask, and the old one is
+// withdrawn, so the operator is left with one open decision.
+func TestAnAskRaisedBeforeSubjectKeysIsClosedWhenItsItemIsAnsweredOrReplacedWhenItChanges(t *testing.T) {
+	r := newRig(t, "desk")
+	key := AskPrefix + commission + "/AV4"
+	r.pass(t)
+	old := r.hub.asks[key]
+	old.ID, old.RequesterRef = "legacy-ask", "event-id-before-subject-keys"
+	r.hub.unkeyed[old.ID] = true
+	r.clock.Advance(time.Minute)
+
+	if s := r.step(r.pass(t), key); s.Action != ActNone || len(r.hub.raised) != 1 {
+		t.Fatalf("an unchanged legacy ask is left alone: %+v, %d raised", s, len(r.hub.raised))
+	}
+
+	// The item changes: the keyed ask opens next to it, then the legacy one closes.
+	r.setItems(t, strings.Replace(items, "yt-dlp target choice", "yt-dlp target choice (revised)", 1))
+	if s := r.step(r.pass(t), key); s.Action != ActRefreshAsk {
+		t.Fatalf("the changed item is raised again with its subject key: %+v", s)
+	}
+	if r.hub.open(key) != 2 {
+		t.Fatalf("until the next pass the old and the new ask are both open: %d", r.hub.open(key))
+	}
+	var closed bool
+	for _, s := range r.pass(t).Steps {
+		closed = closed || (s.Key == key && s.Item == nil && s.Action == ActWithdraw && s.Done)
+	}
+	if !closed || old.State != "withdrawn" || r.hub.withdrawn[old.ID] != withdrawDuplicate {
+		t.Fatalf("the old ask is withdrawn as replaced: %+v %v", old, r.hub.withdrawn)
+	}
+	if r.hub.open(key) != 1 || r.hub.asks[key].State != "pending" {
+		t.Fatalf("one open ask is left, the new one: %d", r.hub.open(key))
+	}
+	raised := len(r.hub.raised)
+	r.pass(t)
+	if len(r.hub.raised) != raised || len(r.hub.withdrawn) != 1 {
+		t.Fatalf("the next pass is quiet: %d raised, %v", len(r.hub.raised), r.hub.withdrawn)
+	}
+}
+
+// A legacy ask is closed by its request id when its item is answered in the desk.
+func TestALegacyAskIsWithdrawnWhenItsItemIsAnswered(t *testing.T) {
+	r := newRig(t, "desk")
+	key := AskPrefix + commission + "/AV4"
+	r.pass(t)
+	old := r.hub.asks[key]
+	old.RequesterRef = "event-id-before-subject-keys"
+	r.hub.unkeyed[old.ID] = true
+	r.answerInDesk(t)
+	r.pass(t)
+	if old.State != "withdrawn" || r.hub.withdrawn[old.ID] != withdrawAnswered {
+		t.Fatalf("the legacy ask closes: %+v %v", old, r.hub.withdrawn)
+	}
+}
+
+// A Hub-side withdrawal is no answer: the item still waits, nothing is written,
+// and the desk does not raise the ask again.
+func TestAWithdrawnHubAskIsNeitherAnAnswerNorRaisedAgain(t *testing.T) {
+	r := newRig(t, "desk")
+	key := AskPrefix + commission + "/AV4"
+	r.pass(t)
+	r.hub.asks[key].State = "withdrawn"
+	raised := len(r.hub.raised)
+	plan := r.pass(t)
+	s := r.step(plan, key)
+	if s.Action != ActNone || !s.Waiting() || len(r.hub.raised) != raised || len(r.operatorFile(t)) != 0 {
+		t.Fatalf("a withdrawn ask leaves the item waiting, to be answered in the desk: %+v", s)
 	}
 }
 
@@ -354,6 +568,29 @@ func TestTurningTheCourierOnNeverSendsTheItemsAlreadyThere(t *testing.T) {
 	}
 }
 
+// A scheduler's `Delivered:` line stops the desk from sending an item, not
+// from keeping its own open ask current: the line itself changes nothing the
+// operator reads, and a changed item still updates the ask in place.
+func TestAScheduledDeliveryStillKeepsTheOpenAskCurrent(t *testing.T) {
+	r := newRig(t, "desk")
+	key := AskPrefix + commission + "/AV4"
+	r.pass(t)
+	delivered := strings.Replace(items, "Keep or propose.\n", "Keep or propose.\nDelivered: hub 2026-11-12T09:00:00Z\n", 1)
+	r.setItems(t, delivered)
+	r.clock.Advance(time.Minute)
+	if s := r.step(r.pass(t), key); s.Action != ActNone || len(r.hub.raised) != 1 {
+		t.Fatalf("a Delivered: line alone does not change the ask: %+v raised %d", s, len(r.hub.raised))
+	}
+	r.setItems(t, strings.Replace(delivered, "yt-dlp target choice", "Keep the video download tool uninstalled?", 1))
+	r.clock.Advance(time.Minute)
+	if s := r.step(r.pass(t), key); s.Action != ActRefreshAsk || !s.Done {
+		t.Fatalf("the changed item updates its ask though its scheduler delivered it: %+v", s)
+	}
+	if r.hub.open(key) != 1 || r.hub.asks[key].Question != "Keep the video download tool uninstalled?" {
+		t.Fatalf("one open ask carries the new question: %+v", r.hub.asks[key])
+	}
+}
+
 func TestAnOlderCharterIsLeftToItsSchedulerForTwoHours(t *testing.T) {
 	r := newRig(t, "")
 	r.setItems(t, "")
@@ -398,22 +635,65 @@ func TestDeliveryTestRaisesOneExpiringAsk(t *testing.T) {
 	}
 }
 
-func TestKeysReadBackFromQuestions(t *testing.T) {
-	for question, want := range map[string]string{
-		"programme-three-20261111 · YTDLP-TARGET — yt-dlp target": AskPrefix + "programme-three-20261111/YTDLP-TARGET",
-		testQuestion + "20261112T010000Z — no answer needed":      TestPrefix + "20261112T010000Z",
-		"Can I extend this window?":                               "",
-		"a b · c — d":                                             "",
+func TestKeysReadBackFromTheDeskKeyLine(t *testing.T) {
+	for _, c := range []struct{ question, technical, want string }{
+		{"Choose the off-host backup destination", "Desk key: " + AskPrefix + "free-disk/DB1-OFFHOST-SINK\nPacket: /x", AskPrefix + "free-disk/DB1-OFFHOST-SINK"},
+		{"Anything", "Research commission: c\nDesk key: " + TestPrefix + "20261112T010000Z", TestPrefix + "20261112T010000Z"},
+		{"Anything", "Desk key: someone-else/x", ""},
+		// An ask raised before the desk wrote the line is found by its question.
+		{"programme-three-20261111 · YTDLP-TARGET — yt-dlp target", "", AskPrefix + "programme-three-20261111/YTDLP-TARGET"},
+		{testQuestion + "20261112T010000Z — no answer needed", "", TestPrefix + "20261112T010000Z"},
+		{"Can I extend this window?", "", ""},
+		{"a b · c — d", "", ""},
 	} {
-		if got := keyOf(question); got != want {
-			t.Errorf("keyOf(%q) = %q, want %q", question, got, want)
+		if got := keyOf(c.question, c.technical); got != c.want {
+			t.Errorf("keyOf(%q, %q) = %q, want %q", c.question, c.technical, got, c.want)
 		}
 	}
 }
 
-// The courier's health is its real state, and it says that an ask
-// cannot be withdrawn.
-func TestHealthIsTheLastPassAndSaysAnAskCannotBeWithdrawn(t *testing.T) {
+// The operator reads an ask cold: the question is the item's title and the
+// big picture its prose; the desk's key, IDs and paths are technical details.
+func TestAnAskSpeaksPlainlyAndKeepsIDsInTechnicalDetails(t *testing.T) {
+	text := `
+## Needs you
+
+### DB1-SINK — Choose where off-site backups are kept
+Backups now live only on this computer. Pick where an encrypted copy goes.
+Recommended: s3 — Use the storage account you already have.
+Reason: It is already approved and costs nothing new.
+Options: s3 — Use the storage account you already have; host — Use another of your computers
+Packet: /home/x/packet.md
+Details: plan F12; evidence runs/r1
+Delivered: hub 2026-11-13T00:00:00Z
+`
+	items, _ := home.ParseNeedsYou(text, "Needs you", "/home/x/STATE.md")
+	spec := askSpec(&home.FeedItem{Item: items[0], CommissionID: "steward-x"})
+	if spec.Question != "Choose where off-site backups are kept" || spec.Subject != spec.Question {
+		t.Fatalf("the question is the title alone: %q / %q", spec.Question, spec.Subject)
+	}
+	if spec.BigPicture != "Backups now live only on this computer. Pick where an encrypted copy goes." {
+		t.Fatalf("the big picture is the prose without field lines: %q", spec.BigPicture)
+	}
+	if spec.Reason != "It is already approved and costs nothing new." {
+		t.Fatalf("a Reason: line is the recommendation reason: %q", spec.Reason)
+	}
+	for _, want := range []string{"Desk key: " + AskPrefix + "steward-x/DB1-SINK", "Research commission: steward-x", "Needs-you item: DB1-SINK", "Item file: /home/x/STATE.md", "Packet: /home/x/packet.md", "Details: plan F12; evidence runs/r1"} {
+		if !strings.Contains(spec.TechnicalDetails, want) {
+			t.Errorf("technical details lack %q:\n%s", want, spec.TechnicalDetails)
+		}
+	}
+	if keyOf(spec.Question, spec.TechnicalDetails) != spec.Key {
+		t.Fatal("the desk finds the ask again by its technical details")
+	}
+	items[0].Reason = ""
+	if got := askSpec(&home.FeedItem{Item: items[0], CommissionID: "steward-x"}).Reason; got != "Use the storage account you already have." {
+		t.Fatalf("without a Reason: line the recommended label explains: %q", got)
+	}
+}
+
+// The courier's health is its real state, and it says when an ask closes.
+func TestHealthIsTheLastPassAndSaysWhenAnAskCloses(t *testing.T) {
 	if ok, said := (Health{}).Say(); ok || !strings.Contains(said, "no pass yet") {
 		t.Fatalf("before the first pass: %v %q", ok, said)
 	}

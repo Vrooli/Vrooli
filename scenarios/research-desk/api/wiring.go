@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/askreader"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/api-core/storage"
@@ -132,11 +133,13 @@ func newWiring(getenv func(string) string) *wiring {
 		Hub: &courier.EventHub{
 			Events: capabilities.Reach(w.registry, resolver, "vrooli-events"),
 			Hub:    &peer.Peer{Name: "notification-hub", BaseURL: capabilities.Reach(w.registry, resolver, "notification-hub")},
+			// Notification Hub shows the desk its own asks to its ask-reader service identity only.
+			AskReader: askreader.NewTokens(courier.Source, askReaderCredential),
 		},
 		Clock:  deps.Clock,
 		Logger: log.Default(),
 	}
-	w.webConsole = &peer.Peer{Name: "web-console", BaseURL: capabilities.Reach(w.registry, resolver, "web-console"), Credential: webConsoleCredential}
+	w.webConsole = &peer.Peer{Name: "web-console", BaseURL: capabilities.Reach(w.registry, resolver, "web-console"), Credential: webConsoleAuthorization(newWebConsoleTokens(authorityWebConsoleCredential))}
 	w.launch = &launch.Service{
 		Reader:  w.reader,
 		Writer:  w.writer,
@@ -289,15 +292,6 @@ func (w *wiring) registerResearchBackupTarget(ctx context.Context) error {
 	}))
 	return err
 }
-
-// webConsoleCredential is the desk's own Web Console credential. The desk has
-// none yet: the service principal is prepared by
-// scripts/issue-service-principal.sh, which the operator runs, and the client
-// that reads it waits on a dependency install. Until then the
-// desk sends no credential and Web Console's documented availability policy
-// decides; with agents refused at the desk that gives the
-// desk nothing a local operator process does not already have.
-func webConsoleCredential(context.Context) (string, error) { return "", nil }
 
 // automaticLaunch says how an automatic launch reaches Web Console, or why it
 // cannot: Web Console is not running, or refused the desk's last call.

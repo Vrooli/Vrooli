@@ -96,8 +96,9 @@ low; `wire.ResearchOperation`.
 **The courier publishes events and reads the Hub back; off until chosen.** Alternatives: the
 supervisor delivers (fragile), Agent Manager decisions, the Hub's `Ask` directly (the Hub
 refused the desk), an owner-scoped Hub grant (it would make the desk the recipient). Events
-are the route every scenario decision takes; the Hub's reads need no credential. Cost: an ask
-cannot be withdrawn and stays open until its deadline. Off for commissions the desk did not
+are the route every scenario decision takes; the Hub shows the desk its own asks to the desk's ask-reader service identity only (`askreader` in api-core). Cost: the
+desk's own withdrawals and updates depend on the Hub's subject-key support; an ask the desk
+cannot read back stays open until its deadline. Off for commissions the desk did not
 launch, because older files hold items that must never page the operator. Switch: low;
 `internal/courier/hub.go`.
 
