@@ -8,7 +8,9 @@
   "mechanism": "resilience",
   "tags": [
     "difficulty-4",
-    "resilience"
+    "resilience",
+    "hard",
+    "very-hard"
   ],
   "page": {
     "title": "Rate limits, errors and timeouts Practice 4",

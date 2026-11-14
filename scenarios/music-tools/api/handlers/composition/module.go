@@ -39,23 +39,33 @@ import (
 )
 
 type ModuleState struct {
-	Styles         *styles.Store
-	Pool           *core.Pool
-	HTTP           *http.Client
-	ResourceURL    string
-	SA3URL         string
-	PermissiveOnly bool
-	Blobs          *musicstorage.Store
-	JobManager     *jobs.Manager
+	Styles          *styles.Store
+	Pool            *core.Pool
+	HTTP            *http.Client
+	ResourceURL     string
+	SA3URL          string
+	PermissiveOnly  bool
+	Blobs           *musicstorage.Store
+	JobManager      *jobs.Manager
+	RightsEvaluator models.RightsEvaluator
 }
 
 // NewStateWithCapacityAndStorage wires the only production batch engine.
 // Tests inject an isolated owner-schema database, fake broker and BlobStore.
 func NewStateWithCapacityAndStorage(db jobs.SQLExecutor, broker capacity.Broker, blobs *musicstorage.Store) (*ModuleState, error) {
+	return NewStateWithCapacityStorageAndRightsEvaluator(db, broker, blobs, nil)
+}
+
+// NewStateWithCapacityStorageAndRightsEvaluator is the production constructor
+// for model-backed composition. The shared evaluator is an explicit required
+// dependency for any model route; nil remains fail-closed while the governed
+// ai-provider-go dependency is unavailable to this scenario.
+func NewStateWithCapacityStorageAndRightsEvaluator(db jobs.SQLExecutor, broker capacity.Broker, blobs *musicstorage.Store, rightsEvaluator models.RightsEvaluator) (*ModuleState, error) {
 	if blobs == nil {
 		return nil, fmt.Errorf("managed audio storage is required")
 	}
 	state := newState()
+	state.RightsEvaluator = rightsEvaluator
 	var err error
 	state.Pool, err = core.NewPoolWithStore(db)
 	if err != nil {
@@ -82,7 +92,7 @@ func NewStateWithCapacityAndStorage(db jobs.SQLExecutor, broker capacity.Broker,
 			return nil, nil, err
 		}
 		if provider == providerSA3 {
-			return state.sa3Admission(ctx)
+			return state.sa3Admission(ctx, input)
 		}
 		if input.ModelSnapshot != nil {
 			return state.songAdmission(ctx, input)
@@ -160,7 +170,7 @@ func NewStateWithCapacityAndStorage(db jobs.SQLExecutor, broker capacity.Broker,
 			return
 		}
 		request := composeRequest{StyleID: styleID, Takes: needed, Duration: compiled.Params.Duration, Seed: seed}
-		selected, resolveErr := resolveComposition(compiled)
+		selected, resolveErr := resolveComposition(context.Background(), compiled, state.RightsEvaluator)
 		provider := selected.Engine
 		if resolveErr == nil {
 			compiled.Params.Variant = selected.Variant
@@ -448,7 +458,7 @@ func (s *ModuleState) compose(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "shift must be finite and between 1 and 5", http.StatusBadRequest)
 		return
 	}
-	selected, err := resolveComposition(compiled)
+	selected, err := resolveComposition(r.Context(), compiled, s.RightsEvaluator)
 	provider := selected.Engine
 	if err == nil {
 		compiled.Params.Variant = selected.Variant
@@ -537,7 +547,11 @@ func (s *ModuleState) runDurableJob(ctx context.Context, queued jobs.Job, emit f
 		}
 		var profile any
 		if provider == providerSA3 {
-			profile, err = s.generateSA3Take(ctx, &planned[i], request.composeRequest, compiled)
+			var rightsModel models.Model
+			rightsModel, err = sa3RightsModel(request.ModelSnapshot)
+			if err == nil {
+				profile, err = s.generateSA3Take(ctx, &planned[i], request.composeRequest, compiled, rightsModel)
+			}
 		} else if request.ModelSnapshot != nil {
 			profile, err = s.generateSongTake(ctx, &planned[i], request.composeRequest, compiled, *request.ModelSnapshot)
 		} else {

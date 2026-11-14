@@ -3,6 +3,7 @@
 package models
 
 import (
+	"context"
 	"crypto/sha256"
 	_ "embed"
 	"encoding/hex"
@@ -51,8 +52,12 @@ type Model struct {
 	CommercialUseNotes    string              `json:"commercial_use_notes"`
 	BaseModelLineage      string              `json:"base_model_lineage"`
 	KnownRisks            string              `json:"known_risks"`
-	Checksum              string              `json:"checksum"`
-	DiskFloorBytes        uint64              `json:"disk_floor_bytes"`
+	// Rights preserves the shared model-rights record from the registry. It is
+	// deliberately raw until the governed ai-provider-go module admission is
+	// available; runtime use still needs the shared evaluator decision.
+	Rights         json.RawMessage `json:"rights"`
+	Checksum       string          `json:"checksum"`
+	DiskFloorBytes uint64          `json:"disk_floor_bytes"`
 }
 
 // CompositionRuntime describes the local song protocol, independently of a
@@ -191,17 +196,46 @@ func (r *Registry) requireLyrics(m Model, needsLyrics bool) (Model, error) {
 // SelectComposition preserves explicit choices. Otherwise capability filters the
 // declared preference order. Licence refusal never triggers a silent fallback.
 func (r *Registry) SelectComposition(variant string, needsLyrics bool) (Model, error) {
+	return r.SelectCompositionWithRights(context.Background(), variant, needsLyrics, nil)
+}
+
+// SelectCompositionWithRights resolves only candidates with a current allowed
+// rights decision. A missing evaluator is fail-closed, including the fallback
+// path, and explicit choices never silently switch models.
+func (r *Registry) SelectCompositionWithRights(ctx context.Context, variant string, needsLyrics bool, evaluator RightsEvaluator) (Model, error) {
+	var refusals []string
 	for _, m := range r.compositionModels() {
 		if variant != "" {
 			if m.Variant == variant {
-				return r.requireLyrics(m, needsLyrics)
+				if _, err := r.requireLyrics(m, needsLyrics); err != nil {
+					return Model{}, err
+				}
+				decision, err := EvaluateCurrentRights(ctx, evaluator, m, RightsUseLocalInference)
+				if err != nil || decision.Status != "allowed" {
+					return Model{}, fmt.Errorf("models: %s rights are not allowed: %s", m.ID, decision.Reason)
+				}
+				return m, nil
 			}
 		} else if !needsLyrics || m.SungLyrics.Supported {
-			return r.requireLyrics(m, needsLyrics)
+			if _, err := r.requireLyrics(m, needsLyrics); err != nil {
+				if errors.Is(err, ErrRestrictedModel) {
+					return Model{}, err
+				}
+				continue
+			}
+			decision, err := EvaluateCurrentRights(ctx, evaluator, m, RightsUseLocalInference)
+			if err != nil || decision.Status != "allowed" {
+				refusals = append(refusals, fmt.Sprintf("%s: %s", m.ID, decision.Reason))
+				continue
+			}
+			return m, nil
 		}
 	}
 	if variant != "" {
 		return Model{}, fmt.Errorf("models: unsupported explicit model variant %q", variant)
+	}
+	if len(refusals) > 0 {
+		return Model{}, fmt.Errorf("models: no composition model has allowed rights: %s", strings.Join(refusals, "; "))
 	}
 	return Model{}, fmt.Errorf("models: no declared composition model supports the requested capability")
 }
@@ -234,13 +268,17 @@ func (r *Registry) Validate() error {
 				return fmt.Errorf("models: %s has an incomplete local song runtime", model.ID)
 			}
 			for _, digest := range []string{runtime.CatalogSHA256, runtime.ArtifactSHA256} {
-				if decoded, err := hex.DecodeString(digest); err != nil || len(decoded) != sha256.Size { return fmt.Errorf("models: %s has an invalid runtime digest", model.ID) }
+				if decoded, err := hex.DecodeString(digest); err != nil || len(decoded) != sha256.Size {
+					return fmt.Errorf("models: %s has an invalid runtime digest", model.ID)
+				}
 			}
-			for _, value := range []float64{runtime.MinDuration,runtime.MaxDuration,runtime.DefaultGuidance,runtime.MinGuidance,runtime.MaxGuidance} {
-				if math.IsNaN(value) || math.IsInf(value,0) { return fmt.Errorf("models: %s has a nonfinite runtime control",model.ID) }
+			for _, value := range []float64{runtime.MinDuration, runtime.MaxDuration, runtime.DefaultGuidance, runtime.MinGuidance, runtime.MaxGuidance} {
+				if math.IsNaN(value) || math.IsInf(value, 0) {
+					return fmt.Errorf("models: %s has a nonfinite runtime control", model.ID)
+				}
 			}
 			if runtime.MinDuration < 1 || runtime.MaxDuration < runtime.MinDuration || runtime.MaxDuration > 240 || runtime.MinSteps < 0 || runtime.DefaultSteps < runtime.MinSteps || runtime.DefaultSteps > runtime.MaxSteps || runtime.MaxSteps > 100 || runtime.DefaultGuidance < runtime.MinGuidance || runtime.DefaultGuidance > runtime.MaxGuidance || runtime.MinGuidance <= 0 || runtime.MaxGuidance > 20 || runtime.TimeoutSeconds < 1 || runtime.TimeoutSeconds > 86400 {
-				return fmt.Errorf("models: %s has inconsistent runtime controls",model.ID)
+				return fmt.Errorf("models: %s has inconsistent runtime controls", model.ID)
 			}
 		}
 	}

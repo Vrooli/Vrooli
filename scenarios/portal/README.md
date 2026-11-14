@@ -5,6 +5,11 @@ operators one workspace for OpenRouter LLM chat, coding-agent chat through
 agent-manager, passive ecosystem search, and honest readiness status for
 optional dependencies.
 
+Portal is the successor suite surface for agent-inbox and app-monitor. New
+suite chat, app discovery, and app loading work belongs here; feature parity is
+still maturing. See the [successor path](docs/concepts/SUCCESSOR-PATH.md) for
+ownership boundaries, Offer Desk placement, and the Portal work entry points.
+
 ## What You Get
 
 - A Go API, React/Vite UI, and Go CLI wired through generated

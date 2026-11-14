@@ -20,7 +20,7 @@
   "service": {
     "name": "notes",
     "displayName": "SmartNotes",
-    "description": "Local AI-enabled note-taking with intelligent organization, semantic search, and real-time suggestions",
+    "description": "Local note-taking with intelligent organization and real-time suggestions; semantic vector search is not currently served",
     "version": "1.0.0",
     "tags": [
       "productivity-application",
@@ -29,7 +29,6 @@
       "markdown",
       "knowledge-base",
       "ai-powered",
-      "semantic-search",
       "tagging",
       "organization",
       "javascript-ui",
@@ -38,7 +37,6 @@
       "n8n-workflows",
       "postgres-storage",
       "redis-cache",
-      "qdrant-vectors",
       "ollama-ai"
     ],
     "parent": "vrooli",
@@ -104,24 +102,6 @@
       "timeout": 5000,
       "interval": 30000,
       "startup_grace_period": 10000
-    },
-    "setup": {
-      "description": "Initialize SmartNotes",
-      "steps": [
-        {
-          "name": "generate-embeddings",
-          "exec": [
-            "vrooli",
-            "resource",
-            "qdrant",
-            "embeddings",
-            "refresh",
-            "--force"
-          ],
-          "on_error": "continue",
-          "description": "Generate code embeddings for AI assistance"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -131,13 +111,6 @@
         "enabled": true,
         "required": true,
         "purpose": "Store notes, folders, tags, and user preferences",
-        "startup_policy": "must_start"
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "purpose": "Vector storage for semantic search across notes",
         "startup_policy": "must_start"
       },
       "redis": {

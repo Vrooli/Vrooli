@@ -8,7 +8,9 @@
   "mechanism": "messy_markup",
   "tags": [
     "difficulty-4",
-    "messy_markup"
+    "messy_markup",
+    "hard",
+    "very-hard"
   ],
   "page": {
     "title": "Messy markup Practice 4",

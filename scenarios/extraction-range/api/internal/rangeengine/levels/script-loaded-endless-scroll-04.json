@@ -8,7 +8,9 @@
   "mechanism": "script_loaded",
   "tags": [
     "difficulty-4",
-    "script_loaded"
+    "script_loaded",
+    "hard",
+    "very-hard"
   ],
   "page": {
     "title": "Script-loaded pages and endless scroll Practice 4",

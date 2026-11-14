@@ -40,8 +40,10 @@ func songRequestFor(model models.Model, compiled styles.Compiled, request compos
 	if guidance == 0 {
 		guidance = model.Runtime.DefaultGuidance
 	}
-	return songRequest{Profile: model.Runtime.Profile, Prompt: compiled.Caption, Lyrics: styles.ResolveLyrics(compiled.Lyrics),
-		Duration: float64(request.Duration), Seed: seed, Steps: steps, Guidance: guidance, Revision: model.Revision, Timeout: model.Runtime.TimeoutSeconds}
+	return songRequest{
+		Profile: model.Runtime.Profile, Prompt: compiled.Caption, Lyrics: styles.ResolveLyrics(compiled.Lyrics),
+		Duration: float64(request.Duration), Seed: seed, Steps: steps, Guidance: guidance, Revision: model.Revision, Timeout: model.Runtime.TimeoutSeconds,
+	}
 }
 
 type songReceipt struct {
@@ -160,6 +162,9 @@ func (s *ModuleState) songAdmission(ctx context.Context, payload composeJobPaylo
 		return nil, nil, fmt.Errorf("song admission lacks an immutable model/style snapshot")
 	}
 	model := *payload.ModelSnapshot
+	if err := s.requireCurrentModelRights(ctx, model); err != nil {
+		return nil, nil, err
+	}
 	if model.Engine != payload.Provider || model.Variant != payload.ResolvedStyle.Params.Variant {
 		return nil, nil, fmt.Errorf("song model snapshot does not match queued provider/style")
 	}
@@ -228,6 +233,9 @@ func validateSongAudio(audio []byte, receipt songReceipt) error {
 }
 
 func (s *ModuleState) generateSongTake(ctx context.Context, take *core.Take, request composeRequest, compiled styles.Compiled, model models.Model) (map[string]any, error) {
+	if err := s.requireCurrentModelRights(ctx, model); err != nil {
+		return nil, err
+	}
 	if err := s.songReady(ctx, model); err != nil {
 		return nil, err
 	}
@@ -244,6 +252,12 @@ func (s *ModuleState) generateSongTake(ctx context.Context, take *core.Take, req
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(payload.Timeout+15)*time.Second)
 	defer cancel()
+	// Readiness can take several seconds; re-read trusted policy immediately
+	// before generation so a context change during the health check cannot
+	// authorize a stale request.
+	if err := s.requireCurrentModelRights(ctx, model); err != nil {
+		return nil, err
+	}
 	response, err := s.songHTTP(ctx, model, http.MethodPost, "/v1/compose", raw)
 	if err != nil {
 		return nil, fmt.Errorf("song compose failed; resource worker may be draining: %w", err)
@@ -294,8 +308,10 @@ func (s *ModuleState) generateSongTake(ctx context.Context, take *core.Take, req
 	take.BlobRef = audioRef
 	take.Provenance.ModelID, take.Provenance.LicenseLane, take.Provenance.AppliedRung = model.ID, string(model.Licence), "isolated:"+model.Runtime.Profile
 	take.Provenance.CaptionAsSent = payload.Prompt
-	return map[string]any{"provider": model.Engine, "profile": model.Runtime.Profile, "receipt_ref": receiptRef,
+	return map[string]any{
+		"provider": model.Engine, "profile": model.Runtime.Profile, "receipt_ref": receiptRef,
 		"receipt_sha256": fmt.Sprintf("%x", sha256.Sum256(receiptData)), "audio_sha256": receipt.Output.SHA,
 		"seed": payload.Seed, "actual_duration_seconds": receipt.Output.Duration, "requested_duration_seconds": payload.Duration,
-		"lyrics_sha256": lyricsHash(payload.Lyrics)}, nil
+		"lyrics_sha256": lyricsHash(payload.Lyrics),
+	}, nil
 }

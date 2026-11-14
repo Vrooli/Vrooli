@@ -643,9 +643,12 @@ func testStateWithBrokerDB(t *testing.T, broker capacity.Broker) (*ModuleState, 
 	}
 	root := t.TempDir()
 	blobs := musicstorage.NewWithBlobStore(blobstore.NewFilesystemBlobStore(filepath.Join(root, "blobs")), filepath.Join(root, "blobs"))
-	state, err := NewStateWithCapacityAndStorage(db, broker, blobs)
+	state, err := NewStateWithCapacityStorageAndRightsEvaluator(db, broker, blobs, allowRightsForTest)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if state.RightsEvaluator == nil {
+		t.Fatal("constructor did not retain the injected shared rights evaluator")
 	}
 	t.Cleanup(state.Close)
 	return state, db

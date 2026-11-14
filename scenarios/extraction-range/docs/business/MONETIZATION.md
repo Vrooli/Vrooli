@@ -1,67 +1,29 @@
 # Monetization — Extraction Range
 
-This document records how the scenario could create revenue or support
-a monetizable Vrooli capability. Keep it honest: `not-applicable` is
-better than inventing a commercial story.
+## Ecosystem role and user
 
-## Purpose Of This Document
+Extraction Range is an internal `interface-enabler`: it gives Vrooli builders and extraction-tool authors a reusable, source-visible proving ground. Its direct UI supports human review; `/levels`, `/score`, `/scoreboard`, and the `extraction-range range` CLI support programmatic use by tools and other scenarios. `I1 Capability compounding` is the closest current objective, owned by `director-swarm` and `scenario-qa`.
 
-Use this document to answer:
+Its main composition seam is the versioned, data-defined level catalog and stable scoring contract. Adding a new page/answer level should not require changing the scenario code, so later extraction tools can reuse the same ground and scoreboard. The client extraction toolkit stays an external deliverable; this scenario does not own that client tool.
 
-- Is this scenario a direct product, internal capability, SKU component,
-  add-on, or service accelerator?
-- Who would pay for it, and why?
-- What packaging or pricing hypothesis exists?
-- What validation signal would justify more investment?
+## Commercial fit
 
-## Role In Vrooli
+- Direct product: not established. The current audience is Vrooli developers and tool builders, not a validated external buyer group.
+- Bundle: possible `business` depth-layer support for developer/solopreneur capability building; no Offer Desk SKU mapping or promotion is claimed here.
+- Revenue line and pricing: deferred to operator-curated monetization canon. No willingness-to-pay evidence exists.
+- Feature access: the scenario and underlying practice code remain free and self-hostable. No metering or gating is justified for an open-source capability. A separately hosted convenience service would require its own cost, bundle, and approval decision.
+- Retirement: nothing currently retires; the durable scenario contract replaces no opened skill or program section yet.
 
-- Direct product: deferred.
-- Internal capability: generated scaffold only.
-- SKU/bundle candidate: deferred.
-- Revenue line: deferred.
+## Validation and revisit
 
-## Customer / Buyer
+The current F10 slice has 40 graded levels over 10 families and three compliant real HTML targets with 14,547 extracted rows. These results validate a reusable delivery and testing capability; they do not validate market demand, a paid product, or completed F2 category readiness. Revisit commercial packaging after the complete K2/F2 review is accepted and a concrete external buyer/use case has been validated through authorized research.
 
-- Primary user: define during PRD generation.
-- Buyer: define during monetization review.
-- Pain: define from demand evidence.
-- Existing alternatives: capture through market validation.
+Do not add client data, contact prospects, start a public service, or gate a self-hostable capability as part of this internal proving-ground work.
 
-## Packaging
+## References
 
-| Packaging Option | Status | Details |
-|---|---|---|
-| Standalone app | deferred | Revisit after first real domain is implemented. |
-| Bundle component | deferred | Map in project-level monetization catalog if promoted. |
-| Add-on | deferred | Use only when scenario clearly extends another SKU. |
-| Service/consulting assist | deferred | Consider if this scenario accelerates done-for-you delivery. |
-
-## Pricing Hypothesis
-
-- Model: deferred.
-- Comparable products: none captured yet.
-- Willingness-to-pay evidence: none captured yet.
-- Cost drivers: local runtime by default; update for resources, hosted
-  services, gateway usage, or third-party APIs.
-
-## Validation Plan
-
-- Demand signal needed: define before monetization review.
-- Channel: define in [`GO-TO-MARKET.md`](GO-TO-MARKET.md).
-- Success threshold: define from project-level monetization taxonomy.
-- Revisit trigger: first real domain reaches validated scenario tests
-  and has a clear user/customer.
-
-## Current Status
-
-`stub` — generated from the template. Fill this document when the PRD
-identifies a customer, SKU, revenue line, or monetization hypothesis.
-
-## Cross-References
-
-- [`../START-HERE.md`](../START-HERE.md) — orientation workflow
-- [`../../PRD.md`](../../PRD.md) — product requirements
-- [`GO-TO-MARKET.md`](GO-TO-MARKET.md) — channel and launch plan
-- [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md) — telemetry needed for business validation
-- Project-level monetization strategy: `path:docs/monetization/README.md`.
+- [Scenario purpose and interfaces](../../README.md)
+- Run-specific F10 source-visible review: `~/.vrooli/research/topics/freelance-workflow-readiness/runs/steward-channel-agent-commerce-20261114/D2-review.html`
+- Project strategy: `path:docs/monetization/README.md`
+- Bundle and SKU lifecycle: `path:docs/monetization/catalogs/CATALOG.md`
+- Paid feature contract: `path:docs/concepts/PAID_FEATURES.md`

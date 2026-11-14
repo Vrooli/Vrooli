@@ -24,6 +24,7 @@ import (
 	"music-tools/internal/capacity"
 	core "music-tools/internal/composition"
 	"music-tools/internal/jobs"
+	"music-tools/internal/models"
 	musicstorage "music-tools/internal/storage"
 	"music-tools/internal/styles"
 )
@@ -93,6 +94,49 @@ func TestSA3UnsupportedControlsRefusedBeforeSubmission(t *testing.T) {
 	s.compose(rec, httptest.NewRequest(http.MethodPost, "/api/v1/compose", strings.NewReader(`{"style_id":"unsupported","takes":1}`)))
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("SA3 structured BPM silently ignored: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestSA3GenerationRechecksRightsAfterReadiness(t *testing.T) {
+	s, _ := testStateWithBrokerDB(t, nil)
+	defer s.JobManager.Close()
+	model, err := sa3RightsModel(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var allowed atomic.Bool
+	allowed.Store(true)
+	var evaluations atomic.Int32
+	s.RightsEvaluator = func(_ context.Context, _ json.RawMessage, _ string) (models.RightsDecision, error) {
+		evaluations.Add(1)
+		if allowed.Load() {
+			return models.RightsDecision{Status: "allowed"}, nil
+		}
+		return models.RightsDecision{Status: "denied", Reason: "revenue_threshold_exceeded"}, nil
+	}
+	var composeCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/health" {
+			composeCalls.Add(1)
+			return
+		}
+		allowed.Store(false) // Trusted policy changes while readiness is being checked.
+		fmt.Fprintf(w, `{"model_loaded":true,"model_id":%q,"model_revision":%q,"device":"cuda","error":null}`, sa3Model, sa3Revision)
+	}))
+	defer server.Close()
+	s.SA3URL = server.URL
+	s.HTTP = server.Client()
+	compiled, err := s.Styles.Compile("launch-club")
+	if err != nil {
+		t.Fatal(err)
+	}
+	take := &core.Take{Provenance: core.Provenance{Seed: 7}}
+	_, err = s.generateSA3Take(context.Background(), take, composeRequest{Duration: 1}, compiled, model)
+	if err == nil || !strings.Contains(err.Error(), "revenue_threshold_exceeded") {
+		t.Fatalf("generation after context flip = %v, want rights refusal", err)
+	}
+	if evaluations.Load() != 2 || composeCalls.Load() != 0 {
+		t.Fatalf("rights evaluations=%d compose calls=%d; want second check before POST", evaluations.Load(), composeCalls.Load())
 	}
 }
 
@@ -290,10 +334,12 @@ func (b *forbiddenACEBroker) Claim(context.Context, string, uint64, uint64) (cap
 	b.calls.Add(1)
 	return capacity.Verdict{}, errors.New("ACE admission must not run for SA3")
 }
+
 func (b *forbiddenACEBroker) Release(context.Context, capacity.ClaimRef) error {
 	b.calls.Add(1)
 	return nil
 }
+
 func (b *forbiddenACEBroker) Heartbeat(context.Context, capacity.ClaimRef) error {
 	b.calls.Add(1)
 	return nil

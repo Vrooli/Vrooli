@@ -8,7 +8,8 @@
   "mechanism": "table",
   "tags": [
     "difficulty-3",
-    "table"
+    "table",
+    "hard"
   ],
   "page": {
     "title": "Plain tables Practice 3",

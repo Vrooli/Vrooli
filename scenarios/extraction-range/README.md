@@ -3,7 +3,9 @@
 Owned graded practice website for website data extraction tools
 
 Extraction Range is an owned proving ground for scraping tools. Its current
-catalog contains 40 data-defined challenges across ten families: tables,
+catalog contains 40 data-defined challenges across ten families, with 20 hard
+challenges (difficulty 3 and 4), two hard levels in every family, and ten
+very-hard challenges (difficulty 4): tables,
 pagination/deep links, search, script-loaded/endless scroll, sessions,
 downloads, messy markup, changing layouts, transient rate/errors/timeouts,
 and synthetic bot checks used only on this owned ground. Each JSON level holds
@@ -19,6 +21,13 @@ do not return the answer key.
 | `/practice/{id}` | GET | Open the owned practice page. Family behavior may require search, pagination, lazy data, sign-in, download, retry or the displayed synthetic token. |
 | `/score` | POST | Submit `{ "tool": "name", "level_id": "id", "records": [...] }` for exact record scoring. |
 | `/scoreboard` | GET | Read best scores per tool and level; optional `?tool=` and `?family=` filters. |
+
+Difficulty 1–2 cover starter and developing work. Difficulty 3 is hard, and
+difficulty 4 is very hard. The difficulty contract is data checked: every
+family has one level at each difficulty, known answer records, and hard-tier
+coverage in both difficulty 3 and 4. Challenge tags expose the tier in the UI
+and CLI output. These levels exercise the named extraction mechanism; higher
+record counts alone do not define the difficulty.
 
 Each submitted record has `id` (string), `name` (string), `category`
 (string), `value` (integer), and `active` (boolean). Scores report correct,

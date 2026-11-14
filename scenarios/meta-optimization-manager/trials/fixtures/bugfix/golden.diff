@@ -1,0 +1,12 @@
+diff --git a/parity.sh b/parity.sh
+--- a/parity.sh
++++ b/parity.sh
+@@ -2,6 +2,6 @@
+ n="$1"
+ if [ $(( n % 2 )) -eq 0 ]; then
+-  echo odd
++  echo even
+ else
+-  echo even
++  echo odd
+ fi

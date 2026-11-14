@@ -8,7 +8,9 @@
   "mechanism": "search",
   "tags": [
     "difficulty-4",
-    "search"
+    "search",
+    "hard",
+    "very-hard"
   ],
   "page": {
     "title": "Search forms Practice 4",

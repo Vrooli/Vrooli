@@ -8,7 +8,9 @@
   "mechanism": "download",
   "tags": [
     "difficulty-4",
-    "download"
+    "download",
+    "hard",
+    "very-hard"
   ],
   "page": {
     "title": "Downloads Practice 4",

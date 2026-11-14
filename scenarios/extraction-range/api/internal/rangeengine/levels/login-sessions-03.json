@@ -8,7 +8,8 @@
   "mechanism": "session",
   "tags": [
     "difficulty-3",
-    "session"
+    "session",
+    "hard"
   ],
   "page": {
     "title": "Login and sessions Practice 3",

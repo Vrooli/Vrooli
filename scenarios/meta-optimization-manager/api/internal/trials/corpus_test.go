@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -64,9 +65,8 @@ func TestCommittedCorpusResolves(t *testing.T) {
 	}
 }
 
-// goldenDiffs are the reference "solved" diffs for each positive family. They
-// confirm the committed oracles actually pass on a correct solution (and the
-// negative-by-construction abstention is handled by the evaluator). Needs git.
+// The hidden golden.diff artifacts confirm the committed oracles accept one
+// known solution for each positive family. Needs git.
 func TestCommittedOraclesAcceptGoldenSolutions(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not available")
@@ -74,26 +74,20 @@ func TestCommittedOraclesAcceptGoldenSolutions(t *testing.T) {
 	root := committedFixturesRoot(t)
 	r := NewFixtureResolverWithRoot(root)
 
-	cases := []struct {
-		suite string
-		diff  string
-	}{
-		{SuiteAddFeature, "diff --git a/sum.sh b/sum.sh\n--- a/sum.sh\n+++ b/sum.sh\n@@ -1,4 +1,4 @@\n #!/usr/bin/env bash\n # sum.sh A B — print the integer sum of A and B.\n # TODO: implement. Currently always prints 0.\n-echo 0\n+echo $(( $1 + $2 ))\n"},
-		{SuiteBugfix, "diff --git a/parity.sh b/parity.sh\n--- a/parity.sh\n+++ b/parity.sh\n@@ -2,6 +2,6 @@\n n=\"$1\"\n if [ $(( n % 2 )) -eq 0 ]; then\n-  echo odd\n+  echo even\n else\n-  echo even\n+  echo odd\n fi\n"},
-		{SuiteComprehend, "diff --git a/ANSWER.txt b/ANSWER.txt\nnew file mode 100644\n--- /dev/null\n+++ b/ANSWER.txt\n@@ -0,0 +1 @@\n+compute_checksum\n"},
-		{SuiteResearch, "diff --git a/FOUND.txt b/FOUND.txt\nnew file mode 100644\n--- /dev/null\n+++ b/FOUND.txt\n@@ -0,0 +1 @@\n+z9x8c7v6\n"},
-	}
-	for _, c := range cases {
-		fx, ok, err := r.Resolve(context.Background(), TrialTask{ID: "t", Suite: c.suite})
+	for _, family := range []string{SuiteAddFeature, SuiteBugfix, SuiteComprehend, SuiteResearch} {
+		fx, ok, err := r.Resolve(context.Background(), TrialTask{ID: "t", Suite: family})
 		if err != nil || !ok {
-			t.Fatalf("%s: resolve: ok=%v err=%v", c.suite, ok, err)
+			t.Fatalf("%s: resolve: ok=%v err=%v", family, ok, err)
 		}
-		exit, out, err := realOracleCheck(context.Background(), fx, c.diff)
+		if strings.TrimSpace(fx.GoldenSolution) == "" {
+			t.Fatalf("%s: golden reference solution is missing", family)
+		}
+		exit, out, err := realOracleCheck(context.Background(), fx, fx.GoldenSolution)
 		if err != nil {
-			t.Fatalf("%s: oracle errored: %v\n%s", c.suite, err, out)
+			t.Fatalf("%s: oracle errored: %v\n%s", family, err, out)
 		}
 		if exit != 0 {
-			t.Fatalf("%s: golden solution did NOT pass the oracle (exit=%d):\n%s", c.suite, exit, out)
+			t.Fatalf("%s: golden solution did NOT pass the oracle (exit=%d):\n%s", family, exit, out)
 		}
 	}
 }

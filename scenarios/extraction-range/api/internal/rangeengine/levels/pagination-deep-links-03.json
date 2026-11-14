@@ -8,7 +8,8 @@
   "mechanism": "pagination",
   "tags": [
     "difficulty-3",
-    "pagination"
+    "pagination",
+    "hard"
   ],
   "page": {
     "title": "Pagination and deep links Practice 3",

@@ -8,7 +8,8 @@
   "mechanism": "bot_check",
   "tags": [
     "difficulty-3",
-    "bot_check"
+    "bot_check",
+    "hard"
   ],
   "page": {
     "title": "Bot checks on owned ground Practice 3",

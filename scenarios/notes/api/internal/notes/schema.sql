@@ -196,3 +196,216 @@ CREATE TRIGGER calculate_note_stats_trigger
 INSERT INTO users (id, username, email, password_hash, preferences) VALUES 
     ('00000000-0000-0000-0000-000000000001', 'default', 'user@smartnotes.local', 'placeholder_hash', '{"theme": "light", "font_size": "medium", "auto_save": true}')
 ON CONFLICT (id) DO NOTHING;
+
+-- Append-only semantic-search source feed. Each note mutation and its event
+-- commit in the same PostgreSQL transaction, so consumers never miss a change
+-- after observing its cursor. Event payloads are immutable snapshot values.
+CREATE TABLE IF NOT EXISTS notes_fleet_sequence (
+    singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
+    current_sequence BIGINT NOT NULL DEFAULT 0
+);
+INSERT INTO notes_fleet_sequence(singleton, current_sequence)
+VALUES (TRUE, 0) ON CONFLICT (singleton) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS notes_fleet_changes (
+    sequence BIGINT PRIMARY KEY,
+    note_id UUID NOT NULL,
+    user_id UUID,
+    event_type TEXT NOT NULL CHECK (event_type IN ('upsert', 'delete')),
+    payload JSONB,
+    move_group UUID,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+    CHECK ((event_type = 'delete' AND payload IS NULL) OR (event_type = 'upsert' AND payload IS NOT NULL))
+);
+-- Notes permits unowned legacy rows. Keep NULL ownership explicit rather than
+-- inventing a tenant while recording their source events.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'notes_fleet_changes'
+          AND column_name = 'user_id'
+          AND is_nullable = 'NO'
+    ) THEN
+        ALTER TABLE notes_fleet_changes ALTER COLUMN user_id DROP NOT NULL;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'notes_fleet_changes'
+          AND column_name = 'move_group'
+    ) THEN
+        ALTER TABLE notes_fleet_changes ADD COLUMN move_group UUID;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+CREATE INDEX IF NOT EXISTS idx_notes_fleet_changes_note_sequence
+    ON notes_fleet_changes(note_id, sequence DESC);
+CREATE INDEX IF NOT EXISTS idx_notes_fleet_changes_user_sequence
+    ON notes_fleet_changes(user_id, sequence);
+
+CREATE TABLE IF NOT EXISTS notes_fleet_snapshots (
+    snapshot_id TEXT PRIMARY KEY,
+    watermark BIGINT NOT NULL,
+    baseline_version INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
+);
+
+CREATE TABLE IF NOT EXISTS notes_fleet_backfill (
+    singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
+    version INTEGER NOT NULL,
+    baseline_watermark BIGINT NOT NULL,
+    seeded_notes BIGINT NOT NULL,
+    completed_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
+);
+
+-- Catalog rows bind each physical generation to its owner, alias, recipe,
+-- dimensions, snapshot, and cursor. Version is the CAS fence for concurrent
+-- workers; immutable identity columns are checked by the repository.
+CREATE TABLE IF NOT EXISTS notes_fleet_generations (
+    arm_id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL,
+    alias TEXT NOT NULL,
+    recipe_id TEXT NOT NULL,
+    snapshot_id TEXT NOT NULL REFERENCES notes_fleet_snapshots(snapshot_id),
+    snapshot_watermark BIGINT NOT NULL,
+    catchup_watermark BIGINT NOT NULL DEFAULT 0,
+    dimensions INTEGER NOT NULL CHECK (dimensions > 0),
+    collection TEXT NOT NULL UNIQUE,
+    rollback_to TEXT,
+    state TEXT NOT NULL CHECK (state IN ('building', 'candidate', 'active', 'retired', 'protected', 'deleted')),
+    cursor BIGINT NOT NULL DEFAULT 0,
+    version BIGINT NOT NULL CHECK (version > 0),
+    protected BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
+);
+CREATE INDEX IF NOT EXISTS idx_notes_fleet_generations_owner_alias
+    ON notes_fleet_generations(owner_id, alias);
+
+CREATE OR REPLACE FUNCTION record_notes_fleet_change()
+RETURNS TRIGGER AS $$
+DECLARE
+    next_sequence BIGINT;
+    move_group UUID;
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        UPDATE notes_fleet_sequence SET current_sequence = current_sequence + 1
+        WHERE singleton = TRUE RETURNING current_sequence INTO next_sequence;
+        PERFORM set_config('notes.fleet.sequence', next_sequence::TEXT, TRUE);
+        INSERT INTO notes_fleet_changes(sequence, note_id, user_id, event_type, payload, move_group)
+        VALUES (next_sequence, OLD.id, OLD.user_id, 'delete', NULL, NULL);
+        RETURN OLD;
+    END IF;
+
+    -- A tenant move is a removal in the old scope and an insertion in the new
+    -- scope. Both events commit with the note update and hold the same sequence
+    -- row lock, so consumers cannot observe half of the ownership transition.
+    IF TG_OP = 'UPDATE' AND OLD.user_id IS DISTINCT FROM NEW.user_id THEN
+        move_group := uuid_generate_v4();
+        UPDATE notes_fleet_sequence SET current_sequence = current_sequence + 1
+        WHERE singleton = TRUE RETURNING current_sequence INTO next_sequence;
+        PERFORM set_config('notes.fleet.sequence', next_sequence::TEXT, TRUE);
+        INSERT INTO notes_fleet_changes(sequence, note_id, user_id, event_type, payload, move_group)
+        VALUES (next_sequence, OLD.id, OLD.user_id, 'delete', NULL, move_group);
+    END IF;
+
+    -- Ignore reads and bookkeeping-only updates such as last_accessed. The
+    -- indexed document and security scope are the complete source identity.
+    IF TG_OP = 'UPDATE' AND
+       (OLD.user_id, OLD.title, OLD.content, OLD.summary, OLD.folder_id,
+        OLD.is_pinned, OLD.is_archived, OLD.is_favorite)
+       IS NOT DISTINCT FROM
+       (NEW.user_id, NEW.title, NEW.content, NEW.summary, NEW.folder_id,
+        NEW.is_pinned, NEW.is_archived, NEW.is_favorite) THEN
+        RETURN NEW;
+    END IF;
+
+    UPDATE notes_fleet_sequence SET current_sequence = current_sequence + 1
+    WHERE singleton = TRUE RETURNING current_sequence INTO next_sequence;
+    PERFORM set_config('notes.fleet.sequence', next_sequence::TEXT, TRUE);
+    INSERT INTO notes_fleet_changes(sequence, note_id, user_id, event_type, payload, move_group)
+    VALUES (
+        next_sequence,
+        NEW.id,
+        NEW.user_id,
+        'upsert',
+        jsonb_build_object(
+            'note_id', NEW.id::text,
+            'user_id', NEW.user_id::text,
+            'title', NEW.title,
+            'content', COALESCE(NEW.content, ''),
+            'summary', NEW.summary,
+            'folder_id', NEW.folder_id,
+            'is_pinned', NEW.is_pinned,
+            'is_archived', NEW.is_archived,
+            'is_favorite', NEW.is_favorite,
+            'created_at', NEW.created_at,
+            'updated_at', NEW.updated_at
+        ),
+        move_group
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS notes_fleet_change_trigger ON notes;
+CREATE TRIGGER notes_fleet_change_trigger
+    AFTER INSERT OR UPDATE OR DELETE ON notes
+    FOR EACH ROW EXECUTE FUNCTION record_notes_fleet_change();
+
+-- Seed pre-existing notes once. Locking the source table drains in-flight
+-- writers and blocks new note mutations until the baseline rows, sequence
+-- advance, and completion marker commit together. Trigger-generated changes
+-- committed before the lock are already in the feed and the current row state
+-- is seeded after them; changes after the lock receive later sequence values.
+DO $$
+DECLARE
+    seeded BIGINT;
+    high_watermark BIGINT;
+BEGIN
+    LOCK TABLE notes IN SHARE ROW EXCLUSIVE MODE;
+    IF NOT EXISTS (SELECT 1 FROM notes_fleet_backfill WHERE singleton = TRUE) THEN
+        WITH ranked AS (
+            SELECT id, user_id,
+                   jsonb_build_object(
+                       'note_id', id::text,
+                       'user_id', user_id::text,
+                       'title', title,
+                       'content', COALESCE(content, ''),
+                       'summary', summary,
+                       'folder_id', folder_id,
+                       'is_pinned', is_pinned,
+                       'is_archived', is_archived,
+                       'is_favorite', is_favorite,
+                       'created_at', created_at,
+                       'updated_at', updated_at
+                   ) AS payload,
+                   row_number() OVER (ORDER BY id)::BIGINT AS ordinal
+            FROM notes
+        ), row_count AS (
+            SELECT COUNT(*)::BIGINT AS total FROM ranked
+        ), advanced AS (
+            UPDATE notes_fleet_sequence AS sequence
+            SET current_sequence = sequence.current_sequence + row_count.total
+            FROM row_count
+            WHERE sequence.singleton = TRUE
+            RETURNING sequence.current_sequence
+        )
+        INSERT INTO notes_fleet_changes(sequence, note_id, user_id, event_type, payload)
+        SELECT advanced.current_sequence - row_count.total + ranked.ordinal,
+               ranked.id, ranked.user_id, 'upsert', ranked.payload
+        FROM ranked CROSS JOIN advanced CROSS JOIN row_count;
+
+        GET DIAGNOSTICS seeded = ROW_COUNT;
+        SELECT current_sequence INTO high_watermark
+        FROM notes_fleet_sequence WHERE singleton = TRUE;
+        INSERT INTO notes_fleet_backfill(singleton, version, baseline_watermark, seeded_notes)
+        VALUES (TRUE, 1, high_watermark, seeded);
+    END IF;
+END;
+$$ LANGUAGE plpgsql;

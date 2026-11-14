@@ -48,6 +48,11 @@ var (
 
 var recordIdentifierPattern = regexp.MustCompile(`(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b`)
 
+const (
+	prosePrivacyClass  = "CONFIDENTIAL"
+	prosePrivacySource = "prose_studio.private_editorial_content"
+)
+
 // underRoot reports whether path sits inside base, comparing cleaned absolute
 // paths so a sibling directory sharing a name prefix cannot match.
 func underRoot(base, path string) bool {
@@ -394,6 +399,13 @@ func (g HTTPGateway) Generate(ctx context.Context, req GatewayRequest) ([]Gatewa
 	if err != nil {
 		return nil, err
 	}
+	privacyClass, err := localityPrivacyClass(req.PrivacyClass)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(req.PrivacySource) == "" {
+		return nil, errors.New("Prose Studio inference requires privacy provenance")
+	}
 	sampling, err := samplingControls(req.TemperatureStance)
 	if err != nil {
 		return nil, err
@@ -401,13 +413,15 @@ func (g HTTPGateway) Generate(ctx context.Context, req GatewayRequest) ([]Gatewa
 	// Source carries what the caller asked for; Instruction carries how to write
 	// it. Sending the query as Source is what makes the request about anything.
 	resp, err := connectClient.Run(ctx, connect.NewRequest(&inferencev1.RunRequest{
-		Source:          req.Query,
-		SchemaJson:      schema,
-		Instruction:     instruction,
-		Role:            req.Role,
-		Profile:         locality,
-		Sampling:        sampling,
-		MaxOutputTokens: int32(req.MaxOutputTokens),
+		Source:            req.Query,
+		SchemaJson:        schema,
+		Instruction:       instruction,
+		Role:              req.Role,
+		Profile:           locality,
+		PrivacyClass:      privacyClass,
+		PrivacyProvenance: req.PrivacySource,
+		Sampling:          sampling,
+		MaxOutputTokens:   int32(req.MaxOutputTokens),
 	}))
 	if err != nil {
 		return nil, fmt.Errorf("ai-gateway request: %w", err)
@@ -449,6 +463,21 @@ func (g HTTPGateway) Generate(ctx context.Context, req GatewayRequest) ([]Gatewa
 		out[i] = candidate
 	}
 	return out, nil
+}
+
+func localityPrivacyClass(name string) (sharedv1.PrivacyClass, error) {
+	switch strings.ToUpper(strings.TrimSpace(name)) {
+	case "PUBLIC":
+		return sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC, nil
+	case "INTERNAL":
+		return sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL, nil
+	case "CONFIDENTIAL":
+		return sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL, nil
+	case "SECRET":
+		return sharedv1.PrivacyClass_PRIVACY_CLASS_SECRET, nil
+	default:
+		return sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED, errors.New("Prose Studio inference requires a recognized privacy classification")
+	}
 }
 
 func (g HTTPGateway) Embed(ctx context.Context, req EmbeddingRequest) (EmbeddingResponse, error) {
@@ -800,7 +829,7 @@ func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, res
 		return GenerateResponse{}, ErrEmptyQuery
 	}
 	effectiveCap := effectiveOutputCap(resolved.Profile)
-	gwReq := GatewayRequest{Role: resolved.Profile.GatewayRole, Instruction: resolved.InstructionText, Query: req.Query, SchemaJSON: req.SchemaJSON, Strategy: resolved.Profile.Sampler.Kind, K: resolved.Profile.Sampler.K, Tau: resolved.Profile.Sampler.Tau, MaxOutputTokens: effectiveCap, TemperatureStance: resolved.Profile.Sampler.TemperatureStance, Locality: resolved.Profile.Locality, Negative: req.Negative}
+	gwReq := GatewayRequest{Role: resolved.Profile.GatewayRole, Instruction: resolved.InstructionText, Query: req.Query, SchemaJSON: req.SchemaJSON, Strategy: resolved.Profile.Sampler.Kind, K: resolved.Profile.Sampler.K, Tau: resolved.Profile.Sampler.Tau, MaxOutputTokens: effectiveCap, TemperatureStance: resolved.Profile.Sampler.TemperatureStance, Locality: resolved.Profile.Locality, PrivacyClass: prosePrivacyClass, PrivacySource: prosePrivacySource, Negative: req.Negative}
 	responses, err := s.gateway.Generate(ctx, gwReq)
 	if err != nil {
 		return GenerateResponse{}, err
@@ -860,7 +889,7 @@ func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, res
 		if capValue == 0 && capSource == "" {
 			capValue, capSource = effectiveCap, "profile"
 		}
-		candidate := Candidate{ID: id, RoundID: round.ID, Text: response.Text, SetIndex: i, Measurements: measurements[i], SetMeasurements: setMeasurements, Eligibility: gate(measurements[i], resolved.Profile.Constraints, response.Text, gateInputs{Selection: req.Selection, Artifacts: req.Artifacts}), Provenance: Provenance{ProfileVersion: fmt.Sprintf("%s@%d", resolved.Profile.Key, resolved.Profile.Version), Locality: transformLocality(resolved.Profile.Locality), StyleVersions: styleVersions(resolved.Styles), Strategy: resolved.Profile.Sampler.Kind, StrategyParameters: resolved.Profile.Sampler, Provider: response.Provider, ResolvedModelRef: response.Model, GatewayRole: resolved.Profile.GatewayRole, TemperatureSent: response.Temperature, TemperatureSupport: response.TemperatureSupport, MaxOutputTokensEffective: capValue, MaxOutputTokensSource: capSource, InputTokens: response.InputTokens, OutputTokens: response.OutputTokens, CostMicros: cost, MachineGenerated: true, Disclosure: "machine_generated", ContextSnapshot: &ContextSnapshot{EstimatedTokens: estimateContextTokens(req.Query)}}}
+		candidate := Candidate{ID: id, RoundID: round.ID, Text: response.Text, SetIndex: i, Measurements: measurements[i], SetMeasurements: setMeasurements, Eligibility: gate(measurements[i], resolved.Profile.Constraints, response.Text, gateInputs{Selection: req.Selection, Artifacts: req.Artifacts}), Provenance: Provenance{ProfileVersion: fmt.Sprintf("%s@%d", resolved.Profile.Key, resolved.Profile.Version), Locality: transformLocality(resolved.Profile.Locality), PrivacyClass: prosePrivacyClass, PrivacySource: prosePrivacySource, StyleVersions: styleVersions(resolved.Styles), Strategy: resolved.Profile.Sampler.Kind, StrategyParameters: resolved.Profile.Sampler, Provider: response.Provider, ResolvedModelRef: response.Model, GatewayRole: resolved.Profile.GatewayRole, TemperatureSent: response.Temperature, TemperatureSupport: response.TemperatureSupport, MaxOutputTokensEffective: capValue, MaxOutputTokensSource: capSource, InputTokens: response.InputTokens, OutputTokens: response.OutputTokens, CostMicros: cost, MachineGenerated: true, Disclosure: "machine_generated", ContextSnapshot: &ContextSnapshot{EstimatedTokens: estimateContextTokens(req.Query)}}}
 		if resolved.Profile.Sampler.Kind == samplerVSStandard {
 			candidate.VerbalizedHint = &VerbalizedHint{Ordinal: response.HintOrdinal, Calibrated: false}
 		}
@@ -988,7 +1017,14 @@ func (s *Service) TransformCandidate(ctx context.Context, candidateID, operation
 		return Candidate{}, err
 	}
 	locality := transformLocality(source.Provenance.Locality)
-	responses, err := s.gateway.Generate(ctx, GatewayRequest{Role: "write.default", Instruction: instruction, Query: string(params) + "\n\nSOURCE:\n" + source.Text, Strategy: samplerDirect, K: 1, MaxOutputTokens: source.Provenance.MaxOutputTokensEffective, Locality: locality})
+	privacyClass, privacySource := source.Provenance.PrivacyClass, source.Provenance.PrivacySource
+	if privacyClass == "" {
+		privacyClass = prosePrivacyClass
+	}
+	if privacySource == "" {
+		privacySource = prosePrivacySource
+	}
+	responses, err := s.gateway.Generate(ctx, GatewayRequest{Role: "write.default", Instruction: instruction, Query: string(params) + "\n\nSOURCE:\n" + source.Text, Strategy: samplerDirect, K: 1, MaxOutputTokens: source.Provenance.MaxOutputTokensEffective, Locality: locality, PrivacyClass: privacyClass, PrivacySource: privacySource})
 	if err != nil {
 		return Candidate{}, err
 	}
@@ -998,6 +1034,7 @@ func (s *Service) TransformCandidate(ctx context.Context, candidateID, operation
 	response := responses[0]
 	derived := Candidate{ID: uuid.NewString(), RoundID: source.RoundID, DerivedFrom: []string{source.ID}, Text: response.Text, SetIndex: source.SetIndex, Measurements: textmetrics.Analyze(response.Text, nil), SetMeasurements: source.SetMeasurements, Provenance: source.Provenance, Eligibility: Eligibility{Eligible: true}, Transform: &Transform{Operation: operation, Parameters: parameters, SourceCandidate: source.ID, GatewayRole: "write.default", CreatedAt: s.now()}}
 	derived.Provenance.Locality = locality
+	derived.Provenance.PrivacyClass, derived.Provenance.PrivacySource = privacyClass, privacySource
 	derived.Provenance.Provider, derived.Provenance.ResolvedModelRef, derived.Provenance.CostMicros = response.Provider, response.Model, response.CostMicros
 	if err := s.saveJSON(ctx, "prose_candidates", derived.ID, derived); err != nil {
 		return Candidate{}, err
@@ -2327,6 +2364,7 @@ func (s *Service) summarizeSection(ctx context.Context, text string) (string, bo
 		Role: "summarize.faithful", Locality: "local_only",
 		Instruction: "Summarize the supplied prose faithfully in two or three sentences. Return only the summary.",
 		Query:       text, Strategy: samplerDirect, K: 1, MaxOutputTokens: 256,
+		PrivacyClass: prosePrivacyClass, PrivacySource: prosePrivacySource,
 	})
 	if err != nil || len(responses) == 0 || strings.TrimSpace(responses[0].Text) == "" {
 		return deterministicExcerpt(text), true

@@ -117,6 +117,8 @@ type ResolvedProfile struct {
 type Provenance struct {
 	ProfileVersion           string           `json:"profile_version"`
 	Locality                 string           `json:"locality,omitempty"`
+	PrivacyClass             string           `json:"privacy_class,omitempty"`
+	PrivacySource            string           `json:"privacy_source,omitempty"`
 	StyleVersions            []string         `json:"style_versions"`
 	Strategy                 string           `json:"strategy"`
 	StrategyParameters       Sampler          `json:"strategy_parameters"`
@@ -480,6 +482,8 @@ type GatewayRequest struct {
 	MaxOutputTokens   int             `json:"max_output_tokens"`
 	TemperatureStance string          `json:"temperature_stance"`
 	Locality          string          `json:"locality,omitempty"`
+	PrivacyClass      string          `json:"privacy_class"`
+	PrivacySource     string          `json:"privacy_source"`
 	Negative          NegativeContext `json:"negative_context,omitempty"`
 }
 type GatewayCandidate struct {

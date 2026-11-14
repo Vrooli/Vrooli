@@ -1,18 +1,27 @@
 package composition
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
+	"music-tools/internal/models"
 	"music-tools/internal/styles"
 )
+
+func allowRightsForTest(_ context.Context, _ json.RawMessage, _ string) (models.RightsDecision, error) {
+	return models.RightsDecision{Status: "allowed", DecisionSHA256: "test"}, nil
+}
 
 func TestExplicitUnsupportedLyricsExplainsCapabilityWithoutDroppingText(t *testing.T) {
 	const lyrics = "[Verse]\nOur words remain\n\n[Chorus]\nSing together\n"
 	input := styles.Compiled{StyleID: "song", Caption: "original song", Lyrics: lyrics, Params: styles.Params{Variant: "stable-audio-3-medium", Duration: 30}}
-	_, err := resolveComposition(input)
+	_, err := resolveComposition(context.Background(), input, allowRightsForTest)
 	if err == nil || !strings.Contains(err.Error(), "intelligible vocals") || !strings.Contains(err.Error(), "77e0398c26f7d22d801ec1bb036307e8b231f741/docs/guides/prompting.md") {
 		t.Fatalf("unsupported lyrics lack actual model reason/source: %v", err)
 	}
@@ -21,10 +30,74 @@ func TestExplicitUnsupportedLyricsExplainsCapabilityWithoutDroppingText(t *testi
 	}
 }
 
+func TestSA3AdmissionRechecksCurrentRightsBeforeResourceReadiness(t *testing.T) {
+	s, _ := testStateWithBrokerDB(t, nil)
+	defer s.JobManager.Close()
+
+	model, err := sa3RightsModel(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var allowed atomic.Bool
+	allowed.Store(true)
+	var evaluations atomic.Int32
+	s.RightsEvaluator = func(_ context.Context, raw json.RawMessage, use string) (models.RightsDecision, error) {
+		evaluations.Add(1)
+		if use != models.RightsUseLocalInference || len(raw) == 0 {
+			t.Fatalf("shared rights evaluator input: use=%q raw=%q", use, raw)
+		}
+		if allowed.Load() {
+			return models.RightsDecision{Status: "allowed", DecisionSHA256: "current-context"}, nil
+		}
+		return models.RightsDecision{Status: "denied", Reason: "revenue_threshold_exceeded"}, nil
+	}
+	var readinessCalls atomic.Int32
+	var unexpectedPath atomic.Value
+	ready := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		readinessCalls.Add(1)
+		if r.URL.Path != "/health" {
+			unexpectedPath.Store(r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		fmt.Fprintf(w, `{"model_loaded":true,"model_id":%q,"model_revision":%q,"device":"cuda","error":null}`, sa3Model, sa3Revision)
+	}))
+	defer ready.Close()
+	s.SA3URL = ready.URL
+	s.HTTP = ready.Client()
+	payload := composeJobPayload{ModelSnapshot: &model}
+
+	if _, _, err := s.sa3Admission(context.Background(), payload); err != nil {
+		t.Fatalf("allowed current-context admission: %v", err)
+	}
+	if readinessCalls.Load() != 1 || evaluations.Load() != 1 {
+		t.Fatalf("first admission: rights evaluations=%d readiness calls=%d", evaluations.Load(), readinessCalls.Load())
+	}
+	if unexpected := unexpectedPath.Load(); unexpected != nil {
+		t.Fatalf("unexpected SA3 readiness path %v", unexpected)
+	}
+
+	allowed.Store(false) // Simulate trusted organization context crossing a grant threshold.
+	if _, _, err := s.sa3Admission(context.Background(), payload); err == nil || !strings.Contains(err.Error(), "revenue_threshold_exceeded") {
+		t.Fatalf("changed context admission=%v, want current-rights refusal", err)
+	}
+	if readinessCalls.Load() != 1 || evaluations.Load() != 2 {
+		t.Fatalf("denied admission reached resource readiness: rights evaluations=%d readiness calls=%d", evaluations.Load(), readinessCalls.Load())
+	}
+
+	allowed.Store(true) // Restoring trusted context restores this exact route.
+	if _, _, err := s.sa3Admission(context.Background(), payload); err != nil {
+		t.Fatalf("restored current-context admission: %v", err)
+	}
+	if readinessCalls.Load() != 2 || evaluations.Load() != 3 {
+		t.Fatalf("restored admission: rights evaluations=%d readiness calls=%d", evaluations.Load(), readinessCalls.Load())
+	}
+}
+
 func TestCapabilitySelectionAndRecordedProviderValidationPreserveLyrics(t *testing.T) {
 	const lyrics = "[Verse]\nExact words\n"
 	compiled := styles.Compiled{StyleID: "song", Caption: "original pop song", Lyrics: lyrics, Params: styles.Params{BPM: 150, Duration: 30}}
-	selected, err := resolveComposition(compiled)
+	selected, err := resolveComposition(context.Background(), compiled, allowRightsForTest)
 	if err != nil || selected.Engine != providerACE {
 		t.Fatalf("real available lyric-capable route: %+v %v", selected, err)
 	}

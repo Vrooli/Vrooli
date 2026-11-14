@@ -3,6 +3,7 @@ package models
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -10,6 +11,38 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	db "github.com/vrooli/api-core/databasetest"
 )
+
+func allowRightsForTest(_ context.Context, _ json.RawMessage, _ string) (RightsDecision, error) {
+	return RightsDecision{Status: "allowed", DecisionSHA256: "test"}, nil
+}
+
+func TestEverySeedModelHasExplicitSharedRightsFacts(t *testing.T) {
+	registry, err := LoadSeed(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, model := range registry.List() {
+		var rights struct {
+			ArtifactID       string   `json:"artifact_id"`
+			Classification   string   `json:"classification"`
+			UnverifiedReason string   `json:"unverified_reason"`
+			ReviewTriggers   []string `json:"review_triggers"`
+		}
+		if len(model.Rights) == 0 || json.Unmarshal(model.Rights, &rights) != nil {
+			t.Errorf("model %s has no parseable shared rights record", model.ID)
+			continue
+		}
+		if rights.ArtifactID != model.ID || rights.Classification == "" {
+			t.Errorf("model %s rights identity/classification incomplete: %+v", model.ID, rights)
+		}
+		if rights.Classification == "unknown" && rights.UnverifiedReason == "" {
+			t.Errorf("model %s has unknown rights without an explicit reason", model.ID)
+		}
+		if len(rights.ReviewTriggers) == 0 {
+			t.Errorf("model %s rights has no review triggers", model.ID)
+		}
+	}
+}
 
 func TestUnknownLicenceDefaultsRestricted(t *testing.T) {
 	r := New(true, Model{ID: "unknown"})
@@ -123,18 +156,18 @@ func TestCompositionSelectionUsesCapabilityAndPreferenceNotBackendName(t *testin
 	alternative := Model{ID: "alternative", Variant: "other", Engine: "another-engine", CompositionPreference: 2, Licence: LicencePermissive, Operations: []string{"compose"}, SungLyrics: Capability{Supported: true}}
 	for _, needsLyrics := range []bool{false, true} {
 		r := New(false, preferred, alternative)
-		m, err := r.SelectComposition("", needsLyrics)
+		m, err := r.SelectCompositionWithRights(context.Background(), "", needsLyrics, allowRightsForTest)
 		if err != nil || m.ID != preferred.ID {
 			t.Fatalf("capable preferred model was displaced (lyrics=%v): %+v %v", needsLyrics, m, err)
 		}
 	}
 	preferred.SungLyrics = Capability{Reason: "No intelligible singing", Source: "https://example.test/limitation"}
 	r := New(false, preferred, alternative)
-	m, err := r.SelectComposition("", true)
+	m, err := r.SelectCompositionWithRights(context.Background(), "", true, allowRightsForTest)
 	if err != nil || m.ID != alternative.ID {
 		t.Fatalf("incapable preference not filtered: %+v %v", m, err)
 	}
-	if _, err := r.SelectComposition(preferred.Variant, true); err == nil || !strings.Contains(err.Error(), preferred.SungLyrics.Source) {
+	if _, err := r.SelectCompositionWithRights(context.Background(), preferred.Variant, true, allowRightsForTest); err == nil || !strings.Contains(err.Error(), preferred.SungLyrics.Source) {
 		t.Fatalf("explicit unsupported choice did not preserve refusal/source: %v", err)
 	}
 	if err := r.ValidateComposition(preferred.Engine, "", true); err == nil {
@@ -142,6 +175,16 @@ func TestCompositionSelectionUsesCapabilityAndPreferenceNotBackendName(t *testin
 	}
 	if err := r.ValidateComposition(alternative.Engine, "", true); err != nil {
 		t.Fatalf("recorded capable engine re-resolved default: %v", err)
+	}
+}
+
+func TestCompositionSelectionFailsClosedWithoutRightsEvaluator(t *testing.T) {
+	r, err := LoadSeed(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.SelectComposition("", false); err == nil || !strings.Contains(err.Error(), "rights") {
+		t.Fatalf("selection without shared rights evaluation = %v, want fail-closed rights refusal", err)
 	}
 }
 
@@ -161,15 +204,15 @@ func TestSeedCompositionLyricsCapabilitiesAndExactVariants(t *testing.T) {
 		{"acestep-v15-sft", true, "ace-step"},
 		{"yue2-q8", true, "songgen"},
 	} {
-		m, err := r.SelectComposition(tc.variant, tc.lyrics)
+		m, err := r.SelectCompositionWithRights(context.Background(), tc.variant, tc.lyrics, allowRightsForTest)
 		if err != nil || m.Engine != tc.want || (tc.variant != "" && m.Variant != tc.variant) {
 			t.Errorf("selection %+v: %+v %v", tc, m, err)
 		}
 	}
-	if _, err := r.SelectComposition("stable-audio-3-medium", true); err == nil || !strings.Contains(err.Error(), "intelligible vocals") || !strings.Contains(err.Error(), "77e0398c") {
+	if _, err := r.SelectCompositionWithRights(context.Background(), "stable-audio-3-medium", true, allowRightsForTest); err == nil || !strings.Contains(err.Error(), "intelligible vocals") || !strings.Contains(err.Error(), "77e0398c") {
 		t.Fatalf("actual SA3 limitation lacks pinned source: %v", err)
 	}
-	sft, err := r.SelectComposition("acestep-v15-sft", true)
+	sft, err := r.SelectCompositionWithRights(context.Background(), "acestep-v15-sft", true, allowRightsForTest)
 	if err != nil || sft.Revision != "c410d249e71ea9385a7b586865e65b1473e1098d" || sft.Checksum != "d4dd3a93870f06720027965b90771f529ab02094b3d29e2518f1d5e097e1af7e" || sft.Installed {
 		t.Fatalf("SFT aliases Turbo closure or installation: %+v %v", sft, err)
 	}
@@ -177,13 +220,13 @@ func TestSeedCompositionLyricsCapabilitiesAndExactVariants(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.SelectComposition("yue2-q8", true); !errors.Is(err, ErrRestrictedModel) {
+	if _, err := r.SelectCompositionWithRights(context.Background(), "yue2-q8", true, allowRightsForTest); !errors.Is(err, ErrRestrictedModel) {
 		t.Fatalf("research-only YuE2 must be refused in the permissive lane: %v", err)
 	}
-	if _, err := r.SelectComposition("", false); !errors.Is(err, ErrRestrictedModel) {
+	if _, err := r.SelectCompositionWithRights(context.Background(), "", false, allowRightsForTest); !errors.Is(err, ErrRestrictedModel) {
 		t.Fatalf("license refusal silently changed preferred engine: %v", err)
 	}
-	if _, err := r.SelectComposition("unknown", true); err == nil {
+	if _, err := r.SelectCompositionWithRights(context.Background(), "unknown", true, allowRightsForTest); err == nil {
 		t.Fatal("unknown explicit variant silently fell back")
 	}
 }

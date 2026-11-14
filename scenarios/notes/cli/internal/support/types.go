@@ -63,20 +63,3 @@ type SearchResponse struct {
 	Query   string `json:"query"`
 	Count   int    `json:"count"`
 }
-
-// SemanticSearchResult is one hit from /api/search/semantic.
-type SemanticSearchResult struct {
-	ID       string  `json:"id"`
-	Score    float64 `json:"score,omitempty"`
-	Title    string  `json:"title,omitempty"`
-	Content  string  `json:"content,omitempty"`
-	Summary  string  `json:"summary,omitempty"`
-	FolderID string  `json:"folder_id,omitempty"`
-}
-
-// SemanticSearchResponse wraps /api/search/semantic results.
-type SemanticSearchResponse struct {
-	Results []SemanticSearchResult `json:"results"`
-	Query   string                 `json:"query"`
-	Count   int                    `json:"count"`
-}

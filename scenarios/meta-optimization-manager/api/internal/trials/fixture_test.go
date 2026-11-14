@@ -69,6 +69,27 @@ func TestFixtureResolverReadsCorpusAndRevisions(t *testing.T) {
 	}
 }
 
+func TestFixtureResolverLoadsGoldenSolutionOnlyOutsideAgentScope(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, SuiteAddFeature, "Add a greeting", "#!/usr/bin/env bash\nexit 0\n",
+		"answer.txt", "TODO\n", []string{"bash", "check.sh"}, false)
+	dir := filepath.Join(root, SuiteAddFeature)
+	mustWrite(t, filepath.Join(dir, "fixture.json"), `{"family":"add-feature","oracle":["bash","check.sh"],"golden_solution_file":"golden.diff"}`)
+	mustWrite(t, filepath.Join(dir, "golden.diff"), "reference diff\n")
+
+	r := NewFixtureResolverWithRoot(root)
+	fx, ok, err := r.Resolve(context.Background(), TrialTask{ID: "trial/g1", Suite: SuiteAddFeature})
+	if err != nil || !ok || fx.GoldenSolution != "reference diff\n" {
+		t.Fatalf("golden solution was not loaded for the oracle regression test: ok=%v solution=%q err=%v", ok, fx.GoldenSolution, err)
+	}
+
+	mustWrite(t, filepath.Join(dir, "fixture.json"), `{"family":"add-feature","oracle":["bash","check.sh"],"golden_solution_file":"target/golden.diff"}`)
+	_, _, err = r.Resolve(context.Background(), TrialTask{ID: "trial/g1", Suite: SuiteAddFeature})
+	if err == nil {
+		t.Fatal("golden solution inside the agent scope must be rejected")
+	}
+}
+
 func TestFixtureResolverNegativeAndMissing(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, SuiteNegative, "Refuse to answer", "", "", "", nil, true)

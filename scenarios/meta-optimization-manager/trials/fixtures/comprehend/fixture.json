@@ -3,5 +3,6 @@
   "negative": false,
   "prompt_file": "spec.md",
   "oracle": ["bash", "check.sh"],
-  "target_dir": "target"
+  "target_dir": "target",
+  "golden_solution_file": "golden.diff"
 }

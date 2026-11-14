@@ -22,11 +22,11 @@ func (f *privacyCaptureInference) Run(_ context.Context, request *connect.Reques
 	f.request = request.Msg
 	return connect.NewResponse(&inferencev1.RunResponse{Error: &inferencev1.InferenceError{
 		Code:    inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE,
-		Message: "remote providers require an explicit privacy classification",
+		Message: "fixture denied provider candidate",
 	}}), nil
 }
 
-func TestHTTPGatewayPreservesUnknownPrivacyAndSurfacesRemoteRefusal(t *testing.T) {
+func TestHTTPGatewayCarriesTheSourcedPrivacyContractAndSurfacesRemoteRefusal(t *testing.T) {
 	fixture := &privacyCaptureInference{}
 	path, handler := inferenceconnect.NewInferenceServiceHandler(fixture)
 	mux := http.NewServeMux()
@@ -37,14 +37,37 @@ func TestHTTPGatewayPreservesUnknownPrivacyAndSurfacesRemoteRefusal(t *testing.T
 	_, err := (HTTPGateway{BaseURL: server.URL}).Generate(context.Background(), GatewayRequest{
 		Role: "write.default", Instruction: "Write a short response.", Query: "unclassified source",
 		Strategy: samplerDirect, K: 1, MaxOutputTokens: 128, Locality: "remote_only",
+		PrivacyClass: prosePrivacyClass, PrivacySource: prosePrivacySource,
 	})
-	if err == nil || !strings.Contains(err.Error(), "explicit privacy classification") {
-		t.Fatalf("remote refusal error = %v", err)
+	if err == nil || !strings.Contains(err.Error(), "fixture denied provider candidate") {
+		t.Fatalf("gateway error = %v", err)
 	}
 	if fixture.request == nil || fixture.request.GetProfile() != sharedv1.Profile_PROFILE_REMOTE_ONLY {
 		t.Fatalf("profile request = %v, want remote_only", fixture.request)
 	}
-	if fixture.request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED {
-		t.Fatalf("privacy class = %s, want UNSPECIFIED because Prose has no source", fixture.request.GetPrivacyClass())
+	if fixture.request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL {
+		t.Fatalf("privacy class = %s, want the Prose private-editorial-content classification", fixture.request.GetPrivacyClass())
+	}
+	if fixture.request.GetPrivacyProvenance() != prosePrivacySource {
+		t.Fatalf("privacy provenance = %q, want Prose Studio data source", fixture.request.GetPrivacyProvenance())
+	}
+}
+
+func TestHTTPGatewayRefusesMissingPrivacyProvenanceBeforeDispatch(t *testing.T) {
+	called := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	_, err := (HTTPGateway{BaseURL: server.URL}).Generate(context.Background(), GatewayRequest{
+		Role: "write.default", Instruction: "Write.", Query: "draft", Strategy: samplerDirect, K: 1,
+		MaxOutputTokens: 128, Locality: "remote_only",
+	})
+	if err == nil || !strings.Contains(err.Error(), "requires privacy provenance") {
+		t.Fatalf("missing privacy provenance error = %v", err)
+	}
+	if called {
+		t.Fatal("gateway was called without a sourced privacy classification")
 	}
 }

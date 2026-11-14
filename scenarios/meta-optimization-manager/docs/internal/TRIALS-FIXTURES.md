@@ -17,6 +17,7 @@ trials/fixtures/<family>/
   fixture.json   metadata (see below)
   spec.md        the agent prompt — the concrete task to perform on target/
   check.sh       the deterministic oracle (exit 0 = solved). Omit for negatives.
+  golden.diff    optional reference solution for oracle regression tests only
   target/        the minimal codebase the agent edits (the agent's scope-path)
 ```
 
@@ -33,6 +34,7 @@ cannot read or game the oracle.
 | `prompt_file` | the spec file (default `spec.md`)                             |
 | `oracle`      | the check command, e.g. `["bash","check.sh"]`; `[]` for negatives |
 | `target_dir`  | the agent's scope subdir (default `target`)                  |
+| `golden_solution_file` | optional reference diff for the oracle regression test; it must stay outside `target/` |
 
 ## How evaluation runs
 
@@ -58,8 +60,11 @@ cannot read or game the oracle.
 4. Write `check.sh` so that **exit 0 ⇔ the task is solved**. Keep it
    hermetic (only the tools you can rely on: bash + coreutils + git). Make it
    robust to reasonable solution variation (assert behaviour, not exact text).
-5. Add `fixture.json`.
-6. The fixture **revision** hashes the complete fixture directory: manifest,
+5. Optionally add `golden.diff` and set `golden_solution_file` to prove the
+   oracle accepts one known solution. The resolver rejects this file when it is
+   inside the agent's target scope, and the Runner never sends it to the agent.
+6. Add `fixture.json`.
+7. The fixture **revision** hashes the complete fixture directory: manifest,
    prompt, oracle scripts, target files, relative paths and permission bits.
    Editing any input changes the revision, so history never compares results
    across incompatible evaluation substrates. Symlinks are rejected because

@@ -8,7 +8,9 @@
   "mechanism": "session",
   "tags": [
     "difficulty-4",
-    "session"
+    "session",
+    "hard",
+    "very-hard"
   ],
   "page": {
     "title": "Login and sessions Practice 4",

@@ -1114,7 +1114,7 @@ func TestDeterministicRequestErrorIsNotRetried(t *testing.T) {
 }
 
 func TestExhaustedAttemptsNameTheStepAndTheCause(t *testing.T) {
-	s, _ := newFlakyService(t, func(_ int, req GatewayRequest) error {
+	s, gw := newFlakyService(t, func(_ int, req GatewayRequest) error {
 		if isSectionCall(req) {
 			return errors.New("ai-gateway inference: provider value failed local validation")
 		}
@@ -1127,6 +1127,18 @@ func TestExhaustedAttemptsNameTheStepAndTheCause(t *testing.T) {
 	_, err = s.CreateDocument(ctx, Document{Title: "A document that never lands", ProfileKey: "doomed"}, nil)
 	require.ErrorContains(t, err, "section 0 generation failed after 2 attempts")
 	require.ErrorContains(t, err, "failed local validation", "the provider's own reason must survive the wrapper")
+	var sectionAttempts []GatewayRequest
+	for _, request := range gw.seen {
+		if isSectionCall(request) {
+			sectionAttempts = append(sectionAttempts, request)
+		}
+	}
+	require.Len(t, sectionAttempts, 2)
+	for _, request := range sectionAttempts {
+		require.Equal(t, prosePrivacyClass, request.PrivacyClass)
+		require.Equal(t, prosePrivacySource, request.PrivacySource)
+		require.Equal(t, "local_first", request.Locality, "retry must retain the task's locality contract")
+	}
 }
 
 func TestVerbalizedSetFallsBackToADirectDraw(t *testing.T) {
@@ -1191,6 +1203,8 @@ func TestFailedSummarisationDegradesRatherThanDiscardingTheDocument(t *testing.T
 	require.NotEmpty(t, summaryCalls, "context compression should attempt the dedicated summary task")
 	for _, request := range summaryCalls {
 		require.Equal(t, "local_only", request.Locality, "private draft text must not fall back to a hosted route")
+		require.Equal(t, prosePrivacyClass, request.PrivacyClass)
+		require.Equal(t, prosePrivacySource, request.PrivacySource)
 	}
 
 	var last Section

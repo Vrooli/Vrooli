@@ -96,7 +96,11 @@ func main() {
 		log.Fatalf("music blob storage configuration failed: %v", err)
 	}
 	musicBlobs.SetBudgetBytes(32 << 30)
-	compositionState, err := compositionH.NewStateWithCapacityAndStorage(db.Primary(), capacity.CLICapacityBroker{}, musicBlobs)
+	// The shared model-rights evaluator is an explicit constructor dependency.
+	// Scenario Dependency Analyzer admission is currently below the host disk
+	// reserve, so nil deliberately keeps model-backed requests fail-closed until
+	// the canonical policy adapter can be injected here.
+	compositionState, err := compositionH.NewStateWithCapacityStorageAndRightsEvaluator(db.Primary(), capacity.CLICapacityBroker{}, musicBlobs, nil)
 	if err != nil {
 		log.Fatalf("composition job manager initialization failed: %v", err)
 	}

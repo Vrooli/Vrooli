@@ -8,7 +8,9 @@
   "mechanism": "changing_layout",
   "tags": [
     "difficulty-4",
-    "changing_layout"
+    "changing_layout",
+    "hard",
+    "very-hard"
   ],
   "page": {
     "title": "Layouts that change between visits Practice 4",

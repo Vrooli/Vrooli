@@ -9,8 +9,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
+	core "music-tools/internal/composition"
 	"music-tools/internal/jobs"
 	"music-tools/internal/models"
 	"music-tools/internal/styles"
@@ -30,8 +32,10 @@ func songTestServer(t *testing.T, model models.Model, mutate func(*songReceipt))
 	audio := sa3TestWAV(4410)
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {
-			json.NewEncoder(w).Encode(map[string]any{"protocol": "song-v1", "catalog_sha256": model.Runtime.CatalogSHA256, "artifact_sha256": model.Runtime.ArtifactSHA256,
-				"profiles": map[string]any{model.Runtime.Profile: map[string]any{"available": true, "model_id": model.ID, "revision": model.Revision}}})
+			json.NewEncoder(w).Encode(map[string]any{
+				"protocol": "song-v1", "catalog_sha256": model.Runtime.CatalogSHA256, "artifact_sha256": model.Runtime.ArtifactSHA256,
+				"profiles": map[string]any{model.Runtime.Profile: map[string]any{"available": true, "model_id": model.ID, "revision": model.Revision}},
+			})
 			return
 		}
 		if r.Method == http.MethodPost {
@@ -191,5 +195,45 @@ func TestSongMissingDataHasExactOwnerRecoveryCommand(t *testing.T) {
 	err := state.songReady(t.Context(), model)
 	if err == nil || !strings.Contains(err.Error(), "vrooli resource acquisition data songgen --group heartmula-3b") {
 		t.Fatalf("missing recovery: %v", err)
+	}
+}
+
+func TestSongGenerationRechecksRightsAfterReadiness(t *testing.T) {
+	model := songTestModel(t, "minimax-music3-nf4")
+	state, _ := testStateWithBrokerDB(t, nil)
+	defer state.JobManager.Close()
+	var allowed atomic.Bool
+	allowed.Store(true)
+	var evaluations atomic.Int32
+	state.RightsEvaluator = func(_ context.Context, _ json.RawMessage, _ string) (models.RightsDecision, error) {
+		evaluations.Add(1)
+		if allowed.Load() {
+			return models.RightsDecision{Status: "allowed"}, nil
+		}
+		return models.RightsDecision{Status: "denied", Reason: "revenue_threshold_exceeded"}, nil
+	}
+	var composeCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			allowed.Store(false) // Simulate a trusted-context change during readiness.
+			json.NewEncoder(w).Encode(map[string]any{
+				"protocol": "song-v1", "catalog_sha256": model.Runtime.CatalogSHA256, "artifact_sha256": model.Runtime.ArtifactSHA256,
+				"profiles": map[string]any{model.Runtime.Profile: map[string]any{"available": true, "model_id": model.ID, "revision": model.Revision}},
+			})
+			return
+		}
+		composeCalls.Add(1)
+	}))
+	defer server.Close()
+	t.Setenv("SONGGEN_URL", server.URL)
+	state.HTTP = server.Client()
+	compiled := styles.Compiled{StyleID: "song", Caption: "bright synth pop", Lyrics: "authored words", Params: styles.Params{Variant: model.Variant, Duration: 1, Steps: model.Runtime.DefaultSteps, Guidance: model.Runtime.DefaultGuidance}}
+	take := &core.Take{Provenance: core.Provenance{Seed: 7}}
+	_, err := state.generateSongTake(context.Background(), take, composeRequest{Duration: 1}, compiled, model)
+	if err == nil || !strings.Contains(err.Error(), "revenue_threshold_exceeded") {
+		t.Fatalf("generation after context flip = %v, want rights refusal", err)
+	}
+	if evaluations.Load() != 2 || composeCalls.Load() != 0 {
+		t.Fatalf("rights evaluations=%d compose calls=%d; want second check before POST", evaluations.Load(), composeCalls.Load())
 	}
 }

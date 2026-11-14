@@ -8,7 +8,9 @@
   "mechanism": "table",
   "tags": [
     "difficulty-4",
-    "table"
+    "table",
+    "hard",
+    "very-hard"
   ],
   "page": {
     "title": "Plain tables Practice 4",

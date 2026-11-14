@@ -27,18 +27,20 @@ import (
 //	spec.md        the agent prompt — the concrete task to perform on target/
 //	check.sh       the oracle (run in a COPY of target/ with the agent's diff
 //	               applied); exit 0 = solved. Absent for negative fixtures.
+//	golden.diff    optional reference solution, always outside the agent scope
 //	target/        the minimal codebase the agent edits (the agent's scope-path)
 //
 // The oracle lives OUTSIDE target/ so the agent (scoped to target/) cannot read
 // it and game the check.
 type Fixture struct {
-	Family    string   // suite family this fixture represents
-	Dir       string   // fixture dir (spec/check/target live here)
-	TargetDir string   // abs path to target/ — the agent's scope-path
-	Rev       string   // content revision of the fixture inputs (idempotency key)
-	Prompt    string   // spec content — becomes the agent task description
-	Oracle    []string // deterministic check command; run in a diff-applied copy of target/
-	Negative  bool     // honesty/abstention fixture (pass = correct abstention)
+	Family         string   // suite family this fixture represents
+	Dir            string   // fixture dir (spec/check/target live here)
+	TargetDir      string   // abs path to target/ — the agent's scope-path
+	Rev            string   // content revision of the fixture inputs (idempotency key)
+	Prompt         string   // spec content — becomes the agent task description
+	Oracle         []string // deterministic check command; run in a diff-applied copy of target/
+	GoldenSolution string   // optional reference diff read only by oracle regression tests
+	Negative       bool     // honesty/abstention fixture (pass = correct abstention)
 }
 
 // FixtureResolver maps a generated TrialTask to the committed fixture that
@@ -52,11 +54,12 @@ type FixtureResolver interface {
 
 // fixtureManifest is the on-disk fixture.json shape.
 type fixtureManifest struct {
-	Family     string   `json:"family"`
-	Negative   bool     `json:"negative"`
-	PromptFile string   `json:"prompt_file"` // default "spec.md"
-	Oracle     []string `json:"oracle"`      // e.g. ["bash","check.sh"]; empty for negative
-	TargetDir  string   `json:"target_dir"`  // default "target"
+	Family             string   `json:"family"`
+	Negative           bool     `json:"negative"`
+	PromptFile         string   `json:"prompt_file"`          // default "spec.md"
+	Oracle             []string `json:"oracle"`               // e.g. ["bash","check.sh"]; empty for negative
+	TargetDir          string   `json:"target_dir"`           // default "target"
+	GoldenSolutionFile string   `json:"golden_solution_file"` // optional reference diff for oracle regression tests
 }
 
 // fileFixtureResolver reads the committed fixture corpus from the scenario tree.
@@ -146,16 +149,45 @@ func buildFixture(dir, family string, m fixtureManifest) (Fixture, bool, error) 
 	if err != nil {
 		return Fixture{}, false, fmt.Errorf("trials: revision %s: %w", family, err)
 	}
+	goldenSolution, err := readGoldenSolution(dir, targetDir, m.GoldenSolutionFile)
+	if err != nil {
+		return Fixture{}, false, fmt.Errorf("trials: fixture %s golden solution: %w", family, err)
+	}
 	negative := m.Negative || family == SuiteNegative
 	return Fixture{
-		Family:    family,
-		Dir:       dir,
-		TargetDir: targetDir,
-		Rev:       rev,
-		Prompt:    strings.TrimSpace(string(prompt)),
-		Oracle:    m.Oracle,
-		Negative:  negative,
+		Family:         family,
+		Dir:            dir,
+		TargetDir:      targetDir,
+		Rev:            rev,
+		Prompt:         strings.TrimSpace(string(prompt)),
+		Oracle:         m.Oracle,
+		GoldenSolution: goldenSolution,
+		Negative:       negative,
 	}, true, nil
+}
+
+func readGoldenSolution(fixtureDir, targetDir, file string) (string, error) {
+	file = strings.TrimSpace(file)
+	if file == "" {
+		return "", nil
+	}
+	if filepath.IsAbs(file) {
+		return "", fmt.Errorf("golden solution path must be relative")
+	}
+	cleaned := filepath.Clean(file)
+	if cleaned == "." || cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("golden solution path must remain inside the fixture directory")
+	}
+	path := filepath.Join(fixtureDir, cleaned)
+	targetRelative, err := filepath.Rel(targetDir, path)
+	if err == nil && targetRelative != ".." && !strings.HasPrefix(targetRelative, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("golden solution must remain outside the agent's target directory")
+	}
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(contents), nil
 }
 
 // fixtureRev is a stable content hash over the complete fixture directory,

@@ -1,0 +1,6 @@
+diff --git a/ANSWER.txt b/ANSWER.txt
+new file mode 100644
+--- /dev/null
++++ b/ANSWER.txt
+@@ -0,0 +1 @@
++compute_checksum

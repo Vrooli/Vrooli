@@ -36,12 +36,12 @@ func (p composeJobPayload) provider() (string, error) {
 	}
 }
 
-func resolveComposition(c styles.Compiled) (models.Model, error) {
+func resolveComposition(ctx context.Context, c styles.Compiled, evaluator models.RightsEvaluator) (models.Model, error) {
 	registry, err := models.LoadSeed(false)
 	if err != nil {
 		return models.Model{}, err
 	}
-	return registry.SelectComposition(c.Params.Variant, styles.ResolveLyrics(c.Lyrics) != styles.InstrumentalLyrics)
+	return registry.SelectCompositionWithRights(ctx, c.Params.Variant, styles.ResolveLyrics(c.Lyrics) != styles.InstrumentalLyrics, evaluator)
 }
 
 func validateProviderInput(provider string, c styles.Compiled, r composeRequest, permissive bool) error {
@@ -146,7 +146,14 @@ func (s *ModuleState) resolvedInput(p composeJobPayload) (styles.Compiled, error
 
 // Admission validates readiness; resource lifecycle owns SA3 residency and its
 // one generation slot. It must never acquire an ACE offload/job claim.
-func (s *ModuleState) sa3Admission(ctx context.Context) (func(), map[string]string, error) {
+func (s *ModuleState) sa3Admission(ctx context.Context, payload composeJobPayload) (func(), map[string]string, error) {
+	model, err := sa3RightsModel(payload.ModelSnapshot)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := s.requireCurrentModelRights(ctx, model); err != nil {
+		return nil, nil, err
+	}
 	if s.PermissiveOnly {
 		return nil, nil, fmt.Errorf("Stable Audio 3 requires restricted Community/Gemma eligibility; permissive lane refuses it without fallback")
 	}
@@ -154,6 +161,28 @@ func (s *ModuleState) sa3Admission(ctx context.Context) (func(), map[string]stri
 		return nil, nil, e
 	}
 	return nil, map[string]string{"composition_provider": providerSA3, "capacity_ownership": "resource:stable-audio-3"}, nil
+}
+
+func sa3RightsModel(snapshot *models.Model) (models.Model, error) {
+	if snapshot != nil {
+		if snapshot.ID != "stabilityai/stable-audio-3-medium" {
+			return models.Model{}, fmt.Errorf("Stable Audio 3 snapshot has unexpected model identity %q", snapshot.ID)
+		}
+		return *snapshot, nil
+	}
+	registry, err := models.LoadSeed(false)
+	if err != nil {
+		return models.Model{}, err
+	}
+	return registry.Resolve("stabilityai/stable-audio-3-medium")
+}
+
+func (s *ModuleState) requireCurrentModelRights(ctx context.Context, model models.Model) error {
+	decision, err := models.EvaluateCurrentRights(ctx, s.RightsEvaluator, model, models.RightsUseLocalInference)
+	if err != nil || decision.Status != "allowed" {
+		return fmt.Errorf("model %q rights are not allowed: %s", model.ID, decision.Reason)
+	}
+	return nil
 }
 
 // aceAdmission relies on the managed ACE-Step resource's persistent capacity

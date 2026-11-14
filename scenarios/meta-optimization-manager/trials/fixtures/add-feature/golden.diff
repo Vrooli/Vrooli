@@ -1,0 +1,9 @@
+diff --git a/sum.sh b/sum.sh
+--- a/sum.sh
++++ b/sum.sh
+@@ -1,4 +1,4 @@
+ #!/usr/bin/env bash
+ # sum.sh A B — print the integer sum of A and B.
+ # TODO: implement. Currently always prints 0.
+-echo 0
++echo $(( $1 + $2 ))

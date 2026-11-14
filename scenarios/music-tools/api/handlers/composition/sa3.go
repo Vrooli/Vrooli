@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/mux"
 
 	core "music-tools/internal/composition"
+	"music-tools/internal/models"
 	"music-tools/internal/styles"
 )
 
@@ -220,8 +221,11 @@ func validateSA3WAV(data []byte, frames int64) error {
 	return nil
 }
 
-func (s *ModuleState) generateSA3Take(ctx context.Context, take *core.Take, request composeRequest, compiled styles.Compiled) (sa3Profile, error) {
+func (s *ModuleState) generateSA3Take(ctx context.Context, take *core.Take, request composeRequest, compiled styles.Compiled, model models.Model) (sa3Profile, error) {
 	var profile sa3Profile
+	if err := s.requireCurrentModelRights(ctx, model); err != nil {
+		return profile, err
+	}
 	if take.Provenance.Seed < 0 || take.Provenance.Seed > math.MaxUint32 {
 		return profile, fmt.Errorf("effective seed is not uint32")
 	}
@@ -243,6 +247,11 @@ func (s *ModuleState) generateSA3Take(ctx context.Context, take *core.Take, requ
 	raw, e := json.Marshal(payload)
 	if e != nil {
 		return profile, e
+	}
+	// Re-read policy after readiness and request construction. A threshold may
+	// have changed while the resource health check was in flight.
+	if err := s.requireCurrentModelRights(ctx, model); err != nil {
+		return profile, err
 	}
 	response, e := s.sa3HTTP(ctx, http.MethodPost, "/v1/compose", raw)
 	if e != nil {

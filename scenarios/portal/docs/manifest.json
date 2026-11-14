@@ -266,6 +266,32 @@
       "extensionPolicy": "Add durable concept docs here when they describe cross-cutting product/system ideas. Put deep domain-specific material under docs/domains/<domain>/ once a domain outgrows the central domain map.",
       "documents": [
         {
+          "path": "concepts/SUCCESSOR-PATH.md",
+          "docType": "product-direction",
+          "title": "Portal Successor Path",
+          "aliases": [
+            "agent-inbox successor",
+            "app-monitor successor",
+            "suite surface"
+          ],
+          "description": "Successor direction and ownership boundaries for the Vrooli suite chat and app surface",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "suite-surface-successor",
+            "portal-subscription-placement"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "oriented",
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
           "path": "concepts/ARCHITECTURE.md",
           "docType": "architecture",
           "title": "Architecture",

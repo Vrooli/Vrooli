@@ -38,7 +38,7 @@
 - Preferred stacks / frameworks: React/Vite UI, Go API/CLI, Connect/proto contracts, SQLite through api-core storage.
 - Data + storage expectations: Scenario-local SQLite under the data directory; declarative schema for persisted chat state when the chat domain lands.
 - Integration strategy: Optional scenario dependencies first; every dependency fails soft and reports readiness instead of blocking boot.
-- Non-goals / guardrails: No agent-inbox/app-monitor migration, no FULL pre-LLM short-circuit in v0, no REST feature endpoints beyond operational health.
+- Non-goals / guardrails: No agent-inbox/app-monitor data migration is in scope; Portal is their intended successor suite surface (see [SUCCESSOR-PATH.md](docs/concepts/SUCCESSOR-PATH.md)). No FULL pre-LLM short-circuit in v0 and no REST feature endpoints beyond operational health.
 
 ## 🤝 Dependencies & Launch Plan
 - Required resources: None for v0 boot; local storage only.

@@ -28,6 +28,27 @@
       "supported": true,
       "reason": "Pinned generation API accepts authored lyrics as a distinct conditioning input; vocal adherence still requires audition.",
       "source": "https://github.com/ace-step/ACE-Step-1.5/blob/ca1e85fe9430179831e6bc6be790c332190a3866/acestep/inference.py"
+    },
+    "rights": {
+      "artifact_id": "ACE-Step/Ace-Step1.5:acestep-v15-turbo",
+      "revision": "19671f406d603126926c1b7e2adc169acbcade22",
+      "sha256": "3f6e0797fad420a39bd33979eb6e840e30989e34a3794e843d23b60ec6e422d7",
+      "license_id": "MIT",
+      "classification": "unrestricted",
+      "evidence": {
+        "url": "https://huggingface.co/ACE-Step/Ace-Step1.5/blob/19671f406d603126926c1b7e2adc169acbcade22/README.md",
+        "revision": "19671f406d603126926c1b7e2adc169acbcade22",
+        "sha256": "69d69b89e313706b93b420b13aa6232259b207a1cd19b0b70358d166e8e451a0",
+        "observed_at": "2026-11-14"
+      },
+      "obligations": [
+        "Retain the MIT license, copyright notice, and disclaimer in distributed copies."
+      ],
+      "review_triggers": [
+        "artifact_changed",
+        "license_source_changed",
+        "review_due"
+      ]
     }
   },
   {
@@ -59,6 +80,57 @@
       "supported": false,
       "reason": "This model does not output intelligible vocals; vocal textures cannot satisfy authored sung lyrics.",
       "source": "https://github.com/Stability-AI/stable-audio-3/blob/77e0398c26f7d22d801ec1bb036307e8b231f741/docs/guides/prompting.md"
+    },
+    "rights": {
+      "artifact_id": "stabilityai/stable-audio-3-medium",
+      "revision": "d4d3579395a8ac0df4ab13b5b1d7138ce7290f81",
+      "sha256": "48d9c65e290e7bcd5194e0633bfc2424a59ee9683f5c2d58762d997b7d8ce0b5",
+      "license_id": "Stability AI Community License; Google Gemma Terms of Use",
+      "classification": "conditional",
+      "evidence": {
+        "url": "https://stability.ai/license",
+        "revision": "sha256:e17d11d3140401d234a34539666d4e52c8ee201efcb9fdf9ac38b9960ac1ecb1",
+        "sha256": "e17d11d3140401d234a34539666d4e52c8ee201efcb9fdf9ac38b9960ac1ecb1",
+        "observed_at": "2026-11-14"
+      },
+      "conditional_grants": [
+        {
+          "id": "stability-community-local-inference-under-usd-1m",
+          "uses": [
+            "local_inference"
+          ],
+          "conditions": [
+            {
+              "id": "stability-community-annual-revenue-under-usd-1m",
+              "kind": "annual_revenue",
+              "comparator": "lt",
+              "threshold": 1000000,
+              "unit": "USD",
+              "entity_scope": "operator-group",
+              "interpretation": "The Stability AI Community License permits covered commercial use below USD 1M annual revenue; use at or above the threshold requires a separate Enterprise license."
+            }
+          ],
+          "obligations": [
+            "Register commercial use with Stability AI when using the model or its outputs in a commercial product or service.",
+            "The T5Gemma component is also subject to Google Gemma Terms of Use and its prohibited-use policy."
+          ]
+        }
+      ],
+      "review_triggers": [
+        "artifact_changed",
+        "license_source_changed",
+        "organization_context_changed",
+        "revenue_threshold_crossed",
+        "review_due"
+      ],
+      "lineage": [
+        {
+          "kind": "license_source",
+          "identity": "Google Gemma Terms of Use (https://ai.google.dev/gemma/terms)",
+          "revision": "2026-04-01",
+          "sha256": "47ef76795c835087c10e69d5bd4e75ef66ed8be7d55f83b534839b43f5a3dfb9"
+        }
+      ]
     }
   },
   {
@@ -90,6 +162,20 @@
       "supported": true,
       "reason": "Pinned generation API accepts authored lyrics as a distinct conditioning input; vocal adherence still requires audition.",
       "source": "https://github.com/ace-step/ACE-Step-1.5/blob/ca1e85fe9430179831e6bc6be790c332190a3866/acestep/inference.py"
+    },
+    "rights": {
+      "artifact_id": "ACE-Step/Ace-Step1.5:acestep-v15-sft",
+      "revision": "c410d249e71ea9385a7b586865e65b1473e1098d",
+      "sha256": "d4dd3a93870f06720027965b90771f529ab02094b3d29e2518f1d5e097e1af7e",
+      "license_id": "MIT",
+      "classification": "unknown",
+      "unverified_reason": "declared_upstream_revision_returns_404;_license_source_cannot_be_bound",
+      "review_triggers": [
+        "artifact_changed",
+        "license_source_changed",
+        "artifact_revision_resolved",
+        "review_due"
+      ]
     }
   },
   {
@@ -153,6 +239,50 @@
       "supported": false,
       "reason": "The qualified song adapter accepts text conditioning and lyrics; reference-conditioned conversion is a separate operation.",
       "source": "resources/songgen/server/profiles.json"
+    },
+    "rights": {
+      "artifact_id": "MiniMaxAI/MiniMax-Music3",
+      "revision": "fbdf52fbaaca799592917417eb05f1899f1255ec",
+      "sha256": "83179c5eaa9a68a370affe0c1b96c2179f659ea4175666b31071490a202c2a4d",
+      "license_id": "MiniMax Music3 Model License",
+      "classification": "conditional",
+      "evidence": {
+        "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/blob/fbdf52fbaaca799592917417eb05f1899f1255ec/LICENSE",
+        "revision": "fbdf52fbaaca799592917417eb05f1899f1255ec",
+        "sha256": "b21d12df2adae59dad3fcf80c1d81492654c662342f497d9a9770198c9317e58",
+        "observed_at": "2026-11-14"
+      },
+      "conditional_grants": [
+        {
+          "id": "minimax-music3-commercial-use-below-usd-20m",
+          "uses": [
+            "local_inference"
+          ],
+          "conditions": [
+            {
+              "id": "minimax-aggregate-annual-revenue-below-usd-20m",
+              "kind": "annual_revenue",
+              "comparator": "lt",
+              "threshold": 20000000,
+              "unit": "USD",
+              "entity_scope": "operator-group",
+              "interpretation": "The license requires separate prior written authorization when aggregate annual revenue of the user and affiliates exceeds USD 20 million; this policy conservatively rechecks at USD 20 million."
+            }
+          ],
+          "obligations": [
+            "Display MiniMax-Music3 attribution in commercial applications using the model.",
+            "For products or services offered to third parties, implement, maintain, test, and periodically review reasonable safeguards."
+          ]
+        }
+      ],
+      "review_triggers": [
+        "artifact_changed",
+        "license_source_changed",
+        "organization_context_changed",
+        "revenue_threshold_crossed",
+        "distribution_model_changed",
+        "review_due"
+      ]
     }
   },
   {
@@ -215,11 +345,33 @@
       "supported": false,
       "reason": "The qualified song adapter accepts text conditioning and lyrics; reference-conditioned conversion is a separate operation.",
       "source": "resources/songgen/server/profiles.json"
+    },
+    "rights": {
+      "artifact_id": "HeartMuLa/HeartMuLa-oss-3B-happy-new-year",
+      "revision": "41f6fc68490e11dc43fdabaa6b5767946408c903",
+      "sha256": "4815367cdbddc0192abe3dbe81e2ae6a6e8978a39ad4dd1d26a20e445b3aeea6",
+      "license_id": "Apache-2.0",
+      "classification": "unrestricted",
+      "evidence": {
+        "url": "https://huggingface.co/HeartMuLa/HeartMuLa-oss-3B-happy-new-year/blob/41f6fc68490e11dc43fdabaa6b5767946408c903/README.md",
+        "revision": "41f6fc68490e11dc43fdabaa6b5767946408c903",
+        "sha256": "f243fc15258130c36d17223046057f12a52c05971f0f48b131cbd87f2f484a35",
+        "observed_at": "2026-11-14"
+      },
+      "obligations": [
+        "Include the Apache-2.0 license and any required NOTICE file in distributed copies.",
+        "Mark modified files with prominent notices when modifying the licensed work."
+      ],
+      "review_triggers": [
+        "artifact_changed",
+        "license_source_changed",
+        "review_due"
+      ]
     }
   },
   {
     "id": "audio-cpp/Yue2-3B-GGUF:yue2-q8",
-    "display_name": "YuE2 Q8 \u2014 native full-score planning",
+    "display_name": "YuE2 Q8 — native full-score planning",
     "variant": "yue2-q8",
     "revision": "cca74d8980c00f30ab8d52248a367c01ad633ec2",
     "licence": "restricted",
@@ -274,6 +426,41 @@
       "supported": false,
       "reason": "The qualified song adapter accepts text conditioning and lyrics; reference-conditioned conversion is a separate operation.",
       "source": "resources/songgen/server/profiles.json"
+    },
+    "rights": {
+      "artifact_id": "audio-cpp/Yue2-3B-GGUF:yue2-q8",
+      "revision": "cca74d8980c00f30ab8d52248a367c01ad633ec2",
+      "sha256": "52be345b5155bf9ef0b2411e7df8d1d2b8e13b6d977a2f70c35612ec69b1f591",
+      "license_id": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+      "classification": "prohibited",
+      "evidence": {
+        "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/blob/cca74d8980c00f30ab8d52248a367c01ad633ec2/README.md",
+        "revision": "cca74d8980c00f30ab8d52248a367c01ad633ec2",
+        "sha256": "49b1045caa920190b768b5b9c16af6095bae5083b9c76768d31f69221e2043eb",
+        "observed_at": "2026-11-14"
+      },
+      "obligations": [
+        "CC BY-NC 4.0 does not permit the stated commercial opportunity-serving use; pre-revenue status does not change the noncommercial restriction.",
+        "If a separate noncommercial research use is introduced, assess attribution, license-link, change-notice, and no-additional-restrictions obligations for that use."
+      ],
+      "lineage": [
+        {
+          "kind": "upstream_model",
+          "identity": "m-a-p/YuE2-3B",
+          "revision": "1a96eca688d6ae5d7f0feb88573fec89920fcd19"
+        },
+        {
+          "kind": "quantized_conversion",
+          "identity": "audio-cpp YuE2 Q8/F16",
+          "revision": "41c1f8ffa0d13a1b7e366e30ea5fe5ab8d169d48"
+        }
+      ],
+      "review_triggers": [
+        "artifact_changed",
+        "license_source_changed",
+        "use_purpose_changed",
+        "review_due"
+      ]
     }
   }
 ]

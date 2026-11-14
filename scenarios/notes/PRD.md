@@ -3,8 +3,13 @@
 Historical audit citations refer to the 2025-10-25 source, not current validation
 or a waiver for new findings. See [audit interpretation](PROBLEMS.md#historical-audit-interpretation).
 
+Current serving status: semantic vector search was removed because the endpoint had
+no admitted embedding and vector-store owner and returned 503. PostgreSQL text
+search remains served. Do not treat older feature-history statements below as
+evidence that semantic search is currently available.
+
 ## Executive Summary
-**What**: Local AI-enabled note-taking system with intelligent organization, semantic search, and real-time suggestions
+**What**: Local note-taking system with intelligent organization, text search, and real-time suggestions
 **Why**: Provides persistent knowledge management that other scenarios can leverage for memory and context
 **Who**: Individual users and Vrooli scenarios requiring knowledge persistence
 **Value**: $25K - Enterprise knowledge management system with AI capabilities
@@ -13,7 +18,7 @@ or a waiver for new findings. See [audit interpretation](PROBLEMS.md#historical-
 ## 🎯 Capability Definition
 
 ### Core Capability
-SmartNotes adds persistent, AI-enhanced knowledge management to Vrooli, enabling scenarios to store, retrieve, and intelligently search textual information using semantic understanding rather than just keyword matching.
+SmartNotes adds persistent knowledge management to Vrooli, enabling scenarios to store and retrieve notes and documentation. PostgreSQL text search is the current served search path.
 
 ### Intelligence Amplification
 - **Memory Persistence**: Scenarios gain long-term memory, allowing complex workflows to reference historical context
@@ -304,7 +309,6 @@ Other scenarios can integrate with SmartNotes via:
 ```yaml
 api_integration:
   - POST /api/notes: Store scenario output as notes
-  - GET /api/search/semantic: Find related context
   - GET /api/notes?folder_id=X: Retrieve scenario-specific notes
 
 cli_integration:
