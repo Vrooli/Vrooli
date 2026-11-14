@@ -284,7 +284,7 @@ func validateCF7X402Calls(calls []cf1TreasuryX402Call) error {
 type cf7ResearchBudgetAuthority struct{ runID uuid.UUID }
 
 func (a cf7ResearchBudgetAuthority) AuthorizeOperation(_ context.Context, principal coreidentity.Principal, capability, operation, target string) error {
-	if principal.Kind != coreidentity.ActorService || principal.Subject != "treasury" || !principal.IsVerified() || capability != "agent-manager:write" || operation != "research-budget.ingest" || target != "agent-manager:run/"+a.runID.String() {
+	if principal.Kind != coreidentity.ActorService || principal.Subject != "treasury-agent-manager" || !principal.IsVerified() || capability != "agent-manager:write" || operation != "research-budget.ingest" || target != "agent-manager:run/"+a.runID.String() {
 		return errors.New("CF7 test Treasury grant does not cover the exact run-scoped evidence operation")
 	}
 	return nil
@@ -302,7 +302,7 @@ func postCF7ResearchBudgetEvidence(ctx context.Context, db *database.DB, runID u
 	router := mux.NewRouter()
 	agenthandlers.RegisterResearchBudgetIngestion(router, researchbudget.Ledger{DB: db.DB})
 	service := coreidentity.Principal{
-		Kind: coreidentity.ActorService, Subject: "treasury", Verified: true,
+		Kind: coreidentity.ActorService, Subject: "treasury-agent-manager", Verified: true,
 		Scopes: []string{"agent-manager:write"},
 		Grant: &coreidentity.OperationGrant{
 			ID: "cf7-local-treasury-ingest-" + runID.String(), Approver: "cf7-local-operator",

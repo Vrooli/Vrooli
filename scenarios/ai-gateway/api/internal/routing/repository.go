@@ -21,6 +21,65 @@ type EvidenceFilter struct {
 	Limit    int
 }
 
+// ModelEvalRouteModel is a privacy-safe aggregate from the complete route
+// ledger. It records selected runtime models independently of installed model
+// tags and policy preferences.
+type ModelEvalRouteModel struct {
+	Scenario, Role, Provider, Locality, Model, Status string
+	SampleCount                                       int64
+	LatestObservedAt                                  string
+}
+
+// ModelEvalConsumers returns every scenario recorded by the real route ledger.
+// It is intentionally separate from configured roles: consumers are an
+// observed denominator and may include callers that have not been classified
+// into an accepted evaluation case yet.
+func (r *SQLRepository) ModelEvalConsumers(ctx context.Context) ([]string, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("route evidence repository is not configured")
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT DISTINCT scenario FROM route_events WHERE TRIM(scenario) <> '' ORDER BY scenario`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var consumers []string
+	for rows.Next() {
+		var consumer string
+		if err := rows.Scan(&consumer); err != nil {
+			return nil, err
+		}
+		consumers = append(consumers, consumer)
+	}
+	return consumers, rows.Err()
+}
+
+// ModelEvalRuntimeModels aggregates observed effective runtime choices over
+// all route events; unlike List it has no 100-event window.
+func (r *SQLRepository) ModelEvalRuntimeModels(ctx context.Context) ([]ModelEvalRouteModel, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("route evidence repository is not configured")
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT scenario, role, selected_provider, selected_locality, selected_model, status, COUNT(*), MAX(created_at)
+FROM route_events
+WHERE TRIM(selected_model) <> ''
+GROUP BY scenario, role, selected_provider, selected_locality, selected_model, status
+ORDER BY scenario, role, selected_model, status`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var observed []ModelEvalRouteModel
+	for rows.Next() {
+		var item ModelEvalRouteModel
+		if err := rows.Scan(&item.Scenario, &item.Role, &item.Provider, &item.Locality, &item.Model, &item.Status, &item.SampleCount, &item.LatestObservedAt); err != nil {
+			return nil, err
+		}
+		observed = append(observed, item)
+	}
+	return observed, rows.Err()
+}
+
 type SQLRepository struct {
 	db *sql.DB
 }
@@ -46,7 +105,7 @@ func (r *SQLRepository) Create(ctx context.Context, ev *routingv1.RouteEvidence)
 		return err
 	}
 	_, err = r.db.ExecContext(ctx, `INSERT INTO route_events (
-event_id, request_id, scenario, operation, role, profile, privacy_class,
+event_id, request_id, scenario, operation, role, profile, privacy_class, privacy_provenance, task_role, selected_resource_role,
 selected_provider, selected_locality, status, policy_reasons_json,
 failure_reasons_json, fallback_used, prompt_redacted, response_redacted,
 latency_ms, created_at,
@@ -56,7 +115,7 @@ capacity_reclaim_required, input_tokens, output_tokens, cost_estimate,
 selected_model, image_count, attachment_bytes, attachment_sha256,
 attachments_redacted, attachment_dimensions_json,
 sampling_temperature, sampling_temperature_support
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		ev.GetEventId(),
 		ev.GetRequestId(),
 		ev.GetScenario(),
@@ -64,6 +123,9 @@ sampling_temperature, sampling_temperature_support
 		ev.GetRole(),
 		int32(ev.GetProfile()),
 		int32(ev.GetPrivacyClass()),
+		ev.GetPrivacyProvenance(),
+		ev.GetTaskRole(),
+		ev.GetSelectedResourceRole(),
 		ev.GetSelectedProvider(),
 		ev.GetSelectedLocality(),
 		ev.GetStatus(),
@@ -146,7 +208,7 @@ func (r *SQLRepository) Get(ctx context.Context, eventID string) (*routingv1.Rou
 	return scanEvidence(row)
 }
 
-const listEvidenceSQL = `SELECT event_id, request_id, scenario, operation, role, profile, privacy_class,
+const listEvidenceSQL = `SELECT event_id, request_id, scenario, operation, role, profile, privacy_class, privacy_provenance, task_role, selected_resource_role,
 selected_provider, selected_locality, status, policy_reasons_json, failure_reasons_json,
 fallback_used, prompt_redacted, response_redacted, latency_ms, created_at,
 breaker_state, failure_class, rejection_reason, capacity_verdict, capacity_claim_id,
@@ -164,6 +226,7 @@ func scanEvidence(s scanner) (*routingv1.RouteEvidence, error) {
 	var ev routingv1.RouteEvidence
 	var policyJSON, failureJSON string
 	var profile, privacy int32
+	var privacyProvenance string
 	var fallbackUsed, promptRedacted, responseRedacted, capacityReclaimRequired, attachmentsRedacted int
 	var dimensionsJSON string
 	var samplingTemperature sql.NullFloat64
@@ -176,6 +239,9 @@ func scanEvidence(s scanner) (*routingv1.RouteEvidence, error) {
 		&ev.Role,
 		&profile,
 		&privacy,
+		&privacyProvenance,
+		&ev.TaskRole,
+		&ev.SelectedResourceRole,
 		&ev.SelectedProvider,
 		&ev.SelectedLocality,
 		&ev.Status,
@@ -215,6 +281,7 @@ func scanEvidence(s scanner) (*routingv1.RouteEvidence, error) {
 	ev.SamplingTemperatureSupport = samplingSupportEnum(samplingSupport)
 	ev.Profile = profileEnum(profile)
 	ev.PrivacyClass = privacyEnum(privacy)
+	ev.PrivacyProvenance = privacyProvenance
 	ev.FallbackUsed = fallbackUsed != 0
 	ev.PromptRedacted = promptRedacted != 0
 	ev.ResponseRedacted = responseRedacted != 0

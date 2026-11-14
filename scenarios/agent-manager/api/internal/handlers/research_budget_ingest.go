@@ -93,7 +93,7 @@ func RegisterResearchBudgetIngestion(router *mux.Router, ledger researchbudget.L
 
 func authorizeResearchBudgetIngest(w http.ResponseWriter, r *http.Request) bool {
 	p, ok := identity.PrincipalFromContext(r.Context())
-	if !ok || !p.IsVerified() || p.Kind != identity.ActorService || p.Subject != "treasury" {
+	if !ok || !p.IsVerified() || p.Kind != identity.ActorService || p.Subject != orchestration.TreasuryServiceSubject {
 		http.Error(w, "verified Treasury service identity required", http.StatusForbidden)
 		return false
 	}
@@ -121,7 +121,7 @@ func authorizeResearchBudgetIngest(w http.ResponseWriter, r *http.Request) bool 
 // Notification Hub human resolution can issue the one-hour, exact-target grant.
 func requestResearchBudgetIngestApproval(w http.ResponseWriter, r *http.Request, runID uuid.UUID) bool {
 	p, ok := identity.PrincipalFromContext(r.Context())
-	if !ok || p.Kind != identity.ActorService || !p.IsVerified() || p.Subject != "treasury" {
+	if !ok || p.Kind != identity.ActorService || !p.IsVerified() || p.Subject != orchestration.TreasuryServiceSubject {
 		http.Error(w, "verified Treasury service identity required", http.StatusForbidden)
 		return false
 	}

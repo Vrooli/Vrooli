@@ -18,12 +18,13 @@ import (
 	aisearch "github.com/vrooli/ai-go/search"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	evalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval/eval_v1connect"
-	"google.golang.org/protobuf/proto"
+	"github.com/vrooli/vrooli/packages/proto/searcheval"
 )
 
 const (
 	modelEvalMinimumRetrievalSuites = 35
 	modelEvalMinimumCasesPerRole    = 20
+	modelEvalCorpusValidationMaxAge = 30 * 24 * time.Hour
 )
 
 // ModelEvalReadinessSource reads Search Hub's immutable, independently
@@ -34,15 +35,46 @@ type ModelEvalReadinessSource interface {
 }
 
 type ModelEvalReadiness struct {
-	Ready                     bool           `json:"ready"`
-	RegisteredSuites          int            `json:"registered_suites"`
-	RequiredRetrievalSuites   int            `json:"required_retrieval_suites"`
-	SuiteInventoryDeficit     int            `json:"suite_inventory_deficit"`
-	FixedDenominatorSetSHA256 string         `json:"fixed_denominator_set_sha256,omitempty"`
-	MissingDenominatorIDs     []string       `json:"missing_denominator_suite_ids"`
-	InvalidDenominatorIDs     []string       `json:"invalid_denominator_suite_ids"`
-	RoleCoverage              []RoleCoverage `json:"role_coverage"`
-	TaskRoleCoverage          []RoleCoverage `json:"task_role_coverage"`
+	Ready                      bool                        `json:"ready"`
+	RegisteredSuites           int                         `json:"registered_suites"`
+	RequiredRetrievalSuites    int                         `json:"required_retrieval_suites"`
+	SuiteInventoryDeficit      int                         `json:"suite_inventory_deficit"`
+	FixedDenominatorSetSHA256  string                      `json:"fixed_denominator_set_sha256,omitempty"`
+	MissingDenominatorIDs      []string                    `json:"missing_denominator_suite_ids"`
+	InvalidDenominatorIDs      []string                    `json:"invalid_denominator_suite_ids"`
+	MissingCorpusValidationIDs []string                    `json:"missing_corpus_validation_suite_ids"`
+	InvalidCorpusValidationIDs []string                    `json:"invalid_corpus_validation_suite_ids"`
+	CorpusValidation           []ModelEvalCorpusValidation `json:"corpus_validation"`
+	StaleExpectedDocumentCases int32                       `json:"stale_expected_document_cases"`
+	RoleCoverage               []RoleCoverage              `json:"role_coverage"`
+	TaskRoleCoverage           []RoleCoverage              `json:"task_role_coverage"`
+	ConsumerCoverage           []RoleCoverage              `json:"consumer_coverage"`
+	ObservedRuntimeModels      []ModelEvalRuntimeModel     `json:"observed_runtime_models"`
+}
+
+// ModelEvalCorpusValidation is the privacy-safe rollup of Search Hub's latest
+// provider-owned corpus probe. Stale expected documents remain in the fixed
+// denominator and count as misses; validation never removes or rewrites labels.
+type ModelEvalCorpusValidation struct {
+	SuiteID        string `json:"suite_id"`
+	ValidatedAt    string `json:"validated_at"`
+	Positives      int32  `json:"positives"`
+	Live           int32  `json:"live"`
+	Hard           int32  `json:"hard"`
+	Stale          int32  `json:"stale"`
+	Inconclusive   int32  `json:"inconclusive"`
+	ProviderErrors int32  `json:"provider_errors"`
+}
+
+type ModelEvalRuntimeModel struct {
+	Scenario         string `json:"scenario"`
+	Role             string `json:"role"`
+	Provider         string `json:"provider"`
+	Locality         string `json:"locality"`
+	Model            string `json:"model"`
+	Status           string `json:"status"`
+	SampleCount      int64  `json:"sample_count"`
+	LatestObservedAt string `json:"latest_observed_at"`
 }
 
 type RoleCoverage struct {
@@ -55,11 +87,13 @@ type RoleCoverage struct {
 type searchHubEvalClient interface {
 	ListSuites(context.Context, *connect.Request[evalv1.ListSuitesRequest]) (*connect.Response[evalv1.ListSuitesResponse], error)
 	GetFixedDenominator(context.Context, *connect.Request[evalv1.GetFixedDenominatorRequest]) (*connect.Response[evalv1.GetFixedDenominatorResponse], error)
+	GetLatestCorpusValidation(context.Context, *connect.Request[evalv1.GetLatestCorpusValidationRequest]) (*connect.Response[evalv1.GetLatestCorpusValidationResponse], error)
 }
 
 type ModelEvalRoleDenominators struct {
 	PolicyRoles []string
 	TaskRoles   []string
+	Consumers   []string
 }
 
 type searchHubModelEvalSource struct {
@@ -103,12 +137,16 @@ func (s searchHubModelEvalSource) Readiness(ctx context.Context, roles ModelEval
 	}
 	suites := listed.Msg.GetSuites()
 	readiness := ModelEvalReadiness{
-		RegisteredSuites:        len(suites),
-		RequiredRetrievalSuites: modelEvalMinimumRetrievalSuites,
-		MissingDenominatorIDs:   []string{},
-		InvalidDenominatorIDs:   []string{},
-		RoleCoverage:            make([]RoleCoverage, 0, len(roles.PolicyRoles)),
-		TaskRoleCoverage:        make([]RoleCoverage, 0, len(roles.TaskRoles)),
+		RegisteredSuites:           len(suites),
+		RequiredRetrievalSuites:    modelEvalMinimumRetrievalSuites,
+		MissingDenominatorIDs:      []string{},
+		InvalidDenominatorIDs:      []string{},
+		MissingCorpusValidationIDs: []string{},
+		InvalidCorpusValidationIDs: []string{},
+		CorpusValidation:           make([]ModelEvalCorpusValidation, 0, len(suites)),
+		RoleCoverage:               make([]RoleCoverage, 0, len(roles.PolicyRoles)),
+		TaskRoleCoverage:           make([]RoleCoverage, 0, len(roles.TaskRoles)),
+		ConsumerCoverage:           make([]RoleCoverage, 0, len(roles.Consumers)),
 	}
 	if len(suites) < modelEvalMinimumRetrievalSuites {
 		readiness.SuiteInventoryDeficit = modelEvalMinimumRetrievalSuites - len(suites)
@@ -159,11 +197,24 @@ func (s searchHubModelEvalSource) Readiness(ctx context.Context, roles ModelEval
 		taskRoleSet[role] = struct{}{}
 		taskRoleCases[role] = map[string]struct{}{}
 	}
+	consumerSet := make(map[string]struct{}, len(roles.Consumers))
+	consumerCases := make(map[string]map[string]struct{}, len(roles.Consumers))
+	for _, consumer := range roles.Consumers {
+		consumer = strings.TrimSpace(consumer)
+		if consumer == "" {
+			continue
+		}
+		consumerSet[consumer] = struct{}{}
+		consumerCases[consumer] = map[string]struct{}{}
+	}
 
 	type snapshotResult struct {
-		snapshot *evalv1.FixedDenominatorSnapshot
-		found    bool
-		err      bool
+		snapshot        *evalv1.FixedDenominatorSnapshot
+		found           bool
+		err             bool
+		validation      *evalv1.GetLatestCorpusValidationResponse
+		validationFound bool
+		validationErr   bool
 	}
 	results := make([]snapshotResult, len(sortedSuites))
 	var wait sync.WaitGroup
@@ -186,12 +237,19 @@ func (s searchHubModelEvalSource) Readiness(ctx context.Context, roles ModelEval
 			response, err := s.client.GetFixedDenominator(ctx, connect.NewRequest(&evalv1.GetFixedDenominatorRequest{SuiteId: suite.GetSuiteId()}))
 			if err != nil {
 				results[i].err = true
+			} else if response != nil && response.Msg != nil && response.Msg.GetFound() && response.Msg.GetSnapshot() != nil {
+				results[i].snapshot = response.Msg.GetSnapshot()
+				results[i].found = true
+			}
+			validation, validationErr := s.client.GetLatestCorpusValidation(ctx, connect.NewRequest(&evalv1.GetLatestCorpusValidationRequest{SuiteId: suite.GetSuiteId()}))
+			if validationErr != nil {
+				results[i].validationErr = true
 				return
 			}
-			if response == nil || response.Msg == nil || !response.Msg.GetFound() || response.Msg.GetSnapshot() == nil {
-				return
+			if validation != nil && validation.Msg != nil && validation.Msg.GetFound() {
+				results[i].validation = validation.Msg
+				results[i].validationFound = true
 			}
-			results[i] = snapshotResult{snapshot: response.Msg.GetSnapshot(), found: true}
 		}(i, suite)
 	}
 	wait.Wait()
@@ -213,6 +271,21 @@ func (s searchHubModelEvalSource) Readiness(ctx context.Context, roles ModelEval
 			readiness.InvalidDenominatorIDs = append(readiness.InvalidDenominatorIDs, suite.GetSuiteId()+":"+reason)
 			continue
 		}
+		if results[i].validationErr {
+			readiness.InvalidCorpusValidationIDs = append(readiness.InvalidCorpusValidationIDs, suite.GetSuiteId()+":read-error")
+		} else if !results[i].validationFound {
+			readiness.MissingCorpusValidationIDs = append(readiness.MissingCorpusValidationIDs, suite.GetSuiteId())
+		} else if reason := validateModelEvalCorpusValidation(suite, snapshot, results[i].validation, time.Now().UTC()); reason != "" {
+			readiness.InvalidCorpusValidationIDs = append(readiness.InvalidCorpusValidationIDs, suite.GetSuiteId()+":"+reason)
+		} else {
+			rollup := results[i].validation.GetRollup()
+			readiness.CorpusValidation = append(readiness.CorpusValidation, ModelEvalCorpusValidation{
+				SuiteID: suite.GetSuiteId(), ValidatedAt: results[i].validation.GetCreatedAt(),
+				Positives: rollup.GetPositives(), Live: rollup.GetLive(), Hard: rollup.GetHard(),
+				Stale: rollup.GetStale(), Inconclusive: rollup.GetInconclusive(), ProviderErrors: rollup.GetProviderErrors(),
+			})
+			readiness.StaleExpectedDocumentCases += rollup.GetStale()
+		}
 		denominatorIdentities = append(denominatorIdentities, suite.GetSuiteId()+":"+snapshot.GetCorpusSha256()+":"+snapshot.GetDenominatorSha256())
 		for _, c := range snapshot.GetCases() {
 			if !acceptedCallerCase(c) {
@@ -226,6 +299,10 @@ func (s searchHubModelEvalSource) Readiness(ctx context.Context, roles ModelEval
 			taskRole := taskRoleForCase(c)
 			if _, known := taskRoleSet[taskRole]; known {
 				taskRoleCases[taskRole][c.GetCaseId()] = struct{}{}
+			}
+			consumer := consumerForCase(c)
+			if _, known := consumerSet[consumer]; known {
+				consumerCases[consumer][c.GetCaseId()] = struct{}{}
 			}
 		}
 	}
@@ -244,26 +321,63 @@ func (s searchHubModelEvalSource) Readiness(ctx context.Context, roles ModelEval
 			Deficient: count < modelEvalMinimumCasesPerRole,
 		})
 	}
+	for _, consumer := range sortedRoleKeys(consumerSet) {
+		count := len(consumerCases[consumer])
+		readiness.ConsumerCoverage = append(readiness.ConsumerCoverage, RoleCoverage{
+			Role: consumer, Cases: count, Required: modelEvalMinimumCasesPerRole,
+			Deficient: count < modelEvalMinimumCasesPerRole,
+		})
+	}
 	sort.Strings(readiness.MissingDenominatorIDs)
 	sort.Strings(readiness.InvalidDenominatorIDs)
-	readiness.Ready = readiness.SuiteInventoryDeficit == 0 && len(readiness.MissingDenominatorIDs) == 0 && len(readiness.InvalidDenominatorIDs) == 0
+	sort.Strings(readiness.MissingCorpusValidationIDs)
+	sort.Strings(readiness.InvalidCorpusValidationIDs)
+	readiness.Ready = readiness.SuiteInventoryDeficit == 0 && len(readiness.MissingDenominatorIDs) == 0 && len(readiness.InvalidDenominatorIDs) == 0 && len(readiness.MissingCorpusValidationIDs) == 0 && len(readiness.InvalidCorpusValidationIDs) == 0
 	for _, role := range readiness.RoleCoverage {
 		readiness.Ready = readiness.Ready && !role.Deficient
 	}
 	for _, role := range readiness.TaskRoleCoverage {
 		readiness.Ready = readiness.Ready && !role.Deficient
 	}
-	if readiness.SuiteInventoryDeficit == 0 && len(readiness.MissingDenominatorIDs) == 0 && len(readiness.InvalidDenominatorIDs) == 0 && len(denominatorIdentities) == len(sortedSuites) {
-		readiness.FixedDenominatorSetSHA256 = modelEvalFixedDenominatorSetDigest(denominatorIdentities)
+	for _, consumer := range readiness.ConsumerCoverage {
+		readiness.Ready = readiness.Ready && !consumer.Deficient
+	}
+	if readiness.SuiteInventoryDeficit == 0 && len(readiness.MissingDenominatorIDs) == 0 && len(readiness.InvalidDenominatorIDs) == 0 && len(readiness.MissingCorpusValidationIDs) == 0 && len(readiness.InvalidCorpusValidationIDs) == 0 && len(denominatorIdentities) == len(sortedSuites) {
+		readiness.FixedDenominatorSetSHA256 = searcheval.CaseIDsDigest(denominatorIdentities)
 	}
 	return readiness, nil
 }
 
-func modelEvalFixedDenominatorSetDigest(identities []string) string {
-	ordered := append([]string(nil), identities...)
-	sort.Strings(ordered)
-	digest := sha256.Sum256([]byte(strings.Join(ordered, "\n")))
-	return hex.EncodeToString(digest[:])
+func validateModelEvalCorpusValidation(suite *evalv1.EvalSuite, snapshot *evalv1.FixedDenominatorSnapshot, validation *evalv1.GetLatestCorpusValidationResponse, now time.Time) string {
+	if suite == nil || snapshot == nil || validation == nil || !validation.GetFound() {
+		return "receipt-missing"
+	}
+	if validation.GetSuiteId() != suite.GetSuiteId() || validation.GetProviderId() != suite.GetProviderId() {
+		return "suite-identity-mismatch"
+	}
+	if !isSHA256(validation.GetSuiteSha256()) || validation.GetSuiteSha256() != searcheval.SuiteCorpusDigest(suite) {
+		return "suite-digest-mismatch"
+	}
+	if !sameSet(validation.GetDenominatorCaseIds(), snapshot.GetCaseIds()) {
+		return "denominator-case-set-mismatch"
+	}
+	if !isSHA256(validation.GetDenominatorSha256()) || !isSHA256(validation.GetReceiptSha256()) {
+		return "receipt-digest-invalid"
+	}
+	rollup := validation.GetRollup()
+	if rollup == nil || int(rollup.GetPositives()) != len(snapshot.GetCaseIds()) ||
+		rollup.GetLive()+rollup.GetHard()+rollup.GetStale()+rollup.GetInconclusive()+rollup.GetProviderErrors() != rollup.GetPositives() {
+		return "rollup-denominator-mismatch"
+	}
+	createdAt, err := time.Parse(time.RFC3339Nano, validation.GetCreatedAt())
+	if err != nil {
+		return "validation-timestamp-invalid"
+	}
+	age := now.Sub(createdAt)
+	if age < 0 || age > modelEvalCorpusValidationMaxAge {
+		return "validation-receipt-stale"
+	}
+	return ""
 }
 
 func validateModelEvalSnapshot(suite *evalv1.EvalSuite, snapshot *evalv1.FixedDenominatorSnapshot) string {
@@ -279,7 +393,7 @@ func validateModelEvalSnapshot(suite *evalv1.EvalSuite, snapshot *evalv1.FixedDe
 	if !isSHA256(snapshot.GetCorpusSha256()) || !isSHA256(snapshot.GetDenominatorSha256()) {
 		return "digest-invalid"
 	}
-	if modelEvalCorpusDigest(suite) != snapshot.GetCorpusSha256() {
+	if searcheval.SuiteCorpusDigest(suite) != snapshot.GetCorpusSha256() {
 		return "suite-changed-since-review"
 	}
 	caseIDs := make([]string, 0, len(snapshot.GetCases()))
@@ -309,23 +423,6 @@ func validateModelEvalSnapshot(suite *evalv1.EvalSuite, snapshot *evalv1.FixedDe
 	return ""
 }
 
-func modelEvalCorpusDigest(suite *evalv1.EvalSuite) string {
-	if suite == nil {
-		return ""
-	}
-	canonical := proto.Clone(suite).(*evalv1.EvalSuite)
-	canonical.Name = ""
-	canonical.Description = ""
-	canonical.CreatedAt = ""
-	canonical.UpdatedAt = ""
-	encoded, err := (proto.MarshalOptions{Deterministic: true}).Marshal(canonical)
-	if err != nil {
-		return ""
-	}
-	digest := sha256.Sum256(encoded)
-	return hex.EncodeToString(digest[:])
-}
-
 func toModelEvalSearchCase(c *evalv1.EvalCase) aisearch.TestCase {
 	return aisearch.TestCase{
 		ID: c.GetCaseId(), Query: c.GetQuery(), Scope: c.GetScope(), Status: c.GetStatus(),
@@ -340,7 +437,8 @@ func acceptedCallerCase(c *evalv1.EvalCase) bool {
 		return false
 	}
 	role := roleForCase(c)
-	if role == "" || taskRoleForCase(c) == "" || c.GetCaseId() != evalCallerCaseID(c.GetNote(), role) {
+	consumer := consumerForCase(c)
+	if role == "" || taskRoleForCase(c) == "" || consumer == "" || c.GetCaseId() != evalCallerCaseID(c.GetNote(), role) {
 		return false
 	}
 	fields := make(map[string]string)
@@ -352,13 +450,18 @@ func acceptedCallerCase(c *evalv1.EvalCase) bool {
 	}
 	source := strings.TrimPrefix(fields["source"], "agent-manager://runs/")
 	parts := strings.Split(source, "/events/")
-	_, err := strconv.ParseUint(fields["seq"], 10, 64)
-	if err != nil || len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+	sequence, err := strconv.ParseInt(fields["seq"], 10, 64)
+	if err != nil || sequence < 0 || len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return false
+	}
+	expectedRequestID, err := searcheval.AgentManagerReplayRequestID(parts[0], parts[1], sequence, taskRoleForCase(c), consumer)
+	if err != nil || fields["gateway_request"] != expectedRequestID {
 		return false
 	}
 	eventID := fields["gateway_event"]
-	return fields["gateway_request"] != "" && fields["role"] == role && fields["model"] != "" &&
+	return fields["gateway_request"] != "" && fields["selected_resource_role"] == role && fields["model"] != "" &&
 		fields["task_role"] == taskRoleForCase(c) &&
+		fields["consumer"] == consumer &&
 		fields["role_evidence"] == "gateway-ledger://events/"+eventID &&
 		strings.HasPrefix(fields["capacity_estimate"], "capacity-footprint://") &&
 		fields["label_review"] != "" && fields["reviewer"] != ""
@@ -371,6 +474,18 @@ func taskRoleForCase(c *evalv1.EvalCase) string {
 	for _, tag := range c.GetTags() {
 		if strings.HasPrefix(tag, "task-role:") {
 			return strings.TrimPrefix(tag, "task-role:")
+		}
+	}
+	return ""
+}
+
+func consumerForCase(c *evalv1.EvalCase) string {
+	if c == nil {
+		return ""
+	}
+	for _, tag := range c.GetTags() {
+		if strings.HasPrefix(tag, "consumer:") {
+			return strings.TrimPrefix(tag, "consumer:")
 		}
 	}
 	return ""
@@ -399,8 +514,8 @@ func roleForCase(c *evalv1.EvalCase) string {
 		return ""
 	}
 	for _, tag := range c.GetTags() {
-		if strings.HasPrefix(tag, "role:") {
-			return strings.TrimPrefix(tag, "role:")
+		if strings.HasPrefix(tag, "resource-role:") {
+			return strings.TrimPrefix(tag, "resource-role:")
 		}
 	}
 	return ""

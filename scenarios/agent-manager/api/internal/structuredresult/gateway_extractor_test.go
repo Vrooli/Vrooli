@@ -28,6 +28,7 @@ func TestGatewayExtractorUsesTypedInferenceWithoutRunnerLaunch(t *testing.T) {
 	extractor := &GatewayExtractor{Client: client}
 	response, err := extractor.Extract(t.Context(), ExtractRequest{
 		RoleRef: DefaultExtractRole, Source: "The work is done.", Schema: []byte(`{"type":"string","enum":["complete","blocked"]}`),
+		PrivacyClass: RunOutputPrivacyClass, PrivacySource: RunOutputPrivacySource,
 	})
 	require.NoError(t, err)
 	require.Equal(t, `"complete"`, string(response.Candidate))
@@ -35,7 +36,8 @@ func TestGatewayExtractorUsesTypedInferenceWithoutRunnerLaunch(t *testing.T) {
 	require.Equal(t, "qwen3.5:9b", response.Model)
 	require.Equal(t, DefaultExtractRole, client.request.GetRole())
 	require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, client.request.GetProfile())
-	require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED, client.request.GetPrivacyClass(), "Agent Manager has no sourced classification for extractor output")
+	require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL, client.request.GetPrivacyClass(), "agent-run output is confidential and stays local")
+	require.Equal(t, RunOutputPrivacySource, client.request.GetPrivacyProvenance())
 	require.Equal(t, `{"type":"string","enum":["complete","blocked"]}`, client.request.GetSchemaJson())
 }
 
@@ -46,12 +48,13 @@ func TestGatewayExtractorSendsAnInstructionSeparateFromTheSchema(t *testing.T) {
 	// ai-gateway treats schema descriptions as metadata and never as
 	// instruction, so an empty instruction would leave the provider with no
 	// stated intent at all.
-	_, err := extractor.Extract(t.Context(), ExtractRequest{Source: "The work is done.", Schema: []byte(`{"type":"string"}`)})
+	_, err := extractor.Extract(t.Context(), ExtractRequest{Source: "The work is done.", Schema: []byte(`{"type":"string"}`), PrivacyClass: RunOutputPrivacyClass, PrivacySource: RunOutputPrivacySource})
 	require.NoError(t, err)
 	require.NotEmpty(t, client.request.GetInstruction())
 
 	_, err = extractor.Extract(t.Context(), ExtractRequest{
 		Source: "The work is done.", Schema: []byte(`{"type":"string"}`), Instruction: "Report the terminal state only.",
+		PrivacyClass: RunOutputPrivacyClass, PrivacySource: RunOutputPrivacySource,
 	})
 	require.NoError(t, err)
 	require.Equal(t, "Report the terminal state only.", client.request.GetInstruction())
@@ -72,7 +75,16 @@ func TestGatewayExtractorAbstainsOnTypedUnavailable(t *testing.T) {
 	extractor := &GatewayExtractor{Client: &fakeGatewayClient{response: &inferencev1.RunResponse{
 		Error: &inferencev1.InferenceError{Code: inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, Message: "provider unavailable"},
 	}}}
-	response, err := extractor.Extract(t.Context(), ExtractRequest{Source: "source", Schema: []byte(`{"type":"string"}`)})
+	response, err := extractor.Extract(t.Context(), ExtractRequest{Source: "source", Schema: []byte(`{"type":"string"}`), PrivacyClass: RunOutputPrivacyClass, PrivacySource: RunOutputPrivacySource})
 	require.Error(t, err)
 	require.True(t, response.Abstained)
+}
+
+func TestGatewayExtractorRequiresSourcedPrivacyBeforeGatewayCall(t *testing.T) {
+	client := &fakeGatewayClient{response: &inferencev1.RunResponse{ValueJson: `"ignored"`, Validated: true}}
+	extractor := &GatewayExtractor{Client: client}
+	response, err := extractor.Extract(t.Context(), ExtractRequest{Source: "source", Schema: []byte(`{"type":"string"}`)})
+	require.ErrorContains(t, err, "requires sourced privacy classification")
+	require.True(t, response.Abstained)
+	require.Nil(t, client.request, "missing privacy provenance must fail before dispatch")
 }

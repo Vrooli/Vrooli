@@ -53,6 +53,10 @@ func (e *GatewayExtractor) Extract(ctx context.Context, request ExtractRequest) 
 	if e == nil {
 		return ExtractResponse{Abstained: true}, errors.New("ai-gateway extractor is unavailable")
 	}
+	privacyClass, ok := gatewayPrivacyClass(request.PrivacyClass)
+	if !ok || strings.TrimSpace(request.PrivacySource) == "" {
+		return ExtractResponse{Abstained: true}, errors.New("Agent Manager extraction requires sourced privacy classification")
+	}
 	client, err := e.client(ctx)
 	if err != nil {
 		return ExtractResponse{Abstained: true}, err
@@ -70,7 +74,9 @@ func (e *GatewayExtractor) Extract(ctx context.Context, request ExtractRequest) 
 	}
 	response, err := client.Run(ctx, connect.NewRequest(&inferencev1.RunRequest{
 		Source: request.Source, SchemaJson: string(request.Schema), Role: role, Instruction: instruction,
-		Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
+		Profile:           sharedv1.Profile_PROFILE_LOCAL_ONLY,
+		PrivacyClass:      privacyClass,
+		PrivacyProvenance: request.PrivacySource,
 	}))
 	if err != nil {
 		return ExtractResponse{Abstained: true}, fmt.Errorf("call ai-gateway typed inference: %w", err)
@@ -90,6 +96,21 @@ func (e *GatewayExtractor) Extract(ctx context.Context, request ExtractRequest) 
 	}
 	result.Candidate = []byte(msg.GetValueJson())
 	return result, nil
+}
+
+func gatewayPrivacyClass(name string) (sharedv1.PrivacyClass, bool) {
+	switch strings.ToUpper(strings.TrimSpace(name)) {
+	case "PUBLIC":
+		return sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC, true
+	case "INTERNAL":
+		return sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL, true
+	case "CONFIDENTIAL":
+		return sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL, true
+	case "SECRET":
+		return sharedv1.PrivacyClass_PRIVACY_CLASS_SECRET, true
+	default:
+		return sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED, false
+	}
 }
 
 func (e *GatewayExtractor) client(ctx context.Context) (GatewayClient, error) {

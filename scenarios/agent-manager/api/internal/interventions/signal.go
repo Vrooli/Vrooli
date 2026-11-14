@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
-	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
 // Signal is what an operator message reports about the agent's work: five
@@ -221,7 +220,7 @@ func (c *Classifier) decideSignals(ctx context.Context, client DecideClient, mes
 		}{tail(message.PrecedingAgentText, int(signalAgentChars*scale)), head(message.OperatorText, int(signalOperatorChars*scale))})
 		states[i] = string(body)
 	}
-	return c.decideStates(ctx, client, signalQuestions(), sharedv1.Profile_PROFILE_LOCAL_ONLY, states)
+	return c.decideStates(ctx, client, signalQuestions(), c.taskContract(), states)
 }
 
 func signalAnswerFrom(result *inferencev1.DecideResponse) SignalAnswer {

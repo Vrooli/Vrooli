@@ -478,6 +478,21 @@ var additiveColumnMigrations = []struct {
 	{"transcript_files", transcriptFileColumnMigrations},
 	{"run_ledger_facts", runLedgerArmColumnMigrations},
 	{"usage_mode_periods", usageModePeriodLearnColumnMigrations},
+	{"conversation_search_qdrant_generations", conversationSearchQdrantGenerationMigrations},
+}
+
+var conversationSearchQdrantGenerationMigrations = []columnMigration{
+	{column: "model", ddl: "ALTER TABLE conversation_search_qdrant_generations ADD COLUMN model TEXT NOT NULL DEFAULT ''"},
+	{column: "recipe_id", ddl: "ALTER TABLE conversation_search_qdrant_generations ADD COLUMN recipe_id TEXT NOT NULL DEFAULT ''"},
+	{column: "recipe_canonical", ddl: "ALTER TABLE conversation_search_qdrant_generations ADD COLUMN recipe_canonical TEXT NOT NULL DEFAULT ''"},
+	{column: "chunk_policy", ddl: "ALTER TABLE conversation_search_qdrant_generations ADD COLUMN chunk_policy TEXT NOT NULL DEFAULT ''"},
+	{column: "embedding_role", ddl: "ALTER TABLE conversation_search_qdrant_generations ADD COLUMN embedding_role TEXT NOT NULL DEFAULT ''"},
+	{column: "embedding_dimensions", ddl: "ALTER TABLE conversation_search_qdrant_generations ADD COLUMN embedding_dimensions INTEGER NOT NULL DEFAULT 0"},
+	{column: "policy_schema_version", ddl: "ALTER TABLE conversation_search_qdrant_generations ADD COLUMN policy_schema_version TEXT NOT NULL DEFAULT ''"},
+	{column: "embedding_task_prefix", ddl: "ALTER TABLE conversation_search_qdrant_generations ADD COLUMN embedding_task_prefix INTEGER NOT NULL DEFAULT 0"},
+	{column: "migration_phase", ddl: "ALTER TABLE conversation_search_qdrant_generations ADD COLUMN migration_phase TEXT NOT NULL DEFAULT ''"},
+	{column: "migration_sources", ddl: "ALTER TABLE conversation_search_qdrant_generations ADD COLUMN migration_sources INTEGER NOT NULL DEFAULT 0"},
+	{column: "migration_points", ddl: "ALTER TABLE conversation_search_qdrant_generations ADD COLUMN migration_points INTEGER NOT NULL DEFAULT 0"},
 }
 
 // runLedgerArmColumnMigrations record a run's place in a Learn comparison.

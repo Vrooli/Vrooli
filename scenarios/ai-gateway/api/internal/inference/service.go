@@ -10,6 +10,7 @@ import (
 
 	"ai-gateway/internal/providers"
 
+	profilepolicy "github.com/vrooli/ai-provider-go/routing"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 	"google.golang.org/protobuf/proto"
@@ -36,15 +37,22 @@ const (
 )
 
 type Service struct {
-	repository Repository
-	gate       SchemaGate
+	repository       Repository
+	gate             SchemaGate
+	codeRoleContract func(string) (CodeRoleContract, bool)
 }
 
 func NewService(repository Repository) *Service {
 	if repository == nil {
 		repository = StaticRepository{}
 	}
-	return &Service{repository: repository}
+	service := &Service{repository: repository}
+	if lookup, ok := repository.(interface {
+		LookupCodeRole(string) (CodeRoleContract, bool)
+	}); ok {
+		service.codeRoleContract = lookup.LookupCodeRole
+	}
+	return service
 }
 
 func (s *Service) Run(ctx context.Context, request ProviderRequest) *inferencev1.RunResponse {
@@ -60,6 +68,9 @@ func (s *Service) Run(ctx context.Context, request ProviderRequest) *inferencev1
 }
 
 func (s *Service) runWithSchema(ctx context.Context, request ProviderRequest, schema map[string]any, response *inferencev1.RunResponse) *inferencev1.RunResponse {
+	if err := validatePrivacyProvenance(request.PrivacyProvenance); err != nil {
+		return withError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), "privacy_provenance")
+	}
 	if request.MaxProviderCalls < 0 || request.MaxProviderCalls > MaxProviderCalls {
 		return withError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST,
 			fmt.Sprintf("max_provider_calls must be between 0 and %d", MaxProviderCalls), "max_provider_calls")
@@ -69,6 +80,24 @@ func (s *Service) runWithSchema(ctx context.Context, request ProviderRequest, sc
 	}
 	if strings.TrimSpace(request.Role) == "" {
 		return withError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "role is required", "role")
+	}
+	if s.codeRoleContract != nil {
+		contract, declared := s.codeRoleContract(request.Role)
+		if declared {
+			value, err := evaluateDeclaredCodeRole(contract, schema, request.Source)
+			if err != nil {
+				if errors.Is(err, ErrCodeRoleCallerSchema) {
+					return withError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_VALIDATION_FAILED, err.Error(), "schema_json")
+				}
+				return withError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), "source")
+			}
+			response.ValueJson = value
+			response.Provider = "vrooli-code"
+			response.Model = contract.HandlerID
+			response.Validated = true
+			finalizeUsage(response.Usage)
+			return response
+		}
 	}
 	var validationErr error
 	for attempt := 0; attempt < MaxValidationAttempts; attempt++ {
@@ -215,6 +244,9 @@ func (s *Service) RunBatch(ctx context.Context, requests []ProviderRequest) *inf
 // candidate sees the same well-formed request; the repository owns the walk and
 // reaches the typed classify path through s.Run for its enum fallback.
 func (s *Service) Decide(ctx context.Context, request DecisionRequest) *inferencev1.DecideResponse {
+	if err := validatePrivacyProvenance(request.PrivacyProvenance); err != nil {
+		return decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), "privacy_provenance")
+	}
 	if err := ValidateQuestions(request.Questions); err != nil {
 		return decisionRefusal(err)
 	}
@@ -240,6 +272,10 @@ func (s *Service) decideValidated(ctx context.Context, request DecisionRequest) 
 // alone while a bad question set fails the batch once.
 func (s *Service) DecideBatch(ctx context.Context, template DecisionRequest, items []DecisionRequest) *inferencev1.DecideBatchResponse {
 	response := &inferencev1.DecideBatchResponse{Usage: &inferencev1.Usage{}}
+	if err := validatePrivacyProvenance(template.PrivacyProvenance); err != nil {
+		response.Results = []*inferencev1.DecideResponse{decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), "privacy_provenance")}
+		return response
+	}
 	if len(items) == 0 {
 		return response
 	}
@@ -273,6 +309,16 @@ func (s *Service) DecideBatch(ctx context.Context, template DecisionRequest, ite
 	finalizeUsage(response.Usage)
 	response.Results = results
 	return response
+}
+
+func validatePrivacyProvenance(value string) error {
+	if strings.TrimSpace(value) == "" {
+		return errors.New("privacy provenance is required and must name the non-sensitive source and basis for the caller's classification")
+	}
+	if !profilepolicy.ValidPrivacyProvenance(value) {
+		return errors.New("privacy provenance must be a short non-sensitive identifier containing only letters, digits, '.', '_', '-', ':' or '/'")
+	}
+	return nil
 }
 
 func decisionRefusal(err error) *inferencev1.DecideResponse {

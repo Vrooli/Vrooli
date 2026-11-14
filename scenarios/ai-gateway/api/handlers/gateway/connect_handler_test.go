@@ -20,6 +20,7 @@ func TestValidateGatewayRequestRejectsProviderSpecificFields(t *testing.T) { // 
 			Role:         "chat.default",
 			Profile:      sharedv1.Profile_PROFILE_LOCAL_FIRST,
 			PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+			PrivacyProvenance: "gateway_handler_test.internal_content",
 			Metadata: map[string]string{
 				"provider":   "openrouter",
 				"model_slug": "provider/model",
@@ -40,6 +41,7 @@ func TestValidateGatewayRequestAcceptsProviderNeutralShape(t *testing.T) { // [R
 			Role:         "embedding.default",
 			Profile:      sharedv1.Profile_PROFILE_LOCAL_ONLY,
 			PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
+			PrivacyProvenance: "gateway_handler_test.confidential_embedding_input",
 		},
 	}))
 	require.NoError(t, err)

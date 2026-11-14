@@ -43,6 +43,7 @@ func piiRequest() *sharedv1.GatewayRequest {
 		Role:         "pii.small",
 		Profile:      sharedv1.Profile_PROFILE_LOCAL_ONLY,
 		PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
+		PrivacyProvenance: "routing_test.pii_scan_input",
 		Operation:    "scan",
 		Scenario:     "fixture-scenario",
 		RequestId:    "req-pii-1",

@@ -81,7 +81,7 @@ func TestResearchBudgetAuthenticatedClientRaisesExactRequestOnlyDecision(t *test
 			http.Error(w, "verified Treasury service identity required", http.StatusUnauthorized)
 			return
 		}
-		principal := coreidentity.Principal{Kind: coreidentity.ActorService, Subject: "treasury", Verified: true, Scopes: []string{"agent-manager:write"}}
+		principal := coreidentity.Principal{Kind: coreidentity.ActorService, Subject: "treasury-agent-manager", Verified: true, Scopes: []string{"agent-manager:write"}}
 		reportHandler.ServeHTTP(w, r.WithContext(coreidentity.WithPrincipal(r.Context(), principal)))
 	}))
 	server := httptest.NewServer(routes)
@@ -106,7 +106,7 @@ func TestResearchBudgetAuthenticatedClientRaisesExactRequestOnlyDecision(t *test
 	}
 
 	var pendingRows []string
-	if err := sqlxDB.Select(&pendingRows, `SELECT body FROM pending_authorization_requests WHERE subject='treasury' AND state='pending'`); err != nil {
+	if err := sqlxDB.Select(&pendingRows, `SELECT body FROM pending_authorization_requests WHERE subject='treasury-agent-manager' AND state='pending'`); err != nil {
 		t.Fatal(err)
 	}
 	if len(pendingRows) != 1 {
@@ -117,7 +117,7 @@ func TestResearchBudgetAuthenticatedClientRaisesExactRequestOnlyDecision(t *test
 		t.Fatal(err)
 	}
 	wantTarget := "agent-manager:run/" + runID.String()
-	if pending.Subject != "treasury" || pending.Operation != researchBudgetOperation || pending.Target != wantTarget || pending.Kind != domain.PendingAuthorizationKindOneTime || pending.State != domain.PendingAuthorizationPending {
+	if pending.Subject != "treasury-agent-manager" || pending.Operation != researchBudgetOperation || pending.Target != wantTarget || pending.Kind != domain.PendingAuthorizationKindOneTime || pending.State != domain.PendingAuthorizationPending {
 		t.Fatalf("pending authorization is not bound to the exact CF7 test run: %+v", pending)
 	}
 	if len(publisher.events) != 1 || publisher.events[0].EventType != orchestration.AuthorizationDecisionEventType {

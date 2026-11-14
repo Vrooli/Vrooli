@@ -16,6 +16,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	internalconformance "ai-gateway/internal/conformance"
+	internalrouting "ai-gateway/internal/routing"
 )
 
 type Deps struct {
@@ -25,6 +26,10 @@ type Deps struct {
 	ModelPolicyPath     string
 	TaskRoleCatalogPath string
 	ModelEvalSource     internalconformance.ModelEvalReadinessSource
+	ModelEvalConsumers  interface {
+		ModelEvalConsumers(context.Context) ([]string, error)
+	}
+	ModelEvalRuntimeModels func(context.Context) ([]internalrouting.ModelEvalRouteModel, error)
 }
 
 type connectHandler struct {
@@ -161,6 +166,20 @@ func (h *connectHandler) validateModelEvalTarget(
 	}
 	roles, roleErr := internalconformance.LoadModelEvalRoles(h.deps.ModelPolicyPath)
 	taskRoles, taskRoleErr := internalconformance.LoadGatewayTaskRoles(h.deps.TaskRoleCatalogPath)
+	var consumers []string
+	var consumerErr error
+	if h.deps.ModelEvalConsumers == nil {
+		consumerErr = errors.New("route-ledger consumer inventory is not configured")
+	} else {
+		consumers, consumerErr = h.deps.ModelEvalConsumers.ModelEvalConsumers(ctx)
+	}
+	var runtimeModels []internalrouting.ModelEvalRouteModel
+	var runtimeModelsErr error
+	if h.deps.ModelEvalRuntimeModels == nil {
+		runtimeModelsErr = errors.New("route-ledger runtime-model inventory is not configured")
+	} else {
+		runtimeModels, runtimeModelsErr = h.deps.ModelEvalRuntimeModels(ctx)
+	}
 	collector := metrics.Start()
 	readiness := internalconformance.ModelEvalReadiness{}
 	readinessErr := roleErr
@@ -168,7 +187,19 @@ func (h *connectHandler) validateModelEvalTarget(
 		readinessErr = taskRoleErr
 	}
 	if readinessErr == nil {
-		readiness, readinessErr = internalconformance.ReadModelEvalReadiness(ctx, h.deps.ModelEvalSource, internalconformance.ModelEvalRoleDenominators{PolicyRoles: roles, TaskRoles: taskRoles})
+		readinessErr = consumerErr
+	}
+	if readinessErr == nil {
+		readinessErr = runtimeModelsErr
+	}
+	if readinessErr == nil {
+		readiness, readinessErr = internalconformance.ReadModelEvalReadiness(ctx, h.deps.ModelEvalSource, internalconformance.ModelEvalRoleDenominators{PolicyRoles: roles, TaskRoles: taskRoles, Consumers: consumers})
+		for _, item := range runtimeModels {
+			readiness.ObservedRuntimeModels = append(readiness.ObservedRuntimeModels, internalconformance.ModelEvalRuntimeModel{
+				Scenario: item.Scenario, Role: item.Role, Provider: item.Provider, Locality: item.Locality,
+				Model: item.Model, Status: item.Status, SampleCount: item.SampleCount, LatestObservedAt: item.LatestObservedAt,
+			})
+		}
 	}
 	findings := make([]assessment.Finding, 0, 4)
 	if readinessErr != nil {
@@ -180,13 +211,27 @@ func (h *connectHandler) validateModelEvalTarget(
 			Remediation: "Restore the resource policy and Search Hub EvalService endpoints; rerun model-eval readiness.",
 		})
 	} else {
-		if len(readiness.MissingDenominatorIDs) > 0 || len(readiness.InvalidDenominatorIDs) > 0 || readiness.RegisteredSuites < readiness.RequiredRetrievalSuites {
+		if len(readiness.MissingDenominatorIDs) > 0 || len(readiness.InvalidDenominatorIDs) > 0 ||
+			len(readiness.MissingCorpusValidationIDs) > 0 || len(readiness.InvalidCorpusValidationIDs) > 0 ||
+			readiness.RegisteredSuites < readiness.RequiredRetrievalSuites {
 			findings = append(findings, assessment.Finding{
 				Code: "model_eval.retrieval_denominators_incomplete", Severity: "SEVERITY_ERROR",
 				Title: "Fixed retrieval denominators are incomplete", Phase: "model-eval",
-				Message:     fmt.Sprintf("Search Hub has %d registered suites; required floor is %d. Missing snapshots: %v. Invalid snapshots: %v.", readiness.RegisteredSuites, readiness.RequiredRetrievalSuites, readiness.MissingDenominatorIDs, readiness.InvalidDenominatorIDs),
-				Location:    "search-hub EvalService fixed-denominator snapshots",
-				Remediation: "Independently review each suite's positive cases and freeze a valid immutable denominator through Search Hub.",
+				Message: fmt.Sprintf("Search Hub has %d registered suites; required floor is %d. Missing snapshots: %v. Invalid snapshots: %v. Missing corpus-validation receipts: %v. Invalid corpus-validation receipts: %v. Stale expected document cases remain in their fixed denominators and count as misses.",
+					readiness.RegisteredSuites, readiness.RequiredRetrievalSuites,
+					readiness.MissingDenominatorIDs, readiness.InvalidDenominatorIDs,
+					readiness.MissingCorpusValidationIDs, readiness.InvalidCorpusValidationIDs),
+				Location:    "search-hub EvalService fixed-denominator snapshots and corpus-validation receipts",
+				Remediation: "Independently review each suite's positive cases, freeze a valid immutable denominator, then create a current provider-owned corpus-validation receipt. Do not remove stale expected documents; the evaluator counts them as misses.",
+			})
+		}
+		if len(readiness.ObservedRuntimeModels) == 0 {
+			findings = append(findings, assessment.Finding{
+				Code: "model_eval.runtime_model_inventory_empty", Severity: "SEVERITY_ERROR",
+				Title: "No effective runtime model observations found", Phase: "model-eval",
+				Message:     "The complete AI Gateway route ledger contains no selected runtime model identity.",
+				Location:    "AI Gateway route_events.selected_model",
+				Remediation: "Record selected runtime model identity on routed calls and rerun the model-eval census.",
 			})
 		}
 		var deficient []string
@@ -219,6 +264,21 @@ func (h *connectHandler) validateModelEvalTarget(
 				Remediation: "Acquire and independently review real caller cases for every task role in the AI Gateway inference-role catalog.",
 			})
 		}
+		var deficientConsumers []string
+		for _, coverage := range readiness.ConsumerCoverage {
+			if coverage.Deficient {
+				deficientConsumers = append(deficientConsumers, fmt.Sprintf("%s=%d/%d", coverage.Role, coverage.Cases, coverage.Required))
+			}
+		}
+		if len(deficientConsumers) > 0 {
+			findings = append(findings, assessment.Finding{
+				Code: "model_eval.consumer_coverage_incomplete", Severity: "SEVERITY_ERROR",
+				Title: "Real caller consumer coverage is incomplete", Phase: "model-eval",
+				Message:     "Accepted source-linked caller cases per observed route-ledger consumer: " + strings.Join(deficientConsumers, ", "),
+				Location:    "Search Hub fixed denominator caller-audit cases and AI Gateway route ledger",
+				Remediation: "Independently review real caller cases for each observed consumer scenario until each reaches the caller floor.",
+			})
+		}
 		findings = append(findings, assessment.Finding{
 			Code: "model_eval.operator_inference_admission_required", Severity: "SEVERITY_ERROR",
 			Title: "Live evaluation awaits operator admission", Phase: "model-eval",
@@ -238,6 +298,9 @@ func (h *connectHandler) validateModelEvalTarget(
 	if readinessErr == nil && (len(readiness.MissingDenominatorIDs) > 0 || len(readiness.InvalidDenominatorIDs) > 0 || readiness.RegisteredSuites < readiness.RequiredRetrievalSuites) {
 		status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
 	}
+	if readinessErr == nil && (len(readiness.MissingCorpusValidationIDs) > 0 || len(readiness.InvalidCorpusValidationIDs) > 0) {
+		status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
+	}
 	if readinessErr == nil {
 		for _, coverage := range readiness.RoleCoverage {
 			if coverage.Deficient {
@@ -246,6 +309,12 @@ func (h *connectHandler) validateModelEvalTarget(
 			}
 		}
 		for _, coverage := range readiness.TaskRoleCoverage {
+			if coverage.Deficient {
+				status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
+				break
+			}
+		}
+		for _, coverage := range readiness.ConsumerCoverage {
 			if coverage.Deficient {
 				status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
 				break

@@ -844,7 +844,9 @@ func (f *createRunFlow) persistAttempt(ctx context.Context) error {
 		return err
 	}
 	// This flow owns its Task view; the repository leaves its inputs immutable.
-	f.task.Status = domain.TaskStatusRunning
+	if err := f.task.TransitionStatus(domain.TaskStatusRunning); err != nil {
+		return fmt.Errorf("persisted task claim could not be projected locally: %w", err)
+	}
 	id := run.ID
 	f.task.CurrentRunID = &id
 	f.task.UpdatedAt = run.UpdatedAt

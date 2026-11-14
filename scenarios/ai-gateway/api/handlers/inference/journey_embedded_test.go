@@ -126,7 +126,7 @@ func TestJourneyEmbeddedGatewayServer(t *testing.T) {
 func journeyRequest() *connect.Request[inferencev1.RunRequest] {
 	// These synthetic inputs are explicitly public so remote route tests exercise
 	// their intended provider contracts under the privacy gate.
-	return connect.NewRequest(&inferencev1.RunRequest{Source: "Return the answer ok.", Instruction: "Return a JSON object with answer equal to ok.", SchemaJson: `{"type":"object","properties":{"answer":{"type":"string"}},"required":["answer"],"additionalProperties":false}`, Role: "extract.structured", MaxOutputTokens: 32, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC})
+	return connect.NewRequest(&inferencev1.RunRequest{Source: "Return the answer ok.", Instruction: "Return a JSON object with answer equal to ok.", SchemaJson: `{"type":"object","properties":{"answer":{"type":"string"}},"required":["answer"],"additionalProperties":false}`, Role: "extract.structured", MaxOutputTokens: 32, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC, PrivacyProvenance: "journey_test.explicit_public_sample"})
 }
 
 type gatewayProcess struct {

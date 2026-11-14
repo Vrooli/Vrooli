@@ -4,7 +4,10 @@ import (
 	"context"
 	"crypto/subtle"
 	"errors"
+	"fmt"
 	"strings"
+	"sync"
+	"time"
 
 	"agent-manager/internal/conversationsearch"
 
@@ -19,9 +22,16 @@ import (
 )
 
 type ConversationSearchControlOptions struct {
-	Indexer        *conversationsearch.Indexer
-	SearchFilePath string
-	ControlToken   func() string
+	Indexer         *conversationsearch.Indexer
+	RecipeMigration conversationsearch.SemanticRecipeMigration
+	SearchFilePath  string
+	ControlToken    func() string
+}
+
+type recipeMigrationJob struct {
+	state  string
+	err    string
+	cancel context.CancelFunc
 }
 
 // ConversationSearchSharedControl implements Search Hub's single provider
@@ -30,10 +40,12 @@ type ConversationSearchControlOptions struct {
 type ConversationSearchSharedControl struct {
 	control_v1connect.UnimplementedSearchControlServiceHandler
 	options ConversationSearchControlOptions
+	jobsMu  sync.Mutex
+	jobs    map[string]recipeMigrationJob
 }
 
 func NewConversationSearchSharedControl(options ConversationSearchControlOptions) *ConversationSearchSharedControl {
-	return &ConversationSearchSharedControl{options: options}
+	return &ConversationSearchSharedControl{options: options, jobs: make(map[string]recipeMigrationJob)}
 }
 
 func (h *ConversationSearchSharedControl) authorize(presented string) error {
@@ -163,6 +175,12 @@ func (h *ConversationSearchSharedControl) Reindex(ctx context.Context, req *conn
 	if err := h.authorize(req.Msg.GetControlToken()); err != nil {
 		return nil, err
 	}
+	if action := aisearch.NormalizeReindexMigrationAction(req.Msg.GetAction()); action != "" {
+		return h.reindexRecipeMigration(ctx, req.Msg, action)
+	}
+	if reindexHasMigrationFields(req.Msg) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("embedding migration fields require an explicit supported action"))
+	}
 	if h.options.Indexer == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("conversation indexer is unavailable"))
 	}
@@ -176,9 +194,17 @@ func (h *ConversationSearchSharedControl) Reindex(ctx context.Context, req *conn
 	return connect.NewResponse(&controlv1.ReindexResponse{JobId: job.ID, PlannedUpserts: boundedInt32(job.PlannedDocuments), PlannedDeletes: boundedInt32(job.DeletedDocuments), DryRun: job.DryRun}), nil
 }
 
-func (h *ConversationSearchSharedControl) ReindexStatus(_ context.Context, req *connect.Request[controlv1.ReindexStatusRequest]) (*connect.Response[controlv1.ReindexStatusResponse], error) {
+func (h *ConversationSearchSharedControl) ReindexStatus(ctx context.Context, req *connect.Request[controlv1.ReindexStatusRequest]) (*connect.Response[controlv1.ReindexStatusResponse], error) {
 	if err := h.authorize(req.Msg.GetControlToken()); err != nil {
 		return nil, err
+	}
+	if response, found, err := h.recipeMigrationStatus(ctx, req.Msg.GetJobId()); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	} else if found {
+		return connect.NewResponse(response), nil
+	}
+	if h.options.Indexer == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("conversation indexer is unavailable"))
 	}
 	job, ok := h.options.Indexer.Status(req.Msg.GetJobId())
 	if !ok {
@@ -191,7 +217,141 @@ func (h *ConversationSearchSharedControl) ReindexCancel(_ context.Context, req *
 	if err := h.authorize(req.Msg.GetControlToken()); err != nil {
 		return nil, err
 	}
+	h.jobsMu.Lock()
+	job, found := h.jobs[req.Msg.GetJobId()]
+	h.jobsMu.Unlock()
+	if found && job.state == "running" && job.cancel != nil {
+		job.cancel()
+		h.setRecipeMigrationJob(req.Msg.GetJobId(), "cancelled", "", nil)
+		return connect.NewResponse(&controlv1.ReindexCancelResponse{JobId: req.Msg.GetJobId(), Cancelled: true}), nil
+	}
 	return connect.NewResponse(&controlv1.ReindexCancelResponse{JobId: req.Msg.GetJobId(), Cancelled: h.options.Indexer != nil && h.options.Indexer.Cancel(req.Msg.GetJobId())}), nil
+}
+
+func reindexHasMigrationFields(request *controlv1.ReindexRequest) bool {
+	return strings.TrimSpace(request.GetShadowCollection()) != "" || strings.TrimSpace(request.GetRollbackCollection()) != "" ||
+		strings.TrimSpace(request.GetEmbeddingModel()) != "" || strings.TrimSpace(request.GetEmbeddingRole()) != "" ||
+		request.GetEmbeddingDimensions() != 0 || strings.TrimSpace(request.GetEmbeddingPolicySchemaVersion()) != ""
+}
+
+func (h *ConversationSearchSharedControl) reindexRecipeMigration(ctx context.Context, request *controlv1.ReindexRequest, action string) (*connect.Response[controlv1.ReindexResponse], error) {
+	if h.options.RecipeMigration == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("conversation embedding recipe migration is unavailable"))
+	}
+	contract := &aisearch.ReindexMigrationRequest{
+		Action: action, ShadowCollection: request.GetShadowCollection(), RollbackCollection: request.GetRollbackCollection(),
+		EmbeddingModel: request.GetEmbeddingModel(), EmbeddingRole: request.GetEmbeddingRole(),
+		EmbeddingDimensions: request.GetEmbeddingDimensions(), EmbeddingPolicySchemaVersion: request.GetEmbeddingPolicySchemaVersion(),
+		EmbeddingRecipeID: request.GetEmbeddingRecipeId(), EmbeddingRecipeCanonical: request.GetEmbeddingRecipeCanonical(),
+		DryRun: request.GetDryRun(),
+	}
+	if err := aisearch.ValidateReindexMigrationRequest(contract, "capabilities", "shadow", "cutover", "rollback"); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if strings.TrimSpace(request.GetScope()) != "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("conversation recipe migration does not support partial scope"))
+	}
+	if request.GetDryRun() {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("conversation recipe migration does not support dry_run"))
+	}
+	switch action {
+	case "capabilities":
+		return connect.NewResponse(&controlv1.ReindexResponse{
+			MigrationProtocolVersion:  aisearch.ReindexMigrationProtocolVersion,
+			SupportedMigrationActions: []string{"shadow", "cutover", "rollback"},
+		}), nil
+	case "shadow":
+		generationID := strings.TrimSpace(request.GetShadowCollection())
+		h.jobsMu.Lock()
+		previous, exists := h.jobs[generationID]
+		if exists && previous.state == "running" {
+			h.jobsMu.Unlock()
+			return connect.NewResponse(&controlv1.ReindexResponse{JobId: generationID}), nil
+		}
+		jobCtx, cancel := context.WithTimeout(context.Background(), 2*time.Hour)
+		h.jobs[generationID] = recipeMigrationJob{state: "running", cancel: cancel}
+		h.jobsMu.Unlock()
+		target := conversationsearch.EmbeddingRecipeRequest{
+			Model: request.GetEmbeddingModel(), Role: request.GetEmbeddingRole(),
+			Dimensions: int(request.GetEmbeddingDimensions()), PolicySchemaVersion: request.GetEmbeddingPolicySchemaVersion(),
+			RecipeID: request.GetEmbeddingRecipeId(), RecipeCanonical: request.GetEmbeddingRecipeCanonical(),
+			ChunkPolicy: conversationsearch.DefaultRecipeVersion,
+		}
+		go func() {
+			_, err := h.options.RecipeMigration.StageRecipe(jobCtx, generationID, target)
+			cancel()
+			if err != nil {
+				h.setRecipeMigrationJob(generationID, "failed", err.Error(), nil)
+				return
+			}
+			h.setRecipeMigrationJob(generationID, "succeeded", "", nil)
+		}()
+		return connect.NewResponse(&controlv1.ReindexResponse{JobId: generationID}), nil
+	case "cutover":
+		generationID := strings.TrimSpace(request.GetShadowCollection())
+		if err := h.options.RecipeMigration.PromoteRecipe(ctx, generationID); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		return connect.NewResponse(&controlv1.ReindexResponse{JobId: generationID, MigrationProtocolVersion: aisearch.ReindexMigrationProtocolVersion}), nil
+	case "rollback":
+		collection := strings.TrimSpace(request.GetRollbackCollection())
+		if err := h.options.RecipeMigration.RestoreRecipeCollection(ctx, collection); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		return connect.NewResponse(&controlv1.ReindexResponse{JobId: collection, MigrationProtocolVersion: aisearch.ReindexMigrationProtocolVersion}), nil
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported conversation reindex action %q", action))
+	}
+}
+
+func (h *ConversationSearchSharedControl) setRecipeMigrationJob(id, state, message string, cancel context.CancelFunc) {
+	h.jobsMu.Lock()
+	defer h.jobsMu.Unlock()
+	if h.jobs == nil {
+		h.jobs = make(map[string]recipeMigrationJob)
+	}
+	job := h.jobs[id]
+	if job.state == "cancelled" && (state == "failed" || state == "running") {
+		return
+	}
+	job.state, job.err = state, message
+	if cancel != nil {
+		job.cancel = cancel
+	}
+	if state != "running" && job.cancel != nil {
+		job.cancel()
+		job.cancel = nil
+	}
+	h.jobs[id] = job
+}
+
+func (h *ConversationSearchSharedControl) recipeMigrationStatus(ctx context.Context, generationID string) (*controlv1.ReindexStatusResponse, bool, error) {
+	h.jobsMu.Lock()
+	job, found := h.jobs[generationID]
+	h.jobsMu.Unlock()
+	if found {
+		return &controlv1.ReindexStatusResponse{JobId: generationID, State: job.state, Error: job.err}, true, nil
+	}
+	if h.options.RecipeMigration == nil {
+		return nil, false, nil
+	}
+	records, err := h.options.RecipeMigration.ListRecipeGenerations(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	for _, record := range records {
+		if record.Generation.Metadata.ID == generationID {
+			state := "running"
+			switch {
+			case record.Ready:
+				state = "succeeded"
+			case record.Phase == "failed":
+				state = "failed"
+			}
+			return &controlv1.ReindexStatusResponse{JobId: generationID, State: state}, true, nil
+		}
+	}
+	return nil, false, nil
 }
 
 func (h *ConversationSearchSharedControl) WriteConfig(ctx context.Context, req *connect.Request[controlv1.WriteConfigRequest]) (*connect.Response[controlv1.WriteConfigResponse], error) {

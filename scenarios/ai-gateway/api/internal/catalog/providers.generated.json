@@ -2230,6 +2230,39 @@
                 "observed_at": "2026-06-23",
                 "sample_count": 0
               }
+            },
+            "rights": {
+              "artifact_id": "registry.ollama.ai/library/qwen3.5:4b",
+              "revision": "ollama-manifest:sha256:2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd",
+              "sha256": "2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd",
+              "license_id": "Apache-2.0",
+              "classification": "unrestricted",
+              "evidence": {
+                "url": "https://huggingface.co/Qwen/Qwen3.5-4B/blob/c7429d5a8ed57f4a9cfdaf1af76a8943eba0ae97/LICENSE",
+                "revision": "c7429d5a8ed57f4a9cfdaf1af76a8943eba0ae97",
+                "sha256": "bbedc3fda3305820b977265f01b8619d87570a6739de3a5582c3464840f1e57a",
+                "observed_at": "2026-11-14"
+              },
+              "lineage": [
+                {
+                  "kind": "upstream_model",
+                  "identity": "Qwen/Qwen3.5-4B",
+                  "revision": "c7429d5a8ed57f4a9cfdaf1af76a8943eba0ae97"
+                }
+              ],
+              "obligations": [
+                "retain the supplied Apache License 2.0 text and any supplied NOTICE when redistributing the artifact"
+              ]
+            },
+            "runtime_identity": {
+              "provider": "ollama",
+              "model": "qwen3.5:4b",
+              "artifact_id": "registry.ollama.ai/library/qwen3.5:4b",
+              "artifact_revision": "ollama-manifest:sha256:2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd",
+              "digest_kind": "ollama_model_contents",
+              "digest": "2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd",
+              "source": "ollama /api/tags",
+              "observed_at": "2026-11-14"
             }
           },
           "qwen3.5:9b": {
@@ -2695,6 +2728,32 @@
           },
           "qwen3-vl:2b": {
             "family": "qwen3-vl",
+            "rights": {
+              "artifact_id": "registry.ollama.ai/library/qwen3-vl:2b",
+              "revision": "ollama-manifest:sha256:0635d9d857d497aeadba3d7d27485746c50554446f9f6ec01ef39788221adbe8",
+              "sha256": "0635d9d857d497aeadba3d7d27485746c50554446f9f6ec01ef39788221adbe8",
+              "license_id": "Apache-2.0",
+              "classification": "unrestricted",
+              "evidence": {
+                "url": "https://ollama.com/library/qwen3-vl:2b",
+                "revision": "0635d9d857d4",
+                "sha256": "f7a583e160400a27688a8538d5256e16a4667e73889a8597e7e6c7cc33c83fe7",
+                "observed_at": "2026-11-12"
+              },
+              "obligations": [
+                "retain the supplied Apache License 2.0 text and any supplied NOTICE when redistributing the artifact"
+              ]
+            },
+            "runtime_identity": {
+              "provider": "ollama",
+              "model": "qwen3-vl:2b",
+              "artifact_id": "registry.ollama.ai/library/qwen3-vl:2b",
+              "artifact_revision": "ollama-manifest:sha256:0635d9d857d497aeadba3d7d27485746c50554446f9f6ec01ef39788221adbe8",
+              "digest_kind": "ollama_model_contents",
+              "digest": "0635d9d857d497aeadba3d7d27485746c50554446f9f6ec01ef39788221adbe8",
+              "source": "ollama /api/tags",
+              "observed_at": "2026-11-12"
+            },
             "tags": [
               "2b"
             ],
@@ -2743,6 +2802,32 @@
           },
           "qwen3-vl:4b": {
             "family": "qwen3-vl",
+            "rights": {
+              "artifact_id": "registry.ollama.ai/library/qwen3-vl:4b",
+              "revision": "ollama-manifest:sha256:1343d82ebee38e26a4dd6b0180b915eb91550184e67c505dea97509571c8f683",
+              "sha256": "1343d82ebee38e26a4dd6b0180b915eb91550184e67c505dea97509571c8f683",
+              "license_id": "Apache-2.0",
+              "classification": "unrestricted",
+              "evidence": {
+                "url": "https://ollama.com/library/qwen3-vl:4b",
+                "revision": "a1b29c246319",
+                "sha256": "0cce1683ddf91dd06b558af518a784598420f3d60e19515532df88f1e062c8ae",
+                "observed_at": "2026-11-12"
+              },
+              "obligations": [
+                "retain the supplied Apache License 2.0 text and any supplied NOTICE when redistributing the artifact"
+              ]
+            },
+            "runtime_identity": {
+              "provider": "ollama",
+              "model": "qwen3-vl:4b",
+              "artifact_id": "registry.ollama.ai/library/qwen3-vl:4b",
+              "artifact_revision": "ollama-manifest:sha256:1343d82ebee38e26a4dd6b0180b915eb91550184e67c505dea97509571c8f683",
+              "digest_kind": "ollama_model_contents",
+              "digest": "1343d82ebee38e26a4dd6b0180b915eb91550184e67c505dea97509571c8f683",
+              "source": "ollama /api/tags",
+              "observed_at": "2026-11-12"
+            },
             "tags": [
               "4b"
             ],
@@ -5522,6 +5607,21 @@
             "provider": "ollama",
             "resource_role": "summarize.default",
             "reason": "Resource-owned summarization policy; concrete model and fallback remain governed by resource policy."
+          }
+        ]
+      },
+      "ux.visual-critique": {
+        "description": "Inspect a served user interface screenshot and return only visible UX findings using the caller's declared schema.",
+        "timeout_ms": 90000,
+        "sampling": {
+          "temperature": 0.0,
+          "overridable": false
+        },
+        "candidates": [
+          {
+            "provider": "ollama",
+            "resource_role": "vision.default",
+            "reason": "Keep UX screenshots on the local, resource-governed vision model; preserve the caller's finding schema."
           }
         ]
       },

@@ -16,6 +16,38 @@ import (
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
+func TestUXVisualCritiquePassesCallerFindingSchemaThrough(t *testing.T) {
+	schema := `{"type":"object","required":["findings"],"properties":{"findings":{"type":"array"}}}`
+	request := ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", Role: "ux.visual-critique", SchemaJSON: schema}
+	require.Equal(t, schema, providerSchema(request))
+	require.NotContains(t, providerPrompt(request, "normalized_1000"), "Visual grounding contract")
+}
+
+func TestUXVisualCritiqueResolvesLocalVisionRoleWithFindingSchema(t *testing.T) {
+	catalog, err := LoadCatalog("../../../config/inference-role-catalog.json")
+	require.NoError(t, err)
+	runner := &providermocks.FakeRunner{DefaultOK: true, Default: providers.Result{Stdout: `{"response":"{\"findings\":[]}"}`}}
+	configureQualifiedLocalRole(runner, "vision.default", "qwen3-vl:4b", "local")
+	repository, err := NewResourceRepositoryWithRightsContextSource(catalog, []providers.Adapter{{
+		Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner,
+	}}, fixtureRightsContext)
+	require.NoError(t, err)
+	schema := `{"type":"object","required":["findings"],"properties":{"findings":{"type":"array"}}}`
+	result, err := repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
+		Role: "ux.visual-critique", SchemaJSON: schema, Instruction: "Report visible UX issues.",
+		Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+		Attachments: []*sharedv1.Attachment{{
+			Modality: sharedv1.Modality_MODALITY_IMAGE, MediaType: "image/png", Width: 390, Height: 844,
+			Payload: &sharedv1.Attachment_InlineBytes{InlineBytes: []byte("png")},
+		}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "ollama", result.Provider)
+	require.Equal(t, "qwen3-vl:4b", result.Model)
+	require.JSONEq(t, `{"findings":[]}`, result.ValueJSON)
+	require.NotContains(t, strings.Join(runner.Commands[0].Args, " "), "locate.visual")
+}
+
 func TestResourceRepositoryResolvesProviderAndModelThroughResourcePolicy(t *testing.T) {
 	runner := &providermocks.FakeRunner{Results: map[string]providers.Result{
 		"resource-ollama gateway generate --role classify.routing --json --prompt-stdin --temperature 0 --format {\"enum\":[\"real-bug\"]}": {Stdout: `{"response":"\"real-bug\"","eval_count":4}`},
@@ -28,7 +60,7 @@ func TestResourceRepositoryResolvesProviderAndModelThroughResourcePolicy(t *test
 	}}
 	repository, err := NewResourceRepositoryWithRightsContextSource(catalog, []providers.Adapter{{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner}}, fixtureRightsContext)
 	require.NoError(t, err)
-	result, err := repository.Run(context.Background(), ProviderRequest{Source: "failure", SchemaJSON: `{"enum":["real-bug"]}`, Instruction: "Classify.", Role: "classify.fast"})
+	result, err := repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", Source: "failure", SchemaJSON: `{"enum":["real-bug"]}`, Instruction: "Classify.", Role: "classify.fast"})
 	require.NoError(t, err)
 	require.Equal(t, `"real-bug"`, result.ValueJSON)
 	require.Equal(t, "ollama", result.Provider)
@@ -126,7 +158,7 @@ func TestTypedRunRefusesMissingOrChangedRightsContextBeforeGateway(t *testing.T)
 		require.NoError(t, err)
 		return repository, runner
 	}
-	request := ProviderRequest{Source: "source", SchemaJSON: `{"type":"object"}`, Role: "classify.fast", Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY}
+	request := ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", Source: "source", SchemaJSON: `{"type":"object"}`, Role: "classify.fast", Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY}
 
 	t.Run("missing trusted context", func(t *testing.T) {
 		repository, runner := newRepository(t, nil)
@@ -177,7 +209,7 @@ func TestTypedRunRechecksResolvedLocalityAndPrivacyBeforeProvider(t *testing.T) 
 				Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner,
 			}}, fixtureRightsContext)
 			require.NoError(t, err)
-			_, err = repository.Run(context.Background(), ProviderRequest{
+			_, err = repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 				Source: "public fixture", SchemaJSON: `{"type":"object"}`, Role: "extract.structured",
 				Profile: tc.profile, PrivacyClass: tc.privacyClass,
 			})
@@ -237,7 +269,7 @@ func TestTypedRunRefusesPolicyFileRevisionDriftBeforeDispatch(t *testing.T) {
 		Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner,
 	}}, fixtureRightsContext)
 	require.NoError(t, err)
-	_, err = repository.Run(context.Background(), ProviderRequest{
+	_, err = repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Source: "source", SchemaJSON: `{"type":"object"}`, Role: "classify.fast", Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
 	})
 	require.ErrorIs(t, err, ErrUnavailable)
@@ -258,7 +290,7 @@ func TestTypedRunRefusesRightsRevisionDriftBetweenRoleResolutions(t *testing.T) 
 		Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner,
 	}}, fixtureRightsContext)
 	require.NoError(t, err)
-	_, err = repository.Run(context.Background(), ProviderRequest{
+	_, err = repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Source: "source", SchemaJSON: `{"type":"object"}`, Role: "classify.fast", Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
 	})
 	require.ErrorIs(t, err, ErrUnavailable)
@@ -311,7 +343,7 @@ func TestSchemaRepairRetryRechecksRightsContext(t *testing.T) {
 		Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner,
 	}}, contextSource)
 	require.NoError(t, err)
-	response := NewService(repository).Run(context.Background(), ProviderRequest{
+	response := NewService(repository).Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Source: "source", SchemaJSON: `{"type":"object","properties":{"answer":{"const":"ok"}},"required":["answer"]}`,
 		Role: "classify.fast", Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
 	})
@@ -461,7 +493,7 @@ func TestResourceRepositoryReturnsTypedUnavailableWhenCandidatesFail(t *testing.
 		{Provider: providers.ProviderOpenRouter, Locality: "remote", CommandName: "resource-openrouter", Runner: runner},
 	})
 	require.NoError(t, err)
-	_, err = repository.Run(context.Background(), ProviderRequest{Source: "source", SchemaJSON: `{"type":"object"}`, Role: "extract.structured"})
+	_, err = repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", Source: "source", SchemaJSON: `{"type":"object"}`, Role: "extract.structured"})
 	require.Error(t, err)
 	require.ErrorIs(t, err, ErrUnavailable)
 }
@@ -485,7 +517,7 @@ func TestResourceRepositoryRemoteOnlySkipsLocalCandidates(t *testing.T) {
 		{Provider: providers.ProviderOpenRouter, Locality: "remote", CommandName: "resource-openrouter", Runner: runner},
 	})
 	require.NoError(t, err)
-	result, err := repository.Run(context.Background(), ProviderRequest{
+	result, err := repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Source: "browser screenshot", SchemaJSON: `{"type":"object"}`, Role: "extract.structured",
 		Profile: sharedv1.Profile_PROFILE_REMOTE_ONLY, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC,
 	})
@@ -515,7 +547,7 @@ func TestResourceRepositoryQualityFirstUsesSharedRemoteOrdering(t *testing.T) {
 		{Provider: providers.ProviderOpenRouter, Locality: "remote", CommandName: "resource-openrouter", Runner: runner},
 	})
 	require.NoError(t, err)
-	result, err := repository.Run(context.Background(), ProviderRequest{
+	result, err := repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Source: "source", SchemaJSON: `{"type":"object"}`, Role: "extract.structured",
 		Profile: sharedv1.Profile_PROFILE_QUALITY_FIRST, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC,
 	})
@@ -532,7 +564,7 @@ func TestResourceRepositorySecretPrivacyBlocksRemoteBeforeDispatch(t *testing.T)
 	}}
 	repository, err := NewResourceRepository(catalog, []providers.Adapter{{Provider: providers.ProviderOpenRouter, Locality: "remote", CommandName: "resource-openrouter", Runner: runner}})
 	require.NoError(t, err)
-	_, err = repository.Run(context.Background(), ProviderRequest{
+	_, err = repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Source: "private source", SchemaJSON: `{"type":"object"}`, Role: "extract.structured",
 		Profile: sharedv1.Profile_PROFILE_LOCAL_FIRST, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_SECRET,
 	})
@@ -559,7 +591,7 @@ func TestResourceRepositoryProviderCallLimitCountsFailedDispatchAndStopsCandidat
 	configureQualifiedLocalRole(runner, "chat.two", "local-two", "local")
 	repository, err := NewResourceRepositoryWithRightsContextSource(catalog, []providers.Adapter{{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: failGatewayExecutionRunner{delegate: runner}}}, fixtureRightsContext)
 	require.NoError(t, err)
-	result, err := repository.Run(context.Background(), ProviderRequest{
+	result, err := repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Source: "source", SchemaJSON: `{"type":"object"}`, Role: "extract.structured",
 		Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, MaxProviderCalls: 1,
 	})
@@ -588,7 +620,7 @@ func TestTypedFallbackReevaluatesEachLocalCandidateRights(t *testing.T) {
 		Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: failGatewayExecutionRunner{delegate: runner},
 	}}, fixtureRightsContext)
 	require.NoError(t, err)
-	_, err = repository.Run(context.Background(), ProviderRequest{
+	_, err = repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Source: "source", SchemaJSON: `{"type":"object"}`, Role: "extract.structured", Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
 	})
 	require.ErrorIs(t, err, ErrUnavailable)
@@ -620,7 +652,7 @@ func TestTypedFallbackRebindsRightsReceiptToEachArtifact(t *testing.T) {
 		Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: failGatewayExecutionRunner{delegate: runner},
 	}}, fixtureRightsContext)
 	require.NoError(t, err)
-	_, err = repository.Run(context.Background(), ProviderRequest{
+	_, err = repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Source: "source", SchemaJSON: `{"type":"object"}`, Role: "extract.structured", Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
 	})
 	require.ErrorIs(t, err, ErrUnavailable)
@@ -722,7 +754,7 @@ func TestResourceRepositoryDeterministicRoleReachesOpenRouter(t *testing.T) {
 		{Provider: providers.ProviderOpenRouter, Locality: "remote", CommandName: "resource-openrouter", Runner: runner},
 	})
 	require.NoError(t, err)
-	result, err := repository.Run(context.Background(), ProviderRequest{Source: "s", SchemaJSON: `{"type":"object"}`, Role: "extract.structured", PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC})
+	result, err := repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", Source: "s", SchemaJSON: `{"type":"object"}`, Role: "extract.structured", PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC})
 	require.NoError(t, err)
 	require.NotNil(t, result.Applied.TemperatureSent)
 	require.Equal(t, 0.0, *result.Applied.TemperatureSent)
@@ -748,7 +780,7 @@ func TestResourceRepositorySendsRoleTemperatureToIgnoringCandidate(t *testing.T)
 		{Provider: providers.ProviderOpenRouter, Locality: "remote", CommandName: "resource-openrouter", Runner: runner},
 	})
 	require.NoError(t, err)
-	result, err := repository.Run(context.Background(), ProviderRequest{Source: "s", SchemaJSON: `{"type":"object"}`, Role: "extract.structured", PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC})
+	result, err := repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", Source: "s", SchemaJSON: `{"type":"object"}`, Role: "extract.structured", PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC})
 	require.NoError(t, err)
 	require.NotNil(t, result.Applied.TemperatureSent)
 	require.Equal(t, providers.SamplingIgnored, result.Applied.TemperatureSupport,
@@ -775,7 +807,7 @@ func TestResourceRepositorySendsRoleTemperatureToUndeclaredCandidate(t *testing.
 		{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner},
 	}, fixtureRightsContext)
 	require.NoError(t, err)
-	result, err := repository.Run(context.Background(), ProviderRequest{Source: "s", SchemaJSON: `{"type":"object"}`, Role: "classify.fast"})
+	result, err := repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", Source: "s", SchemaJSON: `{"type":"object"}`, Role: "classify.fast"})
 	require.NoError(t, err)
 	require.NotNil(t, result.Applied.TemperatureSent)
 	require.Equal(t, providers.SamplingUnknown, result.Applied.TemperatureSupport)
@@ -798,7 +830,7 @@ func TestResourceRepositoryOmitsRoleTemperatureOnRejectingCandidate(t *testing.T
 		{Provider: providers.ProviderOpenRouter, Locality: "remote", CommandName: "resource-openrouter", Runner: runner},
 	})
 	require.NoError(t, err)
-	result, err := repository.Run(context.Background(), ProviderRequest{Source: "s", SchemaJSON: `{"type":"object"}`, Role: "write.diverse", PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC})
+	result, err := repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", Source: "s", SchemaJSON: `{"type":"object"}`, Role: "write.diverse", PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC})
 	require.NoError(t, err)
 	require.Nil(t, result.Applied.TemperatureSent, "sending to a rejecting provider would 400 the call")
 	require.Equal(t, providers.SamplingRejected, result.Applied.TemperatureSupport)
@@ -821,7 +853,7 @@ func TestResourceRepositoryRejectsCallerTemperatureOnDeterministicRole(t *testin
 	})
 	require.NoError(t, err)
 	temperature := 1.2
-	_, err = repository.Run(context.Background(), ProviderRequest{
+	_, err = repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Source: "s", SchemaJSON: `{"type":"object"}`, Role: "judge.default", Temperature: &temperature,
 	})
 	require.ErrorIs(t, err, ErrRoleForbidsSampling)
@@ -844,7 +876,7 @@ func TestResourceRepositoryReportsUnsupportedSamplingWhenNoCandidateHonors(t *te
 	})
 	require.NoError(t, err)
 	temperature := 1.2
-	_, err = repository.Run(context.Background(), ProviderRequest{
+	_, err = repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Source: "s", SchemaJSON: `{"type":"object"}`, Role: "write.default", Temperature: &temperature, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC,
 	})
 	require.ErrorIs(t, err, ErrUnsupportedSampling)
@@ -876,7 +908,7 @@ func TestResourceRepositorySkipsUnhonouringCandidateAndContinues(t *testing.T) {
 	}, fixtureRightsContext)
 	require.NoError(t, err)
 	temperature := 1.2
-	result, err := repository.Run(context.Background(), ProviderRequest{
+	result, err := repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Source: "s", SchemaJSON: `{"type":"object"}`, Role: "write.diverse", Temperature: &temperature,
 	})
 	require.NoError(t, err)
@@ -935,7 +967,7 @@ func TestResourceRepositoryReportsOutputCapSource(t *testing.T) {
 				{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner},
 			}, fixtureRightsContext)
 			require.NoError(t, err)
-			result, err := repository.Run(context.Background(), ProviderRequest{
+			result, err := repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 				Source: "s", SchemaJSON: `{"type":"object"}`, Role: "write.default", MaxOutputTokens: tc.requestCap,
 			})
 			require.NoError(t, err)
@@ -954,7 +986,7 @@ func TestResourceRepositoryRefusesContextOverflowBeforeProviderDispatch(t *testi
 	}}
 	repository, err := NewResourceRepository(catalog, []providers.Adapter{{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner}})
 	require.NoError(t, err)
-	_, err = repository.Run(context.Background(), ProviderRequest{Source: "This prompt is intentionally longer than ten provider tokens.", Instruction: "write", SchemaJSON: `{"type":"object"}`, Role: "write.default", MaxOutputTokens: 8})
+	_, err = repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", Source: "This prompt is intentionally longer than ten provider tokens.", Instruction: "write", SchemaJSON: `{"type":"object"}`, Role: "write.default", MaxOutputTokens: 8})
 	require.ErrorIs(t, err, ErrContextOverflow)
 	for _, command := range runner.Commands {
 		require.NotContains(t, command.String(), "gateway generate", "overflow must be refused before provider dispatch")

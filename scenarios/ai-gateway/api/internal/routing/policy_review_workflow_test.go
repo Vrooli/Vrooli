@@ -17,6 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/servicetoken"
+
 	"github.com/vrooli/ai-provider-go/policy"
 )
 
@@ -192,14 +194,14 @@ func TestPolicyReviewSpecOwnerTraces(t *testing.T) {
 				}
 			}))
 			defer server.Close()
-			identity := NewProviderDecisionIdentity(func() (string, error) { return "isolated-sm6-credential", nil }, func(context.Context, string) (ExchangedServiceIdentity, error) {
-				return ExchangedServiceIdentity{AccessToken: "isolated-sm6-token", ExpiresAt: now.Add(time.Hour), Subject: providerDecisionPrincipal, Audience: providerDecisionAudience, Scopes: []string{providerDecisionScope}}, nil
-			}, func() time.Time { return now })
+			identity := NewProviderDecisionIdentity(func(context.Context) (string, error) { return "isolated-sm6-credential", nil }, servicetoken.WithExchanger(func(context.Context, string) (servicetoken.Exchanged, error) {
+				return servicetoken.Exchanged{AccessToken: "isolated-sm6-token", ExpiresAt: now.Add(time.Hour), Subject: providerDecisionPrincipal, Audience: providerDecisionAudience, Scopes: []string{providerDecisionScope}}, nil
+			}), servicetoken.WithClock(func() time.Time { return now }))
 			hub := NewProviderDecisionHubClient(identity, server.Client())
 			hub.baseURL = func(context.Context) (string, error) { return server.URL, nil }
 			root := t.TempDir()
 			dir := filepath.Join(root, "resources", "sm6-fixture")
-			if err := os.MkdirAll(dir, 0700); err != nil {
+			if err := os.MkdirAll(dir, 0o700); err != nil {
 				t.Fatal(err)
 			}
 			source := ResourcePolicySource{Root: root, Hub: hub, clock: func() time.Time { return now }}
@@ -240,7 +242,7 @@ func TestPolicyReviewSpecOwnerTraces(t *testing.T) {
 					t.Fatal(err)
 				}
 				path := filepath.Join(dir, "model-policy.json")
-				if err := os.WriteFile(path, data, 0600); err != nil {
+				if err := os.WriteFile(path, data, 0o600); err != nil {
 					t.Fatal(err)
 				}
 				before := lookups

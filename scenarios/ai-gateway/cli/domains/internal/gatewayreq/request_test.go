@@ -14,6 +14,7 @@ func requestTestContext(flags map[string]string) cliapp.RunContext {
 		"role":                   "chat.small",
 		"profile":                "local-only",
 		"privacy-class":          "internal",
+		"privacy-provenance":     "cli_test.user_supplied_text",
 		"operation":              "test",
 		"scenario":               "test",
 		"timeout-ms":             "90000",
@@ -46,6 +47,11 @@ func TestInferenceContractKeepsMissingPrivacyUnknownAndBlocksRemote(t *testing.T
 	// routing policy; this caller test proves it does not invent a class.
 }
 
+func TestFromContextRequiresExplicitPrivacyProvenance(t *testing.T) {
+	_, err := FromContext(requestTestContext(map[string]string{"privacy-provenance": "  "}))
+	require.ErrorContains(t, err, "--privacy-provenance is required")
+}
+
 func TestInferenceContractAcceptsOnlyRecognizedExplicitProfileAndPrivacy(t *testing.T) {
 	ctx := requestTestContext(map[string]string{"profile": "remote-only", "privacy-class": "public"})
 	profile, privacy, err := InferenceContract(ctx)
@@ -73,6 +79,7 @@ func TestFromContextCarriesNoReclaimFootprintAndExpectedWorker(t *testing.T) {
 
 	request, err := FromContext(ctx)
 	require.NoError(t, err)
+	require.Equal(t, "cli_test.user_supplied_text", request.GetPrivacyProvenance())
 	require.EqualValues(t, 6442450944, request.GetRequiredVramBytes())
 	require.Equal(t, "6442450944", request.GetMetadata()["required_vram_bytes"])
 	require.Equal(t, "false", request.GetMetadata()["capacity_allow_reclaim"])

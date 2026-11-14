@@ -566,6 +566,7 @@ func mediaRequest(key string) *routingv1.SubmitMediaRequest {
 			Role:         "media.generate",
 			Profile:      sharedv1.Profile_PROFILE_LOCAL_FIRST,
 			PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+			PrivacyProvenance: "routing_test.generated_media_request",
 			Scenario:     "fixture",
 			Operation:    "generate",
 		},

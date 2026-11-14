@@ -174,7 +174,7 @@ func TestResearchBudgetAskIsExactRunOnlyAndIssuesNoGrantUntilHumanResolution(t *
 	o := phase4Orchestrator(pending, grants, pub, now)
 	runID := uuid.New()
 	req := AuthorizationApprovalRequest{
-		Subject: "treasury", Operation: researchBudgetIngestOperation,
+		Subject: "treasury-agent-manager", Operation: researchBudgetIngestOperation,
 		Target: "agent-manager:run/" + runID.String(), Kind: domain.PendingAuthorizationKindOneTime,
 	}
 	if raised, err := o.RaiseAuthorizationApproval(context.Background(), req); err != nil || !raised {
@@ -198,7 +198,7 @@ func TestResearchBudgetAskIsExactRunOnlyAndIssuesNoGrantUntilHumanResolution(t *
 		t.Fatalf("human resolution should issue exactly one grant, got %d", len(grants.put))
 	}
 	grant := grants.put[0]
-	if grant.Subject != "treasury" || grant.Grant.Approver != "human-operator" ||
+	if grant.Subject != "treasury-agent-manager" || grant.Grant.Approver != "human-operator" ||
 		len(grant.Grant.Operations) != 1 || grant.Grant.Operations[0] != researchBudgetIngestOperation ||
 		len(grant.Grant.Targets) != 1 || grant.Grant.Targets[0] != req.Target || grant.Grant.ExpiresAt.Sub(now) != time.Hour {
 		t.Fatalf("approval issued authority outside the request bounds: %+v", grant)
@@ -210,11 +210,15 @@ func TestResearchBudgetAskIsExactRunOnlyAndIssuesNoGrantUntilHumanResolution(t *
 
 func TestResearchBudgetAskRejectsUnrelatedOrBroadScope(t *testing.T) {
 	base := AuthorizationApprovalRequest{
-		Subject: "treasury", Operation: researchBudgetIngestOperation,
+		Subject: "treasury-agent-manager", Operation: researchBudgetIngestOperation,
 		Target: "agent-manager:run/123e4567-e89b-12d3-a456-426614174000", Kind: domain.PendingAuthorizationKindOneTime,
 	}
 	for _, change := range []func(*AuthorizationApprovalRequest){
 		func(r *AuthorizationApprovalRequest) { r.Subject = "other-service" },
+		// Treasury's name before it held one principal per peer, and its principal
+		// for another peer, are not the subject an operator can approve here.
+		func(r *AuthorizationApprovalRequest) { r.Subject = "treasury" },
+		func(r *AuthorizationApprovalRequest) { r.Subject = "treasury-notification-hub" },
 		func(r *AuthorizationApprovalRequest) { r.Target = "agent-manager:*" },
 		func(r *AuthorizationApprovalRequest) { r.Target += "/child" },
 		func(r *AuthorizationApprovalRequest) { r.Kind = domain.PendingAuthorizationKindStanding },

@@ -70,6 +70,16 @@ const standingGrantIssueTTL = MaxStandingGrantLifetime
 const oneTimeGrantIssueTTL = time.Hour
 
 const researchBudgetIngestOperation = "research-budget.ingest"
+
+// TreasuryServiceSubject is Treasury's service principal at Agent Manager: the
+// only subject that may submit research-budget evidence, and the subject of the
+// one-time grant an operator approves for it. Treasury holds one principal per
+// peer (treasury-money-ledger, treasury-notification-hub), so a token Treasury
+// holds for another peer is not accepted here. It is issued by
+// `scenario-authenticator service-principals sync --apply` from Treasury's
+// .vrooli/service-principals.json.
+const TreasuryServiceSubject = "treasury-agent-manager"
+
 const CF7ResearchBudgetTestRunTag = "cf7-test-only"
 
 var researchBudgetIngestTargetPattern = regexp.MustCompile(`^agent-manager:run/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
@@ -193,13 +203,13 @@ func validAuthorizationApprovalRequest(req AuthorizationApprovalRequest) bool {
 	if operation == "run.create" {
 		return target != ""
 	}
-	return operation == researchBudgetIngestOperation && subject == "treasury" &&
+	return operation == researchBudgetIngestOperation && subject == TreasuryServiceSubject &&
 		req.Kind == domain.PendingAuthorizationKindOneTime && req.SessionID == "" &&
 		req.MaxConcurrentRuns == 0 && researchBudgetIngestTargetPattern.MatchString(target)
 }
 
 func isResearchBudgetIngestRequest(p *domain.PendingAuthorizationRequest) bool {
-	return p != nil && p.Subject == "treasury" && p.Operation == researchBudgetIngestOperation &&
+	return p != nil && p.Subject == TreasuryServiceSubject && p.Operation == researchBudgetIngestOperation &&
 		researchBudgetIngestTargetPattern.MatchString(p.Target) && p.Kind == domain.PendingAuthorizationKindOneTime
 }
 
@@ -225,7 +235,7 @@ func (o *Orchestrator) createResearchBudgetIngestGrant(ctx context.Context, pend
 	id := uuid.NewString()
 	expires := now.Add(ttl)
 	grant := &domain.StandingGrant{
-		ID: id, Subject: "treasury", Grant: &requestidentity.OperationGrant{
+		ID: id, Subject: TreasuryServiceSubject, Grant: &requestidentity.OperationGrant{
 			ID: id, Policy: "research-budget-ingest", Approver: strings.TrimSpace(approver),
 			Operations: []string{researchBudgetIngestOperation}, Targets: []string{pending.Target}, ExpiresAt: expires,
 		},

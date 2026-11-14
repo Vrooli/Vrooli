@@ -147,6 +147,12 @@ func TestResolverSelectionAndFallbackOutcomes(t *testing.T) { // [REQ:REQ-P2-001
 	if extractor.request.RoleRef != DefaultExtractRole || len(extractor.request.Source) == 0 || len(extractor.request.Schema) == 0 {
 		t.Fatalf("extract request = %+v", extractor.request)
 	}
+	if extractor.request.PrivacyClass != RunOutputPrivacyClass || extractor.request.PrivacySource != RunOutputPrivacySource {
+		t.Fatalf("extract privacy contract = %q from %q", extractor.request.PrivacyClass, extractor.request.PrivacySource)
+	}
+	if got.Extractor.PrivacyClass != RunOutputPrivacyClass || got.Extractor.PrivacySource != RunOutputPrivacySource {
+		t.Fatalf("persisted privacy provenance = %+v", got.Extractor)
+	}
 
 	extractor.response.Candidate = json.RawMessage(`{"answer":42}`)
 	if got := (Resolver{Extractor: extractor}).Resolve(context.Background(), spec, selected("not json")); got.Status != domain.StructuredResultInvalid {

@@ -1,5 +1,26 @@
 {
   "schema_version": 1,
+  "code_roles": {
+    "policy.inventory-reservation": {
+      "handler_id": "inventory-reservation-policy/v1",
+      "max_source_bytes": 4096,
+      "max_output_bytes": 4096,
+      "schema_contract": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": ["reorder", "hold"]
+          },
+          "net": {
+            "type": "integer"
+          }
+        },
+        "required": ["action", "net"],
+        "additionalProperties": false
+      }
+    }
+  },
   "roles": {
     "embedding.default": {
       "description": "Deterministic text embeddings resolved through the local embedding model role.",
@@ -131,7 +152,7 @@
       ]
     },
     "extract.structured": {
-      "description": "Schema-constrained extraction with a mid-size local first candidate.",
+      "description": "Schema-constrained extraction. The incumbent remains active while the compact local lane is qualified on real caller schemas.",
       "timeout_ms": 120000,
       "sampling": {
         "temperature": 0.0,
@@ -157,6 +178,16 @@
           "provider": "lpbs",
           "resource_role": "extract.structured",
           "reason": "Subscription-backed metered structured-output fallback."
+        }
+      ],
+      "qualification_candidates": [
+        {
+          "candidate": {
+            "provider": "ollama",
+            "resource_role": "chat.small",
+            "reason": "LM4 compact extraction candidate; not dispatched until a real-caller comparison qualifies it."
+          },
+          "status": "pending"
         }
       ]
     },
@@ -232,6 +263,31 @@
           "provider": "ollama",
           "resource_role": "summarize.default",
           "reason": "Resource-owned summarization policy; concrete model and fallback remain governed by resource policy."
+        }
+      ],
+      "qualification_candidates": [
+        {
+          "candidate": {
+            "provider": "ollama",
+            "resource_role": "chat.small",
+            "reason": "LM4 compact faithful-summary candidate; not dispatched until a real caller validates factual fidelity."
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    "ux.visual-critique": {
+      "description": "Inspect a served user interface screenshot and return only visible UX findings using the caller's declared schema.",
+      "timeout_ms": 90000,
+      "sampling": {
+        "temperature": 0.0,
+        "overridable": false
+      },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "vision.default",
+          "reason": "Keep UX screenshots on the local, resource-governed vision model; preserve the caller's finding schema."
         }
       ]
     },

@@ -10,6 +10,7 @@ import (
 	"ai-gateway/internal/providers"
 
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
 // serviceWorld wires the real Service over a resource repository whose
@@ -38,7 +39,7 @@ func serviceWorld(t *testing.T, world *decisionWorld, ollamaValue string) *Servi
 func TestDecideFallbackRunsTheProductionClassifyPath(t *testing.T) {
 	world := newDecisionWorld().refusesResolve("decide.local", providers.CodeUnreachable)
 	service := serviceWorld(t, world, `"{\"kind\":\"approval\"}"`)
-	response := service.Decide(context.Background(), DecisionRequest{
+	response := service.Decide(context.Background(), DecisionRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Role: decideRole, State: "Looks great, ship it.",
 		Questions: []*inferencev1.DecisionQuestion{choice("kind", "correction", "approval", "question")},
 	})
@@ -57,10 +58,36 @@ func TestDecideFallbackRunsTheProductionClassifyPath(t *testing.T) {
 	require.Contains(t, generate, `"enum":["correction","approval","question"]`, "the enum grammar reaches the local model")
 }
 
+func TestDecideBatchPreservesPrivacyProvenanceOnEnumFallback(t *testing.T) {
+	world := newDecisionWorld().refusesResolve("decide.local", providers.CodeUnreachable)
+	service := serviceWorld(t, world, `"{\"kind\":\"approval\"}"`)
+	provenance := "agent_manager.operator_authored_intervention_corpus"
+	template := DecisionRequest{
+		Role: decideRole, Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
+		Questions: []*inferencev1.DecisionQuestion{
+			choice("kind", "correction", "approval", "question"),
+		},
+		PrivacyProvenance: provenance,
+	}
+	response := service.DecideBatch(context.Background(), template, []DecisionRequest{{State: "state one"}})
+	require.Len(t, response.GetResults(), 1)
+	for _, result := range response.GetResults() {
+		require.Nil(t, result.GetError(), "%+v", result)
+	}
+	var generate string
+	for _, command := range world.runner.Commands {
+		if strings.Contains(command.String(), "gateway generate") {
+			generate = command.String()
+		}
+	}
+	require.NotEmpty(t, generate, "the batch enum fallback must execute the typed classify path")
+	require.NotContains(t, generate, provenance, "privacy attribution must not enter model prompts")
+}
+
 func TestDecideFallbackRejectsALabelOutsideTheEnum(t *testing.T) {
 	world := newDecisionWorld().refusesResolve("decide.local", providers.CodeUnreachable)
 	service := serviceWorld(t, world, `"{\"kind\":\"refund\"}"`)
-	response := service.Decide(context.Background(), DecisionRequest{
+	response := service.Decide(context.Background(), DecisionRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Role: decideRole, State: "x", Questions: []*inferencev1.DecisionQuestion{choice("kind", "correction", "approval")},
 	})
 	require.Equal(t, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, response.GetError().GetCode())
@@ -88,7 +115,7 @@ func TestDecideBatchPreservesOrderAndIsolatesBadItems(t *testing.T) {
 	require.Nil(t, response.GetResults()[2].GetError())
 	require.EqualValues(t, 500, response.GetUsage().GetInputTokens(), "two successful typed enum fallbacks aggregate their provider-reported usage")
 
-	refused := service.DecideBatch(context.Background(), DecisionRequest{Role: decideRole}, []DecisionRequest{{State: "a"}, {State: "b"}})
+	refused := service.DecideBatch(context.Background(), DecisionRequest{PrivacyProvenance: "tests.explicit_internal_input", Role: decideRole}, []DecisionRequest{{State: "a"}, {State: "b"}})
 	require.Len(t, refused.GetResults(), 1, "a bad question set fails the batch once")
 	require.Equal(t, "questions", refused.GetResults()[0].GetError().GetConstruct())
 
@@ -97,8 +124,8 @@ func TestDecideBatchPreservesOrderAndIsolatesBadItems(t *testing.T) {
 }
 
 func TestDecideWithoutADecisionRepositoryIsUnavailable(t *testing.T) {
-	response := NewService(nil).Decide(context.Background(), DecisionRequest{Role: "decide.fast", State: "x", Questions: []*inferencev1.DecisionQuestion{noul("q")}})
+	response := NewService(nil).Decide(context.Background(), DecisionRequest{PrivacyProvenance: "tests.explicit_internal_input", Role: "decide.fast", State: "x", Questions: []*inferencev1.DecisionQuestion{noul("q")}})
 	require.Equal(t, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, response.GetError().GetCode())
-	response = NewService(UnavailableRepository{Reason: "catalog is malformed"}).Decide(context.Background(), DecisionRequest{Role: "decide.fast", State: "x", Questions: []*inferencev1.DecisionQuestion{noul("q")}})
+	response = NewService(UnavailableRepository{Reason: "catalog is malformed"}).Decide(context.Background(), DecisionRequest{PrivacyProvenance: "tests.explicit_internal_input", Role: "decide.fast", State: "x", Questions: []*inferencev1.DecisionQuestion{noul("q")}})
 	require.Equal(t, "catalog is malformed", response.GetError().GetMessage())
 }

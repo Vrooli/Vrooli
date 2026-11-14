@@ -5,6 +5,24 @@
       "resource": "web-console",
       "audience": "scenario-authenticator:web-console",
       "scopes": ["web-console:read", "web-console:write"]
+    },
+    {
+      "name": "agent-manager-ask-reader",
+      "resource": "notification-hub-ask-reader",
+      "audience": "scenario-authenticator:notification-hub-ask-reader",
+      "scopes": ["notification-hub:ask-read"]
+    },
+    {
+      "name": "agent-manager-event-publisher",
+      "resource": "vrooli-events",
+      "audience": "scenario-authenticator:vrooli-events",
+      "scopes": ["vrooli-events:publish"]
+    },
+    {
+      "name": "agent-manager-notification-hub",
+      "resource": "notification-hub",
+      "audience": "scenario-authenticator:notification-hub",
+      "scopes": ["notification-hub:send"]
     }
   ]
 }

@@ -30,6 +30,7 @@ func TestPreviewRouteUsesGatewayValidationBeforeRouting(t *testing.T) { // [REQ:
 			Role:         "chat.default",
 			Profile:      sharedv1.Profile_PROFILE_REMOTE_ONLY,
 			PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_SECRET,
+			PrivacyProvenance: "routing_handler_test.secret_input",
 		},
 	}))
 	require.NoError(t, err)
@@ -69,6 +70,7 @@ func TestSubmitMediaNeverManufacturesAnExecutionWithoutDurableStore(t *testing.T
 			Role:         "media.generate",
 			Profile:      sharedv1.Profile_PROFILE_LOCAL_FIRST,
 			PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+			PrivacyProvenance: "routing_handler_test.internal_media_request",
 		},
 		Prompt:         "a red square",
 		OutputCount:    1,
@@ -83,7 +85,7 @@ func TestMediaHandlerMapsIdempotencyConflictAndUnknownRetry(t *testing.T) {
 	require.NoError(t, database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(internalrouting.Schema)))
 	h := handler.NewConnectHandler(handler.Deps{DB: db})
 	request := &routingv1.SubmitMediaRequest{
-		Request: &sharedv1.GatewayRequest{Kind: sharedv1.RequestKind_REQUEST_KIND_IMAGE_GENERATION, Role: "media.generate", Scenario: "fixture", Operation: "generate"},
+		Request: &sharedv1.GatewayRequest{Kind: sharedv1.RequestKind_REQUEST_KIND_IMAGE_GENERATION, Role: "media.generate", Scenario: "fixture", Operation: "generate", PrivacyProvenance: "routing_handler_test.internal_media_request", PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL, Profile: sharedv1.Profile_PROFILE_LOCAL_FIRST},
 		Prompt:  "a red square", OutputCount: 1, IdempotencyKey: "handler-binding", OutputReference: filepath.Join(t.TempDir(), "output.png"),
 	}
 	first, err := h.SubmitMedia(context.Background(), connect.NewRequest(request))

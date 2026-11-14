@@ -8,6 +8,7 @@ import (
 	"agent-manager/internal/domain"
 	runidentity "agent-manager/internal/identity"
 	"github.com/google/uuid"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 type treasurySessionKeyStoreFixture struct {
@@ -109,5 +110,44 @@ func TestRunExecutorInjectsOnlyVerifiedTreasuryRunKey(t *testing.T) {
 	}
 	if err := owner.credentialUseReleaser.RevokeRunCredentialUse(context.Background(), runID, "completed"); err != nil || store.revokes != 1 {
 		t.Fatalf("terminal cleanup did not revoke run key: revokes=%d err=%v", store.revokes, err)
+	}
+}
+
+func TestCredentialAuthorityTreasurySessionKeySurvivesReopenAndRevokes(t *testing.T) {
+	path := t.TempDir() + "/agent-manager-run-keys.enc"
+	const passphrase = "test-only-run-key-authority-passphrase"
+	runID := uuid.New()
+	open := func() (*credentialauthority.Authority, error) {
+		return credentialauthority.OpenEncryptedFile(path, passphrase)
+	}
+
+	firstOwner := NewCredentialAuthorityTreasurySessionKeysWithOpener(open)
+	first, err := firstOwner.ResolveOrMint(context.Background(), runID)
+	if err != nil {
+		t.Fatalf("mint run-owned Treasury key: %v", err)
+	}
+
+	// A fresh store wrapper models Agent Manager or the executor reopening the
+	// encrypted authority after a restart. It must recover the same key so the
+	// Treasury mandate session remains bound to this run.
+	reopenedOwner := NewCredentialAuthorityTreasurySessionKeysWithOpener(open)
+	reopened, err := reopenedOwner.ResolveOrMint(context.Background(), runID)
+	if err != nil || reopened != first {
+		t.Fatalf("reopened authority did not recover the same run-owned key: equal=%t err=%v", reopened == first, err)
+	}
+
+	if err := reopenedOwner.RevokeRunCredentialUse(context.Background(), runID, "completed"); err != nil {
+		t.Fatalf("revoke terminal run key: %v", err)
+	}
+	identity, err := credentialauthority.ParseIdentity(treasurySessionIdentityPrefix + runID.String())
+	if err != nil {
+		t.Fatalf("parse run-scoped key identity: %v", err)
+	}
+	authority, err := open()
+	if err != nil {
+		t.Fatalf("reopen authority after revocation: %v", err)
+	}
+	if _, err := authority.Resolve(identity, treasurySessionKeyField); err == nil {
+		t.Fatal("terminal run's Treasury session key remained resolvable")
 	}
 }

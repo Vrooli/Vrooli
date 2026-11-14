@@ -35,8 +35,15 @@ type ProviderRequest struct {
 	Role                     string
 	Profile                  sharedv1.Profile
 	PrivacyClass             sharedv1.PrivacyClass
-	Turns                    []*inferencev1.Turn
-	Attachments              []*sharedv1.Attachment
+	// PrivacyProvenance is non-sensitive caller attribution for the declared
+	// privacy class. It is evidence only and never relaxes locality policy or
+	// becomes part of the model input.
+	PrivacyProvenance string
+	// AllowSemanticEscalation is explicit caller consent for a role-declared
+	// larger candidate after the normal walk and same-candidate repair fail.
+	AllowSemanticEscalation bool
+	Turns                   []*inferencev1.Turn
+	Attachments             []*sharedv1.Attachment
 	// Temperature is the caller's explicit sampling request, or nil for "use
 	// the role's declared sampling". It is a plain pointer rather than the
 	// proto message so this package does not depend on proto shape for one
@@ -86,7 +93,8 @@ func canonicalRequestDigest(request ProviderRequest) string {
 	message := &inferencev1.RunRequest{
 		Source: request.Source, SchemaJson: request.SchemaJSON, Instruction: request.Instruction,
 		Role: request.Role, Turns: request.Turns, Attachments: request.Attachments,
-		Profile: request.Profile, PrivacyClass: request.PrivacyClass, MaxOutputTokens: request.MaxOutputTokens,
+		Profile: request.Profile, PrivacyClass: request.PrivacyClass, PrivacyProvenance: request.PrivacyProvenance,
+		AllowSemanticEscalation: request.AllowSemanticEscalation, MaxOutputTokens: request.MaxOutputTokens,
 		MaxProviderCalls: request.MaxProviderCalls, SpendLimit: request.SpendLimit,
 	}
 	if request.Temperature != nil {

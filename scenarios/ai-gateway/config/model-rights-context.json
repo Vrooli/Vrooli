@@ -2,7 +2,8 @@
   "schema_version": "1",
   "context": {
     "id": "operator-stated-business-context",
-    "version": "2026-11-10",
+    "version": "2026-11-14",
+    "entity_scope": "operator-group",
     "revenue_status": "pre_revenue",
     "as_of": "2026-11-10",
     "source": "operator_statement"

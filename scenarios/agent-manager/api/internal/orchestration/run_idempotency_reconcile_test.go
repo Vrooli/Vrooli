@@ -99,8 +99,11 @@ func TestCreateRunAcceptedReceiptSurvivesCacheExpiryAndDeletion(t *testing.T) {
 			repos, _, _ := testutil.SetupTestReposWithDB(t, db)
 			ctx := context.Background()
 			o := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithIdempotency(repos.Idempotency), fixtureOwnerIdentityOption())
-			task := &domain.Task{ID: uuid.New(), Title: "accepted-once", ScopePath: ".", Status: domain.TaskStatusCancelled}
+			task := &domain.Task{ID: uuid.New(), Title: "accepted-once", ScopePath: ".", Status: domain.TaskStatusQueued}
 			if err := repos.Tasks.Create(ctx, task); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, `UPDATE tasks SET status = ? WHERE id = ?`, string(domain.TaskStatusCancelled), task.ID.String()); err != nil {
 				t.Fatal(err)
 			}
 			key := "accepted-once"

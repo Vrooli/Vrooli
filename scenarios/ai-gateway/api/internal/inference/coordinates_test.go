@@ -57,7 +57,7 @@ func TestServiceNormalizesLocateVisualBeforeCanonicalSchemaValidation(t *testing
 		CoordinateConvention: CoordinateConventionNormalized1000,
 	}}
 	service := NewService(repository)
-	response := service.Run(t.Context(), ProviderRequest{
+	response := service.Run(t.Context(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		SchemaJSON:  `{"type":"object","required":["found","bounds","confidence"],"properties":{"found":{"type":"boolean"},"bounds":{"type":"array","items":{"type":"number"}},"confidence":{"type":"number","minimum":0,"maximum":1}}}`,
 		Instruction: "Find the target.",
 		Role:        "locate.visual",
@@ -78,6 +78,16 @@ func TestCatalogDeclaresLocateVisualRole(t *testing.T) {
 	require.Equal(t, "vision.default", role.Candidates[0].ResourceRole)
 	require.Equal(t, "vision.default", role.Candidates[1].ResourceRole)
 	require.Equal(t, "vision.default", role.Candidates[2].ResourceRole)
+}
+
+func TestCatalogDeclaresUXVisualCritiqueAsLocalVisionRole(t *testing.T) {
+	catalog, err := LoadCatalog("../../../config/inference-role-catalog.json")
+	require.NoError(t, err)
+	role, ok := catalog.Roles["ux.visual-critique"]
+	require.True(t, ok)
+	require.Len(t, role.Candidates, 1)
+	require.Equal(t, "ollama", role.Candidates[0].Provider)
+	require.Equal(t, "vision.default", role.Candidates[0].ResourceRole)
 }
 
 func TestCatalogDeclaresDeviceControlPlanningRole(t *testing.T) {

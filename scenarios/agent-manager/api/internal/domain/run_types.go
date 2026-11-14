@@ -708,6 +708,8 @@ type StructuredExtractionProvenance struct {
 	Provider       string                   `json:"provider,omitempty"`
 	Model          string                   `json:"model,omitempty"`
 	PolicySnapshot *ExecutionPolicySnapshot `json:"policySnapshot,omitempty"`
+	PrivacyClass   string                   `json:"privacyClass,omitempty"`
+	PrivacySource  string                   `json:"privacySource,omitempty"`
 }
 
 // StructuredResult is the locally validated typed projection attached to the

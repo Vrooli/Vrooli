@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/credential-authority-go/eventpublishing"
+
 	"github.com/google/uuid"
 	repocontract "github.com/vrooli/repo-contract-go"
 
@@ -597,6 +599,7 @@ func (s *Server) Cleanup() error {
 }
 
 func main() {
+	eventpublishing.Register()
 	if preflight.Run(preflight.Config{ScenarioName: "agent-manager"}) {
 		return
 	}

@@ -103,6 +103,17 @@ type ResourceRepository struct {
 	rightsContext func(context.Context) (policy.RightsContext, error)
 }
 
+// LookupCodeRole returns only a code role declared in this repository's
+// validated inference catalog. The provider-neutral service uses this to
+// dispatch bounded deterministic handlers without constructing a provider.
+func (r *ResourceRepository) LookupCodeRole(role string) (CodeRoleContract, bool) {
+	if r == nil {
+		return CodeRoleContract{}, false
+	}
+	contract, ok := r.catalog.CodeRoles[strings.TrimSpace(role)]
+	return contract, ok
+}
+
 func NewResourceRepository(catalog RoleCatalog, adapters []providers.Adapter, ledgers ...AttemptLedger) (*ResourceRepository, error) {
 	if err := catalog.Validate(); err != nil {
 		return nil, err

@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/operatordecision"
+	"github.com/vrooli/vrooli/packages/credential-authority-go/hubidentity"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
@@ -33,7 +34,9 @@ type RunApprovalResolver interface {
 // DecisionResolvedWebhook receives notification-hub's
 // notification_hub.ask.resolved.v1 through the signed vrooli-events webhook and
 // applies it via the shared operatordecision.Webhook. The substrate verifies the
-// HMAC signature, decodes the envelope, gates on the ask-resolved event type, and
+// HMAC signature, decodes the envelope, gates on the ask-resolved event type,
+// reads the ask back from the Hub as agent-manager's own ask-reader (webhook.Reader)
+// so that only what the Hub says is applied, and
 // fans the resolution to three DomainEffects in the SAME order as before:
 // run-approval → authorization → effort. The first effect that reports handled
 // wins; an effect that does not own the resolution reports handled=false and the
@@ -44,7 +47,7 @@ type RunApprovalResolver interface {
 // webhook's ignored response). extra effects (each claiming only its own
 // source event type, such as the evidence-prune approval) run after the
 // requester tie-back and before the run/authorization/effort appliers.
-func DecisionResolvedWebhook(service *supervision.Service, resolver RunApprovalResolver, secret string, extra ...operatordecision.DomainEffect) http.Handler {
+func DecisionResolvedWebhook(service *supervision.Service, resolver RunApprovalResolver, webhook operatordecision.WebhookConfig, extra ...operatordecision.DomainEffect) http.Handler {
 	effects := make([]operatordecision.DomainEffect, 0, 4+len(extra))
 	// The requester tie-back is a pure observer that runs FIRST and never claims
 	// the resolution (handled=false), so it fires for EVERY resolution carrying
@@ -61,7 +64,8 @@ func DecisionResolvedWebhook(service *supervision.Service, resolver RunApprovalR
 		authorizationEffect{resolver: resolver},
 		effortDecisionEffect{service: service, contexts: contextFinder(service), tieBack: tieBack},
 	)
-	return operatordecision.Webhook(secret, effects...)
+	webhook.Effects = effects
+	return operatordecision.NewWebhook(hubidentity.WebhookConfig(webhook))
 }
 
 // requesterWaker is the narrow orchestrator surface the requester tie-back uses:

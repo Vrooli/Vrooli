@@ -43,6 +43,29 @@ const (
 	shrinkScale = 0.6
 )
 
+// conversationTaskContract binds every intervention decision attempt to the
+// same source policy. Agent transcripts can include proprietary repository
+// context, so they are classified confidential and kept local even when the
+// gateway's primary decision model overflows and its LLM-enum fallback answers.
+type conversationTaskContract struct {
+	Role          string
+	Profile       sharedv1.Profile
+	PrivacyClass  sharedv1.PrivacyClass
+	PrivacySource string
+}
+
+func (c *Classifier) taskContract() conversationTaskContract {
+	role := strings.TrimSpace(c.Role)
+	if role == "" {
+		role = DefaultRole
+	}
+	return conversationTaskContract{
+		Role: role, Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
+		PrivacyClass:  sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
+		PrivacySource: "agent_manager.operator_and_agent_conversation",
+	}
+}
+
 // Status of one operator message's classification.
 type Status string
 
@@ -208,20 +231,20 @@ func (c *Classifier) decide(ctx context.Context, client DecideClient, messages [
 	}
 	// Message text never leaves the machine: the local-only profile keeps the
 	// role's walk to local decision models, as ClassifySignals does.
-	return c.decideStates(ctx, client, questions(), sharedv1.Profile_PROFILE_LOCAL_ONLY, states)
+	return c.decideStates(ctx, client, questions(), c.taskContract(), states)
 }
 
 // decideStates sends one DecideBatch call: the same questions about each state.
-func (c *Classifier) decideStates(ctx context.Context, client DecideClient, qs []*inferencev1.DecisionQuestion, profile sharedv1.Profile, states []string) ([]*inferencev1.DecideResponse, error) {
+func (c *Classifier) decideStates(ctx context.Context, client DecideClient, qs []*inferencev1.DecisionQuestion, contract conversationTaskContract, states []string) ([]*inferencev1.DecideResponse, error) {
 	items := make([]*inferencev1.DecideBatchItem, len(states))
 	for i, state := range states {
 		items[i] = &inferencev1.DecideBatchItem{StateJson: state}
 	}
-	role := c.Role
-	if role == "" {
-		role = DefaultRole
-	}
-	response, err := client.DecideBatch(ctx, connect.NewRequest(&inferencev1.DecideBatchRequest{Role: role, Questions: qs, Items: items, Profile: profile}))
+	response, err := client.DecideBatch(ctx, connect.NewRequest(&inferencev1.DecideBatchRequest{
+		Role: contract.Role, Questions: qs, Items: items,
+		Profile: contract.Profile, PrivacyClass: contract.PrivacyClass,
+		PrivacyProvenance: contract.PrivacySource,
+	}))
 	if err != nil {
 		return nil, fmt.Errorf("%w: decide-batch: %v", ErrGatewayUnavailable, err)
 	}

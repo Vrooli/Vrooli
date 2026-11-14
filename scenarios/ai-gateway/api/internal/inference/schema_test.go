@@ -110,7 +110,7 @@ func TestSchemaGateBoundsEnforceTypesAndExclusiveEdges(t *testing.T) {
 
 func TestServiceMarksInvalidProviderValue(t *testing.T) {
 	service := NewService(fakeRepository{result: ProviderResult{ValueJSON: `{"kind":"unexpected"}`, Provider: "fake", Model: "test", InputTokens: 2, OutputTokens: 1}})
-	response := service.Run(t.Context(), ProviderRequest{Source: "source", SchemaJSON: `{"type":"object","required":["kind"],"properties":{"kind":{"enum":["expected"]}}}`, Role: "extract.structured"})
+	response := service.Run(t.Context(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", Source: "source", SchemaJSON: `{"type":"object","required":["kind"],"properties":{"kind":{"enum":["expected"]}}}`, Role: "extract.structured"})
 	require.False(t, response.GetValidated())
 	require.Equal(t, "INFERENCE_ERROR_CODE_VALIDATION_FAILED", response.GetError().GetCode().String())
 }
@@ -118,7 +118,7 @@ func TestServiceMarksInvalidProviderValue(t *testing.T) {
 func TestServicePassesInstructionAsASeparateProviderField(t *testing.T) {
 	repository := &recordingRepository{result: ProviderResult{ValueJSON: `"ok"`, Provider: "fake", Model: "test", InputTokens: 3, OutputTokens: 1}}
 	service := NewService(repository)
-	response := service.Run(t.Context(), ProviderRequest{
+	response := service.Run(t.Context(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Source:      "source",
 		SchemaJSON:  `{"type":"string"}`,
 		Instruction: "Classify by root cause, not surface wording.",
@@ -132,8 +132,8 @@ func TestServiceBatchPreservesOrderAndAggregatesUsage(t *testing.T) {
 	repository := &batchRecordingRepository{}
 	service := NewService(repository)
 	response := service.RunBatch(t.Context(), []ProviderRequest{
-		{Source: "first", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"},
-		{Source: "second", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"},
+		{PrivacyProvenance: "tests.explicit_internal_input", Source: "first", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"},
+		{PrivacyProvenance: "tests.explicit_internal_input", Source: "second", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"},
 	})
 	require.Len(t, response.GetResults(), 2)
 	require.Equal(t, `"first"`, response.GetResults()[0].GetValueJson())
@@ -144,7 +144,7 @@ func TestServiceBatchPreservesOrderAndAggregatesUsage(t *testing.T) {
 
 func TestServiceRepairRetainsUsageProvenanceAcrossAttempts(t *testing.T) {
 	repository := &provenanceRepairRepository{}
-	response := NewService(repository).Run(t.Context(), ProviderRequest{Source: "brief", SchemaJSON: `{"type":"string"}`, Role: "extract.structured"})
+	response := NewService(repository).Run(t.Context(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", Source: "brief", SchemaJSON: `{"type":"string"}`, Role: "extract.structured"})
 	require.True(t, response.GetValidated())
 	require.Equal(t, 2, repository.calls)
 	require.Equal(t, inferencev1.UsageProvenance_USAGE_PROVENANCE_MIXED, response.GetUsage().GetInputTokensProvenance())
@@ -168,9 +168,9 @@ func (r *provenanceRepairRepository) Run(context.Context, ProviderRequest) (Prov
 func TestServiceBatchKeepsOtherItemsWhenOneFailsLocalValidation(t *testing.T) {
 	service := NewService(mixedBatchRepository{})
 	response := service.RunBatch(t.Context(), []ProviderRequest{
-		{Source: "first", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"},
-		{Source: "bad", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"},
-		{Source: "third", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"},
+		{PrivacyProvenance: "tests.explicit_internal_input", Source: "first", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"},
+		{PrivacyProvenance: "tests.explicit_internal_input", Source: "bad", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"},
+		{PrivacyProvenance: "tests.explicit_internal_input", Source: "third", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"},
 	})
 	require.Len(t, response.GetResults(), 3)
 	require.True(t, response.GetResults()[0].GetValidated())

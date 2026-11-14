@@ -113,8 +113,9 @@ func score(id string, levels ...string) *inferencev1.DecisionQuestion {
 // choice and a yes/no.
 func operatorMessage() DecisionRequest {
 	return DecisionRequest{
-		State:     "No, stop. That is not what I asked for; revert the file.",
-		Questions: []*inferencev1.DecisionQuestion{choice("kind", "correction", "approval", "question"), noul("stop")},
+		State:             "No, stop. That is not what I asked for; revert the file.",
+		PrivacyProvenance: "tests.explicit_internal_input",
+		Questions:         []*inferencev1.DecisionQuestion{choice("kind", "correction", "approval", "question"), noul("stop")},
 	}
 }
 
@@ -151,7 +152,8 @@ func TestDecideSkipsUnconfiguredCandidatesAndFallsBackToTheEnumPath(t *testing.T
 		Validated: true, ValueJson: `{"kind":"correction"}`, Provider: "ollama", Model: "qwen3.5:4b",
 		Usage: &inferencev1.Usage{InputTokens: 300, OutputTokens: 9},
 	}
-	request := DecisionRequest{State: "Stop, revert it.", Questions: []*inferencev1.DecisionQuestion{choice("kind", "correction", "approval", "question")}, Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY}
+	request := DecisionRequest{State: "Stop, revert it.", Questions: []*inferencev1.DecisionQuestion{choice("kind", "correction", "approval", "question")},
+		Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, PrivacyProvenance: "caller identified an operator-authored message"}
 	response := world.decide(t, request)
 
 	require.Nil(t, response.GetError())
@@ -167,6 +169,9 @@ func TestDecideSkipsUnconfiguredCandidatesAndFallsBackToTheEnumPath(t *testing.T
 	fallback := world.classify[0]
 	require.Equal(t, "classify.fast", fallback.Role)
 	require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, fallback.Profile, "the fallback inherits the caller's locality stance")
+	require.Equal(t, request.PrivacyProvenance, fallback.PrivacyProvenance, "typed fallback preserves attribution separately from prompt content")
+	require.NotContains(t, fallback.Source, request.PrivacyProvenance)
+	require.NotContains(t, fallback.Instruction, request.PrivacyProvenance)
 	require.JSONEq(t, `{"type":"object","properties":{"kind":{"type":"string","enum":["correction","approval","question"]}},"required":["kind"],"additionalProperties":false}`, fallback.SchemaJSON)
 	require.Contains(t, fallback.Instruction, "correction: means correction")
 }
@@ -246,7 +251,8 @@ func TestDecisionAndTypedRolesDoNotCrossServe(t *testing.T) {
 
 func TestSystemOneBodyPreservesQuestionAndOptionOrder(t *testing.T) {
 	body, err := systemOneBody(DecisionRequest{
-		StateJSON: ` {"assistant":"Done.","operator":"No, revert."} `,
+		StateJSON:         ` {"assistant":"Done.","operator":"No, revert."} `,
+		PrivacyProvenance: "caller-private-provenance-marker",
 		Questions: []*inferencev1.DecisionQuestion{
 			choice("zeta", "b", "a"), score("alpha", "low", "high"),
 			{Id: "stop", Type: inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_NOUL, TrueDescription: "wants a stop"},
@@ -254,6 +260,7 @@ func TestSystemOneBodyPreservesQuestionAndOptionOrder(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, `{"state":{"assistant":"Done.","operator":"No, revert."},"questions":{"zeta":{"type":"choice","instructions":"Which zeta?","criteria":{"b":"means b","a":"means a"}},"alpha":{"type":"score","criteria":["low","high"]},"stop":{"type":"noul","criteria":{"true":"wants a stop"}}}}`, body)
+	require.NotContains(t, body, "caller-private-provenance-marker", "privacy attribution is not a model prompt field")
 }
 
 func TestDecisionValidationRejectsMalformedRequests(t *testing.T) {

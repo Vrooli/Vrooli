@@ -44,6 +44,10 @@ var taskTransitions = map[TaskStatus][]TaskStatus{
 		TaskStatusCancelled,
 	},
 	TaskStatusNeedsReview: {
+		// A continued Run can be explicitly admitted after review when it is
+		// still the Task's exact current Run. The repository enforces that
+		// identity and active-run fence before projecting this edge.
+		TaskStatusRunning,
 		TaskStatusCompleted,
 		TaskStatusApproved,
 		TaskStatusRejected,

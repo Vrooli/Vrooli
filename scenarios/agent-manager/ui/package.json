@@ -42,7 +42,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^9.0.1",
-    "react-router-dom": "^7.18.0",
+    "react-router-dom": "^7.18.5",
     "recharts": "^3.10.1",
     "remark-gfm": "^4.0.0",
     "shiki": "^1.24.0",
@@ -66,12 +66,12 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.0",
     "jsdom": "^27.1.0",
-    "postcss": "^8.5.18",
+    "postcss": "^8.5.32",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.4.5",
     "typescript-eslint": "^8.54.0",
-    "vite": "^7.1.2",
-    "vitest": "^4.0.18"
+    "vite": "^7.3.7",
+    "vitest": "^4.1.12"
   },
   "packageManager": "pnpm@10.34.9+sha512.f49b5a8ea0fdedb44bb3c0c1d6575092a53c2950d95b7ad15df11f17974877a2de3a01c07e934e9b28ce716e51c09a94962c7306d09be2e1e4b18a8c8762fd32"
 }

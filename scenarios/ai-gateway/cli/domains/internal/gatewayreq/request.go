@@ -24,6 +24,10 @@ func FromContext(ctx cliapp.RunContext) (*sharedv1.GatewayRequest, error) {
 	if err != nil {
 		return nil, err
 	}
+	privacyProvenance, err := InferencePrivacyProvenance(ctx)
+	if err != nil {
+		return nil, err
+	}
 	timeout, err := parseInt32(ctx.Flag("timeout-ms"), "timeout-ms")
 	if err != nil {
 		return nil, err
@@ -79,6 +83,7 @@ func FromContext(ctx cliapp.RunContext) (*sharedv1.GatewayRequest, error) {
 		Role:              ctx.Flag("role"),
 		Profile:           profile,
 		PrivacyClass:      privacy,
+		PrivacyProvenance: privacyProvenance,
 		Operation:         ctx.Flag("operation"),
 		Scenario:          ctx.Flag("scenario"),
 		TimeoutMs:         timeout,
@@ -88,6 +93,14 @@ func FromContext(ctx cliapp.RunContext) (*sharedv1.GatewayRequest, error) {
 		Metadata:          metadata,
 		RequiredVramBytes: requiredVRAMField,
 	}, nil
+}
+
+func InferencePrivacyProvenance(ctx cliapp.RunContext) (string, error) {
+	value := strings.TrimSpace(ctx.Flag("privacy-provenance"))
+	if value == "" {
+		return "", fmt.Errorf("--privacy-provenance is required and must name the non-sensitive source and basis for the privacy classification")
+	}
+	return value, nil
 }
 
 // InferenceContract resolves the profile and optional privacy class carried by

@@ -38,8 +38,12 @@ func TestResearchBudgetIngressRequiresTreasuryServiceAndExactRunGrant(t *testing
 		{name: "agent", principal: identity.Principal{Kind: identity.ActorAgent, Subject: "agent-run", Verified: true, Scopes: []string{"agent-manager:write"}, Grant: researchBudgetIngestGrant(runID)}, want: http.StatusForbidden},
 		{name: "operator", principal: identity.Principal{Kind: identity.ActorHuman, Subject: "operator", Verified: true, Scopes: []string{"agent-manager:write"}, Grant: researchBudgetIngestGrant(runID)}, want: http.StatusForbidden},
 		{name: "other service", principal: identity.Principal{Kind: identity.ActorService, Subject: "other-service", Verified: true, Scopes: []string{"agent-manager:write"}, Grant: researchBudgetIngestGrant(runID)}, want: http.StatusForbidden},
-		{name: "Treasury missing grant", principal: identity.Principal{Kind: identity.ActorService, Subject: "treasury", Verified: true, Scopes: []string{"agent-manager:write"}}, want: http.StatusForbidden},
-		{name: "Treasury wrong target", principal: identity.Principal{Kind: identity.ActorService, Subject: "treasury", Verified: true, Scopes: []string{"agent-manager:write"}}, authority: treasuryIngestAuthority{runID: uuid.New()}, want: http.StatusForbidden},
+		// Treasury holds one principal per peer: its name before the split, and its
+		// principal for another peer, carry a grant and are still not accepted here.
+		{name: "Treasury before the principal split", principal: identity.Principal{Kind: identity.ActorService, Subject: "treasury", Verified: true, Scopes: []string{"agent-manager:write"}, Grant: researchBudgetIngestGrant(runID)}, want: http.StatusForbidden},
+		{name: "Treasury principal for another peer", principal: identity.Principal{Kind: identity.ActorService, Subject: "treasury-notification-hub", Verified: true, Scopes: []string{"agent-manager:write"}, Grant: researchBudgetIngestGrant(runID)}, want: http.StatusForbidden},
+		{name: "Treasury missing grant", principal: identity.Principal{Kind: identity.ActorService, Subject: "treasury-agent-manager", Verified: true, Scopes: []string{"agent-manager:write"}}, want: http.StatusForbidden},
+		{name: "Treasury wrong target", principal: identity.Principal{Kind: identity.ActorService, Subject: "treasury-agent-manager", Verified: true, Scopes: []string{"agent-manager:write"}}, authority: treasuryIngestAuthority{runID: uuid.New()}, want: http.StatusForbidden},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -65,7 +69,7 @@ func TestResearchBudgetIngressRequestsHumanApprovalForOneExactRun(t *testing.T) 
 	raiser := &testOnlyResearchBudgetRaiser{fakeRaiser: &fakeRaiser{}, testOnly: true}
 	authority := NewStandingGrantAuthority(&memStandingGrants{}, nil, nil)
 	h := StandingGrantMiddleware(authority, raiser)(AgentOperationMiddleware(router))
-	principal := identity.Principal{Kind: identity.ActorService, Subject: "treasury", Verified: true, Scopes: []string{"agent-manager:write"}}
+	principal := identity.Principal{Kind: identity.ActorService, Subject: "treasury-agent-manager", Verified: true, Scopes: []string{"agent-manager:write"}}
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/research-budgets/"+runID.String()+"/snapshot", bytes.NewBufferString(`{}`))
 	req = req.WithContext(identity.WithPrincipal(req.Context(), principal))
 	w := httptest.NewRecorder()
@@ -77,7 +81,7 @@ func TestResearchBudgetIngressRequestsHumanApprovalForOneExactRun(t *testing.T) 
 		t.Fatalf("expected one human approval request, got %+v", raiser.raised)
 	}
 	got := raiser.raised[0]
-	if got.Subject != "treasury" || got.Operation != researchBudgetOperation || got.Target != "agent-manager:run/"+runID.String() || got.Kind != domain.PendingAuthorizationKindOneTime {
+	if got.Subject != "treasury-agent-manager" || got.Operation != researchBudgetOperation || got.Target != "agent-manager:run/"+runID.String() || got.Kind != domain.PendingAuthorizationKindOneTime {
 		t.Fatalf("request was not narrowly bound to this run: %+v", got)
 	}
 	if !strings.Contains(w.Body.String(), `"status":"approval_pending"`) || !strings.Contains(w.Body.String(), got.Target) {
@@ -91,7 +95,7 @@ func TestResearchBudgetIngressDoesNotRaiseForNonTestRun(t *testing.T) {
 	RegisterResearchBudgetIngestion(router, researchbudget.Ledger{DB: db})
 	raiser := &testOnlyResearchBudgetRaiser{fakeRaiser: &fakeRaiser{}, testOnly: false}
 	h := StandingGrantMiddleware(NewStandingGrantAuthority(&memStandingGrants{}, nil, nil), raiser)(AgentOperationMiddleware(router))
-	principal := identity.Principal{Kind: identity.ActorService, Subject: "treasury", Verified: true, Scopes: []string{"agent-manager:write"}}
+	principal := identity.Principal{Kind: identity.ActorService, Subject: "treasury-agent-manager", Verified: true, Scopes: []string{"agent-manager:write"}}
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/research-budgets/"+runID.String()+"/snapshot", bytes.NewBufferString(`{}`))
 	req = req.WithContext(identity.WithPrincipal(req.Context(), principal))
 	w := httptest.NewRecorder()
@@ -115,7 +119,7 @@ func TestResearchBudgetIngressTreasurySnapshotAndSettlementAreIdempotent(t *test
 	router := mux.NewRouter()
 	RegisterResearchBudgetIngestion(router, researchbudget.Ledger{DB: db})
 	h := AgentOperationMiddleware(router)
-	principal := identity.Principal{Kind: identity.ActorService, Subject: "treasury", Verified: true, Scopes: []string{"agent-manager:write"}, Grant: researchBudgetIngestGrant(runID)}
+	principal := identity.Principal{Kind: identity.ActorService, Subject: "treasury-agent-manager", Verified: true, Scopes: []string{"agent-manager:write"}, Grant: researchBudgetIngestGrant(runID)}
 	post := func(path, body string) int {
 		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(body))
 		ctx := identity.WithPrincipal(req.Context(), principal)
@@ -165,7 +169,7 @@ func TestResearchBudgetIngressTreasurySnapshotAndSettlementAreIdempotent(t *test
 type treasuryIngestAuthority struct{ runID uuid.UUID }
 
 func (a treasuryIngestAuthority) AuthorizeOperation(_ context.Context, p identity.Principal, capability, operation, target string) error {
-	if p.Kind == identity.ActorService && p.Subject == "treasury" && p.IsVerified() && capability == "agent-manager:write" && operation == researchBudgetOperation && target == "agent-manager:run/"+a.runID.String() {
+	if p.Kind == identity.ActorService && p.Subject == "treasury-agent-manager" && p.IsVerified() && capability == "agent-manager:write" && operation == researchBudgetOperation && target == "agent-manager:run/"+a.runID.String() {
 		return nil
 	}
 	return authn.ErrOperation

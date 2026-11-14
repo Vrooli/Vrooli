@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/ai-provider-go/policy"
 	"github.com/vrooli/api-core/database"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 
 	"ai-gateway/internal/providers"
@@ -120,6 +121,87 @@ func TestChangedOllamaPolicyRevisionAfterPlanningBlocksExecution(t *testing.T) {
 	for _, command := range base.Commands {
 		require.NotContains(t, command.String(), "gateway generate", "a changed provider policy file must refuse before model invocation")
 	}
+}
+
+func TestResolvedLocalityIsRecheckedAgainstProfileBeforeExecution(t *testing.T) {
+	runner := roleRunner()
+	// The inventory advertises OpenRouter as remote, so REMOTE_ONLY admits it
+	// during planning. Model policy changes before role resolution returns.
+	runner.Results["resource-openrouter policy resolve --role chat.default --json"] = providers.Result{
+		Stdout: `{"role":"chat.default","model":"fixture-model","locality":"local"}`,
+	}
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(newSchemaDB(t)))
+	req := baseRequest(sharedv1.Profile_PROFILE_REMOTE_ONLY)
+	resp, err := svc.Execute(context.Background(), req, "hello")
+	require.NoError(t, err)
+	require.NotEqual(t, "succeeded", resp.GetEvidence().GetStatus())
+	require.Equal(t, "locality_forbidden", resp.GetEvidence().GetRejectionReason())
+	for _, command := range runner.Commands {
+		require.NotContains(t, command.String(), "resource-openrouter gateway generate", "resolved local role must not execute under remote-only")
+	}
+}
+
+func TestResolvedLocalityIsRecheckedOnFallbackAttempt(t *testing.T) {
+	runner := roleRunner()
+	runner.ErrorMatch = func(command providers.Command) error {
+		if strings.HasPrefix(command.String(), "resource-ollama gateway generate ") {
+			return &providers.CommandError{Code: "provider_failed", Command: command.String(), ExitCode: 1}
+		}
+		return nil
+	}
+	runner.Results["resource-openrouter policy resolve --role chat.default --json"] = providers.Result{
+		Stdout: `{"role":"chat.default","model":"fixture-model","locality":"unknown"}`,
+	}
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(newSchemaDB(t)))
+	resp, err := svc.Execute(context.Background(), baseRequest(sharedv1.Profile_PROFILE_LOCAL_FIRST), "hello")
+	require.NoError(t, err)
+	require.NotEqual(t, "succeeded", resp.GetEvidence().GetStatus())
+	require.Equal(t, "locality_forbidden", resp.GetEvidence().GetRejectionReason())
+	for _, command := range runner.Commands {
+		require.NotContains(t, command.String(), "resource-openrouter gateway generate", "fallback role with unknown resolved locality must not execute")
+	}
+}
+
+func TestRouteEvidencePersistsPrivacyProvenance(t *testing.T) {
+	db := newSchemaDB(t)
+	repo := routing.NewSQLRepository(db)
+	event := &routingv1.RouteEvidence{
+		EventId: "privacy-provenance-roundtrip", RequestId: "request-privacy-provenance",
+		PrivacyClass:         sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
+		PrivacyProvenance:    "agent_manager.operator_and_agent_conversation",
+		TaskRole:             "extract.structured",
+		SelectedResourceRole: "chat.default",
+		Status:               "blocked", CreatedAt: "2026-11-14T15:50:00Z",
+	}
+	require.NoError(t, repo.Create(context.Background(), event))
+	got, err := repo.Get(context.Background(), event.GetEventId())
+	require.NoError(t, err)
+	require.Equal(t, event.GetPrivacyClass(), got.GetPrivacyClass())
+	require.Equal(t, event.GetPrivacyProvenance(), got.GetPrivacyProvenance())
+	require.Equal(t, event.GetTaskRole(), got.GetTaskRole())
+	require.Equal(t, event.GetSelectedResourceRole(), got.GetSelectedResourceRole())
+}
+
+func TestRouteEvidenceRoleColumnsReconcileOnExistingLedger(t *testing.T) {
+	db := testdb.NewSQLite(t)
+	oldSchema := strings.Replace(routing.Schema(), "  task_role TEXT NOT NULL DEFAULT '',\n", "", 1)
+	oldSchema = strings.Replace(oldSchema, "  selected_resource_role TEXT NOT NULL DEFAULT '',\n", "", 1)
+	legacy := database.SchemaProviderFunc(func() string { return oldSchema })
+	current := database.SchemaProviderFunc(routing.Schema)
+	require.NoError(t, database.EnsureSchemas(context.Background(), db, legacy))
+	require.NoError(t, database.EnsureSchemas(context.Background(), db, current))
+
+	repo := routing.NewSQLRepository(db)
+	event := &routingv1.RouteEvidence{
+		EventId: "role-provenance-upgrade", RequestId: "request-role-upgrade",
+		Role: "chat.default", TaskRole: "extract.structured", SelectedResourceRole: "chat.default",
+		Status: "succeeded", CreatedAt: "2026-11-14T16:00:00Z",
+	}
+	require.NoError(t, repo.Create(context.Background(), event))
+	got, err := repo.Get(context.Background(), event.GetEventId())
+	require.NoError(t, err)
+	require.Equal(t, event.GetTaskRole(), got.GetTaskRole())
+	require.Equal(t, event.GetSelectedResourceRole(), got.GetSelectedResourceRole())
 }
 
 func TestMissingCatalogRightsBlocksLocalCandidateAtPlanning(t *testing.T) {
@@ -422,14 +504,15 @@ func testAdapters(runner providers.CommandRunner) []providers.Adapter {
 
 func baseRequest(profile sharedv1.Profile) *sharedv1.GatewayRequest {
 	return &sharedv1.GatewayRequest{
-		Kind:            sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
-		Role:            "chat.default",
-		Profile:         profile,
-		PrivacyClass:    sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
-		Operation:       "summarize",
-		Scenario:        "fixture-scenario",
-		RequestId:       "req-1",
-		MaxOutputTokens: 64,
+		Kind:              sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
+		Role:              "chat.default",
+		Profile:           profile,
+		PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+		PrivacyProvenance: "routing_test.user_prompt",
+		Operation:         "summarize",
+		Scenario:          "fixture-scenario",
+		RequestId:         "req-1",
+		MaxOutputTokens:   64,
 	}
 }
 

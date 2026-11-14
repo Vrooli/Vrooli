@@ -180,9 +180,11 @@ func (o *Orchestrator) resolveImportedLabel(ctx context.Context, req ImportTrans
 
 	if o.labelGenerator != nil {
 		response, err := o.labelGenerator.Extract(ctx, structuredresult.ExtractRequest{
-			Source:      evidence.Source,
-			Schema:      json.RawMessage(`{"type":"string","minLength":1,"maxLength":160}`),
-			Instruction: "Create a concise human-readable title for this coding-agent session. Return only the title.",
+			Source:        evidence.Source,
+			Schema:        json.RawMessage(`{"type":"string","minLength":1,"maxLength":160}`),
+			Instruction:   "Create a concise human-readable title for this coding-agent session. Return only the title.",
+			PrivacyClass:  structuredresult.RunOutputPrivacyClass,
+			PrivacySource: "agent_manager.imported_agent_transcript",
 		})
 		if err == nil {
 			var generated string

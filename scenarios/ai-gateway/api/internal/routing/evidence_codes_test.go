@@ -71,6 +71,25 @@ func TestEvidenceRoundTripPersistsStructuredCodes(t *testing.T) { // [REQ:AIGW-R
 	require.Equal(t, "openrouter", got.GetSelectedProvider())
 }
 
+func TestModelEvalConsumersUsesDistinctRecordedScenarios(t *testing.T) {
+	db := newSchemaDB(t)
+	repo := routing.NewSQLRepository(db)
+	ctx := context.Background()
+	createdAt := "2026-11-14T14:00:00Z"
+	for _, item := range []struct{ id, scenario, model string }{{"route-1", "vrooli-memory", "model-a"}, {"route-2", "client-rehearsal", "model-b"}, {"route-3", "vrooli-memory", "model-a"}, {"route-4", "", ""}} {
+		require.NoError(t, repo.Create(ctx, &routingv1.RouteEvidence{EventId: item.id, RequestId: item.id, Scenario: item.scenario, Role: "chat.default", SelectedProvider: "ollama", SelectedLocality: "local", SelectedModel: item.model, Status: "succeeded", CreatedAt: createdAt}))
+	}
+	got, err := repo.ModelEvalConsumers(ctx)
+	require.NoError(t, err)
+	require.Equal(t, []string{"client-rehearsal", "vrooli-memory"}, got)
+	runtimeModels, err := repo.ModelEvalRuntimeModels(ctx)
+	require.NoError(t, err)
+	require.Equal(t, []routing.ModelEvalRouteModel{
+		{Scenario: "client-rehearsal", Role: "chat.default", Provider: "ollama", Locality: "local", Model: "model-b", Status: "succeeded", SampleCount: 1, LatestObservedAt: createdAt},
+		{Scenario: "vrooli-memory", Role: "chat.default", Provider: "ollama", Locality: "local", Model: "model-a", Status: "succeeded", SampleCount: 2, LatestObservedAt: createdAt},
+	}, runtimeModels)
+}
+
 func TestExecuteRecordsFailureClassAndRedactsOnFailure(t *testing.T) { // [REQ:AIGW-ROUTE-EVIDENCE-CODES]
 	runner := roleRunner()
 	runner.ErrorMatch = func(command providers.Command) error {

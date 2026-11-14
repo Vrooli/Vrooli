@@ -17,6 +17,7 @@ func TestValidateAcceptsProviderNeutralRequest(t *testing.T) { // [REQ:AIGW-CONT
 		Role:         "chat.default",
 		Profile:      sharedv1.Profile_PROFILE_LOCAL_FIRST,
 		PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+		PrivacyProvenance: "gateway_test.explicit_internal",
 		TimeoutMs:    5000,
 		Metadata: map[string]string{
 			"trace_id": "req-1",
@@ -32,6 +33,7 @@ func TestValidateAcceptsPositiveRequiredVRAM(t *testing.T) {
 		Role:              "chat.default",
 		Profile:           sharedv1.Profile_PROFILE_LOCAL_FIRST,
 		PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+		PrivacyProvenance: "gateway_test.explicit_internal",
 		RequiredVramBytes: &required,
 	})
 	require.Empty(t, issues)
@@ -52,6 +54,7 @@ func TestValidateRejectsNonPositiveRequiredVRAMWhenSet(t *testing.T) {
 				Role:              "chat.default",
 				Profile:           sharedv1.Profile_PROFILE_LOCAL_FIRST,
 				PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+				PrivacyProvenance: "gateway_test.explicit_internal",
 				RequiredVramBytes: &value,
 			})
 			require.Contains(t, fields(issues), "required_vram_bytes")
@@ -76,6 +79,7 @@ func TestValidateAcceptsProviderNeutralMediaRequests(t *testing.T) { // [REQ:AIG
 				Role:         "media.generate",
 				Profile:      sharedv1.Profile_PROFILE_LOCAL_FIRST,
 				PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+				PrivacyProvenance: "gateway_test.explicit_internal",
 				Metadata:     map[string]string{"correlation_id": "media-1"},
 			})
 			require.Empty(t, issues)
@@ -108,6 +112,7 @@ func TestValidateRejectsSecretRemoteProfile(t *testing.T) { // [REQ:AIGW-POLICY-
 		Role:         "chat.default",
 		Profile:      sharedv1.Profile_PROFILE_REMOTE_ONLY,
 		PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_SECRET,
+		PrivacyProvenance: "gateway_test.secret_user_input",
 	})
 	require.Len(t, issues, 1)
 	require.Equal(t, "profile", issues[0].GetField())
@@ -170,6 +175,7 @@ func TestValidateRejectsMissingRequiredFieldsAndNegativeBounds(t *testing.T) {
 		"role",
 		"profile",
 		"privacy_class",
+		"privacy_provenance",
 		"timeout_ms",
 		"max_cost_usd",
 		"max_output_tokens",
@@ -182,6 +188,7 @@ func validRequest(metadata map[string]string) *sharedv1.GatewayRequest {
 		Role:         "chat.default",
 		Profile:      sharedv1.Profile_PROFILE_LOCAL_FIRST,
 		PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+		PrivacyProvenance: "gateway_test.explicit_internal",
 		Metadata:     metadata,
 	}
 }

@@ -381,13 +381,8 @@ func (r *runRepository) updateTx(ctx context.Context, tx *Tx, run *domain.Run, c
 	}
 	if run.TaskID != uuid.Nil {
 		if status, ok := taskProjectionForRunStatus(run.Status); ok {
-			_, err := tx.ExecContext(ctx, `UPDATE tasks SET status = ?,
-				updated_at = CASE WHEN status <> ? THEN ? ELSE updated_at END
-				WHERE id = ? AND current_run_id = ? AND status IN (?, ?, ?, ?, ?)`,
-				string(status), string(status), SQLiteTime(run.UpdatedAt), run.TaskID, run.ID,
-				string(domain.TaskStatusQueued), string(domain.TaskStatusRunning), string(domain.TaskStatusNeedsReview), string(domain.TaskStatusCompleted), string(domain.TaskStatusFailed))
-			if err != nil {
-				return wrapDBError("project_run_status", "Task", run.TaskID.String(), err)
+			if _, err := projectTaskStatusTx(ctx, tx, run.TaskID, run.ID, status, run.UpdatedAt); err != nil {
+				return err
 			}
 		}
 	}

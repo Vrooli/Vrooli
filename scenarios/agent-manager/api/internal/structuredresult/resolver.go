@@ -21,13 +21,15 @@ import (
 )
 
 const (
-	SpecVersionV1      = "result-spec/v1"
-	DefaultExtractRole = "extract.structured"
-	MaxSchemaBytes     = 32 * 1024
-	MaxSchemaDepth     = 32
-	MaxSourceBytes     = 64 * 1024
-	MaxCandidateBytes  = 64 * 1024
-	MaxDiagnosticBytes = 8 * 1024
+	SpecVersionV1          = "result-spec/v1"
+	DefaultExtractRole     = "extract.structured"
+	MaxSchemaBytes         = 32 * 1024
+	MaxSchemaDepth         = 32
+	MaxSourceBytes         = 64 * 1024
+	MaxCandidateBytes      = 64 * 1024
+	MaxDiagnosticBytes     = 8 * 1024
+	RunOutputPrivacyClass  = "CONFIDENTIAL"
+	RunOutputPrivacySource = "agent_manager.run_result.final_output"
 )
 
 // ExtractRequest is deliberately bounded and provider-neutral.
@@ -35,6 +37,10 @@ type ExtractRequest struct {
 	Source  string
 	Schema  json.RawMessage
 	RoleRef string
+	// PrivacyClass and PrivacySource are assigned by the Agent Manager owner
+	// from the run-result data source, never inferred from model output.
+	PrivacyClass  string
+	PrivacySource string
 	// Instruction states caller intent. It is deliberately separate from the
 	// schema: ai-gateway treats schema descriptions as metadata only and never
 	// as instruction, so intent must travel in its own field.
@@ -360,10 +366,12 @@ func (r Resolver) Resolve(ctx context.Context, spec *domain.ResultSpec, result *
 	}
 	response, err := r.Extractor.Extract(ctx, ExtractRequest{
 		Source: result.FinalOutput, Schema: normalized.Schema, RoleRef: normalized.ExtractionRole,
+		PrivacyClass: RunOutputPrivacyClass, PrivacySource: RunOutputPrivacySource,
 	})
 	out.Method = "constrained_extractor"
 	out.Extractor = &domain.StructuredExtractionProvenance{
 		RoleRef: normalized.ExtractionRole, Provider: response.Provider, Model: response.Model, PolicySnapshot: response.PolicySnapshot,
+		PrivacyClass: RunOutputPrivacyClass, PrivacySource: RunOutputPrivacySource,
 	}
 	if err != nil {
 		return withDiagnostic(out, domain.StructuredResultAbstained, "extractor_unavailable", "constrained extractor did not return a candidate")

@@ -9,14 +9,11 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/servicetoken"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
-	accountsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts"
-	accountsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts/accounts_v1connect"
 )
 
 const (
@@ -32,77 +29,41 @@ const (
 
 const providerDecisionTokenRefreshMargin = 30 * time.Second
 
+// errProviderDecisionIdentityMismatch is what a token that is not exactly the
+// provider-decision identity (or is expired or about to be) reports.
 var errProviderDecisionIdentityMismatch = errors.New("scenario-authenticator returned an unexpected provider-decision identity")
 
-type serviceCredentialReader func() (string, error)
-type serviceCredentialExchanger func(context.Context, string) (ExchangedServiceIdentity, error)
-
-// ExchangedServiceIdentity is the metadata returned by Scenario Authenticator.
-// AccessToken is held only in memory and must never be logged or persisted.
-type ExchangedServiceIdentity struct {
-	AccessToken string
-	ExpiresAt   time.Time
-	Subject     string
-	Audience    string
-	Scopes      []string
-}
-
-// ProviderDecisionIdentity exchanges the Credential Authority value for a
+// NewProviderDecisionIdentity exchanges the Credential Authority value for a
 // short-lived Hub-only service token. The credential is reread for every
 // exchange so Authority rotation/revocation takes effect without a Gateway
-// restart. Neither credential nor access token is included in errors.
-type ProviderDecisionIdentity struct {
-	credential serviceCredentialReader
-	exchange   serviceCredentialExchanger
-	now        func() time.Time
-	mu         sync.Mutex
-	token      string
-	expiresAt  time.Time
+// restart. Missing custody, exchange failures, and any mismatched
+// subject/audience/capability fail closed, and neither credential nor access
+// token is included in errors.
+func NewProviderDecisionIdentity(credential servicetoken.CredentialSource, options ...servicetoken.Option) *servicetoken.Tokens {
+	return servicetoken.New(servicetoken.Config{
+		Credential:    credential,
+		Expect:        servicetoken.ExpectIdentity(providerDecisionPrincipal, providerDecisionAudience, providerDecisionScope),
+		RefreshMargin: providerDecisionTokenRefreshMargin,
+		MinRemaining:  providerDecisionTokenRefreshMargin,
+		Describe:      describeProviderDecisionFailure,
+	}, options...)
 }
 
-func NewProviderDecisionIdentity(credential serviceCredentialReader, exchange serviceCredentialExchanger, now func() time.Time) *ProviderDecisionIdentity {
-	if now == nil {
-		now = time.Now
+func describeProviderDecisionFailure(kind, _ error) error {
+	switch kind {
+	case servicetoken.ErrNotIssued:
+		return servicetoken.Kind(kind, errors.New("provider-decision service credential is unavailable"))
+	case servicetoken.ErrExchangeFailed:
+		return servicetoken.Kind(kind, errors.New("provider-decision service credential exchange failed"))
+	case servicetoken.ErrNoUsableToken, servicetoken.ErrIdentityMismatch:
+		return servicetoken.Kind(kind, errProviderDecisionIdentityMismatch)
 	}
-	return &ProviderDecisionIdentity{credential: credential, exchange: exchange, now: now}
-}
-
-// BearerToken returns a cached, verified service token or exchanges the
-// current credential. Missing custody, exchange failures, and any mismatched
-// subject/audience/capability fail closed.
-func (s *ProviderDecisionIdentity) BearerToken(ctx context.Context) (string, error) {
-	if s == nil || s.credential == nil || s.exchange == nil {
-		return "", errors.New("provider-decision service identity is unavailable")
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.token != "" && s.now().Add(providerDecisionTokenRefreshMargin).Before(s.expiresAt) {
-		return s.token, nil
-	}
-	s.token, s.expiresAt = "", time.Time{}
-	credential, err := s.credential()
-	if err != nil || strings.TrimSpace(credential) == "" {
-		return "", errors.New("provider-decision service credential is unavailable")
-	}
-	identity, err := s.exchange(ctx, strings.TrimSpace(credential))
-	if err != nil {
-		return "", errors.New("provider-decision service credential exchange failed")
-	}
-	if strings.TrimSpace(identity.AccessToken) == "" || !s.now().Add(providerDecisionTokenRefreshMargin).Before(identity.ExpiresAt) ||
-		identity.Subject != providerDecisionPrincipal || identity.Audience != providerDecisionAudience || !exactProviderDecisionScope(identity.Scopes) {
-		return "", errProviderDecisionIdentityMismatch
-	}
-	s.token, s.expiresAt = identity.AccessToken, identity.ExpiresAt
-	return s.token, nil
-}
-
-func exactProviderDecisionScope(scopes []string) bool {
-	return len(scopes) == 1 && scopes[0] == providerDecisionScope
+	return servicetoken.Kind(kind, errors.New("provider-decision service identity is unavailable"))
 }
 
 // authorityProviderDecisionCredential reads the service principal credential
 // from the existing Credential Authority owner path.
-func authorityProviderDecisionCredential() (string, error) {
+func authorityProviderDecisionCredential(context.Context) (string, error) {
 	authority, err := credentialauthority.Default()
 	if err != nil {
 		return "", err
@@ -112,34 +73,6 @@ func authorityProviderDecisionCredential() (string, error) {
 		return "", err
 	}
 	return authority.Require(identity, providerDecisionCredentialField)
-}
-
-// authenticatorProviderDecisionExchanger trades the stored credential through
-// Scenario Authenticator's existing Connect exchange API.
-func authenticatorProviderDecisionExchanger(httpClient connect.HTTPClient) serviceCredentialExchanger {
-	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 10 * time.Second}
-	}
-	return func(ctx context.Context, credential string) (ExchangedServiceIdentity, error) {
-		base, err := discovery.ResolveScenarioURLDefault(ctx, "scenario-authenticator")
-		if err != nil {
-			return ExchangedServiceIdentity{}, err
-		}
-		client := accountsconnect.NewAccountsServiceClient(httpClient, strings.TrimRight(base, "/"))
-		response, err := client.ExchangeServiceCredential(ctx, connect.NewRequest(&accountsv1.ExchangeServiceCredentialRequest{Credential: credential}))
-		if err != nil {
-			return ExchangedServiceIdentity{}, err
-		}
-		if response.Msg.GetAccessTokenExpiresAt() == nil {
-			return ExchangedServiceIdentity{}, errors.New("exchange response has no expiry")
-		}
-		return ExchangedServiceIdentity{
-			AccessToken: response.Msg.GetAccessToken(),
-			ExpiresAt:   response.Msg.GetAccessTokenExpiresAt().AsTime(),
-			Subject:     response.Msg.GetSubject(), Audience: response.Msg.GetAudience(),
-			Scopes: append([]string(nil), response.Msg.GetScopes()...),
-		}, nil
-	}
 }
 
 // ProviderDecisionLookup is the exact immutable ask information returned by
@@ -165,11 +98,11 @@ type ProviderDecisionLookup struct {
 // fixed Hub routes. It never copies caller-supplied Authorization headers.
 type ProviderDecisionHubClient struct {
 	baseURL    func(context.Context) (string, error)
-	identity   *ProviderDecisionIdentity
+	identity   *servicetoken.Tokens
 	httpClient *http.Client
 }
 
-func NewProviderDecisionHubClient(identity *ProviderDecisionIdentity, httpClient *http.Client) *ProviderDecisionHubClient {
+func NewProviderDecisionHubClient(identity *servicetoken.Tokens, httpClient *http.Client) *ProviderDecisionHubClient {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 15 * time.Second}
 	}
@@ -200,7 +133,7 @@ func (c *ProviderDecisionHubClient) post(ctx context.Context, path string, input
 	if c == nil || c.identity == nil || c.baseURL == nil || c.httpClient == nil {
 		return errors.New("provider-decision Hub client is unavailable")
 	}
-	token, err := c.identity.BearerToken(ctx)
+	token, err := c.identity.Token(ctx)
 	if err != nil {
 		return err
 	}
@@ -246,6 +179,6 @@ func (c *ProviderDecisionHubClient) post(ctx context.Context, path string, input
 }
 
 func NewDefaultProviderDecisionHubClient() *ProviderDecisionHubClient {
-	identity := NewProviderDecisionIdentity(authorityProviderDecisionCredential, authenticatorProviderDecisionExchanger(nil), nil)
+	identity := NewProviderDecisionIdentity(authorityProviderDecisionCredential)
 	return NewProviderDecisionHubClient(identity, nil)
 }

@@ -35,7 +35,7 @@ func (c *previewCaptureClient) ExecuteRoute(_ context.Context, req *connect.Requ
 
 func TestPreviewCarriesCapacityControlsInGatewayMetadata(t *testing.T) {
 	flags := map[string]string{
-		"kind": "text", "role": "chat.small", "profile": "local-only", "privacy-class": "internal",
+		"kind": "text", "role": "chat.small", "profile": "local-only", "privacy-class": "internal", "privacy-provenance": "cli_test.user_text",
 		"operation": "test", "scenario": "test", "timeout-ms": "90000", "max-output-tokens": "180",
 		"max-cost-usd": "0", "required-vram-bytes": "6442450944", "request-id": "test-request",
 	}
@@ -58,12 +58,15 @@ func TestPreviewCarriesCapacityControlsInGatewayMetadata(t *testing.T) {
 	if metadata["required_vram_bytes"] != "6442450944" || metadata["capacity_allow_reclaim"] != "false" {
 		t.Fatalf("capacity metadata = %#v, want explicit no-reclaim 6 GiB", metadata)
 	}
+	if client.request.GetRequest().GetPrivacyProvenance() != flags["privacy-provenance"] {
+		t.Fatalf("privacy provenance = %q, want explicit caller source %q", client.request.GetRequest().GetPrivacyProvenance(), flags["privacy-provenance"])
+	}
 }
 
 func TestExecuteCarriesExpectedWorkerDigest(t *testing.T) {
 	digest := "2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd"
 	flags := map[string]string{
-		"kind": "text", "role": "chat.small", "profile": "local-only", "privacy-class": "internal",
+		"kind": "text", "role": "chat.small", "profile": "local-only", "privacy-class": "internal", "privacy-provenance": "cli_test.user_text",
 		"operation": "test", "scenario": "test", "timeout-ms": "90000", "max-output-tokens": "180",
 		"max-cost-usd": "0", "required-vram-bytes": "6442450944", "expected-worker-digest": digest,
 		"request-id": "test-request", "input-text": "frozen trial input",

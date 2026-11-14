@@ -31,6 +31,7 @@ func (h *connectHandler) Run(ctx context.Context, req *connect.Request[inference
 	request := internalinference.ProviderRequest{
 		Source: req.Msg.GetSource(), SchemaJSON: req.Msg.GetSchemaJson(), Instruction: req.Msg.GetInstruction(), Role: req.Msg.GetRole(),
 		Profile: req.Msg.GetProfile(), PrivacyClass: req.Msg.GetPrivacyClass(),
+		PrivacyProvenance: req.Msg.GetPrivacyProvenance(), AllowSemanticEscalation: req.Msg.GetAllowSemanticEscalation(),
 		Turns: req.Msg.GetTurns(), Attachments: req.Msg.GetAttachments(),
 		MaxOutputTokens:  req.Msg.GetMaxOutputTokens(),
 		MaxProviderCalls: req.Msg.GetMaxProviderCalls(),
@@ -65,6 +66,7 @@ func (h *connectHandler) RunBatch(ctx context.Context, req *connect.Request[infe
 		requests = append(requests, internalinference.ProviderRequest{
 			Source: item.GetSource(), SchemaJSON: req.Msg.GetSchemaJson(), Instruction: req.Msg.GetInstruction(), Role: req.Msg.GetRole(),
 			Profile: req.Msg.GetProfile(), PrivacyClass: req.Msg.GetPrivacyClass(),
+			PrivacyProvenance: req.Msg.GetPrivacyProvenance(),
 		})
 	}
 	return connect.NewResponse(h.service.RunBatch(ctx, requests)), nil
@@ -91,6 +93,7 @@ func (h *connectHandler) Decide(ctx context.Context, req *connect.Request[infere
 	return connect.NewResponse(h.service.Decide(ctx, internalinference.DecisionRequest{
 		Role: req.Msg.GetRole(), State: req.Msg.GetState(), StateJSON: req.Msg.GetStateJson(),
 		Questions: req.Msg.GetQuestions(), Profile: req.Msg.GetProfile(), PrivacyClass: req.Msg.GetPrivacyClass(),
+		PrivacyProvenance: req.Msg.GetPrivacyProvenance(),
 	})), nil
 }
 
@@ -107,5 +110,6 @@ func (h *connectHandler) DecideBatch(ctx context.Context, req *connect.Request[i
 	}
 	return connect.NewResponse(h.service.DecideBatch(ctx, internalinference.DecisionRequest{
 		Role: req.Msg.GetRole(), Questions: req.Msg.GetQuestions(), Profile: req.Msg.GetProfile(), PrivacyClass: req.Msg.GetPrivacyClass(),
+		PrivacyProvenance: req.Msg.GetPrivacyProvenance(),
 	}, items)), nil
 }

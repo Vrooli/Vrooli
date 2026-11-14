@@ -58,7 +58,7 @@ func TestTypedInferenceHandlersPreserveExplicitAndUnknownPrivacy(t *testing.T) {
 		{name: "explicit public is preserved", privacy: "public", want: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			base := map[string]string{"source": "fixture", "schema": schema, "instruction": "classify", "role": "classify.fast", "profile": "remote-only", "privacy-class": tc.privacy, "temperature": "", "max-output-tokens": ""}
+			base := map[string]string{"source": "fixture", "schema": schema, "instruction": "classify", "role": "classify.fast", "profile": "remote-only", "privacy-class": tc.privacy, "privacy-provenance": "cli_test.public_fixture", "temperature": "", "max-output-tokens": ""}
 			client := &inferenceCaptureClient{}
 			err := (&handlers{client: client}).run(inferenceRunContext(t, base))
 			require.NoError(t, err)
@@ -66,7 +66,7 @@ func TestTypedInferenceHandlersPreserveExplicitAndUnknownPrivacy(t *testing.T) {
 			require.Equal(t, sharedv1.Profile_PROFILE_REMOTE_ONLY, client.run.GetProfile())
 			require.Equal(t, tc.want, client.run.GetPrivacyClass())
 
-			batchFlags := map[string]string{"items": items, "schema": schema, "instruction": "classify", "role": "classify.fast", "profile": "remote-only", "privacy-class": tc.privacy}
+			batchFlags := map[string]string{"items": items, "schema": schema, "instruction": "classify", "role": "classify.fast", "profile": "remote-only", "privacy-class": tc.privacy, "privacy-provenance": "cli_test.public_fixture"}
 			client = &inferenceCaptureClient{}
 			err = (&handlers{client: client}).runBatch(inferenceRunContext(t, batchFlags))
 			require.NoError(t, err)

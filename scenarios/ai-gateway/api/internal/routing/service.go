@@ -287,6 +287,8 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 	var lastFailureClass FailureClass
 	var lastCapacityEval CapacityEvaluation
 	var capacityRejection *CapacityEvaluation
+	var resolvedProfileRejection bool
+	var providerExecutionDispatched bool
 	for i, candidate := range attempts {
 		adapter, ok := s.adapters[candidate.GetProvider()]
 		if !ok {
@@ -310,6 +312,22 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 			lastFailureClass = failure.Class
 			s.recordOutcome(ctx, candidate.GetProvider(), candidate.GetRole(), req.GetKind(), failure, false)
 			failures = append(failures, fmt.Sprintf("%s: resolve role: %v", candidate.GetProvider(), resolveErr))
+			if i == 0 && !plan.fallbackAllowed {
+				break
+			}
+			continue
+		}
+		// Re-evaluate the caller's hard profile/privacy contract against the
+		// concrete role resolution for every execution attempt. The inventory
+		// used while planning can change before dispatch, and this same loop is
+		// used for retries and fallbacks.
+		if _, reason := profilepolicy.Admits(req.GetProfile().String(), req.GetPrivacyClass().String(), resolvedRole.Locality); reason != "" {
+			cancel()
+			resolvedProfileRejection = true
+			candidate.RejectionReason = "locality_forbidden"
+			candidate.Reasons = append(candidate.Reasons, "resolved role rejected: "+reason)
+			lastFailureClass = FailurePolicyError
+			failures = append(failures, fmt.Sprintf("%s: resolved role violates request profile/privacy policy: %s", candidate.GetProvider(), reason))
 			if i == 0 && !plan.fallbackAllowed {
 				break
 			}
@@ -404,6 +422,7 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 				continue
 			}
 		}
+		providerExecutionDispatched = true
 		result, err := adapter.Execute(ctxExec, providers.ExecutionRequest{
 			Kind:                         req.GetKind(),
 			Role:                         req.GetRole(),
@@ -439,6 +458,11 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 		ev.SelectedProvider = candidate.GetProvider()
 		ev.SelectedLocality = candidate.GetLocality()
 		ev.SelectedModel = resolvedRole.Model
+		ev.TaskRole = strings.TrimSpace(req.GetTaskRole())
+		if ev.TaskRole == "" {
+			ev.TaskRole = strings.TrimSpace(req.GetRole())
+		}
+		ev.SelectedResourceRole = strings.TrimSpace(resolvedRole.Role)
 		if fallbackUsed {
 			// Preserve the failed first-attempt class on a successful fallback so
 			// operators can distinguish healthy primary selection from recovery.
@@ -463,8 +487,15 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 		}, nil
 	}
 
-	ev := s.evidence(req, plan, "failed", time.Since(started), len(failures) > 1, failures)
+	status := "failed"
+	if resolvedProfileRejection && !providerExecutionDispatched {
+		status = "blocked"
+	}
+	ev := s.evidence(req, plan, status, time.Since(started), len(failures) > 1, failures)
 	ev.FailureClass = string(lastFailureClass)
+	if resolvedProfileRejection {
+		ev.RejectionReason = "locality_forbidden"
+	}
 	if lastCapacityEval.RequiredBytes > 0 {
 		for _, candidate := range plan.candidates {
 			if candidate.GetSelected() {
@@ -889,19 +920,21 @@ func (s *Service) executionAttempts(plan routePlan) []*routingv1.RouteCandidate 
 
 func (s *Service) evidence(req *sharedv1.GatewayRequest, plan routePlan, status string, latency time.Duration, fallback bool, failures []string) *routingv1.RouteEvidence {
 	ev := &routingv1.RouteEvidence{
-		EventId:          newID("rt"),
-		RequestId:        firstNonEmpty(req.GetRequestId(), newID("req")),
-		Scenario:         strings.TrimSpace(req.GetScenario()),
-		Operation:        strings.TrimSpace(req.GetOperation()),
-		Role:             strings.TrimSpace(req.GetRole()),
-		Profile:          req.GetProfile(),
-		PrivacyClass:     req.GetPrivacyClass(),
-		SelectedProvider: plan.selectedProvider,
-		SelectedLocality: plan.selectedLocality,
-		Status:           status,
-		PolicyReasons:    append([]string{}, plan.policyReasons...),
-		FailureReasons:   append([]string{}, failures...),
-		FallbackUsed:     fallback,
+		EventId:           newID("rt"),
+		RequestId:         firstNonEmpty(req.GetRequestId(), newID("req")),
+		Scenario:          strings.TrimSpace(req.GetScenario()),
+		Operation:         strings.TrimSpace(req.GetOperation()),
+		Role:              strings.TrimSpace(req.GetRole()),
+		TaskRole:          strings.TrimSpace(firstNonEmpty(req.GetTaskRole(), req.GetRole())),
+		Profile:           req.GetProfile(),
+		PrivacyClass:      req.GetPrivacyClass(),
+		PrivacyProvenance: strings.TrimSpace(req.GetPrivacyProvenance()),
+		SelectedProvider:  plan.selectedProvider,
+		SelectedLocality:  plan.selectedLocality,
+		Status:            status,
+		PolicyReasons:     append([]string{}, plan.policyReasons...),
+		FailureReasons:    append([]string{}, failures...),
+		FallbackUsed:      fallback,
 		// The redacted-evidence seam reflects whether a PII-detection pass ran,
 		// not an unconditional claim. A DETECT_PII request scans its own input
 		// text (the "prompt"), so a successful detect pass sets PromptRedacted.

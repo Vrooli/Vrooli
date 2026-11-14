@@ -28,16 +28,18 @@ func TestManifestExposesPrivacyContractForEveryTypedCaller(t *testing.T) {
 			Commands []struct {
 				Name  string `json:"name"`
 				Flags []struct {
-					Name    string `json:"name"`
-					Default string `json:"default"`
+					Name     string `json:"name"`
+					Default  string `json:"default"`
+					Required bool   `json:"required"`
 				} `json:"flags"`
 			} `json:"commands"`
 		} `json:"groups"`
 	}
 	require.NoError(t, json.Unmarshal(manifest, &root))
 	commands := map[string][]struct {
-		Name    string `json:"name"`
-		Default string `json:"default"`
+		Name     string `json:"name"`
+		Default  string `json:"default"`
+		Required bool   `json:"required"`
 	}{}
 	for _, group := range root.Groups {
 		if group.Name != GroupName {
@@ -45,14 +47,16 @@ func TestManifestExposesPrivacyContractForEveryTypedCaller(t *testing.T) {
 		}
 		for _, command := range group.Commands {
 			flags := make([]struct {
-				Name    string `json:"name"`
-				Default string `json:"default"`
+				Name     string `json:"name"`
+				Default  string `json:"default"`
+				Required bool   `json:"required"`
 			}, 0, len(command.Flags))
 			for _, flag := range command.Flags {
 				flags = append(flags, struct {
-					Name    string `json:"name"`
-					Default string `json:"default"`
-				}{Name: flag.Name, Default: flag.Default})
+					Name     string `json:"name"`
+					Default  string `json:"default"`
+					Required bool   `json:"required"`
+				}{Name: flag.Name, Default: flag.Default, Required: flag.Required})
 			}
 			commands[command.Name] = flags
 		}
@@ -61,12 +65,15 @@ func TestManifestExposesPrivacyContractForEveryTypedCaller(t *testing.T) {
 		flags, ok := commands[name]
 		require.True(t, ok, "inference %s command missing", name)
 		seen := map[string]string{}
+		required := map[string]bool{}
 		for _, flag := range flags {
 			seen[flag.Name] = flag.Default
+			required[flag.Name] = flag.Required
 		}
 		require.Contains(t, seen, "profile", "inference %s must expose profile", name)
 		require.Equal(t, "local-first", seen["profile"])
 		require.Contains(t, seen, "privacy-class", "inference %s must expose privacy-class", name)
 		require.Empty(t, seen["privacy-class"], "privacy classification must never be synthesized by a CLI default")
+		require.True(t, required["privacy-provenance"], "inference %s must require explicit privacy provenance", name)
 	}
 }

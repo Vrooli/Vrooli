@@ -154,8 +154,11 @@ func TestOwnedRunDeletionRetainsReplayEvidence(t *testing.T) {
 			defer cleanup()
 			repos := NewRepositories(db, logrus.New())
 			ctx := context.Background()
-			task := &domain.Task{ID: uuid.New(), Title: "dispatch-retention", ScopePath: ".", Status: domain.TaskStatusCancelled}
+			task := &domain.Task{ID: uuid.New(), Title: "dispatch-retention", ScopePath: ".", Status: domain.TaskStatusQueued}
 			if err := repos.Tasks.Create(ctx, task); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.DB.ExecContext(ctx, `UPDATE tasks SET status = ? WHERE id = ?`, string(domain.TaskStatusCancelled), task.ID.String()); err != nil {
 				t.Fatal(err)
 			}
 			expiry := time.Now().Add(3 * time.Hour)

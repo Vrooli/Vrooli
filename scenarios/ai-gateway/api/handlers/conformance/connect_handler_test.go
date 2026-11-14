@@ -18,12 +18,23 @@ import (
 
 	handler "ai-gateway/handlers/conformance"
 	internalconformance "ai-gateway/internal/conformance"
+	internalrouting "ai-gateway/internal/routing"
 )
 
 type modelEvalReadinessSourceFunc func(context.Context, internalconformance.ModelEvalRoleDenominators) (internalconformance.ModelEvalReadiness, error)
 
 func (f modelEvalReadinessSourceFunc) Readiness(ctx context.Context, roles internalconformance.ModelEvalRoleDenominators) (internalconformance.ModelEvalReadiness, error) {
 	return f(ctx, roles)
+}
+
+type modelEvalConsumersFunc func(context.Context) ([]string, error)
+
+func (f modelEvalConsumersFunc) ModelEvalConsumers(ctx context.Context) ([]string, error) {
+	return f(ctx)
+}
+
+func modelEvalRuntimeModels(context.Context) ([]internalrouting.ModelEvalRouteModel, error) {
+	return []internalrouting.ModelEvalRouteModel{{Scenario: "vrooli-memory", Role: "embedding.default", Provider: "ollama", Locality: "local", Model: "nomic-embed-text:latest", Status: "succeeded", SampleCount: 42, LatestObservedAt: "2026-11-14T14:00:00Z"}}, nil
 }
 
 func aiGatewayScenarioRoot(t *testing.T) string {
@@ -69,12 +80,18 @@ func TestModelEvalPhaseReportsMissingEvidenceAndNeverExecutesInference(t *testin
 		TaskRoleCoverage: []internalconformance.RoleCoverage{
 			{Role: "classify.fast", Cases: 0, Required: 20, Deficient: true},
 		},
+		ConsumerCoverage: []internalconformance.RoleCoverage{
+			{Role: "vrooli-memory", Cases: 1, Required: 20, Deficient: true},
+		},
 	}
 	h := handler.NewConnectHandler(handler.Deps{
 		ScenarioDir: scenarioDir, ModelPolicyPath: policyPath, TaskRoleCatalogPath: taskRoleCatalogPath,
+		ModelEvalConsumers:     modelEvalConsumersFunc(func(context.Context) ([]string, error) { return []string{"vrooli-memory"}, nil }),
+		ModelEvalRuntimeModels: modelEvalRuntimeModels,
 		ModelEvalSource: modelEvalReadinessSourceFunc(func(_ context.Context, roles internalconformance.ModelEvalRoleDenominators) (internalconformance.ModelEvalReadiness, error) {
 			require.Len(t, roles.PolicyRoles, 11)
-			require.Len(t, roles.TaskRoles, 19)
+			require.NotEmpty(t, roles.TaskRoles)
+			require.Equal(t, []string{"vrooli-memory"}, roles.Consumers)
 			return readiness, nil
 		}),
 	})
@@ -91,12 +108,16 @@ func TestModelEvalPhaseReportsMissingEvidenceAndNeverExecutesInference(t *testin
 	require.Equal(t, "blocked_accepted_suite_evidence_incomplete", native.GetFields()["execution_state"].GetStringValue())
 	readinessValue := native.GetFields()["readiness"].GetStructValue()
 	require.Equal(t, "knowledge-observatory.docs.starter", readinessValue.GetFields()["missing_denominator_suite_ids"].GetListValue().GetValues()[0].GetStringValue())
+	runtimeModels := readinessValue.GetFields()["observed_runtime_models"].GetListValue().GetValues()
+	require.Len(t, runtimeModels, 1)
+	require.Equal(t, "nomic-embed-text:latest", runtimeModels[0].GetStructValue().GetFields()["model"].GetStringValue())
 	messages := make([]string, 0, len(resp.Msg.GetAssessment().GetFindings()))
 	for _, finding := range resp.Msg.GetAssessment().GetFindings() {
 		messages = append(messages, finding.GetMessage())
 	}
 	require.Contains(t, strings.Join(messages, "\n"), "chat.default=2/20")
 	require.Contains(t, strings.Join(messages, "\n"), "classify.fast=0/20")
+	require.Contains(t, strings.Join(messages, "\n"), "vrooli-memory=1/20")
 }
 
 func TestModelEvalPhaseIdentitySurvivesLegacyScenarioTransport(t *testing.T) {
@@ -105,6 +126,8 @@ func TestModelEvalPhaseIdentitySurvivesLegacyScenarioTransport(t *testing.T) {
 	taskRoleCatalogPath := filepath.Join(scenarioDir, "config/inference-role-catalog.json")
 	h := handler.NewConnectHandler(handler.Deps{
 		ScenarioDir: scenarioDir, ModelPolicyPath: policyPath, TaskRoleCatalogPath: taskRoleCatalogPath,
+		ModelEvalConsumers:     modelEvalConsumersFunc(func(context.Context) ([]string, error) { return []string{"vrooli-memory"}, nil }),
+		ModelEvalRuntimeModels: modelEvalRuntimeModels,
 		ModelEvalSource: modelEvalReadinessSourceFunc(func(_ context.Context, roles internalconformance.ModelEvalRoleDenominators) (internalconformance.ModelEvalReadiness, error) {
 			return internalconformance.ModelEvalReadiness{
 				RegisteredSuites: 35, RequiredRetrievalSuites: 35,

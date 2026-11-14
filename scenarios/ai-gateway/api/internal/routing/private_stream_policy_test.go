@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/servicetoken"
+
 	"github.com/vrooli/ai-provider-go/policy"
 	_ "modernc.org/sqlite"
 )
@@ -76,14 +78,14 @@ func TestJ3_StreamRevalidatesFinalPolicySnapshot(t *testing.T) {
 				}
 			}))
 			defer hubServer.Close()
-			identity := NewProviderDecisionIdentity(func() (string, error) { return "isolated-credential", nil }, func(context.Context, string) (ExchangedServiceIdentity, error) {
-				return ExchangedServiceIdentity{AccessToken: "isolated-j3-token", ExpiresAt: now.Add(time.Hour), Subject: providerDecisionPrincipal, Audience: providerDecisionAudience, Scopes: []string{providerDecisionScope}}, nil
-			}, func() time.Time { return now })
+			identity := NewProviderDecisionIdentity(func(context.Context) (string, error) { return "isolated-credential", nil }, servicetoken.WithExchanger(func(context.Context, string) (servicetoken.Exchanged, error) {
+				return servicetoken.Exchanged{AccessToken: "isolated-j3-token", ExpiresAt: now.Add(time.Hour), Subject: providerDecisionPrincipal, Audience: providerDecisionAudience, Scopes: []string{providerDecisionScope}}, nil
+			}), servicetoken.WithClock(func() time.Time { return now }))
 			hub := NewProviderDecisionHubClient(identity, hubServer.Client())
 			hub.baseURL = func(context.Context) (string, error) { return hubServer.URL, nil }
 			root := t.TempDir()
 			dir := filepath.Join(root, "resources", "j3-fixture")
-			if err := os.MkdirAll(dir, 0700); err != nil {
+			if err := os.MkdirAll(dir, 0o700); err != nil {
 				t.Fatal(err)
 			}
 			route := policy.Route{ID: "fixture-route", Supplier: "j3-fixture", Plan: "fixture", Model: "fixture-model", Endpoint: "chat", QuoteRef: "fixture-price", QuotedCredits: 1, StreamQuote: policy.StreamQuote{MaxInputBytes: 4096, MaxOutputTokens: 20, MaxCostMicros: 1, TokenLimitField: "max_tokens"}}
@@ -93,7 +95,7 @@ func TestJ3_StreamRevalidatesFinalPolicySnapshot(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if err := os.WriteFile(filepath.Join(dir, "model-policy.json"), data, 0600); err != nil {
+				if err := os.WriteFile(filepath.Join(dir, "model-policy.json"), data, 0o600); err != nil {
 					t.Fatal(err)
 				}
 			}

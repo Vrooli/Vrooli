@@ -158,7 +158,7 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 			// The endpoint still requires the exact service identity, capability,
 			// operation grant, and run target; this exception only lets it reach
 			// those handler checks instead of granting a general service write.
-			if isResearchBudgetIngestRoute(r) && p.IsVerified() && p.Subject == "treasury" {
+			if isResearchBudgetIngestRoute(r) && p.IsVerified() && p.Subject == orchestration.TreasuryServiceSubject {
 				next.ServeHTTP(w, r)
 				return
 			}

@@ -88,7 +88,7 @@ func TestResourceRepositoryRecoversExactAttemptRejectsChangedDigestAndFailsClose
 		{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner},
 	}, ledger)
 	require.NoError(t, err)
-	request := ProviderRequest{RootOperationID: root, Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", Profile: sharedv1.Profile_PROFILE_REMOTE_ONLY, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC}
+	request := ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", RootOperationID: root, Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", Profile: sharedv1.Profile_PROFILE_REMOTE_ONLY, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC}
 	first, err := repository.Run(context.Background(), request)
 	require.NoError(t, err)
 	require.NotNil(t, first.Recovery)
@@ -157,7 +157,7 @@ func TestResourceRepositoryPreDispatchFailureKeepsFallbackEligible(t *testing.T)
 		{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner},
 	}, fixtureRightsContext, newTestAttemptLedger(t))
 	require.NoError(t, err)
-	result, err := repository.Run(context.Background(), ProviderRequest{
+	result, err := repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		RootOperationID: root, Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC,
 	})
 	require.NoError(t, err)
@@ -200,7 +200,7 @@ func TestServiceSchemaRepairCreatesDistinctHostedAttempt(t *testing.T) {
 
 	repository := hostedTestRepository(t, server.URL, func() string { return deviceKey }, newTestAttemptLedger(t), Candidate{Provider: providers.ProviderMetered, ResourceRole: "metered", Reason: "hosted"})
 	service := NewService(repository)
-	request := ProviderRequest{
+	request := ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		RootOperationID: root, Source: "source",
 		SchemaJSON: `{"type":"object","required":["kind"],"properties":{"kind":{"enum":["ok"]}}}`,
 		Role:       "classify.fast", PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC,
@@ -268,7 +268,7 @@ func TestResourceRepositoryReceiptRecoveryRemainsExactKeyWhenLedgerStateWriteFai
 
 	ledger := &failAtSetAttemptLedger{AttemptLedger: newTestAttemptLedger(t), failAt: 2}
 	repository := hostedTestRepository(t, server.URL, func() string { return "test-device-key" }, ledger, Candidate{Provider: providers.ProviderMetered, ResourceRole: "metered", Reason: "hosted"})
-	request := ProviderRequest{RootOperationID: root, Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC}
+	request := ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", RootOperationID: root, Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC}
 
 	first, err := repository.Run(context.Background(), request)
 	require.NoError(t, err)

@@ -64,8 +64,8 @@ func TestClassifySignalsIsLocalOnlyAndCarriesContext(t *testing.T) {
 	if request.GetProfile() != sharedv1.Profile_PROFILE_LOCAL_ONLY {
 		t.Fatalf("profile = %v, want local-only", request.GetProfile())
 	}
-	if request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED {
-		t.Fatalf("privacy class = %v, want unspecified because this caller has no sourced class", request.GetPrivacyClass())
+	if request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL {
+		t.Fatalf("privacy class = %v, want confidential transcript classification", request.GetPrivacyClass())
 	}
 	if len(request.GetQuestions()) != 1 || request.GetQuestions()[0].GetId() != signalQuestionID || len(request.GetQuestions()[0].GetOptions()) != 5 {
 		t.Fatalf("questions = %v, want the five-label signal question", request.GetQuestions())
@@ -77,6 +77,30 @@ func TestClassifySignalsIsLocalOnlyAndCarriesContext(t *testing.T) {
 	}
 	if SignalVersion == ClassifierVersion || !strings.HasPrefix(SignalVersion, "signal-") {
 		t.Fatalf("signal version %q must differ from the category classifier's %q", SignalVersion, ClassifierVersion)
+	}
+}
+
+func TestSignalRetryRetainsLocalOnlyConfidentialTaskContract(t *testing.T) {
+	first := true
+	gateway := &fakeGateway{answer: func(decodedState) *inferencev1.DecideResponse {
+		if first {
+			first = false
+			return &inferencev1.DecideResponse{Error: &inferencev1.InferenceError{Code: inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW}}
+		}
+		return signalDecision(ReportedFailure, 0.9)
+	}}
+	classifier := &Classifier{Client: gateway}
+	answers, err := classifier.ClassifySignals(context.Background(), []Message{{OperatorText: "it is still broken", PrecedingAgentText: "I fixed it."}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(answers) != 1 || answers[0].Status != StatusClassified || len(gateway.requests) != 2 {
+		t.Fatalf("answers=%+v, requests=%d; want a successful shrunk retry", answers, len(gateway.requests))
+	}
+	for i, request := range gateway.requests {
+		if request.GetProfile() != sharedv1.Profile_PROFILE_LOCAL_ONLY || request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL {
+			t.Fatalf("request %d contract = %s/%s, want local-only/confidential", i, request.GetProfile(), request.GetPrivacyClass())
+		}
 	}
 }
 

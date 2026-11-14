@@ -35,6 +35,11 @@
               ]
             },
             {
+              "name": "privacy-provenance",
+              "required": true,
+              "description": "Non-sensitive source and basis for the caller privacy classification"
+            },
+            {
               "name": "operation",
               "description": "Caller operation label for evidence and policy"
             },
@@ -502,6 +507,11 @@
               ]
             },
             {
+              "name": "privacy-provenance",
+              "required": true,
+              "description": "Non-sensitive source and basis for the caller privacy classification"
+            },
+            {
               "name": "operation",
               "description": "Caller operation label"
             },
@@ -579,6 +589,11 @@
               ]
             },
             {
+              "name": "privacy-provenance",
+              "required": true,
+              "description": "Non-sensitive source and basis for the caller privacy classification"
+            },
+            {
               "name": "operation",
               "description": "Caller operation label"
             },
@@ -648,6 +663,10 @@
               "name": "mode",
               "description": "preview verifies route decisions without model inference; execute invokes local inference",
               "default": "preview"
+            },
+            {
+              "name": "profile",
+              "description": "Optional profile override applied to every case for paired local-only or remote-only previews; remote-only execution is forbidden"
             },
             {
               "name": "receipt-file",
@@ -777,6 +796,11 @@
               "aliases": [
                 "privacy"
               ]
+            },
+            {
+              "name": "privacy-provenance",
+              "required": true,
+              "description": "Non-sensitive source and basis for the caller privacy classification"
             },
             {
               "name": "operation",
@@ -1107,6 +1131,11 @@
               "description": "Explicit privacy class: public, internal, confidential, or secret. Omit only when the source is unclassified; remote candidates then remain ineligible"
             },
             {
+              "name": "privacy-provenance",
+              "required": true,
+              "description": "Non-sensitive source and basis for the caller privacy classification"
+            },
+            {
               "name": "temperature",
               "description": "Explicit sampling temperature. Only roles that declare themselves overridable accept it; a deterministic role refuses with construct sampling.temperature. Absent, the role's declared sampling applies.",
               "bind_waiver": "temperature maps onto the nested sampling.temperature field; bind.field accepts only a top-level snake_case name, so the handler builds the SamplingControls message"
@@ -1169,6 +1198,11 @@
             {
               "name": "privacy-class",
               "description": "Explicit privacy class: public, internal, confidential, or secret. Omit only when the source is unclassified; remote candidates then remain ineligible"
+            },
+            {
+              "name": "privacy-provenance",
+              "required": true,
+              "description": "Non-sensitive source and basis for the caller privacy classification"
             }
           ],
           "binding": {
@@ -1235,6 +1269,11 @@
               "description": "Explicit privacy class: public, internal, confidential, or secret. Omit only when the source is unclassified; remote candidates then remain ineligible"
             },
             {
+              "name": "privacy-provenance",
+              "required": true,
+              "description": "Non-sensitive source and basis for the caller privacy classification"
+            },
+            {
               "name": "state",
               "description": "Plain-text state the questions are about; use --state-json for structured state"
             },
@@ -1287,6 +1326,11 @@
             {
               "name": "privacy-class",
               "description": "Explicit privacy class: public, internal, confidential, or secret. Omit only when the source is unclassified; remote candidates then remain ineligible"
+            },
+            {
+              "name": "privacy-provenance",
+              "required": true,
+              "description": "Non-sensitive source and basis for the caller privacy classification"
             },
             {
               "name": "questions",

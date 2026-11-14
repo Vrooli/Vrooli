@@ -12,6 +12,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
+	aisearch "github.com/vrooli/ai-go/search"
 	coredb "github.com/vrooli/api-core/database"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -56,6 +57,121 @@ func TestConversationSearchSharedControlFailsClosedOnTokens(t *testing.T) {
 	}
 	_, err := handler.Reindex(context.Background(), connect.NewRequest(&controlv1.ReindexRequest{ControlToken: "minted-token", DryRun: true}))
 	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
+}
+
+type recipeStageCall struct {
+	id      string
+	request conversationsearch.EmbeddingRecipeRequest
+}
+
+type fakeRecipeMigration struct {
+	stage    chan recipeStageCall
+	records  []conversationsearch.GenerationMigrationRecord
+	promoted string
+	restored string
+}
+
+func (f *fakeRecipeMigration) StageRecipe(_ context.Context, id string, request conversationsearch.EmbeddingRecipeRequest) (conversationsearch.GenerationMigrationRecord, error) {
+	record := conversationsearch.GenerationMigrationRecord{
+		Generation: aisearch.GenerationRecord{
+			Metadata:       aisearch.GenerationMetadata{ID: id, Model: request.Model, RecipeID: request.RecipeID, RecipeCanonical: request.RecipeCanonical, EmbeddingRole: request.Role, EmbeddingDimensions: request.Dimensions, PolicySchemaVersion: request.PolicySchemaVersion, ChunkPolicy: request.ChunkPolicy},
+			CollectionName: "agent-manager_conversation-search--generation--" + id,
+			State:          aisearch.GenerationStateCandidate,
+		},
+		Phase: "ready", Ready: true,
+	}
+	f.records = append(f.records, record)
+	f.stage <- recipeStageCall{id: id, request: request}
+	return record, nil
+}
+
+func (f *fakeRecipeMigration) PromoteRecipe(_ context.Context, id string) error {
+	f.promoted = id
+	return nil
+}
+
+func (f *fakeRecipeMigration) RestoreRecipe(_ context.Context, id string) error {
+	f.restored = id
+	return nil
+}
+
+func (f *fakeRecipeMigration) RestoreRecipeCollection(_ context.Context, collection string) error {
+	f.restored = collection
+	return nil
+}
+
+func (f *fakeRecipeMigration) ListRecipeGenerations(context.Context) ([]conversationsearch.GenerationMigrationRecord, error) {
+	return append([]conversationsearch.GenerationMigrationRecord(nil), f.records...), nil
+}
+
+func testEmbeddingRecipe(t *testing.T, model string, dimensions int) aisearch.EmbeddingRecipe {
+	t.Helper()
+	recipe, err := aisearch.NewEmbeddingRecipe(aisearch.EmbeddingRecipeInput{
+		SchemaVersion: "embedding-recipe-v1", ModelID: model, ModelRevision: "revision-1",
+		ArtifactSHA256: strings.Repeat("a", 64), TokenizerRevision: "tokenizer-1", Runtime: "ollama", RuntimeBuild: "build-1",
+		Precision: "fp32", QueryInstruction: "query", DocumentInstruction: "document", Pooling: "mean", Normalization: "l2",
+		Dimensions: dimensions, OutputDType: "float32", Truncation: "512", ChunkerVersion: "chunk-v1", ComposerVersion: "composer-v1",
+	})
+	require.NoError(t, err)
+	return recipe
+}
+
+func TestConversationSearchSharedControlRunsAndRecoversRecipeMigrationContract(t *testing.T) {
+	t.Parallel()
+	owner := &fakeRecipeMigration{stage: make(chan recipeStageCall, 1)}
+	handler := NewConversationSearchSharedControl(ConversationSearchControlOptions{
+		RecipeMigration: owner,
+		ControlToken:    func() string { return "minted-token" },
+	})
+
+	capabilities, err := handler.Reindex(context.Background(), connect.NewRequest(&controlv1.ReindexRequest{ControlToken: "minted-token", Action: "capabilities"}))
+	require.NoError(t, err)
+	require.Equal(t, aisearch.ReindexMigrationProtocolVersion, capabilities.Msg.GetMigrationProtocolVersion())
+	require.Equal(t, []string{"shadow", "cutover", "rollback"}, capabilities.Msg.GetSupportedMigrationActions())
+
+	recipe := testEmbeddingRecipe(t, "granite-embedding:278m", 768)
+	shadow, err := handler.Reindex(context.Background(), connect.NewRequest(&controlv1.ReindexRequest{
+		ControlToken: "minted-token", Action: "shadow", ShadowCollection: "granite-r2-arm",
+		EmbeddingModel: "granite-embedding:278m", EmbeddingRole: "embedding.default", EmbeddingDimensions: 768,
+		EmbeddingPolicySchemaVersion: "policy/v4", EmbeddingRecipeId: recipe.ID(), EmbeddingRecipeCanonical: string(recipe.Canonical()),
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "granite-r2-arm", shadow.Msg.GetJobId())
+	call := <-owner.stage
+	require.Equal(t, "granite-r2-arm", call.id)
+	require.Equal(t, "granite-embedding:278m", call.request.Model)
+	require.Equal(t, "embedding.default", call.request.Role)
+	require.Equal(t, 768, call.request.Dimensions)
+	require.Equal(t, "policy/v4", call.request.PolicySchemaVersion)
+	require.Equal(t, recipe.ID(), call.request.RecipeID)
+	require.Equal(t, string(recipe.Canonical()), call.request.RecipeCanonical)
+	require.Equal(t, conversationsearch.DefaultRecipeVersion, call.request.ChunkPolicy)
+
+	// A reconstructed control handler gets readiness from the durable owner catalog.
+	restarted := NewConversationSearchSharedControl(ConversationSearchControlOptions{
+		RecipeMigration: owner,
+		ControlToken:    func() string { return "minted-token" },
+	})
+	recovered, err := restarted.ReindexStatus(context.Background(), connect.NewRequest(&controlv1.ReindexStatusRequest{ControlToken: "minted-token", JobId: shadow.Msg.GetJobId()}))
+	require.NoError(t, err)
+	require.Equal(t, "succeeded", recovered.Msg.GetState())
+
+	_, err = handler.Reindex(context.Background(), connect.NewRequest(&controlv1.ReindexRequest{ControlToken: "minted-token", Action: "promote", ShadowCollection: "granite-r2-arm"}))
+	require.NoError(t, err)
+	require.Equal(t, "granite-r2-arm", owner.promoted)
+	_, err = handler.Reindex(context.Background(), connect.NewRequest(&controlv1.ReindexRequest{ControlToken: "minted-token", Action: "rollback", RollbackCollection: "agent-manager_conversation-search--generation--incumbent"}))
+	require.NoError(t, err)
+	require.Equal(t, "agent-manager_conversation-search--generation--incumbent", owner.restored)
+}
+
+func TestConversationSearchSharedControlRejectsMigrationFieldsWithoutAction(t *testing.T) {
+	t.Parallel()
+	handler := NewConversationSearchSharedControl(ConversationSearchControlOptions{ControlToken: func() string { return "minted-token" }})
+	_, err := handler.Reindex(context.Background(), connect.NewRequest(&controlv1.ReindexRequest{
+		ControlToken: "minted-token", ShadowCollection: "candidate", EmbeddingModel: "model", EmbeddingRole: "embedding.default",
+		EmbeddingDimensions: 768, EmbeddingPolicySchemaVersion: "policy/v4",
+	}))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "migration targets must not be silently ignored")
 }
 
 func TestConversationSearchDirectControlFailsClosedAndMapsJobs(t *testing.T) {

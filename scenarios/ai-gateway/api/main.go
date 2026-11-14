@@ -105,7 +105,8 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
-	measuresModule, err := measuresH.Module(internalrouting.NewSQLRepository(db.Primary()), nil)
+	routeEvidenceRepository := internalrouting.NewSQLRepository(db.Primary())
+	measuresModule, err := measuresH.Module(routeEvidenceRepository, nil)
 	if err != nil {
 		log.Fatalf("measures module init failed: %v", err)
 	}
@@ -152,7 +153,7 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "ai-gateway-api", "1.0.0"),
-		conformanceH.Module(log.Default(), repoRoot()),
+		conformanceH.Module(log.Default(), repoRoot(), conformanceH.Deps{ModelEvalConsumers: routeEvidenceRepository, ModelEvalRuntimeModels: routeEvidenceRepository.ModelEvalRuntimeModels}),
 		gatewayH.Module(),
 		inferenceH.Module(inferenceH.Deps{Service: inference.NewService(inferenceRepository)}),
 		inventoryH.Module(inventoryH.Deps{InferenceRoles: roleCatalog.RoleNames()}),

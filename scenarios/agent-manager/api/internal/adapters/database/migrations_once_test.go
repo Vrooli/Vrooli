@@ -71,6 +71,45 @@ func TestTranscriptLastObservedEventMigrationPreservesLegacyRow(t *testing.T) {
 	}
 }
 
+func TestConversationGenerationRecipeColumnsUpgradeLegacyCatalog(t *testing.T) {
+	db := newMigrationTestDB(t)
+	if _, err := db.Exec(`DROP TABLE conversation_search_qdrant_generations`); err != nil {
+		t.Fatal(err)
+	}
+	legacy := `CREATE TABLE conversation_search_qdrant_generations (
+		generation_id TEXT PRIMARY KEY, owner TEXT NOT NULL, namespace TEXT NOT NULL,
+		alias_name TEXT NOT NULL, collection_name TEXT NOT NULL UNIQUE,
+		content_identity TEXT NOT NULL DEFAULT '', state TEXT NOT NULL,
+		lease_id TEXT NOT NULL DEFAULT '', lease_holder TEXT NOT NULL DEFAULT '', lease_expires_at TEXT,
+		points INTEGER NOT NULL DEFAULT 0, bytes INTEGER NOT NULL DEFAULT 0,
+		cleanup_outcome TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+	)`
+	if _, err := db.Exec(legacy); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO conversation_search_qdrant_generations
+		(generation_id, owner, namespace, alias_name, collection_name, state, created_at, updated_at)
+		VALUES ('legacy-gen', 'agent-manager.runs', 'conversation-search', 'conversation-search-v1', 'physical-legacy', 'active', '2026-11-01T00:00:00Z', '2026-11-01T00:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.InitializeSchema(); err != nil {
+		t.Fatal(err)
+	}
+	columns, err := db.tableColumns(context.Background(), "conversation_search_qdrant_generations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"recipe_id", "recipe_canonical", "model", "embedding_role", "embedding_dimensions", "policy_schema_version", "migration_phase"} {
+		if _, ok := columns[name]; !ok {
+			t.Errorf("legacy generation catalog missing migrated column %q", name)
+		}
+	}
+	var generationID string
+	if err := db.GetContext(context.Background(), &generationID, `SELECT generation_id FROM conversation_search_qdrant_generations WHERE collection_name = 'physical-legacy'`); err != nil || generationID != "legacy-gen" {
+		t.Fatalf("legacy generation identity was not preserved: id=%q err=%v", generationID, err)
+	}
+}
+
 func newMigrationTestDB(t *testing.T) *DB {
 	t.Helper()
 	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())

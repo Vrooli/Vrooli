@@ -265,7 +265,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	if deps.ConversationIndexer != nil {
 		controlOptions := handlers.ConversationSearchControlOptions{
 			Indexer: deps.ConversationIndexer, SearchFilePath: deps.ConversationSearchFile,
-			ControlToken: deps.ConversationControlToken,
+			RecipeMigration: deps.ConversationSemantic, ControlToken: deps.ConversationControlToken,
 		}
 		directControlPath, directControlHandler := domainconnect.NewConversationSearchControlServiceHandler(
 			handlers.NewConversationSearchControlConnectHandler(handlers.NewConversationSearchDirectControl(controlOptions)),
@@ -293,8 +293,11 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		router.Handle(handlers.ProgramEventWebhookPath, recoveringEventsWebhook(getSecret, func(secret string) http.Handler {
 			return handlers.ProgramEventWebhook(deps.DB, secret)
 		})).Methods(http.MethodPost)
-		router.Handle(handlers.DecisionEventWebhookPath, recoveringEventsWebhook(getSecret, func(secret string) http.Handler {
-			return handlers.DecisionResolvedWebhook(deps.SupervisionService, deps.Orchestrator, secret, deps.DecisionEffects...)
+		decisionWebhook := handlers.DecisionResolvedWebhook(deps.SupervisionService, deps.Orchestrator, operatordecision.WebhookConfig{
+			Secret: getSecret, Source: askReaderSource,
+		}, deps.DecisionEffects...)
+		router.Handle(handlers.DecisionEventWebhookPath, recoveringEventsWebhook(getSecret, func(string) http.Handler {
+			return decisionWebhook
 		})).Methods(http.MethodPost)
 		if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
 			go retryEventSubscriptions(context.Background(), 30*time.Second,

@@ -42,7 +42,7 @@ func TestServiceReAsksOnceWhenLocalValidationRejectsTheFirstValue(t *testing.T) 
 	repository := &repairingRepository{values: []string{`{"label":"wrong"}`, `{"label":"infra"}`}}
 	service := NewService(repository)
 
-	response := service.Run(t.Context(), ProviderRequest{
+	response := service.Run(t.Context(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Source:      "connection refused",
 		SchemaJSON:  `{"type":"object","required":["label"],"properties":{"label":{"enum":["infra"]}}}`,
 		Instruction: "Classify by root cause.",
@@ -72,7 +72,7 @@ func TestServiceStopsReAskingAfterTheAttemptBudget(t *testing.T) {
 	repository := &repairingRepository{values: []string{`{"label":"wrong"}`}}
 	service := NewService(repository)
 
-	response := service.Run(t.Context(), ProviderRequest{
+	response := service.Run(t.Context(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Source:     "source",
 		SchemaJSON: `{"type":"object","required":["label"],"properties":{"label":{"enum":["infra"]}}}`,
 		Role:       "classify.fast",
@@ -87,7 +87,7 @@ func TestServiceStopsReAskingAfterTheAttemptBudget(t *testing.T) {
 
 func TestServiceGenericProviderCallLimitIncludesValidationRepair(t *testing.T) {
 	repository := &repairingRepository{values: []string{`{"label":"wrong"}`, `{"label":"infra"}`}}
-	response := NewService(repository).Run(t.Context(), ProviderRequest{
+	response := NewService(repository).Run(t.Context(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Source: "source", SchemaJSON: `{"type":"object","required":["label"],"properties":{"label":{"enum":["infra"]}}}`,
 		Role: "classify.fast", MaxProviderCalls: 1,
 	})
@@ -98,7 +98,7 @@ func TestServiceGenericProviderCallLimitIncludesValidationRepair(t *testing.T) {
 
 func TestServiceRejectsProviderCallLimitAboveGatewayMaximumBeforeDispatch(t *testing.T) {
 	repository := &repairingRepository{values: []string{`"value"`}}
-	response := NewService(repository).Run(t.Context(), ProviderRequest{
+	response := NewService(repository).Run(t.Context(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
 		Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", MaxProviderCalls: MaxProviderCalls + 1,
 	})
 	require.Equal(t, "INFERENCE_ERROR_CODE_INVALID_REQUEST", response.GetError().GetCode().String())
@@ -109,8 +109,8 @@ func TestServiceRejectsProviderCallLimitAboveGatewayMaximumBeforeDispatch(t *tes
 func TestRunBatchValidatesInternalProviderCallLimitsBeforeDispatch(t *testing.T) {
 	repository := &repairingRepository{values: []string{`"unused"`}}
 	response := NewService(repository).RunBatch(t.Context(), []ProviderRequest{
-		{Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", MaxProviderCalls: -1},
-		{Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", MaxProviderCalls: MaxProviderCalls + 1},
+		{PrivacyProvenance: "tests.explicit_internal_input", Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", MaxProviderCalls: -1},
+		{PrivacyProvenance: "tests.explicit_internal_input", Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", MaxProviderCalls: MaxProviderCalls + 1},
 	})
 	require.Len(t, response.GetResults(), 2)
 	for _, result := range response.GetResults() {
@@ -127,7 +127,7 @@ func TestServiceDoesNotReAskAfterAProviderFailure(t *testing.T) {
 	repository := &countingFailingRepository{}
 	service := NewService(repository)
 
-	response := service.Run(t.Context(), ProviderRequest{Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"})
+	response := service.Run(t.Context(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"})
 
 	require.False(t, response.GetValidated())
 	require.Equal(t, "INFERENCE_ERROR_CODE_UNAVAILABLE", response.GetError().GetCode().String())
@@ -166,7 +166,7 @@ func TestRoleTimeoutReachesTheProviderCommand(t *testing.T) {
 	repository, err := NewResourceRepositoryWithRightsContextSource(catalog, []providers.Adapter{{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner}}, fixtureRightsContext)
 	require.NoError(t, err)
 
-	_, err = repository.Run(context.Background(), ProviderRequest{Source: "s", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"})
+	_, err = repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", Source: "s", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"})
 	require.NoError(t, err)
 
 	var generate *providers.Command
@@ -227,7 +227,7 @@ func TestCatalogValidatesProviderWidening(t *testing.T) {
 // and conformance have no dependency on it and must keep serving.
 func TestUnavailableRepositoryReportsAStatedReason(t *testing.T) {
 	service := NewService(UnavailableRepository{Reason: "catalog is unreadable"})
-	response := service.Run(t.Context(), ProviderRequest{Source: "s", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"})
+	response := service.Run(t.Context(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", Source: "s", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"})
 
 	require.False(t, response.GetValidated())
 	require.Equal(t, "INFERENCE_ERROR_CODE_UNAVAILABLE", response.GetError().GetCode().String())
@@ -243,7 +243,7 @@ func TestServiceBatchRunsItemsConcurrently(t *testing.T) {
 
 	requests := make([]ProviderRequest, items)
 	for index := range requests {
-		requests[index] = ProviderRequest{Source: "s", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"}
+		requests[index] = ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", Source: "s", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"}
 	}
 
 	done := make(chan *struct{}, 1)

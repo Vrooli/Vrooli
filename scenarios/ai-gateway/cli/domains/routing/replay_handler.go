@@ -42,6 +42,9 @@ func (h *handlers) replay(ctx cliapp.RunContext) error {
 	if err != nil {
 		return err
 	}
+	if err := overrideReplayProfile(cases, ctx.Flag("profile"), mode); err != nil {
+		return err
+	}
 	managerURL := ctx.Flag("agent-manager-url")
 	if managerURL == "" {
 		managerURL = os.Getenv("AGENT_MANAGER_API_URL")
@@ -72,9 +75,9 @@ func (h *handlers) replay(ctx cliapp.RunContext) error {
 	rows := make([]string, 0, len(receipts))
 	for _, receipt := range receipts {
 		if mode == "preview" {
-			rows = append(rows, fmt.Sprintf("%s role=%s status=%s provider=%s route_plan=%s route_preview_ms=%d source_run=%s source_event=%s", receipt.CaseID, receipt.Role, receipt.Status, receipt.SelectedProvider, receipt.RoutePlanID, receipt.LatencyMS, receipt.SourceRunID, receipt.SourceEventID))
+			rows = append(rows, fmt.Sprintf("%s profile=%s role=%s status=%s provider=%s %s route_plan=%s route_preview_ms=%d source_run=%s source_event=%s", receipt.CaseID, receipt.Profile, receipt.Role, receipt.Status, receipt.SelectedProvider, replayEligibilitySummary(receipt.CandidateEligibility), receipt.RoutePlanID, receipt.LatencyMS, receipt.SourceRunID, receipt.SourceEventID))
 		} else {
-			rows = append(rows, fmt.Sprintf("%s role=%s status=%s model=%s locality=%s gateway_execution_ms=%d source_run=%s source_event=%s", receipt.CaseID, receipt.Role, receipt.Status, receipt.SelectedModel, receipt.Locality, receipt.LatencyMS, receipt.SourceRunID, receipt.SourceEventID))
+			rows = append(rows, fmt.Sprintf("%s profile=%s role=%s status=%s model=%s locality=%s gateway_execution_ms=%d source_run=%s source_event=%s", receipt.CaseID, receipt.Profile, receipt.Role, receipt.Status, receipt.SelectedModel, receipt.Locality, receipt.LatencyMS, receipt.SourceRunID, receipt.SourceEventID))
 		}
 	}
 	summary := fmt.Sprintf("Replayed %d authenticated caller cases in %s mode, parallel=%d.", len(receipts), mode, parallel)
@@ -87,6 +90,23 @@ func (h *handlers) replay(ctx cliapp.RunContext) error {
 		Results:        rows,
 		RetrievalHints: []string{"`ai-gateway routing evidence-list` — inspect recent gateway route evidence"},
 	})
+}
+
+func replayEligibilitySummary(candidates []ReplayCandidateEligibility) string {
+	local, remote, rejected := 0, 0, 0
+	for _, candidate := range candidates {
+		if candidate.RejectionCode != "" {
+			rejected++
+			continue
+		}
+		switch candidate.Locality {
+		case "local":
+			local++
+		case "remote":
+			remote++
+		}
+	}
+	return fmt.Sprintf("eligible_local=%d eligible_remote=%d rejected=%d", local, remote, rejected)
 }
 
 func replayStats(receipts []ReplayReceipt) (passed, failed int, p50, p95 int64) {

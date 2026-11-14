@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	profilepolicy "github.com/vrooli/ai-provider-go/routing"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
@@ -55,6 +56,11 @@ func (s *Service) Validate(req *sharedv1.GatewayRequest) []*sharedv1.ValidationI
 	}
 	if req.GetPrivacyClass() == sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED {
 		issues = append(issues, issue("privacy_class", "required", "privacy class is required"))
+	}
+	if strings.TrimSpace(req.GetPrivacyProvenance()) == "" {
+		issues = append(issues, issue("privacy_provenance", "required", "privacy provenance must name the non-sensitive source and basis for the caller's classification"))
+	} else if !profilepolicy.ValidPrivacyProvenance(req.GetPrivacyProvenance()) {
+		issues = append(issues, issue("privacy_provenance", "invalid", "privacy provenance must be a short non-sensitive identifier containing only letters, digits, '.', '_', '-', ':' or '/'"))
 	}
 	if req.GetTimeoutMs() < 0 {
 		issues = append(issues, issue("timeout_ms", "invalid", "timeout_ms cannot be negative"))
