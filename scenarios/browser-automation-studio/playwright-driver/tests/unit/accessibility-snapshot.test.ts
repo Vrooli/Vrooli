@@ -276,11 +276,12 @@ class FakeAccessibilityCDP {
 /** A fake page with just the surface the snapshotter reads. */
 function fakePage(
   url: string,
-  styles: Array<{ testid: string; style: Record<string, string> }> = []
+  styles: Array<{ testid: string; style: Record<string, string> }> = [],
+  viewport: { width: number; height: number } = { width: 1440, height: 900 }
 ): Page {
   return {
     url: () => url,
-    viewportSize: () => ({ width: 1440, height: 900 }),
+    viewportSize: () => viewport,
     evaluate: () => Promise.resolve(styles),
   } as unknown as Page;
 }
@@ -371,6 +372,24 @@ describe('AccessibilitySnapshotter', () => {
     expect(cdp.sends).toContain('Accessibility.getFullAXTree');
     expect(cdp.sends).toContain('DOMSnapshot.captureSnapshot');
     expect(cdp.detached).toBe(true);
+  });
+
+  it('measures a phone-class page as a phone: touch emulation is asserted before the geometry is read', async () => {
+    const emptySnapshot: DOMSnapshotResult = { strings: [], documents: [] };
+    const phone = new FakeAccessibilityCDP(CANNED_AX_NODES, emptySnapshot);
+    await new AccessibilitySnapshotter(dir, () => Promise.resolve(phone as unknown as CDPSession)).capture(
+      fakePage('https://example.com/', [], { width: 390, height: 844 })
+    );
+    expect(phone.sends.indexOf('Emulation.setTouchEmulationEnabled')).toBeGreaterThanOrEqual(0);
+    expect(phone.sends.indexOf('Emulation.setTouchEmulationEnabled')).toBeLessThan(
+      phone.sends.indexOf('DOMSnapshot.captureSnapshot')
+    );
+
+    const desktop = new FakeAccessibilityCDP(CANNED_AX_NODES, emptySnapshot);
+    await new AccessibilitySnapshotter(dir, () => Promise.resolve(desktop as unknown as CDPSession)).capture(
+      fakePage('https://example.com/', [], { width: 1440, height: 900 })
+    );
+    expect(desktop.sends).not.toContain('Emulation.setTouchEmulationEnabled');
   });
 
   it('degrades gracefully (no file) when the AX call throws', async () => {

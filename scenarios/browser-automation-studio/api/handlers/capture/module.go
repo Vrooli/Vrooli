@@ -81,9 +81,8 @@ type ReadinessResolution = readiness.Resolution
 
 // Deps wires the capture handler. Executor and Logger are required;
 // Storage is required to produce real screenshot files; Resolver and Now
-// are optional (Now defaults to time.Now). Producers, InlineDom and
-// InlineAccessibility are optional and default to DefaultProducerRegistry /
-// package inline defaults.
+// are optional (Now defaults to time.Now). Producers and InlineAccessibility
+// are optional and default to DefaultProducerRegistry and package defaults.
 type Deps struct {
 	Executor            Executor
 	Storage             storage.StorageInterface
@@ -92,7 +91,6 @@ type Deps struct {
 	Logger              *logrus.Logger
 	Now                 func() time.Time
 	Producers           *ProducerRegistry
-	InlineDom           InlineDomConfig
 	InlineAccessibility InlineAccessibilityConfig
 
 	// CapturesRoot anchors relative (and omitted) out_dir values so capture
@@ -122,7 +120,6 @@ func Module(d Deps) connectx.ServiceMount {
 	if strings.TrimSpace(d.CapturesRoot) == "" {
 		d.CapturesRoot = paths.ResolveCapturesRoot(d.Logger)
 	}
-	d.InlineDom = d.InlineDom.withDefaults()
 	d.InlineAccessibility = d.InlineAccessibility.withDefaults()
 	validator, err := protovalidate.New(protovalidate.WithMessages(&capturev1.CaptureRequest{}), protovalidate.WithDisableLazy())
 	if err != nil {

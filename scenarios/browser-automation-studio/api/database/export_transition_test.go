@@ -11,6 +11,38 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+func TestExportStatusTransitionGraphRejectsIllegalAndUnknownStates(t *testing.T) {
+	for _, test := range []struct {
+		from ExportStatus
+		to   ExportStatus
+		ok   bool
+	}{
+		{ExportPending, ExportProcessing, true},
+		{ExportPending, ExportCompleted, true},
+		{ExportPending, ExportFailed, true},
+		{ExportProcessing, ExportCompleted, true},
+		{ExportProcessing, ExportFailed, true},
+		{ExportCompleted, ExportFailed, false},
+		{ExportFailed, ExportProcessing, false},
+		{ExportStatus("unknown"), ExportFailed, false},
+		{ExportPending, ExportStatus("unknown"), false},
+	} {
+		t.Run(string(test.from)+"-to-"+string(test.to), func(t *testing.T) {
+			export := &ExportIndex{Status: test.from}
+			err := export.TransitionStatus(test.to)
+			if test.ok {
+				if err != nil || export.Status != test.to {
+					t.Fatalf("transition %q -> %q: status=%q err=%v", test.from, test.to, export.Status, err)
+				}
+				return
+			}
+			if !errors.Is(err, ErrInvalidExportStatusTransition) || export.Status != test.from {
+				t.Fatalf("illegal transition %q -> %q changed state or lost error: status=%q err=%v", test.from, test.to, export.Status, err)
+			}
+		})
+	}
+}
+
 type transitionDriver struct{ result driver.Result }
 
 func (d transitionDriver) Open(string) (driver.Conn, error) {

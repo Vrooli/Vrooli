@@ -3,6 +3,8 @@ import { applySafeAreaInsets } from '../../src/session/context-builder';
 import { SessionManager } from '../../src/session/manager';
 import { createTestConfig } from '../helpers';
 import { randomUUID } from 'node:crypto';
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
 
 // Run with REBROWSER_PATCHES_RUNTIME_FIX_MODE=0 for normal Playwright evaluation.
 // This is Chromium CSS emulation evidence; it does not certify Safari/PWA chrome.
@@ -61,6 +63,56 @@ describe('mobile safe-area emulation across navigation', () => {
       ).toBe('34px');
     } finally {
       await manager.shutdown();
+    }
+  }, 30000);
+
+  // A phone-class capture must measure with the media features a phone has:
+  // the Hub and other apps branch on `pointer: coarse` to size tap targets, and
+  // a capture that reports a mouse reads every one of them as too small. A real
+  // document served from another origin, finishing its load after the DOM is
+  // ready, is what loses the emulation, so the test serves one.
+  it.each([
+    { width: 390, height: 844, coarse: true },
+    { width: 1280, height: 720, coarse: false },
+  ])('reports coarse=$coarse pointer for a $width x $height session', async ({ width, height, coarse }) => {
+    const server = http.createServer((request, response) => {
+      if (request.url === '/slow.gif') {
+        setTimeout(() => {
+          response.writeHead(200, { 'content-type': 'image/gif' });
+          response.end(Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'));
+        }, 300);
+        return;
+      }
+      response.writeHead(200, { 'content-type': 'text/html' });
+      response.end('<!doctype html><title>probe</title><img src="/slow.gif" alt="">');
+    });
+    await new Promise<void>((resolve) => server.listen(0, 'localhost', resolve));
+    const { port } = server.address() as AddressInfo;
+    const manager = new SessionManager(createTestConfig());
+    try {
+      const { sessionId } = await manager.startSession({
+        execution_id: randomUUID(),
+        workflow_id: 'pointer-media-features',
+        viewport: { width, height },
+        reuse_mode: 'fresh',
+        required_capabilities: {},
+      });
+      const session = manager.getSession(sessionId);
+      await session.pipelineReadyPromise;
+      const { page } = session;
+      await page.goto(`http://localhost:${port}/`, { waitUntil: 'domcontentloaded' });
+      await page.waitForLoadState('load');
+      // No further instruction runs: a capture taken now must still see a phone.
+      await page.waitForTimeout(200);
+      const features = await page.evaluate(() => ({
+        coarse: matchMedia('(pointer: coarse)').matches,
+        touchPoints: navigator.maxTouchPoints,
+      }));
+      expect(features.coarse).toBe(coarse);
+      expect(features.touchPoints > 0).toBe(coarse);
+    } finally {
+      await manager.shutdown();
+      await new Promise((resolve) => server.close(resolve));
     }
   }, 30000);
 });

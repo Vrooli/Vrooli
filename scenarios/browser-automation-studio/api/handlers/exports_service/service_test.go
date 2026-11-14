@@ -270,7 +270,8 @@ func TestGetExportStatus_Happy(t *testing.T) {
 
 func TestUpdateExport_AppliesPartial(t *testing.T) {
 	h := newHarness(t)
-	row := seedExport(t, h, "demo")
+	row := &database.ExportIndex{ID: uuid.New(), ExecutionID: uuid.New(), Name: "demo", Format: "mp4", Status: database.ExportPending}
+	require.NoError(t, h.repo.CreateExport(context.Background(), row))
 	resp, err := h.client.UpdateExport(context.Background(), connect.NewRequest(&exportsv1.UpdateExportRequest{
 		Id:     row.ID.String(),
 		Name:   "renamed",
@@ -280,6 +281,19 @@ func TestUpdateExport_AppliesPartial(t *testing.T) {
 	require.Equal(t, "updated", resp.Msg.GetStatus())
 	require.Equal(t, "renamed", resp.Msg.GetExport().GetName())
 	require.Equal(t, "failed", resp.Msg.GetExport().GetStatus())
+}
+
+func TestUpdateExportRejectsTransitionFromTerminalState(t *testing.T) {
+	h := newHarness(t)
+	row := seedExport(t, h, "terminal")
+	_, err := h.client.UpdateExport(context.Background(), connect.NewRequest(&exportsv1.UpdateExportRequest{
+		Id:     row.ID.String(),
+		Status: "failed",
+	}))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	persisted, err := h.repo.GetExport(context.Background(), row.ID)
+	require.NoError(t, err)
+	require.Equal(t, database.ExportCompleted, persisted.Status)
 }
 
 func TestDeleteExport_Happy(t *testing.T) {
@@ -366,7 +380,7 @@ func TestCancelExportAcknowledgesOnlyOwnedJob(t *testing.T) {
 	require.True(t, called)
 	persisted, err := repo.GetExport(t.Context(), id)
 	require.NoError(t, err)
-	require.Equal(t, "processing", persisted.Status, "acknowledgement cannot invent a terminal result")
+	require.Equal(t, database.ExportProcessing, persisted.Status, "acknowledgement cannot invent a terminal result")
 	_, err = svc.CancelExport(t.Context(), connect.NewRequest(&exportsv1.CancelExportRequest{Id: "invalid"}))
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	svc.deps.CancelExport = nil

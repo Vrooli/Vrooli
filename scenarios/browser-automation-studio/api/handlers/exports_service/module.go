@@ -30,6 +30,7 @@ type Repo interface {
 	CreateExport(ctx context.Context, export *database.ExportIndex) error
 	GetExport(ctx context.Context, id uuid.UUID) (*database.ExportIndex, error)
 	UpdateExport(ctx context.Context, export *database.ExportIndex) error
+	UpdateExportStatus(ctx context.Context, id uuid.UUID, status database.ExportStatus, errorMessage string) error
 	DeleteExport(ctx context.Context, id uuid.UUID) error
 	ListExports(ctx context.Context, limit, offset int) ([]*database.ExportIndex, error)
 	ListExportsByExecution(ctx context.Context, executionID uuid.UUID) ([]*database.ExportIndex, error)

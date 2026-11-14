@@ -64,7 +64,7 @@ func captureArgSchema() cliapp.ArgSchema {
 	return cliapp.ArgSchema{
 		Flags: []cliapp.Flag{
 			{Name: "url", Required: true, Description: "http(s) URL OR `scenario=<slug>,path=<path>` shorthand"},
-			{Name: "capture", Description: "Comma-separated artifact types: screenshot,console-logs,network,video,dom,dom-tree,performance,accessibility (default: screenshot)"},
+			{Name: "capture", Description: "Comma-separated artifact types: screenshot,console-logs,network,video,performance,accessibility (default: screenshot); use git-control-tower ux-capture for the frozen page and action outline"},
 			{Name: "dimensions", Description: "Preset viewport: mobile (390x844) | tablet (768x1024) | desktop (1440x900)"},
 			{Name: "width", Description: "Explicit viewport width (overrides preset)"},
 			{Name: "height", Description: "Explicit viewport height (overrides preset)"},
@@ -77,7 +77,6 @@ func captureArgSchema() cliapp.ArgSchema {
 			{Name: "label", Description: "Label echoed into the artifact bundle"},
 			{Name: "inline-accessibility", Bool: true, Description: "Return the normalized accessibility-tree snapshot JSON inline (drives the AX capture; independent of --capture)"},
 			{Name: "inline-computed-style", Bool: true, Description: "Include resolved CSS properties in the inline accessibility snapshot"},
-			{Name: "inline-dom-tree", Bool: true, Description: "Return a computed DOM-tree JSON artifact from the same page load"},
 			{Name: "direction", Description: "Document direction: ltr or rtl"},
 			{Name: "dry-run", Bool: true, Description: "Send X-Dry-Run header; server validates without producing artifacts"},
 		},
@@ -102,7 +101,6 @@ type captureFlags struct {
 	label               string
 	inlineAccessibility bool
 	inlineComputedStyle bool
-	inlineDOMTree       bool
 	direction           string
 	json                bool
 	dryRun              bool
@@ -121,7 +119,6 @@ func flagsFromContext(rc cliapp.RunContext) (captureFlags, error) {
 		label:               rc.Flag("label"),
 		inlineAccessibility: rc.BoolFlag("inline-accessibility"),
 		inlineComputedStyle: rc.BoolFlag("inline-computed-style"),
-		inlineDOMTree:       rc.BoolFlag("inline-dom-tree"),
 		direction:           strings.ToLower(strings.TrimSpace(rc.Flag("direction"))),
 		json:                rc.JSON(),
 		dryRun:              rc.BoolFlag("dry-run"),
@@ -202,7 +199,6 @@ func buildCaptureRequest(f captureFlags) (*capturev1.CaptureRequest, error) {
 		ScreenshotSelector:  strings.TrimSpace(f.screenshotSelector),
 		InlineAccessibility: f.inlineAccessibility,
 		InlineComputedStyle: f.inlineComputedStyle,
-		InlineDomTree:       f.inlineDOMTree,
 		Direction:           f.direction,
 	}
 	if f.routedTestMode {
@@ -394,9 +390,6 @@ func protoToJSON(m *capturev1.CaptureResponse) map[string]interface{} {
 	// empty to keep default/dry-run output clean.
 	if strings.TrimSpace(m.AccessibilityJson) != "" {
 		out["accessibility_json"] = m.AccessibilityJson
-	}
-	if strings.TrimSpace(m.DomTreeJson) != "" {
-		out["dom_tree_json"] = m.DomTreeJson
 	}
 	return out
 }

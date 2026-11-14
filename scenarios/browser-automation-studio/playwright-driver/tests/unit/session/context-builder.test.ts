@@ -432,12 +432,23 @@ describe('mobile safe-area insets', () => {
   it('overrides safe-area insets via CDP for a mobile viewport', async () => {
     const send = jest.fn().mockResolvedValue(undefined);
     const detach = jest.fn().mockResolvedValue(undefined);
-    const page = { context: () => ({ newCDPSession: jest.fn().mockResolvedValue({ send, detach }) }), once: jest.fn() };
+    const mainFrame = {};
+    const page = {
+      context: () => ({ newCDPSession: jest.fn().mockResolvedValue({ send, detach }) }),
+      once: jest.fn(),
+      on: jest.fn(),
+      mainFrame: () => mainFrame,
+    };
 
     await applySafeAreaInsets(page as never, { width: 390, height: 844 });
 
     expect(send).toHaveBeenCalledWith('Emulation.setSafeAreaInsetsOverride', {
       insets: MOBILE_SAFE_AREA_INSETS,
+    });
+    // The override cancels the page's touch emulation unless it is asserted again after it.
+    expect(send).toHaveBeenLastCalledWith('Emulation.setTouchEmulationEnabled', {
+      enabled: true,
+      maxTouchPoints: 1,
     });
     // Detaching drops the override on the next navigation.
     expect(detach).not.toHaveBeenCalled();
@@ -445,6 +456,31 @@ describe('mobile safe-area insets', () => {
     page.once.mock.calls[0][1]();
     expect(detach).toHaveBeenCalledTimes(1);
     expect(MOBILE_SAFE_AREA_INSETS.bottom).toBeGreaterThan(0); // home indicator must be non-zero
+  });
+
+  it('asserts the phone emulation again as the main frame commits and as the document loads', async () => {
+    const send = jest.fn().mockResolvedValue(undefined);
+    const mainFrame = {};
+    const handlers = new Map<string, (arg?: unknown) => void>();
+    const page = {
+      context: () => ({ newCDPSession: jest.fn().mockResolvedValue({ send, detach: jest.fn() }) }),
+      once: jest.fn(),
+      on: jest.fn((event: string, handler: (arg?: unknown) => void) => handlers.set(event, handler)),
+      mainFrame: () => mainFrame,
+    };
+    await applySafeAreaInsets(page as never, { width: 390, height: 844 });
+    send.mockClear();
+
+    handlers.get('framenavigated')?.({}); // a subframe does not reset the page
+    expect(send).not.toHaveBeenCalled();
+    handlers.get('framenavigated')?.(mainFrame);
+    handlers.get('domcontentloaded')?.();
+    handlers.get('load')?.();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const touch = send.mock.calls.filter(([method]) => method === 'Emulation.setTouchEmulationEnabled');
+    expect(touch).toHaveLength(3);
+    expect(touch.every(([, params]) => params.enabled === true && params.maxTouchPoints === 1)).toBe(true);
   });
 
   it('is a no-op for a desktop viewport', async () => {

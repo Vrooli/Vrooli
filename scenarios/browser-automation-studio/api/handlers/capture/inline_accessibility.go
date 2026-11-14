@@ -9,7 +9,7 @@ import (
 
 // defaultInlineAccessibilityMaxBytes caps CaptureResponse.accessibility_json so
 // a pathological page cannot balloon the RPC response. Truncation is silent
-// (documented on the proto field), mirroring inline_dom.
+// (documented on the proto field) and independently requests the AX capture.
 const defaultInlineAccessibilityMaxBytes = 2 << 20
 
 // accessibilitySnapshotFile is the canonical filename the driver emits and
@@ -19,10 +19,9 @@ const accessibilitySnapshotFile = "accessibility.json"
 
 // InlineAccessibilityConfig holds the tunables for inline accessibility
 // capture. Zero values fall back to the package defaults via withDefaults so
-// callers can wire only the fields they want to override. It mirrors
-// InlineDomConfig's shape, differing only in source: the AX snapshot is a real
-// file on disk (written by the driver, landed by ExportToFolder), not an
-// evaluate node's timeline result.
+// callers can wire only the fields they want to override. Unlike DOM artifacts,
+// the AX snapshot is a real file on disk (written by the driver and landed by
+// ExportToFolder), not an evaluate node's timeline result.
 type InlineAccessibilityConfig struct {
 	// MaxBytes caps the returned accessibility_json length (silent truncation).
 	MaxBytes int

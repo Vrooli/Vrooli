@@ -1735,13 +1735,11 @@ Use the existing artifact policy and telemetry pipeline with a named capture
  Do not deduplicate exported files after browser work, weaken pixel fidelity, drop
  requested evidence, or turn an explicit screenshot failure into successful capture.
 
-Explicit `DOM` and `DOM_TREE` capture types each add their own post-interaction
-evaluate action, then materialize bounded `dom.html` and `dom-tree.json` files
-before artifact storage publication and result-summary writing. These artifact
-requests do not implicitly populate the larger inline response fields; callers
-must opt into those fields separately. A missing evaluate result leaves that
-artifact explicitly unavailable, and a truncated generated file carries
-`metadata.truncated=true`.
+The generic `CaptureService.Capture` no longer emits raw `DOM` or computed
+`DOM_TREE` artifacts. Fleet consumers use the versioned EX9 bundle through
+`git-control-tower ux-capture`; it provides a frozen self-contained page and a
+privacy-screened action outline from one browser session. BAS still supports
+HTML input through its `ux-capture --file` mode.
 
 When the driver finalizes browser recordings, workflow folder export copies each
 regular `.webm` file from the execution's `artifacts/videos/` directory into

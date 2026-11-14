@@ -53,7 +53,7 @@ func TestCapture_InlineAccessibility_ReturnsSnapshotJSON(t *testing.T) {
 
 func TestCapture_InlineAccessibility_IndependentlyDrivesCapture(t *testing.T) {
 	// inline_accessibility alone (no ACCESSIBILITY in captures) must still set
-	// the RequiresAccessibility opt, mirroring how inline_dom drives its own read.
+	// the RequiresAccessibility opt, mirroring how the inline AX flag drives its read.
 	exec := &fakeExecutor{}
 	client, _ := newTestServer(t, Deps{Executor: exec})
 

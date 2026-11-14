@@ -1074,7 +1074,7 @@ interface RetryService {
   "meta": {"frames": "main-only", "source": "cdp-accessibility"}
 }
 ```
-Rules: ignored AX nodes are pruned (children spliced up); `bounds`/`dom`/empty-string scalar fields are omitted rather than nulled; main frame only in v1; node count capped (`truncated` flips true past the cap). `inline_accessibility` returns the same JSON inline in `CaptureResponse.accessibility_json` (server-capped at 2 MiB, silent truncation) and independently drives the capture (a caller need not also list the capture type), mirroring `inline_dom`.
+Rules: ignored AX nodes are pruned (children spliced up); `bounds`/`dom`/empty-string scalar fields are omitted rather than nulled; main frame only in v1; node count capped (`truncated` flips true past the cap). `inline_accessibility` returns the same JSON inline in `CaptureResponse.accessibility_json` (server-capped at 2 MiB, silent truncation) and independently drives the capture (a caller need not also list the capture type).
 
 **Test Doubles:**
 - Driver: `normalizeAccessibilityTree`/`parseDomSnapshot` are pure (golden-file test `tests/unit/accessibility-snapshot.test.ts`); `AccessibilitySnapshotter` takes a `cdpFactory` seam so `capture()` runs against a fake CDP with no real browser.

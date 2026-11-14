@@ -55,31 +55,10 @@ func DefaultProducerRegistry() *ProducerRegistry {
 		screenshotProducer{},
 		fileProducer{captureType: capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS, file: "console-logs.md"},
 		fileProducer{captureType: capturev1.CaptureType_CAPTURE_TYPE_NETWORK, file: "network-activity.md"},
-		domProducer{},
 		fileProducer{captureType: capturev1.CaptureType_CAPTURE_TYPE_ACCESSIBILITY, file: "accessibility.json"},
-		fileProducer{captureType: capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE, file: "dom-tree.json"},
 		videoProducer{},
 		performanceProducer{},
 	)
-}
-
-type domProducer struct{}
-
-func (domProducer) Type() capturev1.CaptureType {
-	return capturev1.CaptureType_CAPTURE_TYPE_DOM
-}
-
-func (p domProducer) Produce(outDir string) ([]*capturev1.CaptureArtifact, error) {
-	path := filepath.Join(outDir, "dom.html")
-	if _, err := os.Stat(path); err != nil {
-		if os.IsNotExist(err) {
-			return []*capturev1.CaptureArtifact{
-				unavailableArtifactWithReason(p.Type(), path, "rendered DOM snapshot unavailable for this execution"),
-			}, nil
-		}
-		return nil, fmt.Errorf("stat rendered DOM: %w", err)
-	}
-	return []*capturev1.CaptureArtifact{artifactFromFile(p.Type(), path)}, nil
 }
 
 type videoProducer struct{}

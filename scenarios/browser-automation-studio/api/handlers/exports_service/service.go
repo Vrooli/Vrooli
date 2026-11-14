@@ -24,8 +24,7 @@ import (
 )
 
 var (
-	validFormats  = map[string]struct{}{"mp4": {}, "gif": {}, "webm": {}, "json": {}, "html": {}}
-	validStatuses = map[string]struct{}{"pending": {}, "processing": {}, "completed": {}, "failed": {}}
+	validFormats = map[string]struct{}{"mp4": {}, "gif": {}, "webm": {}, "json": {}, "html": {}}
 )
 
 type service struct {
@@ -188,10 +187,10 @@ func (s *service) CreateExport(
 	}
 
 	if statusStr := strings.TrimSpace(msg.GetStatus()); statusStr != "" {
-		if _, ok := validStatuses[statusStr]; !ok {
+		if !database.ExportStatus(statusStr).Valid() {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidStatus)
 		}
-		row.Status = statusStr
+		row.Status = database.ExportStatus(statusStr)
 	}
 
 	if err := s.deps.Repo.CreateExport(ctx, row); err != nil {
@@ -259,11 +258,16 @@ func (s *service) UpdateExport(
 	if caption := strings.TrimSpace(msg.GetAiCaption()); caption != "" {
 		row.AICaption = caption
 	}
+	previousStatus := row.Status
+	requestedStatus := database.ExportStatus("")
 	if statusStr := strings.TrimSpace(msg.GetStatus()); statusStr != "" {
-		if _, ok := validStatuses[statusStr]; !ok {
+		if !database.ExportStatus(statusStr).Valid() {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidStatus)
 		}
-		row.Status = statusStr
+		requestedStatus = database.ExportStatus(statusStr)
+		if err := row.TransitionStatus(requestedStatus); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidStatus)
+		}
 	}
 	if errStr := msg.GetError(); errStr != "" {
 		row.Error = errStr
@@ -272,6 +276,15 @@ func (s *service) UpdateExport(
 	if err := s.deps.Repo.UpdateExport(ctx, row); err != nil {
 		s.deps.Logger.WithError(err).WithField("export_id", exportID).Error("Failed to update export")
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if requestedStatus != "" && requestedStatus != previousStatus {
+		if err := s.deps.Repo.UpdateExportStatus(ctx, row.ID, requestedStatus, row.Error); err != nil {
+			s.deps.Logger.WithError(err).WithField("export_id", exportID).Error("Failed to transition export status")
+			if errors.Is(err, database.ErrInvalidExportStatusTransition) {
+				return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidStatus)
+			}
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
 	}
 
 	return connect.NewResponse(&exportsv1.UpdateExportResponse{
@@ -360,7 +373,7 @@ func (s *service) GetExportStatus(
 	resp := &exportsv1.GetExportStatusResponse{
 		ExportId:    row.ID.String(),
 		ExecutionId: row.ExecutionID.String(),
-		Status:      row.Status,
+		Status:      string(row.Status),
 		Format:      row.Format,
 		Name:        row.Name,
 		StorageUrl:  row.StorageURL,
@@ -623,7 +636,7 @@ func exportToProto(e *database.ExportIndex) *exportsv1.Export {
 		StorageUrl:   e.StorageURL,
 		ThumbnailUrl: e.ThumbnailURL,
 		AiCaption:    e.AICaption,
-		Status:       e.Status,
+		Status:       string(e.Status),
 		Error:        e.Error,
 		CreatedAt:    timestamppb.New(e.CreatedAt),
 		UpdatedAt:    timestamppb.New(e.UpdatedAt),

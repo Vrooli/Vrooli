@@ -94,7 +94,7 @@ func (s *service) Capture(
 
 	releaseEvidence := retention.BeginEvidenceActivity(filepath.Clean(plan.outDir))
 	defer releaseEvidence()
-	adhocReq, domNodeIDs, err := buildAdhocRequest(plan.resolvedURL, msg, plan.width, plan.height, plan.interaction, s.deps.InlineDom.Expression)
+	adhocReq, err := buildAdhocRequest(plan.resolvedURL, msg, plan.width, plan.height, plan.interaction)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -104,7 +104,7 @@ func (s *service) Capture(
 	if err != nil {
 		return nil, err
 	}
-	artifacts, inline, err := s.materializeCaptureArtifacts(ctx, msg, plan.captures, execution, domNodeIDs)
+	artifacts, inline, err := s.materializeCaptureArtifacts(ctx, msg, plan.captures, execution)
 	if err != nil {
 		return nil, err
 	}
@@ -116,9 +116,7 @@ func (s *service) Capture(
 		OutDir:            execution.outDir,
 		Artifacts:         artifacts,
 		DurationMs:        duration,
-		DomHtml:           inline.domHTMLForResponse(msg),
 		AccessibilityJson: inline.accessibilityJSON,
-		DomTreeJson:       inline.domTreeForResponse(msg),
 		Readiness: captureReadinessDiagnosticsWithTiming(msg.GetWaitFor(), readiness.selected,
 			readiness.outcome(timing), duration, readiness.fallbackReason, readiness.declaredResolution, timing),
 	}), nil
@@ -153,11 +151,7 @@ type captureExecution struct {
 }
 
 type captureInlineResults struct {
-	domHTML           string
-	domTreeJSON       string
 	accessibilityJSON string
-	domHTMLTruncated  bool
-	domTreeTruncated  bool
 }
 
 func (s *service) prepareCapture(ctx context.Context, msg *capturev1.CaptureRequest) (capturePlan, error) {
@@ -346,21 +340,10 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-func (s *service) materializeCaptureArtifacts(ctx context.Context, msg *capturev1.CaptureRequest, captures []capturev1.CaptureType, execution captureExecution, domNodeIDs inlineDomNodeIDs) ([]*capturev1.CaptureArtifact, captureInlineResults, error) {
+func (s *service) materializeCaptureArtifacts(ctx context.Context, msg *capturev1.CaptureRequest, captures []capturev1.CaptureType, execution captureExecution) ([]*capturev1.CaptureArtifact, captureInlineResults, error) {
 	artifacts, err := s.deps.Producers.ProduceAll(captures, execution.outDir)
 	if err != nil {
 		return nil, captureInlineResults{}, connect.NewError(connect.CodeInternal, fmt.Errorf("harvest artifacts: %w", err))
-	}
-	inline := s.readInlineCaptureResults(msg, execution.outDir, domNodeIDs)
-	if slices.Contains(captures, capturev1.CaptureType_CAPTURE_TYPE_DOM) && inline.domHTML != "" {
-		if err := publishInlineArtifact(execution.outDir, artifacts, capturev1.CaptureType_CAPTURE_TYPE_DOM, inline.domHTML, inline.domHTMLTruncated); err != nil {
-			return nil, captureInlineResults{}, connect.NewError(connect.CodeInternal, fmt.Errorf("write DOM artifact: %w", err))
-		}
-	}
-	if (slices.Contains(captures, capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE) || msg.GetInlineDomTree()) && inline.domTreeJSON != "" {
-		if err := publishInlineArtifact(execution.outDir, artifacts, capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE, inline.domTreeJSON, inline.domTreeTruncated); err != nil {
-			return nil, captureInlineResults{}, connect.NewError(connect.CodeInternal, fmt.Errorf("write DOM-tree artifact: %w", err))
-		}
 	}
 	width, height, _ := resolveDimensions(msg.GetDimensions()) // validated by prepareCapture
 	measureCaptureVideos(ctx, msg, width, height, artifacts, media.ProbeVideo)
@@ -368,29 +351,7 @@ func (s *service) materializeCaptureArtifacts(ctx context.Context, msg *capturev
 	if err := s.publishCaptureArtifacts(ctx, execution, artifacts); err != nil {
 		return nil, captureInlineResults{}, err
 	}
-	return artifacts, inline, nil
-}
-
-func (s *service) readInlineCaptureResults(msg *capturev1.CaptureRequest, outDir string, ids inlineDomNodeIDs) captureInlineResults {
-	var inline captureInlineResults
-	if ids.html != "" {
-		var err error
-		inline.domHTML, inline.domHTMLTruncated, err = s.deps.InlineDom.readInlineDom(outDir, ids.html)
-		if err != nil && s.deps.Logger != nil {
-			s.deps.Logger.WithError(err).Warn("capture: inline DOM read failed")
-		}
-	}
-	if ids.tree != "" {
-		treeReader := s.deps.InlineDom
-		treeReader.Expression = defaultInlineDomTreeExpression
-		treeReader.MaxBytes = 16 << 20
-		var err error
-		inline.domTreeJSON, inline.domTreeTruncated, err = treeReader.readInlineDom(outDir, ids.tree)
-		if err != nil && s.deps.Logger != nil {
-			s.deps.Logger.WithError(err).Warn("capture: inline DOM-tree read failed")
-		}
-	}
-	return inline
+	return artifacts, captureInlineResults{}, nil
 }
 
 func (s *service) readInlineAccessibility(msg *capturev1.CaptureRequest, outDir string) string {
@@ -445,20 +406,6 @@ func (s *service) captureReadinessTiming(outDir, selected string) readinessTimel
 		s.deps.Logger.Warn("capture: declared readiness outcome unavailable")
 	}
 	return timing
-}
-
-func (r captureInlineResults) domHTMLForResponse(msg *capturev1.CaptureRequest) string {
-	if msg.GetInlineDom() {
-		return r.domHTML
-	}
-	return ""
-}
-
-func (r captureInlineResults) domTreeForResponse(msg *capturev1.CaptureRequest) string {
-	if msg.GetInlineDomTree() {
-		return r.domTreeJSON
-	}
-	return ""
 }
 
 func publishInlineArtifact(outDir string, artifacts []*capturev1.CaptureArtifact, captureType capturev1.CaptureType, contents string, truncated bool) error {
@@ -706,19 +653,14 @@ func isDryRun(header string) bool {
 // InvalidArgument). Empty = the default navigate+settle capture.
 //
 // This translation preserves the interaction graph and adds only the requested
-// readiness, snapshot and final-image actions through the ordinary executor.
-type inlineDomNodeIDs struct {
-	html string
-	tree string
-}
+// readiness and final-image actions through the ordinary executor.
 
 func buildAdhocRequest(
 	resolvedURL string,
 	msg *capturev1.CaptureRequest,
 	width, height int32,
 	interaction *workflowsv1.WorkflowDefinitionV2,
-	inlineDomExpression string,
-) (*basexecution.ExecuteAdhocRequest, inlineDomNodeIDs, error) {
+) (*basexecution.ExecuteAdhocRequest, error) {
 	navigateNode := &workflowsv1.WorkflowNodeV2{
 		Id: uuid.NewString(),
 		Action: &actionsv1.ActionDefinition{
@@ -748,7 +690,7 @@ func buildAdhocRequest(
 	}
 	if direction := strings.ToLower(strings.TrimSpace(msg.GetDirection())); direction != "" {
 		if direction != "ltr" && direction != "rtl" {
-			return nil, inlineDomNodeIDs{}, fmt.Errorf("direction must be ltr or rtl")
+			return nil, fmt.Errorf("direction must be ltr or rtl")
 		}
 		directionNode := &workflowsv1.WorkflowNodeV2{
 			Id: uuid.NewString(),
@@ -768,14 +710,14 @@ func buildAdhocRequest(
 	if interaction != nil {
 		spliced, err := spliceInteractionFlow(predecessorIDs[0], interaction)
 		if err != nil {
-			return nil, inlineDomNodeIDs{}, err
+			return nil, err
 		}
 		nodes = append(nodes, spliced.nodes...)
 		edges = append(edges, spliced.edges...)
 		predecessorIDs = spliced.terminals
 	}
 
-	domNodeIDs := appendCapturePostlude(msg, inlineDomExpression, appendNode)
+	appendCapturePostlude(msg, appendNode)
 
 	flowName := "capture"
 	flowDesc := "capture @ " + resolvedURL
@@ -810,32 +752,12 @@ func buildAdhocRequest(
 			ArtifactConfig: &basexecution.ArtifactCollectionConfig{Profile: proto.String(config.ProfileCapture)},
 		},
 		WaitForCompletion: true,
-	}, domNodeIDs, nil
+	}, nil
 }
 
-// appendCapturePostlude attaches only the requested DOM reads and final image
+// appendCapturePostlude attaches the final image
 // after every interaction terminal, preserving the original graph branching.
-func appendCapturePostlude(msg *capturev1.CaptureRequest, inlineDomExpression string, appendNode func(*workflowsv1.WorkflowNodeV2)) inlineDomNodeIDs {
-	var ids inlineDomNodeIDs
-	appendDomRead := func(expression string) string {
-		node := &workflowsv1.WorkflowNodeV2{
-			Id: uuid.NewString(),
-			Action: &actionsv1.ActionDefinition{
-				Type: actionsv1.ActionType_ACTION_TYPE_EVALUATE,
-				Params: &actionsv1.ActionDefinition_Evaluate{
-					Evaluate: &actionsv1.EvaluateParams{Expression: expression},
-				},
-			},
-		}
-		appendNode(node)
-		return node.Id
-	}
-	if msg.GetInlineDom() || slices.Contains(msg.GetCaptures(), capturev1.CaptureType_CAPTURE_TYPE_DOM) {
-		ids.html = appendDomRead(inlineDomExpression)
-	}
-	if msg.GetInlineDomTree() || slices.Contains(msg.GetCaptures(), capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE) {
-		ids.tree = appendDomRead(defaultInlineDomTreeExpression)
-	}
+func appendCapturePostlude(msg *capturev1.CaptureRequest, appendNode func(*workflowsv1.WorkflowNodeV2)) {
 	if captureRequestsScreenshot(msg) {
 		selector := strings.TrimSpace(msg.GetScreenshotSelector())
 		appendNode(&workflowsv1.WorkflowNodeV2{
@@ -848,7 +770,6 @@ func appendCapturePostlude(msg *capturev1.CaptureRequest, inlineDomExpression st
 			},
 		})
 	}
-	return ids
 }
 
 func captureRequestsScreenshot(msg *capturev1.CaptureRequest) bool {

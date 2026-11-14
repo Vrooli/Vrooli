@@ -765,6 +765,14 @@ func TestExportTerminalTransitionAndRestartRecovery(t *testing.T) {
 	if err := repo.UpdateExportComplete(ctx, completed.ID, "complete.mp4", 3, JSONMap{"output_sha256": "hash"}); err != nil {
 		t.Fatal(err)
 	}
+	completed, err := repo.GetExport(ctx, completed.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	completed.Status = ExportFailed
+	if err := repo.UpdateExport(ctx, completed); err != nil {
+		t.Fatal(err)
+	}
 	if err := repo.UpdateExportStatus(ctx, completed.ID, "failed", "late cancellation"); err == nil {
 		t.Fatal("late failure overwrote completed row")
 	}
@@ -779,7 +787,7 @@ func TestExportTerminalTransitionAndRestartRecovery(t *testing.T) {
 		t.Fatal("late completion resurrected interrupted row")
 	}
 	row, err := repo.GetExport(ctx, completed.ID)
-	if err != nil || row.Status != "completed" || row.StorageURL != "complete.mp4" {
+	if err != nil || row.Status != ExportCompleted || row.StorageURL != "complete.mp4" {
 		t.Fatalf("lost terminal result %+v %v", row, err)
 	}
 	row, err = repo.GetExport(ctx, interrupted.ID)

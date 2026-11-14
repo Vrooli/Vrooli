@@ -30,7 +30,7 @@ func TestProducerRegistry_ProduceAll_PreservesRequestOrder(t *testing.T) {
 	order := []capturev1.CaptureType{
 		capturev1.CaptureType_CAPTURE_TYPE_NETWORK,
 		capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS,
-		capturev1.CaptureType_CAPTURE_TYPE_DOM,
+		capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE,
 	}
 	arts, err := r.ProduceAll(order, t.TempDir())
 	require.NoError(t, err)

@@ -65,6 +65,40 @@ func TestCleanupSweepSelectsExpiredCaptureAndHonorsByteCap(t *testing.T) {
 	}
 }
 
+func TestCleanupSweepExpiresUXBundlesIndividually(t *testing.T) {
+	recordingsRoot := t.TempDir()
+	capturesRoot := t.TempDir()
+	uxRoot := filepath.Join(capturesRoot, "ux")
+	if err := os.MkdirAll(uxRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	oldID, recentID := uuid.NewString(), uuid.NewString()
+	oldPath, recentPath := filepath.Join(uxRoot, oldID), filepath.Join(uxRoot, recentID)
+	for _, path := range []string{oldPath, recentPath} {
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(path, "manifest.json"), []byte("bundle"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	oldAt := time.Now().Add(-48 * time.Hour)
+	if err := os.Chtimes(oldPath, oldAt, oldAt); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(filepath.Join(oldPath, "manifest.json"), oldAt, oldAt); err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(&evidenceRepository{states: map[uuid.UUID]string{}}, OSFileSystem{}, recordingsRoot, nil).WithCaptureRoot(capturesRoot)
+	_, items, _, _, _, err := service.CleanupSweep(context.Background(), false, nil, nil, nil, nil, int64(24*time.Hour/time.Second), 0, 0, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].ID != "capture:ux/"+oldID || items[0].Path != oldPath || items[0].Bytes != int64(len("bundle")) {
+		t.Fatalf("items = %#v, want only the old UX bundle", items)
+	}
+}
+
 func TestCleanupSweepBoundsCaptureSizingAndProtectsNewestWithinByteCap(t *testing.T) {
 	recordingsRoot := t.TempDir()
 	capturesRoot := t.TempDir()

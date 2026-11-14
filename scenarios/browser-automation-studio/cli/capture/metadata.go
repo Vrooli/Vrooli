@@ -24,8 +24,6 @@ var captureTypeMetadata = map[capturev1.CaptureType]captureTypeMeta{
 	capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS:  {label: "console-logs", aliases: []string{"console", "logs"}},
 	capturev1.CaptureType_CAPTURE_TYPE_NETWORK:       {label: "network"},
 	capturev1.CaptureType_CAPTURE_TYPE_VIDEO:         {label: "video"},
-	capturev1.CaptureType_CAPTURE_TYPE_DOM:           {label: "dom"},
-	capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE:      {label: "dom-tree", aliases: []string{"computed-dom"}},
 	capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE:   {label: "performance", aliases: []string{"perf"}},
 	capturev1.CaptureType_CAPTURE_TYPE_ACCESSIBILITY: {label: "accessibility", aliases: []string{"a11y", "ax"}},
 }
@@ -61,5 +59,5 @@ func parseCaptureType(tok string) (capturev1.CaptureType, error) {
 		return ct, nil
 	}
 	return capturev1.CaptureType_CAPTURE_TYPE_UNSPECIFIED,
-		fmt.Errorf("unknown capture type %q (want one of: screenshot,console-logs,network,video,dom,dom-tree,performance,accessibility)", tok)
+		fmt.Errorf("unknown capture type %q (want one of: screenshot,console-logs,network,video,performance,accessibility)", tok)
 }

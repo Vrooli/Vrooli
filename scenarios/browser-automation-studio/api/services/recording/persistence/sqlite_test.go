@@ -213,6 +213,33 @@ func TestSQLiteRepository_CloseSession(t *testing.T) {
 	if retrieved.ClosedAt == nil {
 		t.Error("expected ClosedAt to be set")
 	}
+	// Repeated close calls preserve the existing idempotent API behavior.
+	if err := repo.CloseSession(ctx, session.ID, closedAt.Add(time.Minute)); err != nil {
+		t.Fatalf("repeated CloseSession failed: %v", err)
+	}
+}
+
+func TestSQLiteRepository_CloseSessionRejectsUnknownPersistedState(t *testing.T) {
+	repo, db := newTestRepo(t)
+	defer db.Close()
+	ctx := context.Background()
+	session := &domain.RecordingSession{ID: uuid.NewString(), Status: domain.SessionStatusActive, CreatedAt: time.Now()}
+	if err := repo.CreateSession(ctx, session); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE recording_sessions SET status = 'paused' WHERE id = $1`, session.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.CloseSession(ctx, session.ID, time.Now()); err == nil {
+		t.Fatal("CloseSession accepted an unknown persisted state")
+	}
+	got, err := repo.GetSession(ctx, session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != "paused" {
+		t.Fatalf("invalid persisted state changed to %q", got.Status)
+	}
 }
 
 func TestSQLiteRepository_DeleteSession(t *testing.T) {

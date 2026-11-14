@@ -31,6 +31,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { logger, scopedLog, LogContext } from '../utils';
 import { createCDPSession, detachCDPSession } from '../session/cdp-session';
+import { assertPhoneTouch, isMobileViewport } from '../session/phone-emulation';
 
 /** Canonical artifact filename the Go side reads back. */
 export const ACCESSIBILITY_SNAPSHOT_FILE = 'accessibility.json';
@@ -585,6 +586,17 @@ export class AccessibilitySnapshotter {
     try {
       cdp = await this.cdpFactory(page);
       const axcdp = cdp as unknown as AccessibilityCDP;
+
+      // Opening this session resets the page's touch emulation, and the geometry
+      // joined below is measured with whatever media features are live. A phone
+      // snapshot taken as a mouse reports every tap target at its desktop size.
+      if (isMobileViewport(page.viewportSize() ?? undefined)) {
+        await assertPhoneTouch(cdp).catch((error: unknown) => {
+          logger.warn(scopedLog(LogContext.TELEMETRY, 'phone touch emulation unavailable for snapshot'), {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+      }
 
       const axResult = await axcdp.send('Accessibility.getFullAXTree');
       const rawNodes = axResult?.nodes ?? [];

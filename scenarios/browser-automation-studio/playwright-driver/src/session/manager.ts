@@ -64,29 +64,48 @@ import { ServiceWorkerController } from '../service-worker';
 import { resolveInstrumentation, safeInvoke, type Instrumentation } from '../instrumentation';
 
 /** Session admission and reuse decisions stay with the lifecycle owner. */
-function findByExecutionId(sessions: Iterable<SessionState>, executionId: string): SessionState | null {
+function findByExecutionId(
+  sessions: Iterable<SessionState>,
+  executionId: string
+): SessionState | null {
   for (const session of sessions) if (session.spec.execution_id === executionId) return session;
   return null;
 }
 
-function findByLabels(sessions: Iterable<SessionState>, requested: SessionSpec): SessionState | null {
+function findByLabels(
+  sessions: Iterable<SessionState>,
+  requested: SessionSpec
+): SessionState | null {
   if (!requested.labels) return null;
   for (const session of sessions) {
     if (!session.spec.labels) continue;
-    const matchingLabels = Object.entries(requested.labels).every(([key, value]) => session.spec.labels?.[key] === value);
-    if (matchingLabels && matchesReusableContext(session, requested) && isSafeForLabelReuse(session)) return session;
+    const matchingLabels = Object.entries(requested.labels).every(
+      ([key, value]) => session.spec.labels?.[key] === value
+    );
+    if (
+      matchingLabels &&
+      matchesReusableContext(session, requested) &&
+      isSafeForLabelReuse(session)
+    )
+      return session;
   }
   return null;
 }
 
 function matchesReusableContext(session: SessionState, requested: SessionSpec): boolean {
   const retained = session.spec;
-  const capture = (capabilities: SessionSpec['required_capabilities']): boolean => Boolean(
-    capabilities?.video || capabilities?.har || capabilities?.tracing ||
-    capabilities?.performance_trace || capabilities?.accessibility
-  );
-  if (capture(retained.required_capabilities) || capture(requested.required_capabilities)) return false;
-  return retained.session_profile_version === requested.session_profile_version &&
+  const capture = (capabilities: SessionSpec['required_capabilities']): boolean =>
+    Boolean(
+      capabilities?.video ||
+      capabilities?.har ||
+      capabilities?.tracing ||
+      capabilities?.performance_trace ||
+      capabilities?.accessibility
+    );
+  if (capture(retained.required_capabilities) || capture(requested.required_capabilities))
+    return false;
+  return (
+    retained.session_profile_version === requested.session_profile_version &&
     isDeepStrictEqual(retained.viewport, requested.viewport) &&
     isDeepStrictEqual(retained.storage_state, requested.storage_state) &&
     isDeepStrictEqual(retained.browser_profile, requested.browser_profile) &&
@@ -98,11 +117,16 @@ function matchesReusableContext(session: SessionState, requested: SessionSpec): 
     isDeepStrictEqual(retained.service_worker_control, requested.service_worker_control) &&
     isDeepStrictEqual(retained.fake_media, requested.fake_media) &&
     isDeepStrictEqual(retained.app_target, requested.app_target) &&
-    isDeepStrictEqual(retained.validation_context, requested.validation_context);
+    isDeepStrictEqual(retained.validation_context, requested.validation_context)
+  );
 }
 
 function isSafeForLabelReuse(session: SessionState): boolean {
-  return session.phase === 'ready' && !session.instructionInFlight && session.leaseReleasedAt !== undefined;
+  return (
+    session.phase === 'ready' &&
+    !session.instructionInFlight &&
+    session.leaseReleasedAt !== undefined
+  );
 }
 
 function shouldAttemptReuse(reuseMode: SessionSpec['reuse_mode']): boolean {
@@ -117,11 +141,16 @@ function validateAppTargetAdmission(spec: SessionSpec, target: AppTargetSpec): v
   if (context.context_id !== target.context_id) {
     throw new InvalidInstructionError('Electron validation context does not match target context');
   }
-  if (context.scenario_name !== target.scenario_name || context.artifact_digest !== target.artifact_digest) {
+  if (
+    context.scenario_name !== target.scenario_name ||
+    context.artifact_digest !== target.artifact_digest
+  ) {
     throw new InvalidInstructionError('Electron validation context does not match target identity');
   }
   if (context.target_id !== target.target_id || !context.workflow_id?.trim()) {
-    throw new InvalidInstructionError('Electron validation context does not match session identity');
+    throw new InvalidInstructionError(
+      'Electron validation context does not match session identity'
+    );
   }
   if (!context.isolation_lease_id?.trim()) {
     throw new InvalidInstructionError('Electron validation context requires an isolation lease');
@@ -190,7 +219,10 @@ export class SessionManager {
   private resettingSessions = new Map<string, Promise<void>>();
 
   /** Track sessions currently being closed to prevent double-close */
-  private closingSessions = new Map<string, { session: SessionState; result: Promise<SessionCloseResult> }>();
+  private closingSessions = new Map<
+    string,
+    { session: SessionState; result: Promise<SessionCloseResult> }
+  >();
 
   /**
    * In-flight guard for session creation.
@@ -203,6 +235,30 @@ export class SessionManager {
     this.config = config;
     this.browserManager = browserManager ?? new BrowserManager(config);
     this.instrumentation = resolveInstrumentation(instrumentation);
+  }
+
+  /**
+   * Runs an EX9 capture against a fresh browser context while reserving one
+   * normal BAS session-capacity slot for the complete operation.
+   */
+  async withPublicCaptureBrowser<T>(capture: (browser: Browser) => Promise<T>): Promise<T> {
+    const occupiedSlots = this.sessions.size + this.reservedSessionStarts;
+    if (occupiedSlots >= this.config.session.maxConcurrent)
+      throw new ResourceLimitError(
+        `Maximum concurrent sessions reached: ${this.config.session.maxConcurrent}`,
+        {
+          maxSessions: this.config.session.maxConcurrent,
+          currentSessions: this.sessions.size,
+          pendingStarts: this.reservedSessionStarts,
+        }
+      );
+    this.reservedSessionStarts++;
+    try {
+      const browser = await this.browserManager.getBrowser();
+      return await capture(browser);
+    } finally {
+      this.reservedSessionStarts--;
+    }
   }
 
   /**
@@ -261,7 +317,8 @@ export class SessionManager {
       .initialize()
       .then(() => pipelineManager.verifyPipeline({ timeoutMs: 5000, retries: 1 }))
       .then((verification) => {
-        const ready = verification.scriptLoaded && verification.scriptReady && verification.inMainContext;
+        const ready =
+          verification.scriptLoaded && verification.scriptReady && verification.inMainContext;
         if (ready) {
           logger.debug(scopedLog(LogContext.SESSION, 'recording pipeline verified'), {
             sessionId: session.id,
@@ -277,14 +334,19 @@ export class SessionManager {
         return ready;
       })
       .catch((error: unknown) => {
-        logger.warn(scopedLog(
-          LogContext.SESSION,
-          session.externalTarget ? 'external target recording init failed' : 'recording pipeline init failed'
-        ), {
-          sessionId: session.id,
-          error: getErrorMessage(error),
-          hint: 'Recording will retry initialization when started',
-        });
+        logger.warn(
+          scopedLog(
+            LogContext.SESSION,
+            session.externalTarget
+              ? 'external target recording init failed'
+              : 'recording pipeline init failed'
+          ),
+          {
+            sessionId: session.id,
+            error: getErrorMessage(error),
+            hint: 'Recording will retry initialization when started',
+          }
+        );
         return false;
       });
   }
@@ -364,9 +426,14 @@ export class SessionManager {
       if (
         (existingByExecutionId.spec.app_target || spec.app_target) &&
         (!isDeepStrictEqual(existingByExecutionId.spec.app_target, spec.app_target) ||
-          !isDeepStrictEqual(existingByExecutionId.spec.validation_context, spec.validation_context))
+          !isDeepStrictEqual(
+            existingByExecutionId.spec.validation_context,
+            spec.validation_context
+          ))
       ) {
-        throw new InvalidInstructionError('Electron execution ID is already bound to a different target validation context');
+        throw new InvalidInstructionError(
+          'Electron execution ID is already bound to a different target validation context'
+        );
       }
       logger.info(scopedLog(LogContext.SESSION, 'idempotent return of existing session'), {
         sessionId: existingByExecutionId.id,
@@ -578,21 +645,22 @@ export class SessionManager {
               : null;
             if (!qualificationDevice)
               throw new Error('host capture qualification device is unavailable');
-            const startPlayback = () => qualificationDevice.startWavLoop(
-              fakeMicrophoneWav,
-              spec.audio_playback_pause_ms ?? 0,
-              spec.audio_playback_start_delay_ms ?? 0,
-              (error) => {
-                audioPlaybackFailure = error.message;
-                logger.error(
-                  scopedLog(LogContext.RECORDING, 'host capture qualification playback failed'),
-                  {
-                    sessionId,
-                    error: error.message,
-                  }
-                );
-              }
-            );
+            const startPlayback = () =>
+              qualificationDevice.startWavLoop(
+                fakeMicrophoneWav,
+                spec.audio_playback_pause_ms ?? 0,
+                spec.audio_playback_start_delay_ms ?? 0,
+                (error) => {
+                  audioPlaybackFailure = error.message;
+                  logger.error(
+                    scopedLog(LogContext.RECORDING, 'host capture qualification playback failed'),
+                    {
+                      sessionId,
+                      error: error.message,
+                    }
+                  );
+                }
+              );
             audioPlaybackRestart = async () => {
               await audioPlaybackStop?.();
               const restartedPlayback = startPlayback();
@@ -670,7 +738,11 @@ export class SessionManager {
         // turn-boundary restart. Keep a closure in the session state so the
         // later stop endpoint observes the current handle rather than the
         // undefined construction-time value.
-        audioPlaybackStop: audioPlaybackRestart ? async () => { await audioPlaybackStop?.(); } : undefined,
+        audioPlaybackStop: audioPlaybackRestart
+          ? async () => {
+              await audioPlaybackStop?.();
+            }
+          : undefined,
         audioPlaybackRestart,
         audioPlaybackFailure: () => audioPlaybackFailure,
         context,
@@ -934,8 +1006,13 @@ export class SessionManager {
   /** Admit work only for the current, unreleased execution lease. */
   getSessionForLease(sessionId: string, executionId: string, leaseId: string): SessionState {
     const session = this.peekSession(sessionId);
-    if (!executionId || !leaseId || session.ownerExecutionId !== executionId ||
-        session.leaseId !== leaseId || session.leaseReleasedAt) {
+    if (
+      !executionId ||
+      !leaseId ||
+      session.ownerExecutionId !== executionId ||
+      session.leaseId !== leaseId ||
+      session.leaseReleasedAt
+    ) {
       throw new SessionNotFoundError(sessionId);
     }
     return session;
@@ -962,26 +1039,40 @@ export class SessionManager {
   }
 
   /** Restart deterministic host playback only for its active session owner. */
-  async restartAudioPlayback(sessionId: string, executionId: string, leaseId: string): Promise<boolean> {
+  async restartAudioPlayback(
+    sessionId: string,
+    executionId: string,
+    leaseId: string
+  ): Promise<boolean> {
     const session = this.sessions.get(sessionId);
     if (!session || session.ownerExecutionId !== executionId || session.leaseId !== leaseId) {
       return false;
     }
     if (!session.audioPlaybackRestart) return false;
     await session.audioPlaybackRestart();
-    logger.info(scopedLog(LogContext.SESSION, 'session audio playback restarted'), { sessionId, executionId });
+    logger.info(scopedLog(LogContext.SESSION, 'session audio playback restarted'), {
+      sessionId,
+      executionId,
+    });
     return true;
   }
 
   /** Stop deterministic host playback at the owner-defined turn boundary. */
-  async stopAudioPlayback(sessionId: string, executionId: string, leaseId: string): Promise<boolean> {
+  async stopAudioPlayback(
+    sessionId: string,
+    executionId: string,
+    leaseId: string
+  ): Promise<boolean> {
     const session = this.sessions.get(sessionId);
     if (!session || session.ownerExecutionId !== executionId || session.leaseId !== leaseId) {
       return false;
     }
     if (!session.audioPlaybackStop) return true;
     await session.audioPlaybackStop();
-    logger.info(scopedLog(LogContext.SESSION, 'session audio playback stopped'), { sessionId, executionId });
+    logger.info(scopedLog(LogContext.SESSION, 'session audio playback stopped'), {
+      sessionId,
+      executionId,
+    });
     return true;
   }
 
@@ -1006,7 +1097,9 @@ export class SessionManager {
   /**
    * Export cookies, localStorage and IndexedDB authentication state for a session.
    */
-  async getStorageState(sessionId: string): Promise<Awaited<ReturnType<BrowserContext['storageState']>>> {
+  async getStorageState(
+    sessionId: string
+  ): Promise<Awaited<ReturnType<BrowserContext['storageState']>>> {
     // Exporting storage is an operation on the session, not observation. Keep
     // the idle lease alive while the caller is actively using it.
     const session = this.getSession(sessionId);
@@ -1035,7 +1128,9 @@ export class SessionManager {
     try {
       return await Promise.race([
         session.pipelineReadyPromise,
-        new Promise<boolean>((resolve) => { deadline = setTimeout(() => resolve(false), timeoutMs); }),
+        new Promise<boolean>((resolve) => {
+          deadline = setTimeout(() => resolve(false), timeoutMs);
+        }),
       ]);
     } catch {
       return false;
@@ -1144,7 +1239,9 @@ export class SessionManager {
   async resetSession(sessionId: string): Promise<void> {
     const session = this.peekSession(sessionId);
     if (session.externalTarget) {
-      throw new Error('resetting an external target is refused; the target owner controls its browser state');
+      throw new Error(
+        'resetting an external target is refused; the target owner controls its browser state'
+      );
     }
     if (session.phase !== 'resetting' && !canTransition(session.phase, 'resetting')) {
       throw new Error(`Cannot reset session while ${session.phase}`);
@@ -1159,7 +1256,9 @@ export class SessionManager {
       if (session.instructionSettlement) await session.instructionSettlement;
       await resetSessionState(session);
       if (session.phase === 'resetting') session.phase = 'ready';
-    })().finally(() => { this.resettingSessions.delete(sessionId); });
+    })().finally(() => {
+      this.resettingSessions.delete(sessionId);
+    });
     this.resettingSessions.set(sessionId, reset);
     return reset;
   }
@@ -1180,7 +1279,9 @@ export class SessionManager {
 
     const closing = (async (): Promise<SessionCloseResult> => {
       await safeInvoke(this.instrumentation.onSessionClose?.bind(this.instrumentation), {
-        sessionId, executionId: session.spec.execution_id, leaseId: session.leaseId,
+        sessionId,
+        executionId: session.spec.execution_id,
+        leaseId: session.leaseId,
       });
       const startTime = Date.now();
       logger.info(scopedLog(LogContext.SESSION, 'closing'), { sessionId, previousPhase });
@@ -1194,11 +1295,15 @@ export class SessionManager {
         const videoPaths = await teardownSessionResources(session);
         this.sessions.delete(sessionId);
         metrics.sessionDuration.observe(Date.now() - startTime);
-        logger.info(scopedLog(LogContext.SESSION, 'closed'), { sessionId, cleanupDurationMs: Date.now() - startTime });
+        logger.info(scopedLog(LogContext.SESSION, 'closed'), {
+          sessionId,
+          cleanupDurationMs: Date.now() - startTime,
+        });
         return { videoPaths, tracePath: session.tracePath, harPath: session.harPath };
       } catch (error) {
         logger.error(scopedLog(LogContext.SESSION, 'close failed; recovery ownership retained'), {
-          sessionId, error: error instanceof Error ? error.message : String(error),
+          sessionId,
+          error: error instanceof Error ? error.message : String(error),
         });
         throw error;
       } finally {
@@ -1206,7 +1311,9 @@ export class SessionManager {
         metrics.sessionCount.set({ state: 'total' }, this.sessions.size);
         await this.closeQualificationDeviceIfIdle();
       }
-    })().finally(() => { this.closingSessions.delete(sessionId); });
+    })().finally(() => {
+      this.closingSessions.delete(sessionId);
+    });
     this.closingSessions.set(sessionId, { session, result: closing });
     return closing;
   }
@@ -1215,7 +1322,12 @@ export class SessionManager {
    * Get count of active sessions
    */
   private getActiveSessionCount(): number {
-    return countActiveSessions(this.sessions.values(), this.config.session.idleTimeoutMs, Date.now(), isSessionActive);
+    return countActiveSessions(
+      this.sessions.values(),
+      this.config.session.idleTimeoutMs,
+      Date.now(),
+      isSessionActive
+    );
   }
 
   /**
@@ -1270,7 +1382,7 @@ export class SessionManager {
   /** Attempt every selected close, keeping failed sessions owned. */
   private async closeSessions(sessionIds: string[]): Promise<unknown[]> {
     const results = await Promise.allSettled(sessionIds.map((id) => this.closeSession(id)));
-    return results.flatMap((result) => result.status === 'rejected' ? [result.reason] : []);
+    return results.flatMap((result) => (result.status === 'rejected' ? [result.reason] : []));
   }
 
   async shutdown(): Promise<void> {

@@ -35,7 +35,7 @@ func (r *exportFailureRepo) UpdateExportComplete(ctx context.Context, id uuid.UU
 	}
 	return r.MockRepository.UpdateExportComplete(ctx, id, path, size, settings)
 }
-func (r *exportFailureRepo) UpdateExportStatus(ctx context.Context, id uuid.UUID, status, message string) error {
+func (r *exportFailureRepo) UpdateExportStatus(ctx context.Context, id uuid.UUID, status database.ExportStatus, message string) error {
 	if r.errorErr != nil {
 		return r.errorErr
 	}
@@ -104,7 +104,7 @@ func TestExportCompletionEventsRequirePersistedResult(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if test.terminal != "" && persisted.Status != test.terminal {
+			if test.terminal != "" && persisted.Status != database.ExportStatus(test.terminal) {
 				t.Fatalf("event disagrees with row: %+v", persisted)
 			}
 			if test.terminal == "completed" && len(persisted.Settings["output_sha256"].(string)) != 64 {

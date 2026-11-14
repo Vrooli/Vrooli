@@ -16,9 +16,11 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
-const ownerCleanupBatchCap = 200
-const recoveryProtectionCacheTTL = 20 * time.Minute
-const orphanRecordingEstimateCap = 20
+const (
+	ownerCleanupBatchCap       = 200
+	recoveryProtectionCacheTTL = 20 * time.Minute
+	orphanRecordingEstimateCap = 20
+)
 
 // ParseCleanupAge preserves the conservative default for omitted or invalid age values.
 func ParseCleanupAge(raw string) int64 {
@@ -127,6 +129,7 @@ func (s *Service) CleanupSweep(ctx context.Context, apply bool, ids []uuid.UUID,
 	captures = append(captures, recordings...)
 	return report, captures, maxBytes, keep, seconds, nil
 }
+
 func (s *Service) protectedRecordingIDs(ctx context.Context, wanted map[string]struct{}, cache bool) (map[string]struct{}, error) {
 	if wanted == nil && cache {
 		s.recoveryCacheMu.Lock()
@@ -223,6 +226,40 @@ func (s *Service) captureCandidates(ctx context.Context, minAgeSeconds int64, ke
 	candidates := make([]candidate, 0, len(entries))
 	for _, entry := range entries {
 		if !entry.IsDir() || entry.Type()&os.ModeSymlink != 0 {
+			continue
+		}
+		if entry.Name() == "ux" {
+			// EX9 bundles are grouped under captures/ux. Treat each UUID bundle as
+			// its own retention item so one new capture does not keep every older
+			// bundle alive by refreshing the shared parent directory.
+			uxRoot := filepath.Join(root, entry.Name())
+			bundles, readErr := os.ReadDir(uxRoot)
+			if readErr != nil {
+				return nil, fmt.Errorf("list UX capture bundles: %w", readErr)
+			}
+			for _, bundle := range bundles {
+				if !bundle.IsDir() || bundle.Type()&os.ModeSymlink != 0 {
+					continue
+				}
+				if _, parseErr := uuid.Parse(bundle.Name()); parseErr != nil {
+					continue
+				}
+				id := "capture:ux/" + bundle.Name()
+				if wanted != nil {
+					if _, ok := wanted[id]; !ok {
+						continue
+					}
+				}
+				path := filepath.Join(uxRoot, bundle.Name())
+				info, statErr := bundle.Info()
+				if statErr != nil {
+					return nil, fmt.Errorf("stat UX capture %s: %w", bundle.Name(), statErr)
+				}
+				if minAgeSeconds > 0 && info.ModTime().After(cutoff) {
+					continue
+				}
+				candidates = append(candidates, candidate{entry: bundle, info: info, path: path, id: id})
+			}
 			continue
 		}
 		id := "capture:" + entry.Name()

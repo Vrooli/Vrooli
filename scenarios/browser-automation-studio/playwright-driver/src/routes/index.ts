@@ -43,4 +43,5 @@ export * from './session-storage';
 export * from './session-service-workers';
 export * from './record-mode/index';
 export * from './session-ai-navigate';
+export * from './public-page-capture';
 export * from './fault-control';

@@ -50,11 +50,6 @@ var captureTypeMetadata = map[capturev1.CaptureType]captureTypeMeta{
 		ext:       ".webm",
 		available: true,
 	},
-	capturev1.CaptureType_CAPTURE_TYPE_DOM: {
-		shortName: "dom",
-		ext:       ".html",
-		available: true,
-	},
 	capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE: {
 		shortName: "performance",
 		ext:       ".json",
@@ -62,11 +57,6 @@ var captureTypeMetadata = map[capturev1.CaptureType]captureTypeMeta{
 	},
 	capturev1.CaptureType_CAPTURE_TYPE_ACCESSIBILITY: {
 		shortName: "accessibility",
-		ext:       ".json",
-		available: true,
-	},
-	capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE: {
-		shortName: "dom-tree",
 		ext:       ".json",
 		available: true,
 	},

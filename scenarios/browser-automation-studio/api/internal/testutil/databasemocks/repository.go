@@ -733,7 +733,7 @@ func (r *MockRepository) CreateExport(_ context.Context, export *database.Export
 		export.ID = uuid.New()
 	}
 	if export.Status == "" {
-		export.Status = "pending"
+		export.Status = database.ExportPending
 	}
 	now := time.Now()
 	export.CreatedAt = now
@@ -771,11 +771,13 @@ func (r *MockRepository) UpdateExport(_ context.Context, export *database.Export
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if _, ok := r.exports[export.ID]; !ok {
+	current, ok := r.exports[export.ID]
+	if !ok {
 		return database.ErrNotFound
 	}
 	export.UpdatedAt = time.Now()
 	copy := *export
+	copy.Status = current.Status
 	r.exports[export.ID] = &copy
 	return nil
 }
@@ -788,19 +790,20 @@ func (r *MockRepository) DeleteExport(_ context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (r *MockRepository) UpdateExportStatus(_ context.Context, id uuid.UUID, status string, errorMessage string) error {
+func (r *MockRepository) UpdateExportStatus(_ context.Context, id uuid.UUID, status database.ExportStatus, errorMessage string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	export, ok := r.exports[id]
-	if !ok || export.Status != "processing" && export.Status != "pending" {
+	if !ok {
 		return database.ErrNotFound
+	}
+	if err := export.TransitionStatus(status); err != nil {
+		return err
 	}
 	export.Status = status
 	export.UpdatedAt = time.Now()
-	if errorMessage != "" {
-		export.Error = errorMessage
-	}
+	export.Error = errorMessage
 	return nil
 }
 
@@ -809,10 +812,13 @@ func (r *MockRepository) UpdateExportComplete(_ context.Context, id uuid.UUID, s
 	defer r.mu.Unlock()
 
 	export, ok := r.exports[id]
-	if !ok || export.Status != "processing" {
+	if !ok || export.Status != database.ExportProcessing {
 		return database.ErrNotFound
 	}
-	export.Status = "completed"
+	if err := export.TransitionStatus(database.ExportCompleted); err != nil {
+		return err
+	}
+	export.Status = database.ExportCompleted
 	export.Settings = settings
 	export.StorageURL = storageURL
 	export.FileSizeBytes = &fileSizeBytes

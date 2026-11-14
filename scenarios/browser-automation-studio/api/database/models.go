@@ -211,27 +211,81 @@ type AssetIndex struct {
 // ExportIndex is a database record for exported artifacts (videos, gifs, HTML replays, etc.).
 // The exported binary content is stored in external storage; this table stores metadata.
 type ExportIndex struct {
-	ID                   uuid.UUID  `json:"id" db:"id"`
-	ExecutionID          uuid.UUID  `json:"execution_id" db:"execution_id"`
-	WorkflowID           *uuid.UUID `json:"workflow_id,omitempty" db:"workflow_id"`
-	Name                 string     `json:"name" db:"name"`
-	Format               string     `json:"format" db:"format"`
-	Settings             JSONMap    `json:"settings,omitempty" db:"settings"`
-	StorageURL           string     `json:"storage_url,omitempty" db:"storage_url"`
-	ThumbnailURL         string     `json:"thumbnail_url,omitempty" db:"thumbnail_url"`
-	FileSizeBytes        *int64     `json:"file_size_bytes,omitempty" db:"file_size_bytes"`
-	DurationMs           *int       `json:"duration_ms,omitempty" db:"duration_ms"`
-	FrameCount           *int       `json:"frame_count,omitempty" db:"frame_count"`
-	AICaption            string     `json:"ai_caption,omitempty" db:"ai_caption"`
-	AICaptionGeneratedAt *time.Time `json:"ai_caption_generated_at,omitempty" db:"ai_caption_generated_at"`
-	Status               string     `json:"status" db:"status"`
-	Error                string     `json:"error,omitempty" db:"error"`
-	CreatedAt            time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt            time.Time  `json:"updated_at" db:"updated_at"`
+	ID                   uuid.UUID    `json:"id" db:"id"`
+	ExecutionID          uuid.UUID    `json:"execution_id" db:"execution_id"`
+	WorkflowID           *uuid.UUID   `json:"workflow_id,omitempty" db:"workflow_id"`
+	Name                 string       `json:"name" db:"name"`
+	Format               string       `json:"format" db:"format"`
+	Settings             JSONMap      `json:"settings,omitempty" db:"settings"`
+	StorageURL           string       `json:"storage_url,omitempty" db:"storage_url"`
+	ThumbnailURL         string       `json:"thumbnail_url,omitempty" db:"thumbnail_url"`
+	FileSizeBytes        *int64       `json:"file_size_bytes,omitempty" db:"file_size_bytes"`
+	DurationMs           *int         `json:"duration_ms,omitempty" db:"duration_ms"`
+	FrameCount           *int         `json:"frame_count,omitempty" db:"frame_count"`
+	AICaption            string       `json:"ai_caption,omitempty" db:"ai_caption"`
+	AICaptionGeneratedAt *time.Time   `json:"ai_caption_generated_at,omitempty" db:"ai_caption_generated_at"`
+	Status               ExportStatus `json:"status" db:"status"`
+	Error                string       `json:"error,omitempty" db:"error"`
+	CreatedAt            time.Time    `json:"created_at" db:"created_at"`
+	UpdatedAt            time.Time    `json:"updated_at" db:"updated_at"`
 
 	// Joined fields (optional) used by list APIs.
 	WorkflowName  string     `json:"workflow_name,omitempty" db:"workflow_name"`
 	ExecutionDate *time.Time `json:"execution_date,omitempty" db:"execution_date"`
+}
+
+// ExportStatus is the persisted lifecycle of one browser-rendered artifact.
+type ExportStatus string
+
+const (
+	ExportPending    ExportStatus = "pending"
+	ExportProcessing ExportStatus = "processing"
+	ExportCompleted  ExportStatus = "completed"
+	ExportFailed     ExportStatus = "failed"
+)
+
+var ErrInvalidExportStatusTransition = errors.New("invalid export status transition")
+
+var exportStatusTransitions = map[ExportStatus]map[ExportStatus]struct{}{
+	ExportPending:    {ExportProcessing: {}, ExportCompleted: {}, ExportFailed: {}},
+	ExportProcessing: {ExportCompleted: {}, ExportFailed: {}},
+}
+
+func (status ExportStatus) Valid() bool {
+	switch status {
+	case ExportPending, ExportProcessing, ExportCompleted, ExportFailed:
+		return true
+	default:
+		return false
+	}
+}
+
+// CanTransitionTo reports whether the persisted export lifecycle permits next.
+func (status ExportStatus) CanTransitionTo(next ExportStatus) bool {
+	_, allowed := exportStatusTransitions[status][next]
+	return allowed
+}
+
+// TransitionStatus is the only owner of status changes for a persisted export.
+func (export *ExportIndex) TransitionStatus(next ExportStatus) error {
+	if export == nil || !export.Status.Valid() || !next.Valid() {
+		return fmt.Errorf("%w: unknown state %q -> %q", ErrInvalidExportStatusTransition, exportStatusOf(export), next)
+	}
+	if export.Status == next {
+		return nil
+	}
+	if !export.Status.CanTransitionTo(next) {
+		return fmt.Errorf("%w: %q -> %q", ErrInvalidExportStatusTransition, export.Status, next)
+	}
+	export.Status = next
+	return nil
+}
+
+func exportStatusOf(export *ExportIndex) ExportStatus {
+	if export == nil {
+		return "<nil>"
+	}
+	return export.Status
 }
 
 // ============================================================================

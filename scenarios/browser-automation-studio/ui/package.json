@@ -25,20 +25,20 @@
     "date-fns": "^3.2.0",
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-import": "^2.32.0",
-    "express": "^5.1.0",
+    "express": "^5.3.0",
     "lucide-react": "^0.312.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.4.1",
     "react-i18next": "15.1.1",
     "react-markdown": "^9.0.1",
-    "react-router-dom": "^7.18.1",
+    "react-router-dom": "^7.18.5",
     "react-split": "^2.0.14",
     "react-syntax-highlighter": "^15.5.0",
     "reactflow": "^11.10.1",
     "remark-gfm": "^4.0.0",
     "tailwind-merge": "^2.2.0",
-    "zod": "^3.23.8",
+    "zod": "^3.25.76",
     "zustand": "^4.4.7"
   },
   "description": "Visual browser automation workflow builder",
@@ -58,12 +58,12 @@
     "eslint-plugin-react-refresh": "^0.4.20",
     "istanbul-lib-coverage": "3.2.2",
     "jsdom": "^27.1.0",
-    "postcss": "^8.4.33",
+    "postcss": "^8.5.32",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",
     "typescript-eslint": "^8.20.0",
-    "vite": "^5.0.11",
-    "vitest": "^3.2.4"
+    "vite": "^5.4.21",
+    "vitest": "^3.2.7"
   },
   "exports": {
     ".": "./dist/bootstrap.js",
@@ -73,7 +73,7 @@
     "dist"
   ],
   "name": "browser-automation-studio-ui",
-  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748",
+  "packageManager": "pnpm@10.34.9+sha512.f49b5a8ea0fdedb44bb3c0c1d6575092a53c2950d95b7ad15df11f17974877a2de3a01c07e934e9b28ce716e51c09a94962c7306d09be2e1e4b18a8c8762fd32",
   "pnpm": {
     "overrides": {
       "brace-expansion@^1.1.0": "1.1.18",

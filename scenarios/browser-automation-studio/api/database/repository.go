@@ -76,9 +76,11 @@ type Repository interface {
 	// Export operations (exported artifacts metadata)
 	CreateExport(ctx context.Context, export *ExportIndex) error
 	GetExport(ctx context.Context, id uuid.UUID) (*ExportIndex, error)
+	// UpdateExport mutates export metadata only; status belongs to explicit transition methods.
 	UpdateExport(ctx context.Context, export *ExportIndex) error
 	UpdateExportSettings(ctx context.Context, id uuid.UUID, settings JSONMap) error
-	UpdateExportStatus(ctx context.Context, id uuid.UUID, status string, errorMessage string) error
+	// UpdateExportStatus accepts only edges declared by ExportStatus.CanTransitionTo.
+	UpdateExportStatus(ctx context.Context, id uuid.UUID, status ExportStatus, errorMessage string) error
 	UpdateExportComplete(ctx context.Context, id uuid.UUID, storageURL string, fileSizeBytes int64, settings JSONMap) error
 	DeleteExport(ctx context.Context, id uuid.UUID) error
 	ListExports(ctx context.Context, limit, offset int) ([]*ExportIndex, error)
@@ -777,7 +779,10 @@ func (r *repository) CreateExport(ctx context.Context, export *ExportIndex) erro
 		export.ID = uuid.New()
 	}
 	if export.Status == "" {
-		export.Status = "pending"
+		export.Status = ExportPending
+	}
+	if !export.Status.Valid() {
+		return fmt.Errorf("invalid export status %q", export.Status)
 	}
 
 	query := `INSERT INTO exports (
@@ -829,7 +834,6 @@ func (r *repository) UpdateExport(ctx context.Context, export *ExportIndex) erro
 		frame_count = :frame_count,
 		ai_caption = :ai_caption,
 		ai_caption_generated_at = :ai_caption_generated_at,
-		status = :status,
 		error = :error
 		WHERE id = :id`
 	res, err := r.db.NamedExecContext(ctx, query, export)
@@ -844,9 +848,24 @@ func (r *repository) UpdateExport(ctx context.Context, export *ExportIndex) erro
 	return nil
 }
 
-func (r *repository) UpdateExportStatus(ctx context.Context, id uuid.UUID, status string, errorMessage string) error {
-	query := r.db.Rebind("UPDATE exports SET status = ?, error = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status IN ('pending', 'processing')")
-	res, err := r.db.ExecContext(ctx, query, status, errorMessage, id)
+func (r *repository) UpdateExportStatus(ctx context.Context, id uuid.UUID, status ExportStatus, errorMessage string) error {
+	allowedFrom := make([]ExportStatus, 0, len(exportStatusTransitions))
+	for _, candidate := range []ExportStatus{ExportPending, ExportProcessing} {
+		if candidate.CanTransitionTo(status) {
+			allowedFrom = append(allowedFrom, candidate)
+		}
+	}
+	if !status.Valid() || len(allowedFrom) == 0 {
+		return fmt.Errorf("%w: no export state can transition to %q", ErrInvalidExportStatusTransition, status)
+	}
+	placeholders := make([]string, len(allowedFrom))
+	args := []any{status, errorMessage, id}
+	for i, previous := range allowedFrom {
+		placeholders[i] = "?"
+		args = append(args, previous)
+	}
+	query := r.db.Rebind("UPDATE exports SET status = ?, error = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status IN (" + strings.Join(placeholders, ",") + ")")
+	res, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("failed to update export status: %w", err)
 	}
@@ -854,6 +873,9 @@ func (r *repository) UpdateExportStatus(ctx context.Context, id uuid.UUID, statu
 }
 
 func (r *repository) UpdateExportComplete(ctx context.Context, id uuid.UUID, storageURL string, fileSizeBytes int64, settings JSONMap) error {
+	if !ExportProcessing.CanTransitionTo(ExportCompleted) {
+		return fmt.Errorf("%w: processing cannot complete export", ErrInvalidExportStatusTransition)
+	}
 	query := r.db.Rebind("UPDATE exports SET status = 'completed', error = '', storage_url = ?, file_size_bytes = ?, settings = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'processing'")
 	res, err := r.db.ExecContext(ctx, query, storageURL, fileSizeBytes, settings, id)
 	if err != nil {

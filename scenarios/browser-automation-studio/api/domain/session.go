@@ -3,6 +3,8 @@
 package domain
 
 import (
+	"errors"
+	"fmt"
 	"time"
 )
 
@@ -16,6 +18,21 @@ const (
 	// SessionStatusClosed indicates the session has been closed.
 	SessionStatusClosed SessionStatus = "closed"
 )
+
+var ErrInvalidSessionStatusTransition = errors.New("invalid recording session status transition")
+
+// Valid reports whether status is part of the persisted session lifecycle.
+func (status SessionStatus) Valid() bool {
+	return status == SessionStatusActive || status == SessionStatusClosed
+}
+
+// CanTransitionTo reports whether the persisted lifecycle permits next.
+func (status SessionStatus) CanTransitionTo(next SessionStatus) bool {
+	if status == next {
+		return status.Valid()
+	}
+	return status == SessionStatusActive && next == SessionStatusClosed
+}
 
 // RecordingSession represents a browser recording session.
 // This is the aggregate root for the recording bounded context.
@@ -49,13 +66,24 @@ type RecordingSession struct {
 	ActionCount int `json:"actionCount"`
 }
 
-// IsActive returns true if the session is currently active.
-func (s *RecordingSession) IsActive() bool {
-	return s.Status == SessionStatusActive
+// TransitionStatus is the only domain owner of recording-session state changes.
+func (s *RecordingSession) TransitionStatus(next SessionStatus) error {
+	if s == nil || !s.Status.Valid() || !next.Valid() || !s.Status.CanTransitionTo(next) {
+		current := SessionStatus("<nil>")
+		if s != nil {
+			current = s.Status
+		}
+		return fmt.Errorf("%w: %q -> %q", ErrInvalidSessionStatusTransition, current, next)
+	}
+	s.Status = next
+	return nil
 }
 
-// Close marks the session as closed with the given timestamp.
-func (s *RecordingSession) Close(closedAt time.Time) {
-	s.Status = SessionStatusClosed
+// Close records the terminal status and timestamp through the lifecycle owner.
+func (s *RecordingSession) Close(closedAt time.Time) error {
+	if err := s.TransitionStatus(SessionStatusClosed); err != nil {
+		return err
+	}
 	s.ClosedAt = &closedAt
+	return nil
 }

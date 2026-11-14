@@ -110,10 +110,35 @@ func (r *SQLiteRepository) GetSession(ctx context.Context, sessionID string) (*d
 
 // CloseSession marks a session as closed.
 func (r *SQLiteRepository) CloseSession(ctx context.Context, sessionID string, closedAt time.Time) error {
-	query := `UPDATE recording_sessions SET status = $1, closed_at = $2 WHERE id = $3`
-	_, err := r.db.ExecContext(ctx, query, domain.SessionStatusClosed, closedAt, sessionID)
+	session, err := r.GetSession(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	if session == nil {
+		return nil
+	}
+	previousStatus := session.Status
+	if err := session.Close(closedAt); err != nil {
+		return err
+	}
+	query := `UPDATE recording_sessions SET status = $1, closed_at = $2 WHERE id = $3 AND status = $4`
+	result, err := r.db.ExecContext(ctx, query, session.Status, closedAt, sessionID, previousStatus)
 	if err != nil {
 		return fmt.Errorf("close session: %w", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("close session: read changed row count: %w", err)
+	}
+	if changed == 0 {
+		current, err := r.GetSession(ctx, sessionID)
+		if err != nil {
+			return err
+		}
+		if current != nil && current.Status == domain.SessionStatusClosed {
+			return nil
+		}
+		return fmt.Errorf("close session: %w", domain.ErrInvalidSessionStatusTransition)
 	}
 	return nil
 }

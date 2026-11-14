@@ -46,6 +46,7 @@ import (
 	schedulesconnect "github.com/vrooli/browser-automation-studio/handlers/schedules"
 	schemaconnect "github.com/vrooli/browser-automation-studio/handlers/schema"
 	sessionprofilesconnect "github.com/vrooli/browser-automation-studio/handlers/session_profiles"
+	uxcaptureconnect "github.com/vrooli/browser-automation-studio/handlers/uxcapture"
 	uxmetricsconnect "github.com/vrooli/browser-automation-studio/handlers/uxmetrics"
 	visionnavconnect "github.com/vrooli/browser-automation-studio/handlers/vision_navigation"
 	workflowsconnect "github.com/vrooli/browser-automation-studio/handlers/workflows"
@@ -646,6 +647,8 @@ func main() {
 	r.Get("/ws/frames", handler.HandleDriverFrameStream) // Shared recording and execution driver-frame ingress.
 
 	r.Route("/api/v1", func(r chi.Router) {
+		uxcaptureconnect.MountHTTP(r, driverClient, capturesEvidenceRoot)
+		uxcaptureconnect.MountScenarioHTTP(r, driverClient, discovery.NewResolver(discovery.ResolverConfig{}), capturesEvidenceRoot)
 		sessionModule := monetization.NewSessionModule(credentialClient, lpbsAccountIdentity, lpbsAccountField)
 		r.Post("/credentials/provision", credentialProvisionHandler(credentialClient))
 		r.Post("/auth/subscription/session", sessionModule.Provision)

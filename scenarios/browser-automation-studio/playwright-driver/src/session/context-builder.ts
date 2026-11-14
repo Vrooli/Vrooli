@@ -1,4 +1,5 @@
 import { mkdir } from 'fs/promises';
+import { assertPhoneTouch, isMobileViewport } from './phone-emulation';
 import type { Browser, BrowserContext, CDPSession, Frame, Page } from 'rebrowser-playwright';
 import type { SessionSpec, BehaviorSettings } from '../types';
 import type { Config } from '../config';
@@ -43,18 +44,32 @@ export { BEHAVIOR_SETTINGS_KEY } from '../browser-profile';
  */
 export const MOBILE_SAFE_AREA_INSETS = { top: 59, bottom: 34, left: 0, right: 0 } as const;
 
-/** A viewport is phone-class when its shorter edge is a phone width. */
-export function isMobileViewport(viewport?: { width: number; height: number }): boolean {
-  return !!viewport && Math.min(viewport.width, viewport.height) <= 480;
-}
+export { isMobileViewport };
 
 /**
- * Apply display safe-area insets to a page for phone-class viewports via the CDP
- * Emulation domain (Playwright has no first-class API). No-op for larger viewports
+ * Apply display safe-area insets, and keep touch emulation on, for a page at a
+ * phone-class viewport via the CDP Emulation domain (Playwright has no
+ * first-class API for the insets). No-op for larger viewports
  * and best-effort: a driver without this CDP command must not fail the capture.
  * Assertions requiring a notch must measure env() and fail if it is absent.
  */
 const safeAreaSessions = new WeakMap<Page, CDPSession>();
+
+type CdpSender = { send: (method: string, params: unknown) => Promise<unknown> };
+
+/**
+ * Send the phone emulation this module owns: the safe-area insets and the touch
+ * emulation. Chromium drops the page's touch emulation (`pointer: coarse`,
+ * `hover: none`, a nonzero maxTouchPoints) once the insets override exists and
+ * the document commits or finishes loading, so a phone-class capture would
+ * measure with a mouse. The commands are idempotent.
+ */
+async function sendPhoneEmulation(cdp: CDPSession): Promise<void> {
+  const session = cdp as unknown as CdpSender;
+  // setSafeAreaInsetsOverride is newer than some protocol typings ship, hence the cast.
+  await session.send('Emulation.setSafeAreaInsetsOverride', { insets: MOBILE_SAFE_AREA_INSETS });
+  await assertPhoneTouch(cdp);
+}
 
 export async function applySafeAreaInsets(
   page: Page,
@@ -67,16 +82,21 @@ export async function applySafeAreaInsets(
       cdp = await page.context().newCDPSession(page);
       safeAreaSessions.set(page, cdp);
       const owner = cdp;
+      // The emulation is lost as a document commits and again as it finishes
+      // loading; assert it at each point so a capture taken afterwards, with
+      // no further instruction in between, still sees a phone.
+      const hold = (): void => void sendPhoneEmulation(owner).catch(() => {});
+      page.on('framenavigated', (frame) => {
+        if (frame === page.mainFrame()) hold();
+      });
+      page.on('domcontentloaded', hold);
+      page.on('load', hold);
       page.once('close', () => {
         safeAreaSessions.delete(page);
         void owner.detach().catch(() => {});
       });
     }
-    // setSafeAreaInsetsOverride is newer than some protocol typings ship, hence the cast.
-    await (cdp as unknown as { send: (m: string, p: unknown) => Promise<unknown> }).send(
-      'Emulation.setSafeAreaInsetsOverride',
-      { insets: MOBILE_SAFE_AREA_INSETS }
-    );
+    await sendPhoneEmulation(cdp);
     // Detaching leaves the current document inset but drops the override on the
     // next navigation. Keep its CDP owner alive for the entire page lifetime.
     logger.info('Configured mobile safe-area emulation', {

@@ -15,7 +15,6 @@ func TestParseCaptureType_LabelsAndAliases(t *testing.T) {
 		"console_logs": capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS, // underscore→hyphen
 		"NETWORK":      capturev1.CaptureType_CAPTURE_TYPE_NETWORK,      // case-insensitive
 		"video":        capturev1.CaptureType_CAPTURE_TYPE_VIDEO,
-		"dom":          capturev1.CaptureType_CAPTURE_TYPE_DOM,
 		"performance":  capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE,
 		"perf":         capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE,
 	}
@@ -31,8 +30,10 @@ func TestParseCaptureType_LabelsAndAliases(t *testing.T) {
 }
 
 func TestParseCaptureType_Unknown(t *testing.T) {
-	if _, err := parseCaptureType("nope"); err == nil {
-		t.Fatalf("expected error for unknown capture type")
+	for _, value := range []string{"nope", "dom", "dom-tree", "computed-dom"} {
+		if _, err := parseCaptureType(value); err == nil {
+			t.Errorf("expected error for retired capture type %q", value)
+		}
 	}
 }
 

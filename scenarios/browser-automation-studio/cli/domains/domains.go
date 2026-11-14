@@ -34,6 +34,7 @@ import (
 	"browser-automation-studio/cli/schema"
 	"browser-automation-studio/cli/session_profiles"
 	"browser-automation-studio/cli/status"
+	uxcapture "browser-automation-studio/cli/uxcapture"
 	"browser-automation-studio/cli/uxmetrics"
 	"browser-automation-studio/cli/workflows"
 
@@ -51,6 +52,7 @@ func CommandGroups(ctx *appctx.Context) []cliapp.CommandGroup {
 		status.Commands(ctx),
 		playbooks.Commands(ctx),
 		capture.Commands(ctx),
+		uxcapture.Commands(ctx),
 		recordings.Commands(ctx),
 	}
 }

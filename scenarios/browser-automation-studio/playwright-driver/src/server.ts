@@ -344,12 +344,29 @@ function setupRoutes(
     observability.handleSessionList(req, res, observabilityDeps);
     return Promise.resolve();
   });
-  router.post('/test-control/faults/arm', async (req, res) => routes.handleFaultArm(req, res, config, faultController));
-  router.get('/test-control/faults', (req, res) => { routes.handleFaultSnapshot(req, res, config, faultController); return Promise.resolve(); });
-  router.post('/test-control/faults/disarm', async (req, res) => routes.handleFaultDisarm(req, res, config, faultController));
+  router.post('/test-control/faults/arm', async (req, res) =>
+    routes.handleFaultArm(req, res, config, faultController)
+  );
+  router.get('/test-control/faults', (req, res) => {
+    routes.handleFaultSnapshot(req, res, config, faultController);
+    return Promise.resolve();
+  });
+  router.post('/test-control/faults/disarm', async (req, res) =>
+    routes.handleFaultDisarm(req, res, config, faultController)
+  );
 
   router.get('/artifacts', async (req, res) => {
     await routes.handleArtifactDownload(req, res);
+  });
+
+  router.post('/ux-capture/public', async (req, res) => {
+    await routes.handlePublicPageCapture(req, res, sessionManager, config);
+  });
+  router.post('/ux-capture/file', async (req, res) => {
+    await routes.handleHTMLFileCapture(req, res, sessionManager, config);
+  });
+  router.post('/ux-capture/scenario', async (req, res) => {
+    await routes.handleScenarioPageCapture(req, res, sessionManager, config);
   });
 
   // Session lifecycle
@@ -361,7 +378,16 @@ function setupRoutes(
     if (!sessionId) {
       return;
     }
-    await routes.handleSessionRun(req, res, sessionId, sessionManager, handlers.handlerRegistry, config, appLogger, metrics);
+    await routes.handleSessionRun(
+      req,
+      res,
+      sessionId,
+      sessionManager,
+      handlers.handlerRegistry,
+      config,
+      appLogger,
+      metrics
+    );
   });
   router.get('/session/:id/storage-state', async (req, res, params) => {
     const sessionId = requireRouteParam(res, params, 'id');
