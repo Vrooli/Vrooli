@@ -13,7 +13,10 @@ import (
 	accountsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts/accounts_v1connect"
 )
 
-const TreasuryServiceCredentialIdentity = "scenario-authenticator/service-principal/treasury/money-ledger"
+const (
+	TreasuryServiceCredentialIdentity = "scenario-authenticator/service-principal/treasury/money-ledger"
+	TreasuryNoticeCredentialIdentity  = "scenario-authenticator/service-principal/treasury/notification-hub"
+)
 
 type TokenSource interface {
 	Token(context.Context) (string, error)
@@ -28,22 +31,35 @@ type CredentialReader interface {
 // forwarded as Treasury identity. The credential owner remains authoritative
 // for issuance, rotation and revocation.
 type ServiceTokenSource struct {
-	credentials CredentialReader
-	client      accountsconnect.AccountsServiceClient
-	now         func() time.Time
-	mu          sync.Mutex
-	token       string
-	expires     time.Time
+	credentials        CredentialReader
+	credentialIdentity string
+	client             accountsconnect.AccountsServiceClient
+	now                func() time.Time
+	mu                 sync.Mutex
+	token              string
+	expires            time.Time
 }
 
 func NewServiceTokenSource(credentials CredentialReader, authenticatorURL string, client *http.Client) (*ServiceTokenSource, error) {
+	return NewServiceTokenSourceFor(credentials, authenticatorURL, client, "treasury", "money-ledger")
+}
+
+// NewServiceTokenSourceFor consumes one operator-issued service principal
+// bound to the supplied service name and resource. Separate resources must
+// use separate credentials and audiences.
+func NewServiceTokenSourceFor(credentials CredentialReader, authenticatorURL string, client *http.Client, serviceName, resource string) (*ServiceTokenSource, error) {
 	if credentials == nil || strings.TrimSpace(authenticatorURL) == "" {
 		return nil, errors.New("Treasury service credential authority and authenticator are required")
+	}
+	serviceName, resource = strings.TrimSpace(serviceName), strings.TrimSpace(resource)
+	if serviceName == "" || resource == "" {
+		return nil, errors.New("Treasury service principal name and resource are required")
 	}
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
 	}
-	return &ServiceTokenSource{credentials: credentials, client: accountsconnect.NewAccountsServiceClient(client, strings.TrimRight(authenticatorURL, "/")), now: time.Now}, nil
+	identity := "scenario-authenticator/service-principal/" + serviceName + "/" + resource
+	return &ServiceTokenSource{credentials: credentials, credentialIdentity: identity, client: accountsconnect.NewAccountsServiceClient(client, strings.TrimRight(authenticatorURL, "/")), now: time.Now}, nil
 }
 
 func (s *ServiceTokenSource) Token(ctx context.Context) (string, error) {
@@ -56,7 +72,11 @@ func (s *ServiceTokenSource) Token(ctx context.Context) (string, error) {
 		return s.token, nil
 	}
 	s.token, s.expires = "", time.Time{}
-	credential, err := s.credentials.Resolve(ctx, TreasuryServiceCredentialIdentity, "credential")
+	identity := strings.TrimSpace(s.credentialIdentity)
+	if identity == "" {
+		identity = TreasuryServiceCredentialIdentity
+	}
+	credential, err := s.credentials.Resolve(ctx, identity, "credential")
 	if err != nil || strings.TrimSpace(credential) == "" {
 		return "", errors.New("Treasury service credential is unavailable")
 	}

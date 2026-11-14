@@ -78,6 +78,47 @@ func (h *connectHandler) ProveResearchWallet(ctx context.Context, request *conne
 	return connect.NewResponse(&authv1.ProveResearchWalletResponse{Proof: &walletv1.ControlProof{Wallet: walletToProto(p.Wallet), Message: p.Message, Signature: p.Signature, Scheme: p.Scheme, Verified: p.Verified}}), nil
 }
 
+func (h *connectHandler) ExportPortableResearchWalletRecovery(ctx context.Context, request *connect.Request[authv1.ExportPortableResearchWalletRecoveryRequest]) (*connect.Response[authv1.ExportPortableResearchWalletRecoveryResponse], error) {
+	operator, err := h.operatorIdentity(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	if h.portableRecovery == nil {
+		return nil, walletError(wallet.ErrUnavailable)
+	}
+	if request.Msg.GetId() == "" || request.Msg.GetNetwork() == "" || request.Msg.GetOperatorSecret() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("wallet ID, network, and operator recovery secret are required"))
+	}
+	artifact, err := h.portableRecovery.PersistPortableRecoveryBundle(ctx, request.Msg.GetId(), request.Msg.GetNetwork(), operator.Subject, request.Msg.GetOperatorSecret())
+	if err != nil {
+		return nil, walletError(err)
+	}
+	return connect.NewResponse(&authv1.ExportPortableResearchWalletRecoveryResponse{RelativePath: artifact.RelativePath, Sha256: artifact.SHA256, SizeBytes: artifact.SizeBytes}), nil
+}
+
+func (h *connectHandler) RestorePortableResearchWalletRecovery(ctx context.Context, request *connect.Request[authv1.RestorePortableResearchWalletRecoveryRequest]) (*connect.Response[authv1.ResearchWalletResponse], error) {
+	operator, err := h.operatorIdentity(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	if h.portableRecovery == nil {
+		return nil, walletError(wallet.ErrUnavailable)
+	}
+	if request.Msg.GetId() == "" || request.Msg.GetNetwork() == "" || request.Msg.GetOperatorSecret() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("wallet ID, network, and operator recovery secret are required"))
+	}
+	var recovered wallet.Wallet
+	if len(request.Msg.GetBundle()) > 0 {
+		recovered, err = h.portableRecovery.RestorePortableRecoveryBundle(ctx, request.Msg.GetId(), request.Msg.GetNetwork(), operator.Subject, request.Msg.GetBundle(), request.Msg.GetOperatorSecret())
+	} else {
+		recovered, err = h.portableRecovery.RestorePersistedPortableRecoveryBundle(ctx, request.Msg.GetId(), request.Msg.GetNetwork(), operator.Subject, request.Msg.GetOperatorSecret())
+	}
+	if err != nil {
+		return nil, walletError(err)
+	}
+	return connect.NewResponse(&authv1.ResearchWalletResponse{Wallet: walletToProto(recovered)}), nil
+}
+
 func (h *connectHandler) VerifyBaseUSDCReceipt(ctx context.Context, request *connect.Request[authv1.VerifyBaseUSDCReceiptRequest]) (*connect.Response[authv1.VerifyBaseUSDCReceiptResponse], error) {
 	operator, err := h.operatorIdentity(ctx, request)
 	if err != nil {

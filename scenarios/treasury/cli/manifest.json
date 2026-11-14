@@ -613,7 +613,8 @@
           "name": "agent-wallet",
           "description": "Read the budget wallet address assigned to the verified agent run.",
           "flags": [
-            { "name": "budget-id", "required": true }
+            { "name": "budget-id", "required": true },
+            { "name": "mandate-id", "required": true }
           ],
           "binding": {
             "kind": "connect-rpc",
@@ -1022,6 +1023,45 @@
             "permissions": [
               "network:internal"
             ]
+          }
+        },
+        {
+          "name": "export-portable-recovery",
+          "description": "Create a portable encrypted key-only recovery bundle. Pipe the operator-held secret on stdin; the encrypted bundle is stored privately in Treasury data for DBM transport.",
+          "flags": [
+            {"name": "id", "required": true},
+            {"name": "network", "required": true},
+            {"name": "secret-stdin", "bool": true, "local_only": true, "description": "Read the operator-held recovery secret from stdin."}
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TreasuryAdmin",
+            "method": "ExportPortableResearchWalletRecovery"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "restore-portable-recovery",
+          "description": "Restore an encrypted key-only bundle. Pipe the operator-held recovery secret on stdin. After DBM restores the Treasury data root on this node, the API reads its private bundle automatically; use --bundle-file only to upload ciphertext from a local file.",
+          "flags": [
+            {"name": "id", "required": true},
+            {"name": "network", "required": true},
+            {"name": "bundle-file", "local_only": true, "description": "Optional path to encrypted bundle bytes to upload instead of using the API's DBM-restored private bundle."},
+            {"name": "secret-stdin", "bool": true, "local_only": true, "description": "Read the operator-held recovery secret from stdin."}
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TreasuryAdmin",
+            "method": "RestorePortableResearchWalletRecovery"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
           }
         },
         {

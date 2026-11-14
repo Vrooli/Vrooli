@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "treasury",
   "generator": "v1.0.0",
-  "manifest_hash": "01087698a3d1e1ed957ba6bb9c2da9c35cb7abf413e232897bf06aa7666ae75c",
+  "manifest_hash": "495e6d752ebf301b27b673ec4cb630d7e3cfd2c07db89f51d69b87de7d5835c5",
   "commands": [
     {
       "path": "approval list",
@@ -199,6 +199,12 @@
       "binding": "TreasuryAdmin.CreateResearchWallet"
     },
     {
+      "path": "wallet export-portable-recovery",
+      "group": "wallet",
+      "command": "export-portable-recovery",
+      "binding": "TreasuryAdmin.ExportPortableResearchWalletRecovery"
+    },
+    {
       "path": "wallet fund-confirm",
       "group": "wallet",
       "command": "fund-confirm",
@@ -275,6 +281,12 @@
       "group": "wallet",
       "command": "recover",
       "binding": "TreasuryAdmin.RecoverResearchWallet"
+    },
+    {
+      "path": "wallet restore-portable-recovery",
+      "group": "wallet",
+      "command": "restore-portable-recovery",
+      "binding": "TreasuryAdmin.RestorePortableResearchWalletRecovery"
     },
     {
       "path": "wallet withdrawal-destination-set",

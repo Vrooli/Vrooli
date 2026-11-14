@@ -40,6 +40,29 @@
     }
   },
   "driver": "managed-service",
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/x402-facilitator",
+        "field": "facilitator-private-key",
+        "env": "FACILITATOR_PRIVATE_KEY",
+        "label": "Local facilitator settlement signer",
+        "provisioning": "generated",
+        "description": "Generated local-fork-only EVM test signer for the pinned facilitator. Do not provision a value-bearing key here.",
+        "required": false
+      }
+    ],
+    "consumers": [
+      {
+        "logical_id": "vrooli/x402-facilitator",
+        "field": "facilitator-private-key",
+        "kind": "environment",
+        "consumer": "pinned x402-facilitator managed child process",
+        "source_ref": "resource.json:credentials.descriptors",
+        "required": false
+      }
+    ]
+  },
   "deployment": {
     "profiles": {
       "desktop": {

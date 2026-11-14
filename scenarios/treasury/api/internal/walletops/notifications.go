@@ -22,6 +22,11 @@ import (
 type NotificationHub struct {
 	client        notificationsconnect.NotificationsServiceClient
 	identityToken string
+	tokenSource   NotificationTokenSource
+}
+
+type NotificationTokenSource interface {
+	Token(context.Context) (string, error)
 }
 
 func NewNotificationHub(baseURL string, client *http.Client) (*NotificationHub, error) {
@@ -31,6 +36,20 @@ func NewNotificationHub(baseURL string, client *http.Client) (*NotificationHub, 
 		return nil, errors.New("notification-hub URL and HTTP client are required")
 	}
 	return &NotificationHub{client: notificationsconnect.NewNotificationsServiceClient(client, baseURL)}, nil
+}
+
+// NewAuthenticatedNotificationHub sends through a dedicated service identity.
+// It never forwards the triggering run or operator token to Notification Hub.
+func NewAuthenticatedNotificationHub(baseURL string, client *http.Client, tokens NotificationTokenSource) (*NotificationHub, error) {
+	if tokens == nil {
+		return nil, errors.New("notification-hub service token source is required")
+	}
+	hub, err := NewNotificationHub(baseURL, client)
+	if err != nil {
+		return nil, err
+	}
+	hub.tokenSource = tokens
+	return hub, nil
 }
 
 // NewLeasedTestNotificationHub opts a local rehearsal into Notification Hub's
@@ -90,6 +109,13 @@ func (n *NotificationHub) Received(ctx context.Context, operator, budgetID, addr
 	})
 	if n.identityToken != "" {
 		request.Header().Set(identity.HeaderAgentIdentityToken, n.identityToken)
+	}
+	if n.tokenSource != nil {
+		token, tokenErr := n.tokenSource.Token(ctx)
+		if tokenErr != nil || strings.TrimSpace(token) == "" {
+			return errors.New("notification-hub service identity is unavailable")
+		}
+		request.Header().Set("Authorization", "Bearer "+strings.TrimSpace(token))
 	}
 	_, err := n.client.Send(ctx, request)
 	return err

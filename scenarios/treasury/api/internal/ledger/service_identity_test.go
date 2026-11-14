@@ -16,17 +16,40 @@ import (
 )
 
 type serviceCredentialFixture struct {
-	value string
-	err   error
-	reads int
+	value    string
+	err      error
+	reads    int
+	identity string
 }
 
 func (f *serviceCredentialFixture) Resolve(_ context.Context, identity, field string) (string, error) {
-	if identity != TreasuryServiceCredentialIdentity || field != "credential" {
+	expected := f.identity
+	if expected == "" {
+		expected = TreasuryServiceCredentialIdentity
+	}
+	if identity != expected || field != "credential" {
 		return "", errors.New("wrong authority identity")
 	}
 	f.reads++
 	return f.value, f.err
+}
+
+func TestServiceTokenSourceCanUseDistinctAudienceBoundPrincipal(t *testing.T) {
+	authority := &serviceCredentialFixture{value: "notice-credential", identity: TreasuryNoticeCredentialIdentity}
+	exchange := &exchangeFixture{credential: "notice-credential", token: "notice-service-jwt", expires: time.Now().Add(time.Hour)}
+	_, handler := accountsconnect.NewAccountsServiceHandler(exchange)
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	source, err := NewServiceTokenSourceFor(authority, server.URL, server.Client(), "treasury", "notification-hub")
+	require.NoError(t, err)
+	token, err := source.Token(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "notice-service-jwt", token)
+	require.Equal(t, 1, authority.reads)
+	require.Equal(t, 1, exchange.calls)
+	if _, err := NewServiceTokenSourceFor(authority, server.URL, server.Client(), "", "notification-hub"); err == nil {
+		t.Fatal("service name is required")
+	}
 }
 
 type exchangeFixture struct {

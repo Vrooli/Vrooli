@@ -35,7 +35,7 @@ type EVMLog struct {
 // until trusted token metadata is separately captured. It does not imply that
 // either address has exclusive control of an entity.
 func NormalizeERC20TransferLog(chain Chain, source Source, log EVMLog, blockTimestamp string) (Occurrence, error) {
-	if chain != ChainEthereum && chain != ChainBase {
+	if chain != ChainEthereum && chain != ChainBase && chain != ChainArbitrum {
 		return Occurrence{}, fmt.Errorf("ERC-20 transfers are not supported on chain %q", chain)
 	}
 	if err := validateEVMSource(source); err != nil {

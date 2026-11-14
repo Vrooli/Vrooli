@@ -87,7 +87,7 @@ describe("Fund page", () => {
 
     await user.type(screen.getByTestId(selectors.funding.operatorToken), "operator-secret");
     await user.type(screen.getByTestId(selectors.funding.budgetId), "research-budget");
-    await user.type(screen.getByTestId(selectors.funding.atomicAmount), "2500000");
+    await user.type(screen.getByTestId(selectors.funding.atomicAmount), "2.50");
     await user.type(screen.getByTestId(selectors.funding.declaredValue), "2.50");
     await user.type(screen.getByTestId(selectors.funding.ledgerBookId), "book-1");
     await user.type(screen.getByTestId(selectors.funding.ledgerAccountId), "account-1");
@@ -132,7 +132,7 @@ describe("Fund page", () => {
 
     await user.type(screen.getByTestId(selectors.funding.operatorToken), "operator-secret");
     await user.type(screen.getByTestId(selectors.funding.budgetId), "research-budget");
-    await user.type(screen.getByTestId(selectors.funding.atomicAmount), "2500000");
+    await user.type(screen.getByTestId(selectors.funding.atomicAmount), "2.50");
     await user.type(screen.getByTestId(selectors.funding.declaredValue), "2.50");
     await user.type(screen.getByTestId(selectors.funding.ledgerBookId), "book-1");
     await user.type(screen.getByTestId(selectors.funding.ledgerAccountId), "account-1");
@@ -152,7 +152,7 @@ describe("Fund page", () => {
 
     await user.type(screen.getByTestId(selectors.funding.operatorToken), "operator-secret");
     await user.type(screen.getByTestId(selectors.funding.budgetId), "research-budget");
-    await user.type(screen.getByTestId(selectors.funding.atomicAmount), "2500000");
+    await user.type(screen.getByTestId(selectors.funding.atomicAmount), "2.50");
     await user.type(screen.getByTestId(selectors.funding.declaredValue), "2.50");
     await user.type(screen.getByTestId(selectors.funding.ledgerBookId), "book-1");
     await user.type(screen.getByTestId(selectors.funding.ledgerAccountId), "account-1");
@@ -181,7 +181,7 @@ describe("Fund page", () => {
     await user.type(screen.getByTestId(selectors.funding.budgetId), "research-budget");
     await user.type(screen.getByTestId(selectors.funding.withdrawalDestination), quote.destination);
     await user.type(screen.getByTestId(selectors.funding.mandateId), quote.mandateId);
-    await user.type(screen.getAllByLabelText(en.fund.atomicAmount)[1]!, quote.atomicAmount);
+    await user.type(screen.getAllByLabelText(en.fund.tokenAmount)[1]!, "1.00");
     await user.type(screen.getAllByLabelText(en.fund.declaredValue)[1]!, "1.00");
     await user.clear(screen.getByLabelText(en.fund.maxFee));
     await user.type(screen.getByLabelText(en.fund.maxFee), quote.maxFeeWei);
@@ -220,7 +220,7 @@ describe("Fund page", () => {
     await user.type(screen.getByTestId(selectors.funding.budgetId), "research-budget");
     await user.type(screen.getByTestId(selectors.funding.withdrawalDestination), quote.destination);
     await user.type(screen.getByTestId(selectors.funding.mandateId), quote.mandateId);
-    await user.type(screen.getAllByLabelText(en.fund.atomicAmount)[1]!, quote.atomicAmount);
+    await user.type(screen.getAllByLabelText(en.fund.tokenAmount)[1]!, "1.00");
     await user.type(screen.getAllByLabelText(en.fund.declaredValue)[1]!, "1.00");
     await user.click(screen.getByTestId(selectors.funding.withdrawalPreviewButton));
     expect(await screen.findByRole("button", { name: en.fund.executeDisabled })).toBeDisabled();

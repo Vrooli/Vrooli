@@ -19,6 +19,11 @@ import (
 
 const defaultMempoolBaseURL = "https://mempool.space/api"
 
+const (
+	mempoolCacheLimit = 128
+	mempoolCacheTTL   = 10 * time.Minute
+)
+
 var (
 	ErrProviderRateLimited = errors.New("mempool.space rate limited the request")
 	ErrResponseTooLarge    = errors.New("mempool.space response exceeded the configured limit")
@@ -49,15 +54,18 @@ type CapturedTransaction struct {
 }
 
 type MempoolClient struct {
-	baseURL     string
-	httpClient  *http.Client
-	now         func() time.Time
-	maxBytes    int64
-	minInterval time.Duration
-	mu          sync.Mutex
-	cache       map[string]CapturedTransaction
-	requestMu   sync.Mutex
-	lastRequest time.Time
+	baseURL          string
+	httpClient       *http.Client
+	now              func() time.Time
+	maxBytes         int64
+	minInterval      time.Duration
+	mu               sync.Mutex
+	cache            map[string]CapturedTransaction
+	cacheOrder       []string
+	addressPageCache map[string]addressPageCacheEntry
+	addressPageOrder []string
+	requestMu        sync.Mutex
+	lastRequest      time.Time
 }
 
 // NewMempoolClient creates a read-only REST client. A non-HTTPS base URL is
@@ -88,7 +96,7 @@ func NewMempoolClient(baseURL string, client *http.Client, now func() time.Time)
 	return &MempoolClient{
 		baseURL: strings.TrimRight(baseURL, "/"), httpClient: client,
 		now: now, maxBytes: 1 << 20, minInterval: 250 * time.Millisecond,
-		cache: make(map[string]CapturedTransaction),
+		cache: make(map[string]CapturedTransaction), addressPageCache: make(map[string]addressPageCacheEntry),
 	}, nil
 }
 
@@ -113,9 +121,8 @@ func (c *MempoolClient) FetchTransaction(ctx context.Context, txid string) (Capt
 	}
 	txid = strings.ToLower(txid)
 	c.mu.Lock()
-	if cached, ok := c.cache[txid]; ok {
+	if cached, ok := c.cachedLocked(txid); ok {
 		c.mu.Unlock()
-		cached.Transaction = cloneMempoolTransaction(cached.Transaction)
 		return cached, nil
 	}
 	c.mu.Unlock()
@@ -126,9 +133,8 @@ func (c *MempoolClient) FetchTransaction(ctx context.Context, txid string) (Capt
 	c.requestMu.Lock()
 	defer c.requestMu.Unlock()
 	c.mu.Lock()
-	if cached, ok := c.cache[txid]; ok {
+	if cached, ok := c.cachedLocked(txid); ok {
 		c.mu.Unlock()
-		cached.Transaction = cloneMempoolTransaction(cached.Transaction)
 		return cached, nil
 	}
 	c.mu.Unlock()
@@ -186,18 +192,60 @@ func (c *MempoolClient) FetchTransaction(ctx context.Context, txid string) (Capt
 		Source: Source{
 			ID: "mempool-tx-" + txid, Name: "mempool.space REST",
 			URL: endpoint, Retrieved: c.now().UTC().Format(time.RFC3339), SHA256: hex.EncodeToString(hash[:]),
-			Limitations: "Keyless public read; shared endpoint with no SLA. Confirmed transaction body cached in memory by immutable txid.",
+			Limitations: "Keyless public read; shared endpoint with no SLA. Exact bounded HTTP response body is retained for independent normalization replay.", ResultBody: append([]byte(nil), body...),
 		},
 	}
 	c.mu.Lock()
-	if existing, ok := c.cache[txid]; ok {
+	if existing, ok := c.cachedLocked(txid); ok {
 		captured = existing
 	} else {
-		c.cache[txid] = captured
+		c.evictExpiredLocked()
+		for len(c.cache) >= mempoolCacheLimit {
+			oldest := c.cacheOrder[0]
+			c.cacheOrder = c.cacheOrder[1:]
+			delete(c.cache, oldest)
+		}
+		cachedCopy := captured
+		cachedCopy.Transaction = cloneMempoolTransaction(captured.Transaction)
+		cachedCopy.Source.ResultBody = append([]byte(nil), captured.Source.ResultBody...)
+		c.cache[txid] = cachedCopy
+		c.cacheOrder = append(c.cacheOrder, txid)
 	}
 	c.mu.Unlock()
 	captured.Transaction = cloneMempoolTransaction(captured.Transaction)
+	captured.Source.ResultBody = append([]byte(nil), captured.Source.ResultBody...)
 	return captured, nil
+}
+
+func (c *MempoolClient) cachedLocked(txid string) (CapturedTransaction, bool) {
+	cached, ok := c.cache[txid]
+	if !ok {
+		return CapturedTransaction{}, false
+	}
+	retrievedAt, err := time.Parse(time.RFC3339, cached.Source.Retrieved)
+	if err != nil || c.now().Sub(retrievedAt) > mempoolCacheTTL {
+		delete(c.cache, txid)
+		return CapturedTransaction{}, false
+	}
+	cached.Transaction = cloneMempoolTransaction(cached.Transaction)
+	return cached, true
+}
+
+func (c *MempoolClient) evictExpiredLocked() {
+	kept := c.cacheOrder[:0]
+	for _, txid := range c.cacheOrder {
+		cached, ok := c.cache[txid]
+		if !ok {
+			continue
+		}
+		retrievedAt, err := time.Parse(time.RFC3339, cached.Source.Retrieved)
+		if err != nil || c.now().Sub(retrievedAt) > mempoolCacheTTL {
+			delete(c.cache, txid)
+			continue
+		}
+		kept = append(kept, txid)
+	}
+	c.cacheOrder = kept
 }
 
 func parseRetryAfter(value string, now time.Time) time.Duration {

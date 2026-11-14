@@ -40,6 +40,35 @@ type Fork struct {
 	stopReceipt                           StopReceipt
 }
 
+// AcquireSharedFacilitatorHarness serializes opt-in tests that use the one
+// lifecycle-managed local facilitator identity and its fixed loopback ports.
+// Go's package test binaries can run concurrently, so an in-process mutex is
+// not sufficient. The held loopback listener is the cross-process lease; it
+// is released automatically when the test ends.
+func AcquireSharedFacilitatorHarness(t *testing.T) {
+	t.Helper()
+	deadline := time.Now().Add(12 * time.Minute)
+	var listener net.Listener
+	for time.Now().Before(deadline) {
+		candidate, err := net.Listen("tcp", "127.0.0.1:18499")
+		if err == nil {
+			listener = candidate
+			break
+		}
+		timer := time.NewTimer(250 * time.Millisecond)
+		select {
+		case <-t.Context().Done():
+			timer.Stop()
+			t.Fatalf("wait for shared facilitator integration lease: %v", t.Context().Err())
+		case <-timer.C:
+		}
+	}
+	if listener == nil {
+		t.Fatal("timed out waiting for shared facilitator integration lease")
+	}
+	t.Cleanup(func() { _ = listener.Close() })
+}
+
 // Identity is the immutable chain identity the rehearsal binds to a Treasury
 // instance. URL is always a loopback endpoint owned by the Go test process.
 type Identity struct {
@@ -121,6 +150,13 @@ func (f *Fork) Stop(ctx context.Context) StopReceipt {
 // Start requires a deliberate live-test opt-in because a fork reads a public
 // RPC and starts a subprocess. The upstream is never used for a write method.
 func Start(t *testing.T) *Fork {
+	return StartAt(t, 0)
+}
+
+// StartAt starts the disposable fork on a requested loopback port. Port zero
+// retains the default ephemeral-port behavior; fixed ports let a separately
+// supervised local resource bind to the fork without exposing any public RPC.
+func StartAt(t *testing.T, requestedPort int) *Fork {
 	t.Helper()
 	if os.Getenv("TREASURY_BASE_FORK_TEST") != "1" {
 		t.Skip("set TREASURY_BASE_FORK_TEST=1 for the disposable Base fork rehearsal")
@@ -158,7 +194,10 @@ func Start(t *testing.T) *Fork {
 	if runtime.GOOS == "windows" {
 		binary += ".exe"
 	}
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if requestedPort < 0 || requestedPort > 65535 {
+		t.Fatalf("invalid loopback fork port %d", requestedPort)
+	}
+	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", requestedPort))
 	if err != nil {
 		t.Fatal(err)
 	}

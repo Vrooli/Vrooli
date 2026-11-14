@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -29,9 +28,13 @@ func TestJournalRepositoryIsStructurallyAppendOnly(t *testing.T) {
 	}
 	require.ElementsMatch(t, []string{"Append", "Read", "Reverse"}, methodNames)
 
-	_, currentFile, _, ok := runtime.Caller(0)
-	require.True(t, ok)
-	source, err := os.ReadFile(filepath.Join(filepath.Dir(currentFile), "repository.go"))
+	workingDir, err := os.Getwd()
+	require.NoError(t, err)
+	sourcePath := filepath.Join(workingDir, "repository.go")
+	if _, err := os.Stat(sourcePath); err != nil {
+		sourcePath = filepath.Join(workingDir, "internal", "journal", "repository.go")
+	}
+	source, err := os.ReadFile(sourcePath)
 	require.NoError(t, err)
 	forbidden := regexp.MustCompile(`(?i)(update\s+journal_events|delete\s+from\s+journal_events)`)
 	require.False(t, forbidden.Match(source), "journal event SQL must be insert/read only")

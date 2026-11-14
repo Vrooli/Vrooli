@@ -287,6 +287,7 @@ func (s *Service) settle(ctx context.Context, in SettleInput, verifiedSubject st
 			if outcome == OutcomeUnknown {
 				normalized.ExternalID = prepared.ExternalID
 				normalized.ReceiptReference = prepared.ReceiptReference
+				normalized.Basis = prepared.Basis
 			}
 		}
 	}
@@ -399,15 +400,36 @@ func (s *Service) ResolveUnknown(ctx context.Context, id string) (Record, error)
 	outcome, normalized, resultErr := normalizeRailResult(railReply, true)
 	if protectedRail(current.Rail) && outcome == OutcomeUnknown {
 		// QueryOutcome necessarily received the signed input in memory. Keep the
-		// protected reference in SQLite if the result is still inconclusive.
+		// protected reference and its prepared marker in SQLite if the result is
+		// still inconclusive; ResolveUnknown uses that marker to authorize reads
+		// from the recovery vault after restart.
 		normalized.ExternalID = current.ExternalID
 		normalized.ReceiptReference = current.ReceiptReference
+		normalized.Basis = preparedBasis(current.Rail)
 	}
 	if resultErr != nil {
 		return current, fmt.Errorf("validate rail query result: %w", resultErr)
 	}
 	if outcome == OutcomeUnknown {
-		return current, nil
+		// Preserve the latest reconciliation evidence. In particular, a retry
+		// after process restart may have reached the rail successfully while the
+		// original dispatch ended in a transport error. Returning the original
+		// record here hides what the exact query just learned from operators.
+		// Unknown remains non-terminal and must retain its original identity and
+		// protected replay reference.
+		normalized.FromQuery = true
+		if normalized.ExternalID == "" {
+			normalized.ExternalID = current.ExternalID
+		}
+		if normalized.ReceiptReference == "" {
+			normalized.ReceiptReference = current.ReceiptReference
+		}
+		if normalized.Basis == "" {
+			normalized.Basis = current.Basis
+		}
+		durableCtx := context.WithoutCancel(ctx)
+		now := s.clock.Now().UTC()
+		return s.repository.Complete(durableCtx, current.ID, OutcomeUnknown, normalized, now.Format(time.RFC3339Nano), current.RetainUntil.Format(time.RFC3339Nano))
 	}
 	event := settlementflow.SettlementQuerySettled
 	if outcome == OutcomeFailed {

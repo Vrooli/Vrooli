@@ -3,7 +3,6 @@ package grants_test
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -13,14 +12,14 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// [REQ:TKE-P0-002] Grant stays field-congruent with Treasury's live 17-field
+// [REQ:TKE-P0-002] Grant stays field-congruent with Treasury's live 19-field
 // Mandate descriptor, and every permitted divergence is recorded durably.
 func TestGrantContractParityWithTreasuryMandate(t *testing.T) {
 	mandate := mandatev1.File_treasury_v1_mandate_mandate_proto.Messages().ByName("Mandate")
 	grant := grantsv1.File_token_economy_v1_grants_grants_proto.Messages().ByName("Grant")
 	require.NotNil(t, mandate)
 	require.NotNil(t, grant)
-	require.Equal(t, 17, mandate.Fields().Len(), "Treasury Mandate changed; review every mapping")
+	require.Equal(t, 19, mandate.Fields().Len(), "Treasury Mandate changed; review every mapping and omission")
 
 	mapping := map[string]string{
 		"id": "id", "book_id": "token_type_id", "budget_id": "grant_source_id",
@@ -39,7 +38,7 @@ func TestGrantContractParityWithTreasuryMandate(t *testing.T) {
 		require.Equal(t, treasuryField.Kind(), grantField.Kind(), "kind drift for %s -> %s", treasuryName, grantName)
 		require.Equal(t, treasuryField.Cardinality(), grantField.Cardinality(), "cardinality drift for %s -> %s", treasuryName, grantName)
 	}
-	for _, omitted := range []string{"currency", "signature"} {
+	for _, omitted := range []string{"currency", "signature", "agent_subject", "agent_run_id"} {
 		require.NotNil(t, mandate.Fields().ByName(protoreflect.Name(omitted)))
 		require.Nil(t, grant.Fields().ByName(protoreflect.Name(omitted)))
 	}
@@ -47,9 +46,7 @@ func TestGrantContractParityWithTreasuryMandate(t *testing.T) {
 	require.NotNil(t, grant.Fields().ByName("rules"))
 	require.Equal(t, len(mapping)+2, grant.Fields().Len(), "unrecorded Grant field divergence")
 
-	_, currentFile, _, ok := runtime.Caller(0)
-	require.True(t, ok)
-	decisionPath := filepath.Join(filepath.Dir(currentFile), "..", "..", "..", "docs", "internal", "DECISIONS.md")
+	decisionPath := findDecisionLog(t)
 	decisions, err := os.ReadFile(decisionPath)
 	require.NoError(t, err)
 	for _, recorded := range []string{
@@ -58,10 +55,32 @@ func TestGrantContractParityWithTreasuryMandate(t *testing.T) {
 		"| `allowed_counterparties` | `allowed_catalog_scopes` |",
 		"| `denied_counterparties` | `denied_catalog_scopes` |",
 		"| `signature` | omitted |", "| `next_charge_at` | `next_issue_at` |",
+		"| `agent_subject` | omitted |", "| `agent_run_id` | omitted |",
 		"| — | `holder_id` |", "| — | `rules` |",
 	} {
 		require.Contains(t, string(decisions), recorded, "unrecorded parity divergence")
 	}
+}
+
+// Test binaries can be built with -trimpath, in which case runtime.Caller
+// returns a repository-relative path that is not rooted at the source file.
+// Resolve the scenario decision log from the package working directory instead.
+func findDecisionLog(t *testing.T) string {
+	t.Helper()
+	workingDir, err := os.Getwd()
+	require.NoError(t, err)
+	for dir := workingDir; ; dir = filepath.Dir(dir) {
+		candidate := filepath.Join(dir, "docs", "internal", "DECISIONS.md")
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+	}
+	t.Fatalf("could not find docs/internal/DECISIONS.md above %s", workingDir)
+	return ""
 }
 
 // [REQ:TKE-P0-003] Neither the public grant request nor its closed rule shape

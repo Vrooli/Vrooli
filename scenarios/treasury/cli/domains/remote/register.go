@@ -4,6 +4,7 @@ package remote
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/vrooli/cli-core/cliapp"
 	_ "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
@@ -22,7 +23,7 @@ type serviceSpec struct {
 }
 
 var groups = map[string][]serviceSpec{
-	"wallet":        {{name: adminService, methods: []string{"TreasuryAdmin.CreateResearchWallet", "TreasuryAdmin.GetResearchWallet", "TreasuryAdmin.VerifyBaseUSDCReceipt", "TreasuryAdmin.ListBaseUSDCReceiptChecks", "TreasuryAdmin.ProveResearchWallet", "TreasuryAdmin.QualifyResearchWalletRecovery", "TreasuryAdmin.RecoverResearchWallet", "TreasuryAdmin.SubmitReceiptFunding", "TreasuryAdmin.GetReceiptFunding", "TreasuryAdmin.ProvisionBudgetWallet", "TreasuryAdmin.GetBudgetWallet", "TreasuryAdmin.CreateFundingIntent", "TreasuryAdmin.GetFundingIntent", "TreasuryAdmin.ConfirmFundingTransfer", "TreasuryAdmin.ListFundingIntents", "TreasuryAdmin.SetWithdrawalDestination", "TreasuryAdmin.PreviewWithdrawal", "TreasuryAdmin.ExecuteWithdrawal", "TreasuryAdmin.GetWithdrawal"}}},
+	"wallet":        {{name: adminService, methods: []string{"TreasuryAdmin.CreateResearchWallet", "TreasuryAdmin.GetResearchWallet", "TreasuryAdmin.VerifyBaseUSDCReceipt", "TreasuryAdmin.ListBaseUSDCReceiptChecks", "TreasuryAdmin.ProveResearchWallet", "TreasuryAdmin.QualifyResearchWalletRecovery", "TreasuryAdmin.RecoverResearchWallet", "TreasuryAdmin.ExportPortableResearchWalletRecovery", "TreasuryAdmin.RestorePortableResearchWalletRecovery", "TreasuryAdmin.SubmitReceiptFunding", "TreasuryAdmin.GetReceiptFunding", "TreasuryAdmin.ProvisionBudgetWallet", "TreasuryAdmin.GetBudgetWallet", "TreasuryAdmin.CreateFundingIntent", "TreasuryAdmin.GetFundingIntent", "TreasuryAdmin.ConfirmFundingTransfer", "TreasuryAdmin.ListFundingIntents", "TreasuryAdmin.SetWithdrawalDestination", "TreasuryAdmin.PreviewWithdrawal", "TreasuryAdmin.ExecuteWithdrawal", "TreasuryAdmin.GetWithdrawal"}}},
 	"book":          {{name: adminService, methods: []string{"TreasuryAdmin.CreateBook", "TreasuryAdmin.GetBook"}}},
 	"authorization": {{name: agentService, methods: []string{"AgentSpend.ProposeCharge", "AgentSpend.GetAuthorization"}}},
 	"mandate": {
@@ -77,7 +78,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte, groupName string) (clia
 			}
 		}
 		available, err := cliapp.ProtoBindings(core, spec.name, cliapp.ProtoBindingOptions{
-			Render: renderers, Prepare: treasurySessionRequestHeaders(core),
+			Render: renderers, Prepare: portableRecoveryRequestPreparer(treasurySessionRequestHeaders(core), os.Stdin),
 		})
 		if err != nil {
 			return cliapp.SubcommandGroup{}, fmt.Errorf("%s: build proto bindings: %w", groupName, err)

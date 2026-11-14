@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -92,6 +93,7 @@ func (s *Service) Admit(ctx context.Context, in authorization.ApprovalAdmission)
 	if s.relay != nil {
 		if err := s.relay.Relay(ctx, request); err != nil {
 			attempt.Outcome, attempt.Error = "failed", err.Error()
+			slog.Error("Treasury approval notification relay failed", "approval_id", request.ID, "error", err)
 		} else {
 			attempt.Outcome = "sent"
 		}

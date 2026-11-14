@@ -204,6 +204,29 @@ func TestUnknownCanFailOnlyFromRailQuery(t *testing.T) {
 	require.Contains(t, replayed.RailResponseJSON, "processor confirms no transfer was created")
 }
 
+func TestUnknownReconciliationPersistsFreshEvidenceWithoutLosingIdentity(t *testing.T) {
+	adapter := &adapter{
+		settleResult: rail.Result{Outcome: rail.OutcomeUnknown, ExternalID: "dispatch-7", ReceiptReference: "replay-ref-7", Basis: "dispatch_timeout", Detail: "original connection closed"},
+		queryResults: []rail.Result{{Outcome: rail.OutcomeUnknown, Basis: "replay_inconclusive", Detail: "exact replay returned HTTP 503"}},
+	}
+	fixture := newFixture(t, adapter)
+	first, err := fixture.service.Settle(context.Background(), fixture.input)
+	require.NoError(t, err)
+	require.Equal(t, settlement.OutcomeUnknown, first.Outcome)
+
+	queried, err := fixture.service.ResolveUnknown(context.Background(), first.ID)
+	require.NoError(t, err)
+	require.Equal(t, settlement.OutcomeUnknown, queried.Outcome)
+	require.Equal(t, "replay_inconclusive", queried.Basis)
+	require.Equal(t, "exact replay returned HTTP 503", queried.Detail)
+	require.Equal(t, "dispatch-7", queried.ExternalID)
+	require.Equal(t, "replay-ref-7", queried.ReceiptReference)
+
+	stored, err := fixture.settlements.Get(context.Background(), first.ID)
+	require.NoError(t, err)
+	require.Equal(t, queried, stored)
+}
+
 // [REQ:TRS-P0-011] Once a rail call has returned, client cancellation cannot
 // prevent Treasury from durably recording the observed outcome.
 func TestOutcomeCommitSurvivesClientCancellation(t *testing.T) {

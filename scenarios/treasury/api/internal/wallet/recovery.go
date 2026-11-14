@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -141,6 +142,90 @@ func (s *Service) ExportPortableRecoveryBundle(ctx context.Context, id, network,
 		return nil, err
 	}
 	return bundle, nil
+}
+
+type PortableRecoveryArtifact struct {
+	RelativePath string
+	SHA256       string
+	SizeBytes    uint64
+}
+
+// PersistPortableRecoveryBundle writes the encrypted, key-only bundle under
+// Treasury's data root so an existing Data Backup Manager target can snapshot
+// it. The operator secret is used only to create the ciphertext; it is never
+// stored with the artifact or in Credential Authority.
+func (s *Service) PersistPortableRecoveryBundle(ctx context.Context, id, network, operator, operatorSecret string) (PortableRecoveryArtifact, error) {
+	blob, err := s.ExportPortableRecoveryBundle(ctx, id, network, operator, operatorSecret)
+	if err != nil {
+		return PortableRecoveryArtifact{}, err
+	}
+	relativePath := portableBackupName(id)
+	path, err := s.recoveryPath(ctx, relativePath)
+	if err != nil {
+		return PortableRecoveryArtifact{}, err
+	}
+	directory := filepath.Dir(path)
+	if err = os.MkdirAll(directory, 0o700); err != nil {
+		return PortableRecoveryArtifact{}, err
+	}
+	directoryInfo, err := os.Lstat(directory)
+	if err != nil || !directoryInfo.IsDir() || directoryInfo.Mode().Perm()&0o077 != 0 {
+		return PortableRecoveryArtifact{}, fmt.Errorf("%w: portable recovery directory must be private", ErrUnavailable)
+	}
+	if existing, readErr := readBackup(path); readErr == nil {
+		if !bytes.Equal(existing, blob) {
+			return PortableRecoveryArtifact{}, fmt.Errorf("%w: portable recovery artifact already exists with different ciphertext", ErrMismatch)
+		}
+		return portableRecoveryArtifact(relativePath, blob), nil
+	} else if !errors.Is(readErr, os.ErrNotExist) {
+		return PortableRecoveryArtifact{}, fmt.Errorf("%w: existing portable recovery artifact is not a safe regular file", ErrMismatch)
+	}
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return PortableRecoveryArtifact{}, fmt.Errorf("%w: portable recovery creation refused", ErrUnavailable)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = os.Remove(path)
+		}
+	}()
+	_, writeErr := file.Write(blob)
+	syncErr := file.Sync()
+	closeErr := file.Close()
+	if err = errors.Join(writeErr, syncErr, closeErr); err != nil {
+		return PortableRecoveryArtifact{}, err
+	}
+	readback, err := readBackup(path)
+	if err != nil || !bytes.Equal(readback, blob) {
+		return PortableRecoveryArtifact{}, fmt.Errorf("%w: portable recovery readback mismatch", ErrMismatch)
+	}
+	committed = true
+	return portableRecoveryArtifact(relativePath, blob), nil
+}
+
+func portableRecoveryArtifact(relativePath string, blob []byte) PortableRecoveryArtifact {
+	digest := sha256.Sum256(blob)
+	return PortableRecoveryArtifact{RelativePath: filepath.ToSlash(relativePath), SHA256: hex.EncodeToString(digest[:]), SizeBytes: uint64(len(blob))}
+}
+
+func portableBackupName(id string) string {
+	return filepath.Join("portable-recovery", id+".bundle")
+}
+
+// RestorePersistedPortableRecoveryBundle restores the encrypted artifact that
+// DBM placed in this Treasury instance's private data root. This lets a second
+// node recover without copying a bundle through an operator's local filesystem.
+func (s *Service) RestorePersistedPortableRecoveryBundle(ctx context.Context, id, network, operator, operatorSecret string) (Wallet, error) {
+	path, err := s.recoveryPath(ctx, portableBackupName(id))
+	if err != nil {
+		return Wallet{}, err
+	}
+	bundle, err := readBackup(path)
+	if err != nil {
+		return Wallet{}, fmt.Errorf("%w: portable recovery artifact is unavailable or unsafe", ErrUnavailable)
+	}
+	return s.RestorePortableRecoveryBundle(ctx, id, network, operator, bundle, operatorSecret)
 }
 
 // RestorePortableRecoveryBundle restores only the missing, previously minted

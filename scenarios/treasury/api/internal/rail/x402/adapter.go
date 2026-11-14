@@ -254,6 +254,13 @@ func (a *Adapter) request(ctx context.Context, endpoint, payment, idempotencyKey
 	if err != nil {
 		return nil, err
 	}
+	// net/http may transparently replay a GET whose reused connection fails
+	// before response headers arrive. For a payment-bearing x402 GET that can
+	// hide the exact ambiguous outcome this adapter must retain and reconcile.
+	// Keep the empty resource body non-replayable so only QueryOutcome issues an
+	// explicit exact-payload retry after the durable recovery input is recorded.
+	request.Body = io.NopCloser(strings.NewReader(""))
+	request.Close = true
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("X-Treasury-Idempotency-Key", idempotencyKey)
 	if payment != "" {

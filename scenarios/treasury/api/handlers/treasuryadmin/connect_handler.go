@@ -81,6 +81,12 @@ type Wallets interface {
 	Recover(context.Context, string, string, string) (wallet.Wallet, error)
 }
 
+type PortableWalletRecovery interface {
+	PersistPortableRecoveryBundle(context.Context, string, string, string, string) (wallet.PortableRecoveryArtifact, error)
+	RestorePortableRecoveryBundle(context.Context, string, string, string, []byte, string) (wallet.Wallet, error)
+	RestorePersistedPortableRecoveryBundle(context.Context, string, string, string, string) (wallet.Wallet, error)
+}
+
 type BaseUSDCReceiptService interface {
 	Verify(context.Context, string, wallet.Wallet, string) (baseusdc.Check, error)
 	Recheck(context.Context, string, wallet.Wallet, string, string) (baseusdc.Check, error)
@@ -88,18 +94,19 @@ type BaseUSDCReceiptService interface {
 }
 
 type connectHandler struct {
-	funding        *receiptfunding.Service
-	wallets        Wallets
-	baseUSDC       BaseUSDCReceiptService
-	authorizer     operatorauth.Authorizer
-	approvals      Approvals
-	instruments    Instruments
-	settlements    Settlements
-	authorizations Authorizations
-	books          Books
-	budgets        Budgets
-	mandates       Mandates
-	walletOps      *walletops.Service
+	funding          *receiptfunding.Service
+	wallets          Wallets
+	portableRecovery PortableWalletRecovery
+	baseUSDC         BaseUSDCReceiptService
+	authorizer       operatorauth.Authorizer
+	approvals        Approvals
+	instruments      Instruments
+	settlements      Settlements
+	authorizations   Authorizations
+	books            Books
+	budgets          Budgets
+	mandates         Mandates
+	walletOps        *walletops.Service
 }
 
 func NewConnectHandler(authorizer operatorauth.Authorizer, services ...any) authorizationconnect.TreasuryAdminHandler {
@@ -110,6 +117,11 @@ func NewConnectHandler(authorizer operatorauth.Authorizer, services ...any) auth
 			handler.funding = value
 		case Wallets:
 			handler.wallets = value
+			if recovery, ok := value.(PortableWalletRecovery); ok {
+				handler.portableRecovery = recovery
+			}
+		case PortableWalletRecovery:
+			handler.portableRecovery = value
 		case BaseUSDCReceiptService:
 			handler.baseUSDC = value
 		case Approvals:

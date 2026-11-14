@@ -63,6 +63,8 @@ before the test may permit it.
 | `denied_counterparties` | `denied_catalog_scopes` | Renamed to the local redemption vocabulary. |
 | `expires_at` | `expires_at` | Same role. |
 | `signature` | omitted | Deferred local-only verification field; decision recorded above. |
+| `agent_subject` | omitted | Token grants are household authority: `holder_id` names the recipient and `authorizer` records who granted it. Grants have no agent-bound mandate semantics or agent identity lifecycle. |
+| `agent_run_id` | omitted | Token grants are household authority: `holder_id` names the recipient and `authorizer` records who granted it. Grants have no agent-bound mandate semantics or agent run lifecycle. |
 | `issued_at` | `issued_at` | Same role. |
 | `status` | `status` | Same state shape. |
 | `idempotency_key` | `idempotency_key` | Same role. |

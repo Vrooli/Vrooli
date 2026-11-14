@@ -146,11 +146,15 @@ func (r *sqliteRepository) Request(ctx context.Context, redemption Redemption, e
 		return Redemption{}, fmt.Errorf("%w: requested %d, available %d", ErrInsufficientBalance, redemption.Amount, available)
 	}
 
-	redemption.State = StatePendingApproval
-	reservationState := ReservationStateActive
-	if redemption.ApprovalPosture == ApprovalPostureImmediate {
-		redemption.State = StateSettled
-		reservationState = ReservationStateSettled
+	redemption.State, err = InitialRedemptionState(redemption.ApprovalPosture)
+	if err != nil {
+		return Redemption{}, err
+	}
+	reservationState, err := InitialReservationState(redemption.ApprovalPosture)
+	if err != nil {
+		return Redemption{}, err
+	}
+	if redemption.State == StateSettled {
 		settledAt := redemption.RequestedAt
 		redemption.SettledAt = &settledAt
 	}
@@ -244,15 +248,29 @@ func (r *sqliteRepository) decide(ctx context.Context, input DecisionInput, at t
 		if err := r.appendDebit(ctx, tx, debitFor(value, input.DeciderSubject, at)); err != nil {
 			return Redemption{}, fmt.Errorf("append approved redemption debit: %w", err)
 		}
-		value.State = StateSettled
+		if err := value.TransitionState(StateSettled); err != nil {
+			return Redemption{}, err
+		}
 		value.SettledAt = timePointer(at)
-		_, err = tx.ExecContext(ctx, `UPDATE reservations SET state = ? WHERE redemption_id = ? AND state = ?`, ReservationStateSettled, value.ID, ReservationStateActive)
+		reservation := Reservation{State: ReservationStateActive}
+		if err := reservation.TransitionState(ReservationStateSettled); err != nil {
+			return Redemption{}, err
+		}
+		result, updateErr := tx.ExecContext(ctx, `UPDATE reservations SET state = ? WHERE redemption_id = ? AND state = ?`, reservation.State, value.ID, ReservationStateActive)
+		err = requireOneRedemptionMutation(result, updateErr, "settle reservation", value.ID)
 	} else {
 		if r.releaseInventory == nil {
 			return Redemption{}, errors.New("redemption repository requires an inventory release port")
 		}
-		value.State = StateDenied
-		_, err = tx.ExecContext(ctx, `UPDATE reservations SET state = ?, released_at = ? WHERE redemption_id = ? AND state = ?`, ReservationStateReleased, formatTime(at), value.ID, ReservationStateActive)
+		if err := value.TransitionState(StateDenied); err != nil {
+			return Redemption{}, err
+		}
+		reservation := Reservation{State: ReservationStateActive}
+		if err := reservation.TransitionState(ReservationStateReleased); err != nil {
+			return Redemption{}, err
+		}
+		result, updateErr := tx.ExecContext(ctx, `UPDATE reservations SET state = ?, released_at = ? WHERE redemption_id = ? AND state = ?`, reservation.State, formatTime(at), value.ID, ReservationStateActive)
+		err = requireOneRedemptionMutation(result, updateErr, "release reservation", value.ID)
 		if err == nil {
 			err = r.releaseInventory(ctx, tx, value.CatalogEntryID, at)
 		}
@@ -260,12 +278,15 @@ func (r *sqliteRepository) decide(ctx context.Context, input DecisionInput, at t
 	if err != nil {
 		return Redemption{}, fmt.Errorf("update reservation: %w", err)
 	}
-	_, err = tx.ExecContext(ctx, `
+	result, err := tx.ExecContext(ctx, `
 		UPDATE redemptions SET state = ?, decider_subject = ?, decision_reason = ?, decided_at = ?, settled_at = ?
-		WHERE id = ?`, value.State, value.DeciderSubject, value.DecisionReason,
-		formatTime(*value.DecidedAt), nullableTime(value.SettledAt), value.ID)
+		WHERE id = ? AND state = ?`, value.State, value.DeciderSubject, value.DecisionReason,
+		formatTime(*value.DecidedAt), nullableTime(value.SettledAt), value.ID, StatePendingApproval)
 	if err != nil {
 		return Redemption{}, fmt.Errorf("update redemption decision: %w", err)
+	}
+	if err := requireOneRedemptionMutation(result, nil, "decide redemption", value.ID); err != nil {
+		return Redemption{}, err
 	}
 	eventKind := "denied"
 	if approve {
@@ -288,6 +309,20 @@ func (r *sqliteRepository) fail(stage string) error {
 		return nil
 	}
 	return r.injectFailure(stage)
+}
+
+func requireOneRedemptionMutation(result sql.Result, err error, operation, id string) error {
+	if err != nil {
+		return fmt.Errorf("%s: %w", operation, err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("%s rows affected: %w", operation, err)
+	}
+	if rows != 1 {
+		return fmt.Errorf("%w: %s for %s affected %d rows", ErrRedemptionConflict, operation, id, rows)
+	}
+	return nil
 }
 
 func debitFor(value Redemption, actor string, at time.Time) Debit {
@@ -373,6 +408,9 @@ func scanRedemption(row rowScanner) (Redemption, error) {
 		&requestedAt, &decidedAt, &settledAt)
 	if err != nil {
 		return Redemption{}, err
+	}
+	if !value.State.Valid() {
+		return Redemption{}, fmt.Errorf("read redemption: unknown state %q", value.State)
 	}
 	value.RequestedAt, err = time.Parse(time.RFC3339Nano, requestedAt)
 	if err != nil {

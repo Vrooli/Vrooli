@@ -145,7 +145,7 @@ func TestCF4LocalBaseForkReconcilesExactPayment(t *testing.T) {
 			http.Error(writer, "simulated dropped settlement receipt", http.StatusBadGateway)
 			return
 		}
-		writePaymentResponse(writer, txHash)
+		writePaymentResponse(writer, txHash, clientAddress.Hex())
 	}))
 	defer server.Close()
 	endpoint = server.URL + "/priced/cf4-inference"
@@ -356,9 +356,9 @@ func cf4TransferWithAuthorization(authorization map[string]any, nonce string, si
 	return "0x" + hex.EncodeToString(data), nil
 }
 
-func writePaymentResponse(writer http.ResponseWriter, txHash string) {
+func writePaymentResponse(writer http.ResponseWriter, txHash, payer string) {
 	response, _ := json.Marshal(map[string]any{
-		"success": true, "payer": "local-test-payer",
+		"success": true, "payer": payer,
 		"transaction": txHash, "network": "eip155:8453",
 	})
 	writer.Header().Set(paymentResponseHeader, base64.StdEncoding.EncodeToString(response))

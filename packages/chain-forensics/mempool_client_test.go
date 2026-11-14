@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -82,6 +83,48 @@ func TestMempoolClientSurfacesRetryAfterWithoutRetrying(t *testing.T) {
 	}
 	if calls.Load() != 1 {
 		t.Fatalf("rate-limit response should not be retried automatically: requests=%d", calls.Load())
+	}
+}
+
+func TestMempoolClientCacheExpiresAndStaysBounded(t *testing.T) {
+	var now = time.Date(2026, 11, 12, 12, 0, 0, 0, time.UTC)
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		txid := strings.TrimPrefix(r.URL.Path, "/api/tx/")
+		_, _ = fmt.Fprintf(w, `{"txid":%q,"status":{"confirmed":true,"block_height":42,"block_time":1700000000},"vin":[],"vout":[]}`, txid)
+	}))
+	defer server.Close()
+	client, err := NewMempoolClient(server.URL+"/api", server.Client(), func() time.Time { return now })
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.minInterval = 0
+	firstID := fmt.Sprintf("%064x", 1)
+	if _, err := client.FetchTransaction(context.Background(), firstID); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(mempoolCacheTTL + time.Second)
+	if _, err := client.FetchTransaction(context.Background(), firstID); err != nil {
+		t.Fatal(err)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("expired entry should be fetched again; requests=%d", calls.Load())
+	}
+
+	for i := 2; i < 2+mempoolCacheLimit; i++ {
+		if _, err := client.FetchTransaction(context.Background(), fmt.Sprintf("%064x", i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(client.cache) != mempoolCacheLimit {
+		t.Fatalf("cache retained %d entries, want bound %d", len(client.cache), mempoolCacheLimit)
+	}
+	if _, err := client.FetchTransaction(context.Background(), firstID); err != nil {
+		t.Fatal(err)
+	}
+	if calls.Load() != int32(3+mempoolCacheLimit) {
+		t.Fatalf("oldest entry should be evicted and fetched again; requests=%d", calls.Load())
 	}
 }
 

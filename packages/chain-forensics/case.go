@@ -5,7 +5,9 @@ package chainforensics
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +15,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 )
 
 //go:embed examples/cases/us-v-1hq3/**
@@ -45,20 +48,45 @@ func DecodeCase(r io.Reader) (Case, error) {
 	return c, nil
 }
 
-// MarshalPrivatePacket returns a versioned JSON packet only for cases marked
-// private. The returned bytes are not transmitted or written anywhere; the
-// owning application must make any local export an explicit user action.
-func MarshalPrivatePacket(c Case) ([]byte, error) {
+// PrivatePacket is the reusable package representation of a case export.
+// The owner may persist Bytes as an immutable packet receipt. It must not
+// transmit the bytes implicitly.
+type PrivatePacket struct {
+	SchemaVersion string `json:"schema_version"`
+	Case          Case   `json:"case"`
+	SHA256        string `json:"sha256"`
+	Bytes         []byte `json:"-"`
+}
+
+// BuildPrivatePacket returns a versioned JSON packet only for cases marked
+// private. The owning application decides whether to retain or explicitly
+// export the bytes.
+func BuildPrivatePacket(c Case) (PrivatePacket, error) {
 	if !c.Private {
-		return nil, errors.New("refusing packet export for a case not marked private")
+		return PrivatePacket{}, errors.New("refusing packet export for a case not marked private")
 	}
 	if err := Validate(c); err != nil {
-		return nil, fmt.Errorf("refusing packet export: %w", err)
+		return PrivatePacket{}, fmt.Errorf("refusing packet export: %w", err)
 	}
-	return json.MarshalIndent(struct {
+	const version = "chain-forensics.packet/v1"
+	b, err := json.MarshalIndent(struct {
 		SchemaVersion string `json:"schema_version"`
 		Case          Case   `json:"case"`
-	}{SchemaVersion: "chain-forensics.packet/v1", Case: c}, "", "  ")
+	}{SchemaVersion: version, Case: c}, "", "  ")
+	if err != nil {
+		return PrivatePacket{}, err
+	}
+	digest := sha256.Sum256(b)
+	return PrivatePacket{SchemaVersion: version, Case: c, SHA256: hex.EncodeToString(digest[:]), Bytes: b}, nil
+}
+
+// MarshalPrivatePacket preserves the byte-oriented API for existing callers.
+func MarshalPrivatePacket(c Case) ([]byte, error) {
+	packet, err := BuildPrivatePacket(c)
+	if err != nil {
+		return nil, err
+	}
+	return packet.Bytes, nil
 }
 
 type Chain string
@@ -67,6 +95,7 @@ const (
 	ChainBitcoin  Chain = "bitcoin"
 	ChainEthereum Chain = "ethereum"
 	ChainBase     Chain = "base"
+	ChainArbitrum Chain = "arbitrum"
 	ChainSolana   Chain = "solana"
 )
 
@@ -99,6 +128,12 @@ type Source struct {
 	SHA256      string `json:"sha256"`
 	Citation    string `json:"citation,omitempty"`
 	Limitations string `json:"limitations,omitempty"`
+	ResultBody  []byte `json:"result_body,omitempty"`
+	// RawResponseBody preserves the exact successful HTTP response envelope.
+	// ResultBody remains the provider's JSON-RPC result object, which keeps
+	// existing normalization and content identity stable.
+	RawResponseBody   []byte `json:"raw_response_body,omitempty"`
+	RawResponseSHA256 string `json:"raw_response_sha256,omitempty"`
 }
 
 type Occurrence struct {
@@ -110,7 +145,7 @@ type Occurrence struct {
 	EventIndex    uint32       `json:"event_index"`
 	Direction     string       `json:"direction,omitempty"`
 	PreviousTx    string       `json:"previous_transaction_id,omitempty"`
-	PreviousIndex uint32       `json:"previous_output_index,omitempty"`
+	PreviousIndex uint32       `json:"previous_output_index"`
 	From          string       `json:"from,omitempty"`
 	To            string       `json:"to,omitempty"`
 	Asset         string       `json:"asset"`
@@ -141,15 +176,18 @@ type Claim struct {
 }
 
 type Case struct {
-	ID          string       `json:"id"`
-	Title       string       `json:"title"`
-	Summary     string       `json:"summary"`
-	Private     bool         `json:"private"`
-	Sources     []Source     `json:"sources"`
-	Claims      []Claim      `json:"claims,omitempty"`
-	Occurrences []Occurrence `json:"occurrences"`
-	Edges       []Edge       `json:"edges"`
-	Gaps        []string     `json:"gaps"`
+	ID              string              `json:"id"`
+	Title           string              `json:"title"`
+	Summary         string              `json:"summary"`
+	Private         bool                `json:"private"`
+	Sources         []Source            `json:"sources"`
+	Claims          []Claim             `json:"claims,omitempty"`
+	Occurrences     []Occurrence        `json:"occurrences"`
+	Edges           []Edge              `json:"edges"`
+	Gaps            []string            `json:"gaps"`
+	Counterexamples []string            `json:"counterexamples,omitempty"`
+	Disagreements   []string            `json:"source_disagreements,omitempty"`
+	WalletSnapshots []EVMWalletSnapshot `json:"wallet_snapshots,omitempty"`
 }
 
 var (
@@ -176,6 +214,26 @@ func Validate(c Case) error {
 		if _, exists := sources[s.ID]; exists {
 			return fmt.Errorf("duplicate source id %q", s.ID)
 		}
+		if len(s.ResultBody) > 4<<20 {
+			return fmt.Errorf("source %q retained result body exceeds 4 MiB", s.ID)
+		}
+		if len(s.RawResponseBody) > 4<<20 {
+			return fmt.Errorf("source %q retained raw HTTP response exceeds 4 MiB", s.ID)
+		}
+		if len(s.ResultBody) > 0 {
+			h := sha256.Sum256(s.ResultBody)
+			if hex.EncodeToString(h[:]) != s.SHA256 {
+				return fmt.Errorf("source %q retained result body does not match its SHA-256", s.ID)
+			}
+		}
+		if len(s.RawResponseBody) > 0 {
+			h := sha256.Sum256(s.RawResponseBody)
+			if hex.EncodeToString(h[:]) != s.RawResponseSHA256 {
+				return fmt.Errorf("source %q retained raw HTTP response does not match its SHA-256", s.ID)
+			}
+		} else if s.RawResponseSHA256 != "" {
+			return fmt.Errorf("source %q has a raw-response digest without retained bytes", s.ID)
+		}
 		sources[s.ID] = s
 	}
 	occurrences := make(map[string]Occurrence, len(c.Occurrences))
@@ -192,11 +250,45 @@ func Validate(c Case) error {
 		}
 		claims[claim.ID] = claim
 	}
+	snapshotIDs := make(map[string]struct{}, len(c.WalletSnapshots))
+	for _, snapshot := range c.WalletSnapshots {
+		if _, err := time.Parse(time.RFC3339, snapshot.Timestamp); snapshot.ID == "" || (snapshot.Chain != ChainEthereum && snapshot.Chain != ChainBase) || !evmAddressPattern.MatchString(snapshot.Address) || snapshot.Block == 0 || !evmHashPattern.MatchString(snapshot.BlockHash) || err != nil || snapshot.NativeAsset != "ETH" || snapshot.NativeScale != 18 || !decimalPattern.MatchString(snapshot.NativeAtomic) {
+			return fmt.Errorf("wallet snapshot %q has incomplete identity or invalid native balance", snapshot.ID)
+		}
+		if _, exists := snapshotIDs[snapshot.ID]; exists {
+			return fmt.Errorf("duplicate wallet snapshot id %q", snapshot.ID)
+		}
+		snapshotIDs[snapshot.ID] = struct{}{}
+		if len(snapshot.SourceIDs) < 2 {
+			return fmt.Errorf("wallet snapshot %q must reference its block and native-balance sources", snapshot.ID)
+		}
+		for _, sourceID := range snapshot.SourceIDs {
+			if _, ok := sources[sourceID]; !ok {
+				return fmt.Errorf("wallet snapshot %q references unknown source %q", snapshot.ID, sourceID)
+			}
+		}
+		contracts := make(map[string]struct{}, len(snapshot.Tokens))
+		for _, token := range snapshot.Tokens {
+			if !evmAddressPattern.MatchString(token.Contract) || !decimalPattern.MatchString(token.Atomic) || (token.ScaleKnown && token.Scale > 255) || (!token.ScaleKnown && token.Scale != 0) {
+				return fmt.Errorf("wallet snapshot %q has invalid token balance for %q", snapshot.ID, token.Contract)
+			}
+			contract := strings.ToLower(token.Contract)
+			if _, exists := contracts[contract]; exists {
+				return fmt.Errorf("wallet snapshot %q has duplicate token contract %q", snapshot.ID, token.Contract)
+			}
+			contracts[contract] = struct{}{}
+		}
+	}
+	for _, note := range append(append([]string{}, c.Counterexamples...), c.Disagreements...) {
+		if strings.TrimSpace(note) == "" {
+			return errors.New("counterexamples and source disagreements must not be blank")
+		}
+	}
 	for _, o := range c.Occurrences {
 		if o.ID == "" || o.Transaction == "" || o.Asset == "" || !decimalPattern.MatchString(o.Atomic) {
 			return fmt.Errorf("occurrence %q has incomplete identity or invalid atomic quantity", o.ID)
 		}
-		if o.Chain != ChainBitcoin && o.Chain != ChainEthereum && o.Chain != ChainBase && o.Chain != ChainSolana {
+		if o.Chain != ChainBitcoin && o.Chain != ChainEthereum && o.Chain != ChainBase && o.Chain != ChainArbitrum && o.Chain != ChainSolana {
 			return fmt.Errorf("occurrence %q has unsupported chain %q", o.ID, o.Chain)
 		}
 		if o.Kind != EvidenceObservation && o.Kind != EvidenceLegalClaim && o.Kind != EvidenceLabel && o.Kind != EvidenceDerivation {

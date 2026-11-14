@@ -128,7 +128,7 @@ export function FundPage() {
     try {
       const created = await createFundingIntent(operatorToken, {
         budgetId: form.budgetId.trim(),
-        atomicAmount: form.amount.trim(),
+        atomicAmount: toUSDCAtoms(form.amount, t(strings.fund.amountError)),
         valueMinor: toMinorUnits(form.value, t(strings.fund.valueError)),
         ledgerBookId: form.bookId.trim(),
         ledgerAccountId: form.accountId.trim(),
@@ -174,7 +174,7 @@ export function FundPage() {
         budgetId: form.budgetId.trim(),
         mandateId: mandateId.trim(),
         destination: destination.trim(),
-        atomicAmount: withdrawalAmount.trim(),
+        atomicAmount: toUSDCAtoms(withdrawalAmount, t(strings.fund.amountError)),
         valueMinor: toMinorUnits(withdrawalValue, t(strings.fund.valueError)),
         maxFeeWei: feeWei.trim(),
         feeValuationMinor: toMinorUnits(feeValue, t(strings.fund.valueError)),
@@ -252,7 +252,7 @@ export function FundPage() {
           <CardHeader><CardTitle>{t(strings.fund.createTitle)}</CardTitle><p className="text-sm text-app-muted-foreground">{t(strings.fund.createHelp)}</p></CardHeader>
           <CardContent>
             <form className="grid gap-4" onSubmit={(event) => void createIntent(event)}>
-              <Field testId={selectors.funding.atomicAmount} label={t(strings.fund.atomicAmount)} value={form.amount} onChange={(value) => setForm({ ...form, amount: value })} inputMode="numeric" pattern="[0-9]+" required />
+              <Field testId={selectors.funding.atomicAmount} label={t(strings.fund.tokenAmount)} value={form.amount} onChange={(value) => setForm({ ...form, amount: value })} inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,6})?" required />
               <Field testId={selectors.funding.declaredValue} label={t(strings.fund.declaredValue)} value={form.value} onChange={(value) => setForm({ ...form, value })} inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" required />
               <Field testId={selectors.funding.ledgerBookId} label={t(strings.fund.ledgerBookId)} value={form.bookId} onChange={(value) => setForm({ ...form, bookId: value })} required />
               <Field testId={selectors.funding.ledgerAccountId} label={t(strings.fund.ledgerAccountId)} value={form.accountId} onChange={(value) => setForm({ ...form, accountId: value })} required />
@@ -268,7 +268,7 @@ export function FundPage() {
               <dl className="grid gap-2 sm:grid-cols-2">
                 <Detail label={t(strings.fund.intent)} value={activeIntent.id} />
                 <Detail testId={selectors.funding.activeIntentState} liveRegion label={t(strings.fund.state)} value={activeIntent.state} />
-                <Detail label={t(strings.fund.atomicAmount)} value={activeIntent.atomicAmount} />
+                <Detail label={t(strings.fund.tokenAmount)} value={formatAtomicUSDC(activeIntent.atomicAmount)} />
                 <Detail testId={selectors.funding.notificationState} liveRegion label={t(strings.fund.notification)} value={activeIntent.notificationState || t(strings.fund.notAvailable)} />
               </dl>
               {activeIntent.paymentUri && <div className="mt-4 grid gap-4 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
@@ -291,7 +291,7 @@ export function FundPage() {
                 <p className="text-xs text-app-muted-foreground">{t(strings.fund.confirmationHelp)}</p>
               </form>
             </div> : <p className="rounded-control border border-dashed border-app-border p-5 text-sm text-app-muted-foreground">{t(strings.fund.emptyIntent)}</p>}
-            {intents.length > 0 && <div><h3 className="mb-2 font-semibold">{t(strings.fund.recentIntents)}</h3><ul className="grid gap-2">{intents.map((item) => <li key={item.id}><button data-testid={selectors.funding.recentIntent} type="button" className="w-full rounded-control border border-app-border p-3 text-start hover:bg-app-muted" onClick={() => setActiveIntent(item)}><span className="block truncate font-mono text-xs">{item.id}</span><span className="mt-1 block text-sm">{t(strings.fund.atomicUnits, { state: item.state, amount: item.atomicAmount })}</span></button></li>)}</ul></div>}
+            {intents.length > 0 && <div><h3 className="mb-2 font-semibold">{t(strings.fund.recentIntents)}</h3><ul className="grid gap-2">{intents.map((item) => <li key={item.id}><button data-testid={selectors.funding.recentIntent} type="button" className="w-full rounded-control border border-app-border p-3 text-start hover:bg-app-muted" onClick={() => setActiveIntent(item)}><span className="block truncate font-mono text-xs">{item.id}</span><span className="mt-1 block text-sm">{t(strings.fund.atomicUnits, { state: item.state, amount: formatAtomicUSDC(item.atomicAmount) })}</span></button></li>)}</ul></div>}
           </CardContent>
         </Card>
       </div>
@@ -302,20 +302,21 @@ export function FundPage() {
           <form className="grid gap-4 sm:grid-cols-2" onSubmit={(event) => void requestQuote(event)}>
             <Field testId={selectors.funding.withdrawalDestination} label={t(strings.fund.destination)} value={destination} onChange={setDestination} required />
             <Field testId={selectors.funding.mandateId} label={t(strings.fund.mandateId)} value={mandateId} onChange={setMandateId} required />
-            <Field testId={selectors.funding.withdrawalAmount} label={t(strings.fund.atomicAmount)} value={withdrawalAmount} onChange={setWithdrawalAmount} inputMode="numeric" pattern="[0-9]+" required />
+            <Field testId={selectors.funding.withdrawalAmount} label={t(strings.fund.tokenAmount)} value={withdrawalAmount} onChange={setWithdrawalAmount} inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,6})?" required />
             <Field testId={selectors.funding.withdrawalValue} label={t(strings.fund.declaredValue)} value={withdrawalValue} onChange={setWithdrawalValue} inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" required />
             <Field testId={selectors.funding.withdrawalMaxFee} label={t(strings.fund.maxFee)} value={feeWei} onChange={setFeeWei} inputMode="numeric" pattern="[0-9]+" required />
             <Field testId={selectors.funding.withdrawalFeeValue} label={t(strings.fund.feeValue)} value={feeValue} onChange={setFeeValue} inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" required />
             <div className="sm:col-span-2"><Button data-testid={selectors.funding.withdrawalPreviewButton} type="submit" variant="secondary" disabled={busy || !operatorToken || !form.budgetId.trim() || !mandateId.trim()}>{t(strings.fund.preview)}</Button></div>
           </form>
           {quote && <div className="mt-5 rounded-control border border-app-border p-4">
-            <h3 className="font-semibold">{t(strings.fund.quote, { id: quote.id })}</h3>
+            <h3 className="font-semibold">{t(strings.fund.quote)}</h3>
             <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
               <Detail label={t(strings.fund.network)} value={quote.network} />
               <Detail label={t(strings.fund.executionMode)} value={quote.executionMode} />
-              <Detail label={t(strings.fund.atomicAmount)} value={quote.atomicAmount} />
+              <Detail label={t(strings.fund.amountValue)} value={formatAtomicUSDC(quote.atomicAmount)} />
               <Detail label={t(strings.fund.destination)} value={quote.destination} />
-              <Detail label={t(strings.fund.maxFeeValue)} value={quote.maxFeeWei} />
+              <Detail label={t(strings.fund.feeEstimate)} value={formatUSDMinor(quote.feeValuationMinor, quote.currency)} />
+              <Detail label={t(strings.fund.estimatedTime)} value={formatDuration(quote.estimatedSeconds)} />
               <Detail label={t(strings.fund.quoteExpires)} value={formatTimestamp(quote.expiresAt?.seconds)} />
             </dl>
             <Button data-testid={selectors.funding.withdrawalExecuteButton} type="button" className="mt-4" variant="danger" disabled={busy || !agentIdentityToken || quote.executionMode !== "local-fork" || withdrawal?.state === "pending_approval"} onClick={() => void runWithdrawal()}>
@@ -346,6 +347,16 @@ function toMinorUnits(value: string, errorMessage: string): bigint {
   return BigInt(match[1] ?? "0") * 100n + BigInt((match[2] ?? "").padEnd(2, "0") || "0");
 }
 
+function toUSDCAtoms(value: string, errorMessage: string): string {
+  const match = /^(\d+)(?:\.(\d{1,6}))?$/.exec(value.trim());
+  if (!match) throw new Error(errorMessage);
+  const whole = BigInt(match[1] ?? "0");
+  const fraction = BigInt((match[2] ?? "").padEnd(6, "0") || "0");
+  const atoms = whole * 1_000_000n + fraction;
+  if (atoms <= 0n) throw new Error(errorMessage);
+  return atoms.toString();
+}
+
 function errorText(reason: unknown, fallback: string): string {
   return reason instanceof Error ? reason.message : fallback;
 }
@@ -353,6 +364,31 @@ function errorText(reason: unknown, fallback: string): string {
 function formatTimestamp(seconds: bigint | undefined): string {
   if (seconds === undefined) return "—";
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(Number(seconds) * 1000);
+}
+
+function formatAtomicUSDC(value: string): string {
+  if (!/^\d+$/.test(value)) return value;
+  const atoms = BigInt(value);
+  const whole = atoms / 1_000_000n;
+  const fraction = (atoms % 1_000_000n).toString().padStart(6, "0");
+  return `${whole}.${fraction} USDC`;
+}
+
+function formatUSDMinor(value: bigint, currency: string): string {
+  const magnitude = value < 0n ? -value : value;
+  const whole = magnitude / 100n;
+  const fraction = (magnitude % 100n).toString().padStart(2, "0");
+  if (magnitude <= BigInt(Number.MAX_SAFE_INTEGER)) {
+    return new Intl.NumberFormat(undefined, { style: "currency", currency, minimumFractionDigits: 2 }).format(Number(value) / 100);
+  }
+  return `${value < 0n ? "-" : ""}${currency} ${whole}.${fraction}`;
+}
+
+function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "—";
+  if (seconds < 60) return `${Math.ceil(seconds)} sec`;
+  const minutes = Math.ceil(seconds / 60);
+  return `${minutes} min`;
 }
 
 function isFundingIntentPending(state: string): boolean {

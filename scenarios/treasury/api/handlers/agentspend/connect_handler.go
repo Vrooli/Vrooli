@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"treasury/internal/approval"
 	"treasury/internal/authorization"
 	"treasury/internal/budget"
 	"treasury/internal/identity"
@@ -137,6 +138,7 @@ func (h *connectHandler) ProposeCharge(ctx context.Context, request *connect.Req
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("authorization service is unavailable"))
 	}
 	msg := request.Msg
+	ctx = approval.WithProducerToken(ctx, identityTokenFromHeaders(request.Header()))
 	result, err := h.service.Propose(ctx, authorization.ProposeInput{
 		ID: msg.GetId(), IdempotencyKey: msg.GetIdempotencyKey(), MandateID: msg.GetMandateId(),
 		IdentityToken: identityTokenFromHeaders(request.Header()), OperationToken: strings.TrimSpace(request.Header().Get(identity.HeaderAgentOperationToken)),
@@ -247,11 +249,21 @@ func (h *connectHandler) ReportOutcome(ctx context.Context, request *connect.Req
 	if err = h.walletOps.AuthorizeAgentSettlement(ctx, claims, intent, request.Header().Get(walletops.HeaderAgentSessionProof)); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
-	charge, err := h.settlements.Settle(ctx, settlement.SettleInput{
+	settleInput := settlement.SettleInput{
 		ID: msg.GetSettlementId(), AuthorizationID: msg.GetAuthorizationId(), InstrumentID: msg.GetInstrumentId(),
 		IdempotencyKey: msg.GetIdempotencyKey(), IdentityToken: identityTokenFromHeaders(request.Header()),
 		OperationToken: strings.TrimSpace(request.Header().Get(identity.HeaderAgentOperationToken)),
-	})
+	}
+	// An exact retry from the same authorized run can reconcile a durable
+	// unknown outcome. A first submission still only dispatches once; the
+	// follow-up ReportOutcome invokes the registered rail's exact recovery
+	// procedure after the mandate/session/grant checks above have succeeded.
+	charge, existingErr := h.settlements.Get(ctx, settleInput.ID)
+	if existingErr == nil && charge.Outcome == settlement.OutcomeUnknown && charge.AuthorizationID == auth.ID && charge.InstrumentID == settleInput.InstrumentID && charge.IdempotencyKey == settleInput.IdempotencyKey {
+		charge, err = h.settlements.ResolveUnknown(ctx, charge.ID)
+	} else {
+		charge, err = h.settlements.Settle(ctx, settleInput)
+	}
 	if err != nil {
 		return nil, mapSettlementError(err)
 	}

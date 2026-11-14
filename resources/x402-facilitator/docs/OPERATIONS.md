@@ -27,13 +27,23 @@ status JSON, or repository files.
 
 The pinned upstream `1.3.0` configuration format puts the signer reference in
 the chain's `signers` list (for example, `$FACILITATOR_PRIVATE_KEY`) and
-resolves that reference from the process environment. The resource currently
-has no Credential Authority injection path for that process. Therefore the
-facilitator must stay on the empty-chain bootstrap configuration; do not start
-it with a signer injected through `runtime.env`, command arguments, or a
-temporary repository config. The CF4 local-fork cryptographic harness is a
-separate test implementation and is not evidence that this upstream process
-settled a transaction.
+resolves that reference from the process environment. The resource now declares
+`vrooli/x402-facilitator:facilitator-private-key`; the control plane resolves it
+from Credential Authority and injects it only into the managed child process.
+It is not placed in `runtime.env`, arguments, supervisor state/status metadata,
+or source configuration. The value is still readable through
+`/proc/<pid>/environ` to processes running as the same user, as with any
+environment-injected third-party service secret. Upstream logs have not been
+verified with a signer configured. Do not use this path for a funded or
+value-bearing signer.
+
+The checked-in config remains empty (`chains: {}`, `schemes: []`), so this
+declaration alone does not enable payment networks. The shared facilitator is
+already running in that empty-chain state; preserve it and do not restart or
+edit its live configuration. A real signer exercise needs a separate
+lifecycle-owned facilitator resource, a loopback Base fork, and a generated
+test-only key. The CF4 in-process cryptographic harness is not evidence that
+this upstream process settled a transaction.
 
 Platform support is Linux only. macOS and Windows remain explicitly unsupported
 until upstream publishes signed native facilitator artifacts; a running Linux

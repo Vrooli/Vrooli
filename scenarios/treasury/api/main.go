@@ -174,7 +174,11 @@ func main() {
 		operatorAuthorizer = operatorauth.Unavailable{Cause: err}
 	}
 	var approvalRelay approval.Relay
-	approvalRelay, err = approval.NewNotificationRelay(scenarioURL(startupCtx, os.Getenv("NOTIFICATION_HUB_API_URL"), "notification-hub"), &http.Client{Timeout: 5 * time.Second})
+	if os.Getenv("TREASURY_CF5_NOTIFICATION_TEST_MODE") == "1" {
+		approvalRelay, err = approval.NewLeasedTestNotificationRelay(scenarioURL(startupCtx, os.Getenv("NOTIFICATION_HUB_API_URL"), "notification-hub"), &http.Client{Timeout: 5 * time.Second})
+	} else {
+		approvalRelay, err = approval.NewNotificationRelay(scenarioURL(startupCtx, os.Getenv("NOTIFICATION_HUB_API_URL"), "notification-hub"), &http.Client{Timeout: 5 * time.Second})
+	}
 	if err != nil {
 		log.Printf("notification relay unavailable; approvals remain local and relay attempts will record failure: %v", err)
 		approvalRelay = approval.UnavailableRelay{Cause: err}
@@ -304,6 +308,10 @@ func main() {
 	var receiptAcceptor receiptfunding.Acceptor = receiptfunding.UnavailableAcceptor{}
 	var creditLotGranter receiptfunding.CreditLotGranter
 	serviceTokens, tokenErr := ledger.NewServiceTokenSource(credentialClient, scenarioURL(startupCtx, os.Getenv("SCENARIO_AUTHENTICATOR_API_URL"), "scenario-authenticator"), nil)
+	noticeTokens, noticeTokenErr := ledger.NewServiceTokenSourceFor(credentialClient, scenarioURL(startupCtx, os.Getenv("SCENARIO_AUTHENTICATOR_API_URL"), "scenario-authenticator"), nil, "treasury", "notification-hub")
+	if noticeTokenErr != nil {
+		log.Printf("funding notification service identity unavailable: %v", noticeTokenErr)
+	}
 	if tokenErr == nil {
 		if client, err := receiptfunding.NewMoneyLedgerClient(scenarioURL(startupCtx, os.Getenv("MONEY_LEDGER_API_URL"), "money-ledger"), serviceTokens, nil); err == nil {
 			receiptAcceptor = client
@@ -350,7 +358,7 @@ func main() {
 		if os.Getenv("TREASURY_CF5_NOTIFICATION_TEST_MODE") == "1" {
 			notifier, notifyErr = walletops.NewLeasedTestNotificationHub(notificationHubURL, os.Getenv("TREASURY_CF5_NOTIFICATION_TEST_AGENT_IDENTITY_TOKEN"))
 		} else {
-			notifier, notifyErr = walletops.NewNotificationHub(notificationHubURL, &http.Client{Timeout: 5 * time.Second})
+			notifier, notifyErr = walletops.NewAuthenticatedNotificationHub(notificationHubURL, &http.Client{Timeout: 5 * time.Second}, noticeTokens)
 		}
 		if notifyErr == nil {
 			walletOperations.Notifications = notifier

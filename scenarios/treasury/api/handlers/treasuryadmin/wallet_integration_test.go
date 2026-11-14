@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -114,6 +116,20 @@ func TestResearchWalletActualOwnerHTTPRoundTripAndReopen(t *testing.T) {
 	require.Equal(t, "same_host_encrypted_verified", backup.Msg.Wallet.RecoveryStatus)
 	require.False(t, backup.Msg.Wallet.IndependentRecoveryVerified)
 	require.Len(t, backup.Msg.Wallet.RecoverySha256, 64)
+	operatorSecret := strings.Repeat("operator-held-test-secret-", 2)
+	portable := connect.NewRequest(&authv1.ExportPortableResearchWalletRecoveryRequest{Id: w.Id, Network: w.Network, OperatorSecret: operatorSecret})
+	operator(portable.Header())
+	portableExport, err := client.ExportPortableResearchWalletRecovery(ctx, portable)
+	require.NoError(t, err)
+	require.NotEmpty(t, portableExport.Msg.RelativePath)
+	require.Len(t, portableExport.Msg.Sha256, 64)
+	require.NotZero(t, portableExport.Msg.SizeBytes)
+	bundle, err := os.ReadFile(filepath.Join(dir, portableExport.Msg.RelativePath))
+	require.NoError(t, err)
+	require.NotEmpty(t, bundle)
+	bundleInfo, err := os.Stat(filepath.Join(dir, portableExport.Msg.RelativePath))
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0o600), bundleInfo.Mode().Perm())
 	for _, table := range []string{"budgets", "mandates", "instruments"} {
 		var count int
 		require.NoError(t, db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+table).Scan(&count))
@@ -132,8 +148,8 @@ func TestResearchWalletActualOwnerHTTPRoundTripAndReopen(t *testing.T) {
 	again, err := fresh.QualifyResearchWalletRecovery(ctx, qualify)
 	require.NoError(t, err)
 	require.Equal(t, backup.Msg.Wallet.RecoverySha256, again.Msg.Wallet.RecoverySha256)
-	// Delete only this isolated TEST backend's scalar, then exercise the real
-	// operator RPC. Neither the host credential store nor a host bearer is used.
+	// Delete only this isolated TEST backend's scalar, then exercise both real
+	// operator recovery RPCs. Neither the host credential store nor a host bearer is used.
 	fixtureAuthority, err := ca.NewAuthority(credentials)
 	require.NoError(t, err)
 	identity, err := ca.ParseIdentity(w.CustodyReference)
@@ -141,6 +157,15 @@ func TestResearchWalletActualOwnerHTTPRoundTripAndReopen(t *testing.T) {
 	require.NoError(t, fixtureAuthority.Delete(identity, "secp256k1-scalar"))
 	_, err = fresh.GetResearchWallet(ctx, get)
 	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	portableRestore := connect.NewRequest(&authv1.RestorePortableResearchWalletRecoveryRequest{Id: w.Id, Network: w.Network, OperatorSecret: operatorSecret})
+	operator(portableRestore.Header())
+	portableRestored, err := fresh.RestorePortableResearchWalletRecovery(ctx, portableRestore)
+	require.NoError(t, err)
+	require.Equal(t, w.Address, portableRestored.Msg.Wallet.Address)
+	proofAfterRestore, err := fresh.ProveResearchWallet(ctx, proofRequest)
+	require.NoError(t, err)
+	require.True(t, proofAfterRestore.Msg.Proof.Verified)
+	require.NoError(t, fixtureAuthority.Delete(identity, "secp256k1-scalar"))
 	restored, err := fresh.RecoverResearchWallet(ctx, get)
 	require.NoError(t, err)
 	require.Equal(t, w.Address, restored.Msg.Wallet.Address)
@@ -148,9 +173,6 @@ func TestResearchWalletActualOwnerHTTPRoundTripAndReopen(t *testing.T) {
 	idempotent, err := fresh.RecoverResearchWallet(ctx, get)
 	require.NoError(t, err)
 	require.Equal(t, restored.Msg.Wallet.Address, idempotent.Msg.Wallet.Address)
-	proofAfterRestore, err := fresh.ProveResearchWallet(ctx, proofRequest)
-	require.NoError(t, err)
-	require.True(t, proofAfterRestore.Msg.Proof.Verified)
 	wrongNetwork := connect.NewRequest(&authv1.ResearchWalletRequest{Id: w.Id, Network: "eip155:8453"})
 	operator(wrongNetwork.Header())
 	_, err = fresh.GetResearchWallet(ctx, wrongNetwork)
