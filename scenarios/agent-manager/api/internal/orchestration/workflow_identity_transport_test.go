@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -19,7 +20,6 @@ import (
 	"agent-manager/internal/workflowruntime"
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/authn"
-	coreidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -80,7 +80,9 @@ func TestWorkflowIssuedIdentityReachesVerifiedOwnerBeforeDispatchAcknowledgement
 	if err = repos.Workflows.ActivateBatch(t.Context(), []*domain.WorkflowRevision{revision}); err != nil {
 		t.Fatal(err)
 	}
-	ctx := coreidentity.WithPrincipal(t.Context(), coreidentity.Principal{Kind: coreidentity.ActorHuman, Verified: true, Subject: "fixture-owner", Scopes: []string{"agent-manager:write", "git-control-tower:read"}, ExpiresAt: time.Now().Add(time.Hour)})
+	// A local workflow owner may not have a forwardable account credential.
+	// The reviewed child profile must still mint its declared read capability.
+	ctx := t.Context()
 	started := make(chan error, 1)
 	var ackOnce sync.Once
 	joined := false
@@ -121,6 +123,9 @@ func TestWorkflowIssuedIdentityReachesVerifiedOwnerBeforeDispatchAcknowledgement
 	claims, err := identity.VerifyToken(token, o.identitySecret)
 	if err != nil || claims.Meta["workflowExecutionId"] != execution || claims.Meta["workflowNodeId"] != node || claims.Meta["workflowAttemptId"] != attempt {
 		t.Fatal("canonical mint lost its actual workflow coordinates", err)
+	}
+	if !slices.Contains(claims.Scopes, "git-control-tower:read") {
+		t.Fatalf("unowned workflow child lost its profile-declared scope: %v", claims.Scopes)
 	}
 	verifyOwner := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" || r.URL.Path != "/api/v1/identity/verify" {
@@ -248,7 +253,7 @@ func TestWorkflowIssuedIdentityReachesVerifiedOwnerBeforeDispatchAcknowledgement
 	}
 	historical.ResolvedConfig.Admission.WorkflowIdentity = nil
 	profileForMint := profile
-	historicalToken := phases.GenerateIdentityToken(t.Context(), phases.GenerateIdentityTokenInput{Run: historical, Profile: profileForMint, Task: request.Task, Secret: o.identitySecret, Meta: workflowIdentityMeta(historical.CustomEnv), Deps: phases.Deps{Runs: repos.Runs}})
+	historicalToken := phases.GenerateIdentityToken(t.Context(), phases.GenerateIdentityTokenInput{Run: historical, Profile: profileForMint, Task: request.Task, Secret: o.identitySecret, AccountScopes: runIdentityOwnerScopes(historical), Meta: workflowIdentityMeta(historical.CustomEnv), Deps: phases.Deps{Runs: repos.Runs}})
 	if code := read(historicalToken); code != 200 {
 		t.Fatalf("historical exact retained RunID denied after ACK: HTTP%d", code)
 	}

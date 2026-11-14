@@ -106,6 +106,7 @@ func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now t
 	chargeObserved, chargeComplete := false, true
 	preEffectProven := false
 	runnerAcquired := false
+	var terminalFailure *domain.ErrorEventData
 	observeCharge := func(charge *domain.ChargeEventData) error {
 		if charge == nil {
 			return nil
@@ -161,6 +162,13 @@ func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now t
 				preEffectProven = true
 			}
 		}
+		if failure, ok := evt.Data.(*domain.ErrorEventData); ok {
+			// Keep only the last typed failure receipt. Its message is intentionally
+			// not copied: runner messages can contain stderr, transcript text, or
+			// credentials. workflowFailureSummary emits an allowlisted code and a
+			// bounded operator-safe message instead.
+			terminalFailure = failure
+		}
 		if usage, ok := evt.Data.(*domain.UsageEventData); ok {
 			if usage.InputTokens < 0 || usage.OutputTokens < 0 || usage.CacheReadTokens < 0 || usage.CacheCreationTokens < 0 || usage.Turns < 0 {
 				return state, fmt.Errorf("negative provider usage for run %s", run.ID)
@@ -181,6 +189,9 @@ func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now t
 				return state, err
 			}
 		}
+	}
+	if state.Failed && terminalFailure != nil && (state.FailureCode == "" || state.FailureCode == "child_failed") {
+		state.FailureCode, state.FailureMessage, state.FailureRetryable = workflowFailureSummary(terminalFailure)
 	}
 	state.MeterCadence = workflowruntime.MeterCadenceFromObservations(observations)
 	state.MeterCadence.TerminalAuthority = account.LatestInvocationAuthoritative
@@ -209,6 +220,37 @@ func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now t
 		state.TokensKnown = false
 	}
 	return state, nil
+}
+
+func workflowFailureSummary(failure *domain.ErrorEventData) (code, message string, retryable bool) {
+	if failure == nil {
+		return "agent_execution_failed", "Agent run failed.", true
+	}
+	// These codes have stable, useful operator meanings. Every other runner or
+	// internal code is collapsed to one safe category; do not forward arbitrary
+	// provider strings through workflow status into consumer UIs.
+	switch strings.ToUpper(strings.TrimSpace(failure.Code)) {
+	case string(domain.ErrCodePolicySandbox), string(domain.ErrCodePolicyApproval), string(domain.ErrCodePolicyRunner), string(domain.ErrCodePolicyScope), string(domain.ErrCodePolicyLimit), string(domain.ErrCodePolicyChildDepth):
+		return "policy_denied", "Agent Manager policy denied this run. Review policy or approval requirements before starting a new run.", false
+	case string(domain.ErrCodeCapacityRuns):
+		return "agent_capacity_reached", "Agent Manager is at run capacity. Wait for capacity before retrying.", failure.Retryable
+	case string(domain.ErrCodeCapacityStorage), string(domain.ErrCodeDatabaseConnection), string(domain.ErrCodeDatabaseQuery):
+		return "agent_storage_unavailable", "Agent Manager could not persist run state. Check storage health before retrying.", failure.Retryable
+	case string(domain.ErrCodeRunnerUnavailable):
+		return "runner_unavailable", "Agent runner is unavailable.", failure.Retryable
+	case string(domain.ErrCodeRunnerTimeout):
+		return "runner_timeout", "Agent runner timed out.", failure.Retryable
+	case string(domain.ErrCodeRunnerCommunication):
+		return "runner_communication_failed", "Agent runner communication failed.", failure.Retryable
+	case string(domain.ErrCodeSandboxNoExitInfo):
+		return "runner_result_unavailable", "Agent runner did not provide a completion result.", failure.Retryable
+	case string(domain.ErrCodeRunnerSessionExpired), string(domain.ErrCodeRunnerSessionStateLost):
+		return "runner_session_unavailable", "Agent runner session could not be resumed. Retry starts a new execution from the saved input.", true
+	case string(domain.ErrCodeSandboxLaunchFailed), string(domain.ErrCodeSandboxHomeOverlayUnavailable):
+		return "sandbox_launch_failed", "The agent workspace could not be prepared. Check Workspace Sandbox readiness before retrying.", failure.Retryable
+	default:
+		return "agent_execution_failed", "Agent run failed.", failure.Retryable
+	}
 }
 
 func executionEffectEvidence(details map[string]interface{}) (known, started bool) {

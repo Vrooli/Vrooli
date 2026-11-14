@@ -307,11 +307,7 @@ func TestRunLifecycleFencesOldAttemptWriters(t *testing.T) {
 	defer cleanup()
 	repos := NewRepositories(db, logrus.New())
 	ctx := t.Context()
-	task := &domain.Task{ID: uuid.New(), Title: "attempt fence", ScopePath: "/test", Status: domain.TaskStatusQueued}
-	if err := repos.Tasks.Create(ctx, task); err != nil {
-		t.Fatal(err)
-	}
-	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusRunning, RunMode: domain.RunModeInPlace, ApprovalState: domain.ApprovalStateNone}
+	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusRunning, RunMode: domain.RunModeInPlace, ApprovalState: domain.ApprovalStateNone}
 	if err := repos.Runs.Create(ctx, run); err != nil {
 		t.Fatal(err)
 	}

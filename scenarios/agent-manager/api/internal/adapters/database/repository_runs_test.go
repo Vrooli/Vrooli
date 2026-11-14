@@ -138,6 +138,28 @@ func TestRunCRUD(t *testing.T) {
 	}
 }
 
+func TestRunUpdateRejectsIllegalPersistedStatusTransition(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	run := &domain.Run{ID: uuid.New(), Tag: "illegal-transition", RunMode: domain.RunModeInPlace, Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued, ApprovalState: domain.ApprovalStateNone}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	run.Status = domain.RunStatusParked
+	if err := repos.Runs.Update(ctx, run); err == nil {
+		t.Fatal("pending -> parked update unexpectedly succeeded")
+	}
+	stored, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("Get after rejected update: %v", err)
+	}
+	if stored == nil || stored.Status != domain.RunStatusPending || stored.LifecycleVersion != run.LifecycleVersion {
+		t.Fatalf("rejected transition mutated persisted run: %#v", stored)
+	}
+}
+
 // TestRunCustomEnvRoundTrip proves Run.CustomEnv persists through the JSON
 // column so the continue/wake path can re-inject it. Before Phase 0 there was
 // no column at all, so a continued turn could never recover custom env.

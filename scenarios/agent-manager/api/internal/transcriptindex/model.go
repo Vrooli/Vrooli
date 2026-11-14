@@ -24,6 +24,41 @@ const (
 	RootManual          = "manual"
 )
 
+// CanTransitionTo is the single lifecycle policy for persisted transcript files.
+// Same-state writes are allowed because a row checkpoint also carries cursor,
+// parser and error recovery data.
+func (f FileRow) CanTransitionTo(next string) bool {
+	if !knownFileStatus(next) || !knownFileStatus(f.Status) {
+		return false
+	}
+	if f.Status == next {
+		return true
+	}
+	switch f.Status {
+	case StatusPending:
+		return next == StatusIndexed || next == StatusOwned || next == StatusExcluded || next == StatusUnreadable
+	case StatusIndexed:
+		return next == StatusPending || next == StatusOwned || next == StatusExcluded || next == StatusUnreadable
+	case StatusOwned:
+		return next == StatusPending || next == StatusIndexed || next == StatusExcluded || next == StatusUnreadable
+	case StatusExcluded:
+		return next == StatusPending
+	case StatusUnreadable:
+		return next == StatusPending || next == StatusIndexed || next == StatusOwned || next == StatusExcluded
+	default:
+		return false
+	}
+}
+
+func knownFileStatus(status string) bool {
+	switch status {
+	case StatusPending, StatusIndexed, StatusOwned, StatusExcluded, StatusUnreadable:
+		return true
+	default:
+		return false
+	}
+}
+
 // ReplacementEffectsPending marks committed replacement evidence whose
 // derived-owner notifications have not yet been acknowledged.
 const ReplacementEffectsPending = "replacement committed; search and projection reconciliation pending"

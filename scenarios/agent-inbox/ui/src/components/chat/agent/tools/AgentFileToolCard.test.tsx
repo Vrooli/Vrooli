@@ -1,3 +1,4 @@
+import { renderWithProviders } from "@/test-utils/renderWithProviders";
 /**
  * Tests for AgentFileToolCard component.
  *
@@ -9,7 +10,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { AgentFileToolCard } from "./AgentFileToolCard";
 import type { AgentEvent } from "../../../../lib/api";
 
@@ -39,7 +40,7 @@ describe("AgentFileToolCard", () => {
       tool_input: JSON.stringify({ file_path: "/src/index.ts" }),
     });
 
-    render(<AgentFileToolCard event={event} />);
+    renderWithProviders(<AgentFileToolCard event={event} />);
     expect(screen.getByText("Read")).toBeInTheDocument();
   });
 
@@ -49,7 +50,7 @@ describe("AgentFileToolCard", () => {
       tool_input: JSON.stringify({ file_path: "/home/user/project/main.go" }),
     });
 
-    render(<AgentFileToolCard event={event} />);
+    renderWithProviders(<AgentFileToolCard event={event} />);
     expect(screen.getByText("/home/user/project/main.go")).toBeInTheDocument();
   });
 
@@ -59,7 +60,7 @@ describe("AgentFileToolCard", () => {
       tool_input: JSON.stringify({ file_path: "/tmp/output.txt" }),
     });
 
-    render(<AgentFileToolCard event={event} />);
+    renderWithProviders(<AgentFileToolCard event={event} />);
     expect(screen.getByText("Write")).toBeInTheDocument();
     expect(screen.getByText("/tmp/output.txt")).toBeInTheDocument();
   });
@@ -70,7 +71,7 @@ describe("AgentFileToolCard", () => {
       tool_input: JSON.stringify({ file_path: "/src/app.tsx" }),
     });
 
-    render(<AgentFileToolCard event={event} />);
+    renderWithProviders(<AgentFileToolCard event={event} />);
     expect(screen.getByText("Edit")).toBeInTheDocument();
     expect(screen.getByText("/src/app.tsx")).toBeInTheDocument();
   });
@@ -81,7 +82,7 @@ describe("AgentFileToolCard", () => {
       tool_input: JSON.stringify({ pattern: "**/*.test.ts" }),
     });
 
-    render(<AgentFileToolCard event={event} />);
+    renderWithProviders(<AgentFileToolCard event={event} />);
     expect(screen.getByText("Glob")).toBeInTheDocument();
     expect(screen.getByText("**/*.test.ts")).toBeInTheDocument();
   });
@@ -92,7 +93,7 @@ describe("AgentFileToolCard", () => {
       tool_input: JSON.stringify({ pattern: "handleError", path: "/src" }),
     });
 
-    render(<AgentFileToolCard event={event} />);
+    renderWithProviders(<AgentFileToolCard event={event} />);
     expect(screen.getByText("Grep")).toBeInTheDocument();
     expect(screen.getByText("handleError in /src")).toBeInTheDocument();
   });
@@ -103,7 +104,7 @@ describe("AgentFileToolCard", () => {
       tool_input: JSON.stringify({ pattern: "error" }),
     });
 
-    render(<AgentFileToolCard event={event} />);
+    renderWithProviders(<AgentFileToolCard event={event} />);
     expect(screen.getByText("error in .")).toBeInTheDocument();
   });
 
@@ -113,7 +114,7 @@ describe("AgentFileToolCard", () => {
       tool_input: JSON.stringify({}),
     });
 
-    render(<AgentFileToolCard event={event} />);
+    renderWithProviders(<AgentFileToolCard event={event} />);
     expect(screen.getByText("? in .")).toBeInTheDocument();
   });
 
@@ -123,7 +124,7 @@ describe("AgentFileToolCard", () => {
       tool_input: undefined,
     });
 
-    render(<AgentFileToolCard event={event} />);
+    renderWithProviders(<AgentFileToolCard event={event} />);
     expect(screen.getByText("Read")).toBeInTheDocument();
     expect(screen.getByText("(no input)")).toBeInTheDocument();
   });
@@ -134,7 +135,7 @@ describe("AgentFileToolCard", () => {
       tool_input: "not json at all",
     });
 
-    render(<AgentFileToolCard event={event} />);
+    renderWithProviders(<AgentFileToolCard event={event} />);
     expect(screen.getByText("Write")).toBeInTheDocument();
     expect(screen.getByText("(no input)")).toBeInTheDocument();
   });
@@ -145,7 +146,7 @@ describe("AgentFileToolCard", () => {
       tool_input: JSON.stringify({ some_other_key: "value" }),
     });
 
-    render(<AgentFileToolCard event={event} />);
+    renderWithProviders(<AgentFileToolCard event={event} />);
     expect(screen.getByText("(no path)")).toBeInTheDocument();
   });
 
@@ -155,7 +156,7 @@ describe("AgentFileToolCard", () => {
       tool_input: JSON.stringify({}),
     });
 
-    render(<AgentFileToolCard event={event} />);
+    renderWithProviders(<AgentFileToolCard event={event} />);
     expect(screen.getByText("(no pattern)")).toBeInTheDocument();
   });
 });

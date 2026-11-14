@@ -455,11 +455,7 @@ func TestRecoverInFlightRunsReenqueuesPendingRuns(t *testing.T) {
 	stub := &pendingRunRecoveryStub{}
 	reconciler.pendingRunRecovery = stub
 
-	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
-	run.Status = domain.RunStatusPending
-	if err := repos.Runs.Update(context.Background(), run); err != nil {
-		t.Fatalf("update pending run: %v", err)
-	}
+	run := createRecoveryTestRunWithStatus(t, repos, domain.RunnerTypeCodex, domain.RunStatusPending)
 
 	if err := reconciler.RecoverInFlightRuns(context.Background()); err != nil {
 		t.Fatalf("RecoverInFlightRuns: %v", err)
@@ -478,9 +474,8 @@ func TestRestartRecoveryLeavesImportedRunningAndPendingHistoryUntouched(t *testi
 	if err := repos.Runs.Update(t.Context(), running); err != nil {
 		t.Fatal(err)
 	}
-	pending := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	pending := createRecoveryTestRunWithStatus(t, repos, domain.RunnerTypeCodex, domain.RunStatusPending)
 	pending.ExecutionMode = domain.ExecutionModeImported
-	pending.Status = domain.RunStatusPending
 	if err := repos.Runs.Update(t.Context(), pending); err != nil {
 		t.Fatal(err)
 	}
@@ -1110,11 +1105,7 @@ func newRecoveryTestReconciler(t *testing.T, rt domain.RunnerType) (*Reconciler,
 
 func TestReconcileReapsAgedPendingRunWithEvent(t *testing.T) {
 	reconciler, repos, eventStore := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
-	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
-	run.Status = domain.RunStatusPending
-	if err := repos.Runs.Update(context.Background(), run); err != nil {
-		t.Fatalf("update pending run: %v", err)
-	}
+	run := createRecoveryTestRunWithStatus(t, repos, domain.RunnerTypeCodex, domain.RunStatusPending)
 	// Keep the test fast while exercising the same age comparison production
 	// uses for a genuinely stranded queue entry.
 	reconciler.config.PendingThreshold = time.Nanosecond
@@ -1140,6 +1131,10 @@ func TestReconcileReapsAgedPendingRunWithEvent(t *testing.T) {
 }
 
 func createRecoveryTestRun(t *testing.T, repos *database.Repositories, rt domain.RunnerType) *domain.Run {
+	return createRecoveryTestRunWithStatus(t, repos, rt, domain.RunStatusRunning)
+}
+
+func createRecoveryTestRunWithStatus(t *testing.T, repos *database.Repositories, rt domain.RunnerType, status domain.RunStatus) *domain.Run {
 	t.Helper()
 
 	task := &domain.Task{
@@ -1162,7 +1157,7 @@ func createRecoveryTestRun(t *testing.T, repos *database.Repositories, rt domain
 		TaskID:         task.ID,
 		Tag:            uuid.NewString(),
 		RunMode:        domain.RunModeInPlace,
-		Status:         domain.RunStatusRunning,
+		Status:         status,
 		StartedAt:      &now,
 		LastHeartbeat:  &now,
 		Phase:          domain.RunPhaseExecuting,

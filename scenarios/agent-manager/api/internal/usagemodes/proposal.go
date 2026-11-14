@@ -139,10 +139,10 @@ func (n *Notifier) ProposeRoleDefault(ctx context.Context, p RoleDefaultProposal
 		},
 	}
 	st := n.load()
-	if ask := st.Asks[id]; ask != nil && ask.State == operatordecision.PendingStatePending {
+	if ask := st.Asks[id]; ask != nil && ask.State == operatordecision.PendingStatePending && !legacyAsk(ask) {
 		return id, nil
 	}
-	if _, err := n.raiser().Raise(ctx, pendingAskFor(id, subjectFor(KindRoleDefault, ""), facts.Correlation, map[string]string{"policy_change": p.Change.Text()}), facts); err != nil {
+	if err := n.raise(ctx, n.raiser(), id, subjectFor(KindRoleDefault, ""), facts, map[string]string{"policy_change": p.Change.Text(), "runner": p.Runner}); err != nil {
 		return "", err
 	}
 	return id, n.save()

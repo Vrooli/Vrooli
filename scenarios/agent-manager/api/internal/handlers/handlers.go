@@ -214,6 +214,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	// Scenario-owned immutable workflow catalog.
 	r.HandleFunc("/api/v1/workflow-executions", h.StartWorkflowExecution).Methods("POST")
 	r.HandleFunc("/api/v1/workflow-executions", h.ListWorkflowExecutions).Methods("GET")
+	r.HandleFunc("/api/v1/workflow-executions/cancel-by-idempotency-key", h.CancelWorkflowExecutionByIdempotencyKey).Methods("POST")
 	r.HandleFunc("/api/v1/workflow-executions/{id}", h.GetWorkflowExecution).Methods("GET")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/result", h.GetWorkflowExecutionResult).Methods("GET")
 	r.Handle("/api/v1/workflow-executions/{id}/wait", LongWaitResponse(http.HandlerFunc(h.WaitWorkflowExecution))).Methods("POST")
@@ -255,6 +256,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/import/sessions", h.ListRunnerSessions).Methods("GET")
 	r.HandleFunc("/api/v1/import/sessions", h.ImportRunnerSession).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}", h.GetRun).Methods("GET")
+	r.HandleFunc("/api/v1/runs/{id}/workload", h.AssignRunWorkload).Methods("PUT")
 	r.HandleFunc("/api/v1/runs/{id}/transcript-reconcile", h.ReconcileTranscriptReplacement).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/transcript-reconcile", h.ListTranscriptReplacementIssues).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/report", h.GetRunReport).Methods("GET")

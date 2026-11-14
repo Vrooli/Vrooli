@@ -51,10 +51,18 @@ func (p *recordingPublisher) PublishDomainEvent(_ context.Context, event eventbu
 	return nil
 }
 
+// count is how many decision requests were published; withdrawals are counted
+// by withdrawals().
 func (p *recordingPublisher) count() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return len(p.events)
+	n := 0
+	for _, e := range p.events {
+		if e.EventType == goalhome.DecisionRequestedEventType {
+			n++
+		}
+	}
+	return n
 }
 
 func decisionRequest() *pb.RaiseEffortDecisionRequest {

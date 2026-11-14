@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -19,6 +20,7 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -85,6 +87,60 @@ func (h *Handler) ListWorkflowExecutions(w http.ResponseWriter, r *http.Request)
 		response.Executions = append(response.Executions, workflowExecutionToProto(item, false))
 	}
 	writeProtoJSON(w, http.StatusOK, response)
+}
+
+type cancelWorkflowExecutionByKeyRequest struct {
+	Owner          string `json:"owner"`
+	WorkflowKey    string `json:"workflowKey"`
+	IdempotencyKey string `json:"idempotencyKey"`
+	OperationKey   string `json:"operationKey"`
+	Reason         string `json:"reason"`
+}
+
+type cancelWorkflowExecutionByKeyResponse struct {
+	Fenced    bool            `json:"fenced"`
+	Execution json.RawMessage `json:"execution,omitempty"`
+}
+
+// CancelWorkflowExecutionByIdempotencyKey installs a durable admission fence
+// before resolving and cancelling the exact owner workflow, if it exists.
+func (h *Handler) CancelWorkflowExecutionByIdempotencyKey(w http.ResponseWriter, r *http.Request) {
+	var req cancelWorkflowExecutionByKeyRequest
+	decoder := json.NewDecoder(io.LimitReader(r.Body, 16<<10))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
+		writeSimpleError(w, r, "body", "invalid cancellation-by-key request")
+		return
+	}
+	if strings.TrimSpace(req.Owner) == "" || strings.TrimSpace(req.WorkflowKey) == "" || strings.TrimSpace(req.IdempotencyKey) == "" || strings.TrimSpace(req.OperationKey) == "" || len(req.Reason) > 512 {
+		writeSimpleError(w, r, "body", "owner, workflowKey, idempotencyKey, operationKey, and bounded reason are required")
+		return
+	}
+	if req.Owner != "git-control-tower" || (req.WorkflowKey != "git-control-tower/staged-message" && req.WorkflowKey != "git-control-tower/staged-message-deep") {
+		writeSimpleError(w, r, "owner", "cancellation-by-key is restricted to Git Control Tower message workflows")
+		return
+	}
+	result, err := h.svc.CancelWorkflowExecutionByIdempotencyKey(r.Context(), orchestration.WorkflowExecutionCancelByKeyRequest{
+		Owner: req.Owner, WorkflowKey: req.WorkflowKey, IdempotencyKey: req.IdempotencyKey,
+		OperationKey: req.OperationKey, Reason: req.Reason,
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response := cancelWorkflowExecutionByKeyResponse{Fenced: result.Fenced}
+	if result.Execution != nil {
+		raw, err := protojson.Marshal(workflowExecutionToProto(result.Execution, false))
+		if err != nil {
+			writeSimpleError(w, r, "execution", "failed to encode workflow cancellation result")
+			return
+		}
+		response.Execution = raw
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		writeSimpleError(w, r, "response", "failed to encode workflow cancellation response")
+	}
 }
 
 func (h *Handler) GetWorkflowExecution(w http.ResponseWriter, r *http.Request) {

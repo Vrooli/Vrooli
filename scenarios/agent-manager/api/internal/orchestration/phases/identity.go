@@ -88,16 +88,17 @@ func GenerateIdentityToken(ctx context.Context, in GenerateIdentityTokenInput) s
 		return ""
 	}
 	claims := &identity.Claims{
-		RunID:       in.Run.ID,
-		TaskID:      in.Run.TaskID,
-		Subject:     subject,
-		WorkspaceID: strings.TrimSpace(in.Meta["workspace_id"]),
-		Scopes:      identity.IntersectScopes(accountScopes, in.Profile.IdentityScopeCeiling(), in.RequestedScopes),
-		ProfileKey:  profileKey,
-		ScopePath:   scopePath,
-		IssuedAt:    now.Unix(),
-		ExpiresAt:   expires.Unix(),
-		Meta:        cloneMeta(in.Meta),
+		RunID:          in.Run.ID,
+		TaskID:         in.Run.TaskID,
+		ConversationID: in.Run.ConversationID,
+		Subject:        subject,
+		WorkspaceID:    strings.TrimSpace(in.Meta["workspace_id"]),
+		Scopes:         identity.IntersectScopes(accountScopes, in.Profile.IdentityScopeCeiling(), in.RequestedScopes),
+		ProfileKey:     profileKey,
+		ScopePath:      scopePath,
+		IssuedAt:       now.Unix(),
+		ExpiresAt:      expires.Unix(),
+		Meta:           cloneMeta(in.Meta),
 	}
 	// A resumed turn replaces a revoked credential, not just its timestamps.
 	// Seconds-granularity issuance can otherwise recreate the exact previous

@@ -123,7 +123,10 @@ func (e *Engine) advanceParallelBranch(ctx context.Context, x *domain.WorkflowEx
 		attempt.Status, attempt.UpdatedAt = domain.WorkflowAttemptDispatched, now
 		attempt.Version++
 		x.BudgetUsage.Children++
-		x.Status, x.UpdatedAt = domain.WorkflowExecutionRunning, now
+		if err := x.TransitionStatus(domain.WorkflowExecutionRunning); err != nil {
+			return nil, err
+		}
+		x.UpdatedAt = now
 		x.Version++
 		if ok, commitErr := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Attempt: attempt}); commitErr != nil {
 			return nil, commitErr
@@ -180,13 +183,17 @@ func (e *Engine) advanceParallelBranch(ctx context.Context, x *domain.WorkflowEx
 			continue
 		}
 		now := e.now()
-		attempt.Status = domain.WorkflowAttemptCompleted
+		nextStatus := domain.WorkflowAttemptCompleted
 		if failed {
-			attempt.Status, attempt.ErrorCode = domain.WorkflowAttemptFailed, "parallel_child_failed"
+			nextStatus = domain.WorkflowAttemptFailed
+			attempt.ErrorCode = "parallel_child_failed"
 		}
 		if validationError := structuredValidationError(target, result); validationError != "" {
-			attempt.Status, attempt.ErrorCode = domain.WorkflowAttemptFailed, "structured_result_invalid"
+			nextStatus, attempt.ErrorCode = domain.WorkflowAttemptFailed, "structured_result_invalid"
 			attempt.ValidationError = validationError
+		}
+		if err := attempt.TransitionStatus(nextStatus); err != nil {
+			return nil, err
 		}
 		attempt.Version++
 		attempt.UpdatedAt, attempt.CompletedAt = now, &now
@@ -250,14 +257,19 @@ func (e *Engine) advanceParallelBranch(ctx context.Context, x *domain.WorkflowEx
 		return e.fail(ctx, x, "join_unsatisfied", fmt.Sprintf("join required %d successful members, got %d with %d still possible", required, succeeded, len(targets)-completed))
 	}
 	if completed < len(targets) {
-		x.Status = domain.WorkflowExecutionWaiting
+		if err := x.TransitionStatus(domain.WorkflowExecutionWaiting); err != nil {
+			return nil, err
+		}
 		return x, nil
 	}
 	if succeeded < required {
 		return e.fail(ctx, x, "join_unsatisfied", fmt.Sprintf("join required %d successful members, got %d", required, succeeded))
 	}
 	now := e.now()
-	x.CurrentNodeID, x.Status, x.UpdatedAt = join.ID, domain.WorkflowExecutionRunning, now
+	if err := x.TransitionStatus(domain.WorkflowExecutionRunning); err != nil {
+		return nil, err
+	}
+	x.CurrentNodeID, x.UpdatedAt = join.ID, now
 	x.Version++
 	payload, _ := json.Marshal(map[string]any{"phase": "completed", "visit": visit, "joinNodeId": join.ID})
 	entry := nextJournal(x.ID, journal, domain.WorkflowJournalJoin, fork.ID, nil, payload, now)
@@ -299,7 +311,10 @@ func (e *Engine) completeSatisfiedParallelJoin(ctx context.Context, x *domain.Wo
 		attempt.Version++
 		updated = append(updated, attempt)
 	}
-	x.CurrentNodeID, x.Status, x.UpdatedAt = join.ID, domain.WorkflowExecutionRunning, now
+	if err := x.TransitionStatus(domain.WorkflowExecutionRunning); err != nil {
+		return false, err
+	}
+	x.CurrentNodeID, x.UpdatedAt = join.ID, now
 	x.Version++
 	payload, _ := json.Marshal(map[string]any{"phase": "completed", "visit": visit, "joinNodeId": join.ID, "shortCircuited": true})
 	entry := nextJournal(x.ID, journal, domain.WorkflowJournalJoin, fork.ID, nil, payload, now)
@@ -490,7 +505,9 @@ func (e *Engine) advanceBranch(ctx context.Context, x *domain.WorkflowExecution,
 		return e.exhaust(ctx, x, "edge_traversal")
 	}
 	x.CurrentNodeID = selected.To
-	x.Status = domain.WorkflowExecutionRunning
+	if err := x.TransitionStatus(domain.WorkflowExecutionRunning); err != nil {
+		return nil, err
+	}
 	x.Version++
 	x.UpdatedAt = e.now()
 	return e.commitOnly(ctx, x)
@@ -516,15 +533,25 @@ func (e *Engine) advanceEnd(ctx context.Context, x *domain.WorkflowExecution, r 
 	x.Output = output
 	switch node.End.Status {
 	case "succeeded":
-		x.Status = domain.WorkflowExecutionSucceeded
+		if err := x.TransitionStatus(domain.WorkflowExecutionSucceeded); err != nil {
+			return nil, err
+		}
 	case "blocked":
-		x.Status = domain.WorkflowExecutionBlocked
+		if err := x.TransitionStatus(domain.WorkflowExecutionBlocked); err != nil {
+			return nil, err
+		}
 	case "abstained":
-		x.Status = domain.WorkflowExecutionAbstained
+		if err := x.TransitionStatus(domain.WorkflowExecutionAbstained); err != nil {
+			return nil, err
+		}
 	case "budget_exhausted":
-		x.Status = domain.WorkflowExecutionBudgetExhausted
+		if err := x.TransitionStatus(domain.WorkflowExecutionBudgetExhausted); err != nil {
+			return nil, err
+		}
 	default:
-		x.Status = domain.WorkflowExecutionFailed
+		if err := x.TransitionStatus(domain.WorkflowExecutionFailed); err != nil {
+			return nil, err
+		}
 	}
 	if x.TerminalReason == nil || x.TerminalReason.Code != "wait_timeout" {
 		switch node.End.Status {
@@ -549,7 +576,9 @@ func (e *Engine) advanceEnd(ctx context.Context, x *domain.WorkflowExecution, r 
 func (e *Engine) fail(ctx context.Context, x *domain.WorkflowExecution, code, message string) (*domain.WorkflowExecution, error) {
 	x.BudgetUsage.AccountingComplete = false // Abnormal active-child accounting requires owner reconciliation.
 	now := e.now()
-	x.Status = domain.WorkflowExecutionFailed
+	if err := x.TransitionStatus(domain.WorkflowExecutionFailed); err != nil {
+		return nil, err
+	}
 	x.TerminalReason = &domain.WorkflowTerminalReason{Code: code, Message: message}
 	x.EndedAt = &now
 	x.UpdatedAt = now
@@ -560,7 +589,9 @@ func (e *Engine) fail(ctx context.Context, x *domain.WorkflowExecution, code, me
 func (e *Engine) exhaust(ctx context.Context, x *domain.WorkflowExecution, budget string) (*domain.WorkflowExecution, error) {
 	x.BudgetUsage.AccountingComplete = false // Abnormal active-child accounting requires owner reconciliation.
 	now := e.now()
-	x.Status = domain.WorkflowExecutionBudgetExhausted
+	if err := x.TransitionStatus(domain.WorkflowExecutionBudgetExhausted); err != nil {
+		return nil, err
+	}
 	x.TerminalReason = &domain.WorkflowTerminalReason{Code: "budget_exhausted", BudgetName: budget}
 	x.EndedAt = &now
 	x.UpdatedAt = now
@@ -569,9 +600,15 @@ func (e *Engine) exhaust(ctx context.Context, x *domain.WorkflowExecution, budge
 }
 
 func (e *Engine) commitFailure(ctx context.Context, x *domain.WorkflowExecution, a *domain.WorkflowNodeAttempt, entries []*domain.WorkflowJournalEntry, code, message string) (*domain.WorkflowExecution, error) {
+	return e.commitFailureWithRetryable(ctx, x, a, entries, code, message, false)
+}
+
+func (e *Engine) commitFailureWithRetryable(ctx context.Context, x *domain.WorkflowExecution, a *domain.WorkflowNodeAttempt, entries []*domain.WorkflowJournalEntry, code, message string, retryable bool) (*domain.WorkflowExecution, error) {
 	now := e.now()
-	x.Status = domain.WorkflowExecutionFailed
-	x.TerminalReason = &domain.WorkflowTerminalReason{Code: code, Message: message}
+	if err := x.TransitionStatus(domain.WorkflowExecutionFailed); err != nil {
+		return nil, err
+	}
+	x.TerminalReason = &domain.WorkflowTerminalReason{Code: code, Message: message, Retryable: retryable}
 	x.EndedAt = &now
 	x.UpdatedAt = now
 	x.Version++
@@ -585,9 +622,15 @@ func (e *Engine) commitFailure(ctx context.Context, x *domain.WorkflowExecution,
 	return x, nil
 }
 
+func (e *Engine) commitChildFailure(ctx context.Context, x *domain.WorkflowExecution, a *domain.WorkflowNodeAttempt, entries []*domain.WorkflowJournalEntry, code, message string, retryable bool) (*domain.WorkflowExecution, error) {
+	return e.commitFailureWithRetryable(ctx, x, a, entries, code, message, retryable)
+}
+
 func (e *Engine) commitChildTerminal(ctx context.Context, x *domain.WorkflowExecution, a *domain.WorkflowNodeAttempt, entries []*domain.WorkflowJournalEntry, status domain.WorkflowExecutionStatus, output json.RawMessage, reason *domain.WorkflowTerminalReason) (*domain.WorkflowExecution, error) {
 	now := e.now()
-	x.Status = status
+	if err := x.TransitionStatus(status); err != nil {
+		return nil, err
+	}
 	x.Output = append(json.RawMessage(nil), output...)
 	if reason != nil {
 		copyReason := *reason
@@ -610,7 +653,9 @@ func (e *Engine) commitChildTerminal(ctx context.Context, x *domain.WorkflowExec
 
 func (e *Engine) commitExhaust(ctx context.Context, x *domain.WorkflowExecution, a *domain.WorkflowNodeAttempt, entries []*domain.WorkflowJournalEntry, budget string) (*domain.WorkflowExecution, error) {
 	now := e.now()
-	x.Status = domain.WorkflowExecutionBudgetExhausted
+	if err := x.TransitionStatus(domain.WorkflowExecutionBudgetExhausted); err != nil {
+		return nil, err
+	}
 	x.TerminalReason = &domain.WorkflowTerminalReason{Code: "budget_exhausted", BudgetName: budget}
 	x.EndedAt = &now
 	x.UpdatedAt = now

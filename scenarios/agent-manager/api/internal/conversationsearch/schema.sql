@@ -163,15 +163,17 @@ CREATE TABLE IF NOT EXISTS conversation_search_qdrant_cleanup_receipts (
     created_at TEXT NOT NULL
 );
 
--- Shared by the legacy generation store and any future fleet adapter using
--- this owner catalog. Alias locks are endpoint-global and remain until the
--- same idempotent operation reconciles its interrupted Qdrant effect.
-CREATE TABLE IF NOT EXISTS conversation_search_qdrant_alias_operations (
+-- Cross-process active alias fence, separate from the durable fleet
+-- operation/recovery catalog. A dead holder can be replaced only by retrying
+-- the exact same owner/alias/operation after PID+start-time verification.
+CREATE TABLE IF NOT EXISTS qdrant_fleet_alias_fences (
     endpoint_id TEXT NOT NULL,
     alias_name TEXT NOT NULL,
     owner_id TEXT NOT NULL,
     operation_id TEXT NOT NULL,
-    record_json TEXT NOT NULL CHECK (json_valid(record_json)),
+    holder_pid INTEGER NOT NULL,
+    holder_start TEXT NOT NULL,
+    record_json BLOB NOT NULL,
     PRIMARY KEY(endpoint_id, alias_name)
 );
 

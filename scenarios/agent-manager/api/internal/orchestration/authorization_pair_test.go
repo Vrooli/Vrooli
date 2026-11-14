@@ -491,3 +491,49 @@ func TestAuthorizationCredentialReadsAvoidDerivedRunProjection(t *testing.T) {
 		t.Fatalf("authorization metadata reads ran derived projection: eventReads=%d externalURLResolutions=%d", events.reads, resolverCalls)
 	}
 }
+
+// A waiting launcher attached before it reported its pid left the session's
+// baseline run with runner pid 0. Approval attaches the operation run with the
+// grant's bound pid. The pair must hold for that same harness session and owner,
+// and must still refuse a grant approved for any other session or owner.
+func TestCredentialPairAcceptsUnrecordedBaselinePidOnlyForSameSession(t *testing.T) {
+	o, ctx, ownerCtx, _, _ := newCredentialPairFixture(t)
+	baseline, err := o.AttachRun(ownerCtx, AttachRunRequest{HarnessKind: "codex", HarnessSession: "unrecorded-pid-session"})
+	if err != nil {
+		t.Fatalf("attach baseline without pid: %v", err)
+	}
+	if baseline.Run.RunnerPID != 0 || baseline.Run.OwnerSubject == "" {
+		t.Fatalf("fixture must be an owned baseline with no runner pid: %+v", baseline.Run)
+	}
+	operationRun, err := o.AttachRun(ownerCtx, AttachRunRequest{HarnessKind: "codex", HarnessSession: "unrecorded-pid-session", ProcessID: os.Getpid()})
+	if err != nil {
+		t.Fatalf("attach operation run: %v", err)
+	}
+	operationToken := approvePairGrant(t, o, ctx, ownerCtx, operationRun.Run.ID, "unrecorded-pid-session")
+	pair, err := o.VerifyIdentityPair(ctx, baseline.Token, operationToken)
+	if err != nil || pair == nil || !pair.Valid {
+		t.Fatalf("same-session pair refused: result=%+v err=%v", pair, err)
+	}
+	credentials, err := o.ResolveAuthorizationCredentials(ctx, os.Getpid(), baseline.Token)
+	if err != nil || credentials.BaselineToken != baseline.Token || credentials.OperationToken != operationToken {
+		t.Fatalf("broker did not deliver the operation grant: credentials=%+v err=%v", credentials, err)
+	}
+
+	otherSession, err := o.AttachRun(ownerCtx, AttachRunRequest{HarnessKind: "codex", HarnessSession: "another-session", ProcessID: os.Getpid()})
+	if err != nil {
+		t.Fatalf("attach other-session run: %v", err)
+	}
+	otherToken := approvePairGrant(t, o, ctx, ownerCtx, otherSession.Run.ID, "another-session")
+	if pair, err := o.VerifyIdentityPair(ctx, baseline.Token, otherToken); err != nil || pair == nil || pair.Valid {
+		t.Fatalf("grant for another harness session paired with a pid-less baseline: result=%+v err=%v", pair, err)
+	}
+
+	otherOwner := requestidentity.Principal{Kind: requestidentity.ActorHuman, Subject: "someone-else", Source: requestidentity.SourceCloudflareAccess, Verified: true, Scopes: []string{"agent-manager:write"}, ExpiresAt: time.Now().Add(time.Hour)}
+	strangerBaseline, err := o.AttachRun(requestidentity.WithPrincipal(ctx, otherOwner), AttachRunRequest{HarnessKind: "codex", HarnessSession: "unrecorded-pid-session"})
+	if err != nil {
+		t.Fatalf("attach other-owner baseline: %v", err)
+	}
+	if pair, err := o.VerifyIdentityPair(ctx, strangerBaseline.Token, operationToken); err != nil || pair == nil || pair.Valid {
+		t.Fatalf("grant paired with another owner's pid-less baseline: result=%+v err=%v", pair, err)
+	}
+}

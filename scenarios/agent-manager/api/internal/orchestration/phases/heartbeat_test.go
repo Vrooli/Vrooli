@@ -80,7 +80,7 @@ func TestSendHeartbeatHonorsLatestLifecycle(t *testing.T) {
 				t.Fatal(err)
 			}
 			previous := time.Now().Add(-time.Minute).UTC()
-			run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusRunning, LastHeartbeat: &previous}
+			run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: status, LastHeartbeat: &previous}
 			if err := repos.Runs.Create(ctx, run); err != nil {
 				t.Fatal(err)
 			}
@@ -90,7 +90,6 @@ func TestSendHeartbeatHonorsLatestLifecycle(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			latest.Status = status
 			latest.ErrorMsg = "newer owner state"
 			if err := repos.Runs.Update(ctx, latest); err != nil {
 				t.Fatal(err)

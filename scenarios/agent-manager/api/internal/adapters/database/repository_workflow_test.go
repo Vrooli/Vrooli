@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"testing"
 	"time"
@@ -193,6 +194,133 @@ func TestWorkflowExecutionRepositoryCASAndJournalSurviveReload(t *testing.T) {
 	}
 }
 
+func TestWorkflowAttemptCommitRejectsInvalidTransitionAndRecoversWaitingAttempt(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	catalog := &workflowRepository{db: db, log: logrus.New()}
+	revision := workflowRevision("owner/attempt-lifecycle", "sha256:attempt-lifecycle", "1.0.0")
+	if err := catalog.ActivateBatch(ctx, []*domain.WorkflowRevision{revision}); err != nil {
+		t.Fatal(err)
+	}
+	repo := &workflowExecutionRepository{db: db, log: logrus.New()}
+	now := time.Now().UTC()
+	execution := &domain.WorkflowExecution{ID: uuid.New(), Owner: "owner", WorkflowKey: revision.Key, DefinitionDigest: revision.Digest, Status: domain.WorkflowExecutionRunning, CurrentNodeID: "start", Input: json.RawMessage(`{}`), EdgeTraversals: map[string]int{}, Version: 1, IdempotencyKey: "attempt-lifecycle", CreatedAt: now, UpdatedAt: now}
+	initial := &domain.WorkflowJournalEntry{ID: uuid.New(), ExecutionID: execution.ID, Sequence: 1, Kind: domain.WorkflowJournalInput, Payload: execution.Input, CreatedAt: now}
+	if err := repo.Create(ctx, execution, initial); err != nil {
+		t.Fatal(err)
+	}
+	attempt := &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: execution.ID, NodeID: "start", Ordinal: 1, Strategy: domain.WorkflowAttemptFreshRun, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: "attempt-lifecycle-node", InputSnapshot: json.RawMessage(`{}`), Version: 1, CreatedAt: now, UpdatedAt: now}
+	commit := func(status domain.WorkflowAttemptStatus) (bool, error) {
+		execution.Version++
+		execution.UpdatedAt = now.Add(time.Duration(execution.Version) * time.Second)
+		attempt.Status = status
+		attempt.Version++
+		attempt.UpdatedAt = execution.UpdatedAt
+		return repo.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: execution.Version - 1, Execution: execution, Attempt: attempt})
+	}
+	if ok, err := commit(domain.WorkflowAttemptDispatchPending); err != nil || !ok {
+		t.Fatalf("persist pending attempt ok=%t err=%v", ok, err)
+	}
+	if ok, err := commit(domain.WorkflowAttemptCompleted); ok || !errors.Is(err, domain.ErrInvalidWorkflowAttemptStatusTransition) {
+		t.Fatalf("pending -> completed committed=%t err=%v", ok, err)
+	}
+	// The repository transaction rolled back; restore the caller's speculative CAS versions too.
+	execution.Version--
+	attempt.Version--
+	attempt.Status = domain.WorkflowAttemptDispatchPending
+	got, err := repo.ListAttempts(ctx, execution.ID)
+	if err != nil || len(got) != 1 || got[0].Status != domain.WorkflowAttemptDispatchPending {
+		t.Fatalf("rejected transition changed durable attempt: attempts=%+v err=%v", got, err)
+	}
+	for _, status := range []domain.WorkflowAttemptStatus{domain.WorkflowAttemptDispatched, domain.WorkflowAttemptWaiting, domain.WorkflowAttemptDispatched, domain.WorkflowAttemptCompleted} {
+		if ok, err := commit(status); err != nil || !ok {
+			t.Fatalf("recovery transition to %s ok=%t err=%v", status, ok, err)
+		}
+	}
+	got, err = repo.ListAttempts(ctx, execution.ID)
+	if err != nil || len(got) != 1 || got[0].Status != domain.WorkflowAttemptCompleted {
+		t.Fatalf("recovered attempt=%+v err=%v", got, err)
+	}
+}
+
+func TestWorkflowExecutionCancellationFenceSerializesStartAdmission(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	catalog := &workflowRepository{db: db, log: logrus.New()}
+	revision := workflowRevision("owner/staged-message", "sha256:cancel-fence", "1.0.0")
+	if err := catalog.ActivateBatch(ctx, []*domain.WorkflowRevision{revision}); err != nil {
+		t.Fatal(err)
+	}
+	repo := &workflowExecutionRepository{db: db, log: logrus.New()}
+	makeExecution := func(key string) (*domain.WorkflowExecution, *domain.WorkflowJournalEntry) {
+		now := time.Now().UTC()
+		execution := &domain.WorkflowExecution{ID: uuid.New(), Owner: revision.Owner, WorkflowKey: revision.Key, DefinitionDigest: revision.Digest, Status: domain.WorkflowExecutionRunning, CurrentNodeID: "start", Input: json.RawMessage(`{}`), EdgeTraversals: map[string]int{}, Version: 1, IdempotencyKey: key, CreatedAt: now, UpdatedAt: now}
+		initial := &domain.WorkflowJournalEntry{ID: uuid.New(), ExecutionID: execution.ID, Sequence: 1, Kind: domain.WorkflowJournalInput, Payload: execution.Input, CreatedAt: now}
+		return execution, initial
+	}
+
+	// Cancellation wins before the workflow row is committed. A late Start must
+	// observe the fence inside the same transaction that would insert the row.
+	fencedMiss, err := repo.CancelByIdempotencyKey(ctx, "cancel-wins", revision.Owner, revision.Key)
+	if err != nil || fencedMiss != nil {
+		t.Fatalf("cancel-first result=%+v err=%v", fencedMiss, err)
+	}
+	late, lateJournal := makeExecution("cancel-wins")
+	if err := repo.Create(ctx, late, lateJournal); err == nil {
+		t.Fatal("late Start created a workflow after the idempotency key was fenced")
+	}
+	if got, err := repo.GetByIdempotencyKey(ctx, "cancel-wins"); err != nil || got != nil {
+		t.Fatalf("fenced miss unexpectedly has execution: %+v err=%v", got, err)
+	}
+
+	// Start wins first. Cancellation fences subsequent admission and returns
+	// the exact execution so the owner can cancel it by handle.
+	started, initial := makeExecution("start-wins")
+	if err := repo.Create(ctx, started, initial); err != nil {
+		t.Fatal(err)
+	}
+	fencedExecution, err := repo.CancelByIdempotencyKey(ctx, "start-wins", revision.Owner, revision.Key)
+	if err != nil || fencedExecution == nil || fencedExecution.ID != started.ID || fencedExecution.IdempotencyKey != started.IdempotencyKey {
+		t.Fatalf("start-first cancellation did not recover exact execution: %+v err=%v", fencedExecution, err)
+	}
+}
+
+func TestWorkflowExecutionRepositoryRejectsInvalidLifecycleTransition(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	catalog := &workflowRepository{db: db, log: logrus.New()}
+	revision := workflowRevision("owner/lifecycle", "sha256:lifecycle", "1.0.0")
+	if err := catalog.ActivateBatch(ctx, []*domain.WorkflowRevision{revision}); err != nil {
+		t.Fatal(err)
+	}
+	store := &workflowExecutionRepository{db: db, log: logrus.New()}
+	now := time.Now().UTC()
+	execution := &domain.WorkflowExecution{
+		ID: uuid.New(), Owner: "owner", WorkflowKey: revision.Key, DefinitionDigest: revision.Digest,
+		Status: domain.WorkflowExecutionSucceeded, CurrentNodeID: "done", Input: json.RawMessage(`{}`),
+		EdgeTraversals: map[string]int{}, Version: 1, IdempotencyKey: "lifecycle-invalid-edge", CreatedAt: now, UpdatedAt: now,
+	}
+	initial := &domain.WorkflowJournalEntry{ID: uuid.New(), ExecutionID: execution.ID, Sequence: 1, Kind: domain.WorkflowJournalInput, Payload: execution.Input, CreatedAt: now}
+	if err := store.Create(ctx, execution, initial); err != nil {
+		t.Fatal(err)
+	}
+
+	resurrected := *execution
+	resurrected.Status = domain.WorkflowExecutionRunning
+	resurrected.Version++
+	resurrected.UpdatedAt = now.Add(time.Second)
+	if ok, err := store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: 1, Execution: &resurrected}); !errors.Is(err, domain.ErrInvalidWorkflowExecutionStatusTransition) || ok {
+		t.Fatalf("terminal resurrection committed=%t err=%v", ok, err)
+	}
+	got, err := store.Get(ctx, execution.ID)
+	if err != nil || got == nil || got.Status != domain.WorkflowExecutionSucceeded || got.Version != 1 {
+		t.Fatalf("rejected transition changed durable execution: got=%+v err=%v", got, err)
+	}
+}
+
 func TestWorkflowExecutionRepositoryPersistsEngagementGrantAcrossReload(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
@@ -291,12 +419,19 @@ func TestWorkflowExecutionRepositoryExecutionIDForRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	runID := uuid.New()
-	attempt := &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: execution.ID, NodeID: "start", Ordinal: 1, Strategy: domain.WorkflowAttemptFreshRun, Status: domain.WorkflowAttemptDispatched, IdempotencyKey: "attempt-reverse", InputSnapshot: json.RawMessage(`{}`), RunID: &runID, Version: 1, CreatedAt: now, UpdatedAt: now}
+	attempt := &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: execution.ID, NodeID: "start", Ordinal: 1, Strategy: domain.WorkflowAttemptFreshRun, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: "attempt-reverse", InputSnapshot: json.RawMessage(`{}`), Version: 1, CreatedAt: now, UpdatedAt: now}
 	execution.Version = 2
 	execution.UpdatedAt = now.Add(time.Second)
 	entry := &domain.WorkflowJournalEntry{ID: uuid.New(), ExecutionID: execution.ID, Sequence: 2, Kind: domain.WorkflowJournalAttempt, NodeID: "start", AttemptID: &attempt.ID, Payload: json.RawMessage(`{"strategy":"fresh_run"}`), CreatedAt: execution.UpdatedAt}
 	if ok, err := repo.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: 1, Execution: execution, Attempt: attempt, Journal: []*domain.WorkflowJournalEntry{entry}}); err != nil || !ok {
 		t.Fatalf("commit ok=%t err=%v", ok, err)
+	}
+	attempt.Status, attempt.RunID = domain.WorkflowAttemptDispatched, &runID
+	attempt.Version++
+	execution.Version++
+	execution.UpdatedAt = now.Add(2 * time.Second)
+	if ok, err := repo.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: 2, Execution: execution, Attempt: attempt}); err != nil || !ok {
+		t.Fatalf("dispatch acknowledgement commit ok=%t err=%v", ok, err)
 	}
 
 	got, err := repo.ExecutionIDForRun(ctx, runID)

@@ -257,12 +257,13 @@ type memoryStore struct {
 	mu         sync.Mutex
 	executions map[uuid.UUID]*domain.WorkflowExecution
 	keys       map[string]uuid.UUID
+	fences     map[string]struct{}
 	attempts   map[uuid.UUID][]*domain.WorkflowNodeAttempt
 	journal    map[uuid.UUID][]*domain.WorkflowJournalEntry
 }
 
 func newMemoryStore() *memoryStore {
-	return &memoryStore{executions: map[uuid.UUID]*domain.WorkflowExecution{}, keys: map[string]uuid.UUID{}, attempts: map[uuid.UUID][]*domain.WorkflowNodeAttempt{}, journal: map[uuid.UUID][]*domain.WorkflowJournalEntry{}}
+	return &memoryStore{executions: map[uuid.UUID]*domain.WorkflowExecution{}, keys: map[string]uuid.UUID{}, fences: map[string]struct{}{}, attempts: map[uuid.UUID][]*domain.WorkflowNodeAttempt{}, journal: map[uuid.UUID][]*domain.WorkflowJournalEntry{}}
 }
 
 func clone[T any](v T) T {
@@ -275,12 +276,34 @@ func clone[T any](v T) T {
 func (s *memoryStore) Create(_ context.Context, e *domain.WorkflowExecution, j *domain.WorkflowJournalEntry) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if _, fenced := s.fences[e.IdempotencyKey]; fenced {
+		return domain.NewStateError("WorkflowExecution", "cancelled", "start", "idempotency key has an owner cancellation fence")
+	}
 	x := clone(*e)
 	s.executions[e.ID] = &x
 	s.keys[e.IdempotencyKey] = e.ID
 	entry := clone(*j)
 	s.journal[e.ID] = []*domain.WorkflowJournalEntry{&entry}
 	return nil
+}
+
+func (s *memoryStore) CancelByIdempotencyKey(_ context.Context, key, owner, workflowKey string) (*domain.WorkflowExecution, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if key == "" || owner == "" || workflowKey == "" {
+		return nil, domain.NewValidationError("idempotencyKey", "key, owner, and workflow key are required")
+	}
+	s.fences[key] = struct{}{}
+	id, ok := s.keys[key]
+	if !ok {
+		return nil, nil
+	}
+	execution := s.executions[id]
+	if execution.Owner != owner || execution.WorkflowKey != workflowKey {
+		return nil, domain.NewValidationError("idempotencyKey", "belongs to a different workflow owner")
+	}
+	value := clone(*execution)
+	return &value, nil
 }
 
 func (s *memoryStore) Get(_ context.Context, id uuid.UUID) (*domain.WorkflowExecution, error) {

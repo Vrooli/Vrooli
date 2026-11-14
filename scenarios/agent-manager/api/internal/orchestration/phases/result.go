@@ -275,12 +275,16 @@ func HandleSuccessfulCompletion(ctx context.Context, in HandleResultInput) {
 // apply).
 func HandleFailure(ctx context.Context, in HandleResultInput) {
 	in.Run.Status = domain.RunStatusFailed
+	providerMaintenanceRefusal := ApplyProviderMaintenanceFailureReceipt(in.Run, in.ExecErr)
 	if in.Result != nil {
 		in.Run.Result = in.Result.Result
 		in.Run.Summary = in.Result.Summary
 	}
 
-	if in.ExecErr != nil {
+	if providerMaintenanceRefusal {
+		// Keep the safe receipt on Run.ErrorMsg; do not replace it with a raw
+		// transport message or promote the ambiguous HTTP status to authority.
+	} else if in.ExecErr != nil {
 		in.Run.ErrorMsg = in.ExecErr.Error()
 	} else if in.Result != nil && in.Result.ErrorMessage != "" {
 		in.Run.ErrorMsg = in.Result.ErrorMessage
@@ -288,7 +292,13 @@ func HandleFailure(ctx context.Context, in HandleResultInput) {
 	}
 
 	if in.Run.ErrorMsg != "" {
-		if in.ExecErr != nil {
+		if providerMaintenanceRefusal {
+			var runnerErr *domain.RunnerError
+			_ = errors.As(in.ExecErr, &runnerErr)
+			safeErr := *runnerErr
+			safeErr.Cause = errors.New(in.Run.ErrorMsg)
+			EmitFailureEvent(ctx, in.Deps, in.Run.ID, &safeErr)
+		} else if in.ExecErr != nil {
 			if domainErr, ok := in.ExecErr.(domain.DomainError); ok {
 				EmitFailureEvent(ctx, in.Deps, in.Run.ID, domainErr)
 			} else {

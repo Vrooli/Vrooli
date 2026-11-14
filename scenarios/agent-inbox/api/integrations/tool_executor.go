@@ -183,7 +183,9 @@ func (e *ToolExecutor) extractExternalRunID(result interface{}, record *domain.T
 
 // failRecord marks a record as failed and returns it.
 func (e *ToolExecutor) failRecord(record *domain.ToolCallRecord, err error) *domain.ToolCallRecord {
-	record.Status = domain.StatusFailed
+	if transitionErr := record.TransitionTo(domain.StatusFailed); transitionErr != nil {
+		log.Printf("[ERROR] invalid tool failure transition: %v", transitionErr)
+	}
 	record.ErrorMessage = err.Error()
 	record.CompletedAt = time.Now()
 	resultJSON, _ := json.Marshal(map[string]string{"error": err.Error()})
@@ -193,7 +195,9 @@ func (e *ToolExecutor) failRecord(record *domain.ToolCallRecord, err error) *dom
 
 // completeRecord marks a record as completed and returns it.
 func (e *ToolExecutor) completeRecord(record *domain.ToolCallRecord, result interface{}) *domain.ToolCallRecord {
-	record.Status = domain.StatusCompleted
+	if transitionErr := record.TransitionTo(domain.StatusCompleted); transitionErr != nil {
+		log.Printf("[ERROR] invalid tool completion transition: %v", transitionErr)
+	}
 	record.CompletedAt = time.Now()
 	resultJSON, err := json.Marshal(result)
 	if err != nil {

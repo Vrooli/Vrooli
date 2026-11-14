@@ -28,6 +28,10 @@ type TestServer struct {
 	handlers *handlers.Handlers
 }
 
+func (ts *TestServer) useModelCatalog(models []integrations.ModelInfo) {
+	ts.handlers.ModelRegistry = services.NewModelRegistryWithModels(models)
+}
+
 // setupTestServer creates a test server with an in-memory SQLite database.
 func setupTestServer(t *testing.T) *TestServer {
 	// New chats with no per-request model resolve their default from the

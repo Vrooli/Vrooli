@@ -11,18 +11,23 @@
 package sandbox
 
 import (
-	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/domain"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
+
+	"github.com/google/uuid"
 )
 
 func TestSandboxLauncherPolicyFiles(t *testing.T) {
@@ -330,6 +335,80 @@ func TestSandboxLauncher_StartProcess403ReturnsLaunchBlocked(t *testing.T) {
 	}
 	if blocked.Verb != "push" {
 		t.Errorf("blocked.Verb = %q; want push", blocked.Verb)
+	}
+}
+
+func TestSandboxLauncherTypesOnlyExactLifecycleAdmissionRefusal(t *testing.T) {
+	tests := []struct {
+		name   string
+		status int
+		body   string
+		want   bool
+	}{
+		{name: "exact 409 lifecycle refusal", status: http.StatusConflict, body: `{"error":"provider admission is closed for lifecycle maintenance","code":409,"success":false}`, want: true},
+		{name: "other 409", status: http.StatusConflict, body: `{"error":"sandbox must be active to start processes","code":409,"success":false}`},
+		{name: "unavailable lifecycle state", status: http.StatusConflict, body: `{"error":"provider admission is closed because lifecycle state is unavailable","code":409,"success":false}`},
+		{name: "same payload with another status", status: http.StatusServiceUnavailable, body: `{"error":"provider admission is closed for lifecycle maintenance","code":503,"success":false}`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mock := newSandboxTestServer(404)
+			mock.startProcessCode = test.status
+			mock.startProcessReply = test.body
+			server := mock.startServer(t)
+			defer server.Close()
+			launcher := NewSandboxLauncher(NewWorkspaceSandboxProvider(server.URL), uuid.New())
+			_, err := launcher.startProcess(context.Background(), startProcessBody{Command: "codex"})
+			if err == nil {
+				t.Fatal("startProcess returned nil for refusal")
+			}
+			got := domain.IsPreEffectRefusal(err) && errors.Is(err, domain.ErrProviderAdmissionMaintenance)
+			if got != test.want {
+				t.Fatalf("typed pre-effect maintenance receipt=%t, want %t; err=%v", got, test.want, err)
+			}
+		})
+	}
+}
+
+func TestSandboxLauncherPreflightsKnownClosedProviderAdmission(t *testing.T) {
+	mock := newSandboxTestServer(515)
+	mock.lifecycleStatus = &commonv1.LifecycleStanding{
+		Provider: "workspace-sandbox", Scenario: "workspace-sandbox",
+		Phase:           commonv1.LifecycleMaintenancePhase_LIFECYCLE_MAINTENANCE_PHASE_CLOSING,
+		AdmissionClosed: true, ObservedAt: timestamppb.Now(),
+	}
+	server := mock.startServer(t)
+	defer server.Close()
+
+	launcher := NewSandboxLauncher(NewWorkspaceSandboxProvider(server.URL), uuid.New())
+	_, err := launcher.Launch(context.Background(), runner.LaunchRequest{Command: "codex"})
+	if err == nil || !domain.IsPreEffectRefusal(err) || !errors.Is(err, domain.ErrProviderAdmissionMaintenance) {
+		t.Fatalf("Launch error = %v, want typed pre-effect maintenance refusal", err)
+	}
+	if mock.startProcessSeen.Load() {
+		t.Fatal("known closed provider reached process dispatch")
+	}
+}
+
+func TestSandboxLauncherDispatchStillClassifiesMaintenanceRace(t *testing.T) {
+	mock := newSandboxTestServer(516)
+	mock.lifecycleStatus = &commonv1.LifecycleStanding{
+		Provider: "workspace-sandbox", Scenario: "workspace-sandbox",
+		Phase:      commonv1.LifecycleMaintenancePhase_LIFECYCLE_MAINTENANCE_PHASE_OPEN,
+		ObservedAt: timestamppb.Now(),
+	}
+	mock.startProcessCode = http.StatusConflict
+	mock.startProcessReply = `{"error":"provider admission is closed for lifecycle maintenance","code":409,"success":false}`
+	server := mock.startServer(t)
+	defer server.Close()
+
+	launcher := NewSandboxLauncher(NewWorkspaceSandboxProvider(server.URL), uuid.New())
+	_, err := launcher.Launch(context.Background(), runner.LaunchRequest{Command: "codex"})
+	if err == nil || !domain.IsPreEffectRefusal(err) || !errors.Is(err, domain.ErrProviderAdmissionMaintenance) {
+		t.Fatalf("Launch error = %v, want typed pre-effect maintenance refusal after preflight race", err)
+	}
+	if !mock.startProcessSeen.Load() {
+		t.Fatal("known open preflight did not proceed to dispatch")
 	}
 }
 

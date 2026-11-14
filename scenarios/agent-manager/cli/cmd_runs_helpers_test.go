@@ -316,6 +316,9 @@ func TestRunAttachAndDetachUseTypedIdentityEndpoints(t *testing.T) {
 	if attachRequest.GetHarnessKind() != "codex" || attachRequest.GetHarnessSessionId() != "session-1" || attachRequest.GetProcessId() != 42 {
 		t.Fatalf("attach request = %+v", &attachRequest)
 	}
+	if err := app.cmdRun([]string{"attach", "--harness-kind=codex", "--harness-session-id=init-session", "--process-id=1", "--json"}); err == nil {
+		t.Fatal("attach accepted PID 1 as a physical harness identity")
+	}
 
 	if err := app.cmdRun([]string{"detach", "attached-run", "--reason", "finished", "--json"}); err != nil {
 		t.Fatal(err)

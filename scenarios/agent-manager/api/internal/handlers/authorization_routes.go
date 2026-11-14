@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
 	"log"
@@ -153,6 +154,14 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 		// operation a standing grant admits today; every other service write falls
 		// through to the refusal below. No grant logic lives here — this delegates.
 		if ok && p.Kind == identity.ActorService {
+			// Treasury may submit immutable run-bound research budget evidence.
+			// The endpoint still requires the exact service identity, capability,
+			// operation grant, and run target; this exception only lets it reach
+			// those handler checks instead of granting a general service write.
+			if isResearchBudgetIngestRoute(r) && p.IsVerified() && p.Subject == "treasury" {
+				next.ServeHTTP(w, r)
+				return
+			}
 			// A standing grant authorizes the heartbeat's task+run as ONE unit: the
 			// unattended heartbeat creates its task first, then the run it carries.
 			// Both legs are admitted under the same run.create authority (a task is
@@ -266,6 +275,18 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func isResearchBudgetIngestRoute(r *http.Request) bool {
+	if r == nil || r.Method != http.MethodPost {
+		return false
+	}
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) != 5 || parts[0] != "api" || parts[1] != "v1" || parts[2] != "research-budgets" || (parts[4] != "snapshot" && parts[4] != "settlements") {
+		return false
+	}
+	_, err := uuid.Parse(parts[3])
+	return err == nil
+}
+
 // isRunCreationPath names the two legs of run creation (the task, then the
 // run) on both transports; every admission rule for one applies to the other.
 func isRunCreationPath(path string) bool {
@@ -277,6 +298,8 @@ func isRunCreationPath(path string) bool {
 }
 
 const localWorkflowStartBodyLimit = 128 << 10
+
+const workflowExecutionCancelByKeyPath = "/api/v1/workflow-executions/cancel-by-idempotency-key"
 
 // isGitControlTowerWorkflowStart recognizes GCT's two message-only drafts.
 // Source IP is intentionally excluded: proxies and container networking make
@@ -313,6 +336,33 @@ func isGitControlTowerWorkflowStart(r *http.Request) (bool, string) {
 		return true, "eligible"
 	default:
 		return false, "wrong_workflow_key"
+	}
+}
+
+// isGitControlTowerWorkflowCancelByKey keeps this internal lifecycle route
+// scoped to the two workflows owned by Git Control Tower. The body is restored
+// because the handler must perform its own strict decoding and validation.
+func isGitControlTowerWorkflowCancelByKey(r *http.Request) bool {
+	if r == nil || r.Method != http.MethodPost || r.URL.Path != workflowExecutionCancelByKeyPath || r.Body == nil {
+		return false
+	}
+	data, err := io.ReadAll(io.LimitReader(r.Body, localWorkflowStartBodyLimit+1))
+	r.Body = io.NopCloser(bytes.NewReader(data))
+	if err != nil || len(data) == 0 || len(data) > localWorkflowStartBodyLimit {
+		return false
+	}
+	var request struct {
+		Owner       string `json:"owner"`
+		WorkflowKey string `json:"workflowKey"`
+	}
+	if err := json.Unmarshal(data, &request); err != nil || request.Owner != "git-control-tower" {
+		return false
+	}
+	switch request.WorkflowKey {
+	case "git-control-tower/staged-message", "git-control-tower/staged-message-deep":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -360,6 +410,8 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 	case apiconnect.AgentManagerServiceStartWorkflowExecutionProcedure:
 		// The revision's trigger policy is the admission authority for starts.
 		return true
+	case workflowExecutionCancelByKeyPath:
+		return isGitControlTowerWorkflowCancelByKey(r)
 	case ExactChallengePath, ExactReadChallengePath, ExactReceiptPath, "/api/v1/runs", "/api/v1/runs/resume-from-failed", "/api/v1/investigations",
 		apiconnect.AgentManagerServiceCreateRunProcedure:
 		return true
@@ -441,7 +493,7 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 		// cancels the execution. It is the REST counterpart of the read-only
 		// WaitWorkflowExecution Connect procedure. Keep adjacent POST actions gated.
 		return true
-	case "/api/v1/runs/{id}/stop", "/api/v1/runs/tag/{tag}/stop", "/api/v1/runs/{id}/continue", "/api/v1/runs/{id}/wake", "/api/v1/runs/{id}/recover", "/api/v1/runs/{id}/park",
+	case "/api/v1/runs/{id}/stop", "/api/v1/runs/{id}/workload", "/api/v1/runs/tag/{tag}/stop", "/api/v1/runs/{id}/continue", "/api/v1/runs/{id}/wake", "/api/v1/runs/{id}/recover", "/api/v1/runs/{id}/park",
 		"/api/v1/runs/{id}/messages/{event_id}/delete",
 		"/api/v1/tasks/{id}/cancel",
 		"/api/v1/investigations/{id}/result", "/api/v1/investigations/{id}/learning-retry":

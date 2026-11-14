@@ -1041,6 +1041,9 @@ func (r *runRepository) RestoreAttachedRun(ctx context.Context, expected *domain
 	if expected == nil || expected.ExecutionMode.Normalized() != domain.ExecutionModeAttached || expected.Status != domain.RunStatusNeedsReview || expected.RunnerPID <= 1 || expected.ErrorMsg == "" || expected.IdentityTokenHash == "" {
 		return false, nil
 	}
+	if allowed, reason := domain.RunStatusNeedsReview.CanTransitionTo(domain.RunStatusRunning); !allowed {
+		return false, domain.NewStateErrorWithID("Run", expected.ID.String(), "invalid_status_transition", "restore attached", reason)
+	}
 	const query = `UPDATE runs SET status = ?, ended_at = NULL, error_msg = '',
   terminal_class = '', stop_reason = '', last_handoff = '', exit_code = NULL,
   updated_at = ?, lifecycle_version = lifecycle_version + 1

@@ -296,6 +296,9 @@ func usageRun(row usageRunRow) usageattribution.Run {
 	}
 	if row.HasIndexedSource || row.Mode == "imported" {
 		run.Source = usageattribution.SourceIndexed
+		if row.WorkloadKey != "" {
+			run.Workload = row.WorkloadKind + ":" + row.WorkloadKey
+		}
 		run.Runner = harnessRunner(firstNonEmpty(row.FileHarness, row.ImportHarness))
 		run.Child = row.FileSidechain || row.FileParent != "" || row.ParentRunID != ""
 		session := firstNonEmpty(row.FileParent, row.FileHeader, row.FileSession, row.ImportSessionID, row.ID)

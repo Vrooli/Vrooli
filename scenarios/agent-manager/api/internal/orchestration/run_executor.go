@@ -331,6 +331,18 @@ func workflowIdentityMeta(env map[string]string) map[string]string {
 	return meta
 }
 
+// runIdentityOwnerScopes returns the capability ceiling frozen at admission.
+// Older rows fall back to their persisted owner scopes until rewritten.
+func runIdentityOwnerScopes(run *domain.Run) []string {
+	if run == nil {
+		return nil
+	}
+	if run.ResolvedConfig != nil && run.ResolvedConfig.Admission != nil && run.ResolvedConfig.Admission.FrozenIdentityScopes != nil {
+		return append([]string{}, (*run.ResolvedConfig.Admission.FrozenIdentityScopes)...)
+	}
+	return append([]string{}, run.OwnerScopes...)
+}
+
 // WithOnRunning registers a callback fired exactly once when the run
 // transitions to RunStatusRunning. The spawn dispatcher uses this to
 // release the startup slot so the next queued run can proceed.
@@ -496,7 +508,7 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 	e.identityToken = phases.GenerateIdentityToken(execCtx, phases.GenerateIdentityTokenInput{
 		Deps: e.deps(), Run: e.run, Profile: e.profile, Task: e.task, Secret: e.identitySecret,
 		Meta:            workflowIdentityMeta(e.run.CustomEnv),
-		AccountScopes:   e.run.OwnerScopes,
+		AccountScopes:   runIdentityOwnerScopes(e.run),
 		RequestedScopes: e.run.RequestedScopes,
 	})
 	if err := e.prepareTreasurySessionKey(execCtx); err != nil {

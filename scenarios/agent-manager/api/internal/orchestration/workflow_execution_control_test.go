@@ -101,6 +101,91 @@ func TestWorkflowExecutionControlAndTriageProjections(t *testing.T) {
 	}
 }
 
+func TestCancelWorkflowExecutionByKeyReturnsTerminalStartReceipt(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		settle func(*testing.T, *Orchestrator, *domain.WorkflowExecution)
+		want   domain.WorkflowExecutionStatus
+	}{
+		{
+			name: "succeeded before cancel",
+			settle: func(t *testing.T, o *Orchestrator, execution *domain.WorkflowExecution) {
+				t.Helper()
+				if _, err := o.SignalWorkflowExecution(t.Context(), WorkflowExecutionSignalRequest{ExecutionID: execution.ID, Signal: "continue", Payload: json.RawMessage(`{}`), IdempotencyKey: "finish-before-cancel"}); err != nil {
+					t.Fatal(err)
+				}
+			},
+			want: domain.WorkflowExecutionSucceeded,
+		},
+		{
+			name: "failed before cancel",
+			settle: func(t *testing.T, o *Orchestrator, execution *domain.WorkflowExecution) {
+				t.Helper()
+				if _, err := o.FailWorkflowExecution(t.Context(), execution.ID, "fixture_failure", "terminal fixture"); err != nil {
+					t.Fatal(err)
+				}
+			},
+			want: domain.WorkflowExecutionFailed,
+		},
+		{
+			name: "cancelled before repeated cancel-by-key",
+			settle: func(t *testing.T, o *Orchestrator, execution *domain.WorkflowExecution) {
+				t.Helper()
+				if _, err := o.CancelWorkflowExecution(t.Context(), WorkflowExecutionOperationRequest{ExecutionID: execution.ID, IdempotencyKey: "first-cancel", Reason: "fixture"}); err != nil {
+					t.Fatal(err)
+				}
+			},
+			want: domain.WorkflowExecutionCancelled,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := t.Context()
+			o, repos := newRelayOrchestrator(t, newFakeRunLauncher())
+			revision := waitWorkflowDefinition()
+			if err := repos.Workflows.ActivateBatch(ctx, []*domain.WorkflowRevision{revision}); err != nil {
+				t.Fatal(err)
+			}
+			key := "terminal-key/" + uuid.NewString()
+			execution, err := o.StartWorkflowExecution(ctx, StartWorkflowExecutionRequest{Owner: revision.Owner, WorkflowKey: revision.Key, Input: json.RawMessage(`{}`), IdempotencyKey: key})
+			if err != nil || execution.Status != domain.WorkflowExecutionWaiting {
+				t.Fatalf("start execution=%+v err=%v", execution, err)
+			}
+			tc.settle(t, o, execution)
+			before, err := repos.WorkflowExecutions.ListJournal(ctx, execution.ID, 0, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cancelEntries := 0
+			for _, entry := range before {
+				if entry.Kind == domain.WorkflowJournalCancel {
+					cancelEntries++
+				}
+			}
+
+			got, err := o.CancelWorkflowExecutionByIdempotencyKey(ctx, WorkflowExecutionCancelByKeyRequest{
+				Owner: revision.Owner, WorkflowKey: revision.Key, IdempotencyKey: key,
+				OperationKey: "cancel-after-terminal", Reason: "late operator cancellation",
+			})
+			if err != nil || got == nil || !got.Fenced || got.Execution == nil || got.Execution.ID != execution.ID || got.Execution.Status != tc.want {
+				t.Fatalf("terminal fence receipt=%+v err=%v, want status=%s", got, err, tc.want)
+			}
+			after, err := repos.WorkflowExecutions.ListJournal(ctx, execution.ID, 0, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			gotCancelEntries := 0
+			for _, entry := range after {
+				if entry.Kind == domain.WorkflowJournalCancel {
+					gotCancelEntries++
+				}
+			}
+			if gotCancelEntries != cancelEntries {
+				t.Fatalf("terminal receipt changed cancellation journal: before=%d after=%d", cancelEntries, gotCancelEntries)
+			}
+		})
+	}
+}
+
 func TestSimulateWorkflowProjectsEachSupportedNodeStrategy(t *testing.T) {
 	ctx := context.Background()
 	o, repos := newRelayOrchestrator(t, newFakeRunLauncher())

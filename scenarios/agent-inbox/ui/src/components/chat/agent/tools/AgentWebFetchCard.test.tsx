@@ -1,3 +1,4 @@
+import { renderWithProviders } from "@/test-utils/renderWithProviders";
 /**
  * Tests for AgentWebFetchCard component.
  *
@@ -9,7 +10,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AgentWebFetchCard } from "./AgentWebFetchCard";
 import type { AgentEvent } from "../../../../lib/api";
@@ -44,7 +45,7 @@ describe("AgentWebFetchCard", () => {
         }),
       });
 
-      render(<AgentWebFetchCard event={event} />);
+      renderWithProviders(<AgentWebFetchCard event={event} />);
       expect(screen.getByText("WebFetch")).toBeInTheDocument();
       // The URL appears as the summary in the collapsed header
       expect(screen.getByText("https://example.com/api/data")).toBeInTheDocument();
@@ -60,7 +61,7 @@ describe("AgentWebFetchCard", () => {
         }),
       });
 
-      render(<AgentWebFetchCard event={event} />);
+      renderWithProviders(<AgentWebFetchCard event={event} />);
 
       // Click to expand
       await user.click(screen.getByRole("button"));
@@ -79,7 +80,7 @@ describe("AgentWebFetchCard", () => {
         tool_input: JSON.stringify({ prompt: "Get something" }),
       });
 
-      render(<AgentWebFetchCard event={event} />);
+      renderWithProviders(<AgentWebFetchCard event={event} />);
       expect(screen.getByText("(no URL)")).toBeInTheDocument();
     });
   });
@@ -91,7 +92,7 @@ describe("AgentWebFetchCard", () => {
         tool_input: JSON.stringify({ query: "vitest testing best practices" }),
       });
 
-      render(<AgentWebFetchCard event={event} />);
+      renderWithProviders(<AgentWebFetchCard event={event} />);
       expect(screen.getByText("WebSearch")).toBeInTheDocument();
       expect(screen.getByText("vitest testing best practices")).toBeInTheDocument();
     });
@@ -102,7 +103,7 @@ describe("AgentWebFetchCard", () => {
         tool_input: JSON.stringify({}),
       });
 
-      render(<AgentWebFetchCard event={event} />);
+      renderWithProviders(<AgentWebFetchCard event={event} />);
       expect(screen.getByText("(no query)")).toBeInTheDocument();
     });
   });
@@ -114,7 +115,7 @@ describe("AgentWebFetchCard", () => {
         tool_input: undefined,
       });
 
-      render(<AgentWebFetchCard event={event} />);
+      renderWithProviders(<AgentWebFetchCard event={event} />);
       expect(screen.getByText("WebFetch")).toBeInTheDocument();
       expect(screen.getByText("(no URL)")).toBeInTheDocument();
     });
@@ -125,7 +126,7 @@ describe("AgentWebFetchCard", () => {
         tool_input: undefined,
       });
 
-      render(<AgentWebFetchCard event={event} />);
+      renderWithProviders(<AgentWebFetchCard event={event} />);
       expect(screen.getByText("WebSearch")).toBeInTheDocument();
       expect(screen.getByText("(no query)")).toBeInTheDocument();
     });
@@ -136,7 +137,7 @@ describe("AgentWebFetchCard", () => {
         tool_input: "{{invalid json}}",
       });
 
-      render(<AgentWebFetchCard event={event} />);
+      renderWithProviders(<AgentWebFetchCard event={event} />);
       expect(screen.getByText("WebFetch")).toBeInTheDocument();
       expect(screen.getByText("(no URL)")).toBeInTheDocument();
     });

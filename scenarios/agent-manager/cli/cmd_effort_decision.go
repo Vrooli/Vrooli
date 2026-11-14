@@ -29,7 +29,10 @@ const decisionUsage = `usage:
   agent-manager effort decision raise <goal home> --id <id> --question <text> --option key=label --option key=label --recommend <key> [--why <text>] [--default <key> --reversible] [--deadline 24h|<RFC3339>] [--urgency low|normal|high|critical] [--big-picture <text>] [--technical-details <text>] [--note <legacy technical-details fallback>] [--context-url <url>] [--home-ref <repo-relative dir>] [--effort-ref <ref>] [--dry-run] [--json]
   agent-manager effort decision answer <goal home> <id> <option key> [--note <text>] [--home-ref <dir>] [--local-owner] [--json]
   agent-manager effort decision list [<goal home>] [--effort-ref <ref>] [--unrecorded] [--home-ref <dir>] [--json]
-  agent-manager effort decision sync <goal home> [--home-ref <dir>] [--effort-ref <ref>] [--reconcile-recorded] [--json]`
+  agent-manager effort decision sync <goal home> [--home-ref <dir>] [--effort-ref <ref>] [--reconcile-recorded] [--json]
+
+The operator reads a raised decision cold on a phone. Write --question, --big-picture,
+--technical-details and option labels by: prompt-manager skill read notification-hub`
 
 // optionFlags collects repeated --option key=label values.
 type optionFlags []goalhome.DecisionOption
@@ -65,25 +68,41 @@ func (a *App) effortDecision(args []string) error {
 }
 
 // decisionHomeRef is the server's key for a goal home: the directory relative
-// to the repository root. --home-ref names it explicitly, for a goal-home copy
-// outside the repository.
+// to the repository root, or, for a home kept outside the repository (a research
+// cohort under ~/.vrooli, say), its absolute directory. --home-ref names the key
+// explicitly, for a goal-home copy that lives somewhere other than where the
+// decision belongs.
 func decisionHomeRef(dir, override string) (string, error) {
 	if strings.TrimSpace(override) != "" {
-		return effortdecision.NormalizeGoalHome(override)
+		return effortdecision.NormalizeDecisionHome(override)
 	}
 	abs, err := filepath.Abs(dir)
 	if err != nil {
 		return "", err
 	}
-	root := cliutil.ResolveRepoRoot()
-	if root == "" {
-		return "", errors.New("repository root unknown; pass --home-ref <repo-relative goal home>")
+	if root := cliutil.ResolveRepoRoot(); root != "" {
+		if rel, relErr := filepath.Rel(root, abs); relErr == nil && filepath.IsLocal(rel) {
+			return effortdecision.NormalizeDecisionHome(rel)
+		}
 	}
-	rel, err := filepath.Rel(root, abs)
-	if err != nil || !filepath.IsLocal(rel) {
-		return "", fmt.Errorf("goal home %s is outside the repository %s; pass --home-ref <repo-relative goal home>", dir, root)
+	return effortdecision.NormalizeDecisionHome(abs)
+}
+
+// readQueue reads the goal home's STATUS.md, the file its ## Needs operator
+// section lives in. A folder without one (a research cohort, a plain notes
+// folder) has nowhere to list the decision, which is fine: the decision is still
+// stored and sent, and its answer is read back with `effort decision list`. ok is
+// false for such a folder.
+func readQueue(dir string) (queue []byte, path string, ok bool, err error) {
+	path = filepath.Join(dir, goalhome.StatusFile)
+	queue, err = os.ReadFile(path)
+	switch {
+	case err == nil:
+		return queue, path, true, nil
+	case errors.Is(err, os.ErrNotExist):
+		return nil, path, false, nil
 	}
-	return effortdecision.NormalizeGoalHome(rel)
+	return nil, path, false, fmt.Errorf("goal home %s: %w", dir, err)
 }
 
 // parseDecisionDeadline accepts a duration from now or an RFC 3339 time.
@@ -140,10 +159,9 @@ func (a *App) decisionRaise(args []string) error {
 	if err != nil {
 		return err
 	}
-	queuePath := filepath.Join(dir, goalhome.StatusFile)
-	queue, err := os.ReadFile(queuePath)
+	queue, queuePath, hasQueue, err := readQueue(dir)
 	if err != nil {
-		return fmt.Errorf("goal home %s: %w", dir, err)
+		return err
 	}
 	now := time.Now().UTC()
 	at, relative, err := parseDecisionDeadline(*deadline, now)
@@ -158,6 +176,9 @@ func (a *App) decisionRaise(args []string) error {
 		RecommendationReason: strings.TrimSpace(*why), DefaultAnswer: strings.TrimSpace(*defaultAnswer), Reversible: *reversible,
 		Urgency: strings.TrimSpace(*urgency), Note: strings.TrimSpace(*note), BigPicture: strings.TrimSpace(*bigPicture),
 		TechnicalDetails: strings.TrimSpace(*technicalDetails), ContextURL: strings.TrimSpace(*contextURL), Deadline: at, RaisedAt: now,
+	}
+	if view.DefaultAnswer != "" && !view.Reversible {
+		return fmt.Errorf("--default needs --reversible: only a decision that can be undone may be settled by a default\n%s", decisionUsage)
 	}
 	if err := view.Validate(); err != nil {
 		return fmt.Errorf("%w\n%s", err, decisionUsage)
@@ -192,22 +213,32 @@ func (a *App) decisionRaise(args []string) error {
 		result.EventID = effortdecision.EventID(event)
 		result.Event = map[string]any{"source": event.Source, "event_type": event.EventType, "occurred_at": event.Occurred.Format(time.RFC3339Nano), "payload": event.Payload}
 		result.Item = goalhome.NeedsOperatorItem(view)
-		_, result.Changed = goalhome.AddNeedsOperatorItem(queue, view)
+		if hasQueue {
+			_, result.Changed = goalhome.AddNeedsOperatorItem(queue, view)
+		}
+		if strings.TrimSpace(os.Getenv(cliutil.EnvIdentityToken)) != "" {
+			// A raise from an agent run declares the operator may ask it for more
+			// context; the preview shows the event that run would send.
+			record.RaisedByRunId = "this-run"
+		}
 		result.Decision, _ = protojson.Marshal(record)
 		return printDecisionRaise(result, *jsonOut, func() {
 			fmt.Printf("DRY RUN: nothing published, %s not written\n", queuePath)
 			fmt.Printf("Event %s (%s, id %s):\n", event.EventType, event.Source, result.EventID)
 			payload, _ := json.MarshalIndent(event.Payload, "  ", "  ")
 			fmt.Printf("  %s\n", payload)
+			if !hasQueue {
+				fmt.Printf("%s has no STATUS.md, so there is no ## Needs operator section to list the decision in.\n", dir)
+				return
+			}
 			fmt.Printf("%s ## Needs operator item (would %s):\n%s", filepath.Base(queuePath), map[bool]string{true: "add", false: "keep the existing one"}[result.Changed], result.Item)
 		})
 	}
-	if relative {
+	before := a.storedDecision(ref, view.ID)
+	if relative && before != nil && before.GetDeadline() != nil {
 		// A re-raise with a relative deadline keeps the stored deadline, so
 		// repeating the same command stays idempotent.
-		if existing := a.storedDecision(ref, view.ID); existing != nil && existing.GetDeadline() != nil {
-			record.Deadline = existing.GetDeadline()
-		}
+		record.Deadline = before.GetDeadline()
 	}
 	response := &pb.RaiseEffortDecisionResponse{}
 	body, err := callRPC(a.services.Watches.api, apiconnect.AgentManagerServiceRaiseEffortDecisionProcedure, &pb.RaiseEffortDecisionRequest{Decision: record}, response)
@@ -215,12 +246,18 @@ func (a *App) decisionRaise(args []string) error {
 		return apiError(body, err)
 	}
 	stored := effortdecision.View(response.GetDecision())
-	updated, changed := goalhome.AddNeedsOperatorItem(queue, stored)
+	// A changed raise of a pending decision replaces its terms, and the operator's
+	// ask updates in place instead of a second one opening.
+	revised := response.GetRevised()
 	answered := stored.State == effortdecision.Answered || stored.State == effortdecision.Defaulted
-	if answered {
-		// An idempotent raise must never turn an existing answer into a
-		// fresh human dependency. Sync owns verbatim answer projection.
-		updated, changed = goalhome.RemoveNeedsOperatorItem(queue, stored.ID)
+	updated, changed := queue, false
+	if hasQueue {
+		updated, changed = goalhome.AddNeedsOperatorItem(queue, stored)
+		if answered {
+			// An idempotent raise must never turn an existing answer into a
+			// fresh human dependency. Sync owns verbatim answer projection.
+			updated, changed = goalhome.RemoveNeedsOperatorItem(queue, stored.ID)
+		}
 	}
 	if changed {
 		if err := goalhome.WriteIfUnchanged(queuePath, queue, updated); err != nil {
@@ -235,23 +272,33 @@ func (a *App) decisionRaise(args []string) error {
 	result.Decision, _ = protojson.Marshal(response.GetDecision())
 	return printDecisionRaise(result, *jsonOut, func() {
 		state := "already stored; nothing new published"
-		if response.GetCreated() {
+		switch {
+		case response.GetCreated():
 			state = "stored"
+		case revised:
+			state = "revised in place"
 		}
 		fmt.Printf("Decision %s for %s %s.\n", view.ID, ref, state)
 		switch {
 		case response.GetPublished():
-			fmt.Printf("Published decision_requested event %s; notification-hub asks the operator once.\n", response.GetDecision().GetEventId())
+			if revised {
+				fmt.Printf("Published the revision as event %s; notification-hub updates the operator's ask in place.\n", response.GetDecision().GetEventId())
+			} else {
+				fmt.Printf("Published decision_requested event %s; notification-hub asks the operator once.\n", response.GetDecision().GetEventId())
+			}
 		case response.GetDecision().GetPublishedAt() != nil:
 			fmt.Printf("Event %s was published at %s.\n", response.GetDecision().GetEventId(), effortTimestamp(response.GetDecision().GetPublishedAt()))
 		default:
 			fmt.Printf("Event not yet published (%s); Agent Manager retries on its scan cycle.\n", response.GetDecision().GetPublishError())
 		}
-		if answered {
+		switch {
+		case !hasQueue:
+			fmt.Printf("%s has no STATUS.md, so no ## Needs operator item was written; read the answer with `agent-manager effort decision list %s`.\n", dir, dir)
+		case answered:
 			fmt.Printf("Already answered; no operator item remains. Run decision sync to project the answer into FEEDBACK.md.\n")
-		} else if changed {
+		case changed:
 			fmt.Printf("Added the item to ## Needs operator in %s.\n", queuePath)
-		} else {
+		default:
 			fmt.Printf("## Needs operator in %s already lists it.\n", queuePath)
 		}
 	})
@@ -384,9 +431,27 @@ func (a *App) decisionList(args []string) error {
 	return nil
 }
 
+// readableHome shortens an absolute goal home under the user's home directory to
+// its ~/ form for display, so a research cohort reads as ~/.vrooli/research/...
+// instead of a full path. Repository-relative homes, and the stored value and
+// --json output, are unchanged: only the human list line is shortened.
+func readableHome(home string) string {
+	if !filepath.IsAbs(home) {
+		return home
+	}
+	user, err := os.UserHomeDir()
+	if err != nil || user == "" || user == "/" {
+		return home
+	}
+	if rel, err := filepath.Rel(user, home); err == nil && filepath.IsLocal(rel) {
+		return "~/" + filepath.ToSlash(rel)
+	}
+	return home
+}
+
 // decisionLine is one board/list line: id, state, answer, deadline.
 func decisionLine(d *pb.EffortDecision) string {
-	line := fmt.Sprintf("%s  %s  %s", d.GetDecisionId(), d.GetGoalHome(), d.GetState())
+	line := fmt.Sprintf("%s  %s  %s", d.GetDecisionId(), readableHome(d.GetGoalHome()), d.GetState())
 	if d.GetAnswer() != "" {
 		line += fmt.Sprintf(" %s (%s)", d.GetAnswer(), d.GetAnsweredVia())
 	}
@@ -494,15 +559,18 @@ func (a *App) decisionSync(args []string) error {
 			}
 			item.Feedback = true
 		}
-		queue, err := os.ReadFile(queuePath)
+		// A folder without STATUS.md never listed the decision.
+		queue, _, hasQueue, err := readQueue(dir)
 		if err != nil {
 			return err
 		}
-		if updated, changed := goalhome.RemoveNeedsOperatorItem(queue, item.ID); changed {
-			if err := goalhome.WriteIfUnchanged(queuePath, queue, updated); err != nil {
-				return fmt.Errorf("decision %s: %s: %w", item.ID, queuePath, err)
+		if hasQueue {
+			if updated, changed := goalhome.RemoveNeedsOperatorItem(queue, item.ID); changed {
+				if err := goalhome.WriteIfUnchanged(queuePath, queue, updated); err != nil {
+					return fmt.Errorf("decision %s: %s: %w", item.ID, queuePath, err)
+				}
+				item.Queue = true
 			}
-			item.Queue = true
 		}
 		if d.GetRecordedAt() != nil {
 			// Re-projecting a recorded answer needs no native mutation. Preserve

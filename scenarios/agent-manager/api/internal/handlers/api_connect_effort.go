@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"agent-manager/internal/supervision"
 	"connectrpc.com/connect"
@@ -182,6 +183,18 @@ func EffortGrantTarget(effortRef string) string {
 	return "agent-manager:effort/" + strings.TrimPrefix(strings.TrimSpace(effortRef), "effort:")
 }
 
+// presentedGrantAllows reports whether the caller presented an owner-approved
+// operation grant, on its identity or as a separately verified operation proof,
+// that covers operation on target now.
+func presentedGrantAllows(ctx context.Context, p requestidentity.Principal, operation, target string) bool {
+	now := time.Now()
+	if p.Grant != nil && p.Grant.Allows(operation, target, now) {
+		return true
+	}
+	proof, err := provenance.ReverifyOperationProof(ctx)
+	return err == nil && proof != nil && proof.Grant != nil && proof.Grant.Allows(operation, target, now)
+}
+
 // deliveryGrantActor always handles agent callers, including those without a
 // grant, so an agent cannot fall back to a stored human operator credential.
 func deliveryGrantActor(ctx context.Context, effortRef string) (supervision.EffortActor, bool, error) {
@@ -193,7 +206,11 @@ func deliveryGrantActor(ctx context.Context, effortRef string) (supervision.Effo
 	if strings.TrimSpace(effortRef) == "" {
 		return supervision.EffortActor{}, true, connect.NewError(connect.CodeInvalidArgument, errors.New("effort reference required"))
 	}
-	if p.Owner != "" && operationPolicyAllowsWithoutGrant(ctx, "effort.delivery", target) {
+	// An owner's explicit consent for this exact effort outranks the standing
+	// no-approval policy: the policy path admits only efforts the owner
+	// authorized directly, so taking it first would refuse a caller that holds
+	// the owner's approved grant for a team- or agent-enrolled effort.
+	if !presentedGrantAllows(ctx, p, "effort.delivery", target) && p.Owner != "" && operationPolicyAllowsWithoutGrant(ctx, "effort.delivery", target) {
 		return supervision.EffortActor{ID: p.Subject, DeliveryManager: true, PolicyOwner: p.Owner}, true, nil
 	}
 	if _, err := authn.RequireOperation(ctx, "agent-manager:write", "effort.delivery", target); err != nil {

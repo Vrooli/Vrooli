@@ -2,12 +2,17 @@ package maintenance
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"agent-manager/internal/domain"
+	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 func TestInventoryCountsFalseFailedPhysicalExecutorAndPreservesRows(t *testing.T) {
@@ -40,6 +45,114 @@ ALTER TABLE runs ADD COLUMN execution_mode TEXT DEFAULT 'codec_pipe';`)
 	}
 }
 
+func TestInventoryPagesControlPlaneReferencesBeyondPerRequestLimit(t *testing.T) {
+	const count = 65537
+	_, db := openGate(t, filepath.Join(t.TempDir(), "inventory-large.db"))
+	_, err := db.Exec(`CREATE TABLE runs(id TEXT, status TEXT, execution_mode TEXT, runner_pid INTEGER, runner_pgid INTEGER, finalization_status TEXT);
+CREATE TABLE workflow_executions(id TEXT,status TEXT);
+WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<65537)
+INSERT INTO runs SELECT printf('00000000-0000-0000-0000-%012x',x),'failed','codec_pipe',x,x,'none' FROM n;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reads, hydrated, totalRefs := 0, 0, 0
+	owner := &ControlPlaneObserver{
+		lookupBatch: func(_ context.Context, refs []ExecutorRef) ([]*domain.Run, error) {
+			hydrated++
+			out := make([]*domain.Run, 0, len(refs))
+			for _, ref := range refs {
+				id, parseErr := uuid.Parse(ref.ID)
+				if parseErr != nil {
+					return nil, parseErr
+				}
+				out = append(out, &domain.Run{ID: id, RunnerPID: ref.PID, RunnerPGID: ref.PGID})
+			}
+			return out, nil
+		},
+		read: func(_ context.Context, input []byte) ([]byte, error) {
+			reads++
+			var request struct {
+				Executors []executorScopeRef `json:"executors"`
+			}
+			if err := json.Unmarshal(input, &request); err != nil || len(request.Executors) != count || len(input) > executorScopeMaxBytes {
+				t.Fatalf("unbounded control-plane request: refs=%d bytes=%d err=%v", len(request.Executors), len(input), err)
+			}
+			totalRefs += len(request.Executors)
+			var report strings.Builder
+			report.WriteString(`{"schemaVersion":"executor-scope-v1","complete":true,"executors":[`)
+			for i, ref := range request.Executors {
+				if i > 0 {
+					report.WriteByte(',')
+				}
+				fmt.Fprintf(&report, `{"runId":%q,"state":"absent","pids":[],"reasons":[]}`, ref.RunID)
+			}
+			report.WriteString(`]}`)
+			return []byte(report.String()), nil
+		},
+	}
+	state, err := NewBatchedInventory(db, owner.Observe).Observe(t.Context())
+	if err != nil || state.Remaining == nil || *state.Remaining != 0 || len(state.Unknown) != 0 || totalRefs != count || reads != 1 || hydrated != 1 {
+		t.Fatalf("full inventory was not covered by bounded pages: refs=%d reads=%d hydrated=%d state=%+v err=%v", totalRefs, reads, hydrated, state, err)
+	}
+}
+
+func TestActivityInventoryRoutesAttachedZeroPIDRunToExactOwnerProof(t *testing.T) {
+	id := uuid.New()
+	attached := &domain.Run{
+		ID: id, ExecutionMode: domain.ExecutionModeAttached,
+		HarnessKind: "claude-code", HarnessSessionID: "harness-session",
+		WebConsoleSessionID: "web-session", Tag: "attached-run",
+	}
+	_, db := openGate(t, filepath.Join(t.TempDir(), "activity-attached-zero-pid.db"))
+	_, err := db.Exec(`CREATE TABLE runs(id TEXT,status TEXT,execution_mode TEXT,runner_pid INTEGER,runner_pgid INTEGER,finalization_status TEXT,tag TEXT,started_at TEXT,ended_at TEXT,harness_kind TEXT,harness_session_id TEXT,web_console_session_id TEXT);
+CREATE TABLE workflow_executions(id TEXT,status TEXT);
+INSERT INTO runs VALUES(?, 'running','attached',0,0,'none','attached-run',NULL,NULL,'claude-code','harness-session','web-session');`, id.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	proof := cliutil.AgentSessionBindingProof{
+		ProofVersion: cliutil.AgentSessionBindingProofVersion,
+		RunID:        id.String(), HarnessSessionID: attached.HarnessSessionID,
+		LeaseSessionID: "lease-alias", WebConsoleSessionID: attached.WebConsoleSessionID,
+		HarnessKind: attached.HarnessKind, OwnerKind: "web-console-session",
+		Binding: cliutil.ProcessBinding{PID: 555, UID: 1000, Start: "12345", Boot: "faad40a2-2026-4c3b-8b36-efc2d641ced6", Cgroup: "0::/user.slice/user-1000.slice/user@1000.service/vrooli.slice/vrooli-agents.slice/tmux-spawn-test.scope"},
+	}
+	proofReads, scopeReads := 0, 0
+	owner := &ControlPlaneObserver{
+		lookupBatch: func(_ context.Context, refs []ExecutorRef) ([]*domain.Run, error) {
+			if len(refs) != 1 || refs[0].ID != id.String() || refs[0].PID != 0 || refs[0].PGID != 0 {
+				t.Fatalf("attached zero-PID row not included in hydration: %+v", refs)
+			}
+			return []*domain.Run{attached}, nil
+		},
+		readBinding: func(_ context.Context, request attachedBindingRequest) (cliutil.AgentSessionBindingProof, error) {
+			proofReads++
+			if request != (attachedBindingRequest{RunID: id.String(), HarnessSessionID: attached.HarnessSessionID, WebConsoleSessionID: attached.WebConsoleSessionID, HarnessKind: attached.HarnessKind}) {
+				t.Fatalf("unexpected owner proof request: %+v", request)
+			}
+			return proof, nil
+		},
+		read: func(_ context.Context, input []byte) ([]byte, error) {
+			scopeReads++
+			var request struct {
+				Executors []executorScopeRef `json:"executors"`
+			}
+			if err := json.Unmarshal(input, &request); err != nil || len(request.Executors) != 1 {
+				t.Fatalf("invalid physical proof request: %s err=%v", input, err)
+			}
+			ref := request.Executors[0]
+			if ref.PID != 0 || ref.PGID != 0 || ref.BindingProof == nil || ref.BindingProof.LeaseSessionID != "lease-alias" {
+				t.Fatalf("exact attached proof was not forwarded: %+v", ref)
+			}
+			return []byte(fmt.Sprintf(`{"schemaVersion":"executor-scope-v1","identityVersion":"attached-key-v1","complete":true,"executors":[{"runId":%q,"state":"present","pids":[556],"reasons":[]}]}`, id.String())), nil
+		},
+	}
+	state, err := NewBatchedInventory(db, owner.Observe).ObserveActivity(t.Context())
+	if err != nil || proofReads != 1 || scopeReads != 1 || state.Remaining == nil || *state.Remaining != 1 || len(state.Unknown) != 0 {
+		t.Fatalf("attached inventory did not defer to exact proof: state=%+v proofReads=%d scopeReads=%d err=%v", state, proofReads, scopeReads, err)
+	}
+}
+
 func TestInventoryUnknownPhysicalEvidenceCannotDrain(t *testing.T) {
 	_, db := openGate(t, filepath.Join(t.TempDir(), "inventory.db"))
 	_, err := db.Exec(`CREATE TABLE runs(id TEXT, status TEXT, runner_pid INTEGER, runner_pgid INTEGER, finalization_status TEXT);
@@ -55,6 +168,79 @@ ALTER TABLE runs ADD COLUMN execution_mode TEXT DEFAULT 'codec_pipe';`)
 	state, err := observer.Observe(t.Context())
 	if err == nil || state.Remaining != nil || len(state.Unknown) == 0 {
 		t.Fatalf("unknown became empty: %+v %v", state, err)
+	}
+}
+
+func TestActivityInventoryIdentifiesLogicalRunsWithoutPersistedProcessIdentity(t *testing.T) {
+	_, db := openGate(t, filepath.Join(t.TempDir(), "activity-unobserved.db"))
+	_, err := db.Exec(`CREATE TABLE runs(id TEXT, status TEXT, runner_pid INTEGER, runner_pgid INTEGER, finalization_status TEXT);
+CREATE TABLE workflow_executions(id TEXT,status TEXT);
+INSERT INTO runs VALUES('run-alpha','running',0,0,'none'),('run-bravo','starting',NULL,0,'none'),('run-charlie','running',0,NULL,'none');
+ALTER TABLE runs ADD COLUMN execution_mode TEXT DEFAULT 'codec_pipe';`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := NewInventory(db, func(context.Context, ExecutorRef) (ExecutorEvidence, error) {
+		t.Fatal("run without a persisted process identity reached physical observation")
+		return ExecutorEvidence{}, nil
+	})
+	state, err := reader.ObserveActivity(t.Context())
+	if err == nil || state.Remaining != nil || len(state.Unknown) != 1 {
+		t.Fatalf("missing physical identities became known activity: state=%+v err=%v", state, err)
+	}
+	diagnostic := state.Unknown[0]
+	for _, want := range []string{"3 logical native run records", "lack persisted PID/PGID", "need owner reconciliation", "run-alpha", "run-bravo", "run-charlie", "omitted_ids=0", "total activity is unknown"} {
+		if !strings.Contains(diagnostic, want) {
+			t.Errorf("unobserved-run diagnostic missing %q: %s", want, diagnostic)
+		}
+	}
+}
+
+func TestActivityInventoryBoundsUnobservedRunIDDiagnosticsAndReportsOmissionCount(t *testing.T) {
+	_, db := openGate(t, filepath.Join(t.TempDir(), "activity-unobserved-overflow.db"))
+	_, err := db.Exec(`CREATE TABLE runs(id TEXT, status TEXT, runner_pid INTEGER, runner_pgid INTEGER, finalization_status TEXT);
+CREATE TABLE workflow_executions(id TEXT,status TEXT);
+WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<70)
+INSERT INTO runs SELECT printf('run-%03d',x),'running',0,0,'none' FROM n;
+ALTER TABLE runs ADD COLUMN execution_mode TEXT DEFAULT 'codec_pipe';`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := NewInventory(db, func(context.Context, ExecutorRef) (ExecutorEvidence, error) {
+		t.Fatal("run without a persisted process identity reached physical observation")
+		return ExecutorEvidence{}, nil
+	})
+	state, err := reader.ObserveActivity(t.Context())
+	if err == nil || state.Remaining != nil || len(state.Unknown) != 1 {
+		t.Fatalf("overflowed identity diagnostics became complete or unbounded: state=%+v err=%v", state, err)
+	}
+	diagnostic := state.Unknown[0]
+	for _, want := range []string{"70 logical native run records", "need owner reconciliation", "run-001", "run-064", "omitted_ids=6", "total activity is unknown"} {
+		if !strings.Contains(diagnostic, want) {
+			t.Errorf("bounded unobserved-run diagnostic missing %q: %s", want, diagnostic)
+		}
+	}
+	if strings.Contains(diagnostic, "run-065") {
+		t.Fatalf("diagnostic exceeded the 64-ID bound: %s", diagnostic)
+	}
+}
+
+func TestInventoryBatchFailureReportsOwnerCauseWithoutMissingRowFlood(t *testing.T) {
+	_, db := openGate(t, filepath.Join(t.TempDir(), "inventory.db"))
+	_, err := db.Exec(`CREATE TABLE runs(id TEXT, status TEXT, runner_pid INTEGER, runner_pgid INTEGER, finalization_status TEXT);
+CREATE TABLE workflow_executions(id TEXT,status TEXT);
+INSERT INTO runs VALUES('one','failed',315576,315576,'none'),('two','failed',315577,315577,'none');
+ALTER TABLE runs ADD COLUMN execution_mode TEXT DEFAULT 'codec_pipe';`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "control-plane executor-scope requires at most 65536 references"
+	reader := NewBatchedInventory(db, func(context.Context, []ExecutorRef) ([]ExecutorEvidence, error) {
+		return nil, errors.New(want)
+	})
+	state, err := reader.Observe(t.Context())
+	if err == nil || state.Remaining != nil || len(state.Unknown) != 1 || state.Unknown[0] != want {
+		t.Fatalf("batch owner failure became row-level omission noise: state=%+v err=%v", state, err)
 	}
 }
 
@@ -314,12 +500,8 @@ INSERT INTO runs SELECT 'executor-'||x,'failed','codec_pipe',x,x,'none' FROM n`,
 				return out, nil
 			})
 			state, err := reader.Observe(t.Context())
-			if references <= 65536 {
-				if err != nil || calls != 1 || state.Remaining == nil || *state.Remaining != 300 {
-					t.Fatalf("single read lost logical work: calls=%d state=%+v err=%v", calls, state, err)
-				}
-			} else if err == nil || calls != 0 || state.Remaining != nil || !strings.Contains(err.Error(), "65537 physical references") {
-				t.Fatalf("capacity became repeated scans or empty: calls=%d state=%+v err=%v", calls, state, err)
+			if err != nil || calls != 1 || state.Remaining == nil || *state.Remaining != 300 {
+				t.Fatalf("complete physical inventory lost logical work: calls=%d state=%+v err=%v", calls, state, err)
 			}
 		})
 	}

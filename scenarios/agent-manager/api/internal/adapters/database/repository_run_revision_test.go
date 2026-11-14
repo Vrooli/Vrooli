@@ -28,6 +28,9 @@ func TestNarrowRunMutationsAdvanceCommittedRevisionWithoutTrigger(t *testing.T) 
 			return repos.Runs.(repository.RunSubjectUpdater).UpdateRunSubject(t.Context(), run.ID, []string{"recovery"})
 		},
 		func() error {
+			return repos.Runs.(repository.RunWorkloadUpdater).UpdateRunWorkload(t.Context(), run.ID, domain.WorkloadRef{Kind: domain.WorkloadKindInteractive, Key: "delegation-7"})
+		},
+		func() error {
 			_, eligible, err := repos.Runs.(repository.EffortSignalCursorRepository).QueueEffortSignalCursor(t.Context(), run.ID, effortRef, 1)
 			if !eligible {
 				t.Fatal("active public effort owner was not eligible")
@@ -46,5 +49,23 @@ func TestNarrowRunMutationsAdvanceCommittedRevisionWithoutTrigger(t *testing.T) 
 			t.Fatalf("narrow mutation did not advance revision: before=%v after=%v", before, stored.UpdatedAt)
 		}
 		before = stored.UpdatedAt
+	}
+	stored, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Workload.Kind != domain.WorkloadKindInteractive || stored.Workload.Key != "delegation-7" {
+		t.Fatalf("workload attribution not persisted: %+v", stored.Workload)
+	}
+}
+
+func TestUpdateRunWorkloadRejectsUnknownKindAndEmptyKey(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	for _, workload := range []domain.WorkloadRef{{Kind: "guessed", Key: "x"}, {Kind: domain.WorkloadKindInteractive}} {
+		if err := repos.Runs.(repository.RunWorkloadUpdater).UpdateRunWorkload(t.Context(), uuid.New(), workload); err == nil {
+			t.Fatalf("expected invalid workload rejection: %+v", workload)
+		}
 	}
 }

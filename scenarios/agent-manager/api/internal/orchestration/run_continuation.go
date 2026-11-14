@@ -452,6 +452,11 @@ func (o *Orchestrator) validateContinuationSession(ctx context.Context, run *dom
 }
 
 func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, message string, attachmentIDs []string, reason string, overrides continuationOverrides) (_ *domain.Run, returnErr error) {
+	// Admission clears the prior result from the active Run projection. Retain
+	// the terminal snapshot separately so an unsuccessful follow-up can publish
+	// the last successful structured result with its preservation event.
+	previousResult := run.Result
+	previousSummary := run.Summary
 	effectsPossible := false
 	statusCommitted := false
 	handoffStarted := false
@@ -673,7 +678,7 @@ func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, 
 	}
 
 	// Execute continuation asynchronously
-	go o.executeContinuation(context.WithoutCancel(ctx), &runForExec, r, eventSink, message, workDir, attachments, continueEnv, transcriptCfg, cleanupTranscript)
+	go o.executeContinuation(context.WithoutCancel(ctx), &runForExec, r, eventSink, message, workDir, attachments, continueEnv, transcriptCfg, cleanupTranscript, previousResult, previousSummary)
 	handoffStarted = true
 
 	return o.attachRunActions(ctx, run), statusPublicationErr
@@ -699,7 +704,7 @@ func (o *Orchestrator) assembleContinuationEnv(ctx context.Context, run *domain.
 			Task:            task,
 			Secret:          o.identitySecret,
 			Meta:            workflowIdentityMeta(run.CustomEnv),
-			AccountScopes:   run.OwnerScopes,
+			AccountScopes:   runIdentityOwnerScopes(run),
 			RequestedScopes: run.RequestedScopes,
 		})
 	}
@@ -1021,7 +1026,7 @@ func (o *Orchestrator) prepareRunTranscript(ctx context.Context, run *domain.Run
 // executeContinuation handles the actual continuation execution (runs in background).
 // Each continuation turn gets its own timeout from RunTimeoutMinutes, so a timed-out
 // run can be continued indefinitely — each "continue" message resets the clock.
-func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run, r runner.Runner, eventSink runner.EventSink, message string, workDir string, attachments []runner.Attachment, continueEnv map[string]string, transcript *runner.TranscriptConfig, cleanupTranscript func()) {
+func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run, r runner.Runner, eventSink runner.EventSink, message string, workDir string, attachments []runner.Attachment, continueEnv map[string]string, transcript *runner.TranscriptConfig, cleanupTranscript func(), previousResult *domain.RunResult, previousSummary *domain.RunSummary) {
 	// Registered before cleanupTranscript so it also contains a cleanup panic.
 	defer obs.RecoverToFailure("run continuation", func(failure obs.PanicFailure) {
 		o.recoverPanickedRun(ctx, run, failure)
@@ -1029,9 +1034,6 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 	if cleanupTranscript != nil {
 		defer cleanupTranscript()
 	}
-	previousResult := run.Result
-	previousSummary := run.Summary
-
 	levers := o.runLevers()
 	timeout := levers.Execution.DefaultTimeout
 	if run.ResolvedConfig != nil && run.ResolvedConfig.Timeout > 0 {

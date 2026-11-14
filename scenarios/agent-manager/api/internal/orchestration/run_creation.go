@@ -659,17 +659,29 @@ func (f *createRunFlow) freezeRunContract(ctx context.Context) error {
 	// recovery grants. Attach it before recording admission, not afterward.
 	resolvedConfig.SandboxConfig = f.sandboxConfig
 	resolvedConfig.Admission = buildRunAdmission(req, resolvedConfig)
-	identityOwnerScopes := req.OwnerScopes
-	if identityOwnerScopes == nil {
-		identityOwnerScopes = []string{}
-	}
-	identityScopes := identity.IntersectScopes(identityOwnerScopes, f.profile.IdentityScopeCeiling(), req.RequestedScopes)
+	identityScopes := admittedIdentityScopes(req, f.profile)
 	resolvedConfig.Admission.FrozenIdentityScopes = &identityScopes
 	// Record the runner-native control arguments the selected codec emits for
 	// the resolved configuration, so the "passed" layer is durable alongside
 	// the requested and effective layers.
 	o.recordPassedInvocation(ctx, resolvedConfig.Admission, resolvedConfig)
 	return nil
+}
+
+func admittedIdentityScopes(req CreateRunRequest, profile *domain.AgentProfile) []string {
+	ownerScopes := req.OwnerScopes
+	// Private workflow launchers run from an admitted, durable WorkflowExecution.
+	// When that execution has no account owner (for example, a local scenario
+	// authenticator that cannot forward a human credential across services),
+	// the reviewed run profile is the authority for the child capability ceiling.
+	// A present owner still constrains the child through the normal intersection.
+	if req.workflowIdentity != nil && strings.TrimSpace(req.OwnerSubject) == "" {
+		ownerScopes = profile.IdentityScopeCeiling()
+	}
+	if ownerScopes == nil {
+		ownerScopes = []string{}
+	}
+	return identity.IntersectScopes(ownerScopes, profile.IdentityScopeCeiling(), req.RequestedScopes)
 }
 
 // authorizeDelegation applies the dependent-delegation prerequisite gate: a

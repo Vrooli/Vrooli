@@ -19,7 +19,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestContinuationLifecycleClearsTerminalFieldsPreservesHistory(t *testing.T) {
+func TestContinuationLifecycleClearsPriorOutcomeFromActiveRun(t *testing.T) {
 	for _, status := range []domain.RunStatus{domain.RunStatusComplete, domain.RunStatusFailed, domain.RunStatusCancelled, domain.RunStatusNeedsReview, domain.RunStatusParked} {
 		t.Run(string(status), func(t *testing.T) {
 			ctx := t.Context()
@@ -57,8 +57,11 @@ func TestContinuationLifecycleClearsTerminalFieldsPreservesHistory(t *testing.T)
 				if got.Status != domain.RunStatusRunning || got.EndedAt != nil || got.ErrorMsg != "" || got.ExitCode != nil || got.TerminalClass != "" || got.StopReason != "" {
 					t.Errorf("running continuation exposes prior terminal fields: status=%s ended=%v error=%q exit=%v class=%s reason=%s", got.Status, got.EndedAt, got.ErrorMsg, got.ExitCode, got.TerminalClass, got.StopReason)
 				}
-				if got.LastHeartbeat == nil || !got.LastHeartbeat.Equal(now) || got.StartedAt == nil || !got.StartedAt.Equal(started) || got.SessionID != "retained-session" || got.LastHandoff != "prior handoff" || got.Summary == nil || got.Summary.TokensUsed != 123 || got.Result == nil || got.Result.FinalOutput != "prior output" {
-					t.Error("continuation lost prior accounting/output or current heartbeat")
+				if got.LastHeartbeat == nil || !got.LastHeartbeat.Equal(now) || got.StartedAt == nil || !got.StartedAt.Equal(started) || got.SessionID != "retained-session" || got.LastHandoff != "prior handoff" {
+					t.Error("continuation lost stable run identity/history or current heartbeat")
+				}
+				if got.Summary != nil || got.Result != nil {
+					t.Error("active continuation still exposes a previous invocation's terminal outcome")
 				}
 			}
 		})

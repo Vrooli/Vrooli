@@ -62,11 +62,14 @@ type (
 		Effort          string
 	}
 	ChildState struct {
-		RunID          uuid.UUID
-		ConversationID string
-		Terminal       bool
-		Failed         bool
-		Result         *domain.RunResult
+		RunID            uuid.UUID
+		ConversationID   string
+		Terminal         bool
+		Failed           bool
+		FailureCode      string
+		FailureMessage   string
+		FailureRetryable bool
+		Result           *domain.RunResult
 		// FinalizationPending retains a terminal run until its required sandbox effects succeed.
 		// Terminal remains true so owner accounting can reconcile without dispatching work.
 		FinalizationPending string
@@ -445,7 +448,9 @@ func (e *Engine) advanceWait(ctx context.Context, x *domain.WorkflowExecution, r
 			intent.Deadline = now.Add(time.Duration(limit) * time.Second)
 		}
 		payload, _ := json.Marshal(intent)
-		x.Status = domain.WorkflowExecutionWaiting
+		if err := x.TransitionStatus(domain.WorkflowExecutionWaiting); err != nil {
+			return nil, err
+		}
 		x.Version++
 		x.UpdatedAt = now
 		entry := nextJournal(x.ID, journal, domain.WorkflowJournalWait, node.ID, nil, payload, now)
@@ -475,7 +480,10 @@ func (e *Engine) advanceWait(ctx context.Context, x *domain.WorkflowExecution, r
 				return e.exhaust(ctx, x, "edge_traversal")
 			}
 			now := e.now()
-			x.CurrentNodeID, x.Status, x.UpdatedAt = next.To, domain.WorkflowExecutionRunning, now
+			if err := x.TransitionStatus(domain.WorkflowExecutionRunning); err != nil {
+				return nil, err
+			}
+			x.CurrentNodeID, x.UpdatedAt = next.To, now
 			x.Version++
 			return e.commitOnly(ctx, x)
 		}
@@ -483,7 +491,9 @@ func (e *Engine) advanceWait(ctx context.Context, x *domain.WorkflowExecution, r
 	if !intent.Deadline.IsZero() && !e.now().Before(intent.Deadline) {
 		return e.routeWaitTimeout(ctx, x, r, node, intent, journal)
 	}
-	x.Status = domain.WorkflowExecutionWaiting
+	if err := x.TransitionStatus(domain.WorkflowExecutionWaiting); err != nil {
+		return nil, err
+	}
 	return x, nil
 }
 
@@ -498,7 +508,9 @@ func (e *Engine) routeWaitTimeout(ctx context.Context, x *domain.WorkflowExecuti
 	payload, _ := json.Marshal(map[string]any{"signal": intent.Signal, "correlationKey": intent.CorrelationKey, "deadline": intent.Deadline, "target": intent.OnTimeout})
 	entry := nextJournal(x.ID, journal, domain.WorkflowJournalWaitTimeout, node.ID, nil, payload, now)
 	x.CurrentNodeID = intent.OnTimeout
-	x.Status = domain.WorkflowExecutionRunning
+	if err := x.TransitionStatus(domain.WorkflowExecutionRunning); err != nil {
+		return nil, err
+	}
 	x.TerminalReason = &domain.WorkflowTerminalReason{Code: "wait_timeout", Message: "external signal deadline elapsed"}
 	x.UpdatedAt = now
 	x.Version++
@@ -527,308 +539,17 @@ func (e *Engine) advanceJoin(ctx context.Context, x *domain.WorkflowExecution, r
 	now := e.now()
 	payload, _ := json.Marshal(map[string]any{"strategy": node.Join.Strategy, "next": next.To})
 	entry := nextJournal(x.ID, journal, domain.WorkflowJournalJoin, node.ID, nil, payload, now)
-	x.CurrentNodeID, x.Status, x.UpdatedAt = next.To, domain.WorkflowExecutionRunning, now
-	x.Version++
-	if ok, commitErr := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Journal: []*domain.WorkflowJournalEntry{entry}}); commitErr != nil {
-		return nil, commitErr
-	} else if !ok {
-		return nil, ErrConcurrentAdvance
-	}
-	return x, nil
-}
-
-func (e *Engine) Signal(ctx context.Context, id uuid.UUID, signal string, payload json.RawMessage, idempotencyKey string, expectedVersion int64) (*domain.WorkflowExecution, bool, error) {
-	x, err := e.Store.Get(ctx, id)
-	if err != nil || x == nil {
-		return x, false, err
-	}
-	journal, err := e.Store.ListJournal(ctx, id, 0, 0)
-	if err != nil {
-		return nil, false, err
-	}
-	for _, entry := range journal {
-		if entry.Kind != domain.WorkflowJournalSignal {
-			continue
-		}
-		var prior signalRecord
-		if json.Unmarshal(entry.Payload, &prior) == nil && prior.IdempotencyKey == idempotencyKey {
-			return x, true, nil
-		}
-	}
-	if x.Status.Terminal() {
-		return x, false, fmt.Errorf("workflow execution is already terminal")
-	}
-	if expectedVersion > 0 && x.Version != expectedVersion {
-		return x, false, ErrConcurrentAdvance
-	}
-	revision, err := e.Catalog.GetByDigest(ctx, x.DefinitionDigest)
-	if err != nil || revision == nil {
-		return x, false, fmt.Errorf("pinned workflow revision is unavailable")
-	}
-	node, err := signalWaitNode(revision.Definition, x.CurrentNodeID, signal)
-	if err != nil {
-		return x, false, err
-	}
-	if len(node.Wait.PayloadSchema) > 0 {
-		if err := structuredresult.ValidateValue(node.Wait.PayloadSchema, payload); err != nil {
-			return x, false, fmt.Errorf("signal payload: %w", err)
-		}
-	}
-	var intent waitIntent
-	for i := len(journal) - 1; i >= 0; i-- {
-		if journal[i].Kind == domain.WorkflowJournalWait && journal[i].NodeID == node.ID && json.Unmarshal(journal[i].Payload, &intent) == nil {
-			break
-		}
-	}
-	record := signalRecord{Signal: signal, WaitNodeID: node.ID, CorrelationKey: intent.CorrelationKey, IdempotencyKey: idempotencyKey, Payload: append(json.RawMessage(nil), payload...)}
-	data, _ := json.Marshal(record)
-	now := e.now()
-	entry := nextJournal(x.ID, journal, domain.WorkflowJournalSignal, node.ID, nil, data, now)
-	if x.Status == domain.WorkflowExecutionWaiting {
-		x.Status = domain.WorkflowExecutionRunning
-	}
-	x.UpdatedAt = now
-	x.Version++
-	if ok, commitErr := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Journal: []*domain.WorkflowJournalEntry{entry}}); commitErr != nil {
-		return nil, false, commitErr
-	} else if !ok {
-		return nil, false, ErrConcurrentAdvance
-	}
-	return x, false, nil
-}
-
-// signalWaitNode resolves a signal against the pinned declaration rather than
-// only an already-armed wait. A signal name must therefore identify one wait
-// contract unless that wait is the current node; this prevents a buffered
-// signal from being ambiguously delivered to a future wait.
-func signalWaitNode(definition domain.WorkflowDefinition, currentNodeID, signal string) (*domain.WorkflowNode, error) {
-	if current := findNode(definition.Nodes, currentNodeID); current != nil && current.Wait != nil && current.Wait.Signal == signal {
-		return current, nil
-	}
-	var match *domain.WorkflowNode
-	for i := range definition.Nodes {
-		node := &definition.Nodes[i]
-		if node.Wait == nil || node.Wait.Signal != signal {
-			continue
-		}
-		if match != nil {
-			return nil, fmt.Errorf("signal matches multiple declared wait contracts")
-		}
-		match = node
-	}
-	if match == nil {
-		return nil, fmt.Errorf("signal does not match a declared wait contract")
-	}
-	return match, nil
-}
-
-func (e *Engine) Cancel(ctx context.Context, id uuid.UUID, idempotencyKey, reason string, expectedVersion int64) (*domain.WorkflowExecution, bool, error) {
-	x, err := e.Store.Get(ctx, id)
-	if err != nil || x == nil {
-		return x, false, err
-	}
-	journal, err := e.Store.ListJournal(ctx, id, 0, 0)
-	if err != nil {
-		return nil, false, err
-	}
-	if journalHasOperation(journal, domain.WorkflowJournalCancel, idempotencyKey) {
-		return x, true, nil
-	}
-	if x.Status.Terminal() {
-		return x, false, fmt.Errorf("workflow execution is already terminal")
-	}
-	if expectedVersion > 0 && x.Version != expectedVersion {
-		return x, false, ErrConcurrentAdvance
-	}
-	now := e.now()
-	payload, _ := json.Marshal(map[string]any{"idempotencyKey": idempotencyKey, "reason": reason})
-	entry := nextJournal(x.ID, journal, domain.WorkflowJournalCancel, x.CurrentNodeID, nil, payload, now)
-	x.Status = domain.WorkflowExecutionCancelling
-	x.TerminalReason = &domain.WorkflowTerminalReason{Code: "cancelled", Message: reason}
-	x.UpdatedAt = now
-	x.Version++
-	if ok, commitErr := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Journal: []*domain.WorkflowJournalEntry{entry}}); commitErr != nil {
-		return nil, false, commitErr
-	} else if !ok {
-		return nil, false, ErrConcurrentAdvance
-	}
-	return x, false, nil
-}
-
-func (e *Engine) Retry(ctx context.Context, id uuid.UUID, idempotencyKey string, expectedVersion int64) (*domain.WorkflowExecution, bool, error) {
-	x, err := e.Store.Get(ctx, id)
-	if err != nil || x == nil {
-		return x, false, err
-	}
-	journal, err := e.Store.ListJournal(ctx, id, 0, 0)
-	if err != nil {
-		return nil, false, err
-	}
-	if journalHasOperation(journal, domain.WorkflowJournalRetry, idempotencyKey) {
-		return x, true, nil
-	}
-	if x.Status != domain.WorkflowExecutionFailed {
-		return x, false, fmt.Errorf("only a failed workflow execution can be retried")
-	}
-	if expectedVersion > 0 && x.Version != expectedVersion {
-		return x, false, ErrConcurrentAdvance
-	}
-	revision, err := e.Catalog.GetByDigest(ctx, x.DefinitionDigest)
-	if err != nil || revision == nil {
-		return x, false, fmt.Errorf("pinned workflow revision is unavailable")
-	}
-	revision = applyEngagementGrant(revision, x.EngagementGrant)
-	if x.EngagementGrant != nil && !x.BudgetUsage.AccountingComplete {
-		return x, false, fmt.Errorf("workflow retry requires complete terminal usage; the prior reservation remains held")
-	}
-	if x.BudgetUsage.Retries >= revision.Definition.Budgets.MaxRetries {
-		return x, false, fmt.Errorf("workflow retry budget exhausted")
-	}
-	now := e.now()
-	payload, _ := json.Marshal(map[string]any{"idempotencyKey": idempotencyKey})
-	entry := nextJournal(x.ID, journal, domain.WorkflowJournalRetry, x.CurrentNodeID, nil, payload, now)
-	x.Status, x.TerminalReason, x.EndedAt, x.UpdatedAt = domain.WorkflowExecutionRunning, nil, nil, now
-	x.BudgetUsage.Retries++
-	x.Version++
-	if ok, commitErr := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Journal: []*domain.WorkflowJournalEntry{entry}}); commitErr != nil {
-		return nil, false, commitErr
-	} else if !ok {
-		return nil, false, ErrConcurrentAdvance
-	}
-	return x, false, nil
-}
-
-func (e *Engine) Resume(ctx context.Context, id uuid.UUID, idempotencyKey string, expectedVersion int64) (*domain.WorkflowExecution, bool, error) {
-	x, err := e.Store.Get(ctx, id)
-	if err != nil || x == nil {
-		return x, false, err
-	}
-	journal, err := e.Store.ListJournal(ctx, id, 0, 0)
-	if err != nil {
-		return nil, false, err
-	}
-	if journalHasOperation(journal, domain.WorkflowJournalResume, idempotencyKey) {
-		return x, true, nil
-	}
-	if x.Status.Terminal() {
-		return x, false, fmt.Errorf("workflow execution is terminal")
-	}
-	if expectedVersion > 0 && x.Version != expectedVersion {
-		return x, false, ErrConcurrentAdvance
-	}
-	now := e.now()
-	payload, _ := json.Marshal(map[string]any{"idempotencyKey": idempotencyKey})
-	entry := nextJournal(x.ID, journal, domain.WorkflowJournalResume, x.CurrentNodeID, nil, payload, now)
-	x.UpdatedAt = now
-	x.Version++
-	if ok, commitErr := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Journal: []*domain.WorkflowJournalEntry{entry}}); commitErr != nil {
-		return nil, false, commitErr
-	} else if !ok {
-		return nil, false, ErrConcurrentAdvance
-	}
-	return x, false, nil
-}
-
-func (e *Engine) RecordCancellationDisposition(ctx context.Context, id uuid.UUID, stoppedRuns, stoppedWorkflows int, failures []string) (*domain.WorkflowExecution, error) {
-	return e.RecordCleanupDisposition(ctx, id, stoppedRuns, stoppedWorkflows, failures)
-}
-
-// RecordCleanupDisposition is the durable barrier between stopping children
-// and publishing an abnormal parent terminal state. Failed cleanup writes no
-// disposition, so recovery retries it instead of orphaning child agents.
-func (e *Engine) RecordCleanupDisposition(ctx context.Context, id uuid.UUID, stoppedRuns, stoppedWorkflows int, failures []string) (*domain.WorkflowExecution, error) {
-	return e.recordCleanupDisposition(ctx, id, stoppedRuns, stoppedWorkflows, failures, false)
-}
-
-// RecordRecoveryCleanupDisposition is RecordCleanupDisposition for the recovery
-// sweep. A child run that retains a terminal but has no terminal accounting
-// settles as unknown so recovery proceeds instead of looping forever (the
-// wedged workflow 93213d93 loop). Ordinary cancellation keeps the strict
-// contract above and still waits for accounting.
-func (e *Engine) RecordRecoveryCleanupDisposition(ctx context.Context, id uuid.UUID, stoppedRuns, stoppedWorkflows int, failures []string) (*domain.WorkflowExecution, error) {
-	return e.recordCleanupDisposition(ctx, id, stoppedRuns, stoppedWorkflows, failures, true)
-}
-
-func (e *Engine) recordCleanupDisposition(ctx context.Context, id uuid.UUID, stoppedRuns, stoppedWorkflows int, failures []string, allowUnknown bool) (*domain.WorkflowExecution, error) {
-	x, err := e.Store.Get(ctx, id)
-	if err != nil || x == nil {
-		return x, err
-	}
-	if x.Status != domain.WorkflowExecutionCancelling && x.Status != domain.WorkflowExecutionFailed && x.Status != domain.WorkflowExecutionBudgetExhausted && x.Status != domain.WorkflowExecutionCancelled {
-		return x, fmt.Errorf("cleanup disposition requires cancelling or abnormal terminal execution")
-	}
-	journal, err := e.Store.ListJournal(ctx, id, 0, 0)
-	if err != nil {
+	if err := x.TransitionStatus(domain.WorkflowExecutionRunning); err != nil {
 		return nil, err
 	}
-	// Recovery may finalize only an old terminal execution. A recent cleanup
-	// failure remains strict so a late receipt or transient owner outage can be
-	// repaired. The accounting pass below still has to inspect every bound
-	// child; an active/inspectable child therefore cannot be hidden by this
-	// age-based escape hatch.
-	finalizeUnknown := allowUnknown && x.Status != domain.WorkflowExecutionCancelling && e.terminalAccountingUnknownEligible(x)
-	if len(failures) > 0 && !finalizeUnknown {
-		return e.recordIncompleteCleanup(ctx, x, fmt.Errorf("child cleanup incomplete: %s", strings.Join(failures, "; ")))
-	}
-	priorCleanup := false
-	for _, entry := range journal {
-		if entry.Kind == domain.WorkflowJournalCleanup {
-			var prior struct {
-				Retry int `json:"retry"`
-			}
-			if json.Unmarshal(entry.Payload, &prior) == nil && prior.Retry == x.BudgetUsage.Retries {
-				priorCleanup = true
-				if x.BudgetUsage.AccountingComplete {
-					return x, nil
-				}
-			}
-		}
-	}
-	priorUsage := x.BudgetUsage
-	// Operator cancellation always waits for accounting, even on the recovery
-	// sweep: a missing receipt must never be fabricated as zero. Only abnormal
-	// terminal recovery (failed/budget-exhausted) settles a retained terminal as
-	// unknown and proceeds.
-	allowUnknown = finalizeUnknown
-	settledAttempts, settlements, err := e.reconcileMeteredCleanup(ctx, x, journal, allowUnknown)
-	if err != nil {
-		x.BudgetUsage = priorUsage
-		return e.recordIncompleteCleanup(ctx, x, err)
-	}
-	if priorCleanup && len(settledAttempts) == 0 && x.BudgetUsage == priorUsage {
-		return x, nil
-	}
-	if finalizeUnknown && !x.BudgetUsage.AccountingComplete {
-		x.BudgetUsage.AccountingFinalizedUnknown = true
-	}
-	now := e.now()
-	payload, _ := json.Marshal(map[string]any{"retry": x.BudgetUsage.Retries, "stoppedRuns": stoppedRuns, "stoppedWorkflows": stoppedWorkflows, "failures": failures, "settlements": settlements, "accountingFinalizedUnknown": x.BudgetUsage.AccountingFinalizedUnknown})
-	entry := nextJournal(x.ID, journal, domain.WorkflowJournalCleanup, x.CurrentNodeID, nil, payload, now)
-	if x.Status == domain.WorkflowExecutionCancelling {
-		x.Status = domain.WorkflowExecutionCancelled
-		x.EndedAt = &now
-	}
-	x.UpdatedAt = now
+	x.CurrentNodeID, x.UpdatedAt = next.To, now
 	x.Version++
-	if ok, commitErr := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Attempts: settledAttempts, Journal: []*domain.WorkflowJournalEntry{entry}}); commitErr != nil {
+	if ok, commitErr := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Journal: []*domain.WorkflowJournalEntry{entry}}); commitErr != nil {
 		return nil, commitErr
 	} else if !ok {
 		return nil, ErrConcurrentAdvance
 	}
 	return x, nil
-}
-
-func journalHasOperation(journal []*domain.WorkflowJournalEntry, kind domain.WorkflowJournalKind, key string) bool {
-	for _, entry := range journal {
-		if entry.Kind != kind {
-			continue
-		}
-		var value map[string]any
-		if json.Unmarshal(entry.Payload, &value) == nil && value["idempotencyKey"] == key {
-			return true
-		}
-	}
-	return false
 }
 
 func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, r *domain.WorkflowRevision, node *domain.WorkflowNode) (*domain.WorkflowExecution, error) {
@@ -917,10 +638,14 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		now := e.now()
 		active.RunID = &state.RunID
 		active.ConversationID = state.ConversationID
-		active.Status = domain.WorkflowAttemptDispatched
+		if err := active.TransitionStatus(domain.WorkflowAttemptDispatched); err != nil {
+			return nil, err
+		}
 		active.Version++
 		active.UpdatedAt = now
-		x.Status = domain.WorkflowExecutionWaiting
+		if err := x.TransitionStatus(domain.WorkflowExecutionWaiting); err != nil {
+			return nil, err
+		}
 		x.BudgetUsage.Children++
 		x.Version++
 		x.UpdatedAt = now
@@ -966,7 +691,9 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 			// the unresolved accounting state explicitly and finish the
 			// execution with an honest terminal reason instead of retrying the
 			// same impossible reconciliation forever.
-			active.Status = domain.WorkflowAttemptFailed
+			if err := active.TransitionStatus(domain.WorkflowAttemptFailed); err != nil {
+				return nil, err
+			}
 			active.ErrorCode = "accounting_unknown"
 			active.ValidationError = "terminal child usage is unavailable and no durable recovery source exists"
 			active.Version++
@@ -980,10 +707,18 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 	stopBudget := strings.TrimPrefix(active.ErrorCode, meteredStopPrefix)
 	budgetStopped := strings.HasPrefix(active.ErrorCode, meteredStopPrefix)
 	now := e.now()
-	active.Status = domain.WorkflowAttemptCompleted
+	childValidationError := structuredValidationError(node, state.Result)
+	nextAttemptStatus := domain.WorkflowAttemptCompleted
 	if state.Failed {
-		active.Status = domain.WorkflowAttemptFailed
+		nextAttemptStatus = domain.WorkflowAttemptFailed
 		active.ErrorCode = "child_failed"
+	} else if childValidationError != "" {
+		nextAttemptStatus = domain.WorkflowAttemptFailed
+		active.ErrorCode = "structured_result_invalid"
+		active.ValidationError = childValidationError
+	}
+	if err := active.TransitionStatus(nextAttemptStatus); err != nil {
+		return nil, err
 	}
 	active.Version++
 	active.UpdatedAt = now
@@ -1024,7 +759,14 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		return e.commitExhaust(ctx, x, active, entries, stopBudget)
 	}
 	if state.Failed {
-		return e.commitFailure(ctx, x, active, entries, "child_failed", "child Run failed")
+		code, message := state.FailureCode, state.FailureMessage
+		if code == "" {
+			code = "child_failed"
+		}
+		if message == "" {
+			message = "Child run failed."
+		}
+		return e.commitChildFailure(ctx, x, active, entries, code, message, state.FailureRetryable)
 	}
 	if state.GoalStatus != "" && (nodeResultSpec(node) == nil || nodeResultSpec(node).Kind == domain.ResultSpecKindNone) && (state.Result == nil || state.Result.Structured == nil) {
 		mapped, mapErr := MapGoalStatus(state.GoalStatus)
@@ -1033,10 +775,7 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		}
 		return e.commitChildTerminal(ctx, x, active, entries, mapped, nil, &domain.WorkflowTerminalReason{Code: "goal_" + string(state.GoalStatus)})
 	}
-	if validationError := structuredValidationError(node, state.Result); validationError != "" {
-		active.Status = domain.WorkflowAttemptFailed
-		active.ErrorCode = "structured_result_invalid"
-		active.ValidationError = validationError
+	if childValidationError != "" {
 		if budget := exhaustedAgentBudget(x.BudgetUsage, r.Definition.Budgets); budget != "" {
 			return e.commitExhaust(ctx, x, active, entries, budget)
 		}
@@ -1044,8 +783,11 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		// child. It is bounded by the explicit node-attempt budget but must not
 		// be denied merely because the original run consumed MaxChildren.
 		if schemaRepairCount(attempts, node.ID) < schemaRepairLimit(node) && x.BudgetUsage.NodeAttempts < r.Definition.Budgets.MaxNodeAttempts {
-			repair := &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: x.ID, NodeID: node.ID, Ordinal: ordinal, Strategy: domain.WorkflowAttemptContinue, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: fmt.Sprintf("workflow/%s/node/%s/attempt/%d/schema-repair", x.ID, node.ID, ordinal), InputSnapshot: append(json.RawMessage(nil), active.InputSnapshot...), PromptSnapshot: schemaRepairPrompt(nodeResultSpec(node), validationError), SourceAttemptID: &active.ID, Version: 1, CreatedAt: now, UpdatedAt: now}
-			x.Status, x.UpdatedAt = domain.WorkflowExecutionRunning, now
+			repair := &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: x.ID, NodeID: node.ID, Ordinal: ordinal, Strategy: domain.WorkflowAttemptContinue, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: fmt.Sprintf("workflow/%s/node/%s/attempt/%d/schema-repair", x.ID, node.ID, ordinal), InputSnapshot: append(json.RawMessage(nil), active.InputSnapshot...), PromptSnapshot: schemaRepairPrompt(nodeResultSpec(node), childValidationError), SourceAttemptID: &active.ID, Version: 1, CreatedAt: now, UpdatedAt: now}
+			if err := x.TransitionStatus(domain.WorkflowExecutionRunning); err != nil {
+				return nil, err
+			}
+			x.UpdatedAt = now
 			x.BudgetUsage.NodeAttempts++
 			x.Version++
 			payload, _ := json.Marshal(map[string]any{"nodeId": node.ID, "ordinal": repair.Ordinal, "strategy": repair.Strategy, "repair": true, "sourceAttemptId": active.ID})
@@ -1059,7 +801,7 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 			}
 			return x, nil
 		}
-		return e.commitFailure(ctx, x, active, entries, "structured_result_invalid", validationError)
+		return e.commitFailure(ctx, x, active, entries, "structured_result_invalid", childValidationError)
 	}
 	next, err := selectUnconditionalEdge(r.Definition.Edges, node.ID)
 	if err != nil {
@@ -1069,7 +811,9 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		return e.exhaust(ctx, x, "edge_traversal")
 	}
 	x.CurrentNodeID = next.To
-	x.Status = domain.WorkflowExecutionRunning
+	if err := x.TransitionStatus(domain.WorkflowExecutionRunning); err != nil {
+		return nil, err
+	}
 	x.Version++
 	x.UpdatedAt = now
 	if ok, err := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Attempt: active, Journal: entries}); err != nil {
@@ -1227,10 +971,14 @@ func (e *Engine) advanceChild(ctx context.Context, x *domain.WorkflowExecution, 
 		}
 		now := e.now()
 		active.ChildExecutionID = &state.ExecutionID
-		active.Status = domain.WorkflowAttemptDispatched
+		if err := active.TransitionStatus(domain.WorkflowAttemptDispatched); err != nil {
+			return nil, err
+		}
 		active.Version++
 		active.UpdatedAt = now
-		x.Status = domain.WorkflowExecutionWaiting
+		if err := x.TransitionStatus(domain.WorkflowExecutionWaiting); err != nil {
+			return nil, err
+		}
 		x.BudgetUsage.Children++
 		x.Version++
 		x.UpdatedAt = now
@@ -1261,9 +1009,12 @@ func (e *Engine) advanceChild(ctx context.Context, x *domain.WorkflowExecution, 
 			childStatus = domain.WorkflowExecutionFailed
 		}
 	}
-	active.Status = domain.WorkflowAttemptCompleted
+	nextAttemptStatus := domain.WorkflowAttemptCompleted
 	if childStatus == domain.WorkflowExecutionFailed {
-		active.Status, active.ErrorCode = domain.WorkflowAttemptFailed, "child_workflow_failed"
+		nextAttemptStatus, active.ErrorCode = domain.WorkflowAttemptFailed, "child_workflow_failed"
+	}
+	if err := active.TransitionStatus(nextAttemptStatus); err != nil {
+		return nil, err
 	}
 	active.Version++
 	active.UpdatedAt, active.CompletedAt = now, &now
@@ -1293,7 +1044,10 @@ func (e *Engine) advanceChild(ctx context.Context, x *domain.WorkflowExecution, 
 	if edgeErr = takeEdge(x, next, r.Definition.Budgets); edgeErr != nil {
 		return e.commitExhaust(ctx, x, active, []*domain.WorkflowJournalEntry{entry}, "edge_traversal")
 	}
-	x.CurrentNodeID, x.Status, x.UpdatedAt = next.To, domain.WorkflowExecutionRunning, now
+	if err := x.TransitionStatus(domain.WorkflowExecutionRunning); err != nil {
+		return nil, err
+	}
+	x.CurrentNodeID, x.UpdatedAt = next.To, now
 	x.Version++
 	if ok, commitErr := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Attempt: active, Journal: []*domain.WorkflowJournalEntry{entry}}); commitErr != nil {
 		return nil, commitErr
@@ -1487,7 +1241,10 @@ func (e *Engine) retainChildFinalization(ctx context.Context, x *domain.Workflow
 	}
 	active.ValidationError = state.FinalizationPending
 	active.UpdatedAt, active.Version = now, active.Version+1
-	x.Status, x.UpdatedAt, x.Version = domain.WorkflowExecutionWaiting, now, x.Version+1
+	if err := x.TransitionStatus(domain.WorkflowExecutionWaiting); err != nil {
+		return nil, err
+	}
+	x.UpdatedAt, x.Version = now, x.Version+1
 	payload, _ := json.Marshal(map[string]any{"code": "child_finalization_pending", "runId": state.RunID, "message": state.FinalizationPending, "recovery": "recover original run finalization; do not redispatch"})
 	entry := nextJournal(x.ID, journal, domain.WorkflowJournalDiagnostic, active.NodeID, &active.ID, payload, now)
 	if ok, err := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Attempt: active, Journal: []*domain.WorkflowJournalEntry{entry}}); err != nil {

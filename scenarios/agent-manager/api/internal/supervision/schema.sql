@@ -305,6 +305,17 @@ CREATE TABLE IF NOT EXISTS supervision_decision_publication_cursor (
     cursor_json TEXT NOT NULL
 );
 
+-- A decision_requested event whose hub ask must be closed because the question no
+-- longer needs the operator (answered in Agent Manager, or its effort ended). One
+-- row per request event; sent_at marks the hub's receipt, so a failed close retries.
+CREATE TABLE IF NOT EXISTS supervision_decision_withdrawals (
+    event_id TEXT PRIMARY KEY,
+    reason TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    sent_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_supervision_decision_withdrawals_pending ON supervision_decision_withdrawals(created_at) WHERE sent_at IS NULL;
+
 -- Protected exact-action setup is inert until independent owner approval and
 -- pinned-key activation. Schema installation creates no keys/grants/identities.
 CREATE TABLE IF NOT EXISTS keyring_exact_authority(id TEXT PRIMARY KEY, policy_json TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0);

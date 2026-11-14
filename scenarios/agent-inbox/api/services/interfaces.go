@@ -38,7 +38,7 @@ type CompletionRepository interface {
 	// Tool call operations
 	SaveToolCallRecord(ctx context.Context, messageID string, record *domain.ToolCallRecord) error
 	GetToolCallByID(ctx context.Context, toolCallID string) (*domain.ToolCallRecord, error)
-	UpdateToolCallStatus(ctx context.Context, id, status, errorMessage string) error
+	UpdateToolCallStatus(ctx context.Context, id string, status domain.ToolCallStatus, errorMessage string) error
 	GetPendingApprovals(ctx context.Context, chatID string) ([]*domain.ToolCallRecord, error)
 }
 

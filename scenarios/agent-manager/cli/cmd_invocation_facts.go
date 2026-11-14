@@ -21,13 +21,21 @@ func (a *App) runImportTranscript(args []string) error {
 	jsonOutput := cliutil.JSONFlag(fs)
 	runnerType := fs.String("runner", "", "runner type")
 	label := fs.String("label", "", "import label")
+	localOwner := fs.Bool("local-owner", false, "Use the verified host owner identity; unavailable inside an identified agent run")
 	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
-		return fmt.Errorf("usage: agent-manager run import-transcript <path> [--runner type] [--label value] [--json]")
+		return fmt.Errorf("usage: agent-manager run import-transcript <path> [--runner type] [--label value] [--local-owner] [--json]")
 	}
 	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
 		return err
 	}
 	h, base := cliapp.NewConnectHTTPClient(a.core)
+	if *localOwner {
+		owner, err := localOwnerAPIForResource(a.services.Maintenance.api, standingGrantResource)
+		if err != nil {
+			return err
+		}
+		h = ownerHTTPClient{inner: h, headers: owner.AuthHeaders()}
+	}
 	response, err := domainconnect.NewEpisodesServiceClient(h, base).ImportTranscript(context.Background(), connect.NewRequest(&domainpb.ImportTranscriptRequest{Path: args[0], RunnerType: *runnerType, Label: *label}))
 	if err != nil {
 		return err
@@ -41,6 +49,43 @@ func (a *App) runImportTranscript(args []string) error {
 		return nil
 	}
 	fmt.Println(string(body))
+	return nil
+}
+
+func (a *App) runAssignWorkload(args []string) error {
+	fs := flag.NewFlagSet("run assign-workload", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	kind := fs.String("kind", "", "workload kind (workflow_node, scheduled, interactive, adhoc, imported)")
+	key := fs.String("key", "", "explicit workload/delegation key")
+	instance := fs.String("instance", "", "optional workload instance")
+	localOwner := fs.Bool("local-owner", false, "Use the verified host owner identity; unavailable inside an identified agent run")
+	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
+		return fmt.Errorf("usage: agent-manager run assign-workload <id> --kind kind --key key [--instance value] [--local-owner] [--json]")
+	}
+	id := args[0]
+	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*kind) == "" || strings.TrimSpace(*key) == "" {
+		return fmt.Errorf("--kind and --key are required")
+	}
+	runs := a.services.Runs
+	if *localOwner {
+		owner, err := localOwnerAPIForResource(a.services.Maintenance.api, standingGrantResource)
+		if err != nil {
+			return err
+		}
+		runs = &RunService{api: owner}
+	}
+	body, err := runs.AssignWorkload(id, *kind, *key, *instance)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+	} else {
+		fmt.Println(string(body))
+	}
 	return nil
 }
 

@@ -36,8 +36,8 @@ func (a *App) runAttach(args []string) error {
 	if strings.TrimSpace(*harnessKind) == "" || strings.TrimSpace(*harnessSessionID) == "" {
 		return fmt.Errorf("usage: agent-manager run attach --harness-kind kind --harness-session-id id [--task-id uuid] [--process-id pid] [--harness-title title]")
 	}
-	if *processID < 0 {
-		return fmt.Errorf("--process-id must be positive when provided")
+	if *processID < 0 || *processID == 1 {
+		return fmt.Errorf("--process-id must identify a non-init process when provided")
 	}
 	req := &apipb.AttachRunRequest{
 		HarnessKind:      *harnessKind,

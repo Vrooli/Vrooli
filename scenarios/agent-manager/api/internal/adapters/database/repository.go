@@ -748,6 +748,11 @@ func (r *runRepository) AdmitCurrentRun(ctx context.Context, run *domain.Run, ex
 	if run == nil || run.TaskID == uuid.Nil {
 		return false, fmt.Errorf("admit current run requires an exact task/run")
 	}
+	if expectedStatus != domain.RunStatusRunning {
+		if allowed, reason := expectedStatus.CanTransitionTo(domain.RunStatusRunning); !allowed {
+			return false, domain.NewStateErrorWithID("Run", run.ID.String(), "invalid_status_transition", "admit", reason)
+		}
+	}
 	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return false, wrapDBError("admit_current_run", "Run", run.ID.String(), err)

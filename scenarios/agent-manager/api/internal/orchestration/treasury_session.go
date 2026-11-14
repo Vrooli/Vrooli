@@ -1,3 +1,4 @@
+// This file owns per-run Treasury session-key issuance and revocation.
 package orchestration
 
 import (
@@ -55,6 +56,13 @@ type CredentialAuthorityTreasurySessionKeys struct {
 
 func NewCredentialAuthorityTreasurySessionKeys() *CredentialAuthorityTreasurySessionKeys {
 	return &CredentialAuthorityTreasurySessionKeys{open: credentialauthority.Default}
+}
+
+// NewCredentialAuthorityTreasurySessionKeysWithOpener binds the same run-key
+// lifecycle to an explicitly scoped credential authority. Production wiring
+// uses Default; isolated integration tests use an encrypted temporary store.
+func NewCredentialAuthorityTreasurySessionKeysWithOpener(open func() (*credentialauthority.Authority, error)) *CredentialAuthorityTreasurySessionKeys {
+	return &CredentialAuthorityTreasurySessionKeys{open: open}
 }
 
 func (s *CredentialAuthorityTreasurySessionKeys) ResolveOrMint(ctx context.Context, runID uuid.UUID) (string, error) {

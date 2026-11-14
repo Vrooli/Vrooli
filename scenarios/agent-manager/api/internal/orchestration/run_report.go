@@ -4,11 +4,14 @@ package orchestration
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/invocationreadmodel"
+	"agent-manager/internal/researchbudget"
 	"agent-manager/internal/runreport"
 	"agent-manager/internal/runsignal"
 
@@ -60,6 +63,7 @@ var (
 	_ runreport.DurableInvocationFactSource = orchestratorReportSource{}
 	_ runreport.DurableSelfReportSpanSource = orchestratorReportSource{}
 	_ runreport.DurableTimeAccountingSource = orchestratorReportSource{}
+	_ runreport.ResearchBudgetSource        = orchestratorReportSource{}
 	_ runreport.LedgerStore                 = orchestratorReportSource{}
 	_ runreport.ReceiptJoinStore            = orchestratorReportSource{}
 )
@@ -142,4 +146,15 @@ func (s orchestratorReportSource) CrossScenarioCalls(ctx context.Context, id uui
 		return []runreport.CrossScenarioCall{}, nil
 	}
 	return s.o.investigationLedger.CrossScenarioCalls(ctx, id)
+}
+
+func (s orchestratorReportSource) ResearchBudget(ctx context.Context, id uuid.UUID) (researchbudget.Summary, bool, error) {
+	if s.o.researchBudgetLedger == nil {
+		return researchbudget.Summary{}, false, nil
+	}
+	summary, err := s.o.researchBudgetLedger.Read(ctx, id.String())
+	if errors.Is(err, sql.ErrNoRows) {
+		return researchbudget.Summary{}, false, nil
+	}
+	return summary, err == nil, err
 }

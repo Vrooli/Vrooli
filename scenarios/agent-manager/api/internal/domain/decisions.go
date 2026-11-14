@@ -90,6 +90,7 @@ func (r RunStatus) CanTransitionTo(target RunStatus) (bool, string) {
 var runTransitions = map[RunStatus][]RunStatus{
 	RunStatusPending: {
 		RunStatusStarting,
+		RunStatusRunning, // Exact task admission may dispatch directly from the queue
 		RunStatusCancelled,
 		RunStatusFailed,
 	},
@@ -99,11 +100,13 @@ var runTransitions = map[RunStatus][]RunStatus{
 		RunStatusCancelled,
 	},
 	RunStatusRunning: {
+		RunStatusStarting, // Admitted queued/resumed execution enters executor setup through Starting
 		RunStatusNeedsReview,
 		RunStatusParked, // Suspended waiting on externally-owned async work
 		RunStatusComplete,
 		RunStatusFailed,
 		RunStatusCancelled,
+		RunStatusUnknown, // Executor ended without enough evidence to classify its outcome
 	},
 	RunStatusNeedsReview: {
 		RunStatusComplete,  // After approval

@@ -22,6 +22,12 @@ import (
 // Format: CATEGORY_SPECIFIC (e.g., "NOT_FOUND_TASK", "VALIDATION_FIELD")
 type ErrorCode string
 
+// ErrProviderAdmissionMaintenance is the stable owner receipt for a
+// Workspace Sandbox lifecycle fence refusing process admission. SandboxLauncher
+// returns it only for the exact HTTP 409 response payload; callers must still
+// verify the pre-effect wrapper before treating it as proof that no work began.
+var ErrProviderAdmissionMaintenance = errors.New("provider admission is closed for lifecycle maintenance")
+
 // preEffectRefusal is an owner admission receipt, not an error-code category.
 // The same provider error may occur before admission or after dispatch.
 type preEffectRefusal struct{ cause error }

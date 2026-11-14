@@ -1,0 +1,10 @@
+{
+  "principals": [
+    {
+      "name": "agent-manager",
+      "resource": "web-console",
+      "audience": "scenario-authenticator:web-console",
+      "scopes": ["web-console:read", "web-console:write"]
+    }
+  ]
+}

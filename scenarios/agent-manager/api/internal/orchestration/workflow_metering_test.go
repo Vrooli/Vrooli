@@ -42,6 +42,44 @@ func TestWorkflowMeterSettlesProvenPreEffectFailure(t *testing.T) {
 	}
 }
 
+func TestWorkflowFailureSummaryCarriesSafeTypedAndGenericFailures(t *testing.T) {
+	for _, tc := range []struct {
+		name, eventCode, wantCode, wantMessage string
+		wantRetryable                          bool
+	}{
+		{name: "typed runner failure", eventCode: string(domain.ErrCodeRunnerUnavailable), wantCode: "runner_unavailable", wantMessage: "Agent runner is unavailable.", wantRetryable: true},
+		{name: "policy denial", eventCode: string(domain.ErrCodePolicyApproval), wantCode: "policy_denied", wantMessage: "Agent Manager policy denied this run. Review policy or approval requirements before starting a new run."},
+		{name: "storage outage", eventCode: string(domain.ErrCodeDatabaseConnection), wantCode: "agent_storage_unavailable", wantMessage: "Agent Manager could not persist run state. Check storage health before retrying.", wantRetryable: true},
+		{name: "lost runner session", eventCode: string(domain.ErrCodeRunnerSessionStateLost), wantCode: "runner_session_unavailable", wantMessage: "Agent runner session could not be resumed. Retry starts a new execution from the saved input.", wantRetryable: true},
+		{name: "generic internal failure", eventCode: string(domain.ErrCodeInternal), wantCode: "agent_execution_failed", wantMessage: "Agent run failed.", wantRetryable: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusFailed, Billing: domain.BillingSnapshot{Basis: domain.ChargeBasisMetered}}
+			events := []*domain.RunEvent{{Data: &domain.ErrorEventData{Code: tc.eventCode, Message: "secret stderr: api_key=do-not-forward", Retryable: true}}}
+			state, err := meteredWorkflowChildState(run, events, time.Now())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !state.Failed || state.FailureCode != tc.wantCode || state.FailureMessage != tc.wantMessage || state.FailureRetryable != tc.wantRetryable {
+				t.Fatalf("failure receipt not safely projected: %+v", state)
+			}
+			if state.TokensKnown || state.Tokens != 0 {
+				t.Fatalf("unknown token usage was changed: %+v", state)
+			}
+		})
+	}
+}
+
+func TestWorkflowFailureSummaryKeepsMaintenanceReceipt(t *testing.T) {
+	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusFailed, StopReason: domain.RunStopReasonProviderMaintenance}
+	events := []*domain.RunEvent{{Data: &domain.ErrorEventData{Code: string(domain.ErrCodeSandboxOperation), Message: "raw provider response", Retryable: false, Details: map[string]interface{}{"execution_started_known": true, "execution_started": false}}}}
+	state, err := meteredWorkflowChildState(run, events, time.Now())
+	want := "Agent execution is paused for Workspace Sandbox maintenance; no agent work started."
+	if err != nil || state.FailureCode != "provider_admission_maintenance" || state.FailureMessage != want || !state.FailureRetryable || !state.TokensKnown || state.Tokens != 0 {
+		t.Fatalf("maintenance receipt changed by generic error event: %+v %v", state, err)
+	}
+}
+
 func TestWorkflowMeterKeepsLegacyPostLaunchFailureUnknown(t *testing.T) {
 	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusFailed, Billing: domain.BillingSnapshot{Basis: domain.ChargeBasisMetered}, ErrorMsg: "runner codex error during execute: provider rejected request"}
 	state, err := meteredWorkflowChildState(run, nil, time.Now())

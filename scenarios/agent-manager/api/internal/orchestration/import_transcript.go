@@ -336,6 +336,31 @@ func (o *Orchestrator) BackfillRunSubjects(ctx context.Context) (*SubjectBackfil
 	return result, nil
 }
 
+// AssignRunWorkload sets explicit attribution on an existing run without
+// rewriting lifecycle state or inferring anything from the run identity.
+func (o *Orchestrator) AssignRunWorkload(ctx context.Context, id uuid.UUID, workload domain.WorkloadRef) (*domain.Run, error) {
+	updater, ok := o.runs.(repository.RunWorkloadUpdater)
+	if !ok {
+		return nil, fmt.Errorf("run repository does not support workload assignment")
+	}
+	workload.Key = strings.TrimSpace(workload.Key)
+	workload.Instance = strings.TrimSpace(workload.Instance)
+	if !workload.Kind.IsValid() || workload.Key == "" {
+		return nil, fmt.Errorf("valid workload kind and non-empty workload key are required")
+	}
+	if err := updater.UpdateRunWorkload(ctx, id, workload); err != nil {
+		return nil, err
+	}
+	run, err := o.runs.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if run == nil {
+		return nil, domain.NewNotFoundError("Run", id)
+	}
+	return run, nil
+}
+
 // BackfillImportedRunLabels recovers labels for every unlabelled run: imported
 // runs from their retained transcript, native runs from their own task title.
 // It never invokes the generator: legacy backfills are limited to harness or

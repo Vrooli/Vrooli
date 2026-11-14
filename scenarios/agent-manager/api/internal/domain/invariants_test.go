@@ -174,10 +174,10 @@ func TestRun_CheckTerminalTransition(t *testing.T) {
 	}{
 		{"pending to running - valid", RunStatusPending, RunStatusRunning, true},
 		{"running to complete - valid", RunStatusRunning, RunStatusComplete, true},
-		{"complete to running - invalid", RunStatusComplete, RunStatusRunning, false},
+		{"complete to running - explicit continuation", RunStatusComplete, RunStatusRunning, true},
 		{"failed to pending - invalid", RunStatusFailed, RunStatusPending, false},
-		{"cancelled to running - invalid", RunStatusCancelled, RunStatusRunning, false},
-		{"complete to failed - valid (terminal to terminal)", RunStatusComplete, RunStatusFailed, true},
+		{"cancelled to running - explicit continuation", RunStatusCancelled, RunStatusRunning, true},
+		{"complete to failed - invalid terminal rewrite", RunStatusComplete, RunStatusFailed, false},
 	}
 
 	for _, tt := range tests {

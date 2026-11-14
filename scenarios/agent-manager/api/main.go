@@ -136,6 +136,7 @@ type Server struct {
 	workspaceSandbox         interface {
 		IsAvailable(context.Context) (bool, string)
 	}
+	providerReadiness handlers.ProviderReadinessReader
 }
 
 // databaseConfigFromLevers keeps the production pool aligned with Agent
@@ -315,6 +316,7 @@ func NewServerWithTerminalEvents(terminal *wiring.TerminalEventsConfig) (*Server
 		conversationSearchPolicy: searchVisibilityPolicy,
 		conversationTokens:       conversationTokens,
 		workspaceSandbox:         deps.WorkspaceSandbox,
+		providerReadiness:        deps.ProviderReadiness,
 	}
 	// One gate and routed store serve every admission path and the owner endpoint.
 	// Install before recovery workers or HTTP can admit work.
@@ -536,6 +538,7 @@ func (s *Server) setupRoutes() {
 		HealthStore: s.healthStore, EventRepository: s.eventRepo, SupervisionService: s.supervisionService, WatchActionAuthorizer: s.watchActionAuthorizer, InvocationReadModel: s.invocationReadModel,
 		ModelPolicyDrift: s.modelPolicyDrift, UsageModes: s.usageModes, UsageModeNotifier: s.usageModeNotifier, TranscriptImporter: s.transcriptImporter,
 		WorkspaceSandbox:         s.workspaceSandbox,
+		ProviderReadiness:        s.providerReadiness,
 		ConversationSearch:       s.conversationSearch,
 		ConversationIndexer:      s.conversationIndexer,
 		ConversationSearchPolicy: s.conversationSearchPolicy,

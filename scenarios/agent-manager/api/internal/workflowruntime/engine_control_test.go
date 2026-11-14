@@ -268,7 +268,7 @@ func TestChildWorkflowPersistsIdentityAndAggregatesBudget(t *testing.T) { // [RE
 }
 
 func TestChildWorkflowPreservesDistinctTerminalStatus(t *testing.T) { // [REQ:REQ-P2-001]
-	for _, want := range []domain.WorkflowExecutionStatus{domain.WorkflowExecutionBlocked, domain.WorkflowExecutionAbstained} {
+	for _, want := range []domain.WorkflowExecutionStatus{domain.WorkflowExecutionBlocked, domain.WorkflowExecutionAbstained, domain.WorkflowExecutionCancelled} {
 		t.Run(string(want), func(t *testing.T) {
 			definition := baseDefinition()
 			definition.Nodes = []domain.WorkflowNode{{ID: "child", Kind: domain.WorkflowNodeChild, Child: &domain.WorkflowChildNode{WorkflowKey: "example/child", MaxDepth: 2}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}

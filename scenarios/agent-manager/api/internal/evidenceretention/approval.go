@@ -50,6 +50,9 @@ const (
 	extraAnswer       = "answer"
 	extraReceipt      = "receipt_path"
 	extraApplyError   = "apply_error"
+	// extraSubjectKey marks an ask raised under a hub subject key. An ask without
+	// it was raised by an older build and can only be closed by its event id.
+	extraSubjectKey = "subject_key"
 )
 
 // Approval attributes a prune applied on an operator decision.
@@ -82,6 +85,7 @@ type ApprovalTicket struct {
 // DecisionRaiser is the seam over operatordecision.Raiser.
 type DecisionRaiser interface {
 	Raise(ctx context.Context, ask operatordecision.PendingAsk, facts operatordecision.Facts) (bool, error)
+	PublishWithdrawal(ctx context.Context, w operatordecision.Withdrawal) error
 }
 
 // Approvals raises prune asks and applies approved ones.
@@ -104,6 +108,11 @@ func NewApprovals(service *Service, store operatordecision.PendingStore, raiser 
 func NewApprovalRaiser(store operatordecision.PendingStore, publisher operatordecision.Publisher) operatordecision.Raiser {
 	return operatordecision.Raiser{Source: ApprovalSource, Kind: approvalKind, EventType: ApprovalEventType, Store: store, Publisher: publisher}
 }
+
+// subjectKeyFor names the one open operator decision for a prune scope, so a
+// request raised again after the first one aged out updates it instead of adding
+// a second.
+func subjectKeyFor(id string) string { return approvalKind + ":" + id }
 
 // ApprovalID is the stable correlation id for one (efforts, classes) scope,
 // so a retried request dedupes onto the one outstanding ask.
@@ -164,6 +173,9 @@ func (a *Approvals) Request(ctx context.Context, req ApprovalRequest) (ApprovalT
 	if err != nil {
 		return ticket, err
 	}
+	if err := a.retireKeylessAsk(ctx, existing); err != nil {
+		return ticket, err
+	}
 	var ask operatordecision.PendingAsk
 	if existing != nil && existing.Outstanding(time.Now()) {
 		ask = *existing
@@ -175,13 +187,54 @@ func (a *Approvals) Request(ctx context.Context, req ApprovalRequest) (ApprovalT
 		}
 		ticket.Preview = preview
 		if len(preview.Removed) == 0 {
-			return ticket, nil
+			// Nothing is left to remove (it was pruned another way, or nothing
+			// qualifies any more): an ask still open for this scope is moot.
+			return ticket, a.withdrawMoot(ctx, existing, "Nothing is left to prune for this request, so it no longer needs a decision.")
 		}
 		ask = newAsk(id, efforts, classes, preview, req)
 	}
 	raised, err := a.raiser.Raise(ctx, ask, approvalFacts(&ask))
 	ticket.Raised = raised
 	return ticket, err
+}
+
+// retireKeylessAsk closes a pending ask an older build raised without a subject
+// key, by its event id, and marks it keyed so the raise below publishes the
+// current facts under the key. Idempotent: a keyed ask is left alone.
+func (a *Approvals) retireKeylessAsk(ctx context.Context, ask *operatordecision.PendingAsk) error {
+	if ask == nil || ask.State != operatordecision.PendingStatePending || ask.Extra[extraSubjectKey] != "" {
+		return nil
+	}
+	if ask.EventID != "" {
+		if err := a.raiser.PublishWithdrawal(ctx, operatordecision.Withdrawal{RequesterRef: ask.EventID, Reason: "Replaced by an updated version of this request."}); err != nil {
+			return err
+		}
+	}
+	if ask.Extra == nil {
+		ask.Extra = map[string]string{}
+	}
+	ask.Extra[extraSubjectKey] = subjectKeyFor(ask.ID)
+	ask.EventID, ask.Published = "", false
+	return a.store.Put(ctx, ask)
+}
+
+// withdrawMoot closes the ask's open decision at the hub and records it as
+// withdrawn. It does nothing for an ask that is not pending. The hub is told
+// first, so a failure leaves the ask pending and the next request retries.
+func (a *Approvals) withdrawMoot(ctx context.Context, ask *operatordecision.PendingAsk, reason string) error {
+	if ask == nil || ask.State != operatordecision.PendingStatePending {
+		return nil
+	}
+	w := operatordecision.Withdrawal{SubjectKey: subjectKeyFor(ask.ID), Reason: reason}
+	if ask.Extra[extraSubjectKey] == "" {
+		w.SubjectKey, w.RequesterRef = "", ask.EventID
+	}
+	if err := a.raiser.PublishWithdrawal(ctx, w); err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	ask.State, ask.ResolvedAt = operatordecision.PendingStateWithdrawn, &now
+	return a.store.Put(ctx, ask)
 }
 
 func newAsk(id string, efforts []string, classes []Class, preview Receipt, req ApprovalRequest) operatordecision.PendingAsk {
@@ -215,6 +268,7 @@ func newAsk(id string, efforts []string, classes []Class, preview Receipt, req A
 			extraSession:      strings.TrimSpace(req.WebConsoleSessionID),
 			extraPreviewBytes: strconv.FormatInt(preview.RemovedBytes, 10),
 			extraPreviewFiles: strconv.Itoa(preview.RemovedFiles),
+			extraSubjectKey:   subjectKeyFor(id),
 		},
 	}
 }
@@ -284,7 +338,8 @@ func approvalFacts(ask *operatordecision.PendingAsk) operatordecision.Facts {
 		correlation[operatordecision.CorrelationWebConsoleSessionID] = x[extraSession]
 	}
 	return operatordecision.Facts{
-		Subject: fmt.Sprintf("Approve pruning %s of evidence from %s?", size, effortText),
+		SubjectKey: subjectKeyFor(ask.ID),
+		Subject:    fmt.Sprintf("Approve pruning %s of evidence from %s?", size, effortText),
 		Question: truncateBytes(fmt.Sprintf("An agent asks Agent Manager to permanently delete %s (%d files, %d paths) of regenerable intermediates (%s) from %s. Approve this prune?",
 			size, files, len(paths), classText, effortText), operatordecision.MaxQuestion),
 		BigPicture: "These are regenerable build intermediates of a finished effort, kept only to rebuild or re-check its evidence. " +
@@ -349,6 +404,11 @@ func (a *Approvals) decide(ctx context.Context, id string, res operatordecision.
 	ask.ResolvedBy = approvedBy
 	if ask.Extra == nil {
 		ask.Extra = map[string]string{}
+	}
+	if res.State == operatordecision.StateWithdrawn {
+		// The hub closed the decision (replaced, or no longer confirmed): no answer.
+		ask.State = operatordecision.PendingStateWithdrawn
+		return PruneRequest{}, false, a.store.Put(ctx, ask)
 	}
 	if !approved {
 		ask.State = operatordecision.PendingStateRejected

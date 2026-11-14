@@ -2,14 +2,17 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/goalhome"
 	"agent-manager/internal/orchestration"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/operatordecision"
+	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // fakeWaker records how each run was reached: WakeRun (parked) vs ContinueRun.
@@ -245,5 +248,79 @@ func TestFormatDecisionWakeMessage(t *testing.T) {
 	dismissed := formatDecisionWakeMessage(operatordecision.DecisionResolution{State: "dismissed", Reason: "not applicable"})
 	if !strings.Contains(dismissed, "DISMISSED without an answer") || !strings.Contains(dismissed, "No approval was granted") {
 		t.Fatalf("dismissal message must explicitly withhold approval: %q", dismissed)
+	}
+}
+
+type fakeContextFinder struct {
+	decision *pb.EffortDecision
+	err      error
+	seen     []operatordecision.ContextRequest
+}
+
+func (f *fakeContextFinder) PendingDecisionForContextRequest(_ context.Context, request operatordecision.ContextRequest) (*pb.EffortDecision, error) {
+	f.seen = append(f.seen, request)
+	return f.decision, f.err
+}
+
+func contextRequestFor(question string) operatordecision.ContextRequest {
+	return operatordecision.ContextRequest{
+		AskID: "ask-1", RequestID: "req-1", Question: question, SourceEventType: goalhome.DecisionRequestedEventType,
+		RequesterRef: "event-1", Correlation: map[string]string{"goal_home": "scenarios/demo", "decision_id": "D-1"},
+	}
+}
+
+func contextEffect(f *fakeContextFinder, w *fakeWaker) effortDecisionEffect {
+	return effortDecisionEffect{contexts: f, tieBack: requesterWakeEffect{waker: w}, detach: func(run func()) { run() }}
+}
+
+func TestAnOperatorQuestionWakesTheRunParkedOnTheDecisionThatRaisedIt(t *testing.T) {
+	run := parkedOn(orchestration.ProducerOperatorDecision, "d-1")
+	w := newFakeWaker(run)
+	finder := &fakeContextFinder{decision: &pb.EffortDecision{GoalHome: "scenarios/demo", DecisionId: "D-1", Question: "Close it?", RaisedByRunId: run.ID.String()}}
+	handled, err := contextEffect(finder, w).RespondToContext(context.Background(), contextRequestFor("Which baseline?"))
+	if !handled || err != nil {
+		t.Fatalf("handled=%v err=%v", handled, err)
+	}
+	msg := w.woke[run.ID]
+	for _, want := range []string{"operator asked for more context", "Which baseline?", "effort decision raise scenarios/demo --id D-1", "--big-picture", "Do not raise a new decision id"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("the message to the raising run lacks %q: %s", want, msg)
+		}
+	}
+}
+
+func TestAnOperatorQuestionContinuesARunThatIsNotParkedAndIsDeliveredOnce(t *testing.T) {
+	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusRunning}
+	w := newFakeWaker(run)
+	finder := &fakeContextFinder{decision: &pb.EffortDecision{GoalHome: "scenarios/demo", DecisionId: "D-1", RaisedByRunId: run.ID.String()}}
+	if handled, err := contextEffect(finder, w).RespondToContext(context.Background(), contextRequestFor("Why now?")); !handled || err != nil {
+		t.Fatalf("handled=%v err=%v", handled, err)
+	}
+	if msg := w.continued[run.ID]; !strings.Contains(msg, "Why now?") {
+		t.Fatalf("a running run is continued with the question: %q", msg)
+	}
+}
+
+func TestAnOperatorQuestionNobodyCanAnswerIsAcknowledgedWithoutDelivery(t *testing.T) {
+	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusRunning}
+	w := newFakeWaker(run)
+
+	stale := &fakeContextFinder{}
+	if handled, err := contextEffect(stale, w).RespondToContext(context.Background(), contextRequestFor("q")); handled || err != nil {
+		t.Fatalf("a question about no pending decision of ours is left to others: handled=%v err=%v", handled, err)
+	}
+	noRaiser := &fakeContextFinder{decision: &pb.EffortDecision{GoalHome: "scenarios/demo", DecisionId: "D-1"}}
+	if handled, err := contextEffect(noRaiser, w).RespondToContext(context.Background(), contextRequestFor("q")); !handled || err != nil {
+		t.Fatalf("a decision with no raising run is acknowledged so the Hub does not redeliver: handled=%v err=%v", handled, err)
+	}
+	if len(w.continued)+len(w.woke)+len(w.prompted) != 0 {
+		t.Fatalf("nothing may be delivered: %+v %+v", w.continued, w.woke)
+	}
+	failing := &fakeContextFinder{err: errors.New("database unavailable")}
+	if handled, err := contextEffect(failing, w).RespondToContext(context.Background(), contextRequestFor("q")); err == nil || !handled {
+		t.Fatalf("a lookup failure must be an error so the event is retried: handled=%v err=%v", handled, err)
+	}
+	if handled, err := (effortDecisionEffect{}).RespondToContext(context.Background(), contextRequestFor("q")); handled || err != nil {
+		t.Fatalf("without an effort log the effect does not answer: handled=%v err=%v", handled, err)
 	}
 }

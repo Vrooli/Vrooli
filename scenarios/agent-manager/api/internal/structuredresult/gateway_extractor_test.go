@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
 type fakeGatewayClient struct {
@@ -33,6 +34,8 @@ func TestGatewayExtractorUsesTypedInferenceWithoutRunnerLaunch(t *testing.T) {
 	require.Equal(t, "ollama", response.Provider)
 	require.Equal(t, "qwen3.5:9b", response.Model)
 	require.Equal(t, DefaultExtractRole, client.request.GetRole())
+	require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, client.request.GetProfile())
+	require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED, client.request.GetPrivacyClass(), "Agent Manager has no sourced classification for extractor output")
 	require.Equal(t, `{"type":"string","enum":["complete","blocked"]}`, client.request.GetSchemaJson())
 }
 

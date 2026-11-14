@@ -36,7 +36,7 @@ function shortId(value: string): string {
 export function WorkflowsPage() {
   const workflows = useWorkflowExecutions();
   const getTrace = workflows.getTrace;
-  const [selectedId, setSelectedId] = useState<string>("");
+  const [selectedId, setSelectedId] = useState<string>(() => new URLSearchParams(window.location.search).get("executionId") ?? "");
   const [trace, setTrace] = useState<WorkflowTraceView | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -51,7 +51,7 @@ export function WorkflowsPage() {
   const showDetail = isDesktop || phoneDetailOpen;
 
   const selected = useMemo(
-    () => workflows.data?.find((execution) => execution.id === selectedId) ?? workflows.data?.[0],
+    () => workflows.data?.find((execution) => execution.id === selectedId) ?? (selectedId ? undefined : workflows.data?.[0]),
     [selectedId, workflows.data],
   );
 

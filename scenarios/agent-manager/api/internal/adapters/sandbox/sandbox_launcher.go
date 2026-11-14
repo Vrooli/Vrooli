@@ -320,6 +320,17 @@ func (l *SandboxLauncher) Launch(ctx context.Context, req runner.LaunchRequest) 
 	if req.Command == "" {
 		return nil, errors.New("SandboxLauncher: command is required")
 	}
+	// A known closed lifecycle fence is a safe pre-effect refusal. Unknown
+	// readiness does not authorize us to claim the provider is closed; proceed
+	// to dispatch and retain the exact 409 admission handling below for races.
+	if readinessReader, ok := any(l.provider).(ProviderReadinessReader); ok {
+		probeCtx, cancel := context.WithTimeout(ctx, config.DefaultLevers().Runners.ProbeTimeout)
+		readiness := readinessReader.ReadProviderReadiness(probeCtx)
+		cancel()
+		if readiness.Known && readiness.Provider == workspaceSandboxProviderName && readiness.State == domain.ProviderReadinessClosed {
+			return nil, domain.RefuseBeforeEffects(domain.ErrProviderAdmissionMaintenance)
+		}
+	}
 	if len(req.PolicyFiles) > 0 {
 		containment, ok := l.provider.ContainmentFor(ctx, l.sandboxID)
 		if !ok || !containment.HasEnforcement(runner.EnforcementPolicyFiles) {
@@ -507,6 +518,9 @@ func (l *SandboxLauncher) startProcess(ctx context.Context, body startProcessBod
 	}
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		buf, _ := io.ReadAll(resp.Body)
+		if providerAdmissionMaintenanceRefusal(resp.StatusCode, buf) {
+			return 0, domain.RefuseBeforeEffects(domain.ErrProviderAdmissionMaintenance)
+		}
 		return 0, fmt.Errorf("start process: HTTP %d: %s", resp.StatusCode, string(buf))
 	}
 
@@ -520,6 +534,21 @@ func (l *SandboxLauncher) startProcess(ctx context.Context, body startProcessBod
 		return 0, errors.New("start process: workspace-sandbox returned PID 0")
 	}
 	return startResp.PID, nil
+}
+
+func providerAdmissionMaintenanceRefusal(status int, body []byte) bool {
+	if status != http.StatusConflict {
+		return false
+	}
+	var response struct {
+		Error   string `json:"error"`
+		Code    int    `json:"code"`
+		Success bool   `json:"success"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return false
+	}
+	return response.Code == http.StatusConflict && !response.Success && response.Error == domain.ErrProviderAdmissionMaintenance.Error()
 }
 
 // writeStdin POSTs the stdin bytes to /processes/{pid}/stdin. When close

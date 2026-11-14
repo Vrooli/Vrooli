@@ -71,7 +71,7 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 		space,
 		runs.SubcommandGroup(deps),
 		measures.Register(),
-		usage.Register(deps.UsageCommands...),
+		usage.RegisterWithCensus(deps.UsageRunningRuns, deps.UsageCommands...),
 	}
 }
 

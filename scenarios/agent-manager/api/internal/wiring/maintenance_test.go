@@ -25,7 +25,8 @@ func TestMaintenanceBatchHydratesDurableIdentityWithoutActionOrConfig(t *testing
 		ID: uuid.New(), TaskID: task.ID, Tag: "durable-tag", Status: domain.RunStatusFailed,
 		RunnerPID: 315576, RunnerPGID: 315576, StartedAt: &start, EndedAt: &end,
 		ExecutionMode: domain.ExecutionModeAttached, HarnessKind: "codex", HarnessSessionID: "immutable-native-session",
-		SessionID: "mutable-transcript-session", IdentityTokenHash: "must-not-hydrate-token", IdentityRenewalAnchorHash: "must-not-hydrate-renewal",
+		WebConsoleSessionID: "immutable-web-console-session",
+		SessionID:           "mutable-transcript-session", IdentityTokenHash: "must-not-hydrate-token", IdentityRenewalAnchorHash: "must-not-hydrate-renewal",
 		CustomEnv: map[string]string{"secret": "must-not-hydrate"}, ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeOpenCode},
 	}
 	if err := repos.Runs.Create(t.Context(), run); err != nil {
@@ -40,8 +41,8 @@ func TestMaintenanceBatchHydratesDurableIdentityWithoutActionOrConfig(t *testing
 	if got.ID != run.ID || got.Tag != run.Tag || got.RunnerPID != run.RunnerPID || got.RunnerPGID != run.RunnerPGID || got.StartedAt == nil || !got.StartedAt.Equal(start) || got.EndedAt == nil || !got.EndedAt.Equal(end) {
 		t.Fatalf("durable physical binding lost: %+v", got)
 	}
-	if got.ExecutionMode != domain.ExecutionModeAttached || got.HarnessKind != "codex" || got.HarnessSessionID != "immutable-native-session" {
-		t.Fatalf("immutable attached identity lost: mode=%q harness=%q session=%q", got.ExecutionMode, got.HarnessKind, got.HarnessSessionID)
+	if got.ExecutionMode != domain.ExecutionModeAttached || got.HarnessKind != "codex" || got.HarnessSessionID != "immutable-native-session" || got.WebConsoleSessionID != "immutable-web-console-session" {
+		t.Fatalf("immutable attached identity lost: mode=%q harness=%q session=%q web-console=%q", got.ExecutionMode, got.HarnessKind, got.HarnessSessionID, got.WebConsoleSessionID)
 	}
 	if got.ResolvedConfig != nil || got.CustomEnv != nil || got.Actions != nil || got.IdentityTokenHash != "" || got.IdentityRenewalAnchorHash != "" || got.SessionID != "" {
 		t.Fatal("inventory hydrated unrelated action/config/secret data")
@@ -56,7 +57,7 @@ func TestMaintenanceBatchHydratesDurableIdentityWithoutActionOrConfig(t *testing
 	}
 	refs[len(refs)-1].ID = run.ID.String()
 	identities, err = readMaintenanceExecutorIdentities(t.Context(), db, refs)
-	if err != nil || len(identities) != 1 || identities[0].ID != run.ID || identities[0].HarnessSessionID != "immutable-native-session" {
+	if err != nil || len(identities) != 1 || identities[0].ID != run.ID || identities[0].HarnessSessionID != "immutable-native-session" || identities[0].WebConsoleSessionID != "immutable-web-console-session" {
 		t.Fatalf("bounded hydration lost tail identity: identities=%d err=%v", len(identities), err)
 	}
 }

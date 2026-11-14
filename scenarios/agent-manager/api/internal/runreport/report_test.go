@@ -9,6 +9,7 @@ import (
 
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/researchbudget"
 	"agent-manager/internal/runsignal"
 
 	"github.com/google/uuid"
@@ -29,6 +30,53 @@ type durableReportSource struct {
 	reportSource
 	facts      []runsignal.InvocationFact
 	accounting runsignal.TimeAccounting
+}
+
+type researchBudgetReportSource struct {
+	reportSource
+	budget  researchbudget.Summary
+	present bool
+	err     error
+}
+
+func (s researchBudgetReportSource) ResearchBudget(context.Context, uuid.UUID) (researchbudget.Summary, bool, error) {
+	return s.budget, s.present, s.err
+}
+
+func TestBuildIncludesRunBoundResearchSpendAndBenefit(t *testing.T) {
+	id := uuid.New()
+	budget := researchbudget.Summary{RunID: id.String(), TreasuryBudgetID: "tb-1", MandateID: "mandate-1", Currency: "USDC", UnitCode: "USDC_ATOMS", CapMinor: 500, SpendMinor: 125, RemainingMinor: 375, SpendCount: 1, Spend: []researchbudget.Spend{{RunID: id.String(), Category: "x402_call", IntegrationID: "x402:mock", AmountMinor: 125, UnitCode: "USDC_ATOMS", BenefitState: "measured", BenefitSummary: "3 local fixture records"}}}
+	report, err := Build(context.Background(), researchBudgetReportSource{reportSource: reportSource{run: &domain.Run{ID: id}}, budget: budget, present: true}, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := report.ResearchBudget
+	if got.Availability.State != AvailabilityAvailable || got.SpendAvailability.State != AvailabilityAvailable || got.Summary == nil || got.Summary.RunID != id.String() || got.Summary.SpendMinor != 125 || got.Summary.RemainingMinor != 375 || len(got.Summary.Spend) != 1 || got.Summary.Spend[0].BenefitSummary != "3 local fixture records" {
+		t.Fatalf("research budget projection lost run/spend/benefit: %+v", got)
+	}
+}
+
+func TestBuildMarksMissingResearchBudgetAsUnobserved(t *testing.T) {
+	id := uuid.New()
+	report, err := Build(context.Background(), researchBudgetReportSource{reportSource: reportSource{run: &domain.Run{ID: id}}}, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.ResearchBudget.Availability.State != AvailabilityUnobserved || report.ResearchBudget.Summary != nil || report.ResearchBudget.SpendAvailability.State != AvailabilityUnobserved {
+		t.Fatalf("missing run budget availability = %+v", report.ResearchBudget.Availability)
+	}
+}
+
+func TestBuildDoesNotTreatBudgetWithoutSettlementRowsAsZeroSpend(t *testing.T) {
+	id := uuid.New()
+	budget := researchbudget.Summary{RunID: id.String(), TreasuryBudgetID: "tb-1", CapMinor: 500}
+	report, err := Build(context.Background(), researchBudgetReportSource{reportSource: reportSource{run: &domain.Run{ID: id}}, budget: budget, present: true}, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.ResearchBudget.Summary == nil || report.ResearchBudget.SpendAvailability.State != AvailabilityUnobserved || !strings.Contains(report.ResearchBudget.SpendAvailability.Reason, "zero spend cannot be inferred") {
+		t.Fatalf("empty settlement rows must not imply free run: %+v", report.ResearchBudget)
+	}
 }
 
 func (s durableReportSource) DurableInvocationFacts(context.Context, uuid.UUID) ([]runsignal.InvocationFact, bool, error) {

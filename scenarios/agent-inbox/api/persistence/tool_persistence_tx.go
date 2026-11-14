@@ -18,30 +18,7 @@ func (r *Repository) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx,
 // SaveToolCallRecordTx saves a tool call execution record within a transaction.
 // This is the transaction-aware variant of SaveToolCallRecord.
 func (r *Repository) SaveToolCallRecordTx(ctx context.Context, tx *sql.Tx, messageID string, record *domain.ToolCallRecord) error {
-	// Ensure arguments is valid JSON (empty string is not valid JSON)
-	arguments := record.Arguments
-	if arguments == "" {
-		arguments = "{}"
-	}
-
-	// Ensure result is valid JSON or null
-	var result interface{}
-	if record.Result == "" {
-		result = nil
-	} else {
-		result = record.Result
-	}
-
-	_, err := tx.ExecContext(ctx, `
-		INSERT INTO tool_calls (id, message_id, chat_id, tool_name, arguments, result, status, scenario_name, external_run_id, started_at, completed_at, error_message)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-		ON CONFLICT (id) DO UPDATE SET
-			result = EXCLUDED.result,
-			status = EXCLUDED.status,
-			completed_at = EXCLUDED.completed_at,
-			error_message = EXCLUDED.error_message
-	`, record.ID, messageID, record.ChatID, record.ToolName, arguments, result, record.Status, record.ScenarioName, record.ExternalRunID, record.StartedAt, record.CompletedAt, record.ErrorMessage)
-	return err
+	return saveToolCallRecord(ctx, tx, messageID, record)
 }
 
 // SaveToolResponseMessageTx saves a tool response message within a transaction.

@@ -1,14 +1,15 @@
+import { renderWithProviders } from "@/test-utils/renderWithProviders";
 /**
  * Tests for Tabs component
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
 
 describe("Tabs", () => {
   it("renders tabs root", () => {
-    render(
+    renderWithProviders(
       <Tabs value="tab1" onValueChange={vi.fn()}>
         <TabsList>
           <TabsTrigger value="tab1">Tab 1</TabsTrigger>
@@ -21,7 +22,7 @@ describe("Tabs", () => {
   });
 
   it("renders tabs list", () => {
-    render(
+    renderWithProviders(
       <Tabs value="tab1" onValueChange={vi.fn()}>
         <TabsList>
           <TabsTrigger value="tab1">Tab 1</TabsTrigger>
@@ -35,7 +36,7 @@ describe("Tabs", () => {
   });
 
   it("renders active tab content", () => {
-    render(
+    renderWithProviders(
       <Tabs value="tab1" onValueChange={vi.fn()}>
         <TabsList>
           <TabsTrigger value="tab1">Tab 1</TabsTrigger>
@@ -52,7 +53,7 @@ describe("Tabs", () => {
 
   it("calls onValueChange when tab is clicked", () => {
     const onValueChange = vi.fn();
-    render(
+    renderWithProviders(
       <Tabs value="tab1" onValueChange={onValueChange}>
         <TabsList>
           <TabsTrigger value="tab1">Tab 1</TabsTrigger>
@@ -68,7 +69,7 @@ describe("Tabs", () => {
   });
 
   it("marks selected tab with aria-selected", () => {
-    render(
+    renderWithProviders(
       <Tabs value="tab1" onValueChange={vi.fn()}>
         <TabsList>
           <TabsTrigger value="tab1">Tab 1</TabsTrigger>
@@ -84,7 +85,7 @@ describe("Tabs", () => {
   });
 
   it("renders tab panel with correct role", () => {
-    render(
+    renderWithProviders(
       <Tabs value="tab1" onValueChange={vi.fn()}>
         <TabsList>
           <TabsTrigger value="tab1">Tab 1</TabsTrigger>
@@ -98,7 +99,7 @@ describe("Tabs", () => {
   });
 
   it("disables tab trigger when disabled prop is true", () => {
-    render(
+    renderWithProviders(
       <Tabs value="tab1" onValueChange={vi.fn()}>
         <TabsList>
           <TabsTrigger value="tab1">Tab 1</TabsTrigger>
@@ -116,7 +117,7 @@ describe("Tabs", () => {
 
   it("does not call onValueChange when disabled tab is clicked", () => {
     const onValueChange = vi.fn();
-    render(
+    renderWithProviders(
       <Tabs value="tab1" onValueChange={onValueChange}>
         <TabsList>
           <TabsTrigger value="tab1">Tab 1</TabsTrigger>
@@ -134,7 +135,7 @@ describe("Tabs", () => {
   });
 
   it("applies custom className to components", () => {
-    render(
+    renderWithProviders(
       <Tabs value="tab1" onValueChange={vi.fn()} className="custom-tabs">
         <TabsList className="custom-list">
           <TabsTrigger value="tab1" className="custom-trigger">
@@ -154,7 +155,7 @@ describe("Tabs", () => {
   });
 
   it("switches content when value changes", () => {
-    const { rerender } = render(
+    const { rerender } = renderWithProviders(
       <Tabs value="tab1" onValueChange={vi.fn()}>
         <TabsList>
           <TabsTrigger value="tab1">Tab 1</TabsTrigger>

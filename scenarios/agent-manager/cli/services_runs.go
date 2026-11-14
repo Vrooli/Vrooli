@@ -112,6 +112,15 @@ func (s *RunService) Get(id string) ([]byte, *domainpb.Run, error) {
 	return body, resp.Run, nil
 }
 
+// AssignWorkload explicitly tags an existing run with operator-provided attribution.
+func (s *RunService) AssignWorkload(id, kind, key, instance string) ([]byte, error) {
+	payload, err := json.Marshal(map[string]string{"kind": kind, "key": key, "instance": instance})
+	if err != nil {
+		return nil, err
+	}
+	return s.api.Request("PUT", "/api/v1/runs/"+url.PathEscape(id)+"/workload", nil, payload)
+}
+
 // Attach registers an operator-started harness session and returns its
 // scoped, one-time identity token.
 func (s *RunService) Attach(req *apipb.AttachRunRequest) ([]byte, *apipb.AttachRunResponse, error) {

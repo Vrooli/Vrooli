@@ -470,6 +470,15 @@ type WorkflowExecutionOperationResult struct {
 	Idempotent bool
 }
 
+type WorkflowExecutionCancelByKeyRequest struct {
+	Owner, WorkflowKey, IdempotencyKey, Reason, OperationKey string
+}
+
+type WorkflowExecutionCancelByKeyResult struct {
+	Fenced    bool
+	Execution *domain.WorkflowExecution
+}
+
 type (
 	SimulateWorkflowRequest struct {
 		Owner, WorkflowKey, DefinitionDigest string

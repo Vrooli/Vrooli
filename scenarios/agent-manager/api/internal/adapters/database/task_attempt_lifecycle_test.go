@@ -167,6 +167,11 @@ func createQueuedTask(t *testing.T, repos *Repositories, title string) *domain.T
 
 func setRunStatus(t *testing.T, repos *Repositories, run *domain.Run, status domain.RunStatus) *domain.Run {
 	t.Helper()
+	if run.Status == domain.RunStatusPending && status == domain.RunStatusComplete {
+		// Model the queued admission and execution that precede successful
+		// completion instead of jumping straight from the queue to terminal.
+		run = setRunStatus(t, repos, run, domain.RunStatusRunning)
+	}
 	run.Status = status
 	run.UpdatedAt = time.Now().UTC()
 	if err := repos.Runs.Update(context.Background(), run); err != nil {
@@ -415,7 +420,13 @@ func TestEffortOrchestratorContinuationWaitsForWALWriterWithoutReadUpgrade(t *te
 	}
 	owner.Status = domain.RunStatusRunning
 	continued := make(chan error, 1)
-	go func() { continued <- repos.Runs.Update(ctx, owner) }()
+	go func() {
+		admitted, err := repos.Runs.AdmitCurrentRun(ctx, owner, domain.RunStatusComplete, time.Now().UTC())
+		if err == nil && !admitted {
+			err = fmt.Errorf("same-run continuation was not admitted")
+		}
+		continued <- err
+	}()
 	time.Sleep(150 * time.Millisecond)
 	select {
 	case err := <-continued:
@@ -489,9 +500,11 @@ func TestTaskAttemptAdmissionProjectsExactCurrentRunAndFencesOldOutcome(t *testi
 	if err != nil || gotTask.Status != domain.TaskStatusCompleted {
 		t.Fatalf("automatic apply was projected as task acceptance or not completed: task=%+v err=%v", gotTask, err)
 	}
-	first.Status = domain.RunStatusRunning // Same exact run can continue.
-	if err := repos.Runs.Update(ctx, first); err != nil {
-		t.Fatal(err)
+	// Reuse the same exact run through the repository's continuation admission
+	// path; a generic full-row update cannot reopen a terminal run.
+	continued, err := repos.Runs.AdmitCurrentRun(ctx, first, domain.RunStatusComplete, time.Now())
+	if err != nil || !continued {
+		t.Fatalf("same-run continuation admission=%v err=%v", continued, err)
 	}
 	gotTask, err = repos.Tasks.Get(ctx, task.ID)
 	if err != nil || gotTask.Status != domain.TaskStatusRunning || gotTask.CurrentRunID == nil || *gotTask.CurrentRunID != first.ID {
@@ -510,8 +523,8 @@ func TestTaskAttemptAdmissionProjectsExactCurrentRunAndFencesOldOutcome(t *testi
 		t.Fatalf("admit serial attempt: %v", err)
 	}
 	first.Status = domain.RunStatusFailed // A delayed prior-attempt outcome.
-	if err := repos.Runs.Update(ctx, first); err != nil {
-		t.Fatalf("persist old attempt outcome: %v", err)
+	if err := repos.Runs.Update(ctx, first); err == nil {
+		t.Fatal("terminal prior-attempt outcome overwrote completed lifecycle")
 	}
 	gotTask, err = repos.Tasks.Get(ctx, task.ID)
 	if err != nil || gotTask.Status != domain.TaskStatusRunning || gotTask.CurrentRunID == nil || *gotTask.CurrentRunID != second.ID {
@@ -628,11 +641,8 @@ func TestEnsureCurrentRunBindsOnlyTheExactUnambiguousLegacyRun(t *testing.T) {
 	}
 	legacy := makeTask(domain.TaskStatusQueued)
 	terminal := pendingTaskRun(legacy.ID)
-	if err := repos.Runs.Create(ctx, terminal); err != nil {
-		t.Fatal(err)
-	}
 	terminal.Status = domain.RunStatusComplete
-	if err := repos.Runs.Update(ctx, terminal); err != nil {
+	if err := repos.Runs.Create(ctx, terminal); err != nil {
 		t.Fatal(err)
 	}
 	exact := pendingTaskRun(legacy.ID)
@@ -776,10 +786,8 @@ func TestResumeAdmissionAdvancesRunLifecycleVersionAndFencesOldFinalizer(t *test
 	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatal(err)
 	}
-	run.Status = domain.RunStatusNeedsReview
-	if err := repos.Runs.Update(ctx, run); err != nil {
-		t.Fatal(err)
-	}
+	run = setRunStatus(t, repos, run, domain.RunStatusRunning)
+	run = setRunStatus(t, repos, run, domain.RunStatusNeedsReview)
 	staleFinalizer := *run
 	admittedAt := time.Now().Add(time.Second)
 	updated, err := repos.Runs.AdmitCurrentRun(ctx, run, domain.RunStatusNeedsReview, admittedAt)
@@ -829,10 +837,8 @@ func TestResumeAdmissionRollbackCannotOverwriteCancellation(t *testing.T) {
 	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatal(err)
 	}
-	run.Status = domain.RunStatusNeedsReview
-	if err := repos.Runs.Update(ctx, run); err != nil {
-		t.Fatal(err)
-	}
+	run = setRunStatus(t, repos, run, domain.RunStatusRunning)
+	run = setRunStatus(t, repos, run, domain.RunStatusNeedsReview)
 	if updated, err := repos.Runs.AdmitCurrentRun(ctx, run, domain.RunStatusNeedsReview, time.Now().Add(time.Second)); err != nil || !updated {
 		t.Fatalf("admit current run updated=%v err=%v", updated, err)
 	}
@@ -940,6 +946,7 @@ func TestDeleteTerminalRunRequiresExactLifecycleSnapshot(t *testing.T) {
 	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatal(err)
 	}
+	run = setRunStatus(t, repos, run, domain.RunStatusRunning)
 	run.Status = domain.RunStatusComplete
 	if err := repos.Runs.Update(ctx, run); err != nil {
 		t.Fatal(err)

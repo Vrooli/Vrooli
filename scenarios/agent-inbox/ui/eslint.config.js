@@ -86,6 +86,26 @@ export default tseslint.config(
       ],
       "@typescript-eslint/restrict-template-expressions": "off",
       "@typescript-eslint/no-confusing-void-expression": "off",
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "**/test-utils",
+                "**/test-utils/*",
+                "@/test-utils",
+                "@/test-utils/*",
+                "**/features/*/mocks",
+                "**/features/*/mocks/*",
+                "@/features/*/mocks",
+                "@/features/*/mocks/*",
+              ],
+              message: "Production code must not import from test helpers or feature mocks.",
+            },
+          ],
+        },
+      ],
     },
   },
   {
@@ -97,6 +117,7 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-return": "off",
       "react-refresh/only-export-components": "off",
+      "no-restricted-imports": "off",
     },
   }
 );

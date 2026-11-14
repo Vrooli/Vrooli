@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"time"
@@ -257,6 +258,9 @@ func (r *TranscriptIndexRepository) FailTranscriptCapture(ctx context.Context, k
 	if intent == "" {
 		return fmt.Errorf("capture intent is required")
 	}
+	if !(transcriptindex.FileRow{Status: transcriptindex.StatusPending}).CanTransitionTo(status) {
+		return fmt.Errorf("invalid transcript file status transition %q -> %q", transcriptindex.StatusPending, status)
+	}
 	result, err := r.db.ExecContext(ctx, `UPDATE transcript_files SET status = ?, error = ? WHERE file_key = ? AND status = ? AND error = ?`, status, reason, key, transcriptindex.StatusPending, intent)
 	if err != nil {
 		return err
@@ -370,6 +374,17 @@ func (r *TranscriptIndexRepository) SaveTranscriptFile(ctx context.Context, file
 }
 
 func (r *TranscriptIndexRepository) saveTranscriptFileTx(ctx context.Context, tx *Tx, file transcriptindex.FileRow, usage []transcriptindex.UsageRow) error {
+	var current transcriptindex.FileRow
+	err := tx.QueryRowContext(ctx, `SELECT status FROM transcript_files WHERE file_key = ?`, file.Key).Scan(&current.Status)
+	if err == nil {
+		if !current.CanTransitionTo(file.Status) {
+			return fmt.Errorf("invalid transcript file status transition %q -> %q", current.Status, file.Status)
+		}
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return wrapDBError("read_transcript_file_status", "TranscriptFile", file.Key, err)
+	} else if !(transcriptindex.FileRow{Status: file.Status}).CanTransitionTo(file.Status) {
+		return fmt.Errorf("invalid initial transcript file status %q", file.Status)
+	}
 	var indexedAt any
 	var lastObservedEventAt any
 	if file.LastObservedEventAt != nil {

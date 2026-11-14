@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -9,6 +10,8 @@ import (
 )
 
 type WorkflowExecutionStatus string
+
+var ErrInvalidWorkflowExecutionStatusTransition = errors.New("invalid workflow execution status transition")
 
 const (
 	WorkflowExecutionPending         WorkflowExecutionStatus = "pending"
@@ -30,6 +33,56 @@ func (s WorkflowExecutionStatus) Terminal() bool {
 	default:
 		return false
 	}
+}
+
+func (s WorkflowExecutionStatus) Valid() bool {
+	switch s {
+	case WorkflowExecutionPending, WorkflowExecutionRunning, WorkflowExecutionWaiting, WorkflowExecutionCancelling,
+		WorkflowExecutionSucceeded, WorkflowExecutionBlocked, WorkflowExecutionAbstained, WorkflowExecutionBudgetExhausted,
+		WorkflowExecutionFailed, WorkflowExecutionCancelled:
+		return true
+	default:
+		return false
+	}
+}
+
+// CanTransitionTo is the legal persisted execution lifecycle. Terminal outcomes
+// are immutable except for the explicit failed→running retry; same-state commits
+// are allowed because recovery may update accounting metadata without changing
+// the execution outcome.
+func (s WorkflowExecutionStatus) CanTransitionTo(next WorkflowExecutionStatus) bool {
+	if !s.Valid() || !next.Valid() {
+		return false
+	}
+	if s == next {
+		return true
+	}
+	switch s {
+	case WorkflowExecutionPending:
+		return next == WorkflowExecutionRunning || next == WorkflowExecutionCancelling || next == WorkflowExecutionFailed || next == WorkflowExecutionBudgetExhausted
+	case WorkflowExecutionRunning:
+		return next == WorkflowExecutionWaiting || next == WorkflowExecutionCancelling || (next.Terminal() && next != WorkflowExecutionCancelled)
+	case WorkflowExecutionWaiting:
+		return next == WorkflowExecutionRunning || next == WorkflowExecutionCancelling || next.Terminal()
+	case WorkflowExecutionCancelling:
+		return next == WorkflowExecutionCancelled
+	case WorkflowExecutionFailed:
+		return next == WorkflowExecutionRunning
+	default:
+		return false
+	}
+}
+
+// TransitionStatus changes the lifecycle only along a legal edge.
+func (e *WorkflowExecution) TransitionStatus(next WorkflowExecutionStatus) error {
+	if e == nil {
+		return fmt.Errorf("workflow execution is required")
+	}
+	if !e.Status.CanTransitionTo(next) {
+		return fmt.Errorf("%w: %q -> %q", ErrInvalidWorkflowExecutionStatusTransition, e.Status, next)
+	}
+	e.Status = next
+	return nil
 }
 
 type WorkflowTerminalReason struct {
@@ -144,6 +197,8 @@ const (
 
 type WorkflowAttemptStatus string
 
+var ErrInvalidWorkflowAttemptStatusTransition = errors.New("invalid workflow node attempt status transition")
+
 const (
 	WorkflowAttemptDispatchPending WorkflowAttemptStatus = "dispatch_pending"
 	WorkflowAttemptDispatched      WorkflowAttemptStatus = "dispatched"
@@ -151,6 +206,53 @@ const (
 	WorkflowAttemptCompleted       WorkflowAttemptStatus = "completed"
 	WorkflowAttemptFailed          WorkflowAttemptStatus = "failed"
 )
+
+func (s WorkflowAttemptStatus) Valid() bool {
+	switch s {
+	case WorkflowAttemptDispatchPending, WorkflowAttemptDispatched, WorkflowAttemptWaiting, WorkflowAttemptCompleted, WorkflowAttemptFailed:
+		return true
+	default:
+		return false
+	}
+}
+
+// CanTransitionTo defines the durable attempt lifecycle. A pending attempt may
+// be dispatched or fail before dispatch; a dispatched attempt may wait or
+// settle. Waiting is recoverable and may be observed repeatedly before settling.
+// Terminal attempts are immutable, while same-state writes support idempotent
+// recovery/accounting commits.
+func (s WorkflowAttemptStatus) CanTransitionTo(next WorkflowAttemptStatus) bool {
+	if !s.Valid() || !next.Valid() {
+		return false
+	}
+	if s == next {
+		return true
+	}
+	switch s {
+	case WorkflowAttemptDispatchPending:
+		return next == WorkflowAttemptDispatched || next == WorkflowAttemptFailed
+	case WorkflowAttemptDispatched:
+		// Recovery may clear an unacknowledged dispatch handle and retry from
+		// pending. The stable idempotency key lets the launcher recover the
+		// original child instead of creating a duplicate.
+		return next == WorkflowAttemptDispatchPending || next == WorkflowAttemptWaiting || next == WorkflowAttemptCompleted || next == WorkflowAttemptFailed
+	case WorkflowAttemptWaiting:
+		return next == WorkflowAttemptDispatched || next == WorkflowAttemptCompleted || next == WorkflowAttemptFailed
+	default:
+		return false
+	}
+}
+
+func (a *WorkflowNodeAttempt) TransitionStatus(next WorkflowAttemptStatus) error {
+	if a == nil {
+		return fmt.Errorf("workflow node attempt is required")
+	}
+	if !a.Status.CanTransitionTo(next) {
+		return fmt.Errorf("%w: %q -> %q", ErrInvalidWorkflowAttemptStatusTransition, a.Status, next)
+	}
+	a.Status = next
+	return nil
+}
 
 type WorkflowNodeAttempt struct {
 	ID             uuid.UUID               `json:"id"`

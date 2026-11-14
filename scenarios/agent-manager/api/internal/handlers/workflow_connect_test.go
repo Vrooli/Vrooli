@@ -26,10 +26,11 @@ import (
 
 type workflowConnectStub struct {
 	orchestration.WorkflowService
-	execution *domain.WorkflowExecution
-	start     orchestration.StartWorkflowExecutionRequest
-	waits     int
-	cancels   []orchestration.WorkflowExecutionOperationRequest
+	execution   *domain.WorkflowExecution
+	start       orchestration.StartWorkflowExecutionRequest
+	waits       int
+	cancels     []orchestration.WorkflowExecutionOperationRequest
+	cancelByKey []orchestration.WorkflowExecutionCancelByKeyRequest
 }
 
 func (s *workflowConnectStub) StartWorkflowExecution(_ context.Context, r orchestration.StartWorkflowExecutionRequest) (*domain.WorkflowExecution, error) {
@@ -53,6 +54,39 @@ func (s *workflowConnectStub) ListWorkflowExecutionRuns(context.Context, uuid.UU
 func (s *workflowConnectStub) CancelWorkflowExecution(_ context.Context, r orchestration.WorkflowExecutionOperationRequest) (*orchestration.WorkflowExecutionOperationResult, error) {
 	s.cancels = append(s.cancels, r)
 	return &orchestration.WorkflowExecutionOperationResult{Execution: s.execution, Idempotent: true}, nil
+}
+
+func (s *workflowConnectStub) CancelWorkflowExecutionByIdempotencyKey(_ context.Context, r orchestration.WorkflowExecutionCancelByKeyRequest) (*orchestration.WorkflowExecutionCancelByKeyResult, error) {
+	s.cancelByKey = append(s.cancelByKey, r)
+	return &orchestration.WorkflowExecutionCancelByKeyResult{Fenced: true}, nil
+}
+
+func TestWorkflowCancellationFenceHandlerRestrictsGCTAndReturnsFenceReceipt(t *testing.T) {
+	stub := &workflowConnectStub{}
+	h := New(orchestration.HandlerServices{WorkflowService: stub})
+	router := mux.NewRouter()
+	h.RegisterRoutes(router)
+
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/workflow-executions/cancel-by-idempotency-key", strings.NewReader(`{"owner":"git-control-tower","workflowKey":"git-control-tower/staged-message","idempotencyKey":"key-1","operationKey":"cancel/key-1","reason":"operator cancelled"}`))
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || len(stub.cancelByKey) != 1 {
+		t.Fatalf("fence handler status=%d calls=%d body=%s", response.Code, len(stub.cancelByKey), response.Body.String())
+	}
+	if got := stub.cancelByKey[0]; got.Owner != "git-control-tower" || got.WorkflowKey != "git-control-tower/staged-message" || got.IdempotencyKey != "key-1" || got.OperationKey != "cancel/key-1" || got.Reason != "operator cancelled" {
+		t.Fatalf("fence request=%+v", got)
+	}
+	var result map[string]any
+	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil || result["fenced"] != true {
+		t.Fatalf("fence response=%v err=%v", result, err)
+	}
+
+	response = httptest.NewRecorder()
+	request = httptest.NewRequest(http.MethodPost, "/api/v1/workflow-executions/cancel-by-idempotency-key", strings.NewReader(`{"owner":"other","workflowKey":"other/workflow","idempotencyKey":"key-2","operationKey":"cancel/key-2"}`))
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest || len(stub.cancelByKey) != 1 {
+		t.Fatalf("unowned workflow reached fence service: status=%d calls=%d body=%s", response.Code, len(stub.cancelByKey), response.Body.String())
+	}
 }
 
 type delayedWorkflowWaitStub struct {

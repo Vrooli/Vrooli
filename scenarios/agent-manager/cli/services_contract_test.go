@@ -16,6 +16,7 @@ import (
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestWorkflowWaitOutlivesOrdinaryHTTPTimeoutWithoutChangingOtherCalls(t *testing.T) {
@@ -108,6 +109,49 @@ func TestRunListPassesOriginFilterToOwner(t *testing.T) {
 	requests := recorder.Requests()
 	if len(requests) != 1 || requests[0].Path != "/api/v1/runs" || !strings.Contains(requests[0].Query, "origin=agent_manager") {
 		t.Fatalf("run list request = %+v, want owner-filtered run list", requests)
+	}
+}
+
+func TestUsageRunningRunCensusIncludesBothOwnedRunsAndFreshIndexedSessions(t *testing.T) {
+	services, recorder := newContractServices(t)
+	app := &App{services: services}
+	if _, err := app.usageRunningRuns(); err != nil {
+		t.Fatal(err)
+	}
+	requests := recorder.Requests()
+	if len(requests) != 2 {
+		t.Fatalf("capacity census made %d reads, want both run origins", len(requests))
+	}
+	queries := map[string]bool{}
+	for _, request := range requests {
+		queries[request.Query] = true
+		if !strings.Contains(request.Query, "status=running") {
+			t.Fatalf("capacity census query = %s, want running-only", request.Query)
+		}
+	}
+	for _, origin := range []string{"agent_manager", "operator_sessions"} {
+		found := false
+		for query := range queries {
+			found = found || strings.Contains(query, "origin="+origin)
+		}
+		if !found {
+			t.Errorf("capacity census omitted origin %s: %v", origin, queries)
+		}
+	}
+}
+
+func TestFreshIndexedSessionRequiresRecentUpdate(t *testing.T) {
+	now := time.Date(2026, 11, 13, 12, 0, 0, 0, time.UTC)
+	if !freshIndexedSession(&domainpb.Run{UpdatedAt: timestamppb.New(now.Add(-9 * time.Minute))}, now) {
+		t.Fatal("recent indexed session was excluded")
+	}
+	for _, at := range []time.Time{now.Add(-11 * time.Minute), now.Add(2 * time.Minute)} {
+		if freshIndexedSession(&domainpb.Run{UpdatedAt: timestamppb.New(at)}, now) {
+			t.Fatalf("stale or future session at %s entered the live census", at)
+		}
+	}
+	if freshIndexedSession(&domainpb.Run{}, now) {
+		t.Fatal("session without activity time entered the live census")
 	}
 }
 

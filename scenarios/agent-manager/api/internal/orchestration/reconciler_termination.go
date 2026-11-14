@@ -1,3 +1,4 @@
+// This file owns process termination ordering and its host-process effect seam.
 package orchestration
 
 import (

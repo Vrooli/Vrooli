@@ -91,7 +91,7 @@ func (o *Orchestrator) RunAccountingBatch(ctx context.Context, ids []uuid.UUID) 
 		}
 		accounts[id] = RunAccounting{RunID: id, TokenCap: o.tokenCapFor(ctx, run, policy), TokenCapMode: string(policy.Mode)}
 	}
-	events, eventErrors, err := eventReader.GetMany(ctx, ids, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeMetric, domain.EventTypeStatus, domain.EventTypeGoalStatusChanged}})
+	events, eventErrors, err := eventReader.GetMany(ctx, ids, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeMetric, domain.EventTypeStatus, domain.EventTypeGoalStatusChanged, domain.EventTypeError}})
 	if err != nil {
 		return runs, accounts, err
 	}
@@ -161,7 +161,7 @@ func (o *Orchestrator) meteredRun(ctx context.Context, runID uuid.UUID) (*domain
 // read prevents identical authoritative receipts in separate continuations
 // from being deduplicated as though they belonged to one invocation.
 func (o *Orchestrator) meteredRunEvents(ctx context.Context, runID uuid.UUID) ([]*domain.RunEvent, error) {
-	return o.allRunEvents(ctx, runID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeMetric, domain.EventTypeStatus, domain.EventTypeGoalStatusChanged}})
+	return o.allRunEvents(ctx, runID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeMetric, domain.EventTypeStatus, domain.EventTypeGoalStatusChanged, domain.EventTypeError}})
 }
 
 // runAccountingFromState projects metering onto the accounting contract.

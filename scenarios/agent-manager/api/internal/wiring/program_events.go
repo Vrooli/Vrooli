@@ -10,12 +10,16 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/operatordecision"
 )
 
 const (
 	programRuntimeEventPattern = "vrooli.program_runtime.program_event.v1"
 	// askResolvedEventPattern carries operator answers to effort decisions.
 	askResolvedEventPattern = "notification_hub.ask.resolved.v1"
+	// askContextRequestedEventPattern carries the operator's "I need more context"
+	// questions about decisions a verified run raised.
+	askContextRequestedEventPattern = operatordecision.AskContextRequestedEventType
 )
 
 // ReconcileProgramRuntimeSubscription creates or updates the program-runtime
@@ -29,6 +33,13 @@ func ReconcileProgramRuntimeSubscription(ctx context.Context, target string) err
 // delivers notification-hub ask resolutions to the effort decision webhook.
 func ReconcileDecisionEventSubscription(ctx context.Context, target string) error {
 	return reconcileEventSubscription(ctx, "agent-manager-decision-answers", askResolvedEventPattern, target)
+}
+
+// ReconcileDecisionContextSubscription creates or updates the subscription that
+// delivers the operator's questions about a decision to the same webhook, which
+// hands each to the run that raised the decision.
+func ReconcileDecisionContextSubscription(ctx context.Context, target string) error {
+	return reconcileEventSubscription(ctx, "agent-manager-decision-context-requests", askContextRequestedEventPattern, target)
 }
 
 // reconcileEventSubscription keeps one enabled subscription per delivery

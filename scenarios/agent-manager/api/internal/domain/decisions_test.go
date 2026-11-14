@@ -63,14 +63,17 @@ func TestRunStatus_CanTransitionTo(t *testing.T) {
 	}{
 		// Valid transitions
 		{"pending to starting", RunStatusPending, RunStatusStarting, true},
+		{"pending to running", RunStatusPending, RunStatusRunning, true},
 		{"pending to cancelled", RunStatusPending, RunStatusCancelled, true},
 		{"pending to failed", RunStatusPending, RunStatusFailed, true},
 		{"starting to running", RunStatusStarting, RunStatusRunning, true},
 		{"starting to failed", RunStatusStarting, RunStatusFailed, true},
 		{"running to needs_review", RunStatusRunning, RunStatusNeedsReview, true},
+		{"running to starting for resumed executor", RunStatusRunning, RunStatusStarting, true},
 		{"running to complete", RunStatusRunning, RunStatusComplete, true},
 		{"running to failed", RunStatusRunning, RunStatusFailed, true},
 		{"running to cancelled", RunStatusRunning, RunStatusCancelled, true},
+		{"running to unknown", RunStatusRunning, RunStatusUnknown, true},
 		{"needs_review to complete", RunStatusNeedsReview, RunStatusComplete, true},
 		{"needs_review to failed", RunStatusNeedsReview, RunStatusFailed, true},
 		{"needs_review to cancelled", RunStatusNeedsReview, RunStatusCancelled, true},

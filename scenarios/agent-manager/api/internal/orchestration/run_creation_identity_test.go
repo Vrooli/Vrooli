@@ -23,6 +23,26 @@ func (f createOwnerVerifier) Verify(ctx context.Context, token string) (coreiden
 	return f(ctx, token)
 }
 
+func TestAdmittedIdentityScopesUseWorkflowProfileOnlyWithoutAccountOwner(t *testing.T) {
+	profile := &domain.AgentProfile{DeclaredScopes: []string{"git-control-tower:read"}}
+	workflow := &domain.WorkflowRunIdentity{ExecutionID: uuid.New(), NodeID: "draft", AttemptID: uuid.New()}
+
+	got := admittedIdentityScopes(CreateRunRequest{workflowIdentity: workflow}, profile)
+	if !slices.Equal(got, []string{"git-control-tower:read"}) {
+		t.Fatalf("ownerless workflow child scopes = %v", got)
+	}
+
+	got = admittedIdentityScopes(CreateRunRequest{workflowIdentity: workflow, OwnerSubject: "owner", OwnerScopes: []string{"agent-manager:read", "git-control-tower:write"}}, profile)
+	if len(got) != 0 {
+		t.Fatalf("workflow profile widened an account owner's scopes: %v", got)
+	}
+
+	got = admittedIdentityScopes(CreateRunRequest{}, profile)
+	if len(got) != 0 {
+		t.Fatalf("non-workflow run received profile scopes without owner authority: %v", got)
+	}
+}
+
 func TestCreateRunIdentityRefusesInvalidAuthorityBeforeEffects(t *testing.T) {
 	now := time.Now()
 	const credential = "private-owner-credential"

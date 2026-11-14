@@ -111,6 +111,10 @@ type WorkflowExecutionListFilter struct {
 // attempt projection, and append-only journal entries.
 type WorkflowExecutionRepository interface {
 	Create(ctx context.Context, execution *domain.WorkflowExecution, initial *domain.WorkflowJournalEntry) error
+	// CancelByIdempotencyKey inserts a durable fence before checking for an
+	// existing execution. Workflow Create checks that same fence in its insert
+	// transaction, so either admission or cancellation wins atomically.
+	CancelByIdempotencyKey(ctx context.Context, key, owner, workflowKey string) (*domain.WorkflowExecution, error)
 	Get(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error)
 	GetByIdempotencyKey(ctx context.Context, key string) (*domain.WorkflowExecution, error)
 	List(ctx context.Context, filter WorkflowExecutionListFilter) ([]*domain.WorkflowExecution, error)
@@ -356,6 +360,11 @@ type RunLabelUpdater interface {
 // seam separate prevents analytics projection from overwriting live run state.
 type RunSubjectUpdater interface {
 	UpdateRunSubject(ctx context.Context, id uuid.UUID, subject []string) error
+}
+
+// RunWorkloadUpdater updates only explicit workload attribution on one run.
+type RunWorkloadUpdater interface {
+	UpdateRunWorkload(ctx context.Context, id uuid.UUID, workload domain.WorkloadRef) error
 }
 
 // RunConfigUpdater rewrites only a run's resolved config, and only while the

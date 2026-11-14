@@ -191,6 +191,17 @@ type StandingGrantRequest struct {
 // operation and target are fixed to run.create on agent-manager so this endpoint
 // cannot mint authority for any other operation.
 func (o *Orchestrator) CreateStandingGrant(ctx context.Context, req StandingGrantRequest) (*domain.StandingGrant, error) {
+	grant, err := o.createStandingGrant(ctx, req)
+	if err == nil {
+		// The operator granted this outside the phone ask: close that ask.
+		o.closeAuthorizationAsk(ctx, req.Subject)
+	}
+	return grant, err
+}
+
+// createStandingGrant mints the grant without touching any open ask. The hub
+// resolution path uses it directly: the hub already closed that ask.
+func (o *Orchestrator) createStandingGrant(ctx context.Context, req StandingGrantRequest) (*domain.StandingGrant, error) {
 	if o.standingGrants == nil {
 		return nil, errors.New("standing grant store is not configured")
 	}
@@ -889,7 +900,7 @@ func (o *Orchestrator) VerifyIdentityPair(ctx context.Context, baselineToken, op
 		return &IdentityPairVerifyResult{Error: "invalid_pair"}, nil
 	}
 	owner := strings.TrimSpace(baselineRun.OwnerSubject)
-	if owner == "" || owner != strings.TrimSpace(operationRun.OwnerSubject) || baselineRun.RunnerPID <= 0 {
+	if owner == "" || owner != strings.TrimSpace(operationRun.OwnerSubject) {
 		return &IdentityPairVerifyResult{Error: "invalid_pair"}, nil
 	}
 
@@ -904,7 +915,7 @@ func (o *Orchestrator) VerifyIdentityPair(ctx context.Context, baselineToken, op
 	// VerifyIdentityToken already checked the current full process binding and
 	// grant state. Repeat the owner and PID relation here against repository
 	// records so a valid but unrelated grant cannot be paired with this run.
-	if grant == nil || grant.Grant == nil || grant.RunID != operationRun.ID || grant.Binding.PID != baselineRun.RunnerPID || strings.TrimSpace(grant.Grant.Approver) != owner {
+	if grant == nil || grant.Grant == nil || grant.RunID != operationRun.ID || !pairedGrantProcess(baselineRun, operationRun, grant) || strings.TrimSpace(grant.Grant.Approver) != owner {
 		return &IdentityPairVerifyResult{Error: "invalid_pair"}, nil
 	}
 	// A descendant may inherit the broker's reachability but cannot borrow a
@@ -913,6 +924,30 @@ func (o *Orchestrator) VerifyIdentityPair(ctx context.Context, baselineToken, op
 		return &IdentityPairVerifyResult{Error: "invalid_pair"}, nil
 	}
 	return &IdentityPairVerifyResult{Valid: true, Operation: operation}, nil
+}
+
+// pairedGrantProcess decides whether a grant's bound process belongs to the
+// baseline run. A baseline that recorded its runner pid must equal the grant's
+// bound pid. A waiting launcher attached before it reported its pid left an
+// attached baseline with no pid; that baseline pairs only with an operation run
+// that is an attachment of the exact same harness and Web Console session,
+// carries the grant's bound pid itself, and (checked by the caller) has the
+// same verified owner. The broker separately requires the requesting process to
+// descend from that bound process.
+func pairedGrantProcess(baselineRun, operationRun *domain.Run, grant *domain.AuthorizationGrant) bool {
+	if baselineRun.RunnerPID > 0 {
+		return grant.Binding.PID == baselineRun.RunnerPID
+	}
+	session := strings.TrimSpace(baselineRun.HarnessSessionID)
+	return baselineRun.RunnerPID == 0 && session != "" &&
+		baselineRun.ExecutionMode.Normalized() == domain.ExecutionModeAttached &&
+		operationRun.ExecutionMode.Normalized() == domain.ExecutionModeAttached &&
+		baselineRun.ParentRunID == nil && operationRun.ParentRunID == nil &&
+		operationRun.RunnerPID > 1 && operationRun.RunnerPID == grant.Binding.PID &&
+		strings.TrimSpace(operationRun.HarnessSessionID) == session &&
+		strings.TrimSpace(operationRun.HarnessKind) == strings.TrimSpace(baselineRun.HarnessKind) &&
+		strings.TrimSpace(operationRun.WebConsoleSessionID) == strings.TrimSpace(baselineRun.WebConsoleSessionID) &&
+		strings.TrimSpace(grant.HarnessSession) == session
 }
 
 // ResolveAuthorizationCredentials returns a legacy grant-only token, an

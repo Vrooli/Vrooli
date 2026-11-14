@@ -65,6 +65,44 @@ func TestAttachRunMintsScopedIdentityAndDetachRevokesIt(t *testing.T) {
 	}
 }
 
+func TestAttachRunPersistsWebConsoleSessionWithoutDelegation(t *testing.T) {
+	ctx := context.Background()
+	repos, events, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	orchestrator := New(nil, nil, repos.Runs, WithEvents(events), WithIdentitySecret([]byte("attached-session-correlation")))
+
+	const webConsoleSessionID = "wc-session-without-delegation"
+	result, err := orchestrator.AttachRun(ctx, AttachRunRequest{
+		HarnessKind: "codex", HarnessSession: "codex-thread-without-delegation",
+		WebConsoleSessionID: webConsoleSessionID, ProcessID: os.Getpid(),
+	})
+	if err != nil {
+		t.Fatalf("attach run: %v", err)
+	}
+	stored, err := repos.Runs.Get(ctx, result.Run.ID)
+	if err != nil {
+		t.Fatalf("reload attached run: %v", err)
+	}
+	if stored.WebConsoleSessionID != webConsoleSessionID {
+		t.Fatalf("persisted Web Console session ID = %q, want %q", stored.WebConsoleSessionID, webConsoleSessionID)
+	}
+	if stored.OwnerSubject != "" || len(stored.OwnerScopes) != 0 {
+		t.Fatalf("correlation-only Web Console session unexpectedly granted authority: subject=%q scopes=%v", stored.OwnerSubject, stored.OwnerScopes)
+	}
+}
+
+func TestAttachRunRejectsInitProcessAsPhysicalExecutorIdentity(t *testing.T) {
+	repos, events, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	orchestrator := New(nil, nil, repos.Runs, WithEvents(events), WithIdentitySecret([]byte("attached-run-pid-validation")))
+
+	if _, err := orchestrator.AttachRun(t.Context(), AttachRunRequest{
+		HarnessKind: "codex", HarnessSession: "invalid-init-pid", ProcessID: 1,
+	}); err == nil {
+		t.Fatal("PID 1 was accepted as an attached harness process identity")
+	}
+}
+
 func TestAttachedRunLivenessSweepOnlyObservesHarmlessProcess(t *testing.T) {
 	ctx := context.Background()
 	repos, events, cleanup := testutil.SetupTestRepos(t)
@@ -206,5 +244,46 @@ func TestAttachedIdentityProjectsOnlyItsPersistedSession(t *testing.T) {
 	}
 	if verified.Valid && verified.Claims.Meta["verified_web_console_session_id"] != "" {
 		t.Fatal("mismatched harness granted session")
+	}
+}
+
+// Every attach mints a new run id, so a harness session that re-attaches would
+// lose the lineage of its earlier runs if the conversation followed the run.
+// The harness session is the thread: its attached runs share one conversation,
+// and another session has another.
+func TestReattachingTheSameHarnessSessionContinuesItsConversation(t *testing.T) {
+	ctx := context.Background()
+	repos, events, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	secret := []byte("attached-conversation-secret")
+	orchestrator := New(nil, nil, repos.Runs, WithEvents(events), WithIdentitySecret(secret))
+	attach := func(session string) *AttachRunResult {
+		t.Helper()
+		result, err := orchestrator.AttachRun(ctx, AttachRunRequest{HarnessKind: "claude-code", HarnessSession: session})
+		if err != nil {
+			t.Fatalf("attach %s: %v", session, err)
+		}
+		return result
+	}
+	first, again, other := attach("session-123"), attach("session-123"), attach("session-456")
+
+	if first.Run.ID == again.Run.ID {
+		t.Fatal("each attach is a new run")
+	}
+	if first.Run.ConversationID == "" || first.Run.ConversationID != again.Run.ConversationID {
+		t.Fatalf("a re-attached session must reuse its conversation: %q then %q", first.Run.ConversationID, again.Run.ConversationID)
+	}
+	if other.Run.ConversationID == first.Run.ConversationID {
+		t.Fatalf("another harness session must not share the conversation %q", first.Run.ConversationID)
+	}
+	for _, result := range []*AttachRunResult{first, again, other} {
+		claims, err := identity.VerifyToken(result.Token, secret)
+		if err != nil || claims.ConversationID != result.Run.ConversationID {
+			t.Fatalf("the token must sign the run's conversation: %+v, %v", claims, err)
+		}
+		verified, err := orchestrator.VerifyIdentityToken(ctx, result.Token)
+		if err != nil || !verified.Valid || verified.Claims.ConversationID != result.Run.ConversationID {
+			t.Fatalf("verification must return the conversation: %+v, %v", verified, err)
+		}
 	}
 }

@@ -4,33 +4,39 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"os/exec"
 	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
-// Mirror the canonical control-plane executor-scope-v1 bounds. One inventory
-// attachment uses one indexed host snapshot, including retained managed history.
+// Mirror the canonical control-plane executor-scope-v1 request bound. The root
+// owner internally pages large inventories while retaining one host snapshot.
 const (
-	executorScopeMaxReferences = 65536
 	executorScopeMaxBytes      = 32 << 20
+	executorScopeMaxErrorBytes = 4 << 10
 )
+
+var errExecutorScopeRequestTooLarge = errors.New("executor-scope request exceeds owner limit")
+var errExecutorScopeReferenceLimit = errors.New("executor-scope reference limit exceeded")
+var errExecutorScopeInventoryNonAtomic = errors.New("executor-scope inventory required multiple root requests; host snapshots are non-atomic")
 
 type executorScopeRef struct {
-	HarnessKind      string     `json:"harnessKind,omitempty"`
-	HarnessSessionID string     `json:"harnessSessionId,omitempty"`
-	RunID            string     `json:"runId"`
-	Tag              string     `json:"tag"`
-	LegacyTag        string     `json:"legacyTag"`
-	PID              int        `json:"pid"`
-	PGID             int        `json:"pgid"`
-	StartedAt        *time.Time `json:"startedAt,omitempty"`
-	EndedAt          *time.Time `json:"endedAt,omitempty"`
+	HarnessKind      string                            `json:"harnessKind,omitempty"`
+	HarnessSessionID string                            `json:"harnessSessionId,omitempty"`
+	BindingProof     *cliutil.AgentSessionBindingProof `json:"bindingProof,omitempty"`
+	RunID            string                            `json:"runId"`
+	Tag              string                            `json:"tag"`
+	LegacyTag        string                            `json:"legacyTag"`
+	PID              int                               `json:"pid"`
+	PGID             int                               `json:"pgid"`
+	StartedAt        *time.Time                        `json:"startedAt,omitempty"`
+	EndedAt          *time.Time                        `json:"endedAt,omitempty"`
 }
 
 type executorScopeReport struct {
@@ -52,6 +58,11 @@ type ControlPlaneObserver struct {
 	lookup      func(context.Context, uuid.UUID) (*domain.Run, error)
 	lookupBatch func(context.Context, []ExecutorRef) ([]*domain.Run, error)
 	read        func(context.Context, []byte) ([]byte, error)
+	readBinding func(context.Context, attachedBindingRequest) (cliutil.AgentSessionBindingProof, error)
+}
+
+type attachedBindingRequest struct {
+	RunID, HarnessSessionID, WebConsoleSessionID, HarnessKind string
 }
 
 // NewControlPlaneInventoryBatch avoids one full run/action hydration per
@@ -95,13 +106,61 @@ func excludeExecutor(ctx context.Context, run *domain.Run, read func(context.Con
 }
 
 func (o *ControlPlaneObserver) Observe(ctx context.Context, refs []ExecutorRef) ([]ExecutorEvidence, error) {
-	if (o.lookup == nil && o.lookupBatch == nil) || o.read == nil || len(refs) < 1 || len(refs) > executorScopeMaxReferences {
-		return nil, fmt.Errorf("executor-scope requires an owner reader and 1..%d references", executorScopeMaxReferences)
+	if (o.lookup == nil && o.lookupBatch == nil) || o.read == nil || len(refs) < 1 {
+		return nil, fmt.Errorf("executor-scope requires an owner reader and at least one reference")
+	}
+	// Reject duplicate identities across page boundaries before any host read.
+	// Exact coverage is part of the proof; processing the same run twice in
+	// separate requests cannot turn a duplicate input into valid coverage.
+	seen := make(map[string]struct{}, len(refs))
+	for _, ref := range refs {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		if _, exists := seen[ref.ID]; exists {
+			return nil, fmt.Errorf("duplicate executor scope")
+		}
+		seen[ref.ID] = struct{}{}
+	}
+	return o.observeBoundedSnapshot(ctx, refs)
+}
+
+// observeBoundedSnapshot sends one full inventory request whenever it fits the
+// root CLI's 32 MiB contract. The root owner performs internal reference pages
+// against one process/birth snapshot. If the request itself exceeds the byte
+// limit, split it before reading; multiple root calls are useful evidence but
+// cannot establish one atomic complete inventory.
+func (o *ControlPlaneObserver) observeBoundedSnapshot(ctx context.Context, refs []ExecutorRef) ([]ExecutorEvidence, error) {
+	evidence, err := o.observePage(ctx, refs)
+	if (!errors.Is(err, errExecutorScopeRequestTooLarge) && !errors.Is(err, errExecutorScopeReferenceLimit)) || len(refs) == 1 {
+		return evidence, err
+	}
+	middle := len(refs) / 2
+	left, leftErr := o.observeBoundedSnapshot(ctx, refs[:middle])
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return left, ctxErr
+	}
+	right, rightErr := o.observeBoundedSnapshot(ctx, refs[middle:])
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return append(left, right...), ctxErr
+	}
+	if leftErr != nil || rightErr != nil {
+		return append(left, right...), errors.Join(errExecutorScopeInventoryNonAtomic, err, leftErr, rightErr)
+	}
+	return append(left, right...), errors.Join(errExecutorScopeInventoryNonAtomic, err)
+}
+
+func (o *ControlPlaneObserver) observePage(ctx context.Context, refs []ExecutorRef) ([]ExecutorEvidence, error) {
+	if len(refs) < 1 {
+		return nil, fmt.Errorf("executor-scope request requires at least one reference")
 	}
 	request := struct {
 		Executors []executorScopeRef `json:"executors"`
 	}{}
-	requiresAttachedIdentity := false
+	attachedIdentityRefs := map[string]bool{}
+	attachedIdentityReady := map[string]bool{}
+	attachedIdentityFailure := map[string]string{}
+	effectivePIDs := map[string]int{}
 	expected := map[string]ExecutorRef{}
 	identities := map[uuid.UUID]*domain.Run{}
 	if o.lookupBatch != nil {
@@ -142,14 +201,38 @@ func (o *ControlPlaneObserver) Observe(ctx context.Context, refs []ExecutorRef) 
 		}
 		expected[ref.ID] = ref
 		scope := executorScopeRef{RunID: ref.ID, Tag: run.GetTag(), LegacyTag: "opencode-continue-" + id.String()[:8], PID: ref.PID, PGID: ref.PGID, StartedAt: run.StartedAt, EndedAt: run.EndedAt}
+		effectivePIDs[ref.ID] = ref.PID
 		if run.ExecutionMode == domain.ExecutionModeAttached {
+			attachedIdentityRefs[ref.ID] = true
 			// The native lease is anchored to HarnessSessionID, not the run ID
 			// or mutable transcript SessionID. Retain even partial/malformed
-			// anchors so the owner cannot mistake them for missing legacy data.
-			scope.HarnessKind, scope.HarnessSessionID = run.HarnessKind, run.HarnessSessionID
-		}
-		if scope.HarnessKind != "" || scope.HarnessSessionID != "" {
-			requiresAttachedIdentity = true
+			// anchors as attached, but send only a complete shape accepted by the
+			// owner. A malformed partial anchor must not reject ordinary refs in
+			// the same request, and its own verdict remains unknown below.
+			kind, sessionID := run.HarnessKind, run.HarnessSessionID
+			pid := ref.PID
+			if pid <= 1 && ref.PGID == 0 && kind != "" && sessionID != "" && run.WebConsoleSessionID != "" && strings.TrimSpace(kind) == kind && strings.TrimSpace(sessionID) == sessionID && len(kind) <= 100 && len(sessionID) <= 512 {
+				proof, proofErr := o.readAttachedBinding(ctx, attachedBindingRequest{
+					RunID: id.String(), HarnessSessionID: sessionID,
+					WebConsoleSessionID: run.WebConsoleSessionID, HarnessKind: kind,
+				})
+				if proofErr != nil {
+					attachedIdentityFailure[ref.ID] = "attached-session owner identity proof unavailable"
+				} else if validAttachedBindingProof(proof, attachedBindingRequest{
+					RunID: id.String(), HarnessSessionID: sessionID,
+					WebConsoleSessionID: run.WebConsoleSessionID, HarnessKind: kind,
+				}) {
+					pid = proof.Binding.PID
+					scope.BindingProof = &proof
+					effectivePIDs[ref.ID] = pid
+				} else {
+					attachedIdentityFailure[ref.ID] = "attached-session owner identity proof mismatched or incomplete"
+				}
+			}
+			if pid > 1 && kind != "" && sessionID != "" && strings.TrimSpace(kind) == kind && strings.TrimSpace(sessionID) == sessionID && len(kind) <= 100 && len(sessionID) <= 512 {
+				scope.HarnessKind, scope.HarnessSessionID = kind, sessionID
+				attachedIdentityReady[ref.ID] = true
+			}
 		}
 		request.Executors = append(request.Executors, scope)
 	}
@@ -158,11 +241,11 @@ func (o *ControlPlaneObserver) Observe(ctx context.Context, refs []ExecutorRef) 
 		return nil, err
 	}
 	if len(input) > executorScopeMaxBytes {
-		return nil, fmt.Errorf("executor-scope request exceeds owner limit")
+		return nil, errExecutorScopeRequestTooLarge
 	}
-	data, err := o.read(ctx, input)
-	if err != nil {
-		return nil, fmt.Errorf("control-plane executor-scope unavailable: %w", err)
+	data, readErr := o.read(ctx, input)
+	if readErr != nil && len(data) == 0 {
+		return nil, fmt.Errorf("control-plane executor-scope unavailable: %w", readErr)
 	}
 	if len(data) > executorScopeMaxBytes {
 		return nil, fmt.Errorf("executor-scope evidence exceeds limit")
@@ -172,16 +255,12 @@ func (o *ControlPlaneObserver) Observe(ctx context.Context, refs []ExecutorRef) 
 		return nil, fmt.Errorf("invalid control-plane executor-scope evidence")
 	}
 	// Older owners can silently ignore additive request fields while returning
-	// the same schema. An anchored exclusion requires explicit key support;
-	// the capability marker does not replace complete, exact scope evidence.
-	if requiresAttachedIdentity && report.IdentityVersion != "attached-key-v1" {
-		return nil, fmt.Errorf("control-plane executor-scope lacks attached-key-v1 identity support")
-	}
+	// the same schema. Their exact report coverage remains useful for unanchored
+	// refs, but no verdict for an attached ref is trusted without the marker.
+	attachedIdentitySupported := report.IdentityVersion == "attached-key-v1"
 	var evidence []ExecutorEvidence
 	var incomplete error
-	if !report.Complete {
-		incomplete = fmt.Errorf("control-plane executor-scope inventory is incomplete")
-	}
+	unknownVerdicts := 0
 	for _, item := range report.Executors {
 		ref, ok := expected[item.RunID]
 		if !ok {
@@ -189,24 +268,34 @@ func (o *ControlPlaneObserver) Observe(ctx context.Context, refs []ExecutorRef) 
 		}
 		delete(expected, item.RunID)
 		value := ExecutorEvidence{ExecutorRef: ref}
-		switch item.State {
-		case "present":
-			if len(item.PIDs) == 0 {
-				return nil, fmt.Errorf("present executor has no physical evidence")
-			}
-			for _, pid := range item.PIDs {
-				if pid <= 0 {
-					return nil, fmt.Errorf("invalid executor PID evidence")
+		if err := validateExecutorScopeVerdict(item); err != nil {
+			return nil, err
+		}
+		if attachedIdentityRefs[item.RunID] && (!attachedIdentityReady[item.RunID] || !attachedIdentitySupported) {
+			unknownVerdicts++
+			if incomplete == nil {
+				if failure := attachedIdentityFailure[item.RunID]; failure != "" {
+					incomplete = fmt.Errorf("%s for run %s", failure, item.RunID)
+				} else if !attachedIdentityReady[item.RunID] {
+					incomplete = fmt.Errorf("attached-session durable harness identity is incomplete for run %s", item.RunID)
+				} else {
+					incomplete = fmt.Errorf("control-plane executor-scope lacks attached-key-v1 identity support for attached run %s", item.RunID)
 				}
 			}
+			evidence = append(evidence, value)
+			continue
+		}
+		switch item.State {
+		case "present":
 			value.Alive = true
 			value.PIDs = item.PIDs
-			value.HasChildren = len(item.PIDs) > 1 || item.PIDs[0] != ref.PID
+			value.HasChildren = len(item.PIDs) > 1 || item.PIDs[0] != effectivePIDs[item.RunID]
 		case "absent":
 			if len(item.PIDs) > 0 || len(item.Reasons) > 0 {
 				incomplete = fmt.Errorf("contradictory executor exclusion evidence")
 			}
 		case "unknown":
+			unknownVerdicts++
 			reason := strings.Join(item.Reasons, "; ")
 			if len(reason) > 512 {
 				reason = reason[:512] + " (truncated)"
@@ -217,6 +306,12 @@ func (o *ControlPlaneObserver) Observe(ctx context.Context, refs []ExecutorRef) 
 		}
 		evidence = append(evidence, value)
 	}
+	if readErr != nil && (report.Complete || unknownVerdicts == 0) && incomplete == nil {
+		incomplete = fmt.Errorf("control-plane executor-scope command failed: %w", readErr)
+	}
+	if !report.Complete && unknownVerdicts == 0 && incomplete == nil {
+		incomplete = fmt.Errorf("control-plane executor-scope inventory is incomplete")
+	}
 	if len(expected) > 0 {
 		return evidence, fmt.Errorf("control-plane omitted executor scopes")
 	}
@@ -224,6 +319,33 @@ func (o *ControlPlaneObserver) Observe(ctx context.Context, refs []ExecutorRef) 
 		return evidence, err
 	}
 	return evidence, incomplete
+}
+
+func validateExecutorScopeVerdict(item struct {
+	RunID   string   `json:"runId"`
+	State   string   `json:"state"`
+	PIDs    []int    `json:"pids"`
+	Reasons []string `json:"reasons"`
+}) error {
+	switch item.State {
+	case "present":
+		if len(item.PIDs) == 0 {
+			return fmt.Errorf("present executor has no physical evidence")
+		}
+		for _, pid := range item.PIDs {
+			if pid <= 0 {
+				return fmt.Errorf("invalid executor PID evidence")
+			}
+		}
+	case "absent":
+		if len(item.PIDs) > 0 || len(item.Reasons) > 0 {
+			return fmt.Errorf("contradictory executor exclusion evidence")
+		}
+	case "unknown":
+	default:
+		return fmt.Errorf("unknown executor-scope verdict")
+	}
+	return nil
 }
 
 type boundedScopeOutput struct{ bytes.Buffer }
@@ -235,16 +357,77 @@ func (b *boundedScopeOutput) Write(p []byte) (int, error) {
 	return b.Buffer.Write(p)
 }
 
+type boundedScopeErrorOutput struct{ bytes.Buffer }
+
+func (b *boundedScopeErrorOutput) Write(p []byte) (int, error) {
+	n := len(p)
+	remaining := executorScopeMaxErrorBytes - b.Len()
+	if remaining > 0 {
+		if len(p) > remaining {
+			p = p[:remaining]
+		}
+		_, _ = b.Buffer.Write(p)
+	}
+	// stderr is diagnostic only; consume excess bytes so the child keeps its
+	// normal exit behavior while retaining a strictly bounded prefix.
+	return n, nil
+}
+
+func safeExecutorScopeError(data []byte) string {
+	var payload struct {
+		Code  string `json:"code"`
+		Error string `json:"error"`
+	}
+	if json.Unmarshal(data, &payload) != nil {
+		return "root CLI returned a non-JSON error"
+	}
+	parts := make([]string, 0, 2)
+	for _, value := range []string{payload.Code, payload.Error} {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		value = strings.Map(func(r rune) rune {
+			if r < 0x20 || r == 0x7f {
+				return ' '
+			}
+			return r
+		}, value)
+		if len(value) > 256 {
+			value = value[:256] + " (truncated)"
+		}
+		parts = append(parts, value)
+	}
+	if len(parts) == 0 {
+		return "root CLI returned no structured error detail"
+	}
+	return strings.Join(parts, ": ")
+}
+
 func readExecutorScope(parent context.Context, input []byte) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(parent, 4500*time.Millisecond)
+	// The control-plane command has its own 20s proof budget. Leave time to
+	// marshal and return its bounded report before the inventory deadline.
+	ctx, cancel := context.WithTimeout(parent, 22*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "vrooli", "runtime", "executor-scope", "--json")
 	cmd.Stdin = bytes.NewReader(input)
 	var out boundedScopeOutput
-	cmd.Stdout, cmd.Stderr = &out, io.Discard
+	var stderr boundedScopeErrorOutput
+	cmd.Stdout, cmd.Stderr = &out, &stderr
 	cmd.WaitDelay = 100 * time.Millisecond
 	if err := cmd.Run(); err != nil {
-		return nil, err
+		if out.Len() == 0 {
+			detail := safeExecutorScopeError(stderr.Bytes())
+			wrapped := fmt.Errorf("%w: %s", err, detail)
+			if strings.Contains(detail, "executor-scope requires 1..65536 executors") {
+				return nil, errors.Join(errExecutorScopeReferenceLimit, wrapped)
+			}
+			return nil, wrapped
+		}
+		// The owner emits a structured incomplete report before returning a
+		// non-zero status. Preserve that per-reference coverage so one unknown
+		// attachment does not erase valid ordinary executor evidence.
+		return out.Bytes(), err
 	}
 	return out.Bytes(), nil
 }

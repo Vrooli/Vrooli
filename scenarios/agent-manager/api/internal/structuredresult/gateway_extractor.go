@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
 // GatewayClient is the generated typed-inference client. Keeping this small
@@ -69,6 +70,7 @@ func (e *GatewayExtractor) Extract(ctx context.Context, request ExtractRequest) 
 	}
 	response, err := client.Run(ctx, connect.NewRequest(&inferencev1.RunRequest{
 		Source: request.Source, SchemaJson: string(request.Schema), Role: role, Instruction: instruction,
+		Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
 	}))
 	if err != nil {
 		return ExtractResponse{Abstained: true}, fmt.Errorf("call ai-gateway typed inference: %w", err)

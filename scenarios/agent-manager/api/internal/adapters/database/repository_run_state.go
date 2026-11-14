@@ -202,6 +202,9 @@ func (r *runRepository) UpdateInteractiveContinuation(ctx context.Context, run *
 }
 
 func (r *runRepository) update(ctx context.Context, run *domain.Run, continuation *expectedInteractiveContinuation) error {
+	if err := r.validatePersistedStatusTransition(ctx, run); err != nil {
+		return err
+	}
 	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return wrapDBError("update", "Run", run.ID.String(), err)
@@ -216,6 +219,29 @@ func (r *runRepository) update(ctx context.Context, run *domain.Run, continuatio
 	}
 	run.LifecycleVersion = nextLifecycleVersion
 	run.EffortSignalReceipt = nil
+	return nil
+}
+
+// validatePersistedStatusTransition reads outside the write transaction. The
+// later lifecycle-version CAS makes this read race-safe: a concurrent status
+// transition advances the version and causes the update to be rejected. Doing
+// this check before BEGIN avoids SQLite's WAL read-to-write upgrade failures
+// when another lifecycle writer commits between the source read and update.
+func (r *runRepository) validatePersistedStatusTransition(ctx context.Context, run *domain.Run) error {
+	var persistedStatus domain.RunStatus
+	err := r.db.QueryRowContext(ctx, `SELECT status FROM runs WHERE id = ? AND lifecycle_version = ?`, run.ID, run.LifecycleVersion).Scan(&persistedStatus)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return wrapDBError("read_status_transition", "Run", run.ID.String(), err)
+	}
+	if persistedStatus == run.Status {
+		return nil
+	}
+	if allowed, reason := persistedStatus.CanTransitionTo(run.Status); !allowed {
+		return domain.NewStateErrorWithID("Run", run.ID.String(), "invalid_status_transition", "update", reason)
+	}
 	return nil
 }
 

@@ -188,3 +188,31 @@ func TestGenerateIdentityTokenDoesNotTreatWorkSubjectsAsOwnerIdentity(t *testing
 		})
 	}
 }
+
+// A relying scenario learns which line of work a run continues from the signed
+// conversation claim: a run that has none (older runs) signs none.
+func TestGenerateIdentityTokenCarriesTheRunsConversation(t *testing.T) {
+	secret := []byte("conversation-secret")
+	run := &domain.Run{ID: uuid.New(), TaskID: uuid.New(), ConversationID: "thread-1", OwnerSubject: "owner"}
+	claims, err := identity.VerifyToken(GenerateIdentityToken(context.Background(), GenerateIdentityTokenInput{Run: run, Secret: secret}), secret)
+	if err != nil || claims.ConversationID != "thread-1" {
+		t.Fatalf("claims = %+v, err = %v, want the run's conversation signed in", claims, err)
+	}
+	run.ConversationID = ""
+	claims, err = identity.VerifyToken(GenerateIdentityToken(context.Background(), GenerateIdentityTokenInput{Run: run, Secret: secret}), secret)
+	if err != nil || claims.ConversationID != "" {
+		t.Fatalf("a run with no conversation must sign none: %+v, %v", claims, err)
+	}
+}
+
+func TestAnIdentityTokenWithoutAConversationClaimStillVerifies(t *testing.T) {
+	secret := []byte("conversation-secret")
+	token, err := identity.GenerateToken(&identity.Claims{RunID: uuid.New(), TaskID: uuid.New(), ExpiresAt: time.Now().Add(time.Hour).Unix()}, secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claims, err := identity.VerifyToken(token, secret)
+	if err != nil || claims.ConversationID != "" {
+		t.Fatalf("an older token must verify with no conversation: %+v, %v", claims, err)
+	}
+}

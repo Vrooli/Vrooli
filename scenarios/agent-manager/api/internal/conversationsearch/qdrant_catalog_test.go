@@ -51,8 +51,10 @@ func TestSQLiteQdrantAliasBoundarySerializesReopenAndDisjointOwners(t *testing.T
 	require.NoError(t, err)
 
 	// The durable row remains held across a newly constructed catalog adapter,
-	// and conflicting alias effects cannot enter while recovery is pending.
+	// and even an identical deterministic operation cannot enter concurrently.
 	reopened := NewSQLiteQdrantCatalog(db)
+	_, err = reopened.AcquireFleetAliasMutation(ctx, agentOperation)
+	require.ErrorIs(t, err, aisearch.ErrFleetStateConflict)
 	foreign := agentOperation
 	foreign.OperationID = "other-operation"
 	foreign.Target = "agent-manager_conversation-search--generation--foreign"

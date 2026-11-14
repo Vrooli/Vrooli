@@ -29,6 +29,63 @@ func TestWorkflowTerminalStatusAndTriggerDefaults(t *testing.T) {
 	}
 }
 
+func TestWorkflowExecutionTransitionMatrix(t *testing.T) {
+	statuses := []WorkflowExecutionStatus{
+		WorkflowExecutionPending, WorkflowExecutionRunning, WorkflowExecutionWaiting,
+		WorkflowExecutionCancelling, WorkflowExecutionSucceeded, WorkflowExecutionBlocked,
+		WorkflowExecutionAbstained, WorkflowExecutionBudgetExhausted,
+		WorkflowExecutionFailed, WorkflowExecutionCancelled,
+	}
+	allowed := map[WorkflowExecutionStatus]map[WorkflowExecutionStatus]bool{
+		WorkflowExecutionPending: {
+			WorkflowExecutionPending: true, WorkflowExecutionRunning: true,
+			WorkflowExecutionCancelling: true, WorkflowExecutionFailed: true,
+			WorkflowExecutionBudgetExhausted: true,
+		},
+		WorkflowExecutionRunning: {
+			WorkflowExecutionRunning: true, WorkflowExecutionWaiting: true,
+			WorkflowExecutionCancelling: true, WorkflowExecutionSucceeded: true,
+			WorkflowExecutionBlocked: true, WorkflowExecutionAbstained: true,
+			WorkflowExecutionBudgetExhausted: true, WorkflowExecutionFailed: true,
+		},
+		WorkflowExecutionWaiting: {
+			WorkflowExecutionWaiting: true, WorkflowExecutionRunning: true,
+			WorkflowExecutionCancelling: true, WorkflowExecutionSucceeded: true,
+			WorkflowExecutionBlocked: true, WorkflowExecutionAbstained: true,
+			WorkflowExecutionBudgetExhausted: true, WorkflowExecutionFailed: true,
+			WorkflowExecutionCancelled: true,
+		},
+		WorkflowExecutionCancelling:      {WorkflowExecutionCancelling: true, WorkflowExecutionCancelled: true},
+		WorkflowExecutionSucceeded:       {WorkflowExecutionSucceeded: true},
+		WorkflowExecutionBlocked:         {WorkflowExecutionBlocked: true},
+		WorkflowExecutionAbstained:       {WorkflowExecutionAbstained: true},
+		WorkflowExecutionBudgetExhausted: {WorkflowExecutionBudgetExhausted: true},
+		WorkflowExecutionFailed:          {WorkflowExecutionFailed: true, WorkflowExecutionRunning: true},
+		WorkflowExecutionCancelled:       {WorkflowExecutionCancelled: true},
+	}
+	for _, from := range statuses {
+		for _, to := range statuses {
+			t.Run(string(from)+"->"+string(to), func(t *testing.T) {
+				if got := from.CanTransitionTo(to); got != allowed[from][to] {
+					t.Fatalf("CanTransitionTo(%q, %q) = %v", from, to, got)
+				}
+			})
+		}
+	}
+	if WorkflowExecutionStatus("corrupt").CanTransitionTo(WorkflowExecutionStatus("corrupt")) ||
+		WorkflowExecutionRunning.CanTransitionTo(WorkflowExecutionStatus("corrupt")) ||
+		WorkflowExecutionStatus("corrupt").CanTransitionTo(WorkflowExecutionRunning) {
+		t.Fatal("unknown status was accepted by the transition graph")
+	}
+	execution := &WorkflowExecution{Status: WorkflowExecutionSucceeded}
+	if err := execution.TransitionStatus(WorkflowExecutionRunning); !errors.Is(err, ErrInvalidWorkflowExecutionStatusTransition) {
+		t.Fatal("terminal execution was resurrected outside retry")
+	}
+	if execution.Status != WorkflowExecutionSucceeded {
+		t.Fatalf("rejected transition mutated source to %q", execution.Status)
+	}
+}
+
 func TestFinalizationMarkersPreserveTerminalOutcomeAndAuditTimes(t *testing.T) {
 	run := &Run{}
 	now := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)

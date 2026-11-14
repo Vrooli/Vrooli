@@ -7,12 +7,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -27,11 +27,14 @@ import (
 	"github.com/vrooli/api-core/authn"
 	coreidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/cli-core/cliutil"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 const (
 	cf1TreasuryRunSecret = "local-fork-only-agent-manager-identity-secret"
 	cf1TreasuryOperator  = "cf1-local-test-operator"
+	cf1RunKeyPassphrase  = "local-fork-only-encrypted-authority-passphrase"
+	cf1RunKeyField       = "treasury-agent-session-key"
 )
 
 type cf1TreasuryOperatorVerifier struct{}
@@ -71,42 +74,29 @@ func (cf1TreasuryOperatorVerifier) Verify(_ context.Context, token string) (core
 }
 
 type cf1RunSessionKeys struct {
-	mu      sync.Mutex
-	keys    map[uuid.UUID]string
-	revoked map[uuid.UUID]bool
+	store *orchestration.CredentialAuthorityTreasurySessionKeys
+	path  string
 }
 
-func (s *cf1RunSessionKeys) ResolveOrMint(_ context.Context, id uuid.UUID) (string, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if id == uuid.Nil {
-		return "", errors.New("run ID is required")
-	}
-	if s.keys == nil {
-		s.keys = make(map[uuid.UUID]string)
-	}
-	if s.keys[id] == "" {
-		// Deterministic test-only scalar. It is never written to the run artifacts.
-		s.keys[id] = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-	}
-	return s.keys[id], nil
+func (s *cf1RunSessionKeys) ResolveOrMint(ctx context.Context, id uuid.UUID) (string, error) {
+	return s.store.ResolveOrMint(ctx, id)
 }
 
-func (s *cf1RunSessionKeys) RevokeRunCredentialUse(_ context.Context, id uuid.UUID, _ string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.revoked == nil {
-		s.revoked = make(map[uuid.UUID]bool)
-	}
-	s.revoked[id] = true
-	delete(s.keys, id)
-	return nil
+func (s *cf1RunSessionKeys) RevokeRunCredentialUse(ctx context.Context, id uuid.UUID, reason string) error {
+	return s.store.RevokeRunCredentialUse(ctx, id, reason)
 }
 
 func (s *cf1RunSessionKeys) WasRevoked(id uuid.UUID) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.revoked[id]
+	identity, err := credentialauthority.ParseIdentity("vrooli/agent-manager-run-" + id.String())
+	if err != nil {
+		return false
+	}
+	authority, err := credentialauthority.OpenEncryptedFile(s.path, cf1RunKeyPassphrase)
+	if err != nil {
+		return false
+	}
+	_, err = authority.Resolve(identity, cf1RunKeyField)
+	return errors.Is(err, credentialauthority.ErrUnconfigured)
 }
 
 type cf1TreasuryRunConfig struct {
@@ -114,6 +104,8 @@ type cf1TreasuryRunConfig struct {
 	CLIBinary            string `json:"cli_binary"`
 	BudgetID             string `json:"budget_id"`
 	MandateID            string `json:"mandate_id"`
+	IsolationBudgetID    string `json:"isolation_budget_id"`
+	IsolationMandateID   string `json:"isolation_mandate_id"`
 	Counterparty         string `json:"counterparty"`
 	InCapInstrumentID    string `json:"in_cap_instrument_id"`
 	InCapAmountMinor     int64  `json:"in_cap_amount_minor"`
@@ -132,6 +124,48 @@ type cf1TreasuryRunConfig struct {
 	ExpiryIdempotency    string `json:"expiry_idempotency_key"`
 	InCapGrantID         string `json:"in_cap_operation_grant_id"`
 	OverCapGrantID       string `json:"over_cap_operation_grant_id"`
+	// CF4 is an additive extension: older CF1 local-fork rehearsals omit these
+	// fields and retain their existing flow unchanged.
+	X402CatalogURL      string                `json:"x402_catalog_url"`
+	X402PriceID         string                `json:"x402_price_id"`
+	X402CallID          string                `json:"x402_call_id"`
+	X402Counterparty    string                `json:"x402_counterparty"`
+	X402InstrumentID    string                `json:"x402_instrument_id"`
+	X402AmountMinor     int64                 `json:"x402_expected_amount_minor"`
+	X402AuthorizationID string                `json:"x402_authorization_id"`
+	X402SettlementID    string                `json:"x402_settlement_id"`
+	X402IdempotencyKey  string                `json:"x402_idempotency_key"`
+	X402Calls           []cf1TreasuryX402Call `json:"x402_calls"`
+}
+
+// cf1TreasuryX402Call is one exact priced call inside the same ordinary run.
+// Every row has its own Treasury authorization, settlement, idempotency key,
+// and Agent Manager grant; no call inherits another call's authority.
+type cf1TreasuryX402Call struct {
+	PriceID         string `json:"price_id"`
+	CallID          string `json:"call_id"`
+	CatalogURL      string `json:"catalog_url"`
+	Counterparty    string `json:"counterparty"`
+	InstrumentID    string `json:"instrument_id"`
+	AuthorizationID string `json:"authorization_id"`
+	SettlementID    string `json:"settlement_id"`
+	IdempotencyKey  string `json:"idempotency_key"`
+	AmountMinor     int64  `json:"amount_minor"`
+}
+
+type cf7X402SettlementReceipt struct {
+	Settlement struct {
+		Id            string `json:"id"`
+		Authorization string `json:"authorization_id"`
+		AmountMinor   int64  `json:"amount_minor"`
+		Currency      string `json:"currency"`
+		Outcome       string `json:"outcome"`
+		ExternalID    string `json:"external_id"`
+		InstrumentID  string `json:"instrument_id"`
+		SettledAt     string `json:"settled_at"`
+		Receipt       string `json:"receipt_reference"`
+		Detail        string `json:"detail"`
+	} `json:"settlement"`
 }
 
 // TestTreasuryCLIFromOrdinaryRun is invoked by Treasury's opt-in local-fork
@@ -140,6 +174,10 @@ type cf1TreasuryRunConfig struct {
 // CreateProfile -> CreateTask -> CreateRun -> RunExecutor path.
 func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS-P0-004] [REQ:TRS-P0-006]
 	coord := strings.TrimSpace(os.Getenv("TREASURY_CF1_COORD_DIR"))
+	cf7Only := os.Getenv("TREASURY_CF7_ONLY") == "1"
+	if cf7Only {
+		coord = strings.TrimSpace(os.Getenv("TREASURY_CF7_COORD_DIR"))
+	}
 	if coord == "" {
 		t.Skip("local-fork harness sets TREASURY_CF1_COORD_DIR")
 	}
@@ -162,7 +200,14 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 	db, dbCleanup := testutil.SetupTestDB(t)
 	defer dbCleanup()
 	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
-	keys := &cf1RunSessionKeys{}
+	authorityPath := os.Getenv("TREASURY_CF1_AUTHORITY_PATH")
+	if !filepath.IsAbs(authorityPath) {
+		t.Fatal("isolated encrypted Credential Authority path must be absolute")
+	}
+	keyStore := orchestration.NewCredentialAuthorityTreasurySessionKeysWithOpener(func() (*credentialauthority.Authority, error) {
+		return credentialauthority.OpenEncryptedFile(authorityPath, cf1RunKeyPassphrase)
+	})
+	keys := &cf1RunSessionKeys{store: keyStore, path: authorityPath}
 	runResultPath := filepath.Join(coord, "run-result.json")
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	mockRunner.ExecuteFunc = func(execCtx context.Context, request runner.ExecuteRequest) (*runner.ExecuteResult, error) {
@@ -189,11 +234,57 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 		if err := waitForFile(execCtx, configPath, &config); err != nil {
 			return nil, err
 		}
+		if cf7Only {
+			if err := executeCF7X402Run(execCtx, db, request, config, coord, write); err != nil {
+				return nil, err
+			}
+			if request.EventSink == nil {
+				return nil, errors.New("Agent Manager run event sink is unavailable")
+			}
+			if err := request.EventSink.Emit(domain.NewMessageEvent(request.RunID, "assistant", "Settled three priced local-fork research calls; fourth call is awaiting separate authorization.")); err != nil {
+				return nil, fmt.Errorf("record CF7 run completion message: %w", err)
+			}
+			if err := write("run-result.json", map[string]any{
+				"run_id": request.RunID.String(), "profile_id": request.Profile.ID.String(), "task_id": request.Task.ID.String(),
+				"ordinary_create_run": true, "settled_calls": 3, "fourth_call_dispatch": "none",
+				"x402_calls": config.X402Calls,
+			}); err != nil {
+				return nil, err
+			}
+			return &runner.ExecuteResult{Success: true, ExitCode: 0, Summary: &domain.RunSummary{Description: "CF7 local-fork x402 sequence completed with fourth call held for decision"}}, nil
+		}
 		if config.APIBaseURL == "" || config.CLIBinary == "" || config.MandateID == "" || config.InCapInstrumentID == "" || config.InCapAmountMinor <= 0 || config.OverCapInstrumentID == "" || config.OverCapAmountMinor <= 0 || config.ExpiryMandateID == "" || config.ExpiryAuthorization == "" || config.ExpirySettlement == "" || config.ExpiryInstrumentID == "" {
 			return nil, errors.New("Treasury run config is incomplete")
 		}
+		if os.Getenv("TREASURY_CF1_WAIT_FOR_FUNDING") == "1" {
+			var funding struct {
+				BudgetID        string `json:"budget_id"`
+				WalletID        string `json:"wallet_id"`
+				Address         string `json:"address"`
+				TransactionHash string `json:"transaction_hash"`
+				AtomicAmount    string `json:"atomic_amount"`
+				Accepted        bool   `json:"accepted"`
+			}
+			if err := waitForFile(execCtx, filepath.Join(coord, "funding-accepted.json"), &funding); err != nil {
+				return nil, fmt.Errorf("wait for the run-bound local-fork deposit to be accepted: %w", err)
+			}
+			expectedAtoms := strings.TrimSpace(os.Getenv("TREASURY_CF1_EXPECTED_FUNDING_ATOMS"))
+			if funding.BudgetID != config.BudgetID || funding.WalletID == "" || funding.Address == "" || funding.TransactionHash == "" || !funding.Accepted || expectedAtoms == "" || funding.AtomicAmount != expectedAtoms {
+				return nil, fmt.Errorf("run-bound deposit evidence does not match the configured budget and exact accepted amount: %+v", funding)
+			}
+		}
 		if request.Environment["VROOLI_AGENT_IDENTITY_TOKEN"] == "" || request.Environment["VROOLI_TREASURY_SESSION_PRIVATE_KEY"] == "" {
 			return nil, errors.New("ordinary run did not receive its verified identity and run-owned session key")
+		}
+		// The local Treasury harness can publish its run config before this
+		// integration test has approved the first exact operation grant. Keep
+		// the ordinary runner live until that approval is durably recorded; the
+		// CLI must resolve the current grant from Agent Manager before its first
+		// Treasury read, and must never race ahead on the baseline identity.
+		if !cf7Only {
+			if err := waitForFile(execCtx, filepath.Join(coord, "am-operation-approved.json"), nil); err != nil {
+				return nil, fmt.Errorf("wait for initial Treasury operation grant approval: %w", err)
+			}
 		}
 		env := make([]string, 0, len(os.Environ())+len(request.Environment)+2)
 		env = append(env, os.Environ()...)
@@ -213,8 +304,34 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 			}
 			return output, nil
 		}
-		if _, err := runCLI("agent-wallet", "--api-base", config.APIBaseURL, "budget", "agent-wallet", "--budget-id", config.BudgetID, "--json"); err != nil {
+		if _, err := runCLI("agent-wallet", "--api-base", config.APIBaseURL, "budget", "agent-wallet", "--budget-id", config.BudgetID, "--mandate-id", config.MandateID, "--json"); err != nil {
 			return nil, err
+		}
+		if config.IsolationBudgetID != "" || config.IsolationMandateID != "" {
+			if config.IsolationBudgetID == "" || config.IsolationMandateID == "" {
+				return nil, errors.New("cross-budget isolation probe requires both budget and mandate IDs")
+			}
+			probeCmd := exec.CommandContext(execCtx, config.CLIBinary, "--api-base", config.APIBaseURL, "budget", "agent-wallet", "--budget-id", config.IsolationBudgetID, "--mandate-id", config.IsolationMandateID, "--json")
+			probeCmd.Env = env
+			probeOutput, probeErr := probeCmd.CombinedOutput()
+			if writeErr := os.WriteFile(filepath.Join(coord, "cross-budget-wallet-probe.log"), probeOutput, 0o600); writeErr != nil {
+				return nil, writeErr
+			}
+			if probeErr == nil {
+				return nil, errors.New("ordinary Agent Manager run read another run's budget wallet")
+			}
+			probeText := strings.ToLower(string(probeOutput))
+			if !strings.Contains(probeText, "permission_denied") || !strings.Contains(probeText, "mandate wallet session is inactive") {
+				return nil, fmt.Errorf("cross-budget wallet probe failed for an unexpected reason: %s", strings.TrimSpace(string(probeOutput)))
+			}
+			if err := write("cross-budget-wallet-denied.json", map[string]any{
+				"requesting_run": request.RunID.String(), "target_budget_id": config.IsolationBudgetID,
+				"target_mandate_id": config.IsolationMandateID, "result": "denied", "address_returned": false,
+				"authorization_scope_includes_target": true, "reason": "agent subject/run mismatch prevents session-key binding",
+				"error_message": strings.TrimSpace(string(probeOutput)),
+			}); err != nil {
+				return nil, err
+			}
 		}
 		if _, err := runCLI("budget-headroom-before", "--api-base", config.APIBaseURL, "budget", "headroom", config.BudgetID, "--json"); err != nil {
 			return nil, err
@@ -390,6 +507,124 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 		if err := readHeadroom("budget-headroom-after-over-cap-retry", config.InCapAmountMinor+config.OverCapAmountMinor, 1000-config.InCapAmountMinor-config.OverCapAmountMinor); err != nil {
 			return nil, err
 		}
+		var x402GrantID string
+		if config.X402CatalogURL != "" {
+			if config.X402PriceID != "cf4-research-inference" || config.X402CallID != "cf4-research-inference-call" || config.X402Counterparty == "" || config.X402InstrumentID == "" || config.X402AmountMinor != 1 || config.X402AuthorizationID == "" || config.X402SettlementID == "" || config.X402IdempotencyKey == "" {
+				return nil, errors.New("CF4 x402 ordinary-run config is incomplete or does not use the one-minor-unit per-call price")
+			}
+			catalogURL, parseErr := url.ParseRequestURI(config.X402CatalogURL)
+			if parseErr != nil || !strings.EqualFold(catalogURL.Hostname(), config.X402Counterparty) {
+				return nil, errors.New("CF4 x402 counterparty must match the priced Offer Desk URL hostname")
+			}
+			x402SettlementIdempotency := config.X402IdempotencyKey + "-settlement"
+			x402ProposalTarget, x402SettlementTarget := (cliutil.TreasurySpendIntent{
+				AuthorizationID: config.X402AuthorizationID, MandateID: config.MandateID, AmountMinor: config.X402AmountMinor, Currency: "USD",
+				Counterparty: config.X402Counterparty, AuthorizationIdempotencyKey: config.X402IdempotencyKey,
+				SettlementID: config.X402SettlementID, InstrumentID: config.X402InstrumentID,
+				SettlementIdempotencyKey: x402SettlementIdempotency,
+			}).Targets()
+			if err := write("x402-operation-grant-requested.json", map[string]any{
+				"run_id": request.RunID.String(), "authorization_id": config.X402AuthorizationID, "settlement_id": config.X402SettlementID,
+				"amount_minor": config.X402AmountMinor, "price_id": config.X402PriceID, "call_id": config.X402CallID,
+				"catalog_url": config.X402CatalogURL, "instrument_id": config.X402InstrumentID,
+				"required_target": x402ProposalTarget, "required_settlement_target": x402SettlementTarget,
+			}); err != nil {
+				return nil, err
+			}
+			var x402GrantReceipt struct {
+				GrantID      string   `json:"grant_id"`
+				SpendTargets []string `json:"spend_targets"`
+			}
+			if err := waitForFile(execCtx, filepath.Join(coord, "x402-operation-approved.json"), &x402GrantReceipt); err != nil {
+				return nil, err
+			}
+			if x402GrantReceipt.GrantID == "" || x402GrantReceipt.GrantID == config.InCapGrantID || x402GrantReceipt.GrantID == overCapGrantReceipt.GrantID || len(x402GrantReceipt.SpendTargets) != 2 || x402GrantReceipt.SpendTargets[0] != x402ProposalTarget || x402GrantReceipt.SpendTargets[1] != x402SettlementTarget {
+				return nil, errors.New("CF4 priced call is missing its own exact Agent Manager operation grant")
+			}
+			x402GrantID = x402GrantReceipt.GrantID
+			if _, err := runCLI("authorization-propose-x402", "--api-base", config.APIBaseURL, "authorization", "propose",
+				"--id", config.X402AuthorizationID, "--idempotency-key", config.X402IdempotencyKey,
+				"--mandate-id", config.MandateID, "--amount-minor", strconv.FormatInt(config.X402AmountMinor, 10),
+				"--currency", "USD", "--counterparty", config.X402Counterparty,
+				"--settlement-id", config.X402SettlementID, "--instrument-id", config.X402InstrumentID,
+				"--settlement-idempotency-key", x402SettlementIdempotency, "--json"); err != nil {
+				return nil, err
+			}
+			if err := write("x402-authorization-ready.json", map[string]any{"authorization_id": config.X402AuthorizationID, "grant_id": x402GrantID, "price_id": config.X402PriceID, "call_id": config.X402CallID}); err != nil {
+				return nil, err
+			}
+			if err := waitForFile(execCtx, filepath.Join(coord, "x402-report-release"), nil); err != nil {
+				return nil, err
+			}
+			if _, err := runCLI("settlement-report-x402-first", "--api-base", config.APIBaseURL, "settlement", "report-outcome",
+				"--authorization-id", config.X402AuthorizationID, "--settlement-id", config.X402SettlementID,
+				"--instrument-id", config.X402InstrumentID, "--idempotency-key", x402SettlementIdempotency, "--json"); err != nil {
+				return nil, fmt.Errorf("Treasury did not retain the ambiguous CF4 x402 outcome: %w", err)
+			}
+			firstOutcomeData, err := os.ReadFile(filepath.Join(coord, "settlement-report-x402-first.log"))
+			if err != nil {
+				return nil, err
+			}
+			var firstOutcome struct {
+				Settlement struct {
+					Outcome    string `json:"outcome"`
+					ExternalID string `json:"external_id"`
+				} `json:"settlement"`
+			}
+			if err := json.Unmarshal(firstOutcomeData, &firstOutcome); err != nil || firstOutcome.Settlement.Outcome != "CHARGE_OUTCOME_UNKNOWN" {
+				return nil, fmt.Errorf("first CF4 x402 outcome was not durably reported unknown (outcome=%q, decode=%v)", firstOutcome.Settlement.Outcome, err)
+			}
+			if err := write("x402-outcome-unknown.json", map[string]any{
+				"authorization_id": config.X402AuthorizationID, "settlement_id": config.X402SettlementID,
+				"operation_grant_id": x402GrantID, "retry_idempotency_key": x402SettlementIdempotency,
+				"catalog_url": config.X402CatalogURL, "price_id": config.X402PriceID, "call_id": config.X402CallID,
+				"retained_external_id": firstOutcome.Settlement.ExternalID,
+			}); err != nil {
+				return nil, err
+			}
+			if err := waitForFile(execCtx, filepath.Join(coord, "x402-retry-release"), nil); err != nil {
+				return nil, err
+			}
+			if _, err := runCLI("settlement-report-x402-after-restart", "--api-base", config.APIBaseURL, "settlement", "report-outcome",
+				"--authorization-id", config.X402AuthorizationID, "--settlement-id", config.X402SettlementID,
+				"--instrument-id", config.X402InstrumentID, "--idempotency-key", x402SettlementIdempotency, "--json"); err != nil {
+				return nil, fmt.Errorf("exact CF4 x402 retry after Treasury restart did not settle: %w", err)
+			}
+			retryOutcomeData, err := os.ReadFile(filepath.Join(coord, "settlement-report-x402-after-restart.log"))
+			if err != nil {
+				return nil, err
+			}
+			var retryOutcome struct {
+				Settlement struct {
+					Outcome    string `json:"outcome"`
+					ExternalID string `json:"external_id"`
+				} `json:"settlement"`
+			}
+			if err := json.Unmarshal(retryOutcomeData, &retryOutcome); err != nil || retryOutcome.Settlement.Outcome != "CHARGE_OUTCOME_SETTLED" || strings.TrimSpace(retryOutcome.Settlement.ExternalID) == "" {
+				return nil, fmt.Errorf("exact CF4 x402 retry did not return a settled transaction hash (outcome=%q, external_id=%q, decode=%v)", retryOutcome.Settlement.Outcome, retryOutcome.Settlement.ExternalID, err)
+			}
+			if err := write("x402-settled-after-restart.json", map[string]any{
+				"authorization_id": config.X402AuthorizationID, "settlement_id": config.X402SettlementID,
+				"operation_grant_id": x402GrantID, "same_authorization": true,
+				"same_settlement_id": true, "same_idempotency_key": true,
+				"transaction_hash": retryOutcome.Settlement.ExternalID,
+			}); err != nil {
+				return nil, err
+			}
+			if _, err := runCLI("budget-headroom-after-x402", "--api-base", config.APIBaseURL, "budget", "headroom", config.BudgetID, "--json"); err != nil {
+				return nil, err
+			}
+			expectedX402Used := config.InCapAmountMinor + config.OverCapAmountMinor + config.X402AmountMinor
+			if err := readHeadroom("budget-headroom-after-x402", expectedX402Used, 1000-expectedX402Used); err != nil {
+				return nil, err
+			}
+			if _, err := runCLI("budget-headroom-after-x402-retry", "--api-base", config.APIBaseURL, "budget", "headroom", config.BudgetID, "--json"); err != nil {
+				return nil, err
+			}
+			if err := readHeadroom("budget-headroom-after-x402-retry", expectedX402Used, 1000-expectedX402Used); err != nil {
+				return nil, err
+			}
+		}
 		if err := waitForFile(execCtx, filepath.Join(coord, "freeze-next-auth-release"), nil); err != nil {
 			return nil, err
 		}
@@ -485,12 +720,22 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 		if err := request.EventSink.Emit(domain.NewMessageEvent(request.RunID, "assistant", "Settled the authorized local-fork test payment through Treasury CLI.")); err != nil {
 			return nil, fmt.Errorf("record ordinary run completion message: %w", err)
 		}
+		cliCommands := []string{"budget agent-wallet", "budget headroom before and after settlements", "authorization propose in-cap", "settlement report-outcome in-cap", "budget agent-wallet after mandate rotation", "authorization propose over-cap", "settlement report-outcome over-cap", "same settlement retry after restart", "headroom unchanged after retry", "authorization propose while frozen", "authorization propose after mandate expiry"}
+		if x402GrantID != "" {
+			cliCommands = append(cliCommands, "Offer Desk x402 priced call under distinct per-spend grant", "same x402 settlement retry after Treasury restart", "headroom unchanged after x402 retry")
+		}
 		result := map[string]any{
 			"run_id": request.RunID.String(), "profile_id": request.Profile.ID.String(), "task_id": request.Task.ID.String(),
-			"runner": string(request.ResolvedConfig.RunnerType), "cli_commands": []string{"budget agent-wallet", "budget headroom before and after settlements", "authorization propose in-cap", "settlement report-outcome in-cap", "budget agent-wallet after mandate rotation", "authorization propose over-cap", "settlement report-outcome over-cap", "same settlement retry after restart", "headroom unchanged after retry", "authorization propose while frozen", "authorization propose after mandate expiry"},
+			"runner": string(request.ResolvedConfig.RunnerType), "cli_commands": cliCommands,
 			"session_private_key_injected": true, "identity_token_injected": true,
-			"per_spend_operation_grant_ids": []string{config.InCapGrantID, overCapGrantReceipt.GrantID, frozenGrantReceipt.GrantID, expiryGrantReceipt.GrantID},
-			"private_values_recorded":       false,
+			"per_spend_operation_grant_ids": func() []string {
+				grants := []string{config.InCapGrantID, overCapGrantReceipt.GrantID}
+				if x402GrantID != "" {
+					grants = append(grants, x402GrantID)
+				}
+				return append(grants, frozenGrantReceipt.GrantID, expiryGrantReceipt.GrantID)
+			}(),
+			"private_values_recorded": false,
 		}
 		if err := write("run-result.json", result); err != nil {
 			return nil, err
@@ -518,21 +763,27 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 		t.Fatalf("start local Agent Manager credential broker: %v", err)
 	}
 	t.Cleanup(func() { _ = stopBroker() })
+	profileName, taskTitle, taskDescription := "cf1-local-treasury-cli", "CF1 local Treasury CLI", "exercise a run-owned budget session against the local fork"
+	runTag := ""
+	if cf7Only {
+		profileName, taskTitle, taskDescription = "cf7-research-budget-x402", "CF7 local research budget x402 calls", "buy three priced local-fork research calls and hold a fourth over-cap quote for decision"
+		runTag = orchestration.CF7ResearchBudgetTestRunTag
+	}
 	profile, err := service.CreateProfile(ctx, &domain.AgentProfile{
-		ID: uuid.New(), Name: "cf1-local-treasury-cli", RoleRef: "code.default",
+		ID: uuid.New(), Name: profileName, RoleRef: "code.default",
 		DeclaredScopes: []string{"treasury:read", "treasury:write"},
 	})
 	if err != nil {
 		t.Fatalf("create profile: %v", err)
 	}
 	projectRoot := t.TempDir()
-	task, err := service.CreateTask(ctx, &domain.Task{ID: uuid.New(), Title: "CF1 local Treasury CLI", Description: "exercise a run-owned budget session against the local fork", ScopePath: projectRoot, ProjectRoot: projectRoot, Status: domain.TaskStatusQueued})
+	task, err := service.CreateTask(ctx, &domain.Task{ID: uuid.New(), Title: taskTitle, Description: taskDescription, ScopePath: projectRoot, ProjectRoot: projectRoot, Status: domain.TaskStatusQueued})
 	if err != nil {
 		t.Fatalf("create task: %v", err)
 	}
 	run, err := service.CreateRun(ctx, orchestration.CreateRunRequest{
 		OwnerToken: cf1TreasuryOperator, ExpectedOwnerSubject: "cf1-local-operator", TaskID: task.ID, AgentProfileID: &profile.ID,
-		Prompt: "Use only the run-scoped Treasury CLI session to settle one local-fork test payment.", RequestedScopes: []string{"treasury:read", "treasury:write"},
+		Prompt: "Use only the run-scoped Treasury CLI session to settle one local-fork test payment.", RequestedScopes: []string{"treasury:read", "treasury:write"}, Tag: runTag,
 	})
 	if err != nil {
 		t.Fatalf("create ordinary Treasury-scoped run: %v", err)
@@ -546,11 +797,24 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 	ownerScopes = append(ownerScopes, readPolicy.Scopes...)
 	owner := coreidentity.Principal{Kind: coreidentity.ActorHuman, Source: coreidentity.SourceCloudflareAccess, Verified: true, Subject: "cf1-local-operator", Scopes: ownerScopes, ExpiresAt: time.Now().Add(time.Hour)}
 	ownerCtx := coreidentity.WithPrincipal(ctx, owner)
+	if cf7Only {
+		config, err := readCF1RunConfig(coord)
+		if err != nil {
+			t.Fatalf("wait for CF7 local-fork setup: %v", err)
+		}
+		coordinateCF7X402Run(ctx, db, service, ownerCtx, run, coord, config, t)
+		return
+	}
 	budgetTarget := "treasury:budget/" + os.Getenv("TREASURY_CF1_BUDGET_ID")
 	mandateID := strings.TrimSpace(os.Getenv("TREASURY_CF1_MANDATE_ID"))
 	counterparty := strings.TrimSpace(os.Getenv("TREASURY_CF1_COUNTERPARTY"))
 	inCapAuthorizationID := strings.TrimSpace(os.Getenv("TREASURY_CF1_IN_CAP_AUTHORIZATION_ID"))
 	overCapAuthorizationID := strings.TrimSpace(os.Getenv("TREASURY_CF1_OVER_CAP_AUTHORIZATION_ID"))
+	isolationBudgetID := strings.TrimSpace(os.Getenv("TREASURY_CF1_ISOLATION_BUDGET_ID"))
+	readTargets := []string{budgetTarget, "treasury:authorization/" + inCapAuthorizationID}
+	if isolationBudgetID != "" {
+		readTargets = append(readTargets, "treasury:budget/"+isolationBudgetID)
+	}
 	inCapTarget, inCapSettlementTarget := (cliutil.TreasurySpendIntent{
 		AuthorizationID: inCapAuthorizationID, MandateID: mandateID, AmountMinor: 30, Currency: "USD", Counterparty: counterparty,
 		AuthorizationIdempotencyKey: os.Getenv("TREASURY_CF1_IN_CAP_IDEMPOTENCY_KEY"),
@@ -567,7 +831,7 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 		RunID: run.ID, PID: os.Getpid(), HarnessKind: "cf1-local-fork", HarnessSession: "commissioned-local-test",
 		Rules: []domain.AuthorizationRule{
 			{Policy: "treasury-spending", Targets: []string{inCapTarget, inCapSettlementTarget}},
-			{Policy: "treasury-wallet-reading", Targets: []string{budgetTarget, "treasury:authorization/" + inCapAuthorizationID}},
+			{Policy: "treasury-wallet-reading", Targets: readTargets},
 		}, DurationSeconds: 3600,
 	})
 	if err != nil {
@@ -580,7 +844,7 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 	_ = approved // Raw operation tokens are intentionally never written to evidence.
 	if err := writeJSON(filepath.Join(coord, "am-operation-approved.json"), map[string]any{
 		"run_id": run.ID.String(), "grant_id": grant.ID.String(), "spend": "in-cap", "policy": "treasury-spending",
-		"spend_targets": []string{inCapTarget, inCapSettlementTarget}, "read_targets": []string{budgetTarget, "treasury:authorization/" + inCapAuthorizationID}, "approved_at": approved.ApprovedAt,
+		"spend_targets": []string{inCapTarget, inCapSettlementTarget}, "read_targets": readTargets, "approved_at": approved.ApprovedAt,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -638,6 +902,74 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 	}
 	if err := waitForFileOrRunTerminal(ctx, service, run.ID, filepath.Join(coord, "over-cap-authorization-ready.json"), nil); err != nil {
 		t.Fatalf("Treasury CLI did not propose its separately granted spend: %v", err)
+	}
+	var x402Grant *domain.AuthorizationGrant
+	if config.X402CatalogURL != "" {
+		var x402GrantRequest struct {
+			RunID                    string `json:"run_id"`
+			AuthorizationID          string `json:"authorization_id"`
+			SettlementID             string `json:"settlement_id"`
+			AmountMinor              int64  `json:"amount_minor"`
+			PriceID                  string `json:"price_id"`
+			CallID                   string `json:"call_id"`
+			CatalogURL               string `json:"catalog_url"`
+			InstrumentID             string `json:"instrument_id"`
+			RequiredTarget           string `json:"required_target"`
+			RequiredSettlementTarget string `json:"required_settlement_target"`
+		}
+		if err := waitForFileOrRunTerminal(ctx, service, run.ID, filepath.Join(coord, "x402-operation-grant-requested.json"), &x402GrantRequest); err != nil {
+			t.Fatalf("ordinary run did not request its per-call CF4 x402 grant: %v", err)
+		}
+		x402Target, x402SettlementTarget := (cliutil.TreasurySpendIntent{
+			AuthorizationID: config.X402AuthorizationID, MandateID: mandateID, AmountMinor: config.X402AmountMinor, Currency: "USD",
+			Counterparty: config.X402Counterparty, AuthorizationIdempotencyKey: config.X402IdempotencyKey,
+			SettlementID: config.X402SettlementID, InstrumentID: config.X402InstrumentID,
+			SettlementIdempotencyKey: config.X402IdempotencyKey + "-settlement",
+		}).Targets()
+		if config.X402AmountMinor != 1 || x402GrantRequest.RunID != run.ID.String() || x402GrantRequest.AuthorizationID != config.X402AuthorizationID || x402GrantRequest.SettlementID != config.X402SettlementID || x402GrantRequest.AmountMinor != config.X402AmountMinor || x402GrantRequest.PriceID != config.X402PriceID || x402GrantRequest.CallID != config.X402CallID || x402GrantRequest.CatalogURL != config.X402CatalogURL || x402GrantRequest.InstrumentID != config.X402InstrumentID || x402GrantRequest.RequiredTarget != x402Target || x402GrantRequest.RequiredSettlementTarget != x402SettlementTarget {
+			t.Fatalf("CF4 operation grant request was not bound to the run's one-call Offer Desk intent: %+v", x402GrantRequest)
+		}
+		x402Grant, err = service.RequestAuthorization(ctx, orchestration.AuthorizationRequest{
+			RunID: run.ID, PID: os.Getpid(), HarnessKind: "cf4-local-fork", HarnessSession: "commissioned-local-test",
+			Rules: []domain.AuthorizationRule{
+				{Policy: "treasury-spending", Targets: []string{x402Target, x402SettlementTarget}},
+				{Policy: "treasury-wallet-reading", Targets: []string{budgetTarget, "treasury:authorization/" + config.X402AuthorizationID}},
+			}, DurationSeconds: 3600,
+			BigPicture:       "Authorize this ordinary research run to buy one per-call-capped Offer Desk x402 call on the isolated Base fork.",
+			TechnicalDetails: "One USD minor unit only, exact Offer Desk catalog target, and one settled retry for run " + run.ID.String(),
+		})
+		if err != nil {
+			t.Fatalf("request distinct CF4 x402 operation grant: %v", err)
+		}
+		x402Grant, err = service.ApproveAuthorization(ownerCtx, x402Grant.ID)
+		if err != nil {
+			t.Fatalf("approve CF4 x402 operation grant: %v", err)
+		}
+		if x402Grant.ID == grant.ID || x402Grant.ID == secondSpendGrant.ID {
+			t.Fatal("CF4 x402 spend reused an earlier Agent Manager operation grant")
+		}
+		if err := writeJSON(filepath.Join(coord, "x402-operation-approved.json"), map[string]any{
+			"run_id": run.ID.String(), "grant_id": x402Grant.ID.String(), "spend": "cf4-x402-priced-call",
+			"spend_targets": []string{x402Target, x402SettlementTarget}, "read_targets": []string{budgetTarget, "treasury:authorization/" + config.X402AuthorizationID},
+			"approved_at": x402Grant.ApprovedAt,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if err := waitForFileOrRunTerminal(ctx, service, run.ID, filepath.Join(coord, "x402-authorization-ready.json"), nil); err != nil {
+			t.Fatalf("Treasury CLI did not propose the per-call CF4 x402 spend: %v", err)
+		}
+		if err := waitForFileOrRunTerminal(ctx, service, run.ID, filepath.Join(coord, "x402-call-release"), nil); err != nil {
+			t.Fatalf("Treasury harness did not validate the mandate-wallet payer before the CF4 call: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(coord, "x402-report-release"), []byte("report one approved per-call x402 spend"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := waitForFileOrRunTerminal(ctx, service, run.ID, filepath.Join(coord, "x402-outcome-unknown.json"), nil); err != nil {
+			t.Fatalf("CF4 x402 did not retain its first ambiguous result: %v", err)
+		}
+		if err := waitForFileOrRunTerminal(ctx, service, run.ID, filepath.Join(coord, "x402-settled-after-restart.json"), nil); err != nil {
+			t.Fatalf("CF4 x402 exact retry did not settle after Treasury restart: %v", err)
+		}
 	}
 	if err := waitForFileOrRunTerminal(ctx, service, run.ID, filepath.Join(coord, "frozen-operation-grant-requested.json"), nil); err != nil {
 		t.Fatalf("run did not request an exact frozen-spend grant: %v", err)
@@ -765,12 +1097,42 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 	if err != nil || json.Unmarshal(data, &outcome) != nil {
 		t.Fatalf("read run result evidence: %v", err)
 	}
-	if outcome.RunID != run.ID.String() || !outcome.SessionKey || !outcome.Identity || len(outcome.CLICommands) != 11 || len(outcome.SpendGrants) != 4 || outcome.SpendGrants[0] != grant.ID.String() || outcome.SpendGrants[1] != secondSpendGrant.ID.String() || outcome.SpendGrants[2] != frozenGrant.ID.String() || outcome.SpendGrants[3] != expiryGrant.ID.String() {
+	expectedCommands := 11
+	expectedGrants := []string{grant.ID.String(), secondSpendGrant.ID.String()}
+	if x402Grant != nil {
+		expectedCommands += 3
+		expectedGrants = append(expectedGrants, x402Grant.ID.String())
+	}
+	expectedGrants = append(expectedGrants, frozenGrant.ID.String(), expiryGrant.ID.String())
+	if outcome.RunID != run.ID.String() || !outcome.SessionKey || !outcome.Identity || len(outcome.CLICommands) != expectedCommands || len(outcome.SpendGrants) != len(expectedGrants) {
 		t.Fatalf("incomplete Agent Manager CLI proof: %+v", outcome)
+	}
+	for index, expected := range expectedGrants {
+		if outcome.SpendGrants[index] != expected {
+			t.Fatalf("per-spend operation grant %d = %q, want %q", index, outcome.SpendGrants[index], expected)
+		}
+	}
+	if x402Grant != nil {
+		var settled struct {
+			AuthorizationID string `json:"authorization_id"`
+			SettlementID    string `json:"settlement_id"`
+			OperationGrant  string `json:"operation_grant_id"`
+			SameAuth        bool   `json:"same_authorization"`
+			SameSettlement  bool   `json:"same_settlement_id"`
+			SameIdempotency bool   `json:"same_idempotency_key"`
+			TransactionHash string `json:"transaction_hash"`
+		}
+		if err := waitForFile(ctx, filepath.Join(coord, "x402-settled-after-restart.json"), &settled); err != nil {
+			t.Fatalf("read CF4 x402 settled retry evidence: %v", err)
+		}
+		if settled.AuthorizationID != config.X402AuthorizationID || settled.SettlementID != config.X402SettlementID || settled.OperationGrant != x402Grant.ID.String() || !settled.SameAuth || !settled.SameSettlement || !settled.SameIdempotency || !strings.HasPrefix(strings.ToLower(settled.TransactionHash), "0x") {
+			t.Fatalf("CF4 x402 retry did not preserve the run's exact spend and chain receipt: %+v", settled)
+		}
 	}
 	if err := writeJSON(filepath.Join(coord, "agent-manager-result.json"), map[string]any{
 		"run_id": run.ID.String(), "profile_id": profile.ID.String(), "task_id": task.ID.String(),
 		"run_status": finalRun.Status, "terminal_session_revoked": keys.WasRevoked(run.ID),
+		"terminal_session_key_absent": keys.WasRevoked(run.ID), "session_key_authority_backend": "isolated-encrypted-file",
 		"cli_commands": outcome.CLICommands, "per_spend_operation_grant_ids": outcome.SpendGrants, "private_values_recorded": false,
 	}); err != nil {
 		t.Fatal(err)

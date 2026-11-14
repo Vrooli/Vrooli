@@ -35,7 +35,16 @@ type Summary struct {
 	Spend                                                  []Spend
 }
 
-type Ledger struct{ DB *sql.DB }
+// DB is deliberately the small common subset implemented by sql.DB and the
+// API-core RoutedDB. Production callers must use RoutedDB so Test Genie and
+// other isolated requests retain their database routing.
+type DB interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+type Ledger struct{ DB DB }
 
 func (l Ledger) PutBudget(ctx context.Context, b Budget) error {
 	if l.DB == nil || b.RunID == "" || b.TreasuryBudgetID == "" || b.MandateID == "" || b.AgentSubject == "" || b.Currency == "" || b.UnitCode == "" || b.PolicyRevision == "" || b.CapMinor < 0 {
@@ -58,6 +67,9 @@ func (l Ledger) PutBudget(ctx context.Context, b Budget) error {
 		return ErrConflict
 	}
 	retained.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
+	if !retained.CreatedAt.Equal(b.CreatedAt.UTC()) {
+		return ErrConflict
+	}
 	return nil
 }
 
@@ -83,6 +95,13 @@ func (l Ledger) RecordSpend(ctx context.Context, s Spend) error {
 	if s.BenefitState == "measured" && (s.ResultRef == "" || s.BenefitSummary == "") {
 		return errors.New("measured benefit requires a result reference and summary")
 	}
+	var budgetCurrency, budgetUnit string
+	if err := l.DB.QueryRowContext(ctx, `SELECT currency,unit_code FROM research_run_budgets WHERE run_id=?`, s.RunID).Scan(&budgetCurrency, &budgetUnit); err != nil {
+		return err
+	}
+	if strings.ToUpper(s.Currency) != budgetCurrency || s.UnitCode != budgetUnit {
+		return fmt.Errorf("spend unit %s/%s does not match run budget unit %s/%s", strings.ToUpper(s.Currency), s.UnitCode, budgetCurrency, budgetUnit)
+	}
 	_, err := l.DB.ExecContext(ctx, `INSERT INTO research_run_spend(id,run_id,settlement_id,treasury_receipt_id,integration_id,category,amount_minor,currency,unit_code,result_ref,benefit_state,benefit_summary,settled_at,recorded_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(settlement_id) DO NOTHING`, s.ID, s.RunID, s.SettlementID, s.TreasuryReceiptID, s.IntegrationID, s.Category, s.AmountMinor, strings.ToUpper(s.Currency), s.UnitCode, s.ResultRef, s.BenefitState, s.BenefitSummary, s.SettledAt.UTC().Format(time.RFC3339Nano), s.RecordedAt.UTC().Format(time.RFC3339Nano))
 	if err != nil {
 		return err
@@ -93,7 +112,7 @@ func (l Ledger) RecordSpend(ctx context.Context, s Spend) error {
 	if err != nil {
 		return err
 	}
-	if got.ID != s.ID || got.RunID != s.RunID || got.TreasuryReceiptID != s.TreasuryReceiptID || got.IntegrationID != s.IntegrationID || got.Category != s.Category || got.AmountMinor != s.AmountMinor || got.Currency != strings.ToUpper(s.Currency) || got.UnitCode != s.UnitCode || got.ResultRef != s.ResultRef || got.BenefitState != s.BenefitState || got.BenefitSummary != s.BenefitSummary {
+	if got.ID != s.ID || got.RunID != s.RunID || got.SettlementID != s.SettlementID || got.TreasuryReceiptID != s.TreasuryReceiptID || got.IntegrationID != s.IntegrationID || got.Category != s.Category || got.AmountMinor != s.AmountMinor || got.Currency != strings.ToUpper(s.Currency) || got.UnitCode != s.UnitCode || got.ResultRef != s.ResultRef || got.BenefitState != s.BenefitState || got.BenefitSummary != s.BenefitSummary || settled != s.SettledAt.UTC().Format(time.RFC3339Nano) {
 		return ErrConflict
 	}
 	return nil
@@ -123,6 +142,13 @@ func (l Ledger) Read(ctx context.Context, runID string) (Summary, error) {
 		s.RecordedAt, _ = time.Parse(time.RFC3339Nano, recorded)
 		if s.Currency != out.Currency || s.UnitCode != out.UnitCode {
 			return out, fmt.Errorf("spend unit %s/%s does not match run budget unit %s/%s", s.Currency, s.UnitCode, out.Currency, out.UnitCode)
+		}
+		if s.AmountMinor < 0 {
+			return out, fmt.Errorf("research spend %s has a negative amount", s.ID)
+		}
+		const maxInt64 = int64(1<<63 - 1)
+		if out.SpendMinor > maxInt64-s.AmountMinor {
+			return out, fmt.Errorf("run %s research spend total overflows int64", runID)
 		}
 		out.SpendMinor += s.AmountMinor
 		out.SpendCount++

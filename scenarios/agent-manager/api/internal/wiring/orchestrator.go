@@ -37,6 +37,7 @@ import (
 	"agent-manager/internal/pricing/providers"
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/researchbudget"
 	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/runstate"
 	"agent-manager/internal/storage"
@@ -93,6 +94,7 @@ type OrchestratorDependencies struct {
 	WorkspaceSandbox  interface {
 		IsAvailable(context.Context) (bool, string)
 	}
+	ProviderReadiness handlers.ProviderReadinessReader
 }
 
 // NewOrchestrator builds the production orchestration graph. No background
@@ -205,7 +207,7 @@ func NewOrchestratorWithTerminalEvents(db *database.DB, hub *handlers.WebSocketH
 		orchestration.WithPromptClient(promptmanager.NewHTTPClient()), orchestration.WithFlagValidator(flagValidator), orchestration.WithAttachmentStorage(uploads),
 		orchestration.WithOrchestrationSettings(settingsStore), orchestration.WithIdentitySecret(identitySecret), orchestration.WithSpawnDispatcher(spawnDispatcher),
 		orchestration.WithTreasurySessionKeyStore(orchestration.NewCredentialAuthorityTreasurySessionKeys()),
-		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector), orchestration.WithReceiptSummaryReader(receiptReader), orchestration.WithFindings(repos.Findings), orchestration.WithInvestigationLifecycleRepository(repos.Investigations), orchestration.WithInvestigationLearningRecorder(investigationlearning.NewClient()), orchestration.WithReceiptEvidenceStore(repos.ReceiptEvidence), orchestration.WithInvestigationLedgerStore(repos.InvestigationLedger), orchestration.WithInvocationReadModel(repos.InvocationReadModel), orchestration.WithPortOwners(processPortOwners()), orchestration.WithDurabilityBoundary(repos.DurabilityBoundary),
+		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector), orchestration.WithReceiptSummaryReader(receiptReader), orchestration.WithFindings(repos.Findings), orchestration.WithInvestigationLifecycleRepository(repos.Investigations), orchestration.WithInvestigationLearningRecorder(investigationlearning.NewClient()), orchestration.WithReceiptEvidenceStore(repos.ReceiptEvidence), orchestration.WithInvestigationLedgerStore(repos.InvestigationLedger), orchestration.WithResearchBudgetLedger(researchbudget.Ledger{DB: db}), orchestration.WithInvocationReadModel(repos.InvocationReadModel), orchestration.WithPortOwners(processPortOwners()), orchestration.WithDurabilityBoundary(repos.DurabilityBoundary),
 		orchestration.WithOwnerIdentity(ownerIdentity),
 		orchestration.WithAuthorizations(database.NewAuthorizationRepository(db)),
 		orchestration.WithSessionBindingProofReader(orchestration.NewCLISessionBindingProofReader()),
@@ -305,7 +307,7 @@ func NewOrchestratorWithTerminalEvents(db *database.DB, hub *handlers.WebSocketH
 		Signals: &interventions.SignalJob{Store: interventionStore, Events: eventStore, Classifier: interventionClassifier, Enabled: interventions.SignalsEnabled, Log: obs.Component("operator-signals")},
 	}
 	bootLog.Info("orchestrator initialized", "storage", "sqlite", "sandbox", sandboxURL)
-	return OrchestratorDependencies{TerminalEvents: terminalEvents, OwnerIdentity: ownerIdentity, Orchestrator: orch, StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: newTranscriptIndex(orch, repos.TranscriptIndex, runStateResolver, levers), ClaudeQuotaFeed: &pricing.ClaudeStatuslineReader{Path: pricing.DefaultClaudeStatuslineSamplesPath(), Store: quotaObservationStore}, UsageAlerts: usageAlerts, UsageModes: usageModes, UsageModeNotifier: usageModeNotifier, Interventions: interventionJob, OutcomeLedger: &outcomeledger.Job{Store: database.NewRunLedgerRepository(db, orch.TranscriptParserVersion)}, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, DecisionPublisher: decisionPublisher, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, HealthStore: healthStore, EventRepository: eventRepo, SupervisionService: supervisionService, SupervisionScheduler: supervisionScheduler, WatchActionAuthorizer: actionAuthorizer, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
+	return OrchestratorDependencies{TerminalEvents: terminalEvents, OwnerIdentity: ownerIdentity, Orchestrator: orch, StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: newTranscriptIndex(orch, repos.TranscriptIndex, runStateResolver, levers), ClaudeQuotaFeed: &pricing.ClaudeStatuslineReader{Path: pricing.DefaultClaudeStatuslineSamplesPath(), Store: quotaObservationStore}, UsageAlerts: usageAlerts, UsageModes: usageModes, UsageModeNotifier: usageModeNotifier, Interventions: interventionJob, OutcomeLedger: &outcomeledger.Job{Store: database.NewRunLedgerRepository(db, orch.TranscriptParserVersion)}, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, DecisionPublisher: decisionPublisher, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, HealthStore: healthStore, EventRepository: eventRepo, SupervisionService: supervisionService, SupervisionScheduler: supervisionScheduler, WatchActionAuthorizer: actionAuthorizer, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider, ProviderReadiness: sandboxProvider}, nil
 }
 
 // usagePageURL links a will-exhaust notification to the Agent Manager Usage
@@ -561,7 +563,7 @@ func newInteractiveSessions() webconsole.SessionController {
 	if baseURL := webconsole.ResolveBaseURL(); baseURL != "" {
 		// Present Agent Manager's operator-issued service principal so Web
 		// Console can pin a verified stable-create owner.
-		serviceTokens := webconsole.NewServiceTokenSource(webconsole.AuthorityServiceCredential, webconsole.AuthenticatorServiceExchanger(nil), nil)
+		serviceTokens := webconsole.NewServiceTokens(webconsole.AuthorityServiceCredential)
 		interactiveSessions = webconsole.NewClient(baseURL, webconsole.NewServicePrincipalHTTPClient(serviceTokens))
 		log.Printf("interactive-runner: web-console session controller wired (base=%s)", baseURL)
 	} else {

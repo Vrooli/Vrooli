@@ -191,5 +191,5 @@ type AsyncOperationInfo struct {
 
 // Succeeded returns true if the tool executed successfully.
 func (r *ToolExecutionResult) Succeeded() bool {
-	return r.Status == StatusCompleted
+	return ToolCallStatus(r.Status) == StatusCompleted
 }

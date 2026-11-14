@@ -48,7 +48,7 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 	if existing, err := l.o.persistedWorkflowChild(ctx, req.ExecutionID, req.AttemptID); err != nil {
 		return workflowruntime.ChildState{}, err
 	} else if existing != nil {
-		return childStateFromRun(existing), nil
+		return l.workflowChildState(ctx, existing)
 	}
 	ctx, err := l.o.admittedWorkflowContext(ctx, req.ExecutionID, req.AttemptID)
 	if err != nil {
@@ -150,7 +150,7 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 	if err != nil {
 		return workflowruntime.ChildState{}, err
 	}
-	return childStateFromRun(run), nil
+	return l.workflowChildState(ctx, run)
 }
 
 // canonicalWorkflowProjectRoot checks an explicitly authored root without
@@ -207,7 +207,15 @@ func (l workflowChildLauncher) Continue(ctx context.Context, req workflowruntime
 	if err != nil {
 		return workflowruntime.ChildState{}, err
 	}
-	return childStateFromRun(run), nil
+	return l.workflowChildState(ctx, run)
+}
+
+func (l workflowChildLauncher) workflowChildState(ctx context.Context, run *domain.Run) (workflowruntime.ChildState, error) {
+	state := childStateFromRun(run)
+	if run != nil && run.Status.IsTerminal() {
+		return l.InspectMetered(ctx, run.ID)
+	}
+	return state, nil
 }
 
 func (l workflowChildLauncher) Inspect(ctx context.Context, id uuid.UUID) (workflowruntime.ChildState, error) {
@@ -257,6 +265,27 @@ func childStateFromRun(run *domain.Run) workflowruntime.ChildState {
 	case domain.RunStatusFailed, domain.RunStatusCancelled:
 		state.Terminal = true
 		state.Failed = true
+		switch run.StopReason {
+		case domain.RunStopReasonProviderMaintenance:
+			state.FailureCode, state.FailureMessage, state.FailureRetryable = "provider_admission_maintenance", "Agent execution is paused for Workspace Sandbox maintenance; no agent work started.", true
+			state.TokensKnown = true // Runner launch receipt proves the provider never started.
+		case domain.RunStopReasonUsageWindow:
+			state.FailureCode, state.FailureMessage, state.FailureRetryable = "budget_exhausted", "Agent run stopped after reaching its usage window.", false
+		case domain.RunStopReasonTimeout:
+			state.FailureCode, state.FailureMessage, state.FailureRetryable = "child_timeout", "Agent run timed out.", true
+		case domain.RunStopReasonSessionLost:
+			state.FailureCode, state.FailureMessage, state.FailureRetryable = "child_session_lost", "Agent session was lost before the run completed.", true
+		case domain.RunStopReasonTokenCap:
+			state.FailureCode, state.FailureMessage, state.FailureRetryable = "budget_exhausted", "Agent run stopped after reaching its token cap.", false
+		case domain.RunStopReasonCrash:
+			state.FailureCode, state.FailureMessage, state.FailureRetryable = "child_runner_failed", "Agent runner stopped unexpectedly.", true
+		default:
+			if run.Status == domain.RunStatusCancelled {
+				state.FailureCode, state.FailureMessage = "child_cancelled", "Agent run was cancelled."
+			} else {
+				state.FailureCode, state.FailureMessage, state.FailureRetryable = "child_failed", "Agent run failed.", true
+			}
+		}
 	}
 	if domain.RequiredFinalizationPending(run) {
 		state.FinalizationPending = fmt.Sprintf("required sandbox finalization %s: %s", run.FinalizationStatus, run.FinalizationError)
@@ -750,6 +779,50 @@ func (o *Orchestrator) CancelWorkflowExecution(ctx context.Context, req Workflow
 	o.broadcastWorkflowLifecycle(ctx, execution)
 	o.onWorkflowExecutionSettled(ctx, execution)
 	return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: idempotent}, nil
+}
+
+// CancelWorkflowExecutionByIdempotencyKey installs an owner-side admission
+// fence before resolving the execution. A successful fenced miss means a late
+// Start using this key can no longer create work.
+func (o *Orchestrator) CancelWorkflowExecutionByIdempotencyKey(ctx context.Context, req WorkflowExecutionCancelByKeyRequest) (*WorkflowExecutionCancelByKeyResult, error) {
+	owner, workflowKey := strings.TrimSpace(req.Owner), strings.TrimSpace(req.WorkflowKey)
+	key, operationKey := strings.TrimSpace(req.IdempotencyKey), strings.TrimSpace(req.OperationKey)
+	if owner == "" || workflowKey == "" || key == "" || operationKey == "" {
+		return nil, domain.NewValidationError("idempotencyKey", "owner, workflow key, idempotency key, and operation key are required")
+	}
+	if o.workflowExecutions == nil {
+		return nil, domain.NewConfigInvalidError("workflowExecutionRepository", "not configured", nil)
+	}
+	execution, err := o.workflowExecutions.CancelByIdempotencyKey(ctx, key, owner, workflowKey)
+	if err != nil {
+		return nil, err
+	}
+	result := &WorkflowExecutionCancelByKeyResult{Fenced: true, Execution: execution}
+	if execution == nil {
+		return result, nil
+	}
+	// The key fence is still useful for an execution that won Start and reached
+	// a terminal state before cancellation arrived. Return that exact receipt;
+	// Engine.Cancel rejects new cancel operations for terminal executions.
+	if execution.Status.Terminal() {
+		return result, nil
+	}
+	cancelled, err := o.CancelWorkflowExecution(ctx, WorkflowExecutionOperationRequest{
+		ExecutionID: execution.ID, IdempotencyKey: operationKey,
+		Reason: strings.TrimSpace(req.Reason),
+	})
+	if err != nil {
+		// Completion can race between the fenced repository read and Engine.Cancel.
+		// Engine.Cancel returns the observed terminal execution with its error; use
+		// that as the authoritative receipt rather than making GCT retry forever.
+		if cancelled != nil && cancelled.Execution != nil && cancelled.Execution.ID == execution.ID && cancelled.Execution.Status.Terminal() {
+			result.Execution = cancelled.Execution
+			return result, nil
+		}
+		return result, err
+	}
+	result.Execution = cancelled.Execution
+	return result, nil
 }
 
 func (o *Orchestrator) cleanupWorkflowChildren(ctx context.Context, executionID uuid.UUID, reason string, recovery bool) (*domain.WorkflowExecution, error) {

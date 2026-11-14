@@ -32,6 +32,7 @@ import (
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/researchbudget"
 	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/runreport"
 	"agent-manager/internal/runstate"
@@ -166,11 +167,14 @@ type Orchestrator struct {
 
 	// receipts is an optional, read-only Vrooli Events seam. It must never
 	// influence run execution or terminal state; reports surface its status.
-	receipts            ReceiptSummaryReader
-	findings            findings.Repository
-	typedInvestigations investigation.Repository
-	receiptEvidence     runreport.ReceiptJoinStore
-	investigationLedger runreport.LedgerStore
+	receipts             ReceiptSummaryReader
+	findings             findings.Repository
+	typedInvestigations  investigation.Repository
+	receiptEvidence      runreport.ReceiptJoinStore
+	investigationLedger  runreport.LedgerStore
+	researchBudgetLedger interface {
+		Read(context.Context, string) (researchbudget.Summary, error)
+	}
 	invocationReadModel invocationreadmodel.Store
 	portOwners          toolfriction.PortOwners
 	durabilityEvidence  DurabilityEvidenceReader
@@ -640,6 +644,14 @@ func WithReceiptEvidenceStore(store runreport.ReceiptJoinStore) Option {
 
 func WithInvestigationLedgerStore(store runreport.LedgerStore) Option {
 	return func(o *Orchestrator) { o.investigationLedger = store }
+}
+
+// WithResearchBudgetLedger installs the persistent read-only Treasury spend
+// projection exposed by authenticated run reports.
+func WithResearchBudgetLedger(ledger interface {
+	Read(context.Context, string) (researchbudget.Summary, error)
+}) Option {
+	return func(o *Orchestrator) { o.researchBudgetLedger = ledger }
 }
 
 // WithInvocationReadModel wires the independent durable analytics projection.

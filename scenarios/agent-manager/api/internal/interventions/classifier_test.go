@@ -246,5 +246,8 @@ func TestCategoryClassificationRequestsAreLocalOnly(t *testing.T) {
 		if request.GetProfile() != sharedv1.Profile_PROFILE_LOCAL_ONLY {
 			t.Fatalf("request %d profile = %v, want local-only", i, request.GetProfile())
 		}
+		if request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED {
+			t.Fatalf("request %d privacy class = %v, want unspecified because this caller has no sourced class", i, request.GetPrivacyClass())
+		}
 	}
 }

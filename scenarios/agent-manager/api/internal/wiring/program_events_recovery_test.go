@@ -110,3 +110,11 @@ func TestWebhookRecoversAfterCredentialOwnerUnavailableAtStartup(t *testing.T) {
 		t.Fatalf("recovery/cache: codes=%d,%d lookups=%d", second.Code, third.Code, lookups)
 	}
 }
+
+// The operator's "I need more context" question reaches Agent Manager through its
+// own subscription, to the same signed webhook that carries the answers.
+func TestDecisionContextRequestsHaveTheirOwnSubscriptionToTheDecisionWebhook(t *testing.T) {
+	if askContextRequestedEventPattern != "notification_hub.ask.context_requested.v1" || askContextRequestedEventPattern == askResolvedEventPattern {
+		t.Fatalf("pattern = %q", askContextRequestedEventPattern)
+	}
+}

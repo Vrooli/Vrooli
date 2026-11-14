@@ -12,6 +12,7 @@ import (
 	"agent-manager/internal/adapters/sandbox"
 	sharedavailability "agent-manager/internal/availability"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/researchbudget"
 	"agent-manager/internal/runsignal"
 
 	"github.com/google/uuid"
@@ -41,6 +42,13 @@ type DurableSelfReportSpanSource interface {
 
 type DurableTimeAccountingSource interface {
 	DurableTimeAccounting(context.Context, uuid.UUID) (runsignal.TimeAccounting, bool, error)
+}
+
+// ResearchBudgetSource is the read-only boundary for the retained, run-bound
+// Treasury spend and benefit summary. Presence is separate from an empty
+// summary so unbudgeted runs remain distinguishable from zero spend.
+type ResearchBudgetSource interface {
+	ResearchBudget(context.Context, uuid.UUID) (researchbudget.Summary, bool, error)
 }
 
 // ReceiptSummary is deliberately bounded: the report needs availability and
@@ -146,6 +154,11 @@ type EvidenceValidity struct {
 	UnclassifiedCount int          `json:"unclassifiedCount"`
 	UnclassifiedShare float64      `json:"unclassifiedShare"`
 }
+type ResearchBudgetSummary struct {
+	Availability      Availability            `json:"availability"`
+	SpendAvailability Availability            `json:"spendAvailability"`
+	Summary           *researchbudget.Summary `json:"summary,omitempty"`
+}
 type DiffSummary struct {
 	Files     int          `json:"files"`
 	Bytes     int64        `json:"bytes"`
@@ -191,6 +204,7 @@ type RunReport struct {
 	Goal                   GoalProgress                 `json:"goal"`
 	InvocationValidity     EvidenceValidity             `json:"invocationValidity"`
 	WorkReferences         []*eventdomain.WorkReference `json:"workReferences,omitempty"`
+	ResearchBudget         ResearchBudgetSummary        `json:"researchBudget"`
 }
 
 func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, error) {
@@ -227,13 +241,34 @@ func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, err
 			return nil, err
 		}
 	}
+	if budgetSource, ok := source.(ResearchBudgetSource); ok {
+		budget, present, err := budgetSource.ResearchBudget(ctx, runID)
+		switch {
+		case err != nil:
+			r.ResearchBudget.Availability = Availability{State: AvailabilityDegraded, Reason: err.Error()}
+			r.ResearchBudget.SpendAvailability = Availability{State: AvailabilityUnavailable, Reason: "run-bound Treasury settlement records could not be read"}
+		case !present:
+			r.ResearchBudget.Availability = Availability{State: AvailabilityUnobserved, Reason: "no research budget is bound to this run"}
+			r.ResearchBudget.SpendAvailability = Availability{State: AvailabilityUnobserved, Reason: "no run-bound Treasury settlement records are available; this does not establish zero spend"}
+		default:
+			if budget.RunID != runID.String() {
+				return nil, fmt.Errorf("research budget run %q does not match report run %q", budget.RunID, runID)
+			}
+			r.ResearchBudget = ResearchBudgetSummary{Availability: Availability{State: AvailabilityAvailable}, Summary: &budget}
+			if budget.SpendCount == 0 {
+				r.ResearchBudget.SpendAvailability = Availability{State: AvailabilityUnobserved, Reason: "no run-bound Treasury settlement records are recorded; zero spend cannot be inferred"}
+			} else {
+				r.ResearchBudget.SpendAvailability = Availability{State: AvailabilityAvailable}
+			}
+		}
+	}
 	return r, nil
 }
 
 // newReport is the report before any evidence is read: every availability
 // starts unavailable and each evidence step upgrades what it observed.
 func newReport(run *domain.Run) *RunReport {
-	r := &RunReport{RunID: run.ID, Status: run.Status, ExitCode: run.ExitCode, Error: run.ErrorMsg, Events: map[string]int{}, EventsAvailability: Availability{State: AvailabilityAvailable}, ReceiptsAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, LedgerAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, ProjectionAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, RequestedModel: run.RequestedModel, ActualModel: run.ActualModel, WorkReferences: run.WorkReferences, Diff: DiffSummary{Files: run.ChangedFiles, Bytes: run.TotalSizeBytes, Available: Availability{State: AvailabilityUnavailable}}}
+	r := &RunReport{RunID: run.ID, Status: run.Status, ExitCode: run.ExitCode, Error: run.ErrorMsg, Events: map[string]int{}, EventsAvailability: Availability{State: AvailabilityAvailable}, ReceiptsAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, LedgerAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, ProjectionAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, RequestedModel: run.RequestedModel, ActualModel: run.ActualModel, WorkReferences: run.WorkReferences, Diff: DiffSummary{Files: run.ChangedFiles, Bytes: run.TotalSizeBytes, Available: Availability{State: AvailabilityUnavailable}}, ResearchBudget: ResearchBudgetSummary{Availability: Availability{State: AvailabilityUnavailable, Reason: "research budget reader is not configured"}, SpendAvailability: Availability{State: AvailabilityUnavailable, Reason: "research budget reader is not configured"}}}
 	r.Goal = deriveGoalProgress(run, nil)
 	r.InvocationValidity = invocationValidity(nil)
 	return r
@@ -667,6 +702,19 @@ func Text(r *RunReport) string {
 	b.WriteByte('\n')
 	fmt.Fprintf(&b, "Diff: files=%d bytes=%d (%s)\n", r.Diff.Files, r.Diff.Bytes, r.Diff.Available.State)
 	fmt.Fprintf(&b, "Receipts: %s (%d)\n", r.ReceiptsAvailability.State, r.ReceiptCount)
+	if r.ResearchBudget.Availability.State == AvailabilityAvailable {
+		s := r.ResearchBudget.Summary
+		fmt.Fprintf(&b, "Research budget: cap=%d %s/%s recorded_spend=%d remaining=%d entries=%d (%s: %s)\n", s.CapMinor, s.Currency, s.UnitCode, s.SpendMinor, s.RemainingMinor, s.SpendCount, r.ResearchBudget.SpendAvailability.State, r.ResearchBudget.SpendAvailability.Reason)
+		for _, spend := range s.Spend {
+			fmt.Fprintf(&b, "  %s %s=%d %s benefit=%s", spend.Category, spend.IntegrationID, spend.AmountMinor, spend.UnitCode, spend.BenefitState)
+			if spend.BenefitSummary != "" {
+				fmt.Fprintf(&b, " (%s)", spend.BenefitSummary)
+			}
+			b.WriteByte('\n')
+		}
+	} else {
+		fmt.Fprintf(&b, "Research budget: %s (%s)\n", r.ResearchBudget.Availability.State, r.ResearchBudget.Availability.Reason)
+	}
 	fmt.Fprintf(&b, "Next: agent-manager run result %s; agent-manager run events %s; agent-manager run tools %s --failed; agent-manager run diff %s; agent-manager run receipts %s\n", r.RunID, r.RunID, r.RunID, r.RunID, r.RunID)
 	return b.String()
 }

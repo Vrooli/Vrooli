@@ -20,6 +20,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/eventbus"
+	requestidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/operatordecision"
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -66,6 +68,11 @@ const standingGrantIssueTTL = MaxStandingGrantLifetime
 // oneTimeGrantIssueTTL is the (short) lifetime of a grant minted by an approval
 // for an ad-hoc, session-scoped caller.
 const oneTimeGrantIssueTTL = time.Hour
+
+const researchBudgetIngestOperation = "research-budget.ingest"
+const CF7ResearchBudgetTestRunTag = "cf7-test-only"
+
+var researchBudgetIngestTargetPattern = regexp.MustCompile(`^agent-manager:run/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 // WithPendingAuthorizations supplies the durable pending-request store that
 // makes the "ask, don't block" raise idempotent and bounded. Without it, the
@@ -110,6 +117,9 @@ func (o *Orchestrator) RaiseAuthorizationApproval(ctx context.Context, req Autho
 	if subject == "" {
 		return false, nil
 	}
+	if !validAuthorizationApprovalRequest(req) {
+		return false, domain.NewValidationError("authorization_request", "operation and target are outside supported approval paths")
+	}
 	now := o.now()
 	id := authorizationCorrelationID(subject, req.Operation, req.Target)
 
@@ -118,6 +128,9 @@ func (o *Orchestrator) RaiseAuthorizationApproval(ctx context.Context, req Autho
 		return false, err
 	}
 	if existing != nil && existing.Outstanding(now) {
+		if err := o.rekeyPublishedAsk(ctx, existing); err != nil {
+			approvalLog().Warn("authorization decision subject key upgrade failed", "subject", subject, obs.KeyError, err.Error())
+		}
 		// Idempotent: a successful publication is not repeated, but a durable
 		// pending row whose first publication failed remains retryable.
 		if existing.PublishedAt == nil {
@@ -156,6 +169,7 @@ func (o *Orchestrator) RaiseAuthorizationApproval(ctx context.Context, req Autho
 		GrantTTL:          ttl,
 		MaxConcurrentRuns: req.MaxConcurrentRuns,
 		State:             domain.PendingAuthorizationPending,
+		SubjectKey:        authorizationSubjectKey(id),
 		RaisedAt:          now.UTC(),
 		ExpiresAt:         now.Add(pendingAuthorizationWindow).UTC(),
 	}
@@ -169,6 +183,58 @@ func (o *Orchestrator) RaiseAuthorizationApproval(ctx context.Context, req Autho
 		approvalLog().Warn("authorization decision event publish failed", "subject", subject, obs.KeyError, err.Error())
 	}
 	return true, nil
+}
+
+// validAuthorizationApprovalRequest keeps the general service ask on its
+// existing run.create path and admits only one additional single-run reporting
+// capability. The latter is Treasury-only, one-time, and cannot use wildcards.
+func validAuthorizationApprovalRequest(req AuthorizationApprovalRequest) bool {
+	operation, target, subject := strings.TrimSpace(req.Operation), strings.TrimSpace(req.Target), strings.TrimSpace(req.Subject)
+	if operation == "run.create" {
+		return target != ""
+	}
+	return operation == researchBudgetIngestOperation && subject == "treasury" &&
+		req.Kind == domain.PendingAuthorizationKindOneTime && req.SessionID == "" &&
+		req.MaxConcurrentRuns == 0 && researchBudgetIngestTargetPattern.MatchString(target)
+}
+
+func isResearchBudgetIngestRequest(p *domain.PendingAuthorizationRequest) bool {
+	return p != nil && p.Subject == "treasury" && p.Operation == researchBudgetIngestOperation &&
+		researchBudgetIngestTargetPattern.MatchString(p.Target) && p.Kind == domain.PendingAuthorizationKindOneTime
+}
+
+// IsCF7ResearchBudgetTestRun checks the persisted owner-side tag before the
+// Treasury request path offers an operator a CF7 report decision.
+func (o *Orchestrator) IsCF7ResearchBudgetTestRun(ctx context.Context, runID uuid.UUID) bool {
+	if o == nil || runID == uuid.Nil {
+		return false
+	}
+	run, err := o.GetStoredRun(ctx, runID)
+	return err == nil && run.Tag == CF7ResearchBudgetTestRunTag
+}
+
+func (o *Orchestrator) createResearchBudgetIngestGrant(ctx context.Context, pending *domain.PendingAuthorizationRequest, approver string) (*domain.StandingGrant, error) {
+	if o.standingGrants == nil || !isResearchBudgetIngestRequest(pending) || strings.TrimSpace(approver) == "" {
+		return nil, domain.NewValidationError("authorization_request", "exact Treasury research-budget request required")
+	}
+	ttl := pending.GrantTTL
+	if ttl <= 0 || ttl > oneTimeGrantIssueTTL {
+		return nil, domain.NewValidationError("ttl", "research-budget grant lifetime must be at most one hour")
+	}
+	now := o.now()
+	id := uuid.NewString()
+	expires := now.Add(ttl)
+	grant := &domain.StandingGrant{
+		ID: id, Subject: "treasury", Grant: &requestidentity.OperationGrant{
+			ID: id, Policy: "research-budget-ingest", Approver: strings.TrimSpace(approver),
+			Operations: []string{researchBudgetIngestOperation}, Targets: []string{pending.Target}, ExpiresAt: expires,
+		},
+		State: domain.StandingGrantApproved, ApprovedBy: strings.TrimSpace(approver), ApprovedAt: now, ExpiresAt: expires,
+	}
+	if err := o.standingGrants.Put(ctx, grant); err != nil {
+		return nil, err
+	}
+	return grant, nil
 }
 
 func (o *Orchestrator) publishAuthorizationDecision(ctx context.Context, pending *domain.PendingAuthorizationRequest) error {
@@ -223,7 +289,10 @@ func (o *Orchestrator) authorizationDecisionEvent(ctx context.Context, p *domain
 	if p.MaxConcurrentRuns > 0 {
 		bound = fmt.Sprintf("max %d concurrent runs", p.MaxConcurrentRuns)
 	}
-	if p.Kind == domain.PendingAuthorizationKindOneTime {
+	if isResearchBudgetIngestRequest(p) {
+		subjectLine = "Review one Treasury research-budget report for this exact run?"
+		question = fmt.Sprintf("Approve Treasury's one-time research-budget report grant for exact target %q (maximum lifetime %s)? This is intended for the test-only CF7 loop; verify the run before approving. It records budget evidence only and cannot spend, read another run, or act outside this run.", p.Target, humanizeGrantTTL(p.GrantTTL))
+	} else if p.Kind == domain.PendingAuthorizationKindOneTime {
 		subjectLine = fmt.Sprintf("Approve one run for %s?", p.Subject)
 		question = fmt.Sprintf("Approve a short-lived (%s) run-creation grant for %q (%s)? It expires automatically and is revocable anytime.",
 			humanizeGrantTTL(p.GrantTTL), p.Subject, bound)
@@ -239,6 +308,7 @@ func (o *Orchestrator) authorizationDecisionEvent(ctx context.Context, p *domain
 	}
 
 	facts := operatordecision.Facts{
+		SubjectKey:       p.SubjectKey,
 		Subject:          subjectLine,
 		Question:         question,
 		BigPicture:       p.DecisionBigPicture,
@@ -266,8 +336,71 @@ func (o *Orchestrator) authorizationDecisionEvent(ctx context.Context, p *domain
 	// so a redelivery (or a re-raise inside the window) maps to the same ask
 	// instead of a duplicate notification. Emitted through BuildEventTyped so the
 	// established underscore event type and the hyphen Source are both preserved.
+	if p.SubjectKey != "" {
+		// Orders this request against a later withdrawal of the same subject.
+		facts.AssertedAt = p.RaisedAt.UTC().Truncate(time.Second)
+	}
 	return operatordecision.BuildEventTyped(runApprovalSource, AuthorizationDecisionEventType,
 		p.RaisedAt.UTC().Truncate(pendingAuthorizationWindow), facts)
+}
+
+// authorizationSubjectKey names the one open operator decision for a caller's
+// (subject, operation, target) ask: a re-raise after the window updates it
+// instead of adding a second.
+func authorizationSubjectKey(id string) string { return "authorization:" + id }
+
+// rekeyPublishedAsk replaces a still-pending ask that was published without a
+// subject key: the old request is closed by its event id and the same ask is
+// published again under the key. Idempotent: a keyed ask is left alone. The
+// frozen context stays as raised; only the key and event identity change.
+func (o *Orchestrator) rekeyPublishedAsk(ctx context.Context, p *domain.PendingAuthorizationRequest) error {
+	if p == nil || p.SubjectKey != "" || p.State != domain.PendingAuthorizationPending || o.approvalPublisher == nil || p.PublishedAt == nil {
+		return nil
+	}
+	if p.EventID != "" {
+		withdrawal := operatordecision.BuildWithdrawalEventTyped(runApprovalSource, AuthorizationDecisionEventType, o.now().UTC(), operatordecision.Withdrawal{
+			RequesterRef: p.EventID, Reason: "Replaced by an updated version of this request.",
+		})
+		if err := o.approvalPublisher.PublishDomainEvent(ctx, withdrawal); err != nil {
+			return err
+		}
+	}
+	p.SubjectKey = authorizationSubjectKey(p.ID)
+	p.EventID = operatordecision.EventID(o.authorizationDecisionEvent(ctx, p))
+	p.PublishedAt = nil
+	return o.pendingAuthorizations.Put(ctx, p)
+}
+
+// closeAuthorizationAsk withdraws the open run-creation ask for subject because
+// an operator-issued grant now covers it. It never issues, widens or checks
+// authority: it only tells the hub the question no longer needs an answer. A
+// failure is logged; the hub's own deadline remains the backstop.
+func (o *Orchestrator) closeAuthorizationAsk(ctx context.Context, subject string) {
+	subject = strings.TrimSpace(subject)
+	if o == nil || o.pendingAuthorizations == nil || o.approvalPublisher == nil || subject == "" {
+		return
+	}
+	id := authorizationCorrelationID(subject, "run.create", standingGrantRunCreateTarget)
+	pending, err := o.pendingAuthorizations.Get(ctx, id)
+	if err != nil || pending == nil || pending.State != domain.PendingAuthorizationPending {
+		return
+	}
+	w := operatordecision.Withdrawal{SubjectKey: pending.SubjectKey, Reason: "A grant now covers this request, so it no longer needs your approval."}
+	if w.SubjectKey == "" {
+		w.RequesterRef = pending.EventID
+	}
+	if pending.PublishedAt != nil || pending.EventID != "" {
+		event := operatordecision.BuildWithdrawalEventTyped(runApprovalSource, AuthorizationDecisionEventType, o.now().UTC(), w)
+		if err := o.approvalPublisher.PublishDomainEvent(ctx, event); err != nil {
+			approvalLog().Warn("authorization ask withdrawal failed", "subject", subject, obs.KeyError, err.Error())
+			return
+		}
+	}
+	resolvedAt := o.now().UTC()
+	pending.State, pending.ResolvedAt = domain.PendingAuthorizationWithdrawn, &resolvedAt
+	if err := o.pendingAuthorizations.Put(ctx, pending); err != nil {
+		approvalLog().Warn("record authorization ask withdrawal failed", "subject", subject, obs.KeyError, err.Error())
+	}
 }
 
 // NotifyAuthorizationRequested sends a durable FYI event for a pending
@@ -666,13 +799,16 @@ func (o *Orchestrator) ResolveAuthorizationFromHub(ctx context.Context, res supe
 		if ttl <= 0 {
 			ttl = oneTimeGrantIssueTTL
 		}
-		grant, err := o.CreateStandingGrant(ctx, StandingGrantRequest{
-			Subject:   pending.Subject,
-			Approver:  actor,
-			SessionID: pending.SessionID,
-			Limits:    authn.StandingGrantLimits{MaxConcurrentRuns: pending.MaxConcurrentRuns},
-			TTL:       ttl,
-		})
+		var grant *domain.StandingGrant
+		if isResearchBudgetIngestRequest(pending) {
+			pending.GrantTTL = ttl
+			grant, err = o.createResearchBudgetIngestGrant(ctx, pending, actor)
+		} else {
+			grant, err = o.createStandingGrant(ctx, StandingGrantRequest{
+				Subject: pending.Subject, Approver: actor, SessionID: pending.SessionID,
+				Limits: authn.StandingGrantLimits{MaxConcurrentRuns: pending.MaxConcurrentRuns}, TTL: ttl,
+			})
+		}
 		if err != nil {
 			return true, fmt.Errorf("issue grant on authorization approval: %w", err)
 		}

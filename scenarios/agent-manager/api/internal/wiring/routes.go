@@ -36,6 +36,7 @@ import (
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/programlibrary"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/researchbudget"
 	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/runreport"
 	"agent-manager/internal/storage"
@@ -102,6 +103,7 @@ type RouteDependencies struct {
 	WorkspaceSandbox interface {
 		IsAvailable(context.Context) (bool, string)
 	}
+	ProviderReadiness handlers.ProviderReadinessReader
 }
 
 // SetupRoutes registers the complete HTTP surface. It intentionally owns only
@@ -130,6 +132,9 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		// middleware asks it to raise the operator decision (idempotent, capped).
 		router.Use(handlers.StandingGrantMiddleware(standingAuthority, deps.Orchestrator))
 	}
+	if deps.DB != nil {
+		handlers.RegisterResearchBudgetIngestion(router, researchbudget.Ledger{DB: deps.DB})
+	}
 	if deps.Orchestrator != nil {
 		router.Use(handlers.OperationApprovalMiddleware(deps.Orchestrator))
 	}
@@ -142,6 +147,9 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	if deps.LifecycleService != nil {
 		path, handler := commonconnect.NewLifecycleMaintenanceServiceHandler(deps.LifecycleService)
 		connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: lifecycle.LoopbackOnly(handler)})
+	}
+	if deps.ProviderReadiness != nil {
+		router.HandleFunc("/api/v1/provider-readiness", handlers.ProviderReadinessHandler(deps.ProviderReadiness)).Methods(http.MethodGet)
 	}
 
 	healthHandler := withLifecycleRefusalObservation(health.New().
@@ -301,6 +309,13 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 					err := ReconcileDecisionEventSubscription(ctx, "http://127.0.0.1:"+port+handlers.DecisionEventWebhookPath)
 					if err != nil {
 						obs.Component("routes").Warn("decision answer event subscription reconciliation failed; will retry", obs.KeyError, err.Error())
+					}
+					return err
+				},
+				func(ctx context.Context) error {
+					err := ReconcileDecisionContextSubscription(ctx, "http://127.0.0.1:"+port+handlers.DecisionEventWebhookPath)
+					if err != nil {
+						obs.Component("routes").Warn("decision context-request event subscription reconciliation failed; will retry", obs.KeyError, err.Error())
 					}
 					return err
 				},

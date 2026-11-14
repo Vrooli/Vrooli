@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/operatordecision"
+	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // DecisionEventWebhookPath is the notification-hub ask.resolved webhook route.
@@ -49,14 +50,16 @@ func DecisionResolvedWebhook(service *supervision.Service, resolver RunApprovalR
 	// the resolution (handled=false), so it fires for EVERY resolution carrying
 	// an agent-await key regardless of which later effect applies the decision —
 	// and never blocks run-approval / authorization / effort application.
+	var tieBack requesterWakeEffect
 	if waker, ok := resolver.(requesterWaker); ok {
-		effects = append(effects, requesterWakeEffect{waker: waker})
+		tieBack = requesterWakeEffect{waker: waker}
+		effects = append(effects, tieBack)
 	}
 	effects = append(effects, extra...)
 	effects = append(effects,
 		runApprovalEffect{resolver: resolver},
 		authorizationEffect{resolver: resolver},
-		effortDecisionEffect{service: service},
+		effortDecisionEffect{service: service, contexts: contextFinder(service), tieBack: tieBack},
 	)
 	return operatordecision.Webhook(secret, effects...)
 }
@@ -124,11 +127,18 @@ func (e requesterWakeEffect) Apply(ctx context.Context, res operatordecision.Dec
 // run (e.g. a long interactive session whose identity token expired, so no run
 // id was captured). Runs detached from the webhook request.
 func (e requesterWakeEffect) deliverToRequester(parent context.Context, runIDStr, wcSession, awaitKey string, res operatordecision.DecisionResolution) {
+	e.deliver(parent, runIDStr, wcSession, awaitKey,
+		"[operator decision resolved] "+formatDecisionWakeMessage(res),
+		"operator-decision:"+awaitKey+":"+res.State+":"+res.Answer)
+}
+
+// deliver hands a message to the requesting agent by the lanes above: its run,
+// else its web-console session. idemKey dedupes a redelivered message.
+func (e requesterWakeEffect) deliver(parent context.Context, runIDStr, wcSession, awaitKey, message, idemKey string) {
 	defer obs.RecoverToFailure("operator-decision requester delivery", nil)
 	log := obs.Component("operator-decision-wake")
 	ctx, cancel := context.WithTimeout(parent, 90*time.Second)
 	defer cancel()
-	message := "[operator decision resolved] " + formatDecisionWakeMessage(res)
 
 	// Lane 1: by run id. A resolvable run is delivered to by its current state;
 	// an unresolvable one falls through to the stable session-id lane.
@@ -138,7 +148,7 @@ func (e requesterWakeEffect) deliverToRequester(parent context.Context, runIDStr
 		} else if run, gErr := e.waker.GetRun(ctx, runID); gErr != nil {
 			log.Info("tie-back run not found; trying session lane", obs.KeyRunID, runID.String(), obs.KeyError, gErr.Error())
 		} else {
-			e.deliverByRunState(ctx, run, awaitKey, message, res)
+			e.deliverByRunState(ctx, run, awaitKey, message, idemKey)
 			return
 		}
 	}
@@ -155,7 +165,7 @@ func (e requesterWakeEffect) deliverToRequester(parent context.Context, runIDStr
 }
 
 // deliverByRunState delivers to a known run adapting to its current state.
-func (e requesterWakeEffect) deliverByRunState(ctx context.Context, run *domain.Run, awaitKey, message string, res operatordecision.DecisionResolution) {
+func (e requesterWakeEffect) deliverByRunState(ctx context.Context, run *domain.Run, awaitKey, message, idemKey string) {
 	log := obs.Component("operator-decision-wake")
 	runID := run.ID
 	if run.Status == domain.RunStatusParked {
@@ -181,8 +191,7 @@ func (e requesterWakeEffect) deliverByRunState(ctx context.Context, run *domain.
 
 	// Running interactive, terminal, or idle: deliver via ContinueRun — a
 	// mid-turn paste into a live interactive session, or a continuation turn.
-	// A stable idempotency key dedupes a redelivered resolution.
-	idemKey := "operator-decision:" + awaitKey + ":" + res.State + ":" + res.Answer
+	// A stable idempotency key dedupes a redelivery.
 	if _, err := e.waker.ContinueRun(ctx, orchestration.ContinueRunRequest{RunID: runID, Message: message, IdempotencyKey: idemKey}); err != nil {
 		// A running NON-interactive run refuses mid-turn text (platform limit);
 		// not an error worth retrying — the agent should have parked.
@@ -263,7 +272,22 @@ func (e authorizationEffect) Apply(ctx context.Context, res operatordecision.Dec
 // empty-source-event-type resolution. A resolution that matches no effort decision
 // reports handled=false so the webhook returns its ignored response (the
 // pre-substrate "no matching effort decision" acknowledgement).
-type effortDecisionEffect struct{ service *supervision.Service }
+type effortDecisionEffect struct {
+	service *supervision.Service
+	// contexts finds the decision an operator's question is about; nil disables
+	// the responder. It is service.Efforts in production.
+	contexts decisionContextFinder
+	// tieBack hands an operator's question to the run that raised the decision.
+	tieBack requesterWakeEffect
+	// detach runs a delivery off the webhook goroutine; nil means `go`.
+	detach func(func())
+}
+
+// decisionContextFinder is the narrow slice of the effort service the context
+// responder reads.
+type decisionContextFinder interface {
+	PendingDecisionForContextRequest(ctx context.Context, request operatordecision.ContextRequest) (*pb.EffortDecision, error)
+}
 
 func (effortDecisionEffect) Handles(string) bool { return true }
 
@@ -278,4 +302,55 @@ func (e effortDecisionEffect) Apply(ctx context.Context, res operatordecision.De
 	// A nil decision means no effort decision matched (ignored); a non-nil one
 	// means the answer was applied (handled).
 	return decision != nil, nil
+}
+
+// RespondToContext hands the operator's "I need more context" question to the run
+// that raised the decision, by that run's current state (woken if parked,
+// continued otherwise). The decision declared it answers such questions only
+// because a verified run raised it (effortdecision.RequestedEvent); the answer is
+// a revised raise under the same decision id, which updates the operator's ask in
+// place. A question about a decision that is gone, resolved or already revised is
+// acknowledged without delivery, so a redelivery never wakes the run twice.
+func (e effortDecisionEffect) RespondToContext(ctx context.Context, request operatordecision.ContextRequest) (bool, error) {
+	if e.contexts == nil {
+		return false, nil
+	}
+	decision, err := e.contexts.PendingDecisionForContextRequest(ctx, request)
+	if err != nil {
+		return true, err
+	}
+	if decision == nil {
+		return false, nil
+	}
+	if e.tieBack.waker == nil || decision.GetRaisedByRunId() == "" {
+		// Nobody can be asked: the Hub offered the button only because the decision
+		// declared a raiser, so this is a decision raised before that was recorded.
+		return true, nil
+	}
+	detach := e.detach
+	if detach == nil {
+		detach = func(f func()) { go f() }
+	}
+	delivery, message, key := context.WithoutCancel(ctx), formatContextRequestMessage(decision, request), "operator-context-request:"+request.RequestID
+	detach(func() { e.tieBack.deliver(delivery, decision.GetRaisedByRunId(), "", "", message, key) })
+	return true, nil
+}
+
+// contextFinder is the service's effort log, or nil when there is none (a nil
+// *EffortService in an interface would not compare equal to nil).
+func contextFinder(service *supervision.Service) decisionContextFinder {
+	if service == nil || service.Efforts == nil {
+		return nil
+	}
+	return service.Efforts
+}
+
+// formatContextRequestMessage tells the raising agent what the operator asked and
+// the one way to answer: revise the decision.
+func formatContextRequestMessage(d *pb.EffortDecision, request operatordecision.ContextRequest) string {
+	return fmt.Sprintf("[operator asked for more context] Reading your decision %s (%q), the operator asked: %q\n"+
+		"Answer by revising the decision: run `agent-manager effort decision raise %s --id %s` again with the same options and flags, "+
+		"putting the answer in --big-picture or --technical-details. The operator then sees that the decision was updated after their question. "+
+		"Do not raise a new decision id for it.",
+		d.GetDecisionId(), strings.Join(strings.Fields(d.GetQuestion()), " "), strings.TrimSpace(request.Question), d.GetGoalHome(), d.GetDecisionId())
 }

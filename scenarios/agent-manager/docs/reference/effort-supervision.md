@@ -561,7 +561,36 @@ create an operator decision or claim that work was accepted.
 [--deadline 24h] [--dry-run]` stores one record per (goal home, id), publishes
 one `agent_manager.effort.decision_requested.v1` event (notification-hub asks
 the operator once) and adds a `[decision <id>]` item under `## Needs operator`.
-An identical re-raise changes nothing; a changed one is refused (use a new id).
+The goal home is a repository-relative directory, or any absolute directory (a
+research cohort under `~/.vrooli` is keyed by its absolute path); a folder with no
+`STATUS.md` gets no `## Needs operator` item, and its answer is read with
+`effort decision list`. The decision is published under the Hub subject key
+`effort-decision:<goal home>:<id>`, the same model every producer follows: an
+identical re-raise changes nothing, and a **changed re-raise of a pending
+decision revises it in place** (the record keeps its identity and takes the new
+terms, a new event updates the operator's ask without a second push, or replaces
+it when the answer menu changed). The record's `revisedAt` is the last revision and
+the response says `revised`; `createdAt` stays the original raise. `effort decision
+list` shortens a home under `$HOME` to `~/...` (`--json` keeps the stored path). An answered, defaulted, expired or dismissed
+decision cannot be revised; raise the changed question under a new id. A decision
+stored before 2026-11-14 was published without a subject key, so revising it is
+refused for the same reason.
+A decision raised by a verified agent run declares that the operator may ask it
+for more context: Notification Hub then offers "I need more context", delivers
+the question to Agent Manager (its own `agent-manager-decision-context-requests`
+subscription to the same webhook), and Agent Manager hands it to the raising run
+by that run's state (woken if parked on the operator-decision await, continued
+otherwise). The agent answers by re-raising the same id with the answer in
+`--big-picture` or `--technical-details`. A decision raised from an operator
+shell has no run to ask and does not offer the question. Attachments are not part
+of a decision: an event-sourced ask has no verified sender, so the Hub keeps no
+files for it; an agent that needs to attach files asks directly with
+`notification-hub conversations ask --attach`.
+A decision settled outside its phone ask closes that ask: answering it on the
+desktop, or ending the effort it belongs to, queues a `decision_withdrawn.v1`
+for the request's event id (`supervision_decision_withdrawals`, retried each
+tick until Notification Hub takes it). A `withdrawn` hub resolution is never an
+answer and changes nothing.
 A decision menu always has a Notification Hub-provided `Other` choice. The
 operator must enter the alternative in the free-text field; Hub returns the
 stable answer key `other` and the text in the resolution note. Agent Manager

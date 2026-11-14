@@ -134,7 +134,20 @@ func keysFor(by string, turn Turn, run Run) []groupKey {
 		return one(run.ProfileID, run.ProfileName)
 	case ByWorkload:
 		if run.Workload == "" {
-			return one(operatorWorkload, "Operator sessions (no workload)")
+			switch run.Source {
+			case SourceIndexed:
+				if run.ProfileID == operatorProfile {
+					return one(operatorWorkload, "Operator sessions (no workload tag)")
+				}
+				if run.Child {
+					return one("untagged-child", "Indexed child-agent sessions (no workload tag)")
+				}
+				return one("untagged", "Untagged indexed sessions (ownership unknown)")
+			case SourceAgentManager:
+				return one("untagged-agent-manager", "Agent Manager runs (no workload tag)")
+			default:
+				return one("untagged", "Untagged usage (ownership unknown)")
+			}
 		}
 		return one(run.Workload, workloadLabel(run.Workload, run.Workload))
 	case ByModel:

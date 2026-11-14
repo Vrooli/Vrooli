@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "agent-manager",
+  "key": "agent-manager/bounty-scorer",
+  "version": "1.0.0",
+  "description": "Run an independent, read-only scorer over frozen Test Genie receipt facts. Source and answer material are excluded from its contract.",
+  "trigger": {"initiators": ["programmatic"], "selfTrigger": {"mode": "deny"}},
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "caseId": {"type": "string", "minLength": 1, "maxLength": 128},
+      "solverRunId": {"type": "string", "minLength": 1, "maxLength": 128},
+      "frozenEvaluatorDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+      "preimageEvaluatorDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+      "candidateEvaluatorDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+      "referenceEvaluatorDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+      "preimageReceiptDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+      "candidateReceiptDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+      "referenceReceiptDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+      "preimagePassed": {"type": "boolean"},
+      "candidatePassed": {"type": "boolean"},
+      "referencePassed": {"type": "boolean"}
+    },
+    "required": ["caseId", "solverRunId", "frozenEvaluatorDigest", "preimageEvaluatorDigest", "candidateEvaluatorDigest", "referenceEvaluatorDigest", "preimageReceiptDigest", "candidateReceiptDigest", "referenceReceiptDigest", "preimagePassed", "candidatePassed", "referencePassed"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "result": {
+        "type": "object",
+        "properties": {
+          "verdict": {"type": "string", "enum": ["qualifies", "does_not_qualify", "incomplete"]},
+          "reason": {"type": "string", "minLength": 1, "maxLength": 2048}
+        },
+        "required": ["verdict", "reason"],
+        "additionalProperties": false
+      }
+    },
+    "required": ["result"],
+    "additionalProperties": false
+  },
+  "entryNode": "score",
+  "nodes": [
+    {
+      "id": "score",
+      "kind": "run",
+      "run": {
+        "profileKey": "agent-manager/bounty-scorer",
+        "tag": "bounty-replay-scorer",
+        "force": true,
+        "promptRef": {"skillId": "bounty-replay-scorer"},
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "verdict": {"type": "string", "enum": ["qualifies", "does_not_qualify", "incomplete"]},
+              "reason": {"type": "string", "minLength": 1, "maxLength": 2048}
+            },
+            "required": ["verdict", "reason"],
+            "additionalProperties": false
+          }
+        },
+        "bindings": [
+          {"name": "case_id", "source": "workflow_input", "selector": "$.caseId", "limit": 1, "maxBytes": 256, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "solver_run_id", "source": "workflow_input", "selector": "$.solverRunId", "limit": 1, "maxBytes": 256, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "evaluator_digest", "source": "workflow_input", "selector": "$.frozenEvaluatorDigest", "limit": 1, "maxBytes": 256, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "preimage_evaluator_digest", "source": "workflow_input", "selector": "$.preimageEvaluatorDigest", "limit": 1, "maxBytes": 256, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "candidate_evaluator_digest", "source": "workflow_input", "selector": "$.candidateEvaluatorDigest", "limit": 1, "maxBytes": 256, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "reference_evaluator_digest", "source": "workflow_input", "selector": "$.referenceEvaluatorDigest", "limit": 1, "maxBytes": 256, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "preimage_digest", "source": "workflow_input", "selector": "$.preimageReceiptDigest", "limit": 1, "maxBytes": 256, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "candidate_digest", "source": "workflow_input", "selector": "$.candidateReceiptDigest", "limit": 1, "maxBytes": 256, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "reference_digest", "source": "workflow_input", "selector": "$.referenceReceiptDigest", "limit": 1, "maxBytes": 256, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "preimage_passed", "source": "workflow_input", "selector": "$.preimagePassed", "limit": 1, "maxBytes": 32, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "candidate_passed", "source": "workflow_input", "selector": "$.candidatePassed", "limit": 1, "maxBytes": 32, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "reference_passed", "source": "workflow_input", "selector": "$.referencePassed", "limit": 1, "maxBytes": 32, "renderAs": "text", "missingPolicy": "error"}
+        ],
+        "maxTurns": 8,
+        "timeoutSeconds": 300,
+        "sandboxConfig": {
+          "mode": "protected",
+          "manualReview": false,
+          "autoApply": false,
+          "applyOnFailure": false,
+          "networkMode": "none",
+          "writePolicy": {"paths": []}
+        }
+      }
+    },
+    {
+      "id": "complete",
+      "kind": "end",
+      "end": {
+        "status": "succeeded",
+        "bindings": [
+          {"name": "result", "source": "structured_result", "selector": "node=score;$.value", "limit": 1, "maxBytes": 4096, "renderAs": "json", "missingPolicy": "error"}
+        ]
+      }
+    }
+  ],
+  "edges": [{"from": "score", "to": "complete"}],
+  "budgets": {
+    "wallTimeSeconds": 300,
+    "maxTurns": 8,
+    "maxTokens": 50000,
+    "maxChargeMicroUsd": 1000000,
+    "maxNodeAttempts": 1,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 1,
+    "maxWaitSeconds": 1
+  },
+  "metadata": {"feature": "bounty-replay", "owner": "agent-manager", "role": "scorer", "answerAccess": "never", "evidenceOwner": "test-genie"}
+}

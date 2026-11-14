@@ -623,6 +623,17 @@ provider error strings.
 | `failed` | Infrastructure, dispatch, definition, binding, or child execution failed without a valid business result. | Use the typed diagnostic and retryability signal. |
 | `cancelled` | An authorized cancellation won the terminal transition race. | Do not apply a result; a new execution needs a new idempotency intent. |
 
+`WorkflowExecutionStatus.CanTransitionTo` is the status graph and
+`WorkflowExecution.TransitionStatus` is the runtime mutation owner. New
+executions begin `running`; `running` and `waiting` may move between those
+active states, enter `cancelling`, or reach a terminal result. Parent-requested
+cancellation resolves through `cancelling`; a waiting parent may also inherit
+`cancelled` from a child workflow's terminal result. A failed execution may
+return to `running` only through the bounded retry operation. Other terminal
+outcomes are immutable; recovery may commit metadata while retaining the same
+terminal status. SQLite commits verify the source status and version together,
+so a stale candidate cannot win a race after its graph check.
+
 These are workflow execution outcomes only. They do not mirror a consumer
 entity state. Result-selection states (`selected`, `ambiguous`, `unavailable`)
 and structured-validation states (`valid`, `invalid`, `unsupported`,

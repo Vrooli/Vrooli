@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -494,6 +495,39 @@ func TestVerifiedAgentCanWaitForWorkflowExecutionWithoutOpeningMutations(t *test
 			router.ServeHTTP(w, r)
 			if w.Code != tc.wantStatus {
 				t.Fatalf("status=%d want %d body=%s", w.Code, tc.wantStatus, w.Body.String())
+			}
+		})
+	}
+}
+
+func TestVerifiedAgentCanFenceOnlyGitControlTowerMessageWorkflows(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		owner      string
+		workflow   string
+		wantStatus int
+	}{
+		{name: "staged message", owner: "git-control-tower", workflow: "git-control-tower/staged-message", wantStatus: http.StatusNoContent},
+		{name: "deep staged message", owner: "git-control-tower", workflow: "git-control-tower/staged-message-deep", wantStatus: http.StatusNoContent},
+		{name: "other owner", owner: "other", workflow: "git-control-tower/staged-message", wantStatus: http.StatusForbidden},
+		{name: "other workflow", owner: "git-control-tower", workflow: "git-control-tower/arbitrary", wantStatus: http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body, err := json.Marshal(map[string]string{"owner": tc.owner, "workflowKey": tc.workflow, "idempotencyKey": "fixture", "operationKey": "cancel/fixture"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			reached := false
+			handler := AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				reached = true
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			request := httptest.NewRequest(http.MethodPost, workflowExecutionCancelByKeyPath, bytes.NewReader(body))
+			request = request.WithContext(identity.WithPrincipal(request.Context(), identity.Principal{Kind: identity.ActorAgent, Subject: "verified-gct", Verified: true}))
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != tc.wantStatus || reached != (tc.wantStatus == http.StatusNoContent) {
+				t.Fatalf("status=%d reached=%t, want %d", response.Code, reached, tc.wantStatus)
 			}
 		})
 	}

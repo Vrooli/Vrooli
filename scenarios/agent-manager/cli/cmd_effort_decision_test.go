@@ -372,3 +372,130 @@ func TestDecisionSyncReadsOlderRecordedPolicyAndRefusesAmbiguityBeforeWrites(t *
 		})
 	}
 }
+
+func cohortFolder(t *testing.T) string {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), "cohorts", "cohort-one")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("# A research cohort\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func cohortRaiseArgs(dir string, extra ...string) []string {
+	return append([]string{
+		"decision", "raise", dir, "--id", "COH-1", "--question", "Keep the second study?",
+		"--option", "keep=Keep it", "--option", "drop=Drop it", "--recommend", "keep",
+	}, extra...)
+}
+
+// A research cohort lives under ~/.vrooli, outside the repository, and has no
+// STATUS.md. Neither is a reason to refuse a decision: it is a key and an event.
+func TestDecisionRaiseWorksInAFolderOutsideTheRepositoryWithNoStatusFile(t *testing.T) {
+	dir := cohortFolder(t)
+	services, server := decisionServer(t, &pb.EffortDecision{GoalHome: dir, DecisionId: "COH-1", State: effortdecision.Pending})
+	output, code := runEffort(t, &App{services: services}, cohortRaiseArgs(dir)...)
+	if code != 0 {
+		t.Fatalf("raise in a cohort folder failed (exit %d):\n%s", code, output)
+	}
+	requests := server.Requests()
+	if len(requests) < 1 || requests[len(requests)-1].Path != apiconnect.AgentManagerServiceRaiseEffortDecisionProcedure {
+		t.Fatalf("the decision must reach Agent Manager: %+v", requests)
+	}
+	var sent pb.RaiseEffortDecisionRequest
+	if err := protojson.Unmarshal([]byte(requests[len(requests)-1].Body), &sent); err != nil {
+		t.Fatal(err)
+	}
+	if sent.GetDecision().GetGoalHome() != dir {
+		t.Fatalf("an outside home is keyed by its absolute directory: %q, want %q", sent.GetDecision().GetGoalHome(), dir)
+	}
+	if _, err := os.Stat(filepath.Join(dir, goalhome.StatusFile)); !os.IsNotExist(err) {
+		t.Fatalf("raising must not create a STATUS.md in a folder that has none: %v", err)
+	}
+	for _, want := range []string{"has no STATUS.md", "effort decision list"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("the output must say where the answer is read; lacks %q:\n%s", want, output)
+		}
+	}
+}
+
+func TestDecisionSyncRecordsAnAnswerInAFolderWithNoStatusFile(t *testing.T) {
+	dir := cohortFolder(t)
+	answered := &pb.EffortDecision{
+		GoalHome: dir, DecisionId: "COH-1", Question: "Keep the second study?", State: effortdecision.Answered, Answer: "keep", AnsweredVia: effortdecision.ViaPhone,
+		Options:     []*pb.EffortDecisionOption{{Key: "keep", Label: "Keep it"}, {Key: "drop", Label: "Drop it"}},
+		Recommended: "keep", AnsweredAt: timestamppb.New(time.Date(2026, 11, 14, 9, 0, 0, 0, time.UTC)), CreatedAt: timestamppb.New(time.Date(2026, 11, 14, 8, 0, 0, 0, time.UTC)),
+	}
+	services, _ := decisionServer(t, answered)
+	output, code := runEffort(t, &App{services: services}, "decision", "sync", dir)
+	if code != 0 {
+		t.Fatalf("sync in a cohort folder failed (exit %d):\n%s", code, output)
+	}
+	feedback, err := os.ReadFile(filepath.Join(dir, goalhome.FeedbackFile))
+	if err != nil || !strings.Contains(string(feedback), "COH-1") {
+		t.Fatalf("the answer must be recorded in FEEDBACK.md: %v\n%s", err, feedback)
+	}
+	if _, err := os.Stat(filepath.Join(dir, goalhome.StatusFile)); !os.IsNotExist(err) {
+		t.Fatalf("sync must not create a STATUS.md: %v", err)
+	}
+}
+
+func TestDecisionRaiseNamesTheRevisionWhenAPendingDecisionIsChanged(t *testing.T) {
+	dir := cohortFolder(t)
+	before := &pb.EffortDecision{GoalHome: dir, DecisionId: "COH-1", State: effortdecision.Pending, EventId: "event-1", Question: "Keep the second study?"}
+	after := &pb.EffortDecision{GoalHome: dir, DecisionId: "COH-1", State: effortdecision.Pending, EventId: "event-2", Question: "Keep the second study, given the new data?"}
+	server := clitest.NewRecordingServerForRequests(t, func(r clitest.Request) string {
+		var message proto.Message = &pb.EffortDecision{}
+		switch r.Path {
+		case apiconnect.AgentManagerServiceListEffortDecisionsProcedure:
+			message = &pb.ListEffortDecisionsResponse{Decisions: []*pb.EffortDecision{before}}
+		case apiconnect.AgentManagerServiceRaiseEffortDecisionProcedure:
+			message = &pb.RaiseEffortDecisionResponse{Decision: after, Published: true, Revised: true}
+		}
+		body, err := protojson.Marshal(message)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(body)
+	})
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
+	}, nil)
+	output, code := runEffort(t, &App{services: NewServices(api)}, cohortRaiseArgs(dir)...)
+	if code != 0 {
+		t.Fatalf("revising failed (exit %d):\n%s", code, output)
+	}
+	for _, want := range []string{"revised in place", "updates the operator's ask in place"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("the output must say the decision was revised; lacks %q:\n%s", want, output)
+		}
+	}
+}
+
+func TestDecisionRaiseExplainsADefaultThatIsNotReversible(t *testing.T) {
+	dir := cohortFolder(t)
+	services, server := decisionServer(t)
+	err := (&App{services: services}).cmdEffort(cohortRaiseArgs(dir, "--default", "keep"))
+	if err == nil || !strings.Contains(err.Error(), "--default needs --reversible") || len(server.Requests()) != 0 {
+		t.Fatalf("a default without --reversible must be refused in plain words before any request: %v (%d requests)", err, len(server.Requests()))
+	}
+}
+
+func TestDecisionLineShowsACohortHomeUnderTheUsersHomeReadably(t *testing.T) {
+	user := t.TempDir()
+	t.Setenv("HOME", user)
+	for home, want := range map[string]string{
+		filepath.Join(user, ".vrooli", "research", "cohort-1"): "COH-1  ~/.vrooli/research/cohort-1  pending",
+		"/srv/elsewhere/cohort-2":                              "COH-1  /srv/elsewhere/cohort-2  pending",
+		"scenarios/agent-manager":                              "COH-1  scenarios/agent-manager  pending",
+		user + "-sibling/cohort":                               "COH-1  " + user + "-sibling/cohort  pending",
+	} {
+		line := decisionLine(&pb.EffortDecision{GoalHome: home, DecisionId: "COH-1", State: effortdecision.Pending, Question: "Keep it?"})
+		if !strings.HasPrefix(line, want) {
+			t.Errorf("home %q: line %q does not start with %q", home, line, want)
+		}
+	}
+}

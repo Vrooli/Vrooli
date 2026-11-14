@@ -49,6 +49,15 @@ func NewModelRegistryWithConfig(cfg *config.Config) *ModelRegistry {
 	}
 }
 
+// NewModelRegistryWithModels creates a registry with an already available
+// catalog. It supports startup paths and endpoint tests that own their model
+// source without invoking the external resource CLI.
+func NewModelRegistryWithModels(models []integrations.ModelInfo) *ModelRegistry {
+	registry := NewModelRegistry()
+	registry.replaceModels(models)
+	return registry
+}
+
 // RefreshModels fetches fresh model data from resource-openrouter CLI.
 // This is typically called on startup and when cache expires.
 func (r *ModelRegistry) RefreshModels(ctx context.Context) error {
@@ -58,6 +67,11 @@ func (r *ModelRegistry) RefreshModels(ctx context.Context) error {
 	}
 
 	// Build lookup map
+	r.replaceModels(models)
+	return nil
+}
+
+func (r *ModelRegistry) replaceModels(models []integrations.ModelInfo) {
 	modelMap := make(map[string]*integrations.ModelInfo, len(models))
 	for i := range models {
 		modelMap[models[i].ID] = &models[i]
@@ -69,9 +83,7 @@ func (r *ModelRegistry) RefreshModels(ctx context.Context) error {
 	r.modelList = models
 	r.cacheTime = time.Now()
 	r.mu.Unlock()
-
 	log.Printf("[INFO] Model registry refreshed: %d models cached", len(models))
-	return nil
 }
 
 // GetModels returns all cached models, refreshing if cache is stale.

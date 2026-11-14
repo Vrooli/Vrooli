@@ -100,6 +100,38 @@ func TestFailWithErrorRetriesTerminalRunPersistence(t *testing.T) {
 	}
 }
 
+func TestHandleFailurePersistsOnlyDefinitivePrelaunchMaintenanceReceipt(t *testing.T) {
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	task := &domain.Task{ID: uuid.New(), Title: "maintenance refusal", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(t.Context(), task); err != nil {
+		t.Fatal(err)
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, RunMode: domain.RunModeInPlace, Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, ResolvedConfig: domain.DefaultRunConfig()}
+	if err := repos.Runs.Create(t.Context(), run); err != nil {
+		t.Fatal(err)
+	}
+	err := &domain.RunnerError{RunnerType: domain.RunnerTypeCodex, Operation: "execute", Cause: domain.RefuseBeforeEffects(domain.ErrProviderAdmissionMaintenance), ExecutionStartedKnown: true, ExecutionStarted: false}
+	HandleResult(t.Context(), HandleResultInput{Deps: Deps{Runs: repos.Runs}, Run: run, ExecErr: err})
+	persisted, getErr := repos.Runs.Get(t.Context(), run.ID)
+	if getErr != nil {
+		t.Fatal(getErr)
+	}
+	if persisted.StopReason != domain.RunStopReasonProviderMaintenance || persisted.TerminalClass != domain.RunTerminalClassInterruption || persisted.ErrorMsg != "Agent execution is paused for Workspace Sandbox maintenance; no agent work started." {
+		t.Fatalf("persisted provider refusal receipt = status:%q class:%q reason:%q error:%q", persisted.Status, persisted.TerminalClass, persisted.StopReason, persisted.ErrorMsg)
+	}
+	for _, ambiguous := range []*domain.RunnerError{
+		{RunnerType: domain.RunnerTypeCodex, Operation: "execute", Cause: domain.ErrProviderAdmissionMaintenance, ExecutionStartedKnown: false},
+		{RunnerType: domain.RunnerTypeCodex, Operation: "execute", Cause: errors.New("HTTP 409: another conflict"), ExecutionStartedKnown: true},
+		{RunnerType: domain.RunnerTypeCodex, Operation: "execute", Cause: domain.RefuseBeforeEffects(domain.ErrProviderAdmissionMaintenance), ExecutionStartedKnown: true, ExecutionStarted: true},
+		{RunnerType: domain.RunnerTypeCodex, Operation: "execute", Cause: errors.New("provider admission is closed for lifecycle maintenance"), ExecutionStartedKnown: true},
+	} {
+		if ApplyProviderMaintenanceFailureReceipt(&domain.Run{}, ambiguous) {
+			t.Fatalf("ambiguous dispatch error became a definitive no-start receipt: %+v", ambiguous)
+		}
+	}
+}
+
 func TestFailWithErrorDoesNotPublishTerminalStatusWhenPersistenceFails(t *testing.T) {
 	repos, _, cleanup := testutil.SetupTestRepos(t)
 	t.Cleanup(cleanup)

@@ -50,6 +50,24 @@ func NormalizeGoalHome(home string) (string, error) {
 	return cleaned, nil
 }
 
+// NormalizeDecisionHome cleans the key a decision is stored under. It is a
+// repository-relative goal home, or the absolute directory of a home kept outside
+// the repository (a research cohort under ~/.vrooli): a decision never reads the
+// home, it only names it, so its key may live anywhere. An absolute path with a
+// "." or ".." element is refused.
+func NormalizeDecisionHome(home string) (string, error) {
+	trimmed := filepath.ToSlash(strings.TrimSpace(home))
+	trimmed = strings.TrimSuffix(strings.TrimPrefix(trimmed, "path:"), "/"+goalhome.GoalFile)
+	trimmed = strings.TrimSuffix(trimmed, "/"+goalhome.CharterFile)
+	if !path.IsAbs(trimmed) {
+		return NormalizeGoalHome(home)
+	}
+	if cleaned := path.Clean(trimmed); cleaned != "/" && strings.TrimSuffix(trimmed, "/") == cleaned {
+		return cleaned, nil
+	}
+	return "", fmt.Errorf("goal home %q must be an absolute directory without . or .. elements", trimmed)
+}
+
 // View converts the record to the goal-home view the renderers use.
 func View(d *pb.EffortDecision) goalhome.Decision {
 	view := goalhome.Decision{
@@ -84,30 +102,46 @@ func timestampTime(value *timestamppb.Timestamp) time.Time {
 	return value.AsTime()
 }
 
+// SubjectKey is the Hub subject key of a decision: one open Hub decision per
+// (goal home, decision id), so a revised decision updates its ask in place and a
+// withdrawal or an operator question finds it by the same name.
+func SubjectKey(goalHome, decisionID string) string {
+	return operatordecision.SubjectKeyFrom("effort-decision:" + goalHome + ":" + decisionID)
+}
+
 // RequestedEvent rebuilds the decision_requested event from the stored
 // record alone, so a retry publishes byte-identical content and the same id.
+//
+// The decision declares it answers the operator's "I need more context" question
+// only when a verified run raised it: that run is who Agent Manager hands the
+// question to, and the answer is a revised raise under the same decision id.
 func RequestedEvent(d *pb.EffortDecision) eventbus.DomainEvent {
 	subject := d.GetGoalHome()
-	if parts := strings.Split(subject, "/"); len(parts) > 1 && parts[0] == "scenarios" {
+	switch parts := strings.Split(subject, "/"); {
+	case path.IsAbs(subject):
+		subject = path.Base(subject)
+	case len(parts) > 1 && parts[0] == "scenarios":
 		subject = parts[1]
 	}
 	correlation := map[string]string{"goal_home": d.GetGoalHome(), "decision_id": d.GetDecisionId()}
 	if d.GetEffortRef() != "" {
 		correlation["effort_ref"] = d.GetEffortRef()
 	}
-	payload := View(d).RequestPayload(subject, correlation)
-	// Preserve the producer's existing note as the legacy technical-context
-	// fallback. Explicit technical details win. AnswerNote belongs to the reply.
-	if strings.TrimSpace(d.GetTechnicalDetails()) == "" {
-		if note := strings.TrimSpace(d.GetNote()); note != "" {
-			payload["technical_details"] = note
-		}
+	facts := View(d).Facts(subject, correlation)
+	facts.SubjectKey = SubjectKey(d.GetGoalHome(), d.GetDecisionId())
+	facts.AcceptsContextRequests = d.GetRaisedByRunId() != ""
+	// A revision is a new assertion, so its event is stamped with the revision
+	// time: it differs from every earlier event even when the text returns to an
+	// earlier revision, and the Hub never mistakes it for a redelivery.
+	occurred := d.GetCreatedAt()
+	if d.GetRevisedAt() != nil {
+		occurred = d.GetRevisedAt()
 	}
 	return eventbus.DomainEvent{
 		Source:    Source,
 		EventType: goalhome.DecisionRequestedEventType,
-		Occurred:  d.GetCreatedAt().AsTime().UTC(),
-		Payload:   payload,
+		Occurred:  occurred.AsTime().UTC(),
+		Payload:   facts.Payload(),
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -137,6 +138,9 @@ type windowOffer struct {
 	RemindAt time.Time `json:"remind_at,omitempty"`
 	Gen      int       `json:"gen"`
 	Runner   string    `json:"runner"`
+	// Reopen lets the next run-out projection raise a fresh decision after the
+	// previous one was withdrawn because the window recovered.
+	Reopen bool `json:"reopen,omitempty"`
 }
 
 type endedNotice struct {
@@ -332,6 +336,9 @@ func (n *Notifier) alreadyAsked(id string, now time.Time) bool {
 	if ask == nil {
 		return false
 	}
+	if legacyAsk(ask) {
+		return false // published without a subject key: raise it again under one
+	}
 	return !(ask.State == operatordecision.PendingStatePending && !ask.Published && ask.Outstanding(now))
 }
 
@@ -397,12 +404,12 @@ func (n *Notifier) offerExhaust(ctx context.Context, f usageforecast.Forecast, p
 	st := n.load()
 	scope := w.Scope()
 	offer := st.Offers[scope]
-	if offer != nil && now.Before(offer.ResetAt) && !reminder {
+	if offer != nil && now.Before(offer.ResetAt) && !reminder && !offer.Reopen {
 		if offer.Declined || !offer.RemindAt.IsZero() {
 			return nil
 		}
 		// Already offered this period: only an unpublished ask is retried.
-		if ask := st.Asks[operatordecision.CorrelationID("umx", scope, strconv.Itoa(offer.Gen))]; ask == nil || ask.Published || !ask.Outstanding(now) {
+		if ask := st.Asks[operatordecision.CorrelationID("umx", scope, strconv.Itoa(offer.Gen))]; !legacyAsk(ask) && (ask == nil || ask.Published || !ask.Outstanding(now)) {
 			return nil
 		}
 	}
@@ -410,6 +417,7 @@ func (n *Notifier) offerExhaust(ctx context.Context, f usageforecast.Forecast, p
 		offer = &windowOffer{ResetAt: w.ResetAt.UTC(), Runner: runner}
 		st.Offers[scope] = offer
 	}
+	offer.Reopen = false
 	id := operatordecision.CorrelationID("umx", scope, strconv.Itoa(offer.Gen))
 	title := usagelabel.Title(w.Provider, w.Window, w.WindowMinutes)
 	facts := operatordecision.Facts{
@@ -431,8 +439,7 @@ func (n *Notifier) offerExhaust(ctx context.Context, f usageforecast.Forecast, p
 			"kind": KindRunsOut, "decision_id": id, "scope": scope, "runner": runner, "until": until,
 		},
 	}
-	_, err := n.raiser().Raise(ctx, pendingAskFor(id, subjectFor(KindRunsOut, runner), facts.Correlation, nil), facts)
-	if err != nil {
+	if err := n.raise(ctx, n.raiser(), id, subjectFor(KindRunsOut, runner), facts, nil); err != nil {
 		return err
 	}
 	return n.save()
@@ -475,7 +482,7 @@ func (n *Notifier) AskToStart(ctx context.Context, runner string, length time.Du
 	}
 	// The cap is per runner and small: an agent may ask, but it cannot fill the
 	// operator's inbox.
-	if _, err := n.raiserCap(MaxOutstandingTimedAsks).Raise(ctx, pendingAskFor(id, subjectFor(KindTimed, runner), facts.Correlation, nil), facts); err != nil {
+	if err := n.raise(ctx, n.raiserCap(MaxOutstandingTimedAsks), id, subjectFor(KindTimed, runner), facts, nil); err != nil {
 		return "", err
 	}
 	return id, n.save()
@@ -526,6 +533,11 @@ func (n *Notifier) Apply(ctx context.Context, res operatordecision.DecisionResol
 		ask.ResolvedAt = &at
 		ask.Extra["answer"], ask.Extra["note"] = res.Answer, note
 		return true, n.save()
+	}
+	if res.State == operatordecision.StateWithdrawn {
+		// The hub closed the decision (replaced, or no longer confirmed). It is no
+		// answer and never starts, extends or ends a mode.
+		return finish(operatordecision.PendingStateWithdrawn, "withdrawn")
 	}
 	if res.State != operatordecision.StateAnswered {
 		return finish(operatordecision.PendingStateRejected, "no answer: "+res.State)
@@ -699,7 +711,8 @@ func (n *Notifier) Flush(ctx context.Context, forecasts []usageforecast.Forecast
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	st := n.load()
-	var errs []error
+	// Close decisions whose situation has cleared before anything new is raised.
+	errs := n.reconcileAsks(ctx, forecasts, now)
 	keptEnded := st.Ended[:0]
 	for _, e := range st.Ended {
 		if err := n.notice(ctx, now, usageforecast.NotificationCategoryModeEnded, "low", e.Label+" ended", e.Line, "mode-ended|"+e.ID, ""); err != nil {
@@ -821,8 +834,8 @@ func (n *Notifier) raiseEnding(ctx context.Context, m usagemode.Mode, left time.
 		ContextURL:  n.link(ctx, ""),
 		Correlation: map[string]string{"kind": KindEnding, "decision_id": id, "mode_id": m.ID, "extend_to": to},
 	}
-	_, err := n.raiser().Raise(ctx, pendingAskFor(id, subjectFor(KindEnding, m.Scope.Runner), facts.Correlation, nil), facts)
-	return err
+	return n.raise(ctx, n.raiser(), id, subjectFor(KindEnding, m.Scope.Runner), facts,
+		map[string]string{"label": m.Label, "expires_at": m.ExpiresAt.UTC().Format(time.RFC3339)})
 }
 
 func (n *Notifier) raiseUntilOff(ctx context.Context, m usagemode.Mode, count int, now time.Time) error {
@@ -830,17 +843,94 @@ func (n *Notifier) raiseUntilOff(ctx context.Context, m usagemode.Mode, count in
 	if n.alreadyAsked(id, now) {
 		return nil
 	}
-	hours := int(now.Sub(m.StartedAt).Hours())
 	facts := operatordecision.Facts{
-		Subject:     m.Label + " is still on",
-		Question:    fmt.Sprintf("%s has run for %d hours with no end time. Keep it on, or turn it off?", m.Label, hours),
-		Options:     []operatordecision.Option{{Key: AnswerKeepOn, Label: "Keep it on"}, {Key: AnswerTurnOf, Label: "Turn off"}},
-		Recommended: AnswerKeepOn, Reversible: true, Urgency: "low",
+		Subject:  m.Label + " is still on",
+		Question: fmt.Sprintf("%s has been on for %s with no end time. Keep it on, or turn it off?", m.Label, onFor(now.Sub(m.StartedAt))),
+		Options: []operatordecision.Option{
+			{Key: AnswerKeepOn, Label: "Keep it on — nothing changes"},
+			{Key: AnswerTurnOf, Label: "Turn it off — new work goes back to the usual models"},
+		},
+		Recommended:          AnswerKeepOn,
+		RecommendationReason: "Keeping it on changes nothing and saves quota; turn it off only if cheaper models are hurting the work.",
+		BigPicture:           untilOffBigPicture(m),
+		TechnicalDetails:     untilOffDetails(m),
+		Reversible:           true, Urgency: "low",
 		ContextURL:  n.link(ctx, ""),
 		Correlation: map[string]string{"kind": KindUntilOf, "decision_id": id, "mode_id": m.ID},
 	}
-	_, err := n.raiser().Raise(ctx, pendingAskFor(id, subjectFor(KindUntilOf, m.Scope.Runner), facts.Correlation, nil), facts)
-	return err
+	return n.raise(ctx, n.raiser(), id, subjectFor(KindUntilOf, m.Scope.Runner), facts, map[string]string{"label": m.Label})
+}
+
+// onFor says how long a mode has been on, in hours under two days and in
+// days after.
+func onFor(d time.Duration) string {
+	if hours := int(d.Hours()); hours < 48 {
+		return fmt.Sprintf("%d hours", hours)
+	}
+	return fmt.Sprintf("about %d days", int(d.Hours()+12)/24)
+}
+
+// untilOffBigPicture explains an until-off mode to an operator who has
+// forgotten starting it: what it does, what each answer does, and what
+// happens without one.
+func untilOffBigPicture(m usagemode.Mode) string {
+	who := "new agent work"
+	if m.Scope.Runner != "" {
+		who = "new " + runnerTitle(m.Scope.Runner) + " work"
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "This setting sends %s to cheaper models so your usage quota lasts longer. ", who)
+	fmt.Fprintf(&b, "It was turned on %s and has no end time, so I check with you once a day. ", usageforecast.Stamp(m.StartedAt))
+	if n := len(m.ExemptRoles); n > 0 {
+		fmt.Fprintf(&b, "%d kinds of work are exempt and keep the usual models (listed in the technical details). ", n)
+	}
+	b.WriteString("Keep it on and nothing changes. Turn it off and new work goes back to the usual, stronger models, which use quota faster. ")
+	b.WriteString("If you do not answer, it stays on and I ask again tomorrow.")
+	return b.String()
+}
+
+// untilOffDetails is the mode's exact configuration for the agent that acts
+// on the answer.
+func untilOffDetails(m usagemode.Mode) string {
+	lines := []string{
+		"Usage mode " + m.ID + " (" + describe(m) + ")",
+		"Started " + m.StartedAt.UTC().Format(time.RFC3339) + nonEmpty(" by ", m.StartedBy) + "; until off",
+	}
+	runners := make([]string, 0, len(m.Runners))
+	for r := range m.Runners {
+		runners = append(runners, r)
+	}
+	sort.Strings(runners)
+	for _, r := range runners {
+		rs := m.Runners[r]
+		from := make([]string, 0, len(rs.ModelMap))
+		for k := range rs.ModelMap {
+			from = append(from, k)
+		}
+		sort.Strings(from)
+		var maps []string
+		for _, k := range from {
+			maps = append(maps, k+" -> "+rs.ModelMap[k])
+		}
+		line := r + ": " + strings.Join(maps, ", ")
+		line += nonEmpty("; session model ", rs.SessionModel) + nonEmpty("; every model -> ", rs.OverrideModel) + nonEmpty("; effort ", rs.Effort)
+		if rs.ContextLimitTokens > 0 {
+			line += fmt.Sprintf("; context limit %d tokens", rs.ContextLimitTokens)
+		}
+		lines = append(lines, line)
+	}
+	if len(m.ExemptRoles) > 0 {
+		lines = append(lines, "Exempt roles: "+strings.Join(m.ExemptRoles, ", "))
+	}
+	lines = append(lines, "Status: agent-manager usage mode status; end: agent-manager usage mode end "+m.ID)
+	return strings.Join(lines, "\n")
+}
+
+func nonEmpty(prefix, value string) string {
+	if value == "" {
+		return ""
+	}
+	return prefix + value
 }
 
 // checkReach tells the operator once per mode when much of the burn since it

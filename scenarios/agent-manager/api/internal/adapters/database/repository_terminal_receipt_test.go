@@ -142,7 +142,14 @@ func TestTerminalReceiptNoBackfillOrImportedCapture(t *testing.T) {
 			if kind == "needs_review" {
 				status = domain.RunStatusNeedsReview
 			}
-			finishReceiptRun(t, r, run, status)
+			if kind == "terminal_correction" {
+				run.Status = domain.RunStatusFailed
+				if e := r.Runs.Update(t.Context(), run); e == nil {
+					t.Fatal("terminal status correction unexpectedly succeeded")
+				}
+			} else {
+				finishReceiptRun(t, r, run, status)
+			}
 			if receiptCount(t, db) != 0 {
 				t.Fatal("unqualified row gained receipt")
 			}
@@ -209,7 +216,10 @@ func TestTerminalReceiptReplayContinuationCorrectionAndDeletion(t *testing.T) {
 	if e := r.Runs.Update(t.Context(), run); e != nil {
 		t.Fatal(e)
 	}
-	finishReceiptRun(t, r, run, domain.RunStatusFailed)
+	run.Status = domain.RunStatusFailed
+	if e := r.Runs.Update(t.Context(), run); e == nil {
+		t.Fatal("completed invocation accepted a terminal outcome rewrite")
+	}
 	if receiptCount(t, db) != 1 {
 		t.Fatal("terminal correction created receipt")
 	}
@@ -218,7 +228,7 @@ func TestTerminalReceiptReplayContinuationCorrectionAndDeletion(t *testing.T) {
 	run.Status = domain.RunStatusRunning
 	run.InteractiveInvocationStartedAt = &next
 	run.EndedAt = nil
-	if e := r.Runs.UpdateInteractiveContinuation(t.Context(), run, domain.RunStatusFailed, prior); e != nil {
+	if e := r.Runs.UpdateInteractiveContinuation(t.Context(), run, domain.RunStatusComplete, prior); e != nil {
 		t.Fatal(e)
 	}
 	finishReceiptRun(t, r, run, domain.RunStatusComplete)

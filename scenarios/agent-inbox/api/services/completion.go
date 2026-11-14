@@ -25,7 +25,7 @@ func NewToolExecutionResult(toolCallID, toolName string, record *domain.ToolCall
 	result := domain.ToolExecutionResult{
 		ToolCallID: toolCallID,
 		ToolName:   toolName,
-		Status:     record.Status,
+		Status:     string(record.Status),
 	}
 	if err != nil {
 		result.Error = err.Error()

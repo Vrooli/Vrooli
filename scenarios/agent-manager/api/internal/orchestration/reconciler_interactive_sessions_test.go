@@ -349,15 +349,16 @@ func TestReconcilerKeepsUnpublishedSessionDuringLongLaunch(t *testing.T) {
 			// The clock advanced beyond retention while the real substrate is still
 			// in launch; the reserved relation must already be durable.
 			stats := f.reconciler.RunOnce(t.Context())
-			got := f.sessions.archivedIDs() // before cancellation intentionally stops its own session
+			got := f.sessions.archivedIDs() // The retention sweep must not stop a live launch.
 			cancel()
 			<-done
 			stored, err := f.repos.Runs.Get(t.Context(), run.ID)
 			if err != nil || stored.WebConsoleSessionID == "" {
 				t.Fatalf("cancel lost durable identity: %+v err=%v", stored, err)
 			}
-			if delay == "Create" && len(f.sessions.archivedIDs()) != 0 {
-				t.Fatal("ambiguous canceled Create cleaned up an unacknowledged session")
+			archived := f.sessions.archivedIDs()
+			if !slices.Equal(archived, []string{stored.WebConsoleSessionID}) {
+				t.Fatalf("canceled launch cleanup = %v, want only its exact reserved session %q", archived, stored.WebConsoleSessionID)
 			}
 			if len(got) != 0 || stats.InteractiveSessionsReleased != 0 {
 				t.Fatalf("legitimate unpublished launch archived beyond retention: sessions=%v stats=%+v", got, stats)

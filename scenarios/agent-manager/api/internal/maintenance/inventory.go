@@ -3,6 +3,7 @@ package maintenance
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -121,7 +122,9 @@ func (r *InventoryReader) observe(parent context.Context, activity bool) (Invent
 			state.ObservedAt = r.now().UTC()
 		}
 	}
-	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
+	// Executor-scope owns a bounded 20s host proof. The inventory needs a small
+	// response margin to preserve its exact per-run report or classify timeout.
+	ctx, cancel := context.WithTimeout(parent, 25*time.Second)
 	defer cancel()
 	if r == nil || r.db == nil || (r.physical == nil && r.batchPhysical == nil) {
 		return state, fmt.Errorf("durable and physical inventory observers are required")
@@ -138,14 +141,16 @@ func (r *InventoryReader) observe(parent context.Context, activity bool) (Invent
 		ref                  ExecutorRef
 		logical              bool
 		importedFinalization bool
+		attached             bool
 	}
-	rows, err := r.db.QueryContext(ctx, `WITH candidates(id,kind,status,pid,pgid,logical,imported_finalization) AS (
+	rows, err := r.db.QueryContext(ctx, `WITH candidates(id,kind,status,pid,pgid,logical,imported_finalization,attached) AS (
  SELECT id,'run',COALESCE(status,'unknown'),COALESCE(runner_pid,0),COALESCE(runner_pgid,0),
  CASE WHEN (status IN ('complete','failed','cancelled','needs_review') OR execution_mode='imported') AND COALESCE(finalization_status,'none') NOT IN ('pending','running') THEN 0 ELSE 1 END,
- COALESCE(execution_mode,'')='imported' AND COALESCE(finalization_status,'none') IN ('pending','running')
+ COALESCE(execution_mode,'')='imported' AND COALESCE(finalization_status,'none') IN ('pending','running'),
+ COALESCE(execution_mode,'')='attached'
  FROM runs WHERE (COALESCE(execution_mode,'') <> 'imported' AND (status IS NULL OR status NOT IN ('complete','failed','cancelled','needs_review') OR runner_pid>0 OR runner_pgid>0)) OR finalization_status IN ('pending','running')
- UNION ALL SELECT id,'workflow',status,0,0,1,0 FROM workflow_executions WHERE status NOT IN ('succeeded','blocked','abstained','budget_exhausted','failed','cancelled')
- ) SELECT id,kind,status,pid,pgid,logical,imported_finalization FROM candidates ORDER BY kind,id`)
+ UNION ALL SELECT id,'workflow',status,0,0,1,0,0 FROM workflow_executions WHERE status NOT IN ('succeeded','blocked','abstained','budget_exhausted','failed','cancelled')
+) SELECT id,kind,status,pid,pgid,logical,imported_finalization,attached FROM candidates ORDER BY kind,id`)
 	if err != nil {
 		return state, fmt.Errorf("durable drain inventory: %w", err)
 	}
@@ -157,11 +162,12 @@ func (r *InventoryReader) observe(parent context.Context, activity bool) (Invent
 	count := 0
 	var physicalRefs []ExecutorRef
 	logicalRefs := map[string]bool{}
-	physicalCount := 0
 	unobservedLogical := 0
+	const unobservedLogicalIDLimit = 64
+	unobservedLogicalIDs := make([]string, 0, unobservedLogicalIDLimit)
 	for rows.Next() {
 		var c candidate
-		if err := rows.Scan(&c.ref.ID, &c.ref.Kind, &c.ref.Status, &c.ref.PID, &c.ref.PGID, &c.logical, &c.importedFinalization); err != nil {
+		if err := rows.Scan(&c.ref.ID, &c.ref.Kind, &c.ref.Status, &c.ref.PID, &c.ref.PGID, &c.logical, &c.importedFinalization, &c.attached); err != nil {
 			return state, err
 		}
 		if err := ctx.Err(); err != nil {
@@ -179,15 +185,15 @@ func (r *InventoryReader) observe(parent context.Context, activity bool) (Invent
 		if activity && !c.importedFinalization && c.ref.Kind == "run" && (c.ref.Status == "pending" || c.ref.Status == "starting") {
 			state.LogicalQueuedRuns++
 		}
-		if activity && !c.importedFinalization && c.logical && c.ref.Kind == "run" && c.ref.PID <= 0 && c.ref.PGID <= 0 {
+		if activity && !c.importedFinalization && c.logical && c.ref.Kind == "run" && !c.attached && c.ref.PID <= 0 && c.ref.PGID <= 0 {
 			unobservedLogical++
-		}
-		if !c.importedFinalization && (c.ref.PID > 0 || c.ref.PGID > 0) {
-			physicalCount++
-			if len(physicalRefs) < executorScopeMaxReferences {
-				physicalRefs = append(physicalRefs, c.ref)
-				logicalRefs[c.ref.ID] = c.logical
+			if len(unobservedLogicalIDs) < unobservedLogicalIDLimit {
+				unobservedLogicalIDs = append(unobservedLogicalIDs, c.ref.ID)
 			}
+		}
+		if !c.importedFinalization && (c.ref.PID > 0 || c.ref.PGID > 0 || (c.attached && c.ref.Kind == "run")) {
+			physicalRefs = append(physicalRefs, c.ref)
+			logicalRefs[c.ref.ID] = c.logical
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -197,15 +203,23 @@ func (r *InventoryReader) observe(parent context.Context, activity bool) (Invent
 		return state, err
 	}
 	if activity && unobservedLogical > 0 {
-		state.Unknown = append(state.Unknown, fmt.Sprintf("%d logical native run records lack physical executor evidence; total activity is unknown", unobservedLogical))
+		encodedIDs, marshalErr := json.Marshal(unobservedLogicalIDs)
+		if marshalErr != nil {
+			return state, fmt.Errorf("encode unobserved logical run IDs: %w", marshalErr)
+		}
+		omittedIDs := unobservedLogical - len(unobservedLogicalIDs)
+		diagnostic := fmt.Sprintf("%d logical native run records lack persisted PID/PGID and need owner reconciliation; ids=%s; omitted_ids=%d; total activity is unknown", unobservedLogical, encodedIDs, omittedIDs)
+		if len(state.Unknown) < 64 {
+			state.Unknown = append(state.Unknown, diagnostic)
+		} else {
+			// Keep the established 64-entry response bound while retaining the
+			// actionable identity diagnostic alongside the last existing cause.
+			state.Unknown[63] += "; additionally: " + diagnostic
+		}
 	}
-	// One host snapshot per inventory attachment, not one scan per row/page.
-	// A genuine protocol capacity limit is explicit and cannot become empty proof.
-	if physicalCount > executorScopeMaxReferences {
-		message := fmt.Sprintf("%d physical references exceed executor-scope capacity %d; control-plane batched capacity is required", physicalCount, executorScopeMaxReferences)
-		state.Unknown = append(state.Unknown, message)
-		return state, fmt.Errorf("%s", message)
-	}
+	// Keep the complete SQL inventory for one root-owner request. The root CLI
+	// pages internally against one host snapshot; truncating retained physical
+	// history or splitting it into separate host observations would weaken proof.
 	if len(physicalRefs) > 0 {
 		var evidence []ExecutorEvidence
 		var err error
@@ -240,7 +254,10 @@ func (r *InventoryReader) observe(parent context.Context, activity bool) (Invent
 					state.Executors = append(state.Executors, item)
 				}
 			}
-			if !ok && len(state.Unknown) < 64 {
+			// A failed batch is one owner-level unknown, not a row-level verdict
+			// that every reference was omitted. Keep its actionable cause once
+			// below instead of flooding the projection with missing-ID symptoms.
+			if !ok && err == nil && len(state.Unknown) < 64 {
 				state.Unknown = append(state.Unknown, ref.ID+": control-plane executor evidence missing")
 			}
 		}

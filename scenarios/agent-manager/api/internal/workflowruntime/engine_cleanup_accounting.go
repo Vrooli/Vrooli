@@ -193,7 +193,9 @@ func (e *Engine) rebuildOrdinaryUsage(ctx context.Context, x *domain.WorkflowExe
 		}
 		if requireComplete && attempt.Status != domain.WorkflowAttemptCompleted && attempt.Status != domain.WorkflowAttemptFailed {
 			now := e.now()
-			attempt.Status = domain.WorkflowAttemptFailed
+			if err := attempt.TransitionStatus(domain.WorkflowAttemptFailed); err != nil {
+				return nil, nil, err
+			}
 			if attempt.ErrorCode == "" {
 				attempt.ErrorCode = "cancelled"
 			}

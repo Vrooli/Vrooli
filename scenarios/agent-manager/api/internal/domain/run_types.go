@@ -495,6 +495,10 @@ const (
 	RunStopReasonTimeout     RunStopReason = "timeout"
 	RunStopReasonCrash       RunStopReason = "crash"
 	RunStopReasonSessionLost RunStopReason = "session_lost"
+	// RunStopReasonProviderMaintenance is a definitive pre-launch refusal from
+	// Workspace Sandbox. It is recorded only when the runner proves launch did
+	// not occur and the provider returns its lifecycle-maintenance refusal.
+	RunStopReasonProviderMaintenance RunStopReason = "provider_admission_maintenance"
 	// RunStopReasonTokenCap: Agent Manager stopped the run at its weighted-token
 	// cap (DL-8). The orchestrator treats it as a step-back.
 	RunStopReasonTokenCap RunStopReason = "token_cap"
@@ -507,7 +511,7 @@ func TerminalClassForStopReason(reason RunStopReason) RunTerminalClass {
 	switch reason {
 	case RunStopReasonComplete, RunStopReasonBlocked, RunStopReasonAbstained:
 		return RunTerminalClassVerdict
-	case RunStopReasonUsageWindow, RunStopReasonTimeout, RunStopReasonCrash, RunStopReasonSessionLost, RunStopReasonTokenCap:
+	case RunStopReasonUsageWindow, RunStopReasonTimeout, RunStopReasonCrash, RunStopReasonSessionLost, RunStopReasonTokenCap, RunStopReasonProviderMaintenance:
 		return RunTerminalClassInterruption
 	default:
 		return ""
@@ -754,7 +758,8 @@ type RunAdmission struct {
 	// that created this run. Empty on historical rows predating exact replay.
 	CreateRequestDigest string `json:"createRequestDigest,omitempty"`
 
-	// FrozenIdentityScopes is the original owner/profile/request intersection.
+	// FrozenIdentityScopes is the admitted owner/profile/request intersection,
+	// or the profile/request ceiling for an ownerless private workflow child.
 	// A nil pointer means historical admission has no provable grant ceiling.
 	FrozenIdentityScopes *[]string `json:"frozenIdentityScopes,omitempty"`
 	// Retained task projection, stored privately with RunConfig; never a caller

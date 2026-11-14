@@ -50,6 +50,11 @@ func TestRunBudgetStoresRunBoundTreasuryMandateAndSettlementBenefit(t *testing.T
 	if err := ledger.PutBudget(ctx, conflicting); !errors.Is(err, ErrConflict) {
 		t.Fatalf("changed cap must not rewrite the budget snapshot: %v", err)
 	}
+	conflicting = budget
+	conflicting.CreatedAt = conflicting.CreatedAt.Add(time.Second)
+	if err := ledger.PutBudget(ctx, conflicting); !errors.Is(err, ErrConflict) {
+		t.Fatalf("changed creation time must not rewrite the budget snapshot: %v", err)
+	}
 	settledAt := time.Date(2026, 11, 10, 12, 1, 0, 0, time.UTC)
 	spend := Spend{ID: "spend-1", RunID: "run-1", SettlementID: "settlement-1", TreasuryReceiptID: "receipt-1", IntegrationID: "x402:research-api", Category: "x402_call", AmountMinor: 125, Currency: "USDC", UnitCode: "USDC_ATOMS", ResultRef: "result-1", BenefitState: "measured", BenefitSummary: "Returned 3 verified source records used in the checkpoint", SettledAt: settledAt}
 	if err := ledger.RecordSpend(ctx, spend); err != nil {
@@ -96,5 +101,25 @@ func TestRunSpendRequiresExistingBoundBudgetAndBenefitEvidence(t *testing.T) {
 	spend.BenefitState, spend.BenefitSummary = "pending", ""
 	if err := ledger.RecordSpend(ctx, spend); err == nil {
 		t.Fatal("spend under a different run must be rejected")
+	}
+}
+
+func TestReadRejectsSpendTotalOverflow(t *testing.T) {
+	ctx := context.Background()
+	ledger := testLedger(t)
+	if err := ledger.PutBudget(ctx, Budget{RunID: "run-1", TreasuryBudgetID: "budget-1", MandateID: "mandate-1", AgentSubject: "agent:research", CapMinor: 100, Currency: "USD", UnitCode: "USD_MINOR", PolicyRevision: "policy-1"}); err != nil {
+		t.Fatal(err)
+	}
+	settledAt := time.Date(2026, 11, 14, 1, 0, 0, 0, time.UTC)
+	for _, spend := range []Spend{
+		{ID: "spend-max", RunID: "run-1", SettlementID: "settlement-max", TreasuryReceiptID: "receipt-max", IntegrationID: "x402:first", Category: "x402_call", AmountMinor: int64(1<<63 - 1), Currency: "USD", UnitCode: "USD_MINOR", BenefitState: "none", SettledAt: settledAt},
+		{ID: "spend-overflow", RunID: "run-1", SettlementID: "settlement-overflow", TreasuryReceiptID: "receipt-overflow", IntegrationID: "x402:second", Category: "x402_call", AmountMinor: 1, Currency: "USD", UnitCode: "USD_MINOR", BenefitState: "none", SettledAt: settledAt.Add(time.Second)},
+	} {
+		if err := ledger.RecordSpend(ctx, spend); err != nil {
+			t.Fatalf("RecordSpend(%s): %v", spend.ID, err)
+		}
+	}
+	if _, err := ledger.Read(ctx, "run-1"); err == nil {
+		t.Fatal("run spend total overflow must fail closed rather than wrap")
 	}
 }

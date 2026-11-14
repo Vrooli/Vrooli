@@ -78,8 +78,15 @@ func FailWithError(ctx context.Context, in FailWithErrorInput) FailWithErrorOutp
 	in.Run.Status = domain.RunStatusFailed
 	in.Run.EndedAt = &now
 	in.Run.UpdatedAt = now
+	providerMaintenanceRefusal := ApplyProviderMaintenanceFailureReceipt(in.Run, in.Err)
 
-	if domainErr, ok := in.Err.(domain.DomainError); ok {
+	if providerMaintenanceRefusal {
+		var runnerErr *domain.RunnerError
+		_ = errors.As(in.Err, &runnerErr)
+		safeErr := *runnerErr
+		safeErr.Cause = errors.New(in.Run.ErrorMsg)
+		EmitFailureEvent(ctx, in.Deps, in.Run.ID, &safeErr)
+	} else if domainErr, ok := in.Err.(domain.DomainError); ok {
 		in.Run.ErrorMsg = domainErr.UserMessage()
 		EmitFailureEvent(ctx, in.Deps, in.Run.ID, domainErr)
 	} else {
@@ -103,6 +110,21 @@ func FailWithError(ctx context.Context, in FailWithErrorInput) FailWithErrorOutp
 	}
 
 	return FailWithErrorOutput{Outcome: outcome}
+}
+
+// ApplyProviderMaintenanceFailureReceipt accepts only the runner owner's
+// definitive pre-launch receipt plus Workspace Sandbox's specific refusal.
+// HTTP status alone is ambiguous because a dispatch can be accepted before an
+// acknowledgement is lost.
+func ApplyProviderMaintenanceFailureReceipt(run *domain.Run, err error) bool {
+	var runnerErr *domain.RunnerError
+	if run == nil || !errors.As(err, &runnerErr) || !runnerErr.ExecutionStartedKnown || runnerErr.ExecutionStarted || runnerErr.Cause == nil || !domain.IsPreEffectRefusal(runnerErr.Cause) || !errors.Is(runnerErr.Cause, domain.ErrProviderAdmissionMaintenance) {
+		return false
+	}
+	run.TerminalClass = domain.RunTerminalClassInterruption
+	run.StopReason = domain.RunStopReasonProviderMaintenance
+	run.ErrorMsg = "Agent execution is paused for Workspace Sandbox maintenance; no agent work started."
+	return true
 }
 
 // HandleContextErrorInput is the explicit input to HandleContextError.

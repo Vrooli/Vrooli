@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/eventbus"
@@ -34,6 +35,7 @@ type approvalHarness struct {
 	approvals *Approvals
 	handler   *Handler
 	published *capturePublisher
+	store     *FileAskStore
 	removed   []string
 }
 
@@ -46,6 +48,7 @@ func newApprovalHarness(t *testing.T) *approvalHarness {
 		return os.RemoveAll(p)
 	}
 	store := NewFileAskStore(filepath.Join(filepath.Dir(root), "receipts", "approvals"))
+	h.store = store
 	h.approvals = NewApprovals(h.svc, store, NewApprovalRaiser(store, h.published))
 	h.approvals.run = func(f func()) { f() }
 	owner := func(*http.Request) (string, int, error) { return "", http.StatusUnauthorized, os.ErrPermission }
@@ -248,5 +251,90 @@ func TestAgentRequestRequiresNamedEffortAndReason(t *testing.T) {
 	rec := h.agentPrune(t, `{"efforts":["missing-effort"],"dry_run":false,"reason":"r"}`)
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "nothing_to_prune") || h.published.len() != 0 {
 		t.Fatalf("empty preview = %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func (p *capturePublisher) ofType(suffix string) (out []eventbus.DomainEvent) {
+	for _, e := range p.events {
+		if strings.HasSuffix(e.EventType, suffix) {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+func TestPruneAskIsKeyedPerScope(t *testing.T) {
+	h := newApprovalHarness(t)
+	id := h.raise(t)
+	event := h.published.events[0]
+	if got := event.Payload["subject_key"]; got != "evidence-prune:"+id {
+		t.Fatalf("subject_key = %v, want evidence-prune:%s", got, id)
+	}
+}
+
+func TestAskClosesWhenNothingIsLeftToPrune(t *testing.T) {
+	h := newApprovalHarness(t)
+	ctx := context.Background()
+	id := h.raise(t)
+	// The scope aged out locally and its intermediates were removed another way.
+	ask, _ := h.store.Get(ctx, id)
+	ask.ExpiresAt = ask.RaisedAt.Add(-time.Hour)
+	if err := h.store.Put(ctx, ask); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{"E3/demo/files/data/renderjobs/a/worker", "E3/source/blender-5.2.2-linux-x64.tar.xz"} {
+		if err := os.RemoveAll(filepath.Join(h.root, approvalEffort, rel)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for range 2 {
+		h.agentPrune(t, agentApply)
+	}
+	w := h.published.ofType(".decision_withdrawn.v1")
+	if len(w) != 1 || w[0].Payload["subject_key"] != "evidence-prune:"+id || w[0].Payload["source_event_type"] != ApprovalEventType {
+		t.Fatalf("withdrawals = %+v", w)
+	}
+	if status, _ := h.approvals.Status(ctx, id); status == nil || status.State != operatordecision.PendingStateWithdrawn {
+		t.Fatalf("status = %+v, want withdrawn", status)
+	}
+	if len(h.published.ofType(".decision_requested.v1")) != 1 {
+		t.Fatal("nothing new should have been asked")
+	}
+}
+
+func TestKeylessAskIsClosedByEventIDAndRaisedAgainUnderTheKey(t *testing.T) {
+	h := newApprovalHarness(t)
+	ctx := context.Background()
+	id := h.raise(t)
+	ask, _ := h.store.Get(ctx, id)
+	oldRef := ask.EventID
+	delete(ask.Extra, extraSubjectKey)
+	if err := h.store.Put(ctx, ask); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		h.agentPrune(t, agentApply)
+	}
+	w := h.published.ofType(".decision_withdrawn.v1")
+	if len(w) != 1 || w[0].Payload["requester_ref"] != oldRef || w[0].Payload["subject_key"] != nil {
+		t.Fatalf("the keyless ask must be closed by its event id: %+v", w)
+	}
+	requested := h.published.ofType(".decision_requested.v1")
+	if len(requested) != 2 || requested[1].Payload["subject_key"] != "evidence-prune:"+id {
+		t.Fatalf("the still-needed ask must be raised again under the key: %d", len(requested))
+	}
+}
+
+func TestWithdrawnResolutionPrunesNothing(t *testing.T) {
+	h := newApprovalHarness(t)
+	id := h.raise(t)
+	if handled, err := h.approvals.Apply(context.Background(), resolution(id, operatordecision.StateWithdrawn, "approve", "operator@example.test")); !handled || err != nil {
+		t.Fatalf("apply = %v %v", handled, err)
+	}
+	if len(h.removed) != 0 {
+		t.Fatalf("a withdrawn decision removed %v", h.removed)
+	}
+	if status, _ := h.approvals.Status(context.Background(), id); status == nil || status.State != operatordecision.PendingStateWithdrawn {
+		t.Fatalf("status = %+v", status)
 	}
 }

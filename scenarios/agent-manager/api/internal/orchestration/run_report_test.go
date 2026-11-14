@@ -1,14 +1,42 @@
 package orchestration
 
 import (
+	"context"
+	"database/sql"
 	"testing"
 	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/invocationreadmodel"
+	"agent-manager/internal/researchbudget"
 
 	"github.com/google/uuid"
 )
+
+type reportBudgetLedger struct {
+	summary researchbudget.Summary
+	err     error
+}
+
+func (l reportBudgetLedger) Read(context.Context, string) (researchbudget.Summary, error) {
+	return l.summary, l.err
+}
+
+func TestOrchestratorReportSourceReadsResearchBudgetByRunIdentity(t *testing.T) {
+	id := uuid.New()
+	want := researchbudget.Summary{RunID: id.String(), TreasuryBudgetID: "budget-1", SpendMinor: 25}
+	source := orchestratorReportSource{o: &Orchestrator{researchBudgetLedger: reportBudgetLedger{summary: want}}}
+	got, present, err := source.ResearchBudget(context.Background(), id)
+	if err != nil || !present || got.RunID != want.RunID || got.TreasuryBudgetID != want.TreasuryBudgetID || got.SpendMinor != want.SpendMinor {
+		t.Fatalf("ResearchBudget() = (%+v, %t, %v), want (%+v, true, nil)", got, present, err, want)
+	}
+
+	source.o.researchBudgetLedger = reportBudgetLedger{err: sql.ErrNoRows}
+	got, present, err = source.ResearchBudget(context.Background(), id)
+	if err != nil || present || got.RunID != "" {
+		t.Fatalf("missing budget = (%+v, %t, %v), want zero, false, nil", got, present, err)
+	}
+}
 
 func TestRunProjectionCanonicalTokensMatchTimeAccountingBuckets(t *testing.T) {
 	start := time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)

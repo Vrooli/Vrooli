@@ -25,6 +25,24 @@ exchange cannot resume a stopped child or replace explicit empty authority
 with the parent's capabilities. The API accepts parent credentials only in the
 identity header, never request JSON.
 
+## Workflow child API authority
+
+Agent Manager freezes the API scopes that a run may mint into its admission
+record. An account-owned run is bounded by the account, profile and request
+intersection. A child created only by the private launcher of an admitted
+workflow has no account owner to intersect; in that case its reviewed profile
+scope ceiling and any request narrowing are the authority. Public run creation
+cannot supply the private workflow identity used to select this path. Executor
+and continuation token minting read the frozen scope set so they cannot derive
+different capabilities after creation.
+
+Keep profile scopes empty unless a workflow node must call a scoped scenario
+API. A workflow child's verified execution binding remains mandatory for
+receipt attribution; profile scope alone does not establish workflow ownership.
+
+Regression evidence: `internal/orchestration/run_creation_identity_test.go`
+and `internal/orchestration/workflow_identity_transport_test.go`.
+
 Regression evidence: `internal/orchestration/dependent_delegation_internal_test.go`
 and `internal/orchestration/delegation_test.go`. These tests do not qualify a
 live runner or direct-service/network isolation.

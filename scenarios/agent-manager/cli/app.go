@@ -133,6 +133,7 @@ func (a *App) dependencies() support.Dependencies {
 		Run:              a.cmdRun,
 		RunCommands:      a.runCommands(),
 		UsageCommands:    a.usageCommands(),
+		UsageRunningRuns: a.usageRunningRuns,
 		Runner:           a.cmdRunner,
 		Policy:           a.cmdPolicy,
 		PermissionPolicy: a.cmdPermissionPolicy,
@@ -146,6 +147,50 @@ func (a *App) dependencies() support.Dependencies {
 		Conversation:     a.cmdConversation,
 		ScenarioSmoke:    a.cmdScenarioSmoke,
 	}
+}
+
+// usageRunningRuns reads a complete bounded census of active runs and fresh
+// indexed sessions for the usage-capacity estimate. Indexed transcripts are
+// included only while their owner reports recent activity; stale historical
+// RUNNING labels do not enter the denominator. If more than 10,000 runs are
+// active, fail closed rather than compute rates from a partial denominator.
+func (a *App) usageRunningRuns() ([]*domainpb.Run, error) {
+	const pageSize = 500
+	const maxRuns = 10000
+	all := make([]*domainpb.Run, 0)
+	for _, origin := range []string{"agent_manager", "operator_sessions"} {
+		for offset := 0; offset < maxRuns; offset += pageSize {
+			body, runs, err := a.services.Runs.List(RunListFilter{Limit: pageSize, Offset: offset, Status: "running", Origin: origin})
+			if err != nil {
+				return nil, err
+			}
+			var page apipb.ListRunsResponse
+			if err := unmarshalProtoResponse(body, &page); err != nil {
+				return nil, fmt.Errorf("decode running %s capacity census: %w", origin, err)
+			}
+			for _, run := range runs {
+				if origin == "operator_sessions" && !freshIndexedSession(run, time.Now().UTC()) {
+					continue
+				}
+				all = append(all, run)
+			}
+			if !page.GetHasMore() {
+				break
+			}
+			if offset+pageSize >= maxRuns {
+				return nil, fmt.Errorf("running %s census exceeds %d; refusing a partial capacity denominator", origin, maxRuns)
+			}
+		}
+	}
+	return all, nil
+}
+
+func freshIndexedSession(run *domainpb.Run, now time.Time) bool {
+	if run == nil || run.GetUpdatedAt() == nil {
+		return false
+	}
+	updated := run.GetUpdatedAt().AsTime()
+	return !updated.After(now.Add(time.Minute)) && !updated.Before(now.Add(-10*time.Minute))
 }
 
 func (a *App) runCommands() []cliapp.Command {
@@ -165,7 +210,8 @@ func (a *App) runCommands() []cliapp.Command {
 		{"recent", "Show recent work and evidence-bounded durability", "agent-manager run recent [--limit n] [--json]", a.runRecent},
 		{"result", "Show final-output and structured-result provenance", "agent-manager run result <id>", a.runResult},
 		{"ledger", "Show cross-scenario receipt ledger", "agent-manager run ledger <id> [--with-projections] [--json]", a.runLedger},
-		{"import-transcript", "Adopt an external harness transcript as a read-only run", "agent-manager run import-transcript <path> [--runner type] [--label value] [--json]", a.runImportTranscript},
+		{"import-transcript", "Adopt an external harness transcript as a read-only run", "agent-manager run import-transcript <path> [--runner type] [--label value] [--local-owner] [--json]", a.runImportTranscript},
+		{"assign-workload", "Assign explicit workload attribution to an existing run", "agent-manager run assign-workload <id> --kind kind --key key [--instance value] [--local-owner] [--json]", a.runAssignWorkload},
 		{"import-session-corpus", "Import a bounded, reproducible governed runner-session corpus", "agent-manager run import-session-corpus [--runners codex,claude-code] [--from RFC3339] [--to RFC3339] [--per-month n] [--limit n] [--json]", a.runImportSessionCorpus},
 		{"import-sweep", "Run one Transcript Indexer pass over every transcript root now", "agent-manager run import-sweep [--json]", a.runImportSweep},
 		{"tools", "Show tool calls and failures", "agent-manager run tools <id> [--failed] [--json]", a.runTools},

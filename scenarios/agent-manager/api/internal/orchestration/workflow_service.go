@@ -18,6 +18,7 @@ type WorkflowService interface {
 	ListWorkflowRevisions(context.Context, string, string, ListOptions) ([]*domain.WorkflowRevision, error)
 	GetWorkflowRevision(context.Context, string, string, string) (*domain.WorkflowRevision, error)
 	StartWorkflowExecution(context.Context, StartWorkflowExecutionRequest) (*domain.WorkflowExecution, error)
+	CancelWorkflowExecutionByIdempotencyKey(context.Context, WorkflowExecutionCancelByKeyRequest) (*WorkflowExecutionCancelByKeyResult, error)
 	ListWorkflowExecutions(context.Context, ListWorkflowExecutionsRequest) ([]*domain.WorkflowExecution, error)
 	GetWorkflowExecution(context.Context, uuid.UUID) (*domain.WorkflowExecution, error)
 	AdvanceWorkflowExecution(context.Context, uuid.UUID) (*domain.WorkflowExecution, error)

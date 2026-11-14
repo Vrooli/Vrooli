@@ -397,7 +397,7 @@ func TestGitControlTowerDeepDeclarationAnd4096ResultRespectOwnerBounds(t *testin
 	for i := 0; i < 20; i++ {
 		sources = append(sources, fmt.Sprintf("%03d", i)+strings.Repeat("s", 253))
 	}
-	result := map[string]any{"snapshot_digest": "sha256:complete", "title": strings.Repeat("t", 200), "body": strings.Repeat("b", 6000), "trailers": []any{}, "covered_file_ids": ids, "source_ids": sources, "unknowns": unknowns}
+	result := map[string]any{"snapshot_digest": "sha256:complete", "title": strings.Repeat("t", 200), "body": strings.Repeat("b", 6000), "trailers": []any{}, "covered_file_ids": ids, "source_ids": sources, "unknowns": unknowns, "message_scope": "limited", "message_scope_explanation": "The full inventory remains partially described."}
 	encoded, _ := json.Marshal(result)
 	if err := structuredresult.ValidateValue(definition.Nodes[0].Run.ResultSpec.Schema, encoded); err != nil {
 		t.Fatalf("4096-ID maximum-field result rejected by owner: %d bytes: %v", len(encoded), err)
@@ -405,6 +405,20 @@ func TestGitControlTowerDeepDeclarationAnd4096ResultRespectOwnerBounds(t *testin
 	envelope, _ := json.Marshal(map[string]any{"result": result})
 	if err := structuredresult.ValidateValue(definition.OutputSchema, envelope); err != nil {
 		t.Fatalf("deep end binding rejected by owner: %v", err)
+	}
+	incomplete := map[string]any{}
+	for key, value := range result {
+		incomplete[key] = value
+	}
+	delete(incomplete, "message_scope")
+	delete(incomplete, "message_scope_explanation")
+	incompleteRaw, _ := json.Marshal(incomplete)
+	if err := structuredresult.ValidateValue(definition.Nodes[0].Run.ResultSpec.Schema, incompleteRaw); err == nil {
+		t.Fatal("deep model result without decoder-required scope fields was accepted")
+	}
+	incompleteEnvelope, _ := json.Marshal(map[string]any{"result": incomplete})
+	if err := structuredresult.ValidateValue(definition.OutputSchema, incompleteEnvelope); err == nil {
+		t.Fatal("deep workflow envelope without decoder-required scope fields was accepted")
 	}
 	// Detailed file inspection remains sparse while the result may synthesize
 	// the complete selection; legacy format-3 output above remains accepted.

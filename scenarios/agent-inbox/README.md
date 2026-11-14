@@ -1,6 +1,12 @@
 # Agent Inbox
 
-AI chat inbox serving as the conversational hub for Vrooli's agent ecosystem.
+> **Superseded suite surface:** Portal is the successor for Vrooli suite chat,
+> app discovery, and app loading. Put new suite-surface work in Portal; see the
+> [successor path](../portal/docs/concepts/SUCCESSOR-PATH.md). Agent Inbox stays
+> available as a legacy implementation reference while Portal capabilities
+> mature.
+
+Legacy AI chat inbox for Vrooli's agent ecosystem; Portal is the successor suite surface.
 
 ## Overview
 

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"github.com/vrooli/api-core/servicetoken"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -68,18 +69,30 @@ func newVerifyingServer(t *testing.T, sessions *verifyingSessions) string {
 	return srv.URL
 }
 
+// exchanging scripts the authenticator's answer to a credential.
+func exchanging(fn func(credential string) (string, time.Time, error)) servicetoken.Option {
+	return servicetoken.WithExchanger(func(_ context.Context, credential string) (servicetoken.Exchanged, error) {
+		token, expires, err := fn(credential)
+		return servicetoken.Exchanged{AccessToken: token, ExpiresAt: expires}, err
+	})
+}
+
+func credential(value string) servicetoken.CredentialSource {
+	return func(context.Context) (string, error) { return value, nil }
+}
+
 func TestServicePrincipalClientObtainsStableCreateOwner(t *testing.T) {
 	sessions := &verifyingSessions{}
 	base := newVerifyingServer(t, sessions)
 	exchanges := 0
-	source := NewServiceTokenSource(func() (string, error) { return "vsp1.agent-manager.fixture", nil },
-		func(_ context.Context, credential string) (string, time.Time, error) {
+	source := NewServiceTokens(credential("vsp1.agent-manager.fixture"),
+		exchanging(func(credential string) (string, time.Time, error) {
 			exchanges++
 			if credential != "vsp1.agent-manager.fixture" {
 				return "", time.Time{}, errors.New("wrong credential")
 			}
 			return "service-token", time.Now().Add(time.Hour), nil
-		}, nil)
+		}))
 	client := NewClient(base, NewServicePrincipalHTTPClient(source))
 
 	// Agent Manager speaks as its service principal; no agent identity header is sent.
@@ -105,19 +118,13 @@ func TestServicePrincipalClientObtainsStableCreateOwner(t *testing.T) {
 }
 
 func TestUnverifiedClientStillRefusesBeforeCreate(t *testing.T) {
-	for name, source := range map[string]*ServiceTokenSource{
-		"credential missing": NewServiceTokenSource(func() (string, error) { return "", errors.New("unconfigured") },
-			func(context.Context, string) (string, time.Time, error) {
-				return "service-token", time.Now().Add(time.Hour), nil
-			}, nil),
-		"exchange refused": NewServiceTokenSource(func() (string, error) { return "vsp1.agent-manager.revoked", nil },
-			func(context.Context, string) (string, time.Time, error) {
-				return "", time.Time{}, errors.New("unauthenticated")
-			}, nil),
-		"token not verified by web-console": NewServiceTokenSource(func() (string, error) { return "vsp1.agent-manager.x", nil },
-			func(context.Context, string) (string, time.Time, error) {
-				return "forged-token", time.Now().Add(time.Hour), nil
-			}, nil),
+	for name, source := range map[string]*servicetoken.Tokens{
+		"credential missing": NewServiceTokens(func(context.Context) (string, error) { return "", errors.New("unconfigured") },
+			exchanging(func(string) (string, time.Time, error) { return "service-token", time.Now().Add(time.Hour), nil })),
+		"exchange refused": NewServiceTokens(credential("vsp1.agent-manager.revoked"),
+			exchanging(func(string) (string, time.Time, error) { return "", time.Time{}, errors.New("unauthenticated") })),
+		"token not verified by web-console": NewServiceTokens(credential("vsp1.agent-manager.x"),
+			exchanging(func(string) (string, time.Time, error) { return "forged-token", time.Now().Add(time.Hour), nil })),
 	} {
 		t.Run(name, func(t *testing.T) {
 			sessions := &verifyingSessions{}
@@ -141,11 +148,11 @@ func TestServiceTokenSourceRefreshesBeforeExpiry(t *testing.T) {
 	now := time.Now()
 	clock := func() time.Time { return now }
 	calls := 0
-	source := NewServiceTokenSource(func() (string, error) { return "c", nil },
-		func(context.Context, string) (string, time.Time, error) {
+	source := NewServiceTokens(credential("c"),
+		exchanging(func(string) (string, time.Time, error) {
 			calls++
 			return "t" + strings.Repeat("x", calls), now.Add(10 * time.Minute), nil
-		}, clock)
+		}), servicetoken.WithClock(clock))
 	first, err := source.Token(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -157,5 +164,21 @@ func TestServiceTokenSourceRefreshesBeforeExpiry(t *testing.T) {
 	now = now.Add(2 * time.Minute) // within the refresh margin
 	if renewed, _ := source.Token(context.Background()); renewed == first || calls != 2 {
 		t.Fatal("token not refreshed inside the margin")
+	}
+}
+
+// What operators read in the log when the web-console calls go unauthenticated.
+func TestServiceTokenFailuresKeepAgentManagersWording(t *testing.T) {
+	_, err := NewServiceTokens(func(context.Context) (string, error) { return "", errors.New("no such entry") }).Token(context.Background())
+	if err == nil || err.Error() != "agent-manager service credential unavailable: no such entry" {
+		t.Fatalf("not issued: %v", err)
+	}
+	_, err = NewServiceTokens(credential("vsp1.agent-manager.fixture"), exchanging(func(string) (string, time.Time, error) { return "", time.Time{}, errors.New("unauthenticated") })).Token(context.Background())
+	if err == nil || err.Error() != "agent-manager service credential exchange: unauthenticated" {
+		t.Fatalf("exchange failed: %v", err)
+	}
+	_, err = NewServiceTokens(credential("vsp1.agent-manager.fixture"), exchanging(func(string) (string, time.Time, error) { return "t", time.Now().Add(-time.Second), nil })).Token(context.Background())
+	if err == nil || err.Error() != "agent-manager service credential exchange returned no usable token" {
+		t.Fatalf("expired: %v", err)
 	}
 }

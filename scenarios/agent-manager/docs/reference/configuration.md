@@ -255,6 +255,22 @@ Run-time workspace-sandbox availability and retry bounds. These levers apply whe
 
 The production `WorkspaceSandboxEnsurer` delegates startup to `vrooli --no-stale-check scenario start workspace-sandbox`, coalesces same-process ensure calls, and relies on lifecycle's scenario lock for cross-process contention.
 
+## Workspace Sandbox provider readiness
+
+Process health and provider admission are separate observations. An Agent
+Manager process can be healthy while Workspace Sandbox is deliberately closed
+for lifecycle maintenance. Read `GET /api/v1/provider-readiness` on Agent
+Manager for the owner-derived admission state: `open` means accepting,
+`closed` means maintenance has closed admission, and `unknown` means the
+Workspace Sandbox lifecycle owner could not be verified. Readiness is returned
+with `Cache-Control: no-store`; `/api/v1/health` remains the process and service
+health view.
+
+Run launch preflight refuses a known `closed` state before dispatch. An
+`unknown` observation does not claim admission is closed; the Workspace Sandbox
+process-dispatch fence remains authoritative and its maintenance refusal is
+still classified if closure races with preflight.
+
 ## Observability
 
 Structured-logging output. Logging is centralised in `internal/orchestration/obs`; these levers feed `obs.Init` at server startup. The set is deliberately tiny — log shape is a contract, not a control surface.

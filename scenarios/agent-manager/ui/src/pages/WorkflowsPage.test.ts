@@ -32,7 +32,19 @@ function hook(overrides: Record<string, unknown> = {}) {
   };
 }
 
-afterEach(() => vi.resetAllMocks());
+afterEach(() => {
+  vi.resetAllMocks();
+  window.history.replaceState({}, "", "/workflows");
+});
+
+test("WorkflowsPage selects the executionId requested by a deep link", async () => {
+  const workflows = hook({ data: [{ ...execution, id: "newest-workflow" }, execution] });
+  state.useWorkflowExecutions.mockReturnValue(workflows);
+  window.history.replaceState({}, "", "/workflows?executionId=workflow-12345678");
+  renderWithProviders(createElement(WorkflowsPage));
+
+  await waitFor(() => assert.equal(workflows.getTrace.mock.calls[0]?.[0], "workflow-12345678"));
+});
 
 test("WorkflowsPage presents metadata-only trace evidence and controls the selected execution", async () => {
   const user = userEvent.setup();

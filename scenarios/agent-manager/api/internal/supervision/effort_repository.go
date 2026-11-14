@@ -35,11 +35,15 @@ type EffortRepository interface {
 	FindEffortDecisionByEffort(ctx context.Context, effortRef, id string) (*pb.EffortDecision, string, error)
 	FindEffortDecisionByEvent(ctx context.Context, eventID string) (*pb.EffortDecision, error)
 	SaveEffortDecision(context.Context, *pb.EffortDecision) error
+	ReviseEffortDecision(ctx context.Context, d *pb.EffortDecision, digest string) error
 	ListEffortDecisionPage(ctx context.Context, home, effortRef string, limit int, after *decisionCursor) ([]*pb.EffortDecision, *decisionCursor, error)
 	ListEffortDecisions(ctx context.Context, home, effortRef string, limit int) ([]*pb.EffortDecision, error)
 	DecisionPublicationCursor(context.Context) (*decisionCursor, error)
 	DecisionPublicationPosition(context.Context, *pb.EffortDecision) (*decisionCursor, error)
 	SaveDecisionPublicationCursor(context.Context, *decisionCursor) error
+	QueueDecisionWithdrawal(ctx context.Context, eventID, reason string) error
+	PendingDecisionWithdrawals(ctx context.Context, limit int) ([]decisionWithdrawal, error)
+	MarkDecisionWithdrawalSent(ctx context.Context, eventID string) error
 }
 
 // EffortRecord is the persisted pair used to build one board row. Keeping the

@@ -330,6 +330,22 @@ func TestBrowserConsentListsMissingCapabilitiesBeforeConfirmation(t *testing.T) 
 	}
 }
 
+func TestWildcardOwnerCanReviewNewResearchPolicyWithoutEnumeratingScopes(t *testing.T) {
+	f := &authorizationFake{policy: "research-management"}
+	router := mux.NewRouter()
+	RegisterAuthorizations(router, f)
+	path := "/api/v1/authorizations/" + uuid.NewString() + "/approve"
+	p := identity.Principal{Kind: identity.ActorHuman, Subject: "owner", Source: identity.SourceCloudflareAccess, Verified: true, Scopes: []string{"*"}, ExpiresAt: time.Now().Add(time.Hour)}
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	req = req.WithContext(identity.WithPrincipal(req.Context(), p))
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	body := rec.Body.String()
+	if rec.Code != http.StatusOK || !strings.Contains(body, "Confirm approve") || strings.Contains(body, "Approval access needs setup") || f.approvals != 0 {
+		t.Fatalf("wildcard owner must receive the review form without granting consent: %d %s", rec.Code, body)
+	}
+}
+
 func TestBrowserConsentRendersRequesterContextAsUntrustedEscapedText(t *testing.T) {
 	f := &authorizationFake{bigPicture: "Reconcile <backlog> & keep the run scoped", technicalDetails: "First line\n<script>alert(1)</script> & second line"}
 	router := mux.NewRouter()

@@ -110,6 +110,25 @@ old 128-reference client limit, repeated SQL-page deadline exhaustion, and
 canonical CLI help. Help now shows required begin reason (1-512 bytes), resume
 revision, drain timeout bounds, and optional explicit local-owner authentication.
 
+#### Host process identity read failures are scoped by PID — 2026-11-13
+
+`agent-manager maintenance status` reported an incomplete host identity inventory
+for completed attached run `fffeb356-0fe7-4545-88ba-c8b75d6221c1` when an
+unrelated host PID (469254) had an unreadable environment. The executor-scope
+observer now retains per-PID identity failures and continues the bounded table
+scan. Unrelated failures no longer block an exact attached-key, established
+containment, and cgroup-gone absence proof; an unreadable target PID or a failed
+process-table read remains unknown. Regressions cover both outcomes and ensure
+the environment read error is not exposed. Each process-table pass still reads
+every live identity, now through a fixed 16-worker pool; exact lease
+revalidation and provenance queries use bounded batches. A 1,200-process
+fixture with delayed reads and 25% unreadable identities completes under the
+existing four-second deadline. An 8,194-reference fixture with 130 attached
+gone proofs uses four lease snapshots and one provenance lookup per page.
+`go test ./internal/maintenance -count=1` and
+`go test -race ./internal/maintenance -count=1` pass. No live run or process
+records were changed.
+
 At main's 16:36 live cut, three `swarm-manager/goal-session-drain` executions
 remain cancelling: `391b1e6d-3b4b-40ef-9256-356cfb3183c9`,
 `e0353446-ad61-40ab-8551-362281c0d8cc`, and
@@ -884,3 +903,59 @@ the existing API deadline. Superseded intents, unsubscribe and unmount cancel
 the paired reads and retry timer. Actual WebSocket, durable
 detail/list and UI regressions cover these boundaries; serving adoption and the
 full operated recovery journeys remain required.
+
+### Follow-up: actionable unobserved-run inventory, 2026-11-13
+
+Rung W3: `run activity` counted active native runs without a persisted PID/PGID
+but returned only the aggregate count, so an operator could not identify which
+durable records needed owner reconciliation. The inventory now retains exact
+run IDs in its existing unknown diagnostic, states the missing PID/PGID reason,
+and reports the exact count of IDs omitted after the 64-ID sample. Tests prove
+three IDs are all surfaced and a 70-run fixture reports 64 IDs plus six omitted
+while activity and maintenance remaining stay unknown. No live records were
+changed.
+
+Focused evidence: from `scenarios/agent-manager/api`,
+`go test ./internal/maintenance -run '^(TestActivityInventoryIdentifiesLogicalRunsWithoutPersistedProcessIdentity|TestActivityInventoryBoundsUnobservedRunIDDiagnosticsAndReportsOmissionCount|TestInventoryBatchFailureReportsOwnerCauseWithoutMissingRowFlood)$' -count=1 -timeout=90s` passed.
+
+### Follow-up: bounded physical proof and one legacy attached-run uncertainty, 2026-11-13
+
+The control-plane executor inventory previously spent its entire deadline
+repeatedly asking systemd for the same parent slice and then querying thousands
+of historical scope units one at a time. The owner now caches the parent slice
+across calls, batches exact process/lease checks, and uses one bounded complete
+systemd scope snapshot for gone-unit checks. The installed root CLI completed a
+70,187-reference read in 3.2 seconds, proving 29,207 absent and reporting
+40,980 as unknown with specific causes. Those historical rows remain unknown;
+the check does not infer death or change Agent Manager records.
+
+The current maintenance projection still fails closed for one attached run,
+`fffdf89f-ca80-4d20-bbc9-da2908b5a741`. Its durable run is complete and its
+leader PID is absent, but the older run has no established containment
+provenance, so the owner cannot prove whether descendants remain. The safe
+outcome is unknown until owner evidence or a supported legacy recovery can
+prove the exact scope is gone. Do not delete, detach, or rewrite the record to
+make maintenance appear complete.
+
+This uncertainty blocks claiming a complete physical drain; it does not block
+the operator's normal supported `vrooli scenario restart agent-manager` path.
+That restart preserves detached executors and does not require Agent Manager to
+self-drain. Capture the original run IDs before restart and verify they remain
+recoverable afterward.
+
+Focused verification passed for `internal/agentsession`, `internal/maintenance`,
+`internal/scenarioruntime`, and the full `packages/platform-go` module. The root
+CLI was activated through `make install`. Agent Manager was restarted through
+the supported lifecycle path to activate its attached-identity changes; all 38
+run IDs captured before restart remained retrievable afterward (six complete,
+32 running). No run history was edited and no executor process was killed.
+
+The shared launcher also had a future-proofing gap: it forwarded the Web Console
+session ID only inside the optional human-delegation branch. A Web Console
+session without that delegation therefore lost the correlation ID needed for
+future attached-session identity recovery. The launcher now forwards the
+correlation header independently; Agent Manager persists it without granting
+authority. Regressions passed for launcher forwarding without delegation and
+for Agent Manager persistence with zero delegated owner scopes. Existing
+non-Web-Console attaches may still have no Web Console session ID; their
+independent process and containment evidence remains authoritative.

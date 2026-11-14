@@ -1124,6 +1124,15 @@ copy, are never counted as runs.
 
   The daily digest adds one line, `Usage mode on: <label> until <time>`, while a mode is active.
 
+  Every usage mode decision carries a subject key (`usage-mode:<kind>:<mode, window or
+  runner>`), so Notification Hub keeps one open decision per situation, and each
+  evaluation withdraws a decision whose situation cleared with a plain reason: the
+  mode ended or was extended from the Usage page or CLI, the window recovered or
+  reset, another mode already covers the runner, or the proposed role default is
+  already applied. A run-out offer withdrawn because the window recovered is
+  offered again, as a fresh decision, if the window later turns bad. A withdrawn
+  resolution is never an answer.
+
   Usage mode **decisions** use the operator-decision contract
   (`agent_manager.usage_mode.decision_requested.v1`, always `Reversible`, never
   a default answer) and are asks, not categories, so they have no per-category
@@ -1144,7 +1153,7 @@ copy, are never counted as runs.
   from the recommendations service through one adapter
   (`usageattribution.AlertActions`); an alert is still sent without one. When
   Vrooli Events is not resolved, no alert is sent.
-- **CLI:** `agent-manager usage forecast|burners|recommendations|friction|friction-report|friction-dismiss|coverage|compare|reindex`
+- **CLI:** `agent-manager usage capacity|forecast|burners|recommendations|friction|friction-report|friction-dismiss|coverage|compare|reindex`
   with `--json`, reading the same Measures procedures as the UI
   (`UsageForecast`, `UsageForecastBacktest`, `UsageBurners`,
   `UsageRecommendations`, `UsageFriction`, `UsageCoverage`, `UsageCompare`). Agent identity
@@ -1168,6 +1177,12 @@ copy, are never counted as runs.
   footprint by capability is `measures get token-attribution`, a different
   question). The command and measure reference is
   [operational-stats.md](../reference/operational-stats.md).
+  `usage capacity` adds points remaining, reset time, running model/role
+  census and recent measured burn per provider window. Its concurrency number
+  is unknown unless recent measured burn covers every running model; role rates
+  are apportioned from the matched model rate, not provider-measured per-run
+  charges. Native Agent Manager runs and indexed sessions updated in the last
+  ten minutes enter the census; stale imported `running` labels do not.
 - **Usage modes:** `agent-manager usage mode start|status|end` (RPCs
   `StartUsageMode`, `ListUsageModes`, `EndUsageMode` on MeasuresService; policy in
   [usage-modes.md](../../../../docs/configuration/usage-modes.md)). Start and end

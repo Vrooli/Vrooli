@@ -77,6 +77,10 @@ type RunSubjectMaintenanceService interface {
 	BackfillRunSubjects(context.Context) (*SubjectBackfillResult, error)
 }
 
+type RunWorkloadAssignmentService interface {
+	AssignRunWorkload(context.Context, uuid.UUID, domain.WorkloadRef) (*domain.Run, error)
+}
+
 type ApprovalService interface {
 	ApproveRun(context.Context, ApproveRequest) (*ApproveResult, error)
 	RejectRun(context.Context, uuid.UUID, string, string) error

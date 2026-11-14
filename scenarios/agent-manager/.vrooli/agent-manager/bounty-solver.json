@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "Bounty Replay Solver",
+  "profileKey": "agent-manager/bounty-solver",
+  "description": "Blind implementation profile for a disposable preimage checkout; receives only the bounty task and checkout, never the sealed reference or answer.",
+  "roleRef": "code.default",
+  "roleReason": "Implement the requested change in the isolated candidate checkout without access to the frozen reference patch.",
+  "maxTurns": 48,
+  "timeout": "1800s",
+  "allowedTools": ["read", "glob", "grep", "shell", "edit", "write"],
+  "toolRestrictionPolicy": "enforced",
+  "skipPermissionPrompt": false,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED",
+    "manualReview": false,
+    "autoApply": true,
+    "applyOnFailure": false,
+    "networkMode": "NETWORK_ACCESS_NONE"
+  },
+  "networkAccess": "NETWORK_ACCESS_NONE",
+  "createdBy": "agent-manager",
+  "effort": "medium"
+}

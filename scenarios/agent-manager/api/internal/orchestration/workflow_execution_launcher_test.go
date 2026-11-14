@@ -250,6 +250,7 @@ func newWorkflowChildOrchestrator(t *testing.T) (*Orchestrator, *database.Reposi
 	}
 	o := New(repos.Profiles, repos.Tasks, repos.Runs,
 		WithRunners(registry), WithRolePolicyState(state, workflowLauncherRoleResolver{}),
+		WithEvents(mocks.NewFakeEventStore()),
 		WithConfig(OrchestratorConfig{DefaultTimeout: time.Minute, DefaultProjectRoot: t.TempDir(), MaxConcurrentRuns: 4, RequireSandboxByDefault: false}),
 		WithRunStateRoot(t.TempDir()),
 	)
@@ -289,6 +290,29 @@ func TestChildStateFromRunPreservesTerminalAccountingAndReviewSemantics(t *testi
 			}
 			if state.Turns != 3 || state.Tokens != 42 || state.CostUSD != 0.12 {
 				t.Fatalf("accounting lost: %+v", state)
+			}
+		})
+	}
+}
+
+func TestChildStateFromRunClassifiesFailureForWorkflowRecovery(t *testing.T) {
+	tests := []struct {
+		reason               domain.RunStopReason
+		code                 string
+		retryable, zeroKnown bool
+	}{
+		{domain.RunStopReasonTimeout, "child_timeout", true, false},
+		{domain.RunStopReasonSessionLost, "child_session_lost", true, false},
+		{domain.RunStopReasonCrash, "child_runner_failed", true, false},
+		{domain.RunStopReasonUsageWindow, "budget_exhausted", false, false},
+		{domain.RunStopReasonTokenCap, "budget_exhausted", false, false},
+		{domain.RunStopReasonProviderMaintenance, "provider_admission_maintenance", true, true},
+	}
+	for _, test := range tests {
+		t.Run(string(test.reason), func(t *testing.T) {
+			state := childStateFromRun(&domain.Run{ID: uuid.New(), Status: domain.RunStatusFailed, StopReason: test.reason})
+			if !state.Failed || state.FailureCode != test.code || state.FailureMessage == "" || state.FailureRetryable != test.retryable || state.TokensKnown != test.zeroKnown {
+				t.Fatalf("failure classification = %+v", state)
 			}
 		})
 	}

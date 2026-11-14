@@ -41,10 +41,18 @@ const (
 	AskResolvedEventType = operatordecision.AskResolvedEventType
 )
 
+// subjectKeyEpoch is when decisions started to be published under a Hub subject
+// key. A decision stored before it has an open Hub ask with no key, so a revision
+// would open a second ask instead of updating that one; it is refused instead.
+var subjectKeyEpoch = time.Date(2026, time.November, 14, 7, 0, 0, 0, time.UTC)
+
 var (
-	// ErrDecisionChanged refuses a re-raise whose content differs; a changed
-	// question is a new decision with a new id.
-	ErrDecisionChanged = errors.New("a decision with this id already exists with different content; raise the changed question under a new id")
+	// ErrDecisionChanged refuses a re-raise that changes a decision which cannot be
+	// revised: one stored before decisions were revisable.
+	ErrDecisionChanged = errors.New("a decision with this id already exists with different content and was raised before decisions could be revised; raise the changed question under a new id")
+	// ErrDecisionClosed refuses a revision of a decision the operator already
+	// resolved: the answer stands, and a changed question is a new decision.
+	ErrDecisionClosed = errors.New("the decision is no longer pending, so it cannot be revised; raise the changed question under a new id")
 	// ErrDecisionAnswered refuses a desktop answer that contradicts an
 	// operator answer already recorded.
 	ErrDecisionAnswered = errors.New("the decision already has a different operator answer")
@@ -112,6 +120,23 @@ func (r *Repository) FindEffortDecisionByEvent(ctx context.Context, eventID stri
 	}
 	d, _, err := r.GetEffortDecision(ctx, home, id)
 	return d, err
+}
+
+// ReviseEffortDecision stores a pending decision's revised terms with the event
+// that publishes them, so the Hub's resolution (which names that event) finds it.
+func (r *Repository) ReviseEffortDecision(ctx context.Context, d *pb.EffortDecision, digest string) error {
+	b, err := effortJSON.Marshal(d)
+	if err != nil {
+		return err
+	}
+	result, err := r.db.ExecContext(ctx, `UPDATE supervision_effort_decisions SET effort_ref=?,event_id=?,content_digest=?,decision_json=?,updated_at=? WHERE goal_home=? AND decision_id=?`, d.EffortRef, d.EventId, digest, string(b), formatTime(r.now()), d.GoalHome, d.DecisionId)
+	if err != nil {
+		return err
+	}
+	if n, _ := result.RowsAffected(); n != 1 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (r *Repository) SaveEffortDecision(ctx context.Context, d *pb.EffortDecision) error {
@@ -227,6 +252,12 @@ func (r *Repository) ListEffortDecisionPage(ctx context.Context, home, effortRef
 // NormalizeGoalHome cleans a repository-relative goal-home path.
 func NormalizeGoalHome(home string) (string, error) { return effortdecision.NormalizeGoalHome(home) }
 
+// NormalizeDecisionHome cleans the key a decision is stored under; see
+// effortdecision.NormalizeDecisionHome.
+func NormalizeDecisionHome(home string) (string, error) {
+	return effortdecision.NormalizeDecisionHome(home)
+}
+
 // DecisionView converts the record to the goal-home view the renderers use.
 func DecisionView(d *pb.EffortDecision) goalhome.Decision { return effortdecision.View(d) }
 
@@ -338,7 +369,7 @@ func (s *EffortService) RaiseDecision(ctx context.Context, req *pb.RaiseEffortDe
 		return nil, errors.New("decision required")
 	}
 	d := proto.Clone(req.Decision).(*pb.EffortDecision)
-	home, err := NormalizeGoalHome(d.GoalHome)
+	home, err := NormalizeDecisionHome(d.GoalHome)
 	if err != nil {
 		return nil, err
 	}
@@ -372,7 +403,7 @@ func (s *EffortService) RaiseDecision(ctx context.Context, req *pb.RaiseEffortDe
 		comparison := proto.Clone(stored).(*pb.EffortDecision)
 		comparison.GoalHome = existing.GoalHome
 		if decisionContentDigest(comparison) != existingDigest {
-			return nil, ErrDecisionChanged
+			return s.reviseDecision(ctx, existing, comparison, raisedBy)
 		}
 		published := false
 		if existing.PublishedAt == nil && existing.State == DecisionPending {
@@ -405,12 +436,54 @@ func (s *EffortService) RaiseDecision(ctx context.Context, req *pb.RaiseEffortDe
 	return &pb.RaiseEffortDecisionResponse{Decision: stored, Created: inserted, Published: published}, nil
 }
 
+// reviseDecision applies a changed re-raise to a decision that is still pending,
+// the way the Hub revises an ask re-sent under the same subject key: the record
+// keeps its identity and takes the new terms, and a new event updates the open
+// ask in place (or replaces it when the answer menu changed). The raiser of the
+// revision is the run the operator's questions go to from now on. Callers hold
+// decisionMu.
+func (s *EffortService) reviseDecision(ctx context.Context, existing, revised *pb.EffortDecision, raisedBy string) (*pb.RaiseEffortDecisionResponse, error) {
+	if existing.State != DecisionPending {
+		return nil, ErrDecisionClosed
+	}
+	if existing.CreatedAt == nil || existing.CreatedAt.AsTime().Before(subjectKeyEpoch) {
+		return nil, ErrDecisionChanged
+	}
+	existing.Question, existing.Options, existing.Recommended = revised.Question, revised.Options, revised.Recommended
+	existing.RecommendationReason, existing.DefaultAnswer, existing.Reversible = revised.RecommendationReason, revised.DefaultAnswer, revised.Reversible
+	existing.Urgency, existing.Note, existing.BigPicture, existing.TechnicalDetails = revised.Urgency, revised.Note, revised.BigPicture, revised.TechnicalDetails
+	existing.ContextUrl, existing.Deadline = revised.ContextUrl, revised.Deadline
+	if raisedBy != "" {
+		existing.RaisedByRunId = raisedBy
+	}
+	// created_at keeps the original raise; the revision time stamps the new event.
+	existing.RevisedAt = timestamppb.New(s.now().UTC().Truncate(time.Millisecond))
+	existing.EventId = effortdecision.EventID(decisionEvent(existing))
+	existing.PublishedAt, existing.PublishError = nil, ""
+	if err := s.repo.ReviseEffortDecision(ctx, existing, decisionContentDigest(existing)); err != nil {
+		return nil, err
+	}
+	published := s.publishDecision(ctx, existing)
+	return &pb.RaiseEffortDecisionResponse{Decision: existing, Published: published, Revised: true}, nil
+}
+
 // publishDecision publishes the event and records the outcome on the
 // record. Callers hold decisionMu.
 func (s *EffortService) publishDecision(ctx context.Context, d *pb.EffortDecision) bool {
+	event := decisionEvent(d)
+	// The record names the event that was published, because the Hub's resolution
+	// does. A decision stored before the event gained its subject key is rebuilt
+	// with the key when it is first published, so its stored id is brought along.
+	if id := effortdecision.EventID(event); id != d.EventId {
+		d.EventId = id
+		if err := s.repo.ReviseEffortDecision(ctx, d, decisionContentDigest(d)); err != nil {
+			d.PublishError = "record event id: " + err.Error()
+			return false
+		}
+	}
 	if s.decisionPublisher == nil {
 		d.PublishError = "Vrooli Events publisher unavailable"
-	} else if err := s.decisionPublisher.PublishDomainEvent(ctx, decisionEvent(d)); err != nil {
+	} else if err := s.decisionPublisher.PublishDomainEvent(ctx, event); err != nil {
 		d.PublishError = err.Error()
 	} else {
 		d.PublishError = ""
@@ -446,7 +519,11 @@ func (s *EffortService) publishPendingDecisionsWithBudget(ctx context.Context, b
 	}
 	deadline := time.Now().Add(budget)
 	var reconcileErrors []error
+	if err := s.publishDecisionWithdrawals(ctx); err != nil {
+		reconcileErrors = append(reconcileErrors, err)
+	}
 	for i, d := range decisions {
+		s.withdrawDecisionOfEndedEffort(ctx, d)
 		if d.PublishedAt == nil && d.State == DecisionPending {
 			s.publishDecision(ctx, d)
 		} else if d.State == DecisionPending && d.EventId != "" {
@@ -478,7 +555,7 @@ func (s *EffortService) ListDecisions(ctx context.Context, req *pb.ListEffortDec
 	home := ""
 	if strings.TrimSpace(req.GoalHome) != "" {
 		var err error
-		if home, err = NormalizeGoalHome(req.GoalHome); err != nil {
+		if home, err = NormalizeDecisionHome(req.GoalHome); err != nil {
 			return nil, err
 		}
 	}
@@ -540,6 +617,10 @@ func (s *EffortService) ListDecisions(ctx context.Context, req *pb.ListEffortDec
 // (late); a different earlier operator answer is refused.
 func (s *EffortService) AnswerDecision(ctx context.Context, req *pb.AnswerEffortDecisionRequest, actor EffortActor) (*pb.EffortDecision, error) {
 	d, answered, err := s.answerDecision(ctx, req, actor)
+	if answered {
+		// Answered here: the phone ask is still open until it is closed.
+		s.flushDecisionWithdrawals(ctx)
+	}
 	if err == nil && answered {
 		s.wakeParkedOrchestrators(ctx, d)
 	}
@@ -553,7 +634,7 @@ func (s *EffortService) answerDecision(ctx context.Context, req *pb.AnswerEffort
 	if req == nil {
 		return nil, false, errors.New("answer required")
 	}
-	home, err := NormalizeGoalHome(req.GoalHome)
+	home, err := NormalizeDecisionHome(req.GoalHome)
 	if err != nil {
 		return nil, false, err
 	}
@@ -576,9 +657,13 @@ func (s *EffortService) answerDecision(ctx context.Context, req *pb.AnswerEffort
 		return nil, false, ErrDecisionAnswered
 	}
 	d.Late = d.State == DecisionDefaulted
+	wasPending := d.State == DecisionPending
 	s.setDecisionAnswer(d, DecisionAnswered, answer, req.Note, DecisionViaDesktop, s.now().UTC(), "answered on the desktop by "+actor.ID)
 	if err := s.repo.SaveEffortDecision(ctx, d); err != nil {
 		return nil, false, err
+	}
+	if wasPending {
+		s.queueDecisionWithdrawal(ctx, d, decisionAnsweredHereReason)
 	}
 	return d, true, s.signalDecisionResolution(ctx, d)
 }
@@ -688,6 +773,33 @@ func (s *EffortService) resolveDecisionFromHub(ctx context.Context, resolution D
 	return d, false, nil
 }
 
+// PendingDecisionForContextRequest finds the decision an operator's "I need more
+// context" question is about, so Agent Manager can hand the question to the run
+// that raised it. It returns nil, nil for a question about a decision this log
+// did not raise, one already resolved, or one the raiser has since revised (the
+// operator was reading an earlier revision, and the revision may already answer
+// them), so a redelivery or a late question is a benign no-op.
+func (s *EffortService) PendingDecisionForContextRequest(ctx context.Context, request operatordecision.ContextRequest) (*pb.EffortDecision, error) {
+	if request.SourceEventType != goalhome.DecisionRequestedEventType {
+		return nil, nil
+	}
+	home, id := request.Correlation["goal_home"], request.Correlation["decision_id"]
+	if home == "" || id == "" {
+		return nil, nil
+	}
+	d, _, err := s.repo.GetEffortDecision(ctx, home, id)
+	if errors.Is(err, ErrNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if d.State != DecisionPending || request.RequesterRef == "" || request.RequesterRef != d.EventId {
+		return nil, nil
+	}
+	return d, nil
+}
+
 func (s *EffortService) setDecisionAnswer(d *pb.EffortDecision, state, answer, note, via string, at time.Time, reason string) {
 	d.State, d.Answer, d.AnswerNote, d.AnsweredVia = state, answer, note, via
 	d.AnswerLabel = DecisionView(d).Label(answer)
@@ -758,7 +870,7 @@ func (s *EffortService) MarkDecisionRecorded(ctx context.Context, req *pb.MarkEf
 	if req == nil {
 		return nil, errors.New("request required")
 	}
-	home, err := NormalizeGoalHome(req.GoalHome)
+	home, err := NormalizeDecisionHome(req.GoalHome)
 	if err != nil {
 		return nil, err
 	}

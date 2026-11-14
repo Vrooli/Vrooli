@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/vrooli/api-core/operatordecision"
 )
@@ -19,13 +18,11 @@ import (
 // DecisionRequestedEventType is the event notification-hub turns into an ask.
 const DecisionRequestedEventType = "agent_manager.effort.decision_requested.v1"
 
-// Decision limits mirror the notification-hub ask contract, so a decision
-// Agent Manager accepts is never refused by the hub.
+// MinDecisionDefaultDelay is the least a reversible decision's default may be
+// from now: the operator is given time to answer before it applies. The limits
+// on the question, options and texts are the Hub's contract, held in one place
+// by operatordecision.Facts.
 const (
-	MaxDecisionQuestion       = 600
-	MaxDecisionReason         = 300
-	MaxDecisionOptions        = 8
-	MaxDecisionOptionLabel    = 200
 	MinDecisionDefaultDelay   = 12 * time.Hour
 	decisionMarkerPrefix      = "[decision "
 	decisionAnsweredViaPhone  = "phone"
@@ -33,11 +30,7 @@ const (
 	decisionAnsweredByDefault = "default"
 )
 
-var (
-	decisionIDRule  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
-	decisionKeyRule = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$`)
-	decisionUrgency = map[string]bool{"": true, "low": true, "normal": true, "high": true, "critical": true}
-)
+var decisionIDRule = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
 
 // DecisionOption is one answer: Key is what the orchestrator receives, Label
 // what the operator sees.
@@ -74,54 +67,36 @@ type Decision struct {
 	AskID                string           `json:"ask_id,omitempty"`
 }
 
-// Validate checks a decision against the notification-hub ask contract. The
-// recommended option must exist; a default is allowed only for a reversible
-// decision and must be an option.
+// Validate checks a decision against the notification-hub ask contract
+// (operatordecision.Facts.Validate), so a decision Agent Manager accepts is never
+// refused by the Hub. On top of it, the id must follow the goal-home id rule and
+// a recommended option is required.
 func (d Decision) Validate() error {
-	switch {
-	case !decisionIDRule.MatchString(d.ID):
+	if !decisionIDRule.MatchString(d.ID) {
 		return fmt.Errorf("decision id %q must be 1-128 letters, digits, '.', '_', ':' or '-'", d.ID)
-	case strings.TrimSpace(d.Question) == "" || len(d.Question) > MaxDecisionQuestion:
-		return fmt.Errorf("the question is required and at most %d bytes", MaxDecisionQuestion)
-	case len(d.Options) < 2 || len(d.Options) > MaxDecisionOptions:
-		return fmt.Errorf("a decision needs 2-%d options", MaxDecisionOptions)
-	case len(d.RecommendationReason) > MaxDecisionReason:
-		return fmt.Errorf("the recommendation reason is at most %d bytes", MaxDecisionReason)
-	case !utf8.ValidString(d.BigPicture) || utf8.RuneCountInString(d.BigPicture) > operatordecision.MaxBigPictureCodePoints:
-		return fmt.Errorf("big_picture must be valid UTF-8 and at most %d Unicode code points", operatordecision.MaxBigPictureCodePoints)
-	case !utf8.ValidString(d.TechnicalDetails) || utf8.RuneCountInString(d.TechnicalDetails) > operatordecision.MaxTechnicalDetailsCodePoints:
-		return fmt.Errorf("technical_details must be valid UTF-8 and at most %d Unicode code points", operatordecision.MaxTechnicalDetailsCodePoints)
-	case !decisionUrgency[d.Urgency]:
-		return fmt.Errorf("urgency must be low, normal, high or critical")
 	}
-	seen := map[string]bool{}
+	if strings.TrimSpace(d.Recommended) == "" {
+		return fmt.Errorf("a recommended option is required (--recommend <key>): the operator reads a decision cold and needs a lead")
+	}
+	return d.Facts("", nil).Validate()
+}
+
+// Facts is the decision as the shared operator-decision contract describes it.
+// A decision raised with only the legacy note carries that note as its
+// technical details.
+func (d Decision) Facts(subject string, correlation map[string]string) operatordecision.Facts {
+	facts := operatordecision.Facts{
+		Subject: subject, Question: d.Question, Recommended: d.Recommended, RecommendationReason: d.RecommendationReason,
+		DefaultAnswer: d.DefaultAnswer, Reversible: d.Reversible, Urgency: d.Urgency, BigPicture: d.BigPicture,
+		TechnicalDetails: d.TechnicalDetails, ContextURL: d.ContextURL, Deadline: d.Deadline, Correlation: correlation,
+	}
+	if strings.TrimSpace(facts.TechnicalDetails) == "" {
+		facts.TechnicalDetails = strings.TrimSpace(d.Note)
+	}
 	for _, option := range d.Options {
-		if !decisionKeyRule.MatchString(option.Key) {
-			return fmt.Errorf("option key %q must be 1-64 letters, digits, '.', '_', ':' or '-'", option.Key)
-		}
-		if option.Key == "other" {
-			return fmt.Errorf("option key %q is reserved for the operator's free-form answer", option.Key)
-		}
-		if seen[option.Key] {
-			return fmt.Errorf("option key %q is repeated", option.Key)
-		}
-		if len(option.Label) > MaxDecisionOptionLabel {
-			return fmt.Errorf("option %q label exceeds %d bytes", option.Key, MaxDecisionOptionLabel)
-		}
-		seen[option.Key] = true
+		facts.Options = append(facts.Options, operatordecision.Option{Key: option.Key, Label: option.Label})
 	}
-	if !seen[d.Recommended] {
-		return fmt.Errorf("the recommended option %q is not one of the options", d.Recommended)
-	}
-	if d.DefaultAnswer != "" {
-		if !seen[d.DefaultAnswer] {
-			return fmt.Errorf("the default %q is not one of the options", d.DefaultAnswer)
-		}
-		if !d.Reversible {
-			return fmt.Errorf("a default is allowed only for a reversible decision (--reversible)")
-		}
-	}
-	return nil
+	return facts
 }
 
 // Label returns an option's label, or the key when the option has none.
@@ -135,44 +110,6 @@ func (d Decision) Label(key string) string {
 		}
 	}
 	return key
-}
-
-// RequestPayload is the decision_requested event payload: facts only, the
-// shape notification-hub's decision intake reads. Correlation comes back
-// verbatim on notification_hub.ask.resolved.v1.
-func (d Decision) RequestPayload(subject string, correlation map[string]string) map[string]any {
-	options := make([]any, 0, len(d.Options))
-	for _, option := range d.Options {
-		options = append(options, map[string]any{"key": option.Key, "label": d.Label(option.Key)})
-	}
-	payload := map[string]any{
-		"subject":               subject,
-		"question":              d.Question,
-		"options":               options,
-		"recommended":           d.Recommended,
-		"recommendation_reason": d.RecommendationReason,
-		"default_answer":        d.DefaultAnswer,
-		"reversible":            d.Reversible,
-		"urgency":               d.Urgency,
-		"context_url":           d.ContextURL,
-	}
-	if d.BigPicture != "" {
-		payload["big_picture"] = d.BigPicture
-	}
-	if d.TechnicalDetails != "" {
-		payload["technical_details"] = d.TechnicalDetails
-	}
-	if !d.Deadline.IsZero() {
-		payload["deadline"] = d.Deadline.UTC().Format(time.RFC3339)
-	}
-	if len(correlation) > 0 {
-		values := make(map[string]any, len(correlation))
-		for key, value := range correlation {
-			values[key] = value
-		}
-		payload["correlation"] = values
-	}
-	return payload
 }
 
 func decisionMarker(id string) string { return decisionMarkerPrefix + id + "]" }

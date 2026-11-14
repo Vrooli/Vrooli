@@ -156,19 +156,20 @@ func (r *Run) CheckApprovalStateInvariant() bool {
 	return true
 }
 
-// INV_TERMINAL_IMMUTABLE: Terminal states cannot transition back
+// INV_TERMINAL_IMMUTABLE remains the task-lifecycle invariant identifier.
 const InvTerminalImmutable = "INV_TERMINAL_IMMUTABLE"
 
-// CheckTerminalImmutabilityInvariant verifies terminal states are respected.
-// This should be called BEFORE a status transition to validate it.
+// CheckTerminalTransition is retained for callers that use the older method
+// name. Run transitions are governed by the canonical RunStatus graph, which
+// includes explicit continuation edges from terminal outcomes.
 func (r *Run) CheckTerminalTransition(newStatus RunStatus) bool {
-	if r.Status.IsTerminal() && !newStatus.IsTerminal() {
+	if allowed, reason := r.Status.CanTransitionTo(newStatus); !allowed {
 		return checkInvariant(false, &InvariantViolationError{
-			Invariant:   InvTerminalImmutable,
-			Description: "cannot transition from terminal state to non-terminal",
+			Invariant:   "INV_RUN_STATUS_TRANSITION",
+			Description: "run status transition is not allowed",
 			Entity:      "Run",
 			EntityID:    r.ID.String(),
-			Details:     fmt.Sprintf("current=%s (terminal), proposed=%s", r.Status, newStatus),
+			Details:     fmt.Sprintf("current=%s, proposed=%s: %s", r.Status, newStatus, reason),
 		})
 	}
 	return true

@@ -37,8 +37,8 @@ func (o *Orchestrator) AttachRun(ctx context.Context, req AttachRunRequest) (*At
 	if len(kind) > 100 || len(session) > 512 {
 		return nil, domain.NewValidationError("harness", "harness identity is too long")
 	}
-	if req.ProcessID < 0 {
-		return nil, domain.NewValidationError("process_id", "must be positive when supplied")
+	if req.ProcessID < 0 || req.ProcessID == 1 {
+		return nil, domain.NewValidationError("process_id", "must identify a non-init process when supplied")
 	}
 	if len(o.identitySecret) == 0 {
 		return nil, domain.NewConfigMissingError("identity", "identity signing secret is not configured", nil)
@@ -83,6 +83,7 @@ func (o *Orchestrator) AttachRun(ctx context.Context, req AttachRunRequest) (*At
 		ExecutionMode:      domain.ExecutionModeAttached,
 		HarnessKind:        kind,
 		HarnessSessionID:   session,
+		ConversationID:     attachedConversationID(kind, session),
 		Status:             domain.RunStatusRunning,
 		Phase:              domain.RunPhaseExecuting,
 		StartedAt:          &now,
@@ -133,13 +134,14 @@ func (o *Orchestrator) AttachRun(ctx context.Context, req AttachRunRequest) (*At
 		identityScopes = []string{}
 	}
 	token, err := identity.GenerateToken(&identity.Claims{
-		RunID:      run.ID,
-		Subject:    run.OwnerSubject,
-		TaskID:     run.TaskID,
-		ProfileKey: kind,
-		IssuedAt:   now.Unix(),
-		ExpiresAt:  expiresAt.Unix(),
-		Scopes:     identityScopes,
+		RunID:          run.ID,
+		ConversationID: run.ConversationID,
+		Subject:        run.OwnerSubject,
+		TaskID:         run.TaskID,
+		ProfileKey:     kind,
+		IssuedAt:       now.Unix(),
+		ExpiresAt:      expiresAt.Unix(),
+		Scopes:         identityScopes,
 		Meta: map[string]string{
 			"execution_mode":  string(domain.ExecutionModeAttached),
 			"harness_kind":    kind,
@@ -171,6 +173,14 @@ func (o *Orchestrator) AttachRun(ctx context.Context, req AttachRunRequest) (*At
 		}
 	}
 	return &AttachRunResult{Run: o.attachRunActions(ctx, run), Token: token, ExpiresAt: expiresAt}, nil
+}
+
+// attachedConversationID is the conversation of every run attached to one
+// harness session. The harness session is the thread, so attaching the same
+// session again (each attach is a new run with a new id) continues the
+// conversation instead of starting another.
+func attachedConversationID(kind, session string) string {
+	return kind + ":" + session
 }
 
 // verifiedDelegationOwner verifies a forwarded Web Console human-owner delegation

@@ -416,6 +416,11 @@
       "binding": "."
     },
     {
+      "path": "run assign-workload",
+      "group": "run",
+      "command": "assign-workload"
+    },
+    {
       "path": "run attach",
       "group": "run",
       "command": "attach",
@@ -775,6 +780,12 @@
       "group": "usage",
       "command": "burners",
       "binding": "MeasuresService.UsageBurners",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage capacity",
+      "group": "usage",
+      "command": "capacity",
       "observed_primitive": "proto_list"
     },
     {

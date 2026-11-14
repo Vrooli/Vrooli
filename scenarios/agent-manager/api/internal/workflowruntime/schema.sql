@@ -46,6 +46,16 @@ CREATE TABLE IF NOT EXISTS workflow_executions (
 );
 CREATE INDEX IF NOT EXISTS idx_workflow_executions_recoverable ON workflow_executions(status, updated_at);
 
+-- A cancellation fence wins over any workflow execution that has not yet
+-- committed its idempotency-key row. Start's repository Create checks this
+-- table in the same transaction as its workflow row insert.
+CREATE TABLE IF NOT EXISTS workflow_execution_cancel_fences (
+    idempotency_key TEXT PRIMARY KEY,
+    owner TEXT NOT NULL,
+    workflow_key TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS workflow_node_attempts (
     id TEXT PRIMARY KEY,
     execution_id TEXT NOT NULL REFERENCES workflow_executions(id) ON DELETE CASCADE,

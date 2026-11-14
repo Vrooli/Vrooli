@@ -18,6 +18,12 @@ type sandboxHealthStub struct {
 	reason string
 }
 
+type providerReadinessStub struct{}
+
+func (providerReadinessStub) ReadProviderReadiness(context.Context) domain.ProviderReadiness {
+	return domain.ProviderReadiness{Provider: "workspace-sandbox", State: domain.ProviderReadinessUnknown, Message: "Workspace Sandbox readiness could not be confirmed."}
+}
+
 func (s sandboxHealthStub) IsAvailable(context.Context) (bool, string) {
 	return s.ok, s.reason
 }
@@ -31,6 +37,16 @@ func TestSetupRoutesRegistersBaselineHealthAndMetricsWithoutOptionalServices(t *
 		if !router.Match(req, match) {
 			t.Fatalf("route %s was not registered", path)
 		}
+	}
+}
+
+func TestSetupRoutesRegistersProviderReadiness(t *testing.T) {
+	router := mux.NewRouter()
+	SetupRoutes(router, RouteDependencies{ProviderReadiness: providerReadinessStub{}})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/provider-readiness", nil)
+	match := &mux.RouteMatch{}
+	if !router.Match(req, match) {
+		t.Fatal("provider readiness route was not registered")
 	}
 }
 

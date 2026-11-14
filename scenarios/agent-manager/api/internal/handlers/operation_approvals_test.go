@@ -10,6 +10,7 @@ import (
 
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/supervision"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/authn"
@@ -29,6 +30,7 @@ func (f operationSettingsFixture) GetOrchestrationSettings(context.Context) (*co
 func (f operationSettingsFixture) GetRun(_ context.Context, id uuid.UUID) (*domain.Run, error) {
 	return f.runs[id], nil
 }
+
 func (f operationSettingsFixture) GetTask(_ context.Context, id uuid.UUID) (*domain.Task, error) {
 	return f.tasks[id], nil
 }
@@ -210,5 +212,39 @@ func TestRunMessageDeletionFollowsManagementPolicy(t *testing.T) {
 		if denied != required {
 			t.Fatalf("required=%v denied=%v", required, denied)
 		}
+	}
+}
+
+// An owner's explicit effort.delivery grant for the exact effort must win over
+// the standing no-approval policy. The policy path only admits efforts the
+// owner authorized directly, so taking it first refused the owner's own grant
+// for a team-enrolled effort (authorized by the enrolling agent's subject).
+func TestDeliveryActorPrefersPresentedGrantOverStandingPolicy(t *testing.T) {
+	target := EffortGrantTarget("effort:example")
+	grant := &identity.OperationGrant{ID: "grant-1", Policy: "delivery-management", Approver: "owner-1", Operations: []string{"effort.delivery"}, Targets: []string{target}, ExpiresAt: time.Now().Add(time.Hour)}
+	for _, tc := range []struct {
+		name           string
+		grant          *identity.OperationGrant
+		wantApprovedBy string
+		wantPolicy     string
+	}{
+		{"explicit grant", grant, "owner-1", ""},
+		{"policy only", nil, "", "owner-1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := identity.Principal{Kind: identity.ActorAgent, Subject: uuid.NewString(), Owner: "owner-1", Verified: true, Scopes: []string{"agent-manager:write"}, Grant: tc.grant}
+			settings := config.DefaultOrchestrationSettings() // effort.delivery needs no approval
+			var actor supervision.EffortActor
+			var handled bool
+			var err error
+			h := OperationApprovalMiddleware(operationSettingsFixture{settings: settings})(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+				actor, handled, err = deliveryGrantActor(r.Context(), "effort:example")
+			}))
+			r := httptest.NewRequest(http.MethodPost, "/", nil)
+			h.ServeHTTP(httptest.NewRecorder(), r.WithContext(identity.WithPrincipal(r.Context(), p)))
+			if err != nil || !handled || !actor.DeliveryManager || actor.ApprovedBy != tc.wantApprovedBy || actor.PolicyOwner != tc.wantPolicy {
+				t.Fatalf("actor=%+v handled=%v err=%v; want approvedBy=%q policyOwner=%q", actor, handled, err, tc.wantApprovedBy, tc.wantPolicy)
+			}
+		})
 	}
 }

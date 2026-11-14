@@ -64,6 +64,9 @@ func TestClassifySignalsIsLocalOnlyAndCarriesContext(t *testing.T) {
 	if request.GetProfile() != sharedv1.Profile_PROFILE_LOCAL_ONLY {
 		t.Fatalf("profile = %v, want local-only", request.GetProfile())
 	}
+	if request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED {
+		t.Fatalf("privacy class = %v, want unspecified because this caller has no sourced class", request.GetPrivacyClass())
+	}
 	if len(request.GetQuestions()) != 1 || request.GetQuestions()[0].GetId() != signalQuestionID || len(request.GetQuestions()[0].GetOptions()) != 5 {
 		t.Fatalf("questions = %v, want the five-label signal question", request.GetQuestions())
 	}

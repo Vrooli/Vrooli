@@ -27,6 +27,17 @@ func codexReport(fileKey, runID string, offset int64, at time.Time, cumulative, 
 	return transcriptindex.UsageRow{FileKey: fileKey, LineOffset: offset, RunID: runID, ObservedAt: at, Usage: usage}
 }
 
+func TestUsageRunKeepsExplicitWorkloadOnImportedTranscript(t *testing.T) {
+	imported := usageRun(usageRunRow{ID: "steward-run", Mode: "imported", WorkloadKind: "scheduled", WorkloadKey: "steward:delegation-1", ImportHarness: "codex"})
+	if imported.Source != "indexed" || imported.Workload != "scheduled:steward:delegation-1" {
+		t.Fatalf("explicit owner-assigned workload was lost on imported transcript: %+v", imported)
+	}
+	untagged := usageRun(usageRunRow{ID: "operator-session", Mode: "imported", ImportHarness: "codex"})
+	if untagged.Workload != "" || untagged.Source != "indexed" {
+		t.Fatalf("untagged imported session must remain ownership-unknown: %+v", untagged)
+	}
+}
+
 // UsageTurns folds Codex reports into short buckets without changing what
 // the one accounting function credits, and reads one source: the indexer's
 // usage rows, including those of run-owned files keyed to the Agent Manager

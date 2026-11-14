@@ -2,10 +2,8 @@
 package sandbox
 
 import (
-	"agent-manager/internal/adapters/runner"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +12,12 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"agent-manager/internal/adapters/runner"
+
+	"github.com/google/uuid"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	commonconnect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
 )
 
 // sandboxTestServer is an httptest-backed simulator of the workspace-sandbox
@@ -54,6 +58,7 @@ type sandboxTestServer struct {
 	stdinSeen         atomic.Bool
 	startProcessCode  int
 	startProcessReply string
+	lifecycleStatus   *commonv1.LifecycleStanding
 
 	// Per-stream subscriber registry. Each /logs/stream connection adds a
 	// channel that receives chunks; markExited closes them after sending
@@ -82,6 +87,11 @@ func newSandboxTestServer(initialPID int) *sandboxTestServer {
 func (m *sandboxTestServer) startServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	mux := http.NewServeMux()
+	if m.lifecycleStatus != nil {
+		statusHandler := lifecycleStatusFixture{standing: m.lifecycleStatus}
+		path, handler := commonconnect.NewLifecycleMaintenanceServiceHandler(statusHandler)
+		mux.Handle(path, handler)
+	}
 	mux.HandleFunc("/api/v1/sandboxes/", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		switch {

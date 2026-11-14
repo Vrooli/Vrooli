@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/repository"
@@ -52,12 +53,71 @@ func (r *workflowExecutionRepository) Create(ctx context.Context, e *domain.Work
 	if e == nil || initial == nil {
 		return errors.New("execution and initial journal entry are required")
 	}
+	if !e.Status.Valid() {
+		return fmt.Errorf("invalid initial workflow execution status %q", e.Status)
+	}
 	return r.db.WithTransaction(ctx, func(tx *Tx) error {
+		var fenceOwner, fenceWorkflowKey string
+		fenceErr := tx.QueryRowContext(ctx, `SELECT owner,workflow_key FROM workflow_execution_cancel_fences WHERE idempotency_key=?`, e.IdempotencyKey).Scan(&fenceOwner, &fenceWorkflowKey)
+		if fenceErr == nil {
+			if fenceOwner != e.Owner || fenceWorkflowKey != e.WorkflowKey {
+				return domain.NewValidationError("idempotencyKey", "is fenced for a different workflow owner")
+			}
+			return domain.NewStateError("WorkflowExecution", "cancelled", "start", "idempotency key has an owner cancellation fence")
+		}
+		if !errors.Is(fenceErr, sql.ErrNoRows) {
+			return fenceErr
+		}
 		if err := insertWorkflowExecution(ctx, tx, e); err != nil {
 			return err
 		}
 		return insertJournal(ctx, tx, initial)
 	})
+}
+
+// CancelByIdempotencyKey atomically fences a future Create and reads any
+// execution already admitted under the exact key. The fence insert and
+// workflow execution insert serialize as SQLite writes, so a caller never
+// observes a miss that can later become an accepted Start.
+func (r *workflowExecutionRepository) CancelByIdempotencyKey(ctx context.Context, key, owner, workflowKey string) (*domain.WorkflowExecution, error) {
+	key, owner, workflowKey = strings.TrimSpace(key), strings.TrimSpace(owner), strings.TrimSpace(workflowKey)
+	if key == "" || owner == "" || workflowKey == "" {
+		return nil, domain.NewValidationError("idempotencyKey", "key, owner, and workflow key are required")
+	}
+	var executionID string
+	err := r.db.WithTransaction(ctx, func(tx *Tx) error {
+		_, err := tx.ExecContext(ctx, `INSERT INTO workflow_execution_cancel_fences (idempotency_key,owner,workflow_key,created_at) VALUES (?,?,?,?) ON CONFLICT(idempotency_key) DO NOTHING`, key, owner, workflowKey, SQLiteTime(time.Now().UTC()))
+		if err != nil {
+			return err
+		}
+		var fenceOwner, fenceWorkflowKey string
+		if err := tx.QueryRowContext(ctx, `SELECT owner,workflow_key FROM workflow_execution_cancel_fences WHERE idempotency_key=?`, key).Scan(&fenceOwner, &fenceWorkflowKey); err != nil {
+			return err
+		}
+		if fenceOwner != owner || fenceWorkflowKey != workflowKey {
+			return domain.NewValidationError("idempotencyKey", "is already fenced for a different workflow owner")
+		}
+		var executionOwner, executionWorkflowKey string
+		lookupErr := tx.QueryRowContext(ctx, `SELECT id,owner,workflow_key FROM workflow_executions WHERE idempotency_key=?`, key).Scan(&executionID, &executionOwner, &executionWorkflowKey)
+		if errors.Is(lookupErr, sql.ErrNoRows) {
+			return nil
+		}
+		if lookupErr != nil {
+			return lookupErr
+		}
+		if executionOwner != owner || executionWorkflowKey != workflowKey {
+			return domain.NewValidationError("idempotencyKey", "belongs to a different workflow owner")
+		}
+		return nil
+	})
+	if err != nil || executionID == "" {
+		return nil, err
+	}
+	id, err := uuid.Parse(executionID)
+	if err != nil {
+		return nil, err
+	}
+	return r.Get(ctx, id)
 }
 
 func insertWorkflowExecution(ctx context.Context, tx *Tx, e *domain.WorkflowExecution) error {
@@ -221,8 +281,20 @@ func (r *workflowExecutionRepository) Commit(ctx context.Context, c repository.W
 	if c.Execution == nil || c.Execution.Version != c.ExpectedVersion+1 {
 		return false, fmt.Errorf("execution version must advance by one")
 	}
+	var persistedStatus string
+	err := r.db.GetContext(ctx, &persistedStatus, `SELECT status FROM workflow_executions WHERE id=? AND version=?`, c.Execution.ID, c.ExpectedVersion)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("read workflow execution status before commit: %w", err)
+	}
+	previousStatus := domain.WorkflowExecutionStatus(persistedStatus)
+	if !previousStatus.CanTransitionTo(c.Execution.Status) {
+		return false, fmt.Errorf("persisted workflow execution: %w: %q -> %q", domain.ErrInvalidWorkflowExecutionStatusTransition, previousStatus, c.Execution.Status)
+	}
 	committed := false
-	err := r.db.WithTransaction(ctx, func(tx *Tx) error {
+	err = r.db.WithTransaction(ctx, func(tx *Tx) error {
 		e := c.Execution
 		budget, _ := json.Marshal(e.BudgetUsage)
 		grant, _ := json.Marshal(e.EngagementGrant)
@@ -246,7 +318,7 @@ func (r *workflowExecutionRepository) Commit(ctx context.Context, c repository.W
 			grantValue = string(grant)
 		}
 		preferencesValue := string(preferences)
-		res, err := tx.ExecContext(ctx, `UPDATE workflow_executions SET status=?,current_node_id=?,output_json=?,terminal_reason_json=?,budget_usage_json=?,engagement_grant_json=?,execution_preferences_json=?,edge_traversals_json=?,version=?,updated_at=?,ended_at=? WHERE id=? AND version=?`, e.Status, e.CurrentNodeID, output, terminalValue, string(budget), grantValue, preferencesValue, string(edges), e.Version, SQLiteTime(e.UpdatedAt), ended, e.ID, c.ExpectedVersion)
+		res, err := tx.ExecContext(ctx, `UPDATE workflow_executions SET status=?,current_node_id=?,output_json=?,terminal_reason_json=?,budget_usage_json=?,engagement_grant_json=?,execution_preferences_json=?,edge_traversals_json=?,version=?,updated_at=?,ended_at=? WHERE id=? AND version=? AND status=?`, e.Status, e.CurrentNodeID, output, terminalValue, string(budget), grantValue, preferencesValue, string(edges), e.Version, SQLiteTime(e.UpdatedAt), ended, e.ID, c.ExpectedVersion, persistedStatus)
 		if err != nil {
 			return err
 		}
@@ -276,6 +348,25 @@ func (r *workflowExecutionRepository) Commit(ctx context.Context, c repository.W
 }
 
 func upsertAttempt(ctx context.Context, tx *Tx, a *domain.WorkflowNodeAttempt) error {
+	if a == nil {
+		return fmt.Errorf("workflow node attempt is required")
+	}
+	if !a.Status.Valid() {
+		return fmt.Errorf("invalid workflow node attempt status %q", a.Status)
+	}
+	var persistedStatus string
+	err := tx.QueryRowContext(ctx, `SELECT status FROM workflow_node_attempts WHERE id=?`, a.ID).Scan(&persistedStatus)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("read persisted workflow node attempt status: %w", err)
+	}
+	if err == nil {
+		previous := domain.WorkflowAttemptStatus(persistedStatus)
+		if !previous.CanTransitionTo(a.Status) {
+			return fmt.Errorf("persisted workflow node attempt: %w: %q -> %q", domain.ErrInvalidWorkflowAttemptStatusTransition, previous, a.Status)
+		}
+	} else if a.Status != domain.WorkflowAttemptDispatchPending {
+		return fmt.Errorf("persisted workflow node attempt: %w: %q -> %q", domain.ErrInvalidWorkflowAttemptStatusTransition, "", a.Status)
+	}
 	var run, source, child, completed any
 	if a.RunID != nil {
 		run = a.RunID.String()
@@ -289,7 +380,7 @@ func upsertAttempt(ctx context.Context, tx *Tx, a *domain.WorkflowNodeAttempt) e
 	if a.CompletedAt != nil {
 		completed = SQLiteTime(*a.CompletedAt)
 	}
-	_, err := tx.ExecContext(ctx, `INSERT INTO workflow_node_attempts (id,execution_id,node_id,ordinal,strategy,status,idempotency_key,input_snapshot_json,prompt_snapshot,experiment_id,variant_id,prompt_hash,run_id,conversation_id,source_attempt_id,child_execution_id,error_code,raw_output,validation_error,version,created_at,updated_at,completed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,experiment_id=excluded.experiment_id,variant_id=excluded.variant_id,prompt_hash=excluded.prompt_hash,run_id=excluded.run_id,conversation_id=excluded.conversation_id,source_attempt_id=excluded.source_attempt_id,child_execution_id=excluded.child_execution_id,error_code=excluded.error_code,raw_output=excluded.raw_output,validation_error=excluded.validation_error,version=excluded.version,updated_at=excluded.updated_at,completed_at=excluded.completed_at`, a.ID, a.ExecutionID, a.NodeID, a.Ordinal, a.Strategy, a.Status, a.IdempotencyKey, string(a.InputSnapshot), a.PromptSnapshot, a.ExperimentID, a.VariantID, a.PromptHash, run, a.ConversationID, source, child, a.ErrorCode, a.RawOutput, a.ValidationError, a.Version, SQLiteTime(a.CreatedAt), SQLiteTime(a.UpdatedAt), completed)
+	_, err = tx.ExecContext(ctx, `INSERT INTO workflow_node_attempts (id,execution_id,node_id,ordinal,strategy,status,idempotency_key,input_snapshot_json,prompt_snapshot,experiment_id,variant_id,prompt_hash,run_id,conversation_id,source_attempt_id,child_execution_id,error_code,raw_output,validation_error,version,created_at,updated_at,completed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,experiment_id=excluded.experiment_id,variant_id=excluded.variant_id,prompt_hash=excluded.prompt_hash,run_id=excluded.run_id,conversation_id=excluded.conversation_id,source_attempt_id=excluded.source_attempt_id,child_execution_id=excluded.child_execution_id,error_code=excluded.error_code,raw_output=excluded.raw_output,validation_error=excluded.validation_error,version=excluded.version,updated_at=excluded.updated_at,completed_at=excluded.completed_at`, a.ID, a.ExecutionID, a.NodeID, a.Ordinal, a.Strategy, a.Status, a.IdempotencyKey, string(a.InputSnapshot), a.PromptSnapshot, a.ExperimentID, a.VariantID, a.PromptHash, run, a.ConversationID, source, child, a.ErrorCode, a.RawOutput, a.ValidationError, a.Version, SQLiteTime(a.CreatedAt), SQLiteTime(a.UpdatedAt), completed)
 	return err
 }
 

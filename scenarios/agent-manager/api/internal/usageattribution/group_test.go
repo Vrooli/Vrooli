@@ -49,3 +49,34 @@ func TestBurnersCountRequestsNotTurns(t *testing.T) {
 		t.Fatalf("burner requests = %d, want the %d provider reports", got, requests)
 	}
 }
+
+func TestWorkloadBurnersKeepUntaggedOwnershipExplicit(t *testing.T) {
+	f := newWeekFixture()
+	turns := append([]Turn(nil), f.turns[:4]...)
+	ids := []string{"operator", "imported-agent", "managed-agent", "child-agent"}
+	f.runs[ids[0]] = Run{ID: ids[0], Source: SourceIndexed, ProfileID: operatorProfile}
+	f.runs[ids[1]] = Run{ID: ids[1], Source: SourceIndexed}
+	f.runs[ids[2]] = Run{ID: ids[2], Source: SourceAgentManager}
+	f.runs[ids[3]] = Run{ID: ids[3], Source: SourceIndexed, Child: true}
+	for i := range turns {
+		turns[i].RunID = ids[i]
+	}
+	result := Attribute(f.window, f.window.Start, turns, fixturePrices)
+	got := Group(result, ByWorkload, f.runs, "")
+	labels := map[string]string{}
+	for _, burner := range got {
+		labels[burner.Key] = burner.Label
+	}
+	if labels[operatorWorkload] != "Operator sessions (no workload tag)" {
+		t.Fatalf("operator sessions = %#v", labels)
+	}
+	if labels["untagged"] != "Untagged indexed sessions (ownership unknown)" {
+		t.Fatalf("untagged indexed sessions = %#v", labels)
+	}
+	if labels["untagged-agent-manager"] != "Agent Manager runs (no workload tag)" {
+		t.Fatalf("untagged Agent Manager runs = %#v", labels)
+	}
+	if labels["untagged-child"] != "Indexed child-agent sessions (no workload tag)" {
+		t.Fatalf("untagged child agents = %#v", labels)
+	}
+}

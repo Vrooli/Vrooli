@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"agent-manager/internal/protoconv"
+	"agent-manager/internal/researchbudget"
 	"agent-manager/internal/runreport"
 
 	"github.com/google/uuid"
@@ -82,5 +83,32 @@ func TestWriteRunReportJSONEmitsMeasuredZeroMetrics(t *testing.T) {
 		if !strings.Contains(recorder.Body.String(), field) {
 			t.Fatalf("report JSON missing zero metric %s: %s", field, recorder.Body.String())
 		}
+	}
+}
+
+func TestWriteRunReportWithResearchBudgetIncludesRunBoundSpendAndBenefit(t *testing.T) {
+	id := uuid.New()
+	report := &runreport.RunReport{RunID: id, Status: "complete", ResearchBudget: runreport.ResearchBudgetSummary{
+		Availability:      runreport.Availability{State: runreport.AvailabilityAvailable},
+		SpendAvailability: runreport.Availability{State: runreport.AvailabilityAvailable},
+		Summary:           &researchbudget.Summary{RunID: id.String(), TreasuryBudgetID: "budget-1", MandateID: "mandate-1", Currency: "USDC", UnitCode: "USDC_ATOMS", CapMinor: 500, SpendMinor: 125, RemainingMinor: 375, SpendCount: 1, Spend: []researchbudget.Spend{{ID: "spend-1", RunID: id.String(), TreasuryReceiptID: "receipt-1", IntegrationID: "x402:local", Category: "x402_call", AmountMinor: 125, Currency: "USDC", UnitCode: "USDC_ATOMS", ResultRef: "checkpoint-1", BenefitState: "measured", BenefitSummary: "3 fixture records accepted", SettledAt: time.Date(2026, 11, 13, 1, 0, 0, 0, time.UTC)}}},
+	}}
+	recorder := httptest.NewRecorder()
+	writeRunReportWithResearchBudgetJSON(recorder, report)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", recorder.Code, recorder.Body.String())
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &decoded); err != nil {
+		t.Fatal(err)
+	}
+	budget, ok := decoded["research_budget"].(map[string]any)
+	if !ok || budget["availability"].(map[string]any)["state"] != "available" || budget["spend_availability"].(map[string]any)["state"] != "available" {
+		t.Fatalf("research_budget missing availability: %#v", decoded)
+	}
+	summary := budget["summary"].(map[string]any)
+	spend := summary["spend"].([]any)[0].(map[string]any)
+	if summary["run_id"] != id.String() || summary["spend_minor"] != float64(125) || spend["treasury_receipt_id"] != "receipt-1" || spend["benefit_summary"] != "3 fixture records accepted" || !strings.Contains(budget["provenance"].(string), "Missing rows do not establish zero spend") {
+		t.Fatalf("run-bound spend/benefit evidence lost: %#v", budget)
 	}
 }

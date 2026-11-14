@@ -12,6 +12,9 @@ const (
 	PendingAuthorizationPending  = "pending"
 	PendingAuthorizationApproved = "approved"
 	PendingAuthorizationRejected = "rejected"
+	// PendingAuthorizationWithdrawn: the ask was closed because a grant already
+	// covers it. No operator answer applies and nothing is issued.
+	PendingAuthorizationWithdrawn = "withdrawn"
 )
 
 // PendingAuthorizationKind distinguishes what a resolution should mint on
@@ -43,6 +46,10 @@ type PendingAuthorizationRequest struct {
 	Kind string `json:"kind"`
 	// SessionID scopes a one-time grant to a session when present.
 	SessionID string `json:"session_id,omitempty"`
+	// SubjectKey is the hub subject key this ask was raised under, so the one open
+	// decision is updated rather than duplicated and can be closed by key. Empty
+	// for an ask raised before keys existed; its event bytes must not change.
+	SubjectKey string `json:"subject_key,omitempty"`
 	// GrantTTL is the lifetime the issued grant will carry on approval.
 	GrantTTL time.Duration `json:"grant_ttl"`
 	// MaxConcurrentRuns is the concurrency bound the issued grant will carry.
