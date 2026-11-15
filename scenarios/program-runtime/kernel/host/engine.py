@@ -1247,30 +1247,13 @@ class BridgeBinding:
             raise AmbiguousResponse(f"binding {self.binding_id} has no determinable primary response field; candidate repeated fields: {candidates}", binding_id=self.binding_id)
         if not self.bridge_url:
             raise ScenarioUnreachable("program-runtime binding bridge is unavailable", binding_id=self.binding_id)
-        if self.reachability_url and not self.demand_start:
-            self._check_live_reachability()
-        elif not self.reachable and not self.demand_start:
+        # Go Execute owns live reachability admission. The separate
+        # reachability endpoint remains available through reachable(), but
+        # probing it here repeats the same decision before every invocation.
+        # Keep the static guard for direct kernels without a Go bridge.
+        if not self.reachability_url and not self.reachable and not self.demand_start:
             raise ScenarioUnreachable(f"binding {self.binding_id} is unreachable: {self.reachability_reason}", binding_id=self.binding_id)
         return self._invoke(kwargs, confirmed, rows_override)
-
-    def _check_live_reachability(self) -> None:
-        request = urllib.request.Request(
-            self.reachability_url,
-            data=json.dumps({"session_id": self.session_id}).encode(),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        try:
-            with _open_bridge_request(request, timeout=_Budgets.describe) as response:
-                snapshot = json.loads(response.read().decode())
-            scenario = self.binding_id.split("/", 1)[0]
-            status = snapshot.get(scenario, {}) if isinstance(snapshot, dict) else {}
-            if not status.get("reachable", False):
-                raise ScenarioUnreachable(f"binding {self.binding_id} is unreachable: {status.get('reason', 'scenario API is unavailable')}", binding_id=self.binding_id)
-        except BindingError:
-            raise
-        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
-            raise ScenarioUnreachable(f"binding {self.binding_id} is unreachable: live reachability unavailable: {exc}", binding_id=self.binding_id) from exc
 
     def _invoke(self, kwargs: dict[str, Any], confirmed: bool, rows_override: str | None = None) -> Handle:
         context = _INVOCATION_CONTEXT.get()

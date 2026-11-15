@@ -230,6 +230,17 @@ promoted version is callable as `lib.<name>()`; declared contracts are callable
 inside a program as `lib.<scenario>.<name>(k=v)`.
 `library get` includes one freshness/drift row for each called binding.
 
+Research programs are files in the research home (`$VROOLI_RESEARCH_HOME`, else
+`~/.vrooli/research`): `research/<topic>/<name>` is
+`topics/<topic>/programs/<name>.json` with `<name>.py`, and `research/<name>` is
+the supervisor's `programs/<name>.json`. The contract `name` must equal that id.
+`library run|get research/...` reads them fresh on every call and lists them in
+`library list`; they are not callable through `lib`. When Program Runtime is
+unreachable, or does not know the id, the CLI reads the files or runs the
+program standalone (`kernel/host/standalone.py`) and prints one stderr line
+naming the file. A run is never repeated locally after the API may have
+accepted it.
+
 The governed-versus-observed call share is queryable over an explicit window:
 
 ```bash

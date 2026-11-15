@@ -6,14 +6,13 @@ attribution all declined themselves while the loop sat idle, so a completely unu
 mechanism produced a board with nothing wrong on it. These tests hold the distinction:
 a sensor that could not be read is unavailable, and a sensor that answered zero is a red zero.
 """
-import contextlib
-import io
-import json
+import sys
 from pathlib import Path
 from types import SimpleNamespace as NS
 import unittest
 
-ROOT = Path(__file__).parents[1]
+sys.path.insert(0, str(Path(__file__).parents[3] / "kernel" / "tests"))
+from program_fixture import PROGRAMS as ROOT, run  # noqa: E402
 
 
 class Handle:
@@ -54,8 +53,6 @@ def comparison(applied, rejected, reliable=True, reason=""):
 
 class SetpointMeters(unittest.TestCase):
     def read_board(self, *, advice, fragments, library=(), agent_runs=()):
-        surface = NS()
-
         def unavailable(*_a, **_k):
             raise RuntimeError("scenario_not_running")
 
@@ -70,35 +67,13 @@ class SetpointMeters(unittest.TestCase):
             shapes=NS(list=unavailable),
             tasks=NS(),
         )
-        scope = {
-            "program": NS(
-                inputs=lambda: {},
-                classify=lambda exc: ("unavailable", "scenario_unreachable"),
-                run=lambda states, state: self._drive(states, state),
-            ),
-            "program_runtime": namespace,
-            "tasks": NS(learning_findings=unavailable, delivery_metrics=lambda **k: unavailable(),
-                        fragment_list=lambda **k: fragments),
-            "lib": NS(program_runtime=NS(portfolio_audit=unavailable)),
-            "vrooli_memory": NS(),
-            "gather": lambda *calls: [call() for call in calls],
-            "advice_source": advice,
-        }
-        source = (ROOT / "setpoint-read.py").read_text()
-        # Bind the two optional reads this board needs without standing up the scenarios.
-        source = source.replace('"advice": lambda: advice_read(),', '"advice": lambda: advice_source,')
-        source = source.replace('"fragments": lambda: optional_read("fragment_list"),',
-                                '"fragments": lambda: fragments_source,')
-        scope["fragments_source"] = fragments
-        output = io.StringIO()
-        with contextlib.redirect_stdout(output):
-            exec(compile(source, "setpoint-read", "exec"), scope)
-        return {r["row"]: r for r in json.loads(output.getvalue())["signals"]["rows"]}
-
-    @staticmethod
-    def _drive(states, state):
-        while state:
-            state = states[state]()
+        envelope = run(
+            "setpoint-read", {}, program_runtime=namespace, Handle=Handle,
+            tasks=NS(learning_findings=unavailable, delivery_metrics=unavailable, fragment_list=lambda **k: fragments),
+            lib=NS(program_runtime=NS(portfolio_audit=unavailable), vrooli_memory=NS(compare_outcomes=lambda **k: advice)),
+            gather=lambda *calls: [call() for call in calls],
+        )
+        return {r["row"]: r for r in envelope["signals"]["rows"]}
 
     def test_zero_advice_decisions_reads_as_an_out_of_band_zero(self):
         rows = self.read_board(advice=comparison(0, 0), fragments=Handle([{"fragments": []}]))

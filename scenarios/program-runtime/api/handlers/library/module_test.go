@@ -167,11 +167,11 @@ func TestCloseDeclaredAdmissionPreservesAlreadyRunningExecution(t *testing.T) {
 }
 
 func TestDeclaredGrantsAreExplicitAndLimitedToPinnedDestructiveBindings(t *testing.T) {
-	contract := contracts.Contract{Bindings: []contracts.BindingRef{{ID: "workspace-sandbox/change/promote", Effect: "destructive"}, {ID: "test-genie/validation/get", Effect: "read"}}}
+	contract := contracts.Contract{Bindings: []contracts.BindingRef{{ID: "workspace-sandbox/change/promote", Effect: "destructive"}, {ID: "test-genie/validation/get", Effect: "read"}, {ID: "workspace-sandbox/replay-seal/create", Effect: "write"}}}
 	grants, err := declaredGrants(contract, []string{"binding:workspace-sandbox/change/promote", "binding:workspace-sandbox/change/promote"})
 	require.NoError(t, err)
 	require.Equal(t, []string{"binding:workspace-sandbox/change/promote"}, grants)
-	for _, grant := range []string{"effect:destructive", "filesystem:write", "network:internal", "binding:workspace-sandbox/*", "binding:test-genie/validation/get", "binding:unrelated/ops/delete"} {
+	for _, grant := range []string{"effect:destructive", "filesystem:write", "network:internal", "binding:workspace-sandbox/*", "binding:test-genie/validation/get", "binding:workspace-sandbox/replay-seal/create", "binding:unrelated/ops/delete"} {
 		_, err := declaredGrants(contract, []string{grant})
 		require.Error(t, err, "overbroad or undeclared grant: %s", grant)
 	}

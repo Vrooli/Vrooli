@@ -410,11 +410,14 @@ class ProgramHelper:
 
     # -- the helpers the copies used to define -----------------------------
 
-    def fail(self, status: str, klass: str, detail: Any, where: str) -> str:
+    def fail(self, status: str, klass: str, detail: Any, where: str, detail_limit: int = ERROR_DETAIL_LIMIT) -> str:
         """Record one bad path and route to the report phase."""
+        if type(detail_limit) is not int:
+            raise TypeError("detail_limit must be an integer")
+        max_detail = max(0, min(detail_limit, ERROR_DETAIL_LIMIT))
         envelope = self.current()
         envelope["status"] = status
-        envelope.setdefault("errors", []).append({"class": str(klass), "detail": str(detail)[:ERROR_DETAIL_LIMIT], "where": str(where)})
+        envelope.setdefault("errors", []).append({"class": str(klass), "detail": str(detail)[:max_detail], "where": str(where)})
         return "report"
 
     def guarded(self, call: Callable[[], Any]) -> Callable[[], Any]:

@@ -4,9 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
+	"google.golang.org/protobuf/encoding/protojson"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func writeSuite(t *testing.T, suite AuthoringSuite) string {
@@ -69,6 +73,113 @@ func TestAuthoringEvalMeasuresRatherThanStubbing(t *testing.T) {
 	}
 }
 
+func TestAuthoringEvalRecordsComparableTimingAndIdentity(t *testing.T) {
+	suitePath := writeSuite(t, AuthoringSuite{
+		Name: "timed",
+		Cases: []AuthoringCase{{
+			ID: "case-1", Task: "return rows", Oracle: AuthoringOracle{Kind: "stdout_contains", Text: "rows"},
+		}},
+	})
+	corpus, err := os.ReadFile(suitePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var instruction string
+	source := "print({'rows': 1})"
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	result := RunAuthoringEval(ctx, AuthoringDeps{
+		SuitePath: suitePath,
+		Author: func(_ context.Context, brief, _ string) (string, string, error) {
+			instruction = brief
+			return "```python\n" + source + "\n```", "test-model", nil
+		},
+		RunCase: func(_ context.Context, _, got string) (string, string, int64, string, error) {
+			if got != source {
+				t.Fatalf("source fence not stripped before execution: %q", got)
+			}
+			return "rows", "", 4, "", nil
+		},
+	})
+	if len(result.Cases) != 1 {
+		t.Fatalf("cases=%d, want 1", len(result.Cases))
+	}
+	item := result.Cases[0]
+	if result.ReceiptVersion != AuthoringReceiptVersion || result.CorpusSHA256 != sha256Hex(corpus) {
+		t.Fatalf("receipt/corpus identity=%q/%q", result.ReceiptVersion, result.CorpusSHA256)
+	}
+	if result.InstructionSHA256 != sha256Hex([]byte(instruction)) || item.TaskSHA256 != sha256Hex([]byte("return rows")) || item.SourceSHA256 != sha256Hex([]byte(source)) {
+		t.Fatalf("instruction/task/source digests are not over the consumed inputs: %+v", result)
+	}
+	if result.AuthorRole != AuthoringRole || result.AuthorSchemaSHA256 != sha256Hex([]byte(AuthoringSchemaJSON)) || result.RoutePolicyRevision != unknownRevision {
+		t.Fatalf("authoring route metadata=%+v", result)
+	}
+	if result.StartedAt == "" || result.RuntimeRevision == "" || result.ElapsedMS < 0 || result.TotalBudgetMS <= 0 || result.PerCaseReserveMS != perCaseReserve.Milliseconds() {
+		t.Fatalf("run timing/revision metadata=%+v", result)
+	}
+	if item.GenerationElapsedMS < 0 || item.ExecutionElapsedMS < 0 || item.OracleElapsedMS < 0 || item.CaseStartOffsetMS < 0 || item.ElapsedToFirstWorkingMS == nil || *item.ElapsedToFirstWorkingMS < 0 {
+		t.Fatalf("case timing fields=%+v", item)
+	}
+	if result.RoutePolicyRevision != "unknown" {
+		t.Fatalf("unavailable route revision must be explicit, got %q", result.RoutePolicyRevision)
+	}
+}
+
+func TestAuthoringEvalLeavesFirstWorkingTimeAbsentAfterFailure(t *testing.T) {
+	result := RunAuthoringEval(context.Background(), AuthoringDeps{
+		SuitePath: writeSuite(t, AuthoringSuite{Cases: []AuthoringCase{{
+			ID: "failed", Task: "fail", Oracle: AuthoringOracle{Kind: "stdout_contains", Text: "ok"},
+		}}}),
+		Author: func(context.Context, string, string) (string, string, error) {
+			return "raise ValueError()", "test-model", nil
+		},
+		RunCase: func(context.Context, string, string) (string, string, int64, string, error) {
+			return "", "kernel_runtime", 0, "ValueError: failure", nil
+		},
+	})
+	if len(result.Cases) != 1 {
+		t.Fatalf("cases=%d, want 1", len(result.Cases))
+	}
+	if result.Cases[0].ElapsedToFirstWorkingMS != nil || result.Cases[0].OracleElapsedMS != 0 {
+		t.Fatalf("failed execution must not claim oracle/working time: %+v", result.Cases[0])
+	}
+	if result.Cases[0].ExecutionElapsedMS < 0 || result.Cases[0].GenerationElapsedMS < 0 {
+		t.Fatalf("completed phases must have nonnegative timing: %+v", result.Cases[0])
+	}
+}
+
+func TestAuthoringRequestSerializesLocalOnlyProfile(t *testing.T) {
+	raw, err := json.Marshal(AuthoringInferenceArgs("brief", "task"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var request inferencev1.RunRequest
+	if err := protojson.Unmarshal(raw, &request); err != nil {
+		t.Fatalf("decode serialized authoring request: %v", err)
+	}
+	if request.GetProfile() != sharedv1.Profile_PROFILE_LOCAL_ONLY || request.GetRole() != AuthoringRole || request.GetSchemaJson() != AuthoringSchemaJSON {
+		t.Fatalf("serialized authoring request lost its local-only typed contract: %+v", &request)
+	}
+}
+
+func TestAuthoringRouteRequiresKnownLocalProviderAndModel(t *testing.T) {
+	for _, tc := range []struct {
+		provider, model string
+		wantErr         bool
+	}{
+		{"ollama", "local-model:latest", false},
+		{"", "model", true},
+		{"openrouter", "hosted-model", true},
+		{"future-provider", "model", true},
+		{"ollama", "", true},
+	} {
+		err := ValidateAuthoringRoute(tc.provider, tc.model)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("provider=%q model=%q error=%v wantErr=%v", tc.provider, tc.model, err, tc.wantErr)
+		}
+	}
+}
+
 func TestAuthoringEvalPassesExplicitSetupBeforeAuthoredProgram(t *testing.T) {
 	setupSeen := false
 	deps := AuthoringDeps{
@@ -119,6 +230,115 @@ func TestAuthoringOraclesUseDeclaredFields(t *testing.T) {
 	}
 	if !satisfiesOracle(AuthoringOracle{Kind: "null_verdict"}, "no capability") {
 		t.Fatal("null_verdict must accept the exact safe-stop answer requested by the corpus")
+	}
+}
+
+func TestJSONAssertionOracleChecksNestedValuesAndCalls(t *testing.T) {
+	oracle := AuthoringOracle{Kind: "json_assertions", Assertions: []JSONAssertion{
+		{Path: "signals.top.0.provider_id", Op: "eq", Value: "alpha"},
+		{Path: "signals.top", Op: "length_eq", Value: 2},
+		{Path: "signals.missing", Op: "missing"},
+	}, CallCounts: []FixtureCallCount{{BindingID: "search-hub/query/query", Count: 1, Args: map[string]any{"query": "program runtime"}, Rows: "ranked"}}, MaxOutputBytes: 100}
+	stdout := `{"signals":{"top":[{"provider_id":"alpha"},{"provider_id":"beta"}]}}`
+	execution := AuthoringCaseExecution{FixtureCalls: map[string]int32{"search-hub/query/query": 1}, FixtureRequests: []FixtureCallTrace{{BindingID: "search-hub/query/query", Args: map[string]any{"query": "program runtime"}, Rows: "ranked"}}}
+	if !fixtureOracleSatisfied(oracle, stdout, execution) {
+		t.Fatal("nested value and exact call-count assertions should pass")
+	}
+	wrongCount := execution
+	wrongCount.FixtureCalls = map[string]int32{"search-hub/query/query": 2}
+	if fixtureOracleSatisfied(oracle, stdout, wrongCount) {
+		t.Fatal("the oracle must reject duplicate binding calls")
+	}
+	if fixtureOracleSatisfied(oracle, stdout+" "+stdout, execution) {
+		t.Fatal("the oracle must enforce the output bound")
+	}
+	if fixtureOracleSatisfied(oracle, stdout+` {"extra":true}`, execution) {
+		t.Fatal("the oracle must reject trailing JSON values")
+	}
+	wrongArgs := execution
+	wrongArgs.FixtureRequests = []FixtureCallTrace{{BindingID: "search-hub/query/query", Args: map[string]any{"query": "wrong query"}, Rows: "ranked"}}
+	if fixtureOracleSatisfied(oracle, stdout, wrongArgs) {
+		t.Fatal("the oracle must reject calls with mismatched task arguments")
+	}
+}
+
+func TestJSONAssertionOperatorsHavePositiveAndNearMissCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		actual      any
+		exists      bool
+		check       JSONAssertion
+		other       any
+		otherExists bool
+		want        bool
+	}{
+		{"eq", "alpha", true, JSONAssertion{Op: "eq", Value: "alpha"}, nil, false, true},
+		{"eq-near-miss", "beta", true, JSONAssertion{Op: "eq", Value: "alpha"}, nil, false, false},
+		{"ne", "alpha", true, JSONAssertion{Op: "ne", Value: "beta"}, nil, false, true},
+		{"ne-near-miss", "alpha", true, JSONAssertion{Op: "ne", Value: "alpha"}, nil, false, false},
+		{"gt", json.Number("3"), true, JSONAssertion{Op: "gt", Value: json.Number("2")}, nil, false, true},
+		{"gt-near-miss", json.Number("2"), true, JSONAssertion{Op: "gt", Value: json.Number("2")}, nil, false, false},
+		{"gte", json.Number("2"), true, JSONAssertion{Op: "gte", Value: json.Number("2")}, nil, false, true},
+		{"gte-near-miss", json.Number("1"), true, JSONAssertion{Op: "gte", Value: json.Number("2")}, nil, false, false},
+		{"lt", json.Number("1"), true, JSONAssertion{Op: "lt", Value: json.Number("2")}, nil, false, true},
+		{"lt-near-miss", json.Number("2"), true, JSONAssertion{Op: "lt", Value: json.Number("2")}, nil, false, false},
+		{"lte", json.Number("2"), true, JSONAssertion{Op: "lte", Value: json.Number("2")}, nil, false, true},
+		{"lte-near-miss", json.Number("3"), true, JSONAssertion{Op: "lte", Value: json.Number("2")}, nil, false, false},
+		{"contains-string", "alpha-beta", true, JSONAssertion{Op: "contains", Value: "beta"}, nil, false, true},
+		{"contains-array", []any{"alpha", "beta"}, true, JSONAssertion{Op: "contains", Value: "beta"}, nil, false, true},
+		{"contains-near-miss", []any{"alpha"}, true, JSONAssertion{Op: "contains", Value: "beta"}, nil, false, false},
+		{"exists", nil, true, JSONAssertion{Op: "exists"}, nil, false, true},
+		{"exists-near-miss", nil, false, JSONAssertion{Op: "exists"}, nil, false, false},
+		{"missing", nil, false, JSONAssertion{Op: "missing"}, nil, false, true},
+		{"missing-near-miss", nil, true, JSONAssertion{Op: "missing"}, nil, false, false},
+		{"length-eq", []any{1, 2}, true, JSONAssertion{Op: "length_eq", Value: 2}, nil, false, true},
+		{"length-eq-near-miss", []any{1}, true, JSONAssertion{Op: "length_eq", Value: 2}, nil, false, false},
+		{"length-lte", "ab", true, JSONAssertion{Op: "length_lte", Value: 2}, nil, false, true},
+		{"length-lte-near-miss", "abc", true, JSONAssertion{Op: "length_lte", Value: 2}, nil, false, false},
+		{"equal-path", "alpha", true, JSONAssertion{Op: "equal_path"}, "alpha", true, true},
+		{"equal-path-near-miss", "alpha", true, JSONAssertion{Op: "equal_path"}, "beta", true, false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := assertionMatches(test.actual, test.exists, test.check, test.other, test.otherExists); got != test.want {
+				t.Fatalf("assertion result=%v want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestJSONAssertionOracleRejectsMalformedAndNonObjectOutput(t *testing.T) {
+	oracle := AuthoringOracle{Kind: "json_assertions", Assertions: []JSONAssertion{{Path: "status", Op: "eq", Value: "ok"}}}
+	for _, output := range []string{`{"status":`, `[{"status":"ok"}]`, `{"status":"ok"} trailing`, `{"status":"ok"} {"extra":true}`} {
+		if fixtureOracleSatisfied(oracle, output, AuthoringCaseExecution{}) {
+			t.Errorf("malformed/non-object output passed: %q", output)
+		}
+	}
+	if fixtureOracleSatisfied(AuthoringOracle{Kind: "json_assertions"}, `{"status":"ok"}`, AuthoringCaseExecution{}) {
+		t.Fatal("an empty oracle must fail closed")
+	}
+}
+
+func TestAuthoringEvalReturnsSuiteOrderedRowsForSkippedCases(t *testing.T) {
+	suite := AuthoringSuite{Name: "partial", Cases: []AuthoringCase{
+		{ID: "second", Task: "first", Oracle: AuthoringOracle{Kind: "stdout_non_empty"}},
+		{ID: "first", Task: "second", Oracle: AuthoringOracle{Kind: "stdout_non_empty"}},
+	}}
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(perCaseReserve/2))
+	defer cancel()
+	result := RunAuthoringEval(ctx, AuthoringDeps{SuitePath: writeSuite(t, suite), Author: func(context.Context, string, string) (string, string, error) {
+		t.Fatal("deadline should prevent authoring")
+		return "", "", nil
+	}, RunCase: func(context.Context, string, string) (string, string, int64, string, error) {
+		return "", "", 0, "", nil
+	}})
+	if len(result.Cases) != 2 || result.Cases[0].CaseID != "second" || result.Cases[1].CaseID != "first" {
+		t.Fatalf("one ordered row per task is required: %#v", result.Cases)
+	}
+	for _, item := range result.Cases {
+		if item.CaseStatus != "not_attempted" || item.AttemptCount != 0 {
+			t.Fatalf("incorrect skipped row: %+v", item)
+		}
 	}
 }
 

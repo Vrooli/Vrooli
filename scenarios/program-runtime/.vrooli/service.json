@@ -222,6 +222,26 @@
         "degraded_behavior": "Availability is inferred from source evidence; verify this scenario's capability contract before relying on it.",
         "versionRange": ">=0.0.1",
         "description": "Auto-detected dependency via program_binding"
+      },
+      "client-rehearsal": {
+        "degraded_behavior": "bounty-replay returns unavailable for job persistence and never reports a completed replay without an owner receipt.",
+        "description": "Program Runtime calls persisted F9 coding-job operations through governed Connect bindings.",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "The program crosses the Client Rehearsal owner boundary through its manifest-backed Connect service; no source package import is intended.",
+        "startup_policy": "ignore",
+        "type": "scenario"
+      },
+      "test-genie": {
+        "degraded_behavior": "bounty-replay returns unavailable for evaluation and does not store a score without a Test Genie receipt.",
+        "description": "Program Runtime submits and reads immutable frozen three-way Test Genie replay receipts.",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "The program calls Test Genie through manifest-backed Connect bindings and does not import its implementation.",
+        "startup_policy": "ignore",
+        "type": "scenario"
       }
     }
   },
@@ -270,7 +290,8 @@
         "program-runtime.delegated-run",
         "program-runtime.watch-set",
         "program-runtime.failure-triage",
-        "program-runtime.registry-sweep"
+        "program-runtime.registry-sweep",
+        "program-runtime.bounty-replay"
       ]
     },
     "improve": {

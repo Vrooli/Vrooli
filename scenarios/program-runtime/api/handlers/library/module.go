@@ -20,6 +20,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/researchhome"
 	libraryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library"
 	libraryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library/library_v1connect"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
@@ -92,7 +93,7 @@ func (h *handler) ListLibrary(ctx context.Context, req *connect.Request[libraryv
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	if h.contracts != nil {
-		for _, contract := range h.contracts.List() {
+		for _, contract := range append(h.contracts.List(), h.contracts.Research()...) {
 			programs = append(programs, contractProgram(contract))
 		}
 	}
@@ -106,22 +107,19 @@ func (h *handler) GetLibrary(ctx context.Context, req *connect.Request[libraryv1
 				return nil, connect.NewError(connect.CodeUnavailable, err)
 			}
 		}
-		parts := strings.SplitN(strings.TrimSpace(req.Msg.GetName()), ".", 2)
-		if len(parts) == 2 {
-			if contract, ok := h.contracts.Get(parts[0], parts[1]); ok {
-				if requested := req.Msg.GetVersion(); requested != 0 {
-					version, parseErr := strconv.ParseInt(contract.Version, 10, 64)
-					if parseErr != nil || version != requested {
-						return nil, connect.NewError(connect.CodeNotFound, library.ErrNotFound)
-					}
+		if contract, ok := h.contracts.Lookup(req.Msg.GetName()); ok {
+			if requested := req.Msg.GetVersion(); requested != 0 {
+				version, parseErr := strconv.ParseInt(contract.Version, 10, 64)
+				if parseErr != nil || version != requested {
+					return nil, connect.NewError(connect.CodeNotFound, library.ErrNotFound)
 				}
-				if h.repo != nil && contract.ValidationError == "" {
-					if err := h.repo.RetainDeclared(ctx, contract); err != nil {
-						return nil, connect.NewError(connect.CodeInternal, err)
-					}
-				}
-				return connect.NewResponse(&libraryv1.GetLibraryResponse{Program: contractProgram(contract)}), nil
 			}
+			if h.repo != nil && contract.ValidationError == "" {
+				if err := h.repo.RetainDeclared(ctx, contract); err != nil {
+					return nil, connect.NewError(connect.CodeInternal, err)
+				}
+			}
+			return connect.NewResponse(&libraryv1.GetLibraryResponse{Program: contractProgram(contract)}), nil
 		}
 	}
 	program, err := h.repo.Get(ctx, strings.TrimSpace(req.Msg.GetName()), req.Msg.GetVersion())
@@ -240,14 +238,14 @@ func (h *handler) prepareDeclared(ctx context.Context, req *connect.Request[libr
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("refresh declared programs: %w", err))
 		}
 	}
-	parts := strings.SplitN(strings.TrimSpace(req.Msg.GetName()), ".", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("name must be <scenario>.<program>"))
+	name := strings.TrimSpace(req.Msg.GetName())
+	if _, program, found := strings.Cut(name, "."); !researchhome.IsID(name) && (!found || program == "" || strings.HasPrefix(name, ".")) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("name must be <scenario>.<program> or research/[<topic>/]<program>"))
 	}
 	if req.Msg.GetProvenance() == programsv1.Provenance_PROVENANCE_UNSPECIFIED {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("provenance is required"))
 	}
-	contract, ok := h.contracts.Get(parts[0], parts[1])
+	contract, ok := h.contracts.Lookup(name)
 	if expected := req.Msg.GetExpectedDigest(); expected != "" && (!ok || expected != contract.Digest) {
 		if h.repo == nil {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("pinned program artifact unavailable"))
@@ -292,6 +290,21 @@ func (h *handler) prepareDeclared(ctx context.Context, req *connect.Request[libr
 		caller = internalprograms.Caller{RunID: value.GetRunId(), AgentProfile: value.GetAgentProfile(), SkillID: value.GetSkillId(), Harness: value.GetHarness()}
 	}
 	identity := internalprograms.Identity{ProgramName: contract.ID, ProgramDigest: contract.Digest, IdempotencyKey: req.Msg.GetIdempotencyKey(), AdmissionDeadline: req.Msg.GetAdmissionDeadline(), OutputSchema: contract.OutputSchema}
+	if h.bindings != nil {
+		private, ok := h.bindings.ProgramPrivateBindings(ctx, contract.ID, contract.Digest, contract.BindingIDs)
+		if !ok {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("declared program is not authorized for its private bindings at this digest"))
+		}
+		for _, binding := range private {
+			identity.PrivateBindings = append(identity.PrivateBindings, internalprograms.BindingSpec{
+				ID: binding.GetId(), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(),
+				Namespace: strings.ReplaceAll(binding.GetScenario(), "-", "_"), Effect: binding.GetEffect(),
+				Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason(),
+				Signature: binding.GetSignature(), RowsField: binding.GetRowsField(), MetaFields: binding.GetMetaFields(),
+				RowFieldCandidates: binding.GetRowFieldCandidates(),
+			})
+		}
+	}
 	// The kernel receives the pinned declaration via the private execution
 	// protocol, not as a source preamble that a program could forge.
 	var helperDeclaration struct {

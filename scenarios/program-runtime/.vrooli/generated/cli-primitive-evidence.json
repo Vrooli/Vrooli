@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "program-runtime",
   "generator": "v1.0.0",
-  "manifest_hash": "0101e40d7c46515f36e8d354c2682ef80519cf4b3b37b4e611224dca7eeb66b5",
+  "manifest_hash": "3eeae21b8c86f18c54ebb849c4dd23ede26076e11b51ed31e572f7892a46321e",
   "commands": [
     {
       "path": "authoring eval",
@@ -148,6 +148,22 @@
       "binding": "LibraryService.SetCurrentLibrary",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "optimization submit",
+      "group": "optimization",
+      "command": "submit",
+      "binding": "vrooli.program_runtime.v1.optimization.OptimizationService.Submit",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "optimization wait",
+      "group": "optimization",
+      "command": "wait",
+      "binding": "vrooli.program_runtime.v1.optimization.OptimizationService.Wait",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "programs get",

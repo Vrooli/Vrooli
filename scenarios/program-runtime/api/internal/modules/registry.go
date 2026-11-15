@@ -19,9 +19,11 @@ package modules
 import (
 	"program-runtime/internal/module"
 
+	optimizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/optimization"
 	bindingsH "program-runtime/handlers/bindings"
 	capsH "program-runtime/handlers/capabilities"
 	libraryH "program-runtime/handlers/library"
+	optimizationH "program-runtime/handlers/optimization"
 	programsH "program-runtime/handlers/programs"
 	sessionsH "program-runtime/handlers/sessions"
 	shapesH "program-runtime/handlers/shapes"
@@ -34,6 +36,7 @@ import (
 	internalBindings "program-runtime/internal/bindings"
 	localdb "program-runtime/internal/database"
 	internalLibrary "program-runtime/internal/library"
+	internalOptimization "program-runtime/internal/optimization"
 	internalPrograms "program-runtime/internal/programs"
 	internalSessions "program-runtime/internal/sessions"
 	internalShapes "program-runtime/internal/shapes"
@@ -59,6 +62,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, bindingsH.Endpoints...)
 	out = append(out, programsH.Endpoints...)
 	out = append(out, libraryH.Endpoints...)
+	out = append(out, optimizationH.Endpoints...)
 	out = append(out, sessionsH.Endpoints...)
 	out = append(out, telemetryH.Endpoints...)
 	out = append(out, shapesH.Endpoints...)
@@ -91,6 +95,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "bindings", File: bindingsv1.File_program_runtime_v1_bindings_bindings_proto},
 		{Module: "programs", File: programsv1.File_program_runtime_v1_programs_programs_proto},
 		{Module: "library", File: libraryv1.File_program_runtime_v1_library_library_proto},
+		{Module: "optimization", File: optimizationv1.File_program_runtime_v1_optimization_optimization_proto},
 		{Module: "sessions", File: sessionsv1.File_program_runtime_v1_sessions_sessions_proto},
 		{Module: "telemetry", File: telemetryv1.File_program_runtime_v1_telemetry_telemetry_proto},
 		{Module: "shapes", File: shapesv1.File_program_runtime_v1_shapes_shapes_proto},
@@ -112,6 +117,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(internalPrograms.Schema),
 		apidb.SchemaProviderFunc(internalTasks.Schema),
 		apidb.SchemaProviderFunc(internalLibrary.Schema),
+		apidb.SchemaProviderFunc(internalOptimization.Schema),
 		apidb.SchemaProviderFunc(internalBindings.Schema),
 		apidb.SchemaProviderFunc(internalTelemetry.Schema),
 		apidb.SchemaProviderFunc(internalShapes.Schema),

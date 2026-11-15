@@ -158,10 +158,15 @@ func TestNestedLibrariesUseThePublicGovernedSurface(t *testing.T) { // [REQ:PRT-
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if len(requests) != 20 {
-		t.Fatalf("requests=%d, want one owner call per execution plus two project reachability checks", len(requests))
+	// Go Execute owns reachability admission, so the kernel never probes
+	// /reachability before a call: exactly one owner call per execution.
+	if len(requests) != 18 {
+		t.Fatalf("requests=%d, want one owner call per execution and no reachability probe", len(requests))
 	}
 	for _, request := range requests {
+		if strings.HasSuffix(request["test_path"].(string), "/reachability") {
+			t.Fatalf("a governed call re-probed reachability: %v", request)
+		}
 		if request["session_id"] != "session-fixture" {
 			t.Fatalf("lost session identity: %v", request)
 		}

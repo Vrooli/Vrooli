@@ -4,13 +4,24 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
-from host.engine import Handle, SessionKernel
+from host.engine import BridgeBinding, Handle, ScenarioUnreachable, SessionKernel
 
 
 def test_default_repr_is_bounded():  # [REQ:PRT-P0-003]
     handle = Handle(({"id": i} for i in range(100_000)))
     assert len(repr(handle)) < 100
     assert "100000" in repr(handle)
+
+
+def test_direct_binding_keeps_static_unreachable_guard_without_go_reachability():
+    binding = BridgeBinding("offline/health/status", "read", "session", "http://bridge/execute", [], reachable=False, reachability_reason="offline")
+
+    try:
+        binding()
+    except ScenarioUnreachable as exc:
+        assert "offline" in str(exc)
+    else:
+        raise AssertionError("direct binding should retain its static reachability guard")
 
 
 def test_materialization_is_explicit():  # [REQ:PRT-P0-003]
@@ -22,16 +33,6 @@ def test_materialization_is_explicit():  # [REQ:PRT-P0-003]
 
 
 def test_binding_response_uses_declared_rows_field_and_preserves_metadata():
-    class ReachabilityResponse:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_args):
-            return False
-
-        def read(self):
-            return b'{"search-hub":{"reachable":true}}'
-
     class Response:
         def __enter__(self):
             return self
@@ -53,12 +54,13 @@ def test_binding_response_uses_declared_rows_field_and_preserves_metadata():
             "meta_fields": ["corporaSearched", "latencyMs", "rerankerLeg"],
         }
     ], session_id="phase-1", bridge_url="http://bridge/internal/program-runtime/bindings/execute")
-    with patch("host.engine.urllib.request.urlopen", side_effect=[ReachabilityResponse(), Response()]):
+    with patch("host.engine.urllib.request.urlopen", return_value=Response()) as invoke:
         result = kernel.execute("rows = search_hub.query.query(query='program runtime')\nprint(rows.count())\nprint(rows.meta()['latencyMs'])\nprint(rows.raw()['rerankerLeg'])")
     assert result["ok"]
     assert "2" in result["stdout"]
     assert "12" in result["stdout"]
     assert "direct" in result["stdout"]
+    assert invoke.call_count == 1
 
 
 def test_test_mode_is_forwarded_for_one_execution_only():
@@ -85,16 +87,6 @@ def test_test_mode_is_forwarded_for_one_execution_only():
 
 
 def test_binding_response_refuses_ambiguous_repeated_fields_with_candidates():
-    class ReachabilityResponse:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_args):
-            return False
-
-        def read(self):
-            return b'{"fixture":{"reachable":true}}'
-
     class Response:
         def __enter__(self):
             return self
@@ -115,7 +107,7 @@ def test_binding_response_refuses_ambiguous_repeated_fields_with_candidates():
             "row_field_candidates": ["first", "second"],
         }
     ], session_id="phase-1", bridge_url="http://bridge/internal/program-runtime/bindings/execute")
-    with patch("host.engine.urllib.request.urlopen", side_effect=[ReachabilityResponse(), Response()]) as invoke:
+    with patch("host.engine.urllib.request.urlopen", return_value=Response()) as invoke:
         result = kernel.execute("fixture.query.run()")
     assert not result["ok"]
     assert "fixture/query/run" in result["error"]
@@ -124,16 +116,6 @@ def test_binding_response_refuses_ambiguous_repeated_fields_with_candidates():
 
 
 def test_binding_response_accepts_explicit_rows_projection():
-    class ReachabilityResponse:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_args):
-            return False
-
-        def read(self):
-            return b'{"fixture":{"reachable":true}}'
-
     class Response:
         def __enter__(self):
             return self
@@ -147,7 +129,7 @@ def test_binding_response_accepts_explicit_rows_projection():
     kernel = SessionKernel([
         {"id": "fixture/query/run", "scenario": "fixture", "group": "query", "command": "run", "row_field_candidates": ["first", "second"]}
     ], session_id="phase-1", bridge_url="http://bridge/internal/program-runtime/bindings/execute")
-    with patch("host.engine.urllib.request.urlopen", side_effect=[ReachabilityResponse(), Response()]):
+    with patch("host.engine.urllib.request.urlopen", return_value=Response()):
         result = kernel.execute("rows = fixture.query.run(rows='second')\nprint(rows.count())\nprint(rows.raw()['metadata'])")
     assert result["ok"]
     assert "1" in result["stdout"]
@@ -270,16 +252,6 @@ def test_guide_returns_prompt_manager_discovery_rows_and_maps_aliases():
 
 
 def test_nested_manifest_command_paths_remain_callable():
-    class ReachabilityResponse:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_args):
-            return False
-
-        def read(self):
-            return b'{"vrooli":{"reachable":true}}'
-
     class ExecuteResponse:
         def __enter__(self):
             return self
@@ -299,7 +271,7 @@ def test_nested_manifest_command_paths_remain_callable():
             "rows_field": "bindings",
         }
     ], session_id="nested-manifest", bridge_url="http://bridge/internal/program-runtime/bindings/execute")
-    with patch("host.engine.urllib.request.urlopen", side_effect=[ReachabilityResponse(), ExecuteResponse()]):
+    with patch("host.engine._open_bridge_request", return_value=ExecuteResponse()):
         result = kernel.execute("print(vrooli.bindings.audit.doctor().count())")
     assert result["ok"]
     assert result["stdout"].strip() == "1"

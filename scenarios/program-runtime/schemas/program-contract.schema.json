@@ -96,8 +96,8 @@
     },
     "name": {
       "type": "string",
-      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.[a-z0-9]+(?:-[a-z0-9]+)*$",
-      "description": "<scenario>.<program>, matching the file stem."
+      "pattern": "^(?:[a-z0-9]+(?:-[a-z0-9]+)*\\.[a-z0-9]+(?:-[a-z0-9]+)*|research(?:/[A-Za-z0-9][A-Za-z0-9._-]{0,127})?/[a-z0-9]+(?:-[a-z0-9]+)*)$",
+      "description": "<scenario>.<program>, or research/[<topic>/]<program> for a research-home program; the last segment matches the file stem."
     },
     "version": {
       "type": "string",

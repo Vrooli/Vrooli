@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -25,6 +26,46 @@ import (
 func TestEndpointsAreDeclared(t *testing.T) {
 	if len(Endpoints) != 8 {
 		t.Fatalf("endpoints=%d", len(Endpoints))
+	}
+}
+
+type privateIdentityFixture struct{ name, digest, session string }
+
+func (f privateIdentityFixture) ExecutionIdentity(context.Context, string) (string, string, string, error) {
+	return f.name, f.digest, f.session, nil
+}
+
+func TestDirectSessionCannotDispatchPrivateOmission(t *testing.T) {
+	root, err := repocontract.ResolveRepoRoot()
+	require.NoError(t, err)
+	digest := strings.Repeat("a", 64)
+	manifest := `{"name":"workspace-sandbox","groups":[{"name":"sandbox","commands":[{"name":"create","binding":{"kind":"connect-rpc","service":"WorkspaceSandboxService","method":"CreateSandbox"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}}]}],"omitted":[{"service":"WorkspaceSandboxService","method":"CreateReplaySeal","reason":"private replay operation","program_only":{"binding_id":"workspace-sandbox/replay-seal/create","program":"program-runtime.bounty-replay","digest":"` + digest + `","effect":"write","permissions":["filesystem:read","filesystem:write","network:internal"]}}]}`
+	manifestPath := filepath.Join(t.TempDir(), "manifest.json")
+	require.NoError(t, os.WriteFile(manifestPath, []byte(manifest), 0o600))
+	registry, err := internalbindings.LoadFiles(filepath.Join(root, "packages/proto/gen/descriptor/image.binpb"), []string{manifestPath})
+	require.NoError(t, err)
+	manager := sessions.NewManager(sessions.Options{})
+	session, err := manager.Create(context.Background(), "direct-user", "", nil)
+	require.NoError(t, err)
+	defer func() { _, _ = manager.Delete(context.Background(), session.ID, "test complete") }()
+
+	for _, tc := range []struct {
+		label, program, pinnedDigest, pinnedSession string
+	}{
+		{"unrelated program", "program-runtime.other", digest, session.ID},
+		{"digest mismatch", "program-runtime.bounty-replay", strings.Repeat("b", 64), session.ID},
+		{"missing digest", "program-runtime.bounty-replay", "", session.ID},
+		{"raw session user-code has no declared program identity", "", "", session.ID},
+		{"execution identity belongs to another session", "program-runtime.bounty-replay", digest, "different-session"},
+	} {
+		t.Run(tc.label, func(t *testing.T) {
+			bridge := BridgeWithPrivateIdentity(registry, manager, privateIdentityFixture{tc.program, tc.pinnedDigest, tc.pinnedSession})
+			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"session_id":"`+session.ID+`","program_id":"raw-program","provenance":"PROVENANCE_OPERATOR","binding_id":"workspace-sandbox/replay-seal/create","args":{"sandboxId":"sbx","caseId":"case","role":"REPLAY_SEAL_ROLE_SOURCE"}}`))
+			response := httptest.NewRecorder()
+			bridge.ServeHTTP(response, request)
+			require.NotEqual(t, http.StatusOK, response.Code)
+			require.Contains(t, response.Body.String(), "binding does not exist")
+		})
 	}
 }
 

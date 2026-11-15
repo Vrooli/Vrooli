@@ -1,0 +1,413 @@
+{
+  "name": "authoring.pr6-comparison",
+  "version": 1,
+  "floor": 0,
+  "floor_reason": "Non-gating PR6 comparison corpus. Use --no-gate; the floor is not derived from measured runs.",
+  "notes": "The first 12 cases are byte-preserving task/oracle copies from authoring.primary.json v3. The five heldout-* cases are a separate transfer panel with deterministic fixture-backed result oracles. Do not change task text, fixture payloads, or oracle assertions after freeze. Fixtures are evaluator-only and are never included in the author-generator prompt.",
+  "cases": [
+    {
+      "id": "single-binding-read",
+      "task": "Call program_runtime.bindings.list() and print a small object with the key rows set to the handle count.",
+      "oracle": {
+        "kind": "stdout_json_keys",
+        "keys": [
+          "rows"
+        ]
+      },
+      "notes": "Exercises the flat scenario root."
+    },
+    {
+      "id": "fanout-gather",
+      "task": "Use gather with three zero-argument calls to program_runtime.bindings.list(), preserve all returned handles, and print the number of handles (a number greater than one).",
+      "oracle": {
+        "kind": "row_count_relation",
+        "relation": "gt",
+        "value": 1
+      },
+      "notes": "Exercises bounded concurrency."
+    },
+    {
+      "id": "group-count",
+      "task": "Call program_runtime.bindings.list(), group the rows by scenario, and print the total grouped count using group_by(...).count() without materializing the rows.",
+      "oracle": {
+        "kind": "row_count_min",
+        "min": 1
+      },
+      "notes": "Exercises Handle group_by."
+    },
+    {
+      "id": "cross-scenario-join",
+      "task": "Read program_runtime.bindings.list() twice, join the two bounded handles on the id field, and print joined.count().",
+      "oracle": {
+        "kind": "row_count_relation",
+        "relation": "gte",
+        "value": 1
+      },
+      "notes": "Exercises composition across namespace roots."
+    },
+    {
+      "id": "typed-classification",
+      "task": "Classify a small list of two strings with ai.classify(source=[...], labels=[\"bug\", \"feature\"]), then print the handle metadata so the governed role is visible.",
+      "oracle": {
+        "kind": "handle_metadata",
+        "key": "role"
+      },
+      "notes": "Exercises the governed inference facade."
+    },
+    {
+      "id": "discover-then-call",
+      "task": "Discover the capability for read test run verdicts in fast mode, inspect its first row, and print the selected binding_id when one is returned.",
+      "oracle": {
+        "kind": "null_verdict_or_success"
+      },
+      "notes": "Exercises the discovery null-verdict stop rule."
+    },
+    {
+      "id": "null-verdict",
+      "task": "Ask fast discovery about the intentionally nonsensical capability transmute lead into gold; print no capability when binding_id is empty and never invoke a guessed binding.",
+      "oracle": {
+        "kind": "null_verdict"
+      },
+      "notes": "A safe negative discovery case."
+    },
+    {
+      "id": "ambiguous-response",
+      "task": "Call search_hub.query.query(query=\"retention\") without a rows= projection and let its governed ambiguous-response failure surface.",
+      "oracle": {
+        "kind": "cause_equals",
+        "cause": "ambiguous_response"
+      },
+      "notes": "Exercises caller-side rows selection and fail-closed behavior."
+    },
+    {
+      "id": "destructive-refusal",
+      "task": "Attempt git_control_tower.worktree.prune() without an explicit grant and let the governed refused_no_grant failure surface.",
+      "oracle": {
+        "kind": "cause_equals",
+        "cause": "refused_no_grant"
+      },
+      "notes": "Exercises governance refusal evidence."
+    },
+    {
+      "id": "session-reuse",
+      "task": "Reuse the value named prior_result from the setup submission in the same session and print prior_result[\"value\"].",
+      "setup": "prior_result = {\"value\": \"reused\"}",
+      "oracle": {
+        "kind": "stdout_contains",
+        "value": "reused"
+      },
+      "notes": "Exercises persistent session state."
+    },
+    {
+      "id": "project-cli",
+      "task": "Call vrooli.scenario.status(name=\"program-runtime\") and print the returned row's scenario field.",
+      "oracle": {
+        "kind": "stdout_contains",
+        "value": "program-runtime"
+      },
+      "notes": "Exercises the distinct project namespace."
+    },
+    {
+      "id": "describe-before-call",
+      "task": "Call describe(binding_id=\"test-genie/runs/list\"); it returns argument rows, so print the first row's name field.",
+      "oracle": {
+        "kind": "stdout_contains",
+        "value": "scenario"
+      },
+      "notes": "Exercises typed contract discovery."
+    },
+    {
+      "id": "heldout-binding-shape",
+      "task": "Query Search Hub for \"program runtime\" with rows=\"ranked\". Keep only hits whose score is positive, then print one JSON object with retained_count and first_provider_id. Keep the output bounded and do not print the full result set.",
+      "oracle": {
+        "kind": "json_assertions",
+        "json_assertions": [
+          {
+            "path": "retained_count",
+            "op": "eq",
+            "value": 2
+          },
+          {
+            "path": "first_provider_id",
+            "op": "eq",
+            "value": "fixture-alpha"
+          }
+        ],
+        "max_output_bytes": 4096,
+        "call_counts": [
+          {
+            "binding_id": "search-hub/query/query",
+            "count": 1,
+            "args": {
+              "query": "program runtime"
+            },
+            "rows": "ranked"
+          }
+        ]
+      },
+      "fixture": {
+        "bindings": {
+          "search-hub/query/query": [
+            {
+              "status": 200,
+              "body": {
+                "ranked": [
+                  {
+                    "providerId": "fixture-alpha",
+                    "score": 0.8
+                  },
+                  {
+                    "providerId": "fixture-zero",
+                    "score": 0.0
+                  },
+                  {
+                    "providerId": "fixture-beta",
+                    "score": 0.4
+                  }
+                ],
+                "orderedBy": "score",
+                "reranked": false
+              }
+            }
+          ]
+        }
+      },
+      "notes": "Level 1. Owner source: packages/proto/schemas/search-hub/v1/routing/routing.proto QueryResponse.ranked/SearchHit.score/provider_id; exercised by Search Hub setpoint-read. The fixture makes filtering and the selected projection deterministic."
+    },
+    {
+      "id": "heldout-promoted-call",
+      "task": "Inspect the promoted library catalog, then call the exact program-runtime.handle-shaping entry with no arguments. Print one bounded JSON summary with its returned status and the signals top rows (at most three), paid_total, and paid_count. Do not assume declared_inputs are callable parameters.",
+      "oracle": {
+        "kind": "json_assertions",
+        "json_assertions": [
+          {
+            "path": "status",
+            "op": "eq",
+            "value": "ok"
+          },
+          {
+            "path": "signals.paid_total",
+            "op": "eq",
+            "value": 73
+          },
+          {
+            "path": "signals.paid_count",
+            "op": "eq",
+            "value": 3
+          },
+          {
+            "path": "signals.top",
+            "op": "length_eq",
+            "value": 3
+          },
+          {
+            "path": "signals.top.0.name",
+            "op": "eq",
+            "value": "Grace"
+          },
+          {
+            "path": "signals.top.0.amount",
+            "op": "eq",
+            "value": 31
+          },
+          {
+            "path": "signals.top.1.name",
+            "op": "eq",
+            "value": "Ada"
+          },
+          {
+            "path": "signals.top.1.amount",
+            "op": "eq",
+            "value": 24
+          },
+          {
+            "path": "signals.top.2.name",
+            "op": "eq",
+            "value": "Ada"
+          },
+          {
+            "path": "signals.top.2.amount",
+            "op": "eq",
+            "value": 18
+          }
+        ],
+        "max_output_bytes": 4096,
+        "call_counts": []
+      },
+      "notes": "Level 2. Owner source: scenarios/program-runtime/.vrooli/program-runtime/handle-shaping.py and handle-shaping.json. Its local fixture is deterministic, uses no bindings or inference, and has paid_total=73 and paid_count=3."
+    },
+    {
+      "id": "heldout-owner-empty",
+      "task": "Call agent_manager.effort.board(page_size=8, rows=\"rows\") exactly once and print a compact JSON result. For a healthy empty page, report status \"ok\", coverage \"complete\", and selected_count 0. For an unavailable owner read or malformed row, preserve a non-success status and error, and omit selected_count instead of treating it as zero.",
+      "oracle": {
+        "kind": "json_assertions",
+        "json_assertions": [
+          {
+            "path": "status",
+            "op": "eq",
+            "value": "ok"
+          },
+          {
+            "path": "signals.coverage",
+            "op": "eq",
+            "value": "complete"
+          },
+          {
+            "path": "signals.selected_count",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "path": "signals.efforts",
+            "op": "length_eq",
+            "value": 0
+          }
+        ],
+        "max_output_bytes": 4096,
+        "call_counts": [
+          {
+            "binding_id": "agent-manager/effort/board",
+            "count": 1,
+            "args": {
+              "page_size": 8
+            },
+            "rows": "rows"
+          }
+        ]
+      },
+      "fixture": {
+        "bindings": {
+          "agent-manager/effort/board": [
+            {
+              "status": 200,
+              "body": {
+                "rows": [],
+                "partial": false,
+                "observedAt": "2026-11-14T00:00:00Z",
+                "activeCount": 0,
+                "discovery": {}
+              }
+            }
+          ]
+        }
+      },
+      "notes": "Level 3, healthy-empty arm. The owner contract and supervision-observation-read source distinguish a complete empty board page from an unavailable read."
+    },
+    {
+      "id": "heldout-owner-unavailable",
+      "task": "Call agent_manager.effort.board(page_size=8, rows=\"rows\") exactly once and print a compact JSON result. For a healthy empty page, report status \"ok\", coverage \"complete\", and selected_count 0. For an unavailable owner read or malformed row, preserve a non-success status and error, and omit selected_count instead of treating it as zero.",
+      "oracle": {
+        "kind": "json_assertions",
+        "json_assertions": [
+          {
+            "path": "status",
+            "op": "eq",
+            "value": "unavailable"
+          },
+          {
+            "path": "errors",
+            "op": "length_eq",
+            "value": 1
+          },
+          {
+            "path": "errors.0.class",
+            "op": "exists"
+          },
+          {
+            "path": "errors.0.detail",
+            "op": "exists"
+          },
+          {
+            "path": "signals.selected_count",
+            "op": "missing"
+          }
+        ],
+        "max_output_bytes": 4096,
+        "call_counts": [
+          {
+            "binding_id": "agent-manager/effort/board",
+            "count": 1,
+            "args": {
+              "page_size": 8
+            },
+            "rows": "rows"
+          }
+        ]
+      },
+      "fixture": {
+        "bindings": {
+          "agent-manager/effort/board": [
+            {
+              "status": 503,
+              "body": {
+                "error": "agent-manager/effort/board: fixture unavailable",
+                "class": "unavailable",
+                "status": "unavailable",
+                "binding_id": "agent-manager/effort/board",
+                "http_status": 503
+              }
+            }
+          ]
+        }
+      },
+      "notes": "Level 4, unavailable arm. The owner error is deterministic; the oracle checks error preservation without depending on diagnostic wording."
+    },
+    {
+      "id": "heldout-owner-malformed",
+      "task": "Call agent_manager.effort.board(page_size=8, rows=\"rows\") exactly once and print a compact JSON result. For a healthy empty page, report status \"ok\", coverage \"complete\", and selected_count 0. For an unavailable owner read or malformed row, preserve a non-success status and error, and omit selected_count instead of treating it as zero.",
+      "oracle": {
+        "kind": "json_assertions",
+        "json_assertions": [
+          {
+            "path": "status",
+            "op": "eq",
+            "value": "failed"
+          },
+          {
+            "path": "errors.0.class",
+            "op": "eq",
+            "value": "identity_mismatch"
+          },
+          {
+            "path": "signals.selected_count",
+            "op": "missing"
+          }
+        ],
+        "max_output_bytes": 4096,
+        "call_counts": [
+          {
+            "binding_id": "agent-manager/effort/board",
+            "count": 1,
+            "args": {
+              "page_size": 8
+            },
+            "rows": "rows"
+          }
+        ]
+      },
+      "fixture": {
+        "bindings": {
+          "agent-manager/effort/board": [
+            {
+              "status": 200,
+              "body": {
+                "rows": [
+                  {
+                    "enrollment": {
+                      "effortRef": ""
+                    }
+                  }
+                ],
+                "partial": false,
+                "observedAt": "2026-11-14T00:00:00Z",
+                "activeCount": 1,
+                "discovery": {}
+              }
+            }
+          ]
+        }
+      },
+      "notes": "Level 5, malformed-owner arm. Owner source: scenarios/agent-manager/.vrooli/program-runtime/supervision-observation-read.py rejects a blank effortRef with identity_mismatch before summarizing rows."
+    }
+  ]
+}

@@ -404,6 +404,30 @@ def test_fail_and_run_adopt_a_program_built_envelope():
     assert json.loads(result["stdout"])["errors"][0]["class"] == "invalid_input"
 
 
+def test_fail_detail_limit_is_bounded_and_defaults_to_the_existing_limit():
+    helper = ProgramHelper()
+    envelope = helper.envelope("demo.read", inputs={})
+
+    assert helper.fail("failed", "invalid_input", "x" * 300, "validate", detail_limit=160) == "report"
+    assert envelope["errors"][-1] == {
+        "class": "invalid_input", "detail": "x" * 160, "where": "validate",
+    }
+    helper.fail("partial", "remote_error", "y" * 300, "collect")
+    assert envelope["errors"][-1] == {
+        "class": "remote_error", "detail": "y" * 240, "where": "collect",
+    }
+    helper.fail("failed", "invalid_input", "z" * 10, "report", detail_limit=500)
+    assert envelope["errors"][-1]["detail"] == "z" * 10
+
+
+@pytest.mark.parametrize("detail_limit", [True, False, 1.5, "160", None])
+def test_fail_rejects_non_integer_detail_limits(detail_limit):
+    helper = ProgramHelper()
+    helper.envelope("demo.read", inputs={})
+    with pytest.raises(TypeError, match="detail_limit must be an integer"):
+        helper.fail("failed", "invalid_input", "detail", "validate", detail_limit=detail_limit)
+
+
 def test_guarded_returns_the_exception_instead_of_raising():
     helper = ProgramHelper()
     boom = ScenarioUnreachable("down", binding_id="demo/work/run")

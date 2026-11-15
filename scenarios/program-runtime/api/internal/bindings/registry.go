@@ -5,11 +5,13 @@ package bindings
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"math"
 	"net/http"
 	"os"
@@ -63,6 +65,14 @@ type responseProjection struct {
 	rowsField       string
 	metaFields      []string
 	candidateFields []string
+}
+
+type privateProgramBinding struct {
+	binding *bindingsv1.Binding
+	info    methodInfo
+	schema  cliapp.ArgSchema
+	program string
+	digest  string
 }
 
 const projectionWholeResponse = "$response"
@@ -144,6 +154,7 @@ type Registry struct {
 	required          map[string]map[string]bool
 	schemas           map[string]cliapp.ArgSchema
 	byID              map[string]*bindingsv1.Binding
+	privateByID       map[string]privateProgramBinding
 	operation         map[string][]*bindingsv1.Binding
 	shared            []string
 	semantic          map[string]semanticCounts
@@ -335,6 +346,7 @@ func buildRegistry(descriptorPath string, manifestPaths []string, snapshot *desc
 		required:          make(map[string]map[string]bool),
 		schemas:           make(map[string]cliapp.ArgSchema),
 		byID:              make(map[string]*bindingsv1.Binding),
+		privateByID:       make(map[string]privateProgramBinding),
 		operation:         make(map[string][]*bindingsv1.Binding),
 		semantic:          make(map[string]semanticCounts),
 		resolver:          ResolveTargetURLDefault,
@@ -902,12 +914,145 @@ func (r *Registry) addManifest(path string, serviceMethods map[string][]methodIn
 		}
 	}
 	for _, omitted := range m.Omitted {
+		if omitted.ProgramOnly != nil {
+			if err := r.addProgramPrivateOmission(scenario, omitted, serviceMethods, r.shared); err != nil {
+				return nil, err
+			}
+			continue
+		}
 		r.addUnbound(&bindingsv1.UnboundCapability{Scenario: scenario, Service: omitted.Service, Method: omitted.Method, Reason: bindingsv1.UnboundReason_UNBOUND_REASON_OMITTED_RPC, Detail: omitted.Reason})
 	}
 	for _, exception := range m.Exceptions {
 		r.addUnbound(&bindingsv1.UnboundCapability{Scenario: scenario, Command: exception.Command, Reason: bindingsv1.UnboundReason_UNBOUND_REASON_EXTERNAL_TOOL_ONLY, Detail: exception.Reason})
 	}
 	return nil, nil
+}
+
+func (r *Registry) addProgramPrivateOmission(scenario string, omitted cliapp.ManifestOmission, serviceMethods map[string][]methodInfo, sharedPrefixes []string) error {
+	policy := omitted.ProgramOnly
+	if policy.Program != "program-runtime.bounty-replay" || !validSHA256(policy.Digest) {
+		return fmt.Errorf("omitted RPC %s.%s has invalid Program Runtime private contract identity", omitted.Service, omitted.Method)
+	}
+	if policy.Effect != "read" && policy.Effect != "write" {
+		return fmt.Errorf("omitted RPC %s.%s has invalid private effect %q", omitted.Service, omitted.Method, policy.Effect)
+	}
+	if !strings.HasPrefix(policy.BindingID, scenario+"/") || strings.Count(policy.BindingID, "/") != 2 {
+		return fmt.Errorf("omitted RPC %s.%s private binding id must belong to %s", omitted.Service, omitted.Method, scenario)
+	}
+	if _, exists := r.byID[policy.BindingID]; exists {
+		return fmt.Errorf("omitted RPC %s.%s private binding id collides with public binding %s", omitted.Service, omitted.Method, policy.BindingID)
+	}
+	if _, exists := r.privateByID[policy.BindingID]; exists {
+		return fmt.Errorf("duplicate private binding id %s", policy.BindingID)
+	}
+	if len(policy.Permissions) == 0 {
+		return fmt.Errorf("omitted RPC %s.%s private binding requires explicit permissions", omitted.Service, omitted.Method)
+	}
+	permissions := map[string]bool{}
+	for _, permission := range policy.Permissions {
+		switch permission {
+		case "filesystem:read", "filesystem:write", "network:internal":
+			permissions[permission] = true
+		default:
+			return fmt.Errorf("omitted RPC %s.%s has unsupported private permission %q", omitted.Service, omitted.Method, permission)
+		}
+	}
+	info, err := resolveMethod(scenario, omitted.Service+"."+omitted.Method, serviceMethods, sharedPrefixes)
+	if err != nil {
+		return fmt.Errorf("omitted RPC %s.%s private descriptor: %w", omitted.Service, omitted.Method, err)
+	}
+	projection := responseProjectionFor(info.output, "")
+	binding := &bindingsv1.Binding{
+		Id: policy.BindingID, Scenario: scenario,
+		Group: strings.Split(policy.BindingID, "/")[1], Command: strings.Split(policy.BindingID, "/")[2],
+		Service: omitted.Service, Method: omitted.Method,
+		RequestType: string(info.input.FullName()), ResponseType: string(info.output.FullName()),
+		Effect: policy.Effect, RunEligible: true,
+		Permissions: append([]string(nil), policy.Permissions...), Description: omitted.Reason,
+		Signature: fmt.Sprintf("%s.%s(%s) -> %s", omitted.Service, omitted.Method, info.input.FullName(), info.output.FullName()),
+		RowsField: projection.rowsField, MetaFields: projection.metaFields, RowFieldCandidates: projection.candidateFields,
+	}
+	r.privateByID[policy.BindingID] = privateProgramBinding{
+		binding: binding, info: info, schema: cliapp.ArgSchema{}, program: policy.Program, digest: policy.Digest,
+	}
+	return nil
+}
+
+func validSHA256(value string) bool {
+	if len(value) != sha256.Size*2 {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil
+}
+
+// ProgramPrivateBinding resolves a single omitted RPC only for its exact
+// declared contract identity. It is intentionally absent from List, Binding,
+// Describe, Unbound, and semantic discovery.
+func (r *Registry) ProgramPrivateBinding(id, program, digest string) (*bindingsv1.Binding, bool) {
+	r = r.active()
+	entry, ok := r.privateByID[id]
+	if !ok || entry.program != program || entry.digest != digest {
+		return nil, false
+	}
+	return proto.Clone(entry.binding).(*bindingsv1.Binding), true
+}
+
+// ProgramPrivateBindings returns only private capabilities both pinned to the
+// exact program digest and explicitly named by that contract.
+func (r *Registry) ProgramPrivateBindings(ctx context.Context, program, digest string, declared []string) ([]*bindingsv1.Binding, bool) {
+	r = r.active()
+	out := make([]*bindingsv1.Binding, 0)
+	statusByScenario := map[string]reachabilityStatus{}
+	for _, id := range declared {
+		if _, public := r.byID[id]; public {
+			continue
+		}
+		binding, ok := r.ProgramPrivateBinding(id, program, digest)
+		if !ok {
+			return nil, false
+		}
+		if _, found := statusByScenario[binding.GetScenario()]; !found {
+			statuses, _ := r.reachability(ctx, binding.GetScenario())
+			statusByScenario[binding.GetScenario()] = statuses[binding.GetScenario()]
+		}
+		status := statusByScenario[binding.GetScenario()]
+		binding.Reachable = status.reachable
+		binding.ReachabilityReason = status.reason
+		out = append(out, binding)
+	}
+	return out, true
+}
+
+// privateExecutionView copies the callable maps for one invocation without
+// adding a private operation to the shared registry surface.
+func (r *Registry) privateExecutionView(id, program, digest string) (*Registry, bool) {
+	r = r.active()
+	entry, ok := r.privateByID[id]
+	if !ok || entry.program != program || entry.digest != digest {
+		return nil, false
+	}
+	view := *r
+	view.dynamic = nil
+	view.byID = maps.Clone(r.byID)
+	view.methods = maps.Clone(r.methods)
+	view.schemas = maps.Clone(r.schemas)
+	view.required = maps.Clone(r.required)
+	view.byID[id] = entry.binding
+	view.methods[id] = entry.info
+	view.schemas[id] = entry.schema
+	view.required[id] = map[string]bool{}
+	return &view, true
+}
+
+// ExecuteProgramPrivate is the sole dispatch route for omitted RPCs. The
+// caller must supply the identity loaded from the persisted execution row.
+func (r *Registry) ExecuteProgramPrivate(ctx context.Context, id, program, digest string, args map[string]any, grants []string, confirmed bool, metadata InvocationMetadata, client *http.Client) (map[string]any, error) {
+	view, ok := r.privateExecutionView(id, program, digest)
+	if !ok {
+		return nil, fmt.Errorf("private binding %q is not authorized for pinned program %q", id, program)
+	}
+	return view.Execute(ctx, id, args, grants, confirmed, metadata, client)
 }
 
 type manifestCommandEntry struct {

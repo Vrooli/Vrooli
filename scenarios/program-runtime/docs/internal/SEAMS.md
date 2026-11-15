@@ -74,7 +74,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Seam** | Short name used to refer to the boundary in conversation. |
 | **Interface** | Go file & symbol that defines the contract. |
 | **Production wiring** | Where the real implementation is constructed. |
-| **Test fake** | The fake under `internal/testutil/mocks/` (cross-domain) or `internal/<dom>/mocks/` (per-domain) that substitutes. |
+| **Test fake** | The api-core fake (cross-domain) or the one under `internal/<dom>/mocks/` (per-domain) that substitutes. |
 | **Why it exists** | The class of bug it prevents or the test ergonomic it enables. |
 
 ## Current seams
@@ -86,7 +86,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Seam** | Wall-clock time |
 | **Interface** | `internal/clock/clock.go::Clock` (`Now() time.Time`) |
 | **Production wiring** | `main.go` constructs `clock.System{}` and passes it via `server.Deps`. |
-| **Test fake** | `internal/testutil/mocks::FakeClock` (`Now`, `Advance`, `SetNow`). |
+| **Test fake** | `github.com/vrooli/api-core/scheduletest::FakeClock` (`Now`, `Advance`, `SetNow`). |
 | **Why it exists** | Middleware computes request-duration log lines from two `Now()` calls. With `time.Now()` direct, duration assertions are flaky on loaded CI and undefined on fast hardware. With `FakeClock.Advance(150 * time.Millisecond)` inside the inner handler, the duration string is bit-for-bit deterministic. See `internal/middleware/logging_test.go::TestLoggingMiddleware_LogsDuration`. |
 
 ### Pinger (database reachability)
@@ -194,10 +194,10 @@ and use matrix/trace helpers from the relevant testutil package.
 | | |
 |---|---|
 | **Seam** | Outbound HTTP request boundary |
-| **Interface** | `internal/httpc/doer.go::Doer` (`Do(*http.Request) (*http.Response, error)`) |
-| **Production wiring** | Ships unwired in production by intent (no consumer until a real outbound call lands). `*http.Client` satisfies `Doer` directly via the compile-time assertion in `doer.go`; the first scenario to need an outbound call adds the field to `server.Deps` and wires `&http.Client{Timeout: …}` from `main.go`. |
-| **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
-| **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
+| **Interface** | `github.com/vrooli/api-core/apihttp::Doer` (`Do(*http.Request) (*http.Response, error)`) |
+| **Production wiring** | No direct consumer yet. The first outbound call takes an `apihttp.Doer` and `main.go` passes `&http.Client{Timeout: …}`, which satisfies it. |
+| **Test fake** | `github.com/vrooli/api-core/apihttptest::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter); its contract test proves both satisfy the seam. |
+| **Why it exists** | Network calls in handler tests would be flaky and slow. One shared seam and fake means no scenario reinvents ad-hoc mocking. |
 
 ### Telemetry outbox error observer
 
@@ -224,7 +224,7 @@ why a boundary lives where it does and what still needs follow-up.
 
 | Area | Drift | Decision | Follow-up |
 |---|---|---|---|
-| Domain-specific fakes | Earlier templates often put every fake under shared testutil. | One-domain fakes live under `api/internal/<domain>/mocks/`; cross-domain fakes stay under `api/internal/testutil/mocks/`. | Preserve this split when adding new domains. |
+| Domain-specific fakes | Earlier templates often put every fake under shared testutil. | One-domain fakes live under `api/internal/<domain>/mocks/`; cross-domain fakes come from api-core. | Preserve this split when adding new domains. |
 | Temporal workflow side effects | Async flows can bury transition rules inside handlers/components. | Pure workflow transitions are domain policy; side effects remain behind seams. | See [`FLOWS.md`](../concepts/FLOWS.md) for modeled flows. |
 | Domain schemas | Central schema files make domain deletion and ownership harder. | Domain tables live beside domain code; `internal/database/system.sql` is only for genuinely cross-cutting DB infrastructure. | If a table is added to system schema, document why it is not domain-owned. |
 
@@ -262,8 +262,8 @@ sweep.
 (`Pinger`, `SystemSchema` for the empty/cross-cutting SQL home) —
 never domain-specific interfaces.
 
-`internal/testutil/mocks/` retains only cross-domain fakes
-(`FakeClock`, `FakeDoer`).
+Cross-domain fakes come from api-core (`scheduletest.FakeClock`,
+`apihttptest.FakeDoer`, `databasetest.FakePinger`).
 
 ### Mechanical steps
 
@@ -292,8 +292,7 @@ never domain-specific interfaces.
    Each method takes a per-method error knob (`CreateErr error`) plus
    any state it needs to return. Counters use `atomic.Int64`, not plain
    `int`, so race-detector tests don't flap. Cross-domain fakes
-   (`FakeClock`, `FakeDoer`) stay in
-   `internal/testutil/mocks/`.
+   (`FakeClock`, `FakeDoer`) come from api-core.
 5. **Update this document.** A row in the table above with the same
    five columns. If you skip this step, the seam exists but isn't
    discoverable — future readers will reinvent it parallel.

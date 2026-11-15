@@ -71,6 +71,20 @@ func TestDeclaredOutputSchemaValidatesWithoutErasingEvidence(t *testing.T) {
 	}
 }
 
+func TestDeclaredPrivateBindingsReachSessionPreflight(t *testing.T) {
+	var received []BindingSpec
+	service := NewService(Options{PreflightSession: func(_ context.Context, _, _ string, private []BindingSpec) []*programsv1.Diagnostic {
+		received = append([]BindingSpec(nil), private...)
+		return nil
+	}})
+	private := BindingSpec{ID: "client-rehearsal/bounty-cases/resolve", Scenario: "client-rehearsal", Group: "bounty-cases", Command: "resolve"}
+	program, diagnostics, err := service.SubmitDeclared(context.Background(), "session", "client_rehearsal.bounty_cases.resolve()", programsv1.Provenance_PROVENANCE_TEST, false, true, Identity{ProgramName: "program-runtime.bounty-replay", PrivateBindings: []BindingSpec{private}}, Caller{})
+	require.NoError(t, err)
+	require.Empty(t, diagnostics)
+	require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_ACCEPTED, program.GetStatus())
+	require.Equal(t, []BindingSpec{private}, received)
+}
+
 func TestSchemaBackedOutputDistinguishesTruncation(t *testing.T) {
 	compiler := jsonschema.NewCompiler()
 	require.NoError(t, compiler.AddResource("output.json", bytes.NewBufferString(`{"type":"object","required":["status"]}`)))

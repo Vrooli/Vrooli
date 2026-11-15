@@ -2,11 +2,15 @@ package programs
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
@@ -18,22 +22,60 @@ import (
 // *result* a program produced, never the program text, so the corpus survives a
 // namespace change: the same task is still the same task when the syntax moves.
 type AuthoringCase struct {
-	ID     string          `json:"id"`
-	Task   string          `json:"task"`
-	Setup  string          `json:"setup,omitempty"`
-	Oracle AuthoringOracle `json:"oracle"`
-	Notes  string          `json:"notes"`
+	ID      string            `json:"id"`
+	Task    string            `json:"task"`
+	Setup   string            `json:"setup,omitempty"`
+	Oracle  AuthoringOracle   `json:"oracle"`
+	Fixture *AuthoringFixture `json:"fixture,omitempty"`
+	Notes   string            `json:"notes"`
 }
 
 type AuthoringOracle struct {
-	Kind     string   `json:"kind"`
-	Keys     []string `json:"keys"`
-	Min      *int     `json:"min"`
-	Text     string   `json:"text"`
-	Value    any      `json:"value"`
-	Relation string   `json:"relation"`
-	Key      string   `json:"key"`
-	Cause    string   `json:"cause"`
+	Kind           string             `json:"kind"`
+	Keys           []string           `json:"keys"`
+	Min            *int               `json:"min"`
+	Text           string             `json:"text"`
+	Value          any                `json:"value"`
+	Relation       string             `json:"relation"`
+	Key            string             `json:"key"`
+	Cause          string             `json:"cause"`
+	Assertions     []JSONAssertion    `json:"json_assertions,omitempty"`
+	MaxOutputBytes int                `json:"max_output_bytes,omitempty"`
+	CallCounts     []FixtureCallCount `json:"call_counts,omitempty"`
+}
+
+type JSONAssertion struct {
+	Path      string `json:"path"`
+	Op        string `json:"op"`
+	Value     any    `json:"value,omitempty"`
+	OtherPath string `json:"other_path,omitempty"`
+}
+
+type AuthoringFixture struct {
+	Bindings map[string][]FixtureReply `json:"bindings,omitempty"`
+}
+type FixtureReply struct {
+	Status int            `json:"status"`
+	Body   map[string]any `json:"body"`
+}
+type FixtureCallCount struct {
+	BindingID string         `json:"binding_id"`
+	Count     int            `json:"count"`
+	Args      map[string]any `json:"args,omitempty"`
+	Rows      string         `json:"rows,omitempty"`
+}
+
+type FixtureCallTrace struct {
+	BindingID string
+	Args      map[string]any
+	Rows      string
+}
+
+type AuthoringCaseExecution struct {
+	SessionID         string
+	FixtureCalls      map[string]int32
+	FixtureRequests   []FixtureCallTrace
+	FixtureViolations []string
 }
 
 type AuthoringSuite struct {
@@ -45,14 +87,26 @@ type AuthoringSuite struct {
 // AuthoringCaseResult records what happened for one case, including the model
 // that authored the program, so a score is always attributable.
 type AuthoringCaseResult struct {
-	CaseID        string
-	Authored      bool
-	FirstAttempt  bool
-	Cause         string
-	AgentBytes    int64
-	Model         string
-	FailureDetail string
-	RuleID        string
+	CaseID                  string
+	Authored                bool
+	FirstAttempt            bool
+	Cause                   string
+	AgentBytes              int64
+	Model                   string
+	AuthorProvider          string
+	FailureDetail           string
+	RuleID                  string
+	TaskSHA256              string
+	SourceSHA256            string
+	GenerationElapsedMS     int64
+	ExecutionElapsedMS      int64
+	OracleElapsedMS         int64
+	ElapsedToFirstWorkingMS *int64
+	CaseStartOffsetMS       int64
+	CaseStatus              string
+	AttemptCount            int32
+	RetryCount              int32
+	FixtureCalls            map[string]int32
 }
 
 type AuthoringRuleMiss struct {
@@ -76,10 +130,28 @@ type AuthoringResult struct {
 	NotAttempted int32
 	// HarnessStamp names the brief version this score was measured against, so
 	// two runs are only comparable when their stamps match.
-	HarnessStamp string
-	Cases        []AuthoringCaseResult
-	RuleMisses   []AuthoringRuleMiss
+	HarnessStamp        string
+	Cases               []AuthoringCaseResult
+	RuleMisses          []AuthoringRuleMiss
+	ReceiptVersion      string
+	CorpusSHA256        string
+	InstructionSHA256   string
+	RuntimeRevision     string
+	AuthorRole          string
+	AuthorSchemaSHA256  string
+	RoutePolicyRevision string
+	StartedAt           string
+	ElapsedMS           int64
+	TotalBudgetMS       int64
+	PerCaseReserveMS    int64
 }
+
+const (
+	AuthoringReceiptVersion = "program-runtime.authoring-receipt.v1"
+	AuthoringRole           = "author.generator"
+	AuthoringSchemaJSON     = `{"type":"object","properties":{"source":{"type":"string"}},"required":["source"]}`
+	unknownRevision         = "unknown"
+)
 
 // perCaseReserve is the headroom the eval keeps before starting another case.
 // One case is an authoring round-trip plus a kernel spawn plus the program's
@@ -92,11 +164,13 @@ const perCaseReserve = 75 * time.Second
 type AuthoringDeps struct {
 	// Author asks the code-authoring model for one program. It returns the
 	// program source and the resolved model id.
-	Author func(ctx context.Context, instruction, task string) (source string, model string, err error)
+	Author               func(ctx context.Context, instruction, task string) (source string, model string, err error)
+	AuthorWithProvenance func(ctx context.Context, instruction, task string) (source, provider, model string, err error)
 	// RunCase submits an optional harness setup program and then the authored
 	// program into one fresh session. Setup is used only by corpus cases that
 	// explicitly test session persistence; it is never authored by the model.
-	RunCase func(ctx context.Context, setup, source string) (stdout string, cause string, agentBytes int64, failureDetail string, err error)
+	RunCase            func(ctx context.Context, setup, source string) (stdout string, cause string, agentBytes int64, failureDetail string, err error)
+	RunCaseWithFixture func(ctx context.Context, setup, source string, fixture *AuthoringFixture) (stdout string, cause string, agentBytes int64, failureDetail string, execution AuthoringCaseExecution, err error)
 	// SuitePath locates the corpus on disk.
 	SuitePath string
 }
@@ -124,12 +198,26 @@ func authoringHarnessStamp() string { return harness.Load().Stamp() }
 // genuinely missing — never as a placeholder, and never as a zero score. A
 // degraded run must be distinguishable from a bad run, because the floor is a
 // gate and a fabricated zero would pass it trivially.
-func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) AuthoringResult {
+func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) (result AuthoringResult) {
+	runStarted := time.Now()
+	result = AuthoringResult{
+		ReceiptVersion:      AuthoringReceiptVersion,
+		StartedAt:           runStarted.UTC().Format(time.RFC3339Nano),
+		RuntimeRevision:     sourceRevision(),
+		AuthorRole:          AuthoringRole,
+		AuthorSchemaSHA256:  sha256Hex([]byte(AuthoringSchemaJSON)),
+		RoutePolicyRevision: unknownRevision,
+		PerCaseReserveMS:    perCaseReserve.Milliseconds(),
+	}
+	if deadline, ok := ctx.Deadline(); ok {
+		result.TotalBudgetMS = time.Until(deadline).Milliseconds()
+	}
+	defer func() { result.ElapsedMS = time.Since(runStarted).Milliseconds() }()
 	suitePath := deps.SuitePath
 	if strings.TrimSpace(suitePath) == "" {
 		suitePath = "evals/authoring.primary.json"
 	}
-	result := AuthoringResult{Suite: suitePath}
+	result.Suite = suitePath
 
 	raw, err := os.ReadFile(suitePath)
 	if err != nil {
@@ -145,6 +233,7 @@ func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) AuthoringResult {
 		result.Unavailable = 1
 		return result
 	}
+	result.CorpusSHA256 = sha256Hex(raw)
 	result.Floor = int32(suite.Floor)
 	if len(suite.Cases) == 0 {
 		result.Status = "unavailable"
@@ -152,7 +241,7 @@ func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) AuthoringResult {
 		result.Unavailable = 1
 		return result
 	}
-	if deps.Author == nil || deps.RunCase == nil {
+	if (deps.Author == nil && deps.AuthorWithProvenance == nil) || (deps.RunCase == nil && deps.RunCaseWithFixture == nil) {
 		result.Status = "unavailable"
 		result.Reason = "authoring or submission seam is not configured"
 		result.Unavailable = 1
@@ -160,6 +249,8 @@ func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) AuthoringResult {
 	}
 
 	result.HarnessStamp = authoringHarnessStamp()
+	instruction := authoringInstruction()
+	result.InstructionSHA256 = sha256Hex([]byte(instruction))
 
 	for index, item := range suite.Cases {
 		// The eval is one HTTP response, so it must not outrun the write
@@ -169,6 +260,9 @@ func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) AuthoringResult {
 		// partial measurement usable and distinguishable from a whole one.
 		if deadline, hasDeadline := ctx.Deadline(); hasDeadline && time.Until(deadline) < perCaseReserve {
 			result.NotAttempted = int32(len(suite.Cases) - index)
+			for _, pending := range suite.Cases[index:] {
+				result.Cases = append(result.Cases, AuthoringCaseResult{CaseID: pending.ID, TaskSHA256: sha256Hex([]byte(pending.Task)), CaseStatus: "not_attempted"})
+			}
 			result.Status = "partial"
 			result.Reason = fmt.Sprintf(
 				"stopped after %d of %d cases to stay inside the response deadline; %d not attempted",
@@ -176,18 +270,37 @@ func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) AuthoringResult {
 			finalizeAuthoringResult(&result)
 			return result
 		}
-		caseResult := AuthoringCaseResult{CaseID: item.ID}
-		source, model, err := deps.Author(ctx, authoringInstruction(), item.Task)
+		caseStarted := time.Now()
+		caseResult := AuthoringCaseResult{CaseID: item.ID, TaskSHA256: sha256Hex([]byte(item.Task)), CaseStartOffsetMS: time.Since(runStarted).Milliseconds(), CaseStatus: "measured", AttemptCount: 1}
+		generationStarted := time.Now()
+		var source, model, provider string
+		var err error
+		if deps.AuthorWithProvenance != nil {
+			source, provider, model, err = deps.AuthorWithProvenance(ctx, instruction, item.Task)
+		} else {
+			source, model, err = deps.Author(ctx, instruction, item.Task)
+		}
+		caseResult.GenerationElapsedMS = time.Since(generationStarted).Milliseconds()
 		caseResult.Model = model
+		caseResult.AuthorProvider = provider
+		source = stripSourceFence(source)
+		if source != "" {
+			caseResult.SourceSHA256 = sha256Hex([]byte(source))
+		}
 		if err != nil {
 			// A model route that cannot be reached at all makes the whole run
 			// unavailable rather than a low score: the surface was never
 			// measured, so reporting a number would be a false verdict.
 			if isRouteUnavailable(err) {
 				result.Status = "unavailable"
+				caseResult.CaseStatus = "unavailable"
 				result.Reason = fmt.Sprintf("no ai-gateway code-authoring route resolved: %v", err)
 				result.Unavailable = 1
 				result.Cases = append(result.Cases, caseResult)
+				for _, pending := range suite.Cases[index+1:] {
+					result.Cases = append(result.Cases, AuthoringCaseResult{CaseID: pending.ID, TaskSHA256: sha256Hex([]byte(pending.Task)), CaseStatus: "not_attempted"})
+					result.NotAttempted++
+				}
 				return result
 			}
 			caseResult.FailureDetail = err.Error()
@@ -197,9 +310,18 @@ func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) AuthoringResult {
 			continue
 		}
 		caseResult.Authored = true
-		source = stripSourceFence(source)
 
-		stdout, cause, agentBytes, detail, err := deps.RunCase(ctx, item.Setup, source)
+		executionStarted := time.Now()
+		var stdout, cause, detail string
+		var agentBytes int64
+		var execution AuthoringCaseExecution
+		if deps.RunCaseWithFixture != nil {
+			stdout, cause, agentBytes, detail, execution, err = deps.RunCaseWithFixture(ctx, item.Setup, source, item.Fixture)
+		} else {
+			stdout, cause, agentBytes, detail, err = deps.RunCase(ctx, item.Setup, source)
+		}
+		caseResult.FixtureCalls = execution.FixtureCalls
+		caseResult.ExecutionElapsedMS = time.Since(executionStarted).Milliseconds()
 		caseResult.Cause = cause
 		caseResult.AgentBytes = agentBytes
 		caseResult.FailureDetail = detail
@@ -215,6 +337,14 @@ func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) AuthoringResult {
 			result.Cases = append(result.Cases, caseResult)
 			continue
 		}
+		oracleStarted := time.Now()
+		finishOracle := func() {
+			caseResult.OracleElapsedMS = time.Since(oracleStarted).Milliseconds()
+			if caseResult.FirstAttempt {
+				elapsed := time.Since(caseStarted).Milliseconds()
+				caseResult.ElapsedToFirstWorkingMS = &elapsed
+			}
+		}
 		if cause != "" {
 			if item.Oracle.Kind == "cause_equals" && cause == item.Oracle.Cause {
 				caseResult.FirstAttempt = true
@@ -225,17 +355,23 @@ func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) AuthoringResult {
 				}
 				attributeAuthoringFailure(&caseResult, cause, caseResult.FailureDetail)
 				result.Missed++
+				if cause == "binding_unavailable" {
+					caseResult.CaseStatus = "unavailable"
+					result.Unavailable++
+				}
 			}
+			finishOracle()
 			result.Cases = append(result.Cases, caseResult)
 			continue
 		}
 		if item.Oracle.Kind == "cause_equals" && containsCause(stdout, item.Oracle.Cause) {
 			caseResult.FirstAttempt = true
 			result.Met++
+			finishOracle()
 			result.Cases = append(result.Cases, caseResult)
 			continue
 		}
-		if satisfiesOracle(item.Oracle, stdout) {
+		if fixtureOracleSatisfied(item.Oracle, stdout, execution) || satisfiesOracle(item.Oracle, stdout) {
 			caseResult.FirstAttempt = true
 			result.Met++
 		} else {
@@ -243,12 +379,65 @@ func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) AuthoringResult {
 			attributeAuthoringFailure(&caseResult, "wrong_result", caseResult.FailureDetail)
 			result.WrongResult++
 		}
+		finishOracle()
 		result.Cases = append(result.Cases, caseResult)
 	}
 	result.Status = "measured"
 	result.FloorMet = result.Met >= result.Floor
 	finalizeAuthoringResult(&result)
 	return result
+}
+
+// AuthoringInferenceArgs is the single request builder for the constrained
+// authoring call. Local-only is an explicit privacy boundary, not role order.
+func AuthoringInferenceArgs(instruction, task string) map[string]any {
+	return map[string]any{
+		"source": task, "instruction": instruction, "role": AuthoringRole,
+		"schema_json": AuthoringSchemaJSON, "profile": "PROFILE_LOCAL_ONLY",
+	}
+}
+
+// ValidateAuthoringRoute rejects responses without attributable evidence of a
+// recognized local provider and model. The gateway's local-only profile remains
+// the routing authority; this allowlist makes its successful response auditable.
+func ValidateAuthoringRoute(provider, model string) error {
+	provider = strings.ToLower(strings.TrimSpace(provider))
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return fmt.Errorf("local-only authoring response omitted model (provider=%q)", provider)
+	}
+	switch provider {
+	case "ollama":
+		return nil
+	default:
+		return fmt.Errorf("local-only authoring response has unrecognized or non-local provider %q model %q", provider, model)
+	}
+}
+
+func sha256Hex(value []byte) string {
+	digest := sha256.Sum256(value)
+	return hex.EncodeToString(digest[:])
+}
+
+func sourceRevision() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return unknownRevision
+	}
+	var revision string
+	var modified bool
+	for _, setting := range info.Settings {
+		switch setting.Key {
+		case "vcs.revision":
+			revision = setting.Value
+		case "vcs.modified":
+			modified = setting.Value == "true"
+		}
+	}
+	if revision == "" || modified {
+		return unknownRevision
+	}
+	return revision
 }
 
 func attributeAuthoringFailure(result *AuthoringCaseResult, cause, detail string) {
@@ -264,9 +453,6 @@ func boundedDetail(detail string, limit int) string {
 }
 
 func finalizeAuthoringResult(result *AuthoringResult) {
-	sort.SliceStable(result.Cases, func(left, right int) bool {
-		return result.Cases[left].CaseID < result.Cases[right].CaseID
-	})
 	counts := map[string]int32{}
 	for _, item := range result.Cases {
 		if item.RuleID != "" {
@@ -314,6 +500,8 @@ func stripSourceFence(source string) string {
 // satisfiesOracle checks the produced result, never the program text.
 func satisfiesOracle(oracle AuthoringOracle, stdout string) bool {
 	switch oracle.Kind {
+	case "json_assertions":
+		return fixtureOracleSatisfied(oracle, stdout, AuthoringCaseExecution{})
 	case "stdout_json_keys":
 		for _, key := range oracle.Keys {
 			if !strings.Contains(stdout, "'"+key+"'") && !strings.Contains(stdout, "\""+key+"\"") {
@@ -346,6 +534,192 @@ func satisfiesOracle(oracle AuthoringOracle, stdout string) bool {
 	default:
 		return false
 	}
+}
+
+func fixtureOracleSatisfied(oracle AuthoringOracle, stdout string, execution AuthoringCaseExecution) bool {
+	if oracle.Kind != "json_assertions" {
+		return false
+	}
+	if len(oracle.Assertions) == 0 && len(oracle.CallCounts) == 0 {
+		return false
+	}
+	if oracle.MaxOutputBytes > 0 && len(stdout) > oracle.MaxOutputBytes {
+		return false
+	}
+	var root any
+	decoder := json.NewDecoder(strings.NewReader(stdout))
+	decoder.UseNumber()
+	if err := decoder.Decode(&root); err != nil {
+		return false
+	}
+	if _, ok := root.(map[string]any); !ok {
+		return false
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		return false
+	}
+	for _, assertion := range oracle.Assertions {
+		actual, exists := jsonPath(root, assertion.Path)
+		other, otherExists := jsonPath(root, assertion.OtherPath)
+		if !assertionMatches(actual, exists, assertion, other, otherExists) {
+			return false
+		}
+	}
+	for _, expected := range oracle.CallCounts {
+		if execution.FixtureCalls[expected.BindingID] != int32(expected.Count) {
+			return false
+		}
+		if expected.Args != nil || expected.Rows != "" {
+			matched := int32(0)
+			for _, call := range execution.FixtureRequests {
+				if call.BindingID == expected.BindingID {
+					if (expected.Rows != "" && call.Rows != expected.Rows) || !argsContain(call.Args, expected.Args) {
+						return false
+					}
+					matched++
+				}
+			}
+			if matched != int32(expected.Count) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func argsContain(actual, expected map[string]any) bool {
+	for key, value := range expected {
+		got, ok := actual[key]
+		if !ok || !jsonEqual(got, value) {
+			return false
+		}
+	}
+	return true
+}
+
+func jsonPath(root any, path string) (any, bool) {
+	if path == "" {
+		return root, true
+	}
+	var current = root
+	for _, part := range strings.Split(path, ".") {
+		switch node := current.(type) {
+		case map[string]any:
+			value, ok := node[part]
+			if !ok {
+				return nil, false
+			}
+			current = value
+		case []any:
+			index := 0
+			if _, err := fmt.Sscanf(part, "%d", &index); err != nil || index < 0 || index >= len(node) {
+				return nil, false
+			}
+			current = node[index]
+		default:
+			return nil, false
+		}
+	}
+	return current, true
+}
+
+func assertionMatches(actual any, exists bool, check JSONAssertion, other any, otherExists bool) bool {
+	if check.Op == "exists" {
+		return exists
+	}
+	if check.Op == "missing" {
+		return !exists
+	}
+	if !exists {
+		return false
+	}
+	if check.Op == "equal_path" {
+		return otherExists && jsonEqual(actual, other)
+	}
+	switch check.Op {
+	case "eq":
+		return jsonEqual(actual, check.Value)
+	case "ne":
+		return !jsonEqual(actual, check.Value)
+	case "contains":
+		switch value := actual.(type) {
+		case string:
+			expected, ok := check.Value.(string)
+			return ok && strings.Contains(value, expected)
+		case []any:
+			for _, item := range value {
+				if jsonEqual(item, check.Value) {
+					return true
+				}
+			}
+		case map[string]any:
+			key, ok := check.Value.(string)
+			if ok {
+				_, found := value[key]
+				return found
+			}
+		}
+	case "length_eq", "length_lte":
+		expected, ok := numericFloat(check.Value)
+		if !ok {
+			return false
+		}
+		length := -1
+		switch value := actual.(type) {
+		case string:
+			length = len(value)
+		case []any:
+			length = len(value)
+		case map[string]any:
+			length = len(value)
+		}
+		if length < 0 {
+			return false
+		}
+		if check.Op == "length_eq" {
+			return float64(length) == expected
+		}
+		return float64(length) <= expected
+	case "gt", "gte", "lt", "lte":
+		left, lok := numericFloat(actual)
+		right, rok := numericFloat(check.Value)
+		if !lok || !rok {
+			return false
+		}
+		switch check.Op {
+		case "gt":
+			return left > right
+		case "gte":
+			return left >= right
+		case "lt":
+			return left < right
+		default:
+			return left <= right
+		}
+	}
+	return false
+}
+
+func numericFloat(value any) (float64, bool) {
+	switch number := value.(type) {
+	case json.Number:
+		f, err := number.Float64()
+		return f, err == nil
+	case float64:
+		return number, true
+	case int:
+		return float64(number), true
+	case int64:
+		return float64(number), true
+	}
+	return 0, false
+}
+
+func jsonEqual(left, right any) bool {
+	leftBytes, leftErr := json.Marshal(left)
+	rightBytes, rightErr := json.Marshal(right)
+	return leftErr == nil && rightErr == nil && string(leftBytes) == string(rightBytes)
 }
 
 func (o AuthoringOracle) expectedText() string {

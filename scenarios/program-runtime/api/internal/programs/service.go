@@ -152,7 +152,7 @@ type Options struct {
 		Append(*telemetryv1.ProgramEvent)
 	}
 	Preflight        func(string) []*programsv1.Diagnostic
-	PreflightSession func(context.Context, string, string) []*programsv1.Diagnostic
+	PreflightSession func(context.Context, string, string, []BindingSpec) []*programsv1.Diagnostic
 	RecordUnresolved func(context.Context, string, string, string) error
 	ShapeSink        ShapeSink
 	ContractIndex    *contracts.Index
@@ -173,7 +173,7 @@ type Service struct {
 		Append(*telemetryv1.ProgramEvent)
 	}
 	preflight        func(string) []*programsv1.Diagnostic
-	preflightSession func(context.Context, string, string) []*programsv1.Diagnostic
+	preflightSession func(context.Context, string, string, []BindingSpec) []*programsv1.Diagnostic
 	recordUnresolved func(context.Context, string, string, string) error
 	repo             Repository
 	shapeSink        ShapeSink
@@ -199,6 +199,7 @@ type Identity struct {
 	IdempotencyKey    string
 	AdmissionDeadline string
 	Grants            []string
+	PrivateBindings   []BindingSpec
 	HelperContract    *HelperContract
 	OutputSchema      *jsonschema.Schema
 }
@@ -267,7 +268,7 @@ func (s *Service) SubmitDeclared(ctx context.Context, sessionID, source string, 
 	}
 	diagnostics := []*programsv1.Diagnostic(nil)
 	if s.preflightSession != nil {
-		diagnostics = s.preflightSession(ctx, sessionID, source)
+		diagnostics = s.preflightSession(ctx, sessionID, source, identity.PrivateBindings)
 	} else if s.preflight != nil {
 		diagnostics = s.preflight(source)
 	}
@@ -354,7 +355,8 @@ func (s *Service) submit(ctx context.Context, sessionID, source string, provenan
 		// progress; sharing p here would create a data race and expose partial
 		// state across the RPC boundary.
 		execution := clone(p)
-		go s.execute(context.WithoutCancel(ctx), execution, includeMaterialized, identity.HelperContract, identity.OutputSchema)
+		privateBindings := append([]BindingSpec(nil), identity.PrivateBindings...)
+		go s.execute(context.WithoutCancel(ctx), execution, includeMaterialized, identity.HelperContract, identity.OutputSchema, privateBindings)
 		return clone(p), nil, nil
 	}
 	// A synchronous submission is bounded well inside the HTTP write deadline.
@@ -371,7 +373,7 @@ func (s *Service) submit(ctx context.Context, sessionID, source string, provenan
 	execution := clone(p)
 	go func() {
 		defer close(done)
-		s.execute(context.WithoutCancel(ctx), execution, includeMaterialized, identity.HelperContract, identity.OutputSchema)
+		s.execute(context.WithoutCancel(ctx), execution, includeMaterialized, identity.HelperContract, identity.OutputSchema, append([]BindingSpec(nil), identity.PrivateBindings...))
 	}()
 	select {
 	case <-done:
@@ -415,7 +417,7 @@ func hasDiagnosticErrors(diagnostics []*programsv1.Diagnostic) bool {
 	return false
 }
 
-func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMaterialized bool, helperContract *HelperContract, outputSchema *jsonschema.Schema) {
+func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMaterialized bool, helperContract *HelperContract, outputSchema *jsonschema.Schema, privateBindings []BindingSpec) {
 	defer func() {
 		if s.onTerminal != nil {
 			_ = s.onTerminal(context.Background(), p.Id)
@@ -452,7 +454,13 @@ func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMat
 			p.Stdout = boundedText(p.Stdout, int(p.OutputLimitBytes))
 			_ = s.repo.Save(context.Background(), p)
 		}
-		if callerRunner, ok := s.runner.(CallerBudgetedRunner); ok {
+		if len(privateBindings) > 0 {
+			if scopedRunner, ok := s.runner.(PrivateBindingRunner); ok {
+				result, runErr = scopedRunner.ExecuteWithMetadataAndLimitsAndCallerAndBindings(ctx, p.SessionId, p.Id, p.Provenance.String(), p.Source, Caller{RunID: p.CallerRunId, AgentProfile: p.CallerAgentProfile, SkillID: p.CallerSkillId, Harness: p.CallerHarness}, includeMaterialized, limits, privateBindings)
+			} else {
+				runErr = errors.New("private declared bindings require a scoped runtime runner")
+			}
+		} else if callerRunner, ok := s.runner.(CallerBudgetedRunner); ok {
 			result, runErr = callerRunner.ExecuteWithMetadataAndLimitsAndCaller(ctx, p.SessionId, p.Id, p.Provenance.String(), p.Source, Caller{RunID: p.CallerRunId, AgentProfile: p.CallerAgentProfile, SkillID: p.CallerSkillId, Harness: p.CallerHarness}, includeMaterialized, limits)
 		} else if budgeted, ok := s.runner.(BudgetedRunner); ok {
 			if streaming, supportsStreaming := s.runner.(ProgressRunner); supportsStreaming {
@@ -591,6 +599,20 @@ func (s *Service) appendEvent(event *telemetryv1.ProgramEvent) {
 
 func (s *Service) Get(ctx context.Context, id string) (*programsv1.Program, error) {
 	return s.repo.Get(ctx, id)
+}
+
+// ExecutionIdentity returns only server-persisted declared execution identity
+// for the private binding bridge. Caller-supplied request metadata is never
+// consulted here.
+func (s *Service) ExecutionIdentity(ctx context.Context, id string) (programName, programDigest, sessionID string, err error) {
+	p, err := s.repo.Get(ctx, strings.TrimSpace(id))
+	if err != nil {
+		return "", "", "", err
+	}
+	if p.GetId() == "" || p.GetProgramName() == "" || p.GetProgramDigest() == "" || p.GetSessionId() == "" {
+		return "", "", "", errors.New("execution has no pinned declared program identity")
+	}
+	return p.GetProgramName(), p.GetProgramDigest(), p.GetSessionId(), nil
 }
 
 // IsTerminal reports whether a status can still change.

@@ -1,0 +1,68 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.bounty-replay",
+  "version": "1",
+  "purpose": "Run or resume one sealed bounty replay with Agent Manager, Test Genie, durable coding-job scoring, and a code-free review packet.",
+  "inputs": {
+    "case_id": {"type": "string", "required": false, "description": "Registered case id. Supply this or public_url; the private case-catalog owner resolves the trusted immutable bundle."},
+    "public_url": {"type": "string", "required": false, "description": "Exact registered public bounty URL. Supply this or case_id; arbitrary URLs are rejected by the case-catalog owner."},
+    "idempotency_key": {"type": "string", "required": true, "description": "Stable key for this case replay; reused by every Sandbox, coding-job, Agent Manager, and Test Genie create/reattach operation."}
+  },
+  "assumptions": [
+    "Case intake is synthetic and authorized; source/reference roots are local public project copies, never customer data.",
+    "The registered case bundle supplies frozen evaluator and Test Genie plan material; Program Runtime constructs typed validation intents from owner-resolved seal references, and Test Genie remains authoritative for source identity and run status.",
+    "Agent Manager profile and declaration availability are owner-controlled. Missing solver workflow returns unavailable with durable job/seal state retained; this program never substitutes another workflow.",
+    "Client Rehearsal's replay_key makes coding-job creation idempotent; callers resume with the same registered case selector and idempotency_key."
+  ],
+  "invariants": [
+    "The solver receives only case id, task text, and the disposable candidate checkout path; never the reference path, reference seal, evaluator, or expected answer.",
+    "All reference resolution stays in transient program state and is excluded from signals, evidence, solver input, and review packet.",
+    "Sandbox seals are verified before validation and again before coding-job score persistence; tamper or identity mismatch leaves the job resumable in scoring.",
+    "Test Genie producer receipts and durable child run identities are the only source of validation outcomes.",
+    "Returned immutable receipt evidence and derived disposition are compared against each requested variant before coding-job evaluation is mutated.",
+    "Score is derived only from the verified immutable receipt; caller case data cannot provide a score or disposition.",
+    "Optimistic revisions are read immediately before every coding-job mutation; receipt idempotency keys are stable across recovery.",
+    "Review packets contain opaque identities, job state, score, and immutable receipt references only; never source paths or code."
+  ],
+  "bindings": [
+    {"id": "workspace-sandbox/sandbox/create", "effect": "write"},
+    {"id": "workspace-sandbox/replay-seal/create", "effect": "write"},
+    {"id": "workspace-sandbox/replay-seal/resolve", "effect": "read"},
+    {"id": "workspace-sandbox/replay-seal/verify", "effect": "read"},
+    {"id": "client-rehearsal/bounty-cases/resolve", "effect": "read"},
+    {"id": "client-rehearsal/coding-jobs/create", "effect": "write"},
+    {"id": "client-rehearsal/coding-jobs/record-stage", "effect": "write"},
+    {"id": "client-rehearsal/coding-jobs/record-evaluation", "effect": "write"},
+    {"id": "test-genie/validation/resolve-identity", "effect": "read"},
+    {"id": "test-genie/validation/create", "effect": "write"},
+    {"id": "test-genie/validation/wait", "effect": "read"},
+    {"id": "test-genie/frozen-replay/create", "effect": "write"},
+    {"id": "test-genie/frozen-replay/get", "effect": "read"}
+  ],
+  "verbs": [],
+  "outputs": {
+    "status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]},
+    "phase": {"enum": ["validate", "collect", "delegate", "act", "report"]},
+    "signals": {
+      "coding_job_id": "durable client-rehearsal coding job id",
+      "case_id": "synthetic case identity",
+      "project_id": "synthetic project identity",
+      "job_state": "persisted coding job state",
+      "solver_run_ref": "Agent Manager execution identity, when the exact workflow starts",
+      "score": "closed score label derived from Test Genie immutable evidence",
+      "receipt_id": "immutable Test Genie FrozenReplay receipt id",
+      "receipt_digest": "immutable receipt digest",
+      "disposition": "Test Genie qualified or not-qualified disposition",
+      "tamper_detected": "whether Workspace Sandbox reported a changed seal",
+      "review_packet": "bounded code-free packet linking case, score, job and receipt identities"
+    },
+    "errors": {"classes": ["invalid_input", "invalid_response", "not_found", "wrong_job_state", "case_mismatch", "evaluator_mismatch", "receipt_mismatch", "idempotency_conflict", "revision_conflict", "scenario_unreachable", "no_grant", "not_run_eligible", "ambiguous_response", "deadline_exceeded", "binding_error", "workflow_rejected", "kernel_runtime", "remote_error"]},
+    "evidence": "owner operation identities, seal digests, validation receipt/run identities, immutable receipt digest"
+  },
+  "budget": {"wall_ms": 7200000, "inference_calls": 0, "delegated_runs": 2, "materialize_limit": 1, "async": true, "async_reason": "The exact solver may run for thirty minutes and three sealed Test Genie variants each have a twenty-minute execution budget; asynchronous submit/wait preserves the single-owner run while bounding the full sequential case at two hours."},
+  "fixtures": [
+    {"id": "rejects-missing-case-before-owner-calls", "inputs": {"idempotency_key": ""}, "expect": {"status": ["failed"], "signals": {"review_packet": null}}, "note": "Malformed synthetic input is rejected before case-catalog, Sandbox, coding-job, solver or Test Genie calls."}
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime"
+}

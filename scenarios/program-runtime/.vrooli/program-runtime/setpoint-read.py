@@ -31,11 +31,7 @@ handles = {}
 dead = {}  # read name -> (status, class) for a read that raised
 
 
-def fail(status, klass, detail, where):
-    """The one place a bad path is recorded. Sets status, appends the error, routes to report."""
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
-    return "report"
+fail = program.fail
 
 
 def guarded(call):

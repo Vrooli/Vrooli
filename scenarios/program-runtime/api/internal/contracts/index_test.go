@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -249,6 +250,47 @@ func TestResolveInputsAppliesDefaultsAndRejectsInvalidValues(t *testing.T) {
 	require.EqualError(t, err, `input "limit" must have type integer`)
 }
 
+func TestResolveInputsMatchesSharedVectors(t *testing.T) {
+	type vector struct {
+		Name          string                     `json:"name"`
+		Inputs        map[string]json.RawMessage `json:"inputs"`
+		Provided      map[string]any             `json:"provided"`
+		Expected      map[string]any             `json:"expected"`
+		ErrorContains []string                   `json:"error_contains"`
+	}
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "contracts", "input-resolution-vectors.json"))
+	require.NoError(t, err)
+	var vectors []vector
+	require.NoError(t, json.Unmarshal(data, &vectors))
+	for _, test := range vectors {
+		t.Run(test.Name, func(t *testing.T) {
+			inputs := make(map[string]InputSpec, len(test.Inputs))
+			for name, raw := range test.Inputs {
+				var spec struct {
+					Type     string          `json:"type"`
+					Required bool            `json:"required"`
+					Default  json.RawMessage `json:"default"`
+					Enum     []any           `json:"enum"`
+				}
+				require.NoError(t, json.Unmarshal(raw, &spec))
+				inputs[name] = InputSpec{Type: spec.Type, Required: spec.Required, Default: spec.Default, Enum: spec.Enum}
+			}
+			resolved, err := (Contract{Inputs: inputs}).ResolveInputs(test.Provided)
+			if len(test.ErrorContains) > 0 {
+				require.Error(t, err)
+				matched := false
+				for _, want := range test.ErrorContains {
+					matched = matched || strings.Contains(err.Error(), want)
+				}
+				require.True(t, matched, "error %q should contain one of %q", err, test.ErrorContains)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, test.Expected, resolved)
+		})
+	}
+}
+
 func TestLearningCapabilityPolicyRequiresExplicitOwnerAndEffects(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
@@ -267,7 +309,7 @@ func TestLearningCapabilityPolicyRequiresExplicitOwnerAndEffects(t *testing.T) {
 			data, err := json.Marshal(document)
 			require.NoError(t, err)
 			path := filepath.Join(t.TempDir(), "scoped.json")
-			require.NoError(t, os.WriteFile(path, data, 0600))
+			require.NoError(t, os.WriteFile(path, data, 0o600))
 			got := readContract("demo", path, testSchema(t))
 			if tc.valid {
 				require.Empty(t, got.ValidationError)
@@ -277,4 +319,85 @@ func TestLearningCapabilityPolicyRequiresExplicitOwnerAndEffects(t *testing.T) {
 			}
 		})
 	}
+}
+
+func researchContract(t *testing.T, name string) []byte {
+	t.Helper()
+	var contract map[string]any
+	require.NoError(t, json.Unmarshal(validContractData(t), &contract))
+	contract["name"] = name
+	delete(contract, "$schema")
+	data, err := json.Marshal(contract)
+	require.NoError(t, err)
+	return data
+}
+
+func TestResearchProgramsResolveByIDAndStayOutOfTheCallableSet(t *testing.T) {
+	root, err := filepath.Abs("../../../../..")
+	require.NoError(t, err)
+	home := t.TempDir()
+	topicPrograms := filepath.Join(home, "topics", "ux", "programs")
+	require.NoError(t, os.MkdirAll(topicPrograms, 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(home, "programs"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(topicPrograms, "review.json"), researchContract(t, "research/ux/review"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(topicPrograms, "review.py"), []byte("print('v1')\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(topicPrograms, "copied.json"), researchContract(t, "research/other/copied"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(home, "programs", "sweep.json"), researchContract(t, "research/sweep"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(home, "programs", "sweep.py"), []byte("print('sweep')\n"), 0o644))
+
+	index := NewIndex()
+	index.SetResearchHome(home)
+	require.NoError(t, index.Load(root))
+
+	review, ok := index.Lookup("research/ux/review")
+	require.True(t, ok)
+	require.Empty(t, review.ValidationError)
+	require.Equal(t, "print('v1')\n", review.Source)
+	sweep, ok := index.Lookup("research/sweep")
+	require.True(t, ok)
+	require.Empty(t, sweep.ValidationError)
+	copied, ok := index.Lookup("research/ux/copied")
+	require.True(t, ok)
+	require.Contains(t, copied.ValidationError, `must be "research/ux/copied"`)
+	_, ok = index.Lookup("research/ux/absent")
+	require.False(t, ok)
+	_, ok = index.Lookup("prompt-manager.skill-set-read")
+	require.True(t, ok, "scenario names still resolve through Lookup")
+
+	require.Len(t, index.Research(), 3)
+	for _, contract := range index.List() {
+		require.False(t, contract.Research, "research programs are not lib-callable: %s", contract.ID)
+	}
+
+	later := time.Now().Add(2 * time.Second)
+	require.NoError(t, os.WriteFile(filepath.Join(topicPrograms, "review.py"), []byte("print('v2')\n"), 0o644))
+	require.NoError(t, os.Chtimes(filepath.Join(topicPrograms, "review.py"), later, later))
+	changed, err := index.Refresh(root)
+	require.NoError(t, err)
+	require.True(t, changed, "a research program edit must reload")
+	review, _ = index.Lookup("research/ux/review")
+	require.Equal(t, "print('v2')\n", review.Source)
+
+	plain := NewIndex()
+	require.NoError(t, plain.Load(root))
+	require.Empty(t, plain.Research(), "an index without a research home never reads one")
+}
+
+func TestResearchProgramsThatLinkOutOfTheHomeAreRefused(t *testing.T) {
+	root, err := filepath.Abs("../../../../..")
+	require.NoError(t, err)
+	home, outside := t.TempDir(), t.TempDir()
+	programs := filepath.Join(home, "programs")
+	require.NoError(t, os.MkdirAll(programs, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(programs, "leak.json"), researchContract(t, "research/leak"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(outside, "leak.py"), []byte("print('outside')\n"), 0o644))
+	require.NoError(t, os.Symlink(filepath.Join(outside, "leak.py"), filepath.Join(programs, "leak.py")))
+
+	index := NewIndex()
+	index.SetResearchHome(home)
+	require.NoError(t, index.Load(root))
+	leak, ok := index.Lookup("research/leak")
+	require.True(t, ok)
+	require.Contains(t, leak.ValidationError, "outside the research home")
+	require.Empty(t, leak.Source, "a source outside the home is never loaded")
 }

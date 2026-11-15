@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/researchhome"
 	"github.com/vrooli/cli-core/cliapp"
 	libraryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library"
 	libraryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library/library_v1connect"
@@ -169,9 +170,12 @@ func libraryRunStatus(stdout string) string {
 
 func declaredRequest(ctx cliapp.OperationContext) (*libraryv1.RunDeclaredProgramRequest, error) {
 	name := ctx.Positional("name")
-	parts := strings.SplitN(name, ".", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return nil, fmt.Errorf("name must be <scenario>.<program>")
+	if researchhome.IsID(name) {
+		if _, err := researchhome.Parse(name); err != nil {
+			return nil, err
+		}
+	} else if scenario, program, ok := strings.Cut(name, "."); !ok || scenario == "" || program == "" {
+		return nil, fmt.Errorf("name must be <scenario>.<program> or research/[<topic>/]<program>")
 	}
 	inputs, err := declaredInputs(ctx)
 	if err != nil {
@@ -228,6 +232,12 @@ func (h *handlers) run(ctx cliapp.OperationContext) (*libraryv1.RunDeclaredProgr
 	name := request.Name
 	result, err := h.client.RunDeclaredProgram(context.Background(), connect.NewRequest(request))
 	if err != nil {
+		if researchFallback(name, err, false) {
+			return runResearchStandalone(name, request.GetInputs().AsMap(), err, h.note())
+		}
+		if unreachable(err) {
+			return nil, fmt.Errorf("Program Runtime is unreachable; nothing was submitted: %w; start it with `vrooli scenario start program-runtime`", err)
+		}
 		if code := connect.CodeOf(err); code == connect.CodeInvalidArgument || code == connect.CodeNotFound || code == connect.CodeFailedPrecondition {
 			return nil, fmt.Errorf("declared program %s rejected before acceptance: %w", name, err)
 		}
@@ -350,8 +360,12 @@ func (h *handlers) get(ctx cliapp.OperationContext) (*libraryv1.GetLibraryRespon
 		}
 		version = parsed
 	}
-	r, err := h.client.GetLibrary(context.Background(), connect.NewRequest(&libraryv1.GetLibraryRequest{Name: ctx.Positional("name"), Version: version}))
+	name := ctx.Positional("name")
+	r, err := h.client.GetLibrary(context.Background(), connect.NewRequest(&libraryv1.GetLibraryRequest{Name: name, Version: version}))
 	if err != nil {
+		if researchFallback(name, err, true) {
+			return researchLibraryProgram(name, err, h.note())
+		}
 		return nil, cliapp.WrapAPIError("get library", err, nil)
 	}
 	return r.Msg, nil

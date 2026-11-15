@@ -5,6 +5,7 @@ import (
 	"program-runtime/cli/domains/bindings"
 	"program-runtime/cli/domains/discovery"
 	"program-runtime/cli/domains/library"
+	"program-runtime/cli/domains/optimization"
 	"program-runtime/cli/domains/programs"
 	"program-runtime/cli/domains/sessions"
 	"program-runtime/cli/domains/shapes"
@@ -68,6 +69,11 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, libraryGroup)
+	optimizationGroup, err := optimization.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, optimizationGroup)
 	sessionsGroup, err := sessions.Register(core, manifest)
 	if err != nil {
 		return nil, err

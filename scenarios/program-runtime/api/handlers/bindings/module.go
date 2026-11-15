@@ -289,7 +289,19 @@ func resolveDescriptionID(registry *bindings.Registry, reference string) (string
 // Bridge is a private sidecar seam. It is not part of the public proto/CLI
 // surface: the kernel can reach it only with a live session id, and the
 // registry still performs all descriptor validation and governance checks.
+type PrivateExecutionIdentityResolver interface {
+	ExecutionIdentity(context.Context, string) (programName, programDigest, sessionID string, err error)
+}
+
 func Bridge(registry *bindings.Registry, manager *sessions.Manager, refusalRecorders ...bindings.RefusalRecorder) http.Handler {
+	return bridgeWithPrivateIdentity(registry, manager, nil, refusalRecorders...)
+}
+
+func BridgeWithPrivateIdentity(registry *bindings.Registry, manager *sessions.Manager, resolver PrivateExecutionIdentityResolver, refusalRecorders ...bindings.RefusalRecorder) http.Handler {
+	return bridgeWithPrivateIdentity(registry, manager, resolver, refusalRecorders...)
+}
+
+func bridgeWithPrivateIdentity(registry *bindings.Registry, manager *sessions.Manager, identityResolver PrivateExecutionIdentityResolver, refusalRecorders ...bindings.RefusalRecorder) http.Handler {
 	var refusals bindings.RefusalRecorder
 	if len(refusalRecorders) > 0 {
 		refusals = refusalRecorders[0]
@@ -328,7 +340,19 @@ func Bridge(registry *bindings.Registry, manager *sessions.Manager, refusalRecor
 				return
 			}
 		}
-		if _, governed := registry.Binding(request.BindingID); !governed {
+		binding, governed := registry.Binding(request.BindingID)
+		private := false
+		programName, programDigest := "", ""
+		if !governed && identityResolver != nil {
+			resolvedName, resolvedDigest, resolvedSession, resolveErr := identityResolver.ExecutionIdentity(r.Context(), request.ProgramID)
+			if resolveErr == nil && resolvedSession == request.SessionID {
+				if privateBinding, allowed := registry.ProgramPrivateBinding(request.BindingID, resolvedName, resolvedDigest); allowed {
+					binding, governed, private = privateBinding, true, true
+					programName, programDigest = resolvedName, resolvedDigest
+				}
+			}
+		}
+		if !governed {
 			if unresolved, ok := refusals.(bindings.UnresolvedRecorder); ok {
 				_ = unresolved.RecordUnresolved(r.Context(), request.SessionID, request.Provenance, request.BindingID, time.Now().UTC())
 			}
@@ -337,16 +361,23 @@ func Bridge(registry *bindings.Registry, manager *sessions.Manager, refusalRecor
 		// provider role timeout is authoritative, so the bridge must exceed the
 		// longest declared role rather than imposing a 10s transport ceiling.
 		grants := mapKeys(session.Grants)
-		if err := registry.Authorize(request.BindingID, grants, request.Confirmed); err != nil {
-			registry.RecordInvocation(r.Context(), bindings.Invocation{BindingID: request.BindingID, SessionID: request.SessionID, ProgramID: request.ProgramID, Provenance: request.Provenance, Outcome: "refused", Reason: err.Error(), OccurredAt: time.Now().UTC()})
+		var authorizeErr error
+		if !private {
+			authorizeErr = registry.Authorize(request.BindingID, grants, request.Confirmed)
+		} else if binding.GetEffect() == "destructive" {
+			// Private destructive effects are not part of the supported policy
+			// shape; fail closed even if a session carries a broad grant.
+			authorizeErr = fmt.Errorf("private binding %q cannot be destructive", request.BindingID)
+		}
+		if authorizeErr != nil {
+			registry.RecordInvocation(r.Context(), bindings.Invocation{BindingID: request.BindingID, SessionID: request.SessionID, ProgramID: request.ProgramID, Provenance: request.Provenance, Outcome: "refused", Reason: authorizeErr.Error(), OccurredAt: time.Now().UTC()})
 			if refusals != nil {
-				_ = refusals.RecordRefusal(r.Context(), request.SessionID, request.Provenance, request.BindingID, err.Error(), time.Now().UTC())
+				_ = refusals.RecordRefusal(r.Context(), request.SessionID, request.Provenance, request.BindingID, authorizeErr.Error(), time.Now().UTC())
 			}
-			writeBridgeFailure(w, http.StatusBadRequest, request.BindingID, err)
+			writeBridgeFailure(w, http.StatusBadRequest, request.BindingID, authorizeErr)
 			return
 		}
 		if request.Rows != "" {
-			binding, _ := registry.Binding(request.BindingID)
 			valid := false
 			if binding != nil {
 				for _, candidate := range binding.GetRowFieldCandidates() {
@@ -361,9 +392,16 @@ func Bridge(registry *bindings.Registry, manager *sessions.Manager, refusalRecor
 				return
 			}
 		}
-		result, err := registry.Execute(r.Context(), request.BindingID, request.Args, grants, request.Confirmed, bindings.InvocationMetadata{SessionID: request.SessionID, ProgramID: request.ProgramID, Provenance: request.Provenance}, &http.Client{Timeout: budgets.BridgeForBinding(request.BindingID)})
-		if err != nil {
-			writeBridgeFailure(w, http.StatusBadRequest, request.BindingID, err)
+		metadata := bindings.InvocationMetadata{SessionID: request.SessionID, ProgramID: request.ProgramID, Provenance: request.Provenance}
+		var result map[string]any
+		var executeErr error
+		if private {
+			result, executeErr = registry.ExecuteProgramPrivate(r.Context(), request.BindingID, programName, programDigest, request.Args, grants, request.Confirmed, metadata, &http.Client{Timeout: budgets.BridgeForBinding(request.BindingID)})
+		} else {
+			result, executeErr = registry.Execute(r.Context(), request.BindingID, request.Args, grants, request.Confirmed, metadata, &http.Client{Timeout: budgets.BridgeForBinding(request.BindingID)})
+		}
+		if executeErr != nil {
+			writeBridgeFailure(w, http.StatusBadRequest, request.BindingID, executeErr)
 			return
 		}
 		if registry.IsInferenceBinding(request.BindingID) {

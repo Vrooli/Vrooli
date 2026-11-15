@@ -1,31 +1,16 @@
 """The workspace review distinguishes absent evidence from incomplete reads."""
-import contextlib
-import io
-import json
 import os
+import sys
 from pathlib import Path
-from types import SimpleNamespace
+
+sys.path.insert(0, str(Path(__file__).parents[3] / "kernel"))
+from host.standalone import execute as run_program  # noqa: E402
 
 SOURCE = Path(__file__).parents[1] / "research-workspace-review.py"
 
 
 def execute(root):
-    output = io.StringIO()
-    state = {}
-    def envelope(name, version):
-        state.update(program=name, version=version, status="failed", phase="validate", inputs={}, signals={}, errors=[], evidence=[])
-        return state
-    def fail(status, klass, detail, where):
-        state["status"] = status
-        state["errors"].append({"class": klass, "detail": detail, "where": where})
-        return "report"
-    def run(states, step):
-        while step:
-            step = states[step]()
-    program = SimpleNamespace(inputs=lambda: {"research_root": str(root)}, envelope=envelope, fail=fail, run=run)
-    with contextlib.redirect_stdout(output):
-        exec(compile(SOURCE.read_text(), str(SOURCE), "exec"), {"program": program})
-    return json.loads(output.getvalue())
+    return run_program(str(SOURCE), {"research_root": str(root)})[1]
 
 
 def test_aliases_are_counted_once_and_current_view_size_is_distinct(tmp_path):

@@ -157,7 +157,7 @@ func LibraryCorpusHandlerWithUsage(repo *library.Repository, index *contracts.In
 		stamp := time.Now().UTC().Format(time.RFC3339Nano)
 		rows := make([]scoredRecord, 0, len(programs))
 		if index != nil {
-			for _, contract := range index.List() {
+			for _, contract := range append(index.List(), index.Research()...) {
 				if contract.ID == "" || contract.Purpose == "" {
 					continue
 				}

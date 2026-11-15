@@ -261,6 +261,8 @@ Programs that consume nested child envelopes can declare `helpers.program: "2"` 
 6. Run every fixture in its own session; a fixture whose dependency is stopped is recorded `unavailable` with the reason, not skipped.
 7. Name the program in the owning scenario's usage skill leaf as `run <scenario>.<name>` and in its `.vrooli/service.json` `skills` block.
 
+For synthetic bounty replays, use `program-runtime.bounty-replay` with exactly one registered `case_id` or exact registered `public_url`, plus a stable `idempotency_key` reused on resume. It resolves source, reference, evaluator, and test plan from the immutable case catalog; callers must not pass paths, intents, identities, outcomes, or scores. The program seals each workspace, invokes only the approved Agent Manager solver workflow, creates three Test Genie validation receipts, persists the receipt-derived score, and returns a code-free review packet. If the exact solver profile is unavailable, the program retains resumable state and reports unavailable; do not substitute a different workflow or claim a completed replay.
+
 A read that can fail on its own (one scenario down among five) is wrapped so the row reads `unavailable` and the envelope reads `partial`; a `gather` that raises on the first failure loses the four healthy rows.
 
 ### Output bound and materialization

@@ -1,32 +1,19 @@
 """Attention index fails closed on ambiguous or unavailable snapshots."""
-import contextlib
-import io
-import runpy
-from pathlib import Path
 from types import SimpleNamespace
 
-SOURCE = Path(__file__).resolve().parents[2] / '.vrooli/program-runtime/research-attention-index.py'
-PARENT = SOURCE.with_name('research-supervision-read.py')
-
-class Runtime:
-    def __init__(self, data): self.data = data
-    def inputs(self): return self.data
-    def envelope(self, name, version, **kwargs):
-        self.result = {'program': name, 'version': version, 'status': 'failed', 'phase': 'validate', 'inputs': {}, 'signals': {}, 'errors': [], 'evidence': []}
-        return self.result
-    def fail(self, status, kind, detail, where):
-        self.result.update(status=status, phase=where)
-        self.result['errors'].append({'class': kind, 'detail': detail})
-        return 'report'
-    def run(self, states, start):
-        while start: start = states[start]()
+from program_fixture import Child, run
 
 
 def execute(root):
-    runtime = Runtime({'research_root': str(root)})
-    with contextlib.redirect_stdout(io.StringIO()):
-        runpy.run_path(str(SOURCE), init_globals={'program': runtime})
-    return runtime.result
+    return run('research-attention-index', {'research_root': str(root)})
+
+
+def parent(inputs, **children):
+    """research-supervision-read with each named child returning its fixture envelope."""
+    library = SimpleNamespace(program_runtime=SimpleNamespace(**{
+        name.replace('-', '_'): (lambda envelope, name=name: lambda **kwargs: Child(name, envelope))(envelope)
+        for name, envelope in children.items()}))
+    return run('research-supervision-read', inputs, lib=library)
 
 
 def test_empty_and_actionable_snapshot(tmp_path):
@@ -56,45 +43,22 @@ def test_unknown_for_missing_ambiguous_duplicate_and_symlink(tmp_path):
 
 def test_parent_flags_delivery_not_checked_without_selected_effort():
     index = {'status': 'ok', 'signals': {'actionable_ids': ['WALLET-123']}, 'errors': [], 'evidence': []}
-    class Handle:
-        def meta(self): return {}
-    class ParentRuntime(Runtime):
-        def child_envelope(self, handle, **kwargs): return index
-    runtime = ParentRuntime({'research_root': '/authorized/research'})
-    library = SimpleNamespace(program_runtime=SimpleNamespace(research_attention_index=lambda **kwargs: Handle()))
-    with contextlib.redirect_stdout(io.StringIO()):
-        runpy.run_path(str(PARENT), init_globals={'program': runtime, 'lib': library})
-    assert {'source': 'attention_index', 'subject': 'WALLET-123', 'signal': 'delivery_not_checked'} in runtime.result['signals']['attention']
+    result = parent({'research_root': '/authorized/research'}, **{'research-attention-index': index})
+    assert {'source': 'attention_index', 'subject': 'WALLET-123', 'signal': 'delivery_not_checked'} in result['signals']['attention']
 
 
 def test_parent_flags_unobserved_decision_when_effort_selected():
     index = {'status': 'ok', 'signals': {'actionable_ids': ['WALLET-123']}, 'errors': [], 'evidence': []}
     delivery = {'status': 'partial', 'signals': {'items': []}, 'errors': [], 'evidence': []}
-    class Handle:
-        def __init__(self, value): self.value = value
-        def meta(self): return {}
-    class ParentRuntime(Runtime):
-        def child_envelope(self, handle, **kwargs): return handle.value
-    runtime = ParentRuntime({'research_root': '/authorized/research', 'effort_ref': 'effort:test'})
-    library = SimpleNamespace(program_runtime=SimpleNamespace(
-        research_attention_index=lambda **kwargs: Handle(index),
-        research_attention_delivery=lambda **kwargs: Handle(delivery)))
-    with contextlib.redirect_stdout(io.StringIO()):
-        runpy.run_path(str(PARENT), init_globals={'program': runtime, 'lib': library})
-    assert {'source': 'attention_index', 'subject': 'WALLET-123', 'signal': 'decision_unlinked_or_unobserved'} in runtime.result['signals']['attention']
+    result = parent({'research_root': '/authorized/research', 'effort_ref': 'effort:test'},
+                    **{'research-attention-index': index, 'research-attention-delivery': delivery})
+    assert {'source': 'attention_index', 'subject': 'WALLET-123', 'signal': 'decision_unlinked_or_unobserved'} in result['signals']['attention']
 
 
 def test_parent_reports_unavailable_index():
     index = {'status': 'unavailable', 'signals': {'coverage': 'unknown', 'actionable_ids': []}, 'errors': [], 'evidence': []}
-    class Handle:
-        def meta(self): return {}
-    class ParentRuntime(Runtime):
-        def child_envelope(self, handle, **kwargs): return index
-    runtime = ParentRuntime({'research_root': '/unavailable/research'})
-    library = SimpleNamespace(program_runtime=SimpleNamespace(research_attention_index=lambda **kwargs: Handle()))
-    with contextlib.redirect_stdout(io.StringIO()):
-        runpy.run_path(str(PARENT), init_globals={'program': runtime, 'lib': library})
-    assert {'source': 'attention_index', 'subject': '', 'signal': 'index_unavailable'} in runtime.result['signals']['attention']
+    result = parent({'research_root': '/unavailable/research'}, **{'research-attention-index': index})
+    assert {'source': 'attention_index', 'subject': '', 'signal': 'index_unavailable'} in result['signals']['attention']
 
 
 PAGE = ('# Research\n\nHeader line.\n\n## Proposals awaiting approval\n\n{proposals}\n\n'

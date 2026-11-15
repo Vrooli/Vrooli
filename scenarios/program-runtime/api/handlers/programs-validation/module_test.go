@@ -100,7 +100,7 @@ func TestProgramDependencyFindingNamesBindingAndManifestFix(t *testing.T) {
 		Effect string `json:"effect"`
 	}{{ID: "vrooli-memory/learning/record", Effect: "write"}}
 	details := []any{}
-	findings := programDependencyFindings("demo", "learned", "", bindings, nil, map[string]struct{}{}, &details)
+	findings := programDependencyFindings("demo", "learned", "", bindings, nil, map[string]struct{}{}, contracts.Contract{}, &details)
 	if !hasFinding(findings, "programs.dependency_undeclared") {
 		t.Fatalf("findings = %v, want undeclared dependency", findings)
 	}
@@ -108,13 +108,13 @@ func TestProgramDependencyFindingNamesBindingAndManifestFix(t *testing.T) {
 		t.Fatalf("details = %v, want prose dependency fix", details)
 	}
 
-	if findings := programDependencyFindings("demo", "learned", "", bindings, nil, map[string]struct{}{"vrooli-memory": {}}, nil); len(findings) != 0 {
+	if findings := programDependencyFindings("demo", "learned", "", bindings, nil, map[string]struct{}{"vrooli-memory": {}}, contracts.Contract{}, nil); len(findings) != 0 {
 		t.Fatalf("declared dependency still reported: %v", findings)
 	}
 }
 
 func TestProgramLibraryAndLearnUsesAreDependencies(t *testing.T) {
-	findings := programDependencyFindings("demo", "learned", "lib.vrooli_memory.choose_option()\nlearn.note('preference', {})", nil, nil, map[string]struct{}{}, nil)
+	findings := programDependencyFindings("demo", "learned", "lib.vrooli_memory.choose_option()\nlearn.note('preference', {})", nil, nil, map[string]struct{}{}, contracts.Contract{}, nil)
 	if !hasFinding(findings, "programs.dependency_undeclared") {
 		t.Fatalf("findings = %v, want undeclared dependency", findings)
 	}
@@ -125,7 +125,7 @@ func TestProjectControlPlaneBindingIsNotAScenarioDependency(t *testing.T) {
 		ID     string `json:"id"`
 		Effect string `json:"effect"`
 	}{{ID: "vrooli/scenario/list", Effect: "read"}}
-	if findings := programDependencyFindings("demo", "fleet", "", declared, nil, map[string]struct{}{}); len(findings) != 0 {
+	if findings := programDependencyFindings("demo", "fleet", "", declared, nil, map[string]struct{}{}, contracts.Contract{}); len(findings) != 0 {
 		t.Fatalf("control-plane binding must not require a fictional vrooli scenario dependency: %v", findings)
 	}
 	root, err := filepath.Abs("../../../../..")
@@ -139,7 +139,7 @@ func TestProjectControlPlaneBindingIsNotAScenarioDependency(t *testing.T) {
 	if _, ok := registry.Binding("vrooli/scenario/list"); !ok {
 		t.Fatal("control-plane binding absent from registry")
 	}
-	if findings := programDependencyFindings("demo", "fleet", "", declared, registry, map[string]struct{}{}); len(findings) != 0 {
+	if findings := programDependencyFindings("demo", "fleet", "", declared, registry, map[string]struct{}{}, contracts.Contract{}); len(findings) != 0 {
 		t.Fatalf("registered control-plane binding must not require a fictional scenario dependency: %v", findings)
 	}
 }

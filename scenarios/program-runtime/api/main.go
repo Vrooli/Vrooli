@@ -19,6 +19,7 @@ import (
 	"program-runtime/internal/library"
 	"program-runtime/internal/localworkbridge"
 	"program-runtime/internal/modules"
+	internaloptimization "program-runtime/internal/optimization"
 	"program-runtime/internal/programs"
 	"program-runtime/internal/retention"
 	"program-runtime/internal/server"
@@ -38,6 +39,7 @@ import (
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/api-core/researchhome"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -50,6 +52,7 @@ import (
 	healthH "program-runtime/handlers/health"
 	libraryH "program-runtime/handlers/library"
 	measuresH "program-runtime/handlers/measures"
+	optimizationH "program-runtime/handlers/optimization"
 	programsH "program-runtime/handlers/programs"
 	programsValidationH "program-runtime/handlers/programs-validation"
 	sessionsH "program-runtime/handlers/sessions"
@@ -84,6 +87,19 @@ func verifiedAgentBridge(handler http.Handler, verifier provenance.Verifier) htt
 		}
 		handler.ServeHTTP(w, r)
 	}))
+}
+
+func declaredPrivateBindingNames(bindings []programs.BindingSpec) []string {
+	names := make([]string, 0, len(bindings))
+	for _, binding := range bindings {
+		name := strings.ReplaceAll(binding.Scenario, "-", "_")
+		group := strings.ReplaceAll(binding.Group, "-", "_")
+		command := strings.ReplaceAll(strings.ReplaceAll(binding.Command, "-", "_"), "/", ".")
+		if name != "" && group != "" && command != "" {
+			names = append(names, name+"."+group+"."+command)
+		}
+	}
+	return names
 }
 
 func taskBridgeWithProvenance(handler http.Handler, verifier provenance.Verifier) http.Handler {
@@ -133,6 +149,28 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	optimizationStore, err := internaloptimization.NewSQLStore(context.Background(), db.Primary())
+	if err != nil {
+		log.Fatalf("optimizer journal initialization failed: %v", err)
+	}
+	optimizationEngine := &internaloptimization.Engine{
+		Store: optimizationStore,
+		Adapters: map[string]internaloptimization.Adapter{
+			"ollama-role":     internaloptimization.NewOllamaRoleAdapter(),
+			"desktop-startup": internaloptimization.NewDesktopStartupAdapter(),
+		},
+	}
+	optimizationManager, err := internaloptimization.NewManager(optimizationEngine)
+	if err != nil {
+		log.Fatalf("optimizer manager initialization failed: %v", err)
+	}
+	if err := optimizationManager.Start(context.Background()); err != nil {
+		log.Fatalf("optimizer recovery failed: %v", err)
+	}
+	optimizationService, err := internaloptimization.NewService(optimizationManager)
+	if err != nil {
+		log.Fatalf("optimizer service initialization failed: %v", err)
+	}
 	if err := tasks.EnsureCompatibility(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("task schema compatibility failed: %v", err)
 	}
@@ -167,6 +205,11 @@ func main() {
 		log.Fatalf("repository root resolution failed: %v", err)
 	}
 	contractIndex := contracts.NewIndex()
+	if home, homeErr := researchhome.Dir(nil); homeErr != nil {
+		log.Printf("research programs unavailable: %v", homeErr)
+	} else {
+		contractIndex.SetResearchHome(home)
+	}
 	if err := contractIndex.Load(repoRoot); err != nil {
 		log.Printf("program contract index unavailable: %v", err)
 	} else {
@@ -267,7 +310,7 @@ func main() {
 		}
 		known = appendLibraryPaths(context.Background(), known, libraryRepository, contractIndex)
 		return programs.ResolveSource(source, known, filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "analyze.py"))
-	}, PreflightSession: func(ctx context.Context, sessionID, source string) []*programsv1.Diagnostic {
+	}, PreflightSession: func(ctx context.Context, sessionID, source string, privateBindings []programs.BindingSpec) []*programsv1.Diagnostic {
 		current := bindingRegistry.List("", "")
 		known := programs.RuntimeSurfaceNames()
 		for _, binding := range current {
@@ -279,6 +322,7 @@ func main() {
 				known = append(known, name+"."+group+"."+command)
 			}
 		}
+		known = append(known, declaredPrivateBindingNames(privateBindings)...)
 		known = appendLibraryPaths(ctx, known, libraryRepository, contractIndex)
 		for _, previous := range programService.List(ctx, sessionID, true) {
 			known = append(known, programs.DeclaredNames(previous.GetSource(), filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "analyze.py"))...)
@@ -332,59 +376,63 @@ func main() {
 	// calls, so a measured score is attributable to a real route rather than to
 	// a private client. Both seams are injected; when either cannot resolve, the
 	// eval reports `unavailable` with the reason rather than a fabricated score.
+	authoringFixtures := programs.NewAuthoringFixtureBridge()
 	authoringDeps := programs.AuthoringDeps{
 		SuitePath: programs.DefaultSuitePath(repoRoot),
-		Author: func(ctx context.Context, instruction, task string) (string, string, error) {
-			const authoringRole = "author.generator"
-			// The role is schema-constrained, so the program is requested as a
-			// field of a small object rather than as a bare string. A bare
-			// `{"type":"string"}` grammar makes the model emit a fence and stop
-			// after a few tokens; an object with one `source` field does not.
-			const authoringSchema = `{"type":"object","properties":{"source":{"type":"string"}},"required":["source"]}`
-			response, err := bindingRegistry.Execute(ctx, "ai-gateway/inference/run", map[string]any{
-				"source":      task,
-				"instruction": instruction,
-				"role":        authoringRole,
-				"schema":      authoringSchema,
-			}, nil, false, bindings.InvocationMetadata{Provenance: "test"}, programs.AuthoringHTTPClient())
+		AuthorWithProvenance: func(ctx context.Context, instruction, task string) (string, string, string, error) {
+			args := programs.AuthoringInferenceArgs(instruction, task)
+			response, err := bindingRegistry.Execute(ctx, "ai-gateway/inference/run", args, nil, false, bindings.InvocationMetadata{Provenance: "test"}, programs.AuthoringHTTPClient())
 			if err != nil {
-				return "", "", err
+				return "", "", "", err
 			}
 			model, _ := response["model"].(string)
+			provider, _ := response["provider"].(string)
+			if err := programs.ValidateAuthoringRoute(provider, model); err != nil {
+				return "", provider, model, err
+			}
 			raw, _ := response["valueJson"].(string)
 			if strings.TrimSpace(raw) == "" {
 				raw, _ = response["value_json"].(string)
 			}
 			if strings.TrimSpace(raw) == "" {
-				return "", model, fmt.Errorf("authoring response carried no value")
+				return "", provider, model, fmt.Errorf("authoring response carried no value from local provider %q model %q", provider, model)
 			}
 			var envelope struct {
 				Source string `json:"source"`
 			}
 			if err := json.Unmarshal([]byte(raw), &envelope); err != nil {
-				return "", model, fmt.Errorf("authoring response is not the declared object: %w", err)
+				return "", provider, model, fmt.Errorf("authoring response is not the declared object from local provider %q model %q: %w", provider, model, err)
 			}
 			if strings.TrimSpace(envelope.Source) == "" {
-				return "", model, fmt.Errorf("authoring response carried an empty source field")
+				return "", provider, model, fmt.Errorf("authoring response carried an empty source field from local provider %q model %q", provider, model)
 			}
-			return envelope.Source, model, nil
+			return envelope.Source, provider, model, nil
 		},
-		RunCase: func(ctx context.Context, setup, source string) (string, string, int64, string, error) {
+		RunCaseWithFixture: func(ctx context.Context, setup, source string, fixture *programs.AuthoringFixture) (string, string, int64, string, programs.AuthoringCaseExecution, error) {
 			session, err := sessionManager.Create(ctx, "", "", nil)
 			if err != nil {
-				return "", "", 0, "", err
+				return "", "", 0, "", programs.AuthoringCaseExecution{}, err
 			}
+			authoringFixtures.Register(session.ID, fixture)
 			defer func() { _, _ = sessionManager.Delete(context.Background(), session.ID, "authoring eval case complete") }()
+			defer authoringFixtures.Remove(session.ID)
+			execution := func() programs.AuthoringCaseExecution {
+				return programs.AuthoringCaseExecution{SessionID: session.ID, FixtureCalls: authoringFixtures.Calls(session.ID), FixtureRequests: authoringFixtures.Requests(session.ID), FixtureViolations: authoringFixtures.Violations(session.ID)}
+			}
 			if strings.TrimSpace(setup) != "" {
 				if _, err := programService.Submit(ctx, session.ID, setup, programsv1.Provenance_PROVENANCE_TEST, false); err != nil {
-					return "", "", 0, "", fmt.Errorf("authoring setup failed: %w", err)
+					return "", "", 0, "", execution(), fmt.Errorf("authoring setup failed: %w", err)
 				}
 			}
 			p, err := programService.Submit(ctx, session.ID, source, programsv1.Provenance_PROVENANCE_TEST, false)
 			if err != nil {
-				return "", "", 0, "", err
+				return "", "", 0, "", execution(), err
 			}
-			return p.GetStdout(), p.GetFailureShape(), p.GetAgentBytes(), p.GetFailureDetail(), nil
+			completed := execution()
+			if len(completed.FixtureViolations) > 0 {
+				return p.GetStdout(), p.GetFailureShape(), p.GetAgentBytes(), p.GetFailureDetail(), completed, fmt.Errorf("authoring fixture harness violation: %s", strings.Join(completed.FixtureViolations, "; "))
+			}
+			return p.GetStdout(), p.GetFailureShape(), p.GetAgentBytes(), p.GetFailureDetail(), completed, nil
 		},
 	}
 
@@ -401,6 +449,7 @@ func main() {
 		sessionsH.Module(sessionManager),
 		telemetryH.Module(telemetryStore),
 		shapesH.Module(shapeRepository),
+		optimizationH.Module(optimizationService),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -422,7 +471,7 @@ func main() {
 	// existing policy for callers without agent identity.
 	rootMux.Handle("/internal/program-runtime/tasks/", taskBridgeWithProvenance(&tasksH.Bridge{Store: taskStore, Contracts: contractIndex, Library: libraryRepository, Sessions: sessionManager, Programs: programService, RepoRoot: repoRoot, ReplayKernelPath: filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "engine.py")}, provenance.CLIUtilVerifier{}))
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-	rootMux.Handle("/internal/program-runtime/bindings/execute", provenance.Middleware(provenance.CLIUtilVerifier{})(bindingsH.Bridge(bindingRegistry, sessionManager, refusalRepository)))
+	rootMux.Handle("/internal/program-runtime/bindings/execute", provenance.Middleware(provenance.CLIUtilVerifier{})(authoringFixtures.Wrap(bindingsH.BridgeWithPrivateIdentity(bindingRegistry, sessionManager, programService, refusalRepository))))
 	rootMux.Handle("/internal/program-runtime/bindings/describe", bindingsH.DescribeBridge(bindingRegistry, sessionManager))
 	rootMux.Handle("/internal/program-runtime/bindings/reachability", bindingsH.ReachabilityBridge(bindingRegistry, sessionManager))
 	rootMux.Handle("/internal/program-runtime/bindings/unresolved", bindingsH.UnresolvedBridge(sessionManager, unresolvedRecorder))
@@ -505,6 +554,7 @@ func main() {
 		ReadTimeout:    budgets.ServerRead,
 		WriteTimeout:   budgets.ServerWrite,
 		Cleanup: func(ctx context.Context) error {
+			optimizationManager.Stop()
 			bridgeErr := localWork.Stop(ctx)
 			stopTaskDelivery()
 			<-taskDeliveryDone

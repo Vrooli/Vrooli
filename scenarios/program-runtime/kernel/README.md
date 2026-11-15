@@ -34,6 +34,14 @@ hierarchy the bridge raises; its `PUBLIC_MEMBERS` tuple and engine's
 `_RUNTIME_VERB_NAMES` are pinned against the Go surface list by
 `internal/programs/surface_test.go`.
 
+`host/standalone.py` runs a binding-free contract with that same helper and the
+kernel's input admission, without Program Runtime:
+`python3 -I host/standalone.py <contract.json> key=value`. It is the outage path
+`library run research/...` uses, and tests run repository programs through its
+`execute()` (see `tests/program_fixture.py`). A program that declares bindings or
+names a runtime verb is refused with an `unavailable` envelope telling the
+caller to follow its `.py` by hand.
+
 Run scenario suites through `vrooli scenario test program-runtime unit`. Inspect
 the run evidence for the workspaces actually executed. The Go subprocess tests
 exercise the production host; `kernel/tests` also contains Python contract tests.

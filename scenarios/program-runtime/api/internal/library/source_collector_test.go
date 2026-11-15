@@ -139,7 +139,7 @@ func TestSourceCollectorCanonicalAdmissionReplayObserveWaitAndReconcile(t *testi
 	terminalCleaned := make(chan struct{})
 	denySession := true
 	denyAuthority := false
-	c, err := NewSourceCollector(repo, manager, programs.Options{Store: db, Runner: runner, OnTerminal: func(context.Context, string) error { close(terminalCleaned); return nil }, PreflightSession: func(ctx context.Context, id, source string) []*programsv1.Diagnostic {
+	c, err := NewSourceCollector(repo, manager, programs.Options{Store: db, Runner: runner, OnTerminal: func(context.Context, string) error { close(terminalCleaned); return nil }, PreflightSession: func(ctx context.Context, id, source string, _ []programs.BindingSpec) []*programsv1.Diagnostic {
 		if denySession {
 			_, err := manager.Delete(ctx, id, "fixture invalidation before final insert")
 			require.NoError(t, err)

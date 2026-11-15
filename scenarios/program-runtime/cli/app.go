@@ -3,9 +3,11 @@ package main
 import (
 	"regexp"
 	"strings"
+	"sync"
 
 	"program-runtime/cli/domains"
 
+	"github.com/vrooli/api-core/researchhome"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -60,6 +62,9 @@ func NewApp() (*App, error) {
 }
 
 func (a *App) Run(args []string) error {
+	if rewritten := libraryRunArguments(args); rewritten != nil {
+		args = rewritten
+	}
 	return a.core.CLI.Run(args)
 }
 
@@ -79,35 +84,91 @@ func programRuntimeCommandHint(args []string) string {
 // `<program> --input ...` onto `program-runtime library run <program> ...`.
 // It returns "" when the invocation does not name a program.
 func libraryRunRewrite(args []string) string {
-	if len(args) == 0 {
+	rewritten := libraryRunArguments(args)
+	if rewritten == nil && len(args) > 0 && programNamePattern.MatchString(args[0]) && !strings.Contains(args[0], ".") && hasHelpFlag(args[1:]) {
+		rewritten = []string{"library", "run", "program-runtime." + args[0], "--help"}
+	}
+	if rewritten == nil {
 		return ""
 	}
+	parts := append([]string{appName}, rewritten...)
+	quoted := make([]string, len(parts))
+	for i, part := range parts {
+		quoted[i] = shellQuote(part)
+	}
+	return strings.Join(quoted, " ")
+}
+
+// libraryRunArguments maps recognizable shorthand invocations to the existing
+// library runner. It returns nil when the input is not an unambiguous program
+// invocation, so normal command handling and help remain unchanged.
+func libraryRunArguments(args []string) []string {
+	if len(args) == 0 {
+		return nil
+	}
 	program, rest := args[0], args[1:]
-	if program == "run" || program == "exec" {
+	if commandNames()[program] {
+		return nil // `library run x --input k=v` is already the canonical form
+	}
+	explicitRun := program == "run" || program == "exec"
+	if explicitRun {
 		if len(rest) == 0 || strings.HasPrefix(rest[0], "-") {
-			return ""
+			if hasHelpFlag(rest) {
+				return []string{"library", "run", "--help"}
+			}
+			return nil
 		}
 		program, rest = rest[0], rest[1:]
 	}
 	switch {
-	case programNamePattern.MatchString(program) && strings.Contains(program, "."):
-	case programNamePattern.MatchString(program) && hasInputFlag(rest):
+	case isProgramName(program) && (strings.Contains(program, ".") || researchhome.IsID(program)):
+	case isProgramName(program) && explicitRun:
+		program = "program-runtime." + program
+	case isProgramName(program) && hasInputFlag(rest):
 		program = "program-runtime." + program
 	default:
-		return ""
+		return nil
 	}
-	parts := []string{"program-runtime", "library", "run", program}
-	for _, arg := range rest {
-		parts = append(parts, shellQuote(arg))
+	if hasHelpFlag(rest) {
+		return []string{"library", "run", "--help"}
 	}
-	return strings.Join(parts, " ")
+	return append([]string{"library", "run", program}, rest...)
 }
 
+// commandNames are the CLI's own top-level commands and groups, which are
+// never program shorthand even when followed by --input.
+var commandNames = sync.OnceValue(func() map[string]bool {
+	names := map[string]bool{"help": true, "version": true, "status": true}
+	for _, group := range domains.CommandGroups(nil) {
+		for _, command := range group.Commands {
+			names[command.Name] = true
+		}
+	}
+	groups, _ := domains.SubcommandGroups(nil, manifestBytes)
+	for _, group := range groups {
+		names[group.Name] = true
+	}
+	return names
+})
+
 var programNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*)?$`)
+
+func isProgramName(name string) bool {
+	return programNamePattern.MatchString(name) || researchhome.IsID(name)
+}
 
 func hasInputFlag(args []string) bool {
 	for _, arg := range args {
 		if arg == "--input" || strings.HasPrefix(arg, "--input=") {
+			return true
+		}
+	}
+	return false
+}
+
+func hasHelpFlag(args []string) bool {
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
 			return true
 		}
 	}

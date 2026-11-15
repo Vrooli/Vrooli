@@ -285,7 +285,7 @@
       "commands": [
         {
           "name": "eval",
-          "description": "Run the authoring corpus and report met, missed, wrong-result, or unavailable without inventing a score.",
+          "description": "Run a versioned authoring corpus and report measured cases, panel rates, timing, and unavailable states without inventing a score; optionally retain a create-exclusive receipt.",
           "binding": {
             "kind": "connect-rpc",
             "service": "vrooli.program_runtime.v1.programs.ProgramService",
@@ -300,7 +300,9 @@
             ]
           },
           "flags": [
-            {"name": "no-gate", "bool": true, "description": "Report measurements without failing below-floor or unavailable results."}
+            {"name": "no-gate", "bool": true, "description": "Report measurements without failing below-floor or unavailable results."},
+            {"name": "suite", "description": "Versioned authoring corpus path visible to the API host; relative paths are resolved from the CLI working directory. Omit to use the server default."},
+            {"name": "receipt-file", "description": "Create an immutable raw API response receipt at this new path; existing files are never overwritten."}
           ],
           "architecture": {
             "primitive": "proto_list"
@@ -373,8 +375,55 @@
       ]
     },
     {
+      "name": "optimization",
+      "description": "Start and observe durable owner-verified optimizer runs.",
+      "commands": [
+        {
+          "name": "submit",
+          "description": "Submit or resume one immutable optimization request through the durable engine.",
+          "flags": [
+            {"name": "request-json", "description": "Complete immutable JSON optimization request.", "required": true}
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.program_runtime.v1.optimization.OptimizationService",
+            "method": "Submit"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "wait",
+          "description": "Wait once for a bounded interval on a durable optimization run.",
+          "flags": [
+            {"name": "run-id", "description": "Stable durable optimization run identity."},
+            {"name": "wait-ms", "description": "Maximum single wait in milliseconds; at most 60000."}
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.program_runtime.v1.optimization.OptimizationService",
+            "method": "Wait"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
       "name": "library",
-      "description": "Find and run declared programs (`program-runtime library run <scenario>.<program> --input key=value`); inspect, promote and select reusable programs.",
+      "description": "Find and run declared programs (`program-runtime library run <scenario>.<program> --input key=value`, or research/[<topic>/]<program> for a research-home program); inspect, promote and select reusable programs.",
       "commands": [
         {
           "name": "list",
@@ -473,9 +522,10 @@
         },
         {
           "name": "run",
-          "description": "Run one declared contract with validated named inputs.",
+          "description": "Run one declared contract with validated named inputs. A research/[<topic>/]<program> runs from the research files when Program Runtime cannot serve it.",
+          "needs_api": false,
           "positionals": [
-            {"name": "name", "required": true, "description": "Declared contract <scenario>.<program>."}
+            {"name": "name", "required": true, "description": "Declared contract <scenario>.<program> or research/[<topic>/]<program>."}
           ],
           "flags": [
             {"name": "expected-digest", "description": "Pin the exact declared program content digest."},
@@ -500,12 +550,13 @@
         {
           "name": "get",
           "aliases": ["show", "describe", "info", "read"],
-          "description": "Read one library program by name and optional version.",
+          "description": "Read one library program by name and optional version. A research/[<topic>/]<program> is read from the research files when Program Runtime cannot serve it.",
+          "needs_api": false,
           "positionals": [
             {
               "name": "name",
               "required": true,
-              "description": "Exact library program name."
+              "description": "Exact library program name, or research/[<topic>/]<program>."
             }
           ],
           "flags": [

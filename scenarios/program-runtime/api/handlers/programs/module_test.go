@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -62,6 +64,42 @@ func TestDiscoveryEvalEndpointIsDeclared(t *testing.T) {
 		}
 	}
 	t.Fatal("programs_discovery_eval is not declared; the CLI binding would bypass endpoint parity")
+}
+
+func TestAuthoringEvalReturnsTimingReceiptFields(t *testing.T) {
+	suitePath := filepath.Join(t.TempDir(), "suite.json")
+	require.NoError(t, os.WriteFile(suitePath, []byte(`{"name":"timing","floor":1,"cases":[{"id":"read","task":"read rows","oracle":{"kind":"stdout_contains","text":"rows"}}]}`), 0o600))
+	h := &handler{authoring: internalprograms.AuthoringDeps{
+		SuitePath: suitePath,
+		AuthorWithProvenance: func(context.Context, string, string) (string, string, string, error) {
+			return "print('rows')", "ollama", "test-model", nil
+		},
+		RunCase: func(context.Context, string, string) (string, string, int64, string, error) {
+			return "rows", "", 3, "", nil
+		},
+	}}
+	response, err := h.RunAuthoringEval(context.Background(), connect.NewRequest(&programsv1.RunAuthoringEvalRequest{}))
+	require.NoError(t, err)
+	require.Equal(t, internalprograms.AuthoringReceiptVersion, response.Msg.GetReceiptVersion())
+	require.NotEmpty(t, response.Msg.GetCorpusSha256())
+	require.NotEmpty(t, response.Msg.GetInstructionSha256())
+	require.NotEmpty(t, response.Msg.GetStartedAt())
+	require.NotEmpty(t, response.Msg.GetAuthorRole())
+	require.NotEmpty(t, response.Msg.GetAuthorSchemaSha256())
+	require.Equal(t, "unknown", response.Msg.GetRoutePolicyRevision())
+	require.Len(t, response.Msg.GetResults(), 1)
+	result := response.Msg.GetResults()[0]
+	require.Equal(t, "measured", result.GetCaseStatus())
+	require.EqualValues(t, 1, result.GetAttemptCount())
+	require.Zero(t, result.GetRetryCount())
+	require.Empty(t, result.GetFixtureCalls())
+	require.NotEmpty(t, result.GetTaskSha256())
+	require.NotEmpty(t, result.GetSourceSha256())
+	require.Equal(t, "test-model", result.GetModel())
+	require.Equal(t, "ollama", result.GetAuthorProvider())
+	require.NotNil(t, result.ElapsedToFirstWorkingMs)
+	require.GreaterOrEqual(t, result.GetGenerationElapsedMs(), int64(0))
+	require.GreaterOrEqual(t, response.Msg.GetElapsedMs(), int64(0))
 }
 
 func TestSubmitProgramUsesVerifiedCallerAttribution(t *testing.T) {

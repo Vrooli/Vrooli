@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -18,6 +19,7 @@ import (
 	"sync"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
+	"github.com/vrooli/api-core/researchhome"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
@@ -54,6 +56,9 @@ type Contract struct {
 	Source             string
 	SourceMissing      bool
 	ValidationError    string
+	// Research marks a research-home program (research/<topic>/<name> or
+	// research/<name>). It runs by id but is not lib-callable.
+	Research bool
 }
 
 // LearningSummary is the analyzer-derived projection of the in-program
@@ -183,13 +188,42 @@ func matchesInputType(value any, kind string) bool {
 }
 
 type Index struct {
-	loadMu    sync.Mutex
-	mu        sync.RWMutex
-	contracts []Contract
-	mtimes    map[string]int64
+	loadMu       sync.Mutex
+	mu           sync.RWMutex
+	contracts    []Contract
+	mtimes       map[string]int64
+	researchHome string
 }
 
 func NewIndex() *Index { return &Index{mtimes: map[string]int64{}} }
+
+// SetResearchHome adds the research home's programs to the index. Without
+// it the index holds repository contracts only, so validation and tests stay
+// independent of the operator's research files.
+func (i *Index) SetResearchHome(dir string) {
+	i.mu.Lock()
+	i.researchHome = dir
+	i.mu.Unlock()
+}
+
+// programDir is one folder of program contracts and the scope that names
+// them: a scenario, or research / research/<topic>.
+type programDir struct{ scope, dir, home string } // home is set for research folders
+
+func (i *Index) researchDirs() ([]programDir, error) {
+	i.mu.RLock()
+	home := i.researchHome
+	i.mu.RUnlock()
+	if home == "" {
+		return nil, nil
+	}
+	scopes, err := researchhome.Scopes(home)
+	dirs := make([]programDir, 0, len(scopes))
+	for _, scope := range scopes {
+		dirs = append(dirs, programDir{scope: strings.TrimSuffix(researchhome.Prefix+scope.Topic, "/"), dir: filepath.Join(scope.Dir, "programs"), home: home})
+	}
+	return dirs, err
+}
 
 func (i *Index) Load(repoRoot string) error {
 	return i.loadSnapshot(func() ([]Contract, map[string]int64, error) {
@@ -220,40 +254,18 @@ func (i *Index) Load(repoRoot string) error {
 		if info, err := os.Stat(schemaPath); err == nil {
 			mtimes[schemaPath] = info.ModTime().UnixNano()
 		}
+		var dirs []programDir
 		for _, target := range targets {
-			if target.Kind != repocontract.TargetKindScenario {
-				continue
+			if target.Kind == repocontract.TargetKindScenario {
+				dirs = append(dirs, programDir{scope: target.ID, dir: filepath.Join(root, "scenarios", target.ID, ".vrooli", "program-runtime")})
 			}
-			dir := filepath.Join(root, "scenarios", target.ID, ".vrooli", "program-runtime")
-			entries, readErr := os.ReadDir(dir)
-			if readErr != nil {
-				if os.IsNotExist(readErr) {
-					continue
-				}
-				loaded = append(loaded, Contract{Scenario: target.ID, ID: target.ID, SourcePath: dir, ValidationError: readErr.Error()})
-				continue
-			}
-			for _, entry := range entries {
-				if entry.IsDir() || entry.Name() == "note-kinds.json" || !strings.HasSuffix(entry.Name(), ".json") || strings.HasSuffix(entry.Name(), ".output.schema.json") {
-					continue
-				}
-				path := filepath.Join(dir, entry.Name())
-				info, statErr := entry.Info()
-				if statErr == nil {
-					mtimes[path] = info.ModTime().UnixNano()
-				}
-				sourcePath := strings.TrimSuffix(path, filepath.Ext(path)) + ".py"
-				if sourceInfo, sourceErr := os.Stat(sourcePath); sourceErr == nil {
-					mtimes[sourcePath] = sourceInfo.ModTime().UnixNano()
-				}
-				contract := readContract(target.ID, path, compiled)
-				if contract.OutputSchemaPath != "" {
-					if info, err := os.Stat(contract.OutputSchemaPath); err == nil {
-						mtimes[contract.OutputSchemaPath] = info.ModTime().UnixNano()
-					}
-				}
-				loaded = append(loaded, contract)
-			}
+		}
+		research, researchErr := i.researchDirs()
+		if researchErr != nil {
+			loaded = append(loaded, Contract{Scenario: "research", ID: "research", Research: true, ValidationError: "research home: " + researchErr.Error()})
+		}
+		for _, d := range append(dirs, research...) {
+			loaded = loadProgramDir(d, compiled, loaded, mtimes)
 		}
 		sort.SliceStable(loaded, func(a, b int) bool {
 			if loaded[a].Scenario != loaded[b].Scenario {
@@ -263,6 +275,61 @@ func (i *Index) Load(repoRoot string) error {
 		})
 		return loaded, mtimes, nil
 	})
+}
+
+// loadProgramDir reads every contract in one program folder.
+func loadProgramDir(d programDir, compiled *jsonschema.Schema, loaded []Contract, mtimes map[string]int64) []Contract {
+	entries, err := os.ReadDir(d.dir)
+	if os.IsNotExist(err) {
+		return loaded
+	}
+	if err != nil {
+		return append(loaded, Contract{Scenario: d.scope, ID: d.scope, SourcePath: d.dir, ValidationError: err.Error(), Research: researchhome.IsID(d.scope + "/")})
+	}
+	for _, entry := range entries {
+		if !isContractFile(entry) {
+			continue
+		}
+		path := filepath.Join(d.dir, entry.Name())
+		if info, statErr := entry.Info(); statErr == nil {
+			mtimes[path] = info.ModTime().UnixNano()
+		}
+		sourcePath := strings.TrimSuffix(path, filepath.Ext(path)) + ".py"
+		if sourceInfo, sourceErr := os.Stat(sourcePath); sourceErr == nil {
+			mtimes[sourcePath] = sourceInfo.ModTime().UnixNano()
+		}
+		contract := readContract(d.scope, path, compiled)
+		if d.home != "" {
+			contract = confineToResearchHome(contract, d.home)
+		}
+		if contract.OutputSchemaPath != "" {
+			if info, err := os.Stat(contract.OutputSchemaPath); err == nil {
+				mtimes[contract.OutputSchemaPath] = info.ModTime().UnixNano()
+			}
+		}
+		loaded = append(loaded, contract)
+	}
+	return loaded
+}
+
+// confineToResearchHome refuses a research contract whose declaration,
+// source or output schema resolves outside the research home (a symlink out
+// of it), so nothing outside the home is loaded or run.
+func confineToResearchHome(c Contract, home string) Contract {
+	for _, p := range []string{c.SourcePath, strings.TrimSuffix(c.SourcePath, ".json") + ".py", c.OutputSchemaPath} {
+		if p == "" {
+			continue
+		}
+		if _, err := researchhome.Resolve(home, p); errors.Is(err, researchhome.ErrOutside) {
+			return Contract{Scenario: c.Scenario, ID: c.ID, Name: c.Name, SourcePath: c.SourcePath, Research: true, ValidationError: err.Error()}
+		}
+	}
+	return c
+}
+
+func isContractFile(entry os.DirEntry) bool {
+	name := entry.Name()
+	return !entry.IsDir() && name != "note-kinds.json" && strings.HasSuffix(name, ".json") && !strings.HasSuffix(name, ".output.schema.json")
 }
 
 func (i *Index) loadSnapshot(read func() ([]Contract, map[string]int64, error)) error {
@@ -307,11 +374,17 @@ func (i *Index) Refresh(repoRoot string) (bool, error) {
 	if err != nil && !os.IsNotExist(err) {
 		return false, err
 	}
+	var dirs []string
 	for _, scenario := range scenarios {
-		if !scenario.IsDir() {
-			continue
+		if scenario.IsDir() {
+			dirs = append(dirs, filepath.Join(root, "scenarios", scenario.Name(), ".vrooli", "program-runtime"))
 		}
-		dir := filepath.Join(root, "scenarios", scenario.Name(), ".vrooli", "program-runtime")
+	}
+	research, _ := i.researchDirs()
+	for _, d := range research {
+		dirs = append(dirs, d.dir)
+	}
+	for _, dir := range dirs {
 		entries, err := os.ReadDir(dir)
 		if os.IsNotExist(err) {
 			continue
@@ -348,17 +421,51 @@ func (i *Index) Refresh(repoRoot string) (bool, error) {
 	return true, i.Load(root)
 }
 
-func (i *Index) List() []Contract {
+// List returns the repository contracts: the lib-callable set that coverage,
+// preflight and nested calls use. Research programs are in Research.
+func (i *Index) List() []Contract { return i.filter(false) }
+
+// Research returns the research-home programs.
+func (i *Index) Research() []Contract { return i.filter(true) }
+
+func (i *Index) filter(research bool) []Contract {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
-	return append([]Contract(nil), i.contracts...)
+	out := make([]Contract, 0, len(i.contracts))
+	for _, c := range i.contracts {
+		if c.Research == research {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// Lookup resolves a program name as callers write it: <scenario>.<program>
+// or research/[<topic>/]<program>.
+func (i *Index) Lookup(name string) (Contract, bool) {
+	name = strings.TrimSpace(name)
+	if researchhome.IsID(name) {
+		i.mu.RLock()
+		defer i.mu.RUnlock()
+		for _, c := range i.contracts {
+			if c.Research && c.ID == name {
+				return c, true
+			}
+		}
+		return Contract{}, false
+	}
+	scenario, program, ok := strings.Cut(name, ".")
+	if !ok || scenario == "" || program == "" {
+		return Contract{}, false
+	}
+	return i.Get(scenario, program)
 }
 
 func (i *Index) Get(scenario, name string) (Contract, bool) {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 	for _, c := range i.contracts {
-		if c.Scenario == scenario && c.Name == name {
+		if !c.Research && c.Scenario == scenario && c.Name == name {
 			return c, true
 		}
 	}
@@ -375,7 +482,7 @@ func (i *Index) CoverageFor(bindingIDs []string) (Contract, bool) {
 	var best Contract
 	covered := false
 	for _, contract := range i.contracts {
-		if contract.ValidationError != "" {
+		if contract.ValidationError != "" || contract.Research {
 			continue
 		}
 		available := make(map[string]struct{}, len(contract.BindingIDs))
@@ -435,7 +542,13 @@ type rawContract struct {
 }
 
 func readContract(scenario, path string, schema *jsonschema.Schema) Contract {
-	c := Contract{Scenario: scenario, SourcePath: path, ID: scenario + "." + strings.TrimSuffix(filepath.Base(path), ".json"), Name: strings.TrimSuffix(filepath.Base(path), ".json")}
+	stem := strings.TrimSuffix(filepath.Base(path), ".json")
+	separator := "."
+	research := researchhome.IsID(scenario + "/")
+	if research {
+		separator = "/"
+	}
+	c := Contract{Scenario: scenario, SourcePath: path, ID: scenario + separator + stem, Name: stem, Research: research}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		c.ValidationError = err.Error()
@@ -498,7 +611,10 @@ func readContract(scenario, path string, schema *jsonschema.Schema) Contract {
 		c.Digest = ContentDigest(data, source, schemaBytes)
 	}
 	c.Name, c.Version, c.Purpose, c.Rung, c.OwnerSkill, c.WallMS = raw.Name, raw.Version, raw.Purpose, raw.Rung, raw.OwnerSkill, raw.Budget.WallMS
-	if prefix := scenario + "."; strings.HasPrefix(c.Name, prefix) {
+	if research && raw.Name != c.ID {
+		c.ValidationError = fmt.Sprintf("contract name %q must be %q", raw.Name, c.ID)
+	}
+	if prefix := scenario + separator; strings.HasPrefix(c.Name, prefix) {
 		c.Name = strings.TrimPrefix(c.Name, prefix)
 	}
 	c.Inputs = make(map[string]InputSpec, len(raw.Inputs))
@@ -546,8 +662,10 @@ func readContract(scenario, path string, schema *jsonschema.Schema) Contract {
 	return c
 }
 
-var learnCallPattern = regexp.MustCompile(`\blearn\.([a-z][a-z0-9_]*)\s*\(`)
-var explicitLearnKeyPattern = regexp.MustCompile(`\blearn\.task\s*\([^)]*\bkey\s*=`)
+var (
+	learnCallPattern        = regexp.MustCompile(`\blearn\.([a-z][a-z0-9_]*)\s*\(`)
+	explicitLearnKeyPattern = regexp.MustCompile(`\blearn\.task\s*\([^)]*\bkey\s*=`)
+)
 
 func learningSummary(source string, declaredNoteKinds map[string]json.RawMessage, inputs map[string]InputSpec) LearningSummary {
 	seen := map[string]bool{}

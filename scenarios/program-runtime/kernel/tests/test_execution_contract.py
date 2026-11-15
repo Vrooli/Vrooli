@@ -1,6 +1,8 @@
 import asyncio
 import io
+import json
 import time
+import urllib.error
 from unittest.mock import patch
 
 import pytest
@@ -47,10 +49,27 @@ def test_reachable_reports_scenario_reason_and_blocks_unreachable_binding():
     assert reachability["ok"]
     assert "offline" in reachability["stdout"]
     assert "scenario API is not running" in reachability["stdout"]
-    blocked = kernel.execute("offline.health.status()")
+    def go_rejects_unreachable(request, timeout=None):
+        assert request.full_url.endswith("/bindings/execute")
+        raise urllib.error.HTTPError(
+            request.full_url,
+            503,
+            "unavailable",
+            {},
+            io.BytesIO(json.dumps({
+                "error": "binding offline/health/status is unreachable: scenario API is not running",
+                "class": "scenario_unreachable",
+                "status": "unavailable",
+                "http_status": 503,
+            }).encode()),
+        )
+
+    with patch("host.engine._open_bridge_request", side_effect=go_rejects_unreachable) as bridge:
+        blocked = kernel.execute("offline.health.status()")
     assert not blocked["ok"]
     assert "unreachable" in blocked["error"]
     assert blocked["invocations"] == []
+    assert bridge.call_count == 1
 
 
 def test_demand_managed_binding_reaches_go_bridge_without_preflight():

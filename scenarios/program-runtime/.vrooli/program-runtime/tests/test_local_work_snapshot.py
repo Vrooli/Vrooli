@@ -1,11 +1,11 @@
 """Cross-owner observations must never turn bounded/stale evidence into completion."""
-import contextlib
-import io
 import json
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-SOURCE = Path(__file__).parents[1] / 'local-work-snapshot.py'
+sys.path.insert(0, str(Path(__file__).parents[3] / 'kernel' / 'tests'))
+from program_fixture import PROGRAMS, Child, execute as run_program  # noqa: E402
 TEAM_CLASSES = ('runningAgentIds', 'queue', 'uncertainAgentIds', 'unreachableAgentIds',
                 'pausedAgentIds', 'approvalPendingAgentIds', 'needsReviewAgentIds',
                 'watcherUnavailableAgentIds', 'preparationInterruptedAgentIds', 'admissionDeferredAgentIds')
@@ -24,7 +24,7 @@ class Handle:
 
 
 def execute(inputs=None, overrides=None):
-    state, calls = {}, []
+    calls = []
     inputs, overrides = inputs or {}, overrides or {}
     def read(name, **kwargs):
         calls.append((name, kwargs))
@@ -43,38 +43,18 @@ def execute(inputs=None, overrides=None):
             'goals': Handle([{'goal': {'name': 'goal', 'status': 'active'}}]),
             'backlog': Handle([], {'total': 0}),
             'usage': Handle([], {'programsDeclared': '0'}),
-            'research': Handle([{'program': 'program-runtime.research-workspace-review', 'version': '1', 'status': 'ok', 'signals': {'unique_runs': 2}, 'errors': [], 'evidence': []}], {'digest': 'child-digest', 'version': '1'}),
+            'research': Child('research-workspace-review', {'program': 'program-runtime.research-workspace-review', 'version': '1', 'status': 'ok', 'signals': {'unique_runs': 2}, 'errors': [], 'evidence': []}),
         }
         return value if value is not None else defaults[name]
-    def envelope(name, version):
-        state.update(program=name, version=version, status='failed', phase='validate', inputs=inputs, signals={}, errors=[], evidence=[])
-        return state
-    def fail(status, klass, detail, where):
-        state['status'] = status
-        state['errors'].append({'class': klass, 'detail': detail, 'where': where})
-        return 'report'
-    def run(steps, step):
-        while step:
-            try:
-                step = steps[step]()
-            except Exception as exc:
-                if step == 'report':
-                    raise
-                step = fail('failed', 'kernel_runtime', str(exc), step)
-    program = SimpleNamespace(inputs=lambda: inputs, envelope=envelope, fail=fail, run=run,
-                              child_envelope=lambda handle, **kw: handle.head(1)[0])
     namespace = {
-        'program': program,
         'agent_manager': SimpleNamespace(run=SimpleNamespace(list=lambda **kw: read('runs', **kw)), effort=SimpleNamespace(board=lambda **kw: read('efforts', **kw))),
         'prompt_manager': SimpleNamespace(team=SimpleNamespace(list=lambda **kw: read('teams', **kw), execution_status=lambda **kw: read('team_execution', **kw), task_list=lambda **kw: read('team_tasks', **kw)), graph=SimpleNamespace(objectives=lambda **kw: read('objectives', **kw))),
         'swarm_manager': SimpleNamespace(goals=SimpleNamespace(list=lambda **kw: read('goals', **kw)), backlog=SimpleNamespace(list=lambda **kw: read('backlog', **kw))),
         'program_runtime': SimpleNamespace(programs=SimpleNamespace(portfolio=lambda **kw: read('usage', **kw))),
         'lib': SimpleNamespace(program_runtime=SimpleNamespace(research_workspace_review=lambda **kw: read('research', **kw))),
     }
-    output = io.StringIO()
-    with contextlib.redirect_stdout(output):
-        exec(compile(SOURCE.read_text(), str(SOURCE), 'exec'), namespace)
-    return json.loads(output.getvalue()), calls, output.getvalue()
+    stdout, result = run_program(str(PROGRAMS / 'local-work-snapshot.py'), inputs, **namespace)
+    return result, calls, stdout
 
 
 def test_invalid_inputs_do_not_read_owners():
@@ -151,7 +131,7 @@ def test_sample_offsets_disclose_output_coverage():
 
 
 def test_missing_research_is_unavailable_and_does_not_create_zero_inventory(tmp_path):
-    child = Handle([{'status': 'unavailable', 'signals': {'unique_runs': 0}, 'errors': [{'class': 'workspace_unavailable'}]}])
+    child = Child('research-workspace-review', {'status': 'unavailable', 'signals': {'unique_runs': 0}, 'errors': [{'class': 'workspace_unavailable'}], 'evidence': []})
     result, _, _ = execute({'research_root': str(tmp_path)}, {'research': child})
     sources = result['signals']['sources']
     assert sources['research_catalog']['status'] == 'unavailable'
@@ -167,7 +147,7 @@ def test_research_catalog_and_directory_counts_keep_distinct_denominators(tmp_pa
     assert sources['research_catalog']['summary']['runs_retained_entries'] == 1
     assert sources['research_workspace']['signals']['unique_runs'] == 2
     assert sources['research_catalog']['producer_observed_at'] == '2026-11-05T00:00:00Z'
-    assert sources['research_workspace']['artifact']['digest'] == 'child-digest'
+    assert sources['research_workspace']['artifact']['digest'] == 'sha256:fixture'
 
 
 def test_catalog_symlink_outside_authorized_root_is_not_read(tmp_path):
@@ -303,7 +283,7 @@ def test_team_queue_samples_are_bounded_without_hiding_denominators():
 
 
 def test_team_execution_manifest_exposes_only_existing_read_rpc():
-    manifest = json.loads((SOURCE.parents[3] / 'prompt-manager/cli/manifest.json').read_text())
+    manifest = json.loads((PROGRAMS.parents[2] / 'prompt-manager/cli/manifest.json').read_text())
     team = next(g for g in manifest['groups'] if g['name'] == 'team')
     command = next(c for c in team['commands'] if c['name'] == 'execution-status')
     assert command['binding'] == {'kind': 'connect-rpc', 'service': 'HeartbeatService', 'method': 'GetTeamExecutionStatus'}

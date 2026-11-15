@@ -16,6 +16,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	maturityassessment "github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 	libraryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
@@ -347,6 +348,15 @@ func validateScenarioAt(repoRoot, root, scenario string, registry *bindings.Regi
 		if json.Unmarshal(data, &contract) != nil {
 			continue
 		}
+		declaredContract, hasDeclaredContract := index.Get(scenario, base)
+		sourceKnown := append([]string(nil), known...)
+		privateBindings := []*bindingsv1.Binding{}
+		if registry != nil && hasDeclaredContract {
+			privateBindings, _ = registry.ProgramPrivateBindings(context.Background(), declaredContract.ID, declaredContract.Digest, declaredContract.BindingIDs)
+			for _, binding := range privateBindings {
+				sourceKnown = append(sourceKnown, strings.ReplaceAll(binding.GetScenario(), "-", "_")+"."+strings.ReplaceAll(binding.GetGroup(), "-", "_")+"."+strings.ReplaceAll(strings.ReplaceAll(binding.GetCommand(), "-", "_"), "/", "."))
+			}
+		}
 		for input, spec := range contract.Inputs {
 			if spec.FreeText && len(details) > 0 && details[0] != nil {
 				*details[0] = append(*details[0], map[string]any{
@@ -358,7 +368,13 @@ func validateScenarioAt(repoRoot, root, scenario string, registry *bindings.Regi
 		}
 		for _, declared := range contract.Bindings {
 			if _, ok := bindingIDs[declared.ID]; !ok && registry != nil {
-				findings = append(findings, "programs.binding_missing")
+				privateAllowed := false
+				if hasDeclaredContract {
+					_, privateAllowed = registry.ProgramPrivateBinding(declared.ID, declaredContract.ID, declaredContract.Digest)
+				}
+				if !privateAllowed {
+					findings = append(findings, "programs.binding_missing")
+				}
 			}
 		}
 		sourcePath, ok := pyFiles[base]
@@ -376,7 +392,7 @@ func validateScenarioAt(repoRoot, root, scenario string, registry *bindings.Regi
 				"kind":    "learning_schema_warning",
 			})
 		}
-		for _, diagnostic := range programsinternal.ResolveSource(string(source), known, filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "analyze.py")) {
+		for _, diagnostic := range programsinternal.ResolveSource(string(source), sourceKnown, filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "analyze.py")) {
 			if diagnostic.GetSeverity() == "error" {
 				findings = append(findings, "programs.preflight_diagnostic")
 				if len(details) > 0 && details[0] != nil {
@@ -409,7 +425,7 @@ func validateScenarioAt(repoRoot, root, scenario string, registry *bindings.Regi
 				}
 			}
 		}
-		findings = append(findings, programDependencyFindings(scenario, base, string(source), contract.Bindings, registry, declaredDependencies, details...)...)
+		findings = append(findings, programDependencyFindings(scenario, base, string(source), contract.Bindings, registry, declaredDependencies, declaredContract, details...)...)
 		if includeExecution && !hasFixtures(data) {
 			findings = append(findings, "programs.fixture_missing")
 		} else if includeExecution && !fixturesAreWellFormed(data) {
@@ -431,7 +447,7 @@ func untypedLearningSchema(source string) bool {
 func programDependencyFindings(scenario, program, source string, declaredBindings []struct {
 	ID     string `json:"id"`
 	Effect string `json:"effect"`
-}, registry *bindings.Registry, declaredDependencies map[string]struct{}, details ...*[]any,
+}, registry *bindings.Registry, declaredDependencies map[string]struct{}, contract contracts.Contract, details ...*[]any,
 ) []string {
 	targets := make(map[string][]string)
 	add := func(target, bindingOrCall string) {
@@ -446,6 +462,9 @@ func programDependencyFindings(scenario, program, source string, declaredBinding
 	for _, declared := range declaredBindings {
 		if registry != nil {
 			binding, ok := registry.Binding(declared.ID)
+			if !ok {
+				binding, ok = registry.ProgramPrivateBinding(declared.ID, contract.ID, contract.Digest)
+			}
 			if ok {
 				add(binding.GetScenario(), declared.ID)
 			}

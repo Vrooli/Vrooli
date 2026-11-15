@@ -292,6 +292,7 @@ func TestAIGatewayExecuteBindingSerializesExactCallerVRAM(t *testing.T) {
 		"input-text":          "select the best flow",
 		"profile":             "PROFILE_LOCAL_ONLY",
 		"privacy-class":       "PRIVACY_CLASS_INTERNAL",
+		"privacy-provenance":  "binding test fixture text",
 		"timeout-ms":          "15000",
 		"max-cost-usd":        "0",
 		"max-output-tokens":   "16",
@@ -638,6 +639,58 @@ func TestProgramArgumentsRejectClientOnlyControls(t *testing.T) {
 	} {
 		_, err := registry.canonicalArguments(tc.id, map[string]any{"name": "fixture", tc.arg: true})
 		require.ErrorContains(t, err, "client-side only", tc.arg)
+	}
+}
+
+func TestProgramOnlyOmissionIsHiddenAndBoundToExactContractDigest(t *testing.T) {
+	digest := strings.Repeat("a", 64)
+	manifest := `{"name":"program-runtime","groups":[{"name":"public","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true}}]}],"omitted":[{"service":"BindingRegistryService","method":"DescribeBinding","reason":"Private F9 capability.","program_only":{"binding_id":"program-runtime/replay-private/describe","program":"program-runtime.bounty-replay","digest":"` + digest + `","effect":"read","permissions":["network:internal"]}}]}`
+	registry := fixtureRegistry(t, manifest)
+	id := "program-runtime/replay-private/describe"
+
+	if _, ok := registry.Binding(id); ok {
+		t.Fatal("private operation appeared in public Binding lookup")
+	}
+	for _, item := range registry.List("", "") {
+		if item.GetId() == id {
+			t.Fatal("private operation appeared in public binding list")
+		}
+	}
+	for _, item := range registry.Unbound("program-runtime") {
+		if item.GetMethod() == "DescribeBinding" {
+			t.Fatal("private operation leaked through ordinary unbound discovery")
+		}
+	}
+	if _, ok := registry.ProgramPrivateBinding(id, "program-runtime.other", digest); ok {
+		t.Fatal("unrelated declared program resolved private operation")
+	}
+	if _, ok := registry.ProgramPrivateBinding(id, "program-runtime.bounty-replay", strings.Repeat("b", 64)); ok {
+		t.Fatal("changed contract digest resolved private operation")
+	}
+	if _, ok := registry.ProgramPrivateBinding(id, "program-runtime.bounty-replay", ""); ok {
+		t.Fatal("private operation resolved without a pinned contract digest")
+	}
+	if _, ok := registry.ProgramPrivateBinding(id, "program-runtime.bounty-replay", digest); !ok {
+		t.Fatal("exact declared program and digest did not resolve private operation")
+	}
+	private, ok := registry.ProgramPrivateBinding(id, "program-runtime.bounty-replay", digest)
+	require.True(t, ok)
+	require.Equal(t, "read", private.GetEffect())
+	require.True(t, private.GetRunEligible())
+	require.Equal(t, []string{"network:internal"}, private.GetPermissions())
+	view, ok := registry.privateExecutionView(id, "program-runtime.bounty-replay", digest)
+	require.True(t, ok)
+	if _, exists := view.Binding(id); !exists {
+		t.Fatal("exact pinned execution view omitted its declared private capability")
+	}
+	if _, exists := registry.Binding(id); exists {
+		t.Fatal("building a private execution view mutated the shared public registry")
+	}
+	if _, ok := registry.ProgramPrivateBindings(context.Background(), "program-runtime.bounty-replay", digest, []string{id}); !ok {
+		t.Fatal("exact declared binding allowlist did not compile")
+	}
+	if _, ok := registry.ProgramPrivateBindings(context.Background(), "program-runtime.other", digest, []string{id}); ok {
+		t.Fatal("unrelated program compiled a private binding")
 	}
 }
 
