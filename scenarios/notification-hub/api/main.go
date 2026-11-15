@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"log/slog"
@@ -393,7 +395,7 @@ func main() {
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
 	// installed test pool. Self-disables in production mode.
-	handler := apihttp.TestModeMiddleware(requireRoutedTestLease(db, rootMux))
+	handler := apihttp.TestModeMiddleware(requireRoutedTestLease(db, rootMux, service))
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
@@ -422,7 +424,7 @@ func main() {
 // preserves production behavior by falling back to Primary when no test pool
 // exists; browser test-mode requests must instead fail closed. Pinning closes
 // the race between checking the lease and the handler's first database call.
-func requireRoutedTestLease(db *database.RoutedDB, next http.Handler) http.Handler {
+func requireRoutedTestLease(db *database.RoutedDB, next http.Handler, fixtureServices ...*hub.Service) http.Handler {
 	type pendingFixture struct {
 		name       string
 		selectedAt time.Time
@@ -495,10 +497,10 @@ func requireRoutedTestLease(db *database.RoutedDB, next http.Handler) http.Handl
 				}
 			}
 			pendingMu.Unlock()
-		} else if r.URL.Path == "/vrooli.notification_hub.v1.conversations.ConversationsService/GetAsk" && r.Header.Get("X-Notification-Hub-E4-Fixture") == "decision-links-phone" {
+		} else if r.Header.Get("X-Notification-Hub-E4-Fixture") == "decision-links-phone" && (r.URL.Path == "/vrooli.notification_hub.v1.conversations.ConversationsService/GetAsk" || strings.Contains(r.URL.Path, "/attachments/")) {
 			// This bounded visual fixture is selected only by an explicit routed
-			// test request. The handler below applies it to the leased test pool
-			// for this read, then restores the original question before returning.
+			// test request. The decision and its content route share the same
+			// short lived attachment seed so every read stays inside the lease.
 			if referer, parseErr := url.Parse(r.Referer()); parseErr == nil && referer.Path == "/asks/"+hub.TestAskID {
 				fixture = "decision-links-phone"
 			}
@@ -547,8 +549,46 @@ func requireRoutedTestLease(db *database.RoutedDB, next http.Handler) http.Handl
 			return
 		}
 		defer restoreFixture()
+		if fixture == "decision-links-phone" && len(fixtureServices) > 0 && fixtureServices[0] != nil {
+			restoreArtifact, err := attachE4DecisionLinkArtifact(ctx, db, fixtureServices[0])
+			if err != nil {
+				http.Error(w, "test artifact setup failed", http.StatusInternalServerError)
+				return
+			}
+			defer restoreArtifact()
+		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// attachE4DecisionLinkArtifact stores a real disposable attachment for the
+// phone decision-link fixture. The browser fetches these bytes through the
+// Hub's attachment route; it never reads a requester-host path or Web Console.
+func attachE4DecisionLinkArtifact(ctx context.Context, db *database.RoutedDB, service *hub.Service) (func(), error) {
+	const name = "phone-ready-project-brief.md"
+	const sourcePath = "/work/phone-ready-project-brief.md"
+	const content = "# Phone-ready project brief\n\nThe short review is ready. Approving it lets the agent finish this one bounded step.\n"
+	digest := sha256.Sum256([]byte(content))
+	hash := hex.EncodeToString(digest[:])
+	stored, err := service.PutAttachmentBlob(ctx, hash, "text/markdown", []byte(content))
+	if err != nil {
+		return nil, fmt.Errorf("store disposable decision artifact: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO ask_attachments (ask_id, name, position, label, kind, role, source_path, sha256, size_bytes, media_type, preview_kind) VALUES (?, ?, 0, ?, 'file', 'evidence', ?, ?, ?, 'text/markdown', 'markdown')`, hub.TestAskID, name, "Phone-ready project brief", sourcePath, stored.SHA256, stored.SizeBytes); err != nil {
+		return nil, fmt.Errorf("attach disposable decision artifact: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE asks SET attachment_count = 1 WHERE id = ?`, hub.TestAskID); err != nil {
+		_, _ = db.ExecContext(ctx, `DELETE FROM ask_attachments WHERE ask_id = ? AND name = ?`, hub.TestAskID, name)
+		return nil, fmt.Errorf("count disposable decision artifact: %w", err)
+	}
+	return func() {
+		if _, err := db.ExecContext(context.WithoutCancel(ctx), `DELETE FROM ask_attachments WHERE ask_id = ? AND name = ?`, hub.TestAskID, name); err != nil {
+			slog.Error("restore disposable decision artifact", "error", err)
+		}
+		if _, err := db.ExecContext(context.WithoutCancel(ctx), `UPDATE asks SET attachment_count = 0 WHERE id = ?`, hub.TestAskID); err != nil {
+			slog.Error("restore disposable decision artifact count", "error", err)
+		}
+	}, nil
 }
 
 func applyE4TestFixture(ctx context.Context, db *database.RoutedDB, fixture string) (func(), error) {
@@ -576,9 +616,11 @@ func applyE4TestFixture(ctx context.Context, db *database.RoutedDB, fixture stri
 		if err := db.QueryRowContext(ctx, `SELECT question, allowed_answers, options_json, recommended, recommendation_reason, default_answer FROM asks WHERE id = ?`, hub.TestAskID).Scan(&original.question, &original.allowedAnswers, &original.optionsJSON, &original.recommended, &original.recommendationReason, &original.defaultAnswer); err != nil {
 			return nil, fmt.Errorf("read disposable decision-link ask: %w", err)
 		}
-		question := "Review the [phone-ready project brief](http://localhost:20001/updates) before you choose."
-		optionsJSON := `[{"key":"open","label":"Open the brief"},{"key":"hold","label":"Decide later"}]`
-		if _, err := db.ExecContext(ctx, `UPDATE asks SET question = ?, allowed_answers = ?, options_json = ?, recommended = ?, recommendation_reason = ?, default_answer = ? WHERE id = ?`, question, `["open","hold"]`, optionsJSON, "open", "The brief has the supporting detail.", "open", hub.TestAskID); err != nil {
+		question := "Review the [phone-ready project brief](/work/phone-ready-project-brief.md) before you choose."
+		// Keep the seed ask's valid keys (continue/stop) so that answer submission
+		// remains valid after this request-scoped visual fixture is restored.
+		optionsJSON := `[{"key":"continue","label":"Approve the brief"},{"key":"stop","label":"Decide later"}]`
+		if _, err := db.ExecContext(ctx, `UPDATE asks SET question = ?, allowed_answers = ?, options_json = ?, recommended = ?, recommendation_reason = ?, default_answer = ? WHERE id = ?`, question, `["continue","stop"]`, optionsJSON, "continue", "The brief has the supporting detail.", "continue", hub.TestAskID); err != nil {
 			return nil, fmt.Errorf("set disposable decision-link ask: %w", err)
 		}
 		return func() {

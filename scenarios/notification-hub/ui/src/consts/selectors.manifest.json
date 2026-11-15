@@ -141,6 +141,10 @@
       "testId": "asks-sort",
       "selector": "[data-testid=\"asks-sort\"]"
     },
+    "asks.sortHow": {
+      "testId": "asks-sort-how",
+      "selector": "[data-testid=\"asks-sort-how\"]"
+    },
     "asks.filtersOpen": {
       "testId": "asks-filters-open",
       "selector": "[data-testid=\"asks-filters-open\"]"
@@ -193,6 +197,10 @@
       "testId": "packet-send",
       "selector": "[data-testid=\"packet-send\"]"
     },
+    "packet.answerRecorded": {
+      "testId": "packet-answer-recorded",
+      "selector": "[data-testid=\"packet-answer-recorded\"]"
+    },
     "packet.startAnswer": {
       "testId": "packet-start-answer",
       "selector": "[data-testid=\"packet-start-answer\"]"
@@ -240,6 +248,10 @@
     "packet.viewer": {
       "testId": "packet-viewer",
       "selector": "[data-testid=\"packet-viewer\"]"
+    },
+    "packet.viewerClose": {
+      "testId": "file-preview-dock-close",
+      "selector": "[data-testid=\"file-preview-dock-close\"]"
     },
     "packet.viewerPrevious": {
       "testId": "packet-viewer-previous",
@@ -874,7 +886,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "3ec3c9838278fa31a4c7b468f3121b5d00a1d188e8aa63447c8569d44a97a293",
-    "ui/src/consts/selectors.ts": "3348d02e733e36e193c22ffde1892ae0ed0d67a9f49907bcf34a882c05625579",
+    "ui/src/consts/selectors.ts": "b811984d6413a9f530db0621055679f10d480acd44ca2238e7178f291061fe4b",
     "ui/src/i18n/locales.ts": "430c8b1ad7ee0af32e8cd71ffbf6c6d4d83e6bc67242377a4755d6e6a8254cdb"
   }
 }

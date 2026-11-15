@@ -204,14 +204,42 @@ func explainCredentialFailure(err error) string {
 		cause = failure.cause
 	}
 	switch {
+	case repoRootMissing(cause):
+		return "this process could not find the Vrooli repository root, which the credential store needs to choose its backend, so whether the credential is issued is unknown; set VROOLI_ROOT to the repository path (a timer or systemd unit that starts in $HOME does not inherit it)"
 	case errors.Is(cause, credentialauthority.ErrProviderUnavailable), errors.Is(cause, credentialauthority.ErrProviderAbsent):
 		return "this process cannot read the host credential store, so whether the credential is issued is unknown; check that the process runs as the account that owns the store and has access to it (a systemd user session may not reach the keyring)"
 	case errors.Is(cause, credentialauthority.ErrNotFound), errors.Is(cause, credentialauthority.ErrUnconfigured):
 		return "the credential is not issued; the operator runs " + serviceprincipal.IssueCommand
 	case errors.Is(err, servicetoken.ErrNotIssued):
 		return "no credential could be read; the operator runs " + serviceprincipal.IssueCommand
+	case errors.Is(err, servicetoken.ErrRateLimited):
+		return rateLimitedText(err)
 	case errors.Is(err, servicetoken.ErrExchangeFailed):
 		return "scenario-authenticator did not accept the credential; it may have been rotated or revoked, or the service is down"
 	}
 	return "the sender token could not be obtained"
+}
+
+// repoRootMissingText is how the credential store words a failure to find the
+// repository root while choosing its backend. The store reports that failure as
+// an absent provider and keeps its cause as text only, so the text is the one
+// handle there is; tests pin it to the real message.
+const repoRootMissingText = "repo root not found"
+
+// repoRootMissing reports that the credential store failed because this process
+// could not locate the repository, which is fixed with VROOLI_ROOT and not with
+// the keyring.
+func repoRootMissing(cause error) bool {
+	return cause != nil && strings.Contains(cause.Error(), repoRootMissingText)
+}
+
+// rateLimitedText says that scenario-authenticator is limiting this principal
+// and when to retry. The credential is fine: nothing is wrong with it, and
+// calling it "not accepted" would send the operator to rotate a good one.
+func rateLimitedText(err error) string {
+	var limited *servicetoken.RateLimitedError
+	if errors.As(err, &limited) && limited.RetryAfter > 0 {
+		return fmt.Sprintf("scenario-authenticator is rate limiting this principal's exchanges, retry after %ds; the credential is not at fault", int(limited.RetryAfter.Seconds()))
+	}
+	return "scenario-authenticator is rate limiting this principal's exchanges, retry shortly; the credential is not at fault"
 }

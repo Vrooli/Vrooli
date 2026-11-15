@@ -79,11 +79,9 @@ func (h *handler) module() module.Module {
 	}, Endpoints: Endpoints}
 }
 
-// producer admits what only a verified sender may do: store a file for an ask
-// and withdraw one. The sender is a verified agent run, the verified owner or a
-// verified service sender (a hubsender principal); an identityless host process,
-// which may still raise an ask, may not. It never admits an answer or a
-// dismissal: those use owner.
+// producer admits verified senders to read or withdraw their own asks. Ask and
+// packet writes remain available to identityless callers; answers and
+// dismissals still use owner.
 func (h *handler) producer(ctx context.Context, headers http.Header) (identity.Producer, error) {
 	producer, err := h.directProducer(ctx, headers)
 	if err != nil {
@@ -364,7 +362,7 @@ func (h *handler) ListAsks(ctx context.Context, req *connect.Request[v1.ListAsks
 	for _, ask := range page.Asks {
 		out = append(out, h.toProto(ask))
 	}
-	return connect.NewResponse(&v1.ListAsksResponse{Asks: out, NextCursor: page.NextCursor, TotalAwaiting: int32(page.TotalAwaiting), Facets: askFacetsToProto(page.Facets)}), nil
+	return connect.NewResponse(&v1.ListAsksResponse{Asks: out, NextCursor: page.NextCursor, TotalAwaiting: int32(page.TotalAwaiting), Facets: askFacetsToProto(page.Facets), ClosingWindowSeconds: int32(page.ClosingWindow / time.Second)}), nil
 }
 
 func askFacetsToProto(facets hub.AskFacets) *v1.AskFacets {
@@ -427,7 +425,8 @@ func (h *handler) toProto(ask hub.AskRecord) *v1.Ask {
 		SupersededByAskId: ask.SupersededByAskID, AttachmentCount: int32(ask.AttachmentCount),
 		AnswerSummary: ask.AnswerSummary, QuestionCount: int32(len(ask.Questions)), OpenContextRequestCount: int32(ask.OpenContextRequestCount),
 		CanRequestContext: ask.CanRequestContext(), Correlation: maps.Clone(ask.Correlation),
-		Sender: ask.Sender,
+		Sender:      ask.Sender,
+		ClosingSoon: ask.ClosingSoon,
 	}
 }
 
@@ -497,8 +496,8 @@ func connectError(err error) error {
 }
 
 var Endpoints = []module.EndpointDescriptor{
-	{ID: "conversations_stat_attachment_blobs", Path: connectv1.ConversationsServiceStatAttachmentBlobsProcedure, Method: http.MethodPost, Summary: "Report which attachment content hashes the Hub does not hold (producer-only)", Category: "conversations"},
-	{ID: "conversations_put_attachment_blob", Path: connectv1.ConversationsServicePutAttachmentBlobProcedure, Method: http.MethodPost, Summary: "Store one attachment file under its SHA-256 (producer-only, at most 64 MiB)", Category: "conversations"},
+	{ID: "conversations_stat_attachment_blobs", Path: connectv1.ConversationsServiceStatAttachmentBlobsProcedure, Method: http.MethodPost, Summary: "Report which attachment content hashes the Hub does not hold (verified sender)", Category: "conversations"},
+	{ID: "conversations_put_attachment_blob", Path: connectv1.ConversationsServicePutAttachmentBlobProcedure, Method: http.MethodPost, Summary: "Store one attachment file under its SHA-256 (at most 64 MiB; sender identity is optional)", Category: "conversations"},
 	attachmentContentEndpoint,
 	{ID: "conversations_list_native_consents", Path: connectv1.ConversationsServiceListNativeConsentsProcedure, Method: http.MethodPost, Summary: "Read source-owned native consent without approving or creating an ask", Category: "conversations"},
 	{ID: "conversations_ask", Path: connectv1.ConversationsServiceAskProcedure, Method: http.MethodPost, Summary: "Ask a question and persist its deadline", Category: "conversations"},

@@ -21,6 +21,7 @@ import { ContextRequestSheet } from "./context/ContextRequestSheet";
 import { ContextRequests } from "./context/ContextRequests";
 import { ExplainerFrame } from "./explainer/ExplainerFrame";
 import { ActionBar } from "./form/ActionBar";
+import { PinnedBar } from "./form/PinnedBar";
 import { SecondaryActions } from "./form/SecondaryActions";
 import { AnswerPanel } from "./form/AnswerPanel";
 import { withPrefill } from "./model/answer";
@@ -180,7 +181,7 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
     />
   );
   const checkStatus = (
-    <Button className="min-h-12 w-full" type="button" variant="outline" disabled={flow.checking} onClick={flow.checkStatus}>
+    <Button className="w-full" size="lg" type="button" variant="outline" disabled={flow.checking} onClick={flow.checkStatus}>
       {flow.checking ? t(strings.packet.outcome.checking) : t(strings.packet.outcome.checkStatus)}
     </Button>
   );
@@ -195,11 +196,11 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
   );
 
   return (
-    <section aria-labelledby="ask-heading" className={`mx-auto flex w-full flex-col gap-5 ${hasPacket ? "max-w-6xl" : "max-w-3xl"}`}>
+    <section aria-labelledby="ask-heading" className={`mx-auto flex min-h-full w-full flex-col gap-3 md:gap-5 ${hasPacket ? "max-w-6xl" : "max-w-3xl"}`}>
       <PacketBack returnTo={returnTo} askId={ask.id} />
-      <div className={hasPacket ? "grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-8" : "flex flex-col gap-5"}>
+      <div className={hasPacket ? "flex flex-1 flex-col gap-4 md:gap-6 lg:grid lg:flex-none lg:grid-cols-[minmax(0,1fr)_26rem] lg:items-start lg:gap-8" : "flex flex-1 flex-col gap-4 md:gap-5"}>
         {showCover ? (
-          <div className="flex min-w-0 flex-col gap-5">
+          <div className="flex min-w-0 flex-col gap-4 md:gap-5">
             <PacketCover
               ask={ask}
               links={links}
@@ -233,6 +234,9 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
               readError={flow.readError}
               returnTo={returnTo}
             />
+            <p className="text-xs text-app-muted-foreground">
+              {t(strings.packet.status.requestId)} <bdi dir="ltr" className="select-all font-mono">{ask.id}</bdi>
+            </p>
           </div>
         ) : null}
         {hasAnswerColumn && (
@@ -249,16 +253,11 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
             {showForm && prefillNotice}
             {showForm && form}
             {signedIn && flow.settling && !settled && (
-              <footer className="sticky bottom-0 z-10 -mx-4 border-t border-app-border bg-app-surface/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur sm:-mx-8 sm:px-8 lg:mx-0 lg:px-4">
-                {checkStatus}
-              </footer>
+              <PinnedBar>{checkStatus}</PinnedBar>
             )}
           </div>
         )}
       </div>
-      <p className="text-xs text-app-muted-foreground">
-        {t(strings.packet.status.requestId)} <bdi dir="ltr" className="select-all font-mono">{ask.id}</bdi>
-      </p>
       {canAnswer && signedIn && paged && !answering && (
         <>
           {open && <SecondaryActions canRequestContext={ask.canRequestContext} onRequestContext={() => setAskingContext(true)} onDismiss={flow.dismiss} dismissing={flow.dismissing} disabled={flow.busy} />}
@@ -270,15 +269,17 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
       )}
       {viewing && (
         <Suspense fallback={null}>
-          <AttachmentViewer
-            askId={ask.id}
-            attachments={ask.attachments}
-            target={viewing}
-            onClose={() => setViewing(null)}
-            draft={draft}
-            onDraftChange={updateDraft}
-            canNote={canAnswer && signedIn && !flow.settling}
-          />
+          <div data-testid={selectors.packet.viewer} className="contents">
+            <AttachmentViewer
+              askId={ask.id}
+              attachments={ask.attachments}
+              target={viewing}
+              onClose={() => setViewing(null)}
+              draft={draft}
+              onDraftChange={updateDraft}
+              canNote={canAnswer && signedIn && !flow.settling}
+            />
+          </div>
         </Suspense>
       )}
       {askingContext && (

@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { Button } from "@vrooli/react-component-library/Button/2";
 
+import { PinnedBar } from "./PinnedBar";
+
 export interface ActionBarProps {
   /** The one main action: Send answer, Next, or Answer. */
   primary: { label: string; onClick: () => void; disabled?: boolean; testId?: string };
@@ -12,36 +14,35 @@ export interface ActionBarProps {
 }
 
 /**
- * The main action of the decision, pinned to the bottom edge with the
- * safe-area inset so a thumb reaches it without scrolling. It must be a direct
- * child of the tall content it pins within (a sticky bar cannot leave its
- * parent), and it holds only the one filled button: the quieter actions live
- * in {@link SecondaryActions}, so the pinned bar stays small on a phone.
+ * The main action of the decision, pinned to the bottom edge so a thumb reaches
+ * it without scrolling. It is one row. While the action is unavailable the
+ * reason sits beside a compact button instead of above a full-width one, and
+ * the button takes the whole row once it can be pressed. The quieter actions
+ * live in {@link SecondaryActions}, so the bar stays small on a phone.
  */
 export function ActionBar({ primary, back, hint, disabled }: ActionBarProps) {
   return (
-    <footer className="sticky bottom-0 z-10 -mx-4 border-t border-app-border bg-app-surface/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur sm:-mx-8 sm:px-8 lg:mx-0 lg:rounded-b-panel lg:px-4">
-      <div className="flex flex-col gap-2">
-        {hint && <p id="packet-action-hint" role="status" className="text-sm text-app-muted-foreground">{hint}</p>}
-        <div className="flex gap-2">
-          {back && (
-            <Button className="min-h-12 shrink-0 border border-app-border bg-app-surface" type="button" variant="outline" disabled={disabled} onClick={back.onClick}>
-              {back.label}
-            </Button>
-          )}
-          <Button
-            data-testid={primary.testId}
-            aria-describedby={hint ? "packet-action-hint" : undefined}
-            className="min-h-12 flex-1"
-            type="button"
-            variant="primary"
-            disabled={disabled || primary.disabled}
-            onClick={primary.onClick}
-          >
-            {primary.label}
+    <PinnedBar>
+      <div className="flex items-center gap-2">
+        {back && (
+          <Button className="shrink-0 border border-app-border bg-app-surface" size="lg" type="button" variant="outline" disabled={disabled} onClick={back.onClick}>
+            {back.label}
           </Button>
-        </div>
+        )}
+        {hint && <p id="packet-action-hint" role="status" className="min-w-0 flex-1 text-sm leading-snug text-app-muted-foreground">{hint}</p>}
+        <Button
+          data-testid={primary.testId}
+          aria-describedby={hint ? "packet-action-hint" : undefined}
+          className={hint ? "shrink-0" : "flex-1"}
+          size="lg"
+          type="button"
+          variant="primary"
+          disabled={disabled || primary.disabled}
+          onClick={primary.onClick}
+        >
+          {primary.label}
+        </Button>
       </div>
-    </footer>
+    </PinnedBar>
   );
 }

@@ -148,6 +148,32 @@ describe("sorting and filtering a decision list", () => {
     expect(within(groups[1]!).getByText(critical.question)).toBeInTheDocument();
   });
 
+  it("says in one plain line how the list is ordered, with the closing window the Hub reports", async () => {
+    const user = userEvent.setup();
+    listAsks.mockImplementation(listAsksFor(() => ({ asks: [deskAsk], totalAwaiting: 1, facets, closingWindowSeconds: 4 * 3600 })));
+    show("/asks");
+    await screen.findByText(deskAsk.question);
+    const line = screen.getByTestId(selectors.asks.sortHow);
+    expect(line).toHaveTextContent("Needs attention: escalated, closing within 4 hours, then urgency, then close time");
+
+    await user.click(within(screen.getByTestId(selectors.asks.sort)).getByRole("button"));
+    await user.click(screen.getByRole("option", { name: en.asks.sort.due }));
+    await waitFor(() => expect(screen.getByTestId(selectors.asks.sortHow)).toHaveTextContent("Due soonest: earliest close time first, then urgency"));
+  });
+
+  it("groups the decisions the Hub marked closing soon, and tells the owner when each one closes", async () => {
+    const soon = makeAsk({ id: "s1", question: "Closing one", options: [], state: "pending", urgency: "low", sender: "Research Desk", closingSoon: true, deadline: new Date(Date.now() + 3 * 3600_000).toISOString() });
+    const later = makeAsk({ id: "l1", question: "Later one", options: [], state: "pending", urgency: "critical", sender: "Treasury steward", deadline: new Date(Date.now() + 40 * 3600_000).toISOString() });
+    listAsks.mockImplementation(listAsksFor(() => ({ asks: [soon, later], totalAwaiting: 2, facets })));
+    show("/asks");
+    await screen.findByText(soon.question);
+    const groups = screen.getAllByTestId(selectors.asks.group);
+    expect(groups.map((group) => within(group).getByRole("heading", { level: 2 }).textContent)).toEqual(["Closing within 6 hours", en.asks.urgency.critical]);
+    expect(within(groups[0]!).getByText(/^Closes /)).toBeInTheDocument();
+    expect(within(groups[1]!).queryByText(/^Closes /)).not.toBeInTheDocument();
+    expect(within(groups[1]!).getByText(/^Due /)).toBeInTheDocument();
+  });
+
   it("shows no group headings when the order is not by attention, or when one group holds everything", async () => {
     listAsks.mockImplementation(listAsksFor(() => ({ asks: [treasuryAsk, deskAsk], totalAwaiting: 2, facets })));
     const { unmount } = show("/asks?sort=due");

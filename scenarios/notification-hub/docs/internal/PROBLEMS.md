@@ -523,6 +523,35 @@ passed 1/1.
 
 **Refs:** `api/internal/integrations/events.go` (`EventWebhookFromSecretSourceWithDecisionDefaults`, `validSignature`), `api/internal/identity/identity.go` (`ProducerForDirect`), `api/internal/identity/reader.go` (`verifiedServiceReader`), `api/internal/identity/provider_decision.go`, `scenarios/vrooli-events/api/handlers.go` (`handleIngest`), `packages/api-core/owneridentity/owneridentity.go` (`ExpectedAudience`), `scenarios/scenario-authenticator/docs/internal/PROBLEMS.md` (Treasury principals).
 
+### 2026-11-14 — Identityless host notification and decision requests were refused
+
+**Symptom:** The steward's systemd timer reported the exact error
+`unauthenticated: a verified agent run or verified owner identity is required`
+when sending a notification; decision requests from a plain host shell were
+also expected to work without a permission step.
+
+**Root cause:** Direct sends and asks must not depend on an agent run, owner
+session, or sender principal. Identityless producers resolve to the configured
+recipient and the shared `anonymous` push-budget source. A caller that supplies
+an invalid credential is still refused; identityless access grants no read,
+answer, dismiss, preference, or device-management rights.
+
+**Resolution:** Notification Hub's existing greenfield core owns the change
+(`execute/notification-hub-greenfield-core`). The direct Send/Relay and Ask
+handlers accept identityless requests; the per-source device-push bucket stores
+over-limit requests and suppresses only device pushes. Regression coverage now
+exercises the host caller on both notification and ask paths. `NEEDS-YOU.md`
+and `INBOX.md` remain the steward's working fallback until a real approval is
+linked and its result is actionable end to end.
+
+**Owner:** Notification Hub (`execute/notification-hub-greenfield-core`).
+
+**Refs:** `api/handlers/notifications/module.go`,
+`api/handlers/conversations/module.go`,
+`api/handlers/notifications/module_producer_test.go`,
+`api/handlers/conversations/module_producer_test.go`,
+`docs/reference/configuration.md`.
+
 ## Work ladder — repeated storage and producer logic (2026-11-14)
 
 - Rung: W3; contract and obligations unchanged.

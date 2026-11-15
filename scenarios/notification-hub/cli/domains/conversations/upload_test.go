@@ -168,18 +168,20 @@ func busyError(retryAfter string) *connect.Error {
 	return err
 }
 
-func TestUploadExplainsThatAttachmentsNeedAVerifiedSender(t *testing.T) {
+func TestUploadFallsBackToBlindPutWhenInventoryReadIsNotAllowed(t *testing.T) {
 	files := filesOf(t, t.TempDir(), "a")
-	stub := &hubStub{statErr: connect.NewError(connect.CodeUnauthenticated, nil)}
+	for _, code := range []connect.Code{connect.CodeUnauthenticated, connect.CodePermissionDenied} {
+		stub := &hubStub{statErr: connect.NewError(code, nil)}
+		svc := newTestService(t, stub)
+		err := uploader{client: svc.client}.upload(context.Background(), files)
+		require.NoError(t, err, "a sender uploads content without needing inventory access")
+		require.Len(t, stub.puts, 1)
+	}
+
+	stub := &hubStub{putErr: connect.NewError(connect.CodeUnauthenticated, nil)}
 	svc := newTestService(t, stub)
 	err := uploader{client: svc.client}.upload(context.Background(), files)
-	require.ErrorContains(t, err, "attachments need a verified sender")
-	require.ErrorContains(t, err, "agent run")
-
-	stub = &hubStub{putErr: connect.NewError(connect.CodeUnauthenticated, nil)}
-	svc = newTestService(t, stub)
-	err = uploader{client: svc.client}.upload(context.Background(), files)
-	require.ErrorContains(t, err, "attachments need a verified sender")
+	require.ErrorContains(t, err, "Hub refused this attachment operation")
 }
 
 func TestUploadExplainsAFullUploadQuota(t *testing.T) {

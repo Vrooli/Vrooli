@@ -490,7 +490,7 @@ func TestAsk_InvalidAttachmentsAreDroppedBeforeTheCountLimitNotInsteadOfValidOne
 	require.Contains(t, findWarning(t, result.Warnings, hub.WarnAttachmentLimit).Message, "2 attachments", "only the valid ones past 24 are over the limit")
 }
 
-func TestAsk_WithoutAVerifiedProducerEveryAttachmentIsDroppedAndTheAskStillSends(t *testing.T) {
+func TestAsk_WithoutAVerifiedProducerKeepsBlobsAndDropsHostPathProvenance(t *testing.T) {
 	env := newAttachmentEnv(t)
 	plan := env.file(t, "plan.md", "plan")
 	plan.SourcePath, plan.SourceHost = "/etc/hostname", "any-host"
@@ -502,12 +502,12 @@ func TestAsk_WithoutAVerifiedProducerEveryAttachmentIsDroppedAndTheAskStillSends
 
 	require.NoError(t, err, "a packet problem never fails the ask")
 	require.Equal(t, hub.AskPending, result.Ask.State)
-	require.Zero(t, result.Ask.AttachmentCount)
-	require.Empty(t, env.attachments(t, result.Ask.ID), "no source path was stored, so nothing can be probed")
-	warning := findWarning(t, result.Warnings, hub.WarnAttachmentAnonymous)
-	require.Equal(t, hub.WarningDropped, warning.Severity)
-	require.Equal(t, "attachments", warning.Field)
-	require.Len(t, attachmentWarnings(result.Warnings), 1, "one warning, not one per attachment")
+	require.Equal(t, 2, result.Ask.AttachmentCount)
+	got := env.attachments(t, result.Ask.ID)
+	require.Len(t, got, 2)
+	require.Empty(t, got[0].SourcePath, "anonymous source paths must never be probed")
+	require.Empty(t, got[0].SourceHost)
+	require.NotContains(t, warningCodes(result.Warnings), "attachment_requires_identity")
 }
 
 func TestAsk_AttachmentBytesPastTwoHundredFiftySixMiBAreDropped(t *testing.T) {

@@ -8,11 +8,14 @@
  *
  *  1. a Content-Security-Policy meta as the very first thing in `<head>`, so
  *     nothing the page says can run or load before it applies;
- *  2. the starter kit stylesheet, which declares everything inside
+ *  2. a one-rule baseline (`html, body { margin: 0 }`) in its own layer, so a
+ *     page that has no kit still starts flush against the Hub's frame, and any
+ *     rule the page writes still wins;
+ *  3. the starter kit stylesheet, which declares everything inside
  *     `@layer hub-kit` so anything the page writes itself wins, unless the page
  *     opts out with `<meta name="hub-kit" content="off">` (then neither the
  *     kit's CSS nor its script is injected);
- *  3. the bridge script and then the kit's behaviours.
+ *  4. the bridge script and then the kit's behaviours.
  *
  * Attachment names used as `src`, `href` and `poster` become `data:` URLs
  * within size limits; beyond them an element keeps a placeholder that opens
@@ -20,6 +23,12 @@
  */
 export const EXPLAINER_CSP =
   "default-src 'none'; img-src data: blob:; media-src data: blob:; font-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'";
+
+/**
+ * The Hub's frame gives the page its gutter, so the browser's own 8px body
+ * margin must not stack on it. A layer, so anything the page writes wins.
+ */
+export const EXPLAINER_BASE_CSS = "@layer hub-base { html, body { margin: 0; } }";
 
 /** Largest attachment inlined as a data URL, and the most one page may inline. */
 export const INLINE_FILE_LIMIT = 12 * 1024 * 1024;
@@ -164,6 +173,7 @@ export function buildExplainerDocument(html: string, options: ExplainerDocumentO
   const kitOff = Boolean(doc.querySelector('meta[name="hub-kit" i][content="off" i]'));
   const injected: HTMLElement[] = [
     element(doc, "meta", { "http-equiv": "Content-Security-Policy", content: EXPLAINER_CSP }),
+    element(doc, "style", { "data-hub": "base" }, EXPLAINER_BASE_CSS),
     ...(kitOff ? [] : [element(doc, "style", { "data-hub": "kit" }, inertStyle(options.kitCss))]),
     element(doc, "script", { "data-hub": "bridge" }, inertScript(options.bridgeJs)),
     ...(kitOff || !options.kitJs ? [] : [element(doc, "script", { "data-hub": "kit" }, inertScript(options.kitJs))]),

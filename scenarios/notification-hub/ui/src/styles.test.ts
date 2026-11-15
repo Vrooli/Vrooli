@@ -27,4 +27,31 @@ describe("styles.css", () => {
     expect(sheet?.textContent).toMatch(/@media \(pointer: coarse\)[\s\S]*min-block-size: var\(--tap-target-min\)/);
     expect(readFileSync("src/design-tokens.css", "utf8")).toMatch(/--tap-target-min:\s*44px;/);
   });
+
+  // jsdom cannot lay out a sticky bar, so the contract is pinned in the stylesheet: the dock
+  // cancels exactly the gutter the shell adds (so no page content shows below it), the tab bar
+  // alone owns the phone's bottom inset, and the pane contains what is absolutely positioned
+  // inside it (otherwise the whole document scrolls and slides the tab bar away).
+  describe("the pinned answer dock", () => {
+    const css = readFileSync("src/styles.css", "utf8");
+    const dockRule = /\.packet-dock\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+
+    it("cancels the pane's gutter below, and on both sides", () => {
+      expect(css).toMatch(/\[data-rcl-app-shell-main\]\s*\{[^}]*--page-gutter:\s*clamp\(var\(--space-sm\), 3vw, var\(--space-lg\)\)/);
+      expect(dockRule).toMatch(/position:\s*sticky/);
+      expect(dockRule).toMatch(/bottom:\s*calc\(-1 \* var\(--page-gutter\) - var\(--dock-inset\)\)/);
+      expect(dockRule).toMatch(/margin-inline:\s*calc\(-1 \* var\(--page-gutter\)\)/);
+    });
+
+    it("adds the device's bottom inset only beside a sidebar, never above the phone's tab bar", () => {
+      expect(dockRule).toMatch(/--dock-inset:\s*0px/);
+      const inset = [...css.matchAll(/--dock-inset:\s*([^;]+);/g)].map((match) => match[1]);
+      expect(inset).toEqual(["0px", "env(safe-area-inset-bottom, 0px)", "0px"]);
+      expect(/@media \(min-width: 48rem\)\s*\{\s*\.packet-dock\s*\{\s*--dock-inset:\s*env\(safe-area-inset-bottom/.test(css)).toBe(true);
+    });
+
+    it("keeps the main pane the containing block of everything inside it", () => {
+      expect(css).toMatch(/\[data-rcl-app-shell-main\]\s*\{[^}]*position:\s*relative/);
+    });
+  });
 });

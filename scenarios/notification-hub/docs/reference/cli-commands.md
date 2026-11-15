@@ -170,19 +170,13 @@ That file is generated: `TestAgentResultsDocumentIsWhatTheCLIPrints` (in
 when the file differs from what it printed; `go test ./handlers/conversations -run
 TestAgentResultsDocument -update` refreshes it.
 
-A host program with no agent run identity (the portfolio steward, started by a
-systemd timer) sets `NOTIFICATION_HUB_SEND_AS=<source>`. The CLI then exchanges
-the credential of the service principal `<source>-notification-hub` (declared in
-the scenario's `.vrooli/service-principals.json` and issued by `scenario-authenticator
-service-principals sync --apply`) and presents the token as the bearer on every
-conversations call, with no agent identity header. The Hub attributes what it sends
-to `<source>` and lists only the asks that source sent. Order of precedence: a run
-identity (`VROOLI_AGENT_IDENTITY_TOKEN`) wins and the switch is unused; then an
-explicit token (`NOTIFICATION_HUB_API_TOKEN`, `VROOLI_API_TOKEN` or the saved config
-token); then the principal, with no fallback. An unissued credential, a credential
-store the process cannot read, and a credential that fails to exchange each fail the
-command with their own message, naming the principal and, when it is not issued, the
-issue command. The code is `cli/domains/conversations/sendas.go`.
+A host program started by a timer or service manager can create notifications and
+asks without agent identity, a sender principal, or a permission request. The Hub
+stores accepted requests even after the source's configurable device-push bucket
+is empty; only device pushes are suppressed until the bucket drains. Reading,
+waiting on, or withdrawing an ask may still require caller identity or ownership;
+see the access rules below. Keep `NEEDS-YOU.md`/`INBOX.md` available as a working
+fallback until an approval is linked and actionable end to end.
 
 Who can reach an ask: by ask id, the runs of the conversation that sent it; by exact
 `--subject-key`, any run of the same owner account; `list` shows only the

@@ -32,6 +32,7 @@ export const strings = {
     row: {
       dueIn: "asks.row.dueIn",
       escalated: "asks.row.escalated",
+      closesIn: "asks.row.closesIn",
     },
     urgency: {
       low: "asks.urgency.low",
@@ -45,6 +46,13 @@ export const strings = {
       due: "asks.sort.due",
       newest: "asks.sort.newest",
       oldest: "asks.sort.oldest",
+      how: {
+        attention: "asks.sort.how.attention",
+        attention_one: "asks.sort.how.attention_one",
+        due: "asks.sort.how.due",
+        newest: "asks.sort.how.newest",
+        oldest: "asks.sort.how.oldest",
+      },
     },
     filters: {
       open: "asks.filters.open",
@@ -56,6 +64,10 @@ export const strings = {
       remove: "asks.filters.remove",
       active: "asks.filters.active",
       openActive: "asks.filters.openActive",
+    },
+    group: {
+      closing: "asks.group.closing",
+      closing_one: "asks.group.closing_one",
     },
   },
   common: {

@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -21,13 +22,34 @@ const (
 	// AskOrderOldest is created_at ASC, id ASC.
 	AskOrderOldest AskOrder = "oldest"
 	// AskOrderAttention puts what needs the operator first: escalated asks, then
-	// urgency (critical, high, normal, low), then the earliest deadline (an ask
-	// with none last), then the newest.
+	// the pending asks closing within AttentionClosingWindow (the nearest close
+	// first), then urgency (critical, high, normal, low), then the earliest
+	// deadline (an ask with none last), then the newest.
 	AskOrderAttention AskOrder = "attention"
 	// AskOrderDue puts the earliest deadline first (an ask with none last), then
 	// urgency, then the newest.
 	AskOrderDue AskOrder = "due"
 )
+
+// AttentionClosingWindow is how close to its deadline a pending ask must be to
+// lead the attention order, ahead of urgency. An ask that closes inside it
+// takes its default (or expires) before the operator is likely to look again, so
+// it cannot wait behind asks that merely rank higher: the operator reads this
+// list a few times a day, and six hours is about the longest gap between looks
+// that still lets a decision be made. The operator chose it, as "closing-soon",
+// on 2026-11-14. The Hub reports it with every list so no client keeps its own copy.
+const AttentionClosingWindow = 6 * time.Hour
+
+// closingCutoff is the latest deadline that counts as closing soon at now, in
+// the stored form deadlines compare in.
+func closingCutoff(now time.Time) string { return storedTime(now.Add(AttentionClosingWindow)) }
+
+// closesWithin reports whether an open ask's deadline is at or before cutoff.
+// An ask with no deadline never is; one whose deadline has passed but has not
+// been processed yet still is.
+func closesWithin(r AskRecord, cutoff string) bool {
+	return (r.State == AskPending || r.State == AskEscalated) && r.Deadline != "" && r.Deadline <= cutoff
+}
 
 // sortColumn is one column of an order. sql is the expression the query orders
 // by, key reads the same value off a record for the cursor, so the two must
@@ -74,12 +96,48 @@ var (
 )
 
 // orderColumns is each order as its columns. The last is always id, so no two
-// asks tie and a keyset boundary is exact.
-var orderColumns = map[AskOrder][]sortColumn{
-	AskOrderNewest:    {createdNewest, idNewest},
-	AskOrderOldest:    {createdOldest, idOldest},
-	AskOrderAttention: {rankColumn, urgencyColumn, deadlineColumn, createdNewest, idNewest},
-	AskOrderDue:       {deadlineColumn, urgencyColumn, createdNewest, idNewest},
+// asks tie and a keyset boundary is exact. cutoff is the reference closing time
+// of the page (closingCutoff); only the attention order reads it, and it is
+// written into the query as text, so it must be a stored time this package made.
+func orderColumns(order AskOrder, cutoff string) ([]sortColumn, bool) {
+	switch order {
+	case AskOrderNewest:
+		return []sortColumn{createdNewest, idNewest}, true
+	case AskOrderOldest:
+		return []sortColumn{createdOldest, idOldest}, true
+	case AskOrderAttention:
+		band, bandDeadline := closingColumns(cutoff)
+		return []sortColumn{rankColumn, band, bandDeadline, urgencyColumn, deadlineColumn, createdNewest, idNewest}, true
+	case AskOrderDue:
+		return []sortColumn{deadlineColumn, urgencyColumn, createdNewest, idNewest}, true
+	}
+	return nil, false
+}
+
+// closingColumns are the two columns that place the asks closing soon: first
+// whether the ask is in the band (0 is), then, inside the band, the deadline,
+// so the nearest close leads. Outside the band the second column is constant.
+func closingColumns(cutoff string) (band, bandDeadline sortColumn) {
+	inBand := `a.state = 'pending' AND a.deadline <> '' AND a.deadline <= '` + cutoff + `'`
+	band = sortColumn{
+		sql: `CASE WHEN ` + inBand + ` THEN 0 ELSE 1 END`, numeric: true,
+		key: func(r AskRecord) string {
+			if r.State == AskPending && closesWithin(r, cutoff) {
+				return "0"
+			}
+			return "1"
+		},
+	}
+	bandDeadline = sortColumn{
+		sql: `CASE WHEN ` + inBand + ` THEN a.deadline ELSE '' END`,
+		key: func(r AskRecord) string {
+			if r.State == AskPending && closesWithin(r, cutoff) {
+				return r.Deadline
+			}
+			return ""
+		},
+	}
+	return band, bandDeadline
 }
 
 // The urgency of an ask as the query reads it: an ask stored with none is normal.
@@ -133,6 +191,9 @@ type AskListPage struct {
 	TotalAwaiting int
 	// Facets are the filter choices with the number of asks each would show.
 	Facets AskFacets
+	// ClosingWindow is how close to its deadline an open ask is marked
+	// ClosingSoon, and the band the attention order puts first.
+	ClosingWindow time.Duration
 }
 
 // AskFacetCount is one filter value and how many asks it holds.
@@ -155,9 +216,13 @@ const maxSenderFacets = 20
 // askListCursor is the last row of a page: the value of each column of the
 // order, in the order's column order.
 type askListCursor struct {
-	Version int      `json:"v"`
-	Scope   string   `json:"scope"`
-	Keys    []string `json:"keys"`
+	Version int    `json:"v"`
+	Scope   string `json:"scope"`
+	// Now is the page's reference time. The first page sets it and every later
+	// page reuses it, so the asks closing soon do not change between pages while
+	// the clock moves.
+	Now  string   `json:"now"`
+	Keys []string `json:"keys"`
 }
 
 // askVisibility is the SQL condition that limits asks to the ones the audience
@@ -256,8 +321,7 @@ func (s *Service) ListAsksPageFor(ctx context.Context, recipient string, audienc
 	if order == "" {
 		order = AskOrderNewest
 	}
-	columns, ok := orderColumns[order]
-	if !ok {
+	if _, ok := orderColumns(order, ""); !ok {
 		return AskListPage{}, fmt.Errorf("%w: unknown order", ErrInvalidArgument)
 	}
 	urgencies, err := normalizeUrgencyFilter(opts.Urgencies)
@@ -278,12 +342,20 @@ func (s *Service) ListAsksPageFor(ctx context.Context, recipient string, audienc
 	}
 	scopeBytes, _ := json.Marshal([]any{recipient, opts.Query, state, audience.scopeKey(), string(order), urgencies, senders})
 	scope := fmt.Sprintf("%x", sha256.Sum256(scopeBytes))
+	// The reference time is read once, by the first page, and carried in the
+	// cursor: the band of asks closing soon is measured against it on every page.
+	now := s.clock.Now()
 	var after *askListCursor
 	if opts.Cursor != "" {
-		after, err = decodeAskListCursor(opts.Cursor, scope, len(columns))
+		after, now, err = decodeAskListCursor(opts.Cursor, scope)
 		if err != nil {
 			return AskListPage{}, err
 		}
+	}
+	cutoff := closingCutoff(now)
+	columns, _ := orderColumns(order, cutoff)
+	if after != nil && len(after.Keys) != len(columns) {
+		return AskListPage{}, fmt.Errorf("%w: cursor does not match this search", ErrInvalidArgument)
 	}
 	base := askBaseWhere(recipient, visible, visibleArgs, state, opts.Query)
 	query, args := askListSQL(base, urgencies, senders, columns, after, opts.Limit+1)
@@ -298,6 +370,7 @@ func (s *Service) ListAsksPageFor(ctx context.Context, recipient string, audienc
 		if scanErr != nil {
 			return AskListPage{}, scanErr
 		}
+		record.ClosingSoon = closesWithin(record, cutoff)
 		out = append(out, record)
 	}
 	if err := rows.Err(); err != nil {
@@ -307,11 +380,11 @@ func (s *Service) ListAsksPageFor(ctx context.Context, recipient string, audienc
 	if err != nil {
 		return AskListPage{}, err
 	}
-	page := AskListPage{Asks: out, TotalAwaiting: total, Facets: facets}
+	page := AskListPage{Asks: out, TotalAwaiting: total, Facets: facets, ClosingWindow: AttentionClosingWindow}
 	if len(out) > opts.Limit {
 		page.Asks = out[:opts.Limit]
 		last := page.Asks[len(page.Asks)-1]
-		next := askListCursor{Version: 2, Scope: scope, Keys: make([]string, len(columns))}
+		next := askListCursor{Version: 3, Scope: scope, Now: storedTime(now), Keys: make([]string, len(columns))}
 		for i, column := range columns {
 			next.Keys[i] = column.key(last)
 		}
@@ -364,17 +437,23 @@ func normalizeSenderFilter(values []string) ([]string, error) {
 }
 
 // decodeAskListCursor reads a cursor and refuses one made for another search,
-// reader or order.
-func decodeAskListCursor(raw, scope string, columns int) (*askListCursor, error) {
+// reader or order. It also returns the reference time the cursor pins, which is
+// parsed here, never taken as text, because it is written into the query.
+func decodeAskListCursor(raw, scope string) (*askListCursor, time.Time, error) {
+	invalid := fmt.Errorf("%w: cursor does not match this search", ErrInvalidArgument)
 	if len(raw) > 2048 {
-		return nil, fmt.Errorf("%w: cursor is too long", ErrInvalidArgument)
+		return nil, time.Time{}, fmt.Errorf("%w: cursor is too long", ErrInvalidArgument)
 	}
 	var cursor askListCursor
 	decoded, err := base64.RawURLEncoding.DecodeString(raw)
-	if err != nil || json.Unmarshal(decoded, &cursor) != nil || cursor.Version != 2 || cursor.Scope != scope || len(cursor.Keys) != columns {
-		return nil, fmt.Errorf("%w: cursor does not match this search", ErrInvalidArgument)
+	if err != nil || json.Unmarshal(decoded, &cursor) != nil || cursor.Version != 3 || cursor.Scope != scope {
+		return nil, time.Time{}, invalid
 	}
-	return &cursor, nil
+	now, err := time.Parse(time.RFC3339Nano, cursor.Now)
+	if err != nil {
+		return nil, time.Time{}, invalid
+	}
+	return &cursor, now, nil
 }
 
 // askWhere is the part of a list query every read of the list shares: the

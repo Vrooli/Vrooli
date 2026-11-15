@@ -37,7 +37,7 @@ export function OutcomeNotices({ ask, outcome, recordedLabel, attemptedAnswer, s
       {sending && <p role="status">{t(strings.packet.outcome.sending)}</p>}
       {checking && <p role="status">{t(strings.packet.outcome.checking)}</p>}
       {outcome === "recorded" && (
-        <p role="status" className="flex items-center gap-2 rounded-panel border border-app-success/60 bg-app-success/15 p-3 font-medium">
+        <p data-testid={selectors.packet.answerRecorded} role="status" className="flex items-center gap-2 rounded-panel border border-app-success/60 bg-app-success/15 p-3 font-medium">
           <CheckCircle2 size={18} aria-hidden="true" className="shrink-0 text-app-success" />
           {t(strings.packet.outcome.recorded, { option: recordedLabel })}
         </p>

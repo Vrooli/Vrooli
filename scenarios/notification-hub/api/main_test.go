@@ -23,6 +23,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/blobstore"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 	notificationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications"
@@ -471,6 +472,8 @@ func TestE4DecisionLinksPhoneFixtureChangesOnlyTheLeasedAskAndRestoresIt(t *test
 	require.NoError(t, routed.InstallTestPool(ctx, filedb.DSN(t, "leased.db"), leaseID, 0))
 	ctx, err := routed.PinTestPool(ctx, leaseID)
 	require.NoError(t, err)
+	service := hubtest.New(t, routed, schedule.System(), log.New(io.Discard, "", 0))
+	service.SetAttachmentStore(hub.StaticBlobStore(blobstore.NewFilesystemBlobStore(t.TempDir())))
 	var primaryBefore int
 	require.NoError(t, routed.Primary().QueryRowContext(ctx, `SELECT count(*) FROM asks WHERE id = ?`, hub.TestAskID).Scan(&primaryBefore))
 	require.Zero(t, primaryBefore)
@@ -480,9 +483,14 @@ func TestE4DecisionLinksPhoneFixtureChangesOnlyTheLeasedAskAndRestoresIt(t *test
 	require.NoError(t, routed.QueryRowContext(ctx, `SELECT question, allowed_answers, options_json, recommended, recommendation_reason, default_answer FROM asks WHERE id = ?`, hub.TestAskID).Scan(&leasedBefore.question, &leasedBefore.allowedAnswers, &leasedBefore.optionsJSON, &leasedBefore.recommended, &leasedBefore.recommendationReason, &leasedBefore.defaultAnswer))
 
 	var fixtureQuestion, fixtureOptions, fixtureRecommended string
+	var fixtureAttachmentName, fixtureAttachmentPath string
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := routed.QueryRowContext(r.Context(), `SELECT question, options_json, recommended FROM asks WHERE id = ?`, hub.TestAskID).Scan(&fixtureQuestion, &fixtureOptions, &fixtureRecommended)
 		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if err := routed.QueryRowContext(r.Context(), `SELECT name, source_path FROM ask_attachments WHERE ask_id = ?`, hub.TestAskID).Scan(&fixtureAttachmentName, &fixtureAttachmentPath); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -493,11 +501,13 @@ func TestE4DecisionLinksPhoneFixtureChangesOnlyTheLeasedAskAndRestoresIt(t *test
 	request.Header.Set("X-Notification-Hub-E4-Fixture", "decision-links-phone")
 	request.Header.Set("Referer", "http://notification-hub.invalid/asks/"+hub.TestAskID)
 	response := httptest.NewRecorder()
-	apihttp.TestModeMiddleware(requireRoutedTestLease(routed, next)).ServeHTTP(response, request)
+	apihttp.TestModeMiddleware(requireRoutedTestLease(routed, next, service)).ServeHTTP(response, request)
 	require.Equal(t, http.StatusOK, response.Code)
-	require.Contains(t, fixtureQuestion, "[phone-ready project brief](http://localhost:20001/updates)")
-	require.Contains(t, fixtureOptions, `"label":"Open the brief"`)
-	require.Equal(t, "open", fixtureRecommended)
+	require.Contains(t, fixtureQuestion, "[phone-ready project brief](/work/phone-ready-project-brief.md)")
+	require.Contains(t, fixtureOptions, `"label":"Approve the brief"`)
+	require.Equal(t, "continue", fixtureRecommended)
+	require.Equal(t, "phone-ready-project-brief.md", fixtureAttachmentName)
+	require.Equal(t, "/work/phone-ready-project-brief.md", fixtureAttachmentPath)
 
 	var leasedAfter struct {
 		question, allowedAnswers, optionsJSON, recommended, recommendationReason, defaultAnswer string
@@ -506,6 +516,9 @@ func TestE4DecisionLinksPhoneFixtureChangesOnlyTheLeasedAskAndRestoresIt(t *test
 	var primaryAfter int
 	require.NoError(t, routed.Primary().QueryRowContext(ctx, `SELECT count(*) FROM asks WHERE id = ?`, hub.TestAskID).Scan(&primaryAfter))
 	require.Equal(t, leasedBefore, leasedAfter)
+	var attachmentsAfter int
+	require.NoError(t, routed.QueryRowContext(ctx, `SELECT count(*) FROM ask_attachments WHERE ask_id = ?`, hub.TestAskID).Scan(&attachmentsAfter))
+	require.Zero(t, attachmentsAfter, "the temporary artifact is removed from the lease after each fixture request")
 	require.Equal(t, primaryBefore, primaryAfter)
 }
 

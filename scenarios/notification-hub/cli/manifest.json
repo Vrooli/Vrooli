@@ -620,7 +620,7 @@
           "aliases": [
             "list-asks"
           ],
-          "description": "List your asks, newest first unless you sort them. --sort attention puts what needs the operator first (escalated asks, then critical, high, normal and low urgency, then the earliest deadline, then newest); --sort due puts the earliest deadline first (an ask with none last); --sort oldest reverses newest. Narrow them with --state (--open is --state awaiting), --urgency, --sender and --query: every sort takes every filter, filters combine with AND, and the values of one filter with OR. Each row ends with the sender, an urgency other than normal, and the deadline of an ask that still waits. The summary ends with the counts by urgency and by sender under your other filters (--json: facets.urgencies and facets.senders, each a list of {value, count}); a facet's value is what --urgency and --sender take. A page holds up to --limit asks; when more follow, next_cursor (--json) or the printed hint continues from the same filters. An agent run lists only the asks of its own conversation; the owner lists all. To find an ask you sent before a restart, `list --open --query WORDS`; an ask you can name exactly is reached by its --subject-key instead.",
+          "description": "List your asks, newest first unless you sort them. --sort attention puts what needs the operator first (escalated asks, then pending asks closing within the Hub's closing window of 6 hours, nearest first, then critical, high, normal and low urgency, then the earliest deadline, then newest); --sort due puts the earliest deadline first (an ask with none last); --sort oldest reverses newest. Narrow them with --state (--open is --state awaiting), --urgency, --sender and --query: every sort takes every filter, filters combine with AND, and the values of one filter with OR. Each row ends with the sender, an urgency other than normal, and the deadline of an ask that still waits. The summary ends with the counts by urgency and by sender under your other filters (--json: facets.urgencies and facets.senders, each a list of {value, count}); a facet's value is what --urgency and --sender take. A page holds up to --limit asks; when more follow, next_cursor (--json) or the printed hint continues from the same filters. An agent run lists only the asks of its own conversation; the owner lists all. To find an ask you sent before a restart, `list --open --query WORDS`; an ask you can name exactly is reached by its --subject-key instead.",
           "flags": [
             {
               "name": "open",
@@ -637,7 +637,7 @@
             },
             {
               "name": "sort",
-              "description": "How to order the asks: newest (the default), oldest, attention (escalated first, then critical to low urgency, then the earliest deadline) or due (the earliest deadline first, asks with none last).",
+              "description": "How to order the asks: newest (the default), oldest, attention (escalated first, then asks closing within 6 hours, then critical to low urgency, then the earliest deadline) or due (the earliest deadline first, asks with none last).",
               "local_only": true
             },
             {

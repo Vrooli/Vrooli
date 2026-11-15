@@ -19,7 +19,7 @@ import { useTranslation } from "../../i18n";
 import { isUnauthenticated } from "../../lib/apiError";
 import { formatAgo } from "../../lib/ago";
 import { preserveRoutedTestMode } from "../routedTestMode";
-import { filterCount, groupByTier, listViewRequest, readListView, TIER_LABEL, writeListView, type ListView } from "./askListView";
+import { closingHours as hoursOf, filterCount, groupByTier, listViewRequest, readListView, TIER_LABEL, writeListView, type ListView } from "./askListView";
 import { parseStateFilter, STATE_FILTERS, STATE_LABEL } from "./askState";
 import { DecisionRow } from "./DecisionRow";
 import { ListControls } from "./ListControls";
@@ -80,6 +80,7 @@ export function RequestList({ queue = false }: { queue?: boolean }) {
   // the controls (their facets) but its rows are not shown as the new result.
   const answered = list.isPlaceholderData ? undefined : list.data;
   const facets = list.data?.pages[0]?.facets;
+  const closingHours = hoursOf(list.data?.pages[0]?.closingWindowSeconds);
   // A live state change can move a row between pages; show each identity once.
   const rows = [...new Map(answered?.pages.flatMap((page) => page.asks).map((ask) => [ask.id, ask]) ?? []).values()];
   const data = answered;
@@ -158,7 +159,7 @@ export function RequestList({ queue = false }: { queue?: boolean }) {
         : t(strings.asks.list.waiting, { count: Math.max(rows.length, needsYou.count) })
     : undefined;
   const pending = list.isPending || list.isPlaceholderData || searching;
-  // Ordered by attention the list reads as groups (escalated, then each urgency),
+  // Ordered by attention the list reads as groups (escalated, closing soon, then each urgency),
   // which is what makes the order explain itself; one group needs no heading.
   const groups = view.sort === "attention" ? groupByTier(rows) : [{ tier: "normal" as const, asks: rows }];
   const grouped = view.sort === "attention" && groups.length > 1;
@@ -227,7 +228,7 @@ export function RequestList({ queue = false }: { queue?: boolean }) {
         />
       )}
       {queue && <NativeConsents list={consents} />}
-      <ListControls view={view} facets={facets} matching={matching} onChange={changeView} onClear={clear} />
+      <ListControls view={view} facets={facets} matching={matching} closingHours={closingHours} onChange={changeView} onClear={clear} />
       {pending && <SkeletonRows />}
       {(initialError || refreshError || consentsFailed) && (
         <QueryError
@@ -276,7 +277,7 @@ export function RequestList({ queue = false }: { queue?: boolean }) {
             );
             return grouped ? (
               <section key={tier} data-testid={selectors.asks.group} aria-labelledby={`${HEADING_ID}-${tier}`}>
-                <h2 id={`${HEADING_ID}-${tier}`} className="mb-2 text-sm font-semibold text-app-muted-foreground">{t(TIER_LABEL[tier])}</h2>
+                <h2 id={`${HEADING_ID}-${tier}`} className="mb-2 text-sm font-semibold text-app-muted-foreground">{t(TIER_LABEL[tier], { count: closingHours })}</h2>
                 {list}
               </section>
             ) : list;

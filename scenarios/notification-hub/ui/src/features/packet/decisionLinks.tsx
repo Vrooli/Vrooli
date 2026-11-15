@@ -136,6 +136,7 @@ export function renderDecisionText(value: string, links: DecisionLinks = {}): Re
         <button
           key={`attachment-${index}`}
           type="button"
+          data-testid={selectors.packet.textLink}
           title={links.openAttachmentTitle}
           onClick={() => onOpenAttachment(attachment)}
           className={`${linkClass} text-start`}

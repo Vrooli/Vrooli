@@ -56,21 +56,12 @@ func (h *handler) connectHandlers() (path string, general, upload http.Handler) 
 	return path, general, h.gateUploads(upload)
 }
 
-// gateUploads admits an upload before its body is read: the sender must be
-// verified, and a slot must be free. Reading is what costs memory, so neither
-// check can wait for Connect to decode the message. A request that cannot get a
-// slot in time is answered 503 and its body is never read.
+// gateUploads admits an upload before its body is read when a slot is free.
+// Sending a decision packet does not require an identity; reading and answering
+// the resulting ask still require the configured owner identity. Reading is
+// what costs memory, so the slot check happens before Connect decodes the body.
 func (h *handler) gateUploads(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, err := h.producer(r.Context(), r.Header); err != nil {
-			// A verified service token that is not a sender is told what is missing.
-			status, message := http.StatusUnauthorized, "a verified agent run, verified owner or notification-hub sender identity is required"
-			if refused := new(connect.Error); errors.As(err, &refused) && refused.Code() == connect.CodePermissionDenied {
-				status, message = http.StatusForbidden, refused.Message()
-			}
-			http.Error(w, message, status)
-			return
-		}
 		wait := time.NewTimer(h.uploadWait)
 		defer wait.Stop()
 		select {
@@ -92,9 +83,8 @@ func (h *handler) gateUploads(next http.Handler) http.Handler {
 	})
 }
 
-// Stat and Put are producer-only: a verified agent run, the verified owner or a
-// verified service sender. Unlike Ask, an identityless host process cannot store
-// bytes on the Hub.
+// Stat is a read of the Hub's content inventory, so it is limited to verified
+// producers. Anonymous senders can skip the lookup and upload content directly.
 func (h *handler) StatAttachmentBlobs(ctx context.Context, req *connect.Request[v1.StatAttachmentBlobsRequest]) (*connect.Response[v1.StatAttachmentBlobsResponse], error) {
 	if _, err := h.producer(ctx, req.Header()); err != nil {
 		return nil, err
@@ -107,9 +97,6 @@ func (h *handler) StatAttachmentBlobs(ctx context.Context, req *connect.Request[
 }
 
 func (h *handler) PutAttachmentBlob(ctx context.Context, req *connect.Request[v1.PutAttachmentBlobRequest]) (*connect.Response[v1.PutAttachmentBlobResponse], error) {
-	if _, err := h.producer(ctx, req.Header()); err != nil {
-		return nil, err
-	}
 	result, err := h.service.PutAttachmentBlob(ctx, req.Msg.GetSha256(), req.Msg.GetMediaType(), req.Msg.GetContent())
 	if err != nil {
 		return nil, attachmentError(err)

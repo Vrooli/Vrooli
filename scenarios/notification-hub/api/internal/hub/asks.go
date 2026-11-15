@@ -161,10 +161,9 @@ type AskSpec struct {
 	// prepareAttachments validates them against the blob inventory; one the Hub
 	// cannot accept is dropped with a warning.
 	Attachments []AskAttachment
-	// VerifiedProducer is set by the handler that verified who is asking (an
-	// agent run or the owner). Attachments carry host paths the Hub later probes
-	// and bytes it stores, so an ask without a verified producer has them all
-	// dropped with a warning.
+	// VerifiedProducer is set by the handler when it can verify who is asking
+	// (an agent run, owner or declared service sender). Anonymous asks can carry
+	// uploaded content too; prepareAttachments strips their host-path provenance.
 	VerifiedProducer bool
 	// CreatedBy is the verified identity that sends the ask (run:<id> or
 	// owner:<subject>); empty when the sender has none. See AskAudience for who
@@ -288,6 +287,10 @@ type AskRecord struct {
 	// AttachmentsDigest identifies what the producer attached, for comparing a
 	// resend with the open ask.
 	AttachmentsDigest string
+	// ClosingSoon is set by the list reads: the ask is open and its deadline is
+	// within AttentionClosingWindow of the page's reference time. It is false on
+	// every other read.
+	ClosingSoon bool
 }
 
 // Open reports whether the ask still waits for an answer.

@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "ex8-decision-links-phone",
-    "description": "Given the leased disposable decision, when the owner opens it at phone width, then its decision-text link is visible, safely tappable and opens as a new page.",
+    "description": "Given the leased disposable decision with an attached brief, when the owner reviews it at phone width, then the brief opens inside Notification Hub and the answer can be recorded there.",
     "requirement": "OT-P0-001",
     "version": "1",
     "labels": {
@@ -60,15 +60,15 @@
       }
     },
     {
-      "id": "verify-tappable-safe-link",
+      "id": "verify-internal-attachment-link",
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(()=>{const a=[...document.querySelectorAll('a')].find(node=>node.textContent.trim()==='phone-ready project brief');if(!a)throw new Error('decision prose link is missing');const rect=a.getBoundingClientRect(),style=getComputedStyle(a),href=new URL(a.href);if(a.target!=='_blank'||a.rel!=='noopener noreferrer')throw new Error('decision link does not open safely in a new tab');if(rect.width<44||rect.height<44)throw new Error(`decision link is too small to tap: ${rect.width}x${rect.height}`);if(!a.classList.contains('break-words')||a.classList.contains('break-all'))throw new Error('decision link breaks words in the phone heading');if(href.href!=='http://localhost:20001/updates')throw new Error(`unexpected decision link destination ${href.href}`);if(style.pointerEvents==='none')throw new Error('decision prose link cannot receive taps');return {href:href.href,target:a.target,rel:a.rel,width:rect.width,height:rect.height,wordBreak:style.wordBreak,overflowWrap:style.overflowWrap,pointerEvents:style.pointerEvents}})()",
+          "expression": "(()=>{const a=[...document.querySelectorAll('button')].find(node=>node.textContent.trim()==='phone-ready project brief');if(!a)throw new Error('decision attachment button is missing');const rect=a.getBoundingClientRect(),style=getComputedStyle(a);if(a.hasAttribute('href'))throw new Error('attached artifact must stay inside Notification Hub');if(rect.width<44||rect.height<44)throw new Error(`decision link is too small to tap: ${rect.width}x${rect.height}`);if(style.pointerEvents==='none')throw new Error('decision link cannot receive taps');if(document.querySelector('a[title*=\\\"Web Console\\\"]'))throw new Error('decision handed the artifact to Web Console');return {kind:'hub-attachment',width:rect.width,height:rect.height,pointerEvents:style.pointerEvents}})()",
           "store_result": "ex8DecisionLink"
         },
         "metadata": {
-          "label": "Check the phone tap target and safe new-tab destination"
+          "label": "Check the artifact is a tappable in-hub control"
         }
       }
     },
@@ -80,19 +80,91 @@
           "full_page": false
         },
         "metadata": {
-          "label": "Capture the linked decision at 390 pixel phone width"
+          "label": "Capture the decision and its review context at 390 pixel phone width"
         }
       }
     },
     {
-      "id": "open-destination-from-decision-text",
+      "id": "open-attached-brief",
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
           "selector": "@selector/packet.textLink"
         },
         "metadata": {
-          "label": "Tap the decision-text link and open its destination in a new page"
+          "label": "Open the attached brief inside Notification Hub"
+        }
+      }
+    },
+    {
+      "id": "assert-brief-in-hub",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/packet.viewer",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "The short review is ready."
+          },
+          "timeout_ms": 15000,
+          "failure_message": "The attached brief opens and is readable inside Notification Hub"
+        },
+        "metadata": {
+          "label": "Read the brief in the Hub's own viewer"
+        }
+      }
+    },
+    {
+      "id": "close-brief",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/packet.viewerClose"
+        },
+        "metadata": {
+          "label": "Return to the decision without leaving the Hub"
+        }
+      }
+    },
+    {
+      "id": "choose-approved-option",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/asks.option"
+        },
+        "metadata": {
+          "label": "Choose the recommended answer"
+        }
+      }
+    },
+    {
+      "id": "submit-answer-in-hub",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/packet.send"
+        },
+        "metadata": {
+          "label": "Finish the decision in Notification Hub"
+        }
+      }
+    },
+    {
+      "id": "assert-answer-recorded",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/packet.answerRecorded",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Answer recorded: Approve the brief"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "The decision is answered without leaving Notification Hub"
+        },
+        "metadata": {
+          "label": "Confirm the answer is recorded in the Hub"
         }
       }
     }
@@ -107,19 +179,49 @@
     {
       "id": "tap-check",
       "source": "assert-link-text",
-      "target": "verify-tappable-safe-link",
+      "target": "verify-internal-attachment-link",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "capture",
-      "source": "verify-tappable-safe-link",
+      "source": "verify-internal-attachment-link",
       "target": "capture-phone-decision",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "tap-destination",
       "source": "capture-phone-decision",
-      "target": "open-destination-from-decision-text",
+      "target": "open-attached-brief",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "brief-readable",
+      "source": "open-attached-brief",
+      "target": "assert-brief-in-hub",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "return-to-decision",
+      "source": "assert-brief-in-hub",
+      "target": "close-brief",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "choose-answer",
+      "source": "close-brief",
+      "target": "choose-approved-option",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "send-answer",
+      "source": "choose-approved-option",
+      "target": "submit-answer-in-hub",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "answer-recorded",
+      "source": "submit-answer-in-hub",
+      "target": "assert-answer-recorded",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]

@@ -295,6 +295,26 @@ func TestLoopbackOwnerIsOnlyTheExplicitLocalMode(t *testing.T) {
 	}
 }
 
+// In the loopback mode the machine's owner is whoever calls without a credential.
+// A caller that presents a bearer is what the bearer says, not the owner: a
+// service token must reach its own handler, with its own narrow audience.
+func TestALoopbackCallerWithABearerIsNotTheOwnerBecauseItIsLocal(t *testing.T) {
+	loopback := LoopbackOwnerProvider{}
+	local := func(r *http.Request) { r.RemoteAddr = "127.0.0.1:5000" }
+
+	owner, err := ownerThrough(t, loopback, local)
+	if err != nil || owner.Subject != "operator" {
+		t.Fatalf("a loopback call with no credential = %#v, err = %v; want the local owner", owner, err)
+	}
+	if owner, err = ownerThrough(t, loopback, func(r *http.Request) { local(r); r.Header.Set("Authorization", "Bearer a-service-token") }); err == nil {
+		t.Fatalf("a loopback call carrying a service token was the owner: %#v", owner)
+	}
+	owner, err = ownerThrough(t, loopback, func(r *http.Request) { local(r); r.Header.Set("Authorization", "Bearer cookie-token") })
+	if err != nil || owner.Subject != "authenticator-user" {
+		t.Fatalf("the owner's own bearer = %#v, err = %v; want it verified as the bearer says", owner, err)
+	}
+}
+
 // A bearer is not an owner credential for this middleware: the owner's CLI token
 // and the service tokens (ask-reader, sender) are verified by the handlers. With
 // Access as the only provider, a request carrying one must still reach them,

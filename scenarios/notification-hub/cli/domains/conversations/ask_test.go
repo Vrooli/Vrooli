@@ -272,21 +272,20 @@ func TestAnswerRejectsAMalformedAttachmentNote(t *testing.T) {
 	}
 }
 
-func TestAskWithoutAnIdentityPrintsTheUploadReasonAndTheHubsDroppedWarning(t *testing.T) {
+func TestAskWithoutAnIdentityUploadsAndAttachesItsPacket(t *testing.T) {
 	file := writeFile(t, t.TempDir(), "a.txt", "a")
 	stub := &hubStub{
 		statErr: connect.NewError(connect.CodeUnauthenticated, nil),
-		askResp: &v1.AskResponse{AskId: "ask-3", Warnings: []*v1.PacketWarning{
-			{Code: "attachment_requires_identity", Field: "attachments", Message: "Attachments need a verified sender.", Severity: "dropped"},
-		}},
+		askResp: &v1.AskResponse{AskId: "ask-3"},
 	}
 	svc := newTestService(t, stub)
 	stdout, stderr, err := runCommand(t, svc, "ask", askArgs("--attach", file)...)
 	require.NoError(t, err, "the decision still reaches the operator")
 	require.Contains(t, stdout, "Created ask ask-3.")
-	require.Contains(t, stderr, "attachments need a verified sender")
-	require.Contains(t, stderr, "Left out of the packet:")
-	require.Contains(t, stderr, "attachments: Attachments need a verified sender. (attachment_requires_identity)")
+	require.Contains(t, stderr, "Uploading 1 attachment file(s), 1 B...")
+	require.Len(t, stub.puts, 1, "the anonymous CLI blindly uploads attachment bytes")
+	require.Len(t, stub.asks, 1)
+	require.Len(t, stub.asks[0].GetAttachments(), 1)
 }
 
 func TestAskDeclaresItAnswersContextRequestsOnlyWhenKeyedAndNotOptedOut(t *testing.T) {

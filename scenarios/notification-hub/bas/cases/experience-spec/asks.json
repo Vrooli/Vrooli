@@ -16,13 +16,18 @@
       "target": "wait-asks-sort"
     },
     {
-      "id": "edge-wait-asks-sort-to-capture-asks",
+      "id": "edge-wait-asks-sort-to-wait-asks-sort-how",
       "source": "wait-asks-sort",
+      "target": "wait-asks-sort-how"
+    },
+    {
+      "id": "edge-wait-asks-sort-how-to-capture-asks",
+      "source": "wait-asks-sort-how",
       "target": "capture-asks"
     }
   ],
   "metadata": {
-    "description": "Given the leased disposable recipient with no open decision, when the owner opens Needs you at phone width, then the empty state is shown with the sort control in view, and captured.",
+    "description": "Given the leased disposable recipient with no open decision, when the owner opens Needs you at phone width, then the empty state is shown with the sort control and the line saying how the list is ordered in view, and captured.",
     "execution_mode": "mutating",
     "labels": {
       "requires_confirmation": "true",
@@ -91,6 +96,20 @@
         },
         "metadata": {
           "label": "The sort control is visible"
+        }
+      }
+    },
+    {
+      "id": "wait-asks-sort-how",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/asks.sortHow",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "The line that says how the list is ordered is visible"
         }
       }
     },

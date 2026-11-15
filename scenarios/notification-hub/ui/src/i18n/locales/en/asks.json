@@ -14,7 +14,8 @@
   },
   "row": {
     "dueIn": "Due {{when}}",
-    "escalated": "Escalated"
+    "escalated": "Escalated",
+    "closesIn": "Closes {{when}}"
   },
   "urgency": {
     "low": "Low",
@@ -24,10 +25,17 @@
   },
   "sort": {
     "label": "Sort",
-    "attention": "Most urgent first",
+    "attention": "Needs attention first",
     "due": "Due soonest",
     "newest": "Newest first",
-    "oldest": "Oldest first"
+    "oldest": "Oldest first",
+    "how": {
+      "attention": "Needs attention: escalated, closing within {{count}} hours, then urgency, then close time",
+      "attention_one": "Needs attention: escalated, closing within 1 hour, then urgency, then close time",
+      "due": "Due soonest: earliest close time first, then urgency",
+      "newest": "Newest first: the most recently sent on top",
+      "oldest": "Oldest first: the longest waiting on top"
+    }
   },
   "filters": {
     "open": "Filters",
@@ -39,5 +47,9 @@
     "remove": "Remove filter: {{name}}",
     "active": "Active filters",
     "openActive": "Filters ({{count}})"
+  },
+  "group": {
+    "closing": "Closing within {{count}} hours",
+    "closing_one": "Closing within 1 hour"
   }
 }

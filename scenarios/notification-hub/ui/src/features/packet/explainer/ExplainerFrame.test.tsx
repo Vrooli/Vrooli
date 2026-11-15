@@ -113,4 +113,19 @@ describe("ExplainerFrame", () => {
     await user.click(screen.getByRole("button", { name: "packet.explainer.openFile" }));
     expect(onOpen).toHaveBeenCalledWith("explainer.html", "");
   });
+
+  // On a phone the page runs the full width of the screen with one caption line on top,
+  // so the agent's text sits at the same gutter as the question above it.
+  it("labels the sealed page in one compact caption and bleeds to the screen edge on a phone", async () => {
+    mockAttachments();
+    const { frame } = await renderFrame();
+
+    const section = screen.getByTestId(selectors.packet.explainer);
+    expect(section).toContainElement(frame);
+    expect(section).toHaveClass("-mx-[var(--page-gutter)]", "border-y", "md:mx-0", "md:border");
+    const caption = section.querySelector("header");
+    expect(caption).toHaveTextContent(strings.packet.explainer.label);
+    expect(caption).toHaveTextContent(strings.packet.explainer.sealed);
+    expect(frame).not.toHaveClass("p-3");
+  });
 });

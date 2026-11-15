@@ -2,6 +2,7 @@ package conversations_test
 
 import (
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -67,6 +68,13 @@ type readerFixture struct {
 // legacy subject header the Hub's tests trust.
 func newReaderFixture(t *testing.T) *readerFixture {
 	t.Helper()
+	return newReaderFixtureBehind(t, nil)
+}
+
+// newReaderFixtureBehind is newReaderFixture with a middleware mounted in front
+// of the handlers, the way the API mounts its owner authentication.
+func newReaderFixtureBehind(t *testing.T, behind func(http.Handler) http.Handler) *readerFixture {
+	t.Helper()
 	ctx := context.Background()
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
@@ -114,7 +122,11 @@ func newReaderFixture(t *testing.T) *readerFixture {
 		}
 		return &cliutil.VerifyResult{Valid: true, Claims: claims}, nil
 	})
-	server := httptest.NewServer(provenance.Middleware(runs)(router))
+	var entry http.Handler = router
+	if behind != nil {
+		entry = behind(router)
+	}
+	server := httptest.NewServer(provenance.Middleware(runs)(entry))
 	t.Cleanup(server.Close)
 	return &readerFixture{client: conversationsconnect.NewConversationsServiceClient(server.Client(), server.URL), service: service, url: server.URL}
 }

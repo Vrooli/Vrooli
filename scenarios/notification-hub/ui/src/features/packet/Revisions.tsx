@@ -16,8 +16,8 @@ export function Revisions({ ask, links, open, onToggle }: { ask: Ask; links: Tex
   const { t } = useTranslation();
   if (!ask.revisionCount) return null;
   return (
-    <details id="packet-revisions" className="rounded-panel border border-app-border bg-app-surface p-3" open={open} onToggle={(event) => onToggle(event.currentTarget.open)}>
-      <summary className="min-h-11 cursor-pointer py-2 font-medium">{t(strings.packet.revisions.title, { count: ask.revisionCount })}</summary>
+    <details id="packet-revisions" className="rounded-panel border border-app-border bg-app-surface px-3 open:pb-3" open={open} onToggle={(event) => onToggle(event.currentTarget.open)}>
+      <summary className="min-h-11 cursor-pointer py-2.5 font-medium">{t(strings.packet.revisions.title, { count: ask.revisionCount })}</summary>
       <ol className="mt-2 flex flex-col gap-4">
         {ask.revisions.map((revision) => {
           const changes = revisionChanges(ask, revision);

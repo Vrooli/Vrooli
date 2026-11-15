@@ -10,7 +10,7 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { cn } from "../../lib/utils";
-import { filterCount, SORTS, SORT_LABEL, URGENCIES, type ListView, type Urgency } from "./askListView";
+import { filterCount, SORTS, SORT_HOW, SORT_LABEL, URGENCIES, type ListView, type Urgency } from "./askListView";
 import { URGENCY_LABEL } from "./askView";
 
 const isUrgency = (value: string): value is Urgency => URGENCIES.some((urgency) => urgency === value);
@@ -25,12 +25,14 @@ function toggled<T>(values: readonly T[], value: T): T[] {
  * a Filters button that opens the choices (with how many decisions each would
  * show), and the filters in force as chips that can each be removed in one tap.
  */
-export function ListControls({ view, facets, matching, onChange, onClear }: {
+export function ListControls({ view, facets, matching, closingHours, onChange, onClear }: {
   view: ListView;
   /** What the server says each filter would show; absent until the first page is read. */
   facets: AskFacets | undefined;
   /** How many decisions the current filters leave, across every page. */
   matching: number;
+  /** How many hours before its deadline an ask counts as closing soon, as the Hub reports it. */
+  closingHours: number;
   onChange: (view: ListView) => void;
   onClear: () => void;
 }) {
@@ -66,6 +68,7 @@ export function ListControls({ view, facets, matching, onChange, onClear }: {
           {active > 0 ? t(strings.asks.filters.openActive, { count: active }) : t(strings.asks.filters.open)}
         </Button>
       </div>
+      <p data-testid={selectors.asks.sortHow} className="text-sm text-app-muted-foreground">{t(SORT_HOW[view.sort], { count: closingHours })}</p>
       {active > 0 && (
         <ul aria-label={t(strings.asks.filters.active)} data-testid={selectors.asks.activeFilters} className="flex flex-wrap gap-2">
           {view.urgencies.map((urgency) => (

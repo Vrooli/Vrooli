@@ -55,10 +55,11 @@ and mirrors `api-core/health.Response` field-for-field.
 ## Notification Hub read boundary
 
 Ordinary reads do not require an interactive owner login, with one exception:
-asks. `GetAsk`, `ListAsks` and `Wait` need a verified identity and show an ask
-only to the owner, to the verified agent run (for its conversation lineage, or by
-the exact subject key of an ask of the same owner), or to the service that raised it
-as an event (see "Who reads an ask" below). Recipient-scoped
+asks. Creating an ask does not require identity, scope, grant, or permission;
+`GetAsk`, `ListAsks` and `Wait` are separate read operations that need a verified
+identity and show an ask only to the owner, to the verified agent run (for its
+conversation lineage, or by the exact subject key of an ask of the same owner), or
+to the service that raised it (see "Who reads an ask" below). Recipient-scoped
 procedures (notification `Get`/`List`, delivery
 timeline/analytics, routing channel status, recipient metadata, devices, quiet
 windows, escalation chain, and preference reads) use the recipient configured
@@ -187,7 +188,7 @@ smaller id so a page boundary is exact:
 |---|---|
 | `ORDER_NEWEST` (default) | `created_at` descending |
 | `ORDER_OLDEST` | `created_at` ascending |
-| `ORDER_ATTENTION` | escalated first, then urgency (critical, high, normal, low), then the earliest `deadline` (an ask with none last), then `created_at` descending |
+| `ORDER_ATTENTION` | escalated first, then pending asks whose `deadline` is at or before the page's reference time plus the closing window (6 hours; an expired deadline not yet processed counts; the nearest `deadline` first), then urgency (critical, high, normal, low), then the earliest `deadline` (an ask with none last), then `created_at` descending |
 | `ORDER_DUE` | the earliest `deadline` (none last), then urgency, then `created_at` descending |
 
 An unknown order fails with InvalidArgument. A cursor is valid only for the order, search,
@@ -197,6 +198,14 @@ refresh, not midway through older pages, and an ask answered meanwhile is simply
 Every persisted timestamp is stored as fixed-width UTC text with a nine-digit fraction
 (`2026-11-14T12:00:00.500000000Z`), so SQLite's text order is time order, within a second
 too; `deadline` and `created_at` in responses use that form.
+
+The closing window is measured from the instant the first page was read: the
+cursor carries that time, so asks do not cross into the band between pages while
+the clock moves, and a page never repeats or skips a row. A list read afresh uses
+the new time. Every `ListAsks` response carries `closing_window_seconds`, and each
+open ask inside the window carries `closing_soon`, so a client names and marks the
+band from the Hub's answer and keeps no copy of the number. `closing_soon` is set only by
+`ListAsks`.
 
 `urgencies` and `senders` filter on the server before pagination: only asks of those
 urgencies (`low`, `normal`, `high`, `critical`) and from those senders (the `Ask.sender` text,
@@ -249,8 +258,8 @@ is the wire reference. Proto: `AskAttachment`, `AskAttachmentEntry`,
 | Endpoint | Auth | Notes |
 |---|---|---|
 | `ConversationsService/StatAttachmentBlobs` | Verified producer (an agent run, the owner or a `<source>-notification-hub` service sender; `Unauthenticated` without, `PermissionDenied` for a service token that is not a sender) | Up to 1,000 lowercase hex SHA-256 hashes; returns those the Hub lacks. A hash that is present is kept alive for 24 more hours. A blob row whose bytes were lost counts as missing. |
-| `ConversationsService/PutAttachmentBlob` | Verified producer (as above) | `sha256`, `media_type` (the sender's declaration, kept for the record, never served), `content` (at most 64 MiB). The Hub recomputes the hash; a mismatch, a malformed hash or an oversize file is `InvalidArgument`. `existed` is true when the Hub already held the bytes. `ResourceExhausted` when 1 GiB of uploads no ask references yet is already waiting (they expire after 24 hours). `Unavailable` when the Hub has no attachment store. The sender is checked and a slot taken before the body is read; two uploads run at once, and one that finds no slot within 30 s gets HTTP `503` with `Retry-After`. |
-| `ConversationsService/Ask` | Direct producer | `attachments[]` reference blobs by hash. An attachment the Hub cannot accept is left out and reported in `warnings[]`; the ask is never refused for it. An ask from a caller with no verified identity keeps no attachments (`attachment_requires_identity`). |
+| `ConversationsService/PutAttachmentBlob` | Identity optional | `sha256`, `media_type` (the sender's declaration, kept for the record, never served), `content` (at most 64 MiB). The Hub recomputes the hash; a mismatch, a malformed hash or an oversize file is `InvalidArgument`. `existed` is true when the Hub already held the bytes. `ResourceExhausted` when 1 GiB of uploads no ask references yet is already waiting (they expire after 24 hours). `Unavailable` when the Hub has no attachment store. Two uploads run at once, and one that finds no slot within 30 s gets HTTP `503` with `Retry-After`. Anonymous callers upload directly by hash and cannot inspect the shared inventory. |
+| `ConversationsService/Ask` | Direct producer | `attachments[]` reference blobs by hash. An attachment the Hub cannot accept is left out and reported in `warnings[]`; the ask is never refused for it. Anonymous asks keep uploaded content but discard `source_path` and `source_host`. |
 | `ConversationsService/GetAsk` | Owner, sending run, or raising service | Returns `attachments[]` with `preview_kind`, `source_status`, `source_checked_at`, `truncated`, and `attachment_count`. `source_status` is checked against the sender's path only for the owner; other readers get `unknown`. |
 | `ConversationsService/ListAsks` | Owner, sending run, or raising service (own asks only) | Rows carry `attachment_count` only. |
 | `GET /api/v1/asks/{ask_id}/attachments/{name}` | Verified owner (as `Answer`) | REST exception `browser_surface`. `?path=<entry>` selects a file of a folder attachment. Also answers `HEAD`. |
@@ -274,7 +283,6 @@ about a part the revision did not touch (callers fold these into a count).
 | Code | Severity | Meaning |
 |---|---|---|
 | `attachment_blob_missing` | dropped | A file (or folder entries) whose bytes the Hub does not hold. Upload with `PutAttachmentBlob` first. |
-| `attachment_requires_identity` | dropped | The ask came from a caller with no verified identity, so all of its attachments were left out. |
 | `attachment_limit` | dropped | More than 24 attachments (counted after invalid ones are dropped), or more than 256 MiB in one ask. |
 | `attachment_invalid` | dropped / advice | Unknown kind, a file without a valid `sha256`, a folder with no valid entry (dropped); an unknown role (advice, listed as evidence). |
 | `attachment_name_changed` | advice | The name was sanitized or made unique (a repeat is numbered before its extension: `notes-2.md`). The warning says what it became. |
@@ -327,7 +335,7 @@ context" are specified in
 | `ConversationsService/Answer` | Configured recipient | `responses[]` answer the ask's questions. An unknown `question_id`, a repeated question, or a response of the wrong shape (see below) is `InvalidArgument`, and the ask stays open. A required question must be answered unless `answer` is `other`. A response with no content is ignored. `attachment_notes[]` (`attachment`, `path`, `note`; at most 24) pin notes to the ask's attachments or a folder entry; a note naming something the ask does not have is `InvalidArgument`. If the requester revised the ask while the answer was being made, nothing is stored and the call fails `FailedPrecondition`, message prefix `ask_changed:`, error metadata `Hub-Error-Reason: ask_changed`; reload the ask and submit again. |
 | `ConversationsService/RequestContext` | Configured recipient (as `Answer`) | `ask_id`, `question` (1-2,000 characters). The ask must be open (`FailedPrecondition` otherwise), belong to the caller (`NotFound` otherwise), and its requester must have declared `accepts_context_requests` (`FailedPrecondition` with `Hub-Error-Reason: context_not_accepted` otherwise; `Ask.can_request_context` says which). Repeating a question that is still unaddressed returns the existing request. At most 5 unaddressed requests per ask: the sixth is `ResourceExhausted`. |
 | `ConversationsService/Wait` | Owner, sending run, or raising service (as `GetAsk`) | Returns `state`, `answer`, `reason`, `note`, `responses[]`, `attachment_notes[]` and `answer_summary` once the ask is resolved. With `return_on_context_request` it also returns while the ask is open and an unaddressed context request exists: `state` is still `pending`, `context_request` is the oldest unaddressed one, and `reason` says so. Without the flag a context request never ends the wait. One call lasts at most 10 minutes whatever the `deadline`: it then returns the open ask with a `reason` beginning `wait_slice`, and the caller waits again. The route has an operation budget, so a response written after the server's ordinary 30 s write deadline is not cut. |
-| `ConversationsService/CheckAsk` | Verified agent run or owner (as `Ask`) | Dry run of `Ask`: validates, applies the revision merge, runs the packet check, and returns `warnings[]`, the notification `push_title` and `push_body`, `revises_ask_id` (the open ask a keyed request would revise), and the `sender` the operator would see with its `sender_source` (`declared`, `default`, `kept`, `service`, `agent_run` or `unnamed`), worked out by the rule a real send uses. Stores nothing and uploads nothing: the request's attachments are taken as stored at the `sha256` and size they state, and `file_contents` (sha256 to bytes) supplies the explainer page and the Markdown file a review follows, read from the request and kept nowhere. |
+| `ConversationsService/CheckAsk` | Direct producer (as `Ask`) | Dry run of `Ask`: validates, applies the revision merge, runs the packet check, and returns `warnings[]`, the notification `push_title` and `push_body`, `revises_ask_id` (the open ask a keyed request would revise), and the `sender` the operator would see with its `sender_source` (`declared`, `default`, `kept`, `service`, `agent_run` or `unnamed`), worked out by the rule a real send uses. Stores nothing and uploads nothing: the request's attachments are taken as stored at the `sha256` and size they state, and `file_contents` (sha256 to bytes) supplies the explainer page and the Markdown file a review follows, read from the request and kept nowhere. |
 | `ConversationsService/GetAsk` | Owner, sending run, or raising service | Adds `questions[]`, `responses[]`, `attachment_notes[]`, `context_requests[]` (oldest first, with `addressed_at`, `addressed_revision` and the requester's `response`), `answer_summary`, `question_count`, `open_context_request_count` and `can_request_context` (the ask is open and its requester declared it answers questions; the UI shows the question button only then). |
 | `ConversationsService/ListAsks` | Owner, sending run, or raising service (own asks only) | Rows carry `question_count`, `open_context_request_count` and `answer_summary`, not the form itself. |
 

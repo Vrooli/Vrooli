@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  EXPLAINER_BASE_CSS,
   EXPLAINER_CSP,
   INLINE_FILE_LIMIT,
   OPEN_PLACEHOLDER,
@@ -43,9 +44,20 @@ describe("buildExplainerDocument", () => {
     expect(first?.getAttribute("content")).toBe(EXPLAINER_CSP);
     expect(doc.head.querySelector("script:not([data-hub])")).not.toBeNull();
     const order = [...doc.head.children].map((node) => node.getAttribute("data-hub") ?? node.tagName.toLowerCase());
-    expect(order.slice(0, 4)).toEqual(["meta", "kit", "bridge", "kit"]);
+    expect(order.slice(0, 5)).toEqual(["meta", "base", "kit", "bridge", "kit"]);
     expect(doc.head.children[1]?.tagName).toBe("STYLE");
-    expect(doc.head.children[3]?.tagName).toBe("SCRIPT");
+    expect(doc.head.children[2]?.tagName).toBe("STYLE");
+    expect(doc.head.children[4]?.tagName).toBe("SCRIPT");
+  });
+
+  // The Hub's frame supplies the gutter; the browser's 8px body margin must not stack on it,
+  // and a page that opted out of the kit still starts flush. The layer lets the page's own rules win.
+  it("zeroes the body margin in a layer, with or without the kit", () => {
+    for (const html of ["<p>kit</p>", '<meta name="hub-kit" content="off"><p>no kit</p>']) {
+      const base = parse(buildExplainerDocument(html, options())).querySelector('style[data-hub="base"]');
+      expect(base?.textContent).toBe(EXPLAINER_BASE_CSS);
+    }
+    expect(EXPLAINER_BASE_CSS).toMatch(/^@layer hub-base \{ html, body \{ margin: 0; \} \}$/);
   });
 
   it("allows no network and keeps the sandbox-relevant directives", () => {

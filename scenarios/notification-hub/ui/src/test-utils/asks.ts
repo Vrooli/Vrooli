@@ -1,6 +1,9 @@
 import { create } from "@bufbuild/protobuf";
 import { ListAsksResponseSchema, type Ask, type AskFacetCount, type ListAsksRequest, type ListAsksResponse } from "@vrooli/proto-types/notification-hub/v1/conversations/conversations_pb";
 
+/** The window the Hub reports (AttentionClosingWindow) unless a test says another. */
+export const DEFAULT_CLOSING_WINDOW_SECONDS = 6 * 60 * 60;
+
 /** A page of decisions as `ListAsks` returns it. */
 export interface AsksPage {
   asks: Ask[];
@@ -8,6 +11,8 @@ export interface AsksPage {
   totalAwaiting?: number;
   /** The filter choices the server counted, as `[value, count]` pairs. Absent means the server sent none. */
   facets?: { urgencies?: [string, number][]; senders?: [string, number][] };
+  /** How long before its deadline the Hub calls an ask closing soon; the Hub's own 6 hours when omitted. */
+  closingWindowSeconds?: number;
 }
 
 const facetCounts = (pairs: [string, number][] = []): Pick<AskFacetCount, "value" | "count">[] => pairs.map(([value, count]) => ({ value, count }));
@@ -25,7 +30,7 @@ const isCountRead = (request: Partial<ListAsksRequest>) =>
 export function listAsksFor(handler: (request: Partial<ListAsksRequest>) => AsksPage | Promise<AsksPage>, awaiting = 0) {
   const respond = (page: AsksPage): ListAsksResponse =>
     create(ListAsksResponseSchema, {
-      asks: page.asks, nextCursor: page.nextCursor ?? "", totalAwaiting: page.totalAwaiting ?? 0,
+      asks: page.asks, nextCursor: page.nextCursor ?? "", totalAwaiting: page.totalAwaiting ?? 0, closingWindowSeconds: page.closingWindowSeconds ?? DEFAULT_CLOSING_WINDOW_SECONDS,
       ...(page.facets ? { facets: { urgencies: facetCounts(page.facets.urgencies), senders: facetCounts(page.facets.senders) } } : {}),
     });
   return async (request: Partial<ListAsksRequest>): Promise<ListAsksResponse> =>

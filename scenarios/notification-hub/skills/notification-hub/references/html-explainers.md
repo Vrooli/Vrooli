@@ -64,6 +64,13 @@ This is advice. The kit already follows it, and you may bend all of it.
   placeholder text or "Lorem ipsum".
 - **Space things evenly.** The kit sets spacing in `rem` on one scale. Keep to
   it, and leave room around tap targets (44 px high or more).
+- **Leave the page gutter to the Hub.** The frame runs the full width of the
+  phone and the kit gives `body` one `1rem` gutter, the same as the question
+  above it. Do not add body padding or margin, a wrapper with side margins or a
+  `max-width`, or a bordered box around the whole page: it stacks a second
+  gutter, and on a 390 px screen your text starts a tenth of the way in. Pad
+  the cards, not the page. A band that reaches the screen edge is fine:
+  `margin: 0 -1rem; padding: 0 1rem` (see `media-walkthrough.html`).
 - **Say what happens next** and what happens if the operator does not answer.
   The cover already says it; repeat it only if the page would be confusing
   without it.
@@ -77,7 +84,9 @@ templates. Change fonts, color, density and layout when the content asks for it.
 
 The Hub adds the kit to every page. It is a stylesheet in `@layer hub-kit`, so
 any style you write yourself wins, plus a small script for `.hub-compare`.
-Opt out with `<meta name="hub-kit" content="off">`.
+Opt out with `<meta name="hub-kit" content="off">`. Even then the Hub zeroes the
+browser's 8 px `body` margin (in its own layer, so anything you write wins), so a
+page with no kit still starts flush against the Hub's frame.
 
 Tokens (CSS custom properties, light and dark): `--hub-bg`, `--hub-surface`,
 `--hub-surface-muted`, `--hub-fg`, `--hub-muted`, `--hub-border`,

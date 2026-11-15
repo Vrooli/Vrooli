@@ -13,7 +13,8 @@
   },
   "row": {
     "dueIn": "期限 {{when}}",
-    "escalated": "エスカレーション済み"
+    "escalated": "エスカレーション済み",
+    "closesIn": "締切 {{when}}"
   },
   "urgency": {
     "low": "低",
@@ -23,10 +24,16 @@
   },
   "sort": {
     "label": "並べ替え",
-    "attention": "緊急度の高い順",
+    "attention": "要対応を先に",
     "due": "期限の近い順",
     "newest": "新しい順",
-    "oldest": "古い順"
+    "oldest": "古い順",
+    "how": {
+      "attention": "要対応順: エスカレーション済み、{{count}} 時間以内に締切、緊急度、締切時刻の順",
+      "due": "締切が近い順: 締切時刻が早いものから、次に緊急度",
+      "newest": "新しい順: 最近届いたものが上",
+      "oldest": "古い順: 待ち時間が長いものが上"
+    }
   },
   "filters": {
     "open": "絞り込み",
@@ -37,5 +44,8 @@
     "remove": "絞り込みを解除: {{name}}",
     "active": "適用中の絞り込み",
     "openActive": "絞り込み ({{count}})"
+  },
+  "group": {
+    "closing": "{{count}} 時間以内に締切"
   }
 }

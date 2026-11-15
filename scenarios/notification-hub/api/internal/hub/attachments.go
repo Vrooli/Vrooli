@@ -50,7 +50,6 @@ const (
 
 // Warning codes of attachments. They extend the packet check.
 const (
-	WarnAttachmentAnonymous     = "attachment_requires_identity"
 	WarnAttachmentLimit         = "attachment_limit"
 	WarnAttachmentBlobMissing   = "attachment_blob_missing"
 	WarnAttachmentInvalid       = "attachment_invalid"
@@ -205,9 +204,13 @@ func (s *Service) prepareAttachments(ctx context.Context, spec AskSpec, check bo
 		return spec, nil, nil
 	}
 	if !spec.VerifiedProducer {
-		spec.Attachments = nil
-		return spec, []PacketWarning{attachmentWarning(WarnAttachmentAnonymous, "attachments",
-			"attachments need a verified sender (an agent run or the owner); this ask came with no identity, so every attachment was left out.", WarningDropped)}, nil
+		// The Hub may retain bytes an anonymous caller uploads, but it must never
+		// inspect a caller-selected host path while preparing or later reading the
+		// ask. Drop source provenance and keep only the content-addressed copy.
+		for i := range spec.Attachments {
+			spec.Attachments[i].SourcePath = ""
+			spec.Attachments[i].SourceHost = ""
+		}
 	}
 	shaped, warnings := shapeAttachments(spec.Attachments)
 	resolved, more, err := s.resolveAttachments(ctx, shaped, check)

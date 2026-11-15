@@ -47,6 +47,8 @@ const TEXT_WARMER = "Warmer";
 const TEXT_WHAT_DOES_THE_GATE = "What does the gate mean?";
 
 const RAW_URGENCY = "high";
+const SOURCE_TOKEN = "operator";
+const SENDER_NAME = "Research Desk";
 const ASK_ID = "ask-1";
 const LATEST_ANSWER = "Second answer";
 const GATE_QUESTION = "What gate?";
@@ -161,7 +163,23 @@ describe("a plain decision", () => {
     const id = screen.getByText(ASK_ID);
     expect(id.closest("p")).toHaveTextContent(`${text.status.requestId} ${ASK_ID}`);
     const page = id.closest("section")!;
-    expect(page.firstElementChild).toBe(within(page).getByRole("link", { name: en.layout.nav.asks }));
+    const back = within(page).getByRole("link", { name: en.layout.nav.asks });
+    expect(page.firstElementChild).toContainElement(back);
+    // The id is a footnote after the question, never ahead of it.
+    expect(screen.getByTestId(selectors.asks.question).compareDocumentPosition(id) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  // The page showed `ask.source` ("operator") where the sender's name belongs.
+  it("names the sender, and falls back to the source only when it gave no name", async () => {
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({ ask: makeAsk({ source: SOURCE_TOKEN, sender: SENDER_NAME }) } as never);
+    const { unmount } = renderAsk();
+    expect(await screen.findByText(SENDER_NAME)).toBeInTheDocument();
+    expect(screen.queryByText(SOURCE_TOKEN)).not.toBeInTheDocument();
+    unmount();
+
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({ ask: makeAsk({ source: SOURCE_TOKEN, sender: "" }) } as never);
+    renderAsk();
+    expect(await screen.findByText(SOURCE_TOKEN)).toBeInTheDocument();
   });
 
   it("shows the recommended option first, marked, with the default's countdown", async () => {

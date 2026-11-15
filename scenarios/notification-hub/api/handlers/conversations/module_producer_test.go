@@ -146,18 +146,18 @@ func (p *askPushCounter) count() int {
 	return p.n
 }
 
-// Decision requests stay durable after the shared source bucket empties;
-// only their device push is suppressed.
-func TestAgentAskPushBudgetStoresWithoutDevicePush(t *testing.T) {
+// Identityless decision requests stay durable after the anonymous-source
+// bucket empties; only their device push is suppressed.
+func TestIdentitylessAskPushBudgetStoresWithoutDevicePush(t *testing.T) {
 	ctx := context.Background()
 	client, service, db := newAskFixture(t)
 	service.SetPushBudget(hub.PushBudgetConfig{Capacity: 1, RefillInterval: time.Minute})
 	require.NoError(t, service.RegisterPushSubscription(ctx, "configured-owner", hub.PushSubscription{Endpoint: "https://push.example/ask", P256DH: "key", Auth: "auth", Origin: "https://app.example"}))
 	sender := &askPushCounter{}
 	service.SetPushSender(sender)
-	first, err := client.Ask(ctx, agentAsk("valid-run-1", "first"))
+	first, err := client.Ask(ctx, agentAsk("", "first"))
 	require.NoError(t, err)
-	second, err := client.Ask(ctx, agentAsk("valid-run-1", "second"))
+	second, err := client.Ask(ctx, agentAsk("", "second"))
 	require.NoError(t, err, "over-budget decision requests still succeed")
 	require.Equal(t, 2, countAsks(t, db), "both asks remain stored")
 	require.Eventually(t, func() bool { return sender.count() == 1 }, asyncWait, 10*time.Millisecond)

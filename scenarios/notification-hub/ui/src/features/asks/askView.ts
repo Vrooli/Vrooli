@@ -19,6 +19,11 @@ export function urgencyLabel(urgency: string): (typeof URGENCY_LABEL)[Exclude<ke
   return null;
 }
 
+/** Who is asking: the sender's name when it gave one, else the raw source token. */
+export function senderLabel(ask: { sender: string; source: string }): string {
+  return ask.sender || ask.source;
+}
+
 /** Options in display order: the recommended answer first, then as asked. */
 export function orderedOptions(
   ask: Pick<Ask, "options" | "recommended">,

@@ -166,12 +166,12 @@ the decision text follows the [`notification-hub` skill](../../skills/notificati
 | `context_url` | no | HTTPS/HTTP link, or a local artifact path opened in Web Console |
 | `correlation` | no | String map (at most 1 KB) echoed verbatim in the resolution event |
 
-An event carries no files and no answer form. A signed webhook has no verified
-sender, so the Hub drops attachments from an ask it did not receive from a verified
-agent run or the owner (`attachment_requires_identity`), and file bytes do not fit a
-JSON event. A decision that needs a packet is raised through the CLI or the direct
-`Ask` RPC instead; the [`notification-hub` skill](../../skills/notification-hub/SKILL.md)
-compares the routes. A producer builds the payload with
+An event carries no files and no answer form, and file bytes do not fit a JSON
+event. A decision that needs a packet is raised through the CLI or the direct
+`Ask` RPC; these writes need no identity or approval, and an identityless
+uploader sends content directly without reading the shared hash inventory. The
+[`notification-hub` skill](../../skills/notification-hub/SKILL.md) compares the
+routes. A producer builds the payload with
 `operatordecision.Facts`, whose zero values mean the Hub's defaults.
 
 Any scenario opts into operator asks by publishing a `*.decision_requested.v1`

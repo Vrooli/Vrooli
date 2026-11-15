@@ -6,7 +6,7 @@ import type { Ask } from "@vrooli/proto-types/notification-hub/v1/conversations/
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import { safeContextUrl, urgencyLabel } from "../asks/askView";
+import { safeContextUrl, senderLabel, urgencyLabel } from "../asks/askView";
 import { useNow } from "../../hooks/useNow";
 import { formatDueIn, formatExact } from "../../lib/ago";
 import { Chip } from "./Chip";
@@ -42,13 +42,14 @@ export function PacketCover({ ask, links, webConsole, onOpenAttachment, outcome,
   if (contextPath) contextHref = fileReferenceHref(contextPath, consoleUrl.data);
   else if (contextRef && !attachedContext) contextHref = safeContextUrl(contextRef);
   const urgency = urgencyLabel(ask.urgency);
+  const sender = senderLabel(ask);
 
   return (
     <>
-      <div className="flex flex-col gap-3">
-        {(ask.source || urgency || ask.deadline) && (
+      <div className="flex flex-col gap-2 md:gap-3">
+        {(sender || urgency || ask.deadline) && (
           <p className="flex flex-wrap items-center gap-2 text-sm text-app-muted-foreground">
-            {ask.source && <span className="break-all">{ask.source}</span>}
+            {sender && <span className="[overflow-wrap:anywhere]">{sender}</span>}
             {urgency && <Chip tone="attention">{t(urgency)}</Chip>}
             {ask.deadline && (
               <Chip>
@@ -57,7 +58,7 @@ export function PacketCover({ ask, links, webConsole, onOpenAttachment, outcome,
             )}
           </p>
         )}
-        <h1 id="ask-heading" dir="auto" data-testid={selectors.asks.question} className="break-words text-2xl font-semibold leading-snug">
+        <h1 id="ask-heading" dir="auto" data-testid={selectors.asks.question} className="break-words text-xl font-semibold leading-snug md:text-2xl">
           <DecisionText value={ask.question} inheritText dense links={links} />
         </h1>
         {outcome}
@@ -84,16 +85,16 @@ export function PacketCover({ ask, links, webConsole, onOpenAttachment, outcome,
       )}
       {afterQuestion}
       {ask.bigPicture && (
-        <details open className="rounded-panel border border-app-border bg-app-surface p-3">
-          <summary className="min-h-11 cursor-pointer py-2 font-medium">{t(strings.packet.cover.bigPicture)}</summary>
-          <DecisionText value={ask.bigPicture} links={links} className="mt-1 block text-base leading-relaxed text-app-muted-foreground" />
+        <details open className="rounded-panel border border-app-border bg-app-surface px-3 open:pb-3">
+          <summary className="min-h-11 cursor-pointer py-2.5 font-medium">{t(strings.packet.cover.bigPicture)}</summary>
+          <DecisionText value={ask.bigPicture} links={links} className="block text-base leading-relaxed text-app-muted-foreground" />
         </details>
       )}
       <Recommendation ask={ask} links={links} />
       {ask.technicalDetails && (
-        <details className="rounded-panel border border-app-border bg-app-surface p-3">
-          <summary className="min-h-11 cursor-pointer py-2 font-medium">{t(strings.packet.cover.technicalDetails)}</summary>
-          <DecisionText value={ask.technicalDetails} links={links} className="mt-1 block text-app-muted-foreground" />
+        <details className="rounded-panel border border-app-border bg-app-surface px-3 open:pb-3">
+          <summary className="min-h-11 cursor-pointer py-2.5 font-medium">{t(strings.packet.cover.technicalDetails)}</summary>
+          <DecisionText value={ask.technicalDetails} links={links} className="block text-app-muted-foreground" />
         </details>
       )}
     </>

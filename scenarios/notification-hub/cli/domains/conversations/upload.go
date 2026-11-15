@@ -32,8 +32,9 @@ const (
 	statBatch = 500
 )
 
-// uploader sends attachment bytes to the Hub: it asks which hashes the Hub
-// lacks, then stores only those.
+// uploader sends attachment bytes to the Hub. Callers with inventory access
+// first check which hashes are missing; other callers upload by hash directly.
+// Put is idempotent either way.
 type uploader struct {
 	client   connectv1.ConversationsServiceClient
 	progress io.Writer
@@ -57,7 +58,12 @@ func (u uploader) upload(ctx context.Context, files []localFile) error {
 	}
 	missing, err := u.stat(ctx, hashes)
 	if err != nil {
-		return err
+		if !cannotInspectInventory(err) {
+			return err
+		}
+		// A sender may write packet content without learning which other callers'
+		// content hashes the Hub already holds.
+		missing = hashes
 	}
 	var toSend []localFile
 	var bytes int64
@@ -86,11 +92,22 @@ func (u uploader) stat(ctx context.Context, hashes []string) ([]string, error) {
 			return u.client.StatAttachmentBlobs(ctx, connect.NewRequest(&v1.StatAttachmentBlobsRequest{Sha256: hashes[start:end]}))
 		})
 		if err != nil {
+			if cannotInspectInventory(err) {
+				return nil, err
+			}
 			return nil, uploadError("check which attachments the hub already holds", err)
 		}
 		missing = append(missing, resp.Msg.GetMissing()...)
 	}
 	return missing, nil
+}
+
+func cannotInspectInventory(err error) bool {
+	var connectErr *connect.Error
+	if !errors.As(err, &connectErr) {
+		return false
+	}
+	return connectErr.Code() == connect.CodeUnauthenticated || connectErr.Code() == connect.CodePermissionDenied
 }
 
 // put stores each file with bounded concurrency and memory. The first failure
@@ -215,11 +232,11 @@ func uploadError(action string, err error) error {
 	if errors.As(err, &connectErr) {
 		switch connectErr.Code() {
 		case connect.CodeUnauthenticated:
-			return fmt.Errorf("%s: attachments need a verified sender, and the Hub received no identity; run this from an agent run or while signed in as the owner", action)
+			return fmt.Errorf("%s: the Hub refused this attachment operation: %w", action, err)
 		case connect.CodeResourceExhausted:
-			return fmt.Errorf("%s: the Hub already holds its limit of uploads that no ask references yet (they expire after 24 hours); send fewer or smaller files, or try again later", action)
+			return fmt.Errorf("%s: the Hub already holds its limit of uploads that no ask references yet (they expire after 24 hours); send fewer or smaller files, or try again later: %w", action, err)
 		case connect.CodeUnavailable:
-			return fmt.Errorf("%s: the Hub's upload slots stayed busy after %d tries; try again shortly", action, uploadAttempts)
+			return fmt.Errorf("%s: the Hub's upload slots stayed busy after %d tries; try again shortly: %w", action, uploadAttempts, err)
 		}
 	}
 	return cliapp.WrapAPIError(action, err, nil)

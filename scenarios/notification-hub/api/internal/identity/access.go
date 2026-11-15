@@ -83,6 +83,12 @@ func (a OwnerAuthenticator) authenticate(r *http.Request) context.Context {
 	if !principal.IsHuman() || a.OwnerSubject == nil {
 		return ctx
 	}
+	if principal.Source == apiidentity.SourcePersonalLocal && len(r.Header.Values("Authorization")) > 0 {
+		// A request that presents a bearer says who it is, and the handlers verify
+		// that. Being on loopback must not make it the owner instead: a service
+		// token would then read every ask, and a sender would be named "Unnamed".
+		return ctx
+	}
 	subject := strings.TrimSpace(a.OwnerSubject(ctx))
 	if subject == "" {
 		return ctx

@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Check, Clock } from "lucide-react";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import type { Ask } from "@vrooli/proto-types/notification-hub/v1/conversations/conversations_pb";
 
@@ -11,7 +11,7 @@ import { useTranslation } from "../../i18n";
 import { formatDueIn } from "../../lib/ago";
 import { preserveRoutedTestMode } from "../routedTestMode";
 import { askStateKey, STATE_LABEL, STATE_TONE, type BadgeTone } from "./askState";
-import { askHeadline, askPreview, askTone, isAwaiting, optionLabel, urgencyLabel } from "./askView";
+import { askHeadline, askPreview, askTone, isAwaiting, optionLabel, senderLabel, urgencyLabel } from "./askView";
 import { RequestPacketMeta } from "./RequestPacketMeta";
 
 /**
@@ -48,7 +48,7 @@ export function DecisionRow({ ask, queue, search, from, onOpen }: {
         {headline !== ask.question && <span className="sr-only">{ask.question}</span>}
         {preview && <p className="mt-1 hidden line-clamp-2 text-sm text-app-muted-foreground md:block">{preview}</p>}
         <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm text-app-muted-foreground">
-          <span className="[overflow-wrap:anywhere]">{ask.sender || ask.source || t(strings.pages.history.unknownSource)}</span>
+          <span className="[overflow-wrap:anywhere]">{senderLabel(ask) || t(strings.pages.history.unknownSource)}</span>
           <span aria-hidden="true">·</span>
           <Time value={outcomeAt} />
         </p>
@@ -57,7 +57,12 @@ export function DecisionRow({ ask, queue, search, from, onOpen }: {
           {queue && ask.state === "escalated" && <StatusBadge tone="danger">{t(strings.asks.row.escalated)}</StatusBadge>}
           {!queue && ask.state === "escalated" && <StatusBadge tone="danger">{t(strings.pages.history.escalated)}</StatusBadge>}
           {urgency && <StatusBadge tone={urgencyTone}>{t(urgency)}</StatusBadge>}
-          {due && <StatusBadge tone={dueTone}>{t(strings.asks.row.dueIn, { when: due })}</StatusBadge>}
+          {due && ask.closingSoon && (
+            <StatusBadge tone={dueTone === "danger" ? "danger" : "warning"}>
+              <span className="inline-flex items-center gap-1"><Clock size={14} aria-hidden="true" />{t(strings.asks.row.closesIn, { when: due })}</span>
+            </StatusBadge>
+          )}
+          {due && !ask.closingSoon && <StatusBadge tone={dueTone}>{t(strings.asks.row.dueIn, { when: due })}</StatusBadge>}
           {answer && (
             <span className="inline-flex min-w-0 items-center gap-1 text-sm text-app-muted-foreground">
               <Check size={14} aria-hidden="true" className="shrink-0" />

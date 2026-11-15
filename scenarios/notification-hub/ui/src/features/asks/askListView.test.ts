@@ -2,10 +2,10 @@ import { create } from "@bufbuild/protobuf";
 import { AskSchema, ListAsksRequest_Order } from "@vrooli/proto-types/notification-hub/v1/conversations/conversations_pb";
 import { describe, expect, it } from "vitest";
 
-import { attentionTier, filterCount, groupByTier, listViewRequest, readListView, writeListView } from "./askListView";
+import { attentionTier, closingHours, filterCount, groupByTier, listViewRequest, readListView, writeListView } from "./askListView";
 
 const params = (query: string) => new URLSearchParams(query);
-const ask = (state: string, urgency: string) => create(AskSchema, { id: `${state}-${urgency}`, state, urgency });
+const ask = (state: string, urgency: string, closingSoon = false) => create(AskSchema, { id: `${state}-${urgency}${closingSoon ? "-closing" : ""}`, state, urgency, closingSoon });
 
 describe("readListView", () => {
   it("opens Needs you on what needs the owner first and History on the newest", () => {
@@ -67,6 +67,18 @@ describe("attention groups", () => {
     expect(attentionTier(ask("escalated", "low"))).toBe("escalated");
     expect(attentionTier(ask("pending", "critical"))).toBe("critical");
     expect(attentionTier(ask("pending", ""))).toBe("normal");
+  });
+
+  it("puts an ask the Hub marked closing soon above its urgency, and below an escalated one", () => {
+    expect(attentionTier(ask("pending", "low", true))).toBe("closing");
+    expect(attentionTier(ask("escalated", "low", true))).toBe("escalated");
+    const groups = groupByTier([ask("escalated", "normal"), ask("pending", "low", true), ask("pending", "normal", true), ask("pending", "critical")]);
+    expect(groups.map((group) => [group.tier, group.asks.length])).toEqual([["escalated", 1], ["closing", 2], ["critical", 1]]);
+  });
+
+  it("reads the window in whole hours", () => {
+    expect(closingHours(6 * 3600)).toBe(6);
+    expect(closingHours(undefined)).toBe(0);
   });
 
   it("groups consecutive asks of one tier, in the order they came", () => {

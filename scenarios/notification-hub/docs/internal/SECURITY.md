@@ -66,17 +66,15 @@ self-declared subject header is honored only where no verifier is wired (tests).
 This is stricter than `GetAsk`: a run or service that sent or raised an ask can
 read it but is never served its attachment bytes.
 
-**Storing attachment bytes needs a verified producer.** `StatAttachmentBlobs` and
-`PutAttachmentBlob` accept only a verified agent run, the verified owner or a
-verified service sender (`Unauthenticated` otherwise, `PermissionDenied` for a
-verified service token that is not a sender; decided before the request body is
-read), unlike
-`Ask`, which an identityless host process may still call. An `Ask` with no
-verified producer keeps no attachments (`attachment_requires_identity`), so an
-anonymous caller can neither fill the disk nor have the Hub read host paths for
-it. Uploads no ask references yet are capped at 1 GiB, expire after 24 hours, and
-are received at most two at a time. Every other procedure's message limit is
-applied after decompression.
+**Decision writes and attachment uploads need no identity or approval.**
+`PutAttachmentBlob` accepts anonymous callers under the existing hash, 64 MiB
+per-file, 1 GiB unreferenced-upload quota, and two-upload concurrency limits.
+Anonymous callers cannot use `StatAttachmentBlobs`, which reveals shared hash
+inventory; the CLI falls back to direct content-addressed uploads. Ask
+preparation strips anonymous `source_path` and `source_host`, so the Hub never
+probes caller-selected host paths. Uploaded bytes are retained for asks subject
+to the same packet limits. `Withdraw`, reads and owner answers still require
+their existing identity checks.
 
 **The drift check is owner-only.** For an ask whose sender ran on the Hub's host,
 `GetAsk` hashes the sender's `source_path` and reports whether it still matches the
@@ -84,7 +82,7 @@ stored copy, but only when the reader is the owner. A run or service reading an 
 gets `source_status: unknown` and the Hub reads no host path for it, so a verified
 run that can reach the Hub but not a file can no longer learn whether `/some/path`
 exists or whether its bytes equal a hash it chose. For the owner the bounds remain:
-only verified senders' attachments are stored, the read is limited to regular files
+only verified senders' retained source paths are checked, the read is limited to regular files
 of at most 64 MiB, a read hashes at most 64 MiB, and a result without a hash
 comparison is `unknown`, never `fresh`.
 
@@ -185,36 +183,31 @@ is ignored, as browsers do) with `InvalidArgument` naming the scheme. It keeps a
 `file://` path and a relative path, which the operator's agents legitimately link and the packet
 check only advises on (`local_context_url`).
 
-**Who is a sender, and what the Hub does not yet prove.** Direct writes (`Send`,
-`Relay`, `Ask`) can be attributed to a verified scenario through the sender role
-(api-core `hubsender`, one `principalrole.Role` like `askreader`). The signed event
-webhook cannot: it checks one shared HMAC, which proves vrooli-events delivered the
-event and not who published it, and takes `source_scenario` from the envelope. See
-PROBLEMS.md (2026-11-14, senders are not authenticated as services) for the staged
-fix at the event bus. Idempotency keys of direct producers share one namespace per
-recipient, so a sender should prefix its keys with its own name.
+**Request creation does not require a sender identity.** Direct writes (`Send`,
+`Relay`, `Ask`) accept identityless callers; a verified scenario sender is optional
+and supplies source attribution and read access to its own asks. The signed event
+webhook uses a separate trust path: one shared HMAC proves vrooli-events delivered
+the event, not who published it, and `source_scenario` comes from the envelope. See
+PROBLEMS.md for event-publisher provenance. Idempotency keys of direct producers
+share one namespace per recipient, so producers should prefix keys when retries
+could collide.
 
-**Files follow the verified sender, never the event.** Only a verified producer's
-attachments are stored: an agent run, the owner, or a `<source>-notification-hub`
-service sender. `StatAttachmentBlobs`, `PutAttachmentBlob` and `Withdraw` admit
-exactly that set (an identityless caller is `401`, a verified service token that is
-not a sender is `403` naming the mismatch), and a direct sender withdraws only asks
+**Files follow the ask, never the event.** Attachments may be uploaded by an
+identityless caller or a verified producer. `StatAttachmentBlobs` remains
+verified, while `PutAttachmentBlob` is identity optional. `Withdraw` admits the
+verified owner or a verified sender for its own asks (an identityless caller is
+`401`, a verified service token that is not a sender is `403` naming the mismatch), and a direct sender withdraws only asks
 stored under its own source with `source_event_type` empty, so it cannot close an
 event ask or another scenario's. An event, whoever it names as its source, never
 brings an attachment or a question into its ask. That is how Research Desk's
 explainer pages reach the operator: the desk sends as itself, not as an event.
 
-**Host programs send as a declared sender too.** The operator's own host-local programs
-are not scenarios, so a scenario declares their sender principal in its
-`.vrooli/service-principals.json`, and `hostPrograms` in
-`api/internal/identity/service_role_declarations_test.go` is the one list that says which
-source belongs to which declaring scenario. The portfolio steward is the first:
-`portfolio-steward-notification-hub` (source `portfolio-steward`, declared by this
-scenario, issued by `scenario-authenticator service-principals sync --apply`). Its asks
-carry `created_by` `service:portfolio-steward`, which is what lets it, and nothing else
-without an owner identity, read, wait on and withdraw them after ask reads closed to
-identityless callers. The Hub CLI sends as it when `NOTIFICATION_HUB_SEND_AS` names the
-source and no agent identity is present.
+**Host programs can create notifications and asks without sender setup.** A timer
+or service-manager process may call `notifications send` or `conversations ask`
+without an agent identity, sender principal, or permission request. The Hub stores
+the request when its source's device-push bucket is empty and suppresses device
+pushes until tokens refill. This creation path does not grant access to read,
+wait on, or withdraw asks; those operations retain their separate access checks.
 
 **Request creation is separate from owner identity.** Send, relay and decision
 asks do not require a verified identity, scope, grant or consent. A verified run
@@ -284,7 +277,9 @@ Recorded honestly rather than deferred silently.
     needs the same rule applied to notifications that are asks.
   - *In `personal_local` mode, loopback is the owner.* Any local process without an
     agent identity is then the owner and sees every ask. That is the explicit,
-    operator-chosen meaning of `VROOLI_AUTH_MODE=personal_local` (and the same fact
+    operator-chosen meaning of `VROOLI_AUTH_MODE=personal_local`, selected only
+    through the Hub's declared `authentication.default_mode` and never inherited
+    from the shell that restarted the Hub (and the same fact
     that makes `Answer` reachable), not something this change can undo. In any
     other mode the loopback is not the owner and the refusal holds.
   - *Event-sourced asks have no verified sender.* Anyone who can publish to Vrooli

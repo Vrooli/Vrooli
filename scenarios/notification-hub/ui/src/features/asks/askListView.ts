@@ -59,6 +59,17 @@ export function writeListView(params: URLSearchParams, view: ListView, queue: bo
   return next;
 }
 
+/** The one plain line that says how each sort orders the list; attention takes the closing window in hours as its count. */
+export const SORT_HOW = {
+  attention: strings.asks.sort.how.attention,
+  due: strings.asks.sort.how.due,
+  newest: strings.asks.sort.how.newest,
+  oldest: strings.asks.sort.how.oldest,
+} as const satisfies Record<Sort, string>;
+
+/** The Hub's closing window in whole hours, or 0 when it has not said (no page read yet). */
+export const closingHours = (seconds: number | undefined) => Math.round((seconds ?? 0) / 3600);
+
 export const filterCount = (view: ListView) => view.urgencies.length + view.senders.length;
 
 /** The fields of a `ListAsks` request that carry the view. Defaults and empty filters are left out. */
@@ -71,16 +82,22 @@ export function listViewRequest(view: ListView, queue: boolean) {
   };
 }
 
-/** The group an ask sits in when the list is ordered by attention: escalated asks first, then each urgency. */
-export type AttentionTier = "escalated" | Urgency;
+/**
+ * The group an ask sits in when the list is ordered by attention: escalated
+ * asks first, then those closing soon (as the Hub measured it), then each urgency.
+ */
+export type AttentionTier = "escalated" | "closing" | Urgency;
 
-export function attentionTier(ask: Pick<Ask, "state" | "urgency">): AttentionTier {
+export function attentionTier(ask: Pick<Ask, "state" | "urgency" | "closingSoon">): AttentionTier {
   if (ask.state === "escalated") return "escalated";
+  if (ask.closingSoon) return "closing";
   return URGENCIES.find((value) => value === ask.urgency) ?? "normal";
 }
 
+/** The group headings; "closing" takes the window's length in hours as its count. */
 export const TIER_LABEL = {
   escalated: strings.asks.row.escalated,
+  closing: strings.asks.group.closing,
   critical: URGENCY_LABEL.critical,
   high: URGENCY_LABEL.high,
   normal: URGENCY_LABEL.normal,

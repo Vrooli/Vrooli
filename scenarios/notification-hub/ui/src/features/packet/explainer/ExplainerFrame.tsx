@@ -77,8 +77,11 @@ export function ExplainerFrame({ askId, explainer, attachments, onOpen, onPrefil
   }, [theme]);
 
   return (
-    <section data-testid={selectors.packet.explainer} aria-label={t(strings.packet.explainer.label)} className="overflow-hidden rounded-panel border border-dashed border-app-warning/60 bg-app-surface">
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-dashed border-app-warning/60 bg-app-surface-muted px-3 py-2 text-xs text-app-muted-foreground">
+    // On a phone the page runs the full width of the screen, so its own text sits
+    // at the same gutter as the question above it; a panel with a frame, padding
+    // and a header stacked the gutters until the text started a tenth of the way in.
+    <section data-testid={selectors.packet.explainer} aria-label={t(strings.packet.explainer.label)} className="-mx-[var(--page-gutter)] overflow-hidden border-y border-dashed border-app-warning/60 bg-app-surface md:mx-0 md:rounded-panel md:border">
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-0.5 bg-app-surface-muted px-[var(--page-gutter)] py-1.5 text-xs text-app-muted-foreground md:border-b md:border-dashed md:border-app-warning/60 md:px-3">
         <span className="inline-flex items-center gap-1.5 font-semibold uppercase tracking-wide text-app-foreground">
           <Bot size={14} aria-hidden="true" />
           {t(strings.packet.explainer.label)}
@@ -88,9 +91,9 @@ export function ExplainerFrame({ askId, explainer, attachments, onOpen, onPrefil
           {t(strings.packet.explainer.sealed)}
         </span>
       </header>
-      {page.isPending && <p role="status" className="px-3 py-6 text-sm text-app-muted-foreground">{t(strings.packet.explainer.loading)}</p>}
+      {page.isPending && <p role="status" className="px-[var(--page-gutter)] py-6 text-sm text-app-muted-foreground md:px-3">{t(strings.packet.explainer.loading)}</p>}
       {page.isError && (
-        <div role="alert" className="flex flex-col items-start gap-3 px-3 py-4 text-sm">
+        <div role="alert" className="flex flex-col items-start gap-3 px-[var(--page-gutter)] py-4 text-sm md:px-3">
           <p>{t(strings.packet.explainer.failed)}</p>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={() => void page.refetch()}>

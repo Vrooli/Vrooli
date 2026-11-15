@@ -6,8 +6,12 @@ import { useTranslation } from "../../i18n";
 export function PacketBack({ returnTo, askId }: { returnTo: string; askId?: string }) {
   const { t } = useTranslation();
   return (
-    <BackLink to={returnTo} state={askId ? { restoreAskId: askId } : undefined}>
-      {t(returnTo.startsWith("/history") ? strings.layout.nav.history : strings.layout.nav.asks)}
-    </BackLink>
+    // On a phone the link's 44px target rises into the pane's top gutter, so the
+    // first line of the page is not a row of dead space under the status bar.
+    <div className="-mt-4 md:mt-0">
+      <BackLink to={returnTo} state={askId ? { restoreAskId: askId } : undefined}>
+        {t(returnTo.startsWith("/history") ? strings.layout.nav.history : strings.layout.nav.asks)}
+      </BackLink>
+    </div>
   );
 }

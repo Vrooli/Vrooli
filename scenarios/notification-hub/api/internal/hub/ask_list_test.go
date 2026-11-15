@@ -73,6 +73,8 @@ func (l *listAsks) ask(r raise) hub.AskRecord {
 	if r.state != "" {
 		l.set(ask.ID, `state = '`+r.state+`'`)
 	}
+	// Lists are read at listNow, the instant the deadlines are measured from.
+	l.service.SetClockForTest(fixedClock{now: listNow})
 	return ask
 }
 
@@ -159,12 +161,30 @@ func sortedBy(order hub.AskOrder, asks []hub.AskRecord) []string {
 		}
 		return 1
 	}
+	// closing is the first band after escalated: a pending ask whose deadline is
+	// at or before listNow plus the window, however long ago it passed.
+	closing := func(a hub.AskRecord) bool {
+		if a.State != hub.AskPending || a.Deadline == "" {
+			return false
+		}
+		deadline, err := time.Parse(time.RFC3339Nano, a.Deadline)
+		if err != nil {
+			panic(err)
+		}
+		return !deadline.After(listNow.Add(hub.AttentionClosingWindow))
+	}
 	// less compares on the order's leading fields; ok is false on a tie.
 	less := func(a, b hub.AskRecord) (before, decided bool) {
 		switch order {
 		case hub.AskOrderAttention:
 			if escalated(a) != escalated(b) {
 				return escalated(a) < escalated(b), true
+			}
+			if closing(a) != closing(b) {
+				return closing(a), true
+			}
+			if closing(a) && deadline(a) != deadline(b) {
+				return deadline(a) < deadline(b), true // inside the band, the nearest close leads
 			}
 			if urgency(a) != urgency(b) {
 				return urgency(a) < urgency(b), true
@@ -231,6 +251,8 @@ func (l *listAsks) seedMixed() []hub.AskRecord {
 		{age: 7 * time.Minute, due: time.Minute, urgency: "critical", state: hub.AskAnswered},
 		{age: 9 * time.Minute, due: 6 * 24 * time.Hour, urgency: "high", state: hub.AskDismissed},
 		{age: 10 * time.Minute, due: 24 * time.Hour, urgency: "normal"},
+		{age: 11 * time.Minute, due: hub.AttentionClosingWindow, urgency: "low"},                    // exactly on the edge: closing
+		{age: 12 * time.Minute, due: hub.AttentionClosingWindow + time.Second, urgency: "critical"}, // just outside
 	} {
 		raised = append(raised, l.ask(r))
 	}
@@ -267,11 +289,11 @@ func TestListAsksOrdersEveryWayAcrossPageBoundaries(t *testing.T) {
 	}
 }
 
-func TestListAsksAttentionLeadsWithEscalatedThenTheMostUrgent(t *testing.T) {
+func TestListAsksAttentionLeadsWithEscalatedThenClosingThenTheMostUrgent(t *testing.T) {
 	l := newListAsks(t)
 	// The operator's case: urgency outranks a nearer deadline, and an escalated
 	// ask outranks urgency.
-	dueSoonNormal := l.ask(raise{age: time.Hour, due: 2 * time.Hour, urgency: "normal"})
+	dueSoonNormal := l.ask(raise{age: time.Hour, due: 7 * time.Hour, urgency: "normal"})
 	dueLateHigh := l.ask(raise{age: 2 * time.Hour, due: 5 * 24 * time.Hour, urgency: "high"})
 	dueLateCritical := l.ask(raise{age: 3 * time.Hour, due: 6 * 24 * time.Hour, urgency: "critical"})
 	escalatedLow := l.ask(raise{age: 4 * time.Hour, due: 3 * time.Hour, urgency: "low", state: hub.AskEscalated})
@@ -279,10 +301,10 @@ func TestListAsksAttentionLeadsWithEscalatedThenTheMostUrgent(t *testing.T) {
 	require.Equal(t, []string{escalatedLow.ID, dueLateCritical.ID, dueLateHigh.ID, dueSoonNormal.ID}, ids)
 
 	due, _ := l.pageThrough(hub.AskListOptions{OpenOnly: true, Limit: 50, Order: hub.AskOrderDue})
-	require.Equal(t, []string{dueSoonNormal.ID, escalatedLow.ID, dueLateHigh.ID, dueLateCritical.ID}, due, "due soonest ignores urgency until deadlines tie")
+	require.Equal(t, []string{escalatedLow.ID, dueSoonNormal.ID, dueLateHigh.ID, dueLateCritical.ID}, due, "due soonest ignores urgency until deadlines tie")
 
 	// An ask stored with no urgency counts as normal.
-	unset := l.ask(raise{age: time.Minute, due: 2 * time.Hour})
+	unset := l.ask(raise{age: time.Minute, due: 7 * time.Hour})
 	l.set(unset.ID, `urgency = ''`)
 	ids, _ = l.pageThrough(hub.AskListOptions{OpenOnly: true, Limit: 50, Order: hub.AskOrderAttention})
 	require.Equal(t, []string{escalatedLow.ID, dueLateCritical.ID, dueLateHigh.ID, unset.ID, dueSoonNormal.ID}, ids, "a normal ask raised later leads an earlier one with the same deadline")
@@ -551,4 +573,85 @@ func TestPushCarriesTheCurrentAwaitingCount(t *testing.T) {
 	require.NoError(t, service.Process(ctx, insertPending(t, db, "alice", "an update", "public")))
 	require.Eventually(t, func() bool { return pushCount(sender) == 3 }, asyncWait, 10*time.Millisecond)
 	require.Equal(t, []int{1, 2, 0}, counts())
+}
+
+// The band of asks closing soon sits between escalated and urgency. Its edges are
+// the window itself, a deadline already past, and an ask with no deadline.
+func TestListAsksAttentionPutsAsksClosingWithinTheWindowFirst(t *testing.T) {
+	l := newListAsks(t)
+	window := hub.AttentionClosingWindow
+	critical := l.ask(raise{age: time.Hour, due: 3 * 24 * time.Hour, urgency: "critical"})
+	justOutside := l.ask(raise{age: 2 * time.Hour, due: window + time.Second, urgency: "critical"})
+	noDeadline := l.ask(raise{age: 3 * time.Hour, noDeadline: true, urgency: "critical"})
+	onTheEdge := l.ask(raise{age: 4 * time.Hour, due: window, urgency: "low"})
+	soon := l.ask(raise{age: 5 * time.Hour, due: time.Hour, urgency: "low"})
+	past := l.ask(raise{age: 6 * time.Hour, due: -time.Hour, urgency: "low"})
+	escalatedFar := l.ask(raise{age: 7 * time.Hour, due: 5 * 24 * time.Hour, urgency: "low", state: hub.AskEscalated})
+	escalatedSoon := l.ask(raise{age: 8 * time.Hour, due: time.Minute, urgency: "normal", state: hub.AskEscalated})
+	answered := l.ask(raise{age: 9 * time.Hour, due: -2 * time.Hour, urgency: "critical", state: hub.AskAnswered})
+
+	got, page := l.pageThrough(hub.AskListOptions{Limit: 2, Order: hub.AskOrderAttention})
+	require.Equal(t, []string{
+		escalatedSoon.ID, escalatedFar.ID, // escalated first, then by the rest of the order: nearer close first
+		past.ID, soon.ID, onTheEdge.ID, // closing: an expired deadline still pending leads, then the nearest close, whatever the urgency
+		// The rest by urgency, then the earliest deadline, none last. A closed ask is
+		// never in the band, so the answered one, long past due, is just the earliest.
+		answered.ID, justOutside.ID, critical.ID, noDeadline.ID,
+	}, got)
+	require.Equal(t, window, page.ClosingWindow)
+
+	flagged := map[string]bool{}
+	all, err := l.service.ListAsksPage(context.Background(), "alice", hub.AskListOptions{Limit: 50, Order: hub.AskOrderAttention})
+	require.NoError(t, err)
+	for _, ask := range all.Asks {
+		flagged[ask.ID] = ask.ClosingSoon
+	}
+	require.Equal(t, map[string]bool{
+		escalatedSoon.ID: true, escalatedFar.ID: false, past.ID: true, soon.ID: true, onTheEdge.ID: true,
+		critical.ID: false, justOutside.ID: false, noDeadline.ID: false, answered.ID: false,
+	}, flagged, "an open ask is marked closing soon exactly when its deadline is within the window")
+}
+
+// The window is measured from the instant the first page was read, which the
+// cursor carries. If the clock moved between pages an ask that has crossed into
+// the window would jump ahead of the cursor and the next page would skip or
+// repeat rows.
+func TestListAsksAttentionPagesAgainstTheTimeTheFirstPageWasRead(t *testing.T) {
+	l := newListAsks(t)
+	ctx := context.Background()
+	var all []hub.AskRecord
+	for i := range 6 {
+		all = append(all, l.ask(raise{age: time.Duration(i+1) * time.Minute, due: hub.AttentionClosingWindow + time.Duration(i+1)*time.Hour, urgency: []string{"low", "normal", "high"}[i%3]}))
+	}
+	want := sortedBy(hub.AskOrderAttention, func() []hub.AskRecord {
+		stored := make([]hub.AskRecord, 0, len(all))
+		for _, ask := range all {
+			record, err := l.service.GetAsk(ctx, ask.ID)
+			require.NoError(t, err)
+			stored = append(stored, record)
+		}
+		return stored
+	}())
+
+	opts := hub.AskListOptions{OpenOnly: true, Limit: 2, Order: hub.AskOrderAttention}
+	first, err := l.service.ListAsksPage(ctx, "alice", opts)
+	require.NoError(t, err)
+	got := askIDs(first.Asks)
+
+	// Seven hours pass: every ask is now inside the window.
+	l.service.SetClockForTest(fixedClock{now: listNow.Add(7 * time.Hour)})
+	for first.NextCursor != "" {
+		opts.Cursor = first.NextCursor
+		first, err = l.service.ListAsksPage(ctx, "alice", opts)
+		require.NoError(t, err)
+		for _, ask := range first.Asks {
+			require.False(t, ask.ClosingSoon, "the later pages use the first page's time, at which none of these is closing")
+		}
+		got = append(got, askIDs(first.Asks)...)
+	}
+	require.Equal(t, want, got, "the order the first page promised holds to the last page")
+
+	// A list read afresh uses the new time: every ask is now closing, nearest first.
+	fresh, _ := l.pageThrough(hub.AskListOptions{OpenOnly: true, Limit: 50, Order: hub.AskOrderAttention})
+	require.Equal(t, askIDs(all), fresh)
 }

@@ -229,11 +229,14 @@ values of one filter with OR.
 | `--sender` | A sender exactly as the list prints it; repeat for several (`--sender 'Research Desk' --sender 'Agent run'`). Never split on commas. |
 | `--query` | A literal substring of the question, source, options, answer, note or requester |
 
-`attention` is what needs the operator first: escalated asks, then urgency
-(critical, high, normal, low), then the earliest deadline (an ask with none last),
-then newest. `due` is the earliest deadline first, then urgency, then newest. Both
+`attention` is what needs the operator first: escalated asks, then pending asks
+closing within 6 hours (an expired deadline not yet processed counts; the
+nearest close first), then urgency (critical, high, normal, low), then the
+earliest deadline (an ask with none last), then newest. The window is the Hub's
+(`closing_window_seconds` in `--json`), and each ask in it carries
+`closing_soon: true`. `due` is the earliest deadline first, then urgency, then newest. Both
 tie-break to a fixed order, so a page boundary never repeats or skips an ask. A
-closed ask is never escalated, so for it `attention` is urgency, deadline, newest.
+closed ask is never escalated or closing, so for it `attention` is urgency, deadline, newest.
 
 ```text
 $ notification-hub conversations list --open --sort attention --urgency high,critical
@@ -549,32 +552,24 @@ Other situations:
 | A research supervisor needs the operator | A needs-you item; Research Desk forwards it | The item title becomes the question and its body becomes the big picture. Write both for a stranger; keep IDs and paths in a final "Details" line. |
 | Information only, no answer needed | `notification-hub notifications send --title ... --body ...` | Title says what happened; first body line says which one; say "No action needed". See `docs/concepts/NOTIFICATIONS.md` § Writing the title and body. |
 | Scenario code asking for a decision | Publish a `*.decision_requested.v1` event | See `docs/concepts/INTEGRATIONS.md` § Decision requests. |
-| Scenario code sending a notice or ask directly, as itself | Declare a `<source>-notification-hub` principal in `.vrooli/service-principals.json` (resource `notification-hub`, scope `notification-hub:send`; audience and token client are api-core `hubsender`); the operator runs `scenario-authenticator service-principals sync --apply`; send `Send`, `Relay` or `Ask` with `Authorization: Bearer` from `hubsender.NewTokens` | The Hub takes the source from the principal name, so no request field names one and a token that is not a sender is refused with the reason. Use an idempotency key prefixed with your scenario's name. |
+| Scenario code sending a notice or ask directly, as itself | Send through the Hub API/CLI without obtaining permission or provisioning a sender principal. The Hub applies the configured device-push bucket to the source; an exhausted bucket suppresses device pushes while the notification or ask remains stored. | Use a stable idempotency key where retries are possible. A send being accepted does not approve the action described by an ask; the operator's answer remains the decision. |
 
 ### A host program that is not an agent run
 
-A program started by a timer or a service manager has no run identity, and the
-Hub reads asks back only to a verified caller. Give it a sender principal and
-set one variable; the commands are the same.
+A timer or service-manager process can send notifications and decision asks
+without agent identity, an authorization token, or an operator permission step:
 
 ```bash
-# once, by the owner of the program: declare <source>-notification-hub in the
-# scenario's .vrooli/service-principals.json, then the operator runs
-scenario-authenticator service-principals sync --apply
-# in the program's environment (not an agent run):
-NOTIFICATION_HUB_SEND_AS=portfolio-steward notification-hub conversations ask ...
-NOTIFICATION_HUB_SEND_AS=portfolio-steward notification-hub conversations wait --subject-key K
+notification-hub notifications send --title 'Backup finished' --body 'No action needed.'
+notification-hub conversations ask --yes-no --subject-key backup-retry --question 'Retry the backup now?'
 ```
 
-With `NOTIFICATION_HUB_SEND_AS=<source>` the CLI exchanges the credential of
-`<source>-notification-hub` for a token and presents it on `ask`, `get`, `list`,
-`wait` and `withdraw`. The Hub attributes what it sends to `<source>` and shows
-it only the asks that source sent. A credential that is not issued, a credential
-store the process cannot read (a systemd user session may not reach the keyring),
-or a credential that fails to exchange is an error that says which and names the
-principal: it never falls back to an anonymous request. An agent run identity
-wins over the switch, and an explicit `NOTIFICATION_HUB_API_TOKEN` overrides it.
-Agents do not use it.
+The Hub stores each accepted request even when its source's device-push bucket
+is empty. Bucket capacity and drain rate are configurable; when the bucket has
+capacity again, later requests can push to devices. Keep routine outcomes in the
+Hub and use an ask only when an operator decision is required. Do not request
+permission to send through the Hub. A decision request still asks the operator
+to decide the described action; it does not grant permission to send messages.
 
 ## Read receipt
 

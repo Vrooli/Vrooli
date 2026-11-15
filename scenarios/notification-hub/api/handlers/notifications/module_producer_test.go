@@ -204,12 +204,12 @@ func (p *pushCounter) count() int {
 	return p.n
 }
 
-// Sends stay accepted and durable after the per-run bucket empties. Only the
-// device push stops, then resumes after a token drains back into the bucket.
-func TestNotificationProducerPushBudgetStoresWithoutDevicePush(t *testing.T) {
+// Host sends stay accepted and durable after the anonymous-source bucket
+// empties. Only device pushes stop, then resume after a token refills.
+func TestIdentitylessNotificationPushBudgetStoresWithoutDevicePush(t *testing.T) {
 	ctx := context.Background()
 	clock := &steppingClock{now: time.Date(2026, 11, 11, 12, 0, 0, 0, time.UTC)}
-	f := newProducerFixture(t, clock, map[string]agentRun{"looping": {}, "other": {}})
+	f := newProducerFixture(t, clock, map[string]agentRun{"other": {}})
 	f.service.SetPushBudget(hub.PushBudgetConfig{Capacity: 2, RefillInterval: time.Minute})
 	require.NoError(t, f.service.RegisterPushSubscription(ctx, "configured-owner", hub.PushSubscription{Endpoint: "https://push.example/device", P256DH: "key", Auth: "auth", Origin: "https://app.example"}))
 	sender := &pushCounter{}
@@ -217,7 +217,7 @@ func TestNotificationProducerPushBudgetStoresWithoutDevicePush(t *testing.T) {
 
 	var ids []string
 	for _, key := range []string{"one", "two", "three"} {
-		resp, err := f.send(ctx, "valid-looping", key)
+		resp, err := f.send(ctx, "", key)
 		require.NoError(t, err)
 		ids = append(ids, resp.Msg.GetNotification().GetId())
 	}
@@ -228,7 +228,7 @@ func TestNotificationProducerPushBudgetStoresWithoutDevicePush(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "suppressed", stored.State, "the over-limit item remains visible in the hub")
 
-	replay, err := f.send(ctx, "valid-looping", "one")
+	replay, err := f.send(ctx, "", "one")
 	require.NoError(t, err, "an idempotent replay uses no budget")
 	require.Equal(t, ids[0], replay.Msg.GetNotification().GetId())
 
@@ -238,7 +238,7 @@ func TestNotificationProducerPushBudgetStoresWithoutDevicePush(t *testing.T) {
 	require.Eventually(t, func() bool { return sender.count() == 3 }, asyncWait, 10*time.Millisecond)
 
 	clock.advance(time.Minute)
-	later, err := f.send(ctx, "valid-looping", "four")
+	later, err := f.send(ctx, "", "four")
 	require.NoError(t, err, "requests remain accepted after bucket refill")
 	f.settle(t, later.Msg.GetNotification().GetId())
 	require.Eventually(t, func() bool { return sender.count() == 4 }, asyncWait, 10*time.Millisecond)

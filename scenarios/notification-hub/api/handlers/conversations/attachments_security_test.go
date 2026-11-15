@@ -59,7 +59,7 @@ func TestAttachmentContentRoute_ARevisionThatReusesANameIsNeverServedFromTheOldC
 
 // ---- who may upload ------------------------------------------------------------
 
-func TestStatAndPutAttachmentBlob_NeedAVerifiedProducerAndStoreNothingWithout(t *testing.T) {
+func TestAnonymousCanUploadButCannotInspectAttachmentInventory(t *testing.T) {
 	f := newAttachmentFixture(t)
 	store := blobstore.NewMemoryBlobStore()
 	f.service.SetAttachmentStore(hub.StaticBlobStore(store))
@@ -67,16 +67,20 @@ func TestStatAndPutAttachmentBlob_NeedAVerifiedProducerAndStoreNothingWithout(t 
 	content := "uploaded by nobody"
 
 	_, err := f.anonymous.PutAttachmentBlob(ctx, connect.NewRequest(&v1.PutAttachmentBlobRequest{Sha256: hashOf([]byte(content)), Content: []byte(content)}))
-	require.Equal(t, connect.CodeUnauthenticated, codeOf(t, err), "an identityless host process cannot store bytes")
+	require.NoError(t, err, "packet content upload does not require an identity")
 	_, err = f.anonymous.StatAttachmentBlobs(ctx, connect.NewRequest(&v1.StatAttachmentBlobsRequest{Sha256: []string{hashOf([]byte(content))}}))
 	require.Equal(t, connect.CodeUnauthenticated, codeOf(t, err), "nor learn what it holds")
-	_, _, err = store.Get(ctx, "sha256/"+hashOf([]byte(content))[:2]+"/"+hashOf([]byte(content)))
-	require.Error(t, err, "nothing was stored")
+	stored, _, err := store.Get(ctx, "sha256/"+hashOf([]byte(content))[:2]+"/"+hashOf([]byte(content)))
+	require.NoError(t, err, "uploaded packet bytes are available for a later ask")
+	defer stored.Close()
+	storedBytes, err := io.ReadAll(stored)
+	require.NoError(t, err)
+	require.Equal(t, content, string(storedBytes))
 
 	require.Equal(t, hashOf([]byte(content)), f.put(t, content), "the owner can")
 }
 
-func TestStatAndPutAttachmentBlob_AcceptTheOwnersCredentialAndRefuseOthers(t *testing.T) {
+func TestAttachmentWritesAreIdentityOptionalButInventoryReadsStayVerified(t *testing.T) {
 	f := newAttachmentFixture(t)
 	router := mux.NewRouter()
 	conversationsH.ModuleWithVerifier(f.service, tokenVerifier{}).Mount(router)
@@ -91,11 +95,14 @@ func TestStatAndPutAttachmentBlob_AcceptTheOwnersCredentialAndRefuseOthers(t *te
 	}
 
 	require.NoError(t, put(client("owner-token")))
-	require.Equal(t, connect.CodeUnauthenticated, codeOf(t, put(client("someone-else"))))
-	require.Equal(t, connect.CodeUnauthenticated, codeOf(t, put(conversationsconnect.NewConversationsServiceClient(server.Client(), server.URL))))
+	require.NoError(t, put(client("someone-else")))
+	anonymous := conversationsconnect.NewConversationsServiceClient(server.Client(), server.URL)
+	require.NoError(t, put(anonymous))
+	_, err := anonymous.StatAttachmentBlobs(context.Background(), connect.NewRequest(&v1.StatAttachmentBlobsRequest{Sha256: []string{hashOf([]byte("x"))}}))
+	require.Equal(t, connect.CodeUnauthenticated, codeOf(t, err))
 }
 
-func TestAsk_AttachmentsFromAnIdentitylessProducerAreDroppedWithAWarning(t *testing.T) {
+func TestAsk_AttachmentsFromAnIdentitylessProducerAreKeptWithoutHostPathProvenance(t *testing.T) {
 	f := newAttachmentFixture(t)
 	hash := f.put(t, "plan bytes")
 	response, err := f.anonymous.Ask(context.Background(), connect.NewRequest(&v1.AskRequest{
@@ -105,14 +112,11 @@ func TestAsk_AttachmentsFromAnIdentitylessProducerAreDroppedWithAWarning(t *test
 	}))
 
 	require.NoError(t, err, "an ask from a host process is still accepted")
-	var codes []string
-	for _, w := range response.Msg.GetWarnings() {
-		codes = append(codes, w.GetCode())
-	}
-	require.Contains(t, codes, hub.WarnAttachmentAnonymous)
 	got, err := f.client.GetAsk(context.Background(), connect.NewRequest(&v1.GetAskRequest{AskId: response.Msg.GetAskId()}))
 	require.NoError(t, err)
-	require.Empty(t, got.Msg.GetAsk().GetAttachments(), "nothing was stored, so no host path can be probed")
+	require.Len(t, got.Msg.GetAsk().GetAttachments(), 1)
+	require.Empty(t, got.Msg.GetAsk().GetAttachments()[0].GetSourcePath(), "the Hub must not probe caller-selected host paths")
+	require.Empty(t, got.Msg.GetAsk().GetAttachments()[0].GetSourceHost())
 }
 
 // ---- memory --------------------------------------------------------------------
@@ -226,7 +230,7 @@ func TestUploadGate_AdmitsOrRefusesBeforeTheBodyIsRead(t *testing.T) {
 
 	unverified := httptest.NewRecorder()
 	gate.ServeHTTP(unverified, request(""))
-	require.Equal(t, http.StatusUnauthorized, unverified.Code, "an identityless sender is refused before it waits for a slot")
+	require.Equal(t, http.StatusServiceUnavailable, unverified.Code, "identityless uploads use the same slot limit")
 
 	close(release)
 	admitted.Wait()

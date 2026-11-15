@@ -39,6 +39,15 @@ dark mode never overrides `data-theme="light"`. The kit uses no color function
 that an older iPhone browser lacks for text or backgrounds; `color-mix()` only
 tints a few accents, and each use has a plain value before it.
 
+## The gutter
+
+The Hub's frame runs the page the full width of the phone, so `body` carries the
+page's one gutter: `0.75rem 1rem 1rem`, and `1rem` is the same inset as the
+decision text above it. The browser's default 8px margin is zeroed by the Hub in
+its own layer (`hub-base`, before `hub-kit`), kit or not. Authors are told not to
+add their own body padding (`references/html-explainers.md`, "Basics"); a rule
+that changes the gutter changes it for every page, so check it at 390 px.
+
 ## Opt out
 
 Put `<meta name="hub-kit" content="off">` in the page. The Hub then injects

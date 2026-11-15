@@ -13,7 +13,7 @@ import (
 // A scenario that sends as itself (a "<source>-notification-hub" principal) is a
 // verified sender, so it can carry a whole decision packet: it stores the files,
 // asks with them attached, and closes its own ask. An identityless host process
-// still cannot store a file, and a sender cannot touch another source's ask.
+// can also upload packet bytes, and a sender cannot touch another source's ask.
 
 const explainerPage = "<!doctype html><title>Compare</title><h1>Two options</h1>"
 
@@ -59,29 +59,21 @@ func TestAServiceSenderCarriesAFullPacketWithAnExplainer(t *testing.T) {
 	require.Equal(t, response.Msg.GetAskId(), back.Msg.GetAsk().GetId())
 }
 
-func TestStoringAFileNeedsAVerifiedSender(t *testing.T) {
+func TestStoringAFileDoesNotNeedIdentityButInventoryReadsDo(t *testing.T) {
 	ctx := context.Background()
 	f := newReaderFixture(t)
 	put := &v1.PutAttachmentBlobRequest{Sha256: hashOf([]byte(explainerPage)), Content: []byte(explainerPage)}
 
-	for who, code := range map[string]connect.Code{
-		"":                           connect.CodeUnauthenticated,
-		"bearer:nothing":             connect.CodeUnauthenticated,
-		"bearer:snd-no-scope":        connect.CodePermissionDenied,
-		"bearer:snd-wrong-aud":       connect.CodePermissionDenied,
-		"bearer:svc-desk":            connect.CodePermissionDenied,
-		"bearer:snd-desk":            0,
-		"owner":                      0,
-		"run:valid-r1+c=conv-1":      0,
-		"run:not-a-verified-run-tok": connect.CodeUnauthenticated,
+	for _, who := range []string{
+		"", "bearer:nothing", "bearer:snd-no-scope", "bearer:snd-wrong-aud",
+		"bearer:svc-desk", "bearer:snd-desk", "owner", "run:valid-r1+c=conv-1",
+		"run:not-a-verified-run-tok",
 	} {
 		_, err := f.client.PutAttachmentBlob(ctx, reading(who, put))
-		if code == 0 {
-			require.NoError(t, err, who)
-			continue
-		}
-		require.Equal(t, code, connect.CodeOf(err), "%q: %v", who, err)
+		require.NoError(t, err, who)
 	}
+	_, err := f.client.StatAttachmentBlobs(ctx, reading("", &v1.StatAttachmentBlobsRequest{Sha256: []string{put.GetSha256()}}))
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err), "anonymous callers can upload but cannot inspect shared inventory")
 }
 
 func TestAServiceSenderWithdrawsItsOwnAskOnly(t *testing.T) {

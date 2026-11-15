@@ -113,12 +113,19 @@ The owner reported that Needs you looked randomly ordered and could not be sorte
 or filtered. The earlier attention order ignored urgency, so every high-urgency
 decision, with a deadline days away, sorted below normal ones due in a day.
 
-- **Default order.** Needs you opens on `ORDER_ATTENTION`, named "Most urgent
-  first": escalated, then urgency (critical, high, normal, low), then the
-  earliest deadline (none last), then newest. In that order the list is grouped
-  under headings (Escalated, Critical, High, Normal, Low) so the order explains
-  itself; a list that is one group has no heading. History opens newest first.
-- **Sort.** One menu, labelled Sort, on both lists: Most urgent first, Due
+- **Default order.** Needs you opens on `ORDER_ATTENTION`, named "Needs
+  attention first": escalated, then asks closing within 6 hours (the nearest
+  close first), then urgency (critical, high, normal, low), then the earliest
+  deadline (none last), then newest. The operator chose the 6-hour band as
+  "closing-soon" on 2026-11-14, after the list still read as unexplained. The
+  list says so in one plain line under the sort menu ("Needs attention:
+  escalated, closing within 6 hours, then urgency, then close time"; each other
+  sort has its own line), and groups under headings (Escalated, Closing within
+  6 hours, Critical, High, Normal, Low) so the order explains itself; a list
+  that is one group has no heading. A row in the band shows "Closes in 3 hours"
+  with a clock, in place of "Due ...". The Hub names the window and marks the
+  rows, so the app holds no copy of the number. History opens newest first.
+- **Sort.** One menu, labelled Sort, on both lists: Needs attention first, Due
   soonest, Newest first, Oldest first. Every order accepts every status.
 - **Filters.** A Filters button opens a sheet (a dialog on a wide screen) of
   urgency and sender chips, each with the number of decisions it would show. The
@@ -382,8 +389,9 @@ Landed (Hub, 2026-11-14), and used by the UI:
 - `ListAsksResponse.total_awaiting`: exact count of pending + escalated asks the
   reader may see, set on every page, ignoring query, filter and cursor. Native
   permission requests are not counted; the UI adds them.
-- `ListAsksRequest.order`: `ORDER_ATTENTION` (escalated, then urgency, then
-  earliest deadline with none last, then newest), `ORDER_DUE`, `ORDER_NEWEST`
+- `ListAsksRequest.order`: `ORDER_ATTENTION` (escalated, then closing within the
+  window, then urgency, then earliest deadline with none last, then newest; the
+  window is measured at the first page's time, carried in the cursor), `ORDER_DUE`, `ORDER_NEWEST`
   and `ORDER_OLDEST`, each valid with any state filter. A cursor is valid only
   for the order, filters and search it came from.
 - `ListAsksRequest.urgencies` and `senders` (server-side filters), and
@@ -410,6 +418,7 @@ operator's.
 | `hubux-no-hamburger-no-brand-bar` | agent, 2026-11-14 | shell | Phone shell loses the brand bar and the menu that duplicated the tabs. | Returns ~56px, one nav not two; cost: the brand mark leaves the phone chrome (it stays in Settings and sign-in). | before/after captures | adopted |
 | `hubux-count-badge` | agent, 2026-11-14 | shell, inbox | Exact count of waiting decisions on the tab and app icon, from the Hub's `total_awaiting`; the queue is in attention order. | The tab finally says how many and the list leads with what is most pressing; cost: one more one-row read per minute. | tests, captures | adopted |
 | `hubux-sort-filter` | agent, 2026-11-14 | inbox, history, API | Visible sort and server-side urgency and sender filters with facet counts; attention order now ranks urgency before deadline and groups under headings; rows name the sender, not the raw source. | The owner could not tell why decisions were in the order shown or narrow them; cost: a sender field agents should set, and two facet queries per read (a few ms at this size). | Go and Vitest tests, captures | adopted |
+| `hubux-closing-soon` | operator, 2026-11-14 | inbox, API | Attention order puts pending asks closing within 6 hours ahead of urgency (nearest close first), measured at the first page's time carried in the cursor; one plain line says the order; rows in the band read "Closes in ...". | An ask that will default before the next look cannot wait behind ones that merely rank higher; cost: a low-urgency ask due in an hour outranks a critical one due tomorrow, by design. | tests, live read | adopted |
 | `hubux-inbox-first-fold` | agent, 2026-11-14 | inbox | Search collapses to an action, disclaimer collapses, rows show urgency. | The first decision sits in the first fold; cost: search takes one tap on the queue (History keeps it open). | before/after captures | adopted |
 | `hubux-health-to-delivery` | agent, 2026-11-14 | updates, delivery | API Health leaves Updates and becomes Hub status on Delivery. | Health is a delivery fact; no capability removed. | tests | adopted |
 | `hubux-analytics-shown` | agent, 2026-11-14 | delivery | The analytics already fetched are drawn as channel reliability. | A fetched value that was never shown. | captures | adopted |

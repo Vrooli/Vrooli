@@ -27,6 +27,50 @@ body {
   padding: 0;
 }
 
+/* The main pane's gutter, named once. A full-bleed block or a pinned bar cancels
+   exactly what the shell added, instead of guessing it with a breakpoint. */
+[data-rcl-app-shell-main] {
+  --page-gutter: clamp(var(--space-sm), 3vw, var(--space-lg));
+  /* The pane scrolls, so it must also contain what is absolutely positioned inside
+     it (a visually hidden radio, for one). Left uncontained, those boxes sit at
+     their offset in the whole document, which then scrolls: a swipe at the end of
+     the pane slid the tab bar away. */
+  position: relative;
+}
+
+@layer components {
+  /* A bar pinned to the bottom edge of the main pane. A sticky bar stops at the
+     content edge, above the pane's bottom padding, so page content showed through
+     that strip; the negative offset closes it. The tab bar owns the phone's
+     bottom inset, so the bar adds none there. Beside a sidebar the pane's own
+     padding carries the inset, so the bar clears the home indicator itself. Wide
+     screens pin it inside the answer panel, which has no padding to cancel. */
+  .packet-dock {
+    --dock-inset: 0px;
+    position: sticky;
+    bottom: calc(-1 * var(--page-gutter) - var(--dock-inset));
+    margin-block-end: calc(-1 * var(--page-gutter) - var(--dock-inset));
+    margin-inline: calc(-1 * var(--page-gutter));
+    padding-inline: var(--page-gutter);
+    padding-block-end: calc(var(--space-2xs) + var(--dock-inset));
+  }
+
+  @media (min-width: 48rem) {
+    .packet-dock {
+      --dock-inset: env(safe-area-inset-bottom, 0px);
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .packet-dock {
+      --dock-inset: 0px;
+      bottom: 0;
+      margin: 0;
+      padding-inline: var(--space-sm);
+    }
+  }
+}
+
 /* The page header clears the top inset; the fixed drawer and main pane own
    their own safe padding. Subtract the offset to keep the shell in the viewport. */
 [data-rcl-app-shell] {

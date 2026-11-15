@@ -176,16 +176,14 @@ uploads each distinct file once:
 3. `Ask(..., attachments[])` references blobs by hash. A folder is one
    attachment with `entries[]` (relative paths), not one attachment per file.
 
-Attachments need a **verified sender**: a verified agent run, the verified owner,
-or a verified service sender (a `<source>-notification-hub` principal, as
-Research Desk sends its decisions). `StatAttachmentBlobs` and `PutAttachmentBlob`
-answer `Unauthenticated` to anyone else (they are producer-only, unlike `Ask`,
-which an identityless host process may still call), and `PermissionDenied`,
-naming what is missing, to a verified service token that is not a sender. An
-`Ask` from an identityless caller is accepted with every attachment dropped and
-one `attachment_requires_identity` warning: the Hub stores bytes and later reads
-`source_path` on a sender's behalf, so it does both only for a sender it can
-name.
+Adding or revising an ask and uploading its attachment bytes require no identity
+or approval. `PutAttachmentBlob` accepts identityless callers within the same
+hash validation, size, quota and concurrency limits. `StatAttachmentBlobs`
+remains verified because it reveals which content hashes the Hub already holds;
+an identityless CLI skips that lookup and uploads each file directly by hash.
+The Hub accepts attachment metadata but strips `source_path` and `source_host`
+for an identityless sender, so it never probes a caller-selected host path.
+Owner-only attachment viewing and owner-only answers remain protected.
 
 **An event carries no files.** A `*.decision_requested.v1` event cannot say who
 published it (the webhook proves only that vrooli-events delivered it), so the
@@ -298,8 +296,8 @@ content was hashed and matches; a size match alone is never `fresh`. `unknown`
 means it could not be compared: another host, an unreadable path, or the hashing
 budget of this read ran out. An `unknown` status carries no `source_checked_at`.
 The Hub reads the source path only to compare it; it never serves it. Only a
-verified sender's attachments are stored (see Sending), so only they are compared,
-and only for the owner: a run or service reading an ask gets `unknown`, so the
+only attachments with a retained source path are compared, and only for the
+owner: a run or service reading an ask gets `unknown`, so the
 check can never tell a caller whether a path exists or what a file contains.
 
 For a folder, `missing` means the folder is gone, `changed` means any attached
@@ -546,7 +544,6 @@ dropped) are never carried over, and neither are those of a first send. Checks:
 | `local_context_url` | `context_url` is a local path or loopback URL. |
 | `unattached_path` | `technical_details` names a local file that no attachment's `source_path` covers (the path itself or a file inside an attached folder). Paths in the question or big picture are `path_in_question`, attached or not. |
 | `attachment_blob_missing` | Dropped: the referenced blob is not stored (for a folder, only the entries whose blobs are missing). |
-| `attachment_requires_identity` | Dropped: every attachment, because the ask came from a caller with no verified identity. |
 | `attachment_limit` | Dropped: too many attachments (counted after invalid ones are dropped) or too many bytes. |
 | `attachment_invalid` | Dropped: unknown kind, a file without a valid `sha256`, or a folder with no valid entry. Advice for an unknown role (listed as evidence). |
 | `attachment_name_changed` | Kept: the name was sanitized or made unique. |
@@ -572,9 +569,18 @@ opaque origin and no access to the Hub's cookies, storage, or API) through
 
 1. `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: blob:; media-src data: blob:; font-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'">`.
    A page cannot loosen it: every policy on a page is enforced.
-2. The starter kit stylesheet inside `@layer hub-kit`, so any style the page
+2. A one-rule baseline, `@layer hub-base { html, body { margin: 0; } }`, always
+   present, so the browser's 8px body margin never stacks on the Hub's frame.
+3. The starter kit stylesheet inside `@layer hub-kit`, so any style the page
    writes itself wins. `<meta name="hub-kit" content="off">` leaves it out.
-3. The bridge script (below) and the kit behaviours.
+4. The bridge script (below) and the kit behaviours.
+
+**Layout.** On a phone the frame runs the full width of the screen under one
+caption line ("Agent's page, sealed"), so the page's own text sits at the same
+gutter as the decision above it. The kit's `body` padding (`0.75rem 1rem 1rem`)
+is that one gutter; a page that pads its own body or wraps itself in a margin
+stacks a second one. Beside the answer panel on a wide screen the same page
+sits in a bordered panel.
 
 **Attachments by name.** `src`, `href`, and `poster` attributes whose value is
 an attachment name (or `name/entry/path` inside a folder) are replaced with

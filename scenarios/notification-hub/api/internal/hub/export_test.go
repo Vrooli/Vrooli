@@ -32,8 +32,8 @@ const AwaitingCountSQL = awaitingCountSQL
 // AskListSQL is the page query for the owner of "alice", with a cursor in the
 // middle of the list, so a test can read its plan.
 func AskListSQL(state string, order AskOrder) (string, []any) {
-	columns := orderColumns[order]
-	cursor := &askListCursor{Version: 2, Keys: make([]string, len(columns))}
+	columns, _ := orderColumns(order, closingCutoff(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)))
+	cursor := &askListCursor{Version: 3, Keys: make([]string, len(columns))}
 	for i, column := range columns {
 		cursor.Keys[i] = "2026-01-01T00:00:00Z"
 		if column.numeric {

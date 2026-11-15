@@ -187,6 +187,27 @@ func TestAStoreThisProcessCannotReadIsToldApartFromACredentialThatIsNotIssued(t 
 	}
 }
 
+// A process that cannot find the repository root (a timer or systemd unit that
+// starts in $HOME) gets the credential store's absent-provider answer, whose
+// keyring wording sends the operator to the wrong place. The message names the
+// real cause and fix. The cause below is the store's real text for it.
+func TestAMissingRepoRootIsNamedNotBlamedOnTheKeyring(t *testing.T) {
+	cause := fmt.Errorf("resolve credential x: %w", realProviderAbsent("credential provider is not implemented on this host: operating-system secure storage is not implemented on this host: resolve credential backend selection path: repo-contract not_found: repo root not found (/home/someone/.vrooli/bin)"))
+	authorization := senderAuthorization("portfolio-steward", func(context.Context) (string, error) { return "", cause })
+	svc, hub, _ := sendAsFixture(t, func(s *sendAsSettings) { s.authorization = authorization })
+	_, _, err := runCommand(t, svc, "list")
+	require.ErrorContains(t, err, "could not find the Vrooli repository root")
+	require.ErrorContains(t, err, "VROOLI_ROOT")
+	require.NotContains(t, err.Error(), "keyring")
+	require.Empty(t, hub.requests())
+}
+
+// realProviderAbsent is an absent-provider error carrying text as its cause,
+// as the credential store builds it.
+func realProviderAbsent(text string) error {
+	return fmt.Errorf("%w: %s", credentialauthority.ErrProviderAbsent, text)
+}
+
 func TestACredentialThatFailsToExchangeIsARealErrorToo(t *testing.T) {
 	svc, hub, _ := sendAsFixture(t, func(s *sendAsSettings) {
 		s.authorization = func(context.Context) (string, error) {
@@ -196,6 +217,22 @@ func TestACredentialThatFailsToExchangeIsARealErrorToo(t *testing.T) {
 	_, _, err := runCommand(t, svc, "list")
 	require.ErrorContains(t, err, "credential revoked")
 	require.ErrorContains(t, err, "portfolio-steward-notification-hub")
+	require.Empty(t, hub.requests())
+}
+
+// A principal that scenario-authenticator is rate limiting has a good credential.
+// The error says so and when to retry; it must not send the operator to rotate it.
+func TestARateLimitedExchangeSaysRateLimitedNotCredentialRefused(t *testing.T) {
+	authorization := func(context.Context) (string, error) {
+		return "", fmt.Errorf("portfolio-steward credential: %w", &servicetoken.RateLimitedError{RetryAfter: 42 * time.Second})
+	}
+	svc, hub, _ := sendAsFixture(t, func(s *sendAsSettings) { s.authorization = authorization })
+	_, _, err := runCommand(t, svc, "list")
+	require.ErrorContains(t, err, "rate limiting this principal's exchanges, retry after 42s")
+	require.ErrorContains(t, err, "portfolio-steward-notification-hub")
+	for _, wrong := range []string{"did not accept", "rotated", "revoked", "not issued"} {
+		require.NotContains(t, err.Error(), wrong)
+	}
 	require.Empty(t, hub.requests())
 }
 

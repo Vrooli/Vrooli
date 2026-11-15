@@ -114,7 +114,7 @@ func from(name string) func(*v1.AskRequest) {
 func TestListAsksSortsFiltersAndCountsOverTheWire(t *testing.T) {
 	ctx := context.Background()
 	f := newReaderFixture(t)
-	normalSoon := f.ask(t, "run:valid-run-1", "normal-soon", urgent("normal"), dueIn(time.Hour), from("Treasury steward"))
+	normalSoon := f.ask(t, "run:valid-run-1", "normal-soon", urgent("normal"), dueIn(7*time.Hour), from("Treasury steward"))
 	highLate := f.ask(t, "run:valid-run-1", "high-late", urgent("high"), dueIn(5*24*time.Hour), from("Treasury steward"))
 	criticalLate := f.ask(t, "run:valid-run-2", "critical-late", urgent("critical"), dueIn(6*24*time.Hour))
 	desk := f.eventAsk(t, "vrooli-autoheal", "event-a")
@@ -127,10 +127,16 @@ func TestListAsksSortsFiltersAndCountsOverTheWire(t *testing.T) {
 	}
 	open := func(req *v1.ListAsksRequest) *v1.ListAsksRequest { req.OpenOnly = true; return req }
 
-	require.Equal(t, []string{criticalLate, highLate, normalSoon, desk},
-		ids(list("owner", open(&v1.ListAsksRequest{Order: v1.ListAsksRequest_ORDER_ATTENTION})).GetAsks()),
-		"urgency outranks a nearer deadline")
-	require.Equal(t, []string{normalSoon, desk, highLate, criticalLate},
+	attention := list("owner", open(&v1.ListAsksRequest{Order: v1.ListAsksRequest_ORDER_ATTENTION}))
+	require.Equal(t, []string{desk, criticalLate, highLate, normalSoon}, ids(attention.GetAsks()),
+		"an ask closing within the window leads; then urgency outranks a nearer deadline")
+	require.Equal(t, int32(6*60*60), attention.GetClosingWindowSeconds(), "the Hub names the window, so no client keeps a copy")
+	closing := map[string]bool{}
+	for _, ask := range attention.GetAsks() {
+		closing[ask.GetId()] = ask.GetClosingSoon()
+	}
+	require.Equal(t, map[string]bool{desk: true, criticalLate: false, highLate: false, normalSoon: false}, closing)
+	require.Equal(t, []string{desk, normalSoon, highLate, criticalLate},
 		ids(list("owner", open(&v1.ListAsksRequest{Order: v1.ListAsksRequest_ORDER_DUE})).GetAsks()))
 	require.Equal(t, []string{normalSoon, highLate, criticalLate, desk},
 		ids(list("owner", open(&v1.ListAsksRequest{Order: v1.ListAsksRequest_ORDER_OLDEST})).GetAsks()))
