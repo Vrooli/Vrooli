@@ -60,7 +60,8 @@ Connect service:
 | Method | Purpose | CLI |
 |---|---|---|
 | `GetCoverageReport` | Live first-backup readiness: registered vs recommended vs sensitive targets, plus planned/backed-up/verified posture. | `coverage report` |
-| `AcceptDefaultTargets` | Bulk-register non-sensitive discovered durable targets (`include_sensitive` opts in credential/token targets; `dry_run` registers nothing). | `coverage accept-defaults` |
+| `AcceptDefaultTargets` | Bulk-register non-sensitive targets; `include_sensitive=true` is rejected and sensitive targets require a verified decision (`dry_run` registers nothing). | `coverage accept-defaults` |
+| `RequestSensitiveReview` | Raise one verified Notification Hub review for current sensitive suggestions; only the signed callback can register approved targets. | `coverage review-sensitive` |
 
 Coverage composes the discovery, targets, plans, runs and restores seams; it
 reads no file contents and persists nothing of its own. `AcceptDefaultTargets`

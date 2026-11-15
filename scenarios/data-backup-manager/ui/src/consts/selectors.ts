@@ -60,7 +60,9 @@ const literalSelectors = {
     registerRecommended: "coverage-register-recommended",
     recommendedList: "coverage-recommended-list",
     sensitiveList: "coverage-sensitive-list",
-    registerSensitive: "coverage-register-sensitive",
+    reacquirableList: "coverage-reacquirable-list",
+    registeredReacquirableList: "coverage-registered-reacquirable-list",
+    requestSensitiveReview: "coverage-request-sensitive-review",
     complete: "coverage-complete",
   },
   discovery: {

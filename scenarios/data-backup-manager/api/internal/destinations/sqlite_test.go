@@ -48,6 +48,7 @@ func TestSQLiteRepository_RoundTrip(t *testing.T) {
 		CapBytes:                 0,
 		CapPolicy:                destinations.CapPolicyAlertBlock,
 		EncryptionAlgorithm:      "AES256-GCM-HMAC-SHA256",
+		ProvisioningState:        destinations.ProvisioningCreating,
 		SecretRef:                "vrooli/kopia/primary:repository-passphrase",
 		DeviceIdentity:           &destinationreadiness.DeviceIdentity{DevicePath: "/dev/sda1", Mountpoint: "/media/Elements", Filesystem: "ntfs", UUID: "uuid-1", Serial: "serial-1", TotalBytes: 123},
 		DeviceIdentityObservedAt: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC),
@@ -69,6 +70,9 @@ func TestSQLiteRepository_RoundTrip(t *testing.T) {
 	if gotID.EncryptionAlgorithm != "AES256-GCM-HMAC-SHA256" {
 		t.Fatalf("EncryptionAlgorithm not round-tripped: %q", gotID.EncryptionAlgorithm)
 	}
+	if gotID.ProvisioningState != destinations.ProvisioningCreating {
+		t.Fatalf("provisioning state not round-tripped: %q", gotID.ProvisioningState)
+	}
 	if gotID.DeviceIdentity == nil || gotID.DeviceIdentity.UUID != "uuid-1" || gotID.DeviceIdentity.TotalBytes != 123 || !gotID.DeviceIdentityObservedAt.Equal(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)) {
 		t.Fatalf("device identity not round-tripped: %+v observed=%v", gotID.DeviceIdentity, gotID.DeviceIdentityObservedAt)
 	}
@@ -85,7 +89,10 @@ func TestSQLiteRepository_RoundTrip(t *testing.T) {
 	clk.Advance(time.Second)
 	created.CapBytes = 5000
 	created.CapPolicy = destinations.CapPolicyAlertOnly
+	created.Location = "/media/portable/vrooli-backups"
 	created.RelativePath = "archives"
+	created.RepositoryLocation = "/media/portable/vrooli-backups/repositories/primary.kopia"
+	created.ProvisioningState = destinations.ProvisioningReady
 	created.DeviceIdentity.Mountpoint = "/mnt/portable"
 	created.DeviceIdentityObservedAt = time.Date(2026, 1, 2, 3, 5, 0, 0, time.UTC)
 	updated, err := repo.Update(ctx, created)
@@ -98,6 +105,9 @@ func TestSQLiteRepository_RoundTrip(t *testing.T) {
 	reread, _ := repo.GetByID(ctx, created.ID)
 	if reread.CapBytes != 5000 || reread.CapPolicy != destinations.CapPolicyAlertOnly {
 		t.Fatalf("update not persisted: %+v", reread)
+	}
+	if reread.Location != created.Location || reread.RepositoryLocation != created.RepositoryLocation || reread.ProvisioningState != destinations.ProvisioningReady {
+		t.Fatalf("reconciled location/provisioning state not persisted: %+v", reread)
 	}
 	if reread.RelativePath != "archives" || reread.DeviceIdentity == nil || reread.DeviceIdentity.Mountpoint != "/mnt/portable" || !reread.DeviceIdentityObservedAt.Equal(created.DeviceIdentityObservedAt) {
 		t.Fatalf("recovery identity update not persisted: %+v", reread)

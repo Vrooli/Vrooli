@@ -229,6 +229,7 @@ type Inspection struct {
 	LocationIsDirectory bool
 	LocationError       string
 	Identity            DeviceIdentity
+	MountEpisodeID      string
 	FreeBytes           int64
 	ReadOnly            bool
 	Removable           bool
@@ -283,14 +284,32 @@ type Report struct {
 	// ReadOnlyCause, FilesystemState, DeviceWriteProtected and Mounted are the
 	// machine-readable state facts behind the checks. Consumers map a
 	// remediation from these instead of pattern-matching on check prose.
-	ReadOnlyCause        sysmounts.ReadOnlyCause
-	FilesystemState      sysmounts.FilesystemState
+	ReadOnlyCause   sysmounts.ReadOnlyCause
+	FilesystemState sysmounts.FilesystemState
+	// OfflineCheckVerified is true only when a positive filesystem check is
+	// persisted for the exact currently mounted recovery episode and identity.
+	// FilesystemState remains the native observation, which may still be unknown.
+	OfflineCheckVerified bool
 	DeviceWriteProtected bool
 	Mounted              bool
 }
 
+// CapacityObservation is a read-only, point-in-time capacity receipt bound to
+// the resolved filesystem and stable device identity. Consumers must bind this
+// observation to their exact destination, target set, and credential identity.
+type CapacityObservation struct {
+	DestinationID  string
+	Location       string
+	Identity       DeviceIdentity
+	FreeBytes      int64
+	MeasuredAt     time.Time
+	MountEpisodeID string
+}
+
 // AnalyzeInput controls a read-only readiness analysis.
 type AnalyzeInput struct {
+	DestinationID         string
+	ExpectedDevice        DeviceIdentity
 	Location              string
 	ProposedSubdir        string
 	SelectedTargetBytes   int64

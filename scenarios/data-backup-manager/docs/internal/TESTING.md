@@ -64,7 +64,7 @@ one file at a time. The pattern from wire to render:
 | Domain types | `internal/targets/types.go::{Target, RegisterInput, ErrInvalidTarget, ErrTargetNotFound}` | Domain-pure (no proto imports); typed sentinels translate into Connect errors at the handler edge |
 | Repository interface | `internal/targets/repository.go::Repository` | Persistence seam — register/upsert, get, list, and deregister operations |
 | Repository impl | `internal/targets/sqlite.go::NewSQLiteRepository` | sqlite-backed `Repository`; production wires it once in `main.go` |
-| Schema | `internal/targets/schema.{sql,go}::Schema()` | Domain-owned table DDL embedded via `go:embed`; collected by `internal/modules/registry.go::AllSchemas()` and applied at boot via `database.EnsureSchemas` |
+| Schema | `internal/targets/schema.{sql,go}::Schema()` | Domain-owned table DDL embedded via `go:embed`; collected by `internal/modulecatalog/registry.go::AllSchemas()` and applied at boot via `database.EnsureSchemas` |
 | Repository test | `internal/targets/sqlite_test.go` | Real handle via `db.NewSQLite(t)` + `database.EnsureSchemas(ctx, d, ...providers...)` over system + targets |
 | Service | `internal/targets/service.go::Service` (+ `NewService`) | Application layer: validation, idempotent owner/name upsert, and deregistration. Handler depends on this, not the repository. |
 | Service test | `internal/targets/service_test.go` | Substitutes `mocks.FakeRepository` (from co-located `internal/targets/mocks/`); pins validation, idempotency, and error propagation |
@@ -96,7 +96,7 @@ func newSchemaDB(t *testing.T) *sql.DB {
 That helper is the canonical entry point for every new domain's
 `*_sqlite_test.go`. Don't reach for migrations frameworks or in-test
 `CREATE TABLE` literals — the per-domain `schema.sql` files (collected
-by `internal/modules/registry.go::AllSchemas()` in production) are the
+by `internal/modulecatalog/registry.go::AllSchemas()` in production) are the
 source of truth for both production and tests.
 
 ### Service-layer tests

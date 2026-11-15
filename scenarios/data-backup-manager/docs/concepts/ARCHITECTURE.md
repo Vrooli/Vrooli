@@ -197,7 +197,7 @@ Use Connect-RPC by default:
 - API to API / inter-scenario calls with Vrooli-owned protos.
 
 REST is allowed only for four enumerated reasons, defined as
-`RESTReason` constants in `api/internal/module/module.go`:
+`RESTReason` constants in `api/internal/modulecontract/module.go`:
 
 | Reason | When it applies |
 |---|---|
@@ -228,8 +228,8 @@ business-vocabulary-free and used by unrelated domains or surfaces.
 | Package/Folder | Purpose | Why Not Domain-Owned | Consumers |
 |---|---|---|---|
 | `api/internal/server/` | Compose modules and middleware into one HTTP server. | Server lifecycle is not a product capability. | API entrypoint and handler modules. |
-| `api/internal/module/` | Shared module and endpoint descriptor types. | Domain modules return this common shape. | Handler packages, server, endpoint codegen. |
-| `api/internal/modules/` | Thin registry for schemas and endpoints. | Boot/codegen need central lists; logic stays domain-owned. | `main.go`, `gen-endpoints`. |
+| `api/internal/modulecontract/` | Shared module and endpoint descriptor types. | Domain modules return this common shape. | Handler packages, server, endpoint codegen. |
+| `api/internal/modulecatalog/` | Thin registry for schemas and endpoints. | Boot/codegen need central lists; logic stays domain-owned. | `main.go`, `gen-endpoints`. |
 | `api/internal/database/` | System schema and DB reachability seam. | Cross-cutting DB infrastructure, not one domain's data. | API boot, health. |
 | `api/internal/clock/` | Deterministic time seam. | Time is cross-cutting and test-substitutable. | Middleware, repositories. |
 | `api/internal/testutil/` | Cross-domain test harnesses and fakes. | Used by unrelated domains; domain fakes stay domain-local. | API tests. |
@@ -249,7 +249,7 @@ For a normal proto-backed domain:
    `packages/proto/schemas/data-backup-manager/v1/<domain>/`.
 2. Add API domain code under `api/internal/<domain>/`.
 3. Add transport code under `api/handlers/<domain>/`.
-4. Register schemas/endpoints in `api/internal/modules/registry.go`
+4. Register schemas/endpoints in `api/internal/modulecatalog/registry.go`
    and mount the module in `api/main.go`.
 5. Add CLI commands under `cli/domains/<domain>/`.
 6. Add UI API wrappers under `ui/src/api/<domain>.ts` and UI feature
@@ -263,17 +263,16 @@ temporal behavior, update [`FLOWS.md`](FLOWS.md).
 
 ## Architecture Maturity
 
-The template ships a mature shape and a reference vertical slice. As of the
-API+CLI implementation pass, all six backup-manager domains are **built and
-green** (Connect-RPC services, per-domain SQLite schema, wrapped kopia/source
-seams). The UI remains a designed-only follow-up. Implementation status lives
-in `requirements/` and [`../internal/PROGRESS.md`](../internal/PROGRESS.md).
+The template ships a mature shape and a reference vertical slice. The API and
+CLI expose the six backup-manager domains; the UI has plan retention controls
+and remains incomplete elsewhere. Implementation status lives in
+`requirements/` and [`../internal/PROGRESS.md`](../internal/PROGRESS.md).
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Built — 5 Connect-RPC services + health rollup | `targets/destinations/plans/runs/restores` Connect services in `api/handlers/<domain>/`, transport-free domain cores in `api/internal/<domain>/`, per-domain schema, `validateTransport` + proto-parity gates green. Destination readiness/preparation planning is exposed through `DestinationsService`. | P1/P2 features (quiesce hooks, GFS retention, restore granularity); owner-filter on `ListTargetStatus` (see PROBLEMS). |
+| API | Built — 5 Connect-RPC services + health rollup | `targets/destinations/plans/runs/restores` Connect services in `api/handlers/<domain>/`, transport-free domain cores in `api/internal/<domain>/`, per-domain schema, `validateTransport` + proto-parity gates green. Destination readiness/preparation planning is exposed through `DestinationsService`. | P1/P2 features (quiesce hooks, restore granularity); owner-filter on `ListTargetStatus` (see PROBLEMS). |
 | CLI | Built — command per RPC + self-registration | `cli/domains/<domain>/` wraps each RPC via generated Connect clients; manifest-driven; `RequireProtoServiceCoverage` per domain. | — |
-| UI | Designed-only (explicit follow-up plan) | Feature folders + typed client patterns from the template. | Destinations (usage-vs-cap), plans, run history, guided restore/verify to be built per [`UI-ARCHITECTURE.md`](UI-ARCHITECTURE.md). |
+| UI | Partial — plan retention controls implemented | Plan forms expose latest-count and GFS buckets through the shared typed API client. | Destination usage, run history, and guided restore/verify remain to be built per [`UI-ARCHITECTURE.md`](UI-ARCHITECTURE.md). |
 | Docs | Filled to the locked design; reconciled to built state | Concept + reference docs; SEAMS registry updated with KopiaEngine/CommandRunner/Capturer; PROBLEMS tracks deferrals. | — |
 | Engine integration | Built — wrapped behind the KopiaEngine seam | `api/internal/engine/kopia.go` shells out to the fully-implemented `resource-kopia` CLI; encryption always on; Kopia repository passphrases live in the credential authority under `vrooli/kopia/<repo>:repository-passphrase`. Real-engine paths covered by integration tests gated by `KOPIA_INTEGRATION` / source resources. Snapshot browsing is backed by `resource-kopia snapshot browse --json`. | Source-resource integration coverage remains gated. |
 

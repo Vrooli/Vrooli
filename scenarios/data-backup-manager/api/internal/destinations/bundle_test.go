@@ -30,6 +30,13 @@ func newMeta(root, repoPath string) destinations.BundleMetadata {
 	}
 }
 
+func writeRepoMarker(t *testing.T, repoPath string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(repoPath, "kopia.repository.f"), []byte(`{"uniqueID":"fixture-repository"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestFSBundleWriter_WritesSelfDescribingBundle(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
@@ -39,6 +46,7 @@ func TestFSBundleWriter_WritesSelfDescribingBundle(t *testing.T) {
 	if err := w.PrepareRepository(ctx, root, repoPath); err != nil {
 		t.Fatalf("PrepareRepository: %v", err)
 	}
+	writeRepoMarker(t, repoPath)
 	if fi, err := os.Stat(repoPath); err != nil || !fi.IsDir() {
 		t.Fatalf("repository dir not created: %v", err)
 	}
@@ -64,11 +72,59 @@ func TestFSBundleWriter_WritesSelfDescribingBundle(t *testing.T) {
 	if manifest["repository_path"] != repoPath {
 		t.Errorf("manifest repository_path = %v, want %v", manifest["repository_path"], repoPath)
 	}
+	if manifest["repository_unique_id"] != "fixture-repository" {
+		t.Errorf("manifest repository_unique_id = %v, want fixture repository identity", manifest["repository_unique_id"])
+	}
 	if manifest["relative_path"] != "vrooli-backups" {
 		t.Errorf("manifest relative_path = %v, want vrooli-backups", manifest["relative_path"])
 	}
 	if manifest["secret_ref"] == "" {
 		t.Error("manifest should carry the credential reference")
+	}
+}
+
+func TestFSBundleWriterRefusesNonemptyRepositoryPathBeforeCreate(t *testing.T) {
+	root := t.TempDir()
+	repoPath := destinations.RepositoryPathFor(root, "elements-local")
+	if err := os.MkdirAll(repoPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(repoPath, "kopia.repository.f")
+	contents := []byte("existing repository must be preserved")
+	if err := os.WriteFile(marker, contents, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := (&destinations.FSBundleWriter{}).PrepareRepository(context.Background(), root, repoPath); err == nil {
+		t.Fatal("PrepareRepository accepted a nonempty repository path")
+	}
+	if got, err := os.ReadFile(marker); err != nil || string(got) != string(contents) {
+		t.Fatalf("existing repository marker changed: %q / %v", got, err)
+	}
+}
+
+func TestFSBundleWriterAllowsUnrelatedFilesAtMixedUseDriveRoot(t *testing.T) {
+	root := t.TempDir()
+	keepPath := filepath.Join(root, "operator-data", "notes.txt")
+	if err := os.MkdirAll(filepath.Dir(keepPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	keep := []byte("user data that is not part of the Kopia repository")
+	if err := os.WriteFile(keepPath, keep, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	repoPath := destinations.RepositoryPathFor(root, "mixed-use")
+	if err := (&destinations.FSBundleWriter{}).PrepareRepository(context.Background(), root, repoPath); err != nil {
+		t.Fatalf("prepare repository on mixed-use drive: %v", err)
+	}
+	if got, err := os.ReadFile(keepPath); err != nil || string(got) != string(keep) {
+		t.Fatalf("unrelated drive content changed: %q / %v", got, err)
+	}
+	entries, err := os.ReadDir(repoPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("new repository path contains unexpected content: %v", entries)
 	}
 }
 
@@ -83,6 +139,7 @@ func TestFSBundleWriter_NeverWritesSecretValue(t *testing.T) {
 	if err := w.PrepareRepository(ctx, root, repoPath); err != nil {
 		t.Fatal(err)
 	}
+	writeRepoMarker(t, repoPath)
 	if err := w.WriteMetadata(ctx, meta); err != nil {
 		t.Fatal(err)
 	}
@@ -111,6 +168,7 @@ func TestFSBundleWriter_IdempotentAndConflictSafe(t *testing.T) {
 	if err := w.PrepareRepository(ctx, root, repoPath); err != nil {
 		t.Fatal(err)
 	}
+	writeRepoMarker(t, repoPath)
 	if err := w.WriteMetadata(ctx, meta); err != nil {
 		t.Fatal(err)
 	}
@@ -136,6 +194,7 @@ func TestFSBundleWriter_RefreshMetadataRepairsOnlyManagedCredentialReference(t *
 	if err := w.PrepareRepository(ctx, root, repoPath); err != nil {
 		t.Fatal(err)
 	}
+	writeRepoMarker(t, repoPath)
 	if err := w.WriteMetadata(ctx, meta); err != nil {
 		t.Fatal(err)
 	}
@@ -180,6 +239,7 @@ func TestFSBundleWriter_RefreshMetadataRejectsDifferentDestination(t *testing.T)
 	if err := w.PrepareRepository(ctx, root, repoPath); err != nil {
 		t.Fatal(err)
 	}
+	writeRepoMarker(t, repoPath)
 	if err := w.WriteMetadata(ctx, meta); err != nil {
 		t.Fatal(err)
 	}
@@ -190,16 +250,154 @@ func TestFSBundleWriter_RefreshMetadataRejectsDifferentDestination(t *testing.T)
 	}
 }
 
-func TestFSBundleWriter_RejectsRepoAtBundleRoot(t *testing.T) {
+func TestFSBundleWriter_AnchorsLegacyRepositoryOnlyAtOriginalPath(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
-	// Simulate a bundle root that is itself a kopia repository.
-	if err := os.WriteFile(filepath.Join(root, "kopia.repository"), []byte("x"), 0o600); err != nil {
+	repoPath := destinations.RepositoryPathFor(root, "elements-local")
+	w := &destinations.FSBundleWriter{}
+	if err := w.PrepareRepository(ctx, root, repoPath); err != nil {
 		t.Fatal(err)
 	}
+	writeRepoMarker(t, repoPath)
+	meta := newMeta(root, repoPath)
+	if err := w.WriteMetadata(ctx, meta); err != nil {
+		t.Fatal(err)
+	}
+	manifestPath := filepath.Join(root, destinations.BundleManifestFile)
+	contents, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest map[string]any
+	if err := json.Unmarshal(contents, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	delete(manifest, "repository_unique_id") // old bundle written before identity anchoring
+	contents, err = json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyManifest := append(append([]byte(nil), contents...), '\n')
+	if err := os.WriteFile(manifestPath, legacyManifest, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.ValidateRelocation(ctx, meta); err != nil {
+		t.Fatalf("legacy bundle at unchanged path: %v", err)
+	}
+	if err := w.RebindMetadata(ctx, meta); err != nil {
+		t.Fatalf("anchor legacy bundle at unchanged path: %v", err)
+	}
+	contents, err = os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest = nil
+	if err := json.Unmarshal(contents, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if manifest["repository_unique_id"] != "fixture-repository" {
+		t.Fatalf("repository identity was not anchored: %v", manifest)
+	}
+
+	moved := meta
+	moved.BundleRoot = filepath.Join(t.TempDir(), "relocated")
+	moved.RepositoryPath = destinations.RepositoryPathFor(moved.BundleRoot, meta.Name)
+	if err := os.MkdirAll(moved.BundleRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(moved.BundleRoot, destinations.BundleManifestFile), legacyManifest, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(moved.RepositoryPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeRepoMarker(t, moved.RepositoryPath)
+	if err := w.ValidateRelocation(ctx, moved); err == nil {
+		t.Fatal("legacy bundle with no prior identity anchor was allowed to relocate")
+	}
+}
+
+func TestFSBundleWriter_RebindRetryConvergesAfterPartialMetadataWrite(t *testing.T) {
+	ctx := context.Background()
 	w := &destinations.FSBundleWriter{}
-	err := w.PrepareRepository(ctx, root, destinations.RepositoryPathFor(root, "elements-local"))
-	if err == nil {
-		t.Fatal("expected rejection when bundle root is already a kopia repository")
+	oldRoot := t.TempDir()
+	oldRepo := destinations.RepositoryPathFor(oldRoot, "elements-local")
+	if err := w.PrepareRepository(ctx, oldRoot, oldRepo); err != nil {
+		t.Fatal(err)
+	}
+	writeRepoMarker(t, oldRepo)
+	meta := newMeta(oldRoot, oldRepo)
+	if err := w.WriteMetadata(ctx, meta); err != nil {
+		t.Fatal(err)
+	}
+
+	newRoot := t.TempDir()
+	newRepo := destinations.RepositoryPathFor(newRoot, "elements-local")
+	if err := os.MkdirAll(newRepo, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeRepoMarker(t, newRepo)
+	for _, name := range []string{destinations.BundleManifestFile, destinations.BundleReadmeFile, destinations.BundleRecoveryFile} {
+		data, err := os.ReadFile(filepath.Join(oldRoot, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(newRoot, name), data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	const unrelated = "operator-notes.txt"
+	if err := os.WriteFile(filepath.Join(newRoot, unrelated), []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	moved := meta
+	moved.BundleRoot, moved.RepositoryPath = newRoot, newRepo
+	if err := w.ValidateRelocation(ctx, moved); err != nil {
+		t.Fatalf("ValidateRelocation: %v", err)
+	}
+	if err := os.Remove(filepath.Join(newRoot, destinations.BundleRecoveryFile)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(newRoot, destinations.BundleRecoveryFile), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.RebindMetadata(ctx, moved); err == nil {
+		t.Fatal("expected injected recovery-file projection failure")
+	}
+	if err := os.Remove(filepath.Join(newRoot, destinations.BundleRecoveryFile)); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.RebindMetadata(ctx, moved); err != nil {
+		t.Fatalf("retry RebindMetadata: %v", err)
+	}
+	manifestBytes, err := os.ReadFile(filepath.Join(newRoot, destinations.BundleManifestFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest map[string]any
+	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if manifest["repository_unique_id"] != "fixture-repository" || manifest["repository_path"] != newRepo {
+		t.Fatalf("rebound manifest = %v", manifest)
+	}
+	if notes, err := os.ReadFile(filepath.Join(newRoot, unrelated)); err != nil || string(notes) != "keep" {
+		t.Fatalf("unrelated file changed: %q / %v", notes, err)
+	}
+}
+
+func TestFSBundleWriter_RejectsRepoAtBundleRoot(t *testing.T) {
+	ctx := context.Background()
+	for _, marker := range []string{"kopia.repository", "kopia.repository.f"} {
+		t.Run(marker, func(t *testing.T) {
+			root := t.TempDir()
+			if err := os.WriteFile(filepath.Join(root, marker), []byte("x"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			w := &destinations.FSBundleWriter{}
+			if err := w.PrepareRepository(ctx, root, destinations.RepositoryPathFor(root, "elements-local")); err == nil {
+				t.Fatal("expected rejection when bundle root is already a kopia repository")
+			}
+		})
 	}
 }

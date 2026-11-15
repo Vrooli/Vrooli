@@ -62,15 +62,16 @@ func currentOperatorActionsDigest() string {
 type RecoveryDecisionFlow struct {
 	readiness       *destinationreadiness.Service
 	recoveries      destinationreadiness.RecoveryStore
-	asks            operatordecision.PendingStore
+	asks            AskStore
 	publisher       operatordecision.Publisher
 	raiser          operatordecision.Raiser
+	ledger          decisionLedger
 	now             func() time.Time
 	logger          *log.Logger
 	decisionEnabled bool
 }
 
-func newRecoveryDecisionFlow(readiness *destinationreadiness.Service, recoveries destinationreadiness.RecoveryStore, tasks operatordecision.PendingStore, publisher operatordecision.Publisher, decisionEnabled bool, logger *log.Logger) *RecoveryDecisionFlow {
+func newRecoveryDecisionFlow(readiness *destinationreadiness.Service, recoveries destinationreadiness.RecoveryStore, tasks AskStore, publisher operatordecision.Publisher, decisionEnabled bool, logger *log.Logger) *RecoveryDecisionFlow {
 	if logger == nil {
 		logger = log.Default()
 	}
@@ -80,6 +81,7 @@ func newRecoveryDecisionFlow(readiness *destinationreadiness.Service, recoveries
 		Publisher: publisher, Clock: recoveryDecisionClock{flow: flow}, MaxOutstanding: 3,
 		Window: volumeRecoveryDecisionWindow,
 	}
+	flow.ledger = decisionLedger{asks: tasks, raiser: flow.raiser, publisher: publisher, clock: func() time.Time { return flow.now() }, logger: logger}
 	return flow
 }
 
@@ -93,9 +95,11 @@ func (c recoveryDecisionClock) Now() time.Time {
 }
 
 // RaiseRepairApproval records and publishes an idempotent decision for one
-// exact blocked repair step. The confirmation phrase and data-loss ack are not
-// accepted from the API caller as authority; only a verified human callback
-// supplies those gates.
+// exact blocked repair step, under the recovery's subject key so the hub keeps
+// one open decision for it, updates it in place and closes it when the repair
+// is no longer waiting (see Settle). The confirmation phrase and data-loss ack
+// are not accepted from the API caller as authority; only a verified human
+// callback supplies those gates.
 func (f *RecoveryDecisionFlow) RaiseRepairApproval(ctx context.Context, journal destinationreadiness.RecoveryJournal) error {
 	if !f.decisionDeliveryReady() {
 		return fmt.Errorf("Notification Hub decision delivery is not configured")
@@ -134,7 +138,7 @@ func (f *RecoveryDecisionFlow) RaiseRepairApproval(ctx context.Context, journal 
 			"recovery_id": journal.ID, "plan_id": plan.ID, "step_index": index,
 		},
 	}
-	if _, err := f.raiser.Raise(ctx, task, facts); err != nil {
+	if err := f.ledger.raise(ctx, task, facts, volumeSubjectKey(journal.ID)); err != nil {
 		return fmt.Errorf("raise filesystem repair decision: %w", err)
 	}
 	return nil
@@ -181,6 +185,9 @@ func (f *RecoveryDecisionFlow) NotifyRecoveryCompleted(ctx context.Context, jour
 	if f == nil || f.publisher == nil {
 		return
 	}
+	// Whoever completed the recovery (the operator in DBM, the safe remount, or
+	// the approved repair), a repair question still pending for it is moot.
+	f.withdrawForJournal(ctx, journal.ID, "The backup drive recovery finished, so no repair approval is needed any more.")
 	if err := f.publisher.PublishDomainEvent(ctx, recoveryNotification(
 		"Backup drive recovery completed",
 		"The approved recovery sequence completed through the control-plane volume owner. DBM verified the selected volume is mounted read/write at its recorded mount root. Check destination readiness before allowing backup writes.",
@@ -212,6 +219,12 @@ func (f *RecoveryDecisionFlow) Apply(ctx context.Context, resolution operatordec
 	}
 	if !matchesRecoveryDecisionAsk(task, ref) {
 		return true, nil
+	}
+	if resolution.State == operatordecision.StateWithdrawn {
+		return true, f.ledger.hubWithdrew(ctx, task, resolution)
+	}
+	if task.State == operatordecision.PendingStateWithdrawn {
+		return true, f.answerToWithdrawn(ctx, task, resolution)
 	}
 	if handled, err := f.handlePriorResolution(ctx, task, resolution, ref); handled || err != nil {
 		return true, err

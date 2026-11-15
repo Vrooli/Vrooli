@@ -80,7 +80,8 @@ start.
 
 | Service | Status | Reason | Contract |
 |---|---|---|---|
-| S3-compatible object storage | optional (via kopia/minio) | Destinations and object-storage sources can target S3/MinIO. Other kopia backends (B2, GCS, Azure, SFTP) are P2. | Reached only through the `kopia`/`minio` resources; repository and backend credentials use the credential authority. |
+| S3-compatible object storage | optional (via kopia/minio) | Destinations and object-storage sources can target S3-compatible endpoints. | Reached only through the `kopia`/`minio` resources; repository and backend credentials use the credential authority. |
+| SFTP repository | optional (via kopia) | Destinations can target an operator-authorized SSH/SFTP repository with host-key verification. | Reached only through `resource-kopia`; the private key is credential-authority managed. Host/device independence still requires trusted topology evidence. |
 
 ## Failure Modes
 

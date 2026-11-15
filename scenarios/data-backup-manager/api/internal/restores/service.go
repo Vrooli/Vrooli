@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"data-backup-manager/internal/engine"
+	"data-backup-manager/internal/platformreceipts"
 	"data-backup-manager/internal/sources"
 
 	"github.com/vrooli/api-core/schedule"
@@ -44,6 +45,7 @@ type Service interface {
 	// LastVerifiedByTarget returns the latest successful verify per target
 	// (the proven-restorable rollup), optionally filtered to targetIDs.
 	LastVerifiedByTarget(ctx context.Context, targetIDs []string) ([]VerifiedStatus, error)
+	LastVerifiedByTargetDestination(ctx context.Context, targetIDs []string) ([]DestinationVerifiedStatus, error)
 	// Reconcile closes any restore left non-terminal by a crash/restart as failed
 	// (fail-not-resume, mirroring runs). Called once at startup.
 	Reconcile(ctx context.Context) error
@@ -77,6 +79,9 @@ type Deps struct {
 	// injectable so cleanup failures remain testable evidence rather than an
 	// ignored filesystem side effect.
 	RemoveAll func(string) error
+	// PlatformReceipts records successful scratch verifies as native-runtime
+	// evidence. Nil preserves isolation for narrow tests and fixtures.
+	PlatformReceipts platformreceipts.Sink
 }
 
 const defaultRestoreListLimit = 100
@@ -91,7 +96,7 @@ type service struct {
 // restore/verify+persist lifecycle off the request path.
 func NewService(d Deps) Service {
 	if d.RemoveAll == nil {
-		d.RemoveAll = os.RemoveAll
+		d.RemoveAll = removeScratchTree
 	}
 	s := &service{deps: d}
 	exec := d.Executor
@@ -101,6 +106,63 @@ func NewService(d Deps) Service {
 	s.executor = exec
 	s.executor.Bind(d.BaseContext, s.executeJob)
 	return s
+}
+
+// removeScratchTree normalizes owner permissions before removing a restored
+// scratch tree. Kopia preserves source permissions, so read-only directories
+// can otherwise make an otherwise verified drill fail during cleanup and
+// leave restored data in the temp directory. This helper never follows
+// symlinks and only operates on an exact directory created by DBM's scratch
+// restore path.
+func removeScratchTree(root string) error {
+	root = strings.TrimSpace(root)
+	if root == "" {
+		return fmt.Errorf("scratch path is required")
+	}
+	base := filepath.Base(root)
+	if !strings.HasPrefix(base, "dbm-restore-") && !strings.HasPrefix(base, "dbm-verify-") && !strings.HasPrefix(base, "dbm-materialized-") {
+		return fmt.Errorf("scratch cleanup root %q is outside the DBM scratch naming contract", base)
+	}
+	info, err := os.Lstat(root)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return fmt.Errorf("scratch cleanup root must be a real directory")
+	}
+	if err := os.Chmod(root, info.Mode().Perm()|0o700); err != nil {
+		return fmt.Errorf("make scratch root removable: %w", err)
+	}
+	if err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+		entryInfo, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		mode := entryInfo.Mode().Perm()
+		if entry.IsDir() {
+			mode |= 0o700
+		} else {
+			// Also clear read-only file attributes on platforms where those
+			// attributes prevent unlinking a restored file.
+			mode |= 0o600
+		}
+		if err := os.Chmod(path, mode); err != nil {
+			return fmt.Errorf("make scratch entry removable %q: %w", path, err)
+		}
+		return nil
+	}); err != nil {
+		return fmt.Errorf("prepare scratch tree for removal: %w", err)
+	}
+	return os.RemoveAll(root)
 }
 
 // Compile-time guarantee.
@@ -168,7 +230,7 @@ func (s *service) RestoreTarget(ctx context.Context, targetID, destinationID, sn
 	if err != nil {
 		return Restore{}, fmt.Errorf("create restore: %w", err)
 	}
-	s.executor.Submit(RestoreJob{Restore: created, Target: target, DestName: dest.Name})
+	s.executor.Submit(RestoreJob{Restore: created, Target: target, DestinationID: dest.ID, DestName: dest.Name})
 	return s.deps.Repo.GetRestore(ctx, created.ID)
 }
 
@@ -213,7 +275,7 @@ func (s *service) VerifyTarget(ctx context.Context, targetID, destinationID, sna
 	if err != nil {
 		return Restore{}, fmt.Errorf("create restore: %w", err)
 	}
-	s.executor.Submit(RestoreJob{Restore: created, Target: target, DestName: dest.Name})
+	s.executor.Submit(RestoreJob{Restore: created, Target: target, DestinationID: dest.ID, DestName: dest.Name})
 	return s.deps.Repo.GetRestore(ctx, created.ID)
 }
 
@@ -223,6 +285,17 @@ func (s *service) VerifyTarget(ctx context.Context, targetID, destinationID, sna
 // server-lifetime context, so a client disconnect cannot cancel it, and it
 // never returns an error — failures are persisted onto the record.
 func (s *service) executeJob(ctx context.Context, job RestoreJob) {
+	// Resolve again in the worker immediately before repository use. Requests
+	// may sit in the queue while a removable volume is unplugged or remounted.
+	dest, err := s.deps.Destinations.DestinationForRestore(ctx, job.DestinationID)
+	if err != nil {
+		s.finishFailed(ctx, job.Restore.ID, fmt.Sprintf("re-resolve destination before repository use: %v", err))
+		return
+	}
+	if dest.Name != job.DestName {
+		s.finishFailed(ctx, job.Restore.ID, "destination identity changed while restore was queued")
+		return
+	}
 	switch job.Restore.Mode {
 	case ModeVerify:
 		s.runVerify(ctx, job)
@@ -250,7 +323,9 @@ func (s *service) runRestore(ctx context.Context, job RestoreJob) {
 		return
 	}
 	workErr := func() error {
-		if err := s.deps.Engine.SnapshotRestore(ctx, job.DestName, job.Restore.SnapshotID, artifactDir); err != nil {
+		if err := s.withResolvedDestination(ctx, job, func(name string) error {
+			return s.deps.Engine.SnapshotRestore(ctx, name, job.Restore.SnapshotID, artifactDir)
+		}); err != nil {
 			return fmt.Errorf("snapshot restore: %w", err)
 		}
 
@@ -304,15 +379,15 @@ func (s *service) runVerify(ctx context.Context, job RestoreJob) {
 		return
 	}
 	workErr, checksum := func() (error, string) {
-		if err := s.deps.Engine.SnapshotRestore(ctx, job.DestName, job.Restore.SnapshotID, scratchDir); err != nil {
-			return fmt.Errorf("snapshot restore: %w", err), ""
-		}
-
-		// Full 100% byte-verify. CRITICAL INVARIANT (OT-P0-006): a verify failure
-		// must NEVER set status=verified or last_verified_at — finishFailed leaves
-		// both unset.
-		if err := s.deps.Engine.SnapshotVerify(ctx, job.DestName, job.Restore.SnapshotID, 100); err != nil {
-			return fmt.Errorf("snapshot verify: %w", err), ""
+		if err := s.withResolvedDestination(ctx, job, func(name string) error {
+			if err := s.deps.Engine.SnapshotRestore(ctx, name, job.Restore.SnapshotID, scratchDir); err != nil {
+				return fmt.Errorf("snapshot restore: %w", err)
+			}
+			// Full 100% byte-verify. CRITICAL INVARIANT (OT-P0-006): a verify
+			// failure must NEVER set status=verified or last_verified_at.
+			return s.deps.Engine.SnapshotVerify(ctx, name, job.Restore.SnapshotID, 100)
+		}); err != nil {
+			return fmt.Errorf("repository use: %w", err), ""
 		}
 
 		// Workspace verification exercises the final source adapter, not just
@@ -358,7 +433,26 @@ func (s *service) runVerify(ctx context.Context, job RestoreJob) {
 	now := s.deps.Clock.Now().UTC()
 	if err := s.deps.Repo.FinishRestore(ctx, id, EventVerified, checksum, now, now, ""); err != nil {
 		s.logf("finish verify %s: %v", id, err)
+	} else if s.deps.PlatformReceipts != nil {
+		if err := s.deps.PlatformReceipts.Record(ctx, platformreceipts.Input{
+			Capability: "scratch_restore", Outcome: "passed", Operation: job.Restore.ID,
+			TargetID: job.Restore.TargetID, DestinationID: job.Restore.DestinationID,
+			Proof: checksum, ObservedAt: now,
+		}); err != nil {
+			s.logf("verify %s platform receipt: %v", id, err)
+		}
 	}
+}
+
+// withResolvedDestination makes the repository locator current immediately
+// before a Kopia read and holds DBM's destination lock through that operation.
+func (s *service) withResolvedDestination(ctx context.Context, job RestoreJob, use func(string) error) error {
+	return s.deps.Destinations.WithResolvedDestination(ctx, job.DestinationID, func(current DestinationForRestore) error {
+		if current.ID != job.DestinationID || current.Name != job.DestName {
+			return fmt.Errorf("destination identity changed before repository use")
+		}
+		return use(current.Name)
+	})
 }
 
 // finishFailed persists a terminal failed state, leaving checksum and
@@ -367,6 +461,23 @@ func (s *service) finishFailed(ctx context.Context, id, errMsg string) {
 	now := s.deps.Clock.Now().UTC()
 	if err := s.deps.Repo.FinishRestore(ctx, id, EventFail, "", time.Time{}, now, errMsg); err != nil {
 		s.logf("finish failed restore %s: %v", id, err)
+		return
+	}
+	if s.deps.PlatformReceipts != nil {
+		restore, err := s.deps.Repo.GetRestore(ctx, id)
+		if err != nil {
+			s.logf("failed restore %s platform receipt read: %v", id, err)
+			return
+		}
+		if restore.Mode == ModeVerify {
+			if err := s.deps.PlatformReceipts.Record(ctx, platformreceipts.Input{
+				Capability: "scratch_restore", Outcome: "failed", Operation: restore.ID,
+				TargetID: restore.TargetID, DestinationID: restore.DestinationID,
+				Proof: errMsg, ObservedAt: now,
+			}); err != nil {
+				s.logf("failed verify %s platform receipt: %v", id, err)
+			}
+		}
 	}
 }
 
@@ -417,6 +528,10 @@ func (s *service) ListRestores(ctx context.Context, targetID string, limit int) 
 
 func (s *service) LastVerifiedByTarget(ctx context.Context, targetIDs []string) ([]VerifiedStatus, error) {
 	return s.deps.Repo.LastVerifiedByTarget(ctx, targetIDs)
+}
+
+func (s *service) LastVerifiedByTargetDestination(ctx context.Context, targetIDs []string) ([]DestinationVerifiedStatus, error) {
+	return s.deps.Repo.LastVerifiedByTargetDestination(ctx, targetIDs)
 }
 
 // failRestore records a failed restore and persists it. If persistence fails,

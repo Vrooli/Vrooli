@@ -77,7 +77,7 @@ an `EndpointDescriptor`, stop — use a proto service method instead.
 Codegen rejects literal Paths that lack an explicit `RESTException`
 tag; the four allowed REST reasons (multipart upload, webhook
 receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. Use REST only for the documented
+`api/internal/modulecontract/module.go`. Use REST only for the documented
 exception cases; current product domains use Connect-RPC.
 
 ## Running The Scenario

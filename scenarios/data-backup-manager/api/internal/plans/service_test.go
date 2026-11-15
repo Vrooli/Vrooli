@@ -41,6 +41,9 @@ func TestPlan_ManyToManyBindings(t *testing.T) {
 	if !p1.Enabled {
 		t.Fatal("plan should default to enabled=true")
 	}
+	if p1.RecoveryDrillSchedule != plans.DefaultRecoveryDrillSchedule {
+		t.Fatalf("new plan drill schedule = %q, want weekly default %q", p1.RecoveryDrillSchedule, plans.DefaultRecoveryDrillSchedule)
+	}
 
 	// GetByID should return membership lists.
 	got, err := repo.GetByID(ctx, p1.ID)

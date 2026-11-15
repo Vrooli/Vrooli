@@ -7,29 +7,46 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/eventbus"
 )
 
 type Service interface {
 	Preview(ctx context.Context, planID, targetID, destinationID string) (Preview, error)
 	Run(ctx context.Context, planID, targetID, destinationID, idempotencyKey string, scheduled bool) (Drill, error)
+	// RunMigrationSnapshot drills one exact destination-bound migration capture
+	// before that destination belongs to the source plan. It uses the same durable
+	// drill repository, readiness gate and verified restore worker as ordinary drills.
+	RunMigrationSnapshot(ctx context.Context, planID, targetID, destinationID, snapshotID, idempotencyKey string) (Drill, error)
 	Get(ctx context.Context, id string) (Drill, error)
+	Retire(ctx context.Context, id, reason string) (Drill, error)
 	List(ctx context.Context, planID, targetID string, limit int) ([]Drill, error)
+	ListPage(ctx context.Context, planID, targetID string, limit int, pageToken string) (DrillPage, error)
 	RunDue(ctx context.Context) error
 	Reconcile(ctx context.Context) error
 	Shutdown(ctx context.Context) error
 }
 
 type Deps struct {
-	Repo         Repository
-	Plans        PlanLookup
-	Snapshots    SnapshotLookup
-	Restores     RestoreRunner
-	Clock        Clock
-	BaseContext  context.Context
-	Workers      int
-	PollInterval time.Duration
-	PollTimeout  time.Duration
-	Logger       *log.Logger
+	Repo          Repository
+	Plans         PlanLookup
+	Snapshots     SnapshotLookup
+	Readiness     DestinationReadiness
+	Restores      RestoreRunner
+	Notifications NotificationPublisher
+	Clock         Clock
+	BaseContext   context.Context
+	Workers       int
+	PollInterval  time.Duration
+	PollTimeout   time.Duration
+	Logger        *log.Logger
+}
+
+// DestinationReadiness supplies the same read-only destination gate used by
+// backup preflight. A successful snapshot alone is not sufficient evidence
+// that a restore can safely use a filesystem destination now.
+type DestinationReadiness interface {
+	ReadyForDrill(context.Context, string) (bool, string, error)
 }
 
 type service struct {
@@ -85,6 +102,15 @@ func (s *service) Preview(ctx context.Context, planID, targetID, destinationID s
 		preview.Eligible = false
 		preview.Reason = "no successful backup snapshot exists for this target and destination"
 		preview.Warnings = []string{"run the selected backup plan successfully before starting a recovery drill"}
+	} else if s.deps.Readiness != nil {
+		ready, reason, readinessErr := s.deps.Readiness.ReadyForDrill(ctx, destinationID)
+		if readinessErr != nil {
+			preview.Eligible = false
+			preview.Reason = fmt.Sprintf("destination readiness could not be verified: %v", readinessErr)
+		} else if !ready {
+			preview.Eligible = false
+			preview.Reason = reason
+		}
 	}
 	if plan.DrillSchedule == "" {
 		preview.Warnings = append(preview.Warnings, "this plan has no automated drill schedule; manual drills remain available")
@@ -98,6 +124,25 @@ func (s *service) Run(ctx context.Context, planID, targetID, destinationID, idem
 	if err != nil {
 		return Drill{}, err
 	}
+	return s.runSnapshot(ctx, plan, targetID, destinationID, "", idempotencyKey, scheduled)
+}
+
+func (s *service) RunMigrationSnapshot(ctx context.Context, planID, targetID, destinationID, snapshotID, idempotencyKey string) (Drill, error) {
+	planID, targetID, destinationID, snapshotID = strings.TrimSpace(planID), strings.TrimSpace(targetID), strings.TrimSpace(destinationID), strings.TrimSpace(snapshotID)
+	if planID == "" || targetID == "" || destinationID == "" || snapshotID == "" || strings.TrimSpace(idempotencyKey) == "" {
+		return Drill{}, ErrInvalid{Field: "migration", Reason: "plan, target, destination, exact snapshot, and idempotency key are required"}
+	}
+	plan, err := s.deps.Plans.PlanForDrill(ctx, planID)
+	if err != nil {
+		return Drill{}, err
+	}
+	if !contains(plan.TargetIDs, targetID) {
+		return Drill{}, ErrInvalid{Field: "target_id", Reason: "target is not a member of the source plan"}
+	}
+	return s.runSnapshot(ctx, plan, targetID, destinationID, snapshotID, idempotencyKey, false)
+}
+
+func (s *service) runSnapshot(ctx context.Context, plan Plan, targetID, destinationID, snapshotID, idempotencyKey string, scheduled bool) (Drill, error) {
 	if key := strings.TrimSpace(idempotencyKey); key != "" {
 		if existing, ok, err := s.deps.Repo.FindByIdempotency(ctx, key); err != nil {
 			return Drill{}, err
@@ -113,9 +158,16 @@ func (s *service) Run(ctx context.Context, planID, targetID, destinationID, idem
 
 	now := s.deps.Clock.Now().UTC()
 	d := Drill{PlanID: plan.ID, TargetID: targetID, DestinationID: destinationID, Status: StatusRequested, Scheduled: scheduled, RequestedAt: now, IdempotencyKey: strings.TrimSpace(idempotencyKey)}
-	snapshot, ok, err := s.deps.Snapshots.LatestSuccessfulSnapshot(ctx, plan.ID, targetID, destinationID)
-	if err != nil {
-		return Drill{}, fmt.Errorf("find latest successful snapshot: %w", err)
+	var snapshot Snapshot
+	var err error
+	ok := strings.TrimSpace(snapshotID) != ""
+	if ok {
+		snapshot.ID = snapshotID
+	} else {
+		snapshot, ok, err = s.deps.Snapshots.LatestSuccessfulSnapshot(ctx, plan.ID, targetID, destinationID)
+		if err != nil {
+			return Drill{}, fmt.Errorf("find latest successful snapshot: %w", err)
+		}
 	}
 	if !ok || snapshot.ID == "" {
 		if err := d.TransitionStatus(EventFail); err != nil {
@@ -124,7 +176,18 @@ func (s *service) Run(ctx context.Context, planID, targetID, destinationID, idem
 		d.Error = "no successful backup snapshot exists for this target and destination"
 		d.NextAction = "run the backup plan successfully, then retry the recovery drill"
 		d.FinishedAt = now
-		return s.deps.Repo.Create(ctx, d)
+		created, createErr := s.deps.Repo.Create(ctx, d)
+		if createErr == nil {
+			if notifyErr := s.dispatchPendingNotifications(ctx); notifyErr != nil {
+				s.deps.Logger.Printf("drills: dispatch failed notification %s: %v", created.ID, notifyErr)
+			}
+			if latest, readErr := s.deps.Repo.Get(ctx, created.ID); readErr == nil {
+				created = latest
+			} else {
+				s.deps.Logger.Printf("drills: read failure notification state %s: %v", created.ID, readErr)
+			}
+		}
+		return created, createErr
 	}
 	d.SnapshotID = snapshot.ID
 	created, err := s.deps.Repo.Create(ctx, d)
@@ -255,7 +318,9 @@ func (s *service) fail(ctx context.Context, id, reason string) {
 func (s *service) failWithAction(ctx context.Context, id, reason, nextAction string) {
 	if err := s.deps.Repo.Finish(ctx, id, EventFail, reason, nextAction, s.deps.Clock.Now().UTC()); err != nil {
 		s.deps.Logger.Printf("drills: finish %s: %v", id, err)
+		return
 	}
+	s.dispatchPendingNotifications(ctx)
 }
 
 func (s *service) Get(ctx context.Context, id string) (Drill, error) {
@@ -265,18 +330,50 @@ func (s *service) Get(ctx context.Context, id string) (Drill, error) {
 	return s.deps.Repo.Get(ctx, id)
 }
 
+func (s *service) Retire(ctx context.Context, id, reason string) (Drill, error) {
+	id = strings.TrimSpace(id)
+	reason = strings.TrimSpace(reason)
+	if id == "" {
+		return Drill{}, ErrInvalid{Field: "id", Reason: "required"}
+	}
+	if reason == "" {
+		return Drill{}, ErrInvalid{Field: "reason", Reason: "required"}
+	}
+	current, err := s.deps.Repo.Get(ctx, id)
+	if err != nil {
+		return Drill{}, err
+	}
+	if !IsTerminal(current.Status) {
+		return Drill{}, ErrInvalid{Field: "status", Reason: "only completed recovery drills can be retired"}
+	}
+	return s.deps.Repo.Retire(ctx, id, reason, s.deps.Clock.Now().UTC())
+}
+
 func (s *service) List(ctx context.Context, planID, targetID string, limit int) ([]Drill, error) {
 	return s.deps.Repo.List(ctx, strings.TrimSpace(planID), strings.TrimSpace(targetID), limit)
 }
 
+func (s *service) ListPage(ctx context.Context, planID, targetID string, limit int, pageToken string) (DrillPage, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+	return s.deps.Repo.ListPage(ctx, strings.TrimSpace(planID), strings.TrimSpace(targetID), limit, strings.TrimSpace(pageToken))
+}
+
 func (s *service) RunDue(ctx context.Context) error {
+	if err := s.dispatchPendingNotifications(ctx); err != nil {
+		return err
+	}
 	plans, err := s.deps.Plans.SchedulableDrillPlans(ctx)
 	if err != nil {
 		return err
 	}
 	now := s.deps.Clock.Now().UTC()
 	for _, p := range plans {
-		if !p.Enabled || p.DrillSchedule == "" {
+		if !p.Enabled || p.DrillSchedule == "" || p.DrillSchedule == "manual" {
 			continue
 		}
 		interval, e := time.ParseDuration(p.DrillSchedule)
@@ -327,6 +424,56 @@ func (s *service) Reconcile(ctx context.Context) error {
 			if err := s.deps.Repo.Finish(ctx, d.ID, EventFail, "reconciled: process restarted while recovery drill was in-flight", "retry the recovery drill after verifying service health", now); err != nil {
 				return err
 			}
+		}
+	}
+	return s.dispatchPendingNotifications(ctx)
+}
+
+func (s *service) dispatchPendingNotifications(ctx context.Context) error {
+	if s.deps.Notifications == nil {
+		return nil
+	}
+	pending, err := s.deps.Repo.ListPendingNotifications(ctx, 100)
+	if err != nil {
+		return err
+	}
+	if len(pending) > 0 && !s.deps.Notifications.Enabled() {
+		s.deps.Logger.Printf("drills: %d failed notification(s) remain pending because Vrooli Events delivery is not configured", len(pending))
+		return nil
+	}
+	for _, drill := range pending {
+		title := "Recovery drill failed"
+		if drill.Scheduled {
+			title = "Scheduled recovery drill failed"
+		}
+		body := fmt.Sprintf("Recovery drill %s failed for plan %s, target %s and destination %s. %s. Next action: %s.", drill.ID, drill.PlanID, drill.TargetID, drill.DestinationID, strings.TrimSpace(drill.Error), strings.TrimSpace(drill.NextAction))
+		// The domain-event ID is derived from its full envelope. Keep occurrence
+		// time tied to the persisted failure so an outbox retry publishes the
+		// same event ID even after Notification Hub's short dedupe window.
+		occurred := drill.FinishedAt.UTC()
+		if occurred.IsZero() {
+			occurred = s.deps.Clock.Now().UTC()
+		}
+		event := eventbus.DomainEvent{
+			Source:    "data-backup-manager",
+			EventType: "data_backup_manager.backup_health.notification.v1",
+			Occurred:  occurred,
+			Payload: map[string]any{
+				"title": title, "body": body, "category": "backup-recovery-needs-attention",
+				"urgency": "high", "sensitivity": "private",
+				"dedupe_key":  "recovery-drill-failed:" + drill.ID,
+				"correlation": map[string]any{"drill_id": drill.ID, "plan_id": drill.PlanID, "target_id": drill.TargetID, "destination_id": drill.DestinationID},
+			},
+		}
+		if err := s.deps.Notifications.PublishDomainEvent(ctx, event); err != nil {
+			// Leave the durable outbox row pending. Startup reconciliation and
+			// the minute scheduler retry it; Vrooli Events deduplicates by key if
+			// publication succeeded before a process or catalog failure.
+			s.deps.Logger.Printf("drills: publish failure notification %s: %v", drill.ID, err)
+			continue
+		}
+		if err := s.deps.Repo.MarkNotificationSent(ctx, drill.ID, s.deps.Clock.Now().UTC()); err != nil {
+			s.deps.Logger.Printf("drills: mark failure notification %s delivered: %v", drill.ID, err)
 		}
 	}
 	return nil

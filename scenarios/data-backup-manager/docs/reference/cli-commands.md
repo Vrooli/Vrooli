@@ -79,7 +79,7 @@ per [`configuration.md`](configuration.md#cli-config-file)).
 
 ```bash
 data-backup-manager configure api_base http://localhost:15001/api/v1
-data-backup-manager configure token <token>
+data-backup-manager configure token "token-value"
 ```
 
 Read values back without an argument:
@@ -101,13 +101,13 @@ Self-registration and catalog inspection.
 
 ```bash
 # Scenario self-registration (idempotent upsert, owner+name keyed)
-data-backup-manager targets register --owner prompt-manager \
-  --name store-teams --kind filesystem --locator store/teams
+# Scenario self-registration (idempotent upsert, owner+name keyed)
+data-backup-manager targets register --owner prompt-manager --name store-teams --kind filesystem --locator store/teams
 data-backup-manager targets deregister --owner prompt-manager --name store-teams
 
 # Operator inspection
 data-backup-manager targets list
-data-backup-manager targets get <target-id>
+data-backup-manager targets get target-id
 ```
 
 `--kind` is one of `filesystem`, `sqlite`, `postgres`, `redis`,
@@ -122,16 +122,20 @@ authority, never flags or config.
 ```bash
 # --name must be slug-safe (lowercase, digits, hyphens) — it is also the kopia
 # repository name. --location is the operator-facing bundle root for filesystem.
-data-backup-manager destinations create --name nightly-local \
-  --backend filesystem --location /var/backups/nightly --cap-bytes 53687091200
-data-backup-manager destinations list          # shows bundle root, repository path, usage vs cap
-data-backup-manager destinations get <destination-id>
-data-backup-manager destinations usage <destination-id>
-data-backup-manager destinations update --id <destination-id> --cap-policy alert-block
+# --name is slug-safe; --location is the filesystem bundle root.
+data-backup-manager destinations create --name nightly-local --backend filesystem --location /var/backups/nightly --cap-bytes 53687091200
+# On a replacement catalog, attach an existing repository from non-secret
+# catalog metadata and exact snapshot proof. It connects; it never creates it.
+# On a replacement catalog, attach exact existing repository metadata and snapshot proof.
+data-backup-manager destinations import-existing --id destination-id --name nightly --backend s3 --location 's3+https://endpoint/bucket/prefix?region=us-east-1' --created-at 2026-01-01T00:00:00Z --snapshot-ids snapshot-id
+data-backup-manager destinations list
+data-backup-manager destinations get destination-id
+data-backup-manager destinations usage destination-id
+data-backup-manager destinations update --id destination-id --cap-policy alert-block
 
 # Delete is precise about what it removes:
-data-backup-manager destinations delete --id <destination-id>                       # catalog row only
-data-backup-manager destinations delete --id <destination-id> --delete-repository true
+data-backup-manager destinations delete --id destination-id
+data-backup-manager destinations delete --id destination-id --delete-repository true
 #   ^ also removes LOCAL kopia metadata/config/cache + credential-authority
 #     repository-passphrase and S3 secret refs.
 #     The encrypted repository bytes on the backend are NEVER deleted by DBM.
@@ -140,23 +144,17 @@ data-backup-manager destinations delete --id <destination-id> --delete-repositor
 data-backup-manager destinations readiness --location /media/user/USB --json
 
 # Non-mutating preparation planning. Execution stays separate and guarded.
-data-backup-manager destinations prepare-plan --location /media/user/USB \
-  --action create-subdir --subdir vrooli-backups --json
-data-backup-manager destinations prepare-execute --plan-json '<plan-json>' \
-  --confirm '<exact phrase>' --dry-run true
+data-backup-manager destinations prepare-plan --location /media/user/USB --action create-subdir --subdir vrooli-backups --json
+data-backup-manager destinations prepare-execute --plan-json '{plan-json}' --confirm 'exact phrase' --dry-run true
 
 # Durable recovery orchestration (start persists only; resume defaults dry-run).
-data-backup-manager destinations recovery-start --location /media/user/USB \
-  --identity-json '<identity-json>' --plans-json '[<plan-json>, ...]'
-data-backup-manager destinations recovery-get <journal-id>
-data-backup-manager destinations recovery-resume <journal-id> \
-  --confirmations-json '{"0":"<exact phrase>"}' --dry-run true
+data-backup-manager destinations recovery-start --location /media/user/USB --identity-json '{identity-json}' --plans-json '[{plan-json}]'
+data-backup-manager destinations recovery-get journal-id
+data-backup-manager destinations recovery-resume journal-id --confirmations-json '{"0":"exact phrase"}' --dry-run true
 
 # For an unmounted or replugged drive, bind the plan to stable identity too.
 # On Linux UUID/serial can resolve the current device even without --device.
-data-backup-manager destinations prepare-plan --location /media/user/USB \
-  --action check-filesystem --device /dev/sda1 \
-  --uuid '<filesystem-uuid>' --serial '<device-serial>' --json
+data-backup-manager destinations prepare-plan --location /media/user/USB --action check-filesystem --device /dev/sda1 --uuid 'filesystem-uuid' --serial 'device-serial' --json
 ```
 
 For a filesystem backend, `create` builds a self-describing **bundle** at the
@@ -193,9 +191,11 @@ Use these on a fresh install to see what's worth protecting and where to
 back it up, instead of wiring the five nouns by hand.
 
 ```bash
-data-backup-manager discovery targets        # well-known ~/.vrooli runtime state worth protecting
-data-backup-manager discovery destinations   # mounted volumes / plugged-in drives to back up to
-data-backup-manager discovery dismiss --id <id>   # hide a suggestion permanently
+# Well-known runtime state worth protecting.
+data-backup-manager discovery targets
+# Mounted volumes and plugged-in drives to back up to.
+data-backup-manager discovery destinations
+data-backup-manager discovery dismiss --id suggestion-id
 ```
 
 There is intentionally **no `accept` command**. Each suggestion prints the
@@ -217,36 +217,38 @@ non-sensitive defaults — so a plan protects *all* known non-regenerable durabl
 state, not just one self-registered target.
 
 ```bash
-data-backup-manager coverage report                       # registered/recommended/sensitive/planned/backed-up/verified
-data-backup-manager coverage accept-defaults --dry-run    # preview — registers nothing
-data-backup-manager coverage accept-defaults              # register non-sensitive discovered durable targets
-data-backup-manager coverage accept-defaults --include-sensitive  # also register credential/token targets (deliberate)
+data-backup-manager coverage report
+data-backup-manager coverage accept-defaults --dry-run
+data-backup-manager coverage accept-defaults
+data-backup-manager coverage review-sensitive
 ```
 
 `coverage report` separates sensitive targets from the default-coverage score and
-marks them review-only. Credential recovery is reported independently by
-`vrooli credentials doctor`; do not register a recorded recovery bundle as a
-filesystem target. Restore it through `vrooli credentials recovery restore`.
+marks them review-only. Reacquirable suggestions show owner recovery commands,
+evidence, and byte/age bounds when declared; missing command or evidence is
+reported as an incomplete reacquisition proof. A generic `regenerable` flag is
+not an executable reacquisition receipt. Credential recovery is reported
+independently by `vrooli credentials doctor`; do not register a recorded recovery
+bundle as a filesystem target. Restore it through `vrooli credentials recovery restore`.
 
-Sensitive credential/token suggestions are **never** registered by default;
-they require the explicit `--include-sensitive` opt-in. Acceptance is idempotent
-(discovery already excludes registered targets) and reads no file contents —
-registration stores locators only. Per-item failures are reported, never
-swallowed.
+Sensitive credential/token suggestions are **never** registered through bulk
+acceptance. `review-sensitive` raises one batched decision only when the signed
+verified-human callback is configured. The callback revalidates the candidate
+set, registers only approved targets, records reacquire/exclude dispositions,
+and publishes a result notice. Bulk acceptance remains idempotent and reads no
+file contents — registration stores locators only. Per-item failures are
+reported, never swallowed.
 
 ### `data-backup-manager plans ...`
 
 Bind targets to destinations with a schedule and retention.
 
 ```bash
-data-backup-manager plans create --name nightly \
-  --targets <target-id> \
-  --destinations <destination-id> \
-  --schedule "24h" --keep-latest 7
+data-backup-manager plans create --name nightly --targets target-id --destinations destination-id --schedule "24h" --keep-latest 7
 data-backup-manager plans list
-data-backup-manager plans get <plan-id>
-data-backup-manager plans update --id <plan-id> --keep-latest 7
-data-backup-manager plans delete --id <plan-id>
+data-backup-manager plans get plan-id
+data-backup-manager plans update --id plan-id --keep-latest 7
+data-backup-manager plans delete --id plan-id
 ```
 
 `plans update` is a partial update: flags you omit keep the plan's current
@@ -281,11 +283,17 @@ Recovery drills select the latest successful snapshot and run the existing
 scratch-only verified restore. Results persist across restarts.
 
 ```bash
-data-backup-manager drills preview --plan <plan-id>
-data-backup-manager drills run --plan <plan-id> --idempotency-key <stable-key>
-data-backup-manager drills get <drill-id>
-data-backup-manager drills list --plan <plan-id>
+data-backup-manager drills preview --plan plan-id
+data-backup-manager drills run --plan plan-id --idempotency-key stable-key
+data-backup-manager drills get drill-id
+data-backup-manager drills list --plan plan-id
+data-backup-manager drills retire drill-id --reason "orphaned plan reference"
 ```
+
+Retirement is limited to completed drills. It records the retirement time and
+reason without deleting the row or changing the original result, snapshot,
+restore link, or notification receipt. Retired drills remain available through
+`get` and `list` as durable evidence.
 
 **Coverage guard.** `plans create` / `plans update` are blocked
 (`failed_precondition`) while any non-sensitive recommended target is still
@@ -299,11 +307,11 @@ but never block.
 Trigger and inspect plan executions.
 
 ```bash
-data-backup-manager runs trigger --plan <plan-id>   # on-demand; scheduler triggers the same path
+data-backup-manager runs trigger --plan plan-id
 data-backup-manager runs list
-data-backup-manager runs get <run-id>            # per-target outcomes + snapshot refs
-data-backup-manager runs status                  # current catalog targets by default
-data-backup-manager runs browse --destination <destination-id> --snapshot <snapshot-id>
+data-backup-manager runs get run-id
+data-backup-manager runs status
+data-backup-manager runs browse --destination destination-id --snapshot snapshot-id
 ```
 
 ### `data-backup-manager restores ...`
@@ -312,13 +320,10 @@ Restore a target, or verify it can be restored.
 
 ```bash
 # Verify (test-restore to scratch + checksum) — the gate before removing data from git
-data-backup-manager restores verify \
-  --target <target-id> --destination <destination-id> --snapshot <snapshot-id>
+data-backup-manager restores verify --target target-id --destination destination-id --snapshot snapshot-id
 
 # Restore to a chosen location
-data-backup-manager restores restore \
-  --target <target-id> --destination <destination-id> \
-  --snapshot <snapshot-id> --location /restore/store-teams
+data-backup-manager restores restore --target target-id --destination destination-id --snapshot snapshot-id --location /restore/store-teams
 data-backup-manager restores list
 ```
 
@@ -327,11 +332,10 @@ data-backup-manager restores list
 ```bash
 # Restore to scratch + capture live + compare by generic inventory.
 # --no-content-hash / --no-sqlite-checks trade proof strength for speed on huge trees.
-data-backup-manager audits run \
-  --target <target-id> --destination <destination-id> --snapshot <snapshot-id>
+data-backup-manager audits run --target target-id --destination destination-id --snapshot snapshot-id
 
-data-backup-manager audits get <audit-id>
-data-backup-manager audits list --target <target-id>
+data-backup-manager audits get audit-id
+data-backup-manager audits list --target target-id
 ```
 
 The audit prints an operator verdict (PASSED / DIFF / DIFF-drift / FAILED),

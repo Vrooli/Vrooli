@@ -77,6 +77,52 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) importExisting(ctx cliapp.RunContext) error {
+	backend, err := parseBackendKind(ctx.Flag("backend"))
+	if err != nil {
+		return err
+	}
+	createdAt, err := time.Parse(time.RFC3339Nano, ctx.Flag("created-at"))
+	if err != nil {
+		return fmt.Errorf("--created-at must be RFC3339: %w", err)
+	}
+	snapshotIDs := strings.Split(ctx.Flag("snapshot-ids"), ",")
+	for i := range snapshotIDs {
+		snapshotIDs[i] = strings.TrimSpace(snapshotIDs[i])
+		if snapshotIDs[i] == "" {
+			return fmt.Errorf("--snapshot-ids must be a comma-separated list of non-empty IDs")
+		}
+	}
+	capBytes, err := parseOptionalInt64(ctx.Flag("cap-bytes"))
+	if err != nil {
+		return fmt.Errorf("--cap-bytes: %w", err)
+	}
+	capPolicy, err := parseCapPolicy(ctx.Flag("cap-policy"))
+	if err != nil {
+		return err
+	}
+	resp, err := h.client.ImportExistingDestination(context.Background(), connect.NewRequest(&destinationsv1.ImportExistingDestinationRequest{
+		DestinationId: ctx.Flag("id"), Name: ctx.Flag("name"), BackendKind: backend, Location: ctx.Flag("location"),
+		CreatedAt: createdAt.Format(time.RFC3339Nano), ExpectedSnapshotIds: snapshotIDs,
+		CapBytes: capBytes, CapPolicy: capPolicy,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("import existing destination", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Destination == nil {
+		return fmt.Errorf("server returned no imported destination")
+	}
+	d := resp.Msg.Destination
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result: []string{fmt.Sprintf("Imported existing destination %s without creating repository data.", d.Id)},
+		Changes: []string{formatDestination(d), fmt.Sprintf("existing Kopia repository: %s", d.RepositoryLocation), "expected snapshot IDs were present after connect"},
+		NextCommand: []string{
+			fmt.Sprintf("`destinations get %s` — inspect imported destination", d.Id),
+			"`restores verify --target <target-id> --destination " + d.Id + " --snapshot <snapshot-id>` — verify a snapshot before restore",
+		},
+	})
+}
+
 func (h *handlers) get(ctx cliapp.RunContext) error {
 	id := ctx.Positional("id")
 	resp, err := h.client.GetDestination(context.Background(), connect.NewRequest(&destinationsv1.GetDestinationRequest{Id: id}))
@@ -483,9 +529,11 @@ func parseBackendKind(s string) (destinationsv1.BackendKind, error) {
 		return destinationsv1.BackendKind_BACKEND_KIND_FILESYSTEM, nil
 	case "s3":
 		return destinationsv1.BackendKind_BACKEND_KIND_S3, nil
+	case "sftp":
+		return destinationsv1.BackendKind_BACKEND_KIND_SFTP, nil
 	default:
 		return destinationsv1.BackendKind_BACKEND_KIND_UNSPECIFIED,
-			fmt.Errorf("invalid --backend %q: must be one of filesystem, s3", s)
+			fmt.Errorf("invalid --backend %q: must be one of filesystem, sftp, s3", s)
 	}
 }
 
@@ -551,6 +599,8 @@ func backendKindLabel(k destinationsv1.BackendKind) string {
 		return "filesystem"
 	case destinationsv1.BackendKind_BACKEND_KIND_S3:
 		return "s3"
+	case destinationsv1.BackendKind_BACKEND_KIND_SFTP:
+		return "sftp"
 	default:
 		return "unspecified"
 	}

@@ -26,6 +26,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"PlansService.ListPlans":  h.list,
 		"PlansService.UpdatePlan": h.update,
 		"PlansService.DeletePlan": h.delete,
+		"add-destination":         h.addDestination,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

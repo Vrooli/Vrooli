@@ -41,6 +41,17 @@ func (f *FakeDestinationLookup) DestinationForRestore(_ context.Context, destID 
 	return d, nil
 }
 
+func (f *FakeDestinationLookup) WithResolvedDestination(ctx context.Context, destID string, use func(restores.DestinationForRestore) error) error {
+	d, err := f.DestinationForRestore(ctx, destID)
+	if err != nil {
+		return err
+	}
+	if use == nil {
+		return nil
+	}
+	return use(d)
+}
+
 // Compile-time guarantees.
 var (
 	_ restores.TargetLookup      = (*FakeTargetLookup)(nil)

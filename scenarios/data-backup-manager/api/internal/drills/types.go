@@ -15,21 +15,39 @@ const (
 )
 
 type Drill struct {
-	ID             string
-	PlanID         string
-	TargetID       string
-	DestinationID  string
-	SnapshotID     string
-	RestoreID      string
-	Status         Status
-	Scheduled      bool
-	Error          string
-	NextAction     string
-	RequestedAt    time.Time
-	StartedAt      time.Time
-	FinishedAt     time.Time
-	IdempotencyKey string
+	ID                 string
+	PlanID             string
+	TargetID           string
+	DestinationID      string
+	SnapshotID         string
+	RestoreID          string
+	Status             Status
+	Scheduled          bool
+	Error              string
+	NextAction         string
+	RequestedAt        time.Time
+	StartedAt          time.Time
+	FinishedAt         time.Time
+	IdempotencyKey     string
+	NotificationState  NotificationState
+	NotificationSentAt time.Time
+	RetiredAt          time.Time
+	RetirementReason   string
 }
+
+type DrillPage struct {
+	Drills        []Drill
+	NextPageToken string
+}
+
+type NotificationState string
+
+const (
+	NotificationNone      NotificationState = ""
+	NotificationPending   NotificationState = "pending"
+	NotificationSent      NotificationState = "sent"
+	NotificationUntracked NotificationState = "not_replayed"
+)
 
 type Plan struct {
 	ID             string

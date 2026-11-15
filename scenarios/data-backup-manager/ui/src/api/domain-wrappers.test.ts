@@ -46,7 +46,7 @@ describe("Connect domain wrappers", () => {
     vi.spyOn(discoveryClient, "listTargetSuggestions").mockResolvedValue(response({ suggestions: [] }));
     vi.spyOn(discoveryClient, "listDestinationSuggestions").mockResolvedValue(response({ suggestions: [] }));
     vi.spyOn(discoveryClient, "dismissSuggestion").mockResolvedValue(response({ dismissed: true }));
-    vi.spyOn(drillsClient, "listDrills").mockResolvedValue(response({ drills: [] }));
+    vi.spyOn(drillsClient, "listDrills").mockResolvedValue(response({ drills: [], nextPageToken: "" }));
     vi.spyOn(drillsClient, "runDrill").mockResolvedValue(response({ drill: undefined }));
     vi.spyOn(targetsClient, "listTargets").mockResolvedValue(response({ targets: [] }));
     vi.spyOn(targetsClient, "getTarget").mockResolvedValue(response({ target: undefined }));

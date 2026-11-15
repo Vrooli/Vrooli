@@ -1,5 +1,5 @@
 // Package destinations is the domain-scoped home for backup destinations: kopia
-// repositories identified by a unique name and backed by filesystem or S3.
+// repositories identified by a unique name and backed by filesystem, SFTP, or S3.
 //
 // Layering mirrors the canonical Vrooli per-domain pattern:
 //
@@ -27,12 +27,19 @@ type BackendKind string
 
 const (
 	BackendFilesystem BackendKind = "filesystem"
+	BackendSFTP       BackendKind = "sftp"
 	BackendS3         BackendKind = "s3"
+)
+
+const (
+	ProvisioningCreating = "creating"
+	ProvisioningCreated  = "created"
+	ProvisioningReady    = "ready"
 )
 
 // Valid reports whether k is a recognised, non-empty backend kind.
 func (k BackendKind) Valid() bool {
-	return k == BackendFilesystem || k == BackendS3
+	return k == BackendFilesystem || k == BackendSFTP || k == BackendS3
 }
 
 // CapPolicy is the over-cap behavior. Defaults to AlertBlock.
@@ -67,19 +74,24 @@ type Destination struct {
 	BackendKind BackendKind
 	// Location is the operator-facing destination root. For a filesystem backend
 	// this is the self-describing bundle root that holds README.txt, RECOVERY.txt,
-	// vrooli-backup-destination.json, and the repositories/ subfolder. For S3 it
-	// is the bucket/prefix reference.
+	// vrooli-backup-destination.json, and the repositories/ subfolder. For SFTP
+	// or S3 it is the backend URI/reference.
 	Location string
 	// RepositoryLocation is the concrete backend repository path handed to
-	// resource-kopia. For a filesystem backend it nests inside the bundle root
-	// (RepositoryPath below); for S3 it equals Location.
+	// resource-kopia. For a filesystem backend it nests inside the bundle root;
+	// for SFTP and S3 it equals Location.
 	RepositoryLocation  string
 	CapBytes            int64
 	CapPolicy           CapPolicy
 	EncryptionAlgorithm string
-	SecretRef           string
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
+	// ProvisioningState is "creating" until Kopia, the catalog, and the
+	// operator-facing bundle metadata have all been reconciled. Empty values
+	// from legacy in-memory callers are treated as ready; SQLite defaults old
+	// rows to ready during migration.
+	ProvisioningState string
+	SecretRef         string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 	// DeviceIdentity is the last identity observed when this filesystem
 	// destination was admitted. It is evidence for operator review and plan
 	// binding; every remediation still re-observes the device immediately before
@@ -131,6 +143,20 @@ type CreateInput struct {
 	// not override a refusal raised against the mount driver: that failure
 	// protects the host, not the backup, and has a cheap remedy.
 	AcknowledgeReadinessFailure bool
+}
+
+// ImportExistingInput attaches a non-secret descriptor for an already-created
+// repository to a fresh catalog. Expected snapshot IDs prove that the supplied
+// descriptor points at the repository the rehearsal needs.
+type ImportExistingInput struct {
+	ID                  string
+	Name                string
+	Backend             BackendKind
+	Location            string
+	CreatedAt           time.Time
+	ExpectedSnapshotIDs []string
+	CapBytes            int64
+	CapPolicy           CapPolicy
 }
 
 // UpdateInput carries the mutable fields Service.UpdateDestination accepts.

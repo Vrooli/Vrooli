@@ -16,6 +16,12 @@ type fakeInspector struct {
 	calls      int
 }
 
+type mountedCheckEvidenceStub bool
+
+func (s mountedCheckEvidenceStub) HasCurrentMountedCheck(context.Context, string, destinationreadiness.DeviceIdentity, string) (bool, error) {
+	return bool(s), nil
+}
+
 func TestRelativePathUnderMountAndResolve(t *testing.T) {
 	rel, err := destinationreadiness.RelativePathUnderMount("/media/Elements/vrooli-backups", "/media/Elements")
 	if err != nil || rel != "vrooli-backups" {
@@ -33,6 +39,57 @@ func TestRelativePathRejectsOutsideMount(t *testing.T) {
 	}
 	if _, err := destinationreadiness.ResolveRelativePath("/media/Elements", "../other"); err == nil {
 		t.Fatal("expected escaping relative path to be rejected")
+	}
+}
+
+func TestAnalyzeUsesOnlyCurrentMountedCheckForUnknownNativeState(t *testing.T) {
+	ctx := context.Background()
+	id := identity()
+	inspection := destinationreadiness.Inspection{
+		LocationExists: true, LocationIsDirectory: true, Identity: id,
+		Mounted: true, MountEpisodeID: "mount-1", FilesystemState: sysmounts.FilesystemStateUnknown,
+	}
+	input := destinationreadiness.AnalyzeInput{DestinationID: "dest-a", ExpectedDevice: id, Location: "/media/user/USB/backup"}
+	svc := destinationreadiness.NewService(&fakeInspector{inspection: inspection}, nil).WithMountedCheckEvidence(mountedCheckEvidenceStub(true))
+	report, err := svc.Analyze(ctx, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.OfflineCheckVerified || report.FilesystemState != sysmounts.FilesystemStateUnknown || report.OverallSeverity == destinationreadiness.SeverityUnknown {
+		t.Fatalf("report=%+v, want truthful native unknown plus current mounted check proof", report)
+	}
+	var stateCheck *destinationreadiness.CheckResult
+	for i := range report.Checks {
+		if report.Checks[i].Code == "filesystem_state" {
+			stateCheck = &report.Checks[i]
+			break
+		}
+	}
+	if stateCheck == nil || stateCheck.Severity != destinationreadiness.SeverityPass || !strings.Contains(stateCheck.Message, "current read/write mount episode") {
+		t.Fatalf("filesystem check=%+v, want current mounted-episode proof", stateCheck)
+	}
+
+	changed := id
+	changed.UUID = "replacement-uuid"
+	changedInput := input
+	changedInput.ExpectedDevice = changed
+	changedReport, err := svc.Analyze(ctx, changedInput)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changedReport.OfflineCheckVerified || changedReport.OverallSeverity == destinationreadiness.SeverityPass {
+		t.Fatalf("replacement identity inherited a positive readiness proof: %+v", changedReport)
+	}
+
+	dirtyInspection := inspection
+	dirtyInspection.FilesystemState = sysmounts.FilesystemStateDirty
+	dirtySvc := destinationreadiness.NewService(&fakeInspector{inspection: dirtyInspection}, nil).WithMountedCheckEvidence(mountedCheckEvidenceStub(true))
+	dirtyReport, err := dirtySvc.Analyze(ctx, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dirtyReport.OfflineCheckVerified || dirtyReport.OverallSeverity != destinationreadiness.SeverityFail {
+		t.Fatalf("offline check overrode native dirty state: %+v", dirtyReport)
 	}
 }
 
@@ -127,6 +184,34 @@ func TestAnalyzeIsReadOnlyAndReportsWarnings(t *testing.T) {
 		if got := severity(report.Checks, code); got != want {
 			t.Fatalf("check %s severity = %s, want %s (checks=%+v)", code, got, want, report.Checks)
 		}
+	}
+}
+
+func TestObserveCapacityBindsExactWritableDeviceAndAllowsMixedUseRoot(t *testing.T) {
+	observed := inspection()
+	observed.Mounted = true
+	observed.FilesystemState = sysmounts.FilesystemStateClean
+	observed.Identity.Filesystem = "ext4"
+	inspector := &fakeInspector{inspection: observed}
+	svc := destinationreadiness.NewService(inspector, &fakePreparer{})
+	proof, err := svc.ObserveCapacity(context.Background(), destinationreadiness.AnalyzeInput{
+		DestinationID: "destination-1", Location: "/media/user/USB/repositories/dbm",
+		ExpectedDevice: observed.Identity, SelectedTargetBytes: 1 << 30, RetentionCopies: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if proof.DestinationID != "destination-1" || proof.FreeBytes != observed.FreeBytes || proof.Identity.UUID != observed.Identity.UUID || proof.Location == "" || proof.MeasuredAt.IsZero() {
+		t.Fatalf("capacity observation is incomplete or unbound: %+v", proof)
+	}
+	if inspector.calls != 1 {
+		t.Fatalf("capacity observation inspected %d times, want one read", inspector.calls)
+	}
+	changed := observed
+	changed.Identity.Serial = "replacement-device"
+	svc = destinationreadiness.NewService(&fakeInspector{inspection: changed}, &fakePreparer{})
+	if _, err := svc.ObserveCapacity(context.Background(), destinationreadiness.AnalyzeInput{DestinationID: "destination-1", Location: "/media/user/USB/repositories/dbm", ExpectedDevice: observed.Identity, SelectedTargetBytes: 1 << 30}); err == nil {
+		t.Fatal("capacity observation accepted a different stable device identity")
 	}
 }
 

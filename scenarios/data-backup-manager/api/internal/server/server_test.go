@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"data-backup-manager/internal/module"
+	"data-backup-manager/internal/modulecontract"
 	"data-backup-manager/internal/server"
 
 	httpx "github.com/vrooli/api-core/servertest"
@@ -29,7 +29,7 @@ import (
 func TestServer_MountsEachModule(t *testing.T) {
 	var aMounted, bMounted bool
 
-	moduleA := module.Module{
+	moduleA := modulecontract.Module{
 		Name: "a",
 		Mount: func(r *mux.Router) {
 			aMounted = true
@@ -40,7 +40,7 @@ func TestServer_MountsEachModule(t *testing.T) {
 			}).Methods(http.MethodGet)
 		},
 	}
-	moduleB := module.Module{
+	moduleB := modulecontract.Module{
 		Name: "b",
 		Mount: func(r *mux.Router) {
 			bMounted = true

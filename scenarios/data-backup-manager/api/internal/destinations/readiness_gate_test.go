@@ -10,6 +10,7 @@ import (
 	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/destinations"
 	"data-backup-manager/internal/destinations/mocks"
+	"data-backup-manager/internal/engine"
 	enginemocks "data-backup-manager/internal/testutil/mocks"
 )
 
@@ -57,7 +58,7 @@ func newGatedService(t *testing.T, gate destinations.ReadinessGate) (destination
 	repo := mocks.NewFakeRepository()
 	eng := &enginemocks.FakeKopiaEngine{}
 	bundle := mocks.NewFakeBundleWriter()
-	return destinations.NewService(repo, eng, bundle, "/protected", destinations.WithReadinessGate(gate)), bundle
+	return destinations.NewService(repo, eng, bundle, "/protected", destinations.WithReadinessGate(gate), testVolumeLeaseOption()), bundle
 }
 
 func fsInput() destinations.CreateInput {
@@ -170,7 +171,15 @@ func TestCreatePersistsLastObservedDeviceIdentity(t *testing.T) {
 		ObservedAt: time.Date(2026, 9, 8, 4, 0, 0, 0, time.UTC),
 	}
 	repo := mocks.NewFakeRepository()
-	svc := destinations.NewService(repo, &enginemocks.FakeKopiaEngine{}, mocks.NewFakeBundleWriter(), "/protected", destinations.WithReadinessGate(&stubReadiness{report: report}))
+	eng := &enginemocks.FakeKopiaEngine{}
+	lease := &testVolumeOperationLease{}
+	eng.RepoCreateFn = func(context.Context, engine.RepoSpec) error {
+		if !lease.active {
+			t.Fatal("RepoCreate ran without the host volume lease")
+		}
+		return nil
+	}
+	svc := destinations.NewService(repo, eng, mocks.NewFakeBundleWriter(), "/protected", destinations.WithReadinessGate(&stubReadiness{report: report}), destinations.WithVolumeOperationLease(lease))
 	d, err := svc.CreateDestination(context.Background(), fsInput())
 	if err != nil {
 		t.Fatalf("CreateDestination: %v", err)
@@ -180,6 +189,9 @@ func TestCreatePersistsLastObservedDeviceIdentity(t *testing.T) {
 	}
 	if d.RelativePath != "vrooli-backups" {
 		t.Fatalf("relative destination path = %q, want vrooli-backups", d.RelativePath)
+	}
+	if lease.active || lease.acquisitions != 1 {
+		t.Fatalf("lease state after filesystem creation = active:%v acquisitions:%d", lease.active, lease.acquisitions)
 	}
 }
 

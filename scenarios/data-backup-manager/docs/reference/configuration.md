@@ -109,9 +109,9 @@ infrastructure (postgres extensions, custom types, cross-domain views)
 lives in `api/internal/database/system.sql` — empty by default in
 SQLite scenarios.
 
-The shared registry at `api/internal/modules/registry.go::AllSchemas()`
+The shared registry at `api/internal/modulecatalog/registry.go::AllSchemas()`
 collects them in order (system first, then domains alphabetical), and
-`apidb.EnsureSchemas(ctx, db, modules.AllSchemas()...)` from
+`apidb.EnsureSchemas(ctx, db, modulecatalog.AllSchemas()...)` from
 `api-core/database` applies them at startup. The path is idempotent —
 all DDL uses `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE … ADD COLUMN
 IF NOT EXISTS`, so re-runs on every boot are no-ops.
@@ -153,7 +153,7 @@ Set values via the CLI rather than editing the file directly:
 
 ```bash
 data-backup-manager configure api_base http://localhost:15001/api/v1
-data-backup-manager configure token <token>
+data-backup-manager configure token "token-value"
 ```
 
 ## API-base resolution precedence

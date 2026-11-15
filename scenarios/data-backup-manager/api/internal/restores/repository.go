@@ -39,4 +39,7 @@ type Repository interface {
 	// all). One row per target, carrying its newest verified-at and the snapshot
 	// that was proven restorable. Targets that have never verified are absent.
 	LastVerifiedByTarget(ctx context.Context, targetIDs []string) ([]VerifiedStatus, error)
+	// LastVerifiedByTargetDestination returns the latest successful verify for
+	// each target × destination pair.
+	LastVerifiedByTargetDestination(ctx context.Context, targetIDs []string) ([]DestinationVerifiedStatus, error)
 }

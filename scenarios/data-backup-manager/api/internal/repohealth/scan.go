@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -95,9 +96,11 @@ func (s *Scanner) Walk(ctx context.Context, root string) (Scan, error) {
 		pending    sync.WaitGroup
 		firstError error
 	)
-	record := func(rel string, err error) {
+	record := func(rel string, err error, orphan bool) {
 		mu.Lock()
-		result.Unreadable = append(result.Unreadable, NewEntry(rel, err))
+		entry := NewEntry(rel, err)
+		entry.Orphan = orphan
+		result.Unreadable = append(result.Unreadable, entry)
 		mu.Unlock()
 	}
 	var enqueue func(dir string)
@@ -127,14 +130,21 @@ func (s *Scanner) Walk(ctx context.Context, root string) (Scan, error) {
 				mu.Unlock()
 				return
 			}
-			record(rel, err)
+			record(rel, err, false)
 			return
+		}
+		nameSet := make(map[string]bool, len(names))
+		for _, name := range names {
+			nameSet[name] = true
 		}
 		for _, name := range names {
 			full := filepath.Join(dir, name)
 			info, err := fsys.Lstat(full)
 			if err != nil {
-				record(path.Join(rel, name), err)
+				entryRel := path.Join(rel, name)
+				class, _ := ClassifyName(entryRel)
+				finalName := tempFinalName(name)
+				record(entryRel, err, class == ClassLeftoverTemp && finalName != "" && !nameSet[finalName])
 				continue
 			}
 			if info.IsDir() {
@@ -173,6 +183,18 @@ func (s *Scanner) Walk(ctx context.Context, root string) (Scan, error) {
 	sort.Slice(result.Unreadable, func(i, j int) bool { return result.Unreadable[i].RelPath < result.Unreadable[j].RelPath })
 	result.Duration = s.now().Sub(started)
 	return result, nil
+}
+
+func tempFinalName(name string) string {
+	class, _ := ClassifyName(name)
+	if class != ClassLeftoverTemp {
+		return ""
+	}
+	marker := strings.LastIndex(name, ".f.tmp")
+	if marker < 0 {
+		return ""
+	}
+	return name[:marker] + ".f"
 }
 
 func relTo(root, dir string) string {

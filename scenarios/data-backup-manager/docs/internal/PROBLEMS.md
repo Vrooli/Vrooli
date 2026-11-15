@@ -104,8 +104,8 @@ until those checks pass.
 **Refs:** `api/handlers/destinations/recovery_monitor.go`,
 `api/handlers/destinations/recovery_decision.go`,
 `api/handlers/destinations/connect_handler.go`; recovery checkpoint
-`/home/matthalloran8/.vrooli/research/cohorts/dbm-drive-recovery-20261103/CHECKPOINT.md`;
-operator actions `/home/matthalloran8/.vrooli/research/ATTENTION.md`.
+`~/.vrooli/research/cohorts/dbm-drive-recovery-20261103/CHECKPOINT.md`;
+operator actions `~/.vrooli/research/ATTENTION.md`.
 
 ### 2026-11-03 — Recovery state was missing from the storage declaration (source fixed)
 
@@ -142,8 +142,8 @@ creation.
 **Resolution:** Added the coverage domain (`CoverageService` —
 `GetCoverageReport` + `AcceptDefaultTargets`) composing discovery + targets +
 plans + runs + restores. `coverage accept-defaults` bulk-registers non-sensitive
-discovered durable targets (sensitive credential/token targets require explicit
-`--include-sensitive`); `plans create/update` are guarded
+discovered durable targets; sensitive credential/token targets require the
+verified Notification Hub review; `plans create/update` are guarded
 (`failed_precondition`) while non-sensitive recommendations remain unregistered
 unless `allow_incomplete_coverage` is set. Surfaced in CLI (`coverage` group),
 API (CoverageService + plan guard field) and UI (coverage banner on Overview /
@@ -957,7 +957,7 @@ fails with EIO and preflight blocks before capture.
 
 ## 2026-11-04 — source enumeration and transport diagnostics extended
 
-DBM preflight previously checked only `stat` on the root of filesystem and SQLite sources. The live `elements-daily-runtime` plan includes `/home/matthalloran8/.vrooli/state`, whose nested Agent Manager receipt path `.../planner-live-same-id-20261019/retry-preflight` is mode `0600` and cannot be traversed. A root-only check incorrectly allowed this target to proceed into capture. Preflight now uses the same filesystem walk as capture to estimate local sources, marks an incompletely enumerated target as blocked, and passes a complete logical source estimate plus `keep_latest` to the shared destination capacity check. Live read-only preflight reports that target separately from the destination repository EIO. Capacity remains unknown until the source tree is fully readable.
+DBM preflight previously checked only `stat` on the root of filesystem and SQLite sources. The live `elements-daily-runtime` plan includes `~/.vrooli/state`, whose nested Agent Manager receipt path `.../planner-live-same-id-20261019/retry-preflight` is mode `0600` and cannot be traversed. A root-only check incorrectly allowed this target to proceed into capture. Preflight now uses the same filesystem walk as capture to estimate local sources, marks an incompletely enumerated target as blocked, and passes a complete logical source estimate plus `keep_latest` to the shared destination capacity check. Live read-only preflight reports that target separately from the destination repository EIO. Capacity remains unknown until the source tree is fully readable.
 
 The operator answered Notification Hub ask `d085cf69-1c61-4e4c-ac8e-d78b746dd32a` with “hold repair; obtain SMART/transport or alternate-host diagnostics first.” No drive mutation was performed. The direct ask was not correlated to a DBM recovery journal and therefore could not dispatch a repair callback; treat the human answer as the operator's direction, not an executable recovery receipt. `system-monitor` identified `/dev/sda` as the Elements USB/SCSI disk but SMART is unavailable: the device is `root:disk` mode `0660`, and the monitor user was denied access. Read-only SCSI counters showed `state=running`, `device_blocked=0`, `iotmo_cnt=0`, while `ioerr_cnt` increased from `0x1787` to `0x1789` as request count advanced from `0x80606` to `0x807ad`. This is evidence of SCSI command errors but does not by itself attribute them to the exact Kopia object or establish SMART health. Kernel log filtering found no matching storage/USB error message. Keep the EIO object intact, the plan disabled, and do not run backup, restore, prune, or broad filesystem repair.
 

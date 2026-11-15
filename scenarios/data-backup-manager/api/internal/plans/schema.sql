@@ -1,5 +1,5 @@
 -- Plans tables — owned by internal/plans/. Embedded by schema.go and applied
--- via database.EnsureSchemas at boot through the modules.AllSchemas registry.
+-- via database.EnsureSchemas at boot through the modulecatalog.AllSchemas registry.
 -- Times are RFC3339Nano strings matching the wire format. CREATE ... IF NOT
 -- EXISTS so re-runs are no-ops.
 
@@ -8,6 +8,11 @@ CREATE TABLE IF NOT EXISTS plans (
   name        TEXT NOT NULL,
   schedule    TEXT NOT NULL DEFAULT '',
   keep_latest INTEGER NOT NULL DEFAULT 0,
+  keep_hourly INTEGER NOT NULL DEFAULT 0,
+  keep_daily INTEGER NOT NULL DEFAULT 0,
+  keep_weekly INTEGER NOT NULL DEFAULT 0,
+  keep_monthly INTEGER NOT NULL DEFAULT 0,
+  keep_annual INTEGER NOT NULL DEFAULT 0,
   enabled     INTEGER NOT NULL DEFAULT 1,
   protection_tier TEXT NOT NULL DEFAULT 'full_primary',
   recovery_drill_schedule TEXT NOT NULL DEFAULT '',

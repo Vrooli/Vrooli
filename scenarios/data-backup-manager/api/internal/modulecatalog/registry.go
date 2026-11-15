@@ -1,4 +1,4 @@
-// Package modules is the single registration point for the scenario's
+// Package modulecatalog is the single registration point for the scenario's
 // API modules' static metadata. Both api/main.go and
 // api/cmd/gen-endpoints/main.go import this package to enumerate
 // domains uniformly.
@@ -14,10 +14,10 @@
 // AllSchemas. The runtime constructor lands in main.go's server.New
 // call as a third line. Three central lines per new domain, no other
 // central registry mutations.
-package modules
+package modulecatalog
 
 import (
-	"data-backup-manager/internal/module"
+	"data-backup-manager/internal/modulecontract"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -51,8 +51,8 @@ import (
 // stable order (system endpoints first, then domains alphabetically).
 // The stable order is what makes the diff-exit-code CI check on
 // .vrooli/endpoints.json meaningful.
-func AllEndpoints() []module.EndpointDescriptor {
-	out := make([]module.EndpointDescriptor, 0)
+func AllEndpoints() []modulecontract.EndpointDescriptor {
+	out := make([]modulecontract.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, auditsH.Endpoints...)
 	out = append(out, coverageH.Endpoints...)

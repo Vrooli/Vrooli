@@ -82,6 +82,18 @@ func NewServiceWithPolicies(repo Repository, guard CoverageGuard, critical Criti
 var _ Service = (*service)(nil)
 
 func (s *service) Create(ctx context.Context, in CreateInput) (Plan, error) {
+	// Recovery evidence is part of every enabled protection plan by default.
+	// Callers can explicitly choose a different positive cadence; an empty
+	// create value gets the weekly owner policy.
+	if strings.TrimSpace(in.RecoveryDrillSchedule) == "" {
+		in.RecoveryDrillSchedule = DefaultRecoveryDrillSchedule
+	}
+	if in.KeepHourly+in.KeepDaily+in.KeepWeekly+in.KeepMonthly+in.KeepAnnual == 0 {
+		if in.KeepLatest == 0 {
+			in.KeepLatest = 2
+		}
+		in.KeepHourly, in.KeepDaily, in.KeepWeekly, in.KeepMonthly, in.KeepAnnual = 24, 7, 4, 6, 2
+	}
 	name := strings.TrimSpace(in.Name)
 	if name == "" {
 		return Plan{}, ErrInvalidPlan{Field: "name", Reason: "required"}
@@ -115,11 +127,12 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Plan, error) {
 	}
 
 	p := Plan{
-		Name:                  name,
-		TargetIDs:             in.TargetIDs,
-		DestinationIDs:        in.DestinationIDs,
-		Schedule:              in.Schedule,
-		KeepLatest:            in.KeepLatest,
+		Name:           name,
+		TargetIDs:      in.TargetIDs,
+		DestinationIDs: in.DestinationIDs,
+		Schedule:       in.Schedule,
+		KeepLatest:     in.KeepLatest,
+		KeepHourly:     in.KeepHourly, KeepDaily: in.KeepDaily, KeepWeekly: in.KeepWeekly, KeepMonthly: in.KeepMonthly, KeepAnnual: in.KeepAnnual,
 		Enabled:               true, // default true on create
 		ProtectionTier:        tier,
 		RecoveryDrillSchedule: in.RecoveryDrillSchedule,
@@ -142,6 +155,10 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Plan, error) {
 	}
 	return s.decorateTopology(ctx, saved), nil
 }
+
+const DefaultRecoveryDrillSchedule = "168h"
+
+const ManualRecoveryDrillSchedule = "manual"
 
 func (s *service) Get(ctx context.Context, id string) (Plan, error) {
 	if strings.TrimSpace(id) == "" {
@@ -172,6 +189,9 @@ func (s *service) Update(ctx context.Context, in UpdateInput) (Plan, error) {
 	if strings.TrimSpace(in.ID) == "" {
 		return Plan{}, ErrInvalidPlan{Field: "id", Reason: "required"}
 	}
+	if strings.TrimSpace(in.RecoveryDrillSchedule) == "" {
+		in.RecoveryDrillSchedule = DefaultRecoveryDrillSchedule
+	}
 	name := strings.TrimSpace(in.Name)
 	if name == "" {
 		return Plan{}, ErrInvalidPlan{Field: "name", Reason: "required"}
@@ -205,12 +225,13 @@ func (s *service) Update(ctx context.Context, in UpdateInput) (Plan, error) {
 	}
 
 	p := Plan{
-		ID:                    in.ID,
-		Name:                  name,
-		TargetIDs:             in.TargetIDs,
-		DestinationIDs:        in.DestinationIDs,
-		Schedule:              in.Schedule,
-		KeepLatest:            in.KeepLatest,
+		ID:             in.ID,
+		Name:           name,
+		TargetIDs:      in.TargetIDs,
+		DestinationIDs: in.DestinationIDs,
+		Schedule:       in.Schedule,
+		KeepLatest:     in.KeepLatest,
+		KeepHourly:     in.KeepHourly, KeepDaily: in.KeepDaily, KeepWeekly: in.KeepWeekly, KeepMonthly: in.KeepMonthly, KeepAnnual: in.KeepAnnual,
 		Enabled:               in.Enabled,
 		ProtectionTier:        tier,
 		RecoveryDrillSchedule: in.RecoveryDrillSchedule,
@@ -264,8 +285,8 @@ func (s *service) validateTier(ctx context.Context, tier ProtectionTier, targetI
 // checkCoverage enforces the default-coverage guard: unless the caller opts out
 // (allowIncomplete) or no guard is wired, a plan cannot be created/updated while
 // non-sensitive recommended targets remain unregistered. Sensitive suggestions
-// never block (they require deliberate opt-in via coverage accept-defaults
-// --include-sensitive); the guard returns non-sensitive recommendations only.
+// never block the plan guard; they require the separate verified Notification
+// Hub review before DBM registers them.
 func (s *service) checkCoverage(ctx context.Context, allowIncomplete bool) error {
 	if allowIncomplete || s.guard == nil {
 		return nil
@@ -309,6 +330,9 @@ func (s *service) SchedulablePlans(ctx context.Context) ([]SchedulablePlan, erro
 func validateDrillSchedule(raw string) error {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
+		return nil
+	}
+	if raw == ManualRecoveryDrillSchedule {
 		return nil
 	}
 	d, err := time.ParseDuration(raw)

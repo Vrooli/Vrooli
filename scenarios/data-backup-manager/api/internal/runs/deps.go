@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/sources"
 )
 
@@ -20,6 +21,11 @@ type PlanForRun struct {
 	TargetIDs      []string
 	DestinationIDs []string
 	KeepLatest     int
+	KeepHourly     int
+	KeepDaily      int
+	KeepWeekly     int
+	KeepMonthly    int
+	KeepAnnual     int
 }
 
 // PlanLookup resolves a plan to its executable spec.
@@ -58,10 +64,11 @@ type ActiveTargetLookup interface {
 // DestinationForRun is the slice of a destination the runner needs to snapshot
 // into it. Name is the kopia repository name.
 type DestinationForRun struct {
-	ID          string
-	Name        string
-	BackendKind string
-	Location    string
+	ID             string
+	Name           string
+	BackendKind    string
+	Location       string
+	DeviceIdentity *destinationreadiness.DeviceIdentity
 }
 
 // DestinationLookup resolves a destination and enforces its storage cap.
@@ -69,6 +76,9 @@ type DestinationForRun struct {
 // seam: implemented by an adapter over destinations.Service in main.go.
 type DestinationLookup interface {
 	DestinationForRun(ctx context.Context, destinationID string) (DestinationForRun, error)
+	// WithResolvedDestination serializes one immediate engine write behind a
+	// fresh destination identity/path resolution.
+	WithResolvedDestination(ctx context.Context, destinationID string, use func(DestinationForRun) error) error
 	// WouldBlock reports whether writing pendingBytes to the destination would
 	// exceed its cap under an alert+block policy (never evicts).
 	WouldBlock(ctx context.Context, destinationID string, pendingBytes int64) (blocked bool, reason string, err error)

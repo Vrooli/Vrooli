@@ -3,7 +3,7 @@ package targets
 import (
 	"log"
 
-	"data-backup-manager/internal/module"
+	"data-backup-manager/internal/modulecontract"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -20,14 +20,14 @@ import (
 // TargetsService Connect-RPC handler. Production callers use this entry point;
 // it constructs the repository → service → handler chain internally so
 // per-domain dependencies never appear on server.Deps.
-func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) modulecontract.Module {
 	repo := internaltargets.NewSQLiteRepository(db, clk)
 	svc := internaltargets.NewService(repo)
 	connectPath, connectHandler := targetsconnect.NewTargetsServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
 		Logger:  logger,
 	}))
-	return module.Module{
+	return modulecontract.Module{
 		Name: "targets",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})

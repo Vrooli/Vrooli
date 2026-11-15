@@ -55,6 +55,19 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 	}
 	return cliapp.RenderProtoList(ctx, r.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Fetched drill %s.", id)}, ResultsHeading: "Recovery drill", Results: []string{format(r.Msg.Drill)}})
 }
+
+func (h *handlers) retire(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
+	r, err := h.client.RetireDrill(context.Background(), connect.NewRequest(&drillsv1.RetireDrillRequest{Id: id, Reason: ctx.Flag("reason")}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("retire drill %q", id), err, nil)
+	}
+	if r == nil || r.Msg == nil || r.Msg.Drill == nil {
+		return fmt.Errorf("server returned no retired recovery drill")
+	}
+	return cliapp.RenderProtoMutation(ctx, r.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Recovery drill %s retired; original status %s and evidence retained.", id, statusLabel(r.Msg.Drill.Status))}, Changes: []string{format(r.Msg.Drill)}})
+}
+
 func (h *handlers) list(ctx cliapp.RunContext) error {
 	r, err := h.client.ListDrills(context.Background(), connect.NewRequest(&drillsv1.ListDrillsRequest{PlanId: ctx.Flag("plan"), TargetId: ctx.Flag("target")}))
 	if err != nil {
@@ -92,5 +105,13 @@ func format(d *drillsv1.RecoveryDrill) string {
 	if d.RequestedAt != nil {
 		at = d.RequestedAt.AsTime().Format(time.RFC3339)
 	}
-	return fmt.Sprintf("%s — plan=%s target=%s destination=%s snapshot=%s restore=%s status=%s scheduled=%v requested=%s error=%q next=%q", d.Id, d.PlanId, d.TargetId, d.DestinationId, d.SnapshotId, d.RestoreId, statusLabel(d.Status), d.Scheduled, at, d.Error, d.NextAction)
+	notificationSent := ""
+	if d.NotificationSentAt != nil {
+		notificationSent = d.NotificationSentAt.AsTime().Format(time.RFC3339)
+	}
+	retiredAt := ""
+	if d.RetiredAt != nil {
+		retiredAt = d.RetiredAt.AsTime().Format(time.RFC3339)
+	}
+	return fmt.Sprintf("%s — plan=%s target=%s destination=%s snapshot=%s restore=%s status=%s scheduled=%v requested=%s notification=%s notification-sent=%s retired=%s retirement-reason=%q error=%q next=%q", d.Id, d.PlanId, d.TargetId, d.DestinationId, d.SnapshotId, d.RestoreId, statusLabel(d.Status), d.Scheduled, at, d.NotificationState, notificationSent, retiredAt, d.RetirementReason, d.Error, d.NextAction)
 }

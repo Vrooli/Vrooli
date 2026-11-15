@@ -1,8 +1,8 @@
-// Package httpc declares the outbound HTTP seam every scenario uses
+// Package outboundhttp declares the outbound HTTP seam every scenario uses
 // when calling external services.
 //
 // Production wires the timeout-backed client from NewDefaultClient. Tests
-// substitute mocks.FakeDoer to pin request shape and stub responses without
+// substitute apihttptest.FakeDoer to pin request shape and stub responses without
 // touching the network.
 //
 // # Why ship the seam unwired in production
@@ -16,9 +16,9 @@
 // reinvention is hours.
 //
 // Add the field to server.Deps when wiring the first consumer; the
-// idiomatic shape is `Doer httpc.Doer` with `httpc.NewDefaultClient()`
+// idiomatic shape is `Doer outboundhttp.Doer` with `outboundhttp.NewDefaultClient()`
 // constructed in main.go.
-package httpc
+package outboundhttp
 
 import (
 	"net/http"

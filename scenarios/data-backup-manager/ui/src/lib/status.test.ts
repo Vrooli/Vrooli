@@ -113,6 +113,7 @@ describe("status vocabulary completeness", () => {
 		expect(capPolicySlug(CapPolicy.ALERT_BLOCK)).toBe("alertBlock");
 		expect(capPolicySlug(CapPolicy.ALERT_ONLY)).toBe("alertOnly");
 		expect(backendSlug(BackendKind.FILESYSTEM)).toBe("filesystem");
+		expect(backendSlug(BackendKind.SFTP)).toBe("sftp");
 		expect(backendSlug(BackendKind.S3)).toBe("s3");
 		expect(sourceKindSlug(SourceKind.FILESYSTEM)).toBe("filesystem");
 		expect(sourceKindSlug(SourceKind.SQLITE)).toBe("sqlite");

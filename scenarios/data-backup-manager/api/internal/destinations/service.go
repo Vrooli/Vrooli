@@ -2,14 +2,17 @@ package destinations
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
+	"data-backup-manager/internal/sysmounts"
 )
 
 // defaultListLimit caps List when the caller passes 0.
@@ -27,10 +30,20 @@ type Service interface {
 	// underlying kopia repository. Returns ErrInvalidDestination on validation
 	// failure (including separate-root violation).
 	CreateDestination(ctx context.Context, in CreateInput) (Destination, error)
+	// ImportExistingDestination reconnects an exact existing repository from a
+	// non-secret descriptor into an empty catalog. It must never call RepoCreate.
+	ImportExistingDestination(ctx context.Context, in ImportExistingInput) (Destination, error)
 
 	// GetDestination returns a destination by id. ErrDestinationNotFound
 	// propagates verbatim.
 	GetDestination(ctx context.Context, id string) (Destination, error)
+	// ResolveForUse re-observes a bound filesystem destination and converges
+	// mountpoint-dependent paths before operational consumers use it.
+	ResolveForUse(ctx context.Context, id string) (Destination, error)
+	// WithResolvedDestination holds this API process's per-destination
+	// serialization lock through one immediate repository operation after
+	// re-resolving its path.
+	WithResolvedDestination(ctx context.Context, id string, use func(Destination) error) error
 
 	// ListDestinations returns up to pageSize destinations ordered by name.
 	// pageSize <= 0 uses the default.
@@ -91,6 +104,59 @@ type service struct {
 	bundle        BundleWriter
 	protectedRoot string
 	readiness     ReadinessGate
+	volumeLease   VolumeOperationLease
+}
+
+var destinationLockTable = struct {
+	sync.Mutex
+	locks map[string]*destinationLock
+}{locks: map[string]*destinationLock{}}
+
+type destinationLock struct {
+	permit chan struct{}
+	refs   int
+}
+
+func lockDestination(ctx context.Context, id string) (func(), error) {
+	destinationLockTable.Lock()
+	lock := destinationLockTable.locks[id]
+	if lock == nil {
+		lock = &destinationLock{permit: make(chan struct{}, 1)}
+		lock.permit <- struct{}{}
+		destinationLockTable.locks[id] = lock
+	}
+	lock.refs++
+	destinationLockTable.Unlock()
+	select {
+	case <-ctx.Done():
+		destinationLockTable.Lock()
+		lock.refs--
+		if lock.refs == 0 {
+			delete(destinationLockTable.locks, id)
+		}
+		destinationLockTable.Unlock()
+		return nil, ctx.Err()
+	case <-lock.permit:
+	}
+	if err := ctx.Err(); err != nil {
+		lock.permit <- struct{}{}
+		destinationLockTable.Lock()
+		lock.refs--
+		if lock.refs == 0 {
+			delete(destinationLockTable.locks, id)
+		}
+		destinationLockTable.Unlock()
+		return nil, err
+	}
+	return func() {
+		lock.permit <- struct{}{}
+		destinationLockTable.Lock()
+		lock.refs--
+		if lock.refs == 0 {
+			delete(destinationLockTable.locks, id)
+		}
+		destinationLockTable.Unlock()
+	}, nil
 }
 
 // Option customises the Service beyond its required collaborators.
@@ -101,6 +167,13 @@ type Option func(*service)
 // S3-only deployment and existing tests need no readiness implementation.
 func WithReadinessGate(gate ReadinessGate) Option {
 	return func(s *service) { s.readiness = gate }
+}
+
+// WithVolumeOperationLease installs the control-plane lease used to serialize
+// DBM repository operations with supported host volume changes. Bound
+// filesystem destinations fail closed when no lease provider is configured.
+func WithVolumeOperationLease(lease VolumeOperationLease) Option {
+	return func(s *service) { s.volumeLease = lease }
 }
 
 // NewService constructs the production Service. bundle materializes the
@@ -122,6 +195,238 @@ func NewService(repo Repository, eng engine.KopiaEngine, bundle BundleWriter, pr
 
 // Compile-time guarantee.
 var _ Service = (*service)(nil)
+
+// ResolveForUse resolves a bound filesystem bundle from its stable device
+// identity and volume-relative locator. It fails closed on uncertain volume
+// state, missing/colliding paths, or mismatched bundle ownership. Resource-
+// kopia and generated metadata are repaired idempotently without creating a
+// repository or changing credential identity.
+func (s *service) ResolveForUse(ctx context.Context, id string) (Destination, error) {
+	release, err := lockDestination(ctx, id)
+	if err != nil {
+		return Destination{}, err
+	}
+	defer release()
+	var resolved Destination
+	err = s.withVolumeOperationLease(ctx, id, func() error {
+		var resolveErr error
+		resolved, resolveErr = s.resolveForUse(ctx, id)
+		return resolveErr
+	})
+	return resolved, err
+}
+
+func (s *service) WithResolvedDestination(ctx context.Context, id string, use func(Destination) error) error {
+	if use == nil {
+		return ErrInvalidDestination{Field: "operation", Reason: "required"}
+	}
+	release, err := lockDestination(ctx, id)
+	if err != nil {
+		return err
+	}
+	defer release()
+	return s.withVolumeOperationLease(ctx, id, func() error {
+		d, resolveErr := s.resolveForUse(ctx, id)
+		if resolveErr != nil {
+			return resolveErr
+		}
+		return use(d)
+	})
+}
+
+func (s *service) withVolumeOperationLease(ctx context.Context, id string, use func() error) error {
+	d, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if d.BackendKind != BackendFilesystem || d.DeviceIdentity == nil || !d.DeviceIdentity.StrongIdentity() || strings.TrimSpace(d.RelativePath) == "" {
+		return use() // Explicit legacy filesystem paths and S3 keep their established behavior.
+	}
+	if s.volumeLease == nil {
+		return ErrInvalidDestination{Field: "identity", Reason: "host volume operation lease is unavailable"}
+	}
+	inspector, ok := s.readiness.(recoveryIdentityInspector)
+	if !ok {
+		return ErrInvalidDestination{Field: "identity", Reason: "stable device inspection is unavailable"}
+	}
+	observed, err := inspector.InspectDevice(ctx, *d.DeviceIdentity)
+	if err != nil {
+		return fmt.Errorf("observe destination before acquiring host volume lease: %w", err)
+	}
+	if !d.DeviceIdentity.MatchesDevice(observed.Identity) || !observed.Identity.StrongIdentity() || !observed.Mounted {
+		return ErrInvalidDestination{Field: "identity", Reason: "destination volume identity or mount is not proven before acquiring the host volume lease"}
+	}
+	release, err := s.volumeLease.Acquire(ctx, observed.Identity)
+	if err != nil {
+		return fmt.Errorf("acquire host volume operation lease: %w", err)
+	}
+	defer release()
+	return use()
+}
+
+func (s *service) resolveForUse(ctx context.Context, id string) (Destination, error) {
+	d, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return Destination{}, err
+	}
+	if d.ProvisioningState != "" && d.ProvisioningState != ProvisioningReady {
+		return Destination{}, ErrInvalidDestination{Field: "provisioning", Reason: "destination creation is incomplete; retry the original create request to reconcile it before use"}
+	}
+	if d.BackendKind != BackendFilesystem || d.DeviceIdentity == nil || !d.DeviceIdentity.StrongIdentity() || strings.TrimSpace(d.RelativePath) == "" {
+		return d, nil // Explicit legacy filesystem paths and S3 keep their established behavior.
+	}
+	if s.readiness == nil || s.bundle == nil {
+		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "filesystem destination recovery is unavailable"}
+	}
+	inspector, ok := s.readiness.(recoveryIdentityInspector)
+	if !ok {
+		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "stable device inspection is unavailable"}
+	}
+	observed, err := inspector.InspectDevice(ctx, *d.DeviceIdentity)
+	if err != nil {
+		return Destination{}, fmt.Errorf("re-observe destination volume: %w", err)
+	}
+	filesystemReady := observed.FilesystemState == sysmounts.FilesystemStateClean
+	if !filesystemReady && observed.FilesystemState == sysmounts.FilesystemStateUnknown {
+		report, readinessErr := s.readiness.Analyze(ctx, destinationreadiness.AnalyzeInput{
+			DestinationID: d.ID, ExpectedDevice: *d.DeviceIdentity, Location: d.Location,
+		})
+		if readinessErr != nil {
+			return Destination{}, fmt.Errorf("verify filesystem health evidence for mounted destination: %w", readinessErr)
+		}
+		filesystemReady = report.OfflineCheckVerified && report.OverallSeverity != destinationreadiness.SeverityFail && report.OverallSeverity != destinationreadiness.SeverityUnknown
+	}
+	if !d.DeviceIdentity.MatchesDevice(observed.Identity) || !observed.Identity.StrongIdentity() || !observed.Mounted || observed.ReadOnly || observed.DeviceWriteProtected || !filesystemReady {
+		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "destination volume identity, mount, writable state, or filesystem health is not proven ready"}
+	}
+	mountRoot := filepath.Clean(observed.Identity.Mountpoint)
+	if !filepath.IsAbs(mountRoot) || mountRoot == string(filepath.Separator) {
+		return Destination{}, ErrInvalidDestination{Field: "mountpoint", Reason: "verified volume has no safe non-root mountpoint"}
+	}
+	bundleRoot, err := destinationreadiness.ResolveRelativePath(mountRoot, d.RelativePath)
+	if err != nil {
+		return Destination{}, ErrInvalidDestination{Field: "relative_path", Reason: err.Error()}
+	}
+	_, resolvedBundle, err := resolveContainedPath(mountRoot, bundleRoot)
+	if err != nil {
+		return Destination{}, ErrInvalidDestination{Field: "relative_path", Reason: "destination bundle resolves outside its mounted volume: " + err.Error()}
+	}
+	readiness, err := s.readiness.Analyze(ctx, destinationreadiness.AnalyzeInput{Location: bundleRoot})
+	if err != nil {
+		return Destination{}, fmt.Errorf("analyze relocated destination readiness: %w", err)
+	}
+	if !readiness.Mounted || !sameStrongDeviceIdentity(*d.DeviceIdentity, readiness.Identity) {
+		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "destination path is not served by the verified mounted volume"}
+	}
+	for _, check := range readiness.Checks {
+		switch check.Code {
+		case "destination_present", "destination_missing", "destination_inaccessible", "directory_inaccessible", "mounted_read_write", "filesystem_state", "destination_dirty", "filesystem_suitability":
+			if check.Code == "filesystem_suitability" && check.Severity == destinationreadiness.SeverityWarning {
+				continue
+			}
+			if check.Severity != destinationreadiness.SeverityPass {
+				return Destination{}, ErrInvalidDestination{Field: "readiness", Reason: check.Message}
+			}
+		}
+	}
+	repoPath := RepositoryPathFor(bundleRoot, d.Name)
+	_, resolvedRepo, err := resolveContainedPath(bundleRoot, repoPath)
+	if err != nil {
+		return Destination{}, ErrInvalidDestination{Field: "repository_path", Reason: "repository resolves outside its destination bundle: " + err.Error()}
+	}
+	if _, err := repositoryUniqueID(resolvedRepo); err != nil {
+		return Destination{}, fmt.Errorf("existing repository marker is unavailable: %w", err)
+	}
+	dests, err := s.repo.List(ctx, defaultListLimit)
+	if err != nil {
+		return Destination{}, fmt.Errorf("check destination locator collisions: %w", err)
+	}
+	for _, other := range dests {
+		if other.ID == d.ID {
+			continue
+		}
+		claimsSamePath := false
+		if other.BackendKind == BackendFilesystem {
+			for _, candidate := range []string{other.Location, other.RepositoryLocation} {
+				if resolvedOther, evalErr := filepath.EvalSymlinks(candidate); evalErr == nil && diskPathsOverlap(resolvedBundle, resolvedOther) {
+					claimsSamePath = true
+				}
+			}
+			if other.DeviceIdentity != nil && other.DeviceIdentity.MatchesDevice(observed.Identity) {
+				otherRoot, resolveErr := destinationreadiness.ResolveRelativePath(mountRoot, other.RelativePath)
+				if resolveErr == nil {
+					otherResolved, evalErr := filepath.EvalSymlinks(otherRoot)
+					claimsSamePath = claimsSamePath || (evalErr == nil && diskPathsOverlap(resolvedBundle, otherResolved))
+				}
+			}
+		}
+		if claimsSamePath {
+			return Destination{}, ErrInvalidDestination{Field: "relative_path", Reason: "another destination already claims the resolved bundle or repository path"}
+		}
+	}
+	meta := BundleMetadata{DestinationID: d.ID, Name: d.Name, Backend: string(d.BackendKind), BundleRoot: bundleRoot, RelativePath: d.RelativePath, RepositoryPath: repoPath, EncryptionAlgorithm: d.EncryptionAlgorithm, SecretRef: d.SecretRef, CreatedAt: d.CreatedAt}
+	if err := s.bundle.ValidateRelocation(ctx, meta); err != nil {
+		return Destination{}, fmt.Errorf("validate relocated destination bundle: %w", err)
+	}
+	if err := s.eng.RepoRebind(ctx, d.Name, repoPath); err != nil {
+		return Destination{}, fmt.Errorf("rebind resource-kopia repository path: %w", err)
+	}
+	status, err := s.eng.RepoStatus(ctx, d.Name)
+	if err != nil {
+		return Destination{}, fmt.Errorf("verify rebound repository connection: %w", err)
+	}
+	if !status.Connected || status.EncryptionAlgorithm == "" {
+		return Destination{}, ErrInvalidDestination{Field: "repository", Reason: "rebound repository connection or encryption was not verified"}
+	}
+	if _, err := s.eng.SnapshotList(ctx, d.Name, ""); err != nil {
+		return Destination{}, fmt.Errorf("enumerate snapshots in rebound repository: %w", err)
+	}
+	if err := s.bundle.RebindMetadata(ctx, meta); err != nil {
+		return Destination{}, fmt.Errorf("repair destination bundle path metadata: %w", err)
+	}
+	d.Location, d.RepositoryLocation = bundleRoot, repoPath
+	d.DeviceIdentity = &observed.Identity
+	d.DeviceIdentityObservedAt = time.Now().UTC()
+	return s.repo.Update(ctx, d)
+}
+
+func diskPathsOverlap(a, b string) bool {
+	return pathContains(a, b) || pathContains(b, a)
+}
+
+func pathContains(root, child string) bool {
+	root, child = filepath.Clean(root), filepath.Clean(child)
+	rel, err := filepath.Rel(root, child)
+	return err == nil && (rel == "." || (rel != ".." && !filepath.IsAbs(rel) && !strings.HasPrefix(rel, ".."+string(filepath.Separator))))
+}
+
+func resolveContainedPath(rootPath, childPath string) (string, string, error) {
+	resolvedRoot, err := filepath.EvalSymlinks(rootPath)
+	if err != nil {
+		return "", "", fmt.Errorf("resolve containment root: %w", err)
+	}
+	resolvedChild, err := filepath.EvalSymlinks(childPath)
+	if err != nil {
+		return "", "", fmt.Errorf("resolve contained path: %w", err)
+	}
+	if resolvedChild == resolvedRoot || !pathContains(resolvedRoot, resolvedChild) {
+		return "", "", fmt.Errorf("resolved path escapes its owner directory")
+	}
+	return resolvedRoot, resolvedChild, nil
+}
+
+func sameStrongDeviceIdentity(expected, observed destinationreadiness.DeviceIdentity) bool {
+	if !expected.StrongIdentity() || !observed.StrongIdentity() || !expected.MatchesDevice(observed) {
+		return false
+	}
+	if expected.UUID != "" && !strings.EqualFold(strings.TrimSpace(expected.UUID), strings.TrimSpace(observed.UUID)) {
+		return false
+	}
+	if expected.Serial != "" && strings.TrimSpace(expected.Serial) != strings.TrimSpace(observed.Serial) {
+		return false
+	}
+	return true
+}
 
 // gateOnReadiness refuses a filesystem destination whose readiness report
 // fails. It draws one line the operator cannot cross: a driver that faults in
@@ -149,11 +454,25 @@ func (s *service) gateOnReadiness(ctx context.Context, location string, acknowle
 		}
 		return destinationreadiness.Report{}, ErrInvalidDestination{Field: "location", Reason: check.Message + "; " + check.NextAction}
 	}
+	if report.OverallSeverity == destinationreadiness.SeverityUnknown || report.OverallSeverity == "" {
+		return destinationreadiness.Report{}, ErrInvalidDestination{Field: "location", Reason: "destination readiness is unknown; establish the current mounted-volume identity and filesystem health before creating a repository"}
+	}
 
 	if report.OverallSeverity != destinationreadiness.SeverityFail || acknowledged {
 		return report, nil
 	}
 	return destinationreadiness.Report{}, ErrInvalidDestination{Field: "location", Reason: readinessRefusalReason(report)}
+}
+
+func (s *service) recheckCreateReadiness(ctx context.Context, location string, expected destinationreadiness.DeviceIdentity, acknowledged bool) error {
+	report, err := s.gateOnReadiness(ctx, location, acknowledged)
+	if err != nil {
+		return err
+	}
+	if expected.StrongIdentity() && !sameStrongDeviceIdentity(expected, report.Identity) {
+		return ErrInvalidDestination{Field: "identity", Reason: "filesystem destination identity changed before repository creation"}
+	}
+	return nil
 }
 
 // readinessRefusalReason names the first failing check so the operator is told
@@ -198,6 +517,24 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 		capPolicy = CapPolicyAlertBlock
 	}
 
+	// A persisted creating row is the durable intent for a RepoCreate call.
+	// Reconcile it by connecting to the exact repository path; never replay
+	// RepoCreate after an outcome may have become ambiguous.
+	existing, lookupErr := s.repo.GetByName(ctx, name)
+	if lookupErr == nil {
+		if existing.ProvisioningState == ProvisioningCreating {
+			return Destination{}, ErrInvalidDestination{Field: "provisioning", Reason: "repository create outcome is unknown; preserve this attempt for explicit owner reconciliation"}
+		}
+		if existing.ProvisioningState != ProvisioningCreated {
+			return Destination{}, ErrInvalidDestination{Field: "name", Reason: "destination already exists"}
+		}
+		return s.reconcilePendingCreate(ctx, existing, in, location, capPolicy)
+	}
+	var notFound ErrDestinationNotFound
+	if !errors.As(lookupErr, &notFound) {
+		return Destination{}, lookupErr
+	}
+
 	// repositoryLocation is the concrete backend path resource-kopia targets.
 	// For filesystem it nests under the operator-facing bundle root; for S3 it
 	// is the bucket/prefix itself.
@@ -228,6 +565,19 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 		if err != nil {
 			return Destination{}, err
 		}
+		if err := s.recheckCreateReadiness(ctx, location, readinessReport.Identity, in.AcknowledgeReadinessFailure); err != nil {
+			return Destination{}, err
+		}
+		if readinessReport.Identity.StrongIdentity() {
+			if s.volumeLease == nil {
+				return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "host volume operation lease is unavailable"}
+			}
+			release, leaseErr := s.volumeLease.Acquire(ctx, readinessReport.Identity)
+			if leaseErr != nil {
+				return Destination{}, fmt.Errorf("acquire host volume operation lease before provisioning: %w", leaseErr)
+			}
+			defer release()
+		}
 		repositoryLocation = RepositoryPathFor(location, name)
 		// Materialize the bundle root + repository directory before creating the
 		// repository so kopia writes into repositories/<slug>.kopia, not the bare
@@ -239,38 +589,45 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 		}
 		spec.Path = repositoryLocation
 	case BackendS3:
+		s3, parseErr := parseS3Location(location)
+		if parseErr != nil {
+			return Destination{}, ErrInvalidDestination{Field: "location", Reason: parseErr.Error()}
+		}
 		repositoryLocation = location
-		spec.Bucket = location
+		spec.Bucket = s3.Bucket
+		spec.Endpoint = s3.Endpoint
+		spec.Prefix = s3.Prefix
+		spec.Region = s3.Region
+		spec.DisableTLS = s3.DisableTLS
+	case BackendSFTP:
+		sftp, parseErr := parseSFTPLocation(location)
+		if parseErr != nil {
+			return Destination{}, ErrInvalidDestination{Field: "location", Reason: parseErr.Error()}
+		}
+		repositoryLocation = location
+		spec.SFTPHost = sftp.Host
+		spec.SFTPPort = sftp.Port
+		spec.SFTPUsername = sftp.Username
+		spec.SFTPRemotePath = sftp.RemotePath
+		spec.SFTPKnownHosts = sftp.KnownHosts
 	}
-
-	if err := s.eng.RepoCreate(ctx, spec); err != nil {
-		return Destination{}, err
-	}
-
-	// RepoStatus proves encryption is on (EncryptionAlgorithm must be non-empty).
-	status, err := s.eng.RepoStatus(ctx, name)
-	if err != nil {
-		return Destination{}, err
-	}
-	if status.EncryptionAlgorithm == "" {
-		return Destination{}, ErrInvalidDestination{
-			Field:  "encryption_algorithm",
-			Reason: "kopia repository did not report an encryption algorithm; encryption must be on",
+	if in.Backend == BackendFilesystem {
+		if err := s.recheckCreateReadiness(ctx, location, readinessReport.Identity, in.AcknowledgeReadinessFailure); err != nil {
+			return Destination{}, err
 		}
 	}
 
-	// The encryption passphrase is generated and owned by resource-kopia; DBM
-	// records only the deterministic credential-authority *reference* (never the value) so
-	// a detached bundle can point an operator at the key for standalone recovery.
 	d := Destination{
-		Name:                name,
-		BackendKind:         in.Backend,
-		Location:            location,
-		RepositoryLocation:  repositoryLocation,
-		CapBytes:            in.CapBytes,
-		CapPolicy:           capPolicy,
-		EncryptionAlgorithm: status.EncryptionAlgorithm,
-		SecretRef:           s.eng.PassphraseRef(name),
+		Name:               name,
+		BackendKind:        in.Backend,
+		Location:           location,
+		RepositoryLocation: repositoryLocation,
+		CapBytes:           in.CapBytes,
+		CapPolicy:          capPolicy,
+		ProvisioningState:  ProvisioningCreating,
+		// resource-kopia owns the secret value; DBM stores only its deterministic
+		// authority reference so the detached bundle can identify the key owner.
+		SecretRef: s.eng.PassphraseRef(name),
 	}
 	if in.Backend == BackendFilesystem && readinessReport.Identity.DevicePath != "" {
 		identity := readinessReport.Identity
@@ -289,11 +646,227 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 	if err != nil {
 		return Destination{}, err
 	}
+	if err := s.eng.RepoCreate(ctx, spec); err != nil {
+		return Destination{}, fmt.Errorf("destination %q has an unknown repository create outcome; preserve the pending intent for explicit owner reconciliation without retrying create or connect: %w", name, err)
+	}
+	saved.ProvisioningState = ProvisioningCreated
+	saved, err = s.repo.Update(ctx, saved)
+	if err != nil {
+		return Destination{}, fmt.Errorf("repository %q was created but its confirmed outcome could not be persisted; preserve the pending intent for owner reconciliation: %w", name, err)
+	}
 
-	// Write the human-facing bundle files now that the destination id and
-	// encryption algorithm are known. Filesystem backends only; never carries a
-	// secret value.
-	if in.Backend == BackendFilesystem && s.bundle != nil {
+	return s.finishPendingCreate(ctx, saved, in.AcknowledgeReadinessFailure)
+}
+
+// ImportExistingDestination reconnects an exact existing repository into a
+// clean catalog. Filesystem bundles additionally require their strong device
+// identity and repository marker anchor. S3/SFTP descriptors must name the
+// exact snapshots required by the rehearsal, which are checked after connect.
+// Every backend uses RepoConnect/RepoRebind and never RepoCreate.
+func (s *service) ImportExistingDestination(ctx context.Context, in ImportExistingInput) (Destination, error) {
+	in.ID = strings.TrimSpace(in.ID)
+	in.Name = strings.TrimSpace(in.Name)
+	in.Location = strings.TrimSpace(in.Location)
+	if in.ID == "" || !ValidSlug(in.Name) || in.Location == "" || !in.Backend.Valid() {
+		return Destination{}, ErrInvalidDestination{Field: "descriptor", Reason: "destination id, slug-safe name, supported backend, and location are required"}
+	}
+	if len(in.ExpectedSnapshotIDs) == 0 {
+		return Destination{}, ErrInvalidDestination{Field: "expected_snapshot_ids", Reason: "at least one exact snapshot ID is required to bind an imported repository"}
+	}
+	expectedSnapshots := make(map[string]struct{}, len(in.ExpectedSnapshotIDs))
+	for _, id := range in.ExpectedSnapshotIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return Destination{}, ErrInvalidDestination{Field: "expected_snapshot_ids", Reason: "snapshot IDs cannot be empty"}
+		}
+		if _, duplicate := expectedSnapshots[id]; duplicate {
+			return Destination{}, ErrInvalidDestination{Field: "expected_snapshot_ids", Reason: "snapshot IDs must be unique"}
+		}
+		expectedSnapshots[id] = struct{}{}
+	}
+	if _, err := s.repo.GetByName(ctx, in.Name); err == nil {
+		return Destination{}, ErrInvalidDestination{Field: "name", Reason: "a destination with this name already exists; import never replaces or overwrites a catalog entry"}
+	} else {
+		var notFound ErrDestinationNotFound
+		if !errors.As(err, &notFound) {
+			return Destination{}, err
+		}
+	}
+	if _, err := s.repo.GetByID(ctx, in.ID); err == nil {
+		return Destination{}, ErrInvalidDestination{Field: "id", Reason: "the destination identity is already used by another catalog entry"}
+	} else {
+		var notFound ErrDestinationNotFound
+		if !errors.As(err, &notFound) {
+			return Destination{}, err
+		}
+	}
+	secretRef := s.eng.PassphraseRef(in.Name)
+	if secretRef == "" {
+		return Destination{}, ErrInvalidDestination{Field: "secret_ref", Reason: "repository credential identity could not be derived"}
+	}
+	repositoryLocation := in.Location
+	var meta BundleMetadata
+	var volumeRelativePath string
+	var identity *destinationreadiness.DeviceIdentity
+	var observedAt time.Time
+	var releaseLease func()
+	defer func() {
+		if releaseLease != nil {
+			releaseLease()
+		}
+	}()
+	spec := engine.RepoSpec{Name: in.Name, Backend: string(in.Backend)}
+	switch in.Backend {
+	case BackendFilesystem:
+		if s.bundle == nil || s.readiness == nil {
+			return Destination{}, ErrInvalidDestination{Field: "bundle", Reason: "filesystem bundle and mounted-volume inspectors are required"}
+		}
+		location, err := filepath.Abs(filepath.Clean(in.Location))
+		if err != nil {
+			return Destination{}, fmt.Errorf("resolve filesystem bundle root: %w", err)
+		}
+		in.Location = location
+		existing, err := s.bundle.ReadExisting(ctx, location)
+		if err != nil {
+			return Destination{}, ErrInvalidDestination{Field: "bundle", Reason: err.Error()}
+		}
+		meta = existing.Metadata
+		if meta.DestinationID != in.ID || meta.Name != in.Name || meta.Backend != string(in.Backend) || meta.SecretRef != secretRef {
+			return Destination{}, ErrInvalidDestination{Field: "descriptor", Reason: "filesystem bundle identity differs from the supplied non-secret descriptor"}
+		}
+		if !in.CreatedAt.IsZero() && !in.CreatedAt.Equal(meta.CreatedAt) {
+			return Destination{}, ErrInvalidDestination{Field: "created_at", Reason: "descriptor creation timestamp differs from the filesystem bundle"}
+		}
+		if _, resolvedRepository, resolveErr := resolveContainedPath(location, meta.RepositoryPath); resolveErr != nil || filepath.Clean(resolvedRepository) != filepath.Clean(meta.RepositoryPath) {
+			return Destination{}, ErrInvalidDestination{Field: "repository_path", Reason: "existing repository must be a real path contained directly under the verified bundle"}
+		}
+		readinessReport, err := s.gateOnReadiness(ctx, location, false)
+		if err != nil {
+			return Destination{}, err
+		}
+		if !readinessReport.Identity.StrongIdentity() {
+			return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "a stable mounted-volume UUID or serial is required to import a filesystem bundle"}
+		}
+		mountRoot := filepath.Clean(readinessReport.Identity.Mountpoint)
+		volumeRelativePath, err = filepath.Rel(mountRoot, location)
+		if err != nil || volumeRelativePath == "." || volumeRelativePath == ".." || strings.HasPrefix(volumeRelativePath, ".."+string(filepath.Separator)) || filepath.ToSlash(volumeRelativePath) != filepath.ToSlash(meta.RelativePath) {
+			return Destination{}, ErrInvalidDestination{Field: "relative_path", Reason: "bundle is not at its anchored location under the currently observed volume"}
+		}
+		if err := s.recheckCreateReadiness(ctx, location, readinessReport.Identity, false); err != nil {
+			return Destination{}, err
+		}
+		if s.volumeLease == nil {
+			return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "host volume operation lease is unavailable"}
+		}
+		releaseLease, err = s.volumeLease.Acquire(ctx, readinessReport.Identity)
+		if err != nil {
+			return Destination{}, fmt.Errorf("acquire host volume operation lease before repository import: %w", err)
+		}
+		if err := s.recheckCreateReadiness(ctx, location, readinessReport.Identity, false); err != nil {
+			return Destination{}, err
+		}
+		if err := s.bundle.ValidateRelocation(ctx, meta); err != nil {
+			return Destination{}, ErrInvalidDestination{Field: "bundle", Reason: "bundle/repository identity validation failed: " + err.Error()}
+		}
+		meta.BundleRoot = location
+		meta.RepositoryPath = RepositoryPathFor(location, in.Name)
+		if err := s.eng.RepoRebind(ctx, in.Name, meta.RepositoryPath); err != nil {
+			return Destination{}, fmt.Errorf("connect existing filesystem repository %q: %w", in.Name, err)
+		}
+		identity = &readinessReport.Identity
+		observedAt = time.Now().UTC()
+		repositoryLocation = meta.RepositoryPath
+	case BackendS3:
+		s3, err := parseS3Location(in.Location)
+		if err != nil {
+			return Destination{}, ErrInvalidDestination{Field: "location", Reason: err.Error()}
+		}
+		spec.Bucket, spec.Endpoint, spec.Prefix, spec.Region, spec.DisableTLS = s3.Bucket, s3.Endpoint, s3.Prefix, s3.Region, s3.DisableTLS
+	case BackendSFTP:
+		sftp, err := parseSFTPLocation(in.Location)
+		if err != nil {
+			return Destination{}, ErrInvalidDestination{Field: "location", Reason: err.Error()}
+		}
+		spec.SFTPHost, spec.SFTPPort, spec.SFTPUsername, spec.SFTPRemotePath, spec.SFTPKnownHosts = sftp.Host, sftp.Port, sftp.Username, sftp.RemotePath, sftp.KnownHosts
+	}
+	if in.Backend != BackendFilesystem {
+		if in.CreatedAt.IsZero() {
+			return Destination{}, ErrInvalidDestination{Field: "created_at", Reason: "source catalog creation time is required for remote destination import"}
+		}
+		if err := s.eng.RepoConnect(ctx, spec); err != nil {
+			return Destination{}, fmt.Errorf("connect existing repository %q: %w", in.Name, err)
+		}
+	}
+	status, err := s.eng.RepoStatus(ctx, in.Name)
+	if err != nil {
+		return Destination{}, fmt.Errorf("verify connected repository %q: %w", in.Name, err)
+	}
+	if !status.Connected || strings.TrimSpace(status.EncryptionAlgorithm) == "" {
+		return Destination{}, ErrInvalidDestination{Field: "repository", Reason: "existing repository did not prove encrypted connected status"}
+	}
+	snapshots, err := s.eng.SnapshotList(ctx, in.Name, "")
+	if err != nil {
+		return Destination{}, fmt.Errorf("enumerate existing repository history %q: %w", in.Name, err)
+	}
+	present := make(map[string]struct{}, len(snapshots))
+	for _, snapshot := range snapshots {
+		present[snapshot.ID] = struct{}{}
+	}
+	for snapshotID := range expectedSnapshots {
+		if _, ok := present[snapshotID]; !ok {
+			return Destination{}, ErrInvalidDestination{Field: "repository", Reason: "connected repository does not contain every expected snapshot"}
+		}
+	}
+	if in.Backend == BackendFilesystem {
+		if err := s.bundle.RebindMetadata(ctx, meta); err != nil {
+			return Destination{}, fmt.Errorf("update path projection after repository import: %w", err)
+		}
+	}
+	capPolicy := in.CapPolicy
+	if capPolicy == "" {
+		capPolicy = CapPolicyAlertBlock
+	}
+	createdAt := in.CreatedAt
+	if in.Backend == BackendFilesystem {
+		createdAt = meta.CreatedAt
+	}
+	destination := Destination{
+		ID: in.ID, Name: in.Name, BackendKind: in.Backend,
+		Location: in.Location, RepositoryLocation: repositoryLocation,
+		CapBytes: in.CapBytes, CapPolicy: capPolicy,
+		EncryptionAlgorithm: status.EncryptionAlgorithm, ProvisioningState: ProvisioningReady,
+		SecretRef: secretRef, CreatedAt: createdAt,
+		RelativePath:   filepath.ToSlash(volumeRelativePath),
+		DeviceIdentity: identity, DeviceIdentityObservedAt: observedAt,
+	}
+	return s.repo.Create(ctx, destination)
+}
+
+func (s *service) finishPendingCreate(ctx context.Context, pending Destination, acknowledged bool) (Destination, error) {
+	// RepoStatus proves encryption is on (EncryptionAlgorithm must be non-empty).
+	status, err := s.eng.RepoStatus(ctx, pending.Name)
+	if err != nil {
+		return Destination{}, fmt.Errorf("destination %q has a pending create intent; repository status failed, so preserve it for owner reconciliation and do not infer repository identity: %w", pending.Name, err)
+	}
+	if !status.Connected || status.EncryptionAlgorithm == "" {
+		return Destination{}, ErrInvalidDestination{
+			Field:  "encryption_algorithm",
+			Reason: "kopia repository connection or encryption could not be verified",
+		}
+	}
+	pending.EncryptionAlgorithm = status.EncryptionAlgorithm
+	if pending.BackendKind == BackendFilesystem {
+		if pending.DeviceIdentity != nil {
+			if err := s.recheckCreateReadiness(ctx, pending.Location, *pending.DeviceIdentity, acknowledged); err != nil {
+				return Destination{}, fmt.Errorf("destination %q has a pending create intent; readiness must clear before reconciliation: %w", pending.Name, err)
+			}
+		}
+	}
+	saved, err := s.repo.Update(ctx, pending)
+	if err != nil {
+		return Destination{}, fmt.Errorf("destination %q has a pending create intent; catalog update failed, so preserve it for owner reconciliation: %w", pending.Name, err)
+	}
+	if saved.BackendKind == BackendFilesystem && s.bundle != nil {
 		if err := s.bundle.WriteMetadata(ctx, BundleMetadata{
 			DestinationID:       saved.ID,
 			Name:                saved.Name,
@@ -307,11 +880,125 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 			Host:                hostname(),
 			User:                username(),
 		}); err != nil {
-			return Destination{}, err
+			return Destination{}, fmt.Errorf("destination %q has a pending create intent; bundle metadata finalization failed, so preserve it for owner reconciliation: %w", saved.Name, err)
 		}
 	}
+	saved.ProvisioningState = ProvisioningReady
+	ready, err := s.repo.Update(ctx, saved)
+	if err != nil {
+		return Destination{}, fmt.Errorf("destination %q has complete repository metadata but remains pending; retry the same request to finalize catalog state: %w", saved.Name, err)
+	}
+	return ready, nil
+}
 
-	return saved, nil
+func (s *service) reconcilePendingCreate(ctx context.Context, pending Destination, in CreateInput, requestedLocation string, capPolicy CapPolicy) (Destination, error) {
+	if pending.ProvisioningState != ProvisioningCreated {
+		return Destination{}, ErrInvalidDestination{Field: "provisioning", Reason: "repository create success is not durably confirmed; automatic connect or retry is unsafe"}
+	}
+	if pending.BackendKind != in.Backend || pending.CapBytes != in.CapBytes || pending.CapPolicy != capPolicy {
+		return Destination{}, ErrInvalidDestination{Field: "name", Reason: "pending destination create exists with different settings; preserve it for explicit reconciliation"}
+	}
+	if pending.BackendKind == BackendS3 {
+		if filepath.Clean(pending.Location) != filepath.Clean(requestedLocation) {
+			return Destination{}, ErrInvalidDestination{Field: "location", Reason: "pending destination create path differs; preserve it for explicit reconciliation"}
+		}
+		return s.finishPendingCreate(ctx, pending, in.AcknowledgeReadinessFailure)
+	}
+	if pending.DeviceIdentity == nil || !pending.DeviceIdentity.StrongIdentity() || pending.RelativePath == "" || s.readiness == nil || s.bundle == nil {
+		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "pending filesystem destination lacks a complete strong-identity intent; preserve it for explicit reconciliation"}
+	}
+	inspector, ok := s.readiness.(recoveryIdentityInspector)
+	if !ok {
+		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "stable device inspection is unavailable for pending destination reconciliation"}
+	}
+	observed, err := inspector.InspectDevice(ctx, *pending.DeviceIdentity)
+	if err != nil || !sameStrongDeviceIdentity(*pending.DeviceIdentity, observed.Identity) || !observed.Mounted || observed.ReadOnly || observed.FilesystemState != sysmounts.FilesystemStateClean {
+		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "pending destination volume is not proven at a clean, mounted, writable identity"}
+	}
+	requestedRelative, err := destinationreadiness.RelativePathUnderMount(requestedLocation, observed.Identity.Mountpoint)
+	if err != nil || filepath.Clean(requestedRelative) != filepath.Clean(pending.RelativePath) {
+		return Destination{}, ErrInvalidDestination{Field: "location", Reason: "retry does not match the pending volume-relative destination intent"}
+	}
+	if s.volumeLease == nil {
+		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "host volume operation lease is unavailable for pending destination reconciliation"}
+	}
+	release, err := s.volumeLease.Acquire(ctx, observed.Identity)
+	if err != nil {
+		return Destination{}, fmt.Errorf("acquire host volume operation lease for pending destination: %w", err)
+	}
+	defer release()
+
+	// Re-observe after the lease, resolve the same relative locator at the new
+	// mount, and connect only. This path never invokes RepoCreate or cleanup.
+	observed, err = inspector.InspectDevice(ctx, observed.Identity)
+	if err != nil || !sameStrongDeviceIdentity(*pending.DeviceIdentity, observed.Identity) || !observed.Mounted || observed.ReadOnly || observed.FilesystemState != sysmounts.FilesystemStateClean {
+		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "pending destination volume changed while acquiring its lease"}
+	}
+	if !filepath.IsAbs(filepath.Clean(observed.Identity.Mountpoint)) || filepath.Clean(observed.Identity.Mountpoint) == string(filepath.Separator) {
+		return Destination{}, ErrInvalidDestination{Field: "mountpoint", Reason: "verified volume has no safe non-root mountpoint after lease acquisition"}
+	}
+	bundleRoot, err := destinationreadiness.ResolveRelativePath(observed.Identity.Mountpoint, pending.RelativePath)
+	if err != nil {
+		return Destination{}, err
+	}
+	repositoryPath := RepositoryPathFor(bundleRoot, pending.Name)
+	resolvedMount, resolvedBundle, err := resolveContainedPath(observed.Identity.Mountpoint, bundleRoot)
+	if err != nil {
+		return Destination{}, ErrInvalidDestination{Field: "relative_path", Reason: "pending bundle resolves outside the verified volume: " + err.Error()}
+	}
+	_, resolvedRepository, err := resolveContainedPath(bundleRoot, repositoryPath)
+	if err != nil {
+		return Destination{}, ErrInvalidDestination{Field: "repository_path", Reason: "pending repository resolves outside its bundle: " + err.Error()}
+	}
+	if _, err := repositoryUniqueID(resolvedRepository); err != nil {
+		return Destination{}, fmt.Errorf("inspect pending repository marker: %w", err)
+	}
+	destinations, err := s.repo.List(ctx, defaultListLimit)
+	if err != nil {
+		return Destination{}, fmt.Errorf("check pending destination locator collisions: %w", err)
+	}
+	for _, other := range destinations {
+		if other.ID == pending.ID || other.BackendKind != BackendFilesystem {
+			continue
+		}
+		for _, candidate := range []string{other.Location, other.RepositoryLocation} {
+			if resolvedOther, evalErr := filepath.EvalSymlinks(candidate); evalErr == nil && diskPathsOverlap(resolvedBundle, resolvedOther) {
+				return Destination{}, ErrInvalidDestination{Field: "relative_path", Reason: "another destination claims the pending bundle or repository path"}
+			}
+		}
+		if other.DeviceIdentity != nil && other.DeviceIdentity.MatchesDevice(observed.Identity) {
+			otherRoot, resolveErr := destinationreadiness.ResolveRelativePath(resolvedMount, other.RelativePath)
+			if resolveErr == nil {
+				if otherResolved, evalErr := filepath.EvalSymlinks(otherRoot); evalErr == nil && diskPathsOverlap(resolvedBundle, otherResolved) {
+					return Destination{}, ErrInvalidDestination{Field: "relative_path", Reason: "another destination claims the pending volume-relative path"}
+				}
+			}
+		}
+	}
+	if err := s.recheckCreateReadiness(ctx, bundleRoot, observed.Identity, in.AcknowledgeReadinessFailure); err != nil {
+		return Destination{}, fmt.Errorf("pending destination readiness: %w", err)
+	}
+	// A durable Created state alone does not prove that the repository currently
+	// at this path belongs to this destination attempt. Require the manifest and
+	// Kopia unique ID anchor before RepoRebind can mutate resource-kopia routing.
+	meta := BundleMetadata{DestinationID: pending.ID, Name: pending.Name, Backend: string(pending.BackendKind), BundleRoot: bundleRoot, RelativePath: pending.RelativePath, RepositoryPath: repositoryPath, EncryptionAlgorithm: pending.EncryptionAlgorithm, SecretRef: pending.SecretRef, CreatedAt: pending.CreatedAt, Host: hostname(), User: username()}
+	if err := s.bundle.ValidatePendingCreate(ctx, meta); err != nil {
+		return Destination{}, fmt.Errorf("pending destination identity is not anchored by its manifest and repository; preserve for explicit reconciliation: %w", err)
+	}
+	if err := s.eng.RepoRebind(ctx, pending.Name, repositoryPath); err != nil {
+		return Destination{}, fmt.Errorf("connect pending repository without recreating it: %w", err)
+	}
+	if err := s.bundle.RebindMetadata(ctx, meta); err != nil {
+		return Destination{}, fmt.Errorf("rebind verified pending destination metadata: %w", err)
+	}
+	pending.Location = bundleRoot
+	pending.RepositoryLocation = repositoryPath
+	pending.DeviceIdentity = &observed.Identity
+	pending.DeviceIdentityObservedAt = time.Now().UTC()
+	if _, err := s.repo.Update(ctx, pending); err != nil {
+		return Destination{}, fmt.Errorf("persist resolved pending destination path: %w", err)
+	}
+	return s.finishPendingCreate(ctx, pending, in.AcknowledgeReadinessFailure)
 }
 
 // hostname / username best-effort host identity for the manifest. Empty on
@@ -349,9 +1036,17 @@ func (s *service) UpdateDestination(ctx context.Context, in UpdateInput) (Destin
 	if strings.TrimSpace(in.ID) == "" {
 		return Destination{}, ErrInvalidDestination{Field: "id", Reason: "required"}
 	}
+	release, err := lockDestination(ctx, in.ID)
+	if err != nil {
+		return Destination{}, err
+	}
+	defer release()
 	existing, err := s.repo.GetByID(ctx, in.ID)
 	if err != nil {
 		return Destination{}, err
+	}
+	if existing.ProvisioningState != "" && existing.ProvisioningState != ProvisioningReady {
+		return Destination{}, ErrInvalidDestination{Field: "provisioning", Reason: "destination creation is incomplete; reconcile it before changing settings"}
 	}
 	existing.CapBytes = in.CapBytes
 	if in.CapPolicy != "" {
@@ -364,6 +1059,11 @@ func (s *service) BindRecoveryIdentity(ctx context.Context, id string, expected 
 	if strings.TrimSpace(id) == "" {
 		return Destination{}, ErrInvalidDestination{Field: "id", Reason: "required"}
 	}
+	release, err := lockDestination(ctx, id)
+	if err != nil {
+		return Destination{}, err
+	}
+	defer release()
 	existing, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return Destination{}, err
@@ -425,15 +1125,18 @@ func (s *service) ReconcileCredentialReferences(ctx context.Context) error {
 			continue
 		}
 		if d.BackendKind == BackendFilesystem && s.bundle != nil {
-			if err := s.bundle.RefreshMetadata(ctx, BundleMetadata{
-				DestinationID:       d.ID,
-				Name:                d.Name,
-				Backend:             string(d.BackendKind),
-				BundleRoot:          d.Location,
-				RepositoryPath:      d.RepositoryLocation,
-				EncryptionAlgorithm: d.EncryptionAlgorithm,
-				SecretRef:           canonical,
-				CreatedAt:           d.CreatedAt,
+			if err := s.WithResolvedDestination(ctx, d.ID, func(current Destination) error {
+				return s.bundle.RefreshMetadata(ctx, BundleMetadata{
+					DestinationID:       current.ID,
+					Name:                current.Name,
+					Backend:             string(current.BackendKind),
+					BundleRoot:          current.Location,
+					RelativePath:        current.RelativePath,
+					RepositoryPath:      current.RepositoryLocation,
+					EncryptionAlgorithm: current.EncryptionAlgorithm,
+					SecretRef:           current.SecretRef,
+					CreatedAt:           current.CreatedAt,
+				})
 			}); err != nil {
 				failures = append(failures, fmt.Sprintf("%s metadata: %v", d.Name, err))
 			}
@@ -450,23 +1153,41 @@ func (s *service) DeleteDestination(ctx context.Context, id string, deleteReposi
 		return false, ErrInvalidDestination{Field: "id", Reason: "required"}
 	}
 	if deleteRepository {
-		d, err := s.repo.GetByID(ctx, id)
-		if err != nil {
-			return false, err
-		}
-		if err := s.eng.RepoDelete(ctx, d.Name); err != nil {
-			return false, err
-		}
+		var removed bool
+		err := s.WithResolvedDestination(ctx, id, func(d Destination) error {
+			if err := s.eng.RepoDelete(ctx, d.Name); err != nil {
+				return err
+			}
+			var deleteErr error
+			removed, deleteErr = s.repo.Delete(ctx, id)
+			return deleteErr
+		})
+		return removed, err
+	}
+	release, err := lockDestination(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	defer release()
+	existing, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	if existing.ProvisioningState != "" && existing.ProvisioningState != ProvisioningReady {
+		return false, ErrInvalidDestination{Field: "provisioning", Reason: "destination creation is incomplete; automatic deletion is unsafe, reconcile it first"}
 	}
 	return s.repo.Delete(ctx, id)
 }
 
 func (s *service) GetDestinationUsage(ctx context.Context, id string) (UsageReport, error) {
-	d, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return UsageReport{}, err
-	}
-	stats, err := s.eng.RepoStats(ctx, d.Name)
+	var d Destination
+	var stats engine.RepoStats
+	err := s.WithResolvedDestination(ctx, id, func(current Destination) error {
+		d = current
+		var statsErr error
+		stats, statsErr = s.eng.RepoStats(ctx, current.Name)
+		return statsErr
+	})
 	if err != nil {
 		return UsageReport{}, err
 	}
@@ -480,23 +1201,26 @@ func (s *service) GetDestinationUsage(ctx context.Context, id string) (UsageRepo
 }
 
 func (s *service) WouldBlock(ctx context.Context, destinationID string, pendingBytes int64) (bool, string, error) {
-	d, err := s.repo.GetByID(ctx, destinationID)
+	var blocked bool
+	var reason string
+	err := s.WithResolvedDestination(ctx, destinationID, func(d Destination) error {
+		if d.CapBytes == 0 || d.CapPolicy == CapPolicyAlertOnly {
+			return nil
+		}
+		stats, err := s.eng.RepoStats(ctx, d.Name)
+		if err != nil {
+			return err
+		}
+		if stats.SizeBytes+pendingBytes > d.CapBytes {
+			blocked = true
+			reason = "storage cap exceeded; write blocked by alert+block policy"
+		}
+		return nil
+	})
 	if err != nil {
 		return false, "", err
 	}
-	// No cap or alert-only policy: never block.
-	if d.CapBytes == 0 || d.CapPolicy == CapPolicyAlertOnly {
-		return false, "", nil
-	}
-	// ALERT_BLOCK: block when current usage + pending would exceed cap.
-	stats, err := s.eng.RepoStats(ctx, d.Name)
-	if err != nil {
-		return false, "", err
-	}
-	if stats.SizeBytes+pendingBytes > d.CapBytes {
-		return true, "storage cap exceeded; write blocked by alert+block policy", nil
-	}
-	return false, "", nil
+	return blocked, reason, nil
 }
 
 // computeUsageState classifies usage against cap. cap == 0 means no cap → always WITHIN.

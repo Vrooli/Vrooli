@@ -3,8 +3,11 @@ package drills
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,9 +32,12 @@ func (s *sqliteRepository) Create(ctx context.Context, d Drill) (Drill, error) {
 	if d.ID == "" {
 		d.ID = uuid.NewString()
 	}
+	if d.Status == StatusFailed {
+		d.NotificationState = NotificationPending
+	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO recovery_drills
- (id,plan_id,target_id,destination_id,snapshot_id,restore_id,status,scheduled,idempotency_key,error,next_action,requested_at,started_at,finished_at)
- VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, d.ID, d.PlanID, d.TargetID, d.DestinationID, d.SnapshotID, d.RestoreID, string(d.Status), boolInt(d.Scheduled), d.IdempotencyKey, d.Error, d.NextAction, formatTime(d.RequestedAt), formatTime(d.StartedAt), formatTime(d.FinishedAt))
+ (id,plan_id,target_id,destination_id,snapshot_id,restore_id,status,scheduled,idempotency_key,error,next_action,requested_at,started_at,finished_at,notification_state,notification_sent_at)
+ VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, d.ID, d.PlanID, d.TargetID, d.DestinationID, d.SnapshotID, d.RestoreID, string(d.Status), boolInt(d.Scheduled), d.IdempotencyKey, d.Error, d.NextAction, formatTime(d.RequestedAt), formatTime(d.StartedAt), formatTime(d.FinishedAt), string(d.NotificationState), formatTime(d.NotificationSentAt))
 	if err != nil {
 		return Drill{}, fmt.Errorf("insert drill: %w", err)
 	}
@@ -65,7 +71,11 @@ func (s *sqliteRepository) AttachRestore(ctx context.Context, id, restoreID stri
 
 func (s *sqliteRepository) Finish(ctx context.Context, id string, event Event, errMsg, nextAction string, finishedAt time.Time) error {
 	return s.persistTransition(ctx, id, event, func(from, next Status) (sql.Result, error) {
-		return s.db.ExecContext(ctx, `UPDATE recovery_drills SET status=?, error=?, next_action=?, finished_at=? WHERE id=? AND status=?`, string(next), errMsg, nextAction, formatTime(finishedAt), id, string(from))
+		notificationState := string(NotificationNone)
+		if next == StatusFailed {
+			notificationState = string(NotificationPending)
+		}
+		return s.db.ExecContext(ctx, `UPDATE recovery_drills SET status=?, error=?, next_action=?, finished_at=?, notification_state=?, notification_sent_at='' WHERE id=? AND status=?`, string(next), errMsg, nextAction, formatTime(finishedAt), notificationState, id, string(from))
 	})
 }
 
@@ -112,7 +122,7 @@ func requireDrillWrite(result sql.Result, err error, id, action string) error {
 }
 
 func (s *sqliteRepository) Get(ctx context.Context, id string) (Drill, error) {
-	d, err := scanDrill(s.db.QueryRowContext(ctx, `SELECT id,plan_id,target_id,destination_id,snapshot_id,restore_id,status,scheduled,idempotency_key,error,next_action,requested_at,started_at,finished_at FROM recovery_drills WHERE id=?`, id))
+	d, err := scanDrill(s.db.QueryRowContext(ctx, drillSelect+` WHERE id=?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Drill{}, ErrNotFound{ID: id}
 	}
@@ -126,7 +136,7 @@ func (s *sqliteRepository) List(ctx context.Context, planID, targetID string, li
 	if limit <= 0 {
 		limit = 100
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT id,plan_id,target_id,destination_id,snapshot_id,restore_id,status,scheduled,idempotency_key,error,next_action,requested_at,started_at,finished_at FROM recovery_drills WHERE (?='' OR plan_id=?) AND (?='' OR target_id=?) ORDER BY requested_at DESC LIMIT ?`, planID, planID, targetID, targetID, limit)
+	rows, err := s.db.QueryContext(ctx, drillSelect+` WHERE (?='' OR plan_id=?) AND (?='' OR target_id=?) ORDER BY requested_at DESC LIMIT ?`, planID, planID, targetID, targetID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -142,11 +152,60 @@ func (s *sqliteRepository) List(ctx context.Context, planID, targetID string, li
 	return out, rows.Err()
 }
 
+type drillPageCursor struct {
+	RequestedAt string `json:"requested_at"`
+	ID          string `json:"id"`
+}
+
+func (s *sqliteRepository) ListPage(ctx context.Context, planID, targetID string, limit int, pageToken string) (DrillPage, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	cursor := drillPageCursor{}
+	if pageToken != "" {
+		payload, err := base64.RawURLEncoding.DecodeString(pageToken)
+		if err != nil || json.Unmarshal(payload, &cursor) != nil || strings.TrimSpace(cursor.RequestedAt) == "" || strings.TrimSpace(cursor.ID) == "" {
+			return DrillPage{}, ErrInvalid{Field: "page_token", Reason: "invalid cursor"}
+		}
+		if _, err := time.Parse(drillTime, cursor.RequestedAt); err != nil {
+			return DrillPage{}, ErrInvalid{Field: "page_token", Reason: "invalid cursor timestamp"}
+		}
+	}
+	rows, err := s.db.QueryContext(ctx, drillSelect+` WHERE (?='' OR plan_id=?) AND (?='' OR target_id=?) AND (?='' OR julianday(requested_at)<julianday(?) OR (julianday(requested_at)=julianday(?) AND id<?)) ORDER BY julianday(requested_at) DESC,id DESC LIMIT ?`,
+		planID, planID, targetID, targetID, pageToken, cursor.RequestedAt, cursor.RequestedAt, cursor.ID, limit+1)
+	if err != nil {
+		return DrillPage{}, fmt.Errorf("list recovery drill page: %w", err)
+	}
+	defer rows.Close()
+	out := make([]Drill, 0, limit+1)
+	for rows.Next() {
+		drill, err := scanDrill(rows)
+		if err != nil {
+			return DrillPage{}, err
+		}
+		out = append(out, drill)
+	}
+	if err := rows.Err(); err != nil {
+		return DrillPage{}, err
+	}
+	page := DrillPage{Drills: out}
+	if len(out) > limit {
+		last := out[limit-1]
+		page.Drills = out[:limit]
+		payload, err := json.Marshal(drillPageCursor{RequestedAt: formatTime(last.RequestedAt), ID: last.ID})
+		if err != nil {
+			return DrillPage{}, fmt.Errorf("encode recovery drill page cursor: %w", err)
+		}
+		page.NextPageToken = base64.RawURLEncoding.EncodeToString(payload)
+	}
+	return page, nil
+}
+
 func (s *sqliteRepository) FindByIdempotency(ctx context.Context, key string) (Drill, bool, error) {
 	if key == "" {
 		return Drill{}, false, nil
 	}
-	d, err := scanDrill(s.db.QueryRowContext(ctx, `SELECT id,plan_id,target_id,destination_id,snapshot_id,restore_id,status,scheduled,idempotency_key,error,next_action,requested_at,started_at,finished_at FROM recovery_drills WHERE idempotency_key=?`, key))
+	d, err := scanDrill(s.db.QueryRowContext(ctx, drillSelect+` WHERE idempotency_key=?`, key))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Drill{}, false, nil
 	}
@@ -157,7 +216,7 @@ func (s *sqliteRepository) FindByIdempotency(ctx context.Context, key string) (D
 }
 
 func (s *sqliteRepository) LatestForUnit(ctx context.Context, planID, targetID, destinationID string) (Drill, bool, error) {
-	d, err := scanDrill(s.db.QueryRowContext(ctx, `SELECT id,plan_id,target_id,destination_id,snapshot_id,restore_id,status,scheduled,idempotency_key,error,next_action,requested_at,started_at,finished_at FROM recovery_drills WHERE plan_id=? AND target_id=? AND destination_id=? ORDER BY requested_at DESC LIMIT 1`, planID, targetID, destinationID))
+	d, err := scanDrill(s.db.QueryRowContext(ctx, drillSelect+` WHERE plan_id=? AND target_id=? AND destination_id=? ORDER BY requested_at DESC LIMIT 1`, planID, targetID, destinationID))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Drill{}, false, nil
 	}
@@ -167,13 +226,62 @@ func (s *sqliteRepository) LatestForUnit(ctx context.Context, planID, targetID, 
 	return d, true, nil
 }
 
+const drillSelect = `SELECT id,plan_id,target_id,destination_id,snapshot_id,restore_id,status,scheduled,idempotency_key,error,next_action,requested_at,started_at,finished_at,notification_state,notification_sent_at,retired_at,retirement_reason FROM recovery_drills`
+
+func (s *sqliteRepository) ListPendingNotifications(ctx context.Context, limit int) ([]Drill, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := s.db.QueryContext(ctx, drillSelect+` WHERE notification_state=? AND status=? ORDER BY requested_at LIMIT ?`, string(NotificationPending), string(StatusFailed), limit)
+	if err != nil {
+		return nil, fmt.Errorf("list pending recovery drill notifications: %w", err)
+	}
+	defer rows.Close()
+	var out []Drill
+	for rows.Next() {
+		d, err := scanDrill(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
+func (s *sqliteRepository) MarkNotificationSent(ctx context.Context, id string, sentAt time.Time) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE recovery_drills SET notification_state=?, notification_sent_at=? WHERE id=? AND status=? AND notification_state=?`, string(NotificationSent), formatTime(sentAt), id, string(StatusFailed), string(NotificationPending))
+	return requireDrillWrite(result, err, id, "mark failure notification delivered")
+}
+
+func (s *sqliteRepository) Retire(ctx context.Context, id, reason string, retiredAt time.Time) (Drill, error) {
+	result, err := s.db.ExecContext(ctx, `UPDATE recovery_drills SET retired_at=?, retirement_reason=? WHERE id=? AND status IN (?,?) AND retired_at=''`, formatTime(retiredAt), reason, id, string(StatusVerified), string(StatusFailed))
+	if err != nil {
+		return Drill{}, fmt.Errorf("retire recovery drill %q: %w", id, err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return Drill{}, fmt.Errorf("check retired recovery drill write: %w", err)
+	}
+	if rows == 1 {
+		return s.Get(ctx, id)
+	}
+	current, readErr := s.Get(ctx, id)
+	if readErr != nil {
+		return Drill{}, readErr
+	}
+	if !current.RetiredAt.IsZero() {
+		return current, nil
+	}
+	return Drill{}, ErrInvalid{Field: "status", Reason: "only completed recovery drills can be retired"}
+}
+
 type scanner interface{ Scan(...any) error }
 
 func scanDrill(sc scanner) (Drill, error) {
 	var d Drill
 	var scheduled int
-	var status, requested, started, finished string
-	if err := sc.Scan(&d.ID, &d.PlanID, &d.TargetID, &d.DestinationID, &d.SnapshotID, &d.RestoreID, &status, &scheduled, &d.IdempotencyKey, &d.Error, &d.NextAction, &requested, &started, &finished); err != nil {
+	var status, requested, started, finished, notificationState, notificationSent, retiredAt string
+	if err := sc.Scan(&d.ID, &d.PlanID, &d.TargetID, &d.DestinationID, &d.SnapshotID, &d.RestoreID, &status, &scheduled, &d.IdempotencyKey, &d.Error, &d.NextAction, &requested, &started, &finished, &notificationState, &notificationSent, &retiredAt, &d.RetirementReason); err != nil {
 		return Drill{}, err
 	}
 	d.Status = Status(status)
@@ -181,6 +289,7 @@ func scanDrill(sc scanner) (Drill, error) {
 		return Drill{}, fmt.Errorf("recovery drill %q has unknown status %q", d.ID, d.Status)
 	}
 	d.Scheduled = scheduled != 0
+	d.NotificationState = NotificationState(notificationState)
 	var err error
 	if d.RequestedAt, err = parseTime(requested); err != nil {
 		return Drill{}, err
@@ -189,6 +298,12 @@ func scanDrill(sc scanner) (Drill, error) {
 		return Drill{}, err
 	}
 	if d.FinishedAt, err = parseTime(finished); err != nil {
+		return Drill{}, err
+	}
+	if d.NotificationSentAt, err = parseTime(notificationSent); err != nil {
+		return Drill{}, err
+	}
+	if d.RetiredAt, err = parseTime(retiredAt); err != nil {
 		return Drill{}, err
 	}
 	return d, nil

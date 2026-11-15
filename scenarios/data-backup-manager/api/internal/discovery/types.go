@@ -68,6 +68,16 @@ type TargetCandidate struct {
 	// Findings carries owner-inventory declaration warnings alongside the
 	// candidate so presentation layers can explain incomplete metadata.
 	Findings []storage.InventoryFinding
+	// Reacquirable marks an owner-declared path to recreate or reacquire data.
+	// It is independent of Regenerable, which governs generic cleanup safety.
+	Reacquirable               bool
+	ReacquisitionCommand       string
+	ReacquisitionEvidence      string
+	ReacquisitionNeedsOperator bool
+	ReacquisitionAuthReason    string
+	BudgetMaxBytes             string
+	BudgetMaxAge               string
+	Retention                  string
 }
 
 // TargetSuggestion is a candidate that survived filtering, with its stable id.

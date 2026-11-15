@@ -14,6 +14,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"RecoveryDrillsService.RunDrill":     h.run,
 		"RecoveryDrillsService.GetDrill":     h.get,
 		"RecoveryDrillsService.ListDrills":   h.list,
+		"RecoveryDrillsService.RetireDrill":  h.retire,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

@@ -32,7 +32,7 @@ formal-model work.
 | Verified restore | restores | Operator/scenario requests restore or verify of a target. | Target restored to a location, or test-restored to scratch + checksummed (last-verified recorded). | Stateful job with verify gate. | Implemented: domain transition owner, persisted compare-and-swap enforcement, invalid-transition regressions; declarative Level 4 contract remains open. |
 | Scheduled recovery drill | drills | Operator requests a drill, or a configured plan schedule becomes due. | A successful snapshot is restored through the verify path and terminal drill evidence records the result. | Stateful queued job linked to a verified restore; startup reconciliation fails orphaned active drills. | Implemented: typed start/verify/fail events, SQLite compare-and-swap transitions, restore-link guard, invalid-state matrix and persistence regressions. |
 | Destination volume recovery | destinationreadiness | Operator confirms or resumes recovery after a volume becomes unavailable. | An identity-bound sequence is completed, paused for inspection, or left pending after a successful dry run. | Crash-resumable journal and ordered host-remediation steps; an ambiguous in-flight repair is never replayed automatically. | Implemented: journal/step transition owners, persisted-state validation, invalid-event matrix and resume/refusal regressions. |
-| Backup-failure recovery | destinations (`repohealth`) | An enabled plan's latest run is stopped by a destination-level reason (blocked preflight or failed run) on a mounted volume. | Read-only diagnosis, safe steps, ONE plain Notification Hub question kept outstanding until answered; a verified-human answer is applied (record exceptions, repair, or request an agent); a result notice follows. | Durable incident journal per condition and generation; ask ledger; exception records. | Implemented: `backup_failure_test.go`, `repohealth_test.go`. Live operator answer unverified. |
+| Backup-failure recovery | destinations (`repohealth`) | An enabled plan's latest run is stopped by a destination-level reason (blocked preflight or failed run) on a mounted volume. | Read-only diagnosis, safe steps, ONE plain Notification Hub question per destination (subject key `backup-failure:<destination-id>`) kept outstanding until answered, updated in place while the problem changes and withdrawn when it clears; a verified-human answer is applied (record exceptions, repair, or request an agent); a result notice follows. | Durable incident journal per condition and generation; ask ledger; exception records. | Implemented: `backup_failure_test.go`, `decision_subjects_test.go`, `repohealth_test.go`. Live operator answer and live withdrawal unverified. |
 | Generic snapshot audit | audits | Operator/scenario requests an audit of a snapshot. | Snapshot restored to scratch (recoverability), live target captured to scratch (read-only), both walked and compared by generic inventory; proof persisted. | Stateful async job; pass/diff/drift/failed terminal. | Implemented: typed transition owner, SQLite compare-and-swap writes, terminal event/status validation, and exhaustive event-matrix tests; service, reconciliation and repository callers migrated. |
 | Storage-limit block | destinations / runs | A run would write past a destination's cap. | Run is blocked, an alert is raised, no bytes are written; never silent eviction. | Branch on cap-check before write. | Implemented: destination service cap-policy and usage tests. |
 
@@ -60,21 +60,22 @@ formal-model work.
 
 - Owner domain: coverage (composes discovery + targets + plans + runs +
   restores; owns no scanner logic of its own).
-- Trigger: operator runs `coverage accept-defaults`, or clicks "Register
-  recommended" in the UI coverage banner.
-- Inputs: `include_sensitive` (default false), `dry_run` (default false).
+- Trigger: operator runs `coverage accept-defaults`, or requests the separate
+  `coverage review-sensitive` decision for sensitive suggestions.
+- Inputs: `dry_run` (default false); legacy `include_sensitive=true` is rejected.
 - Steps:
   1. List discovery target suggestions (already filtered to unregistered +
      non-dismissed).
   2. Partition into non-sensitive (default recommendations) and sensitive
      (review-only).
-  3. For each non-sensitive suggestion — and sensitive ones only when
-     `include_sensitive` — register it via the targets service (idempotent
+  3. For each non-sensitive suggestion, register it via the targets service (idempotent
      upsert, locators only, no content read). Under `dry_run`, register nothing
      and report what would be registered.
-  4. Return per-item `accepted` / `skipped_sensitive` / `failed`.
-- Outputs: the accept result; sensitive suggestions stay review-only unless
-  explicitly opted in.
+  4. Sensitive suggestions remain review-only until the verified callback
+     revalidates the batch and applies explicit per-target decisions.
+  5. Return per-item `accepted` / `skipped_sensitive` / `failed`.
+- Outputs: the accept result and, separately, a recorded sensitive decision plus
+  one result notification.
 - Guard: `plans create` / `plans update` block with `failed_precondition` while
   non-sensitive recommendations remain unregistered, unless
   `allow_incomplete_coverage` is set.
@@ -100,7 +101,7 @@ formal-model work.
         (see Storage-limit block) and mark the target failed.
      d. `resource-kopia snapshot create` into the destination
         repository; record the snapshot reference.
-     e. Apply the plan's retention via kopia policy.
+     e. Apply the plan's newest-count floor and GFS time buckets via kopia policy, then expire according to that explicit policy.
      f. (P1) run the post-quiesce hook.
   3. Record per-target outcomes and update last-success-per-target.
   4. Close the run (success / partial-failure / failure) and emit a
@@ -163,21 +164,60 @@ formal-model work.
 - Diagnosis (read-only, at most once per new failed run and every 30 minutes):
   volume mounted/writable, repository opens, snapshots list, usage measurable;
   if usage fails, a bounded walk of the repository directory classifies each
-  unreadable entry as a leftover temporary upload (`<blob>.f.tmp.<hex>`) or
+  unreadable entry as a leftover temporary upload (`<blob>.f.tmp` with an
+  optional hexadecimal suffix) or
   repository content; days since the last success (run log or newest repository
-  snapshot); items that no other enabled, recently successful plan protects.
+  snapshot); stable device identity; items that no other enabled, recently
+  successful plan protects.
 - Safe steps without asking: re-read, retry the plan when every check passes, and
   hand an unmounted drive to the existing clean-check remount.
-- The question: lettered options, each with its risk, one recommended. A: skip
-  only the exact unreadable leftover files and resume (offered only when every
-  unreadable entry is a leftover temporary file). B: take the drive offline and
-  repair it (unmount, offline repair, remount through the control plane; refused
-  while a backup runs). C: a fresh backup set (an agent sets it up; nothing is
-  changed). D: do nothing; the question returns after a day. Decline, dismissal,
-  Other, or no answer leaves backups blocked; the daily stalled notice names the
-  open question. The question is held open for a week (the hub closes a non-critical
-  question at its deadline); when the hub expires it unanswered, nothing is changed and
-  the monitor asks again at once, so one question is outstanding while backups are blocked.
+- The question: one lettered repair-decision class with each bounded action's
+  risk, a recommendation, and `Other`. A: record exceptions for only the exact
+  unreadable leftover temp paths and resume (offered only when all unreadable
+  entries are leftovers). B: quarantine the complete set of exact orphan EIO
+  session temps only when the destination has stable device identity. The
+  callback revalidates identity, root, and typed paths, asks resource-kopia to
+  move each path into same-volume quarantine without deleting its bytes or
+  writing final blobs, persists progress, then rescans before retrying plans.
+  C: take the drive offline and repair it (unmount, offline repair, remount
+  through the control plane; refused while a backup runs). D: request a fresh
+  backup set (an agent sets it up; nothing is changed automatically). E: leave
+  backups blocked. Decline, dismissal, `Other`, or no answer does not run a
+  repair. The daily stalled notice names the open question. The question is held
+  for a week; if the hub expires it unanswered, nothing is changed and the
+  monitor asks again at once, so one question is outstanding while backups are
+  blocked.
+- One decision per situation ("Decision subjects" in Notification Hub's
+  `INTEGRATIONS.md`). Every question carries the subject key
+  `backup-failure:<destination-id>` (the volume-repair question carries
+  `volume-repair:<recovery-id>`), whatever the incident, generation or cause, so
+  the hub keeps at most one open decision per destination. A changed diagnosis of
+  the same condition, a changed condition (new incident), and the renewal after an
+  expiry are all new revisions under that key: the hub updates the open decision
+  in place or replaces it, never adds a second. DBM re-sends a still-needed
+  question every 2 hours with a fresh `asserted_at` and `reassert_within` of 6
+  hours, so the hub also closes it ("No longer confirmed by data-backup-manager")
+  if DBM stops confirming it. `Settle` runs on every sweep and withdraws, with a
+  plain reason, any question that is no longer the awaiting incident's current
+  one: backups succeeded again or every check passes, the problem changed to one
+  with nothing to offer or to an unmounted drive (drive recovery then owns it),
+  the destination was removed, or no plan is switched on for it. A volume-repair
+  question is withdrawn when the drive is mounted writable again, the journal
+  moved on or finished (including by the operator in DBM), the record is gone, or
+  its destination was removed. The "working again" notice is still sent, but the
+  decision itself is closed too.
+- Answers. A resolution with `state: withdrawn` is never an answer: it is a no-op,
+  and a decision the hub closed by itself is raised again on the next sweep if the
+  situation still exists (a replacement, `superseded_by_ask_id` set, is left
+  alone). An answer naming a question DBM had already withdrawn, or an older
+  generation of the condition, is never carried out (it could be a replay of an
+  approval already used); the operator is told once that nothing was changed.
+- Adoption. A question published before subject keys existed has no key and its
+  event id is the hub's `requester_ref`. When the keyed question is delivered,
+  DBM withdraws that keyless copy by `requester_ref`; when the situation has
+  already cleared it is withdrawn the same way. The reference is stored with the
+  ask until the withdrawal is published, so a failed publish is retried on the
+  next sweep.
 - Exceptions: option A records one exception per exact path (path, failure kind,
   approver, identity source, time) under `state/backup-exceptions`. The usage
   engine (`repohealth.UsageEngine`) honours an exception only when the engine's

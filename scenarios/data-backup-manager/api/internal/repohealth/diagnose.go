@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
 )
 
@@ -60,13 +61,14 @@ type PlanFacts struct {
 
 // Diagnosis is the read-only account of why a destination is failing.
 type Diagnosis struct {
-	CheckedAt       time.Time `json:"checked_at"`
-	DestinationID   string    `json:"destination_id"`
-	DestinationName string    `json:"destination_name"`
-	DriveName       string    `json:"drive_name"`
-	Location        string    `json:"location"`
-	RepositoryRoot  string    `json:"repository_root"`
-	Cause           Cause     `json:"cause"`
+	CheckedAt         time.Time                            `json:"checked_at"`
+	DestinationID     string                               `json:"destination_id"`
+	DestinationName   string                               `json:"destination_name"`
+	DriveName         string                               `json:"drive_name"`
+	Location          string                               `json:"location"`
+	RepositoryRoot    string                               `json:"repository_root"`
+	DestinationDevice *destinationreadiness.DeviceIdentity `json:"destination_device,omitempty"`
+	Cause             Cause                                `json:"cause"`
 
 	Volume VolumeState `json:"volume"`
 
@@ -75,6 +77,7 @@ type Diagnosis struct {
 	SnapshotsListed   bool      `json:"snapshots_listed"`
 	SnapshotCount     int       `json:"snapshot_count"`
 	SnapshotError     string    `json:"snapshot_error,omitempty"`
+	MissingBlobID     string    `json:"missing_blob_id,omitempty"`
 	LatestSnapshotAt  time.Time `json:"latest_snapshot_at,omitempty"`
 	UsageMeasurable   bool      `json:"usage_measurable"`
 	UsageError        string    `json:"usage_error,omitempty"`
@@ -116,8 +119,20 @@ func (d Diagnosis) Signature() string {
 		paths = append(paths, e.RelPath+"|"+string(e.Problem)+"|"+string(e.Class))
 	}
 	sort.Strings(paths)
-	sum := sha256.Sum256([]byte(d.DestinationID + "\x00" + string(d.Cause) + "\x00" + strings.Join(paths, "\n")))
+	identity := ""
+	if d.DestinationDevice != nil {
+		identity = strings.Join([]string{d.DestinationDevice.Filesystem, d.DestinationDevice.UUID, d.DestinationDevice.Serial}, "\x00")
+	}
+	sum := sha256.Sum256([]byte(d.DestinationID + "\x00" + identity + "\x00" + string(d.Cause) + "\x00" + d.MissingBlobID + "\x00" + strings.Join(paths, "\n")))
 	return hex.EncodeToString(sum[:12])
+}
+
+func cloneDeviceIdentity(identity *destinationreadiness.DeviceIdentity) *destinationreadiness.DeviceIdentity {
+	if identity == nil {
+		return nil
+	}
+	copy := *identity
+	return &copy
 }
 
 // DaysStopped is whole days since the last known success, or -1 when unknown.
@@ -142,19 +157,20 @@ type RepoProbe interface {
 
 // DiagnoseInput carries everything diagnosis needs, as seams.
 type DiagnoseInput struct {
-	Now             time.Time
-	DestinationID   string
-	DestinationName string
-	Location        string
-	RepositoryRoot  string
-	Volume          func(context.Context) (VolumeState, error)
-	Engine          RepoProbe
-	Scan            func(context.Context, string) (Scan, error)
-	Scanner         *Scanner
-	Exceptions      ExceptionStore
-	LastSuccess     func(context.Context, []engine.Snapshot) (at time.Time, source string)
-	PriorRepairAt   func(context.Context) time.Time
-	Plans           func(context.Context) PlanSummary
+	Now               time.Time
+	DestinationID     string
+	DestinationName   string
+	Location          string
+	RepositoryRoot    string
+	DestinationDevice *destinationreadiness.DeviceIdentity
+	Volume            func(context.Context) (VolumeState, error)
+	Engine            RepoProbe
+	Scan              func(context.Context, string) (Scan, error)
+	Scanner           *Scanner
+	Exceptions        ExceptionStore
+	LastSuccess       func(context.Context, []engine.Snapshot) (at time.Time, source string)
+	PriorRepairAt     func(context.Context) time.Time
+	Plans             func(context.Context) PlanSummary
 }
 
 // Diagnose runs the read-only checks in order of cost and stops at the first
@@ -162,7 +178,7 @@ type DiagnoseInput struct {
 func Diagnose(ctx context.Context, in DiagnoseInput) (d Diagnosis) {
 	d = Diagnosis{
 		CheckedAt: in.Now.UTC(), DestinationID: in.DestinationID, DestinationName: in.DestinationName,
-		Location: in.Location, RepositoryRoot: in.RepositoryRoot,
+		Location: in.Location, RepositoryRoot: in.RepositoryRoot, DestinationDevice: cloneDeviceIdentity(in.DestinationDevice),
 	}
 	d.DriveName = in.DestinationName
 	if in.Volume != nil {
@@ -206,6 +222,7 @@ func Diagnose(ctx context.Context, in DiagnoseInput) (d Diagnosis) {
 	snaps, err := in.Engine.SnapshotList(ctx, in.DestinationName, "")
 	if err != nil {
 		d.SnapshotError = err.Error()
+		d.MissingBlobID = exactMissingQBlobID(d.SnapshotError)
 		d.Cause = CauseSnapshotsUnlistable
 		return d
 	}
@@ -257,6 +274,32 @@ func Diagnose(ctx context.Context, in DiagnoseInput) (d Diagnosis) {
 		d.Cause = CauseContentUnreadable
 	}
 	return d
+}
+
+func exactMissingQBlobID(message string) string {
+	if !strings.Contains(message, "BLOB not found") {
+		return ""
+	}
+	const marker = `blob "`
+	start := strings.LastIndex(message, marker)
+	if start < 0 {
+		return ""
+	}
+	value := message[start+len(marker):]
+	end := strings.IndexByte(value, '"')
+	if end <= 0 {
+		return ""
+	}
+	blobID := value[:end]
+	if len(blobID) < 2 || len(blobID) > 128 || !strings.HasPrefix(blobID, "q") {
+		return ""
+	}
+	for _, r := range blobID {
+		if !(r >= 'a' && r <= 'z') && !(r >= '0' && r <= '9') && r != '-' {
+			return ""
+		}
+	}
+	return blobID
 }
 
 func allLeftoverTemp(entries []Entry) bool {

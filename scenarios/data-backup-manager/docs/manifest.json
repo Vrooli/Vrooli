@@ -792,6 +792,39 @@
               "UNFILLED_PLACEHOLDER"
             ]
           }
+        },
+        {
+          "path": "operations/DRILLS.md",
+          "docType": "recovery-drills",
+          "title": "Recovery Drills",
+          "aliases": [
+            "drills",
+            "weekly-drills",
+            "restore-verification"
+          ],
+          "description": "Scheduled per-target and per-destination restore verification, persisted evidence, and failure notification behavior",
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "recovery-drills",
+            "restore-verification"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Recovery drills"
+            ],
+            "forbiddenPlaceholders": [
+              "UNFILLED_PLACEHOLDER"
+            ]
+          }
         }
       ]
     },
@@ -1002,6 +1035,72 @@
               "Overlays",
               "Cross-References"
             ],
+            "forbiddenPlaceholders": [
+              "UNFILLED_PLACEHOLDER"
+            ]
+          }
+        },
+        {
+          "path": "reference/support-matrix.md",
+          "docType": "support-matrix",
+          "title": "Platform Support Matrix",
+          "aliases": [
+            "support-matrix",
+            "platform-qualification",
+            "native-support"
+          ],
+          "description": "Native platform qualification generated from build, control-plane, and DBM runtime receipts",
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "platform-support-matrix",
+            "cross-platform-qualification"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Platform support matrix",
+              "Evidence commands"
+            ],
+            "forbiddenPlaceholders": [
+              "UNFILLED_PLACEHOLDER"
+            ],
+            "requiredLinks": [
+              "platform-receipts.json"
+            ]
+          }
+        },
+        {
+          "path": "reference/platform-receipts.json",
+          "docType": "platform-receipts",
+          "title": "Platform Receipts",
+          "aliases": [
+            "native-platform-receipts",
+            "qualification-receipts"
+          ],
+          "description": "Generated native build and runtime evidence consumed by the platform support matrix",
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "platform-qualification-receipts"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [],
             "forbiddenPlaceholders": [
               "UNFILLED_PLACEHOLDER"
             ]

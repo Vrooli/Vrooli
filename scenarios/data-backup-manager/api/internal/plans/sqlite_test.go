@@ -30,6 +30,34 @@ func newPlansDB(t *testing.T) *sql.DB {
 	return d
 }
 
+func TestEnsureColumnsBootstrapsWeeklyDrillsOnlyForEnabledPlans(t *testing.T) {
+	ctx := context.Background()
+	db := newPlansDB(t)
+	_, err := db.ExecContext(ctx, `INSERT INTO plans
+		(id,name,schedule,keep_latest,keep_hourly,keep_daily,keep_weekly,keep_monthly,keep_annual,enabled,protection_tier,recovery_drill_schedule,created_at,updated_at)
+		VALUES ('enabled-empty','enabled','24h',1,0,0,0,0,0,1,'full_primary','','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z'),
+		('disabled-empty','disabled','24h',1,0,0,0,0,0,0,'full_primary','','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z'),
+		('enabled-custom','custom','24h',1,0,0,0,0,0,1,'full_primary','72h','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := plans.EnsureColumns(ctx, db); err != nil {
+		t.Fatalf("bootstrap: %v", err)
+	}
+	if err := plans.EnsureColumns(ctx, db); err != nil {
+		t.Fatalf("repeat bootstrap: %v", err)
+	}
+	for id, want := range map[string]string{"enabled-empty": plans.DefaultRecoveryDrillSchedule, "disabled-empty": "", "enabled-custom": "72h"} {
+		var got string
+		if err := db.QueryRowContext(ctx, `SELECT recovery_drill_schedule FROM plans WHERE id=?`, id).Scan(&got); err != nil {
+			t.Fatal(err)
+		}
+		if got != want {
+			t.Errorf("%s drill schedule=%q, want %q", id, got, want)
+		}
+	}
+}
+
 // TestSQLiteRepository_MembershipRoundTrip proves membership tables persist and
 // reload: create plan with 2 targets + 2 destinations; reload; assert lists.
 func TestSQLiteRepository_MembershipRoundTrip(t *testing.T) {

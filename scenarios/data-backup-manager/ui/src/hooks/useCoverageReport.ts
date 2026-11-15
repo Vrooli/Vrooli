@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   acceptDefaultTargets,
   getCoverageReport,
+  requestSensitiveReview,
   type AcceptDefaultsInput,
 } from "../api/coverage";
 import { queryKeys } from "./keys";
@@ -43,4 +44,9 @@ export function useAcceptDefaultTargets() {
       }
     },
   });
+}
+
+/** Raises one verified-human review; registration happens only in the signed callback. */
+export function useRequestSensitiveReview() {
+  return useMutation({ mutationFn: requestSensitiveReview });
 }

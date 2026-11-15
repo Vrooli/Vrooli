@@ -12,7 +12,11 @@ CREATE TABLE IF NOT EXISTS recovery_drills (
   next_action     TEXT NOT NULL DEFAULT '',
   requested_at    TEXT NOT NULL,
   started_at      TEXT NOT NULL DEFAULT '',
-  finished_at     TEXT NOT NULL DEFAULT ''
+  finished_at     TEXT NOT NULL DEFAULT '',
+  notification_state TEXT NOT NULL DEFAULT '',
+  notification_sent_at TEXT NOT NULL DEFAULT '',
+  retired_at      TEXT NOT NULL DEFAULT '',
+  retirement_reason TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_recovery_drills_unit

@@ -22,8 +22,9 @@ const GroupName = "coverage"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"CoverageService.GetCoverageReport":    h.report,
-		"CoverageService.AcceptDefaultTargets": h.acceptDefaults,
+		"CoverageService.GetCoverageReport":      h.report,
+		"CoverageService.AcceptDefaultTargets":   h.acceptDefaults,
+		"CoverageService.RequestSensitiveReview": h.reviewSensitive,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

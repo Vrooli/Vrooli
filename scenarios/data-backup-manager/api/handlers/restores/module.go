@@ -3,7 +3,7 @@ package restores
 import (
 	"log"
 
-	"data-backup-manager/internal/module"
+	"data-backup-manager/internal/modulecontract"
 	internalrestores "data-backup-manager/internal/restores"
 
 	"github.com/gorilla/mux"
@@ -17,12 +17,12 @@ import (
 // targets/destinations plus the engine and source registry), so this module
 // takes the already-built service. The schema is static and re-exported via
 // Schema().
-func Module(svc internalrestores.Service, logger *log.Logger) module.Module {
+func Module(svc internalrestores.Service, logger *log.Logger) modulecontract.Module {
 	connectPath, connectHandler := restoresconnect.NewRestoresServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
 		Logger:  logger,
 	}))
-	return module.Module{
+	return modulecontract.Module{
 		Name: "restores",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})

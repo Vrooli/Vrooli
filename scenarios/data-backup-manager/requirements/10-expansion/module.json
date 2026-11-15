@@ -82,6 +82,37 @@
           "ref": "ui/src/pages/DrillsPage.test.tsx"
         }
       ]
+    },
+    {
+      "id": "DBM-PLATFORM-001",
+      "title": "Receipt-backed native platform qualification",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-001",
+      "category": "platform-qualification",
+      "criticality": "P1",
+      "description": "Native control-plane volume identity/check/repair/mount and DBM backup/scratch-restore executions produce privacy-safe platform receipts. The support matrix qualifies only the latest native receipt for each platform and capability; fixtures and cross-builds remain unqualified. Completion additionally requires real native receipts on Linux, macOS and Windows, including scratch restore on macOS and Windows.",
+      "tags": ["platform", "receipts", "qualification", "cross-platform"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/internal/platformreceipts/receipts_test.go::TestFileSinkWritesRedactedNativeReceipt",
+          "notes": "The file sink records hashed operation/proof references and host identity without raw target, destination, proof, or volume identity values."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "scripts/test_generate_support_matrix.py::SupportMatrixTests",
+          "notes": "Generator imports control-plane and DBM runtime ledgers, validates receipt fields, scopes qualification by platform/capability, and excludes fixtures and cross-builds."
+        },
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Record real Linux, minimouse macOS, and operator-provided Windows identity/check/repair/mount/backup/scratch-restore receipts, then regenerate and review the matrix and one evidence-based format decision."
+        }
+      ]
     }
   ]
 }

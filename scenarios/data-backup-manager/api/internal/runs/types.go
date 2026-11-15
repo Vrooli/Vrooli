@@ -99,6 +99,12 @@ type TargetStatus struct {
 	LastSuccessAt time.Time
 	LastRunStatus RunStatus
 	LastRunAt     time.Time
+	// LastFailureCode and LastFailureCategory are the redacted root-cause
+	// vocabulary from the newest target outcome. Health uses them to report a
+	// shared failure cause once with an affected-target count instead of a long
+	// list of opaque target IDs.
+	LastFailureCode     failures.Code
+	LastFailureCategory failures.Category
 	// Freshness (cadence) signals computed by the service against the configured
 	// overdue threshold. Overdue is the single source of truth shared by the
 	// CLI, /health, and the UI so the rule never drifts between surfaces.
@@ -109,6 +115,15 @@ type TargetStatus struct {
 	// when the target is manual-only, on a disabled plan, or its schedule has
 	// not fired since startup — surfaces decide how to render "not scheduled".
 	NextScheduledAt time.Time
+}
+
+// TargetDestinationStatus reports the latest successful capture for one
+// target at one destination. A target-level success alone is insufficient to
+// prove that every configured copy has been written.
+type TargetDestinationStatus struct {
+	TargetID      string
+	DestinationID string
+	LastSuccessAt time.Time
 }
 
 // ErrRunNotFound is the typed sentinel for an unknown run id.

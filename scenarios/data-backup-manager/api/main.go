@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"data-backup-manager/internal/effectguard"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,10 +10,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/credential-authority-go/eventpublishing"
+
+	"data-backup-manager/internal/effectguard"
+
 	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
-	"data-backup-manager/internal/modules"
+	"data-backup-manager/internal/modulecatalog"
 	"data-backup-manager/internal/repohealth"
+	repomigration "data-backup-manager/internal/repositorymigration"
 	"data-backup-manager/internal/server"
 
 	"github.com/vrooli/api-core/schedule"
@@ -47,6 +51,7 @@ import (
 	discoveryint "data-backup-manager/internal/discovery"
 	drillsint "data-backup-manager/internal/drills"
 	plansint "data-backup-manager/internal/plans"
+	platformreceipts "data-backup-manager/internal/platformreceipts"
 	restoresint "data-backup-manager/internal/restores"
 	runsint "data-backup-manager/internal/runs"
 	safetyint "data-backup-manager/internal/safety"
@@ -114,6 +119,7 @@ func main() {
 	if preflight.Run(preflight.Config{ScenarioName: "data-backup-manager"}) {
 		return
 	}
+	eventpublishing.Register()
 	if err := run(context.Background()); err != nil {
 		log.Fatalf("%v", err)
 	}
@@ -146,7 +152,7 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("database connection failed: %w", err)
 	}
 
-	if err := database.EnsureSchemas(ctx, db.Primary(), modules.AllSchemas()...); err != nil {
+	if err := database.EnsureSchemas(ctx, db.Primary(), modulecatalog.AllSchemas()...); err != nil {
 		_ = db.Close()
 		return fmt.Errorf("schema initialization failed: %w", err)
 	}
@@ -160,6 +166,10 @@ func run(ctx context.Context) error {
 	if err := destint.EnsureColumns(ctx, db.Primary()); err != nil {
 		_ = db.Close()
 		return fmt.Errorf("destinations column migration failed: %w", err)
+	}
+	if err := drillsint.EnsureColumns(ctx, db.Primary()); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("recovery-drills column migration failed: %w", err)
 	}
 	if err := plansint.EnsureColumns(ctx, db.Primary()); err != nil {
 		_ = db.Close()
@@ -232,7 +242,15 @@ func run(ctx context.Context) error {
 	// Concrete domain services used both for mounting (via each module) and as
 	// the backing for the cross-domain adapters the run orchestration needs.
 	targetsSvc := targetsint.NewService(targetsint.NewSQLiteRepository(db, clk))
-	destSvc := destint.NewService(destint.NewSQLiteRepository(db, clk), kopia, &destint.FSBundleWriter{}, protectedRoot)
+	planReadiness := destinationreadiness.NewService(
+		destinationreadiness.NewReadOnlyInspector(sysmounts.New()),
+		destinationreadiness.NewLocalPreparer(),
+	)
+	destSvc := destint.NewService(
+		destint.NewSQLiteRepository(db, clk), kopia, &destint.FSBundleWriter{}, protectedRoot,
+		destint.WithReadinessGate(planReadiness),
+		destint.WithVolumeOperationLease(destint.NewHostVolumeOperationLease("vrooli")),
+	)
 	destinationCatalog = destSvc
 	if err := destSvc.ReconcileCredentialReferences(ctx); err != nil {
 		// A destination may be mounted read-only while the manager is still
@@ -240,11 +258,6 @@ func run(ctx context.Context) error {
 		// surface the exact pending migration, and retry on the next boot.
 		logger.Printf("destination credential-reference reconciliation pending: %v", err)
 	}
-	planReadiness := destinationreadiness.NewService(
-		destinationreadiness.NewReadOnlyInspector(sysmounts.New()),
-		destinationreadiness.NewLocalPreparer(),
-	)
-
 	// Discovery: read-only onboarding suggestions. Scans well-known runtime
 	// state (~/.vrooli) for targets and mounted volumes for destinations,
 	// filtering against the live catalog + a dismissals table. Suggestions are
@@ -284,11 +297,12 @@ func run(ctx context.Context) error {
 	guardCoverage := coverageint.NewService(coverageint.Deps{
 		Suggestions: coverageSuggestions{svc: discoverySvc},
 	})
+	criticalDestinationPolicy := planCriticalDestinationPolicy{targets: targetsSvc, destinations: destSvc, readiness: planReadiness, hostID: strings.TrimSpace(os.Getenv("VROOLI_HOST_ID"))}
 	plansSvc := plansint.NewServiceWithPolicies(
 		plansint.NewSQLiteRepository(db, clk),
 		planCoverageGuard{svc: guardCoverage},
 		planCriticalTargetPolicy{svc: targetsSvc},
-		planCriticalDestinationPolicy{targets: targetsSvc, destinations: destSvc, readiness: planReadiness},
+		criticalDestinationPolicy,
 	)
 
 	// The run orchestration: capture (sources) + snapshot/retention (engine),
@@ -315,6 +329,7 @@ func run(ctx context.Context) error {
 	// trigger), then assigned into this adapter before any request runs.
 	nextSched := &nextScheduleAdapter{plans: plansSvc}
 	runsRepo := runsint.NewSQLiteRepository(db, clk)
+	platformReceiptSink := platformreceipts.NewFileSink()
 	runsSvc := runsint.NewService(runsint.Deps{
 		Repo:                 runsRepo,
 		Plans:                planLookup{svc: plansSvc},
@@ -333,6 +348,7 @@ func run(ctx context.Context) error {
 		PreflightSourcePaths: true,
 		Readiness:            planReadiness,
 		RoutedRoots:          fileRoots,
+		PlatformReceipts:     platformReceiptSink,
 	})
 
 	// Startup reconciliation: close any run left non-terminal by a prior
@@ -355,9 +371,10 @@ func run(ctx context.Context) error {
 		// Restores run async on a background worker bound to the server-lifetime
 		// context, so the request RPC returns immediately and a client disconnect
 		// cannot sever an in-flight restore (no more 6h WriteTimeout).
-		BaseContext: execCtx,
-		Workers:     concurrency,
-		Logger:      logger,
+		BaseContext:      execCtx,
+		Workers:          concurrency,
+		Logger:           logger,
+		PlatformReceipts: platformReceiptSink,
 	})
 
 	// Startup reconciliation: close any restore left non-terminal by a prior
@@ -396,14 +413,16 @@ func run(ctx context.Context) error {
 	// idempotency, latest-successful-snapshot selection, and scheduled operator
 	// evidence. They never write to a live target.
 	drillsSvc := drillsint.NewService(drillsint.Deps{
-		Repo:        drillsint.NewSQLiteRepository(db),
-		Plans:       drillPlanLookup{svc: plansSvc},
-		Snapshots:   drillSnapshotLookup{svc: runsSvc},
-		Restores:    drillRestoreRunner{svc: restoresSvc},
-		Clock:       clk,
-		BaseContext: execCtx,
-		Workers:     concurrency,
-		Logger:      logger,
+		Repo:          drillsint.NewSQLiteRepository(db),
+		Plans:         drillPlanLookup{svc: plansSvc},
+		Snapshots:     drillSnapshotLookup{svc: runsSvc},
+		Readiness:     drillDestinationReadiness{destinations: destSvc, readiness: planReadiness},
+		Restores:      drillRestoreRunner{svc: restoresSvc},
+		Notifications: eventbus.NewDiscoveredClient(ctx),
+		Clock:         clk,
+		BaseContext:   execCtx,
+		Workers:       concurrency,
+		Logger:        logger,
 	})
 	if err := drillsSvc.Reconcile(ctx); err != nil {
 		cancelExec()
@@ -422,13 +441,13 @@ func run(ctx context.Context) error {
 	coverageSvc := coverageint.NewService(coverageint.Deps{
 		Suggestions: coverageSuggestions{svc: discoverySvc},
 		Targets:     coverageTargetCatalog{svc: targetsSvc},
-		Plans:       coveragePlanCatalog{svc: plansSvc},
+		Plans:       coveragePlanCatalog{svc: plansSvc, topology: criticalDestinationPolicy},
 		Runs:        coverageRunStatus{svc: runsSvc},
 		Restores:    coverageVerified{svc: restoresSvc},
 	})
 
 	// In-process scheduler: fires due plans on their cadence (OT-P0-005).
-	scheduler := schedint.New(clk, planSource{svc: plansSvc}, runTrigger{svc: runsSvc})
+	scheduler := schedint.New(clk, planSource{svc: plansSvc, runs: runsSvc}, runTrigger{svc: runsSvc})
 	nextSched.sched = scheduler // late bind: see nextScheduleAdapter
 	if err := startScheduler(ctx, scheduler, logger); err != nil {
 		_ = db.Close()
@@ -449,6 +468,13 @@ func run(ctx context.Context) error {
 	if secretErr != nil {
 		logger.Printf("volume recovery decision callback unavailable: %v", secretErr)
 	}
+	coverageDecisions := coverageH.NewSensitiveDecisionFlow(
+		coverageSvc,
+		&destinationreadiness.FileDecisionStore{Root: filepath.Join(filePaths.StateDir, "sensitive-coverage-decisions")},
+		decisionPublisher,
+		strings.TrimSpace(eventsWebhookSecret) != "",
+		logger,
+	)
 
 	// Baseline Modes safety substrate: pure orchestration over the
 	// destinations/targets/plans/runs services (no tables of its own) that the
@@ -463,12 +489,25 @@ func run(ctx context.Context) error {
 		RuntimeRoot:  discoveryint.RuntimeRoot,
 	})
 
+	migrationEffects := &repomigration.DBMEffects{
+		Plans: plansSvc, Destinations: destSvc, Targets: targetsSvc, Readiness: planReadiness,
+		Engine: kopia, Runs: runsSvc, Drills: drillsSvc,
+	}
+	migrationOwner := repomigration.New(
+		&repomigration.FileStore{Root: filepath.Join(filePaths.StateDir, "fresh-repository-migrations")},
+		migrationEffects, nil,
+	)
+	freshMigrations := destinationsH.NewRepositoryMigrationCoordinator(migrationEffects, migrationOwner)
+
 	destinationsModule, recoveryWorkers := destinationsH.ModuleWithBackupRecovery(
 		db, clk, kopia, protectedRoot, filePaths.StateDir, logger, decisionPublisher, eventsWebhookSecret,
 		destinationsH.BackupFailureConfig{
-			History:    backupHistory{plans: plansSvc, runs: runsSvc, repo: runsRepo, targets: targetsSvc},
-			Usage:      kopia,
-			Exceptions: backupExceptions,
+			History:        backupHistory{plans: plansSvc, runs: runsSvc, repo: runsRepo, targets: targetsSvc},
+			Usage:          kopia,
+			Exceptions:     backupExceptions,
+			RepoRepair:     kopiaCLI,
+			DecisionEffect: coverageDecisions,
+			Migrations:     freshMigrations,
 		},
 	)
 	if err := recoveryWorkers.Start(); err != nil {
@@ -481,13 +520,13 @@ func run(ctx context.Context) error {
 		server.Deps{Clock: clk, Logger: logger},
 		healthH.ModuleWithPosture(db, "data-backup-manager-api", "1.0.0", posture, logEventSink{logger: logger}),
 		auditsH.Module(auditsSvc, logger),
-		coverageH.Module(coverageSvc, logger),
+		coverageH.ModuleWithSensitiveReview(coverageSvc, coverageDecisions, logger),
 		destinationsModule,
 		discoveryH.Module(discoverySvc, logger),
 		plansH.Module(plansSvc, logger),
 		restoresH.Module(restoresSvc, logger),
 		drillsH.Module(drillsSvc, logger),
-		runsH.Module(runsSvc, verifiedLookup{svc: restoresSvc}, logger),
+		runsH.Module(runsSvc, verifiedLookup{svc: restoresSvc, plans: plansSvc}, logger),
 		safetyH.Module(safetySvc, logger),
 		targetsH.Module(db, clk, logger),
 	)

@@ -12,11 +12,15 @@ that produced the evidence. Retry requests should carry a stable
 `idempotency_key`; a repeated key returns the original record. An in-flight
 drill is never started twice.
 
-Configure an automated interval on a plan with `recovery_drill_schedule`, for
-example `168h`. An empty value disables scheduling while leaving the manual
-commands available. The scheduler independently evaluates every target ×
-destination unit in an enabled plan, so a failed primary does not suppress a
-secondary drill.
+New plans default to the weekly `recovery_drill_schedule` value `168h`. Startup
+bootstraps existing enabled plans with an empty cadence to that same weekly
+default; explicit non-empty cadences are preserved. Use the explicit
+`recovery_drill_schedule: manual` value to keep an enabled plan manual-only.
+The scheduler independently evaluates
+every target × destination unit in an enabled plan, so a failed primary does not
+suppress a secondary drill. It checks due work immediately at startup and then
+once per minute. The Drills page lists every configured target × destination
+unit alongside its cadence and latest receipt, including units with no receipt.
 
 Before starting a drill, use:
 

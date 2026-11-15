@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -57,6 +58,22 @@ func (h *connectHandler) CreateDestination(ctx context.Context, req *connect.Req
 	return connect.NewResponse(&destinationsv1.CreateDestinationResponse{
 		Destination: domainToProto(d),
 	}), nil
+}
+
+func (h *connectHandler) ImportExistingDestination(ctx context.Context, req *connect.Request[destinationsv1.ImportExistingDestinationRequest]) (*connect.Response[destinationsv1.CreateDestinationResponse], error) {
+	createdAt, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(req.Msg.CreatedAt))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("created_at must be RFC3339Nano: %w", err))
+	}
+	d, err := h.deps.Service.ImportExistingDestination(ctx, destinations.ImportExistingInput{
+		ID: req.Msg.DestinationId, Name: req.Msg.Name, Backend: protoToBackend(req.Msg.BackendKind),
+		Location: req.Msg.Location, CapBytes: req.Msg.CapBytes, CapPolicy: protoToCapPolicy(req.Msg.CapPolicy),
+		CreatedAt: createdAt, ExpectedSnapshotIDs: req.Msg.ExpectedSnapshotIds,
+	})
+	if err != nil {
+		return nil, h.translate("ImportExistingDestination", err)
+	}
+	return connect.NewResponse(&destinationsv1.CreateDestinationResponse{Destination: domainToProto(d)}), nil
 }
 
 func (h *connectHandler) GetDestination(ctx context.Context, req *connect.Request[destinationsv1.GetDestinationRequest]) (*connect.Response[destinationsv1.GetDestinationResponse], error) {
@@ -135,19 +152,24 @@ func (h *connectHandler) AnalyzeDestination(ctx context.Context, req *connect.Re
 		return nil, h.translate("ListDestinationsForReadiness", err)
 	}
 	existingLocations := make([]string, 0, len(registered))
-	for _, destination := range registered {
-		if destination.BackendKind == destinations.BackendFilesystem {
-			existingLocations = append(existingLocations, destination.Location)
-		}
-	}
-	report, err := h.deps.Readiness.Analyze(ctx, destinationreadiness.AnalyzeInput{
+	input := destinationreadiness.AnalyzeInput{
 		Location:              req.Msg.Location,
 		ProposedSubdir:        req.Msg.ProposedSubdir,
 		SelectedTargetBytes:   req.Msg.SelectedTargetBytes,
 		RetentionCopies:       int(req.Msg.RetentionCopies),
-		ExistingDestinations:  existingLocations,
 		CrossPlatformRequired: req.Msg.CrossPlatformRequired,
-	})
+	}
+	for _, destination := range registered {
+		if destination.BackendKind == destinations.BackendFilesystem {
+			existingLocations = append(existingLocations, destination.Location)
+			if filepath.Clean(destination.Location) == filepath.Clean(req.Msg.Location) && destination.DeviceIdentity != nil {
+				input.DestinationID = destination.ID
+				input.ExpectedDevice = *destination.DeviceIdentity
+			}
+		}
+	}
+	input.ExistingDestinations = existingLocations
+	report, err := h.deps.Readiness.Analyze(ctx, input)
 	if err != nil {
 		return nil, h.translateReadiness("AnalyzeDestination", err)
 	}
@@ -407,6 +429,7 @@ func readinessReportToProto(r destinationreadiness.Report) *destinationsv1.Desti
 		Confidence:                     r.Confidence,
 		EvidenceSource:                 r.EvidenceSource,
 		RepairSteps:                    append([]string(nil), r.RepairSteps...),
+		OfflineCheckVerified:           r.OfflineCheckVerified,
 		Checks:                         make([]*destinationsv1.DestinationReadinessCheck, 0, len(r.Checks)),
 	}
 	if !r.ObservedAt.IsZero() {

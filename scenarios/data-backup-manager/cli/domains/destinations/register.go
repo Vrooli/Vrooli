@@ -22,6 +22,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
 		"DestinationsService.CreateDestination":               h.create,
+		"DestinationsService.ImportExistingDestination":        h.importExisting,
 		"DestinationsService.GetDestination":                  h.get,
 		"DestinationsService.ListDestinations":                h.list,
 		"DestinationsService.UpdateDestination":               h.update,

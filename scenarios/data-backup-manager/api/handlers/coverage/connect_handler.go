@@ -2,6 +2,7 @@ package coverage
 
 import (
 	"context"
+	"errors"
 	"log"
 
 	"data-backup-manager/internal/coverage"
@@ -16,8 +17,9 @@ import (
 
 // Deps wires the seams the Connect coverage handler needs.
 type Deps struct {
-	Service coverage.Service
-	Logger  *log.Logger
+	Service   coverage.Service
+	Decisions *SensitiveDecisionFlow
+	Logger    *log.Logger
 }
 
 type connectHandler struct {
@@ -51,6 +53,17 @@ func (h *connectHandler) AcceptDefaultTargets(ctx context.Context, req *connect.
 	return connect.NewResponse(acceptToProto(result)), nil
 }
 
+func (h *connectHandler) RequestSensitiveReview(ctx context.Context, _ *connect.Request[coveragev1.RequestSensitiveReviewRequest]) (*connect.Response[coveragev1.RequestSensitiveReviewResponse], error) {
+	if h.deps.Decisions == nil || !h.deps.Decisions.Ready() {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("verified Notification Hub callback is not configured"))
+	}
+	askID, count, err := h.deps.Decisions.Request(ctx)
+	if err != nil {
+		return nil, h.translate("RequestSensitiveReview", err)
+	}
+	return connect.NewResponse(&coveragev1.RequestSensitiveReviewResponse{AskId: askID, CandidateCount: int32(count), Pending: true}), nil
+}
+
 // translate maps a domain error to a Connect error, logging only internal ones.
 func (h *connectHandler) translate(op string, err error) error {
 	connectErr := coverage.ToConnectError(err)
@@ -62,10 +75,11 @@ func (h *connectHandler) translate(op string, err error) error {
 
 func reportToProto(r coverage.Report) *coveragev1.CoverageReport {
 	out := &coveragev1.CoverageReport{
-		Summary:            summaryToProto(r.Summary),
-		RegisteredTargets:  make([]*coveragev1.RegisteredTarget, 0, len(r.Registered)),
-		RecommendedTargets: make([]*coveragev1.SuggestedTarget, 0, len(r.Recommended)),
-		SensitiveTargets:   make([]*coveragev1.SuggestedTarget, 0, len(r.Sensitive)),
+		Summary:             summaryToProto(r.Summary),
+		RegisteredTargets:   make([]*coveragev1.RegisteredTarget, 0, len(r.Registered)),
+		RecommendedTargets:  make([]*coveragev1.SuggestedTarget, 0, len(r.Recommended)),
+		SensitiveTargets:    make([]*coveragev1.SuggestedTarget, 0, len(r.Sensitive)),
+		ReacquirableTargets: make([]*coveragev1.SuggestedTarget, 0, len(r.Reacquirable)),
 	}
 	for _, t := range r.Registered {
 		out.RegisteredTargets = append(out.RegisteredTargets, registeredToProto(t))
@@ -76,33 +90,50 @@ func reportToProto(r coverage.Report) *coveragev1.CoverageReport {
 	for _, s := range r.Sensitive {
 		out.SensitiveTargets = append(out.SensitiveTargets, suggestionToProto(s))
 	}
+	for _, s := range r.Reacquirable {
+		out.ReacquirableTargets = append(out.ReacquirableTargets, suggestionToProto(s))
+	}
 	return out
 }
 
 func summaryToProto(s coverage.Summary) *coveragev1.CoverageSummary {
 	return &coveragev1.CoverageSummary{
-		RegisteredCount:               int32(s.RegisteredCount),
-		RecommendedCount:              int32(s.RecommendedCount),
-		SensitiveCount:                int32(s.SensitiveCount),
-		PlannedCount:                  int32(s.PlannedCount),
-		BackedUpCount:                 int32(s.BackedUpCount),
-		VerifiedCount:                 int32(s.VerifiedCount),
-		DefaultCoverageComplete:       s.DefaultCoverageComplete,
-		HasSensitiveUnreviewed:        s.HasSensitiveUnreviewed,
-		HasUnplannedRegisteredTargets: s.HasUnplannedRegisteredTargets,
-		HasUnverifiedTargets:          s.HasUnverifiedTargets,
+		RegisteredCount:                  int32(s.RegisteredCount),
+		RecommendedCount:                 int32(s.RecommendedCount),
+		SensitiveCount:                   int32(s.SensitiveCount),
+		PlannedCount:                     int32(s.PlannedCount),
+		BackedUpCount:                    int32(s.BackedUpCount),
+		VerifiedCount:                    int32(s.VerifiedCount),
+		DefaultCoverageComplete:          s.DefaultCoverageComplete,
+		HasSensitiveUnreviewed:           s.HasSensitiveUnreviewed,
+		HasUnplannedRegisteredTargets:    s.HasUnplannedRegisteredTargets,
+		HasUnverifiedTargets:             s.HasUnverifiedTargets,
+		DestinationCopyCount:             int32(s.DestinationCopyCount),
+		AllDestinationBackedUpCount:      int32(s.AllDestinationBackedUpCount),
+		AllDestinationVerifiedCount:      int32(s.AllDestinationVerifiedCount),
+		MultiDestinationTargetCount:      int32(s.MultiDestinationTargetCount),
+		PhysicallyIndependentTargetCount: int32(s.PhysicallyIndependentTargetCount),
 	}
 }
 
 func registeredToProto(t coverage.RegisteredTarget) *coveragev1.RegisteredTarget {
 	out := &coveragev1.RegisteredTarget{
-		Id:         t.ID,
-		Owner:      t.Owner,
-		Name:       t.Name,
-		SourceKind: kindToProto(t.SourceKind),
-		Locator:    t.Locator,
-		Planned:    t.Planned,
-		Critical:   t.Critical,
+		Id:                         t.ID,
+		Owner:                      t.Owner,
+		Name:                       t.Name,
+		SourceKind:                 kindToProto(t.SourceKind),
+		Locator:                    t.Locator,
+		Planned:                    t.Planned,
+		Critical:                   t.Critical,
+		Reacquirable:               t.Reacquirable,
+		ReacquisitionCommand:       t.ReacquisitionCommand,
+		ReacquisitionEvidence:      t.ReacquisitionEvidence,
+		ReacquisitionNeedsOperator: t.ReacquisitionNeedsOperator,
+		ReacquisitionAuthReason:    t.ReacquisitionAuthReason,
+		AllDestinationsBackedUp:    t.AllDestinationsBackedUp,
+		AllDestinationsVerified:    t.AllDestinationsVerified,
+		PhysicalIndependenceProven: t.PhysicalIndependenceProven,
+		IndependenceWarnings:       append([]string(nil), t.IndependenceWarnings...),
 	}
 	if !t.LastSuccessAt.IsZero() {
 		out.LastSuccessAt = timestamppb.New(t.LastSuccessAt)
@@ -110,21 +141,39 @@ func registeredToProto(t coverage.RegisteredTarget) *coveragev1.RegisteredTarget
 	if !t.LastVerifiedAt.IsZero() {
 		out.LastVerifiedAt = timestamppb.New(t.LastVerifiedAt)
 	}
+	for _, destination := range t.Destinations {
+		status := &coveragev1.TargetDestinationStatus{DestinationId: destination.DestinationID}
+		if !destination.LastSuccessAt.IsZero() {
+			status.LastSuccessAt = timestamppb.New(destination.LastSuccessAt)
+		}
+		if !destination.LastVerifiedAt.IsZero() {
+			status.LastVerifiedAt = timestamppb.New(destination.LastVerifiedAt)
+		}
+		out.Destinations = append(out.Destinations, status)
+	}
 	return out
 }
 
 func suggestionToProto(s coverage.Suggestion) *coveragev1.SuggestedTarget {
 	return &coveragev1.SuggestedTarget{
-		Id:          s.ID,
-		Owner:       s.Owner,
-		Name:        s.Name,
-		SourceKind:  kindToProto(s.SourceKind),
-		Locator:     s.Locator,
-		Rationale:   s.Rationale,
-		ApproxBytes: s.ApproxBytes,
-		Sensitive:   s.Sensitive,
-		Warning:     s.Warning,
-		Critical:    s.Critical,
+		Id:                         s.ID,
+		Owner:                      s.Owner,
+		Name:                       s.Name,
+		SourceKind:                 kindToProto(s.SourceKind),
+		Locator:                    s.Locator,
+		Rationale:                  s.Rationale,
+		ApproxBytes:                s.ApproxBytes,
+		Sensitive:                  s.Sensitive,
+		Warning:                    s.Warning,
+		Critical:                   s.Critical,
+		Reacquirable:               s.Reacquirable,
+		BudgetMaxBytes:             s.BudgetMaxBytes,
+		BudgetMaxAge:               s.BudgetMaxAge,
+		Retention:                  s.Retention,
+		ReacquisitionCommand:       s.ReacquisitionCommand,
+		ReacquisitionEvidence:      s.ReacquisitionEvidence,
+		ReacquisitionNeedsOperator: s.ReacquisitionNeedsOperator,
+		ReacquisitionAuthReason:    s.ReacquisitionAuthReason,
 	}
 }
 

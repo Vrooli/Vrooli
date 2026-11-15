@@ -2,6 +2,7 @@ package runs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
 	"data-backup-manager/internal/failures"
+	"data-backup-manager/internal/platformreceipts"
 	"data-backup-manager/internal/preflight"
 	"data-backup-manager/internal/sources"
 
@@ -32,6 +34,11 @@ type Service interface {
 	// execution, and returns the freshly-created (pending) run immediately. The
 	// run executes on the service's executor under a non-request context.
 	TriggerRun(ctx context.Context, planID string, trigger TriggerSource) (Run, error)
+	// CaptureMigrationTarget runs one target through the normal source capture,
+	// destination readiness/cap gate and Kopia snapshot path, without changing
+	// plan membership. The migration key is persisted in snapshot tags so a
+	// replay can recover a snapshot created just before a process interruption.
+	CaptureMigrationTarget(ctx context.Context, planID, targetID, destinationID, migrationKey string) (TargetOutcome, error)
 	Preflight(ctx context.Context, planID string) (preflight.Result, error)
 	GetRun(ctx context.Context, id string) (Run, error)
 	ListRuns(ctx context.Context, planID string, limit int) ([]Run, error)
@@ -39,6 +46,9 @@ type Service interface {
 	// empty means "current catalog targets" when ActiveTargets is wired,
 	// otherwise "all known from run history" for tests and legacy composition.
 	ListTargetStatus(ctx context.Context, targetIDs []string) ([]TargetStatus, error)
+	// ListTargetDestinationStatus reports successful capture time for each
+	// target × destination pair, optionally filtered by target ids.
+	ListTargetDestinationStatus(ctx context.Context, targetIDs []string) ([]TargetDestinationStatus, error)
 	// BrowseSnapshot lists entries within a snapshot in a destination.
 	BrowseSnapshot(ctx context.Context, destinationID, snapshotID, path string) ([]engine.SnapshotEntry, error)
 	// GetRunStats aggregates run performance over the recent history window,
@@ -102,6 +112,9 @@ type Deps struct {
 	// Readiness performs the shared read-only destination diagnosis during
 	// preflight. It must never perform host repair or filesystem mutation.
 	Readiness DestinationReadiness
+	// PlatformReceipts persists native runtime outcomes for the receipt-backed
+	// support matrix. Nil keeps narrow tests independent of host state.
+	PlatformReceipts platformreceipts.Sink
 }
 
 type DestinationReadiness interface {
@@ -184,6 +197,61 @@ func (s *service) TriggerRun(ctx context.Context, planID string, trigger Trigger
 
 	s.executor.Submit(RunJob{RunID: run.ID, PlanID: planID, Trigger: trigger})
 	return run, nil
+}
+
+func (s *service) CaptureMigrationTarget(ctx context.Context, planID, targetID, destinationID, migrationKey string) (TargetOutcome, error) {
+	planID, targetID, destinationID, migrationKey = strings.TrimSpace(planID), strings.TrimSpace(targetID), strings.TrimSpace(destinationID), strings.TrimSpace(migrationKey)
+	if planID == "" || targetID == "" || destinationID == "" || migrationKey == "" {
+		return TargetOutcome{}, ErrInvalidRun{Field: "migration capture", Reason: "plan, target, destination, and idempotency key are required"}
+	}
+	plan, err := s.deps.Plans.PlanForRun(ctx, planID)
+	if err != nil {
+		return TargetOutcome{}, err
+	}
+	if !containsID(plan.TargetIDs, targetID) {
+		return TargetOutcome{}, ErrInvalidRun{Field: "target_id", Reason: "target is not a member of the source plan"}
+	}
+	// Reconcile the effect window: if Kopia committed the snapshot but DBM
+	// stopped before the migration journal recorded its receipt, return that
+	// exact tagged snapshot without taking another copy.
+	dest, err := s.deps.Destinations.DestinationForRun(ctx, destinationID)
+	if err != nil {
+		return TargetOutcome{}, err
+	}
+	if listed, listErr := s.deps.Engine.SnapshotList(ctx, dest.Name, ""); listErr == nil {
+		want := "dbm.migration_key:" + migrationKey
+		for _, snap := range listed {
+			if snap.ID != "" && containsID(snap.Tags, want) {
+				return TargetOutcome{TargetID: targetID, DestinationID: destinationID, Status: OutcomeSucceeded, SnapshotID: snap.ID, Bytes: snap.SizeBytes}, nil
+			}
+		}
+	} else {
+		return TargetOutcome{}, fmt.Errorf("reconcile migration snapshots: %w", listErr)
+	}
+	plan.TargetIDs, plan.DestinationIDs = []string{targetID}, []string{destinationID}
+	// Migration capture does not apply retention: existing snapshots at the
+	// operator-selected destination remain untouched until normal plan policy
+	// governs them after the verified binding switch.
+	plan.KeepLatest, plan.KeepHourly, plan.KeepDaily, plan.KeepWeekly, plan.KeepMonthly, plan.KeepAnnual = 0, 0, 0, 0, 0, 0
+	stage, err := os.MkdirTemp(s.deps.StagingRoot, "dbm-migration-")
+	if err != nil {
+		return TargetOutcome{}, fmt.Errorf("create migration staging root: %w", err)
+	}
+	defer os.RemoveAll(stage)
+	out := s.runOne(ctx, plan, "db4-"+migrationKey, targetID, destinationID, stage, nil, preflight.Result{})
+	if out.Status != OutcomeSucceeded || out.SnapshotID == "" {
+		return out, fmt.Errorf("migration capture failed for target %s: %s", targetID, out.Error)
+	}
+	return out, nil
+}
+
+func containsID(ids []string, want string) bool {
+	for _, id := range ids {
+		if id == want {
+			return true
+		}
+	}
+	return false
 }
 
 // Preflight performs the same read-only checks a run uses, without creating a
@@ -445,14 +513,19 @@ func (s *service) executeRun(ctx context.Context, job RunJob) {
 func (s *service) measureRepoSizes(ctx context.Context, destIDs []string) map[string]int64 {
 	sizes := make(map[string]int64, len(destIDs))
 	for _, destID := range destIDs {
-		dest, err := s.deps.Destinations.DestinationForRun(ctx, destID)
+		var destinationName string
+		var stats engine.RepoStats
+		err := s.deps.Destinations.WithResolvedDestination(ctx, destID, func(dest DestinationForRun) error {
+			if dest.ID != destID {
+				return errors.New("destination identity changed")
+			}
+			destinationName = dest.Name
+			var statsErr error
+			stats, statsErr = s.deps.Engine.RepoStats(ctx, dest.Name)
+			return statsErr
+		})
 		if err != nil {
-			s.logf("physical-bytes: resolve destination %s: %v", destID, err)
-			continue
-		}
-		stats, err := s.deps.Engine.RepoStats(ctx, dest.Name)
-		if err != nil {
-			s.logf("physical-bytes: repo stats %s: %v", dest.Name, err)
+			s.logf("physical-bytes: repo stats %s: %v", destinationName, err)
 			continue
 		}
 		sizes[destID] = stats.SizeBytes
@@ -493,6 +566,8 @@ func (s *service) finishRun(ctx context.Context, job RunJob, status RunStatus, e
 	}
 	if err := s.deps.Repo.FinishRun(ctx, job.RunID, event, errMsg, s.deps.Clock.Now().UTC(), physicalBytes); err != nil {
 		s.logf("run %s finish (%s): %v", job.RunID, status, err)
+	} else {
+		s.recordPlatformReceipts(ctx, job.RunID)
 	}
 	if updater, ok := s.deps.Repo.(FailureUpdater); ok && code != "" {
 		if err := updater.UpdateRunFailure(ctx, job.RunID, code, category, nextAction); err != nil {
@@ -504,6 +579,33 @@ func (s *service) finishRun(ctx context.Context, job RunJob, status RunStatus, e
 			RunID: job.RunID, PlanID: job.PlanID, Status: status,
 			Succeeded: succeeded, Failed: failed, Blocked: blocked,
 		})
+	}
+}
+
+func (s *service) recordPlatformReceipts(ctx context.Context, runID string) {
+	if s.deps.PlatformReceipts == nil {
+		return
+	}
+	run, err := s.deps.Repo.GetRun(ctx, runID)
+	if err != nil {
+		s.logf("run %s platform receipt read: %v", runID, err)
+		return
+	}
+	for _, outcome := range run.Outcomes {
+		if outcome.Status != OutcomeSucceeded && outcome.Status != OutcomeFailed {
+			continue
+		}
+		state, proof := "passed", outcome.SnapshotID
+		if outcome.Status == OutcomeFailed {
+			state, proof = "failed", outcome.Error
+		}
+		if err := s.deps.PlatformReceipts.Record(ctx, platformreceipts.Input{
+			Capability: "backup", Outcome: state, Operation: run.ID,
+			TargetID: outcome.TargetID, DestinationID: outcome.DestinationID,
+			Proof: proof, ObservedAt: outcome.FinishedAt,
+		}); err != nil {
+			s.logf("run %s platform receipt %s/%s: %v", runID, outcome.TargetID, outcome.DestinationID, err)
+		}
 	}
 }
 
@@ -522,8 +624,9 @@ func terminalEvent(status RunStatus) (RunEvent, error) {
 
 // Reconcile closes any run left in a non-terminal state by a crash/restart or a
 // client disconnect that killed an in-flight backup. v1 policy is fail-not-
-// resume: each orphan is marked failed with a reconciliation reason. Resume is
-// a deliberate future option (see docs/internal/PROBLEMS.md).
+// resume: each orphan is marked failed with a reconciliation reason, or
+// partial_failed when durable successful outcomes already exist. Resume is a
+// deliberate future option (see docs/internal/PROBLEMS.md).
 func (s *service) Reconcile(ctx context.Context) error {
 	orphans, err := s.deps.Repo.ListNonTerminalRuns(ctx)
 	if err != nil {
@@ -531,7 +634,22 @@ func (s *service) Reconcile(ctx context.Context) error {
 	}
 	const reason = "reconciled: process restarted while run was in-flight"
 	for _, r := range orphans {
-		if err := s.deps.Repo.FinishRun(ctx, r.ID, EventFail, reason, s.deps.Clock.Now().UTC(), 0); err != nil {
+		// ListNonTerminalRuns is a compact query and does not load outcomes.
+		// FinishRun validates terminal status against those durable outcomes,
+		// so read the full run before selecting failed vs partial_failed.
+		detail, err := s.deps.Repo.GetRun(ctx, r.ID)
+		if err != nil {
+			s.logf("reconcile run %s: load outcomes: %v", r.ID, err)
+			continue
+		}
+		event := EventFail
+		for _, outcome := range detail.Outcomes {
+			if outcome.Status == OutcomeSucceeded {
+				event = EventPartialFail
+				break
+			}
+		}
+		if err := s.deps.Repo.FinishRun(ctx, r.ID, event, reason, s.deps.Clock.Now().UTC(), 0); err != nil {
 			s.logf("reconcile run %s: %v", r.ID, err)
 			continue
 		}
@@ -617,12 +735,27 @@ func (s *service) runOne(ctx context.Context, plan PlanForRun, runID, targetID, 
 		return finish(OutcomeBlocked, "storage cap reached: "+reason)
 	}
 
-	if onSnapshotStart != nil {
-		onSnapshotStart()
-	}
-	snap, err := s.deps.Engine.SnapshotCreate(ctx, dest.Name, artifact.Path,
-		snapshotMetadata(runID, destID, target))
+	var snap engine.Snapshot
+	enteredWrite := false
+	var destinationGateErr error
+	err = s.deps.Destinations.WithResolvedDestination(ctx, destID, func(current DestinationForRun) error {
+		enteredWrite = true
+		if current.ID != dest.ID || current.Name != dest.Name || current.BackendKind != dest.BackendKind {
+			destinationGateErr = errors.New("destination identity or backend changed after capture")
+			return destinationGateErr
+		}
+		if onSnapshotStart != nil {
+			onSnapshotStart()
+		}
+		var createErr error
+		snap, createErr = s.deps.Engine.SnapshotCreate(ctx, current.Name, artifact.Path, snapshotMetadata(runID, destID, target))
+		return createErr
+	})
 	if err != nil {
+		if destinationGateErr != nil || !enteredWrite {
+			out.FailureCode, out.FailureCategory = failures.DestinationInaccessible, failures.CategoryDestination
+			return finish(OutcomeFailed, "destination readiness or identity changed immediately before snapshot creation")
+		}
 		cause := failures.Classify(err)
 		out.FailureCode, out.FailureCategory = cause.Code, cause.Category
 		return finish(OutcomeFailed, cause.Message)
@@ -631,8 +764,9 @@ func (s *service) runOne(ctx context.Context, plan PlanForRun, runID, targetID, 
 
 	// Retention never undoes a good snapshot, but a source left above its bound
 	// is a loud outcome warning (and a partial_failed run), never silent.
-	if plan.KeepLatest > 0 {
-		out.Warning = s.enforceRetention(ctx, runID, dest.Name, snap.Source, plan.KeepLatest)
+	policy := engine.RetentionPolicy{KeepLatest: plan.KeepLatest, KeepHourly: plan.KeepHourly, KeepDaily: plan.KeepDaily, KeepWeekly: plan.KeepWeekly, KeepMonthly: plan.KeepMonthly, KeepAnnual: plan.KeepAnnual}
+	if policy.KeepLatest+policy.KeepHourly+policy.KeepDaily+policy.KeepWeekly+policy.KeepMonthly+policy.KeepAnnual > 0 {
+		out.Warning = s.enforceRetention(ctx, runID, dest, snap.Source, policy)
 	}
 	return finish(OutcomeSucceeded, "")
 }
@@ -644,21 +778,37 @@ const maxRetentionDetail = 400
 // returns "" only when the source provably holds at most keepLatest snapshots.
 // It acts on the source kopia recorded, not the captured path: the override
 // source makes those differ, and a policy on the path governs nothing.
-func (s *service) enforceRetention(ctx context.Context, runID, repo, source string, keepLatest int) string {
+func (s *service) enforceRetention(ctx context.Context, runID string, destination DestinationForRun, source string, policy engine.RetentionPolicy) string {
 	if strings.TrimSpace(source) == "" {
-		return "retention_failed: kopia did not report the snapshot source, so keep_latest was not applied"
+		return "retention_failed: kopia did not report the snapshot source, so retention was not applied"
 	}
-	remaining, err := s.deps.Engine.ApplyRetention(ctx, repo, source, keepLatest)
+	var remaining int
+	var destinationErr error
+	enteredRetention := false
+	err := s.deps.Destinations.WithResolvedDestination(ctx, destination.ID, func(current DestinationForRun) error {
+		if current.ID != destination.ID || current.Name != destination.Name || current.BackendKind != destination.BackendKind {
+			destinationErr = errors.New("destination identity or backend changed before retention")
+			return destinationErr
+		}
+		enteredRetention = true
+		var applyErr error
+		remaining, applyErr = s.deps.Engine.ApplyRetention(ctx, current.Name, source, policy)
+		return applyErr
+	})
 	if err != nil {
-		s.logf("run %s retention repo=%s source=%s: %v", runID, repo, source, err)
+		s.logf("run %s retention repo=%s source=%s: %v", runID, destination.Name, source, err)
+		if destinationErr != nil || !enteredRetention {
+			return "retention_failed: destination readiness or identity changed before retention; existing snapshots were kept"
+		}
 		detail := err.Error()
 		if len(detail) > maxRetentionDetail {
 			detail = detail[:maxRetentionDetail] + "..."
 		}
-		return fmt.Sprintf("retention_failed: keep_latest=%d could not be applied to %s: %s", keepLatest, source, detail)
+		return fmt.Sprintf("retention_failed: GFS policy could not be applied to %s: %s", source, detail)
 	}
-	if remaining > keepLatest {
-		return fmt.Sprintf("retention_failed: %s still holds %d snapshots after expiry; keep_latest is %d", source, remaining, keepLatest)
+	maxRetained := policy.KeepLatest + policy.KeepHourly + policy.KeepDaily + policy.KeepWeekly + policy.KeepMonthly + policy.KeepAnnual
+	if remaining > maxRetained {
+		return fmt.Sprintf("retention_failed: %s still holds %d snapshots after expiry; configured tiers allow at most %d", source, remaining, maxRetained)
 	}
 	return ""
 }
@@ -717,6 +867,10 @@ func (s *service) ListTargetStatus(ctx context.Context, targetIDs []string) ([]T
 	return statuses, nil
 }
 
+func (s *service) ListTargetDestinationStatus(ctx context.Context, targetIDs []string) ([]TargetDestinationStatus, error) {
+	return s.deps.Repo.TargetDestinationStatuses(ctx, targetIDs)
+}
+
 // isOverdue is the single freshness rule shared by every surface (CLI, /health,
 // UI): a target is overdue when its last run failed or partial-failed, it has
 // never succeeded, or a scheduled target's last success is older than the
@@ -743,11 +897,16 @@ func (s *service) GetRunStats(ctx context.Context, planID string) (RunStats, err
 }
 
 func (s *service) BrowseSnapshot(ctx context.Context, destinationID, snapshotID, path string) ([]engine.SnapshotEntry, error) {
-	dest, err := s.deps.Destinations.DestinationForRun(ctx, destinationID)
-	if err != nil {
-		return nil, err
-	}
-	return s.deps.Engine.BrowseSnapshot(ctx, dest.Name, snapshotID, path)
+	var entries []engine.SnapshotEntry
+	err := s.deps.Destinations.WithResolvedDestination(ctx, destinationID, func(dest DestinationForRun) error {
+		if dest.ID != destinationID {
+			return errors.New("destination identity changed")
+		}
+		var browseErr error
+		entries, browseErr = s.deps.Engine.BrowseSnapshot(ctx, dest.Name, snapshotID, path)
+		return browseErr
+	})
+	return entries, err
 }
 
 // stagingDir creates a per-run staging directory and returns a cleanup func.
@@ -796,6 +955,9 @@ func snapshotMetadata(runID, destID string, target TargetForRun) engine.Snapshot
 	}
 	if name != "" {
 		tags = append(tags, "dbm.name:"+name)
+	}
+	if strings.HasPrefix(runID, "db4-") {
+		tags = append(tags, "dbm.migration_key:"+strings.TrimPrefix(runID, "db4-"))
 	}
 	return engine.SnapshotMetadata{
 		Description:    fmt.Sprintf("Data Backup Manager target %s run %s", ref, runID),

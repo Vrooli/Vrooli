@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -80,6 +81,69 @@ func (u *UsageEngine) CachedScan(ctx context.Context, root string) (Scan, error)
 	return scan, nil
 }
 
+// CachedRepoScan asks resource-kopia, the owner of Kopia repository layout, to
+// classify unreadable entries. The local scanner remains as a compatibility
+// seam for non-production fakes that do not implement RepoDamageScanner.
+func (u *UsageEngine) CachedRepoScan(ctx context.Context, repo, root string) (Scan, error) {
+	if owner, ok := u.KopiaEngine.(engine.RepoDamageScanner); ok {
+		u.mu.Lock()
+		if hit, found := u.cache[root]; found && u.now().Sub(hit.at) < u.ttl() {
+			u.mu.Unlock()
+			return hit.scan, nil
+		}
+		u.mu.Unlock()
+		owned, err := owner.RepoDamageScan(ctx, repo)
+		if err != nil {
+			return Scan{}, err
+		}
+		if filepath.Clean(owned.Root) != filepath.Clean(root) {
+			return Scan{}, fmt.Errorf("resource-kopia damage scan root %q does not match destination root %q", owned.Root, root)
+		}
+		startedAt, err := time.Parse(time.RFC3339Nano, owned.StartedAt)
+		if err != nil {
+			return Scan{}, fmt.Errorf("parse resource-kopia scan time: %w", err)
+		}
+		scan := Scan{Root: root, StartedAt: startedAt.UTC(), Duration: time.Duration(owned.DurationNS), Files: owned.Files, Bytes: owned.Bytes, TempFiles: owned.TempFiles}
+		for _, entry := range owned.Unreadable {
+			scan.Unreadable = append(scan.Unreadable, Entry{RelPath: entry.RelativePath, Class: EntryClass(entry.Class), BlobKind: BlobKind(entry.BlobKind), Problem: Problem(entry.Problem), Orphan: entry.Orphan, Detail: entry.Detail})
+		}
+		u.mu.Lock()
+		if u.cache == nil {
+			u.cache = map[string]cachedScan{}
+		}
+		u.cache[root] = cachedScan{scan: scan, at: u.now()}
+		u.mu.Unlock()
+		return scan, nil
+	}
+	return u.CachedScan(ctx, root)
+}
+
+// RepoDamageScan exposes the owner inventory to preflight without expanding
+// the broad KopiaEngine interface. Destination root binding happens before any
+// classification result is returned.
+func (u *UsageEngine) RepoDamageScan(ctx context.Context, repo string) (engine.RepoDamageScan, error) {
+	_, ok := u.KopiaEngine.(engine.RepoDamageScanner)
+	if !ok {
+		return engine.RepoDamageScan{}, fmt.Errorf("resource-kopia does not expose typed repository damage scans")
+	}
+	if u.Locate == nil {
+		return engine.RepoDamageScan{}, fmt.Errorf("repository root is unavailable for typed damage scan")
+	}
+	_, root, found := u.Locate(ctx, repo)
+	if !found {
+		return engine.RepoDamageScan{}, fmt.Errorf("repository %q is not a located filesystem destination", repo)
+	}
+	scan, err := u.CachedRepoScan(ctx, repo, root)
+	if err != nil {
+		return engine.RepoDamageScan{}, err
+	}
+	result := engine.RepoDamageScan{Root: scan.Root, StartedAt: scan.StartedAt.Format(time.RFC3339Nano), DurationNS: int64(scan.Duration), Files: scan.Files, Bytes: scan.Bytes, TempFiles: scan.TempFiles}
+	for _, entry := range scan.Unreadable {
+		result.Unreadable = append(result.Unreadable, engine.RepoDamageEntry{RelativePath: entry.RelPath, Class: string(entry.Class), BlobKind: string(entry.BlobKind), Problem: string(entry.Problem), Orphan: entry.Orphan, Detail: entry.Detail})
+	}
+	return result, nil
+}
+
 // InvalidateScan drops a cached scan, for use after the repository directory
 // changed under an approved action.
 func (u *UsageEngine) InvalidateScan(root string) {
@@ -104,7 +168,7 @@ func (u *UsageEngine) RepoStats(ctx context.Context, repo string) (engine.RepoSt
 	if err != nil || len(exceptions) == 0 {
 		return engine.RepoStats{}, engineErr
 	}
-	scan, err := u.CachedScan(ctx, root)
+	scan, err := u.CachedRepoScan(ctx, repo, root)
 	if err != nil {
 		return engine.RepoStats{}, engineErr
 	}

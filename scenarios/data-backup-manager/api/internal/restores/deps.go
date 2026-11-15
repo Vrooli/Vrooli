@@ -39,4 +39,7 @@ type DestinationForRestore struct {
 // seam: implemented by an adapter over destinations.Service in main.go.
 type DestinationLookup interface {
 	DestinationForRestore(ctx context.Context, destinationID string) (DestinationForRestore, error)
+	// WithResolvedDestination revalidates the destination immediately before
+	// repository use and serializes the Kopia operation with other DBM work.
+	WithResolvedDestination(ctx context.Context, destinationID string, use func(DestinationForRestore) error) error
 }

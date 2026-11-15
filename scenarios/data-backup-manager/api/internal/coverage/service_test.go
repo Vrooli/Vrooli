@@ -13,12 +13,17 @@ import (
 // --- fakes -----------------------------------------------------------------
 
 type fakeSuggestions struct {
-	list []coverage.Suggestion
-	err  error
+	list       []coverage.Suggestion
+	candidates []coverage.DiscoveredTarget
+	err        error
 }
 
 func (f *fakeSuggestions) ListTargetSuggestions(context.Context) ([]coverage.Suggestion, error) {
 	return f.list, f.err
+}
+
+func (f *fakeSuggestions) ListTargetCandidates(context.Context) ([]coverage.DiscoveredTarget, error) {
+	return f.candidates, f.err
 }
 
 type fakeTargets struct {
@@ -49,22 +54,43 @@ func (f *fakeTargets) Register(_ context.Context, in coverage.RegisterInput) (co
 	return t, nil
 }
 
-type fakePlans struct{ planned map[string]struct{} }
+type fakePlans struct {
+	planned      map[string]struct{}
+	destinations map[string][]string
+}
 
 func (f *fakePlans) PlannedTargetIDs(context.Context) (map[string]struct{}, error) {
 	return f.planned, nil
 }
 
-type fakeRuns struct{ success map[string]time.Time }
+func (f *fakePlans) DestinationIDsByTarget(_ context.Context, targetIDs []string) (map[string][]string, error) {
+	return f.destinations, nil
+}
+
+type fakeRuns struct {
+	success              map[string]time.Time
+	successByDestination map[string]time.Time
+}
 
 func (f *fakeRuns) LastSuccessByTarget(_ context.Context, _ []string) (map[string]time.Time, error) {
 	return f.success, nil
 }
 
-type fakeRestores struct{ verified map[string]time.Time }
+func (f *fakeRuns) LastSuccessByTargetDestination(_ context.Context, _ []string) (map[string]time.Time, error) {
+	return f.successByDestination, nil
+}
+
+type fakeRestores struct {
+	verified              map[string]time.Time
+	verifiedByDestination map[string]time.Time
+}
 
 func (f *fakeRestores) LastVerifiedByTarget(_ context.Context, _ []string) (map[string]time.Time, error) {
 	return f.verified, nil
+}
+
+func (f *fakeRestores) LastVerifiedByTargetDestination(_ context.Context, _ []string) (map[string]time.Time, error) {
+	return f.verifiedByDestination, nil
 }
 
 func suggestion(owner, name string, sensitive bool) coverage.Suggestion {
@@ -78,6 +104,42 @@ func suggestion(owner, name string, sensitive bool) coverage.Suggestion {
 	}
 }
 
+func TestReport_OneVerifiedCopyDoesNotQualifyEveryDestination(t *testing.T) {
+	now := time.Unix(1700000000, 0).UTC()
+	svc := coverage.NewService(coverage.Deps{
+		Suggestions: &fakeSuggestions{},
+		Targets:     &fakeTargets{list: []coverage.CatalogTarget{{ID: "t1", Owner: "owner", Name: "data"}}},
+		Plans:       &fakePlans{planned: map[string]struct{}{"t1": {}}, destinations: map[string][]string{"t1": {"d1", "d2"}}},
+		Runs: &fakeRuns{
+			success: map[string]time.Time{"t1": now},
+			successByDestination: map[string]time.Time{
+				"t1\x00d1": now,
+			},
+		},
+		Restores: &fakeRestores{
+			verified: map[string]time.Time{"t1": now},
+			verifiedByDestination: map[string]time.Time{
+				"t1\x00d1": now,
+			},
+		},
+	})
+
+	report, err := svc.Report(context.Background())
+	if err != nil {
+		t.Fatalf("Report: %v", err)
+	}
+	row := report.Registered[0]
+	if len(row.Destinations) != 2 || row.Destinations[0].DestinationID != "d1" || row.Destinations[1].DestinationID != "d2" {
+		t.Fatalf("destination coverage = %+v, want d1 and d2", row.Destinations)
+	}
+	if row.AllDestinationsBackedUp || row.AllDestinationsVerified {
+		t.Fatalf("one copy must not qualify both destinations: %+v", row)
+	}
+	if report.Summary.DestinationCopyCount != 1 || report.Summary.MultiDestinationTargetCount != 1 || report.Summary.AllDestinationBackedUpCount != 0 || report.Summary.AllDestinationVerifiedCount != 0 {
+		t.Fatalf("destination summary overstated copies: %+v", report.Summary)
+	}
+}
+
 // --- tests -----------------------------------------------------------------
 
 func TestReport_ClassifiesAndScores(t *testing.T) {
@@ -85,18 +147,25 @@ func TestReport_ClassifiesAndScores(t *testing.T) {
 	now := time.Unix(1700000000, 0).UTC()
 
 	svc := coverage.NewService(coverage.Deps{
-		Suggestions: &fakeSuggestions{list: []coverage.Suggestion{
-			suggestion("vrooli", "plans", false),
-			suggestion("vrooli", "config", false),
-			suggestion("codex", "auth", true),
-		}},
+		Suggestions: &fakeSuggestions{
+			list: []coverage.Suggestion{
+				suggestion("vrooli", "plans", false),
+				suggestion("vrooli", "config", false),
+				suggestion("codex", "auth", true),
+			},
+			candidates: []coverage.DiscoveredTarget{{
+				Owner: "vrooli", Name: "secrets", Locator: "/d2", Reacquirable: true,
+				ReacquisitionCommand: "restore-owner-data", ReacquisitionEvidence: "lockfile",
+				ReacquisitionNeedsOperator: true, ReacquisitionAuthReason: "provider license",
+			}},
+		},
 		Targets: &fakeTargets{list: []coverage.CatalogTarget{
 			{ID: "t1", Owner: "swarm-manager", Name: "domain-data", SourceKind: sources.KindFilesystem, Locator: "/d1"},
 			{ID: "t2", Owner: "vrooli", Name: "secrets", SourceKind: sources.KindFilesystem, Locator: "/d2"},
 		}},
-		Plans:    &fakePlans{planned: map[string]struct{}{"t1": {}}},
-		Runs:     &fakeRuns{success: map[string]time.Time{"t1": now}},
-		Restores: &fakeRestores{verified: map[string]time.Time{"t1": now}},
+		Plans:    &fakePlans{planned: map[string]struct{}{"t1": {}}, destinations: map[string][]string{"t1": {"d1"}}},
+		Runs:     &fakeRuns{success: map[string]time.Time{"t1": now}, successByDestination: map[string]time.Time{"t1\x00d1": now}},
+		Restores: &fakeRestores{verified: map[string]time.Time{"t1": now}, verifiedByDestination: map[string]time.Time{"t1\x00d1": now}},
 	})
 
 	rep, err := svc.Report(ctx)
@@ -151,6 +220,9 @@ func TestReport_ClassifiesAndScores(t *testing.T) {
 	if t2.Planned || !t2.LastSuccessAt.IsZero() || !t2.LastVerifiedAt.IsZero() {
 		t.Fatalf("t2 should be unplanned/never-backed-up/never-verified: %+v", t2)
 	}
+	if !t2.Reacquirable || t2.ReacquisitionCommand != "restore-owner-data" || t2.ReacquisitionEvidence != "lockfile" || !t2.ReacquisitionNeedsOperator || t2.ReacquisitionAuthReason != "provider license" {
+		t.Fatalf("t2 should carry owner reacquisition evidence without changing backup state: %+v", t2)
+	}
 }
 
 func TestReport_CompleteWhenNoRecommendations(t *testing.T) {
@@ -179,6 +251,7 @@ func TestAcceptDefaults_RegistersNonSensitiveSkipsSensitive(t *testing.T) {
 		Suggestions: &fakeSuggestions{list: []coverage.Suggestion{
 			suggestion("vrooli", "plans", false),
 			suggestion("codex", "auth", true),
+			{ID: "model-cache", Owner: "ollama", Name: "models", Reacquirable: true},
 		}},
 		Targets: targets,
 	})
@@ -199,23 +272,69 @@ func TestAcceptDefaults_RegistersNonSensitiveSkipsSensitive(t *testing.T) {
 	if len(targets.registered) != 1 {
 		t.Fatalf("expected one registration, got %d", len(targets.registered))
 	}
+	if len(res.Accepted) != 1 {
+		t.Fatalf("reacquirable data must not appear in accepted targets: %+v", res.Accepted)
+	}
 }
 
-func TestAcceptDefaults_IncludeSensitive(t *testing.T) {
+func TestReportSeparatesReacquirableFromBackupCoverage(t *testing.T) {
+	svc := coverage.NewService(coverage.Deps{
+		Suggestions: &fakeSuggestions{list: []coverage.Suggestion{
+			{ID: "cache", Owner: "ollama", Name: "models", Reacquirable: true, BudgetMaxBytes: "50GiB", Retention: "models 30d"},
+		}},
+		Targets: &fakeTargets{}, Plans: &fakePlans{}, Runs: &fakeRuns{}, Restores: &fakeRestores{},
+	})
+	rep, err := svc.Report(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !rep.Summary.DefaultCoverageComplete || len(rep.Recommended) != 0 || len(rep.Reacquirable) != 1 {
+		t.Fatalf("reacquirable candidate must be informational and outside backup coverage: %+v", rep)
+	}
+	if rep.Reacquirable[0].BudgetMaxBytes != "50GiB" || rep.Reacquirable[0].Retention != "models 30d" {
+		t.Fatalf("owner budget/retention evidence lost: %+v", rep.Reacquirable[0])
+	}
+}
+
+func TestAcceptDefaults_IncludeSensitiveRequiresVerifiedDecision(t *testing.T) {
 	targets := &fakeTargets{}
 	svc := coverage.NewService(coverage.Deps{
 		Suggestions: &fakeSuggestions{list: []coverage.Suggestion{suggestion("codex", "auth", true)}},
 		Targets:     targets,
 	})
-	res, err := svc.AcceptDefaults(context.Background(), coverage.AcceptOptions{IncludeSensitive: true})
+	if _, err := svc.AcceptDefaults(context.Background(), coverage.AcceptOptions{IncludeSensitive: true}); !errors.Is(err, coverage.ErrSensitiveReviewRequired) {
+		t.Fatalf("AcceptDefaults error = %v, want verified review gate", err)
+	}
+	if len(targets.registered) != 0 {
+		t.Fatalf("sensitive target bypassed decision review: %+v", targets.registered)
+	}
+}
+
+func TestAcceptSensitive_RegistersOnlyExplicitCurrentSensitiveIDs(t *testing.T) {
+	targets := &fakeTargets{}
+	suggestions := &fakeSuggestions{list: []coverage.Suggestion{
+		suggestion("codex", "auth", true),
+		suggestion("vrooli", "provider-key", true),
+		suggestion("vrooli", "plans", false),
+	}}
+	svc := coverage.NewService(coverage.Deps{Suggestions: suggestions, Targets: targets})
+
+	result, err := svc.AcceptSensitive(context.Background(), []string{"codex-auth"})
 	if err != nil {
-		t.Fatalf("AcceptDefaults: %v", err)
+		t.Fatalf("AcceptSensitive: %v", err)
 	}
-	if len(res.Accepted) != 1 || !res.Accepted[0].Sensitive {
-		t.Fatalf("sensitive should be accepted with opt-in: %+v", res.Accepted)
+	if len(result.Accepted) != 1 || result.Accepted[0].SuggestionID != "codex-auth" || !result.Accepted[0].Sensitive {
+		t.Fatalf("accepted = %+v", result.Accepted)
 	}
-	if len(res.SkippedSensitive) != 0 {
-		t.Fatalf("nothing should be skipped: %+v", res.SkippedSensitive)
+	if len(targets.registered) != 1 || targets.registered[0].Owner != "codex" {
+		t.Fatalf("registered = %+v", targets.registered)
+	}
+
+	if _, err := svc.AcceptSensitive(context.Background(), []string{"removed-auth"}); err == nil {
+		t.Fatal("stale suggestion id should be rejected")
+	}
+	if len(targets.registered) != 1 {
+		t.Fatalf("stale suggestion caused another registration: %+v", targets.registered)
 	}
 }
 

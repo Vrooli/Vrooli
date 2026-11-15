@@ -23,6 +23,8 @@ type stubPlansService struct {
 	gotCreate *plansv1.CreatePlanRequest
 	gotUpdate *plansv1.UpdatePlanRequest
 	current   *plansv1.Plan
+	plans     []*plansv1.Plan
+	updates   []*plansv1.UpdatePlanRequest
 }
 
 func (s *stubPlansService) CreatePlan(_ context.Context, req *connect.Request[plansv1.CreatePlanRequest]) (*connect.Response[plansv1.CreatePlanResponse], error) {
@@ -45,12 +47,54 @@ func (s *stubPlansService) GetPlan(_ context.Context, req *connect.Request[plans
 }
 
 func (s *stubPlansService) ListPlans(_ context.Context, _ *connect.Request[plansv1.ListPlansRequest]) (*connect.Response[plansv1.ListPlansResponse], error) {
-	return connect.NewResponse(&plansv1.ListPlansResponse{}), nil
+	return connect.NewResponse(&plansv1.ListPlansResponse{Plans: s.plans}), nil
 }
 
 func (s *stubPlansService) UpdatePlan(_ context.Context, req *connect.Request[plansv1.UpdatePlanRequest]) (*connect.Response[plansv1.UpdatePlanResponse], error) {
 	s.gotUpdate = req.Msg
+	s.updates = append(s.updates, req.Msg)
+	for _, p := range s.plans {
+		if p.Id == req.Msg.Id {
+			p.DestinationIds = append([]string(nil), req.Msg.DestinationIds...)
+		}
+	}
 	return connect.NewResponse(&plansv1.UpdatePlanResponse{Plan: &plansv1.Plan{Id: req.Msg.Id}}), nil
+}
+
+func TestAddDestinationPreviewsAndAppliesIdempotently(t *testing.T) {
+	original := &plansv1.Plan{Id: "p1", Name: "daily", TargetIds: []string{"t1"}, DestinationIds: []string{"local"}, Schedule: "0 2 * * *", Enabled: true, RecoveryDrillSchedule: "168h"}
+	stub := &stubPlansService{plans: []*plansv1.Plan{original}}
+	mux := http.NewServeMux()
+	path, handler := plansconnect.NewPlansServiceHandler(stub)
+	mux.Handle(path, handler)
+	app := testutil.NewTestApp(t, mux)
+	hs := newHandlers(app)
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "plans"}, {Name: "destination"}, {Name: "apply", Bool: true}}}
+	ctx, _ := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{Flags: map[string]string{"plans": "p1", "destination": "offsite"}})
+	if err := hs.addDestination(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(stub.updates) != 0 {
+		t.Fatal("preview mutated a plan")
+	}
+	ctx, _ = cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{Flags: map[string]string{"plans": "p1", "destination": "offsite", "apply": "true"}})
+	if err := hs.addDestination(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(stub.updates) != 1 {
+		t.Fatalf("got %d updates, want one", len(stub.updates))
+	}
+	u := stub.updates[0]
+	if len(u.DestinationIds) != 2 || u.DestinationIds[1] != "offsite" || u.Name != original.Name || u.Schedule != original.Schedule || !u.Enabled || u.RecoveryDrillSchedule != original.RecoveryDrillSchedule {
+		t.Fatalf("membership update did not preserve plan fields: %+v", u)
+	}
+	ctx, _ = cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{Flags: map[string]string{"plans": "p1", "destination": "offsite", "apply": "true"}})
+	if err := hs.addDestination(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(stub.updates) != 1 {
+		t.Fatalf("repeated apply wrote again: %d updates", len(stub.updates))
+	}
 }
 
 func (s *stubPlansService) DeletePlan(_ context.Context, _ *connect.Request[plansv1.DeletePlanRequest]) (*connect.Response[plansv1.DeletePlanResponse], error) {
@@ -74,7 +118,11 @@ func TestCreatePlanCommand(t *testing.T) {
 		{Name: "destinations"},
 		{Name: "schedule"},
 		{Name: "keep-latest"},
-		{Name: "enabled"},
+		{Name: "keep-hourly"},
+		{Name: "keep-daily"},
+		{Name: "keep-weekly"},
+		{Name: "keep-monthly"},
+		{Name: "keep-annual"},
 		{Name: "protection-tier"},
 		{Name: "allow-incomplete-coverage", Bool: true},
 	}}
@@ -93,6 +141,9 @@ func TestCreatePlanCommand(t *testing.T) {
 
 	if stub.gotCreate == nil {
 		t.Fatal("server did not receive CreatePlan")
+	}
+	if !stub.gotCreate.Enabled {
+		t.Fatal("new plans must be enabled by the create contract")
 	}
 	if stub.gotCreate.Name != "daily-backup" {
 		t.Fatalf("name wrong: %q", stub.gotCreate.Name)
@@ -136,6 +187,11 @@ func updateSchema() cliapp.ArgSchema {
 		{Name: "destinations"},
 		{Name: "schedule"},
 		{Name: "keep-latest"},
+		{Name: "keep-hourly"},
+		{Name: "keep-daily"},
+		{Name: "keep-weekly"},
+		{Name: "keep-monthly"},
+		{Name: "keep-annual"},
 		{Name: "enabled"},
 		{Name: "protection-tier"},
 		{Name: "recovery-drill-schedule"},

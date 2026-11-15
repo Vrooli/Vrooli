@@ -3,7 +3,7 @@ package plans
 import (
 	"log"
 
-	"data-backup-manager/internal/module"
+	"data-backup-manager/internal/modulecontract"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -18,12 +18,12 @@ import (
 // coverage guard) is built in the composition root (main.go) and passed in —
 // mirroring discovery/runs/restores — because the guard composes a cross-domain
 // seam (discovery) the leaf handler must not know about.
-func Module(svc internalplans.Service, logger *log.Logger) module.Module {
+func Module(svc internalplans.Service, logger *log.Logger) modulecontract.Module {
 	connectPath, connectHandler := plansconnect.NewPlansServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
 		Logger:  logger,
 	}))
-	return module.Module{
+	return modulecontract.Module{
 		Name: "plans",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})

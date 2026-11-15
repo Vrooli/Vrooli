@@ -10,6 +10,7 @@ import (
 	"data-backup-manager/internal/destinationreadiness"
 	destdomain "data-backup-manager/internal/destinations"
 	destmocks "data-backup-manager/internal/destinations/mocks"
+	"data-backup-manager/internal/sysmounts"
 
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/operatordecision"
@@ -18,11 +19,20 @@ import (
 type recoveryDecisionPublisher struct {
 	events   []eventbus.DomainEvent
 	failNext int
+	// failType makes the next failTypeTimes publishes of that event type fail.
+	failType      string
+	failTypeTimes int
 }
 
 func (p *recoveryDecisionPublisher) PublishDomainEvent(_ context.Context, event eventbus.DomainEvent) error {
 	if p.failNext > 0 {
 		p.failNext--
+		return context.DeadlineExceeded
+	}
+	if p.failType != "" && event.EventType == p.failType {
+		if p.failTypeTimes--; p.failTypeTimes <= 0 {
+			p.failType = ""
+		}
 		return context.DeadlineExceeded
 	}
 	p.events = append(p.events, event)
@@ -35,11 +45,16 @@ type decisionTestInspector struct {
 }
 
 func (i decisionTestInspector) Inspect(context.Context, string) (destinationreadiness.Inspection, error) {
-	return destinationreadiness.Inspection{Identity: i.identity, Mounted: true, LocationExists: true, LocationIsDirectory: true}, nil
+	return destinationreadiness.Inspection{Identity: i.identity, MountEpisodeID: "mount-1", Mounted: true, LocationExists: true, LocationIsDirectory: true, FilesystemState: sysmounts.FilesystemStateUnknown}, nil
 }
 
 func (i decisionTestInspector) InspectDevice(context.Context, destinationreadiness.DeviceIdentity) (destinationreadiness.Inspection, error) {
-	return destinationreadiness.Inspection{Identity: i.identity, Mounted: i.mounted != nil && *i.mounted}, nil
+	mounted := i.mounted != nil && *i.mounted
+	mountEpisodeID := ""
+	if mounted {
+		mountEpisodeID = "mount-1"
+	}
+	return destinationreadiness.Inspection{Identity: i.identity, MountEpisodeID: mountEpisodeID, Mounted: mounted, FilesystemState: sysmounts.FilesystemStateUnknown}, nil
 }
 
 type decisionTestRemediator struct {
@@ -344,17 +359,18 @@ func TestVolumeRecoveryWorkerMountsOnlyAfterPositiveReadOnlyCheck(t *testing.T) 
 	}
 }
 
-func TestVolumeRecoveryWorkerVerifiesAndNotifiesSafeRemount(t *testing.T) {
+func TestVolumeRecoveryWorkerSimulatesUnsafeShutdownAndReturnsReady(t *testing.T) {
 	identity := destinationreadiness.DeviceIdentity{DevicePath: "/dev/sdz1", Mountpoint: "/media/Elements", UUID: "uuid-elements", Filesystem: "ntfs", TotalBytes: 100}
 	mounted := false
 	remediator := &decisionTestRemediator{mounted: &mounted, consistent: "yes"}
+	recoveries := &destinationreadiness.FileRecoveryStore{Root: filepath.Join(t.TempDir(), "journals")}
 	readiness := destinationreadiness.NewService(decisionTestInspector{identity: identity, mounted: &mounted}, nil).
-		WithRemediator(remediator)
+		WithRemediator(remediator).WithMountedCheckEvidence(recoveries)
 	publisher := &recoveryDecisionPublisher{}
-	flow := newRecoveryDecisionFlow(readiness, &recoveryStore{}, &destinationreadiness.FileDecisionStore{Root: filepath.Join(t.TempDir(), "asks")}, publisher, true, nil)
+	flow := newRecoveryDecisionFlow(readiness, recoveries, &destinationreadiness.FileDecisionStore{Root: filepath.Join(t.TempDir(), "asks")}, publisher, true, nil)
 	dest := destdomain.Destination{ID: "dest-safe", Name: "elements", BackendKind: destdomain.BackendFilesystem, Location: "/media/Elements/vrooli-backups", DeviceIdentity: &identity}
 	worker := newVolumeRecoveryWorker(&destmocks.FakeService{ListOut: []destdomain.Destination{dest}}, readiness,
-		&destinationreadiness.FileRecoveryStore{Root: filepath.Join(t.TempDir(), "journals")}, flow, nil)
+		recoveries, flow, nil)
 	if err := worker.reconcileDestination(context.Background(), dest); err != nil {
 		t.Fatalf("reconcileDestination: %v", err)
 	}
@@ -366,6 +382,32 @@ func TestVolumeRecoveryWorkerVerifiesAndNotifiesSafeRemount(t *testing.T) {
 	}
 	if len(publisher.events) != 1 || publisher.events[0].Payload["category"] != "volume-recovery-completed" {
 		t.Fatalf("events = %+v, want verified remount completion notice", publisher.events)
+	}
+	if ok, err := recoveries.HasCurrentMountedCheck(context.Background(), dest.ID, identity, "mount-1"); err != nil || !ok {
+		t.Fatalf("current mounted check evidence=(%v, %v), want positive", ok, err)
+	}
+	report, err := readiness.Analyze(context.Background(), destinationreadiness.AnalyzeInput{DestinationID: dest.ID, ExpectedDevice: identity, Location: dest.Location})
+	if err != nil || !report.OfflineCheckVerified || report.FilesystemState != sysmounts.FilesystemStateUnknown {
+		t.Fatalf("readiness report=%+v err=%v; want truthful unknown plus episode-bound check evidence", report, err)
+	}
+	if len(remediator.plans) != 2 || remediator.plans[0].Action != destinationreadiness.ActionCheckFilesystem || remediator.plans[1].Action != destinationreadiness.ActionMountReadWrite {
+		t.Fatalf("unsafe-shutdown simulation actions = %+v, want offline check then safe remount", remediator.plans)
+	}
+}
+
+func TestVolumeRecoveryWorkerRefusesRemountWithoutEpisodeBoundCheck(t *testing.T) {
+	identity := destinationreadiness.DeviceIdentity{DevicePath: "/dev/sdz1", Mountpoint: "/media/Elements", UUID: "uuid-elements", Serial: "serial-elements", Filesystem: "ntfs", TotalBytes: 100}
+	mounted := false
+	remediator := &decisionTestRemediator{mounted: &mounted, consistent: "yes"}
+	readiness := destinationreadiness.NewService(decisionTestInspector{identity: identity, mounted: &mounted}, nil).WithRemediator(remediator)
+	worker := newVolumeRecoveryWorker(nil, readiness, &destinationreadiness.FileRecoveryStore{Root: filepath.Join(t.TempDir(), "journals")}, nil, nil)
+	dest := destdomain.Destination{ID: "dest-no-check", Name: "elements", BackendKind: destdomain.BackendFilesystem, Location: "/media/Elements", DeviceIdentity: &identity}
+	plan := destinationreadiness.Plan{ID: "mount-plan", Action: destinationreadiness.ActionMountReadWrite, Location: identity.Mountpoint, TargetPath: identity.Mountpoint, Identity: identity, Supported: true}
+	if _, _, err := worker.mountAfterCleanCheck(context.Background(), dest, plan, "missing-episode"); err == nil {
+		t.Fatal("remount proceeded without positive check evidence bound to an active episode")
+	}
+	if mounted || remediator.calls != 0 {
+		t.Fatalf("mounted=%v remediation calls=%d, want no host action", mounted, remediator.calls)
 	}
 }
 
@@ -408,7 +450,7 @@ func TestVolumeRecoveryWorkerRaisesFreshDecisionAfterCompletedEpisodeAndAvoidsDu
 	if err := worker.reconcileDestination(ctx, dest); err != nil {
 		t.Fatalf("first outage reconcile: %v", err)
 	}
-	firstEpisode, err := recoveryStore.ObserveEpisode(ctx, dest.ID, identity, false, "")
+	firstEpisode, err := recoveryStore.ObserveEpisode(ctx, dest.ID, identity, false, "", "")
 	if err != nil {
 		t.Fatalf("read first episode: %v", err)
 	}
@@ -439,7 +481,7 @@ func TestVolumeRecoveryWorkerRaisesFreshDecisionAfterCompletedEpisodeAndAvoidsDu
 	if err := worker.reconcileDestination(ctx, dest); err != nil {
 		t.Fatalf("second outage reconcile: %v", err)
 	}
-	secondEpisode, err := recoveryStore.ObserveEpisode(ctx, dest.ID, identity, false, "")
+	secondEpisode, err := recoveryStore.ObserveEpisode(ctx, dest.ID, identity, false, "", "")
 	if err != nil || secondEpisode.RecoveryID == firstJournal.ID {
 		t.Fatalf("second episode=(%+v, %v), want fresh ID after completed first episode", secondEpisode, err)
 	}

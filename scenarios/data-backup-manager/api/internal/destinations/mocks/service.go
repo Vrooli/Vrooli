@@ -15,11 +15,16 @@ type FakeService struct {
 	CreateInputs []destinations.CreateInput
 	CreateOut    destinations.Destination
 	CreateErr    error
+	ImportInput  destinations.ImportExistingInput
+	ImportOut    destinations.Destination
+	ImportErr    error
 
 	// GetDestination
-	GetID  string
-	GetOut destinations.Destination
-	GetErr error
+	GetID      string
+	GetOut     destinations.Destination
+	GetErr     error
+	ResolveOut destinations.Destination
+	ResolveErr error
 
 	// ListDestinations
 	ListOut []destinations.Destination
@@ -66,12 +71,42 @@ func (f *FakeService) CreateDestination(_ context.Context, in destinations.Creat
 	return f.CreateOut, nil
 }
 
+func (f *FakeService) ImportExistingDestination(_ context.Context, in destinations.ImportExistingInput) (destinations.Destination, error) {
+	f.ImportInput = in
+	if f.ImportErr != nil {
+		return destinations.Destination{}, f.ImportErr
+	}
+	return f.ImportOut, nil
+}
+
 func (f *FakeService) GetDestination(_ context.Context, id string) (destinations.Destination, error) {
 	f.GetID = id
 	if f.GetErr != nil {
 		return destinations.Destination{}, f.GetErr
 	}
 	return f.GetOut, nil
+}
+
+func (f *FakeService) ResolveForUse(_ context.Context, id string) (destinations.Destination, error) {
+	f.GetID = id
+	if f.ResolveErr != nil {
+		return destinations.Destination{}, f.ResolveErr
+	}
+	if f.ResolveOut.ID != "" {
+		return f.ResolveOut, nil
+	}
+	return f.GetOut, f.GetErr
+}
+
+func (f *FakeService) WithResolvedDestination(ctx context.Context, id string, use func(destinations.Destination) error) error {
+	d, err := f.ResolveForUse(ctx, id)
+	if err != nil {
+		return err
+	}
+	if use == nil {
+		return nil
+	}
+	return use(d)
 }
 
 func (f *FakeService) ListDestinations(_ context.Context, _ int) ([]destinations.Destination, error) {

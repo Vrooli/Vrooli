@@ -2,7 +2,7 @@
  * CoverageBanner tests. The load-bearing behaviors: an incomplete-coverage
  * report surfaces the recommended count and a register action that calls
  * acceptDefaultTargets with includeSensitive=false; sensitive targets render in
- * a separate review state with their own deliberate opt-in; and a complete
+ * a separate verified Notification Hub review state; and a complete
  * report with nothing sensitive renders nothing in the compact form.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -17,6 +17,7 @@ vi.mock("../../api/coverage", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/coverage")>()),
   getCoverageReport: vi.fn(),
   acceptDefaultTargets: vi.fn(),
+  requestSensitiveReview: vi.fn(),
 }));
 
 import * as coverageApi from "../../api/coverage";
@@ -63,6 +64,7 @@ function report(overrides: Record<string, unknown> = {}) {
     registeredTargets: [],
     recommendedTargets: [recommended],
     sensitiveTargets: [sensitive],
+    reacquirableTargets: [],
     ...overrides,
   };
 }
@@ -70,6 +72,11 @@ function report(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(coverageApi.acceptDefaultTargets).mockResolvedValue({ dryRun: false } as never);
+  vi.mocked(coverageApi.requestSensitiveReview).mockResolvedValue({
+    askId: "ask-sensitive-1",
+    candidateCount: 1,
+    pending: true,
+  } as never);
 });
 
 afterEach(() => cleanup());
@@ -115,20 +122,23 @@ describe("CoverageBanner", () => {
     );
   });
 
-  it("registers sensitive targets only via the explicit opt-in control", async () => {
+  it("requests one verified review and does not register sensitive targets", async () => {
     const user = userEvent.setup();
     vi.mocked(coverageApi.getCoverageReport).mockResolvedValue(report() as never);
 
     renderWithProviders(<CoverageBanner />);
 
-    const button = await screen.findByTestId(selectors.coverage.registerSensitive);
+    const button = await screen.findByTestId(selectors.coverage.requestSensitiveReview);
     await user.click(button);
 
     await waitFor(() =>
-      expect(coverageApi.acceptDefaultTargets).toHaveBeenCalledWith({
-        includeSensitive: true,
-        dryRun: false,
-      }),
+      expect(coverageApi.requestSensitiveReview).toHaveBeenCalledTimes(1),
+    );
+    expect(coverageApi.acceptDefaultTargets).not.toHaveBeenCalledWith(expect.objectContaining({ includeSensitive: true }));
+    // Test setup uses the i18n pseudo-locale, which returns keys verbatim.
+    // Production locale catalogs supply the human-readable interpolated text.
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "coverage.sensitiveReviewPending",
     );
   });
 
@@ -142,6 +152,48 @@ describe("CoverageBanner", () => {
     // Owner/name is data, not copy; assert via the list containers' content.
     expect(recList.textContent).toContain("vrooli/plans");
     expect(sensList.textContent).toContain("codex/auth");
+  });
+
+  it("shows owner-declared reacquirable data separately without a registration action", async () => {
+    vi.mocked(coverageApi.getCoverageReport).mockResolvedValue(
+      report({
+        summary: { ...report().summary, recommendedCount: 0, sensitiveCount: 0, defaultCoverageComplete: true, hasSensitiveUnreviewed: false },
+        recommendedTargets: [],
+        sensitiveTargets: [],
+        reacquirableTargets: [{ id: "cache", owner: "ollama", name: "models", locator: "/models", budgetMaxBytes: "50GiB", retention: "models 30d" }],
+      }) as never,
+    );
+    renderWithProviders(<CoverageBanner detailed />);
+    const list = await screen.findByTestId(selectors.coverage.reacquirableList);
+    expect(list.textContent).toContain("ollama/models");
+    expect(list.textContent).toContain("50GiB");
+    expect(screen.queryByTestId(selectors.coverage.registerRecommended)).not.toBeInTheDocument();
+  });
+
+  it("shows owner reacquisition evidence for already registered targets", async () => {
+    vi.mocked(coverageApi.getCoverageReport).mockResolvedValue(
+      report({
+        registeredTargets: [{
+          id: "stable-audio-models",
+          owner: "stable-audio-3",
+          name: "models",
+          reacquirable: true,
+          reacquisitionCommand: "stable-audio-3 models install",
+          reacquisitionEvidence: "server/model-lock.json",
+          reacquisitionNeedsOperator: true,
+          reacquisitionAuthReason: "provider license",
+        }],
+      }) as never,
+    );
+
+    renderWithProviders(<CoverageBanner detailed />);
+
+    const list = await screen.findByTestId(selectors.coverage.registeredReacquirableList);
+    expect(list.textContent).toContain("stable-audio-3/models");
+    expect(list.textContent).toContain("stable-audio-3 models install");
+    expect(list.textContent).toContain("server/model-lock.json");
+    // The test suite defaults i18next to cimode so labels remain stable.
+    expect(list.textContent).toContain("coverage.reacquisitionAuthorization");
   });
 
   it("renders nothing compact when coverage is complete and nothing is sensitive", async () => {

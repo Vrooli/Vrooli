@@ -44,6 +44,7 @@ type auditHarness struct {
 	svc       audits.Service
 	repo      *auditsmocks.InMemoryRepository
 	engine    *mocks.FakeKopiaEngine
+	dest      *auditsmocks.FakeDestinationLookup
 	capturer  *sourcesmocks.FakeCapturer
 	scratch   string
 	snapFiles map[string]string
@@ -85,22 +86,39 @@ func newAuditHarnessWithRemoveAll(t *testing.T, removeAll func(string) error) *a
 			return []engine.Snapshot{{ID: auditSnapID, StartTime: h.snapTime}}, nil
 		},
 	}
+	h.dest = &auditsmocks.FakeDestinationLookup{Destinations: map[string]audits.DestinationForAudit{
+		auditDestID: {ID: auditDestID, Name: "nightly"},
+	}}
 	h.svc = audits.NewService(audits.Deps{
 		Repo: h.repo,
 		Targets: &auditsmocks.FakeTargetLookup{Targets: map[string]audits.TargetForAudit{
 			auditTargetID: {ID: auditTargetID, Kind: sources.KindFilesystem, Locator: "/live/path"},
 		}},
-		Destinations: &auditsmocks.FakeDestinationLookup{Destinations: map[string]audits.DestinationForAudit{
-			auditDestID: {ID: auditDestID, Name: "nightly"},
-		}},
-		Engine:      h.engine,
-		Sources:     sources.NewRegistry(h.capturer),
-		Clock:       scheduletest.New(time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)),
-		ScratchRoot: h.scratch,
-		Executor:    auditsmocks.NewSyncExecutor(),
-		RemoveAll:   removeAll,
+		Destinations: h.dest,
+		Engine:       h.engine,
+		Sources:      sources.NewRegistry(h.capturer),
+		Clock:        scheduletest.New(time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)),
+		ScratchRoot:  h.scratch,
+		Executor:     auditsmocks.NewSyncExecutor(),
+		RemoveAll:    removeAll,
 	})
 	return h
+}
+
+func TestRunAuditRechecksDestinationAtRepositoryUseBoundary(t *testing.T) {
+	h := newAuditHarness(t)
+	h.dest.WithResolvedFn = func(context.Context, string, func(audits.DestinationForAudit) error) error {
+		return errors.New("volume readiness changed immediately before audit")
+	}
+	got := h.run(t, false, false)
+	if got.Status != audits.AuditFailed || got.Restorable || got.Error == "" {
+		t.Fatalf("audit = %+v, want failure before snapshot restore", got)
+	}
+	for _, call := range h.engine.Calls {
+		if strings.HasPrefix(call, "SnapshotRestore") || strings.HasPrefix(call, "SnapshotList") {
+			t.Fatalf("engine used a destination after final audit gate failed: %v", h.engine.Calls)
+		}
+	}
 }
 
 func (h *auditHarness) run(t *testing.T, content, sqliteChecks bool) audits.Audit {

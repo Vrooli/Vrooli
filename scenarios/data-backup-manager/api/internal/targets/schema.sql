@@ -1,5 +1,5 @@
 -- Targets table — owned by internal/targets/. Embedded by schema.go and
--- applied via database.EnsureSchemas at boot through the modules.AllSchemas
+-- applied via database.EnsureSchemas at boot through the modulecatalog.AllSchemas
 -- registry. Keyed by (owner, name): an owning scenario re-registers
 -- idempotently on boot, so the unique constraint is what makes the catalog
 -- reconstructable. Times are RFC3339Nano strings matching the wire format and

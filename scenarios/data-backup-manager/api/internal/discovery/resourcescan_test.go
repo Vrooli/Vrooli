@@ -32,13 +32,17 @@ func TestResourceDataScannerUsesCanonicalOwnerInventory(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(data, "cache"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	writeFile(t, filepath.Join(root, "resources", "fixture", "cache", "model.bin"), "model")
+	writeFile(t, filepath.Join(root, "resources", "fixture", "pinned-models", "weights.bin"), "pinned model")
 	writeFile(t, filepath.Join(root, "resources", "fixture", "resource.json"), `{
       "name": "fixture",
+      "retention": {"budgets":{"models":{"target":{"kind":"directory","path":"cache"},"max_bytes":"2GiB","max_age":"14d"}}},
       "storage": {"entries": {
-        "cache": {"path": "cache", "kind": "dir", "rung": "owned", "class": "cache", "regenerable": true},
+		"cache": {"path": "cache", "kind": "dir", "rung": "owned", "class": "cache", "regenerable": true, "budget": {"max_bytes": "2GiB", "max_age": "14d"}},
         "credentials": {"path": "data/credentials.json", "kind": "file", "rung": "owned", "class": "data", "regenerable": false, "sensitive": true},
         "history": {"path": "data/history.jsonl", "kind": "file", "rung": "owned", "class": "data", "regenerable": false, "rationale": "Prompt history."},
-        "state": {"path": "data/state.sqlite", "kind": "file", "format": "sqlite", "rung": "owned", "class": "data", "regenerable": false}
+        "state": {"path": "data/state.sqlite", "kind": "file", "format": "sqlite", "rung": "owned", "class": "data", "regenerable": false},
+        "pinned-models": {"path": "pinned-models", "kind": "dir", "rung": "pinned", "class": "data", "regenerable": false, "reacquisition": {"command": "resource fixture acquire", "evidence": "model-lock.json", "requires_authorization": true, "authorization_rationale": "provider approval"}}
       }}
     }`)
 
@@ -46,8 +50,8 @@ func TestResourceDataScannerUsesCanonicalOwnerInventory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("scan: %v", err)
 	}
-	if len(got) != 3 {
-		t.Fatalf("got %d candidates, want 3: %+v", len(got), got)
+	if len(got) != 5 {
+		t.Fatalf("got %d candidates, want 5: %+v", len(got), got)
 	}
 	byName := make(map[string]discovery.TargetCandidate, len(got))
 	for _, candidate := range got {
@@ -65,8 +69,12 @@ func TestResourceDataScannerUsesCanonicalOwnerInventory(t *testing.T) {
 	if !byName["credentials"].Sensitive {
 		t.Error("credentials should remain sensitive")
 	}
-	if _, ok := byName["cache"]; ok {
-		t.Error("regenerable cache must not be suggested")
+	if cache, ok := byName["cache"]; !ok || !cache.Reacquirable || cache.BudgetMaxBytes != "2GiB" || cache.BudgetMaxAge != "14d" || cache.Retention != "models max_bytes=2GiB max_age=14d" {
+		t.Errorf("owner-declared regenerable/budget evidence missing: %+v", cache)
+	}
+	model := byName["pinned-models"]
+	if !model.Reacquirable || model.ReacquisitionCommand != "resource fixture acquire" || model.ReacquisitionEvidence != "model-lock.json" || !model.ReacquisitionNeedsOperator || model.ReacquisitionAuthReason != "provider approval" {
+		t.Errorf("conditional reacquisition evidence missing: %+v", model)
 	}
 }
 

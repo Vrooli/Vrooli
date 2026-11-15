@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
 
 	"github.com/vrooli/api-core/operatordecision"
@@ -23,6 +26,7 @@ func TestClassifyNameSeparatesLeftoverTempFromRepositoryContent(t *testing.T) {
 		kind  BlobKind
 	}{
 		{tempRel1, ClassLeftoverTemp, BlobSessionMarker},
+		{"s/f43/abc.f.tmp", ClassLeftoverTemp, BlobSessionMarker},
 		{"p/bbb/7098cafebeccc21a63be88c33846b-s9e453c5eb992a889141.f.tmp.7bebcde20343b56d", ClassLeftoverTemp, BlobDataPack},
 		{blobRel, ClassRepositoryBlob, BlobMetadataPack},
 		{readable, ClassRepositoryBlob, BlobDataPack},
@@ -40,12 +44,56 @@ func TestClassifyNameSeparatesLeftoverTempFromRepositoryContent(t *testing.T) {
 	}
 }
 
+func TestScanMarksSuffixlessSessionTempOrphanOnlyWhenFinalMissing(t *testing.T) {
+	const temp = "s/f43/abc.f.tmp"
+	missingFinal := newFakeFS()
+	missingFinal.addUnreadable(temp, errEIO)
+	scan, err := (&Scanner{FS: missingFinal, Now: func() time.Time { return fixedNow }}).Walk(context.Background(), root)
+	if err != nil || len(scan.Unreadable) != 1 || scan.Unreadable[0].Class != ClassLeftoverTemp || !scan.Unreadable[0].Orphan {
+		t.Fatalf("suffixless orphan temp scan = %+v err=%v", scan, err)
+	}
+	pairedFinal := newFakeFS("s/f43/abc.f")
+	pairedFinal.addUnreadable(temp, errEIO)
+	scan, err = (&Scanner{FS: pairedFinal, Now: func() time.Time { return fixedNow }}).Walk(context.Background(), root)
+	if err != nil || len(scan.Unreadable) != 1 || scan.Unreadable[0].Class != ClassLeftoverTemp || scan.Unreadable[0].Orphan {
+		t.Fatalf("paired suffixless temp scan = %+v err=%v", scan, err)
+	}
+}
+
 func TestProblemForRecognisesDriveReadErrors(t *testing.T) {
 	if ProblemFor(errEIO) != ProblemIO || ProblemFor(fmt.Errorf("lstat x: input/output error")) != ProblemIO {
 		t.Fatal("EIO must classify as a drive read error")
 	}
 	if ProblemFor(fs.ErrPermission) != ProblemPermission || ProblemFor(errors.New("boom")) != ProblemOther {
 		t.Fatal("permission and unknown errors must classify separately")
+	}
+}
+
+func TestExactMissingQBlobIDAcceptsOnlyCanonicalQBlobErrors(t *testing.T) {
+	cases := []struct{ message, want string }{
+		{`BLOB not found: blob "q1234"`, "q1234"},
+		{`BLOB not found: blob "q9-abc"`, "q9-abc"},
+		{`blob "p1234" not found`, ""},
+		{`BLOB not found: blob "../q1234"`, ""},
+		{`BLOB not found: blob "q1234`, ""},
+		{`repository unavailable`, ""},
+	}
+	for _, tc := range cases {
+		if got := exactMissingQBlobID(tc.message); got != tc.want {
+			t.Errorf("exactMissingQBlobID(%q)=%q want %q", tc.message, got, tc.want)
+		}
+	}
+}
+
+func TestDiagnosisSignatureBindsTheExactMissingQBlob(t *testing.T) {
+	base := Diagnosis{DestinationID: "dest", Cause: CauseSnapshotsUnlistable, MissingBlobID: "q1234"}
+	other := base
+	other.MissingBlobID = "q5678"
+	if base.Signature() == other.Signature() {
+		t.Fatal("different missing blobs must not reuse one incident identity")
+	}
+	if base.Signature() == (Diagnosis{DestinationID: base.DestinationID, Cause: base.Cause}).Signature() {
+		t.Fatal("identified missing blob must bind the incident identity")
 	}
 }
 
@@ -201,6 +249,40 @@ func usageEngineFor(f *fakeFS, inner *fakeEngine, ex *memExceptions) *UsageEngin
 		Exceptions: ex,
 		Scanner:    &Scanner{FS: f, Now: func() time.Time { return fixedNow }},
 		Now:        func() time.Time { return fixedNow },
+	}
+}
+
+type ownerDamageEngine struct {
+	*fakeEngine
+	scan  engine.RepoDamageScan
+	calls int
+}
+
+func (e *ownerDamageEngine) RepoDamageScan(context.Context, string) (engine.RepoDamageScan, error) {
+	e.calls++
+	return e.scan, nil
+}
+
+func TestUsageEngineUsesKopiaOwnerTypedDamageScan(t *testing.T) {
+	f := newFakeFS(readable)
+	inner := &ownerDamageEngine{
+		fakeEngine: &fakeEngine{statsErr: kopiaEIOError("committed.f")},
+		scan: engine.RepoDamageScan{
+			Root: root, StartedAt: fixedNow.Format(time.RFC3339Nano),
+			Files: 4, Bytes: 400,
+			Unreadable: []engine.RepoDamageEntry{{
+				RelativePath: "p/committed.f", Class: string(ClassRepositoryBlob),
+				BlobKind: string(BlobDataPack), Problem: string(ProblemIO), Detail: "input/output error",
+			}},
+		},
+	}
+	u := usageEngineFor(f, inner.fakeEngine, &memExceptions{list: []Exception{approved(tempRel1)}})
+	u.KopiaEngine = inner
+	if _, err := u.RepoStats(context.Background(), "elements-local"); err == nil || !strings.Contains(err.Error(), "1 unreadable repository entry") {
+		t.Fatalf("owner-classified committed blob must keep repository stats blocked, got %v", err)
+	}
+	if inner.calls != 1 {
+		t.Fatalf("resource-kopia damage scan calls = %d, want exactly one owner scan", inner.calls)
 	}
 }
 
@@ -370,6 +452,12 @@ func TestSignatureChangesWithTheExactSetOfUnreadablePaths(t *testing.T) {
 	if mk(tempRel1).Signature() == mk(tempRel1, tempRel2).Signature() {
 		t.Fatal("a new unreadable path is a different condition and must raise a new question")
 	}
+	firstDrive, replacedDrive := mk(tempRel1), mk(tempRel1)
+	firstDrive.DestinationDevice = &destinationreadiness.DeviceIdentity{Filesystem: "ntfs", UUID: "uuid-a", Serial: "serial-a"}
+	replacedDrive.DestinationDevice = &destinationreadiness.DeviceIdentity{Filesystem: "ntfs", UUID: "uuid-b", Serial: "serial-b"}
+	if firstDrive.Signature() == replacedDrive.Signature() {
+		t.Fatal("the same repository path on a replacement device is a different repair target")
+	}
 }
 
 var hexRun = regexp.MustCompile(`[0-9a-f]{12,}`)
@@ -433,6 +521,76 @@ func TestDecisionIsPlainAndWithinTheHubLimits(t *testing.T) {
 	}
 	if facts.Reversible || facts.DefaultAnswer != "" {
 		t.Fatal("this decision changes nothing by default and is not reversible")
+	}
+}
+
+func TestDecisionOffersKopiaQuarantineForExactSetOfUnreadableSessionTemps(t *testing.T) {
+	d := presentDiagnosis()
+	entry := NewEntry(tempRel1, errEIO)
+	entry.Orphan = true
+	d.Unreadable = []Entry{entry}
+	d.DestinationDevice = &destinationreadiness.DeviceIdentity{Filesystem: "ntfs", UUID: "uuid", Serial: "serial"}
+	offers := OffersFor(d, false)
+	if !offers.KopiaQuarantine {
+		t.Fatal("one exact EIO session temp should offer Kopia quarantine")
+	}
+	facts := BuildFacts(d, offers, "incident", 1)
+	if facts.Recommended != OptKopiaQuarantine {
+		t.Fatalf("recommended = %s, want exact Kopia quarantine", facts.Recommended)
+	}
+	if err := facts.Validate(); err != nil {
+		t.Fatalf("quarantine decision invalid: %v", err)
+	}
+
+	second := NewEntry(tempRel2, errEIO)
+	second.Orphan = true
+	d.Unreadable = append(d.Unreadable, second)
+	if !OffersFor(d, false).KopiaQuarantine {
+		t.Fatal("two exact orphan temps can be covered by one exact-set authorization")
+	}
+	d.Unreadable = []Entry{NewEntry(tempRel1, errEIO)}
+	if OffersFor(d, false).KopiaQuarantine {
+		t.Fatal("a temp whose final sibling exists is not an orphan quarantine candidate")
+	}
+	dataPackTemp := NewEntry("p/abc/blob.f.tmp.8c9d63ca28444838", errEIO)
+	dataPackTemp.Orphan = true
+	d.Unreadable = []Entry{dataPackTemp}
+	if OffersFor(d, false).KopiaQuarantine {
+		t.Fatal("quarantine command does not own data-pack temp paths")
+	}
+	invalidSets := map[string]func(*Diagnosis){
+		"missing stable device identity": func(candidate *Diagnosis) { candidate.DestinationDevice = nil },
+		"duplicate exact path":           func(candidate *Diagnosis) { candidate.Unreadable = []Entry{entry, entry} },
+		"permission error": func(candidate *Diagnosis) {
+			denied := entry
+			denied.Problem = ProblemPermission
+			candidate.Unreadable = []Entry{denied}
+		},
+		"not orphaned": func(candidate *Diagnosis) {
+			paired := entry
+			paired.Orphan = false
+			candidate.Unreadable = []Entry{paired}
+		},
+		"non-normalized path": func(candidate *Diagnosis) {
+			unsafe := entry
+			unsafe.RelPath = "s/../" + path.Base(entry.RelPath)
+			candidate.Unreadable = []Entry{unsafe}
+		},
+		"mismatched typed class": func(candidate *Diagnosis) {
+			mismatch := entry
+			mismatch.Class = ClassOther
+			candidate.Unreadable = []Entry{mismatch}
+		},
+	}
+	for name, corrupt := range invalidSets {
+		t.Run(name, func(t *testing.T) {
+			candidate := d
+			candidate.Unreadable = []Entry{entry}
+			corrupt(&candidate)
+			if OffersFor(candidate, false).KopiaQuarantine {
+				t.Fatal("unsafe or ambiguous exact-set quarantine was offered")
+			}
+		})
 	}
 }
 
@@ -572,12 +730,18 @@ func TestExceptionWarningRepeatsDailyAndNamesWhoAndWhen(t *testing.T) {
 func TestIncidentStoreRoundTripsAndListsInCreationOrder(t *testing.T) {
 	store := &FileIncidentStore{Root: filepath.Join(t.TempDir(), "incidents")}
 	ctx := context.Background()
-	a := Incident{ID: "bf-a", DestinationID: "d", State: IncidentAwaiting, CreatedAt: fixedNow}
-	b := Incident{ID: "bf-b", DestinationID: "d", State: IncidentResolved, CreatedAt: fixedNow.Add(-time.Hour)}
+	a := Incident{ID: "bf-a", DestinationID: "d", Generation: 1, State: IncidentAwaiting, CreatedAt: fixedNow}
+	b := Incident{ID: "bf-b", DestinationID: "d", Signature: "sig", Generation: 1, State: IncidentAwaiting, CreatedAt: fixedNow.Add(-time.Hour)}
 	for _, in := range []Incident{a, b} {
 		if err := store.Put(ctx, in); err != nil {
 			t.Fatal(err)
 		}
+	}
+	if err := b.Transition(IncidentResolved); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Put(ctx, b); err != nil {
+		t.Fatal(err)
 	}
 	got, ok, err := store.Get(ctx, "bf-a")
 	if err != nil || !ok || got.State != IncidentAwaiting {
@@ -595,6 +759,93 @@ func TestIncidentStoreRoundTripsAndListsInCreationOrder(t *testing.T) {
 	}
 }
 
+func TestIncidentTransitionMatrix(t *testing.T) {
+	allowed := map[IncidentState][]IncidentState{
+		IncidentAwaiting:       {IncidentAwaiting, IncidentDeclined, IncidentLapsed, IncidentApplying, IncidentAgentRequested, IncidentResolved, IncidentSuperseded},
+		IncidentDeclined:       {IncidentDeclined, IncidentAwaiting, IncidentResolved, IncidentSuperseded},
+		IncidentLapsed:         {IncidentLapsed, IncidentAwaiting, IncidentResolved, IncidentSuperseded},
+		IncidentApplying:       {IncidentApplying, IncidentApplied, IncidentAgentRequested, IncidentFailed, IncidentSuperseded},
+		IncidentApplied:        {IncidentApplied, IncidentAwaiting, IncidentResolved, IncidentSuperseded},
+		IncidentAgentRequested: {IncidentAgentRequested, IncidentResolved, IncidentSuperseded},
+		IncidentFailed:         {IncidentFailed, IncidentAwaiting, IncidentResolved, IncidentSuperseded},
+		IncidentResolved:       {IncidentResolved, IncidentAwaiting},
+		IncidentSuperseded:     {IncidentSuperseded, IncidentAwaiting},
+	}
+	for from, valid := range allowed {
+		for _, next := range []IncidentState{IncidentAwaiting, IncidentDeclined, IncidentLapsed, IncidentApplying, IncidentApplied, IncidentAgentRequested, IncidentFailed, IncidentResolved, IncidentSuperseded, "unknown"} {
+			want := false
+			for _, item := range valid {
+				if next == item {
+					want = true
+					break
+				}
+			}
+			if got := from.CanTransitionTo(next); got != want {
+				t.Errorf("%q -> %q = %v, want %v", from, next, got, want)
+			}
+		}
+	}
+	if IncidentState("unknown").Valid() {
+		t.Fatal("unknown incident state was valid")
+	}
+	inc := Incident{Generation: 4, State: IncidentApplied}
+	if err := inc.Transition(IncidentAwaiting); err != nil || inc.Generation != 5 {
+		t.Fatalf("reopen = %+v, %v", inc, err)
+	}
+}
+
+func TestIncidentStoreRejectsInvalidEdgesWithoutChangingJournal(t *testing.T) {
+	store := &FileIncidentStore{Root: filepath.Join(t.TempDir(), "incidents")}
+	ctx := context.Background()
+	inc := Incident{ID: "bf-guard", DestinationID: "destination", Signature: "sig", Generation: 1, State: IncidentAwaiting, CreatedAt: fixedNow, UpdatedAt: fixedNow}
+	if err := store.Put(ctx, inc); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(store.Root, inc.ID+".json")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	invalid := inc
+	invalid.State = IncidentApplied
+	if err := store.Put(ctx, invalid); err == nil {
+		t.Fatal("awaiting incident skipped applying and was accepted")
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(before) {
+		t.Fatalf("invalid transition changed journal\nbefore=%s\nafter=%s", before, after)
+	}
+	invalid = inc
+	invalid.State = "future-state"
+	if err := store.Put(ctx, invalid); err == nil {
+		t.Fatal("unknown incident state was accepted")
+	}
+	if err := inc.Transition(IncidentApplying); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Put(ctx, inc); err != nil {
+		t.Fatal(err)
+	}
+	if err := inc.Transition(IncidentApplied); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Put(ctx, inc); err != nil {
+		t.Fatal(err)
+	}
+	if err := inc.Transition(IncidentApplying); err == nil {
+		t.Fatal("applied incident reopened without a new generation")
+	}
+	if err := inc.Transition(IncidentAwaiting); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Put(ctx, inc); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestNoticeStateSurvivesARestart(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state", "notices.json")
 	if err := (&NoticeStateStore{Path: path}).Mark("stalled:p1", fixedNow); err != nil {
@@ -605,6 +856,38 @@ func TestNoticeStateSurvivesARestart(t *testing.T) {
 		t.Fatalf("state = %+v %v", state, err)
 	}
 	_ = operatordecision.MaxQuestion
+}
+
+func TestPendingNoticeOutboxSurvivesRestartAndDeliveryMarkPreservesCadence(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state", "notices.json")
+	store := &NoticeStateStore{Path: path}
+	if err := store.Mark("stalled:p1", fixedNow); err != nil {
+		t.Fatal(err)
+	}
+	queued := PendingNotice{Key: "qblob:dest:q1234", Title: "Restored", Body: "Verified", Category: "backup_recovered", Urgency: "normal", DedupeKey: "backup-qblob:dest:q1234", CreatedAt: fixedNow}
+	if err := store.Queue(queued); err != nil {
+		t.Fatal(err)
+	}
+	restarted := &NoticeStateStore{Path: path}
+	rows, err := restarted.Pending()
+	if err != nil || len(rows) != 1 || rows[0] != queued {
+		t.Fatalf("pending=%+v err=%v", rows, err)
+	}
+	if err := restarted.Mark("disabled:p2", fixedNow.Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	rows, err = store.Pending()
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("ordinary Mark discarded pending rows: %+v err=%v", rows, err)
+	}
+	if err := restarted.MarkDelivered(queued.Key, fixedNow.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	rows, err = store.Pending()
+	state, stateErr := store.Load()
+	if err != nil || stateErr != nil || len(rows) != 0 || !state["stalled:p1"].Equal(fixedNow) || !state[queued.Key].Equal(fixedNow.Add(time.Minute)) {
+		t.Fatalf("pending=%+v state=%+v errors=%v/%v", rows, state, err, stateErr)
+	}
 }
 
 func TestSeveralIdlePlansAreOneDigestWhilePlansWithAQuestionKeepTheirOwnNotice(t *testing.T) {
@@ -659,5 +942,18 @@ func TestUnprotectedWordingIsGrammaticalForOneAllAndSomeItems(t *testing.T) {
 		if got := unprotectedPhrase(tc.unprotected, tc.total, "copy"); got != tc.want {
 			t.Errorf("unprotectedPhrase(%d, %d) = %q, want %q", tc.unprotected, tc.total, got, tc.want)
 		}
+	}
+}
+
+func TestFreshMigrationIDIsStableAndGenerationScoped(t *testing.T) {
+	first := FreshMigrationID("incident-1", 2)
+	if first == "" || first != FreshMigrationID(" incident-1 ", 2) {
+		t.Fatalf("migration id is not stable for a normalized incident: %q", first)
+	}
+	if first == FreshMigrationID("incident-1", 3) || first == FreshMigrationID("incident-2", 2) {
+		t.Fatal("distinct incident generations must have distinct migration journal identities")
+	}
+	if strings.Contains(first, "incident-1") {
+		t.Fatal("migration journal id must not expose the raw incident identifier")
 	}
 }

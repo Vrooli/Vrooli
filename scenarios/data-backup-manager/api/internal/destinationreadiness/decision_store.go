@@ -134,3 +134,39 @@ func (s *FileDecisionStore) CountOutstandingForSubject(ctx context.Context, subj
 	}
 	return count, nil
 }
+
+// ListAsks returns every stored ask, so a periodic reconcile can find a
+// decision that is still pending after the situation it asked about cleared.
+func (s *FileDecisionStore) ListAsks(ctx context.Context) ([]*operatordecision.PendingAsk, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if s == nil || !filepath.IsAbs(s.Root) {
+		return nil, errors.New("invalid volume-recovery decision store")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	entries, err := os.ReadDir(filepath.Clean(s.Root))
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var asks []*operatordecision.PendingAsk
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(filepath.Clean(s.Root), entry.Name()))
+		if err != nil {
+			return nil, err
+		}
+		var ask operatordecision.PendingAsk
+		if err := json.Unmarshal(data, &ask); err != nil {
+			return nil, err
+		}
+		asks = append(asks, &ask)
+	}
+	return asks, nil
+}

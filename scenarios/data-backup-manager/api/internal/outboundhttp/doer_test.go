@@ -1,4 +1,4 @@
-package httpc_test
+package outboundhttp_test
 
 import (
 	"io"
@@ -7,18 +7,17 @@ import (
 	"strings"
 	"testing"
 
-	"data-backup-manager/internal/httpc"
-	"data-backup-manager/internal/testutil/mocks"
-
+	"data-backup-manager/internal/outboundhttp"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/apihttptest"
 )
 
 // fetchBody is a tiny inline reference caller — represents the shape
 // any production code would take when consuming the Doer seam. The
 // test exercises both the production client constructor and the test
-// fake (mocks.FakeDoer) through this same function so the substitution
+// fake (apihttptest.FakeDoer) through this same function so the substitution
 // contract is proven end-to-end.
-func fetchBody(d httpc.Doer, url string) (string, error) {
+func fetchBody(d outboundhttp.Doer, url string) (string, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
@@ -44,7 +43,7 @@ func TestDoer_ProductionPath(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	got, err := fetchBody(httpc.NewDefaultClient(), srv.URL)
+	got, err := fetchBody(outboundhttp.NewDefaultClient(), srv.URL)
 	require.NoError(t, err)
 	require.Equal(t, "hello from production", got)
 }
@@ -54,7 +53,7 @@ func TestDoer_ProductionPath(t *testing.T) {
 // test asserts both that the body round-trips and that the fake
 // recorded the inbound request for after-the-fact assertions.
 func TestDoer_TestPath(t *testing.T) {
-	fake := &mocks.FakeDoer{}
+	fake := &apihttptest.FakeDoer{}
 	fake.AddResponse(http.StatusOK, []byte("hello from fake"))
 
 	got, err := fetchBody(fake, "https://example.invalid/path")

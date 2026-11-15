@@ -156,6 +156,9 @@ func (w *BackupFailureWorker) Stop(ctx context.Context) error {
 	cancel()
 	select {
 	case <-done:
+		if w.flow != nil {
+			return w.flow.WaitFreshMigrations(ctx)
+		}
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -166,6 +169,12 @@ func (w *BackupFailureWorker) reconcile(ctx context.Context) {
 	if w == nil || w.history == nil || w.dests == nil {
 		return
 	}
+	if w.flow != nil {
+		if err := w.flow.RetryPendingResultNotices(ctx); err != nil {
+			w.logger.Printf("pending backup decision result notices not fully delivered: %v", err)
+		}
+	}
+	w.publishPendingResultNotices(ctx)
 	plans, err := w.history.Plans(ctx)
 	if err != nil {
 		w.logger.Printf("backup failure scan could not list plans: %v", err)
@@ -181,7 +190,8 @@ func (w *BackupFailureWorker) reconcile(ctx context.Context) {
 		dests[d.ID] = d
 	}
 	w.reconcileFailures(ctx, plans, dests)
-	w.upkeepIncidents(ctx, plans)
+	w.upkeepIncidents(ctx, plans, dests)
+	w.settleDecisions(ctx)
 	if !w.now().Before(w.noticesNotBefore) && w.now().Sub(w.lastNoticeCheck) >= backupNoticeCheckEvery {
 		w.lastNoticeCheck = w.now()
 		w.reconcileNotices(ctx, plans, dests)
@@ -247,8 +257,183 @@ func (w *BackupFailureWorker) handleFailing(ctx context.Context, dest destinatio
 		return nil
 	}
 	w.lastDiagnosed[dest.ID] = w.now()
-	diag := w.diagnose(ctx, dest, plans)
+	var diag repohealth.Diagnosis
+	volume, _ := w.volumeState(ctx, dest)
+	if volume.Known && (!volume.Mounted || volume.ReadOnly) {
+		// Diagnose can return this device-owned state before touching Kopia.
+		// Preserve the existing volume-recovery handoff even though the normal
+		// repository-use gate correctly refuses an unavailable destination.
+		diag = w.diagnose(ctx, dest, plans)
+	} else {
+		// Repository evidence can trigger retry, repair planning, or a decision.
+		// Do not classify it using resource-kopia's potentially stale connection
+		// after a failed path re-resolution (for example NTFS UNKNOWN/EIO).
+		err := w.dests.WithResolvedDestination(ctx, dest.ID, func(current destinations.Destination) error {
+			if current.ID != dest.ID || current.Name != dest.Name || current.BackendKind != dest.BackendKind {
+				return fmt.Errorf("destination identity changed before backup-failure diagnosis")
+			}
+			dest = current
+			diag = w.diagnose(ctx, dest, plans)
+			return nil
+		})
+		if err != nil {
+			w.logger.Printf("backup failure diagnosis for destination %s deferred: destination readiness/identity not proven: %v", dest.ID, err)
+			return nil
+		}
+	}
+	if diag.Cause == repohealth.CauseSnapshotsUnlistable && diag.MissingBlobID != "" {
+		if recovered, err := w.restoreStandingOrphanBlob(ctx, dest, diag, planIDs, latest.ID); err != nil {
+			w.logger.Printf("standing orphan-blob recovery for destination %s deferred: %v", dest.ID, err)
+		} else if recovered {
+			return nil
+		}
+	}
 	return w.act(ctx, dest, diag, open, latest.ID, planIDs)
+}
+
+// restoreStandingOrphanBlob implements the operator's verified-human standing
+// authorization for exact orphan q-blobs. It asks resource-kopia for a fresh,
+// read-only candidate proof, commits only its exact digest, then requires a new
+// snapshot listing before it retries any affected plans.
+func (w *BackupFailureWorker) restoreStandingOrphanBlob(ctx context.Context, dest destinations.Destination, diag repohealth.Diagnosis, planIDs []string, failedRunID string) (bool, error) {
+	if w.usage == nil || w.publisher == nil || w.notices == nil || dest.BackendKind != destinations.BackendFilesystem || dest.DeviceIdentity == nil || !dest.DeviceIdentity.StrongIdentity() {
+		return false, nil
+	}
+	if ready, ok := w.publisher.(interface{ Enabled() bool }); ok && !ready.Enabled() {
+		return false, nil
+	}
+	probe, ok := w.usage.KopiaEngine.(engine.RepoOrphanBlobProbe)
+	if !ok {
+		return false, nil
+	}
+	recovery, ok := w.usage.KopiaEngine.(engine.RepoTempBlobRestorer)
+	if !ok {
+		return false, nil
+	}
+	repo := dest.Name
+	identity := *dest.DeviceIdentity
+	var candidate engine.OrphanBlobCandidate
+	var result engine.RepoTempBlobRestore
+	err := w.dests.WithResolvedDestination(ctx, dest.ID, func(current destinations.Destination) error {
+		if current.ID != dest.ID || current.Name != dest.Name || current.BackendKind != destinations.BackendFilesystem ||
+			current.DeviceIdentity == nil || !current.DeviceIdentity.StrongIdentity() ||
+			current.DeviceIdentity.UUID != identity.UUID || current.DeviceIdentity.Serial != identity.Serial ||
+			filepath.Clean(current.RepositoryLocation) != filepath.Clean(dest.RepositoryLocation) {
+			return fmt.Errorf("destination identity changed before orphan-blob recovery")
+		}
+		fresh, err := probe.RepoCacheProbe(ctx, repo, diag.MissingBlobID)
+		if err != nil {
+			return err
+		}
+		if fresh.BlobID != diag.MissingBlobID || fresh.CandidateBytes <= 0 || !validRecoveryDigest(fresh.CandidateSHA256) ||
+			!fresh.FinalBlobAbsent || !fresh.SourceRepositoryRead || fresh.OverlaySnapshotStatus != "snapshot_list_passed" || strings.TrimSpace(fresh.CandidatePath) == "" {
+			return fmt.Errorf("resource-kopia q-blob candidate proof is incomplete")
+		}
+		repositoryPath, relativeTemp, pathErr := exactOrphanQBlobTemp(current.RepositoryLocation, fresh)
+		if pathErr != nil {
+			return fmt.Errorf("resource-kopia q-blob candidate path is not exact: %w", pathErr)
+		}
+		candidate = fresh
+		result, err = recovery.RepoRestoreTemp(ctx, repo, repositoryPath, relativeTemp, candidate.CandidateSHA256)
+		if err != nil {
+			return err
+		}
+		if result.Repository != repo || result.RelativePath != relativeTemp || result.SHA256 != candidate.CandidateSHA256 ||
+			result.Bytes != candidate.CandidateBytes || !result.SourcePreserved || result.TargetReplaced || !result.Committed {
+			return fmt.Errorf("resource-kopia q-blob recovery result is incomplete or unsafe")
+		}
+		_, err = w.usage.KopiaEngine.SnapshotList(ctx, repo, "")
+		return err
+	})
+	if err != nil {
+		return false, err
+	}
+	now := w.now().UTC()
+	noticeKey := "qblob-restored:" + dest.ID + ":" + diag.MissingBlobID + ":" + failedRunID
+	if err := w.notices.Queue(repohealth.PendingNotice{
+		Key: noticeKey, Title: "Orphan repository blob restored",
+		Body:     "Kopia restored one exact missing repository blob from a verified disposable candidate; the source candidate was preserved and snapshot listing now succeeds.",
+		Category: categoryBackupRecovered, Urgency: "normal", DedupeKey: "backup-" + noticeKey, CreatedAt: now,
+	}); err != nil {
+		// The repository repair is already verified; do not present a stale repair
+		// question or repeat the mutation because notification persistence failed.
+		w.logger.Printf("q-blob recovery result could not be queued: %v", err)
+	} else {
+		w.publishPendingResultNotices(ctx)
+	}
+	w.retry(ctx, planIDs)
+	return true, nil
+}
+
+func exactOrphanQBlobTemp(repositoryRoot string, candidate engine.OrphanBlobCandidate) (string, string, error) {
+	rootInput := strings.TrimSpace(repositoryRoot)
+	if rootInput == "" || !filepath.IsAbs(rootInput) {
+		return "", "", fmt.Errorf("repository root is not an absolute path")
+	}
+	root, err := filepath.Abs(filepath.Clean(rootInput))
+	if err != nil {
+		return "", "", fmt.Errorf("resolve repository root: %w", err)
+	}
+	if candidate.Blob == nil || candidate.Blob.BlobID != candidate.BlobID || candidate.Blob.State != "missing" ||
+		!candidate.Blob.OrphanTemp || !strings.HasPrefix(candidate.Blob.RelativePath, "q/") || len(candidate.Blob.AdjacentTemps) != 1 {
+		return "", "", fmt.Errorf("typed q-blob classification is missing or ambiguous")
+	}
+	pathInput := strings.TrimSpace(candidate.CandidatePath)
+	if pathInput == "" || !filepath.IsAbs(pathInput) {
+		return "", "", fmt.Errorf("candidate path is not absolute")
+	}
+	path, err := filepath.Abs(filepath.Clean(pathInput))
+	if err != nil {
+		return "", "", fmt.Errorf("resolve candidate path: %w", err)
+	}
+	rel, err := filepath.Rel(root, path)
+	if err != nil || filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", "", fmt.Errorf("candidate does not resolve inside its registered repository")
+	}
+	slashRel := filepath.ToSlash(rel)
+	if slashRel != candidate.Blob.AdjacentTemps[0] || !strings.HasPrefix(slashRel, candidate.Blob.RelativePath+".tmp") {
+		return "", "", fmt.Errorf("candidate does not match the exact typed orphan q-blob temp")
+	}
+	if slashRel != candidate.Blob.RelativePath+".tmp" && !strings.HasPrefix(slashRel, candidate.Blob.RelativePath+".tmp.") {
+		return "", "", fmt.Errorf("candidate temp suffix is invalid")
+	}
+	return root, slashRel, nil
+}
+
+func (w *BackupFailureWorker) publishPendingResultNotices(ctx context.Context) {
+	if w == nil || w.notices == nil || w.publisher == nil {
+		return
+	}
+	if ready, ok := w.publisher.(interface{ Enabled() bool }); ok && !ready.Enabled() {
+		return
+	}
+	rows, err := w.notices.Pending()
+	if err != nil {
+		w.logger.Printf("pending backup result notices unreadable: %v", err)
+		return
+	}
+	for _, row := range rows {
+		event := backupNotification(row.Title, row.Body, row.Category, row.Urgency, row.DedupeKey, row.CreatedAt)
+		if err := w.publisher.PublishDomainEvent(ctx, event); err != nil {
+			w.logger.Printf("backup result notice %s not delivered: %v", row.Key, err)
+			continue
+		}
+		if err := w.notices.MarkDelivered(row.Key, w.now().UTC()); err != nil {
+			w.logger.Printf("backup result notice %s delivery could not be recorded: %v", row.Key, err)
+		}
+	}
+}
+
+func validRecoveryDigest(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	for _, r := range value {
+		if !(r >= '0' && r <= '9') && !(r >= 'a' && r <= 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func (w *BackupFailureWorker) openIncident(ctx context.Context, destinationID string) (*repohealth.Incident, error) {
@@ -273,13 +458,16 @@ func (w *BackupFailureWorker) act(ctx context.Context, dest destinations.Destina
 		// Every read-only check passes now: the failure was transient. The safe
 		// step is a retry.
 		if open != nil {
-			w.resolve(ctx, *open, "cleared on its own")
+			w.resolve(ctx, *open, resolvedCleared)
 		}
 		w.retry(ctx, planIDs)
 		return nil
 	case repohealth.CauseVolumeUnmounted:
 		// The existing drive recovery owns an unmounted volume: its clean-check
 		// remount, or its own repair question. No second question here.
+		if open != nil && open.State != repohealth.IncidentApplying { // a repair unmounts the drive itself
+			w.supersede(ctx, open, "The drive is not mounted right now, so this question no longer applies. Drive recovery is handling it.")
+		}
 		if w.volume != nil {
 			if err := w.volume.reconcileDestination(ctx, dest); err != nil {
 				return fmt.Errorf("drive recovery for unmounted destination: %w", err)
@@ -289,6 +477,9 @@ func (w *BackupFailureWorker) act(ctx context.Context, dest destinations.Destina
 	}
 	offers := repohealth.OffersFor(diag, w.repairPlannable(ctx, dest))
 	if !offers.Askable() {
+		if open != nil && open.State != repohealth.IncidentApplying {
+			w.supersede(ctx, open, "Nothing DBM can safely do applies to the current problem with "+open.Diagnosis.DriveSentence()+", so this question no longer applies.")
+		}
 		return fmt.Errorf("diagnosed %s but no action can be offered", diag.Cause)
 	}
 	inc, err := w.upsertIncident(ctx, dest, diag, offers, open, runID, planIDs)
@@ -308,7 +499,12 @@ func (w *BackupFailureWorker) upsertIncident(ctx context.Context, dest destinati
 	id := repohealth.IncidentID(dest.ID, diag.Signature())
 	now := w.now().UTC()
 	if open != nil && open.ID != id {
-		open.State, open.UpdatedAt = repohealth.IncidentSuperseded, now
+		// A different condition replaces this one; its question is revised under
+		// the destination's subject key by the raise that follows.
+		if err := open.Transition(repohealth.IncidentSuperseded); err != nil {
+			return nil, err
+		}
+		open.UpdatedAt = now
 		if err := w.incidents.Put(ctx, *open); err != nil {
 			return nil, err
 		}
@@ -322,18 +518,36 @@ func (w *BackupFailureWorker) upsertIncident(ctx context.Context, dest destinati
 		inc := w.newIncident(id, 1, dest, diag, offers, runID, planIDs)
 		return &inc, w.incidents.Put(ctx, inc)
 	case !existing.State.Open():
-		inc := w.newIncident(id, existing.Generation+1, dest, diag, offers, runID, planIDs)
-		return &inc, w.incidents.Put(ctx, inc)
+		// The same condition came back after it was resolved or superseded: the
+		// journal keeps its identity and starts the next generation, which is
+		// raised again under the destination's subject key.
+		reopened, err := w.reopen(existing, diag, offers, planIDs)
+		if err != nil {
+			return nil, err
+		}
+		reopened.DiagnosedRunID, reopened.ResolvedAt = runID, time.Time{}
+		return &reopened, w.incidents.Put(ctx, reopened)
 	}
 	existing.DiagnosedRunID, existing.UpdatedAt = runID, now
 	switch existing.State {
+	case repohealth.IncidentAwaiting:
+		// The same condition, diagnosed again: keep the open question's text
+		// current. The hub updates the one open decision in place.
+		existing.Diagnosis, existing.Offers, existing.PlanIDs = diag, offers, planIDs
+		existing.Subject = repohealth.BuildFacts(diag, offers, existing.ID, existing.Generation).Subject
 	case repohealth.IncidentApplied:
 		// The answer was applied and the next run hit the same condition: it did
 		// not hold. Ask again as a new generation.
-		existing = w.reopen(existing, diag, offers, planIDs)
+		existing, err = w.reopen(existing, diag, offers, planIDs)
+		if err != nil {
+			return nil, err
+		}
 	case repohealth.IncidentDeclined, repohealth.IncidentFailed:
 		if now.Sub(lastTouch(existing)) >= backupReaskAfter {
-			existing = w.reopen(existing, diag, offers, planIDs)
+			existing, err = w.reopen(existing, diag, offers, planIDs)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	return &existing, w.incidents.Put(ctx, existing)
@@ -360,20 +574,23 @@ func (w *BackupFailureWorker) newIncident(id string, generation int, dest destin
 	}
 }
 
-func (w *BackupFailureWorker) reopen(inc repohealth.Incident, diag repohealth.Diagnosis, offers repohealth.Offers, planIDs []string) repohealth.Incident {
+func (w *BackupFailureWorker) reopen(inc repohealth.Incident, diag repohealth.Diagnosis, offers repohealth.Offers, planIDs []string) (repohealth.Incident, error) {
 	now := w.now().UTC()
-	inc.Generation++
-	inc.State, inc.Diagnosis, inc.Offers, inc.PlanIDs = repohealth.IncidentAwaiting, diag, offers, planIDs
+	if err := inc.Transition(repohealth.IncidentAwaiting); err != nil {
+		return inc, err
+	}
+	inc.Diagnosis, inc.Offers, inc.PlanIDs = diag, offers, planIDs
 	inc.Subject = repohealth.BuildFacts(diag, offers, inc.ID, inc.Generation).Subject
 	inc.AskID = backupAskID(inc.ID, inc.Generation)
-	inc.DeclinedAt, inc.AnsweredAt, inc.AnsweredBy, inc.Answer, inc.Result, inc.UpdatedAt = time.Time{}, time.Time{}, "", "", "", now
+	inc.DeclinedAt, inc.AnsweredAt, inc.AnsweredBy, inc.AnsweredByIdentityKind, inc.AnsweredByIdentitySource, inc.Answer, inc.Result, inc.UpdatedAt = time.Time{}, time.Time{}, "", "", "", "", "", now
 	inc.AskedAt = now
-	return inc
+	return inc, nil
 }
 
-// upkeepIncidents closes incidents whose destination works again, keeps each
-// unanswered question in front of the operator, and asks again after a decline.
-func (w *BackupFailureWorker) upkeepIncidents(ctx context.Context, plans []PlanRecord) {
+// upkeepIncidents closes incidents whose destination works again or went away,
+// keeps each unanswered question in front of the operator, and asks again after
+// a decline.
+func (w *BackupFailureWorker) upkeepIncidents(ctx context.Context, plans []PlanRecord, dests map[string]destinations.Destination) {
 	all, err := w.incidents.List(ctx)
 	if err != nil {
 		w.logger.Printf("backup failure upkeep could not list incidents: %v", err)
@@ -383,8 +600,20 @@ func (w *BackupFailureWorker) upkeepIncidents(ctx context.Context, plans []PlanR
 		if !inc.State.Open() {
 			continue
 		}
+		if inc.State == repohealth.IncidentApplying {
+			if w.flow != nil {
+				if err := w.flow.ResumeApplying(ctx, inc); err != nil {
+					w.logger.Printf("backup failure recovery for incident %s: %v", inc.ID, err)
+				}
+			}
+			continue
+		}
 		if w.recovered(ctx, inc, plans) {
-			w.resolve(ctx, inc, "backups succeeded again")
+			w.resolve(ctx, inc, resolvedByBackup)
+			continue
+		}
+		if why := w.abandonedReason(inc, plans, dests); why != "" {
+			w.supersede(ctx, &inc, why)
 			continue
 		}
 		switch inc.State {
@@ -406,7 +635,12 @@ func (w *BackupFailureWorker) upkeepIncidents(ctx context.Context, plans []PlanR
 
 // reask opens the next generation of an incident's question and publishes it.
 func (w *BackupFailureWorker) reask(ctx context.Context, inc repohealth.Incident) {
-	inc = w.reopen(inc, inc.Diagnosis, inc.Offers, inc.PlanIDs)
+	var err error
+	inc, err = w.reopen(inc, inc.Diagnosis, inc.Offers, inc.PlanIDs)
+	if err != nil {
+		w.logger.Printf("backup failure re-ask transition failed: %v", err)
+		return
+	}
 	if err := w.incidents.Put(ctx, inc); err != nil {
 		w.logger.Printf("backup failure re-ask could not be recorded: %v", err)
 		return
@@ -451,9 +685,57 @@ func (w *BackupFailureWorker) stillFailing(ctx context.Context, inc repohealth.I
 	return false
 }
 
+// The reasons an incident resolves; the first two name how backups recovered.
+const (
+	resolvedByBackup = "backups succeeded again"
+	resolvedCleared  = "cleared on its own"
+)
+
+// abandonedReason is why an incident no longer has anything to protect: its
+// destination was removed, or no enabled plan writes to it any more. Empty
+// while the incident is still about a live backup path.
+func (w *BackupFailureWorker) abandonedReason(inc repohealth.Incident, plans []PlanRecord, dests map[string]destinations.Destination) string {
+	drive := inc.Diagnosis.DriveSentence()
+	if _, ok := dests[inc.DestinationID]; !ok {
+		return "The backup destination for " + drive + " was removed, so this question no longer applies."
+	}
+	if len(w.enabledPlansUsing(inc.DestinationID, plans)) == 0 {
+		return "No backup plan is switched on for " + drive + " any more, so this question no longer applies."
+	}
+	return ""
+}
+
+// supersede closes an incident that no longer needs a decision, with the
+// operator-facing reason its question is withdrawn for.
+func (w *BackupFailureWorker) supersede(ctx context.Context, inc *repohealth.Incident, why string) {
+	if err := inc.Transition(repohealth.IncidentSuperseded); err != nil {
+		w.logger.Printf("backup failure incident supersede transition failed: %v", err)
+		return
+	}
+	inc.UpdatedAt, inc.Result = w.now().UTC(), why
+	if err := w.incidents.Put(ctx, *inc); err != nil {
+		w.logger.Printf("backup failure incident could not be superseded: %v", err)
+	}
+}
+
+// settleDecisions withdraws every question that no longer matches an incident
+// awaiting a decision.
+func (w *BackupFailureWorker) settleDecisions(ctx context.Context) {
+	if w.flow == nil {
+		return
+	}
+	if err := w.flow.Settle(ctx); err != nil {
+		w.logger.Printf("backup failure decisions could not be settled: %v", err)
+	}
+}
+
 func (w *BackupFailureWorker) resolve(ctx context.Context, inc repohealth.Incident, why string) {
 	now := w.now().UTC()
-	inc.State, inc.ResolvedAt, inc.UpdatedAt, inc.Result = repohealth.IncidentResolved, now, now, why
+	if err := inc.Transition(repohealth.IncidentResolved); err != nil {
+		w.logger.Printf("backup failure incident resolve transition failed: %v", err)
+		return
+	}
+	inc.ResolvedAt, inc.UpdatedAt, inc.Result = now, now, why
 	if err := w.incidents.Put(ctx, inc); err != nil {
 		w.logger.Printf("backup failure incident could not be closed: %v", err)
 		return
@@ -495,9 +777,11 @@ func (w *BackupFailureWorker) diagnose(ctx context.Context, dest destinations.De
 	labels := w.labelsFor(ctx, plans)
 	return repohealth.Diagnose(ctx, repohealth.DiagnoseInput{
 		Now: w.now(), DestinationID: dest.ID, DestinationName: dest.Name, Location: dest.Location,
-		RepositoryRoot: dest.RepositoryLocation,
-		Volume:         func(ctx context.Context) (repohealth.VolumeState, error) { return w.volumeState(ctx, dest) },
-		Engine:         w.usage, Scan: w.usage.CachedScan, Scanner: w.usage.Scanner, Exceptions: w.exceptions,
+		RepositoryRoot: dest.RepositoryLocation, DestinationDevice: dest.DeviceIdentity,
+		Volume: func(ctx context.Context) (repohealth.VolumeState, error) { return w.volumeState(ctx, dest) },
+		Engine: w.usage, Scan: func(ctx context.Context, root string) (repohealth.Scan, error) {
+			return w.usage.CachedRepoScan(ctx, dest.Name, root)
+		}, Scanner: w.usage.Scanner, Exceptions: w.exceptions,
 		LastSuccess: func(_ context.Context, snaps []engine.Snapshot) (time.Time, string) {
 			return w.lastSuccess(using, successes, labels, snaps)
 		},
@@ -693,35 +977,47 @@ func latestSnapshotFor(snaps []engine.Snapshot, targets map[string]bool, labels 
 // repoSuccess returns the newest repository snapshot time for the given
 // targets on a destination, cached because it lists every snapshot.
 func (w *BackupFailureWorker) repoSuccess(ctx context.Context, dest destinations.Destination, targets map[string]bool, labels map[string]TargetLabel) time.Time {
-	ev, ok := w.evidence[dest.ID]
-	ttl := repoEvidenceTTL
-	if ok && !ev.ok {
-		ttl = repoEvidenceFailedTTL
-	}
-	if !ok || w.now().Sub(ev.at) >= ttl {
-		ev = repoEvidence{at: w.now()}
-		snaps, err := w.usage.SnapshotList(ctx, dest.Name, "")
-		if err == nil {
-			ev.ok, ev.latestBy = true, map[string]time.Time{}
-			for _, s := range snaps {
-				started, perr := time.Parse(time.RFC3339Nano, s.StartTime)
-				if perr != nil {
-					continue
-				}
-				for _, l := range labels {
-					if repohealth.SnapshotSourceMatches(s.Source, l.Owner, l.Name) && started.After(ev.latestBy[l.String()]) {
-						ev.latestBy[l.String()] = started
+	var latest time.Time
+	err := w.dests.WithResolvedDestination(ctx, dest.ID, func(current destinations.Destination) error {
+		if current.ID != dest.ID || current.Name != dest.Name || current.BackendKind != dest.BackendKind {
+			return fmt.Errorf("destination identity changed before repository success lookup")
+		}
+		dest = current
+		ev, ok := w.evidence[dest.ID]
+		ttl := repoEvidenceTTL
+		if ok && !ev.ok {
+			ttl = repoEvidenceFailedTTL
+		}
+		if !ok || w.now().Sub(ev.at) >= ttl {
+			ev = repoEvidence{at: w.now()}
+			snaps, err := w.usage.SnapshotList(ctx, dest.Name, "")
+			if err == nil {
+				ev.ok, ev.latestBy = true, map[string]time.Time{}
+				for _, s := range snaps {
+					started, perr := time.Parse(time.RFC3339Nano, s.StartTime)
+					if perr != nil {
+						continue
+					}
+					for _, l := range labels {
+						if repohealth.SnapshotSourceMatches(s.Source, l.Owner, l.Name) && started.After(ev.latestBy[l.String()]) {
+							ev.latestBy[l.String()] = started
+						}
 					}
 				}
 			}
+			w.evidence[dest.ID] = ev
 		}
-		w.evidence[dest.ID] = ev
-	}
-	var latest time.Time
-	for t := range targets {
-		if l, ok := labels[t]; ok && ev.latestBy[l.String()].After(latest) {
-			latest = ev.latestBy[l.String()]
+		for t := range targets {
+			if l, ok := labels[t]; ok && ev.latestBy[l.String()].After(latest) {
+				latest = ev.latestBy[l.String()]
+			}
 		}
+		return nil
+	})
+	if err != nil {
+		delete(w.evidence, dest.ID)
+		w.logger.Printf("backup notice repository evidence for destination %s deferred: %v", dest.ID, err)
+		return time.Time{}
 	}
 	return latest
 }

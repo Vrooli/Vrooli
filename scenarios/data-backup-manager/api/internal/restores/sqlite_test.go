@@ -224,6 +224,33 @@ func TestLastVerifiedByTarget(t *testing.T) {
 	}
 }
 
+func TestLastVerifiedByTargetDestinationKeepsCopiesSeparate(t *testing.T) {
+	ctx := context.Background()
+	clk := scheduletest.New(time.Unix(1700000000, 0).UTC())
+	repo := restores.NewSQLiteRepository(newRestoresDB(t), clk)
+	base := clk.Now().UTC()
+	for _, record := range []restores.Restore{
+		{TargetID: "t1", DestinationID: "d1", SnapshotID: "s1", Mode: restores.ModeVerify, Status: restores.RestoreVerified, LastVerifiedAt: base, RequestedAt: base, FinishedAt: base},
+		{TargetID: "t1", DestinationID: "d2", SnapshotID: "s2", Mode: restores.ModeVerify, Status: restores.RestoreVerified, LastVerifiedAt: base.Add(time.Minute), RequestedAt: base.Add(time.Minute), FinishedAt: base.Add(time.Minute)},
+		{TargetID: "t1", DestinationID: "d2", SnapshotID: "bad", Mode: restores.ModeVerify, Status: restores.RestoreFailed, RequestedAt: base.Add(2 * time.Minute), FinishedAt: base.Add(2 * time.Minute)},
+	} {
+		if _, err := repo.CreateRestore(ctx, record); err != nil {
+			t.Fatalf("CreateRestore: %v", err)
+		}
+	}
+	got, err := repo.LastVerifiedByTargetDestination(ctx, []string{"t1"})
+	if err != nil {
+		t.Fatalf("LastVerifiedByTargetDestination: %v", err)
+	}
+	if len(got) != 2 || got[0].DestinationID != "d2" || got[1].DestinationID != "d1" {
+		t.Fatalf("verified destination rows = %+v, want separate d1 and d2", got)
+	}
+	byDestination := map[string]restores.DestinationVerifiedStatus{got[0].DestinationID: got[0], got[1].DestinationID: got[1]}
+	if byDestination["d1"].SnapshotID != "s1" || byDestination["d2"].SnapshotID != "s2" || !byDestination["d2"].LastVerifiedAt.Equal(base.Add(time.Minute)) {
+		t.Fatalf("latest verified rows = %+v", got)
+	}
+}
+
 func isErrRestoreNotFound(err error, out *restores.ErrRestoreNotFound) bool {
 	if err == nil {
 		return false

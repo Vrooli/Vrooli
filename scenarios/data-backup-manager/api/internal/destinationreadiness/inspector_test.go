@@ -199,6 +199,21 @@ func TestInspectDeviceResolvesUnmountedVolumeByStableIdentity(t *testing.T) {
 	}
 }
 
+func TestInspectDeviceRejectsAmbiguousMountedStableIdentity(t *testing.T) {
+	root := t.TempDir()
+	inspector := destinationreadiness.NewReadOnlyInspector(fakeDeviceScanner{
+		fakeVolumeScanner: fakeVolumeScanner{volumes: []sysmounts.Volume{
+			{DevicePath: "/dev/sda1", Mountpoint: filepath.Join(root, "one"), Filesystem: "ntfs", UUID: "cloned-uuid"},
+			{DevicePath: "/dev/sdb1", Mountpoint: filepath.Join(root, "two"), Filesystem: "ntfs", UUID: "cloned-uuid"},
+		}},
+		devices: map[string]sysmounts.Volume{"resolved": {DevicePath: "/dev/sda1", Filesystem: "ntfs", UUID: "cloned-uuid"}},
+	})
+	_, err := inspector.InspectDevice(context.Background(), destinationreadiness.DeviceIdentity{Filesystem: "ntfs", UUID: "cloned-uuid"})
+	if err == nil {
+		t.Fatal("ambiguous mounted UUID was resolved to an arbitrary volume")
+	}
+}
+
 func TestInspectDevicePrefersStableIdentityOverStaleDevicePath(t *testing.T) {
 	inspector := destinationreadiness.NewReadOnlyInspector(fakeDeviceScanner{
 		fakeVolumeScanner: fakeVolumeScanner{volumes: []sysmounts.Volume{

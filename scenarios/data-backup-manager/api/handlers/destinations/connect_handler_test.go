@@ -2,16 +2,64 @@ package destinations
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
 
+	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/destinations"
 	"data-backup-manager/internal/destinations/mocks"
+	"data-backup-manager/internal/sysmounts"
 
 	destinationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/destinations"
 )
+
+type fixedReadinessInspector struct {
+	inspection destinationreadiness.Inspection
+}
+
+func (i fixedReadinessInspector) Inspect(context.Context, string) (destinationreadiness.Inspection, error) {
+	return i.inspection, nil
+}
+
+func TestAnalyzeDestinationUsesExactRegisteredMountEvidence(t *testing.T) {
+	ctx := context.Background()
+	identity := destinationreadiness.DeviceIdentity{DevicePath: "/dev/usb1", Mountpoint: "/media/Elements", Filesystem: "ntfs", UUID: "uuid-a", Serial: "serial-a"}
+	store := &destinationreadiness.FileRecoveryStore{Root: filepath.Join(t.TempDir(), "episodes")}
+	episode, err := store.ObserveEpisode(ctx, "dest-a", identity, false, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.RecordOfflineCheck(ctx, "dest-a", episode.RecoveryID, identity, "check-plan-a", "yes", "consistent"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.RecordMountedCheck(ctx, "dest-a", episode.RecoveryID, identity, "mount-1", true, false); err != nil {
+		t.Fatal(err)
+	}
+	readiness := destinationreadiness.NewService(fixedReadinessInspector{inspection: destinationreadiness.Inspection{
+		Identity: identity, MountEpisodeID: "mount-1", LocationExists: true, LocationIsDirectory: true, Mounted: true,
+		FilesystemState: sysmounts.FilesystemStateUnknown,
+	}}, nil).WithMountedCheckEvidence(store)
+	service := &mocks.FakeService{ListOut: []destinations.Destination{{
+		ID: "dest-a", BackendKind: destinations.BackendFilesystem,
+		Location: "/media/Elements/vrooli-backups", DeviceIdentity: &identity,
+	}}}
+	h := NewConnectHandler(Deps{Service: service, Readiness: readiness})
+	response, err := h.AnalyzeDestination(ctx, connect.NewRequest(&destinationsv1.AnalyzeDestinationRequest{
+		Location: "/media/Elements/vrooli-backups",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !response.Msg.Report.OfflineCheckVerified {
+		t.Fatalf("report=%+v, want mounted offline-check evidence from exact registered destination", response.Msg.Report)
+	}
+	if response.Msg.Report.OverallSeverity == destinationsv1.ReadinessSeverity_READINESS_SEVERITY_UNKNOWN {
+		t.Fatalf("report=%+v, verified current mount evidence must resolve native unknown", response.Msg.Report)
+	}
+}
 
 // TestDestinationsService_Contract exercises every DestinationsService RPC
 // against the handler backed by a FakeService and asserts request→domain and
@@ -69,6 +117,25 @@ func TestDestinationsService_Contract(t *testing.T) {
 		_, err := h.CreateDestination(ctx, connect.NewRequest(&destinationsv1.CreateDestinationRequest{}))
 		if connect.CodeOf(err) != connect.CodeInvalidArgument {
 			t.Fatalf("code = %v, want invalid_argument", connect.CodeOf(err))
+		}
+	})
+
+	t.Run("ImportExistingDestination forwards exact descriptor and proof", func(t *testing.T) {
+		svc := &mocks.FakeService{ImportOut: destinations.Destination{ID: "stable-id", Name: "offsite", BackendKind: destinations.BackendFilesystem}}
+		h := NewConnectHandler(Deps{Service: svc})
+		resp, err := h.ImportExistingDestination(ctx, connect.NewRequest(&destinationsv1.ImportExistingDestinationRequest{
+			DestinationId: "stable-id", Name: "offsite", BackendKind: destinationsv1.BackendKind_BACKEND_KIND_FILESYSTEM,
+			Location: "/mnt/offsite/vrooli-backups", CreatedAt: "2026-01-01T00:00:00Z", ExpectedSnapshotIds: []string{"snap-a"},
+			CapBytes: 500, CapPolicy: destinationsv1.CapPolicy_CAP_POLICY_ALERT_ONLY,
+		}))
+		if err != nil {
+			t.Fatalf("ImportExistingDestination: %v", err)
+		}
+		if svc.ImportInput.ID != "stable-id" || svc.ImportInput.Name != "offsite" || svc.ImportInput.Backend != destinations.BackendFilesystem || svc.ImportInput.Location != "/mnt/offsite/vrooli-backups" || svc.ImportInput.CapBytes != 500 || svc.ImportInput.CapPolicy != destinations.CapPolicyAlertOnly || len(svc.ImportInput.ExpectedSnapshotIDs) != 1 || svc.ImportInput.ExpectedSnapshotIDs[0] != "snap-a" {
+			t.Fatalf("import input = %+v", svc.ImportInput)
+		}
+		if resp.Msg.Destination.Id != "stable-id" {
+			t.Fatalf("response = %+v", resp.Msg.Destination)
 		}
 	})
 

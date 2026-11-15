@@ -83,22 +83,98 @@ func (f *faultFS) firstFailure() error {
 
 type backupKopia struct {
 	engine.KopiaEngine
-	fs        *faultFS
-	statusErr error
-	listErr   error
-	snaps     []engine.Snapshot
+	fs              *faultFS
+	statusErr       error
+	listErr         error
+	snaps           []engine.Snapshot
+	statusCalls     int
+	listCalls       int
+	statsCalls      int
+	cacheCandidate  engine.OrphanBlobCandidate
+	cacheProbeCalls int
+	blobCommitCalls int
 }
 
+type disabledRecoveryPublisher struct{ *recoveryDecisionPublisher }
+
+func (disabledRecoveryPublisher) Enabled() bool { return false }
+
 func (k *backupKopia) RepoStatus(context.Context, string) (engine.RepoStatus, error) {
+	k.statusCalls++
 	return engine.RepoStatus{Connected: true}, k.statusErr
 }
 
 func (k *backupKopia) SnapshotList(context.Context, string, string) ([]engine.Snapshot, error) {
+	k.listCalls++
 	return k.snaps, k.listErr
 }
 
 func (k *backupKopia) RepoStats(context.Context, string) (engine.RepoStats, error) {
+	k.statsCalls++
 	return engine.RepoStats{}, k.fs.firstFailure()
+}
+
+func (k *backupKopia) RepoCacheProbe(_ context.Context, _ string, blobID string) (engine.OrphanBlobCandidate, error) {
+	k.cacheProbeCalls++
+	if k.cacheCandidate.BlobID != blobID {
+		return engine.OrphanBlobCandidate{}, fmt.Errorf("candidate id mismatch")
+	}
+	return k.cacheCandidate, nil
+}
+
+func (k *backupKopia) RepoRestoreTemp(_ context.Context, repo, root, rel, digest string) (engine.RepoTempBlobRestore, error) {
+	k.blobCommitCalls++
+	k.listErr = nil
+	source := filepath.Join(root, filepath.FromSlash(rel))
+	final := strings.SplitN(filepath.Base(rel), ".tmp", 2)[0]
+	return engine.RepoTempBlobRestore{Repository: repo, RelativePath: rel, Source: source,
+		Target: filepath.Join(filepath.Dir(source), final), SHA256: digest, Bytes: k.cacheCandidate.CandidateBytes,
+		SourcePreserved: true, Committed: true}, nil
+}
+
+func (k *backupKopia) RepoDamageScan(ctx context.Context, _ string) (engine.RepoDamageScan, error) {
+	scan, err := (&repohealth.Scanner{FS: k.fs}).Walk(ctx, k.fs.root)
+	if err != nil {
+		return engine.RepoDamageScan{}, err
+	}
+	result := engine.RepoDamageScan{Root: scan.Root, StartedAt: scan.StartedAt.Format(time.RFC3339Nano), DurationNS: int64(scan.Duration), Files: scan.Files, Bytes: scan.Bytes, TempFiles: scan.TempFiles}
+	for _, entry := range scan.Unreadable {
+		result.Unreadable = append(result.Unreadable, engine.RepoDamageEntry{RelativePath: entry.RelPath, Class: string(entry.Class), BlobKind: string(entry.BlobKind), Problem: string(entry.Problem), Orphan: entry.Orphan, Detail: entry.Detail})
+	}
+	return result, nil
+}
+
+type fakeRepoRepair struct {
+	calls     []string
+	result    engine.RepoQuarantineResult
+	root      string
+	fs        *faultFS
+	failAt    int
+	failed    bool
+	completed map[string]engine.RepoQuarantineResult
+}
+
+func (r *fakeRepoRepair) RepoQuarantineTempBlob(_ context.Context, repo, relativePath string) (engine.RepoQuarantineResult, error) {
+	r.calls = append(r.calls, repo+":"+relativePath)
+	if result, ok := r.completed[relativePath]; ok {
+		return result, nil
+	}
+	if r.failAt > 0 && len(r.calls) == r.failAt && !r.failed {
+		r.failed = true
+		return engine.RepoQuarantineResult{}, fmt.Errorf("simulated interruption after prior quarantine")
+	}
+	result := r.result
+	result.Repository = repo
+	result.OriginalPath = filepath.Join(r.root, filepath.FromSlash(relativePath))
+	result.QuarantinePath = filepath.Join(filepath.Dir(r.root), filepath.Base(r.root)+"-recovery-quarantine-test", filepath.FromSlash(relativePath))
+	if r.fs != nil {
+		r.fs.heal(relativePath)
+	}
+	if r.completed == nil {
+		r.completed = map[string]engine.RepoQuarantineResult{}
+	}
+	r.completed[relativePath] = result
+	return result, nil
 }
 
 type fakeHistory struct {
@@ -135,21 +211,22 @@ func (h *fakeHistory) TriggerRun(_ context.Context, id string) error {
 }
 
 type backupHarness struct {
-	t         *testing.T
-	now       time.Time
-	worker    *BackupFailureWorker
-	flow      *BackupFailureFlow
-	volume    *RecoveryDecisionFlow
-	publisher *recoveryDecisionPublisher
-	history   *fakeHistory
-	fs        *faultFS
-	kopia     *backupKopia
-	usage     *repohealth.UsageEngine
-	store     *repohealth.FileExceptionStore
-	incidents *repohealth.FileIncidentStore
-	remed     *decisionTestRemediator
-	dest      destdomain.Destination
-	mounted   *bool
+	t          *testing.T
+	now        time.Time
+	worker     *BackupFailureWorker
+	flow       *BackupFailureFlow
+	volume     *RecoveryDecisionFlow
+	publisher  *recoveryDecisionPublisher
+	history    *fakeHistory
+	fs         *faultFS
+	kopia      *backupKopia
+	usage      *repohealth.UsageEngine
+	store      *repohealth.FileExceptionStore
+	incidents  *repohealth.FileIncidentStore
+	remed      *decisionTestRemediator
+	repoRepair *fakeRepoRepair
+	dest       destdomain.Destination
+	mounted    *bool
 }
 
 func newBackupHarness(t *testing.T, unreadable ...string) *backupHarness {
@@ -214,11 +291,18 @@ func newBackupHarness(t *testing.T, unreadable ...string) *backupHarness {
 	}
 	h.incidents = &repohealth.FileIncidentStore{Root: filepath.Join(dir, "incidents")}
 	clock := func() time.Time { return h.now }
+	h.repoRepair = &fakeRepoRepair{root: repoDir, fs: h.fs, result: engine.RepoQuarantineResult{
+		Repository: "elements-local", OriginalPath: filepath.Join(repoDir, tempA),
+		QuarantinePath:       repoDir + "-recovery-quarantine-test",
+		FinalBlobPath:        filepath.Join(repoDir, "s", "123", "blob.f"),
+		QuarantineSameVolume: true, Committed: true,
+	}}
 	h.flow = newBackupFailureFlow(BackupFailureFlowDeps{
 		Readiness: readiness, Volume: h.volume, Recoveries: recoveries,
 		Asks:      &destinationreadiness.FileDecisionStore{Root: filepath.Join(dir, "backup-asks")},
 		Publisher: h.publisher, Incidents: h.incidents, Exceptions: h.store, Scanner: h.usage.Scanner, Usage: h.usage,
-		History: h.history, Dests: &destmocks.FakeService{GetOut: h.dest, ListOut: []destdomain.Destination{h.dest}}, Enabled: true, Now: clock,
+		RepoRepair: h.repoRepair,
+		History:    h.history, Dests: &destmocks.FakeService{GetOut: h.dest, ListOut: []destdomain.Destination{h.dest}}, Enabled: true, Now: clock,
 	})
 	h.worker = newBackupFailureWorker(BackupFailureWorkerDeps{
 		History: h.history, Dests: &destmocks.FakeService{GetOut: h.dest, ListOut: []destdomain.Destination{h.dest}},
@@ -231,6 +315,26 @@ func newBackupHarness(t *testing.T, unreadable ...string) *backupHarness {
 }
 
 func (h *backupHarness) reconcile() { h.worker.reconcile(context.Background()) }
+
+func (h *backupHarness) upkeep() {
+	h.worker.upkeepIncidents(context.Background(), h.history.plans, map[string]destdomain.Destination{h.dest.ID: h.dest})
+}
+
+func (h *backupHarness) restartFailureFlow() {
+	incidents := &repohealth.FileIncidentStore{Root: h.incidents.Root}
+	exceptions := &repohealth.FileExceptionStore{Root: h.store.Root}
+	recoveries := &destinationreadiness.FileRecoveryStore{Root: h.flow.recoveries.(*destinationreadiness.FileRecoveryStore).Root}
+	asks := &destinationreadiness.FileDecisionStore{Root: h.flow.asks.(*destinationreadiness.FileDecisionStore).Root}
+	flow := newBackupFailureFlow(BackupFailureFlowDeps{
+		Readiness: h.flow.readiness, Volume: h.flow.volume, Recoveries: recoveries, Asks: asks, Publisher: h.publisher,
+		Incidents: incidents, Exceptions: exceptions, Scanner: h.usage.Scanner, Usage: h.usage, RepoRepair: h.repoRepair,
+		History: h.history, Dests: &destmocks.FakeService{GetOut: h.dest, ListOut: []destdomain.Destination{h.dest}},
+		Enabled: true, Now: func() time.Time { return h.now },
+	})
+	h.incidents, h.store, h.flow = incidents, exceptions, flow
+	h.worker.incidents, h.worker.exceptions, h.worker.flow = incidents, exceptions, flow
+	h.worker.recoveries = recoveries
+}
 
 func (h *backupHarness) events(eventType string) []eventbus.DomainEvent {
 	var out []eventbus.DomainEvent
@@ -310,7 +414,7 @@ func TestBackupFailureRaisesOneDecisionAndRepresentsItUntilAnswered(t *testing.T
 		t.Fatalf("decision events = %d, want exactly one however many sweeps pass", len(decisions))
 	}
 	payload := decisions[0].Payload
-	if !strings.Contains(payload["subject"].(string), "82 days") || payload["recommended"] != repohealth.OptAccept {
+	if !strings.Contains(payload["subject"].(string), "82 days") || payload["recommended"] != repohealth.OptKopiaQuarantine {
 		t.Fatalf("decision subject/recommended = %v / %v", payload["subject"], payload["recommended"])
 	}
 	question := payload["question"].(string)
@@ -325,6 +429,39 @@ func TestBackupFailureRaisesOneDecisionAndRepresentsItUntilAnswered(t *testing.T
 	}
 	if len(h.history.triggered) != 0 || h.remed.calls != 0 || len(h.exceptions()) != 0 {
 		t.Fatal("raising the question must change nothing: no run, no host action, no exception")
+	}
+}
+
+func TestBackupFailureDefersDiagnosisWhenDestinationReadinessCannotBeProven(t *testing.T) {
+	h := newBackupHarness(t, tempA)
+	h.worker.notices = nil
+	dests := h.worker.dests.(*destmocks.FakeService)
+	dests.ResolveErr = fmt.Errorf("filesystem readiness is unknown")
+	h.reconcile()
+	incidents, err := h.incidents.List(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(incidents) != 0 || len(h.decisions()) != 0 || len(h.history.triggered) != 0 {
+		t.Fatalf("stale repository diagnosis caused an incident, notice or retry: incidents=%d notices=%d runs=%v", len(incidents), len(h.decisions()), h.history.triggered)
+	}
+	if h.kopia.statusCalls != 0 || h.kopia.listCalls != 0 || h.kopia.statsCalls != 0 {
+		t.Fatalf("Kopia probed after destination readiness failed: status=%d list=%d stats=%d", h.kopia.statusCalls, h.kopia.listCalls, h.kopia.statsCalls)
+	}
+}
+
+func TestStalledNoticeDoesNotUseCachedRepositoryEvidenceWhenDestinationCannotResolve(t *testing.T) {
+	h := newBackupHarness(t)
+	dests := h.worker.dests.(*destmocks.FakeService)
+	dests.ResolveErr = fmt.Errorf("filesystem readiness is unknown")
+	got := h.worker.repoSuccess(context.Background(), h.dest, map[string]bool{"t-sessions": true}, map[string]TargetLabel{
+		"t-sessions": {Owner: "codex", Name: "sessions"},
+	})
+	if !got.IsZero() {
+		t.Fatalf("repository evidence = %s, want unknown while destination cannot resolve", got)
+	}
+	if h.kopia.listCalls != 0 {
+		t.Fatalf("snapshot listing occurred after destination resolution failed: %d calls", h.kopia.listCalls)
 	}
 }
 
@@ -410,6 +547,234 @@ func TestBackupFailureAcceptRecordsExactExceptionsAndResumesBackups(t *testing.T
 	h.apply(h.resolution(inc, repohealth.OptAccept))
 	if len(h.history.triggered) != 1 || len(h.notices(categoryBackupRecovered)) != 1 || len(h.exceptions()) != 2 {
 		t.Fatal("a replayed answer was applied twice")
+	}
+}
+
+func TestBackupFailureApplyingAcceptRecoversAfterRestartWithoutDuplicateRun(t *testing.T) {
+	h := newBackupHarness(t, tempA, tempB)
+	h.reconcile()
+	inc := h.openIncident()
+	res := h.resolution(inc, repohealth.OptAccept)
+	if err := h.flow.beginApplying(context.Background(), &inc, res); err != nil {
+		t.Fatal(err)
+	}
+	// One exception was durable before the process stopped. Add is idempotent,
+	// so restart can finish the exact approved path set without replacing its
+	// original approval evidence.
+	if err := h.store.Add(context.Background(), repohealth.Exception{
+		DestinationID: inc.DestinationID, RelPath: tempA, Class: repohealth.ClassLeftoverTemp,
+		BlobKind: repohealth.BlobOther, Problem: repohealth.ProblemIO, ApprovedBy: res.AnsweredBy,
+		ApprovedBySource: res.AnsweredByIdentitySource, ApprovedAt: h.now, AskID: inc.AskID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	h.restartFailureFlow()
+	h.upkeep()
+	got, ok, err := h.incidents.Get(context.Background(), inc.ID)
+	if err != nil || !ok || got.State != repohealth.IncidentApplied {
+		t.Fatalf("recovered incident = %+v, %v, %v", got, ok, err)
+	}
+	if len(h.exceptions()) != 2 || len(h.history.triggered) != 1 {
+		t.Fatalf("recovery effects exceptions=%d runs=%v", len(h.exceptions()), h.history.triggered)
+	}
+	h.upkeep()
+	if len(h.history.triggered) != 1 {
+		t.Fatalf("duplicate upkeep triggered a second backup: %v", h.history.triggered)
+	}
+}
+
+func TestKopiaQuarantineDecisionRevalidatesOneExactObjectAndPublishesResult(t *testing.T) {
+	h := newBackupHarness(t, tempA)
+	h.reconcile()
+	inc := h.openIncident()
+	if !inc.Offers.KopiaQuarantine || len(inc.Diagnosis.Unreadable) != 1 || inc.Diagnosis.Unreadable[0].RelPath != tempA {
+		t.Fatalf("exact-object quarantine was not offered for the incident: %+v", inc)
+	}
+	decisions := h.decisions()
+	if len(decisions) != 1 || decisions[0].Payload["recommended"] != repohealth.OptKopiaQuarantine || !strings.Contains(decisions[0].Payload["question"].(string), "quarantine these 1 exact unreadable Kopia temp") {
+		t.Fatalf("Notification Hub facts do not carry the exact quarantine option: %+v", decisions)
+	}
+	res := h.resolution(inc, repohealth.OptKopiaQuarantine)
+	h.apply(res)
+	got, ok, err := h.incidents.Get(context.Background(), inc.ID)
+	if err != nil || !ok || got.State != repohealth.IncidentApplied {
+		t.Fatalf("quarantine incident = %+v, ok=%v, err=%v", got, ok, err)
+	}
+	if len(h.repoRepair.calls) != 1 || h.repoRepair.calls[0] != "elements-local:"+tempA {
+		t.Fatalf("Kopia repair calls = %v, want one exact repo/path call", h.repoRepair.calls)
+	}
+	if len(h.exceptions()) != 0 || len(h.history.triggered) != 1 || len(h.notices(categoryBackupRecovered)) != 1 {
+		t.Fatalf("quarantine result exceptions=%d retries=%v notices=%d", len(h.exceptions()), h.history.triggered, len(h.notices(categoryBackupRecovered)))
+	}
+	if _, err := h.flow.Apply(context.Background(), res); err != nil || len(h.repoRepair.calls) != 1 {
+		t.Fatalf("replayed callback should not repeat a committed quarantine: calls=%v err=%v", h.repoRepair.calls, err)
+	}
+}
+
+func TestKopiaQuarantineRefusesChangedIdentityRootOrDamageSet(t *testing.T) {
+	cases := []struct {
+		name   string
+		change func(*backupHarness)
+	}{
+		{
+			name: "device identity changed",
+			change: func(h *backupHarness) {
+				service := h.flow.dests.(*destmocks.FakeService)
+				current := h.dest
+				identity := *h.dest.DeviceIdentity
+				identity.Serial = "different-serial"
+				current.DeviceIdentity = &identity
+				service.ResolveOut = current
+			},
+		},
+		{
+			name: "repository root changed",
+			change: func(h *backupHarness) {
+				service := h.flow.dests.(*destmocks.FakeService)
+				current := h.dest
+				current.RepositoryLocation = filepath.Join(h.dest.RepositoryLocation, "replacement.kopia")
+				service.ResolveOut = current
+			},
+		},
+		{
+			name:   "unapproved unreadable entry appeared",
+			change: func(h *backupHarness) { h.fs.breakEntry(tempB) },
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newBackupHarness(t, tempA)
+			h.reconcile()
+			inc := h.openIncident()
+			res := h.resolution(inc, repohealth.OptKopiaQuarantine)
+			tc.change(h)
+			h.apply(res)
+			got, ok, err := h.incidents.Get(context.Background(), inc.ID)
+			if err != nil || !ok || got.State != repohealth.IncidentApplying {
+				t.Fatalf("unsafe change did not remain applying for review: %+v ok=%t err=%v", got, ok, err)
+			}
+			if len(h.repoRepair.calls) != 0 || len(h.notices(categoryBackupRecovered)) != 0 || len(h.history.triggered) != 0 {
+				t.Fatalf("quarantine effect escaped revalidation: calls=%v notices=%d retries=%v", h.repoRepair.calls, len(h.notices(categoryBackupRecovered)), h.history.triggered)
+			}
+		})
+	}
+}
+
+func TestKopiaQuarantineResultMustNameTheExactMovedRelativePath(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "elements-local.kopia")
+	relative := "s/f43/blob.f.tmp.deadbeef"
+	result := engine.RepoQuarantineResult{
+		Repository: "elements-local", OriginalPath: filepath.Join(root, filepath.FromSlash(relative)),
+		QuarantinePath: filepath.Join(filepath.Dir(root), filepath.Base(root)+"-recovery-quarantine-123", filepath.FromSlash(relative)),
+		Committed:      true, QuarantineSameVolume: true,
+	}
+	if !validQuarantineResult(result, "elements-local", root, relative) {
+		t.Fatalf("owner's exact same-volume result was rejected: %+v", result)
+	}
+	result.QuarantinePath = filepath.Join(filepath.Dir(root), filepath.Base(root)+"-recovery-quarantine-123", "s/f43/another.f.tmp.deadbeef")
+	if validQuarantineResult(result, "elements-local", root, relative) {
+		t.Fatal("owner result for a different quarantined entry was accepted")
+	}
+}
+
+func TestBackupFailureApplyingRepairRecoversPendingJournalAfterRestart(t *testing.T) {
+	h := newBackupHarness(t, tempA)
+	h.reconcile()
+	inc := h.openIncident()
+	res := h.resolution(inc, repohealth.OptRepair)
+	root := filepath.Clean(h.dest.DeviceIdentity.Mountpoint)
+	plans, err := h.flow.planRepairSteps(context.Background(), root, *h.dest.DeviceIdentity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	journal, err := destinationreadiness.NewRecoveryJournal(root, *h.dest.DeviceIdentity, plans, h.now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	journal.ID = operatordecision.CorrelationID("dbm-backup-repair", inc.ID, fmt.Sprint(inc.Generation))
+	if err := h.flow.recoveries.Save(context.Background(), journal); err != nil {
+		t.Fatal(err)
+	}
+	inc.RepairJournalID = journal.ID
+	if err := h.flow.beginApplying(context.Background(), &inc, res); err != nil {
+		t.Fatal(err)
+	}
+	h.restartFailureFlow()
+	h.upkeep()
+	got, ok, err := h.incidents.Get(context.Background(), inc.ID)
+	if err != nil || !ok || got.State != repohealth.IncidentApplied {
+		t.Fatalf("recovered incident = %+v, %v, %v", got, ok, err)
+	}
+	if h.remed.calls != 3 || len(h.history.triggered) != 1 {
+		t.Fatalf("recovery host=%d runs=%v, want three host actions and one backup", h.remed.calls, h.history.triggered)
+	}
+}
+
+func TestBackupFailureApplyingRepairWithAmbiguousStepRequiresInspection(t *testing.T) {
+	h := newBackupHarness(t, tempA)
+	h.reconcile()
+	inc := h.openIncident()
+	res := h.resolution(inc, repohealth.OptRepair)
+	root := filepath.Clean(h.dest.DeviceIdentity.Mountpoint)
+	plans, err := h.flow.planRepairSteps(context.Background(), root, *h.dest.DeviceIdentity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	journal, err := destinationreadiness.NewRecoveryJournal(root, *h.dest.DeviceIdentity, plans, h.now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	journal.ID = operatordecision.CorrelationID("dbm-backup-repair", inc.ID, fmt.Sprint(inc.Generation))
+	journal.State, journal.Current, journal.Steps[0].Status = destinationreadiness.RecoveryRunning, 0, destinationreadiness.RecoveryStepInFlight
+	if err := h.flow.recoveries.Save(context.Background(), journal); err != nil {
+		t.Fatal(err)
+	}
+	inc.RepairJournalID = journal.ID
+	if err := h.flow.beginApplying(context.Background(), &inc, res); err != nil {
+		t.Fatal(err)
+	}
+	h.restartFailureFlow()
+	h.upkeep()
+	got, ok, err := h.incidents.Get(context.Background(), inc.ID)
+	if err != nil || !ok || got.State != repohealth.IncidentApplying || !strings.Contains(got.Result, "Inspect the drive") {
+		t.Fatalf("ambiguous recovery = %+v, %v, %v", got, ok, err)
+	}
+	if h.remed.calls != 0 || len(h.history.triggered) != 0 || len(h.notices(categoryBackupNeedsAttention)) != 1 {
+		t.Fatalf("ambiguous recovery actions host=%d runs=%v notices=%d", h.remed.calls, h.history.triggered, len(h.notices(categoryBackupNeedsAttention)))
+	}
+	h.upkeep()
+	if h.remed.calls != 0 || len(h.notices(categoryBackupNeedsAttention)) != 1 {
+		t.Fatalf("inspection hold was not stable: host=%d notices=%d", h.remed.calls, len(h.notices(categoryBackupNeedsAttention)))
+	}
+}
+
+func TestBackupFailureRejectsStaleGenerationDecision(t *testing.T) {
+	h := newBackupHarness(t, tempA)
+	h.reconcile()
+	old := h.openIncident()
+	if err := old.Transition(repohealth.IncidentDeclined); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.incidents.Put(context.Background(), old); err != nil {
+		t.Fatal(err)
+	}
+	if err := old.Transition(repohealth.IncidentAwaiting); err != nil {
+		t.Fatal(err)
+	}
+	old.AskID = backupAskID(old.ID, old.Generation)
+	old.AskedAt, old.UpdatedAt = h.now.Add(time.Minute), h.now.Add(time.Minute)
+	if err := h.incidents.Put(context.Background(), old); err != nil {
+		t.Fatal(err)
+	}
+	stale := h.resolution(old, repohealth.OptAccept)
+	stale.Correlation["generation"] = fmt.Sprint(old.Generation - 1)
+	stale.AskID = backupAskID(old.ID, old.Generation-1)
+	if handled, err := h.flow.Apply(context.Background(), stale); !handled || err != nil {
+		t.Fatalf("stale Apply = %v, %v", handled, err)
+	}
+	current, _, err := h.incidents.Get(context.Background(), old.ID)
+	if err != nil || current.Generation != old.Generation || current.State != repohealth.IncidentAwaiting || len(h.exceptions()) != 0 || len(h.history.triggered) != 0 {
+		t.Fatalf("stale answer affected current generation: incident=%+v exceptions=%d runs=%v err=%v", current, len(h.exceptions()), h.history.triggered, err)
 	}
 }
 
@@ -513,20 +878,72 @@ func TestBackupFailureRepairIsRefusedWithoutAVerifiedHuman(t *testing.T) {
 	}
 }
 
-func TestBackupFailureFreshSetOnlyRecordsTheRequestForAnAgent(t *testing.T) {
+func TestBackupFailureFreshSetCallbackPersistsFailClosedMigrationHandoff(t *testing.T) {
 	h := newBackupHarness(t, tempA)
 	h.reconcile()
-	h.apply(h.resolution(h.openIncident(), repohealth.OptFresh))
+	inc := h.openIncident()
+	h.apply(h.resolution(inc, repohealth.OptFresh))
 	if h.remed.calls != 0 || len(h.exceptions()) != 0 || len(h.history.triggered) != 0 {
-		t.Fatal("the agent-only option changed something")
+		t.Fatal("migration must not repair, quarantine, accept exceptions, or trigger the old plan before a new destination is selected")
 	}
 	got := h.openIncident()
-	if got.State != repohealth.IncidentAgentRequested {
+	if got.State != repohealth.IncidentAgentRequested || got.Answer != repohealth.OptFresh || got.AnsweredByIdentityKind != "verified_human" {
 		t.Fatalf("state = %s", got.State)
 	}
+	if got.FreshMigrationStage != "awaiting_destination_selection" || !strings.Contains(got.FreshMigrationDetail, "capacity proof") {
+		t.Fatalf("migration progress was not durably held on missing operator inputs: %+v", got)
+	}
+	if got.FreshMigrationID != repohealth.FreshMigrationID(got.ID, got.Generation) {
+		t.Fatalf("migration journal id = %q, want stable incident-generation binding", got.FreshMigrationID)
+	}
 	notes := h.notices(categoryBackupNeedsAttention)
-	if len(notes) != 1 || !strings.Contains(notes[0].Payload["body"].(string), "Ask an agent") {
-		t.Fatalf("the operator must be told what to ask an agent: %+v", notes)
+	if len(notes) != 1 || !strings.Contains(notes[0].Payload["body"].(string), "operator-selected destination") || !strings.Contains(notes[0].Payload["body"].(string), "old repository remains preserved") {
+		t.Fatalf("the result notice must name missing migration inputs and preservation guarantee: %+v", notes)
+	}
+}
+
+func TestBackupFailureFreshHandoffReplaysNoticeAfterIncidentCommit(t *testing.T) {
+	h := newBackupHarness(t, tempA)
+	h.reconcile()
+	inc := h.openIncident()
+	res := h.resolution(inc, repohealth.OptFresh)
+	res.AnsweredAt = h.now.UTC().Format(time.RFC3339Nano)
+	if err := h.flow.beginApplying(context.Background(), &inc, res); err != nil {
+		t.Fatal(err)
+	}
+	if err := inc.Transition(repohealth.IncidentAgentRequested); err != nil {
+		t.Fatal(err)
+	}
+	inc.FreshMigrationStage = "awaiting_destination_selection"
+	inc.FreshMigrationID = repohealth.FreshMigrationID(inc.ID, inc.Generation)
+	inc.FreshMigrationDetail = "No destination inputs supplied."
+	if err := h.incidents.Put(context.Background(), inc); err != nil {
+		t.Fatal(err)
+	}
+	// Model a process exit after the incident journal write but before the
+	// Notification Hub ask/result receipt was committed.
+	h.apply(res)
+	if len(h.history.triggered) != 0 || h.remed.calls != 0 {
+		t.Fatal("handoff replay must publish its result without beginning migration effects")
+	}
+	if got := h.openIncident(); got.FreshMigrationStage != "awaiting_destination_selection" {
+		t.Fatalf("replay lost durable migration progress: %+v", got)
+	}
+	if notes := h.notices(categoryBackupNeedsAttention); len(notes) != 1 {
+		t.Fatalf("result notice count = %d, want exactly one", len(notes))
+	}
+}
+
+func TestBackupFailureFreshSetRefusesUnverifiedCallback(t *testing.T) {
+	h := newBackupHarness(t, tempA)
+	h.reconcile()
+	inc := h.openIncident()
+	h.apply(h.resolution(inc, repohealth.OptFresh, func(r *operatordecision.DecisionResolution) { r.AnsweredByIdentityKind = "agent" }))
+	if got := h.openIncident(); got.State != repohealth.IncidentDeclined || got.Answer != repohealth.OptFresh {
+		t.Fatalf("unverified callback changed incident: %+v", got)
+	}
+	if len(h.notices(categoryBackupNeedsAttention)) != 1 || h.remed.calls != 0 || len(h.history.triggered) != 0 {
+		t.Fatal("unverified callback must be rejected without migration or repair effects")
 	}
 }
 
@@ -604,6 +1021,237 @@ func TestBackupFailureContentLossIsNeverOfferedForSkipping(t *testing.T) {
 	h.apply(h.resolution(inc, repohealth.OptAccept))
 	if len(h.exceptions()) != 0 {
 		t.Fatal("an exception was recorded for unreadable repository content")
+	}
+}
+
+func TestDB4RepositoryDamageChoicesUseOneVerifiedDecisionClassForEIOAndMissingBlob(t *testing.T) {
+	cases := []struct {
+		name, unreadable string
+		cause            repohealth.Cause
+		wantQuarantine   bool
+	}{
+		{name: "unreadable orphan temp with EIO", unreadable: tempA, cause: repohealth.CauseLeftoverTempUnreadable, wantQuarantine: true},
+		{name: "unreadable suffixless orphan temp with EIO", unreadable: "s/f43/abc.f.tmp", cause: repohealth.CauseLeftoverTempUnreadable, wantQuarantine: true},
+		{name: "missing committed blob with EIO", unreadable: blobQ, cause: repohealth.CauseContentUnreadable},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newBackupHarness(t, tc.unreadable)
+			h.reconcile()
+			inc := h.openIncident()
+			if inc.Diagnosis.Cause != tc.cause {
+				t.Fatalf("diagnosis cause = %s, want %s", inc.Diagnosis.Cause, tc.cause)
+			}
+			if !inc.Offers.Repair || !inc.Offers.Fresh || inc.Offers.KopiaQuarantine != tc.wantQuarantine {
+				t.Fatalf("repository repair options = %+v", inc.Offers)
+			}
+			decisionEvents := h.decisions()
+			if len(decisionEvents) != 1 {
+				t.Fatalf("decision count = %d, want one", len(decisionEvents))
+			}
+			keys := map[string]bool{}
+			options, ok := decisionEvents[0].Payload["options"].([]any)
+			if !ok {
+				t.Fatalf("decision options have type %T", decisionEvents[0].Payload["options"])
+			}
+			for _, raw := range options {
+				option, ok := raw.(map[string]any)
+				if !ok {
+					t.Fatalf("decision option has type %T", raw)
+				}
+				keys[fmt.Sprint(option["key"])] = true
+			}
+			for _, key := range []string{repohealth.OptRepair, repohealth.OptFresh} {
+				if !keys[key] {
+					t.Errorf("one decision omitted %q: %v", key, keys)
+				}
+			}
+			if keys[repohealth.OptKopiaQuarantine] != tc.wantQuarantine {
+				t.Fatalf("quarantine option=%t, want %t", keys[repohealth.OptKopiaQuarantine], tc.wantQuarantine)
+			}
+			// The fresh-set route is deliberately a no-write operator decision.
+			// Exercise the same signed, verified-human callback for both damage
+			// classes, then verify one result notice and no filesystem/repo repair.
+			h.apply(h.resolution(inc, repohealth.OptFresh))
+			got, ok, err := h.incidents.Get(context.Background(), inc.ID)
+			if err != nil || !ok || got.State != repohealth.IncidentAgentRequested {
+				t.Fatalf("recorded outcome=%+v ok=%t err=%v", got, ok, err)
+			}
+			if h.remed.calls != 0 || len(h.repoRepair.calls) != 0 || len(h.notices(categoryBackupNeedsAttention)) != 1 {
+				t.Fatalf("fresh-set callback effects: volume=%v repo=%v notices=%d", h.remed.calls, h.repoRepair.calls, len(h.notices(categoryBackupNeedsAttention)))
+			}
+		})
+	}
+}
+
+func TestDB4SuffixlessTempUsesVerifiedQuarantineCallback(t *testing.T) {
+	const temp = "s/f43/abc.f.tmp"
+	h := newBackupHarness(t, temp)
+	h.reconcile()
+	inc := h.openIncident()
+	if !inc.Offers.KopiaQuarantine || len(inc.Diagnosis.Unreadable) != 1 || inc.Diagnosis.Unreadable[0].RelPath != temp || !inc.Diagnosis.Unreadable[0].Orphan {
+		t.Fatalf("suffixless exact temp was not offered for quarantine: %+v", inc)
+	}
+	h.apply(h.resolution(inc, repohealth.OptKopiaQuarantine))
+	got, ok, err := h.incidents.Get(context.Background(), inc.ID)
+	if err != nil || !ok || got.State != repohealth.IncidentApplied {
+		t.Fatalf("suffixless quarantine incident = %+v ok=%t err=%v", got, ok, err)
+	}
+	if len(h.repoRepair.calls) != 1 || h.repoRepair.calls[0] != "elements-local:"+temp || len(h.history.triggered) != 1 || len(h.notices(categoryBackupRecovered)) != 1 {
+		t.Fatalf("suffixless quarantine effects calls=%v retries=%v notices=%d", h.repoRepair.calls, h.history.triggered, len(h.notices(categoryBackupRecovered)))
+	}
+}
+
+func TestDB4QuarantineSetResumesIdempotentlyAfterPartialApplyAndRestart(t *testing.T) {
+	h := newBackupHarness(t, tempA, tempB)
+	h.repoRepair.failAt = 2 // tempB is committed first; tempA interrupts the first callback.
+	h.reconcile()
+	inc := h.openIncident()
+	if !inc.Offers.KopiaQuarantine || len(inc.Diagnosis.Unreadable) != 2 {
+		t.Fatalf("complete exact orphan set was not offered: %+v", inc.Diagnosis)
+	}
+	h.apply(h.resolution(inc, repohealth.OptKopiaQuarantine))
+	partial, ok, err := h.incidents.Get(context.Background(), inc.ID)
+	if err != nil || !ok || partial.State != repohealth.IncidentApplying || len(partial.QuarantinedPaths) != 1 || partial.QuarantinedPaths[0] != tempB {
+		t.Fatalf("partial quarantine receipt=%+v ok=%t err=%v", partial, ok, err)
+	}
+	h.restartFailureFlow()
+	h.upkeep()
+	got, ok, err := h.incidents.Get(context.Background(), inc.ID)
+	if err != nil || !ok || got.State != repohealth.IncidentApplied || len(got.QuarantinedPaths) != 2 {
+		t.Fatalf("resumed quarantine incident=%+v ok=%t err=%v", got, ok, err)
+	}
+	if len(h.repoRepair.calls) != 4 || len(h.history.triggered) != 1 || len(h.notices(categoryBackupRecovered)) != 1 {
+		t.Fatalf("quarantine replay calls=%v retries=%v success notices=%d", h.repoRepair.calls, h.history.triggered, len(h.notices(categoryBackupRecovered)))
+	}
+	h.upkeep()
+	if len(h.repoRepair.calls) != 4 || len(h.history.triggered) != 1 {
+		t.Fatalf("repeated upkeep replayed completed work: calls=%v retries=%v", h.repoRepair.calls, h.history.triggered)
+	}
+}
+
+func TestStandingQBlobApprovalRestoresOnlyAnExactOwnerVerifiedCandidate(t *testing.T) {
+	h := newBackupHarness(t)
+	h.kopia.listErr = fmt.Errorf(`BLOB not found: blob "q1234"`)
+	setStandingQBlobCandidate(h)
+	h.reconcile()
+	if h.kopia.cacheProbeCalls != 1 || h.kopia.blobCommitCalls != 1 {
+		t.Fatalf("probe/commit = %d/%d", h.kopia.cacheProbeCalls, h.kopia.blobCommitCalls)
+	}
+	if len(h.decisions()) != 0 {
+		t.Fatal("standing q-blob authorization incorrectly raised a new decision")
+	}
+	if len(h.history.triggered) != 1 || h.history.triggered[0] != "plan-elements" {
+		t.Fatalf("triggered plans = %v", h.history.triggered)
+	}
+	var recoveryNotices int
+	for _, event := range h.publisher.events {
+		if strings.HasPrefix(fmt.Sprint(event.Payload["dedupe_key"]), "backup-qblob-restored:") || strings.Contains(fmt.Sprint(event.Payload["title"]), "Orphan repository blob restored") {
+			recoveryNotices++
+		}
+	}
+	if recoveryNotices != 1 {
+		t.Fatalf("q-blob result notices = %d, want one", recoveryNotices)
+	}
+}
+
+func setStandingQBlobCandidate(h *backupHarness) {
+	const final = "q/1234.f"
+	const temp = final + ".tmp.abcd1234"
+	h.kopia.cacheCandidate = engine.OrphanBlobCandidate{
+		BlobID: "q1234", CandidatePath: filepath.Join(h.dest.RepositoryLocation, filepath.FromSlash(temp)), CandidateBytes: 17,
+		CandidateSHA256: strings.Repeat("a", 64), FinalBlobAbsent: true, SourceRepositoryRead: true,
+		OverlaySnapshotStatus: "snapshot_list_passed",
+		Blob:                  &engine.RepoBlobInspection{BlobID: "q1234", RelativePath: final, State: "missing", OrphanTemp: true, AdjacentTemps: []string{temp}},
+	}
+}
+
+func TestStandingQBlobRecoveryKeepsResultNoticePendingUntilDelivered(t *testing.T) {
+	h := newBackupHarness(t)
+	h.kopia.listErr = fmt.Errorf(`BLOB not found: blob "q1234"`)
+	setStandingQBlobCandidate(h)
+	h.publisher.failType, h.publisher.failTypeTimes = backupNotificationType, 1
+	h.reconcile()
+	pending, err := h.worker.notices.Pending()
+	if err != nil || len(pending) != 1 || pending[0].Key != "qblob-restored:dest-1:q1234:run-1" {
+		t.Fatalf("pending result notices=%+v err=%v", pending, err)
+	}
+	stored, err := os.ReadFile(h.worker.notices.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(stored), "/private/transient/candidate") || strings.Contains(string(stored), strings.Repeat("a", 64)) {
+		t.Fatal("pending result state leaked candidate path or digest")
+	}
+	if len(h.decisions()) != 0 || len(h.history.triggered) != 1 {
+		t.Fatalf("recovery raised a decision or skipped retry: decisions=%d retries=%v", len(h.decisions()), h.history.triggered)
+	}
+	h.worker.publishPendingResultNotices(context.Background())
+	pending, err = h.worker.notices.Pending()
+	if err != nil || len(pending) != 0 {
+		t.Fatalf("result notice was not cleared after delivery: pending=%+v err=%v", pending, err)
+	}
+	var count int
+	for _, event := range h.publisher.events {
+		if strings.Contains(fmt.Sprint(event.Payload["title"]), "Orphan repository blob restored") {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("delivered q-blob result notice count=%d, want one", count)
+	}
+}
+
+func TestStandingQBlobRecoveryDoesNotMutateWhenResultRouteIsDisabled(t *testing.T) {
+	h := newBackupHarness(t)
+	h.kopia.listErr = fmt.Errorf(`BLOB not found: blob "q1234"`)
+	setStandingQBlobCandidate(h)
+	h.worker.publisher = disabledRecoveryPublisher{h.publisher}
+	h.reconcile()
+	if h.kopia.blobCommitCalls != 0 {
+		t.Fatalf("commit calls=%d while notification route is disabled", h.kopia.blobCommitCalls)
+	}
+	if len(h.decisions()) != 1 {
+		t.Fatalf("fallback decision count=%d, want one", len(h.decisions()))
+	}
+}
+
+func TestStandingQBlobApprovalFailsClosedWithoutOwnerCandidateProof(t *testing.T) {
+	h := newBackupHarness(t)
+	h.kopia.listErr = fmt.Errorf(`BLOB not found: blob "q1234"`)
+	h.kopia.cacheCandidate = engine.OrphanBlobCandidate{BlobID: "q1234", CandidateBytes: 17, CandidateSHA256: strings.Repeat("a", 64), FinalBlobAbsent: true,
+		SourceRepositoryRead: true, OverlaySnapshotStatus: "snapshot_list_failed"}
+	h.reconcile()
+	if h.kopia.blobCommitCalls != 0 {
+		t.Fatalf("commit calls = %d, want 0", h.kopia.blobCommitCalls)
+	}
+	if len(h.decisions()) != 1 {
+		t.Fatalf("decision count = %d, want one fallback decision", len(h.decisions()))
+	}
+}
+
+func TestStandingQBlobRecoveryRejectsCandidateOutsideExactTypedTemp(t *testing.T) {
+	for _, mutate := range []struct {
+		name string
+		edit func(*engine.OrphanBlobCandidate)
+	}{
+		{name: "outside repository", edit: func(c *engine.OrphanBlobCandidate) { c.CandidatePath = "/outside/q/1234.f.tmp.abcd1234" }},
+		{name: "not in typed adjacent set", edit: func(c *engine.OrphanBlobCandidate) { c.Blob.AdjacentTemps = []string{"q/9999.f.tmp.abcd1234"} }},
+		{name: "unreadable classification", edit: func(c *engine.OrphanBlobCandidate) { c.Blob.State = "unreadable" }},
+	} {
+		t.Run(mutate.name, func(t *testing.T) {
+			h := newBackupHarness(t)
+			h.kopia.listErr = fmt.Errorf(`BLOB not found: blob "q1234"`)
+			setStandingQBlobCandidate(h)
+			mutate.edit(&h.kopia.cacheCandidate)
+			h.reconcile()
+			if h.kopia.blobCommitCalls != 0 {
+				t.Fatalf("unsafe candidate was restored %d times", h.kopia.blobCommitCalls)
+			}
+			if len(h.decisions()) != 1 {
+				t.Fatalf("unsafe candidate did not fall back to one decision: %d", len(h.decisions()))
+			}
+		})
 	}
 }
 

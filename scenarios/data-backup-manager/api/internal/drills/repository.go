@@ -3,6 +3,8 @@ package drills
 import (
 	"context"
 	"time"
+
+	"github.com/vrooli/api-core/eventbus"
 )
 
 type Repository interface {
@@ -12,8 +14,17 @@ type Repository interface {
 	Finish(ctx context.Context, id string, event Event, errMsg, nextAction string, finishedAt time.Time) error
 	Get(ctx context.Context, id string) (Drill, error)
 	List(ctx context.Context, planID, targetID string, limit int) ([]Drill, error)
+	ListPage(ctx context.Context, planID, targetID string, limit int, pageToken string) (DrillPage, error)
 	FindByIdempotency(ctx context.Context, key string) (Drill, bool, error)
 	LatestForUnit(ctx context.Context, planID, targetID, destinationID string) (Drill, bool, error)
+	ListPendingNotifications(ctx context.Context, limit int) ([]Drill, error)
+	MarkNotificationSent(ctx context.Context, id string, sentAt time.Time) error
+	Retire(ctx context.Context, id, reason string, retiredAt time.Time) (Drill, error)
+}
+
+type NotificationPublisher interface {
+	Enabled() bool
+	PublishDomainEvent(context.Context, eventbus.DomainEvent) error
 }
 
 type PlanLookup interface {

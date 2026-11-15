@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"data-backup-manager/internal/database"
-	"data-backup-manager/internal/module"
+	"data-backup-manager/internal/modulecontract"
 
 	"github.com/gorilla/mux"
 )
@@ -15,7 +15,7 @@ import (
 // probe convention infrastructure (LB, Kubernetes) reaches for;
 // /api/v1/health is what API clients use so they only have to know
 // one base path.
-func Module(pinger database.Pinger, service, version string) module.Module {
+func Module(pinger database.Pinger, service, version string) modulecontract.Module {
 	return ModuleWithPosture(pinger, service, version, nil, nil)
 }
 
@@ -23,9 +23,9 @@ func Module(pinger database.Pinger, service, version string) module.Module {
 // posture: when posture is non-nil, an Optional "backups" check degrades the
 // status (HTTP 200, readiness true) on overdue/failed backups and emits a
 // posture event through events. main.go wires a runs-backed posture adapter.
-func ModuleWithPosture(pinger database.Pinger, service, version string, posture BackupPosture, events PostureEventSink) module.Module {
+func ModuleWithPosture(pinger database.Pinger, service, version string, posture BackupPosture, events PostureEventSink) modulecontract.Module {
 	h := NewHandler(Deps{Pinger: pinger, Service: service, Version: version, Posture: posture, Events: events})
-	return module.Module{
+	return modulecontract.Module{
 		Name: "health",
 		Mount: func(r *mux.Router) {
 			r.HandleFunc("/health", h).Methods(http.MethodGet)

@@ -35,10 +35,11 @@ type (
 
 type (
 	Destination struct {
-		ID          string
-		Name        string
-		BackendKind string
-		Location    string
+		ID             string
+		Name           string
+		BackendKind    string
+		Location       string
+		DeviceIdentity *destinationreadiness.DeviceIdentity
 	}
 	TargetLookup interface {
 		TargetForRun(context.Context, string) (Target, error)
@@ -47,6 +48,7 @@ type (
 
 type DestinationLookup interface {
 	DestinationForRun(context.Context, string) (Destination, error)
+	WithResolvedDestination(context.Context, string, func(Destination) error) error
 }
 
 type Input struct {
@@ -146,8 +148,8 @@ func Check(ctx context.Context, in Input) Result {
 		selectedTargetBytes = 0
 	}
 
-	// Resolve and probe each destination exactly once, then attach the same
-	// cause to all affected targets in one grouped incident.
+	// Resolve each destination, revalidate at the repository-probe boundary,
+	// then attach shared causes to affected targets in grouped incidents.
 	for _, id := range unique(in.Plan.DestinationIDs) {
 		dest, err := in.Destinations.DestinationForRun(ctx, id)
 		if err != nil {
@@ -161,49 +163,75 @@ func Check(ctx context.Context, in Input) Result {
 			r.add(cause)
 			continue
 		}
-		if in.Engine == nil {
-			r.add(failures.Cause{Code: failures.RepositoryInvalid, Category: failures.CategoryRepository, Scope: failures.ScopeDestination, DestinationID: id, Message: "backup engine is unavailable", NextAction: "restore resource-kopia availability before retrying"})
-			continue
-		}
 		if dest.BackendKind == "filesystem" && temporaryDestination(dest.Location) {
 			r.add(failures.Cause{Code: "destination_ephemeral", Category: failures.CategoryDestination, Scope: failures.ScopeDestination, DestinationID: id, TargetIDs: append([]string(nil), in.Plan.TargetIDs...), Message: "backup destination uses temporary storage; durable protection is unavailable", NextAction: "select a permanent destination; preserve existing repository bytes and credentials"})
 			continue
 		}
-		if _, err := in.Engine.RepoStatus(ctx, dest.Name); err != nil {
-			cause := failures.Classify(err)
-			cause.DestinationID, cause.Scope = id, failures.ScopeDestination
-			if cause.Code == failures.Unknown {
-				cause.Code, cause.Category = failures.RepositoryInvalid, failures.CategoryRepository
+		gateErr := in.Destinations.WithResolvedDestination(ctx, id, func(current Destination) error {
+			if current.ID != dest.ID || current.Name != dest.Name || current.BackendKind != dest.BackendKind {
+				return fmt.Errorf("destination identity changed during preflight")
 			}
+			dest = current
+			if in.Engine == nil {
+				r.add(failures.Cause{Code: failures.RepositoryInvalid, Category: failures.CategoryRepository, Scope: failures.ScopeDestination, DestinationID: id, Message: "backup engine is unavailable", NextAction: "restore resource-kopia availability before retrying"})
+				return nil
+			}
+			if _, err := in.Engine.RepoStatus(ctx, current.Name); err != nil {
+				cause := failures.Classify(err)
+				cause.DestinationID, cause.Scope = id, failures.ScopeDestination
+				if cause.Code == failures.Unknown {
+					cause.Code, cause.Category = failures.RepositoryInvalid, failures.CategoryRepository
+				}
+				cause.TargetIDs = append([]string(nil), in.Plan.TargetIDs...)
+				r.add(cause)
+			} else if _, err := in.Engine.SnapshotList(ctx, current.Name, ""); err != nil {
+				// A successful repository status only proves that Kopia can open
+				// the repository and its credential. Enumerating manifests catches
+				// missing or unreadable snapshot metadata before we capture sources
+				// or attempt a new write into a damaged repository.
+				r.add(failures.Cause{
+					Code: failures.RepositoryInvalid, Category: failures.CategoryRepository,
+					Scope: failures.ScopeDestination, DestinationID: id,
+					TargetIDs:  append([]string(nil), in.Plan.TargetIDs...),
+					Message:    "repository snapshot metadata could not be enumerated",
+					NextAction: "preserve repository bytes and credentials; inspect repository integrity before retrying",
+				})
+			} else if _, err := in.Engine.RepoStats(ctx, current.Name); err != nil {
+				// Capacity and retention safety depend on a complete repository usage
+				// read. A passing status and snapshot list do not prove that Kopia can
+				// enumerate the content/index shards used by stats; do not start source
+				// capture when the destination's current footprint cannot be measured.
+				message := "repository usage could not be measured"
+				next := "preserve repository bytes and credentials; resolve the repository usage error before writing backups"
+				if owner, ok := in.Engine.(engine.RepoDamageScanner); ok {
+					if scan, scanErr := owner.RepoDamageScan(ctx, current.Name); scanErr == nil && len(scan.Unreadable) > 0 {
+						message = summarizeRepositoryDamage(scan)
+						next = "preserve repository bytes and credentials; use Kopia's typed damage evidence to select a verified recovery path before writing backups"
+					}
+				}
+				r.add(failures.Cause{
+					Code: failures.RepositoryInvalid, Category: failures.CategoryRepository,
+					Scope: failures.ScopeDestination, DestinationID: id,
+					TargetIDs:  append([]string(nil), in.Plan.TargetIDs...),
+					Message:    message,
+					NextAction: next,
+				})
+			}
+			return nil
+		})
+		if gateErr != nil {
+			cause := failures.Classify(gateErr)
+			cause.DestinationID, cause.Scope = id, failures.ScopeDestination
 			cause.TargetIDs = append([]string(nil), in.Plan.TargetIDs...)
+			cause.Message = "destination changed or readiness failed during repository preflight"
+			cause.NextAction = "recheck destination identity and filesystem readiness before retrying"
 			r.add(cause)
-		} else if _, err := in.Engine.SnapshotList(ctx, dest.Name, ""); err != nil {
-			// A successful repository status only proves that Kopia can open
-			// the repository and its credential. Enumerating manifests catches
-			// missing or unreadable snapshot metadata before we capture sources
-			// or attempt a new write into a damaged repository.
-			r.add(failures.Cause{
-				Code: failures.RepositoryInvalid, Category: failures.CategoryRepository,
-				Scope: failures.ScopeDestination, DestinationID: id,
-				TargetIDs:  append([]string(nil), in.Plan.TargetIDs...),
-				Message:    "repository snapshot metadata could not be enumerated",
-				NextAction: "preserve repository bytes and credentials; inspect repository integrity before retrying",
-			})
-		} else if _, err := in.Engine.RepoStats(ctx, dest.Name); err != nil {
-			// Capacity and retention safety depend on a complete repository usage
-			// read. A passing status and snapshot list do not prove that Kopia can
-			// enumerate the content/index shards used by stats; do not start source
-			// capture when the destination's current footprint cannot be measured.
-			r.add(failures.Cause{
-				Code: failures.RepositoryInvalid, Category: failures.CategoryRepository,
-				Scope: failures.ScopeDestination, DestinationID: id,
-				TargetIDs:  append([]string(nil), in.Plan.TargetIDs...),
-				Message:    "repository usage could not be measured",
-				NextAction: "preserve repository bytes and credentials; resolve the repository usage error before writing backups",
-			})
 		}
 		if in.Readiness != nil && dest.BackendKind == "filesystem" && strings.TrimSpace(dest.Location) != "" {
-			readinessInput := destinationreadiness.AnalyzeInput{Location: dest.Location}
+			readinessInput := destinationreadiness.AnalyzeInput{DestinationID: dest.ID, Location: dest.Location}
+			if dest.DeviceIdentity != nil {
+				readinessInput.ExpectedDevice = *dest.DeviceIdentity
+			}
 			if capacityEstimateComplete {
 				readinessInput.SelectedTargetBytes = selectedTargetBytes
 				readinessInput.RetentionCopies = in.Plan.RetentionCopies
@@ -217,7 +245,7 @@ func Check(ctx context.Context, in Input) Result {
 				}
 				cause.TargetIDs = append([]string(nil), in.Plan.TargetIDs...)
 				r.add(cause)
-			} else if report.OverallSeverity == destinationreadiness.SeverityFail {
+			} else if report.OverallSeverity == destinationreadiness.SeverityFail || report.OverallSeverity == destinationreadiness.SeverityUnknown {
 				cause := readinessFailure(report)
 				cause.DestinationID = id
 				cause.TargetIDs = append([]string(nil), in.Plan.TargetIDs...)
@@ -267,6 +295,19 @@ func Check(ctx context.Context, in Input) Result {
 	return r
 }
 
+func summarizeRepositoryDamage(scan engine.RepoDamageScan) string {
+	counts := map[string]int{}
+	for _, entry := range scan.Unreadable {
+		counts[entry.Class+"/"+entry.Problem]++
+	}
+	parts := make([]string, 0, len(counts))
+	for kind, count := range counts {
+		parts = append(parts, fmt.Sprintf("%d %s", count, strings.ReplaceAll(kind, "/", " ")))
+	}
+	sort.Strings(parts)
+	return "Kopia classified unreadable repository entries: " + strings.Join(parts, ", ")
+}
+
 func temporaryDestination(path string) bool {
 	path = filepath.Clean(path)
 	for _, root := range []string{"/tmp", "/var/tmp", "/run"} {
@@ -278,6 +319,15 @@ func temporaryDestination(path string) bool {
 }
 
 func readinessFailure(report destinationreadiness.Report) failures.Cause {
+	if report.OverallSeverity == destinationreadiness.SeverityUnknown {
+		return failures.Cause{
+			Code:       failures.DestinationInaccessible,
+			Category:   failures.CategoryDestination,
+			Scope:      failures.ScopeDestination,
+			Message:    "destination filesystem readiness is unknown",
+			NextAction: "obtain supported filesystem health evidence and re-run readiness before enabling backup writes",
+		}
+	}
 	for _, check := range report.Checks {
 		if check.Severity != destinationreadiness.SeverityFail {
 			continue

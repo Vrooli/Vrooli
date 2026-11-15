@@ -1,7 +1,7 @@
 package destinations
 
 import (
-	"data-backup-manager/internal/module"
+	"data-backup-manager/internal/modulecontract"
 
 	destinationsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/destinations/destinations_v1connect"
 )
@@ -10,10 +10,17 @@ import (
 // public surface. Connect-RPC method paths reference the generated *Procedure
 // constants, so adding or renaming an RPC in destinations.proto breaks this
 // file at compile time.
-var Endpoints = []module.EndpointDescriptor{
-	module.ConnectEndpoint(
-		"destinations_create", destinationsconnect.DestinationsServiceCreateDestinationProcedure, "Create a backup destination", "Provisions a new kopia repository (filesystem or S3). Encryption is always on; the repository passphrase and S3/backend credentials are stored in the credential authority. A filesystem destination must not point under the protected root.", "destinations",
+var Endpoints = []modulecontract.EndpointDescriptor{
+	modulecontract.ConnectEndpoint(
+		"destinations_create", destinationsconnect.DestinationsServiceCreateDestinationProcedure, "Create a backup destination", "Provisions a new encrypted Kopia repository on a filesystem, SFTP host, or S3-compatible endpoint. Repository credentials are resolved by resource-kopia from the credential authority. A filesystem destination must not point under the protected root.", "destinations",
 		destinationCreateRequestSchema, destinationCreateResponseSchema, destinationCreateErrors, destinationCreateExamples,
+	),
+	modulecontract.ConnectEndpoint(
+		"destinations_import_existing", destinationsconnect.DestinationsServiceImportExistingDestinationProcedure, "Import an existing destination", "Validates non-secret catalog metadata, reconnects to an existing encrypted Kopia repository, and proves the expected snapshots are present. Filesystem bundles also require stable device identity and a repository marker anchor. This operation never creates or overwrites repository data.", "destinations",
+		&modulecontract.Schema{Type: "object", Properties: map[string]string{"destination_id": "string (required)", "name": "string (required)", "backend_kind": "BackendKind (required)", "location": "string (required)", "created_at": "RFC3339 (required)", "expected_snapshot_ids": "array<string> (required)"}},
+		destinationCreateResponseSchema,
+		[]modulecontract.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Descriptor, bundle, volume identity, credentials, or expected snapshot validation failed"}, {Status: 500, Code: "internal", Description: "Repository connection or catalog persistence failed"}},
+		[]modulecontract.Example{{Name: "Attach an existing filesystem bundle", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/ImportExistingDestination -H 'Content-Type: application/json' -d '{\"destinationId\":\"dst-1\",\"name\":\"nightly-local\",\"backendKind\":1,\"location\":\"/mnt/backup/vrooli-backups/nightly-local\",\"createdAt\":\"2026-01-01T00:00:00Z\",\"expectedSnapshotIds\":[\"snap-1\"]}'"}},
 	),
 	{
 		ID:          "destinations_get",
@@ -22,19 +29,19 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Get a destination by id",
 		Description: "Returns the destination matching the request id.",
 		Category:    "destinations",
-		Request: &module.Schema{
+		Request: &modulecontract.Schema{
 			Type:       "object",
 			Properties: map[string]string{"id": "string (required)"},
 		},
-		Response: &module.Schema{
+		Response: &modulecontract.Schema{
 			Type:       "object",
 			Properties: map[string]string{"destination": "Destination"},
 		},
-		Errors: []module.ErrorDesc{
+		Errors: []modulecontract.ErrorDesc{
 			{Status: 404, Code: "not_found", Description: "No destination with that id exists"},
 			{Status: 500, Code: "internal", Description: "Repository read failure"},
 		},
-		Examples: []module.Example{
+		Examples: []modulecontract.Example{
 			{Name: "Get a destination", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/GetDestination -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\"}'"},
 		},
 	},
@@ -45,24 +52,24 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "List backup destinations",
 		Description: "Lists registered destinations ordered by name with cursor pagination.",
 		Category:    "destinations",
-		Request: &module.Schema{
+		Request: &modulecontract.Schema{
 			Type: "object",
 			Properties: map[string]string{
 				"page_size":  "int32",
 				"page_token": "string",
 			},
 		},
-		Response: &module.Schema{
+		Response: &modulecontract.Schema{
 			Type: "object",
 			Properties: map[string]string{
 				"destinations":    "array<Destination>",
 				"next_page_token": "string",
 			},
 		},
-		Errors: []module.ErrorDesc{
+		Errors: []modulecontract.ErrorDesc{
 			{Status: 500, Code: "internal", Description: "Repository read failure"},
 		},
-		Examples: []module.Example{
+		Examples: []modulecontract.Example{
 			{Name: "List all destinations", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/ListDestinations -H 'Content-Type: application/json' -d '{}'"},
 		},
 	},
@@ -73,7 +80,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Update a destination's cap settings",
 		Description: "Updates cap_bytes and/or cap_policy for the given destination. Other fields are immutable after creation.",
 		Category:    "destinations",
-		Request: &module.Schema{
+		Request: &modulecontract.Schema{
 			Type: "object",
 			Properties: map[string]string{
 				"id":         "string (required)",
@@ -81,16 +88,16 @@ var Endpoints = []module.EndpointDescriptor{
 				"cap_policy": "CapPolicy",
 			},
 		},
-		Response: &module.Schema{
+		Response: &modulecontract.Schema{
 			Type:       "object",
 			Properties: map[string]string{"destination": "Destination"},
 		},
-		Errors: []module.ErrorDesc{
+		Errors: []modulecontract.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Missing id"},
 			{Status: 404, Code: "not_found", Description: "No destination with that id exists"},
 			{Status: 500, Code: "internal", Description: "Repository write failure"},
 		},
-		Examples: []module.Example{
+		Examples: []modulecontract.Example{
 			{Name: "Set a 10 GiB cap", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/UpdateDestination -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\",\"capBytes\":10737418240}'"},
 		},
 	},
@@ -101,16 +108,16 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Bind a destination to an observed recovery volume",
 		Description: "Re-observes a stable UUID or serial through the host inventory, validates the intended mount root against the destination path, and persists the stable identity plus relative path. It performs no host-volume mutation.",
 		Category:    "destinations",
-		Request: &module.Schema{Type: "object", Properties: map[string]string{
+		Request: &modulecontract.Schema{Type: "object", Properties: map[string]string{
 			"id": "string (required)", "identity": "DestinationDeviceIdentity (stable UUID or serial and intended mountpoint required)",
 		}},
-		Response: &module.Schema{Type: "object", Properties: map[string]string{"destination": "Destination"}},
-		Errors: []module.ErrorDesc{
+		Response: &modulecontract.Schema{Type: "object", Properties: map[string]string{"destination": "Destination"}},
+		Errors: []modulecontract.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Identity is not stable or the mount root is invalid"},
 			{Status: 412, Code: "failed_precondition", Description: "The observed device did not match the requested stable identity"},
 			{Status: 500, Code: "internal", Description: "Repository write failure"},
 		},
-		Examples: []module.Example{{Name: "Bind an existing backup drive", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/BindDestinationRecoveryIdentity -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\",\"identity\":{\"uuid\":\"volume-uuid\",\"serial\":\"disk-serial\",\"filesystem\":\"ntfs\",\"mountpoint\":\"/media/user/Elements\"}}'"}},
+		Examples: []modulecontract.Example{{Name: "Bind an existing backup drive", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/BindDestinationRecoveryIdentity -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\",\"identity\":{\"uuid\":\"volume-uuid\",\"serial\":\"disk-serial\",\"filesystem\":\"ntfs\",\"mountpoint\":\"/media/user/Elements\"}}'"}},
 	},
 	{
 		ID:          "destinations_delete",
@@ -119,22 +126,22 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Delete a destination",
 		Description: "Removes the destination catalog row. When delete_repository is explicitly set, also removes local resource-kopia metadata and credential-authority refs for the repository.",
 		Category:    "destinations",
-		Request: &module.Schema{
+		Request: &modulecontract.Schema{
 			Type: "object",
 			Properties: map[string]string{
 				"id":                "string (required)",
 				"delete_repository": "bool (also remove local resource-kopia metadata and credential-authority refs)",
 			},
 		},
-		Response: &module.Schema{
+		Response: &modulecontract.Schema{
 			Type:       "object",
 			Properties: map[string]string{"removed": "boolean"},
 		},
-		Errors: []module.ErrorDesc{
+		Errors: []modulecontract.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Missing id"},
 			{Status: 500, Code: "internal", Description: "Repository delete failure"},
 		},
-		Examples: []module.Example{
+		Examples: []modulecontract.Example{
 			{Name: "Delete a destination", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/DeleteDestination -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\"}'"},
 		},
 	},
@@ -145,11 +152,11 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Get destination usage",
 		Description: "Returns current usage bytes, cap, usage state (WITHIN/NEAR/OVER), and cap policy for the given destination.",
 		Category:    "destinations",
-		Request: &module.Schema{
+		Request: &modulecontract.Schema{
 			Type:       "object",
 			Properties: map[string]string{"id": "string (required)"},
 		},
-		Response: &module.Schema{
+		Response: &modulecontract.Schema{
 			Type: "object",
 			Properties: map[string]string{
 				"usage_bytes": "int64",
@@ -158,11 +165,11 @@ var Endpoints = []module.EndpointDescriptor{
 				"cap_policy":  "CapPolicy",
 			},
 		},
-		Errors: []module.ErrorDesc{
+		Errors: []modulecontract.ErrorDesc{
 			{Status: 404, Code: "not_found", Description: "No destination with that id exists"},
 			{Status: 500, Code: "internal", Description: "Engine stats failure"},
 		},
-		Examples: []module.Example{
+		Examples: []modulecontract.Example{
 			{Name: "Get destination usage", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/GetDestinationUsage -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\"}'"},
 		},
 	},
@@ -173,7 +180,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Analyze destination readiness",
 		Description: "Inspects a mounted filesystem location read-only and returns structured readiness checks, device identity, filesystem suitability, content warnings, and a recommended backup subdirectory.",
 		Category:    "destinations",
-		Request: &module.Schema{
+		Request: &modulecontract.Schema{
 			Type: "object",
 			Properties: map[string]string{
 				"location":                "string (required)",
@@ -183,15 +190,15 @@ var Endpoints = []module.EndpointDescriptor{
 				"cross_platform_required": "boolean",
 			},
 		},
-		Response: &module.Schema{
+		Response: &modulecontract.Schema{
 			Type:       "object",
 			Properties: map[string]string{"report": "DestinationReadinessReport"},
 		},
-		Errors: []module.ErrorDesc{
+		Errors: []modulecontract.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Missing location or location is not under a mounted volume"},
 			{Status: 500, Code: "internal", Description: "Read-only inspection failure"},
 		},
-		Examples: []module.Example{
+		Examples: []modulecontract.Example{
 			{Name: "Analyze a mounted USB drive", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/AnalyzeDestination -H 'Content-Type: application/json' -d '{\"location\":\"/media/user/USB\"}'"},
 		},
 	},
@@ -202,7 +209,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Plan destination preparation",
 		Description: "Creates a non-mutating preparation plan bound to the observed device identity. The plan includes the exact confirmation phrase and whether the action is supported by this platform.",
 		Category:    "destinations",
-		Request: &module.Schema{
+		Request: &modulecontract.Schema{
 			Type: "object",
 			Properties: map[string]string{
 				"location":           "string (required)",
@@ -213,16 +220,16 @@ var Endpoints = []module.EndpointDescriptor{
 				"expected_identity":  "DestinationDeviceIdentity",
 			},
 		},
-		Response: &module.Schema{
+		Response: &modulecontract.Schema{
 			Type:       "object",
 			Properties: map[string]string{"plan": "DestinationPreparationPlan"},
 		},
-		Errors: []module.ErrorDesc{
+		Errors: []modulecontract.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Missing location/action or invalid subdirectory"},
 			{Status: 412, Code: "failed_precondition", Description: "Device identity mismatch or protected-path overlap"},
 			{Status: 500, Code: "internal", Description: "Read-only inspection failure"},
 		},
-		Examples: []module.Example{
+		Examples: []modulecontract.Example{
 			{Name: "Plan a backup subdirectory", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/PlanDestinationPreparation -H 'Content-Type: application/json' -d '{\"location\":\"/media/user/USB\",\"action\":\"PREPARATION_ACTION_CREATE_SUBDIR\",\"desiredSubdir\":\"vrooli-backups\"}'"},
 		},
 	},
@@ -233,7 +240,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Execute destination preparation",
 		Description: "Runs or dry-runs a preparation plan only after confirmation and identity guards pass. Destructive actions additionally require an explicit data-loss acknowledgement.",
 		Category:    "destinations",
-		Request: &module.Schema{
+		Request: &modulecontract.Schema{
 			Type: "object",
 			Properties: map[string]string{
 				"plan":                  "DestinationPreparationPlan (required)",
@@ -242,7 +249,7 @@ var Endpoints = []module.EndpointDescriptor{
 				"acknowledge_data_loss": "boolean",
 			},
 		},
-		Response: &module.Schema{
+		Response: &modulecontract.Schema{
 			Type: "object",
 			Properties: map[string]string{
 				"dry_run":            "boolean",
@@ -251,12 +258,12 @@ var Endpoints = []module.EndpointDescriptor{
 				"post_action_report": "DestinationReadinessReport",
 			},
 		},
-		Errors: []module.ErrorDesc{
+		Errors: []modulecontract.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Missing plan"},
 			{Status: 412, Code: "failed_precondition", Description: "Unsupported action, missing confirmation, data-loss acknowledgement missing, or device identity changed"},
 			{Status: 500, Code: "internal", Description: "Preparation execution failure"},
 		},
-		Examples: []module.Example{
+		Examples: []modulecontract.Example{
 			{Name: "Dry-run a preparation plan", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/ExecuteDestinationPreparation -H 'Content-Type: application/json' -d '{\"plan\":{\"id\":\"plan-id\"},\"dryRun\":true}'"},
 		},
 	},
@@ -267,11 +274,11 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Start a durable volume recovery journal",
 		Description: "Persists an identity-bound, ordered recovery sequence without changing host state.",
 		Category:    "destinations",
-		Request: &module.Schema{Type: "object", Properties: map[string]string{
+		Request: &modulecontract.Schema{Type: "object", Properties: map[string]string{
 			"location": "string (required)", "identity": "DestinationDeviceIdentity (required)", "plans": "array<DestinationPreparationPlan> (required)",
 		}},
-		Response: &module.Schema{Type: "object", Properties: map[string]string{"journal": "VolumeRecoveryJournal"}},
-		Errors:   []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Invalid location, identity, or recovery step"}, {Status: 500, Code: "internal", Description: "Journal persistence failure"}},
+		Response: &modulecontract.Schema{Type: "object", Properties: map[string]string{"journal": "VolumeRecoveryJournal"}},
+		Errors:   []modulecontract.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Invalid location, identity, or recovery step"}, {Status: 500, Code: "internal", Description: "Journal persistence failure"}},
 	},
 	{
 		ID:          "destinations_recovery_get",
@@ -280,9 +287,9 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Inspect a volume recovery journal",
 		Description: "Reads the durable recovery cursor and per-step outcomes without changing host state.",
 		Category:    "destinations",
-		Request:     &module.Schema{Type: "object", Properties: map[string]string{"id": "string (required)"}},
-		Response:    &module.Schema{Type: "object", Properties: map[string]string{"journal": "VolumeRecoveryJournal"}},
-		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Missing journal id"}, {Status: 404, Code: "not_found", Description: "Recovery journal not found"}},
+		Request:     &modulecontract.Schema{Type: "object", Properties: map[string]string{"id": "string (required)"}},
+		Response:    &modulecontract.Schema{Type: "object", Properties: map[string]string{"journal": "VolumeRecoveryJournal"}},
+		Errors:      []modulecontract.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Missing journal id"}, {Status: 404, Code: "not_found", Description: "Recovery journal not found"}},
 	},
 	{
 		ID:          "destinations_recovery_resume",
@@ -291,16 +298,16 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Dry-run or resume a volume recovery journal",
 		Description: "Resumes at the first incomplete step; dry-run is the default and real execution still confirms each plan and repairs only with acknowledgement.",
 		Category:    "destinations",
-		Request: &module.Schema{Type: "object", Properties: map[string]string{
+		Request: &modulecontract.Schema{Type: "object", Properties: map[string]string{
 			"id": "string (required)", "confirmations": "map<int32,string>", "acknowledge_data_loss": "boolean", "dry_run": "boolean",
 		}},
-		Response: &module.Schema{Type: "object", Properties: map[string]string{"journal": "VolumeRecoveryJournal"}},
-		Errors:   []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Missing journal id or malformed confirmation"}, {Status: 412, Code: "failed_precondition", Description: "Step refused or device identity changed"}, {Status: 500, Code: "internal", Description: "Recovery persistence failure"}},
+		Response: &modulecontract.Schema{Type: "object", Properties: map[string]string{"journal": "VolumeRecoveryJournal"}},
+		Errors:   []modulecontract.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Missing journal id or malformed confirmation"}, {Status: 412, Code: "failed_precondition", Description: "Step refused or device identity changed"}, {Status: 500, Code: "internal", Description: "Recovery persistence failure"}},
 	},
 }
 
 var (
-	destinationCreateRequestSchema = &module.Schema{
+	destinationCreateRequestSchema = &modulecontract.Schema{
 		Type: "object",
 		Properties: map[string]string{
 			"name":         "string (required)",
@@ -310,12 +317,12 @@ var (
 			"cap_policy":   "CapPolicy (optional, defaults to ALERT_BLOCK)",
 		},
 	}
-	destinationCreateResponseSchema = &module.Schema{Type: "object", Properties: map[string]string{"destination": "Destination"}}
-	destinationCreateErrors         = []module.ErrorDesc{
+	destinationCreateResponseSchema = &modulecontract.Schema{Type: "object", Properties: map[string]string{"destination": "Destination"}}
+	destinationCreateErrors         = []modulecontract.ErrorDesc{
 		{Status: 400, Code: "invalid_argument", Description: "Missing name/location, unspecified backend, or separate-root violation"},
 		{Status: 500, Code: "internal", Description: "Repository creation failure"},
 	}
-	destinationCreateExamples = []module.Example{
+	destinationCreateExamples = []modulecontract.Example{
 		{Name: "Create a filesystem destination", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/CreateDestination -H 'Content-Type: application/json' -d '{\"name\":\"local-backup\",\"backendKind\":\"BACKEND_KIND_FILESYSTEM\",\"location\":\"/mnt/backup\"}'"},
 	}
 )

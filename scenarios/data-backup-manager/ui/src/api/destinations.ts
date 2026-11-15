@@ -1,6 +1,6 @@
 /**
  * Destinations domain — UI ↔ API boundary over DestinationsService. A
- * destination is a kopia repository (local filesystem or S3/MinIO) the manager
+ * destination is a kopia repository (local filesystem, SFTP, or S3-compatible) the manager
  * snapshots into. Encryption is always on and secrets live in the credential
  * authority — the UI
  * only ever *displays* `encryptionAlgorithm` and `secretRef`, never edits them.

@@ -231,6 +231,39 @@ func (f *FakeRepository) TargetStatuses(_ context.Context, targetIDs []string) (
 	return out, nil
 }
 
+func (f *FakeRepository) TargetDestinationStatuses(_ context.Context, targetIDs []string) ([]runs.TargetDestinationStatus, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	want := map[string]bool{}
+	for _, id := range targetIDs {
+		want[id] = true
+	}
+	latest := map[string]runs.TargetDestinationStatus{}
+	for _, run := range f.runs {
+		for _, outcome := range run.Outcomes {
+			if outcome.Status != runs.OutcomeSucceeded || (len(want) > 0 && !want[outcome.TargetID]) {
+				continue
+			}
+			key := outcome.TargetID + "\x00" + outcome.DestinationID
+			status := latest[key]
+			if outcome.FinishedAt.After(status.LastSuccessAt) {
+				latest[key] = runs.TargetDestinationStatus{TargetID: outcome.TargetID, DestinationID: outcome.DestinationID, LastSuccessAt: outcome.FinishedAt}
+			}
+		}
+	}
+	out := make([]runs.TargetDestinationStatus, 0, len(latest))
+	for _, status := range latest {
+		out = append(out, status)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].TargetID == out[j].TargetID {
+			return out[i].DestinationID < out[j].DestinationID
+		}
+		return out[i].TargetID < out[j].TargetID
+	})
+	return out, nil
+}
+
 var _ runs.Repository = (*FakeRepository)(nil)
 
 func itoa(n int) string {

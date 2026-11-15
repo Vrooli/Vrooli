@@ -40,23 +40,21 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 		}
 		retention = &plansv1.RetentionPolicy{KeepLatest: int32(n)}
 	}
-
-	enabled := true
-	if s := ctx.Flag("enabled"); s != "" {
-		var err error
-		enabled, err = strconv.ParseBool(s)
-		if err != nil {
-			return fmt.Errorf("--enabled: %w", err)
-		}
+	retention, err := mergeRetentionFlags(ctx, retention)
+	if err != nil {
+		return err
 	}
 
 	resp, err := h.client.CreatePlan(context.Background(), connect.NewRequest(&plansv1.CreatePlanRequest{
-		Name:                    ctx.Flag("name"),
-		TargetIds:               targetIDs,
-		DestinationIds:          destIDs,
-		Schedule:                ctx.Flag("schedule"),
-		Retention:               retention,
-		Enabled:                 enabled,
+		Name:           ctx.Flag("name"),
+		TargetIds:      targetIDs,
+		DestinationIds: destIDs,
+		Schedule:       ctx.Flag("schedule"),
+		Retention:      retention,
+		// CreatePlan's contract creates enabled plans. The CLI deliberately
+		// exposes --enabled only on update because proto3 cannot distinguish
+		// omitted false from an explicit request for a disabled new plan.
+		Enabled:                 true,
 		AllowIncompleteCoverage: ctx.BoolFlag("allow-incomplete-coverage"),
 		ProtectionTier:          protectionTier(ctx.Flag("protection-tier")),
 		RecoveryDrillSchedule:   optionalFlag(ctx, "recovery-drill-schedule"),
@@ -165,6 +163,82 @@ func (h *handlers) delete(ctx cliapp.RunContext) error {
 	})
 }
 
+// addDestination prevalidates the entire selected set, then optionally applies
+// an idempotent membership-only update to each plan. Preview is the default.
+func (h *handlers) addDestination(ctx cliapp.RunContext) error {
+	ids := parseCommaSeparated(ctx.Flag("plans"))
+	destination := strings.TrimSpace(ctx.Flag("destination"))
+	if len(ids) == 0 || destination == "" {
+		return fmt.Errorf("--plans and --destination are required")
+	}
+	selected := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		if _, exists := selected[id]; exists {
+			return fmt.Errorf("duplicate plan id %q", id)
+		}
+		selected[id] = struct{}{}
+	}
+	resp, err := h.client.ListPlans(context.Background(), connect.NewRequest(&plansv1.ListPlansRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("list plans", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no plans response")
+	}
+	byID := make(map[string]*plansv1.Plan, len(resp.Msg.Plans))
+	for _, p := range resp.Msg.Plans {
+		if p != nil {
+			byID[p.Id] = p
+		}
+	}
+	plans := make([]*plansv1.Plan, 0, len(ids))
+	for _, id := range ids {
+		p := byID[id]
+		if p == nil {
+			return fmt.Errorf("plan %q does not exist", id)
+		}
+		plans = append(plans, p)
+	}
+	apply := ctx.BoolFlag("apply")
+	changes := make([]string, 0, len(plans))
+	for _, p := range plans {
+		if containsID(p.DestinationIds, destination) {
+			changes = append(changes, fmt.Sprintf("%s: destination %s already present (unchanged)", p.Id, destination))
+			continue
+		}
+		if apply {
+			destinations := append(append([]string(nil), p.DestinationIds...), destination)
+			_, err := h.client.UpdatePlan(context.Background(), connect.NewRequest(&plansv1.UpdatePlanRequest{
+				Id: p.Id, Name: p.Name, TargetIds: p.TargetIds, DestinationIds: destinations,
+				Schedule: p.Schedule, Retention: p.Retention, Enabled: p.Enabled,
+				ProtectionTier: p.ProtectionTier, RecoveryDrillSchedule: p.RecoveryDrillSchedule,
+			}))
+			if err != nil {
+				return cliapp.WrapAPIError(fmt.Sprintf("add destination to plan %q", p.Id), err, nil)
+			}
+		}
+		action := "would add"
+		if apply {
+			action = "added"
+		}
+		changes = append(changes, fmt.Sprintf("%s: %s destination %s", p.Id, action, destination))
+	}
+	mode := "Preview only; pass --apply to write these changes."
+	if apply {
+		mode = "Applied membership changes."
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{mode}, ResultsHeading: "Plan destination changes", Results: changes})
+}
+
+func containsID(ids []string, wanted string) bool {
+	for _, id := range ids {
+		if id == wanted {
+			return true
+		}
+	}
+	return false
+}
+
 // mergeUpdate builds a full UpdatePlanRequest from the current plan, replacing
 // only the fields whose flags the caller supplied.
 func mergeUpdate(ctx cliapp.RunContext, p *plansv1.Plan) (*plansv1.UpdatePlanRequest, error) {
@@ -197,8 +271,16 @@ func mergeUpdate(ctx cliapp.RunContext, p *plansv1.Plan) (*plansv1.UpdatePlanReq
 		if err != nil {
 			return nil, fmt.Errorf("--keep-latest: %w", err)
 		}
-		req.Retention = &plansv1.RetentionPolicy{KeepLatest: int32(n)}
+		if req.Retention == nil {
+			req.Retention = &plansv1.RetentionPolicy{}
+		}
+		req.Retention.KeepLatest = int32(n)
 	}
+	retention, err := mergeRetentionFlags(ctx, req.Retention)
+	if err != nil {
+		return nil, err
+	}
+	req.Retention = retention
 	if ctx.FlagProvided("enabled") {
 		enabled, err := strconv.ParseBool(ctx.Flag("enabled"))
 		if err != nil {
@@ -215,6 +297,33 @@ func mergeUpdate(ctx cliapp.RunContext, p *plansv1.Plan) (*plansv1.UpdatePlanReq
 	return req, nil
 }
 
+func mergeRetentionFlags(ctx cliapp.RunContext, policy *plansv1.RetentionPolicy) (*plansv1.RetentionPolicy, error) {
+	flags := []struct {
+		name string
+		set  func(int32)
+	}{
+		{"keep-hourly", func(v int32) { policy.KeepHourly = v }},
+		{"keep-daily", func(v int32) { policy.KeepDaily = v }},
+		{"keep-weekly", func(v int32) { policy.KeepWeekly = v }},
+		{"keep-monthly", func(v int32) { policy.KeepMonthly = v }},
+		{"keep-annual", func(v int32) { policy.KeepAnnual = v }},
+	}
+	for _, flag := range flags {
+		if !ctx.FlagProvided(flag.name) {
+			continue
+		}
+		n, err := strconv.ParseInt(ctx.Flag(flag.name), 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("--%s: %w", flag.name, err)
+		}
+		if policy == nil {
+			policy = &plansv1.RetentionPolicy{}
+		}
+		flag.set(int32(n))
+	}
+	return policy, nil
+}
+
 func formatPlan(p *plansv1.Plan) string {
 	if p == nil {
 		return "(nil)"
@@ -227,12 +336,12 @@ func formatPlan(p *plansv1.Plan) string {
 	if p.Retention != nil {
 		keepLatest = p.Retention.KeepLatest
 	}
-	return fmt.Sprintf("%s — %s [tier=%s targets=%s destinations=%s schedule=%q drill-schedule=%q keep-latest=%d enabled=%v physically-independent=%v warnings=%s created=%s]",
+	return fmt.Sprintf("%s — %s [tier=%s targets=%s destinations=%s schedule=%q drill-schedule=%q keep-latest=%d GFS(hourly/daily/weekly/monthly/annual)=%d/%d/%d/%d/%d enabled=%v physically-independent=%v warnings=%s created=%s]",
 		p.Id, p.Name,
 		p.ProtectionTier.String(),
 		strings.Join(p.TargetIds, ","),
 		strings.Join(p.DestinationIds, ","),
-		p.Schedule, p.RecoveryDrillSchedule, keepLatest, p.Enabled, p.DestinationsPhysicallyIndependent, strings.Join(p.SharedRiskWarnings, " | "), created)
+		p.Schedule, p.RecoveryDrillSchedule, keepLatest, p.Retention.GetKeepHourly(), p.Retention.GetKeepDaily(), p.Retention.GetKeepWeekly(), p.Retention.GetKeepMonthly(), p.Retention.GetKeepAnnual(), p.Enabled, p.DestinationsPhysicallyIndependent, strings.Join(p.SharedRiskWarnings, " | "), created)
 }
 
 func protectionTier(value string) plansv1.ProtectionTier {

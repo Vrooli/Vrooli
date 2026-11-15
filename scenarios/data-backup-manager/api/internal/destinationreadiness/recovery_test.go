@@ -308,11 +308,11 @@ func TestFileRecoveryEpisodePersistsUntilMountedThenStartsFresh(t *testing.T) {
 	root := t.TempDir()
 	identity := destinationreadiness.DeviceIdentity{DevicePath: "/dev/sdz1", Filesystem: "ntfs", UUID: "uuid-elements", Serial: "serial-elements"}
 	store := &destinationreadiness.FileRecoveryStore{Root: root}
-	first, err := store.ObserveEpisode(ctx, "elements", identity, false, "")
+	first, err := store.ObserveEpisode(ctx, "elements", identity, false, "", "")
 	if err != nil || first.RecoveryID == "" {
 		t.Fatalf("first unmounted observation=(%+v, %v)", first, err)
 	}
-	repeated, err := store.ObserveEpisode(ctx, "elements", identity, false, "")
+	repeated, err := store.ObserveEpisode(ctx, "elements", identity, false, "", "")
 	if err != nil || repeated.RecoveryID != first.RecoveryID {
 		t.Fatalf("repeated unmounted observation=(%+v, %v), want stable recovery ID %q", repeated, err, first.RecoveryID)
 	}
@@ -320,22 +320,109 @@ func TestFileRecoveryEpisodePersistsUntilMountedThenStartsFresh(t *testing.T) {
 	// A new store models a DBM process restart. It must retain the active outage
 	// episode and must not create a second decision correlation.
 	store = &destinationreadiness.FileRecoveryStore{Root: root}
-	restarted, err := store.ObserveEpisode(ctx, "elements", identity, false, "")
+	restarted, err := store.ObserveEpisode(ctx, "elements", identity, false, "", "")
 	if err != nil || restarted.RecoveryID != first.RecoveryID {
 		t.Fatalf("post-restart observation=(%+v, %v), want recovery ID %q", restarted, err, first.RecoveryID)
 	}
 
-	mounted, err := store.ObserveEpisode(ctx, "elements", identity, true, "")
+	mounted, err := store.ObserveEpisode(ctx, "elements", identity, true, "mount-1", "")
 	if err != nil || !mounted.LastMounted || mounted.RecoveryID != "" {
 		t.Fatalf("mounted observation=(%+v, %v), want closed episode", mounted, err)
 	}
-	second, err := store.ObserveEpisode(ctx, "elements", identity, false, "")
+	second, err := store.ObserveEpisode(ctx, "elements", identity, false, "", "")
 	if err != nil || second.RecoveryID == "" || second.RecoveryID == first.RecoveryID {
 		t.Fatalf("second outage=(%+v, %v), want a fresh recovery ID after remount", second, err)
 	}
-	secondRestart, err := (&destinationreadiness.FileRecoveryStore{Root: root}).ObserveEpisode(ctx, "elements", identity, false, "")
+	secondRestart, err := (&destinationreadiness.FileRecoveryStore{Root: root}).ObserveEpisode(ctx, "elements", identity, false, "", "")
 	if err != nil || secondRestart.RecoveryID != second.RecoveryID {
 		t.Fatalf("second post-restart observation=(%+v, %v), want recovery ID %q", secondRestart, err, second.RecoveryID)
+	}
+}
+
+func TestOfflineCheckEvidenceIsBoundToTheCurrentUnmountedEpisode(t *testing.T) {
+	ctx := context.Background()
+	store := &destinationreadiness.FileRecoveryStore{Root: filepath.Join(t.TempDir(), "journals")}
+	identity := destinationreadiness.DeviceIdentity{DevicePath: "/dev/test1", Mountpoint: "/media/drive", Filesystem: "ntfs", UUID: "uuid-a", Serial: "serial-a"}
+	episode, err := store.ObserveEpisode(ctx, "dest-a", identity, false, "", "")
+	if err != nil {
+		t.Fatalf("observe outage: %v", err)
+	}
+	if _, err := store.RecordOfflineCheck(ctx, "dest-a", episode.RecoveryID, identity, "check-plan-a", "yes", "consistent"); err != nil {
+		t.Fatalf("record positive check: %v", err)
+	}
+	if ok, err := store.HasCurrentOfflineCheck(ctx, "dest-a", episode.RecoveryID, identity); err != nil || !ok {
+		t.Fatalf("current evidence=(%v, %v), want positive", ok, err)
+	}
+	changedIdentity := identity
+	changedIdentity.Serial = "replacement-serial"
+	if ok, err := store.HasCurrentOfflineCheck(ctx, "dest-a", episode.RecoveryID, changedIdentity); err != nil || ok {
+		t.Fatalf("replacement device evidence=(%v, %v), want rejected", ok, err)
+	}
+	if _, err := store.RecordOfflineCheck(ctx, "dest-a", episode.RecoveryID, identity, "check-plan-b", "unknown", ""); err == nil {
+		t.Fatal("unknown check verdict must not be persisted as remount evidence")
+	}
+	if _, err := store.ObserveEpisode(ctx, "dest-a", identity, true, "mount-1", ""); err != nil {
+		t.Fatalf("observe mounted recovery: %v", err)
+	}
+	if ok, err := store.HasCurrentOfflineCheck(ctx, "dest-a", episode.RecoveryID, identity); err != nil || ok {
+		t.Fatalf("mounted episode retained stale check=(%v, %v), want cleared", ok, err)
+	}
+	next, err := store.ObserveEpisode(ctx, "dest-a", identity, false, "", "")
+	if err != nil {
+		t.Fatalf("observe later outage: %v", err)
+	}
+	if next.RecoveryID == episode.RecoveryID {
+		t.Fatal("later outage reused the previous check's recovery episode")
+	}
+	if _, err := store.RecordOfflineCheck(ctx, "dest-a", episode.RecoveryID, identity, "check-plan-old", "yes", "stale"); err == nil {
+		t.Fatal("stale episode check must not bind to a later outage")
+	}
+}
+
+func TestVerifiedOfflineCheckTransfersToExactMountedEpisodeAndExpiresOnUnmount(t *testing.T) {
+	ctx := context.Background()
+	root := filepath.Join(t.TempDir(), "journals")
+	store := &destinationreadiness.FileRecoveryStore{Root: root}
+	identity := destinationreadiness.DeviceIdentity{DevicePath: "/dev/test1", Mountpoint: "/media/drive", Filesystem: "ntfs", UUID: "uuid-a", Serial: "serial-a"}
+	episode, err := store.ObserveEpisode(ctx, "dest-a", identity, false, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.RecordOfflineCheck(ctx, "dest-a", episode.RecoveryID, identity, "check-plan-a", "yes", "consistent"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.RecordMountedCheck(ctx, "dest-a", episode.RecoveryID, identity, "mount-1", true, false); err != nil {
+		t.Fatalf("promote check after verified remount: %v", err)
+	}
+	if ok, err := store.HasCurrentMountedCheck(ctx, "dest-a", identity, "mount-1"); err != nil || !ok {
+		t.Fatalf("mounted proof=(%v, %v), want current proof", ok, err)
+	}
+	reloaded := &destinationreadiness.FileRecoveryStore{Root: root}
+	if ok, err := reloaded.HasCurrentMountedCheck(ctx, "dest-a", identity, "mount-1"); err != nil || !ok {
+		t.Fatalf("persisted mounted proof=(%v, %v), want current proof", ok, err)
+	}
+	if _, err := reloaded.ObserveEpisode(ctx, "dest-a", identity, true, "mount-1", ""); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := reloaded.HasCurrentMountedCheck(ctx, "dest-a", identity, "mount-1"); err != nil || !ok {
+		t.Fatalf("repeated mounted observation expired proof=(%v, %v)", ok, err)
+	}
+	if _, err := reloaded.ObserveEpisode(ctx, "dest-a", identity, true, "mount-2", ""); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := reloaded.HasCurrentMountedCheck(ctx, "dest-a", identity, "mount-2"); err != nil || ok {
+		t.Fatalf("unobserved remount inherited prior check=(%v, %v), want no evidence", ok, err)
+	}
+	if _, err := reloaded.ObserveEpisode(ctx, "dest-a", identity, false, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := reloaded.HasCurrentMountedCheck(ctx, "dest-a", identity, "mount-1"); err != nil || ok {
+		t.Fatalf("new unmounted episode retained stale proof=(%v, %v)", ok, err)
+	}
+	changed := identity
+	changed.Serial = "replacement-serial"
+	if ok, err := reloaded.HasCurrentMountedCheck(ctx, "dest-a", changed, "mount-1"); err != nil || ok {
+		t.Fatalf("replacement device inherited proof=(%v, %v)", ok, err)
 	}
 }
 
@@ -359,7 +446,7 @@ func TestFileRecoveryEpisodeAdoptsIncompleteLegacyJournalAndAdvancesCompletedOne
 	if err := store.Save(ctx, legacy); err != nil {
 		t.Fatalf("save legacy journal: %v", err)
 	}
-	episode, err := store.ObserveEpisode(ctx, "elements", identity, false, legacy.ID)
+	episode, err := store.ObserveEpisode(ctx, "elements", identity, false, "", legacy.ID)
 	if err != nil || episode.RecoveryID != legacy.ID {
 		t.Fatalf("legacy episode=(%+v, %v), want adopted journal %q", episode, err, legacy.ID)
 	}

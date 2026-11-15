@@ -210,12 +210,14 @@ export function capPolicySlug(policy: CapPolicy): CapPolicySlug {
   }
 }
 
-export type BackendSlug = "unknown" | "filesystem" | "s3";
+export type BackendSlug = "unknown" | "filesystem" | "sftp" | "s3";
 
 export function backendSlug(kind: BackendKind): BackendSlug {
   switch (kind) {
     case BackendKind.FILESYSTEM:
       return "filesystem";
+    case BackendKind.SFTP:
+      return "sftp";
     case BackendKind.S3:
       return "s3";
     default:

@@ -147,18 +147,24 @@ func (i *ReadOnlyInspector) InspectDevice(ctx context.Context, expected DeviceId
 	// back to the mounted-volume scan so a post-remediation verification sees
 	// the current mount state instead of reporting a successfully mounted device
 	// as unmounted.
-	if !inspection.Mounted && i.Volumes != nil {
+	if i.Volumes != nil {
 		mountedVolumes, scanErr := i.Volumes.Scan(ctx)
 		if scanErr != nil {
 			return Inspection{}, scanErr
 		}
+		var matches []sysmounts.Volume
 		for _, mounted := range mountedVolumes {
 			candidate := inspectionFromVolume(mounted)
 			if expected.MatchesDevice(candidate.Identity) {
-				vol = mounted
-				inspection = candidate
-				break
+				matches = append(matches, mounted)
 			}
+		}
+		if len(matches) > 1 {
+			return Inspection{}, ErrInvalidReadiness{Field: "device_identity", Reason: "multiple mounted volumes match the stored UUID/serial; refusing ambiguous path resolution"}
+		}
+		if len(matches) == 1 {
+			vol = matches[0]
+			inspection = inspectionFromVolume(vol)
 		}
 	}
 	if !expected.MatchesDevice(inspection.Identity) {
@@ -207,6 +213,7 @@ func inspectionFromVolume(vol sysmounts.Volume) Inspection {
 			Model:      vol.Model,
 			Serial:     vol.Serial,
 		},
+		MountEpisodeID:       vol.MountEpisodeID,
 		FreeBytes:            vol.FreeBytes,
 		ReadOnly:             vol.ReadOnly,
 		Removable:            vol.Removable,

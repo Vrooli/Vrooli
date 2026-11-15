@@ -17,10 +17,15 @@ type FakeBundleWriter struct {
 	Prepared  []PreparedRepo
 	Metadata  []destinations.BundleMetadata
 	Refreshed []destinations.BundleMetadata
+	Rebound   []destinations.BundleMetadata
 
 	PrepareErr  error
 	MetadataErr error
 	RefreshErr  error
+	RebindErr   error
+	ValidateErr error
+	Existing    destinations.ExistingBundle
+	ReadErr     error
 }
 
 // PreparedRepo captures one PrepareRepository call.
@@ -63,4 +68,32 @@ func (f *FakeBundleWriter) RefreshMetadata(_ context.Context, meta destinations.
 	}
 	f.Refreshed = append(f.Refreshed, meta)
 	return nil
+}
+
+func (f *FakeBundleWriter) RebindMetadata(_ context.Context, meta destinations.BundleMetadata) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.RebindErr != nil {
+		return f.RebindErr
+	}
+	f.Rebound = append(f.Rebound, meta)
+	return nil
+}
+
+func (f *FakeBundleWriter) ValidateRelocation(_ context.Context, _ destinations.BundleMetadata) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.ValidateErr
+}
+
+func (f *FakeBundleWriter) ValidatePendingCreate(_ context.Context, _ destinations.BundleMetadata) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.ValidateErr
+}
+
+func (f *FakeBundleWriter) ReadExisting(_ context.Context, _ string) (destinations.ExistingBundle, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.Existing, f.ReadErr
 }

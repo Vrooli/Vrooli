@@ -7,7 +7,7 @@
 // (e.g., internal/notes/{repository,sqlite,schema}.{go,sql}) per the
 // canonical Vrooli pattern. New domains do NOT add Repository
 // interfaces or schema fragments here — they own their own package and
-// register through internal/modules.
+// register through internal/modulecatalog.
 //
 // Production wires *database.RoutedDB (from packages/api-core/database)
 // which satisfies Pinger via its PingContext method. *sql.DB also

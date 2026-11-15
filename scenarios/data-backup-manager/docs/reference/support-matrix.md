@@ -1,23 +1,30 @@
 # Platform support matrix
 
-This matrix is a claim boundary, not a compile target list. A cross-build proves
-that the package compiles; it does not prove that a platform can safely inspect,
-write, or restore a destination. A cell is advertised as supported only when a
-native runtime result or a deterministic adapter fixture exists.
+This matrix is generated from `platform-receipts.json`, the control-plane host
+volume receipt ledger, and the DBM runtime receipt ledger under
+`$VROOLI_HOME/state/` (or `~/.vrooli/state/` when `VROOLI_HOME` is unset). A cell
+is qualified only by the latest native build or runtime receipt for that
+platform and capability. Cross-builds and adapter fixtures do not qualify a
+native platform. Missing receipts remain explicit rather than inheriting claims
+from another platform.
+Regenerate with `python3 scripts/generate_support_matrix.py`; validate with
+`python3 scripts/generate_support_matrix.py --check`.
 
-| Feature slice | Linux | macOS | Windows |
+<!-- BEGIN GENERATED PLATFORM MATRIX -->
+| Capability | Linux | macOS | Windows |
 |---|---|---|---|
-| API/CLI build | supported; native CI/runtime | cross-build only until native runner evidence | cross-build only until native runner evidence |
-| Filesystem capture/restore | supported | adapter tests; native restore evidence required before claim | adapter tests; native restore evidence required before claim |
-| SQLite capture/restore | supported | adapter tests; native restore evidence required before claim | adapter tests; native restore evidence required before claim |
-| Kopia filesystem repository | supported through `resource-kopia` | partial; repository/runtime evidence required | partial; repository/runtime evidence required |
-| S3/MinIO repository | supported when resource and credentials are ready | partial; resource runtime evidence required | partial; resource runtime evidence required |
-| Volume identity | Linux `lsblk` metadata (UUID, label, model, serial when exposed) | read-only `diskutil info` adapter; UUID required | read-only PowerShell `Get-Volume` adapter; volume unique ID required |
-| Destination read-only cause | attributed from kernel evidence (`/proc/fs/ntfs3/*/volinfo`, `/sys/class/block/*/ro`, fstab); unattributed stays `unknown` | mount options only; cause reported `unknown` until a native adapter lands | mount options only; cause reported `unknown` until a native adapter lands |
-| Destination repair | Control-plane check/repair/unmount/mount; automatic remount is gated on a positive read-only consistency result; Linux NTFS mounts request UDisks' `ntfs` helper (ntfs-3g) rather than the unsafe `ntfs3` default. Elements repair/remount was exercised once on the operator-selected host; this is not broad hardware certification. | `diskutil info` resolves unmounted UUID/filesystem state; check/repair/mount commands have fixture coverage; native recovery is unverified. NTFS cannot be made writable by macOS repair. | The control plane resolves unlettered volumes by stable Volume GUID, uses `Repair-Volume` against the resolved object, and restores the prior non-system drive letter only when it remains unused. Scan result `0` alone permits automatic attachment; unknown/nonzero results fail closed. Native hardware/privilege behavior remains unverified. |
-| Postgres/Redis/Qdrant/object storage | resource CLI integration, each independently gated | partial until resource CLI runtime evidence | partial until resource CLI runtime evidence |
-| Symlink/permission fidelity | declared by source and restore tests | platform-specific evidence required | platform-specific evidence required |
-| Scheduler/credential catalog | supported by portable Go/catalog contracts | build only until lifecycle evidence | build only until lifecycle evidence |
+| API and CLI native build | qualified · `linux-api-build-swarminator-20261113-192125` (2026-11-13T19:21:25Z) | no native receipt | no native receipt |
+| Volume identity | qualified · `volume-20261114t072330000000000z-6b7b8bd4155f` (2026-11-14T07:23:30.122812055Z) | no native receipt | no native receipt |
+| Read-only destination check | no native receipt | no native receipt | no native receipt |
+| Filesystem repair | no native receipt | no native receipt | no native receipt |
+| Mount and remount | no native receipt | no native receipt | no native receipt |
+| Backup to a repository | no native receipt | no native receipt | no native receipt |
+| Scratch restore and verification | qualified · `dbm-1debd04b-a125-47fd-b0ca-f0f0fe5d5603` (2026-11-14T08:43:17.103198799Z) | no native receipt | no native receipt |
+<!-- END GENERATED PLATFORM MATRIX -->
+
+The notes below describe implementation boundaries and previous fixture or
+operator-run behavior. They are not qualification receipts and do not upgrade
+any generated cell.
 
 The credential-store escrow scheduler has the same explicit contract at the
 control-plane boundary: Linux `systemd-user`, macOS `launchd-user`, and Windows

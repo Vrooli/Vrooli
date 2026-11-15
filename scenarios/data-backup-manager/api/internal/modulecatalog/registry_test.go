@@ -1,11 +1,11 @@
-package modules_test
+package modulecatalog_test
 
 import (
 	"context"
 	"fmt"
 	"testing"
 
-	"data-backup-manager/internal/modules"
+	"data-backup-manager/internal/modulecatalog"
 
 	db "github.com/vrooli/api-core/databasetest"
 
@@ -25,7 +25,7 @@ import (
 // notes reference and add their own domains, so pinning the count would
 // couple this test to whichever domains happen to be present.
 func TestAllEndpoints_NonEmpty(t *testing.T) {
-	got := modules.AllEndpoints()
+	got := modulecatalog.AllEndpoints()
 	require.NotEmpty(t, got, "AllEndpoints must include at least the health endpoint")
 }
 
@@ -34,8 +34,8 @@ func TestAllEndpoints_NonEmpty(t *testing.T) {
 // consecutive calls must return slices with the same element order;
 // otherwise codegen output churns and the diff gate becomes noisy.
 func TestAllEndpoints_StableOrder(t *testing.T) {
-	a := modules.AllEndpoints()
-	b := modules.AllEndpoints()
+	a := modulecatalog.AllEndpoints()
+	b := modulecatalog.AllEndpoints()
 	require.Equal(t, len(a), len(b), "non-deterministic length")
 	for i := range a {
 		require.Equal(t, a[i].ID, b[i].ID,
@@ -50,7 +50,7 @@ func TestAllEndpoints_StableOrder(t *testing.T) {
 // domain's own *_test.go (see internal/notes/sqlite_test.go for the
 // canonical apply-and-query coverage).
 func TestAllSchemas_NonEmpty(t *testing.T) {
-	got := modules.AllSchemas()
+	got := modulecatalog.AllSchemas()
 	require.NotEmpty(t, got, "AllSchemas must return at least the system provider")
 	for i, p := range got {
 		require.NotNil(t, p, "AllSchemas[%d] is nil", i)
@@ -62,7 +62,7 @@ func TestAllSchemas_NonEmpty(t *testing.T) {
 // in system.sql rely on this; SQLite scenarios are unaffected (system
 // is empty) but the contract holds either way.
 func TestAllSchemas_FirstIsSystem(t *testing.T) {
-	got := modules.AllSchemas()
+	got := modulecatalog.AllSchemas()
 	require.NotEmpty(t, got)
 	require.Equal(t, localdb.SystemSchema(), got[0].Schema(),
 		"system schema must be first in AllSchemas() so cross-cutting infrastructure applies before any domain")
@@ -73,14 +73,14 @@ func TestAllSchemas_FirstIsSystem(t *testing.T) {
 // schemas twice and asserts no error. Catches the failure mode where
 // a domain's schema accidentally drops `IF NOT EXISTS`.
 //
-// This test calls modules.AllSchemas() (whose contents change as
+// This test calls modulecatalog.AllSchemas() (whose contents change as
 // scenarios add/remove domains) but never names a specific domain, so
 // feature deletion leaves it green.
 func TestAllSchemas_AppliesIdempotently(t *testing.T) {
 	d := db.NewSQLite(t)
 	ctx := context.Background()
-	require.NoError(t, apidb.EnsureSchemas(ctx, d, modules.AllSchemas()...))
-	require.NoError(t, apidb.EnsureSchemas(ctx, d, modules.AllSchemas()...),
+	require.NoError(t, apidb.EnsureSchemas(ctx, d, modulecatalog.AllSchemas()...))
+	require.NoError(t, apidb.EnsureSchemas(ctx, d, modulecatalog.AllSchemas()...),
 		"second apply must succeed (uses IF NOT EXISTS guards)")
 }
 
@@ -101,13 +101,13 @@ func TestAllSchemas_AppliesIdempotently(t *testing.T) {
 // EndpointDescriptor (referencing the generated *Procedure constant
 // from the *v1connect package) or remove the rpc from the proto file.
 func TestProtoConnectParity(t *testing.T) {
-	endpoints := modules.AllEndpoints()
+	endpoints := modulecatalog.AllEndpoints()
 	byPath := make(map[string]int, len(endpoints))
 	for _, ep := range endpoints {
 		byPath[ep.Path]++
 	}
 
-	files := modules.AllProtoFiles()
+	files := modulecatalog.AllProtoFiles()
 	require.NotEmpty(t, files,
 		"AllProtoFiles() returned no entries; every Connect-mounted "+
 			"domain module must be registered there")

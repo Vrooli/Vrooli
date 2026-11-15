@@ -39,27 +39,27 @@ const destTimeFormat = time.RFC3339Nano
 
 const (
 	insertDestSQL = `
-		INSERT INTO destinations (id, name, backend_kind, location, relative_path, repository_location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, device_path, device_mountpoint, device_label, device_filesystem, device_total_bytes, device_model, device_serial, device_uuid, device_observed_at, created_at, updated_at)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO destinations (id, name, backend_kind, location, relative_path, repository_location, cap_bytes, cap_policy, encryption_algorithm, provisioning_state, secret_ref, device_path, device_mountpoint, device_label, device_filesystem, device_total_bytes, device_model, device_serial, device_uuid, device_observed_at, created_at, updated_at)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 	updateDestSQL = `
 UPDATE destinations
-SET relative_path = ?, cap_bytes = ?, cap_policy = ?, secret_ref = ?,
+SET location = ?, relative_path = ?, repository_location = ?, cap_bytes = ?, cap_policy = ?, encryption_algorithm = ?, provisioning_state = ?, secret_ref = ?,
     device_path = ?, device_mountpoint = ?, device_label = ?, device_filesystem = ?,
     device_total_bytes = ?, device_model = ?, device_serial = ?, device_uuid = ?,
     device_observed_at = ?, updated_at = ?
 WHERE id = ?
 `
 	selectDestByIDSQL = `
-	SELECT id, name, backend_kind, location, relative_path, repository_location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, device_path, device_mountpoint, device_label, device_filesystem, device_total_bytes, device_model, device_serial, device_uuid, device_observed_at, created_at, updated_at
+	SELECT id, name, backend_kind, location, relative_path, repository_location, cap_bytes, cap_policy, encryption_algorithm, provisioning_state, secret_ref, device_path, device_mountpoint, device_label, device_filesystem, device_total_bytes, device_model, device_serial, device_uuid, device_observed_at, created_at, updated_at
 FROM destinations WHERE id = ?
 `
 	selectDestByNameSQL = `
-	SELECT id, name, backend_kind, location, relative_path, repository_location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, device_path, device_mountpoint, device_label, device_filesystem, device_total_bytes, device_model, device_serial, device_uuid, device_observed_at, created_at, updated_at
+	SELECT id, name, backend_kind, location, relative_path, repository_location, cap_bytes, cap_policy, encryption_algorithm, provisioning_state, secret_ref, device_path, device_mountpoint, device_label, device_filesystem, device_total_bytes, device_model, device_serial, device_uuid, device_observed_at, created_at, updated_at
 FROM destinations WHERE name = ?
 `
 	listDestsSQL = `
-	SELECT id, name, backend_kind, location, relative_path, repository_location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, device_path, device_mountpoint, device_label, device_filesystem, device_total_bytes, device_model, device_serial, device_uuid, device_observed_at, created_at, updated_at
+	SELECT id, name, backend_kind, location, relative_path, repository_location, cap_bytes, cap_policy, encryption_algorithm, provisioning_state, secret_ref, device_path, device_mountpoint, device_label, device_filesystem, device_total_bytes, device_model, device_serial, device_uuid, device_observed_at, created_at, updated_at
 FROM destinations
 ORDER BY name ASC
 LIMIT ?
@@ -78,9 +78,12 @@ func (s *sqliteRepository) Create(ctx context.Context, d Destination) (Destinati
 	if d.UpdatedAt.IsZero() {
 		d.UpdatedAt = d.CreatedAt
 	}
+	if d.ProvisioningState == "" {
+		d.ProvisioningState = ProvisioningReady
+	}
 	_, err := s.db.ExecContext(ctx, insertDestSQL,
 		d.ID, d.Name, string(d.BackendKind), d.Location, d.RelativePath, d.RepositoryLocation, d.CapBytes, string(d.CapPolicy),
-		d.EncryptionAlgorithm, d.SecretRef,
+		d.EncryptionAlgorithm, d.ProvisioningState, d.SecretRef,
 		identityPath(d.DeviceIdentity), identityMountpoint(d.DeviceIdentity), identityLabel(d.DeviceIdentity), identityFilesystem(d.DeviceIdentity), identityTotalBytes(d.DeviceIdentity), identityModel(d.DeviceIdentity), identitySerial(d.DeviceIdentity), identityUUID(d.DeviceIdentity), formatTime(d.DeviceIdentityObservedAt),
 		d.CreatedAt.Format(destTimeFormat), d.UpdatedAt.Format(destTimeFormat),
 	)
@@ -92,8 +95,11 @@ func (s *sqliteRepository) Create(ctx context.Context, d Destination) (Destinati
 
 func (s *sqliteRepository) Update(ctx context.Context, d Destination) (Destination, error) {
 	d.UpdatedAt = s.clock.Now().UTC()
+	if d.ProvisioningState == "" {
+		d.ProvisioningState = ProvisioningReady
+	}
 	_, err := s.db.ExecContext(ctx, updateDestSQL,
-		d.RelativePath, d.CapBytes, string(d.CapPolicy), d.SecretRef,
+		d.Location, d.RelativePath, d.RepositoryLocation, d.CapBytes, string(d.CapPolicy), d.EncryptionAlgorithm, d.ProvisioningState, d.SecretRef,
 		identityPath(d.DeviceIdentity), identityMountpoint(d.DeviceIdentity), identityLabel(d.DeviceIdentity), identityFilesystem(d.DeviceIdentity), identityTotalBytes(d.DeviceIdentity), identityModel(d.DeviceIdentity), identitySerial(d.DeviceIdentity), identityUUID(d.DeviceIdentity), formatTime(d.DeviceIdentityObservedAt),
 		d.UpdatedAt.Format(destTimeFormat), d.ID,
 	)
@@ -180,7 +186,7 @@ func scanDest(sc rowScanner) (Destination, error) {
 	)
 	if err := sc.Scan(
 		&d.ID, &d.Name, &backendRaw, &d.Location, &d.RelativePath, &d.RepositoryLocation, &d.CapBytes, &policyRaw,
-		&d.EncryptionAlgorithm, &d.SecretRef,
+		&d.EncryptionAlgorithm, &d.ProvisioningState, &d.SecretRef,
 		&devicePath, &deviceMountpoint, &deviceLabel, &deviceFilesystem, &deviceTotalBytes, &deviceModel, &deviceSerial, &deviceUUID, &deviceObservedAt,
 		&createdRaw, &updatedRaw,
 	); err != nil {
@@ -215,48 +221,56 @@ func identityPath(i *destinationreadiness.DeviceIdentity) string {
 	}
 	return i.DevicePath
 }
+
 func identityMountpoint(i *destinationreadiness.DeviceIdentity) string {
 	if i == nil {
 		return ""
 	}
 	return i.Mountpoint
 }
+
 func identityLabel(i *destinationreadiness.DeviceIdentity) string {
 	if i == nil {
 		return ""
 	}
 	return i.Label
 }
+
 func identityFilesystem(i *destinationreadiness.DeviceIdentity) string {
 	if i == nil {
 		return ""
 	}
 	return i.Filesystem
 }
+
 func identityTotalBytes(i *destinationreadiness.DeviceIdentity) int64 {
 	if i == nil {
 		return 0
 	}
 	return i.TotalBytes
 }
+
 func identityModel(i *destinationreadiness.DeviceIdentity) string {
 	if i == nil {
 		return ""
 	}
 	return i.Model
 }
+
 func identitySerial(i *destinationreadiness.DeviceIdentity) string {
 	if i == nil {
 		return ""
 	}
 	return i.Serial
 }
+
 func identityUUID(i *destinationreadiness.DeviceIdentity) string {
 	if i == nil {
 		return ""
 	}
 	return i.UUID
 }
+
 func formatTime(t time.Time) string {
 	if t.IsZero() {
 		return ""

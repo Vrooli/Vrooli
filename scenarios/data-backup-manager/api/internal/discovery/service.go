@@ -14,6 +14,12 @@ import (
 // the scan → filter → rank pipeline for both suggestion kinds and the dismissal
 // write. It holds no durable state beyond the DismissalStore.
 type Service interface {
+	// ListTargetCandidates returns the current owner-declared candidate inventory
+	// before catalog filtering. Coverage uses this read-only view to carry
+	// reacquisition proofs onto already-registered targets without treating a
+	// registered source as a new suggestion.
+	ListTargetCandidates(ctx context.Context) ([]TargetCandidate, error)
+
 	// ListTargetSuggestions returns ranked, de-duplicated, non-dismissed target
 	// suggestions (sources worth protecting that are not yet registered).
 	ListTargetSuggestions(ctx context.Context) ([]TargetSuggestion, error)
@@ -46,6 +52,14 @@ func NewService(d Deps) Service { return &service{deps: d} }
 
 // Compile-time guarantee.
 var _ Service = (*service)(nil)
+
+func (s *service) ListTargetCandidates(ctx context.Context) ([]TargetCandidate, error) {
+	candidates, err := s.deps.Sources.Scan(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("scan target candidates: %w", err)
+	}
+	return candidates, nil
+}
 
 func (s *service) ListTargetSuggestions(ctx context.Context) ([]TargetSuggestion, error) {
 	candidates, err := s.deps.Sources.Scan(ctx)

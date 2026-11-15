@@ -130,6 +130,36 @@ func (w *VolumeRecoveryWorker) reconcile(ctx context.Context) {
 			w.logger.Printf("volume recovery for destination %s: %v", destination.ID, err)
 		}
 	}
+	w.settleDecisions(ctx, dests)
+}
+
+// settleDecisions withdraws repair questions that are no longer waiting: the
+// drive is back, the recovery moved on, or its destination was removed.
+func (w *VolumeRecoveryWorker) settleDecisions(ctx context.Context, dests []destinations.Destination) {
+	if w.decisions == nil || ctx.Err() != nil {
+		return
+	}
+	orphaned := map[string]string{}
+	if w.recoveries != nil {
+		live := make(map[string]bool, len(dests))
+		for _, d := range dests {
+			if d.BackendKind == destinations.BackendFilesystem && d.DeviceIdentity != nil && d.DeviceIdentity.StrongIdentity() {
+				live[d.ID] = true
+			}
+		}
+		episodes, err := w.recoveries.ListEpisodes(ctx)
+		if err != nil {
+			w.logger.Printf("volume recovery episodes could not be listed: %v", err)
+		}
+		for _, episode := range episodes {
+			if episode.RecoveryID != "" && !episode.LastMounted && !live[episode.DestinationID] {
+				orphaned[episode.RecoveryID] = "The backup destination for this drive was removed, so this repair question no longer applies."
+			}
+		}
+	}
+	if err := w.decisions.Settle(ctx, orphaned); err != nil {
+		w.logger.Printf("volume repair decisions could not be settled: %v", err)
+	}
 }
 
 func (w *VolumeRecoveryWorker) reconcileDestination(ctx context.Context, destination destinations.Destination) error {
@@ -182,7 +212,7 @@ func (w *VolumeRecoveryWorker) recordMountedRecovery(ctx context.Context, destin
 		w.notifyMountFailure(ctx, destination, err)
 		return err
 	}
-	if _, err := w.recoveries.ObserveEpisode(ctx, destination.ID, inspection.Identity, true, ""); err != nil {
+	if _, err := w.recoveries.ObserveEpisode(ctx, destination.ID, inspection.Identity, true, inspection.MountEpisodeID, ""); err != nil {
 		return fmt.Errorf("record mounted recovery observation: %w", err)
 	}
 	return nil
@@ -210,7 +240,7 @@ func (w *VolumeRecoveryWorker) planRecoveryActions(ctx context.Context, destinat
 
 func (w *VolumeRecoveryWorker) prepareRecoveryEpisode(ctx context.Context, destination destinations.Destination, inspection destinationreadiness.Inspection, plans recoveryActionPlans) (string, bool, error) {
 	legacyID := operatordecision.CorrelationID("dbm-monitor", destination.ID, plans.repair.ID, plans.mount.ID)
-	episode, err := w.recoveries.ObserveEpisode(ctx, destination.ID, inspection.Identity, false, legacyID)
+	episode, err := w.recoveries.ObserveEpisode(ctx, destination.ID, inspection.Identity, false, inspection.MountEpisodeID, legacyID)
 	if err != nil {
 		return "", false, fmt.Errorf("record unmounted recovery episode: %w", err)
 	}
@@ -270,6 +300,12 @@ func (w *VolumeRecoveryWorker) runRecoveryCheckAndMount(ctx context.Context, des
 		})
 	}
 	if checkErr == nil && result.Consistent == "yes" {
+		if w.recoveries == nil {
+			return false, "", fmt.Errorf("offline check passed but recovery episode storage is unavailable; refusing remount")
+		}
+		if _, err := w.recoveries.RecordOfflineCheck(ctx, destination.ID, journalID, *destination.DeviceIdentity, plans.check.ID, result.Consistent, result.Detail); err != nil {
+			return false, "", fmt.Errorf("persist offline check evidence for recovery episode: %w", err)
+		}
 		return w.mountAfterCleanCheck(ctx, destination, plans.mount, journalID)
 	}
 	detail := "Read-only filesystem check consistency: " + string(result.Consistent)
@@ -280,6 +316,19 @@ func (w *VolumeRecoveryWorker) runRecoveryCheckAndMount(ctx context.Context, des
 }
 
 func (w *VolumeRecoveryWorker) mountAfterCleanCheck(ctx context.Context, destination destinations.Destination, plan destinationreadiness.Plan, journalID string) (bool, string, error) {
+	if w.recoveries == nil || destination.DeviceIdentity == nil {
+		err := fmt.Errorf("offline check evidence store or device identity is unavailable; refusing remount")
+		w.notifyMountFailure(ctx, destination, err)
+		return false, "", err
+	}
+	currentCheck, evidenceErr := w.recoveries.HasCurrentOfflineCheck(ctx, destination.ID, journalID, *destination.DeviceIdentity)
+	if evidenceErr != nil || !currentCheck {
+		if evidenceErr == nil {
+			evidenceErr = fmt.Errorf("no positive offline check evidence is bound to the current mount episode")
+		}
+		w.notifyMountFailure(ctx, destination, evidenceErr)
+		return false, "", evidenceErr
+	}
 	if !plan.Supported {
 		err := fmt.Errorf("filesystem is consistent, but this platform manages volume attachment automatically and no mounted drive letter is visible")
 		w.notifyMountFailure(ctx, destination, err)
@@ -294,10 +343,14 @@ func (w *VolumeRecoveryWorker) mountAfterCleanCheck(ctx context.Context, destina
 		w.notifyMountFailure(ctx, destination, err)
 		return false, "", fmt.Errorf("remount completed but volume state could not be verified: %w", err)
 	}
-	if !mounted.Mounted || mounted.ReadOnly || mounted.DeviceWriteProtected {
+	if !mounted.Identity.StrongIdentity() || !destination.DeviceIdentity.MatchesDevice(mounted.Identity) || !mounted.Mounted || mounted.ReadOnly || mounted.DeviceWriteProtected {
 		err := fmt.Errorf("remount completed but the selected volume is not verified mounted read/write")
 		w.notifyMountFailure(ctx, destination, err)
 		return false, "", err
+	}
+	if _, err := w.recoveries.RecordMountedCheck(ctx, destination.ID, journalID, mounted.Identity, mounted.MountEpisodeID, true, false); err != nil {
+		w.notifyMountFailure(ctx, destination, err)
+		return false, "", fmt.Errorf("record filesystem check for the verified mount episode: %w", err)
 	}
 	if w.decisions != nil {
 		w.decisions.NotifyRecoveryCompleted(ctx, destinationreadiness.RecoveryJournal{ID: journalID, Location: destination.Location})
@@ -360,5 +413,7 @@ func (f *RecoveryDecisionFlow) HasTerminalDecision(ctx context.Context, journal 
 	if err != nil || ask == nil {
 		return false, err
 	}
-	return ask.State != operatordecision.PendingStatePending && ask.State != "", nil
+	// A withdrawn ask was closed without an answer: the repair is asked again if
+	// it is still waiting.
+	return ask.State != operatordecision.PendingStatePending && ask.State != operatordecision.PendingStateWithdrawn && ask.State != "", nil
 }

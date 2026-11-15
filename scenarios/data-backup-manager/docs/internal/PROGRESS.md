@@ -295,7 +295,7 @@ session and delivered by Web Push (notification
 broker in an authenticated terminal, use an authorized second computer, or
 hold recovery; Notification Hub also provides its built-in Other response and
 dismiss action. The action ledger is
-`/home/matthalloran8/.vrooli/research/ATTENTION.md`.
+`~/.vrooli/research/ATTENTION.md`.
 
 ## 2026-11-04 04:05Z — SMART result serialization repaired at the broker owner
 
@@ -362,7 +362,7 @@ terminal.
 
 DBM owner reads confirm Treasury target `bba8b1d6-bfdf-4c21-ab48-177411eaa276`
 has a verified scratch-restore record (`56e32b5b-8da5-472e-85cb-ea2f5c4207db`),
-but both its source `/home/matthalloran8/.vrooli/data/vrooli/treasury` and
+but both its source `~/.vrooli/data/vrooli/treasury` and
 `baseline-safety` destination are on `/dev/nvme0n1p2`. This is valid same-host
 verification evidence, not an independent/off-host restore. Elements remains
 blocked on repository usage EIO; no current off-host restore evidence exists.
@@ -491,3 +491,19 @@ the four new state directories. Focused tests cover each layer; see
 `DBM-RECOVERY-002` and `DBM-ALERT-001`. No repository write path exists in the
 new code.
 
+
+## 2026-11-12 — time-tiered snapshot retention and restart-safe scheduling
+
+Added per-plan Kopia GFS retention fields across the protobuf contract, SQLite
+catalog, API, CLI, UI, and run executor. New plans use a bounded profile; legacy
+plans keep their existing newest-count policy until an operator edits them.
+The scheduler now seeds its cadence from the latest persisted run so restarts do
+not immediately fire every plan.
+
+Applied latest=2, hourly=24, daily=7, weekly=4, monthly=6, annual=2 to the
+Browser Automation Studio baseline plan. Kopia retained four of seven snapshots
+and expired three. Full maintenance then deleted 129,452,162,502 bytes of
+unreferenced packs; repository physical size fell from 356,058,575,742 to
+226,609,979,790 bytes, and host free space rose from 171 GB to 291 GB. The GC
+also collected backlog that predated this single plan's expiration. No tests or
+suites were run; `git diff --check` passed.

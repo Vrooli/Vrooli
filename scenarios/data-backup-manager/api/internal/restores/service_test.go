@@ -286,6 +286,40 @@ func TestVerifyTarget_CleanupFailureIsRecorded(t *testing.T) {
 	}
 }
 
+func TestVerifyTarget_CleansKopiaReadOnlyMetadataFromScratch(t *testing.T) {
+	svc, eng, _ := buildRestoreService(t)
+	var scratchDir string
+	eng.SnapshotRestoreFn = func(_ context.Context, _, _, target string) error {
+		scratchDir = target
+		metadataDir := filepath.Join(target, "legacy-history")
+		if err := os.Mkdir(metadataDir, 0o750); err != nil {
+			return err
+		}
+		metadataFile := filepath.Join(metadataDir, "SHA256SUMS")
+		if err := os.WriteFile(metadataFile, []byte("checksum\n"), 0o600); err != nil {
+			return err
+		}
+		if err := os.Chmod(metadataDir, 0o500); err != nil {
+			return err
+		}
+		return os.Chmod(metadataFile, 0o400)
+	}
+
+	rec, err := svc.VerifyTarget(context.Background(), "tgt-filesystem", "dst-1", "snap-readonly-metadata")
+	if err != nil {
+		t.Fatalf("VerifyTarget: %v", err)
+	}
+	if rec.Status != restores.RestoreVerified {
+		t.Fatalf("status = %q, want verified; error = %q", rec.Status, rec.Error)
+	}
+	if scratchDir == "" {
+		t.Fatal("snapshot restore scratch path was not recorded")
+	}
+	if _, err := os.Stat(scratchDir); !os.IsNotExist(err) {
+		t.Fatalf("scratch directory should be removed after verify; stat err = %v", err)
+	}
+}
+
 func copyTree(src, dst string) error {
 	return filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
 		if err != nil {

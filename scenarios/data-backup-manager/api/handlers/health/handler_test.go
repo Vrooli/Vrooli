@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"data-backup-manager/handlers/health"
-	"data-backup-manager/internal/module"
+	"data-backup-manager/internal/modulecontract"
 	"data-backup-manager/internal/server"
 
 	"github.com/vrooli/api-core/apihttptest"
@@ -81,7 +81,7 @@ func TestHealthHandler(t *testing.T) {
 				Service: "react-vite-test",
 				Version: "1.0.0",
 			})
-			mod := module.Module{
+			mod := modulecontract.Module{
 				Name: "health",
 				Mount: func(r *mux.Router) {
 					r.HandleFunc("/health", h).Methods(http.MethodGet)

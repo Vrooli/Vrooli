@@ -20,7 +20,7 @@ const bytesToGb = (bytes: bigint): string => {
   return gb === 0 ? "0" : String(Number(gb.toFixed(2)));
 };
 
-const BACKEND_OPTIONS = [BackendKind.FILESYSTEM, BackendKind.S3];
+const BACKEND_OPTIONS = [BackendKind.FILESYSTEM, BackendKind.SFTP, BackendKind.S3];
 const POLICY_OPTIONS = [CapPolicy.ALERT_BLOCK, CapPolicy.ALERT_ONLY];
 
 // SLUG_RE mirrors the server's slug-safe destination-name contract (a name is

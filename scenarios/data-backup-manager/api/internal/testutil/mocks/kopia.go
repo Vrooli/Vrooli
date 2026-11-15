@@ -24,6 +24,8 @@ type FakeKopiaEngine struct {
 
 	// Programmable behavior. Leave nil to use the default.
 	RepoCreateFn      func(ctx context.Context, spec engine.RepoSpec) error
+	RepoConnectFn     func(ctx context.Context, spec engine.RepoSpec) error
+	RepoRebindFn      func(ctx context.Context, repo, absolutePath string) error
 	RepoStatusFn      func(ctx context.Context, repo string) (engine.RepoStatus, error)
 	PassphraseRefFn   func(repo string) string
 	RepoStatsFn       func(ctx context.Context, repo string) (engine.RepoStats, error)
@@ -33,7 +35,7 @@ type FakeKopiaEngine struct {
 	SnapshotRestoreFn func(ctx context.Context, repo, snapshotID, target string) error
 	SnapshotVerifyFn  func(ctx context.Context, repo, snapshotID string, verifyPercent int) error
 	BrowseSnapshotFn  func(ctx context.Context, repo, snapshotID, path string) ([]engine.SnapshotEntry, error)
-	ApplyRetentionFn  func(ctx context.Context, repo, source string, keepLatest int) (int, error)
+	ApplyRetentionFn  func(ctx context.Context, repo, source string, policy engine.RetentionPolicy) (int, error)
 
 	// Recorded state.
 	Calls         []string
@@ -57,6 +59,26 @@ func (f *FakeKopiaEngine) RepoCreate(ctx context.Context, spec engine.RepoSpec) 
 		return f.RepoCreateFn(ctx, spec)
 	}
 	f.Repos = append(f.Repos, spec)
+	return nil
+}
+
+func (f *FakeKopiaEngine) RepoConnect(ctx context.Context, spec engine.RepoSpec) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("RepoConnect(%s,%s)", spec.Name, spec.Backend)
+	if f.RepoConnectFn != nil {
+		return f.RepoConnectFn(ctx, spec)
+	}
+	return nil
+}
+
+func (f *FakeKopiaEngine) RepoRebind(ctx context.Context, repo, absolutePath string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("RepoRebind(%s,%s)", repo, absolutePath)
+	if f.RepoRebindFn != nil {
+		return f.RepoRebindFn(ctx, repo, absolutePath)
+	}
 	return nil
 }
 
@@ -154,14 +176,14 @@ func (f *FakeKopiaEngine) BrowseSnapshot(ctx context.Context, repo, snapshotID, 
 }
 
 // ApplyRetention defaults to a source that already honors its bound.
-func (f *FakeKopiaEngine) ApplyRetention(ctx context.Context, repo, source string, keepLatest int) (int, error) {
+func (f *FakeKopiaEngine) ApplyRetention(ctx context.Context, repo, source string, policy engine.RetentionPolicy) (int, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.record("ApplyRetention(%s,%s,%d)", repo, source, keepLatest)
+	f.record("ApplyRetention(%s,%s,%d,%d,%d,%d,%d,%d)", repo, source, policy.KeepLatest, policy.KeepHourly, policy.KeepDaily, policy.KeepWeekly, policy.KeepMonthly, policy.KeepAnnual)
 	if f.ApplyRetentionFn != nil {
-		return f.ApplyRetentionFn(ctx, repo, source, keepLatest)
+		return f.ApplyRetentionFn(ctx, repo, source, policy)
 	}
-	return keepLatest, nil
+	return policy.KeepLatest + policy.KeepHourly + policy.KeepDaily + policy.KeepWeekly + policy.KeepMonthly + policy.KeepAnnual, nil
 }
 
 // FakeSnapshotSource is the source identity the fake records a snapshot

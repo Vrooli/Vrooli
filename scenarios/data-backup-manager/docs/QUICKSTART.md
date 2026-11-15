@@ -89,29 +89,22 @@ First real backup validation follows this shape:
 
 ```bash
 # Register a target if discovery or a scenario lifecycle has not already done it.
-data-backup-manager targets register --owner prompt-manager \
-  --name store-teams --kind filesystem --locator store/teams
+data-backup-manager targets register --owner prompt-manager --name store-teams --kind filesystem --locator store/teams
 
 # Create an encrypted kopia filesystem destination on a separate root.
-data-backup-manager destinations create --name nightly-local \
-  --backend filesystem --location /var/backups/nightly
+data-backup-manager destinations create --name nightly-local --backend filesystem --location /var/backups/nightly
 
 # Bind one or more target ids to one or more destination ids.
-data-backup-manager plans create --name nightly \
-  --targets <target-id> --destinations <destination-id> \
-  --schedule "24h" --keep-latest 7
+data-backup-manager plans create --name nightly --targets target-id --destinations destination-id --schedule "24h" --keep-latest 7
 
-data-backup-manager runs trigger --plan <plan-id>
+data-backup-manager runs trigger --plan plan-id
 data-backup-manager runs list
 
-data-backup-manager restores verify --target <target-id> \
-  --destination <destination-id> --snapshot <snapshot-id>
+data-backup-manager restores verify --target target-id --destination destination-id --snapshot snapshot-id
 
-rm -rf /tmp/dbm-restore-check
-data-backup-manager restores restore --target <target-id> \
-  --destination <destination-id> --snapshot <snapshot-id> \
-  --location /tmp/dbm-restore-check
-diff -ru <source-locator> /tmp/dbm-restore-check
+# Choose a new empty temporary location and replace the sample IDs/locator with values from the preceding commands.
+data-backup-manager restores restore --target target-id --destination destination-id --snapshot snapshot-id --location /tmp/dbm-restore-check-unique
+diff -ru "source-locator" /tmp/dbm-restore-check-unique
 ```
 
 For a disposable end-to-end proof that creates canary data, snapshots it,

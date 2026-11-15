@@ -1,5 +1,5 @@
 -- Destinations table — owned by internal/destinations/. Embedded by schema.go
--- and applied via database.EnsureSchemas at boot through the modules.AllSchemas
+-- and applied via database.EnsureSchemas at boot through the modulecatalog.AllSchemas
 -- registry. Keyed by name: a destination is a unique kopia repository. Times
 -- are RFC3339Nano strings matching the wire format and the time.Time round-trip
 -- in sqlite.go::scanDest. CREATE ... IF NOT EXISTS so re-runs are no-ops.
@@ -9,13 +9,14 @@ CREATE TABLE IF NOT EXISTS destinations (
   backend_kind         TEXT NOT NULL,
   -- location is the operator-facing bundle root; repository_location is the
   -- concrete kopia repository path nested inside it (filesystem) or the same
-  -- bucket/prefix (s3). Split so a detached drive shows the human bundle root.
+  -- SFTP/S3 repository locator. Split so a detached drive shows the human bundle root.
   location             TEXT NOT NULL,
   relative_path        TEXT NOT NULL DEFAULT '',
   repository_location  TEXT NOT NULL DEFAULT '',
   cap_bytes            INTEGER NOT NULL DEFAULT 0,
   cap_policy           TEXT NOT NULL DEFAULT 'alert_block',
   encryption_algorithm TEXT NOT NULL DEFAULT '',
+  provisioning_state   TEXT NOT NULL DEFAULT 'ready',
   secret_ref           TEXT NOT NULL DEFAULT '',
   device_path          TEXT NOT NULL DEFAULT '',
   device_mountpoint    TEXT NOT NULL DEFAULT '',

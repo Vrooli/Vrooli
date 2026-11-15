@@ -143,7 +143,7 @@
     },
     {
       "name": "destinations",
-      "description": "Manage backup destinations (kopia repositories: filesystem or S3)",
+      "description": "Manage backup destinations (kopia repositories: filesystem, SFTP, or S3)",
       "commands": [
         {
           "name": "create",
@@ -157,7 +157,7 @@
             {
               "name": "backend",
               "required": true,
-              "description": "Backend kind: filesystem|s3",
+              "description": "Backend kind: filesystem|sftp|s3",
               "bind": {
                 "field": "backend_kind"
               }
@@ -165,7 +165,7 @@
             {
               "name": "location",
               "required": true,
-              "description": "Filesystem path or s3://bucket/prefix"
+              "description": "Filesystem path, SFTP URI, or S3-compatible URI"
             },
             {
               "name": "cap-bytes",
@@ -188,6 +188,22 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "import-existing",
+          "description": "Attach an exact existing repository described by non-secret catalog metadata",
+          "flags": [
+            {"name": "id", "required": true, "description": "Stable destination ID from source catalog/bundle"},
+            {"name": "name", "required": true, "description": "Slug-safe Kopia repository name"},
+            {"name": "backend", "required": true, "description": "Existing backend: filesystem|sftp|s3"},
+            {"name": "location", "required": true, "description": "Existing bundle root or non-secret backend URI"},
+            {"name": "created-at", "required": true, "description": "Original destination creation time in RFC3339 format"},
+            {"name": "snapshot-ids", "required": true, "description": "Comma-separated exact snapshot IDs required by this recovery"},
+            {"name": "cap-bytes", "description": "Storage cap in bytes (0 = no cap)"},
+            {"name": "cap-policy", "description": "Over-cap behavior: alert-block|alert-only (default: alert-block)"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "DestinationsService", "method": "ImportExistingDestination"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["filesystem:read", "filesystem:write", "network:internal", "admin"]}
         },
         {
           "name": "get",
@@ -562,7 +578,7 @@
       "commands": [
         {
           "name": "report",
-          "description": "Show the backup coverage report (registered, recommended, sensitive, planned, backed-up, verified)",
+          "description": "Show backup coverage per enabled destination, including per-copy backups and scratch-restore verification",
           "binding": {
             "kind": "connect-rpc",
             "service": "CoverageService",
@@ -581,11 +597,6 @@
           "description": "Bulk-register non-sensitive discovered durable targets as default coverage",
           "flags": [
             {
-              "name": "include-sensitive",
-              "bool": true,
-              "description": "Also register sensitive credential/token suggestions (deliberate opt-in)"
-            },
-            {
               "name": "dry-run",
               "bool": true,
               "description": "Report what would be registered without registering anything"
@@ -595,6 +606,22 @@
             "kind": "connect-rpc",
             "service": "CoverageService",
             "method": "AcceptDefaultTargets"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "review-sensitive",
+          "description": "Request one verified Notification Hub review for current sensitive coverage suggestions",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "RequestSensitiveReview"
           },
           "governance": {
             "effect": "write",
@@ -643,6 +670,11 @@
               "name": "keep-latest",
               "description": "Retention: keep at most N latest snapshots (0 = keep all)"
             },
+            { "name": "keep-hourly", "description": "Age-based retention: hourly snapshots (default 24 on new plans)" },
+            { "name": "keep-daily", "description": "Age-based retention: daily snapshots (default 7 on new plans)" },
+            { "name": "keep-weekly", "description": "Age-based retention: weekly snapshots (default 4 on new plans)" },
+            { "name": "keep-monthly", "description": "Age-based retention: monthly snapshots (default 6 on new plans)" },
+            { "name": "keep-annual", "description": "Age-based retention: annual snapshots (default 2 on new plans)" },
             {
               "name": "protection-tier",
               "description": "Protection tier: full-primary|critical-primary|critical-secondary (default: full-primary)"
@@ -744,6 +776,11 @@
               "name": "keep-latest",
               "description": "Retention: keep at most N latest snapshots"
             },
+            { "name": "keep-hourly", "description": "Age-based retention: hourly snapshots" },
+            { "name": "keep-daily", "description": "Age-based retention: daily snapshots" },
+            { "name": "keep-weekly", "description": "Age-based retention: weekly snapshots" },
+            { "name": "keep-monthly", "description": "Age-based retention: monthly snapshots" },
+            { "name": "keep-annual", "description": "Age-based retention: annual snapshots" },
             {
               "name": "enabled",
               "description": "Enable or disable scheduler for this plan"
@@ -774,6 +811,17 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "add-destination",
+          "description": "Add one destination to selected existing plans; defaults to a non-mutating preview",
+          "flags": [
+            { "name": "plans", "required": true, "description": "Comma-separated existing plan ids" },
+            { "name": "destination", "required": true, "description": "Destination id to add" },
+            { "name": "apply", "bool": true, "description": "Apply the validated changes" }
+          ],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
           "name": "delete",
@@ -938,6 +986,39 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "retire",
+          "description": "Retire a completed drill while retaining its durable evidence",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Drill id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "reason",
+              "required": true,
+              "description": "Why this completed drill is retired",
+              "bind": {
+                "field": "reason"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecoveryDrillsService",
+            "method": "RetireDrill"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
             "permissions": [
               "network:internal"
             ]

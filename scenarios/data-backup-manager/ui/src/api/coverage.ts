@@ -15,6 +15,7 @@ import { CoverageService } from "@vrooli/proto-types/data-backup-manager/v1/cove
 import type {
   CoverageReport,
   AcceptDefaultTargetsResponse,
+  RequestSensitiveReviewResponse,
 } from "@vrooli/proto-types/data-backup-manager/v1/coverage/coverage_pb";
 
 import { transport } from "./client";
@@ -43,4 +44,8 @@ export async function acceptDefaultTargets(
   });
 }
 
-export type { CoverageReport, AcceptDefaultTargetsResponse };
+export async function requestSensitiveReview(): Promise<RequestSensitiveReviewResponse> {
+  return coverageClient.requestSensitiveReview({});
+}
+
+export type { CoverageReport, AcceptDefaultTargetsResponse, RequestSensitiveReviewResponse };

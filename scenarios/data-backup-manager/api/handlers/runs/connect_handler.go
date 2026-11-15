@@ -14,16 +14,16 @@ import (
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/runs"
 )
 
-// VerifiedInfo is the proven-restorable rollup for one target: the latest
-// successful verify and the snapshot it proved.
+// VerifiedInfo is the proven-restorable rollup for one target. LastVerifiedAt
+// is the oldest successful verify across current enabled copies so one recent
+// destination cannot hide a stale or unverified copy.
 type VerifiedInfo struct {
 	LastVerifiedAt time.Time
 	SnapshotID     string
 }
 
-// VerifiedLookup supplies the latest successful verify per target, keyed by
-// target id, so ListTargetStatus can carry "proven restorable" posture
-// alongside "backed up" posture in a single call (no per-target fan-out).
+// VerifiedLookup supplies the all-enabled-destination verification rollup per
+// target, keyed by target id, so one good copy cannot stand in for every copy.
 //
 // seam: satisfied by an adapter over restores.Service in main.go. Optional — a
 // nil lookup yields no verified data, so every target renders as unverified.

@@ -2,6 +2,7 @@ package repohealth
 
 import (
 	"fmt"
+	"path"
 	"sort"
 	"strings"
 	"time"
@@ -11,16 +12,17 @@ import (
 
 // Option keys the Notification Hub returns when the operator answers.
 const (
-	OptAccept = "accept_exception"
-	OptRepair = "repair_drive"
-	OptFresh  = "fresh_repository"
-	OptLeave  = "leave_blocked"
+	OptAccept          = "accept_exception"
+	OptKopiaQuarantine = "quarantine_repository_temp"
+	OptRepair          = "repair_drive"
+	OptFresh           = "fresh_repository"
+	OptLeave           = "leave_blocked"
 )
 
 // Offers is which actions the code can truly perform for a diagnosis. An action
 // that cannot run is never offered.
 type Offers struct {
-	Accept, Repair, Fresh bool
+	Accept, KopiaQuarantine, Repair, Fresh bool
 }
 
 // OffersFor decides what to offer. repairPlannable is whether the control plane
@@ -28,7 +30,8 @@ type Offers struct {
 func OffersFor(d Diagnosis, repairPlannable bool) Offers {
 	switch d.Cause {
 	case CauseLeftoverTempUnreadable:
-		return Offers{Accept: true, Repair: repairPlannable, Fresh: true}
+		canQuarantine := d.DestinationDevice != nil && d.DestinationDevice.StrongIdentity() && quarantinableTemps(d.Unreadable)
+		return Offers{Accept: true, KopiaQuarantine: canQuarantine, Repair: repairPlannable, Fresh: true}
 	case CauseContentUnreadable, CauseSnapshotsUnlistable, CauseRepositoryUnopenable, CauseUsageUnexplained:
 		return Offers{Repair: repairPlannable, Fresh: true}
 	case CauseVolumeReadOnly:
@@ -38,13 +41,37 @@ func OffersFor(d Diagnosis, repairPlannable bool) Offers {
 	}
 }
 
+// quarantinableTemps permits one verified decision to cover a complete set of
+// exact orphan session temps. Every entry must be an EIO unreadable, orphaned
+// s/...f.tmp object; a mixed or ambiguous set remains blocked for inspection.
+func quarantinableTemps(entries []Entry) bool {
+	if len(entries) == 0 {
+		return false
+	}
+	seen := make(map[string]struct{}, len(entries))
+	for _, entry := range entries {
+		clean := path.Clean(strings.ReplaceAll(entry.RelPath, `\\`, "/"))
+		class, kind := ClassifyName(entry.RelPath)
+		if clean != entry.RelPath || !strings.HasPrefix(clean, "s/") || class != ClassLeftoverTemp || kind != BlobSessionMarker || entry.Class != ClassLeftoverTemp || entry.BlobKind != BlobSessionMarker || entry.Problem != ProblemIO || !entry.Orphan {
+			return false
+		}
+		if _, ok := seen[clean]; ok {
+			return false
+		}
+		seen[clean] = struct{}{}
+	}
+	return true
+}
+
 // Askable reports whether a diagnosis leads to a question. A cleared failure and
 // an unmounted volume (owned by the existing drive recovery) do not.
-func (o Offers) Askable() bool { return o.Accept || o.Repair || o.Fresh }
+func (o Offers) Askable() bool { return o.Accept || o.KopiaQuarantine || o.Repair || o.Fresh }
 
 // Recommended is the option to suggest, with the plain reason.
 func Recommended(d Diagnosis, o Offers) (key, reason string) {
 	switch {
+	case o.KopiaQuarantine:
+		return OptKopiaQuarantine, fmt.Sprintf("Kopia can move these %d exact unreadable session %s into same-volume quarantine while preserving their bytes; it will not recreate any final blob.", len(d.Unreadable), plural1(len(d.Unreadable), "temp", "temps"))
 	case o.Accept:
 		return OptAccept, fmt.Sprintf("They are unfinished uploads, not saved backup data, and your %d earlier backups still list normally. This restarts protection soonest and changes nothing on the drive.", d.SnapshotCount)
 	case o.Repair:
@@ -132,6 +159,12 @@ func lettered(d Diagnosis, o Offers, recommended string) []letteredOption {
 			key:    OptAccept,
 			action: fmt.Sprintf("skip only %s and resume", plural1(n, "that file", fmt.Sprintf("those %d files", n))),
 			label:  fmt.Sprintf("Skip only %s and resume backups. Low risk; I keep warning you while %s.", plural1(n, "that unreadable file", fmt.Sprintf("those %d unreadable files", n)), plural1(n, "it exists", "they exist")),
+		})
+	}
+	if o.KopiaQuarantine {
+		opts = append(opts, letteredOption{
+			key: OptKopiaQuarantine, action: fmt.Sprintf("quarantine these %d exact unreadable Kopia %s", len(d.Unreadable), plural1(len(d.Unreadable), "temp", "temps")),
+			label: fmt.Sprintf("Quarantine only these %d exact unreadable session %s. Kopia preserves their bytes in same-volume quarantine and writes no final blob; backups retry after revalidation.", len(d.Unreadable), plural1(len(d.Unreadable), "temp", "temps")),
 		})
 	}
 	if o.Repair {
@@ -236,6 +269,9 @@ func technicalDetails(d Diagnosis, o Offers) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Cause: %s\nChecked: %s\nDestination: %s (%s)\nRepository directory: %s\n",
 		d.Cause, d.CheckedAt.Format(time.RFC3339), d.DestinationName, d.DestinationID, d.RepositoryRoot)
+	if d.DestinationDevice != nil {
+		fmt.Fprintf(&b, "Observed device identity: filesystem=%s UUID=%s serial=%s\n", d.DestinationDevice.Filesystem, d.DestinationDevice.UUID, d.DestinationDevice.Serial)
+	}
 	fmt.Fprintf(&b, "Drive: mounted=%t read_only=%t %s\n", d.Volume.Mounted, d.Volume.ReadOnly, d.Volume.Detail)
 	fmt.Fprintf(&b, "Repository opens: %t. Snapshots listed: %t (%d). Latest snapshot: %s. Last success: %s (%s).\n",
 		d.RepositoryOpens, d.SnapshotsListed, d.SnapshotCount, fmtTime(d.LatestSnapshotAt), fmtTime(d.LastSuccessAt), d.LastSuccessSource)

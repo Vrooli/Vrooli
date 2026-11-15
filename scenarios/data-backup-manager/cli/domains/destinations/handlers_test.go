@@ -22,6 +22,7 @@ import (
 type stubDestinationsService struct {
 	destinationsconnect.UnimplementedDestinationsServiceHandler
 	gotCreate    *destinationsv1.CreateDestinationRequest
+	gotImport    *destinationsv1.ImportExistingDestinationRequest
 	gotReadiness *destinationsv1.AnalyzeDestinationRequest
 }
 
@@ -40,6 +41,14 @@ func (s *stubDestinationsService) CreateDestination(_ context.Context, req *conn
 			RepositoryLocation: repo,
 		},
 	}), nil
+}
+
+func (s *stubDestinationsService) ImportExistingDestination(_ context.Context, req *connect.Request[destinationsv1.ImportExistingDestinationRequest]) (*connect.Response[destinationsv1.CreateDestinationResponse], error) {
+	s.gotImport = req.Msg
+	return connect.NewResponse(&destinationsv1.CreateDestinationResponse{Destination: &destinationsv1.Destination{
+		Id: req.Msg.DestinationId, Name: req.Msg.Name, BackendKind: req.Msg.BackendKind,
+		Location: req.Msg.Location, RepositoryLocation: req.Msg.Location,
+	}}), nil
 }
 
 func (s *stubDestinationsService) GetDestination(_ context.Context, req *connect.Request[destinationsv1.GetDestinationRequest]) (*connect.Response[destinationsv1.GetDestinationResponse], error) {
@@ -152,6 +161,38 @@ func TestCreateDestinationCommand(t *testing.T) {
 	}
 }
 
+func TestImportExistingDestinationCommandCarriesNonSecretDescriptorAndSnapshotProof(t *testing.T) {
+	stub := &stubDestinationsService{}
+	mux := http.NewServeMux()
+	path, h := destinationsconnect.NewDestinationsServiceHandler(stub)
+	mux.Handle(path, h)
+	app := testutil.NewTestApp(t, mux)
+	hs := newHandlers(app)
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
+		{Name: "id"}, {Name: "name"}, {Name: "backend"}, {Name: "location"}, {Name: "created-at"}, {Name: "snapshot-ids"}, {Name: "cap-bytes"}, {Name: "cap-policy"},
+	}}
+	ctx, stdout := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{Flags: map[string]string{
+		"id": "stable-destination-id", "name": "offhost", "backend": "s3",
+		"location":   "s3+https://objects.example.test/bucket/dbm?region=us-east-1",
+		"created-at": "2026-01-01T00:00:00Z", "snapshot-ids": "snap-a,snap-b",
+	}})
+	if err := hs.importExisting(ctx); err != nil {
+		t.Fatalf("import existing: %v", err)
+	}
+	if stub.gotImport == nil {
+		t.Fatal("server did not receive ImportExistingDestination")
+	}
+	if stub.gotImport.DestinationId != "stable-destination-id" || stub.gotImport.Name != "offhost" || stub.gotImport.BackendKind != destinationsv1.BackendKind_BACKEND_KIND_S3 || stub.gotImport.Location != "s3+https://objects.example.test/bucket/dbm?region=us-east-1" {
+		t.Fatalf("descriptor fields = %+v", stub.gotImport)
+	}
+	if stub.gotImport.CreatedAt != "2026-01-01T00:00:00Z" || strings.Join(stub.gotImport.ExpectedSnapshotIds, ",") != "snap-a,snap-b" {
+		t.Fatalf("snapshot proof fields = %+v", stub.gotImport)
+	}
+	if strings.Contains(stdout.String(), "credential") || strings.Contains(stdout.String(), "secret") {
+		t.Fatalf("import output leaked credential fields: %q", stdout.String())
+	}
+}
+
 // TestDeleteDestinationWordingMatchesBehavior proves the delete command states
 // precisely what is and is not removed — encrypted backend bytes always remain.
 func TestDeleteDestinationWordingMatchesBehavior(t *testing.T) {
@@ -193,6 +234,7 @@ func TestDeleteDestinationWordingMatchesBehavior(t *testing.T) {
 func TestParseBackendKind(t *testing.T) {
 	cases := map[string]destinationsv1.BackendKind{
 		"filesystem": destinationsv1.BackendKind_BACKEND_KIND_FILESYSTEM,
+		"sftp":       destinationsv1.BackendKind_BACKEND_KIND_SFTP,
 		"s3":         destinationsv1.BackendKind_BACKEND_KIND_S3,
 	}
 	for in, want := range cases {
@@ -222,7 +264,7 @@ func TestRegisterDestinationsLoadsFromManifest(t *testing.T) {
 	for _, c := range group.Subcommands {
 		got[c.Name] = true
 	}
-	for _, want := range []string{"create", "get", "list", "update", "delete", "usage", "readiness", "prepare-plan", "prepare-execute", "recovery-start", "recovery-get", "recovery-resume"} {
+	for _, want := range []string{"create", "import-existing", "get", "list", "update", "delete", "usage", "readiness", "prepare-plan", "prepare-execute", "recovery-start", "recovery-get", "recovery-resume"} {
 		if !got[want] {
 			t.Errorf("missing subcommand %q", want)
 		}

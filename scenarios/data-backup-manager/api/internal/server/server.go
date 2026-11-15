@@ -1,6 +1,6 @@
 // Package server wires the production HTTP handler stack: cross-cutting
 // middleware + a slice of domain modules. Each domain returns a
-// module.Module from its handlers package; main.go passes them in.
+// modulecontract.Module from its handlers package; main.go passes them in.
 // There is no central routes.go and no per-domain field on Deps —
 // adding a feature means creating files, not modifying this package.
 //
@@ -14,7 +14,7 @@ import (
 	"net/http"
 
 	"data-backup-manager/internal/middleware"
-	"data-backup-manager/internal/module"
+	"data-backup-manager/internal/modulecontract"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -52,7 +52,7 @@ type Server struct {
 // stripped-down version of the middleware composition; if you add
 // cross-cutting middleware here, mirror it in the test or move the
 // composition into a shared helper.
-func New(d Deps, modules ...module.Module) *Server {
+func New(d Deps, modules ...modulecontract.Module) *Server {
 	if d.Logger == nil {
 		d.Logger = log.Default()
 	}

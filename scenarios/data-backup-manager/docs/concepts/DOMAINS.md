@@ -36,7 +36,7 @@ template-provided readiness surface and is retained.
 | Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
 |---|---|---|---|---|---|---|
 | targets | Self-registered backup sources owned by other scenarios (owner+name keyed). | Registration / entity | Target records, source kind, locator, optional quiesce-hook references. | API, CLI, UI | OT-P0-001 | `api/internal/targets/`, `api/handlers/targets/`, `cli/domains/targets/`, `ui/src/features/targets/`, `packages/proto/schemas/data-backup-manager/v1/targets/` |
-| destinations | Backup destinations, each a kopia repository (local filesystem or S3/MinIO), plus readiness/preparation onboarding for local drives. | Configuration / entity | Destination records, backend kind, cap, secret references. Readiness persists no data. | API, CLI, UI | OT-P0-003, OT-P0-007, OT-P0-008 | `api/internal/destinations/`, `api/internal/destinationreadiness/`, `api/handlers/destinations/`, `cli/domains/destinations/`, `ui/src/features/destinations/`, `packages/proto/schemas/data-backup-manager/v1/destinations/` |
+| destinations | Backup destinations, each a Kopia repository (local filesystem, SFTP, or S3-compatible), plus readiness/preparation onboarding for local drives. | Configuration / entity | Destination records, backend kind, cap, secret references. Readiness persists no data. | API, CLI, UI | OT-P0-003, OT-P0-007, OT-P0-008 | `api/internal/destinations/`, `api/internal/destinationreadiness/`, `api/handlers/destinations/`, `cli/domains/destinations/`, `ui/src/features/destinations/`, `packages/proto/schemas/data-backup-manager/v1/destinations/` |
 | plans | Many-to-many bindings of targets to destinations with schedule and retention. | Orchestration / entity | Plan records, plan↔target and plan↔destination membership, schedule, retention policy. | API, CLI, UI | OT-P0-004, OT-P0-005, OT-P1-002 | `api/internal/plans/`, `api/handlers/plans/`, `cli/domains/plans/`, `ui/src/features/plans/`, `packages/proto/schemas/data-backup-manager/v1/plans/` |
 | runs | Executions of plans; run history and last-success-per-target. | Workflow / job | Run records, per-target run outcomes, snapshot references. | API, CLI, UI | OT-P0-005, OT-P0-009, OT-P0-010 | `api/internal/runs/`, `api/handlers/runs/`, `cli/domains/runs/`, `ui/src/features/runs/`, `packages/proto/schemas/data-backup-manager/v1/runs/` |
 | restores | Restore a target to a location; verify mode test-restores to scratch and checksums. | Workflow / job | Restore records, verify outcomes, last-verified-per-target. | API, CLI, UI | OT-P0-006, OT-P1-004 | `api/internal/restores/`, `api/handlers/restores/`, `cli/domains/restores/`, `ui/src/features/restores/`, `packages/proto/schemas/data-backup-manager/v1/restores/` |
@@ -290,8 +290,8 @@ are real enough to affect architecture or requirements.
 These are important but should not become product domains:
 
 - `api/internal/server/` — HTTP composition substrate.
-- `api/internal/module/` — shared module descriptor type.
-- `api/internal/modules/` — thin registry for boot/codegen.
+- `api/internal/modulecontract/` — shared module descriptor type.
+- `api/internal/modulecatalog/` — thin registry for boot/codegen.
 - `api/internal/database/` — cross-cutting database infrastructure.
 - `api/internal/testutil/` — cross-domain test harnesses.
 - `ui/src/components/` — shared presentation primitives.

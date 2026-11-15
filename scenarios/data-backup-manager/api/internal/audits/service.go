@@ -165,6 +165,14 @@ func (s *service) executeJob(ctx context.Context, job AuditJob) {
 		s.finishFailed(ctx, rec, err.Error())
 		return
 	}
+	dest, err := s.deps.Destinations.DestinationForAudit(ctx, rec.DestinationID)
+	if err != nil || dest.ID != rec.DestinationID || dest.Name != job.DestName {
+		if err == nil {
+			err = fmt.Errorf("destination identity changed while audit was queued")
+		}
+		s.finishFailed(ctx, rec, fmt.Sprintf("re-resolve destination before repository use: %v", err))
+		return
+	}
 
 	scratchBase := s.scratchBase()
 	if err := os.MkdirAll(scratchBase, 0o755); err != nil {
@@ -185,11 +193,20 @@ func (s *service) executeJob(ctx context.Context, job AuditJob) {
 
 	workErr := func() error {
 		// 1. Restore the snapshot to scratch — this proves recoverability.
-		if err := s.deps.Engine.SnapshotRestore(ctx, job.DestName, job.Audit.SnapshotID, restoreDir); err != nil {
+		err := s.withResolvedDestination(ctx, job, func(name string) error {
+			if err := s.deps.Engine.SnapshotRestore(ctx, name, job.Audit.SnapshotID, restoreDir); err != nil {
+				return err
+			}
+			rec.Restorable = true
+			snaps, err := s.deps.Engine.SnapshotList(ctx, name, "")
+			if err == nil {
+				rec.SnapshotTime = snapshotTime(snaps, job.Audit.SnapshotID)
+			}
+			return nil
+		})
+		if err != nil {
 			return fmt.Errorf("snapshot restore: %w", err)
 		}
-		rec.Restorable = true
-		rec.SnapshotTime = s.snapshotTime(ctx, job.DestName, job.Audit.SnapshotID)
 
 		opts := walkOptions{includeContentHash: rec.IncludeContentHash, detectSQLite: rec.IncludeSQLiteCheck}
 		now := s.deps.Clock.Now().UTC()
@@ -270,11 +287,7 @@ func (s *service) checkSQLite(ctx context.Context, candidates []sqliteCandidate)
 
 // snapshotTime resolves a snapshot's start time from the engine's snapshot list
 // (best-effort; zero when unknown). It powers the drift interpretation.
-func (s *service) snapshotTime(ctx context.Context, repo, snapshotID string) time.Time {
-	snaps, err := s.deps.Engine.SnapshotList(ctx, repo, "")
-	if err != nil {
-		return time.Time{}
-	}
+func snapshotTime(snaps []engine.Snapshot, snapshotID string) time.Time {
 	for _, sn := range snaps {
 		if sn.ID == snapshotID {
 			if t, err := time.Parse(time.RFC3339, sn.StartTime); err == nil {
@@ -287,6 +300,15 @@ func (s *service) snapshotTime(ctx context.Context, repo, snapshotID string) tim
 		}
 	}
 	return time.Time{}
+}
+
+func (s *service) withResolvedDestination(ctx context.Context, job AuditJob, use func(string) error) error {
+	return s.deps.Destinations.WithResolvedDestination(ctx, job.Audit.DestinationID, func(current DestinationForAudit) error {
+		if current.ID != job.Audit.DestinationID || current.Name != job.DestName {
+			return fmt.Errorf("destination identity changed before repository use")
+		}
+		return use(current.Name)
+	})
 }
 
 // finishFailed persists a terminal failed audit, keeping whatever partial

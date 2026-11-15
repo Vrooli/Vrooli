@@ -18,6 +18,7 @@ import (
 
 // fakeService is a local discovery.Service double for handler translation tests.
 type fakeService struct {
+	candidates  []discovery.TargetCandidate
 	targets     []discovery.TargetSuggestion
 	dests       []discovery.DestinationSuggestion
 	targetsErr  error
@@ -25,6 +26,10 @@ type fakeService struct {
 	dismissOut  bool
 	dismissErr  error
 	dismissedID string
+}
+
+func (f *fakeService) ListTargetCandidates(context.Context) ([]discovery.TargetCandidate, error) {
+	return f.candidates, nil
 }
 
 func (f *fakeService) ListTargetSuggestions(context.Context) ([]discovery.TargetSuggestion, error) {

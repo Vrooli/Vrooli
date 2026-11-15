@@ -434,12 +434,42 @@ type FileRecoveryStore struct {
 // after a mounted observation, so a later failure receives a fresh journal
 // and a fresh Notification Hub decision.
 type RecoveryEpisode struct {
-	Version       string         `json:"version"`
-	DestinationID string         `json:"destination_id"`
-	Identity      DeviceIdentity `json:"identity"`
-	RecoveryID    string         `json:"recovery_id,omitempty"`
-	LastMounted   bool           `json:"last_mounted"`
-	UpdatedAt     time.Time      `json:"updated_at"`
+	Version        string                `json:"version"`
+	DestinationID  string                `json:"destination_id"`
+	Identity       DeviceIdentity        `json:"identity"`
+	RecoveryID     string                `json:"recovery_id,omitempty"`
+	LastMounted    bool                  `json:"last_mounted"`
+	MountEpisodeID string                `json:"mount_episode_id,omitempty"`
+	OfflineCheck   *OfflineCheckEvidence `json:"offline_check,omitempty"`
+	MountedCheck   *MountedCheckEvidence `json:"mounted_check,omitempty"`
+	UpdatedAt      time.Time             `json:"updated_at"`
+}
+
+// OfflineCheckEvidence binds a positive, non-writing filesystem check to the
+// exact device and currently-open unmounted recovery episode. A check from a
+// previous outage or a different volume cannot authorize a remount.
+type OfflineCheckEvidence struct {
+	RecoveryID  string         `json:"recovery_id"`
+	PlanID      string         `json:"plan_id"`
+	Identity    DeviceIdentity `json:"identity"`
+	Consistency string         `json:"consistency"`
+	Detail      string         `json:"detail,omitempty"`
+	CheckedAt   time.Time      `json:"checked_at"`
+}
+
+// MountedCheckEvidence carries a successful offline consistency check across
+// the remount it authorized. The mount episode ID is generated only after the
+// exact device is observed mounted read/write, and is retired on the next
+// observed unmount. Hosts whose driver cannot report a clean flag can use this
+// proof without turning an unknown filesystem observation into a clean one.
+type MountedCheckEvidence struct {
+	MountEpisodeID string         `json:"mount_episode_id"`
+	RecoveryID     string         `json:"recovery_id"`
+	PlanID         string         `json:"plan_id"`
+	Identity       DeviceIdentity `json:"identity"`
+	Consistency    string         `json:"consistency"`
+	CheckedAt      time.Time      `json:"checked_at"`
+	MountedAt      time.Time      `json:"mounted_at"`
 }
 
 const recoveryEpisodeVersion = "dbm-volume-recovery-episode-v1"
@@ -447,7 +477,7 @@ const recoveryEpisodeVersion = "dbm-volume-recovery-episode-v1"
 // ObserveEpisode records a mount observation and returns the durable recovery
 // episode for an unmounted volume. legacyID lets an upgrade adopt an
 // incomplete journal created by the older deterministic-ID monitor.
-func (s *FileRecoveryStore) ObserveEpisode(ctx context.Context, destinationID string, identity DeviceIdentity, mounted bool, legacyID string) (RecoveryEpisode, error) {
+func (s *FileRecoveryStore) ObserveEpisode(ctx context.Context, destinationID string, identity DeviceIdentity, mounted bool, mountEpisodeID, legacyID string) (RecoveryEpisode, error) {
 	if err := ctx.Err(); err != nil {
 		return RecoveryEpisode{}, err
 	}
@@ -467,13 +497,25 @@ func (s *FileRecoveryStore) ObserveEpisode(ctx context.Context, destinationID st
 	if err != nil || episode.DestinationID != destinationID || !episode.Identity.MatchesDevice(identity) {
 		episode = RecoveryEpisode{Version: recoveryEpisodeVersion, DestinationID: destinationID, Identity: identity}
 	}
+	wasMounted := episode.LastMounted
+	if mounted && wasMounted && episode.MountEpisodeID != mountEpisodeID {
+		// The same UUID and mountpoint can be reused after an unobserved outage.
+		// Kernel mount generations distinguish those episodes.
+		episode.MountedCheck = nil
+	}
 	episode.Identity = identity
 	episode.UpdatedAt = time.Now().UTC()
 	if mounted {
 		episode.LastMounted = true
+		episode.MountEpisodeID = mountEpisodeID
 		episode.RecoveryID = ""
+		episode.OfflineCheck = nil
 	} else {
 		episode.LastMounted = false
+		episode.MountEpisodeID = ""
+		if wasMounted {
+			episode.MountedCheck = nil
+		}
 		if episode.RecoveryID == "" {
 			episode.RecoveryID = recoveryID()
 			if strings.TrimSpace(legacyID) != "" {
@@ -497,6 +539,148 @@ func (s *FileRecoveryStore) ObserveEpisode(ctx context.Context, destinationID st
 	return episode, nil
 }
 
+// RecordMountedCheck promotes a current unmounted-episode check into evidence
+// attached to the mount episode produced by the verified remount. Callers
+// must invoke this only after observing that the exact identity is mounted
+// read/write.
+func (s *FileRecoveryStore) RecordMountedCheck(ctx context.Context, destinationID, expectedRecoveryID string, identity DeviceIdentity, mountEpisodeID string, mounted bool, readOnly bool) (RecoveryEpisode, error) {
+	if err := ctx.Err(); err != nil {
+		return RecoveryEpisode{}, err
+	}
+	if strings.TrimSpace(expectedRecoveryID) == "" || strings.TrimSpace(mountEpisodeID) == "" || !identity.StrongIdentity() || !mounted || readOnly {
+		return RecoveryEpisode{}, errors.New("mounted check evidence requires the active recovery episode, stable identity, mount generation, and a read/write mounted observation")
+	}
+	path, err := s.episodePath(destinationID)
+	if err != nil {
+		return RecoveryEpisode{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	episode, err := s.readEpisode(path)
+	if err != nil {
+		return RecoveryEpisode{}, err
+	}
+	check := episode.OfflineCheck
+	if episode.DestinationID != destinationID || episode.LastMounted || episode.RecoveryID != expectedRecoveryID || !sameRecoveryIdentity(episode.Identity, identity) || check == nil || check.RecoveryID != expectedRecoveryID || check.Consistency != "yes" || !sameRecoveryIdentity(check.Identity, identity) {
+		return RecoveryEpisode{}, errors.New("verified mount does not match a positive offline check in the active recovery episode")
+	}
+	episode.MountedCheck = &MountedCheckEvidence{
+		MountEpisodeID: mountEpisodeID, RecoveryID: expectedRecoveryID, PlanID: check.PlanID,
+		Identity: identity, Consistency: check.Consistency, CheckedAt: check.CheckedAt, MountedAt: time.Now().UTC(),
+	}
+	episode.Identity = identity
+	episode.LastMounted = true
+	episode.MountEpisodeID = mountEpisodeID
+	episode.RecoveryID = ""
+	episode.OfflineCheck = nil
+	episode.UpdatedAt = time.Now().UTC()
+	if err := s.writeEpisode(path, episode); err != nil {
+		return RecoveryEpisode{}, err
+	}
+	return episode, nil
+}
+
+// HasCurrentMountedCheck reports whether a positive offline check is still
+// bound to the exact currently mounted device episode.
+func (s *FileRecoveryStore) HasCurrentMountedCheck(ctx context.Context, destinationID string, identity DeviceIdentity, mountEpisodeID string) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	if strings.TrimSpace(destinationID) == "" || !identity.StrongIdentity() || strings.TrimSpace(mountEpisodeID) == "" {
+		return false, nil
+	}
+	path, err := s.episodePath(destinationID)
+	if err != nil {
+		return false, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	episode, err := s.readEpisode(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	check := episode.MountedCheck
+	return episode.DestinationID == destinationID && episode.LastMounted && episode.MountEpisodeID == mountEpisodeID && check != nil && check.MountEpisodeID == mountEpisodeID && check.Consistency == "yes" && sameRecoveryIdentity(episode.Identity, identity) && sameRecoveryIdentity(check.Identity, identity), nil
+}
+
+// RecordOfflineCheck persists check evidence only if the same unmounted
+// episode and strong device identity are still current.
+func (s *FileRecoveryStore) RecordOfflineCheck(ctx context.Context, destinationID, expectedRecoveryID string, identity DeviceIdentity, planID, consistency, detail string) (RecoveryEpisode, error) {
+	if err := ctx.Err(); err != nil {
+		return RecoveryEpisode{}, err
+	}
+	if strings.TrimSpace(expectedRecoveryID) == "" || strings.TrimSpace(planID) == "" || consistency != "yes" || !identity.StrongIdentity() {
+		return RecoveryEpisode{}, errors.New("positive offline check evidence requires an episode, plan, and stable device identity")
+	}
+	path, err := s.episodePath(destinationID)
+	if err != nil {
+		return RecoveryEpisode{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	episode, err := s.readEpisode(path)
+	if err != nil {
+		return RecoveryEpisode{}, err
+	}
+	if episode.DestinationID != destinationID || episode.LastMounted || episode.RecoveryID != expectedRecoveryID || !sameRecoveryIdentity(episode.Identity, identity) {
+		return RecoveryEpisode{}, errors.New("offline check evidence no longer matches the active recovery episode")
+	}
+	if len(detail) > 512 {
+		detail = detail[:512]
+	}
+	episode.OfflineCheck = &OfflineCheckEvidence{
+		RecoveryID: expectedRecoveryID, PlanID: planID, Identity: identity,
+		Consistency: consistency, Detail: detail, CheckedAt: time.Now().UTC(),
+	}
+	episode.UpdatedAt = time.Now().UTC()
+	if err := s.writeEpisode(path, episode); err != nil {
+		return RecoveryEpisode{}, err
+	}
+	return episode, nil
+}
+
+// HasCurrentOfflineCheck reports whether a positive offline check belongs to
+// the exact current unmounted episode and device identity.
+func (s *FileRecoveryStore) HasCurrentOfflineCheck(ctx context.Context, destinationID, expectedRecoveryID string, identity DeviceIdentity) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	path, err := s.episodePath(destinationID)
+	if err != nil {
+		return false, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	episode, err := s.readEpisode(path)
+	if err != nil {
+		return false, err
+	}
+	evidence := episode.OfflineCheck
+	return evidence != nil && !episode.LastMounted && episode.RecoveryID == expectedRecoveryID &&
+		evidence.RecoveryID == expectedRecoveryID && evidence.PlanID != "" && evidence.Consistency == "yes" &&
+		!evidence.CheckedAt.IsZero() && sameRecoveryIdentity(episode.Identity, identity) &&
+		sameRecoveryIdentity(evidence.Identity, identity), nil
+}
+
+func sameRecoveryIdentity(expected, actual DeviceIdentity) bool {
+	if !expected.StrongIdentity() || !actual.StrongIdentity() || !sameFilesystemIdentity(expected.Filesystem, actual.Filesystem) {
+		return false
+	}
+	if expected.UUID != "" && !strings.EqualFold(strings.TrimSpace(expected.UUID), strings.TrimSpace(actual.UUID)) {
+		return false
+	}
+	if expected.Serial != "" && strings.TrimSpace(expected.Serial) != strings.TrimSpace(actual.Serial) {
+		return false
+	}
+	if expected.Mountpoint != "" && actual.Mountpoint != "" && normalizePath(expected.Mountpoint) != normalizePath(actual.Mountpoint) {
+		return false
+	}
+	return true
+}
+
 // AdvanceUnmountedEpisode rotates a completed episode that was followed by a
 // new outage before the monitor observed an intervening mounted poll.
 func (s *FileRecoveryStore) AdvanceUnmountedEpisode(ctx context.Context, destinationID string, expectedID string) (RecoveryEpisode, error) {
@@ -517,11 +701,44 @@ func (s *FileRecoveryStore) AdvanceUnmountedEpisode(ctx context.Context, destina
 		return RecoveryEpisode{}, errors.New("recovery episode changed before it could be advanced")
 	}
 	episode.RecoveryID = recoveryID()
+	episode.OfflineCheck = nil
 	episode.UpdatedAt = time.Now().UTC()
 	if err := s.writeEpisode(path, episode); err != nil {
 		return RecoveryEpisode{}, err
 	}
 	return episode, nil
+}
+
+// ListEpisodes returns every recorded destination episode, so a periodic
+// reconcile can tell which recovery journal still belongs to a live destination.
+func (s *FileRecoveryStore) ListEpisodes(ctx context.Context) ([]RecoveryEpisode, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if s == nil || !filepath.IsAbs(s.Root) {
+		return nil, errors.New("invalid recovery episode store")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	entries, err := os.ReadDir(filepath.Join(filepath.Clean(s.Root), "episodes"))
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var out []RecoveryEpisode
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		episode, err := s.readEpisode(filepath.Join(filepath.Clean(s.Root), "episodes", entry.Name()))
+		if err != nil {
+			continue // an unreadable episode must not hide the others
+		}
+		out = append(out, episode)
+	}
+	return out, nil
 }
 
 func (s *FileRecoveryStore) episodePath(destinationID string) (string, error) {
@@ -546,6 +763,12 @@ func (s *FileRecoveryStore) readEpisode(path string) (RecoveryEpisode, error) {
 	}
 	if episode.Version != recoveryEpisodeVersion || strings.TrimSpace(episode.DestinationID) == "" || !episode.Identity.StrongIdentity() {
 		return RecoveryEpisode{}, errors.New("recovery episode is invalid")
+	}
+	if check := episode.OfflineCheck; check != nil && (episode.LastMounted || episode.RecoveryID == "" || check.RecoveryID != episode.RecoveryID || check.PlanID == "" || check.Consistency != "yes" || check.CheckedAt.IsZero() || !sameRecoveryIdentity(episode.Identity, check.Identity)) {
+		return RecoveryEpisode{}, errors.New("offline check evidence is not bound to the active unmounted episode")
+	}
+	if check := episode.MountedCheck; check != nil && (!episode.LastMounted || episode.MountEpisodeID == "" || check.MountEpisodeID != episode.MountEpisodeID || check.RecoveryID == "" || check.PlanID == "" || check.Consistency != "yes" || check.CheckedAt.IsZero() || check.MountedAt.IsZero() || !sameRecoveryIdentity(episode.Identity, check.Identity)) {
+		return RecoveryEpisode{}, errors.New("mounted check evidence is not bound to the active mounted episode")
 	}
 	return episode, nil
 }

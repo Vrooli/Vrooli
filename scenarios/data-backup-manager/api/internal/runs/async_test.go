@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"data-backup-manager/internal/engine"
+	"data-backup-manager/internal/platformreceipts"
 	"data-backup-manager/internal/runs"
 	runsmocks "data-backup-manager/internal/runs/mocks"
 	"data-backup-manager/internal/sources"
@@ -15,6 +16,13 @@ import (
 
 	"github.com/vrooli/api-core/scheduletest"
 )
+
+type receiptCollector struct{ rows chan platformreceipts.Input }
+
+func (c receiptCollector) Record(_ context.Context, row platformreceipts.Input) error {
+	c.rows <- row
+	return nil
+}
 
 // TestTriggerRun_AsyncLifecycleIsPersisted proves the async contract end to end
 // with the real background executor: TriggerRun returns a non-terminal run
@@ -48,17 +56,19 @@ func TestTriggerRun_AsyncLifecycleIsPersisted(t *testing.T) {
 	}
 
 	plan := runs.PlanForRun{ID: "plan-1", TargetIDs: []string{"t1"}, DestinationIDs: []string{"dst-1"}}
+	receipts := make(chan platformreceipts.Input, 1)
 	svc := runs.NewService(runs.Deps{
-		Repo:         repo,
-		Plans:        &runsmocks.FakePlanLookup{Plans: map[string]runs.PlanForRun{plan.ID: plan}},
-		Targets:      &runsmocks.FakeTargetLookup{Targets: map[string]runs.TargetForRun{"t1": {ID: "t1", Kind: sources.KindFilesystem, Locator: "a"}}},
-		Destinations: &runsmocks.FakeDestinationLookup{Destinations: map[string]runs.DestinationForRun{"dst-1": {ID: "dst-1", Name: "nightly"}}},
-		Engine:       eng,
-		Sources:      registry,
-		Clock:        scheduletest.New(time.Time{}),
-		StagingRoot:  t.TempDir(),
-		BaseContext:  ctx,
-		Executor:     runs.NewAsyncExecutor(1),
+		Repo:             repo,
+		Plans:            &runsmocks.FakePlanLookup{Plans: map[string]runs.PlanForRun{plan.ID: plan}},
+		Targets:          &runsmocks.FakeTargetLookup{Targets: map[string]runs.TargetForRun{"t1": {ID: "t1", Kind: sources.KindFilesystem, Locator: "a"}}},
+		Destinations:     &runsmocks.FakeDestinationLookup{Destinations: map[string]runs.DestinationForRun{"dst-1": {ID: "dst-1", Name: "nightly"}}},
+		Engine:           eng,
+		Sources:          registry,
+		Clock:            scheduletest.New(time.Time{}),
+		StagingRoot:      t.TempDir(),
+		BaseContext:      ctx,
+		Executor:         runs.NewAsyncExecutor(1),
+		PlatformReceipts: receiptCollector{rows: receipts},
 	})
 	defer func() { _ = svc.Shutdown(ctx) }()
 
@@ -92,6 +102,14 @@ func TestTriggerRun_AsyncLifecycleIsPersisted(t *testing.T) {
 	}
 	if len(final.Outcomes) != 1 || final.Outcomes[0].SnapshotID != "snap-1" {
 		t.Fatalf("outcome = %+v, want one succeeded snapshot", final.Outcomes)
+	}
+	select {
+	case receipt := <-receipts:
+		if receipt.Capability != "backup" || receipt.Outcome != "passed" || receipt.TargetID != "t1" || receipt.DestinationID != "dst-1" {
+			t.Fatalf("backup receipt = %+v", receipt)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("successful native backup did not emit a platform receipt")
 	}
 }
 
@@ -228,9 +246,20 @@ func TestReconcile_ClosesOrphanedRuns(t *testing.T) {
 	ctx := context.Background()
 	repo := runs.NewSQLiteRepository(newRunsDB(t), scheduletest.New(time.Date(2026, 6, 3, 0, 0, 0, 0, time.UTC)))
 
-	// Two orphans (pending + capturing) and one already-completed run.
+	// Pending + capturing orphans with no outcomes fail. A snapshotting orphan
+	// with persisted successes becomes partial_failed rather than failing the
+	// lifecycle invariant during startup reconciliation.
 	mustCreate(t, repo, "orphan-pending", "plan-x", runs.RunPending)
 	mustCreate(t, repo, "orphan-capturing", "plan-y", runs.RunCapturing)
+	mustCreate(t, repo, "orphan-snapshotting", "plan-w", runs.RunSnapshotting)
+	for _, outcome := range []runs.TargetOutcome{
+		{TargetID: "target-ok", DestinationID: "dest", Status: runs.OutcomeSucceeded},
+		{TargetID: "target-failed", DestinationID: "dest", Status: runs.OutcomeFailed},
+	} {
+		if err := repo.SaveOutcome(ctx, "orphan-snapshotting", outcome); err != nil {
+			t.Fatalf("seed snapshotting outcome: %v", err)
+		}
+	}
 	mustCreate(t, repo, "done", "plan-z", runs.RunCompleted)
 
 	svc := runs.NewService(runs.Deps{
@@ -243,19 +272,30 @@ func TestReconcile_ClosesOrphanedRuns(t *testing.T) {
 		t.Fatalf("Reconcile: %v", err)
 	}
 
-	for _, id := range []string{"orphan-pending", "orphan-capturing"} {
+	for _, tc := range []struct {
+		id     string
+		status runs.RunStatus
+	}{
+		{id: "orphan-pending", status: runs.RunFailed},
+		{id: "orphan-capturing", status: runs.RunFailed},
+		{id: "orphan-snapshotting", status: runs.RunPartialFailed},
+	} {
+		id := tc.id
 		r, err := repo.GetRun(ctx, id)
 		if err != nil {
 			t.Fatalf("GetRun %s: %v", id, err)
 		}
-		if r.Status != runs.RunFailed {
-			t.Errorf("%s status = %s, want failed", id, r.Status)
+		if r.Status != tc.status {
+			t.Errorf("%s status = %s, want %s", id, r.Status, tc.status)
 		}
 		if r.Error == "" {
 			t.Errorf("%s missing reconciliation reason", id)
 		}
 		if r.FinishedAt.IsZero() {
 			t.Errorf("%s missing finished_at after reconcile", id)
+		}
+		if id == "orphan-snapshotting" && len(r.Outcomes) != 2 {
+			t.Errorf("snapshotting outcomes = %d, want both persisted outcomes preserved", len(r.Outcomes))
 		}
 	}
 

@@ -66,6 +66,7 @@ export const CAP_POLICY_STRINGS = {
 export const BACKEND_STRINGS = {
   unknown: strings.status.backend.unknown,
   filesystem: strings.status.backend.filesystem,
+  sftp: strings.status.backend.sftp,
   s3: strings.status.backend.s3,
 } satisfies Record<BackendSlug, StringKey>;
 

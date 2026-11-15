@@ -3,7 +3,7 @@ import { AlertTriangle, KeyRound, ShieldCheck } from "lucide-react";
 
 import { Button } from "../../components/ui/button";
 import { StatusChip } from "../../components/ui/status-chip";
-import { useAcceptDefaultTargets, useCoverageReport } from "../../hooks/useCoverageReport";
+import { useAcceptDefaultTargets, useCoverageReport, useRequestSensitiveReview } from "../../hooks/useCoverageReport";
 import { sourceKindSlug } from "../../lib/status";
 import { SOURCE_KIND_STRINGS } from "../../consts/statusStrings";
 import { selectors } from "../../consts/selectors";
@@ -33,6 +33,7 @@ export function CoverageBanner({
   const { t } = useTranslation();
   const report = useCoverageReport();
   const accept = useAcceptDefaultTargets();
+  const reviewSensitive = useRequestSensitiveReview();
   const [mode, setMode] = useState<"recommended" | "sensitive" | null>(null);
 
   const data = report.data;
@@ -58,6 +59,8 @@ export function CoverageBanner({
   const summary = data.summary;
   const recommended = data.recommendedTargets;
   const sensitive = data.sensitiveTargets;
+  const reacquirable = data.reacquirableTargets;
+  const registeredReacquirable = data.registeredTargets.filter((target) => target.reacquirable);
 
   const complete = summary.defaultCoverageComplete;
   if (complete && !summary.hasSensitiveUnreviewed && !showComplete && !detailed) {
@@ -68,9 +71,9 @@ export function CoverageBanner({
     setMode("recommended");
     accept.mutate({ includeSensitive: false, dryRun: false }, { onSettled: () => setMode(null) });
   };
-  const registerSensitive = () => {
+  const requestSensitiveDecision = () => {
     setMode("sensitive");
-    accept.mutate({ includeSensitive: true, dryRun: false }, { onSettled: () => setMode(null) });
+    reviewSensitive.mutate(undefined, { onSettled: () => setMode(null) });
   };
 
   return (
@@ -100,6 +103,12 @@ export function CoverageBanner({
               sensitive: summary.sensitiveCount,
               planned: summary.plannedCount,
               verified: summary.verifiedCount,
+            })}
+          </p>
+          <p className="text-xs text-app-muted-foreground">
+            {t(strings.coverage.independenceSummary, {
+              multi: summary.multiDestinationTargetCount,
+              independent: summary.physicallyIndependentTargetCount,
             })}
           </p>
         </div>
@@ -145,6 +154,84 @@ export function CoverageBanner({
       )}
 
       {/* Sensitive — review-only, deliberate opt-in. */}
+      {detailed && reacquirable.length > 0 && (
+        <div className="flex flex-col gap-2 rounded-panel border border-app-border bg-app-surface-muted p-3">
+          <div>
+            <p className="text-sm font-medium text-app-foreground">{t(strings.coverage.reacquirableTitle, { count: reacquirable.length })}</p>
+            <p className="text-xs text-app-muted-foreground">{t(strings.coverage.reacquirableBody)}</p>
+          </div>
+          <ul data-testid={selectors.coverage.reacquirableList} className="flex flex-col gap-2">
+            {reacquirable.map((s) => (
+              <li key={s.id} className="flex flex-col gap-1 rounded-panel border border-app-border bg-app-surface p-2">
+                <span className="text-sm font-medium text-app-foreground">{s.owner}/{s.name}</span>
+                <span className="truncate font-mono text-xs text-app-muted-foreground">{s.locator}</span>
+                {(s.budgetMaxBytes || s.budgetMaxAge || s.retention) && (
+                  <span className="text-xs text-app-muted-foreground">
+                    {[s.budgetMaxBytes && `budget ≤ ${s.budgetMaxBytes}`, s.budgetMaxAge && `age ≤ ${s.budgetMaxAge}`, s.retention && `retention: ${s.retention}`].filter(Boolean).join(" · ")}
+                  </span>
+                )}
+                {s.reacquisitionCommand && (
+                  <span className="text-xs text-app-muted-foreground">
+                    {t(strings.coverage.reacquisitionCommand)} <code>{s.reacquisitionCommand}</code>
+                  </span>
+                )}
+                {s.reacquisitionEvidence && (
+                  <span className="text-xs text-app-muted-foreground">
+                    {t(strings.coverage.reacquisitionEvidence)} <code>{s.reacquisitionEvidence}</code>
+                  </span>
+                )}
+                {s.reacquisitionNeedsOperator && s.reacquisitionAuthReason && (
+                  <span className="text-xs text-app-warning">
+                    {t(strings.coverage.reacquisitionAuthorization, { reason: s.reacquisitionAuthReason })}
+                  </span>
+                )}
+                {(!s.reacquisitionCommand || !s.reacquisitionEvidence) && (
+                  <span className="text-xs text-app-warning">
+                    {t(strings.coverage.reacquisitionProofIncomplete)}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {detailed && registeredReacquirable.length > 0 && (
+        <div className="flex flex-col gap-2 rounded-panel border border-app-border bg-app-surface-muted p-3">
+          <div>
+            <p className="text-sm font-medium text-app-foreground">
+              {t(strings.coverage.registeredReacquirableTitle, { count: registeredReacquirable.length })}
+            </p>
+            <p className="text-xs text-app-muted-foreground">
+              {t(strings.coverage.registeredReacquirableBody)}
+            </p>
+          </div>
+          <ul data-testid={selectors.coverage.registeredReacquirableList} className="flex flex-col gap-2">
+            {registeredReacquirable.map((target) => (
+              <li key={target.id} className="flex flex-col gap-1 rounded-panel border border-app-border bg-app-surface p-2">
+                <span className="text-sm font-medium text-app-foreground">{target.owner}/{target.name}</span>
+                {target.reacquisitionCommand && (
+                  <span className="text-xs text-app-muted-foreground">
+                    {t(strings.coverage.reacquisitionCommand)} <code>{target.reacquisitionCommand}</code>
+                  </span>
+                )}
+                {target.reacquisitionEvidence && (
+                  <span className="text-xs text-app-muted-foreground">
+                    {t(strings.coverage.reacquisitionEvidence)} <code>{target.reacquisitionEvidence}</code>
+                  </span>
+                )}
+                {target.reacquisitionNeedsOperator && target.reacquisitionAuthReason && (
+                  <span className="text-xs text-app-warning">
+                    {t(strings.coverage.reacquisitionAuthorization, { reason: target.reacquisitionAuthReason })}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Sensitive — review-only, deliberate opt-in. */}
       {sensitive.length > 0 && (
         <div className="flex flex-col gap-2 rounded-panel border border-app-warning/40 bg-app-warning/10 p-3">
           <div className="flex items-start gap-2">
@@ -181,14 +268,27 @@ export function CoverageBanner({
             <Button
               size="sm"
               variant="outline"
-              data-testid={selectors.coverage.registerSensitive}
-              disabled={accept.isPending}
-              onClick={registerSensitive}
+              data-testid={selectors.coverage.requestSensitiveReview}
+              disabled={reviewSensitive.isPending}
+              onClick={requestSensitiveDecision}
             >
               {mode === "sensitive"
-                ? t(strings.coverage.registering)
-                : t(strings.coverage.registerSensitive, { count: sensitive.length })}
+                ? t(strings.coverage.requestingSensitiveReview)
+                : t(strings.coverage.requestSensitiveReview, { count: sensitive.length })}
             </Button>
+            {reviewSensitive.data && (
+              <p role="status" className="text-xs text-app-muted-foreground">
+                {t(strings.coverage.sensitiveReviewPending, {
+                  count: reviewSensitive.data.candidateCount,
+                  id: reviewSensitive.data.askId,
+                })}
+              </p>
+            )}
+            {reviewSensitive.isError && (
+              <p role="alert" className="text-xs text-app-warning">
+                {t(strings.coverage.sensitiveReviewFailed)}
+              </p>
+            )}
           </div>
         </div>
       )}

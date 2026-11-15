@@ -9,7 +9,7 @@
 // aliases, so every construction site (EndpointDescriptor{…}, RESTReasonOpsProbe,
 // …) stays unchanged while the shape lives in exactly one place. Only the
 // mux-coupled Module seam is local to the scenario.
-package module
+package modulecontract
 
 import (
 	"github.com/gorilla/mux"

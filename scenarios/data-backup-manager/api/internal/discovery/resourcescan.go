@@ -110,9 +110,6 @@ func (s *ResourceDataScanner) Scan(ctx context.Context) ([]TargetCandidate, erro
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
-			if entry.Regenerable {
-				continue
-			}
 			locator, resolveErr := storage.ResolveOwnerStoragePath(s.repoRoot, owner, entry, platform, s.platformSeams)
 			if resolveErr != nil {
 				// Inventory already records declaration-level failures. A path
@@ -124,10 +121,46 @@ func (s *ResourceDataScanner) Scan(ctx context.Context) ([]TargetCandidate, erro
 				continue
 			}
 			candidate.Findings = append(candidate.Findings, findingsByOwner[ownerFindingKey(owner.Kind, owner.ID)]...)
+			candidate.Reacquirable = entry.Regenerable || entry.Reacquisition != nil
+			if entry.Reacquisition != nil {
+				candidate.ReacquisitionCommand = entry.Reacquisition.Command
+				candidate.ReacquisitionEvidence = entry.Reacquisition.Evidence
+				candidate.ReacquisitionNeedsOperator = entry.Reacquisition.RequiresAuthorization
+				candidate.ReacquisitionAuthReason = entry.Reacquisition.AuthorizationRationale
+			}
+			if entry.Budget != nil {
+				candidate.BudgetMaxBytes = entry.Budget.MaxBytes
+				candidate.BudgetMaxAge = entry.Budget.MaxAge
+			}
+			candidate.Retention = matchingRetention(owner, entry)
 			out = append(out, candidate)
 		}
 	}
 	return out, nil
+}
+
+func matchingRetention(owner storage.OwnerManifest, entry storage.StorageEntry) string {
+	path := strings.Trim(filepath.ToSlash(entry.Path.Value), "/")
+	if path == "" {
+		path = strings.Trim(filepath.ToSlash(entry.Subpath), "/")
+	}
+	var parts []string
+	for _, rule := range owner.Retention {
+		target := strings.Trim(filepath.ToSlash(rule.Target.Path), "/")
+		classMatch := rule.Target.Class != "" && rule.Target.Class == entry.Class
+		if !classMatch && (target == "" || (target != path && target != strings.Trim(entry.Name, "/"))) {
+			continue
+		}
+		part := rule.Name
+		if rule.MaxBytes != "" {
+			part += " max_bytes=" + rule.MaxBytes
+		}
+		if rule.MaxAge != "" {
+			part += " max_age=" + rule.MaxAge
+		}
+		parts = append(parts, part)
+	}
+	return strings.Join(parts, "; ")
 }
 
 func (s *ResourceDataScanner) candidateFor(ctx context.Context, owner string, entry storage.StorageEntry, locator string) (TargetCandidate, bool) {
@@ -155,13 +188,14 @@ func (s *ResourceDataScanner) candidateFor(ctx context.Context, owner string, en
 		approx = info.Size()
 	}
 	return TargetCandidate{
-		Owner:       owner,
-		Name:        entry.Name,
-		SourceKind:  ownerSourceKind(entry),
-		Locator:     locator,
-		Rationale:   ownerRationale(owner, entry),
-		ApproxBytes: approx,
-		Sensitive:   entry.Sensitive,
+		Owner:        owner,
+		Name:         entry.Name,
+		SourceKind:   ownerSourceKind(entry),
+		Locator:      locator,
+		Rationale:    ownerRationale(owner, entry),
+		ApproxBytes:  approx,
+		Sensitive:    entry.Sensitive,
+		Reacquirable: entry.Regenerable || entry.Reacquisition != nil,
 	}, true
 }
 

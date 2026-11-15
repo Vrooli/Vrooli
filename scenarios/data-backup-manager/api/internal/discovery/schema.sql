@@ -1,5 +1,5 @@
 -- Discovery dismissals — owned by internal/discovery/. Embedded by schema.go
--- and applied via database.EnsureSchemas at boot through the modules.AllSchemas
+-- and applied via database.EnsureSchemas at boot through the modulecatalog.AllSchemas
 -- registry. The ONLY durable state the discovery domain keeps: suggestions
 -- themselves are derived each call and never stored (Contract Decision D2).
 -- Keyed by the stable suggestion id (sha256(kind|locator), truncated) so a

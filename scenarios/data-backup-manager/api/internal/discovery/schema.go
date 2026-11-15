@@ -6,6 +6,6 @@ import _ "embed"
 var schemaSQL string
 
 // Schema returns the discovery domain's SQL contribution (the dismissals
-// table), applied by database.EnsureSchemas via the modules.AllSchemas
+// table), applied by database.EnsureSchemas via the modulecatalog.AllSchemas
 // registry. Forward-only declarative — re-runs are no-ops.
 func Schema() string { return schemaSQL }

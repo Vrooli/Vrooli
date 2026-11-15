@@ -8,16 +8,17 @@ import (
 
 // FakeService satisfies restores.Service for handler tests.
 type FakeService struct {
-	RestoreOut  restores.Restore
-	RestoreErr  error
-	VerifyOut   restores.Restore
-	VerifyErr   error
-	GetOut      restores.Restore
-	GetErr      error
-	ListOut     []restores.Restore
-	ListErr     error
-	VerifiedOut []restores.VerifiedStatus
-	VerifiedErr error
+	RestoreOut             restores.Restore
+	RestoreErr             error
+	VerifyOut              restores.Restore
+	VerifyErr              error
+	GetOut                 restores.Restore
+	GetErr                 error
+	ListOut                []restores.Restore
+	ListErr                error
+	VerifiedOut            []restores.VerifiedStatus
+	VerifiedErr            error
+	VerifiedDestinationOut []restores.DestinationVerifiedStatus
 
 	// Recorded calls for assertions.
 	RestoreTargetCalls []restoreTargetCall
@@ -69,6 +70,10 @@ func (f *FakeService) LastVerifiedByTarget(_ context.Context, _ []string) ([]res
 		return nil, f.VerifiedErr
 	}
 	return f.VerifiedOut, nil
+}
+
+func (f *FakeService) LastVerifiedByTargetDestination(_ context.Context, _ []string) ([]restores.DestinationVerifiedStatus, error) {
+	return f.VerifiedDestinationOut, f.VerifiedErr
 }
 
 func (f *FakeService) Reconcile(_ context.Context) error { return nil }

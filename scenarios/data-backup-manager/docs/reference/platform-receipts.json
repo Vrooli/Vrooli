@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "receipts": [
+    {
+      "id": "linux-api-build-swarminator-20261113-192125",
+      "platform": "linux",
+      "architecture": "amd64",
+      "host": "swarminator",
+      "observed_at": "2026-11-13T19:21:25Z",
+      "capability": "api_cli_build",
+      "outcome": "passed",
+      "evidence_kind": "native-build",
+      "command": "GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o <temporary-output> . (api module)",
+      "artifact_sha256": "1a823d5b8730b7a08ec47d37cf6a7f1dfe9955d2aa4e50c207171fc523a3aff4",
+      "source_sha256": "aab5bbebd2dec0463da0bb6cb9e70b19d39e99e263781c821d96a3c7bdf3c736",
+      "evidence": "Native Linux amd64 Go build of scenarios/data-backup-manager/api; 322 Go source files hashed. The temporary binary was removed after hashing."
+    }
+  ]
+}

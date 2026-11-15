@@ -10,8 +10,22 @@ import { transport } from "./client";
 export const drillsClient: Client<typeof RecoveryDrillsService> = createClient(RecoveryDrillsService, transport);
 
 export async function listDrills(planId = "", targetId = ""): Promise<RecoveryDrill[]> {
-  const res = await drillsClient.listDrills({ planId, targetId });
-  return res.drills;
+  const drills: RecoveryDrill[] = [];
+  let pageToken = "";
+  const seenPageTokens = new Set<string>();
+  do {
+    if (pageToken !== "" && seenPageTokens.has(pageToken)) {
+      throw new Error("recovery drill history pagination repeated a cursor");
+    }
+    if (pageToken !== "") seenPageTokens.add(pageToken);
+    const res = await drillsClient.listDrills({ planId, targetId, pageSize: 100, pageToken });
+    drills.push(...res.drills);
+    if (res.nextPageToken !== "" && seenPageTokens.has(res.nextPageToken)) {
+      throw new Error("recovery drill history pagination repeated a cursor");
+    }
+    pageToken = res.nextPageToken;
+  } while (pageToken !== "");
+  return drills;
 }
 
 export async function runDrill(planId: string, targetId = "", destinationId = "", idempotencyKey = ""): Promise<RecoveryDrill | undefined> {

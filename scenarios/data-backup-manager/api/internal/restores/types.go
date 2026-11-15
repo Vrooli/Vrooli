@@ -69,6 +69,15 @@ type VerifiedStatus struct {
 	SnapshotID     string // snapshot that was proven restorable
 }
 
+// DestinationVerifiedStatus is the latest successful verify for one target ×
+// destination pair. It prevents one good copy from standing in for all copies.
+type DestinationVerifiedStatus struct {
+	TargetID       string
+	DestinationID  string
+	LastVerifiedAt time.Time
+	SnapshotID     string
+}
+
 // ErrRestoreNotFound is the typed sentinel for an unknown restore id.
 type ErrRestoreNotFound struct{ ID string }
 

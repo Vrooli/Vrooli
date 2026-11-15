@@ -55,6 +55,9 @@ type Repository interface {
 	// owner filter is applied by the caller when it has the mapping; the
 	// repository keys purely on target id.
 	TargetStatuses(ctx context.Context, targetIDs []string) ([]TargetStatus, error)
+	// TargetDestinationStatuses returns the latest successful capture for each
+	// target × destination pair, optionally filtered by target ids.
+	TargetDestinationStatuses(ctx context.Context, targetIDs []string) ([]TargetDestinationStatus, error)
 }
 
 // FailureUpdater is an optional additive persistence seam. Keeping it

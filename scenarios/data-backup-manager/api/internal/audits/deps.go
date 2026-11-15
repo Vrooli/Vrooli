@@ -40,4 +40,5 @@ type DestinationForAudit struct {
 // seam: implemented by an adapter over destinations.Service in main.go.
 type DestinationLookup interface {
 	DestinationForAudit(ctx context.Context, destinationID string) (DestinationForAudit, error)
+	WithResolvedDestination(ctx context.Context, destinationID string, use func(DestinationForAudit) error) error
 }

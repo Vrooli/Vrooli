@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 	coverageint "data-backup-manager/internal/coverage"
 	readinessint "data-backup-manager/internal/destinationreadiness"
 	destint "data-backup-manager/internal/destinations"
+	topology "data-backup-manager/internal/destinationtopology"
 	discoveryint "data-backup-manager/internal/discovery"
 	drillsint "data-backup-manager/internal/drills"
 	engineint "data-backup-manager/internal/engine"
@@ -27,6 +29,13 @@ import (
 	sourcesint "data-backup-manager/internal/sources"
 	targetsint "data-backup-manager/internal/targets"
 )
+
+func derefDeviceIdentity(identity *readinessint.DeviceIdentity) readinessint.DeviceIdentity {
+	if identity == nil {
+		return readinessint.DeviceIdentity{}
+	}
+	return *identity
+}
 
 // This file holds the composition-root adapters that satisfy the narrow
 // reader/effect seams the runs domain and the scheduler declare, backed by the
@@ -47,6 +56,7 @@ func (a planLookup) PlanForRun(ctx context.Context, planID string) (runsint.Plan
 		TargetIDs:      p.TargetIDs,
 		DestinationIDs: p.DestinationIDs,
 		KeepLatest:     int(p.KeepLatest),
+		KeepHourly:     int(p.KeepHourly), KeepDaily: int(p.KeepDaily), KeepWeekly: int(p.KeepWeekly), KeepMonthly: int(p.KeepMonthly), KeepAnnual: int(p.KeepAnnual),
 	}, nil
 }
 
@@ -70,6 +80,9 @@ type planCriticalDestinationPolicy struct {
 	targets      targetsint.Service
 	destinations destint.Service
 	readiness    *readinessint.Service
+	// hostID is supplied only by a trusted host identity source. Empty means
+	// local placement can be observed, but cannot be compared across hosts.
+	hostID string
 }
 
 type drillPlanLookup struct{ svc plansint.Service }
@@ -118,6 +131,40 @@ func (a drillSnapshotLookup) LatestSuccessfulSnapshot(ctx context.Context, planI
 
 type drillRestoreRunner struct{ svc restoresint.Service }
 
+type drillDestinationReadiness struct {
+	destinations destint.Service
+	readiness    interface {
+		Analyze(context.Context, readinessint.AnalyzeInput) (readinessint.Report, error)
+	}
+}
+
+func (a drillDestinationReadiness) ReadyForDrill(ctx context.Context, destinationID string) (bool, string, error) {
+	d, err := a.destinations.GetDestination(ctx, destinationID)
+	if err != nil {
+		return false, "", err
+	}
+	if d.BackendKind != destint.BackendFilesystem || a.readiness == nil {
+		return true, "", nil
+	}
+	input := readinessint.AnalyzeInput{DestinationID: d.ID, Location: d.Location}
+	if d.DeviceIdentity != nil {
+		input.ExpectedDevice = *d.DeviceIdentity
+	}
+	report, err := a.readiness.Analyze(ctx, input)
+	if err != nil {
+		return false, "", err
+	}
+	if report.OverallSeverity != readinessint.SeverityFail && report.OverallSeverity != readinessint.SeverityUnknown {
+		return true, "", nil
+	}
+	for _, check := range report.Checks {
+		if check.Severity == readinessint.SeverityFail || check.Severity == readinessint.SeverityUnknown {
+			return false, check.Message, nil
+		}
+	}
+	return false, fmt.Sprintf("destination readiness is %s", report.OverallSeverity), nil
+}
+
 func (a drillRestoreRunner) VerifyTarget(ctx context.Context, targetID, destinationID, snapshotID string) (drillsint.Restore, error) {
 	r, err := a.svc.VerifyTarget(ctx, targetID, destinationID, snapshotID)
 	if err != nil {
@@ -149,6 +196,8 @@ func (a planCriticalDestinationPolicy) Validate(ctx context.Context, tier plansi
 		}
 		if d.BackendKind == destint.BackendFilesystem && a.readiness != nil {
 			report, err := a.readiness.Analyze(ctx, readinessint.AnalyzeInput{
+				DestinationID:         d.ID,
+				ExpectedDevice:        derefDeviceIdentity(d.DeviceIdentity),
 				Location:              d.Location,
 				CrossPlatformRequired: true,
 			})
@@ -207,7 +256,7 @@ func (a planCriticalDestinationPolicy) Assess(ctx context.Context, tier plansint
 	}
 
 	locations := make([]string, 0, len(destinationIDs))
-	identities := make([]readinessint.DeviceIdentity, 0, len(destinationIDs))
+	evidence := make([]topology.Evidence, 0, len(destinationIDs))
 	for _, id := range destinationIDs {
 		d, err := a.destinations.GetDestination(ctx, id)
 		if err != nil {
@@ -216,6 +265,7 @@ func (a planCriticalDestinationPolicy) Assess(ctx context.Context, tier plansint
 		location := strings.TrimSpace(d.Location)
 		if location == "" {
 			report.PhysicallyIndependent = false
+			evidence = append(evidence, topology.Evidence{Endpoint: topology.EndpointUnknown})
 			report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q has no location; physical independence is not proven", id))
 			continue
 		}
@@ -223,22 +273,35 @@ func (a planCriticalDestinationPolicy) Assess(ctx context.Context, tier plansint
 
 		if d.BackendKind != destint.BackendFilesystem {
 			report.PhysicallyIndependent = false
-			report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q uses %s; provider failure-domain independence is not observable", id, d.BackendKind))
+			evidence = append(evidence, topology.Evidence{Endpoint: topology.EndpointUnknown})
+			report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q uses %s; endpoint hosting evidence is unavailable", id, d.BackendKind))
 			continue
 		}
+		observed := topology.Evidence{HostID: a.hostID, Endpoint: topology.EndpointLocal}
 		if a.readiness == nil {
 			report.PhysicallyIndependent = false
+			evidence = append(evidence, observed)
 			report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q has no volume identity inspector; physical independence is not proven", id))
 			continue
 		}
-		readiness, err := a.readiness.Analyze(ctx, readinessint.AnalyzeInput{Location: location, CrossPlatformRequired: true})
+		readiness, err := a.readiness.Analyze(ctx, readinessint.AnalyzeInput{
+			DestinationID:         d.ID,
+			ExpectedDevice:        derefDeviceIdentity(d.DeviceIdentity),
+			Location:              location,
+			CrossPlatformRequired: true,
+		})
 		if err != nil {
 			report.PhysicallyIndependent = false
+			evidence = append(evidence, observed)
 			report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q identity unavailable: %v", id, err))
 			continue
 		}
-		identities = append(identities, readiness.Identity)
-		if readiness.Identity.UUID == "" && readiness.Identity.Serial == "" && readiness.Identity.DevicePath == "" {
+		// A device serial is the only currently observed field that names the
+		// physical device. A filesystem UUID or device path can identify a
+		// volume or assignment, so neither is promoted to physical identity.
+		observed.DeviceID = strings.TrimSpace(readiness.Identity.Serial)
+		evidence = append(evidence, observed)
+		if observed.DeviceID == "" {
 			report.PhysicallyIndependent = false
 			report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q has no stable volume identity; physical independence is not proven", id))
 		}
@@ -266,11 +329,12 @@ func (a planCriticalDestinationPolicy) Assess(ctx context.Context, tier plansint
 			}
 		}
 	}
-	for i := range identities {
-		for j := i + 1; j < len(identities); j++ {
-			if samePhysicalVolume(identities[i], identities[j]) {
+	for i := range evidence {
+		for j := i + 1; j < len(evidence); j++ {
+			relation := topology.Compare(evidence[i], evidence[j])
+			if relation != topology.RelationIndependent {
 				report.PhysicallyIndependent = false
-				report.Warnings = append(report.Warnings, fmt.Sprintf("destinations %q and %q resolve to the same physical volume", destinationIDs[i], destinationIDs[j]))
+				report.Warnings = append(report.Warnings, fmt.Sprintf("destinations %q and %q topology is %s; independent placement is not proven", destinationIDs[i], destinationIDs[j], relation))
 			}
 		}
 	}
@@ -339,16 +403,26 @@ func (a targetLookup) ActiveTargetIDs(ctx context.Context) ([]string, error) {
 type destinationLookup struct{ svc destint.Service }
 
 func (a destinationLookup) DestinationForRun(ctx context.Context, destID string) (runsint.DestinationForRun, error) {
-	d, err := a.svc.GetDestination(ctx, destID)
+	d, err := a.svc.ResolveForUse(ctx, destID)
 	if err != nil {
 		return runsint.DestinationForRun{}, err
 	}
 	return runsint.DestinationForRun{
-		ID:          d.ID,
-		Name:        d.Name,
-		BackendKind: string(d.BackendKind),
-		Location:    d.Location,
+		ID:             d.ID,
+		Name:           d.Name,
+		BackendKind:    string(d.BackendKind),
+		Location:       d.Location,
+		DeviceIdentity: d.DeviceIdentity,
 	}, nil
+}
+
+func (a destinationLookup) WithResolvedDestination(ctx context.Context, destID string, use func(runsint.DestinationForRun) error) error {
+	if use == nil {
+		return nil
+	}
+	return a.svc.WithResolvedDestination(ctx, destID, func(d destint.Destination) error {
+		return use(runsint.DestinationForRun{ID: d.ID, Name: d.Name, BackendKind: string(d.BackendKind), Location: d.Location, DeviceIdentity: d.DeviceIdentity})
+	})
 }
 
 func (a destinationLookup) WouldBlock(ctx context.Context, destID string, pendingBytes int64) (bool, string, error) {
@@ -370,11 +444,20 @@ func (a restoreTargetLookup) TargetForRestore(ctx context.Context, targetID stri
 type restoreDestinationLookup struct{ svc destint.Service }
 
 func (a restoreDestinationLookup) DestinationForRestore(ctx context.Context, destID string) (restoresint.DestinationForRestore, error) {
-	d, err := a.svc.GetDestination(ctx, destID)
+	d, err := a.svc.ResolveForUse(ctx, destID)
 	if err != nil {
 		return restoresint.DestinationForRestore{}, err
 	}
 	return restoresint.DestinationForRestore{ID: d.ID, Name: d.Name}, nil
+}
+
+func (a restoreDestinationLookup) WithResolvedDestination(ctx context.Context, destID string, use func(restoresint.DestinationForRestore) error) error {
+	if use == nil {
+		return nil
+	}
+	return a.svc.WithResolvedDestination(ctx, destID, func(d destint.Destination) error {
+		return use(restoresint.DestinationForRestore{ID: d.ID, Name: d.Name})
+	})
 }
 
 // auditTargetLookup adapts targets.Service to audits.TargetLookup.
@@ -392,27 +475,86 @@ func (a auditTargetLookup) TargetForAudit(ctx context.Context, targetID string) 
 type auditDestinationLookup struct{ svc destint.Service }
 
 func (a auditDestinationLookup) DestinationForAudit(ctx context.Context, destID string) (auditsint.DestinationForAudit, error) {
-	d, err := a.svc.GetDestination(ctx, destID)
+	d, err := a.svc.ResolveForUse(ctx, destID)
 	if err != nil {
 		return auditsint.DestinationForAudit{}, err
 	}
 	return auditsint.DestinationForAudit{ID: d.ID, Name: d.Name}, nil
 }
 
-// verifiedLookup adapts restores.Service to the runs handler's VerifiedLookup
-// seam: it rolls the latest successful verify per target into a map so
-// ListTargetStatus can report proven-restorable posture in one call. This is
-// the composition seam that keeps the runs domain from importing restores.
-type verifiedLookup struct{ svc restoresint.Service }
+func (a auditDestinationLookup) WithResolvedDestination(ctx context.Context, destID string, use func(auditsint.DestinationForAudit) error) error {
+	if use == nil {
+		return nil
+	}
+	return a.svc.WithResolvedDestination(ctx, destID, func(d destint.Destination) error {
+		return use(auditsint.DestinationForAudit{ID: d.ID, Name: d.Name})
+	})
+}
+
+// verifiedLookup combines enabled plan bindings with destination-specific
+// restore receipts. A target is marked verified only when every enabled copy
+// has a successful scratch-restore verification.
+type verifiedLookup struct {
+	svc   restoresint.Service
+	plans plansint.Service
+}
 
 func (a verifiedLookup) LastVerifiedByTarget(ctx context.Context) (map[string]runsH.VerifiedInfo, error) {
-	statuses, err := a.svc.LastVerifiedByTarget(ctx, nil)
+	if a.plans == nil {
+		return nil, fmt.Errorf("enabled plan bindings are required to compute target verification")
+	}
+	plans, err := a.plans.List(ctx, catalogScanLimit)
 	if err != nil {
 		return nil, err
 	}
-	out := make(map[string]runsH.VerifiedInfo, len(statuses))
-	for _, s := range statuses {
-		out[s.TargetID] = runsH.VerifiedInfo{LastVerifiedAt: s.LastVerifiedAt, SnapshotID: s.SnapshotID}
+	bindings := map[string]map[string]struct{}{}
+	for _, plan := range plans {
+		if !plan.Enabled {
+			continue
+		}
+		for _, targetID := range plan.TargetIDs {
+			if bindings[targetID] == nil {
+				bindings[targetID] = map[string]struct{}{}
+			}
+			for _, destinationID := range plan.DestinationIDs {
+				if strings.TrimSpace(destinationID) != "" {
+					bindings[targetID][destinationID] = struct{}{}
+				}
+			}
+		}
+	}
+	targetIDs := make([]string, 0, len(bindings))
+	for targetID := range bindings {
+		targetIDs = append(targetIDs, targetID)
+	}
+	statuses, err := a.svc.LastVerifiedByTargetDestination(ctx, targetIDs)
+	if err != nil {
+		return nil, err
+	}
+	verified := make(map[string]restoresint.DestinationVerifiedStatus, len(statuses))
+	for _, status := range statuses {
+		verified[coverageTargetDestinationKey(status.TargetID, status.DestinationID)] = status
+	}
+	out := make(map[string]runsH.VerifiedInfo, len(bindings))
+	for targetID, destinationSet := range bindings {
+		if len(destinationSet) == 0 {
+			continue
+		}
+		var oldest time.Time
+		complete := true
+		for destinationID := range destinationSet {
+			status, ok := verified[coverageTargetDestinationKey(targetID, destinationID)]
+			if !ok || status.LastVerifiedAt.IsZero() {
+				complete = false
+				break
+			}
+			if oldest.IsZero() || status.LastVerifiedAt.Before(oldest) {
+				oldest = status.LastVerifiedAt
+			}
+		}
+		if complete {
+			out[targetID] = runsH.VerifiedInfo{LastVerifiedAt: oldest, SnapshotID: "all-enabled-destinations"}
+		}
 	}
 	return out, nil
 }
@@ -714,6 +856,24 @@ func (a discoveryProtectedPaths) ProtectedPaths(ctx context.Context) ([]string, 
 // recommended/sensitive split is the only classification coverage adds.
 type coverageSuggestions struct{ svc discoveryint.Service }
 
+func (a coverageSuggestions) ListTargetCandidates(ctx context.Context) ([]coverageint.DiscoveredTarget, error) {
+	candidates, err := a.svc.ListTargetCandidates(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]coverageint.DiscoveredTarget, 0, len(candidates))
+	for _, candidate := range candidates {
+		out = append(out, coverageint.DiscoveredTarget{
+			Owner: candidate.Owner, Name: candidate.Name, Locator: candidate.Locator,
+			Reacquirable: candidate.Reacquirable, ReacquisitionCommand: candidate.ReacquisitionCommand,
+			ReacquisitionEvidence:      candidate.ReacquisitionEvidence,
+			ReacquisitionNeedsOperator: candidate.ReacquisitionNeedsOperator,
+			ReacquisitionAuthReason:    candidate.ReacquisitionAuthReason,
+		})
+	}
+	return out, nil
+}
+
 func (a coverageSuggestions) ListTargetSuggestions(ctx context.Context) ([]coverageint.Suggestion, error) {
 	sugs, err := a.svc.ListTargetSuggestions(ctx)
 	if err != nil {
@@ -722,16 +882,24 @@ func (a coverageSuggestions) ListTargetSuggestions(ctx context.Context) ([]cover
 	out := make([]coverageint.Suggestion, 0, len(sugs))
 	for _, s := range sugs {
 		out = append(out, coverageint.Suggestion{
-			ID:          s.ID,
-			Owner:       s.Owner,
-			Name:        s.Name,
-			SourceKind:  s.SourceKind,
-			Locator:     s.Locator,
-			Rationale:   s.Rationale,
-			ApproxBytes: s.ApproxBytes,
-			Sensitive:   s.Sensitive,
-			Critical:    s.Critical,
-			Warning:     discoverySuggestionWarning(s.Sensitive, len(s.Findings)),
+			ID:                         s.ID,
+			Owner:                      s.Owner,
+			Name:                       s.Name,
+			SourceKind:                 s.SourceKind,
+			Locator:                    s.Locator,
+			Rationale:                  s.Rationale,
+			ApproxBytes:                s.ApproxBytes,
+			Sensitive:                  s.Sensitive,
+			Critical:                   s.Critical,
+			Warning:                    discoverySuggestionWarning(s.Sensitive, len(s.Findings)),
+			Reacquirable:               s.Reacquirable,
+			ReacquisitionCommand:       s.ReacquisitionCommand,
+			ReacquisitionEvidence:      s.ReacquisitionEvidence,
+			ReacquisitionNeedsOperator: s.ReacquisitionNeedsOperator,
+			ReacquisitionAuthReason:    s.ReacquisitionAuthReason,
+			BudgetMaxBytes:             s.BudgetMaxBytes,
+			BudgetMaxAge:               s.BudgetMaxAge,
+			Retention:                  s.Retention,
 		})
 	}
 	return out, nil
@@ -804,7 +972,10 @@ func (a coverageTargetCatalog) Register(ctx context.Context, in coverageint.Regi
 
 // coveragePlanCatalog adapts plans.Service to coverage.PlanCatalog: it rolls
 // every plan's target membership into the set of planned target ids.
-type coveragePlanCatalog struct{ svc plansint.Service }
+type coveragePlanCatalog struct {
+	svc      plansint.Service
+	topology plansint.CriticalDestinationReporter
+}
 
 func (a coveragePlanCatalog) PlannedTargetIDs(ctx context.Context) (map[string]struct{}, error) {
 	ps, err := a.svc.List(ctx, catalogScanLimit)
@@ -813,11 +984,74 @@ func (a coveragePlanCatalog) PlannedTargetIDs(ctx context.Context) (map[string]s
 	}
 	out := make(map[string]struct{})
 	for _, p := range ps {
+		if !p.Enabled {
+			continue
+		}
 		for _, id := range p.TargetIDs {
 			out[id] = struct{}{}
 		}
 	}
 	return out, nil
+}
+
+func (a coveragePlanCatalog) DestinationIDsByTarget(ctx context.Context, targetIDs []string) (map[string][]string, error) {
+	ps, err := a.svc.List(ctx, catalogScanLimit)
+	if err != nil {
+		return nil, err
+	}
+	wanted := map[string]struct{}{}
+	for _, id := range targetIDs {
+		wanted[id] = struct{}{}
+	}
+	sets := map[string]map[string]struct{}{}
+	for _, plan := range ps {
+		if !plan.Enabled {
+			continue
+		}
+		for _, targetID := range plan.TargetIDs {
+			if _, ok := wanted[targetID]; !ok {
+				continue
+			}
+			if sets[targetID] == nil {
+				sets[targetID] = map[string]struct{}{}
+			}
+			for _, destinationID := range plan.DestinationIDs {
+				if strings.TrimSpace(destinationID) != "" {
+					sets[targetID][destinationID] = struct{}{}
+				}
+			}
+		}
+	}
+	out := make(map[string][]string, len(sets))
+	for targetID, set := range sets {
+		for destinationID := range set {
+			out[targetID] = append(out[targetID], destinationID)
+		}
+		sort.Strings(out[targetID])
+	}
+	return out, nil
+}
+
+func (a coveragePlanCatalog) PhysicalIndependenceByTarget(ctx context.Context, destinations map[string][]string) (map[string]bool, map[string][]string, error) {
+	proven := make(map[string]bool, len(destinations))
+	warnings := make(map[string][]string, len(destinations))
+	for targetID, destinationIDs := range destinations {
+		if len(destinationIDs) < 2 {
+			warnings[targetID] = []string{"fewer than two enabled destinations are configured"}
+			continue
+		}
+		if a.topology == nil {
+			warnings[targetID] = []string{"destination topology evidence is unavailable"}
+			continue
+		}
+		report, err := a.topology.Assess(ctx, plansint.TierCriticalSecondary, []string{targetID}, destinationIDs)
+		if err != nil {
+			return nil, nil, fmt.Errorf("target %q: %w", targetID, err)
+		}
+		proven[targetID] = report.PhysicallyIndependent
+		warnings[targetID] = append([]string(nil), report.Warnings...)
+	}
+	return proven, warnings, nil
 }
 
 // coverageRunStatus adapts runs.Service to coverage.RunStatusSource: the last
@@ -833,6 +1067,20 @@ func (a coverageRunStatus) LastSuccessByTarget(ctx context.Context, targetIDs []
 	for _, s := range statuses {
 		if !s.LastSuccessAt.IsZero() {
 			out[s.TargetID] = s.LastSuccessAt
+		}
+	}
+	return out, nil
+}
+
+func (a coverageRunStatus) LastSuccessByTargetDestination(ctx context.Context, targetIDs []string) (map[string]time.Time, error) {
+	statuses, err := a.svc.ListTargetDestinationStatus(ctx, targetIDs)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]time.Time, len(statuses))
+	for _, status := range statuses {
+		if !status.LastSuccessAt.IsZero() {
+			out[coverageTargetDestinationKey(status.TargetID, status.DestinationID)] = status.LastSuccessAt
 		}
 	}
 	return out, nil
@@ -854,6 +1102,24 @@ func (a coverageVerified) LastVerifiedByTarget(ctx context.Context, targetIDs []
 		}
 	}
 	return out, nil
+}
+
+func (a coverageVerified) LastVerifiedByTargetDestination(ctx context.Context, targetIDs []string) (map[string]time.Time, error) {
+	statuses, err := a.svc.LastVerifiedByTargetDestination(ctx, targetIDs)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]time.Time, len(statuses))
+	for _, status := range statuses {
+		if !status.LastVerifiedAt.IsZero() {
+			out[coverageTargetDestinationKey(status.TargetID, status.DestinationID)] = status.LastVerifiedAt
+		}
+	}
+	return out, nil
+}
+
+func coverageTargetDestinationKey(targetID, destinationID string) string {
+	return targetID + "\x00" + destinationID
 }
 
 // planCoverageGuard adapts the coverage service to plans.CoverageGuard. The
@@ -883,7 +1149,10 @@ func (a runTrigger) TriggerRun(ctx context.Context, planID string) error {
 }
 
 // planSource adapts plans.Service to scheduler.PlanSource.
-type planSource struct{ svc plansint.Service }
+type planSource struct {
+	svc  plansint.Service
+	runs runsint.Service
+}
 
 func (a planSource) SchedulablePlans(ctx context.Context) ([]schedint.DuePlan, error) {
 	ps, err := a.svc.SchedulablePlans(ctx)
@@ -892,7 +1161,17 @@ func (a planSource) SchedulablePlans(ctx context.Context) ([]schedint.DuePlan, e
 	}
 	out := make([]schedint.DuePlan, 0, len(ps))
 	for _, p := range ps {
-		out = append(out, schedint.DuePlan{ID: p.ID, Schedule: p.Schedule, Enabled: p.Enabled})
+		due := schedint.DuePlan{ID: p.ID, Schedule: p.Schedule, Enabled: p.Enabled}
+		if a.runs != nil {
+			history, err := a.runs.ListRuns(ctx, p.ID, 1)
+			if err != nil {
+				return nil, fmt.Errorf("load latest run for scheduled plan %q: %w", p.ID, err)
+			}
+			if len(history) > 0 {
+				due.LastRunAt = history[0].StartedAt
+			}
+		}
+		out = append(out, due)
 	}
 	return out, nil
 }
@@ -999,6 +1278,8 @@ func (a backupPosture) OverdueOrFailed(ctx context.Context) (bool, string, error
 	const maxNamed = 10
 	var named []string
 	bad := 0
+	represented := 0
+	targetReasons := map[string]int{}
 	if a.runs != nil {
 		statuses, err := a.runs.ListTargetStatus(ctx, nil)
 		if err != nil {
@@ -1009,10 +1290,21 @@ func (a backupPosture) OverdueOrFailed(ctx context.Context) (bool, string, error
 				continue
 			}
 			bad++
-			if len(named) < maxNamed {
-				named = append(named, fmt.Sprintf("%s (%s)", s.TargetID, overdueReason(s)))
-			}
+			targetReasons[overdueReason(s)]++
 		}
+	}
+	reasons := make([]string, 0, len(targetReasons))
+	for reason := range targetReasons {
+		reasons = append(reasons, reason)
+	}
+	sort.Strings(reasons)
+	for _, reason := range reasons {
+		count := targetReasons[reason]
+		if len(named) >= maxNamed {
+			break
+		}
+		named = append(named, fmt.Sprintf("%d target(s) %s", count, reason))
+		represented += count
 	}
 
 	// Check repository connections used by enabled plans as well as target
@@ -1033,18 +1325,25 @@ func (a backupPosture) OverdueOrFailed(ctx context.Context) (bool, string, error
 					continue
 				}
 				checked[id] = true
-				destination, err := a.destinations.GetDestination(ctx, id)
+				destinationName := id
+				resolved := false
+				err := a.destinations.WithResolvedDestination(ctx, id, func(destination destint.Destination) error {
+					if destination.ID != id {
+						return fmt.Errorf("destination identity changed")
+					}
+					destinationName, resolved = destination.Name, true
+					_, statusErr := a.engine.RepoStatus(ctx, destination.Name)
+					return statusErr
+				})
 				if err != nil {
 					bad++
 					if len(named) < maxNamed {
-						named = append(named, fmt.Sprintf("destination %s unavailable", id))
-					}
-					continue
-				}
-				if _, err := a.engine.RepoStatus(ctx, destination.Name); err != nil {
-					bad++
-					if len(named) < maxNamed {
-						named = append(named, fmt.Sprintf("repository %s unavailable", destination.Name))
+						if resolved {
+							named = append(named, fmt.Sprintf("repository %s unavailable", destinationName))
+						} else {
+							named = append(named, fmt.Sprintf("destination %s unavailable", id))
+						}
+						represented++
 					}
 				}
 			}
@@ -1054,8 +1353,8 @@ func (a backupPosture) OverdueOrFailed(ctx context.Context) (bool, string, error
 		return false, "", nil
 	}
 	detail := fmt.Sprintf("%d backup posture issue(s): %s", bad, strings.Join(named, ", "))
-	if bad > len(named) {
-		detail += fmt.Sprintf(", +%d more", bad-len(named))
+	if bad > represented {
+		detail += fmt.Sprintf(", +%d more", bad-represented)
 	}
 	return true, detail, nil
 }
@@ -1065,14 +1364,21 @@ func (a backupPosture) OverdueOrFailed(ctx context.Context) (bool, string, error
 func overdueReason(s runsint.TargetStatus) string {
 	switch s.LastRunStatus {
 	case runsint.RunFailed:
-		return "last run failed"
+		return lastFailureReason(s, "last run failed")
 	case runsint.RunPartialFailed:
-		return "last run partial-failed"
+		return lastFailureReason(s, "last run partial-failed")
 	}
 	if s.LastSuccessAt.IsZero() {
 		return "never backed up"
 	}
 	return "stale"
+}
+
+func lastFailureReason(s runsint.TargetStatus, fallback string) string {
+	if s.LastFailureCategory == "" || s.LastFailureCode == "" {
+		return fallback
+	}
+	return fmt.Sprintf("%s (%s/%s)", fallback, s.LastFailureCategory, s.LastFailureCode)
 }
 
 // startScheduler runs the in-process scheduler on a ticker in a background
@@ -1124,6 +1430,12 @@ func startDrillScheduler(ctx context.Context, svc drillsint.Service, logger *log
 		interval = d
 	}
 	go func() {
+		// Reconcile due work immediately after owner bootstrap. Waiting for the
+		// first ticker edge left a restart without scheduled coverage for up to
+		// one full scheduler interval.
+		if err := svc.RunDue(ctx); err != nil {
+			logger.Printf("recovery-drill scheduler bootstrap: %v", err)
+		}
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {

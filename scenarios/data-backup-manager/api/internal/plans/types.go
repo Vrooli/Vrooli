@@ -38,6 +38,11 @@ type Plan struct {
 	DestinationIDs                    []string
 	Schedule                          string
 	KeepLatest                        int32
+	KeepHourly                        int32
+	KeepDaily                         int32
+	KeepWeekly                        int32
+	KeepMonthly                       int32
+	KeepAnnual                        int32
 	Enabled                           bool
 	ProtectionTier                    ProtectionTier
 	RecoveryDrillSchedule             string
@@ -55,6 +60,11 @@ type CreateInput struct {
 	DestinationIDs        []string
 	Schedule              string
 	KeepLatest            int32
+	KeepHourly            int32
+	KeepDaily             int32
+	KeepWeekly            int32
+	KeepMonthly           int32
+	KeepAnnual            int32
 	Enabled               bool
 	ProtectionTier        ProtectionTier
 	RecoveryDrillSchedule string
@@ -72,6 +82,11 @@ type UpdateInput struct {
 	DestinationIDs        []string
 	Schedule              string
 	KeepLatest            int32
+	KeepHourly            int32
+	KeepDaily             int32
+	KeepWeekly            int32
+	KeepMonthly           int32
+	KeepAnnual            int32
 	Enabled               bool
 	ProtectionTier        ProtectionTier
 	RecoveryDrillSchedule string

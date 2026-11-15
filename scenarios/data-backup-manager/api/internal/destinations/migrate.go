@@ -27,6 +27,7 @@ var addedColumns = []struct {
 	{name: "device_serial", ddl: "ALTER TABLE destinations ADD COLUMN device_serial TEXT NOT NULL DEFAULT ''"},
 	{name: "device_uuid", ddl: "ALTER TABLE destinations ADD COLUMN device_uuid TEXT NOT NULL DEFAULT ''"},
 	{name: "device_observed_at", ddl: "ALTER TABLE destinations ADD COLUMN device_observed_at TEXT NOT NULL DEFAULT ''"},
+	{name: "provisioning_state", ddl: "ALTER TABLE destinations ADD COLUMN provisioning_state TEXT NOT NULL DEFAULT 'ready'"},
 }
 
 // EnsureColumns applies additive column migrations to an existing destinations

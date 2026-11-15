@@ -15,7 +15,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/shirou/gopsutil/v3/disk"
@@ -56,6 +59,11 @@ type Volume struct {
 	DevicePath string
 	// Mountpoint is the absolute path the filesystem is mounted at.
 	Mountpoint string
+	// MountEpisodeID is the kernel mount ID for this exact Linux mount
+	// instance. It changes across unmount/remount even when device UUID and
+	// mountpoint are reused. It is empty on platforms without an equivalent
+	// stable mount-generation signal.
+	MountEpisodeID string
 	// Filesystem is the filesystem type (ext4, apfs, ntfs, nfs, …).
 	Filesystem string
 	// MountDriver is the kernel-side driver currently serving this mount, as
@@ -150,6 +158,15 @@ func (s *Scanner) Scan(ctx context.Context) ([]Volume, error) {
 	if err != nil {
 		return nil, fmt.Errorf("enumerate partitions: %w", err)
 	}
+	var mountEpisodeInfo []byte
+	var bootID, mountNamespace string
+	if runtime.GOOS == "linux" {
+		mountEpisodeInfo, _ = os.ReadFile("/proc/self/mountinfo")
+		if data, err := os.ReadFile("/proc/sys/kernel/random/boot_id"); err == nil {
+			bootID = strings.TrimSpace(string(data))
+		}
+		mountNamespace, _ = os.Readlink("/proc/self/ns/mnt")
+	}
 	out := make([]Volume, 0, len(parts))
 	for _, p := range parts {
 		m := mountInfo{Device: p.Device, Mountpoint: p.Mountpoint, Fstype: p.Fstype, Opts: p.Opts}
@@ -165,6 +182,7 @@ func (s *Scanner) Scan(ctx context.Context) ([]Volume, error) {
 		vol := Volume{
 			DevicePath:           m.Device,
 			Mountpoint:           m.Mountpoint,
+			MountEpisodeID:       mountEpisodeIDFromInfo(mountEpisodeInfo, m.Mountpoint, bootID, mountNamespace),
 			Filesystem:           m.Fstype,
 			MountDriver:          m.Fstype,
 			Class:                class,
@@ -195,6 +213,59 @@ func (s *Scanner) Scan(ctx context.Context) ([]Volume, error) {
 		out = append(out, vol)
 	}
 	return out, nil
+}
+
+func mountEpisodeIDFromInfo(data []byte, mountpoint, bootID, mountNamespace string) string {
+	want := filepath.Clean(strings.TrimSpace(mountpoint))
+	bootID = strings.TrimSpace(bootID)
+	mountNamespace = strings.TrimSpace(mountNamespace)
+	if want == "." || want == "" || bootID == "" || mountNamespace == "" {
+		return ""
+	}
+	var selected uint64
+	for _, line := range strings.Split(string(data), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 6 || filepath.Clean(unescapeMountInfoField(fields[4])) != want {
+			continue
+		}
+		id, err := strconv.ParseUint(fields[0], 10, 64)
+		if err != nil || id == 0 {
+			return ""
+		}
+		// Stacked mounts can share one mountpoint. The highest mount ID is
+		// the newest active mount instance in the kernel table.
+		if id > selected {
+			selected = id
+		}
+	}
+	if selected == 0 {
+		return ""
+	}
+	return bootID + "/" + mountNamespace + "/" + strconv.FormatUint(selected, 10)
+}
+
+func unescapeMountInfoField(field string) string {
+	var out strings.Builder
+	for i := 0; i < len(field); i++ {
+		if field[i] == '\\' && i+3 < len(field) {
+			var value byte
+			valid := true
+			for j := 1; j <= 3; j++ {
+				if field[i+j] < '0' || field[i+j] > '7' {
+					valid = false
+					break
+				}
+				value = value*8 + field[i+j] - '0'
+			}
+			if valid {
+				out.WriteByte(value)
+				i += 3
+				continue
+			}
+		}
+		out.WriteByte(field[i])
+	}
+	return out.String()
 }
 
 // clampUint64 converts a gopsutil uint64 byte count to int64 for the wire,

@@ -6,12 +6,14 @@ import (
 	"data-backup-manager/internal/asyncpool"
 )
 
-// RestoreJob is the unit of background restore/verify work. The resolved
-// target and repo name travel with it so the worker does not re-resolve them.
+// RestoreJob is the unit of background restore/verify work. It carries the
+// stable destination ID so the worker can re-resolve a removable repository
+// immediately before use, even if the volume changed while queued.
 type RestoreJob struct {
-	Restore  Restore
-	Target   TargetForRestore
-	DestName string
+	Restore       Restore
+	Target        TargetForRestore
+	DestinationID string
+	DestName      string
 }
 
 // RestoreFunc executes one restore/verify job to a terminal state.

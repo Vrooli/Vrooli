@@ -57,7 +57,7 @@ before editing `.vrooli/service.json`.
 | Run history | runs | SQLite | `api/internal/runs/schema.sql` | Bounded retention (see Retention And Deletion) | Per-run outcomes plus redacted grouped preflight incidents; carries stable root-cause codes, next actions, last-success-per-target, and snapshot references. |
 | Restore records | restores | SQLite | `api/internal/restores/schema.sql` | Bounded retention | Includes verify outcomes and last-verified-per-target (the git-removal gate). |
 | Audit records | audits | SQLite | `api/internal/audits/schema.sql` | Bounded retention | Generic snapshot-audit proofs: status, restorability, live + snapshot inventories and the comparison, stored as JSON blobs. **Only relative paths, counts, and hashes — never file contents or secrets.** |
-| Backup artifacts (snapshots) | destinations / kopia | kopia repository (filesystem or S3/MinIO) | The kopia repository per destination | Per-plan retention policy, applied by kopia; **alert+block, never silent eviction** | Encrypted by default; reached only via `resource-kopia`; never under the scenario source tree. |
+| Backup artifacts (snapshots) | destinations / kopia | kopia repository (filesystem, SFTP, or S3-compatible) | The kopia repository per destination | Per-plan retention policy, applied by kopia; **alert+block, never silent eviction** | Encrypted by default; reached only via `resource-kopia`; never under the scenario source tree. |
 | Repository passphrases | (referenced by) destinations | credential authority | `vrooli/kopia/<repository>` | Lives with the destination | Catalog and bundles store only the identity/field reference; the `kopia` resource resolves the value at call time. |
 | S3/backend access keys | (referenced by) destinations | credential authority | `vrooli/kopia/<repository>` with S3 fields | Lives with the destination | Catalog stores only secret references; the `kopia` resource resolves values at call time. |
 
@@ -114,12 +114,16 @@ backfills, add a scenario-specific migration plan here and update
 |---|---|---|---|
 | Targets | Owning scenario deregisters (or owner is decommissioned) | Live while registered; re-registration re-creates | Deregistration semantics for orphaned owners to be defined in requirements. |
 | Destinations | Operator removes the destination | Removal must not delete the underlying repository implicitly | Destination removal vs repository deletion separation to be defined in requirements. |
-| Backup artifacts (snapshots) | Per-plan retention policy applied by kopia (e.g. GFS) | **Alert + block by default at the storage cap** — never silent eviction; eviction happens only via explicit retention | Cap-breach behavior and retention policy editing are the locked default; exact thresholds are configuration. |
+| Backup artifacts (snapshots) | Per-plan Kopia policy keeps an unconditional newest floor plus hourly, daily, weekly, monthly, and annual samples | **Alert + block by default at the storage cap** — never silent eviction; expiry occurs only through explicit retention policy | Existing plans migrate with zero GFS counts and keep their current latest count; an operator must edit a plan to opt it into time buckets. |
 | Run / restore history | Bounded history retention in the catalog | Keep enough to show last-success and last-verified per target | Exact history-trim policy to be defined in requirements. |
 
 The single most important deletion rule: the manager never deletes a
 backup to stay under a storage cap. Hitting a cap alerts and refuses
-new writes; reclaiming space requires explicit retention on a plan.
+new writes; reclaiming space requires explicit retention on a plan. `keep_latest`
+is an unconditional newest-snapshot floor. GFS counts retain additional
+age-distributed samples, so a daily plan can keep a small recent window and
+still retain monthly or annual recovery points. New plans default to 2 latest,
+24 hourly, 7 daily, 4 weekly, 6 monthly, and 2 annual; zero disables that tier.
 
 ### Filesystem destination bundle layout
 

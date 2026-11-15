@@ -6,6 +6,6 @@ import _ "embed"
 var schemaSQL string
 
 // Schema returns the restores domain's SQL contribution, applied by
-// database.EnsureSchemas via the modules.AllSchemas registry. Forward-only
+// database.EnsureSchemas via the modulecatalog.AllSchemas registry. Forward-only
 // declarative — re-runs are no-ops.
 func Schema() string { return schemaSQL }

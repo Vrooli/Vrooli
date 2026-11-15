@@ -2,9 +2,11 @@ package restores_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
+	"data-backup-manager/internal/platformreceipts"
 	"data-backup-manager/internal/restores"
 	restoresmocks "data-backup-manager/internal/restores/mocks"
 	"data-backup-manager/internal/sources"
@@ -13,6 +15,97 @@ import (
 
 	"github.com/vrooli/api-core/scheduletest"
 )
+
+type receiptCollector struct{ rows chan platformreceipts.Input }
+
+func (c receiptCollector) Record(_ context.Context, row platformreceipts.Input) error {
+	c.rows <- row
+	return nil
+}
+
+type changesWhileQueued struct{ calls int }
+
+func (l *changesWhileQueued) DestinationForRestore(_ context.Context, id string) (restores.DestinationForRestore, error) {
+	l.calls++
+	if l.calls == 1 {
+		return restores.DestinationForRestore{ID: id, Name: "nightly"}, nil
+	}
+	return restores.DestinationForRestore{}, fmt.Errorf("volume readiness changed")
+}
+
+func (l *changesWhileQueued) WithResolvedDestination(ctx context.Context, id string, use func(restores.DestinationForRestore) error) error {
+	destination, err := l.DestinationForRestore(ctx, id)
+	if err != nil {
+		return err
+	}
+	return use(destination)
+}
+
+type changesBeforeUse struct{}
+
+func (changesBeforeUse) DestinationForRestore(_ context.Context, id string) (restores.DestinationForRestore, error) {
+	return restores.DestinationForRestore{ID: id, Name: "nightly"}, nil
+}
+
+func (changesBeforeUse) WithResolvedDestination(context.Context, string, func(restores.DestinationForRestore) error) error {
+	return fmt.Errorf("volume readiness changed immediately before repository use")
+}
+
+func TestVerifyTargetRechecksDestinationBeforeQueuedRepositoryUse(t *testing.T) {
+	ctx := context.Background()
+	repo := restores.NewSQLiteRepository(newRestoresDB(t), scheduletest.New(time.Time{}))
+	eng := &mocks.FakeKopiaEngine{}
+	destinations := &changesWhileQueued{}
+	svc := restores.NewService(restores.Deps{
+		Repo:         repo,
+		Targets:      &restoresmocks.FakeTargetLookup{Targets: map[string]restores.TargetForRestore{"t1": {ID: "t1", Kind: sources.KindFilesystem, Locator: "loc"}}},
+		Destinations: destinations,
+		Engine:       eng,
+		Sources:      sources.NewRegistry(&sourcesmocks.FakeCapturer{SourceKind: sources.KindFilesystem}),
+		Clock:        scheduletest.New(time.Time{}), ScratchRoot: t.TempDir(), Executor: restoresmocks.NewSyncExecutor(),
+	})
+	defer func() { _ = svc.Shutdown(ctx) }()
+	result, err := svc.VerifyTarget(ctx, "t1", "dst-1", "snap-1")
+	if err != nil {
+		t.Fatalf("VerifyTarget: %v", err)
+	}
+	if result.Status != restores.RestoreFailed || result.Error == "" {
+		t.Fatalf("result = %+v, want failed after worker re-resolution", result)
+	}
+	if destinations.calls != 2 {
+		t.Fatalf("destination resolutions = %d, want request + worker", destinations.calls)
+	}
+	if len(eng.Calls) != 0 {
+		t.Fatalf("engine touched after destination readiness changed: %v", eng.Calls)
+	}
+}
+
+func TestVerifyTargetRechecksDestinationAtRepositoryUseBoundary(t *testing.T) {
+	ctx := context.Background()
+	repo := restores.NewSQLiteRepository(newRestoresDB(t), scheduletest.New(time.Time{}))
+	eng := &mocks.FakeKopiaEngine{}
+	svc := restores.NewService(restores.Deps{
+		Repo:         repo,
+		Targets:      &restoresmocks.FakeTargetLookup{Targets: map[string]restores.TargetForRestore{"t1": {ID: "t1", Kind: sources.KindFilesystem, Locator: "loc"}}},
+		Destinations: changesBeforeUse{},
+		Engine:       eng,
+		Sources:      sources.NewRegistry(&sourcesmocks.FakeCapturer{SourceKind: sources.KindFilesystem}),
+		Clock:        scheduletest.New(time.Time{}), ScratchRoot: t.TempDir(), Executor: restoresmocks.NewSyncExecutor(),
+	})
+	defer func() { _ = svc.Shutdown(ctx) }()
+	result, err := svc.VerifyTarget(ctx, "t1", "dst-1", "snap-1")
+	if err != nil {
+		t.Fatalf("VerifyTarget: %v", err)
+	}
+	if result.Status != restores.RestoreFailed || result.Error == "" {
+		t.Fatalf("result = %+v, want failed after final destination gate", result)
+	}
+	for _, call := range eng.Calls {
+		if call == "SnapshotRestore(nightly,snap-1)" || call == "SnapshotVerify(nightly,snap-1,100)" {
+			t.Fatalf("engine used a destination after its final gate failed: %v", eng.Calls)
+		}
+	}
+}
 
 // TestVerifyTarget_AsyncLifecycleIsPersisted proves the async contract with the
 // real background executor: VerifyTarget returns a non-terminal record
@@ -26,6 +119,7 @@ func TestVerifyTarget_AsyncLifecycleIsPersisted(t *testing.T) {
 	repo := restores.NewSQLiteRepository(newRestoresDB(t), scheduletest.New(time.Time{}))
 	eng := &mocks.FakeKopiaEngine{}
 	capt := &sourcesmocks.FakeCapturer{SourceKind: sources.KindFilesystem}
+	receipts := make(chan platformreceipts.Input, 1)
 
 	verifyReached := make(chan struct{})
 	releaseVerify := make(chan struct{})
@@ -36,15 +130,16 @@ func TestVerifyTarget_AsyncLifecycleIsPersisted(t *testing.T) {
 	}
 
 	svc := restores.NewService(restores.Deps{
-		Repo:         repo,
-		Targets:      &restoresmocks.FakeTargetLookup{Targets: map[string]restores.TargetForRestore{"t1": {ID: "t1", Kind: sources.KindFilesystem, Locator: "loc"}}},
-		Destinations: &restoresmocks.FakeDestinationLookup{Destinations: map[string]restores.DestinationForRestore{"dst-1": {ID: "dst-1", Name: "nightly"}}},
-		Engine:       eng,
-		Sources:      sources.NewRegistry(capt),
-		Clock:        scheduletest.New(time.Time{}),
-		ScratchRoot:  t.TempDir(),
-		BaseContext:  ctx,
-		Executor:     restores.NewAsyncExecutor(1),
+		Repo:             repo,
+		Targets:          &restoresmocks.FakeTargetLookup{Targets: map[string]restores.TargetForRestore{"t1": {ID: "t1", Kind: sources.KindFilesystem, Locator: "loc"}}},
+		Destinations:     &restoresmocks.FakeDestinationLookup{Destinations: map[string]restores.DestinationForRestore{"dst-1": {ID: "dst-1", Name: "nightly"}}},
+		Engine:           eng,
+		Sources:          sources.NewRegistry(capt),
+		Clock:            scheduletest.New(time.Time{}),
+		ScratchRoot:      t.TempDir(),
+		BaseContext:      ctx,
+		Executor:         restores.NewAsyncExecutor(1),
+		PlatformReceipts: receiptCollector{rows: receipts},
 	})
 	defer func() { _ = svc.Shutdown(ctx) }()
 
@@ -72,6 +167,14 @@ func TestVerifyTarget_AsyncLifecycleIsPersisted(t *testing.T) {
 	}
 	if final.FinishedAt.IsZero() {
 		t.Fatalf("verified record missing finished_at")
+	}
+	select {
+	case receipt := <-receipts:
+		if receipt.Capability != "scratch_restore" || receipt.Outcome != "passed" || receipt.TargetID != "t1" || receipt.DestinationID != "dst-1" {
+			t.Fatalf("scratch restore receipt = %+v", receipt)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("successful native scratch restore did not emit a platform receipt")
 	}
 }
 

@@ -133,7 +133,7 @@ PowerShell, or a mount/repair operation.
 |---|---|
 | **Seam** | Shared api-core schema execution surface |
 | **Interface** | `api-core/database::SchemaExecer` (`ExecContext(ctx, query, args...)`) consumed by `database.EnsureSchemas`. |
-| **Production wiring** | `main.go` applies `modules.AllSchemas()` over a real `*sql.DB`; domain sqlite tests compose `localdb.SystemSchema` with the domain's own `Schema()` provider before exercising repositories. |
+| **Production wiring** | `main.go` applies `modulecatalog.AllSchemas()` over a real `*sql.DB`; domain sqlite tests compose `localdb.SystemSchema` with the domain's own `Schema()` provider before exercising repositories. |
 | **Test fake** | `api-core/databasetest::FakeExecer` is the canonical fake when a test needs to assert schema application order or injected execution failures without opening a real database. |
 | **Why it exists** | Schema application is shared-package behavior, but each scenario owns its provider list. Keep scenario-specific schema composition local; use `databasetest.FakeExecer` only for tests of code that consumes the shared `SchemaExecer` interface directly. |
 
@@ -220,14 +220,14 @@ both are constructed, breaking the cycle without either importing the other.
 | **Test fake** | `api-core/blobstore.MemoryBlobStore` or a domain-local fake lets handler tests assert metadata and failure behavior without touching the filesystem. |
 | **Why it exists** | Connect-RPC is the default for proto-typed payloads, but opaque bytes are not proto payloads. Keeping bytes behind `BlobStore` lets the handler stay transport-focused and lets future scenarios swap filesystem, S3, or another object store without changing domain services. |
 
-### module.Module (domain composition)
+### modulecontract.Module (domain composition)
 
 | | |
 |---|---|
 | **Seam** | Domain-to-server composition; the contract every handler package returns from its `Module(...)` constructor. |
-| **Interface** | `internal/module/module.go::Module` (`Name string`, `Mount func(r *mux.Router)`, `Endpoints []EndpointDescriptor`). Data type, not behaviour — modules don't have methods. |
-| **Production wiring** | `main.go` calls `healthH.Module(...)`, `targetsH.Module(...)`, `destinationsH.Module(...)`, and the other product modules, then passes the slice to `server.New(deps, modules...)`. The server iterates `m.Mount(s.router)` after registering the logging middleware. |
-| **Test fake** | A literal `module.Module{Name: "stub", Mount: func(r){...}}` in `internal/server/server_test.go` proves the iteration; per-domain `module_test.go` files exercise the real constructors against in-memory fixtures. |
+| **Interface** | `internal/modulecontract/module.go::Module` (`Name string`, `Mount func(r *mux.Router)`, `Endpoints []EndpointDescriptor`). Data type, not behaviour — modules don't have methods. |
+| **Production wiring** | `main.go` calls `healthH.Module(...)`, `targetsH.Module(...)`, `destinationsH.Module(...)`, and the other product modules, then passes the slice to `server.New(deps, modulecatalog...)`. The server iterates `m.Mount(s.router)` after registering the logging middleware. |
+| **Test fake** | A literal `modulecontract.Module{Name: "stub", Mount: func(r){...}}` in `internal/server/server_test.go` proves the iteration; per-domain `module_test.go` files exercise the real constructors against in-memory fixtures. |
 | **Why it exists** | Eliminates the central registry that would otherwise grow per-domain fields on `server.Deps` and per-domain wiring lines in `routes.go`. Adding a domain means creating files; deleting one means removing files. The endpoint descriptors travel with the module, so `.vrooli/endpoints.json` codegen has a single source per domain (no manual JSON editing). |
 
 ### Endpoints codegen (manifest source-of-truth)
@@ -235,9 +235,9 @@ both are constructed, breaking the cycle without either importing the other.
 | | |
 |---|---|
 | **Seam** | The `.vrooli/endpoints.json` API documentation manifest. |
-| **Interface** | `api/cmd/gen-endpoints/main.go` reads `internal/modules.AllEndpoints()` — the shared registry that collects each handler's static `Endpoints []module.EndpointDescriptor` slice plus `cli_commands_seed.json`. Output is the canonical envelope at `.vrooli/endpoints.json`. |
+| **Interface** | `api/cmd/gen-endpoints/main.go` reads `internal/modulecatalog.AllEndpoints()` — the shared registry that collects each handler's static `Endpoints []modulecontract.EndpointDescriptor` slice plus `cli_commands_seed.json`. Output is the canonical envelope at `.vrooli/endpoints.json`. |
 | **Production wiring** | Run via `make endpoints`. CI runs `make endpoints && git diff --exit-code .vrooli/endpoints.json` so a stale manifest fails the build with an actionable diff. |
-| **Test fake** | `api/cmd/gen-endpoints/main_test.go` exercises the codegen with hand-built fixtures and asserts the output is valid JSON with the canonical envelope. `internal/modules/registry_test.go` pins the registry shape (non-empty, stable order). The manifest coverage gate (every Connect endpoint is bound or explicitly omitted in `cli/manifest.json`) has its own unit test. |
+| **Test fake** | `api/cmd/gen-endpoints/main_test.go` exercises the codegen with hand-built fixtures and asserts the output is valid JSON with the canonical envelope. `internal/modulecatalog/registry_test.go` pins the registry shape (non-empty, stable order). The manifest coverage gate (every Connect endpoint is bound or explicitly omitted in `cli/manifest.json`) has its own unit test. |
 | **Why it exists** | Hand-edited endpoints manifests drift from real handlers. The shared `modules` registry means runtime (`main.go`) and codegen (`gen-endpoints`) read endpoints + schema from one place — adding a domain is two registry lines, not separate edits in `main.go` and `gen-endpoints/main.go`. The CI drift check makes "I forgot to regenerate" a build failure, not a stale-doc bug. |
 
 ### database.SystemSchema (cross-cutting infrastructure)
@@ -246,7 +246,7 @@ both are constructed, breaking the cycle without either importing the other.
 |---|---|
 | **Seam** | Cross-cutting database infrastructure (postgres extensions, custom types, cross-domain views) |
 | **Interface** | `internal/database/system.go::SystemSchema() string` (consumed via `api-core/database.SchemaProvider`) |
-| **Production wiring** | `internal/modules/registry.go::AllSchemas()` lists `apidb.SchemaProviderFunc(localdb.SystemSchema)` first; `main.go` passes the slice into `apidb.EnsureSchemas`. |
+| **Production wiring** | `internal/modulecatalog/registry.go::AllSchemas()` lists `apidb.SchemaProviderFunc(localdb.SystemSchema)` first; `main.go` passes the slice into `apidb.EnsureSchemas`. |
 | **Test fake** | None. The system file ships empty in the template and is verified empty by `internal/database/system_test.go::TestSystemSchema_IsEmpty` (a deliberate tripwire — adding a `CREATE TABLE` here forces a "yes, this is genuinely cross-cutting" decision). |
 | **Why it exists** | Some bits don't belong to any one domain — postgres extensions, type definitions, reporting views. Putting them in a domain package would force fictional ownership. The system home is honest: cross-cutting goes here, single-domain bits go in `internal/<dom>/schema.sql`. |
 
@@ -256,7 +256,7 @@ both are constructed, breaking the cycle without either importing the other.
 |---|---|
 | **Seam** | Each domain's SQL contribution |
 | **Interface** | `internal/<domain>/schema.go::Schema() string` (consumed via `handlers/<domain>/module.go::Schema` re-export, then `api-core/database.SchemaProvider`). Domains: targets, destinations, plans, runs, restores, audits. |
-| **Production wiring** | `internal/modules/registry.go::AllSchemas()` lists `apidb.SchemaProviderFunc(<domain>H.Schema)` for each domain (system → health → audits → destinations → plans → restores → runs → targets); applied at boot via `apidb.EnsureSchemas`. |
+| **Production wiring** | `internal/modulecatalog/registry.go::AllSchemas()` lists `apidb.SchemaProviderFunc(<domain>H.Schema)` for each domain (system → health → audits → destinations → plans → restores → runs → targets); applied at boot via `apidb.EnsureSchemas`. |
 | **Test fake** | Each domain's `sqlite_test.go` builds a fresh handle with `db.NewSQLite(t)` + `apidb.EnsureSchemas(...)` over the system + that domain's provider, so repository tests get a real table without touching the central registry. |
 | **Why it exists** | Domain ownership of the schema. Adding a column lands in the same diff as the Go change. Deleting `internal/<domain>/` deletes the table definition with it, so removed domains do not leave tables created on boot. The `handlers/<domain>/module.go::Schema` re-export keeps the registry's import surface narrow. |
 
@@ -265,10 +265,10 @@ both are constructed, breaking the cycle without either importing the other.
 | | |
 |---|---|
 | **Seam** | Outbound HTTP request boundary |
-| **Interface** | `internal/httpc/doer.go::Doer` (`Do(*http.Request) (*http.Response, error)`) |
-| **Production wiring** | Ships unwired in production by intent (no consumer until a real outbound call lands). `internal/httpc/doer.go::NewDefaultClient` returns the timeout-backed production `Doer`; the first scenario to need an outbound call adds the field to `server.Deps` and wires that constructor from `main.go`. |
+| **Interface** | `internal/outboundhttp/doer.go::Doer` (`Do(*http.Request) (*http.Response, error)`) |
+| **Production wiring** | Ships unwired in production by intent (no consumer until a real outbound call lands). `internal/outboundhttp/doer.go::NewDefaultClient` returns the timeout-backed production `Doer`; the first scenario to need an outbound call adds the field to `server.Deps` and wires that constructor from `main.go`. |
 | **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
-| **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
+| **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/outboundhttp/doer_test.go` for the substitution reference. |
 
 ### KopiaEngine (backup engine boundary)
 
@@ -276,7 +276,7 @@ both are constructed, breaking the cycle without either importing the other.
 |---|---|
 | **Seam** | The single boundary to the wrapped backup engine (`resource-kopia`). |
 | **Interface** | `internal/engine/kopia.go::KopiaEngine` (`RepoCreate`, `RepoStatus`, `RepoStats`, `SnapshotCreate(…, SnapshotMetadata)`/`List`/`Restore`/`Verify`, `BrowseSnapshot`, `ApplyRetention`). `SnapshotCreate` takes optional self-identifying metadata (description/override-source/tags) passed through to kopia; never carries a secret. `ApplyRetention` acts on the source kopia recorded (`Snapshot.Source`, not the captured path): it sets keep-latest N with every GFS bucket at 0, expires now, and returns the remaining count so a run proves the bound. |
-| **Production wiring** | `engine.NewKopiaCLI()` shells out to `resource-kopia` through the `CommandRunner` seam; wired once and threaded into the destinations, runs, and restores modules. Lives in the substrate `internal/engine/` package (consumed by three domains), mirroring the `httpc.Doer` ambient-seam shape. |
+| **Production wiring** | `engine.NewKopiaCLI()` shells out to `resource-kopia` through the `CommandRunner` seam; wired once and threaded into the destinations, runs, and restores modulecatalog. Lives in the substrate `internal/engine/` package (consumed by three domains), mirroring the `outboundhttp.Doer` ambient-seam shape. |
 | **Test fake** | `internal/testutil/mocks::FakeKopiaEngine` — per-method overridable func fields with minimally-working defaults (RepoCreate remembers the repo, SnapshotCreate returns deterministic ids, RepoStatus reports encryption on), plus a `Calls` log. A test programs `RepoStatsFn`/`SnapshotVerifyFn` etc. to drive cap-block and checksum-mismatch paths. |
 | **Why it exists** | Backup/restore/verify must be substitutable so domain tests stay hermetic — they assert "the run snapshotted into the right repo and applied retention", not real kopia behavior. Encryption-on-by-default and credential-authority-owned repository passphrases mean no secret ever crosses this interface; the production impl never puts a passphrase in argv. Real-engine behavior is covered by integration tests gated behind `KOPIA_INTEGRATION`. |
 
@@ -509,7 +509,7 @@ generators, Postman collection builders, and SDK-stub tooling read it.
 
 **The file is generated** from each handler module's
 Connect service metadata plus each handler module's
-`Endpoints []module.EndpointDescriptor` slice (see the
+`Endpoints []modulecontract.EndpointDescriptor` slice (see the
 "Endpoints codegen" seam above). To add or change a public operation:
 
 1. Update the proto service and generated Connect handler for

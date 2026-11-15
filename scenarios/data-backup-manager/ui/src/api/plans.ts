@@ -18,6 +18,11 @@ export interface PlanInput {
   destinationIds: string[];
   schedule: string;
   keepLatest: number;
+  keepHourly?: number;
+  keepDaily?: number;
+  keepWeekly?: number;
+  keepMonthly?: number;
+  keepAnnual?: number;
   enabled: boolean;
   /**
    * When false/unset the API rejects the plan with FAILED_PRECONDITION if
@@ -46,7 +51,7 @@ export async function createPlan(input: PlanInput): Promise<Plan | undefined> {
     targetIds: input.targetIds,
     destinationIds: input.destinationIds,
     schedule: input.schedule,
-    retention: { keepLatest: input.keepLatest },
+    retention: { keepLatest: input.keepLatest, keepHourly: input.keepHourly ?? 24, keepDaily: input.keepDaily ?? 7, keepWeekly: input.keepWeekly ?? 4, keepMonthly: input.keepMonthly ?? 6, keepAnnual: input.keepAnnual ?? 2 },
     enabled: input.enabled,
     allowIncompleteCoverage: input.allowIncompleteCoverage ?? false,
     protectionTier: input.protectionTier ?? ProtectionTier.FULL_PRIMARY,
@@ -62,7 +67,7 @@ export async function updatePlan(id: string, input: PlanInput): Promise<Plan | u
     targetIds: input.targetIds,
     destinationIds: input.destinationIds,
     schedule: input.schedule,
-    retention: { keepLatest: input.keepLatest },
+    retention: { keepLatest: input.keepLatest, keepHourly: input.keepHourly ?? 0, keepDaily: input.keepDaily ?? 0, keepWeekly: input.keepWeekly ?? 0, keepMonthly: input.keepMonthly ?? 0, keepAnnual: input.keepAnnual ?? 0 },
     enabled: input.enabled,
     allowIncompleteCoverage: input.allowIncompleteCoverage ?? false,
     protectionTier: input.protectionTier ?? ProtectionTier.FULL_PRIMARY,

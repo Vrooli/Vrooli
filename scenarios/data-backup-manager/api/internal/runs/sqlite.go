@@ -322,7 +322,7 @@ func (s *sqliteRepository) TargetStatuses(ctx context.Context, targetIDs []strin
 	// Most recent run per target (status + run start), ordered so the first
 	// row seen for a target is its latest run.
 	query := `
-SELECT ro.target_id, r.status, r.started_at
+SELECT ro.target_id, r.status, r.started_at, ro.failure_code, ro.failure_category
 FROM run_outcomes ro JOIN runs r ON ro.run_id = r.id
 %s
 ORDER BY r.started_at DESC, r.id DESC`
@@ -343,14 +343,17 @@ ORDER BY r.started_at DESC, r.id DESC`
 	byTarget := map[string]*TargetStatus{}
 	order := []string{}
 	for rows.Next() {
-		var targetID, status, startedRaw string
-		if err := rows.Scan(&targetID, &status, &startedRaw); err != nil {
+		var targetID, status, startedRaw, failureCode, failureCategory string
+		if err := rows.Scan(&targetID, &status, &startedRaw, &failureCode, &failureCategory); err != nil {
 			return nil, fmt.Errorf("scan target status: %w", err)
 		}
 		if _, seen := byTarget[targetID]; seen {
 			continue // first row per target is the latest run
 		}
-		ts := &TargetStatus{TargetID: targetID, LastRunStatus: RunStatus(status), LastRunAt: parseTime(startedRaw)}
+		ts := &TargetStatus{
+			TargetID: targetID, LastRunStatus: RunStatus(status), LastRunAt: parseTime(startedRaw),
+			LastFailureCode: failures.Code(failureCode), LastFailureCategory: failures.Category(failureCategory),
+		}
 		byTarget[targetID] = ts
 		order = append(order, targetID)
 	}
@@ -394,6 +397,37 @@ ORDER BY r.started_at DESC, r.id DESC`
 	out := make([]TargetStatus, 0, len(order))
 	for _, id := range order {
 		out = append(out, *byTarget[id])
+	}
+	return out, nil
+}
+
+func (s *sqliteRepository) TargetDestinationStatuses(ctx context.Context, targetIDs []string) ([]TargetDestinationStatus, error) {
+	where := ""
+	args := []any{string(OutcomeSucceeded)}
+	if len(targetIDs) > 0 {
+		where = "AND target_id IN (" + placeholders(len(targetIDs)) + ")"
+		for _, id := range targetIDs {
+			args = append(args, id)
+		}
+	}
+	rows, err := s.db.QueryContext(ctx,
+		fmt.Sprintf(`SELECT target_id, destination_id, MAX(finished_at) FROM run_outcomes WHERE status = ? %s GROUP BY target_id, destination_id ORDER BY target_id, destination_id`, where), args...)
+	if err != nil {
+		return nil, fmt.Errorf("target destination statuses: %w", err)
+	}
+	defer rows.Close()
+	var out []TargetDestinationStatus
+	for rows.Next() {
+		var status TargetDestinationStatus
+		var finished string
+		if err := rows.Scan(&status.TargetID, &status.DestinationID, &finished); err != nil {
+			return nil, fmt.Errorf("scan target destination status: %w", err)
+		}
+		status.LastSuccessAt = parseTime(finished)
+		out = append(out, status)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate target destination statuses: %w", err)
 	}
 	return out, nil
 }

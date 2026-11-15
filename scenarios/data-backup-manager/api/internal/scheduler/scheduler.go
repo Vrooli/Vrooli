@@ -34,6 +34,9 @@ type DuePlan struct {
 	ID       string
 	Schedule string
 	Enabled  bool
+	// LastRunAt is the durable start time of the newest run, regardless of
+	// trigger source. It prevents a process restart from making every plan due.
+	LastRunAt time.Time
 }
 
 // PlanSource lists schedulable plans for the scheduler. The plans service
@@ -93,6 +96,10 @@ func (s *Scheduler) Tick(ctx context.Context) error {
 		}
 
 		last, fired := s.lastFire[p.ID]
+		if !fired && !p.LastRunAt.IsZero() {
+			last, fired = p.LastRunAt, true
+			s.lastFire[p.ID] = last
+		}
 		if !fired || now.Sub(last) >= interval {
 			if trigErr := s.trigger.TriggerRun(ctx, p.ID); trigErr != nil {
 				// Best-effort: continue to next plan even if one trigger fails.

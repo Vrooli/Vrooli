@@ -14,7 +14,7 @@ import (
 
 	gen "github.com/vrooli/api-core/endpoints/gen"
 
-	"data-backup-manager/internal/modules"
+	"data-backup-manager/internal/modulecatalog"
 )
 
 func main() {
@@ -22,7 +22,7 @@ func main() {
 	manifest := flag.String("manifest", "../cli/manifest.json", "path to the scenario cli manifest")
 	flag.Parse()
 
-	if err := gen.Generate(modules.AllEndpoints(), *manifest, *output); err != nil {
+	if err := gen.Generate(modulecatalog.AllEndpoints(), *manifest, *output); err != nil {
 		fmt.Fprintf(os.Stderr, "gen-endpoints: %v\n", err)
 		os.Exit(1)
 	}

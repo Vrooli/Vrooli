@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"data-backup-manager/internal/discovery"
-	"data-backup-manager/internal/module"
+	"data-backup-manager/internal/modulecontract"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -17,12 +17,12 @@ import (
 // composes cross-domain seams (the target/destination catalogs and the
 // protected-path provider), so the fully-wired service is built in the
 // composition root (main.go) and passed in — mirroring restores/runs.
-func Module(svc discovery.Service, logger *log.Logger) module.Module {
+func Module(svc discovery.Service, logger *log.Logger) modulecontract.Module {
 	connectPath, connectHandler := discoveryconnect.NewDiscoveryServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
 		Logger:  logger,
 	}))
-	return module.Module{
+	return modulecontract.Module{
 		Name: "discovery",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})

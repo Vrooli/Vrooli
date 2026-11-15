@@ -81,9 +81,10 @@ export function PlanFormDialog({
   const [targetIds, setTargetIds] = useState<string[]>(plan?.targetIds ?? []);
   const [destinationIds, setDestinationIds] = useState<string[]>(plan?.destinationIds ?? []);
   const [schedule, setSchedule] = useState(plan?.schedule ?? "0 2 * * *");
-  const [recoveryDrillSchedule, setRecoveryDrillSchedule] = useState(plan?.recoveryDrillSchedule ?? "");
+  const [recoveryDrillSchedule, setRecoveryDrillSchedule] = useState(plan?.recoveryDrillSchedule ?? "168h");
   const [protectionTier, setProtectionTier] = useState(plan?.protectionTier ?? ProtectionTier.FULL_PRIMARY);
-  const [keepLatest, setKeepLatest] = useState(String(plan?.retention?.keepLatest ?? 7));
+  const [keepLatest, setKeepLatest] = useState(String(plan?.retention?.keepLatest ?? 2));
+  const [gfs, setGfs] = useState({ hourly: String(plan?.retention?.keepHourly ?? 24), daily: String(plan?.retention?.keepDaily ?? 7), weekly: String(plan?.retention?.keepWeekly ?? 4), monthly: String(plan?.retention?.keepMonthly ?? 6), annual: String(plan?.retention?.keepAnnual ?? 2) });
   const [enabled, setEnabled] = useState(plan?.enabled ?? true);
   const [touched, setTouched] = useState(false);
 
@@ -121,6 +122,11 @@ export function PlanFormDialog({
       recoveryDrillSchedule: recoveryDrillSchedule.trim(),
       protectionTier,
       keepLatest: Number(keepLatest) || 0,
+      keepHourly: Number(gfs.hourly) || 0,
+      keepDaily: Number(gfs.daily) || 0,
+      keepWeekly: Number(gfs.weekly) || 0,
+      keepMonthly: Number(gfs.monthly) || 0,
+      keepAnnual: Number(gfs.annual) || 0,
       enabled,
       allowIncompleteCoverage,
     };
@@ -160,6 +166,16 @@ export function PlanFormDialog({
             <Input {...p} data-testid={selectors.plans.formName} value={name} onChange={(e) => setName(e.target.value)} />
           )}
         </Field>
+
+        <fieldset className="grid grid-cols-2 gap-2 rounded-control border border-app-border p-3">
+          <legend className="px-1 text-sm font-medium">Age based retention</legend>
+          {([['hourly', 'Hourly'], ['daily', 'Daily'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['annual', 'Annual']] as const).map(([key, label]) => (
+            <label key={key} className="flex flex-col gap-1 text-xs text-app-muted-foreground">Keep {label}
+              <Input type="number" min={0} value={gfs[key]} onChange={(e) => setGfs((prev) => ({ ...prev, [key]: e.target.value }))} />
+            </label>
+          ))}
+          <p className="col-span-2 text-xs text-app-muted-foreground">Keep the newest snapshots above, plus the configured number from each time bucket. Zero disables that bucket.</p>
+        </fieldset>
 
         <Field label={t(strings.plans.targets)} error={targetError}>
           {() => (

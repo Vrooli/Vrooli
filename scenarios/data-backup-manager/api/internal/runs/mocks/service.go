@@ -23,7 +23,9 @@ type FakeService struct {
 	StatsOut2  runs.RunStats
 	StatsErr2  error
 
-	TriggeredPlan string
+	TriggeredPlan       string
+	MigrationCaptureOut runs.TargetOutcome
+	MigrationCaptureErr error
 }
 
 var _ runs.Service = (*FakeService)(nil)
@@ -34,6 +36,10 @@ func (f *FakeService) TriggerRun(_ context.Context, planID string, _ runs.Trigge
 		return runs.Run{}, f.TriggerErr
 	}
 	return f.TriggerOut, nil
+}
+
+func (f *FakeService) CaptureMigrationTarget(context.Context, string, string, string, string) (runs.TargetOutcome, error) {
+	return f.MigrationCaptureOut, f.MigrationCaptureErr
 }
 
 func (f *FakeService) Preflight(context.Context, string) (preflight.Result, error) {
@@ -59,6 +65,10 @@ func (f *FakeService) ListTargetStatus(_ context.Context, _ []string) ([]runs.Ta
 		return nil, f.StatusErr
 	}
 	return f.StatusOut, nil
+}
+
+func (f *FakeService) ListTargetDestinationStatus(_ context.Context, _ []string) ([]runs.TargetDestinationStatus, error) {
+	return nil, nil
 }
 
 func (f *FakeService) BrowseSnapshot(_ context.Context, _, _, _ string) ([]engine.SnapshotEntry, error) {

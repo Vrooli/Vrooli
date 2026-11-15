@@ -12,6 +12,7 @@ import (
 
 	localdb "data-backup-manager/internal/database"
 	"data-backup-manager/internal/engine"
+	"data-backup-manager/internal/failures"
 	"data-backup-manager/internal/runs"
 	runsmocks "data-backup-manager/internal/runs/mocks"
 	"data-backup-manager/internal/sources"
@@ -90,6 +91,76 @@ func finishSeededRun(t *testing.T, ctx context.Context, repo runs.Repository, id
 	}
 }
 
+func TestSQLiteTargetStatusesExposeStableFailureCause(t *testing.T) {
+	ctx := context.Background()
+	repo := runs.NewSQLiteRepository(newRunsDB(t), scheduletest.New(time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC)))
+	run, err := repo.CreateRun(ctx, runs.Run{ID: "failed-run", PlanID: "plan", Trigger: runs.TriggerManual})
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	for _, event := range []runs.RunEvent{runs.EventStartCapture, runs.EventStartSnapshot} {
+		if err := repo.UpdateRunStatus(ctx, run.ID, event); err != nil {
+			t.Fatalf("update run %s: %v", event, err)
+		}
+	}
+	if err := repo.SaveOutcome(ctx, run.ID, runs.TargetOutcome{
+		TargetID: "target", DestinationID: "destination", Status: runs.OutcomeFailed,
+		FailureCode: failures.DestinationInaccessible, FailureCategory: failures.CategoryDestination,
+		StartedAt: run.StartedAt, FinishedAt: run.StartedAt.Add(time.Minute),
+	}); err != nil {
+		t.Fatalf("save failed outcome: %v", err)
+	}
+	if err := repo.FinishRun(ctx, run.ID, runs.EventFail, "", run.StartedAt.Add(time.Minute), 0); err != nil {
+		t.Fatalf("finish run: %v", err)
+	}
+	statuses, err := repo.TargetStatuses(ctx, []string{"target"})
+	if err != nil {
+		t.Fatalf("read target statuses: %v", err)
+	}
+	if len(statuses) != 1 || statuses[0].LastFailureCode != failures.DestinationInaccessible || statuses[0].LastFailureCategory != failures.CategoryDestination {
+		t.Fatalf("target status failure cause = %+v", statuses)
+	}
+}
+
+func TestTargetDestinationStatusesTrackEachSuccessfulCopy(t *testing.T) {
+	ctx := context.Background()
+	clock := scheduletest.New(time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC))
+	repo := runs.NewSQLiteRepository(newRunsDB(t), clock)
+	seed := func(id, targetID, destinationID string, finished time.Time, status runs.OutcomeStatus) {
+		t.Helper()
+		run, err := repo.CreateRun(ctx, runs.Run{ID: id, PlanID: "plan", Trigger: runs.TriggerManual})
+		if err != nil {
+			t.Fatalf("CreateRun: %v", err)
+		}
+		for _, event := range []runs.RunEvent{runs.EventStartCapture, runs.EventStartSnapshot} {
+			if err := repo.UpdateRunStatus(ctx, run.ID, event); err != nil {
+				t.Fatalf("UpdateRunStatus: %v", err)
+			}
+		}
+		if err := repo.SaveOutcome(ctx, run.ID, runs.TargetOutcome{TargetID: targetID, DestinationID: destinationID, Status: status, StartedAt: finished, FinishedAt: finished}); err != nil {
+			t.Fatalf("SaveOutcome: %v", err)
+		}
+		event := runs.EventComplete
+		if status != runs.OutcomeSucceeded {
+			event = runs.EventFail
+		}
+		if err := repo.FinishRun(ctx, run.ID, event, "", finished, 0); err != nil {
+			t.Fatalf("FinishRun: %v", err)
+		}
+	}
+	base := clock.Now()
+	seed("d1-old", "t1", "d1", base, runs.OutcomeSucceeded)
+	seed("d1-new", "t1", "d1", base.Add(time.Hour), runs.OutcomeSucceeded)
+	seed("d2-failed", "t1", "d2", base.Add(2*time.Hour), runs.OutcomeFailed)
+	got, err := repo.TargetDestinationStatuses(ctx, []string{"t1"})
+	if err != nil {
+		t.Fatalf("TargetDestinationStatuses: %v", err)
+	}
+	if len(got) != 1 || got[0].DestinationID != "d1" || !got[0].LastSuccessAt.Equal(base.Add(time.Hour)) {
+		t.Fatalf("target destination success rows = %+v, want latest d1 only", got)
+	}
+}
+
 func TestRunRepositoryRejectsInvalidEventsAndOutcomeMismatch(t *testing.T) {
 	ctx := context.Background()
 	repo := runs.NewSQLiteRepository(newRunsDB(t), scheduletest.New(time.Unix(1700000000, 0).UTC()))
@@ -128,6 +199,39 @@ func TestRunRepositoryRejectsInvalidEventsAndOutcomeMismatch(t *testing.T) {
 	}
 	if err := repo.FinishRun(ctx, created.ID, runs.EventFail, "again", time.Now().UTC(), 0); err == nil {
 		t.Fatal("terminal state must reject a second finish event")
+	}
+}
+
+func TestBrowseSnapshotUsesResolvedDestinationOperationBoundary(t *testing.T) {
+	ctx := context.Background()
+	active := false
+	destination := runs.DestinationForRun{ID: "dst-1", Name: "nightly"}
+	lookup := &runsmocks.FakeDestinationLookup{
+		Destinations: map[string]runs.DestinationForRun{"dst-1": destination},
+		WithResolvedFn: func(_ context.Context, id string, use func(runs.DestinationForRun) error) error {
+			if id != destination.ID {
+				t.Fatalf("resolved id = %q, want %q", id, destination.ID)
+			}
+			active = true
+			defer func() { active = false }()
+			return use(destination)
+		},
+	}
+	eng := &mocks.FakeKopiaEngine{
+		BrowseSnapshotFn: func(context.Context, string, string, string) ([]engine.SnapshotEntry, error) {
+			if !active {
+				t.Fatal("BrowseSnapshot ran outside the resolved destination operation boundary")
+			}
+			return []engine.SnapshotEntry{{Path: "notes.txt"}}, nil
+		},
+	}
+	svc := runs.NewService(runs.Deps{Destinations: lookup, Engine: eng})
+	entries, err := svc.BrowseSnapshot(ctx, destination.ID, "snapshot-1", "")
+	if err != nil {
+		t.Fatalf("BrowseSnapshot: %v", err)
+	}
+	if len(entries) != 1 || entries[0].Path != "notes.txt" {
+		t.Fatalf("BrowseSnapshot entries = %+v", entries)
 	}
 }
 
@@ -177,6 +281,51 @@ func TestRun_StatusTransitionFailureIsVisibleAndStopsCapture(t *testing.T) {
 	}
 	if len(capt.Captures) != 0 {
 		t.Fatalf("source capture started after lifecycle persistence failure: %v", capt.Captures)
+	}
+}
+
+func TestRun_RechecksDestinationAtSerializedSnapshotBoundary(t *testing.T) {
+	ctx := context.Background()
+	repo := runs.NewSQLiteRepository(newRunsDB(t), scheduletest.New(time.Time{}))
+	eng := &mocks.FakeKopiaEngine{}
+	capt := &sourcesmocks.FakeCapturer{SourceKind: sources.KindFilesystem}
+	lookupCalls := 0
+	dests := &runsmocks.FakeDestinationLookup{DestinationFn: func(id string) (runs.DestinationForRun, error) {
+		lookupCalls++
+		if lookupCalls == 4 {
+			return runs.DestinationForRun{}, errors.New("volume became unready before snapshot")
+		}
+		return runs.DestinationForRun{ID: id, Name: "nightly", BackendKind: "filesystem"}, nil
+	}}
+	svc := runs.NewService(runs.Deps{
+		Repo: repo,
+		Plans: &runsmocks.FakePlanLookup{Plans: map[string]runs.PlanForRun{
+			"plan-1": {ID: "plan-1", TargetIDs: []string{"target-1"}, DestinationIDs: []string{"dst-1"}},
+		}},
+		Targets: &runsmocks.FakeTargetLookup{Targets: map[string]runs.TargetForRun{
+			"target-1": {ID: "target-1", Kind: sources.KindFilesystem, Locator: "source"},
+		}},
+		Destinations: dests, Engine: eng, Sources: sources.NewRegistry(capt), Clock: scheduletest.New(time.Time{}),
+		StagingRoot: t.TempDir(), Executor: runsmocks.NewSyncExecutor(),
+	})
+	created, err := svc.TriggerRun(ctx, "plan-1", runs.TriggerManual)
+	if err != nil {
+		t.Fatalf("TriggerRun: %v", err)
+	}
+	got, err := svc.GetRun(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("GetRun: %v", err)
+	}
+	if got.Status != runs.RunFailed {
+		t.Fatalf("status = %s, want failed at final destination gate", got.Status)
+	}
+	for _, call := range eng.Calls {
+		if strings.HasPrefix(call, "SnapshotCreate(") {
+			t.Fatalf("snapshot was created after final destination resolution failed: %v", eng.Calls)
+		}
+	}
+	if lookupCalls != 5 {
+		t.Fatalf("destination lookup calls = %d, want preflight, baseline, unit, final write gate, post-run measurement", lookupCalls)
 	}
 }
 
@@ -332,6 +481,44 @@ func TestSnapshotMetadataStampsOwnerNameRunDestination(t *testing.T) {
 	if strings.Contains(meta.Description, secretLocator) || strings.Contains(meta.OverrideSource, secretLocator) {
 		t.Errorf("locator leaked into description/override-source: %q / %q", meta.Description, meta.OverrideSource)
 	}
+}
+
+func TestCaptureMigrationTargetUsesSelectedDestinationAndStableReplayTag(t *testing.T) {
+	ctx := context.Background()
+	plan := runs.PlanForRun{ID: "plan-1", TargetIDs: []string{"t1"}, DestinationIDs: []string{"old-destination"}, KeepLatest: 3}
+	targets := map[string]runs.TargetForRun{"t1": {ID: "t1", Owner: "acme", Name: "db", Kind: sources.KindFilesystem, Locator: "/source"}}
+	svc, eng, _, _ := buildService(t, plan, targets, nil)
+	eng.SnapshotCreateFn = func(_ context.Context, repo, _ string, meta engine.SnapshotMetadata) (engine.Snapshot, error) {
+		if repo != "nightly" {
+			t.Fatalf("snapshot repository = %q, want operator-selected destination", repo)
+		}
+		if !containsTestTag(meta.Tags, "dbm.migration_key:stable-effect") {
+			t.Fatalf("migration idempotency tag missing: %v", meta.Tags)
+		}
+		return engine.Snapshot{ID: "snapshot-migrated"}, nil
+	}
+	out, err := svc.CaptureMigrationTarget(ctx, "plan-1", "t1", "dst-1", "stable-effect")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Status != runs.OutcomeSucceeded || out.SnapshotID != "snapshot-migrated" {
+		t.Fatalf("unexpected migration outcome: %+v", out)
+	}
+	if len(eng.SnapshotMetas) != 1 {
+		t.Fatalf("snapshot count = %d, want 1", len(eng.SnapshotMetas))
+	}
+	if !containsTestTag(eng.SnapshotMetas[0].Tags, "dbm.migration_key:stable-effect") {
+		t.Fatalf("snapshot lacks replay identity: %v", eng.SnapshotMetas[0].Tags)
+	}
+}
+
+func containsTestTag(tags []string, want string) bool {
+	for _, tag := range tags {
+		if tag == want {
+			return true
+		}
+	}
+	return false
 }
 
 func TestListTargetStatus_DefaultsToActiveCatalogTargets(t *testing.T) {
@@ -661,7 +848,7 @@ func TestRetentionTargetsTheRecordedSnapshotSource(t *testing.T) {
 		t.Fatalf("run = %s warning=%q, want completed without warning", run.Status, run.Outcomes[0].Warning)
 	}
 	wantSource := mocks.FakeSnapshotSource(eng.SnapshotMetas[0], "")
-	want := "ApplyRetention(nightly," + wantSource + ",3)"
+	want := "ApplyRetention(nightly," + wantSource + ",3,0,0,0,0,0)"
 	var retained []string
 	for _, c := range eng.Calls {
 		if strings.HasPrefix(c, "ApplyRetention") {
@@ -673,27 +860,73 @@ func TestRetentionTargetsTheRecordedSnapshotSource(t *testing.T) {
 	}
 }
 
+func TestRetentionRechecksDestinationBeforeApplyingPolicy(t *testing.T) {
+	ctx := context.Background()
+	plan := runs.PlanForRun{ID: "plan-1", TargetIDs: []string{"t1"}, DestinationIDs: []string{"dst-1"}, KeepLatest: 3}
+	targets := map[string]runs.TargetForRun{"t1": {ID: "t1", Kind: sources.KindFilesystem, Locator: "a", Owner: "acme", Name: "db"}}
+	eng := &mocks.FakeKopiaEngine{}
+	capt := &sourcesmocks.FakeCapturer{SourceKind: sources.KindFilesystem}
+	dest := &runsmocks.FakeDestinationLookup{Destinations: map[string]runs.DestinationForRun{"dst-1": {ID: "dst-1", Name: "nightly"}}}
+	resolvedCalls := 0
+	dest.WithResolvedFn = func(ctx context.Context, id string, use func(runs.DestinationForRun) error) error {
+		resolvedCalls++
+		if resolvedCalls == 4 {
+			return errors.New("volume readiness changed")
+		}
+		return (&runsmocks.FakeDestinationLookup{Destinations: dest.Destinations}).WithResolvedDestination(ctx, id, use)
+	}
+	repo := runs.NewSQLiteRepository(newRunsDB(t), scheduletest.New(time.Time{}))
+	svc := runs.NewService(runs.Deps{
+		Repo:         repo,
+		Plans:        &runsmocks.FakePlanLookup{Plans: map[string]runs.PlanForRun{plan.ID: plan}},
+		Targets:      &runsmocks.FakeTargetLookup{Targets: targets},
+		Destinations: dest,
+		Engine:       eng,
+		Sources:      sources.NewRegistry(capt),
+		Events:       &runsmocks.FakeEventSink{},
+		Clock:        scheduletest.New(time.Time{}),
+		StagingRoot:  t.TempDir(),
+		Executor:     runsmocks.NewSyncExecutor(),
+	})
+	pending, err := svc.TriggerRun(ctx, "plan-1", runs.TriggerManual)
+	if err != nil {
+		t.Fatalf("TriggerRun: %v", err)
+	}
+	run, err := svc.GetRun(ctx, pending.ID)
+	if err != nil {
+		t.Fatalf("GetRun: %v", err)
+	}
+	if run.Status != runs.RunPartialFailed || !strings.Contains(run.Outcomes[0].Warning, "destination readiness or identity changed before retention") {
+		t.Fatalf("run = %s warning=%q, want a retained snapshot with a loud readiness warning", run.Status, run.Outcomes[0].Warning)
+	}
+	for _, call := range eng.Calls {
+		if strings.HasPrefix(call, "ApplyRetention") {
+			t.Fatalf("retention ran after destination readiness changed: %v", eng.Calls)
+		}
+	}
+}
+
 // TestRetentionFailureIsLoudOnTheRunAndOutcome proves a source left above its
 // bound, an engine failure, or an unknown source each surface as a specific
 // outcome warning and a partial_failed run instead of a silent success.
 func TestRetentionFailureIsLoudOnTheRunAndOutcome(t *testing.T) {
 	cases := []struct {
 		name    string
-		apply   func(context.Context, string, string, int) (int, error)
+		apply   func(context.Context, string, string, engine.RetentionPolicy) (int, error)
 		create  func(context.Context, string, string, engine.SnapshotMetadata) (engine.Snapshot, error)
 		wantSub string
 	}{
 		{
 			name:    "source above bound after expiry",
-			apply:   func(context.Context, string, string, int) (int, error) { return 12, nil },
-			wantSub: "still holds 12 snapshots after expiry; keep_latest is 3",
+			apply:   func(context.Context, string, string, engine.RetentionPolicy) (int, error) { return 12, nil },
+			wantSub: "still holds 12 snapshots after expiry; configured tiers allow at most 3",
 		},
 		{
 			name: "engine error carries its cause",
-			apply: func(context.Context, string, string, int) (int, error) {
+			apply: func(context.Context, string, string, engine.RetentionPolicy) (int, error) {
 				return 0, errors.New("snapshot expire: repository is read-only")
 			},
-			wantSub: "could not be applied to fake@host:/recorded/dbm://acme/db: snapshot expire: repository is read-only",
+			wantSub: "GFS policy could not be applied to fake@host:/recorded/dbm://acme/db: snapshot expire: repository is read-only",
 		},
 		{
 			name: "unknown source",

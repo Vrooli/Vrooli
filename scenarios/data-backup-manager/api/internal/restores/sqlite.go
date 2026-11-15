@@ -248,6 +248,47 @@ ORDER BY last_verified_at DESC, id DESC`
 	return out, nil
 }
 
+func (s *sqliteRepository) LastVerifiedByTargetDestination(ctx context.Context, targetIDs []string) ([]DestinationVerifiedStatus, error) {
+	query := `
+SELECT target_id, destination_id, last_verified_at, snapshot_id
+FROM restores
+WHERE status = ? AND mode = ? %s
+ORDER BY last_verified_at DESC, id DESC`
+	where := ""
+	args := []any{string(RestoreVerified), string(ModeVerify)}
+	if len(targetIDs) > 0 {
+		where = "AND target_id IN (" + placeholders(len(targetIDs)) + ")"
+		for _, id := range targetIDs {
+			args = append(args, id)
+		}
+	}
+	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(query, where), args...)
+	if err != nil {
+		return nil, fmt.Errorf("last verified by target and destination: %w", err)
+	}
+	defer rows.Close()
+	seen := map[string]struct{}{}
+	var out []DestinationVerifiedStatus
+	for rows.Next() {
+		var status DestinationVerifiedStatus
+		var verifiedRaw string
+		if err := rows.Scan(&status.TargetID, &status.DestinationID, &verifiedRaw, &status.SnapshotID); err != nil {
+			return nil, fmt.Errorf("scan destination verified status: %w", err)
+		}
+		key := status.TargetID + "\x00" + status.DestinationID
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		status.LastVerifiedAt = parseTime(verifiedRaw)
+		out = append(out, status)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate destination verified statuses: %w", err)
+	}
+	return out, nil
+}
+
 // placeholders returns "?,?,…" with n placeholders for an IN clause.
 func placeholders(n int) string {
 	if n <= 0 {

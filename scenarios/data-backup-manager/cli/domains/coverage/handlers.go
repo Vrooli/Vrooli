@@ -42,7 +42,7 @@ func (h *handlers) report(ctx cliapp.RunContext) error {
 	// Decision-oriented ordering: unregistered defaults first (the action), then
 	// sensitive review, then registered targets with their planned/verified
 	// posture last.
-	results := make([]string, 0, len(rep.RecommendedTargets)+len(rep.SensitiveTargets)+len(rep.RegisteredTargets)+3)
+	results := make([]string, 0, len(rep.RecommendedTargets)+len(rep.SensitiveTargets)+len(rep.ReacquirableTargets)+len(rep.RegisteredTargets)+4)
 
 	results = append(results, fmt.Sprintf("Unregistered recommended defaults (%d):", len(rep.RecommendedTargets)))
 	if len(rep.RecommendedTargets) == 0 {
@@ -59,6 +59,13 @@ func (h *handlers) report(ctx cliapp.RunContext) error {
 	for _, t := range rep.SensitiveTargets {
 		results = append(results, "  "+formatSuggestion(t))
 	}
+	results = append(results, fmt.Sprintf("Reacquirable — excluded from backup coverage and bulk registration (%d):", len(rep.ReacquirableTargets)))
+	if len(rep.ReacquirableTargets) == 0 {
+		results = append(results, "  (none)")
+	}
+	for _, t := range rep.ReacquirableTargets {
+		results = append(results, "  "+formatSuggestion(t))
+	}
 
 	results = append(results, fmt.Sprintf("Registered targets (%d):", len(rep.RegisteredTargets)))
 	if len(rep.RegisteredTargets) == 0 {
@@ -70,9 +77,11 @@ func (h *handlers) report(ctx cliapp.RunContext) error {
 
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary: []string{
-			fmt.Sprintf("Coverage: %d registered, %d recommended-unregistered, %d sensitive, %d planned, %d backed-up, %d verified.",
-				s.RegisteredCount, s.RecommendedCount, s.SensitiveCount, s.PlannedCount, s.BackedUpCount, s.VerifiedCount),
+			fmt.Sprintf("Coverage: %d registered, %d recommended-unregistered, %d sensitive, %d planned, %d backed-up, %d verified; %d destination copies backed-up, %d targets backed-up on every destination, %d targets verified on every destination, %d targets on multiple destinations, %d with proven physical independence.",
+				s.RegisteredCount, s.RecommendedCount, s.SensitiveCount, s.PlannedCount, s.BackedUpCount, s.VerifiedCount,
+				s.DestinationCopyCount, s.AllDestinationBackedUpCount, s.AllDestinationVerifiedCount, s.MultiDestinationTargetCount, s.PhysicallyIndependentTargetCount),
 			coverageStatusLine(s),
+			reacquisitionStatusLine(rep.ReacquirableTargets),
 		},
 		ResultsHeading: "Coverage detail",
 		Results:        results,
@@ -81,11 +90,10 @@ func (h *handlers) report(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) acceptDefaults(ctx cliapp.RunContext) error {
-	includeSensitive := ctx.BoolFlag("include-sensitive")
 	dryRun := ctx.BoolFlag("dry-run")
 
 	resp, err := h.client.AcceptDefaultTargets(context.Background(), connect.NewRequest(&coveragev1.AcceptDefaultTargetsRequest{
-		IncludeSensitive: includeSensitive,
+		IncludeSensitive: false,
 		DryRun:           dryRun,
 	}))
 	if err != nil {
@@ -109,7 +117,7 @@ func (h *handlers) acceptDefaults(ctx cliapp.RunContext) error {
 		changes = append(changes, fmt.Sprintf("+ %s/%s [kind=%s locator=%s] -> %s", a.Owner, a.Name, kindLabel(a.SourceKind), a.Locator, id))
 	}
 	for _, sk := range msg.SkippedSensitive {
-		changes = append(changes, fmt.Sprintf("⚠ skipped (sensitive) %s/%s — pass --include-sensitive to register", sk.Owner, sk.Name))
+		changes = append(changes, fmt.Sprintf("⚠ skipped (sensitive) %s/%s — use `coverage review-sensitive` for the verified operator decision", sk.Owner, sk.Name))
 	}
 	for _, f := range msg.Failed {
 		changes = append(changes, fmt.Sprintf("✗ failed %s/%s — %s", f.Owner, f.Name, f.Message))
@@ -125,7 +133,7 @@ func (h *handlers) acceptDefaults(ctx cliapp.RunContext) error {
 		next = append(next, "`plans create --name <n> --targets <ids> --destinations <ids>` — bind the new targets into a plan")
 	}
 	if len(msg.SkippedSensitive) > 0 {
-		next = append(next, "`coverage accept-defaults --include-sensitive` — register sensitive credential targets too")
+		next = append(next, "`coverage review-sensitive` — raise one verified review for sensitive targets")
 	}
 
 	return cliapp.RenderProtoMutation(ctx, msg, cliapp.MutationReport{
@@ -145,10 +153,12 @@ func coverageStatusLine(s *coveragev1.CoverageSummary) string {
 		return "⚠ Default coverage INCOMPLETE — recommended targets are unregistered. Run `coverage accept-defaults`. " + sensitive
 	case s.HasUnplannedRegisteredTargets:
 		return "Default coverage complete, but some registered targets are bound to no plan. " + sensitive
-	case s.HasUnverifiedTargets:
-		return "Default coverage complete; some targets have never been verify-restored. " + sensitive
+	case s.AllDestinationVerifiedCount < s.RegisteredCount:
+		return "Default coverage complete; some enabled target destinations lack a verified scratch restore. Multi-destination counts alone do not prove independence or off-host placement. " + sensitive
+	case s.PhysicallyIndependentTargetCount < s.MultiDestinationTargetCount:
+		return "Every enabled destination has a verified scratch restore, but physical independence is unproven for some multi-destination targets. " + sensitive
 	default:
-		return "Default coverage complete; all registered targets are planned and verified. " + sensitive
+		return "Default coverage complete; every enabled destination for each registered target has a verified scratch restore and observed physical independence is proven. This does not separately establish off-host placement. " + sensitive
 	}
 }
 
@@ -161,10 +171,24 @@ func nextSteps(s *coveragev1.CoverageSummary) []string {
 		)
 	}
 	if s.HasSensitiveUnreviewed {
-		steps = append(steps, "`coverage accept-defaults --include-sensitive` — register sensitive targets after review")
+		steps = append(steps, "`coverage review-sensitive` — raise one verified review for sensitive targets")
 	}
 	steps = append(steps, "`plans create --name <n> --targets <ids> --destinations <ids>` — protect targets with a plan")
 	return steps
+}
+
+func (h *handlers) reviewSensitive(ctx cliapp.RunContext) error {
+	resp, err := h.client.RequestSensitiveReview(context.Background(), connect.NewRequest(&coveragev1.RequestSensitiveReviewRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("request sensitive coverage review", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || !resp.Msg.Pending {
+		return fmt.Errorf("server returned no pending sensitive review")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Raised sensitive coverage review %s for %d current target(s). No target was registered by this command.", resp.Msg.AskId, resp.Msg.CandidateCount)},
+		NextCommand: []string{"Open the Notification Hub decision and record one disposition for each listed target.", "`coverage report` — re-check coverage after the callback completes"},
+	})
 }
 
 func formatSuggestion(s *coveragev1.SuggestedTarget) string {
@@ -180,6 +204,19 @@ func formatSuggestion(s *coveragev1.SuggestedTarget) string {
 		}
 		line += "  ⚠ SENSITIVE: " + warning
 	}
+	if s.Reacquirable {
+		line += "  REACQUIRABLE — excluded from backup coverage and bulk registration"
+		line += formatReacquisitionProof(s.ReacquisitionCommand, s.ReacquisitionEvidence, s.ReacquisitionNeedsOperator, s.ReacquisitionAuthReason)
+		if s.BudgetMaxBytes != "" {
+			line += " max_bytes=" + s.BudgetMaxBytes
+		}
+		if s.BudgetMaxAge != "" {
+			line += " max_age=" + s.BudgetMaxAge
+		}
+		if s.Retention != "" {
+			line += " retention=" + s.Retention
+		}
+	}
 	return line
 }
 
@@ -191,9 +228,52 @@ func formatRegistered(t *coveragev1.RegisteredTarget) string {
 	if t.Planned {
 		planned = "planned"
 	}
-	return fmt.Sprintf("%s — %s/%s [kind=%s locator=%s] %s backed-up=%s verified=%s",
+	line := fmt.Sprintf("%s — %s/%s [kind=%s locator=%s] %s backed-up=%s verified=%s",
 		t.Id, t.Owner, t.Name, kindLabel(t.SourceKind), t.Locator, planned,
 		formatTimestamp(t.LastSuccessAt), formatTimestamp(t.LastVerifiedAt))
+	for _, destination := range t.Destinations {
+		line += fmt.Sprintf("\n    destination=%s backed-up=%s verified=%s", destination.DestinationId,
+			formatTimestamp(destination.LastSuccessAt), formatTimestamp(destination.LastVerifiedAt))
+	}
+	topology := "physical-independence=unproven"
+	if t.PhysicalIndependenceProven {
+		topology = "physical-independence=proven"
+	}
+	line += "\n    " + topology
+	if t.Reacquirable {
+		line += formatReacquisitionProof(t.ReacquisitionCommand, t.ReacquisitionEvidence, t.ReacquisitionNeedsOperator, t.ReacquisitionAuthReason)
+	}
+	for _, warning := range t.IndependenceWarnings {
+		line += "\n    topology-warning=" + warning
+	}
+	return line
+}
+
+func formatReacquisitionProof(command, evidence string, needsOperator bool, authReason string) string {
+	if command == "" || evidence == "" {
+		return " reacquisition-proof=INCOMPLETE"
+	}
+	line := " reacquire=" + command + " evidence=" + evidence
+	if needsOperator {
+		line += " authorization-required=" + authReason
+	}
+	return line
+}
+
+func reacquisitionStatusLine(suggestions []*coveragev1.SuggestedTarget) string {
+	complete, unbounded := 0, 0
+	for _, suggestion := range suggestions {
+		if suggestion == nil {
+			continue
+		}
+		if suggestion.ReacquisitionCommand != "" && suggestion.ReacquisitionEvidence != "" {
+			complete++
+		}
+		if suggestion.BudgetMaxBytes == "" && suggestion.BudgetMaxAge == "" {
+			unbounded++
+		}
+	}
+	return fmt.Sprintf("Reacquisition evidence: %d/%d suggestions have both an owner command and evidence; %d lack both a byte and age bound.", complete, len(suggestions), unbounded)
 }
 
 func formatTimestamp(ts *timestamppb.Timestamp) string {

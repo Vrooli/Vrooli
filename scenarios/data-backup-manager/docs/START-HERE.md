@@ -113,10 +113,7 @@ EOF
 - [ ] Generate and publish the PRD:
 
 ```bash
-business-health wizard start  # (was: prd generate) data-backup-manager \
-  --context-file /tmp/prd_context_data-backup-manager.md \
-  --publish \
-  --json
+business-health wizard start data-backup-manager --json
 ```
 
 - [ ] Validate the PRD:
@@ -168,9 +165,7 @@ EOF
 - [ ] Generate requirements:
 
 ```bash
-business-health wizard apply  # (was: requirements generate) data-backup-manager \
-  --context-file /tmp/requirements_context_data-backup-manager.md \
-  --json
+business-health wizard apply data-backup-manager --json
 ```
 
 - [ ] Validate requirements:
@@ -307,8 +302,8 @@ deferred, or explicitly not-applicable for a reason.
       `*Service` clients. If you find yourself writing `Path:` as a
       literal string in an `EndpointDescriptor`, stop — codegen will
       reject it. The only exceptions are the four `RESTReason` values
-      in `api/internal/module/module.go`.
-- [ ] **Register the proto file** in `api/internal/modules/registry.go`
+      in `api/internal/modulecontract/module.go`.
+- [ ] **Register the proto file** in `api/internal/modulecatalog/registry.go`
       by appending a `ProtoFileEntry` to `AllProtoFiles()`. The global
       parity test (`TestProtoConnectParity`) then covers the new
       domain automatically — no per-domain parity test required.
@@ -355,10 +350,10 @@ this tree and the tree has to be real first.
       directory:
 
 ```bash
-react-component-library components draft-begin <component>
+react-component-library components draft-begin "<component>"
 # add the stories/states your experience spec declares
-react-component-library components test <component-id>
-react-component-library components draft-publish <component>
+react-component-library components test "<component-id>"
+react-component-library components draft-publish "<component>"
 ```
 
       A raised component improves every scenario already consuming it, which a
@@ -367,17 +362,15 @@ react-component-library components draft-publish <component>
       it so the canon inherits the claims rather than losing them:
 
 ```bash
-react-component-library components ingest data-backup-manager <tsx-path> <slug> \
-  --experience-contract experience/components/<component>.json \
-  --display-name "<Name>" --slot <slot>
+react-component-library components ingest data-backup-manager "<source-file>" "<slug>" --experience-contract "experience/components/component.json" --display-name "Component" --slot "general"
 ```
 
 - [ ] Validate before calling anything canonical:
 
 ```bash
-react-component-library components test <component-id>
-react-component-library components style-fit <component-id> data-backup-manager
-react-component-library catalog evidence capture <asset-id>
+react-component-library components test "<component-id>"
+react-component-library components check "<component-id>"
+react-component-library catalog gates
 ```
 
 - [ ] Read the promotion gate. It requires parity, examples, dependency
@@ -385,14 +378,13 @@ react-component-library catalog evidence capture <asset-id>
       scenario:
 
 ```bash
-react-component-library workflows promotion-readiness <asset-id> \
-  --origin-scenario data-backup-manager
+react-component-library workflows promotion-readiness "<asset-id>" --origin-scenario data-backup-manager
 ```
 
 - [ ] Adopt the published version back, then delete the local original:
 
 ```bash
-react-component-library adoptions apply <component-id> data-backup-manager <adopted-path>
+react-component-library adoptions link "<component-id>" data-backup-manager
 ```
 
       Promotion is not finished while this scenario still runs its own copy.
@@ -454,7 +446,7 @@ For a normal proto-backed CRUD domain:
    `module.go`, conversion helpers if needed, endpoint descriptors, and
    tests.
 4. Register the domain schema/endpoints in
-   `api/internal/modules/registry.go` and mount the module in
+   `api/internal/modulecatalog/registry.go` and mount the module in
    `api/main.go`.
 5. Add `cli/domains/<domain>/` with declarative `cliapp.ArgSchema`
    commands that call generated Connect clients, then register the

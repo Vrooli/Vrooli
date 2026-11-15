@@ -22,6 +22,8 @@ type stubCoverageService struct {
 	report    *coveragev1.CoverageReport
 	gotAccept *coveragev1.AcceptDefaultTargetsRequest
 	accept    *coveragev1.AcceptDefaultTargetsResponse
+	review    *coveragev1.RequestSensitiveReviewResponse
+	gotReview bool
 }
 
 func (s *stubCoverageService) GetCoverageReport(_ context.Context, _ *connect.Request[coveragev1.GetCoverageReportRequest]) (*connect.Response[coveragev1.GetCoverageReportResponse], error) {
@@ -31,6 +33,11 @@ func (s *stubCoverageService) GetCoverageReport(_ context.Context, _ *connect.Re
 func (s *stubCoverageService) AcceptDefaultTargets(_ context.Context, req *connect.Request[coveragev1.AcceptDefaultTargetsRequest]) (*connect.Response[coveragev1.AcceptDefaultTargetsResponse], error) {
 	s.gotAccept = req.Msg
 	return connect.NewResponse(s.accept), nil
+}
+
+func (s *stubCoverageService) RequestSensitiveReview(context.Context, *connect.Request[coveragev1.RequestSensitiveReviewRequest]) (*connect.Response[coveragev1.RequestSensitiveReviewResponse], error) {
+	s.gotReview = true
+	return connect.NewResponse(s.review), nil
 }
 
 func newStubApp(t *testing.T, stub *stubCoverageService) *cliapp.ScenarioApp {
@@ -77,6 +84,33 @@ func TestReportCommand_ShowsCountsAndNextSteps(t *testing.T) {
 	}
 }
 
+func TestReportCommandMakesReacquisitionProofAndBoundsExplicit(t *testing.T) {
+	stub := &stubCoverageService{report: &coveragev1.CoverageReport{
+		Summary: &coveragev1.CoverageSummary{RegisteredCount: 1},
+		ReacquirableTargets: []*coveragev1.SuggestedTarget{
+			{Id: "model-cache", Owner: "ollama", Name: "models", Locator: "/models", Reacquirable: true, BudgetMaxBytes: "90GiB"},
+			{Id: "pinned-model", Owner: "ace-step", Name: "models", Locator: "/pinned", Reacquirable: true, BudgetMaxAge: "30d", ReacquisitionCommand: "vrooli resource acquisition model-cache ace-step", ReacquisitionEvidence: "resource.json data_artifacts", ReacquisitionNeedsOperator: true, ReacquisitionAuthReason: "license"},
+		},
+		RegisteredTargets: []*coveragev1.RegisteredTarget{{Id: "t1", Owner: "ace-step", Name: "models", Reacquirable: true}},
+	}}
+	hs := newHandlers(newStubApp(t, stub))
+	ctx, stdout := cliapptest.NewCapturedRunContext(hs.core, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})
+	if err := hs.report(ctx); err != nil {
+		t.Fatalf("report: %v", err)
+	}
+	out := stdout.String()
+	for _, want := range []string{
+		"Reacquisition evidence: 1/2 suggestions have both an owner command and evidence; 0 lack both a byte and age bound.",
+		"ollama/models", "reacquisition-proof=INCOMPLETE", "ace-step/models",
+		"reacquire=vrooli resource acquisition model-cache ace-step", "evidence=resource.json data_artifacts", "authorization-required=license",
+		"model-cache", "1 registered",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("report output missing %q\n%s", want, out)
+		}
+	}
+}
+
 func TestAcceptDefaultsCommand_PassesFlagsAndRendersResult(t *testing.T) {
 	stub := &stubCoverageService{accept: &coveragev1.AcceptDefaultTargetsResponse{
 		Accepted: []*coveragev1.AcceptedTarget{
@@ -89,11 +123,10 @@ func TestAcceptDefaultsCommand_PassesFlagsAndRendersResult(t *testing.T) {
 	}}
 	hs := newHandlers(newStubApp(t, stub))
 	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
-		{Name: "include-sensitive", Bool: true},
 		{Name: "dry-run", Bool: true},
 	}}
 	ctx, stdout := cliapptest.NewCapturedRunContext(hs.core, schema, cliapptest.TestRunContextOptions{
-		BoolFlags: map[string]bool{"dry-run": false, "include-sensitive": false},
+		BoolFlags: map[string]bool{"dry-run": false},
 	})
 
 	if err := hs.acceptDefaults(ctx); err != nil {
@@ -106,7 +139,7 @@ func TestAcceptDefaultsCommand_PassesFlagsAndRendersResult(t *testing.T) {
 		t.Fatalf("flags not defaulted false: %+v", stub.gotAccept)
 	}
 	out := stdout.String()
-	for _, want := range []string{"Registered 1", "skipped 1 sensitive", "include-sensitive"} {
+	for _, want := range []string{"Registered 1", "skipped 1 sensitive", "review-sensitive"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("accept output missing %q\n%s", want, out)
 		}
@@ -120,7 +153,6 @@ func TestAcceptDefaultsCommand_DryRunFlag(t *testing.T) {
 	}}
 	hs := newHandlers(newStubApp(t, stub))
 	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
-		{Name: "include-sensitive", Bool: true},
 		{Name: "dry-run", Bool: true},
 	}}
 	ctx, stdout := cliapptest.NewCapturedRunContext(hs.core, schema, cliapptest.TestRunContextOptions{
@@ -149,9 +181,26 @@ func TestRegisterCoverageLoadsFromManifest(t *testing.T) {
 	for _, c := range group.Subcommands {
 		got[c.Name] = true
 	}
-	for _, want := range []string{"report", "accept-defaults"} {
+	for _, want := range []string{"report", "accept-defaults", "review-sensitive"} {
 		if !got[want] {
 			t.Errorf("missing subcommand %q", want)
+		}
+	}
+}
+
+func TestReviewSensitiveCommand_RaisesOneDecisionOnly(t *testing.T) {
+	stub := &stubCoverageService{review: &coveragev1.RequestSensitiveReviewResponse{AskId: "ask-1", CandidateCount: 44, Pending: true}}
+	hs := newHandlers(newStubApp(t, stub))
+	ctx, stdout := cliapptest.NewCapturedRunContext(hs.core, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})
+	if err := hs.reviewSensitive(ctx); err != nil {
+		t.Fatalf("reviewSensitive: %v", err)
+	}
+	if !stub.gotReview {
+		t.Fatal("review request was not sent")
+	}
+	for _, want := range []string{"ask-1", "44", "No target was registered"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Errorf("output missing %q: %s", want, stdout.String())
 		}
 	}
 }

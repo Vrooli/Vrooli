@@ -49,16 +49,24 @@ func (h *connectHandler) GetDrill(ctx context.Context, req *connect.Request[dril
 	return connect.NewResponse(&drillsv1.GetDrillResponse{Drill: toProto(drill)}), nil
 }
 
+func (h *connectHandler) RetireDrill(ctx context.Context, req *connect.Request[drillsv1.RetireDrillRequest]) (*connect.Response[drillsv1.RetireDrillResponse], error) {
+	drill, err := h.deps.Service.Retire(ctx, req.Msg.Id, req.Msg.Reason)
+	if err != nil {
+		return nil, h.translate("RetireDrill", err)
+	}
+	return connect.NewResponse(&drillsv1.RetireDrillResponse{Drill: toProto(drill)}), nil
+}
+
 func (h *connectHandler) ListDrills(ctx context.Context, req *connect.Request[drillsv1.ListDrillsRequest]) (*connect.Response[drillsv1.ListDrillsResponse], error) {
-	list, err := h.deps.Service.List(ctx, req.Msg.PlanId, req.Msg.TargetId, int(req.Msg.PageSize))
+	page, err := h.deps.Service.ListPage(ctx, req.Msg.PlanId, req.Msg.TargetId, int(req.Msg.PageSize), req.Msg.PageToken)
 	if err != nil {
 		return nil, h.translate("ListDrills", err)
 	}
-	out := make([]*drillsv1.RecoveryDrill, 0, len(list))
-	for _, drill := range list {
+	out := make([]*drillsv1.RecoveryDrill, 0, len(page.Drills))
+	for _, drill := range page.Drills {
 		out = append(out, toProto(drill))
 	}
-	return connect.NewResponse(&drillsv1.ListDrillsResponse{Drills: out}), nil
+	return connect.NewResponse(&drillsv1.ListDrillsResponse{Drills: out, NextPageToken: page.NextPageToken}), nil
 }
 
 func (h *connectHandler) translate(op string, err error) error {
@@ -79,7 +87,7 @@ func (h *connectHandler) translate(op string, err error) error {
 }
 
 func toProto(drill d.Drill) *drillsv1.RecoveryDrill {
-	p := &drillsv1.RecoveryDrill{Id: drill.ID, PlanId: drill.PlanID, TargetId: drill.TargetID, DestinationId: drill.DestinationID, SnapshotId: drill.SnapshotID, RestoreId: drill.RestoreID, Status: statusToProto(drill.Status), Scheduled: drill.Scheduled, Error: drill.Error, NextAction: drill.NextAction}
+	p := &drillsv1.RecoveryDrill{Id: drill.ID, PlanId: drill.PlanID, TargetId: drill.TargetID, DestinationId: drill.DestinationID, SnapshotId: drill.SnapshotID, RestoreId: drill.RestoreID, Status: statusToProto(drill.Status), Scheduled: drill.Scheduled, Error: drill.Error, NextAction: drill.NextAction, NotificationState: string(drill.NotificationState), RetirementReason: drill.RetirementReason}
 	if !drill.RequestedAt.IsZero() {
 		p.RequestedAt = timestamppb.New(drill.RequestedAt)
 	}
@@ -88,6 +96,12 @@ func toProto(drill d.Drill) *drillsv1.RecoveryDrill {
 	}
 	if !drill.FinishedAt.IsZero() {
 		p.FinishedAt = timestamppb.New(drill.FinishedAt)
+	}
+	if !drill.NotificationSentAt.IsZero() {
+		p.NotificationSentAt = timestamppb.New(drill.NotificationSentAt)
+	}
+	if !drill.RetiredAt.IsZero() {
+		p.RetiredAt = timestamppb.New(drill.RetiredAt)
 	}
 	return p
 }

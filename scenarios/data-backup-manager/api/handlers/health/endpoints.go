@@ -1,6 +1,6 @@
 package health
 
-import "data-backup-manager/internal/module"
+import "data-backup-manager/internal/modulecontract"
 
 // Endpoints is the machine-readable description of every route this
 // module mounts. The codegen at api/cmd/gen-endpoints reads this slice
@@ -12,7 +12,7 @@ import "data-backup-manager/internal/module"
 // separate descriptor — both paths return the same envelope and serve
 // the same purpose; documenting twice would just create a drift
 // surface. The description records the alias.
-var Endpoints = []module.EndpointDescriptor{
+var Endpoints = []modulecontract.EndpointDescriptor{
 	{
 		ID:          "health",
 		Path:        "/health",
@@ -20,7 +20,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Service health check",
 		Description: "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
 		Category:    "system",
-		Response: &module.Schema{
+		Response: &modulecontract.Schema{
 			Type: "object",
 			Properties: map[string]string{
 				"status":       "string",
@@ -28,12 +28,12 @@ var Endpoints = []module.EndpointDescriptor{
 				"dependencies": "object",
 			},
 		},
-		Examples: []module.Example{
+		Examples: []modulecontract.Example{
 			{Name: "Check health", Curl: "curl http://localhost:${API_PORT}/health"},
 		},
 
-		RESTException: &module.RESTException{
-			Reason: module.RESTReasonOpsProbe,
+		RESTException: &modulecontract.RESTException{
+			Reason: modulecontract.RESTReasonOpsProbe,
 			Note:   "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
 		},
 	},

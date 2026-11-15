@@ -4,7 +4,7 @@ import (
 	"log"
 
 	internalaudits "data-backup-manager/internal/audits"
-	"data-backup-manager/internal/module"
+	"data-backup-manager/internal/modulecontract"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -17,12 +17,12 @@ import (
 // targets/destinations plus the engine and source registry), so this module
 // takes the already-built service. The schema is static and re-exported via
 // Schema().
-func Module(svc internalaudits.Service, logger *log.Logger) module.Module {
+func Module(svc internalaudits.Service, logger *log.Logger) modulecontract.Module {
 	connectPath, connectHandler := auditsconnect.NewAuditsServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
 		Logger:  logger,
 	}))
-	return module.Module{
+	return modulecontract.Module{
 		Name: "audits",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})

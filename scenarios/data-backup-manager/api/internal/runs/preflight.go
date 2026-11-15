@@ -27,11 +27,21 @@ func (a preflightDestinations) DestinationForRun(ctx context.Context, id string)
 		return preflight.Destination{}, err
 	}
 	return preflight.Destination{
-		ID:          d.ID,
-		Name:        d.Name,
-		BackendKind: d.BackendKind,
-		Location:    d.Location,
+		ID:             d.ID,
+		Name:           d.Name,
+		BackendKind:    d.BackendKind,
+		Location:       d.Location,
+		DeviceIdentity: d.DeviceIdentity,
 	}, nil
+}
+
+func (a preflightDestinations) WithResolvedDestination(ctx context.Context, id string, use func(preflight.Destination) error) error {
+	if use == nil {
+		return nil
+	}
+	return a.lookup.WithResolvedDestination(ctx, id, func(d DestinationForRun) error {
+		return use(preflight.Destination{ID: d.ID, Name: d.Name, BackendKind: d.BackendKind, Location: d.Location, DeviceIdentity: d.DeviceIdentity})
+	})
 }
 
 func (s *service) runPreflight(ctx context.Context, plan PlanForRun) preflight.Result {
@@ -39,7 +49,7 @@ func (s *service) runPreflight(ctx context.Context, plan PlanForRun) preflight.R
 	result := preflight.Check(ctx, preflight.Input{
 		Plan: preflight.Plan{
 			TargetIDs: plan.TargetIDs, DestinationIDs: plan.DestinationIDs,
-			RetentionCopies: plan.KeepLatest,
+			RetentionCopies: retentionCopies(plan),
 		},
 		Targets:          preflightTargets{lookup: s.deps.Targets},
 		Destinations:     preflightDestinations{lookup: s.deps.Destinations},
@@ -72,4 +82,12 @@ func (s *service) runPreflight(ctx context.Context, plan PlanForRun) preflight.R
 		}
 	}
 	return result
+}
+
+// retentionCopies is the conservative number of repository snapshots the
+// configured GFS policy can retain for each source. Capacity readiness must
+// account for every tier; using only KeepLatest underestimates plans that also
+// retain hourly, daily, weekly, monthly, or annual snapshots.
+func retentionCopies(plan PlanForRun) int {
+	return plan.KeepLatest + plan.KeepHourly + plan.KeepDaily + plan.KeepWeekly + plan.KeepMonthly + plan.KeepAnnual
 }

@@ -3,7 +3,7 @@ package runs
 import (
 	"log"
 
-	"data-backup-manager/internal/module"
+	"data-backup-manager/internal/modulecontract"
 	internalruns "data-backup-manager/internal/runs"
 
 	"github.com/gorilla/mux"
@@ -18,13 +18,13 @@ import (
 // and source registry), so this module takes the already-built service. The
 // verified lookup (proven-restorable rollup) is likewise composed in main.go
 // over the restores service. The schema is static and re-exported via Schema().
-func Module(svc internalruns.Service, verified VerifiedLookup, logger *log.Logger) module.Module {
+func Module(svc internalruns.Service, verified VerifiedLookup, logger *log.Logger) modulecontract.Module {
 	connectPath, connectHandler := runsconnect.NewRunsServiceHandler(NewConnectHandler(Deps{
 		Service:  svc,
 		Verified: verified,
 		Logger:   logger,
 	}))
-	return module.Module{
+	return modulecontract.Module{
 		Name: "runs",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})

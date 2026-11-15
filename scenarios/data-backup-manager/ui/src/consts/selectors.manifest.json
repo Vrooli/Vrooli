@@ -141,9 +141,17 @@
       "testId": "coverage-sensitive-list",
       "selector": "[data-testid=\"coverage-sensitive-list\"]"
     },
-    "coverage.registerSensitive": {
-      "testId": "coverage-register-sensitive",
-      "selector": "[data-testid=\"coverage-register-sensitive\"]"
+    "coverage.reacquirableList": {
+      "testId": "coverage-reacquirable-list",
+      "selector": "[data-testid=\"coverage-reacquirable-list\"]"
+    },
+    "coverage.registeredReacquirableList": {
+      "testId": "coverage-registered-reacquirable-list",
+      "selector": "[data-testid=\"coverage-registered-reacquirable-list\"]"
+    },
+    "coverage.requestSensitiveReview": {
+      "testId": "coverage-request-sensitive-review",
+      "selector": "[data-testid=\"coverage-request-sensitive-review\"]"
     },
     "coverage.complete": {
       "testId": "coverage-complete",
@@ -614,7 +622,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
-    "ui/src/consts/selectors.ts": "e28dedb485a44dbb5d37dfb33697bcac87fe4a99fe1dc723bdd40fd1d70ece6a",
+    "ui/src/consts/selectors.ts": "bdab3e727b28ac482ab09acd37041550f215164df99a2d342ee1629d9792df7d",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

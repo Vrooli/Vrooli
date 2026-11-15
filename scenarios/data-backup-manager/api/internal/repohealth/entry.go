@@ -22,9 +22,10 @@ import (
 type EntryClass string
 
 const (
-	// ClassLeftoverTemp is an unfinished upload: kopia writes a blob to
-	// "<blob>.f.tmp.<random>" and renames it to "<blob>.f" once complete. A
-	// temp name therefore never carries committed repository content.
+	// ClassLeftoverTemp is an unfinished upload: Kopia writes a blob to
+	// "<blob>.f.tmp" (optionally with a random suffix) and renames it to
+	// "<blob>.f" once complete. A temp name therefore never carries committed
+	// repository content.
 	ClassLeftoverTemp EntryClass = "leftover_temp"
 	// ClassRepositoryBlob is a committed blob or repository configuration file.
 	// Losing access to one can make snapshots unrestorable.
@@ -62,12 +63,14 @@ type Entry struct {
 	Class    EntryClass `json:"class"`
 	BlobKind BlobKind   `json:"blob_kind"`
 	Problem  Problem    `json:"problem"`
+	Orphan   bool       `json:"orphan_temp"`
 	Detail   string     `json:"detail,omitempty"`
 }
 
 var (
-	// "<blob id>.f.tmp.<hex>": kopia's filesystem upload temp name.
-	leftoverTempName = regexp.MustCompile(`^[0-9a-z]+(?:-[0-9a-z]+)*\.f\.tmp\.[0-9a-f]{8,64}$`)
+	// "<blob id>.f.tmp" and its optional hex-suffixed form are Kopia's
+	// filesystem upload temp names.
+	leftoverTempName = regexp.MustCompile(`^[0-9a-z]+(?:-[0-9a-z]+)*\.f\.tmp(?:\.[0-9a-f]{8,64})?$`)
 	// "<blob id>.f": a committed blob.
 	committedBlobName = regexp.MustCompile(`^[0-9a-z]+(?:-[0-9a-z]+)*\.f$`)
 )

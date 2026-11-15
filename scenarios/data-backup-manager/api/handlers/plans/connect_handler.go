@@ -43,6 +43,8 @@ func (h *connectHandler) CreatePlan(ctx context.Context, req *connect.Request[pl
 	}
 	if req.Msg.Retention != nil {
 		in.KeepLatest = req.Msg.Retention.KeepLatest
+		in.KeepHourly, in.KeepDaily, in.KeepWeekly = req.Msg.Retention.KeepHourly, req.Msg.Retention.KeepDaily, req.Msg.Retention.KeepWeekly
+		in.KeepMonthly, in.KeepAnnual = req.Msg.Retention.KeepMonthly, req.Msg.Retention.KeepAnnual
 	}
 	p, err := h.deps.Service.Create(ctx, in)
 	if err != nil {
@@ -85,6 +87,8 @@ func (h *connectHandler) UpdatePlan(ctx context.Context, req *connect.Request[pl
 	}
 	if req.Msg.Retention != nil {
 		in.KeepLatest = req.Msg.Retention.KeepLatest
+		in.KeepHourly, in.KeepDaily, in.KeepWeekly = req.Msg.Retention.KeepHourly, req.Msg.Retention.KeepDaily, req.Msg.Retention.KeepWeekly
+		in.KeepMonthly, in.KeepAnnual = req.Msg.Retention.KeepMonthly, req.Msg.Retention.KeepAnnual
 	}
 	p, err := h.deps.Service.Update(ctx, in)
 	if err != nil {
@@ -125,6 +129,7 @@ func domainToProto(p plans.Plan) *plansv1.Plan {
 		SharedRiskWarnings:                p.SharedRiskWarnings,
 		Retention: &plansv1.RetentionPolicy{
 			KeepLatest: p.KeepLatest,
+			KeepHourly: p.KeepHourly, KeepDaily: p.KeepDaily, KeepWeekly: p.KeepWeekly, KeepMonthly: p.KeepMonthly, KeepAnnual: p.KeepAnnual,
 		},
 	}
 	if !p.CreatedAt.IsZero() {

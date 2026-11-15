@@ -26,7 +26,7 @@ func recoveryJournalToProto(j destinationreadiness.RecoveryJournal) *destination
 	for _, step := range j.Steps {
 		out.Steps = append(out.Steps, &destinationsv1.VolumeRecoveryStep{
 			Plan:     preparationPlanToProto(step.Plan),
-		Status:   string(step.Status),
+			Status:   string(step.Status),
 			Attempts: int32(step.Attempts),
 			Detail:   step.Detail,
 		})
@@ -90,6 +90,8 @@ func protoToBackend(k destinationsv1.BackendKind) destinations.BackendKind {
 	switch k {
 	case destinationsv1.BackendKind_BACKEND_KIND_FILESYSTEM:
 		return destinations.BackendFilesystem
+	case destinationsv1.BackendKind_BACKEND_KIND_SFTP:
+		return destinations.BackendSFTP
 	case destinationsv1.BackendKind_BACKEND_KIND_S3:
 		return destinations.BackendS3
 	default:
@@ -101,6 +103,8 @@ func backendToProto(k destinations.BackendKind) destinationsv1.BackendKind {
 	switch k {
 	case destinations.BackendFilesystem:
 		return destinationsv1.BackendKind_BACKEND_KIND_FILESYSTEM
+	case destinations.BackendSFTP:
+		return destinationsv1.BackendKind_BACKEND_KIND_SFTP
 	case destinations.BackendS3:
 		return destinationsv1.BackendKind_BACKEND_KIND_S3
 	default:

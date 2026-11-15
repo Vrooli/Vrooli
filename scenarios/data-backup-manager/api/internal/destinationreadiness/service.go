@@ -33,12 +33,20 @@ type Remediator interface {
 	Remediate(ctx context.Context, plan Plan, dryRun bool) (RemediationOutcome, error)
 }
 
+// MountedCheckEvidenceReader confirms that a successful offline check belongs
+// to the exact current mount episode. Native dirty state still takes
+// precedence; this only fills an otherwise unknown host observation.
+type MountedCheckEvidenceReader interface {
+	HasCurrentMountedCheck(context.Context, string, DeviceIdentity, string) (bool, error)
+}
+
 // Service owns readiness rules and preparation safety gates.
 type Service struct {
 	inspector       Inspector
 	deviceInspector DeviceInspector
 	preparer        Preparer
 	remediator      Remediator
+	mountedChecks   MountedCheckEvidenceReader
 	// The API shares one Service instance across requests. Journal-scoped gates
 	// prevent stale concurrent requests from replaying the same host action
 	// without serializing independent volume recoveries.
@@ -58,6 +66,12 @@ func NewService(inspector Inspector, preparer Preparer) *Service {
 // WithRemediator attaches the host remediation client.
 func (s *Service) WithRemediator(remediator Remediator) *Service {
 	s.remediator = remediator
+	return s
+}
+
+// WithMountedCheckEvidence attaches the DBM-owned, durable episode ledger.
+func (s *Service) WithMountedCheckEvidence(reader MountedCheckEvidenceReader) *Service {
+	s.mountedChecks = reader
 	return s
 }
 
@@ -84,7 +98,66 @@ func (s *Service) Analyze(ctx context.Context, in AnalyzeInput) (Report, error) 
 	if err != nil {
 		return Report{}, fmt.Errorf("inspect destination: %w", err)
 	}
-	return buildReport(location, inspection, in), nil
+	verifiedOfflineCheck := false
+	if s.mountedChecks != nil && in.DestinationID != "" && in.ExpectedDevice.StrongIdentity() && in.ExpectedDevice.MatchesDevice(inspection.Identity) && inspection.Mounted && !inspection.ReadOnly && !inspection.DeviceWriteProtected && inspection.FilesystemState == sysmounts.FilesystemStateUnknown {
+		verifiedOfflineCheck, err = s.mountedChecks.HasCurrentMountedCheck(ctx, in.DestinationID, in.ExpectedDevice, inspection.MountEpisodeID)
+		if err != nil {
+			return Report{}, fmt.Errorf("load mounted filesystem check evidence: %w", err)
+		}
+	}
+	return buildReport(location, inspection, in, verifiedOfflineCheck), nil
+}
+
+// ObserveCapacity reads the same registered location through the readiness
+// inspector and returns capacity only when the current mount is writable,
+// identity-matched, and readiness has no fail/unknown checks. It does not
+// create directories, mount devices, or alter the destination.
+func (s *Service) ObserveCapacity(ctx context.Context, in AnalyzeInput) (CapacityObservation, error) {
+	location := cleanPath(in.Location)
+	if location == "" || strings.TrimSpace(in.DestinationID) == "" {
+		return CapacityObservation{}, ErrInvalidReadiness{Field: "capacity_observation", Reason: "destination id and location are required"}
+	}
+	if s == nil || s.inspector == nil {
+		return CapacityObservation{}, ErrInvalidReadiness{Field: "inspector", Reason: "required"}
+	}
+	copies := in.RetentionCopies
+	if copies < 1 {
+		return CapacityObservation{}, ErrInvalidReadiness{Field: "retention_copies", Reason: "an exact positive bounded retention count is required"}
+	}
+	if in.SelectedTargetBytes <= 0 || in.SelectedTargetBytes > int64(^uint64(0)>>1)/int64(copies) {
+		return CapacityObservation{}, ErrInvalidReadiness{Field: "capacity", Reason: "an exact positive target estimate within integer bounds is required"}
+	}
+	inspection, err := s.inspector.Inspect(ctx, location)
+	if err != nil {
+		return CapacityObservation{}, fmt.Errorf("inspect capacity location: %w", err)
+	}
+	if !inspection.LocationExists || !inspection.LocationIsDirectory || !inspection.Mounted || inspection.ReadOnly || inspection.DeviceWriteProtected || inspection.FreeBytes <= 0 {
+		return CapacityObservation{}, ErrInvalidReadiness{Field: "capacity_observation", Reason: "location is missing, not mounted writable, device-protected, or has no measured free bytes"}
+	}
+	if !in.ExpectedDevice.StrongIdentity() || !in.ExpectedDevice.MatchesDevice(inspection.Identity) {
+		return CapacityObservation{}, ErrInvalidReadiness{Field: "device_identity", Reason: "current capacity observation does not match the registered stable device identity"}
+	}
+	checked := in
+	checked.Location = location
+	report := buildReport(location, inspection, checked, false)
+	// Mixed-use roots can legitimately carry unrelated files, so capacity proof
+	// does not reject the root_non_empty warning. It does require the location,
+	// current mount state, directory inspection, suitability, and exact capacity
+	// checks to pass. Other readiness policy remains visible in Analyze.
+	required := map[string]bool{"destination_present": true, "mounted_read_write": true, "filesystem_state": true, "directory_inaccessible": true, "filesystem_suitability": true, "capacity": true}
+	for _, check := range report.Checks {
+		if !required[check.Code] {
+			continue
+		}
+		if check.Severity != SeverityPass {
+			return CapacityObservation{}, ErrInvalidReadiness{Field: check.Code, Reason: "capacity proof requires a passing readiness check"}
+		}
+		delete(required, check.Code)
+	}
+	if len(required) > 0 {
+		return CapacityObservation{}, ErrInvalidReadiness{Field: "readiness", Reason: "capacity proof is missing required readiness checks"}
+	}
+	return CapacityObservation{DestinationID: strings.TrimSpace(in.DestinationID), Location: location, Identity: inspection.Identity, FreeBytes: inspection.FreeBytes, MeasuredAt: time.Now().UTC(), MountEpisodeID: inspection.MountEpisodeID}, nil
 }
 
 // PlanPreparation creates a non-mutating preparation plan.
@@ -343,7 +416,7 @@ func (s *Service) identityStillMatches(plan Plan, inspection Inspection) bool {
 	return plan.Identity.Matches(inspection.Identity)
 }
 
-func buildReport(location string, inspection Inspection, in AnalyzeInput) Report {
+func buildReport(location string, inspection Inspection, in AnalyzeInput, verifiedOfflineCheck bool) Report {
 	subdir := strings.TrimSpace(in.ProposedSubdir)
 	if subdir == "" {
 		subdir = "vrooli-backups"
@@ -352,7 +425,7 @@ func buildReport(location string, inspection Inspection, in AnalyzeInput) Report
 	checks := []CheckResult{
 		checkLocation(inspection),
 		checkMountedReadWrite(inspection),
-		checkFilesystemState(inspection),
+		checkFilesystemState(inspection, verifiedOfflineCheck),
 		checkDirectoryEvidence(inspection),
 		checkSeparateRoot(location, in.ProtectedPaths),
 		checkExisting(location, recLocation, in.ExistingDestinations),
@@ -367,6 +440,10 @@ func buildReport(location string, inspection Inspection, in AnalyzeInput) Report
 	if overall == SeverityFail {
 		action = "pick_different_drive_or_remediate"
 	}
+	evidenceSource := "mounted-volume-and-bounded-directory-read"
+	if verifiedOfflineCheck {
+		evidenceSource = "mounted-volume-and-episode-bound-offline-check-and-bounded-directory-read"
+	}
 	return Report{
 		Location:                       location,
 		OverallSeverity:                overall,
@@ -376,11 +453,12 @@ func buildReport(location string, inspection Inspection, in AnalyzeInput) Report
 		RecommendedAction:              action,
 		Platform:                       inspection.Platform,
 		Confidence:                     identityConfidence(inspection),
-		EvidenceSource:                 "mounted-volume-and-bounded-directory-read",
+		EvidenceSource:                 evidenceSource,
 		ObservedAt:                     time.Now().UTC(),
 		RepairSteps:                    repairSteps(inspection, checks),
 		ReadOnlyCause:                  inspection.ReadOnlyCause,
 		FilesystemState:                inspection.FilesystemState,
+		OfflineCheckVerified:           verifiedOfflineCheck,
 		DeviceWriteProtected:           inspection.DeviceWriteProtected,
 		Mounted:                        inspection.Mounted,
 	}
@@ -454,7 +532,7 @@ func readOnlyRepairStep(i Inspection) string {
 	}
 }
 
-func checkFilesystemState(i Inspection) CheckResult {
+func checkFilesystemState(i Inspection, verifiedOfflineCheck bool) CheckResult {
 	evidence := ""
 	if i.StateEvidence != "" {
 		evidence = " (evidence: " + i.StateEvidence + ")"
@@ -467,6 +545,9 @@ func checkFilesystemState(i Inspection) CheckResult {
 	case sysmounts.FilesystemStateClean:
 		return CheckResult{Code: "filesystem_state", Severity: SeverityPass, Message: "filesystem reports a clean state" + evidence}
 	default:
+		if verifiedOfflineCheck {
+			return CheckResult{Code: "filesystem_state", Severity: SeverityPass, Message: "offline consistency check passed for the current read/write mount episode"}
+		}
 		return CheckResult{Code: "filesystem_state", Severity: SeverityUnknown, Message: "filesystem dirty/needs-check state is not exposed on this host" + evidence}
 	}
 }
@@ -614,7 +695,10 @@ func checkCapacity(freeBytes, targetBytes int64, copies int) CheckResult {
 		return CheckResult{Code: "capacity", Severity: SeverityUnknown, Message: "target size not selected; capacity fit is unknown"}
 	}
 	if copies <= 0 {
-		copies = 1
+		return CheckResult{Code: "capacity", Severity: SeverityWarning, Message: "retention policy is unbounded; current source-size fit does not bound future repository growth"}
+	}
+	if int64(copies) > int64(^uint64(0)>>1)/targetBytes {
+		return CheckResult{Code: "capacity", Severity: SeverityUnknown, Message: "retention capacity estimate overflows; capacity fit is unknown"}
 	}
 	required := targetBytes * int64(copies)
 	if freeBytes < required {

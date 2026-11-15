@@ -30,8 +30,9 @@ func (f *FakeTargetLookup) TargetForAudit(_ context.Context, targetID string) (a
 
 // FakeDestinationLookup returns canned destination specs keyed by destination id.
 type FakeDestinationLookup struct {
-	Destinations map[string]audits.DestinationForAudit
-	Err          error
+	Destinations   map[string]audits.DestinationForAudit
+	Err            error
+	WithResolvedFn func(context.Context, string, func(audits.DestinationForAudit) error) error
 }
 
 func (f *FakeDestinationLookup) DestinationForAudit(_ context.Context, destID string) (audits.DestinationForAudit, error) {
@@ -43,6 +44,20 @@ func (f *FakeDestinationLookup) DestinationForAudit(_ context.Context, destID st
 		return audits.DestinationForAudit{}, &notFound{"destination", destID}
 	}
 	return d, nil
+}
+
+func (f *FakeDestinationLookup) WithResolvedDestination(ctx context.Context, destID string, use func(audits.DestinationForAudit) error) error {
+	if f.WithResolvedFn != nil {
+		return f.WithResolvedFn(ctx, destID, use)
+	}
+	d, err := f.DestinationForAudit(ctx, destID)
+	if err != nil {
+		return err
+	}
+	if use == nil {
+		return nil
+	}
+	return use(d)
 }
 
 // SyncExecutor runs each submitted audit job inline and to completion on the
