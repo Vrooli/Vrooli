@@ -16,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/eventbus"
+
 	"github.com/vrooli/api-core/database"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -318,6 +320,9 @@ func (p *HeartbeatAttemptPublisher) publish(ctx context.Context, row *heartbeatP
 		req, err = http.NewRequestWithContext(ctx, http.MethodPost, endpoint+"/api/v1/events", bytes.NewReader(row.body))
 		if err == nil {
 			req.Header.Set("Content-Type", "application/json")
+			if authorization := eventbus.PublisherAuthorization(ctx, "prompt-manager"); authorization != "" {
+				req.Header.Set("Authorization", authorization)
+			}
 			var resp *http.Response
 			resp, err = p.client.Do(req)
 			if err == nil {

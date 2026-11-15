@@ -3,6 +3,7 @@ package skills
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -212,7 +213,7 @@ func (h *connectHandler) UpdateSkill(ctx context.Context, req *connect.Request[s
 		switch {
 		case message == "Skill not found":
 			code = connect.CodeNotFound
-		case strings.HasPrefix(message, "Cannot edit vendored skill") || message == "Cannot update core skills":
+		case strings.HasPrefix(message, "Cannot edit vendored skill") || message == "Cannot update core skills" || errors.Is(err, domain.ErrScenarioSkillReadOnly):
 			code = connect.CodePermissionDenied
 		case message == "Cannot move skill to non-writable folder" || strings.HasPrefix(message, "content removes existing template variables:") || strings.Contains(message, "invalid skill ID format"):
 			code = connect.CodeInvalidArgument
@@ -283,6 +284,19 @@ func (h *connectHandler) RecordSkillUsage(ctx context.Context, req *connect.Requ
 		lastUsedValue = lastUsed.Format(time.RFC3339Nano)
 	}
 	out := &skillsv1.RecordSkillUsageResponse{Id: req.Msg.GetId(), Status: "usage recorded", UsageCount: int32(usageCount), LastUsed: lastUsedValue}
+	return connect.NewResponse(out), nil
+}
+
+func (h *connectHandler) GetSkillReadReceipt(ctx context.Context, req *connect.Request[skillsv1.GetSkillReadReceiptRequest]) (*connect.Response[skillsv1.GetSkillReadReceiptResponse], error) {
+	receipt, err := h.legacy.SkillReadReceipt(ctx, req.Header().Get("X-Agent-Identity-Token"), req.Msg.GetSkillId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	out := &skillsv1.GetSkillReadReceiptResponse{SkillId: receipt.SkillID, Status: receipt.Status, RunId: receipt.RunID, ReadCount: int32(receipt.ReadCount), Reason: receipt.Reason}
+	if !receipt.FirstReadAt.IsZero() {
+		out.FirstReadAt = receipt.FirstReadAt.Format(time.RFC3339)
+		out.LastReadAt = receipt.LastReadAt.Format(time.RFC3339)
+	}
 	return connect.NewResponse(out), nil
 }
 
@@ -390,10 +404,4 @@ func protoObject(message proto.Message) (map[string]any, error) {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("decode protobuf request: %w", err))
 	}
 	return payload, nil
-}
-
-func copyOptionalString(target map[string]any, key string, value *string) {
-	if value != nil {
-		target[key] = *value
-	}
 }

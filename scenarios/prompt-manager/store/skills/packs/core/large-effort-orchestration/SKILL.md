@@ -57,11 +57,10 @@ An uncertain dispatch does not authorize a replacement orchestrator.
 Before first worker dispatch, record the operator-decision delivery route in `CHARTER.md`
 and qualify it against current owner state. An enrolled Agent Manager effort uses
 `agent-manager effort decision raise`: its verified-run decision event is the supported
-Notification Hub ask path and does not require a separate direct `notification.ask` grant.
-Confirm the configured Notification Hub recipient/channel through its read owner. If this
-effort instead needs direct Notification Hub sends or asks, qualify the exact operation and
-recipient with the canonical authorization owner and request only the missing
-`notification-sending` or `notification-decision-asking` authority before promising delivery.
+Notification Hub ask path. Confirm the configured Notification Hub recipient/channel through
+its read owner. Direct `notification-hub notifications send` and `conversations ask` need no
+identity or permission. A configurable per-source leaky bucket limits device pushes; even when
+empty, the Hub stores each request and continues delivery through other configured channels.
 Do not make a test ask. On the first real decision, verify the Hub ask and its delivery receipt;
 event publication alone is not proof of delivery.
 

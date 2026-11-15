@@ -55,7 +55,7 @@ func NewAgentManagerClient(timeout time.Duration) *AgentManagerClient {
 		httpClient: &http.Client{
 			Timeout: timeout,
 		},
-		serviceToken: defaultServiceTokenSource(),
+		serviceToken: defaultServiceTokens(),
 	}
 }
 

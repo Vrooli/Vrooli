@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -191,14 +192,14 @@ func assessBugCapture(req BugCaptureRequest) (map[string]string, []string, []sto
 	flags := normalizedFlags(req.HonestyFlags, &invalid)
 	if len(trimmedStrings(req.Repro)) > 0 {
 		accepted["repro"] = "provided"
-	} else if containsFlag(flags, "repro-not-attempted") {
+	} else if slices.Contains(flags, "repro-not-attempted") {
 		accepted["repro"] = "not-attempted"
 	} else {
 		needs = append(needs, "repro (or honesty_flags=repro-not-attempted)")
 	}
 	if strings.TrimSpace(req.Description) != "" {
 		accepted["description"] = "provided"
-	} else if containsFlag(flags, "minimal-context") {
+	} else if slices.Contains(flags, "minimal-context") {
 		accepted["description"] = "minimal-context"
 	} else {
 		needs = append(needs, "description (or honesty_flags=minimal-context)")
@@ -238,15 +239,6 @@ func normalizedFlags(flags []string, invalid *[]store.FieldDiagnostic) []string 
 	}
 	sort.Strings(out)
 	return out
-}
-
-func containsFlag(flags []string, want string) bool {
-	for _, flag := range flags {
-		if flag == want {
-			return true
-		}
-	}
-	return false
 }
 
 func trimmedStrings(values []string) []string {

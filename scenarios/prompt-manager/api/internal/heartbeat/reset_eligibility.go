@@ -173,7 +173,10 @@ func (c *TeamExecutionContext) ConsumeResetEligibility(ctx context.Context, ev R
 	// state releases it.
 	c.mu.Lock()
 	if cur, ok := c.running[ev.AgentID]; ok && (cur.State == ObligationPaused || cur.State == ObligationWatcherUnavailable) {
-		cur.State = ObligationRunning
+		if err := cur.transition(ObligationRunning); err != nil {
+			c.mu.Unlock()
+			return ResetConsumeResumed, fmt.Errorf("record resumed heartbeat state: %w", err)
+		}
 		c.running[ev.AgentID] = cur
 		c.persistLocked()
 	}

@@ -184,6 +184,12 @@ func (r *contextReadRepository) Append(ctx context.Context, _ skillreads.Read, _
 	r.appendContext = ctx
 	return nil
 }
+func (r *contextReadRepository) RecordReceipt(context.Context, string, string, time.Time, time.Duration) error {
+	return nil
+}
+func (r *contextReadRepository) Receipt(context.Context, string, string) (skillreads.Receipt, bool, error) {
+	return skillreads.Receipt{}, false, nil
+}
 func (r *contextReadRepository) ReadSince(ctx context.Context, _ time.Duration, _ time.Time) ([]skillreads.Read, error) {
 	r.readContext = ctx
 	return nil, nil

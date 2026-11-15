@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -126,7 +127,7 @@ func validateExternalInputsTable(ctx OperatingModelRuleContext) []OperatingGraph
 	}
 	var findings []OperatingGraphFinding
 	want := []string{"producer / trigger", "entry surface", "drainer", "routing rule"}
-	if !sameStringSlice(table.Headers, want) {
+	if !slices.Equal(table.Headers, want) {
 		findings = append(findings, operatingModelFinding(model, "operating_model_external_inputs_header_drift", table.HeaderLine, fmt.Sprintf("External Inputs / Triggers headers must be %q", strings.Join(want, " | "))))
 	}
 	if len(table.Rows) == 0 {
@@ -167,7 +168,7 @@ func validateOutputsTable(ctx OperatingModelRuleContext) []OperatingGraphFinding
 	}
 	var findings []OperatingGraphFinding
 	want := []string{"output", "surface", "consumer", "purpose"}
-	if !sameStringSlice(table.Headers, want) {
+	if !slices.Equal(table.Headers, want) {
 		findings = append(findings, operatingModelFinding(model, "operating_model_outputs_header_drift", table.HeaderLine, fmt.Sprintf("Outputs / Downstream Consumers headers must be %q", strings.Join(want, " | "))))
 	}
 	if len(table.Rows) == 0 {
@@ -373,18 +374,6 @@ func missingOutputFields(row OperatingOutputRow) []string {
 		missing = append(missing, "purpose")
 	}
 	return missing
-}
-
-func sameStringSlice(got, want []string) bool {
-	if len(got) != len(want) {
-		return false
-	}
-	for i := range got {
-		if got[i] != want[i] {
-			return false
-		}
-	}
-	return true
 }
 
 func operatingModelFinding(model OperatingModelDocument, rule string, line int, detail string) OperatingGraphFinding {

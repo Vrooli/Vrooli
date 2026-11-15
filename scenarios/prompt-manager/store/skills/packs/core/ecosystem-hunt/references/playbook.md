@@ -38,6 +38,14 @@ rg -n -g '*.sql' -g '*.go' "(completed|finished|cancelled)_at IS (NOT )?NULL" sc
 Then pick one lifecycle and reconstruct it: list every variable that encodes its state,
 every write site, every read site that branches on it.
 
+Before using a fleet score as a conversion shortlist, verify the candidate's actual durable
+write owner and whether it is an independent aggregate. A value nested in an in-memory
+projection or memory-only store is not persisted just because it reaches a generic serializer;
+several status fields nested in one persisted parent may be one owner, not several. Match hunt
+closure to the same entity and conversion: a scenario mention or detector improvement is not
+closure for every lifecycle in that scenario. Keep the score order, exclusions, source links and
+exact hunt result in a register so the next owner can reproduce membership.
+
 **Fix**
 1. Enumerate the reachable combinations of the state variables. Most combinations are
    invalid; find which ones the code can still produce. Each one is a latent bug.
@@ -58,6 +66,81 @@ unrepresentable; parse, don't validate.
 
 Prior evidence: Template Manager drift status had no "unknown" state; adding a first-time
 unverified state removed contradictory status/flag output (2026-11-04).
+Prior evidence: Swarm Manager Agent Session and proposal statuses had scattered direct writes;
+one transition table per persisted status plus store-boundary enforcement removed the
+bypasses and stopped stale run snapshots from overwriting proposal review (2026-11-12).
+Prior evidence: Swarm Manager review rounds now validate Gathering→Complete/Failed at the
+single file-store boundary and reject persisted terminal reversals (2026-11-12).
+Prior evidence: Agent Manager workflow executions now route runtime status intents through
+one domain graph and reject illegal persisted edges at the status+version CAS boundary; the
+table and child-cancellation propagation have an exhaustive invalid-state regression (2026-11-12).
+Prior evidence: Code Facts index jobs now use a typed transition graph and SQLite source-state
+CAS; removing the stored cancellation boolean eliminated a second durable representation (2026-11-12).
+Prior evidence: React Component Library component-test sweeps checkpoint in place only while
+`running`; blocked/failed runs must resume through `running`, and completed snapshots cannot be
+rewritten. The SQLite owner rejects invalid edges without changing persisted results, while the
+handler checkpoints progress and records failed/blocked/complete outcomes through the same
+boundary. This closes a terminal same-state save loophole; no obsolete independent flags existed
+and no production line reduction is claimed (debt-reduction run `steward-free-host-20261114`).
+Prior evidence: Swarm Manager proposal decision publication is a persisted outbox nested in a
+proposal, not a projection of proposal review status. Its immutable event snapshot can remain
+pending across publish failures, become published only after a durable receipt, or remain
+legacy-unresolved until an exact-terms reissue preserves the earlier uncertainty. The store
+owns these edges; no replaced flags existed to delete (2026-11-12).
+Prior evidence: Agent Manager transcript-index files now use one persisted status graph at
+the SQLite upsert boundary; invalid or unknown transitions cannot enter the durable file row,
+and same-state checkpoint writes preserve crash recovery metadata (2026-11-12).
+Prior evidence: Plan Manager validation operations now use one `queued → running → terminal` owner; receipt projection calls the transition method and the SQLite transaction compare-and-swaps the prior status, so stale queued receipts and terminal resurrection are rejected. Focused validation and HTTP seam packages pass; Test Genie unit/API run `20261114-132156-be4ebd47` passed (unit L2→L3 retains `MISSING_INJECTABLE_SEAM`; API L1→L2 retains three unstructured-logging findings). During the same owner pass, Plan Manager deleted its duplicate local `FakeDoer` implementation and tests (87 implementation lines and 88 duplicate test lines) and reused `api-core/apihttptest.FakeDoer`; the lifecycle enforcement added 70 net production lines, so this is a test-support reduction rather than a production-line reduction (debt-reduction run `steward-free-host-20261114`).
+Prior evidence: Swarm Manager goals now use a typed status graph and reject illegal existing-
+record transitions at the atomic JSON store boundary; archive validates before dropping
+targeted work, while achievement retains its independent milestone-evidence gate (2026-11-12).
+Prior evidence: Agent Inbox tool calls already had a typed status graph and SQLite transition
+guards, but restart review found a missing durable step: approval is persisted before tool
+execution while `running` is only set in memory. Startup recovery now includes persisted
+`approved` calls and cancels them with an explicit unknown-outcome reason. It does not replay
+the tool because a crash after an external side effect but before result persistence could
+duplicate that effect. This is at-most-once recovery with an uncertain user-visible outcome;
+record that limit rather than claiming exactly-once execution (2026-11-14).
+Adjudication: Scenario-to-Desktop PlatformResult.Status is only owned by an in-memory build
+store; BuildStage persists one final StageResult.Details snapshot after synchronous build
+completion, and crash recovery does not restore the platform transitions. Do not count this
+as a persisted lifecycle conversion. The inventory's nearby bundle-resource sink is unrelated
+candidate flow. The same scenario's pipeline Status.Status is the persisted lifecycle: each
+store update is atomically written to the pipeline file and pending/running states are marked
+failed after restart. (2026-11-14)
+Prior evidence: Scenario-to-Desktop pipeline Status.Status now uses a typed transition owner;
+idle/pending/running transitions, failure, cancellation, terminal reversal rejection and
+unknown state rejection have matrix coverage. Existing stale-pipeline recovery continues to
+move interrupted pending/running records to failed through that owner (2026-11-14).
+Prior evidence: Scenario-to-Desktop investigations now route pending/running/completed/failed/
+cancelled writes through a domain transition graph under the JSON store lock. Findings and error
+helpers no longer assign terminal status directly; invalid edges leave the stored record intact.
+Focused domain/persistence and full API Go tests pass; the current unit/API Test Genie run is
+still in progress, so do not count its owner phases green yet (2026-11-14).
+Prior evidence: Browser Automation Studio recording sessions now validate `active -> closed`
+through one domain transition owner and SQLite status CAS; unknown states and reopening are
+rejected, repeated close remains idempotent, and the unused derived `IsActive` branch is gone
+(2026-11-14). The top-ranked `NavigationSession.Status` candidate was in-memory; its apparent
+durable sink belonged to an unrelated `ExportIndex`, so trace the exact aggregate to storage
+before admitting an inferred lifecycle (debt-reduction run `steward-free-host-20261114`).
+Prior evidence: Swarm Manager's durable `BacklogItem.Status` mutations now pass through one
+actor-specific edge graph shared by PATCH, review decision, retry, recovery, follow-up,
+archive/reset, goal archival, import, proposal, and execution callers. The former known-status-pair
+predicate and generic patch status field were removed. A production assignment scan found no
+current writer bypassing the graph. The low-level JSON `SaveItem` API still accepts a full model
+without actor identity, so a future caller could bypass by saving a pre-mutated value. Swarm
+Manager owner unit Test Genie passed in run `20261114-114107-34214fcb` (L2→L3, with the existing
+injectable-seam warning); no production line reduction is claimed (debt-reduction run
+`steward-free-host-20261114`).
+Prior evidence: Swarm Manager review `RequestThread.Status` is persisted inside review-round JSON and has its own pending→fulfilled/dismissed lifecycle, distinct from the parent round. Creation, evidence settlement, dismissal and fulfilled-evidence projection now route through named child-state operations; invalid, terminal-reversal and replay tests cover recovery. Exact candidate terms had no matching entry in the complete 112-entry hunt export. Owner Test Genie result is recorded in debt-reduction run `steward-free-host-20261114`.
+
+Prior evidence: Deployment Manager readiness reviews now own their persisted status graph (`agent_review → approved → promoted → superseded`) and evaluation refresh separately. SQL evaluation replacement compares the observed status and rolls back stale writes; unknown stored statuses fail closed, and promoted reviews cannot be reopened. Domain/repository invalid-state, terminal-reversal and stale-write tests were added. Focused tests and Test Genie remain unrun pending the shared host's 120 GiB free-space floor; record this conversion as unverified until those owner phases pass (debt-reduction run `steward-free-host-20261114`).
+
+Prior evidence: Compute Manager `intent.Record.State` now routes new and persisted writes through one owner with a state compare-and-swap; Tunnel Manager `exposure.Lease.Status` uses a transition graph and full-snapshot CAS. Both include invalid-state coverage and caller migration; their owner validations remain unrun under the same disk admission floor. Do not count either as a green conversion or a supported top-20 member until owner tests and exact hunt closure are verified (debt-reduction run `steward-free-host-20261114`).
+
+Prior evidence: Web Console session metadata now has one SQLite transition/CAS owner and the matching in-memory graph; archived/recovered-session behavior is preserved and invalid/terminal tests were added. Brand Manager logo candidates now use a persisted transition graph, expected-state CAS and one transaction for picked-candidate replacement; the generic status update and separate superseding writers were removed, and Connect reports invalid transitions as failed precondition and stale CAS as aborted. Git Control Tower proposal state writes from services and transactional combine/publication now share one graph while retaining revision CAS and publish-failure recovery. Exact current hunt records were checked for each field; these owner tests and Test Genie phases are unrun under the shared 120 GiB floor, so record all three as runtime-unverified and do not rank/count them as green conversions yet (debt-reduction run `steward-free-host-20261114`).
+
+Prior evidence: Agent Manager `Task.Status` had a tested domain graph that durable writers bypassed with SQL status allowlists. Task creation, attempt claim/cancel and Run-driven status projection now validate against the graph; projections use exact observed-state CAS, reads reject unknown persisted values, and the in-memory caller uses the same transition method. A missing `needs_review → running` continuation edge is now explicit and remains fenced by exact-current-Run admission. Regression tests are authored but owner validation is unrun below the shared disk floor; do not count this as green or assign top-20 membership yet (debt-reduction run `steward-free-host-20261114`).
 
 ## 2. One owner per concept (double residency)
 
@@ -203,7 +286,63 @@ template's tree; generated shells or sidecars.
 `packages/`, `cli-core`, `api-core`). Fix it there, then regenerate or update every copy
 through the owner command. Never hand-edit generated output (AGENTS.md §3).
 
+## 11. Separate nested durable lifecycles by transition owner
+
+**Signals**: one persisted aggregate contains several status-bearing child records, and each
+child advances under different runtime events, retries, or recovery metadata.
+
+**Fix**: do not collapse these into one candidate solely because they share a JSON row or
+repository. Trace the writer and recovery path for each child. Count children independently
+only when each has its own transition boundary and behavior; keep parent phase/progress fields
+out of the child lifecycle. Conversely, a result label copied from a parent or immutable
+artifact remains one owner, not another lifecycle. Add invalid-edge checks at the durable
+update boundary and preserve same-state updates only when they carry explicit recovery
+metadata.
+
+Prior evidence: Swarm Manager's execution record embeds one finalization parent and separate
+per-scenario restart, health, and review steps. Restart retries, health probes and asynchronous
+review polling advance independently; their shared JSON persistence does not make them one
+state machine. Their update helpers now reject illegal edges and keep an active child step
+consistent when its parent fails (debt-reduction run `debt-crypto-models-20261112`).
+
+Prior evidence: Swarm Manager dispatch intents now use a typed `submitting -> unknown -> acknowledged`
+recovery graph (with direct `submitting -> acknowledged` and idempotent same-state recovery
+updates). The durable store rejects unknown states, invalid edges and changed immutable owner
+identity; runner callers no longer assign raw state strings. Lost-start recovery still joins only
+the original owner and never resubmits. Focused transitionrun and transitionrunner Go packages
+pass. The first Test Genie attempt exposed that the owner reply adds execution/run provenance
+after the reservation write; the durable identity check was narrowed to permit that binding only
+on acknowledgement. Corrected Swarm Manager unit run `20261114-122456-ff8601f1` passed (450s,
+82 observations; standing `MISSING_INJECTABLE_SEAM` warning remains; debt-reduction run
+`steward-free-host-20261114`).
+
+## 12. Model derived recovery states without persisting extra flags
+
+**Signals**: a stored state and timestamps jointly determine whether a retry/probe is currently
+allowed, or a compatibility state remains readable although writers no longer create it.
+
+**Fix**: keep the persisted lifecycle small. Make the transition owner accept only declared
+edges, validate unknown values at the durable boundary, and derive time-dependent effective
+states from the stored state plus the injected clock. Preserve legacy persisted states only with
+explicit recovery semantics and tests. Do not add a second persisted state or boolean for a view
+that can be computed from the existing state and time.
+
+Prior evidence: Agent Buyer Range `trials.Record.Status` is stored in canonical trial JSON, but its accepted `prepared|observed|incomplete` value is fixed at insert and SQLite triggers reject both update and delete. `Get`/`List` only rehydrate that original result. A status field plus a timestamp and durable sink therefore do not establish a mutable lifecycle; verify the owner can progress and recover the record before converting it (debt-reduction run `steward-free-host-20261114`).
+
+Prior evidence: AI Gateway ProviderHealth persists `open` with `CooldownUntil`; routing derives
+`half_open` after the cooldown rather than storing a second flag. The transition owner supports
+legacy `half_open` records but current runtime only writes closed/open. Invalid state values are
+rejected by the repository and transition graph (debt-reduction run `debt-crypto-models-20261112`).
+
 ---
+
+## 13. Make persisted child-state policy one owner
+
+**Signals**: a durable record has one repository writer, but legal state is duplicated between a model predicate and a literal persistence condition; reads accept unknown stored values.
+
+**Fix**: put the allowed edge graph on the domain transition owner, route the write through it, compare the exact observed state at the durable boundary, and fail closed on unknown persisted values. Preserve same-outcome idempotency and represent retries as new linked records when history is append-only. Add invalid-edge, stale-write, unknown-state and retry-history coverage.
+
+Prior evidence: Vrooli Bridge `EnrollmentAttempt.State` had terminal logic in both `Terminal()` and a SQL `IN ('created','running')` guard. `AttemptState` and `EnrollmentAttempt.TransitionState` now own terminal outcomes; creation is insert-only, scans reject unknown values, and completion uses exact-state CAS while preserving same-result idempotency and linked retry records. Invalid, stale, terminal and error-mapping regressions were authored. Source changes are +63 production, +62 tests and +5 docs; Go/Test Genie remain unrun below the host free-space floor, so runtime is unverified (debt-reduction run `steward-free-host-20261114`).
 
 ## Related skills for depth
 
@@ -212,3 +351,5 @@ through the owner command. Never hand-edit generated output (AGENTS.md §3).
 `error-semantics-recovery-path-design`, `storage-steer`, `scientific-debugging`,
 `documentation-health`, `knowledge-observatory-maintenance`. Load one when its lens is the
 round's lens; do not load them all.
+
+Prior evidence: Plan Manager `CandidateRevision.State` is a persisted independent child lifecycle. Replace permissive upsert with insert-only pending creation, a pending→applied/discarded/expired graph and transactional compare-and-swap; apply the canonical plan and applied candidate in the same SQLite transaction. Invalid-state, terminal-rewrite and injected rollback tests pass. Test Genie unit/API `20261114-134808-c22b3fd2` passed on the final single-statement CAS tree (unit L2→L3 retains `MISSING_INJECTABLE_SEAM`; API L1→L2 retains unstructured-logging findings). Earlier run `20261114-133622-3d19b19e` passed the first implementation before the 21-line store simplification. Production source changed +93/−20 and tests +79. The conditional single-statement CAS removed 21 lines from the initial store transition implementation while preserving error classification; overall production code remains +73 net, so this conversion improves transition safety and atomicity but does not claim net LOC reduction (debt-reduction run `steward-free-host-20261114`).

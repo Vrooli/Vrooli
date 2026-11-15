@@ -117,6 +117,10 @@ func (rr *ReadRecorder) RecordWithRunID(r *http.Request, skillIDs []string, runI
 			entry.DiscoveryCallID = callID
 		}
 		_ = rr.reads.WithContext(r.Context()).Append(entry)
+		// Only a verified run earns a receipt; attribution headers are claims.
+		if verified := strings.TrimSpace(runID); verified != "" {
+			_ = rr.reads.WithContext(r.Context()).RecordReceipt(verified, skillID)
+		}
 	}
 }
 

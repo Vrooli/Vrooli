@@ -196,11 +196,11 @@ dismissal, run `agent-manager effort decision sync <home>` and verify the verbat
 FEEDBACK.md and removal from `## Needs operator`. Do not solicit an answer in chat, duplicate an
 existing decision, or surface a terminal decision again after compaction.
 
-If the owner route cannot represent a required direct notification, use Notification Hub only
-after qualifying the exact operation and recipient. Direct sends need `notification-sending`;
-direct asks need `notification-decision-asking`. Request a missing exact grant through the
-canonical authorization owner before promising delivery. Do not treat an ordinary repair wait
-as a human decision. When all remaining work waits on human decisions/external repair, wake
+If the owner route cannot represent a required direct notification, use
+`notification-hub notifications send` or `conversations ask` directly; neither needs identity or
+permission. A source that exhausts its push bucket still gets every request stored; only device
+pushes pause until the bucket refills. Do not treat an ordinary repair wait as a human decision.
+When all remaining work waits on human decisions/external repair, wake
 supervision once, then park with `--timeout 72h`. Native pressure and timed stopping still apply;
 a long park does not extend the commissioned budget.
 

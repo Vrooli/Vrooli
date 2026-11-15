@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -28,7 +29,7 @@ func TestWriterSkillRegistry_AllTaggedHaveWritesTo(t *testing.T) {
 
 	checked := 0
 	for id, s := range skills {
-		if !hasTag(s.Tags, "writer-skill") {
+		if !slices.Contains(s.Tags, "writer-skill") {
 			continue
 		}
 		checked++
@@ -71,7 +72,7 @@ func TestWriterSkillRegistry_WritesToOnlyOnWriterTagged(t *testing.T) {
 	}
 
 	for id, s := range skills {
-		if hasTag(s.Tags, "writer-skill") {
+		if slices.Contains(s.Tags, "writer-skill") {
 			continue
 		}
 		if len(s.WritesTo) > 0 {
@@ -131,7 +132,7 @@ func TestBuildProseSkillIndex_ReadsTagsAndWritesTo(t *testing.T) {
 		if entry.IsWriter != c.wantIsWriter {
 			t.Errorf("skill %q: IsWriter = %v, want %v", c.id, entry.IsWriter, c.wantIsWriter)
 		}
-		if !equalStringSlice(entry.WritesTo, c.wantWritesTo) {
+		if !slices.Equal(entry.WritesTo, c.wantWritesTo) {
 			t.Errorf("skill %q: WritesTo = %v, want %v", c.id, entry.WritesTo, c.wantWritesTo)
 		}
 	}
@@ -184,25 +185,4 @@ func loadAllSkillJSON(storeDir string) (map[string]rawSkillJSON, error) {
 		}
 	}
 	return out, nil
-}
-
-func hasTag(tags []string, want string) bool {
-	for _, t := range tags {
-		if t == want {
-			return true
-		}
-	}
-	return false
-}
-
-func equalStringSlice(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }

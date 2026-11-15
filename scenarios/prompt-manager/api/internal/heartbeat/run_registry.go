@@ -42,6 +42,7 @@ type RunRegistry struct {
 	filePath        string
 	observer        RunObserver
 	recoveryLoading bool
+	recoveryInvalid bool
 	recoveryRows    []persistedRun
 }
 
@@ -104,8 +105,11 @@ func (r *RunRegistry) register(teamID, agentID, runID string, startedAt time.Tim
 		RunID:               runID,
 		StartedAt:           startedAt,
 		CancelFn:            cancel,
-		State:               state,
 		ownerStartedAtKnown: ownerStartedAtKnown,
+	}
+	if err := run.transition(state); err != nil {
+		log.Printf("run_registry: refusing invalid heartbeat state for %s/%s: %v", teamID, agentID, err)
+		return
 	}
 	r.active[registryKey(teamID, agentID)] = run
 	r.persistLocked()
@@ -146,7 +150,10 @@ func (r *RunRegistry) MarkRunObserverUnavailable(teamID, agentID, runID string) 
 	if !ok || run.RunID != runID {
 		return
 	}
-	run.State = ObligationWatcherUnavailable
+	if err := run.transition(ObligationWatcherUnavailable); err != nil {
+		log.Printf("run_registry: refusing invalid watcher state for %s/%s: %v", teamID, agentID, err)
+		return
+	}
 	run.CancelFn = nil
 	r.persistLocked()
 }
@@ -158,6 +165,10 @@ func (r *RunRegistry) ListActive() []ActiveRun {
 
 	runs := make([]ActiveRun, 0, len(r.active))
 	for _, run := range r.active {
+		if !validObligationState(run.State) {
+			log.Printf("run_registry: refusing to expose unknown heartbeat state %q for %s/%s", run.State, run.TeamID, run.AgentID)
+			return nil
+		}
 		runs = append(runs, *run)
 	}
 	return runs
@@ -199,6 +210,10 @@ func (r *RunRegistry) persistLocked() {
 	runs := make([]persistedRun, 0, len(r.active)+len(r.recoveryRows))
 	seen := make(map[runOwnerIdentity]struct{}, len(r.active)+len(r.recoveryRows))
 	for _, run := range r.active {
+		if !validObligationState(run.State) {
+			log.Printf("run_registry: refusing to persist unknown heartbeat state %q for %s/%s", run.State, run.TeamID, run.AgentID)
+			return
+		}
 		pr := persistedRun{
 			TeamID:              run.TeamID,
 			AgentID:             run.AgentID,
@@ -214,6 +229,10 @@ func (r *RunRegistry) persistLocked() {
 	// references until each one has an exact owner classification. Queue
 	// hydration can persist before the registry fallback runs.
 	for _, pr := range r.recoveryRows {
+		if !validObligationState(pr.State) {
+			log.Printf("run_registry: refusing to persist unknown recovered heartbeat state %q for %s/%s", pr.State, pr.TeamID, pr.AgentID)
+			return
+		}
 		identity := runOwnerIdentity{TeamID: pr.TeamID, AgentID: pr.AgentID, RunID: pr.RunID}
 		if _, duplicate := seen[identity]; duplicate {
 			continue
@@ -254,6 +273,7 @@ func (r *RunRegistry) LoadPersisted() {
 		return
 	}
 	r.recoveryLoading = true
+	r.recoveryInvalid = false
 	r.recoveryRows = make([]persistedRun, 0)
 	r.mu.Unlock()
 
@@ -268,6 +288,15 @@ func (r *RunRegistry) LoadPersisted() {
 	if err := json.Unmarshal(data, &runs); err != nil {
 		log.Printf("run_registry: failed to unmarshal persisted runs: %v", err)
 		return
+	}
+	for _, run := range runs {
+		if !validObligationState(run.State) {
+			log.Printf("run_registry: refusing to recover unknown heartbeat state %q for %s/%s", run.State, run.TeamID, run.AgentID)
+			r.mu.Lock()
+			r.recoveryInvalid = true
+			r.mu.Unlock()
+			return
+		}
 	}
 
 	r.mu.Lock()
@@ -284,7 +313,10 @@ func (r *RunRegistry) LoadPersisted() {
 }
 
 func activeRunFromPersisted(pr persistedRun) ActiveRun {
-	base := ActiveRun{TeamID: pr.TeamID, AgentID: pr.AgentID, RunID: pr.RunID, State: pr.State}
+	base := ActiveRun{TeamID: pr.TeamID, AgentID: pr.AgentID, RunID: pr.RunID}
+	if err := base.transition(pr.State); err != nil {
+		log.Printf("run_registry: invalid persisted heartbeat state for %s/%s: %v", pr.TeamID, pr.AgentID, err)
+	}
 	if pr.OwnerStartedAtKnown {
 		base.StartedAt = pr.StartedAt
 		base.ownerStartedAtKnown = true
@@ -306,6 +338,10 @@ func (r *RunRegistry) HydrateQueueOwners(owners []ActiveRun) {
 		if owner.RunID == "" {
 			continue
 		}
+		if !validObligationState(owner.State) {
+			log.Printf("run_registry: refusing unknown hydrated heartbeat state %q for %s/%s", owner.State, owner.TeamID, owner.AgentID)
+			continue
+		}
 		owner.CancelFn = nil
 		r.active[registryKey(owner.TeamID, owner.AgentID)] = &owner
 	}
@@ -323,11 +359,21 @@ func (r *RunRegistry) HydrateQueueOwners(owners []ActiveRun) {
 func (r *RunRegistry) Recover(ctx context.Context, client AgentClient, queueOwners map[runOwnerIdentity]struct{}) {
 	r.LoadPersisted()
 	r.mu.Lock()
+	if r.recoveryInvalid {
+		r.recoveryInvalid = false
+		r.recoveryLoading = false
+		r.mu.Unlock()
+		return
+	}
 	defer r.mu.Unlock()
 	stagedRows := append([]persistedRun(nil), r.recoveryRows...)
 	unresolvedRows := make([]persistedRun, 0, len(stagedRows))
 
 	for _, pr := range stagedRows {
+		if !validObligationState(pr.State) {
+			log.Printf("run_registry: refusing unknown recovered heartbeat state %q for %s/%s", pr.State, pr.TeamID, pr.AgentID)
+			continue
+		}
 		if _, covered := queueOwners[runOwnerIdentity{TeamID: pr.TeamID, AgentID: pr.AgentID, RunID: pr.RunID}]; covered {
 			continue
 		}
@@ -347,13 +393,15 @@ func (r *RunRegistry) Recover(ctx context.Context, client AgentClient, queueOwne
 		// A prior recovery already recorded a non-resolvable obligation.
 		// Preserve it without re-probing the owner.
 		if pr.State != ObligationRunning && pr.State != ObligationWatcherUnavailable {
-			base.State = pr.State
 			r.active[key] = &base
 			continue
 		}
 
 		if client == nil {
-			base.State = ObligationOwnerUnreachable
+			if err := base.transition(ObligationOwnerUnreachable); err != nil {
+				log.Printf("run_registry: invalid owner-unreachable transition for %s/%s: %v", pr.TeamID, pr.AgentID, err)
+				continue
+			}
 			r.active[key] = &base
 			unresolvedRows = append(unresolvedRows, pr)
 			continue
@@ -362,7 +410,10 @@ func (r *RunRegistry) Recover(ctx context.Context, client AgentClient, queueOwne
 		observation := observeOwnerRun(pr.RunID, run, err)
 		if observation.state == ObligationOwnerUnreachable || observation.state == ObligationDispatchUncertain {
 			log.Printf("run_registry: retaining %s run %s (owner status %q)", observation.state, pr.RunID, observation.status)
-			base.State = observation.state
+			if err := base.transition(observation.state); err != nil {
+				log.Printf("run_registry: invalid recovered owner state for %s/%s: %v", pr.TeamID, pr.AgentID, err)
+				continue
+			}
 			r.active[key] = &base
 			unresolvedRows = append(unresolvedRows, pr)
 			continue
@@ -381,7 +432,10 @@ func (r *RunRegistry) Recover(ctx context.Context, client AgentClient, queueOwne
 			base.ownerStartedAtKnown = false
 		}
 		if observation.state == ObligationPaused || observation.state == ObligationNeedsReview {
-			base.State = observation.state
+			if err := base.transition(observation.state); err != nil {
+				log.Printf("run_registry: invalid recovered owner state for %s/%s: %v", pr.TeamID, pr.AgentID, err)
+				continue
+			}
 		}
 		r.active[key] = &base
 	}
@@ -400,7 +454,9 @@ func recoverConflictingLegacyRun(ctx context.Context, client AgentClient, queueO
 		StartedAt: legacy.StartedAt, OwnerStartedAtKnown: legacy.ownerStartedAtKnown,
 	}
 	if client == nil {
-		retained.State = ObligationOwnerUnreachable
+		if err := retained.transition(ObligationOwnerUnreachable); err != nil {
+			return persistedRun{}, false
+		}
 		log.Printf("run_registry: startup owner conflict team=%s agent=%s queue_run_id=%s legacy_run_id=%s legacy_owner_state=owner_unreachable action=retain_queue_presentation_report_legacy_state", queueOwner.TeamID, queueOwner.AgentID, queueOwner.RunID, legacy.RunID)
 		return retained, true
 	}
@@ -410,7 +466,9 @@ func recoverConflictingLegacyRun(ctx context.Context, client AgentClient, queueO
 		log.Printf("run_registry: startup owner conflict team=%s agent=%s queue_run_id=%s legacy_run_id=%s legacy_owner_state=%s action=drop_terminal_legacy_reference_keep_queue_presentation", queueOwner.TeamID, queueOwner.AgentID, queueOwner.RunID, legacy.RunID, observation.status)
 		return persistedRun{}, false
 	}
-	retained.State = observation.state
+	if err := retained.transition(observation.state); err != nil {
+		return persistedRun{}, false
+	}
 	if observation.startedAtKnown {
 		retained.StartedAt = observation.startedAt
 		retained.OwnerStartedAtKnown = true

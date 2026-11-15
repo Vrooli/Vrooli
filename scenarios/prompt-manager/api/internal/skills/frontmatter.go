@@ -50,6 +50,12 @@ func ParseFrontmatter(path string) (Frontmatter, error) {
 	if err != nil {
 		return Frontmatter{}, fmt.Errorf("%s: read: %w", path, err)
 	}
+	return parseFrontmatterContent(path, content)
+}
+
+// parseFrontmatterContent is ParseFrontmatter over bytes already read; path
+// names the file in errors and supplies the folder the name must match.
+func parseFrontmatterContent(path string, content []byte) (Frontmatter, error) {
 	lines := strings.Split(string(content), "\n")
 	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
 		return Frontmatter{}, fmt.Errorf("%s: missing YAML frontmatter opener", path)

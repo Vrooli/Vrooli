@@ -224,7 +224,15 @@ prompt-manager skill read <identifier> [<identifier>...] [--lines START-END] [--
 ```bash
 prompt-manager skill read ui-health domain-clarity --output=combined --format=markdown --copy
 prompt-manager skill read adaptive-research --lines 1-160
+prompt-manager skill read research/experience-engineering/present-ux-decisions
 ```
+
+`research/<topic>/<name>` reads `topics/<topic>/skills/<name>/SKILL.md` and
+`research/<name>` reads the supervisor's `skills/<name>/SKILL.md` in the research
+home (`$VROOLI_RESEARCH_HOME`, else `~/.vrooli/research`), fresh on every read and
+never catalogued. When Prompt Manager is unreachable or does not serve the id, the
+CLI reads the file itself, prints one stderr line naming it, and `--lines` works
+as usual.
 
 ### prompt-manager skill rate
 

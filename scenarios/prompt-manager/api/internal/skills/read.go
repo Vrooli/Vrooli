@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"prompt-manager/internal/store"
+
+	"github.com/vrooli/api-core/researchhome"
 )
 
 type indexedSkill struct {
@@ -64,6 +66,14 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 	var responses []Response
 
 	for _, identifier := range req.Identifiers {
+		if researchhome.IsID(identifier) {
+			if readSkill, issue := h.readResearchSkill(identifier, req.Variables); issue != nil {
+				resp.Missing = append(resp.Missing, *issue)
+			} else {
+				responses = append(responses, readSkill)
+			}
+			continue
+		}
 		matches := resolveIdentifier(identifier, resolve, indexed)
 		switch len(matches) {
 		case 0:
@@ -127,8 +137,8 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	// An active workflow run may read additional skills after receiving its
-	// assigned prompt. Provenance comes exclusively from verified claims; an
-	// unavailable or invalid token is retained as an unattributed observation.
+	// assigned prompt. Provenance comes exclusively from verified claims;
+	// reads without a verified experiment assignment are not experiment receipts.
 	identity := h.verifiedWorkflowIdentity(r)
 	h.recordExposureReceipts(r, responses, identity)
 	// Counted at the read, not at `skill use`, so every consumer — CLI, UI,
@@ -217,20 +227,22 @@ func (h *Handlers) verifiedWorkflowIdentity(r *http.Request) *VerifiedWorkflowId
 }
 
 func (h *Handlers) recordExposureReceipts(r *http.Request, responses []Response, identity *VerifiedWorkflowIdentity) {
-	if h.experimentStore == nil || len(responses) == 0 {
+	if h.experimentStore == nil || len(responses) == 0 || identity == nil {
 		return
 	}
 	exposures, ok := h.experimentStore.(store.ExperimentExposureStore)
 	if !ok {
 		return
 	}
-	provenance, runID, experimentID, variantID, executionID, nodeID, attemptID := "unattributed", "", "", "", "", "", ""
-	if identity != nil {
-		meta := identity.Meta
-		runID, experimentID, variantID = identity.RunID, strings.TrimSpace(meta["workflowExperimentId"]), strings.TrimSpace(meta["workflowVariantId"])
-		executionID, nodeID, attemptID = strings.TrimSpace(meta["workflowExecutionId"]), strings.TrimSpace(meta["workflowNodeId"]), strings.TrimSpace(meta["workflowAttemptId"])
-		provenance = "verified-run"
+	meta := identity.Meta
+	runID, experimentID, variantID := identity.RunID, strings.TrimSpace(meta["workflowExperimentId"]), strings.TrimSpace(meta["workflowVariantId"])
+	if strings.TrimSpace(runID) == "" || experimentID == "" || variantID == "" {
+		// Exposure rows are experiment evidence, not general skill-read
+		// telemetry. Only persist them when the verified workflow identity names
+		// the experiment assignment that makes the receipt attributable.
+		return
 	}
+	executionID, nodeID, attemptID := strings.TrimSpace(meta["workflowExecutionId"]), strings.TrimSpace(meta["workflowNodeId"]), strings.TrimSpace(meta["workflowAttemptId"])
 	readKey := strings.TrimSpace(r.Header.Get("X-Experiment-Read-Receipt-ID"))
 	if readKey == "" {
 		readKey = time.Now().UTC().Format(time.RFC3339Nano)
@@ -238,7 +250,7 @@ func (h *Handlers) recordExposureReceipts(r *http.Request, responses []Response,
 	for _, response := range responses {
 		keyMaterial := strings.Join([]string{experimentID, runID, response.ID, readKey}, "|")
 		keyHash := sha256.Sum256([]byte(keyMaterial))
-		_ = exposures.RecordExposure(r.Context(), store.ExperimentExposure{ExperimentID: experimentID, VariantID: variantID, RunID: runID, ExecutionID: executionID, NodeID: nodeID, AttemptID: attemptID, ReadSkillID: response.ID, Provenance: provenance, IdempotencyKey: fmt.Sprintf("exposure/%x", keyHash)})
+		_ = exposures.RecordExposure(r.Context(), store.ExperimentExposure{ExperimentID: experimentID, VariantID: variantID, RunID: runID, ExecutionID: executionID, NodeID: nodeID, AttemptID: attemptID, ReadSkillID: response.ID, Provenance: "verified-run", IdempotencyKey: fmt.Sprintf("exposure/%x", keyHash)})
 	}
 }
 

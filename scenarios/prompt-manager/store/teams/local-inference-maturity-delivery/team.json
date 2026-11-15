@@ -1,5 +1,5 @@
 {
-  "archived": false,
+  "archived": true,
   "coordination": {
     "pattern": "leader-led",
     "leadAgentId": "local-inference-maturity-orchestrator",
@@ -25,7 +25,7 @@
   "effortRefs": [
     "effort:local-inference-maturity"
   ],
-  "enabled": true,
+  "enabled": false,
   "execution": {
     "queuePolicy": "serialized",
     "maxConcurrentRuns": 1
@@ -107,10 +107,10 @@
     }
   },
   "purpose": "delivery",
-  "revision": 4,
+  "revision": 5,
   "runtime": {
     "mode": "multi-process"
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-11-11T06:47:54Z"
+  "updatedAt": "2026-11-11T22:38:51Z"
 }

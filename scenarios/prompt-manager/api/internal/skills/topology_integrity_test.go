@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -12,10 +13,10 @@ import (
 )
 
 func TestScenarioPackSkillsResolveThroughReadIndex(t *testing.T) {
-	if !contains(Folders, "scenario") {
+	if !slices.Contains(Folders, "scenario") {
 		t.Fatal(`Folders must include "scenario" so scenario-owned skills are readable`)
 	}
-	if contains(WritableFolders, "scenario") {
+	if slices.Contains(WritableFolders, "scenario") {
 		t.Fatal(`WritableFolders must not include "scenario"`)
 	}
 
@@ -120,20 +121,11 @@ func findRepoRoot(t *testing.T) string {
 	}
 }
 
-func contains(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
-}
-
 func TestThirdPartyVendorSkillsResolveThroughReadIndexButStayReadOnly(t *testing.T) {
-	if !contains(Folders, "vendor") {
+	if !slices.Contains(Folders, "vendor") {
 		t.Fatal(`Folders must include "vendor" so reviewed third-party skills are readable`)
 	}
-	if contains(WritableFolders, "vendor") {
+	if slices.Contains(WritableFolders, "vendor") {
 		t.Fatal(`WritableFolders must not include "vendor"`)
 	}
 	configRoot := t.TempDir()

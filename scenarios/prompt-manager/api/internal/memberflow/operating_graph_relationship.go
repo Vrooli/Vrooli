@@ -2,6 +2,7 @@ package memberflow
 
 import (
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -62,16 +63,6 @@ func NewOperatingRelationshipSet(rels []OperatingRelationship) OperatingRelation
 func (s OperatingRelationshipSet) All() []OperatingRelationship {
 	out := make([]OperatingRelationship, len(s.relationships))
 	copy(out, s.relationships)
-	return out
-}
-
-func (s OperatingRelationshipSet) ByMember(member string) []OperatingRelationship {
-	var out []OperatingRelationship
-	for _, rel := range s.relationships {
-		if rel.Member == member {
-			out = append(out, rel)
-		}
-	}
 	return out
 }
 
@@ -171,7 +162,7 @@ func BuildRuntimeOperatingRelationships(runtime OperatingGraphRuntime, team stri
 					continue
 				}
 				for _, declaration := range writerDeclarations {
-					if !topicsOverlap(declaration.Prefix, intake.Prefix) || !containsString(member.Topics.ExternalProducers, declaration.SkillID) {
+					if !topicsOverlap(declaration.Prefix, intake.Prefix) || !slices.Contains(member.Topics.ExternalProducers, declaration.SkillID) {
 						continue
 					}
 					for _, producerTeam := range allTeams {
@@ -200,15 +191,6 @@ func runtimeTeamIDs(runtime OperatingGraphRuntime) []string {
 	}
 	sort.Strings(teams)
 	return teams
-}
-
-func containsString(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
 }
 
 func BuildGraphOperatingRelationships(block OperatingGraphBlock) []OperatingRelationship {

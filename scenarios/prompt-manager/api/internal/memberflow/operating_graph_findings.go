@@ -38,14 +38,6 @@ func (b OperatingFindingBuilder) WithEdge(sourcePath string, edge OperatingGraph
 	return f
 }
 
-func (b OperatingFindingBuilder) WithRelationship(rel OperatingRelationship, detail string) OperatingGraphFinding {
-	f := b.base(rel.Source.Path, rel.Source.Line, detail)
-	f.Member = rel.Member
-	f.Topic = rel.Topic
-	f.Path = rel.Path
-	return f
-}
-
 func (b OperatingFindingBuilder) base(sourcePath string, line int, detail string) OperatingGraphFinding {
 	return OperatingGraphFinding{
 		Rule:       b.RuleID,

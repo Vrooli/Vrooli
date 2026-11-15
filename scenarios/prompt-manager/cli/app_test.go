@@ -221,3 +221,34 @@ func captureStdout(t *testing.T, fn func()) string {
 	_ = w.Close()
 	return <-done
 }
+
+// A research skill read survives an unreachable API even when the operator
+// overrides the API base, the usual way to point at a down or moved server.
+func TestResearchReadFallsBackWithAGlobalAPIBaseOverride(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("VROOLI_RESEARCH_HOME", home)
+	skill := filepath.Join(home, "topics", "ux", "skills", "decide", "SKILL.md")
+	if err := os.MkdirAll(filepath.Dir(skill), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(skill, []byte("---\nname: decide\ndescription: d\n---\nfrom the file\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	app, err := NewApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	runErr := app.Run([]string{"--api-base", "http://127.0.0.1:9", "skill", "read", "research/ux/decide"})
+	w.Close()
+	os.Stdout = stdout
+	out, _ := io.ReadAll(r)
+	if runErr != nil || string(out) != "from the file\n" {
+		t.Fatalf("out=%q err=%v", out, runErr)
+	}
+	if app.core.APIOverride != "http://127.0.0.1:9" {
+		t.Fatalf("the override must still apply: %q", app.core.APIOverride)
+	}
+}

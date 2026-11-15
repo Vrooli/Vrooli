@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/eventbus"
+
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/identity"
 
@@ -1027,6 +1029,9 @@ func (s *FileTeamStore) appendHeartbeatAttemptEvent(ctx context.Context, entry *
 		return fmt.Errorf("create heartbeat attempt event request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if authorization := eventbus.PublisherAuthorization(ctx, "prompt-manager"); authorization != "" {
+		req.Header.Set("Authorization", authorization)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("publish heartbeat attempt event: %w", err)

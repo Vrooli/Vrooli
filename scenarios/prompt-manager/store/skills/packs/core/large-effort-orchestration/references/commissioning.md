@@ -99,11 +99,8 @@ member heartbeat remain disabled:
 5. **Qualify operator decision delivery.** Add the selected route and its current
    evidence to `CHARTER.md` before activation. For an enrolled Agent Manager effort,
    use the existing `effort decision raise` event path to create Notification Hub asks;
-   verify the configured recipient/channel and do not request an unrelated direct-Hub
-   grant for this owner route. For direct Notification Hub operations, qualify the exact
-   `notification.send` or `notification.ask` operation and recipient through the canonical
-   authorization owner; request only a missing grant before promising messages. If the
-   route is unavailable, retain the exact refusal and do not claim an ask was sent. Do not
+   verify the configured recipient/channel. Direct Notification Hub sends and asks need
+   no grant from a verified run. If the route is unavailable, retain the exact refusal and do not claim an ask was sent. Do not
    create a test ask. The first real choice must be checked through Notification Hub for
    both ask creation and a delivery receipt. Enable the team and heartbeat through the
    existing operator-supported controls only after both the source/owner route (step 4) and

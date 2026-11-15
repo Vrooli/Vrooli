@@ -240,3 +240,38 @@ func TestSkillReadsTimestampRangeAndNanosecondBoundary(t *testing.T) {
 		t.Fatalf("timestamp overflow or boundary changed: %+v %v", got, err)
 	}
 }
+
+// A receipt must survive the telemetry cap: a busy caller can evict every
+// telemetry row within an hour, but the run still read the skill.
+func TestReceiptSurvivesTelemetryEvictionAndExpiresByRetention(t *testing.T) {
+	now := time.Date(2026, 11, 13, 12, 0, 0, 0, time.UTC)
+	store, _ := newSQLFixture(t)
+	store.now = func() time.Time { return now }
+	store.maxEntries = 1
+	if err := store.RecordReceipt("run-a", "notification-hub"); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 5; i++ {
+		if err := store.Append(Read{SkillID: "noisy"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, found, err := store.Receipt("run-a", "notification-hub")
+	if err != nil || !found || got.ReadCount != 1 || !got.FirstReadAt.Equal(now) {
+		t.Fatalf("receipt after telemetry churn: %+v found=%v err=%v", got, found, err)
+	}
+	if _, found, _ := store.Receipt("run-b", "notification-hub"); found {
+		t.Fatal("receipt leaked to another run")
+	}
+
+	now = now.Add(Retention + time.Hour)
+	if _, found, _ := store.Receipt("run-a", "notification-hub"); found {
+		t.Fatal("receipt older than retention still reported")
+	}
+	if err := store.RecordReceipt("run-c", "other"); err != nil {
+		t.Fatal(err)
+	}
+	if _, found, _ := store.Receipt("run-a", "notification-hub"); found {
+		t.Fatal("expired receipt was not pruned")
+	}
+}

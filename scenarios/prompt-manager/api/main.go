@@ -21,6 +21,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/credential-authority-go/eventpublishing"
+
 	"prompt-manager/handlers/actions"
 	"prompt-manager/handlers/agents"
 	"prompt-manager/handlers/aisearch"
@@ -115,6 +117,20 @@ func scalarMeasure(value int, query string) measurelib.MeasureResult {
 }
 
 const heartbeatFunctionalFailureThreshold = 2
+
+// Discovery can fan out to multiple embedder and vector-store calls. The
+// shared CLI HTTP client allows 120 seconds by default, so keep the response
+// write deadline above that budget instead of api-core's 30-second default.
+const promptManagerWriteTimeout = 3 * time.Minute
+
+func promptManagerServerConfig(handler http.Handler, authentication *authn.Config, cleanup func(context.Context) error) server.Config {
+	return server.Config{
+		Handler:        handler,
+		Authentication: authentication,
+		WriteTimeout:   promptManagerWriteTimeout,
+		Cleanup:        cleanup,
+	}
+}
 
 type heartbeatFunctionalObservation struct {
 	Enabled             bool
@@ -376,6 +392,7 @@ const (
 // executable composition may supply only this concrete prepared owner object;
 // environment/header/config booleans cannot populate it.
 func main() {
+	eventpublishing.Register()
 	// Preflight checks
 	if preflight.Run(preflight.Config{
 		ScenarioName: "prompt-manager",
@@ -1195,27 +1212,23 @@ func main() {
 		log.Fatalf("Authentication configuration: %v", err)
 	}
 	handler := securityHeaders(apihttp.TestModeMiddleware(corsHandler(requestpolicy.PreparationBoundary(router))))
-	if err := server.Run(server.Config{
-		Handler:        handler,
-		Authentication: &authentication,
-		Cleanup: func(ctx context.Context) error {
-			var cleanupErr error
-			if heartbeatAttemptPublisher != nil {
-				if err := heartbeatAttemptPublisher.Shutdown(ctx); err != nil {
-					cleanupErr = fmt.Errorf("shutdown heartbeat attempt publisher: %w", err)
-				}
+	if err := server.Run(promptManagerServerConfig(handler, &authentication, func(ctx context.Context) error {
+		var cleanupErr error
+		if heartbeatAttemptPublisher != nil {
+			if err := heartbeatAttemptPublisher.Shutdown(ctx); err != nil {
+				cleanupErr = fmt.Errorf("shutdown heartbeat attempt publisher: %w", err)
 			}
-			if db != nil {
-				if err := db.Close(); err != nil {
-					if cleanupErr != nil {
-						return fmt.Errorf("%v; close database: %w", cleanupErr, err)
-					}
-					return err
+		}
+		if db != nil {
+			if err := db.Close(); err != nil {
+				if cleanupErr != nil {
+					return fmt.Errorf("%v; close database: %w", cleanupErr, err)
 				}
+				return err
 			}
-			return cleanupErr
-		},
-	}); err != nil {
+		}
+		return cleanupErr
+	})); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
 }

@@ -1,5 +1,5 @@
 {
-  "archived": false,
+  "archived": true,
   "coordination": {
     "pattern": "leader-led",
     "leadAgentId": "local-inference-maturity-supervisor",
@@ -25,7 +25,7 @@
   "effortRefs": [
     "effort:local-inference-maturity"
   ],
-  "enabled": true,
+  "enabled": false,
   "execution": {
     "queuePolicy": "serialized",
     "maxConcurrentRuns": 1
@@ -109,10 +109,10 @@
     }
   },
   "purpose": "supervision",
-  "revision": 3,
+  "revision": 4,
   "runtime": {
     "mode": "multi-process"
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-11-11T06:47:56Z"
+  "updatedAt": "2026-11-11T22:38:53Z"
 }

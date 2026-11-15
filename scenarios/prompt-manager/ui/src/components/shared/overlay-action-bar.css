@@ -1,0 +1,15 @@
+.prompt-overlay-actions--danger [data-action-id] {
+  background: var(--color-danger) !important;
+  border-color: var(--color-danger) !important;
+  color: var(--color-danger-foreground-inverse) !important;
+}
+
+.prompt-overlay-actions--warning [data-action-id] {
+  background: var(--color-warning) !important;
+  border-color: var(--color-warning) !important;
+  color: var(--color-danger-foreground-inverse) !important;
+}
+
+[data-rcl-overlay-action-bar].prompt-overlay-actions--secondary-left {
+  flex-direction: row-reverse;
+}

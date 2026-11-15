@@ -12,9 +12,9 @@ metadata:
   targetDimensions: ["tidiness"]
   targetToolId: "run-agent"
   programmaticHome: "test-genie:tidiness"
-  revision: 2
+  revision: 4
   createdAt: "2026-06-15T00:00:00Z"
-  updatedAt: "2026-11-05T01:50:00Z"
+  updatedAt: "2026-11-12T07:09:45Z"
   requires:
     scenarios: ["prompt-manager", "test-genie"]
     commands: ["prompt-manager", "prompt-manager skill", "prompt-manager skill read", "test-genie execute"]
@@ -62,6 +62,13 @@ tidiness-manager recommend-refactors {{TARGET}} --limit 10
 ```
 
 The scan output owns tidiness findings. Recommendations rank estimated net production reduction and expose detector calibration. Treat unknown calibration as unknown; synthetic regression cases are not historical precision. Verify caller migration, owner tests and the measured whole-boundary reduction before recording a successful approach.
+
+Tidiness Manager gets source-file inventory and non-empty line counts from
+Code Facts `FILE_METRICS`, backed by its active catalog. A stale or unsupported
+catalog warning means the counts are not complete; reconcile Code Facts and
+rerun the scan before using file-size findings. TODO/FIXME/HACK and comment
+metrics remain language-specific analysis results and carry their own support
+limits.
 
 ---
 
@@ -126,7 +133,7 @@ tidiness-manager issues list --scenario {{TARGET}}
 ```
 
 3. Choose the cleanup that removes the maintenance risk at its source, sized to the defect rather than to caution. For a Vrooli-wide hunt across scenarios, use `ecosystem-hunt`.
-4. Keep edits within the owning scenario and domain unless the architecture docs justify a wider move.
+4. Trace the responsible owner across scenario boundaries before choosing the edit location. Prefer the existing shared owner when it can remove repeated mechanics without merging distinct domain behavior; count both the source boundary and migrated consumers. Keep the change local only when the pattern or authority is genuinely local.
 5. For multi-file cleanup, use recommendations or campaigns to avoid losing state:
 
 ```bash

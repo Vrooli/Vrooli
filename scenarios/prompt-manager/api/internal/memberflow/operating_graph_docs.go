@@ -7,10 +7,6 @@ import (
 
 var markdownTableSeparatorRE = regexp.MustCompile(`^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$`)
 
-func ExtractOperatingGraphDocs(lines []string) OperatingGraphDocs {
-	return ExtractOperatingGraphDocsForGraph(lines, OperatingGraphMetadata{})
-}
-
 func ExtractOperatingGraphDocsForGraph(lines []string, meta OperatingGraphMetadata, graphs ...OperatingGraph) OperatingGraphDocs {
 	resolver := NewOperatingActorResolver(meta, graphs...)
 	return OperatingGraphDocs{

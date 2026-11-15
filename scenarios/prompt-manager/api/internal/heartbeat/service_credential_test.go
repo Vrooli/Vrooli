@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/owneridentity"
+	"github.com/vrooli/api-core/servicetoken"
 )
 
 type fakeTokenSource struct {
@@ -78,13 +79,13 @@ func TestPrepareCreateRunCallerServiceMintFailureIsHardRefusal(t *testing.T) {
 func TestServiceTokenSourceCachesUntilRefreshMargin(t *testing.T) {
 	now := time.Now()
 	calls := 0
-	src := newServiceTokenSource(
-		func() (string, error) { return "cred", nil },
-		func(context.Context, string) (string, time.Time, error) {
+	src := newServiceTokens(
+		func(context.Context) (string, error) { return "cred", nil },
+		servicetoken.WithExchanger(func(context.Context, string) (servicetoken.Exchanged, error) {
 			calls++
-			return "tok", now.Add(time.Hour), nil
-		},
-		func() time.Time { return now },
+			return servicetoken.Exchanged{AccessToken: "tok", ExpiresAt: now.Add(time.Hour)}, nil
+		}),
+		servicetoken.WithClock(func() time.Time { return now }),
 	)
 	for i := 0; i < 3; i++ {
 		if tok, err := src.Token(context.Background()); err != nil || tok != "tok" {
@@ -93,6 +94,21 @@ func TestServiceTokenSourceCachesUntilRefreshMargin(t *testing.T) {
 	}
 	if calls != 1 {
 		t.Fatalf("expected a single exchange while cached, got %d", calls)
+	}
+}
+
+// What operators read when the service credential is missing or refused.
+func TestServiceTokenFailuresKeepPromptManagersWording(t *testing.T) {
+	_, err := newServiceTokens(func(context.Context) (string, error) { return "", errors.New("no such entry") }).Token(context.Background())
+	if err == nil || err.Error() != "prompt-manager service credential unavailable: no such entry" {
+		t.Fatalf("not issued: %v", err)
+	}
+	refused := servicetoken.WithExchanger(func(context.Context, string) (servicetoken.Exchanged, error) {
+		return servicetoken.Exchanged{}, errors.New("unauthenticated")
+	})
+	_, err = newServiceTokens(func(context.Context) (string, error) { return "vsp1.prompt-manager.fixture", nil }, refused).Token(context.Background())
+	if err == nil || err.Error() != "prompt-manager service credential exchange: unauthenticated" {
+		t.Fatalf("exchange failed: %v", err)
 	}
 }
 

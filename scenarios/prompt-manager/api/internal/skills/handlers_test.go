@@ -267,6 +267,29 @@ func TestUpdate_RejectsRemovingExistingTemplateVariable(t *testing.T) {
 	}
 }
 
+func TestUpdate_ScenarioOwnedSkillReturnsActionableReadOnlyError(t *testing.T) {
+	store := NewMockStore()
+	store.skills["scenario"] = []Metadata{{ID: "program-runtime", File: "SKILL.md"}}
+	handlers := NewHandlers(store, &MockMetricsService{}, "/test/store")
+	content := "updated content"
+	body, err := json.Marshal(UpdateRequest{Content: &content})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPut, "/skills/program-runtime", bytes.NewReader(body))
+	request = mux.SetURLVars(request, map[string]string{"id": "program-runtime"})
+	response := httptest.NewRecorder()
+
+	handlers.Update(response, request)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body: %s", response.Code, http.StatusForbidden, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), "scenario-owned skills are read-only in Prompt Manager") || !strings.Contains(response.Body.String(), "source SKILL.md") {
+		t.Fatalf("response does not identify the owner source: %s", response.Body.String())
+	}
+}
+
 func TestCreate_UsesRequestScopedStore(t *testing.T) {
 	primary := NewMockStore()
 	testStore := NewMockStore()

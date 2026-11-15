@@ -8,6 +8,7 @@
 
 import { useState } from 'react'
 import { Plus, Play, CheckCircle, FlaskConical, Trophy } from 'lucide-react'
+import { OverlayActionBar, type OverlayActionList } from '@vrooli/react-component-library/OverlayActionBar/1.0.1'
 import { cn } from '@/lib/utils'
 import {
   useExperimentsBySkill,
@@ -144,6 +145,14 @@ export function ExperimentPanel({ skillId, className }: ExperimentPanelProps) {
 
   const weightSum = Object.values(armWeights).reduce((a, b) => a + b, 0)
   const isWeightValid = Math.abs(weightSum - 1) < 0.02
+  const createActions = [
+    { id: 'create-experiment', label: createMutation.isPending ? 'Creating...' : 'Create', onSelect: handleCreate, disabled: !newName.trim() || !isWeightValid || createMutation.isPending, primary: true },
+    { id: 'cancel', label: 'Cancel', onSelect: () => { setShowCreateDialog(false); resetCreateForm() }, disabled: createMutation.isPending },
+  ] satisfies OverlayActionList
+  const concludeActions = [
+    { id: 'conclude-experiment', label: concludeMutation.isPending ? 'Concluding...' : 'Conclude', onSelect: handleConclude, disabled: !concludeWinner || concludeMutation.isPending, primary: true },
+    { id: 'cancel', label: 'Cancel', onSelect: () => { setConcludeTarget(null); setConcludeWinner(''); setConcludeNotes('') }, disabled: concludeMutation.isPending },
+  ] satisfies OverlayActionList
 
   if (isLoading) {
     return (
@@ -304,34 +313,7 @@ export function ExperimentPanel({ skillId, className }: ExperimentPanelProps) {
             )}
           </div>
 
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => { setShowCreateDialog(false); resetCreateForm() }}
-              disabled={createMutation.isPending}
-              className={cn(
-                'flex-1 px-4 py-2 text-sm font-medium rounded-lg',
-                'bg-slate-800 text-slate-300 hover:bg-slate-700',
-                'border border-white/10 transition-colors'
-              )}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleCreate}
-              disabled={!newName.trim() || !isWeightValid || createMutation.isPending}
-              className={cn(
-                'flex-1 px-4 py-2 text-sm font-medium rounded-lg',
-                'bg-primary text-primary-foreground hover:bg-primary/90',
-                'transition-colors',
-                (!newName.trim() || !isWeightValid || createMutation.isPending) &&
-                  'opacity-50 cursor-not-allowed'
-              )}
-            >
-              {createMutation.isPending ? 'Creating...' : 'Create'}
-            </button>
-          </div>
+          <OverlayActionBar actions={createActions} className="prompt-overlay-actions--secondary-left" />
         </div>
       </Dialog>
 
@@ -399,33 +381,7 @@ export function ExperimentPanel({ skillId, className }: ExperimentPanelProps) {
               )}
             />
           </div>
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => { setConcludeTarget(null); setConcludeWinner(''); setConcludeNotes('') }}
-              disabled={concludeMutation.isPending}
-              className={cn(
-                'flex-1 px-4 py-2 text-sm font-medium rounded-lg',
-                'bg-slate-800 text-slate-300 hover:bg-slate-700',
-                'border border-white/10 transition-colors'
-              )}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleConclude}
-              disabled={!concludeWinner || concludeMutation.isPending}
-              className={cn(
-                'flex-1 px-4 py-2 text-sm font-medium rounded-lg',
-                'bg-primary text-primary-foreground hover:bg-primary/90',
-                'transition-colors',
-                (!concludeWinner || concludeMutation.isPending) && 'opacity-50 cursor-not-allowed'
-              )}
-            >
-              {concludeMutation.isPending ? 'Concluding...' : 'Conclude'}
-            </button>
-          </div>
+          <OverlayActionBar actions={concludeActions} className="prompt-overlay-actions--secondary-left" />
         </div>
       </Dialog>
     </div>

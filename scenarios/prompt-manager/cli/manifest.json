@@ -2982,6 +2982,11 @@
     },
     {
       "service": "SkillsService",
+      "method": "GetSkillReadReceipt",
+      "reason": "Scenario CLIs call it to remind an agent run that has not read the skill governing a command; an agent reads a skill with skill read, and the answer covers only the caller's own verified run."
+    },
+    {
+      "service": "SkillsService",
       "method": "RecordSkillUsage",
       "reason": "Usage is recorded as part of skill reads; the retired skill use/copy command is not a distinct runtime operation."
     },

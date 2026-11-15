@@ -75,11 +75,6 @@ func (e *ValidationError) Error() string {
 	return e.Message
 }
 
-func IsValidationError(err error) bool {
-	_, ok := err.(*ValidationError)
-	return ok
-}
-
 func validationError(message string) error {
 	return &ValidationError{Message: message}
 }

@@ -21,6 +21,7 @@ import (
 	"prompt-manager/cli/internal/appctx"
 	"prompt-manager/cli/internal/clipboard"
 
+	"github.com/vrooli/api-core/researchhome"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -42,6 +43,7 @@ type SkillResponse struct {
 	UsageCount          int                `json:"usageCount"`
 	EffectivenessRating *int               `json:"effectivenessRating,omitempty"`
 	SkillDir            string             `json:"skillDir,omitempty"`
+	ContentPath         string             `json:"contentPath,omitempty"`
 	Origin              *SkillOriginView   `json:"origin,omitempty"`
 	ExternalTools       []ExternalToolView `json:"externalTools,omitempty"`
 }
@@ -315,7 +317,8 @@ Subcommands:
   topology              Report each skill's pack and generated projection status
   refresh               Preview native freshness; apply an exact reviewed digest
   show, get <id>        Show skill details
-  read <identifier>...  Read skills (content or combined output)
+  read <identifier>...  Read skills (content or combined output); research/<topic>/<name>
+                        and research/<name> read research-home files, even with the API down
   add, create <name>    Create a new skill
   update, edit <id>     Update an existing skill
   delete, rm <id>       Delete a skill
@@ -830,11 +833,28 @@ func cmdRead(ctx appctx.Context, args []string) error {
 	}
 
 	var resp ReadResponse
-	if err := ctx.Post("/skills/read", req, &resp); err != nil {
-		return fmt.Errorf("failed to read skills: %w", err)
+	apiErr := ctx.Post("/skills/read", req, &resp)
+	if apiErr != nil {
+		for _, id := range req.Identifiers {
+			if !researchhome.IsID(id) {
+				return fmt.Errorf("failed to read skills: %w", apiErr)
+			}
+		}
+		resp = ReadResponse{Resolve: req.Resolve, Output: "skills"}
+	}
+	fallback, unresolved := researchFallback(req.Identifiers, resp, apiErr, os.Stderr)
+	if len(fallback) > 0 || len(unresolved) > 0 {
+		kept := unresolved
+		for _, miss := range resp.Missing {
+			if !researchhome.IsID(miss.Identifier) {
+				kept = append(kept, miss)
+			}
+		}
+		resp.Missing = kept
 	}
 
 	if *jsonOut {
+		resp.Skills = append(resp.Skills, fallback...)
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		return enc.Encode(resp)
@@ -869,10 +889,22 @@ func cmdRead(ctx appctx.Context, args []string) error {
 		}
 	}
 
+	for _, skill := range fallback {
+		if printed {
+			fmt.Fprint(stdout, *separator)
+		}
+		fmt.Fprint(stdout, skill.Content)
+		printed = true
+	}
+
 	if len(resp.Missing) > 0 {
 		var ids []string
 		for _, miss := range resp.Missing {
-			ids = append(ids, miss.Identifier)
+			id := miss.Identifier
+			if researchhome.IsID(id) {
+				id += " (" + miss.Reason + ")"
+			}
+			ids = append(ids, id)
 		}
 		fmt.Fprintf(os.Stderr, "\nMissing skills: %s\n", strings.Join(ids, ", "))
 	}

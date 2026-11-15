@@ -453,6 +453,12 @@ func (c *TeamExecutionContext) Enqueue(ctx context.Context, agentID, profileKey 
 		c.mu.Unlock()
 		return nil, &MemberAlreadyQueuedError{TeamID: c.teamID, AgentID: agentID}
 	}
+	if hasRunning {
+		if err := previous.transition(ObligationRunning); err != nil {
+			c.mu.Unlock()
+			return nil, fmt.Errorf("replace interrupted heartbeat preparation: %w", err)
+		}
+	}
 	if c.queued[agentID] {
 		c.mu.Unlock()
 		return nil, &MemberAlreadyQueuedError{TeamID: c.teamID, AgentID: agentID}
@@ -831,7 +837,9 @@ func (c *TeamExecutionContext) BeginDispatch(agentID string, intent DispatchInte
 		entry.AdmissionOrigin = intent.AdmissionOrigin
 	}
 	previous := entry
-	entry.State = ObligationDispatchUncertain
+	if err := entry.transition(ObligationDispatchUncertain); err != nil {
+		return fmt.Errorf("persist dispatch intent: %w", err)
+	}
 	entry.DispatchStage = DispatchStageIntent
 	entry.IdempotencyKey = intent.IdempotencyKey
 	entry.TaskID = intent.TaskID
@@ -906,7 +914,10 @@ func (c *TeamExecutionContext) CancelUnsentTaskDispatch(agentID, taskID, idempot
 		return fmt.Errorf("refusing to cancel a task dispatch that no longer matches the proven unsent intent")
 	}
 	previous := entry
-	entry.State = ObligationDispatchCanceled
+	if err := entry.transition(ObligationDispatchCanceled); err != nil {
+		c.mu.Unlock()
+		return fmt.Errorf("cancel unsent task dispatch: %w", err)
+	}
 	c.running[agentID] = entry
 	if err := c.persistLocked(); err != nil {
 		c.running[agentID] = previous
@@ -1189,7 +1200,10 @@ func (c *TeamExecutionContext) MarkDispatchUncertain(agentID, phase string, caus
 		log.Printf("team_execution: MarkDispatchUncertain called for %s/%s not in running map", c.teamID, agentID)
 		return
 	}
-	entry.State = ObligationDispatchUncertain
+	if err := entry.transition(ObligationDispatchUncertain); err != nil {
+		log.Printf("team_execution: refusing invalid dispatch state for %s/%s: %v", c.teamID, agentID, err)
+		return
+	}
 	entry.DispatchFailurePhase = normalizeDispatchFailurePhase(phase)
 	entry.DispatchFailureCode = dispatchFailureCode(cause)
 	c.running[agentID] = entry
@@ -1268,7 +1282,10 @@ func (c *TeamExecutionContext) MarkApprovalPending(agentID string) {
 	if !ok {
 		return
 	}
-	entry.State = ObligationApprovalPending
+	if err := entry.transition(ObligationApprovalPending); err != nil {
+		log.Printf("team_execution: refusing invalid approval state for %s/%s: %v", c.teamID, agentID, err)
+		return
+	}
 	entry.DispatchFailurePhase = ""
 	entry.DispatchFailureCode = ""
 	c.running[agentID] = entry
@@ -1295,7 +1312,9 @@ func (c *TeamExecutionContext) MarkAdmissionDeferred(agentID string) error {
 		return errors.New("cannot defer admission without a complete immutable dispatch intent")
 	}
 	previous := entry
-	entry.State = ObligationAdmissionDeferred
+	if err := entry.transition(ObligationAdmissionDeferred); err != nil {
+		return fmt.Errorf("defer admission: %w", err)
+	}
 	entry.DispatchFailurePhase = ""
 	entry.DispatchFailureCode = ""
 	c.running[agentID] = entry
@@ -1377,7 +1396,10 @@ func (c *TeamExecutionContext) markWatcherUnavailable(agentID, expectedRunID str
 	if !ok || entry.RunID == "" || (expectedRunID != "" && entry.RunID != expectedRunID) {
 		return
 	}
-	entry.State = ObligationWatcherUnavailable
+	if err := entry.transition(ObligationWatcherUnavailable); err != nil {
+		log.Printf("team_execution: refusing invalid watcher state for %s/%s: %v", c.teamID, agentID, err)
+		return
+	}
 	c.running[agentID] = entry
 	_ = c.persistLocked()
 }
@@ -1467,11 +1489,23 @@ func (c *TeamExecutionContext) retryUnavailableWatcher(ctx context.Context, agen
 	}
 	switch {
 	case IsParkedStatus(run.Status):
-		current.State = ObligationPaused
+		if err := current.transition(ObligationPaused); err != nil {
+			log.Printf("team_execution: refusing invalid paused state for %s/%s: %v", c.teamID, agentID, err)
+			c.mu.Unlock()
+			return watcherRetryHandled, nil
+		}
 	case IsNeedsReviewStatus(run.Status):
-		current.State = ObligationNeedsReview
+		if err := current.transition(ObligationNeedsReview); err != nil {
+			log.Printf("team_execution: refusing invalid review state for %s/%s: %v", c.teamID, agentID, err)
+			c.mu.Unlock()
+			return watcherRetryHandled, nil
+		}
 	default:
-		current.State = ObligationRunning
+		if err := current.transition(ObligationRunning); err != nil {
+			log.Printf("team_execution: refusing invalid live state for %s/%s: %v", c.teamID, agentID, err)
+			c.mu.Unlock()
+			return watcherRetryHandled, nil
+		}
 	}
 	if ownerStarted, ok := parseOwnerRunStartedAt(run.StartedAt); ok {
 		current.OwnerStartedAt = ownerStarted.Format(time.RFC3339Nano)
@@ -1527,10 +1561,13 @@ func (c *TeamExecutionContext) SetRunningRunID(agentID, runID string, ownerStart
 	entry.RunID = runID
 	entry.DispatchFailurePhase = ""
 	entry.DispatchFailureCode = ""
+	state := ObligationRunning
 	if len(ownerStartedAt) > 1 {
-		entry.State = ownerRunObligationState(ownerStartedAt[0])
-	} else {
-		entry.State = ObligationRunning
+		state = ownerRunObligationState(ownerStartedAt[0])
+	}
+	if err := entry.transition(state); err != nil {
+		log.Printf("team_execution: refusing invalid owner state for %s/%s: %v", c.teamID, agentID, err)
+		return
 	}
 	startedAtValue := ""
 	if len(ownerStartedAt) > 1 {
@@ -1588,6 +1625,13 @@ func (c *TeamExecutionContext) Recover(ctx context.Context) []ActiveRun {
 		c.mu.Unlock()
 		return nil
 	}
+	for _, item := range persisted.Running {
+		if !validObligationState(item.State) {
+			log.Printf("team_execution: refusing to recover unknown obligation state %q for %s/%s", item.State, c.teamID, item.AgentID)
+			c.mu.Unlock()
+			return nil
+		}
+	}
 
 	if persisted.QueuePolicy != "" {
 		c.queuePolicy = persisted.QueuePolicy
@@ -1609,23 +1653,31 @@ func (c *TeamExecutionContext) Recover(ctx context.Context) []ActiveRun {
 			// Keep the accepted obligation visible, but do not replay stale
 			// scheduler eligibility or caller context after restart. A fresh,
 			// normally-gated Enqueue must replace it before any owner request.
-			c.running[item.AgentID] = runningEntry{
+			entry := runningEntry{
 				DispatchStage: DispatchStagePreparing,
 				ProfileKey:    item.ProfileKey,
-				State:         ObligationPreparationInterrupted,
 			}
+			if err := entry.transition(ObligationPreparationInterrupted); err != nil {
+				log.Printf("team_execution: invalid interrupted preparation state for %s/%s: %v", c.teamID, item.AgentID, err)
+				continue
+			}
+			c.running[item.AgentID] = entry
 			log.Printf("team_execution: retaining pre-dispatch preparation for %s/%s; fresh admission is required", c.teamID, item.AgentID)
 			continue
 		}
 		if isProvenInterruptedPreparation(item) {
-			c.running[item.AgentID] = runningEntry{
+			entry := runningEntry{
 				DispatchStage:       DispatchStagePreparing,
 				ProfileKey:          item.ProfileKey,
-				State:               ObligationPreparationInterrupted,
 				OwnerObligationID:   item.OwnerObligationID,
 				OwnerStartedAt:      item.OwnerStartedAt,
 				OwnerStateSnapshots: cloneRetainedOwnerStateSnapshots(item.OwnerStateSnapshots),
 			}
+			if err := entry.transition(ObligationPreparationInterrupted); err != nil {
+				log.Printf("team_execution: invalid interrupted preparation state for %s/%s: %v", c.teamID, item.AgentID, err)
+				continue
+			}
+			c.running[item.AgentID] = entry
 			continue
 		}
 		entry, keep, terminalRun := c.reconcileRunningEntry(ctx, item)
@@ -1819,6 +1871,9 @@ func (c *TeamExecutionContext) reconcileRunningEntry(ctx context.Context, item q
 		// worker completion callback.
 		return runningEntry{}, false, nil
 	}
+	if !validObligationState(item.State) {
+		return runningEntry{}, false, nil
+	}
 	base := runningEntry{
 		DispatchStage:            item.DispatchStage,
 		AdmissionOrigin:          item.AdmissionOrigin,
@@ -1842,16 +1897,20 @@ func (c *TeamExecutionContext) reconcileRunningEntry(ctx context.Context, item q
 		OwnerStartedAt:           item.OwnerStartedAt,
 		OwnerStateSnapshots:      cloneRetainedOwnerStateSnapshots(item.OwnerStateSnapshots),
 	}
+	if err := base.transition(item.State); err != nil {
+		return runningEntry{}, false, nil
+	}
 	// A prior recovery already recorded a non-resolvable obligation. Preserve it
 	// without re-probing the owner: unknown reset waits must not poll.
 	needsOwnerRead := item.State == ObligationRunning || item.State == ObligationWatcherUnavailable || (item.State == ObligationDispatchUncertain && item.RunID != "")
 	if !needsOwnerRead {
-		base.State = item.State
 		return base, true, nil
 	}
 	if item.RunID == "" {
 		log.Printf("team_execution: retaining dispatch_uncertain obligation for %s/%s (no RunID)", c.teamID, item.AgentID)
-		base.State = ObligationDispatchUncertain
+		if err := base.transition(ObligationDispatchUncertain); err != nil {
+			return runningEntry{}, false, nil
+		}
 		return base, true, nil
 	}
 	if c.agentClient == nil {
@@ -1863,24 +1922,32 @@ func (c *TeamExecutionContext) reconcileRunningEntry(ctx context.Context, item q
 	observation := observeOwnerRun(item.RunID, run, err)
 	if observation.state == ObligationOwnerUnreachable {
 		log.Printf("team_execution: retaining owner_unreachable obligation for %s/%s (run %s: %v)", c.teamID, item.AgentID, item.RunID, err)
-		base.State = observation.state
+		if err := base.transition(observation.state); err != nil {
+			return runningEntry{}, false, nil
+		}
 		return base, true, nil
 	}
 	if observation.state == ObligationDispatchUncertain {
 		log.Printf("team_execution: retaining dispatch_uncertain obligation for %s/%s (requested run %s, owner returned %q)", c.teamID, item.AgentID, item.RunID, observation.status)
-		base.State = observation.state
+		if err := base.transition(observation.state); err != nil {
+			return runningEntry{}, false, nil
+		}
 		return base, true, nil
 	}
 	if observation.terminal {
 		log.Printf("team_execution: reconciling terminal heartbeat projection for %s/%s (run %s status=%s)", c.teamID, item.AgentID, item.RunID, run.Status)
-		base.State = ObligationRunning
+		if err := base.transition(ObligationRunning); err != nil {
+			return runningEntry{}, false, nil
+		}
 		if observation.startedAtKnown {
 			base.OwnerStartedAt = observation.startedAt.Format(time.RFC3339Nano)
 		}
 		return base, true, run
 	}
 	if observation.state == ObligationPaused || observation.state == ObligationNeedsReview {
-		base.State = observation.state
+		if err := base.transition(observation.state); err != nil {
+			return runningEntry{}, false, nil
+		}
 	}
 	if observation.startedAtKnown {
 		base.OwnerStartedAt = observation.startedAt.Format(time.RFC3339Nano)
@@ -1985,6 +2052,9 @@ func (c *TeamExecutionContext) verifyCancelledTaskWithoutAttempts(ctx context.Co
 func (c *TeamExecutionContext) persistLocked() error {
 	running := make([]queuedExecution, 0, len(c.running))
 	for agentID, entry := range c.running {
+		if !validObligationState(entry.State) {
+			return fmt.Errorf("cannot persist unknown heartbeat obligation state %q for %s/%s", entry.State, c.teamID, agentID)
+		}
 		running = append(running, queuedExecution{
 			AgentID:                  agentID,
 			DispatchStage:            entry.DispatchStage,

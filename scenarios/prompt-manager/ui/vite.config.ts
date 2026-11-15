@@ -2,6 +2,7 @@ import { defineConfig, type UserConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { collectWorldBuildProvenance } from './scripts/world-build-provenance'
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }): UserConfig => {
@@ -11,7 +12,7 @@ export default defineConfig(({ mode }): UserConfig => {
   return {
     // INTEROP-CRITICAL: Relative assets keep prompt-manager functional behind Vrooli tunnels/proxies.
     base: './',
-    plugins: [react()],
+    plugins: [sourceLibraryResolver({ devOnly: true }), react()],
     resolve: {
       alias: [
         { find: '@', replacement: path.resolve(__dirname, './src') },

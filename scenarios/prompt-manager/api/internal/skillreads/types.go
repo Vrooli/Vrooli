@@ -1,5 +1,7 @@
 package skillreads
 
+import "time"
+
 // Read is one record of a skill being served through POST /skills/read.
 //
 // Why the server records this rather than the CLI: `skill read` resolves many
@@ -27,4 +29,13 @@ type Read struct {
 	ViaDiscovery bool `json:"viaDiscovery,omitempty"`
 	// DiscoveryCallID names the call that surfaced it, when ViaDiscovery.
 	DiscoveryCallID string `json:"discoveryCallId,omitempty"`
+}
+
+// Receipt is the durable fact that one verified agent run read one skill.
+type Receipt struct {
+	RunID       string
+	SkillID     string
+	FirstReadAt time.Time
+	LastReadAt  time.Time
+	ReadCount   int
 }

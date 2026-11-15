@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -21,6 +22,9 @@ import (
 
 	"github.com/gorilla/mux"
 )
+
+// ErrScenarioSkillReadOnly directs edits to the scenario that owns the source file.
+var ErrScenarioSkillReadOnly = errors.New("scenario-owned skills are read-only in Prompt Manager; edit the source SKILL.md in the owning scenario")
 
 // GraphInvalidator allows triggering graph index invalidation.
 type GraphInvalidator interface {
@@ -41,6 +45,7 @@ type Handlers struct {
 	readRecorder     *ReadRecorder         // Optional: records skill-read telemetry
 	usageReporter    *UsageReporter        // Optional: serves the per-skill usage report
 	configDir        string                // Absolute path to store directory for computing file paths
+	researchHome     string                // Optional: pinned research home for research/ ids (see research.go)
 }
 
 // storeFor binds the legacy SkillStore API to the request context when its
@@ -412,6 +417,12 @@ func (h *Handlers) UpdateSkill(ctx context.Context, id string, req UpdateRequest
 		}
 		return Response{}, fmt.Errorf("Cannot edit vendored skill in place; write an overlay under %s", overlayPath)
 	}
+	if folder == "scenario" {
+		return Response{}, ErrScenarioSkillReadOnly
+	}
+	if !IsWritableFolder(folder) {
+		return Response{}, fmt.Errorf("Cannot update core skills")
+	}
 	if req.Content != nil {
 		current, err := store.GetContent(folder, skill.File)
 		if err != nil {
@@ -420,11 +431,6 @@ func (h *Handlers) UpdateSkill(ctx context.Context, id string, req UpdateRequest
 		if missing := removedTemplateVariables(current, *req.Content); len(missing) > 0 {
 			return Response{}, fmt.Errorf("content removes existing template variables: %s", strings.Join(missing, ", "))
 		}
-	}
-
-	// Only allow updates to local/drafts skills
-	if !IsWritableFolder(folder) {
-		return Response{}, fmt.Errorf("Cannot update core skills")
 	}
 
 	// Determine target folder (may be moving to a new folder)
@@ -649,7 +655,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case message == "Skill not found":
 			status = http.StatusNotFound
-		case strings.HasPrefix(message, "Cannot edit vendored skill") || message == "Cannot update core skills":
+		case strings.HasPrefix(message, "Cannot edit vendored skill") || message == "Cannot update core skills" || errors.Is(err, ErrScenarioSkillReadOnly):
 			status = http.StatusForbidden
 		case message == "Cannot move skill to non-writable folder" || strings.HasPrefix(message, "content removes existing template variables:"):
 			status = http.StatusBadRequest

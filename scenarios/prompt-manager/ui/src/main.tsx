@@ -10,6 +10,7 @@ import { installChunkReloadGuard } from '@vrooli/api-base'
 import App from './App.tsx'
 import { onProfilerRender } from './lib/profiler'
 import './design-tokens.css'
+import './components/shared/overlay-action-bar.css'
 import './styles/globals.css'
 
 // Code-split routes use lazy(); after a rebuild the old hashed chunks are

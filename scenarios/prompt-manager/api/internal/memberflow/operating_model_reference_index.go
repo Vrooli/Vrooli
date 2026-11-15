@@ -72,10 +72,6 @@ func (idx OperatingModelReferenceIndex) FeedbackReferenceAssurance(ref string) O
 	return OperatingFeedbackReferenceAssurance{Reference: ref, Backed: idx.feedbackReferenceBacked(ref)}
 }
 
-func (idx OperatingModelReferenceIndex) SurfaceReferences(raw string) []operatingSurfaceReference {
-	return operatingSurfaceReferences(raw)
-}
-
 func (idx OperatingModelReferenceIndex) ActorReferences(raw string) []OperatingActorReference {
 	return idx.actorRefs(raw)
 }
@@ -110,16 +106,6 @@ type OperatingFeedbackStepAssurance struct {
 type OperatingFeedbackReferenceAssurance struct {
 	Reference string
 	Backed    bool
-}
-
-func (assurance OperatingFeedbackStepAssurance) UnbackedReferences() int {
-	var unbacked int
-	for _, ref := range assurance.References {
-		if !ref.Backed {
-			unbacked++
-		}
-	}
-	return unbacked
 }
 
 type operatingSurfaceReference struct {

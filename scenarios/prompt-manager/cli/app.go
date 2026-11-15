@@ -4,6 +4,7 @@ import (
 	"prompt-manager/cli/domains"
 	"prompt-manager/cli/internal/appctx"
 	"prompt-manager/cli/internal/attribution"
+	"prompt-manager/cli/skills"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -62,5 +63,15 @@ func NewApp() (*App, error) {
 
 // Run executes the CLI with the given arguments.
 func (a *App) Run(args []string) error {
+	// A research skill read must work while Prompt Manager is down, so it
+	// skips the API preflight; the read falls back to the research file.
+	// Leading --api-base and color flags apply to it as to any command;
+	// --instance and --node target another copy, so those keep the normal path.
+	var global cliapp.GlobalOptions
+	if rest, err := cliapp.ParseGlobalFlags(args, &global, &a.core.APIOverride); err == nil && global.Instance == "" && global.Node == "" {
+		if readArgs, ok := skills.ResearchRead(rest); ok {
+			return skills.Read(a.ctx, readArgs)
+		}
+	}
 	return a.core.CLI.Run(args)
 }

@@ -290,7 +290,7 @@ Stop after 20 turns.
 outcome may be a finding, architecture, experiment, prototype or authorized app.
 Point at the commission's working brief and checkpoint. Read
 `prompt-manager skill read adaptive-research`; use the canonical
-`research-coordination/references/direction.md` for curation. An approval gate
+`research-coordination` skill for curation. An approval gate
 applies only when the actual commission requires it. Give the investigator a
 coherent direction and starting evidence, freedom to choose methods and follow
 implications, and proof suited to the outcome. Do not impose D's read-only rule

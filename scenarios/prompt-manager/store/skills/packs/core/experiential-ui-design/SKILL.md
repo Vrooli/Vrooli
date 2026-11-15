@@ -85,6 +85,8 @@ Desktop composes in **space** (put things side by side); mobile composes in **se
 
 Check whether the design-system library already exports such a hook before writing one. A bottom sheet that a next-step bar opens cannot be pure CSS; it is a different component, so it needs conditional composition.
 
+The 44px touch floor belongs to the library, not to call sites: `ControlBase` (so `Button` and `Pressable`) and `IconButton` raise every sub-44px size on a coarse pointer, so do not write `min-h-11` or a `[data-rcl-control]` override; opt a control out with `denseTapTarget` only for a deliberately dense strip (`scenarios/react-component-library/docs/reference/sizing-contract.md#touch-floor`).
+
 **Work mockup-first, and reserve exactly two human checkpoints.** Produce side-by-side desktop and mobile mockups in `scenarios/{{TARGET}}/docs/mockups/` before writing product code. A human ratifies the **concept** and the **mockups** — those two only. Everything after is autonomous; drive it to genuine excellence with the convergence loop in `harness-goal-authoring` §6. Do not add a third human gate into the goal text (`harness-goal-authoring` §6 explains why a named reviewer makes agents stop early).
 
 **Unify the surfaces under one concept.** A saturated market is not won with prettier cards; it is won with a coherent world. Choose one concept or metaphor and make every surface a vantage point within it. The concept is structure, not decoration — it drives copy, iconography, and layout, not just a color.

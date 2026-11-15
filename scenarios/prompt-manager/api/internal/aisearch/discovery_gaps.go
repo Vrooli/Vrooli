@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -120,7 +121,7 @@ func (s *Service) DiscoveryGaps(window time.Duration, typeFilter string) ([]Disc
 		if t := normalizeDiscoverType(miss.Type); t != "" {
 			group.types[t] = true
 		}
-		if raw := strings.TrimSpace(miss.Query); raw != "" && len(group.examples) < 3 && !containsString(group.examples, raw) {
+		if raw := strings.TrimSpace(miss.Query); raw != "" && len(group.examples) < 3 && !slices.Contains(group.examples, raw) {
 			group.examples = append(group.examples, raw)
 		}
 	}
@@ -154,15 +155,6 @@ func (s *Service) DiscoveryGaps(window time.Duration, typeFilter string) ([]Disc
 
 func normalizeQuery(query string) string {
 	return strings.Join(strings.Fields(strings.ToLower(strings.TrimSpace(query))), " ")
-}
-
-func containsString(values []string, target string) bool {
-	for _, value := range values {
-		if value == target {
-			return true
-		}
-	}
-	return false
 }
 
 // parseSinceWindow parses a "since" query value such as "7d", "24h", "30m", or

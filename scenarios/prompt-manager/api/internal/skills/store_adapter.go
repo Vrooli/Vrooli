@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"prompt-manager/internal/store"
@@ -229,10 +230,10 @@ func metadataChanged(old, new Metadata) bool {
 	if old.DefaultScope != new.DefaultScope {
 		return true
 	}
-	if !stringSliceEqual(old.Modes, new.Modes) {
+	if !slices.Equal(old.Modes, new.Modes) {
 		return true
 	}
-	if !stringSliceEqual(old.Tags, new.Tags) {
+	if !slices.Equal(old.Tags, new.Tags) {
 		return true
 	}
 	if !stringPtrEqual(old.TargetToolID, new.TargetToolID) {
@@ -245,17 +246,6 @@ func metadataChanged(old, new Metadata) bool {
 }
 
 // stringSliceEqual returns true if two string slices have the same elements in the same order.
-func stringSliceEqual(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
 
 // stringPtrEqual returns true if two *string pointers are equal (both nil, or both non-nil with same value).
 func stringPtrEqual(a, b *string) bool {

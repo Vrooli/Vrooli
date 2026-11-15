@@ -10,10 +10,9 @@ import (
 )
 
 type (
-	RuntimeDTO                  = teamconfig.Runtime
-	CoordinationCapabilitiesDTO = teamconfig.Capabilities
-	CoordinationDTO             = teamconfig.Coordination
-	ExecutionDTO                = teamconfig.Execution
+	RuntimeDTO      = teamconfig.Runtime
+	CoordinationDTO = teamconfig.Coordination
+	ExecutionDTO    = teamconfig.Execution
 )
 
 // Response is the API response for a team.

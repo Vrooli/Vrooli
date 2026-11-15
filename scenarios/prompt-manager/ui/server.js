@@ -24,6 +24,5 @@ startScenarioServer({
   apiPort,
   distDir: './dist',
   serviceName: 'prompt-manager',
-  corsOrigins: '*',
   embeddedProxy: true,
 })

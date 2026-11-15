@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback } from 'react'
-import { cn } from '@/lib/utils'
+import { OverlayActionBar, type OverlayActionList } from '@vrooli/react-component-library/OverlayActionBar/1.0.1'
 import { Dialog } from '@/components/shared/Dialog'
 import { CategoryPathEditor } from '../editor/CategoryPathEditor'
 
@@ -47,6 +47,10 @@ export function NewFolderDialog({
   }, [onClose])
 
   const isValid = path.filter(Boolean).length > 0
+  const actions = [
+    { id: 'create-folder', label: 'Move Here', onSelect: handleConfirm, disabled: !isValid, primary: true },
+    { id: 'cancel', label: 'Cancel', onSelect: handleClose },
+  ] satisfies OverlayActionList
 
   return (
     <Dialog
@@ -72,30 +76,7 @@ export function NewFolderDialog({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={handleClose}
-          className={cn(
-            'px-4 py-2 text-sm rounded-lg transition-colors',
-            'bg-muted hover:bg-muted/80 text-foreground'
-          )}
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={handleConfirm}
-          disabled={!isValid}
-          className={cn(
-            'px-4 py-2 text-sm rounded-lg transition-colors',
-            'bg-primary hover:bg-primary/90 text-primary-foreground',
-            !isValid && 'opacity-50 cursor-not-allowed'
-          )}
-        >
-          Move Here
-        </button>
-      </div>
+      <OverlayActionBar actions={actions} className="prompt-overlay-actions--secondary-left" />
     </Dialog>
   )
 }

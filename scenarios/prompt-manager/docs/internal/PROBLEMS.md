@@ -3,7 +3,22 @@
 Agent-maintained document tracking issues, debt, and cleanup history.
 
 ## Last Updated
-2026-09-16
+2026-11-12
+
+## Work ladder — exposure receipt storage growth (2026-11-12)
+
+- Rung: W3, scoped write-path repair under the existing experiment receipt
+  contract; no W0–W2 maturity claim.
+- Finding: `experiment_exposures` contained 31,441,095 rows. A read-only audit
+  found every row had empty `experiment_id` and `variant_id`; 31,303,420 were
+  marked `unattributed`. These rows could not be retrieved by experiment and
+  were produced by recording ordinary skill reads as experiment exposures.
+- Repair: exposure receipts are now written only when a verified workflow
+  identity supplies a run, experiment, and variant ID. General skill-read
+  telemetry continues through the existing read recorder.
+- Limitation: existing rows were preserved; SQLite space has not been reclaimed.
+  Deleting the orphan rows and compacting this active database require a separate
+  owner-managed maintenance operation. No tests were run in this pass.
 
 ## Work ladder — RCL Prompt Manager UX campaign (2026-09-16)
 

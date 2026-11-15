@@ -119,10 +119,9 @@ type SendTeamMessageRequest struct {
 }
 
 type (
-	Runtime                  = teamconfig.Runtime
-	CoordinationCapabilities = teamconfig.Capabilities
-	Coordination             = teamconfig.Coordination
-	Execution                = teamconfig.Execution
+	Runtime      = teamconfig.Runtime
+	Coordination = teamconfig.Coordination
+	Execution    = teamconfig.Execution
 )
 
 // HandoffResponse represents a handoff API response.
@@ -3799,16 +3798,6 @@ func cmdKnowledgeAdd(ctx appctx.Context, args []string) error {
 
 	fmt.Printf("Added knowledge %s [%s]: %s\n", resp.ID, resp.Topic, truncate(resp.Content, 80))
 	return nil
-}
-
-type frictionCaptureRequest struct {
-	Scope        string            `json:"scope"`
-	Severity     string            `json:"severity"`
-	Expected     string            `json:"expected"`
-	Actual       string            `json:"actual"`
-	Description  string            `json:"description"`
-	Context      map[string]string `json:"context,omitempty"`
-	HonestyFlags []string          `json:"honesty_flags,omitempty"`
 }
 
 func cmdFrictionCapture(ctx appctx.Context, args []string) error {

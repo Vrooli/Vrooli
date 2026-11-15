@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
@@ -55,6 +56,13 @@ func TestGorillaMuxAdapterMountsTrailingSlashServicesAsPrefixes(t *testing.T) {
 	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/service/operation", nil))
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("service prefix status = %d, want %d", response.Code, http.StatusNoContent)
+	}
+}
+
+func TestPromptManagerServerWriteTimeoutOutlivesCLIRequestBudget(t *testing.T) {
+	cfg := promptManagerServerConfig(http.NotFoundHandler(), nil, nil)
+	if cfg.WriteTimeout <= 120*time.Second {
+		t.Fatalf("write timeout = %s, want more than the CLI's 120s request budget", cfg.WriteTimeout)
 	}
 }
 

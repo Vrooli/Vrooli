@@ -1,10 +1,5 @@
 package memberflow
 
-import (
-	"strconv"
-	"strings"
-)
-
 type OperatingGraphContractContext struct {
 	Block   OperatingGraphBlock
 	Runtime OperatingGraphRuntime
@@ -13,11 +8,10 @@ type OperatingGraphContractContext struct {
 }
 
 type OperatingGraphContractIndex struct {
-	NodesByID             map[string]OperatingGraphNode
-	NodeIDByKindValue     map[string]string
-	GraphRelationships    OperatingRelationshipSet
-	RuntimeRelationships  OperatingRelationshipSet
-	graphRelationshipsByE map[string]OperatingRelationship
+	NodesByID            map[string]OperatingGraphNode
+	NodeIDByKindValue    map[string]string
+	GraphRelationships   OperatingRelationshipSet
+	RuntimeRelationships OperatingRelationshipSet
 }
 
 func NewOperatingGraphContractContext(block OperatingGraphBlock, runtime OperatingGraphRuntime) OperatingGraphContractContext {
@@ -32,9 +26,8 @@ func NewOperatingGraphContractContext(block OperatingGraphBlock, runtime Operati
 func NewOperatingGraphContractIndex(block OperatingGraphBlock, runtime OperatingGraphRuntime) OperatingGraphContractIndex {
 	registry := DefaultOperatingRelationshipRegistry()
 	idx := OperatingGraphContractIndex{
-		NodesByID:             map[string]OperatingGraphNode{},
-		NodeIDByKindValue:     map[string]string{},
-		graphRelationshipsByE: map[string]OperatingRelationship{},
+		NodesByID:         map[string]OperatingGraphNode{},
+		NodeIDByKindValue: map[string]string{},
 	}
 	for _, node := range block.Graph.Nodes {
 		idx.NodesByID[node.ID] = node
@@ -54,7 +47,6 @@ func NewOperatingGraphContractIndex(block OperatingGraphBlock, runtime Operating
 			continue
 		}
 		graphRels = append(graphRels, rel)
-		idx.graphRelationshipsByE[operatingEdgeKey(edge)] = rel
 	}
 	idx.GraphRelationships = NewOperatingRelationshipSet(graphRels)
 	idx.RuntimeRelationships = NewOperatingRelationshipSet(BuildRuntimeOperatingRelationships(runtime, block.Metadata.Team))
@@ -68,32 +60,6 @@ func (idx OperatingGraphContractIndex) Node(kind, value string) (OperatingGraphN
 	}
 	node, ok := idx.NodesByID[nodeID]
 	return node, ok
-}
-
-func (idx OperatingGraphContractIndex) GraphHasRelationship(rel OperatingRelationship) bool {
-	for _, graphRel := range idx.GraphRelationships.All() {
-		if operatingGraphRelationshipsEquivalent(rel, graphRel) {
-			return true
-		}
-	}
-	return false
-}
-
-func (idx OperatingGraphContractIndex) RuntimeHasRelationship(rel OperatingRelationship, matcher OperatingRelationshipMatcher) bool {
-	return matcher.GraphBackedByRuntime(rel, idx.RuntimeRelationships)
-}
-
-func (idx OperatingGraphContractIndex) RuntimeRelationshipsByMember(member string) []OperatingRelationship {
-	return idx.RuntimeRelationships.ByMember(member)
-}
-
-func (idx OperatingGraphContractIndex) RuntimeRelationshipsByKind(kind OperatingRelationshipKind) []OperatingRelationship {
-	return idx.RuntimeRelationships.ByKind(kind)
-}
-
-func (idx OperatingGraphContractIndex) RelationshipForEdge(edge OperatingGraphEdge) (OperatingRelationship, bool) {
-	rel, ok := idx.graphRelationshipsByE[operatingEdgeKey(edge)]
-	return rel, ok
 }
 
 func operatingGraphNodeNonActionable(node OperatingGraphNode) bool {
@@ -118,8 +84,4 @@ func operatingGraphRelationshipsEquivalent(a, b OperatingRelationship) bool {
 		return topicsOverlap(a.Topic, b.Topic)
 	}
 	return true
-}
-
-func operatingEdgeKey(edge OperatingGraphEdge) string {
-	return strings.Join([]string{edge.From, edge.To, strconv.Itoa(edge.SourceLine)}, "\x00")
 }

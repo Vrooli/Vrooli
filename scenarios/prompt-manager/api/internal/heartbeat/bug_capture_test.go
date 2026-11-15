@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/vrooli/cli-core/teamattribution"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/cli-core/teamattribution"
 
 	"prompt-manager/internal/paths"
 	"prompt-manager/internal/store"
@@ -39,10 +41,10 @@ func TestAssessBugCaptureRetainsHonestPartialObservation(t *testing.T) {
 	if len(invalid) != 1 || invalid[0].Field != "signal_type" {
 		t.Fatalf("invalid=%v", invalid)
 	}
-	if !containsCaptureValue(needs, "expected") || !containsCaptureValue(needs, "actual") {
+	if !slices.Contains(needs, "expected") || !slices.Contains(needs, "actual") {
 		t.Fatalf("needs=%v", needs)
 	}
-	if containsCaptureValue(needs, "repro (or honesty_flags=repro-not-attempted)") {
+	if slices.Contains(needs, "repro (or honesty_flags=repro-not-attempted)") {
 		t.Fatalf("honest repro omission should be accepted: %v", needs)
 	}
 }
@@ -175,15 +177,6 @@ func TestBugCaptureOwnerKeepsTeamAttributionAndTaxonomyChecks(t *testing.T) {
 	if entries, err := teamStore.ListTeamCorpus(context.Background(), scenarioQATeamID, "", "bug-inbox/", 0); err != nil || len(entries) != 0 {
 		t.Fatalf("invalid/incomplete report reached inbox: entries=%+v err=%v", entries, err)
 	}
-}
-
-func containsCaptureValue(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
 }
 
 func TestBugCaptureUsesRetryKeyWithoutCollapsingLongTitles(t *testing.T) {
