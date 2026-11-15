@@ -179,7 +179,14 @@ func (s *service) RecordDeliveryAck(ctx context.Context, ack DeliveryAck) error 
 	if run.Status.Terminal() || !run.CancelRequestedAt.IsZero() {
 		return nil
 	}
-	run.Status = StatusAcked
+	// A node can report its first running status before the delivery-ack frame
+	// reaches this process. Preserve execution progress and record the receipt
+	// timestamp so the watchdog does not redrive already-started work.
+	if run.Status != StatusRunning {
+		if err := run.TransitionStatus(StatusAcked); err != nil {
+			return err
+		}
+	}
 	run.AckedAt = ack.ReceivedAt
 	if run.AckedAt.IsZero() {
 		run.AckedAt = s.clock.Now().UTC()
@@ -202,7 +209,9 @@ func (s *service) MarkDeliveryState(ctx context.Context, runID string, status Ru
 	if run.Status.Terminal() || (!run.CancelRequestedAt.IsZero() && status != StatusUncertain && status != StatusCancelRequested) {
 		return nil
 	}
-	run.Status = status
+	if err := run.TransitionStatus(status); err != nil {
+		return err
+	}
 	switch status {
 	case StatusQueued:
 		run.QueuedSince = at
@@ -274,7 +283,9 @@ func (s *service) AppendEvent(ctx context.Context, ev RunEvent) (bool, error) {
 		// that run to RUNNING; otherwise the watchdog interprets a legitimate
 		// long-running command as a delivery failure after StartDeadline.
 		if (run.Status == StatusQueued || run.Status == StatusPushed || run.Status == StatusAcked) && strings.EqualFold(strings.TrimSpace(ev.Status), "running") {
-			run.Status = StatusRunning
+			if err := run.TransitionStatus(StatusRunning); err != nil {
+				return false, err
+			}
 			run.StartedAt = now
 			changed = true
 		} else if (run.Status == StatusCancelRequested || run.Status == StatusUncertain) && strings.EqualFold(strings.TrimSpace(ev.Status), "running") && run.StartedAt.IsZero() {
@@ -291,13 +302,19 @@ func (s *service) AppendEvent(ctx context.Context, ev RunEvent) (bool, error) {
 		run.FinishedAt = now
 		run.ExitCode = ev.ExitCode
 		if !run.CancelRequestedAt.IsZero() || run.Status == StatusCancelRequested || run.Status == StatusUncertain {
-			run.Status = StatusAborted
+			if err := run.TransitionStatus(StatusAborted); err != nil {
+				return false, err
+			}
 			run.CancellationConfirmed = true
 			run.StatusReason = "remote termination confirmed"
 		} else if ev.ExitCode == 0 {
-			run.Status = StatusPassed
+			if err := run.TransitionStatus(StatusPassed); err != nil {
+				return false, err
+			}
 		} else {
-			run.Status = StatusFailed
+			if err := run.TransitionStatus(StatusFailed); err != nil {
+				return false, err
+			}
 		}
 		changed = true
 	case EventArtifactRef:
@@ -388,7 +405,9 @@ func (s *service) Abort(ctx context.Context, id, reason string) (Run, error) {
 	// delivery has been pushed, the server must wait for node termination
 	// evidence instead of claiming ABORTED optimistically.
 	if run.Status == StatusQueued {
-		run.Status = StatusAborted
+		if err := run.TransitionStatus(StatusAborted); err != nil {
+			return Run{}, err
+		}
 		run.FinishedAt = now
 		run.CancelRequestedAt = now
 		run.CancellationConfirmed = true
@@ -409,7 +428,9 @@ func (s *service) Abort(ctx context.Context, id, reason string) (Run, error) {
 		return run, nil
 	}
 
-	run.Status = StatusCancelRequested
+	if err := run.TransitionStatus(StatusCancelRequested); err != nil {
+		return Run{}, err
+	}
 	run.CancelRequestedAt = now
 	run.CancellationConfirmed = false
 	run.StatusReason = label
@@ -432,7 +453,9 @@ func (s *service) Abort(ctx context.Context, id, reason string) (Run, error) {
 		delivered, cancelErr = s.canceller.CancelJob(ctx, run.NodeID, id, reason)
 	}
 	if cancelErr != nil || delivered == 0 {
-		run.Status = StatusUncertain
+		if err := run.TransitionStatus(StatusUncertain); err != nil {
+			return Run{}, err
+		}
 		run.StatusReason = "cancellation delivery unconfirmed"
 		if cancelErr != nil {
 			run.StatusReason += ": " + cancelErr.Error()

@@ -62,7 +62,9 @@ func TestSQLiteRepository_CancellationStateRoundTrips(t *testing.T) {
 	created, err := repo.Create(ctx, runs.Run{NodeID: "n1", Verb: "scenario test"})
 	require.NoError(t, err)
 
-	created.Status = runs.StatusUncertain
+	require.NoError(t, created.TransitionStatus(runs.StatusPushed))
+	require.NoError(t, created.TransitionStatus(runs.StatusCancelRequested))
+	require.NoError(t, created.TransitionStatus(runs.StatusUncertain))
 	created.CancelRequestedAt = clk.Now()
 	created.CancellationConfirmed = false
 	created.StatusReason = "cancellation delivery unconfirmed"
@@ -75,6 +77,29 @@ func TestSQLiteRepository_CancellationStateRoundTrips(t *testing.T) {
 	require.Equal(t, created.CancelRequestedAt, got.CancelRequestedAt)
 	require.False(t, got.CancellationConfirmed)
 	require.Equal(t, "cancellation delivery unconfirmed", got.StatusReason)
+}
+
+func TestSQLiteRepository_RejectsIllegalStatusTransition(t *testing.T) {
+	d, clk := newSchemaDB(t)
+	repo := runs.NewSQLiteRepository(d, clk)
+	run, err := repo.Create(context.Background(), runs.Run{NodeID: "n1", Verb: "scenario test"})
+	require.NoError(t, err)
+
+	run.Status = runs.StatusPassed
+	_, err = repo.Update(context.Background(), run)
+	require.Error(t, err, "queued work cannot skip directly to a terminal result")
+}
+
+func TestSQLiteRepository_RejectsUnknownPersistedStatus(t *testing.T) {
+	d, clk := newSchemaDB(t)
+	repo := runs.NewSQLiteRepository(d, clk)
+	run, err := repo.Create(context.Background(), runs.Run{NodeID: "n1", Verb: "scenario test"})
+	require.NoError(t, err)
+	_, err = d.ExecContext(context.Background(), "UPDATE runs SET status = 99 WHERE id = ?", run.ID)
+	require.NoError(t, err)
+
+	_, err = repo.Get(context.Background(), run.ID)
+	require.Error(t, err, "unknown persisted states fail closed at the repository boundary")
 }
 
 // [REQ:BRG-P0-005] An unknown id is a typed not-found.
@@ -96,7 +121,8 @@ func TestSQLiteRepository_UpdateAndListFilter(t *testing.T) {
 	clk.Advance(time.Second)
 	_, _ = repo.Create(ctx, runs.Run{NodeID: "n2", Verb: "scenario test"})
 
-	a.Status = runs.StatusPassed
+	require.NoError(t, a.TransitionStatus(runs.StatusRunning))
+	require.NoError(t, a.TransitionStatus(runs.StatusPassed))
 	a.ExitCode = 0
 	a.StartedAt = clk.Now()
 	a.FinishedAt = clk.Now()

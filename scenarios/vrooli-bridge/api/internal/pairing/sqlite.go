@@ -320,6 +320,9 @@ func (s *sqliteRepository) CreateRequest(ctx context.Context, r PairingRequest) 
 	if r.Status == "" {
 		r.Status = RequestPending
 	}
+	if r.Status != RequestPending {
+		return PairingRequest{}, ErrInvalid{Field: "status", Reason: "new pairing requests must start pending"}
+	}
 	caps, err := marshalStrings(r.Capabilities)
 	if err != nil {
 		return PairingRequest{}, fmt.Errorf("encode capabilities: %w", err)
@@ -353,6 +356,12 @@ func (s *sqliteRepository) GetRequest(ctx context.Context, id string) (PairingRe
 }
 
 func (s *sqliteRepository) DecideRequest(ctx context.Context, id string, status RequestStatus, nodeID string) error {
+	if !RequestPending.CanTransitionTo(status) {
+		if !status.Valid() {
+			return ErrInvalid{Field: "status", Reason: fmt.Sprintf("unknown target request status %q", status)}
+		}
+		return ErrRequestDecided
+	}
 	now := s.clock.Now().UTC().Format(timeFormat)
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE pairing_requests SET status = ?, node_id = ?, decided_at = ? WHERE id = ? AND status = 'pending'`,
@@ -493,6 +502,9 @@ func scanRequest(s rowScanner) (PairingRequest, error) {
 		return PairingRequest{}, fmt.Errorf("decode capabilities: %w", err)
 	}
 	r.Status = RequestStatus(statusRaw)
+	if !r.Status.Valid() {
+		return PairingRequest{}, ErrInvalid{Field: "status", Reason: fmt.Sprintf("unknown persisted request status %q", statusRaw)}
+	}
 	if r.CreatedAt, err = time.Parse(timeFormat, createdRaw); err != nil {
 		return PairingRequest{}, fmt.Errorf("parse created_at: %w", err)
 	}

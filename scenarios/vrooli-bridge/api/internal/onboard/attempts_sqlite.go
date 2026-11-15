@@ -18,6 +18,9 @@ func (s *sqliteRepository) CreateAttempt(ctx context.Context, attempt Enrollment
 	if attempt.State == "" {
 		attempt.State = AttemptCreated
 	}
+	if !attempt.State.Valid() || attempt.State != AttemptCreated {
+		return EnrollmentAttempt{}, ErrInvalidAttemptTransition{Current: "", Attempted: attempt.State}
+	}
 	if attempt.CreatedAt.IsZero() {
 		attempt.CreatedAt = s.clock.Now().UTC()
 	}
@@ -111,16 +114,27 @@ func (s *sqliteRepository) CompleteAttempt(ctx context.Context, id string, state
 		if attempt.State == state && attempt.TerminalResult == result {
 			return attempt, nil
 		}
-		return EnrollmentAttempt{}, ErrInvalid{Field: "attempt", Reason: "terminal attempt is immutable"}
+		return EnrollmentAttempt{}, ErrInvalidAttemptTransition{Current: attempt.State, Attempted: state}
+	}
+	expected := attempt.State
+	if err := attempt.TransitionState(state); err != nil {
+		return EnrollmentAttempt{}, err
 	}
 	now := s.clock.Now().UTC()
-	resultSQL, err := s.db.ExecContext(ctx, `UPDATE enrollment_attempts SET state=?,terminal_result=?,diagnostics=?,terminal_at=? WHERE id=? AND state IN ('created','running')`, string(state), result, diagnostics, now.Format(opTimeFormat), id)
+	resultSQL, err := s.db.ExecContext(ctx, `UPDATE enrollment_attempts SET state=?,terminal_result=?,diagnostics=?,terminal_at=? WHERE id=? AND state=?`, string(state), result, diagnostics, now.Format(opTimeFormat), id, string(expected))
 	if err != nil {
 		return EnrollmentAttempt{}, fmt.Errorf("complete enrollment attempt: %w", err)
 	}
 	changed, _ := resultSQL.RowsAffected()
 	if changed == 0 {
-		return s.GetAttempt(ctx, id)
+		current, getErr := s.GetAttempt(ctx, id)
+		if getErr != nil {
+			return EnrollmentAttempt{}, getErr
+		}
+		if current.State == state && current.TerminalResult == result {
+			return current, nil
+		}
+		return EnrollmentAttempt{}, ErrConflict{Field: "attempt.state", Reason: "state changed before terminal result was recorded"}
 	}
 	return s.GetAttempt(ctx, id)
 }
@@ -143,6 +157,9 @@ func scanAttempt(scanner interface{ Scan(...any) error }) (EnrollmentAttempt, er
 		return EnrollmentAttempt{}, err
 	}
 	attempt.State = AttemptState(state)
+	if !attempt.State.Valid() {
+		return EnrollmentAttempt{}, ErrInvalidAttemptState{State: attempt.State}
+	}
 	if err := json.Unmarshal([]byte(snapshot), &attempt.InputSnapshot); err != nil {
 		return EnrollmentAttempt{}, fmt.Errorf("decode attempt snapshot: %w", err)
 	}

@@ -166,6 +166,25 @@ func TestAppendEvent_RunningTransitionAfterDeliveryAck(t *testing.T) {
 	require.False(t, got.StartedAt.IsZero())
 }
 
+func TestRecordDeliveryAckAfterStartPreservesRunningState(t *testing.T) {
+	svc, _ := newService(t)
+	run := mustCreate(t, svc)
+	accepted, err := svc.AppendEvent(context.Background(), runs.RunEvent{
+		RunID: run.ID, Kind: runs.EventStatus, Sequence: 1, Status: "running",
+	})
+	require.NoError(t, err)
+	require.True(t, accepted)
+
+	require.NoError(t, svc.RecordDeliveryAck(context.Background(), runs.DeliveryAck{
+		NodeID: "n1", FrameID: "late-ack", RunID: run.ID,
+	}))
+	got, _, err := svc.Get(context.Background(), run.ID)
+	require.NoError(t, err)
+	require.Equal(t, runs.StatusRunning, got.Status, "late delivery metadata cannot regress execution")
+	require.False(t, got.StartedAt.IsZero())
+	require.False(t, got.AckedAt.IsZero(), "the durable receipt still records acknowledgement")
+}
+
 // [REQ:BRG-P0-005] Abort marks a non-terminal run ABORTED, wakes a blocked
 // waiter, and is idempotent on an already-terminal run.
 func TestAbort_WakesWaiterAndIsIdempotent(t *testing.T) {

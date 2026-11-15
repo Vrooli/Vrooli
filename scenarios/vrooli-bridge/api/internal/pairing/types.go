@@ -68,6 +68,40 @@ const (
 	RequestRejected RequestStatus = "rejected"
 )
 
+// Valid reports whether the value belongs to the persisted request-status set.
+func (status RequestStatus) Valid() bool {
+	switch status {
+	case RequestPending, RequestApproved, RequestRejected:
+		return true
+	default:
+		return false
+	}
+}
+
+// CanTransitionTo reports whether a pending request may receive this decision.
+func (status RequestStatus) CanTransitionTo(next RequestStatus) bool {
+	return status == RequestPending && (next == RequestApproved || next == RequestRejected)
+}
+
+// TransitionTo applies the one-shot request decision policy in memory. The
+// repository repeats the validation and enforces pending with a SQL CAS.
+func (request *PairingRequest) TransitionTo(next RequestStatus) error {
+	if request == nil {
+		return ErrInvalid{Field: "status", Reason: "cannot decide a nil pairing request"}
+	}
+	if !request.Status.Valid() {
+		return ErrInvalid{Field: "status", Reason: fmt.Sprintf("unknown current request status %q", request.Status)}
+	}
+	if !next.Valid() {
+		return ErrInvalid{Field: "status", Reason: fmt.Sprintf("unknown target request status %q", next)}
+	}
+	if !request.Status.CanTransitionTo(next) {
+		return ErrRequestDecided
+	}
+	request.Status = next
+	return nil
+}
+
 // PairingRequest is a pending/decided join request (the no-code fallback).
 type PairingRequest struct {
 	ID           string

@@ -66,6 +66,9 @@ func (f *FakeRepository) Create(_ context.Context, r runs.Run) (runs.Run, error)
 	if r.Status == runs.StatusUnspecified {
 		r.Status = runs.StatusQueued
 	}
+	if r.Status != runs.StatusQueued {
+		return runs.Run{}, runs.ErrInvalidRun{Field: "status", Reason: "new runs must start queued"}
+	}
 	f.runs[r.ID] = r
 	return r, nil
 }
@@ -127,6 +130,9 @@ func (f *FakeRepository) Update(_ context.Context, r runs.Run) (runs.Run, error)
 	existing, ok := f.runs[r.ID]
 	if !ok {
 		return runs.Run{}, runs.ErrRunNotFound{ID: r.ID}
+	}
+	if err := runs.ValidateStatusTransition(existing.Status, r.Status); err != nil {
+		return runs.Run{}, err
 	}
 	existing.Status = r.Status
 	existing.ExitCode = r.ExitCode

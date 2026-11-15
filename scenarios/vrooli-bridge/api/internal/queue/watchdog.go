@@ -127,7 +127,7 @@ func (w *Watchdog) Sweep(ctx context.Context) error {
 			}
 			continue
 		}
-		if !entry.Acked && !entry.LeaseExpiresAt.IsZero() && !entry.LeaseExpiresAt.After(now) {
+		if !entry.Acked && entry.StartedAt.IsZero() && !entry.LeaseExpiresAt.IsZero() && !entry.LeaseExpiresAt.After(now) {
 			if entry.DeliveryAttempts < w.config.MaxAttempts {
 				if err := w.scheduler.Requeue(ctx, entry.Job); err != nil {
 					return err

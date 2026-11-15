@@ -262,7 +262,9 @@ func (s *service) Confirm(ctx context.Context, in ConfirmInput) (Operation, erro
 	op.OperatorID = operatorID
 	op.SealedPassphrase = append([]byte(nil), in.SealedPassphrase...)
 	op.Capability = append([]byte(nil), in.Capability...)
-	op.Status = StatusConfirmed
+	if err := op.Transition(StatusConfirmed); err != nil {
+		return Operation{}, ErrConflict{Field: "status", Reason: err.Error()}
+	}
 	op.UpdatedAt = s.clock.Now().UTC()
 	if _, err := s.repo.Update(ctx, op); err != nil {
 		return Operation{}, err
@@ -334,7 +336,9 @@ func (s *service) Cancel(ctx context.Context, id, reason string) (Operation, err
 	if op.Status.Terminal() {
 		return op, nil
 	}
-	op.Status = StatusCanceled
+	if err := op.Transition(StatusCanceled); err != nil {
+		return Operation{}, ErrConflict{Field: "status", Reason: err.Error()}
+	}
 	op.Reason = strings.TrimSpace(reason)
 	op.UpdatedAt = s.clock.Now().UTC()
 	op.FinishedAt = op.UpdatedAt
@@ -395,6 +399,11 @@ func (s *service) AppendEvent(ctx context.Context, ev Event) (bool, error) {
 		if !shouldAppend {
 			return false, nil
 		}
+		if next, ok := statusFromEvent(op.Status, reconciled); ok {
+			if err := TransitionStatus(op.Status, next); err != nil {
+				return false, ErrConflict{Field: "status", Reason: err.Error()}
+			}
+		}
 		accepted, err = s.repo.AppendEvent(ctx, reconciled)
 		if accepted {
 			ev = reconciled
@@ -410,7 +419,9 @@ func (s *service) AppendEvent(ctx context.Context, ev Event) (bool, error) {
 	changed := false
 	if ev.Status != "" {
 		if status, ok := parseStatus(ev.Status); ok {
-			op.Status = status
+			if err := op.Transition(status); err != nil {
+				return false, ErrConflict{Field: "status", Reason: err.Error()}
+			}
 			changed = true
 		}
 	}
@@ -438,7 +449,9 @@ func (s *service) AppendEvent(ctx context.Context, ev Event) (bool, error) {
 		// it must not turn a frozen plan into a completed operation, because
 		// confirmation is intentionally the next legal state.
 		if !(op.Status == StatusPlanned && ev.ExitCode == 0) {
-			op.Status = statusFromExit(ev.ExitCode)
+			if err := op.Transition(statusFromExit(ev.ExitCode)); err != nil {
+				return false, ErrConflict{Field: "status", Reason: err.Error()}
+			}
 			changed = true
 		}
 	}
@@ -553,9 +566,13 @@ func (s *service) push(ctx context.Context, op Operation, operation string, conf
 		return op, pushErr
 	}
 	if operation == "plan_uninstall" {
-		op.Status = StatusPlanning
-	} else if operation == "apply_frozen_plan" || operation == privilegedops.ResetBreakGlass {
-		op.Status = StatusApplying
+		if err := op.Transition(StatusPlanning); err != nil {
+			return op, ErrConflict{Field: "status", Reason: err.Error()}
+		}
+	} else if operation == "apply_frozen_plan" || operation == privilegedops.ResetBreakGlass || operation == "provision_break_glass" {
+		if err := op.Transition(StatusApplying); err != nil {
+			return op, ErrConflict{Field: "status", Reason: err.Error()}
+		}
 	}
 	op.UpdatedAt = s.clock.Now().UTC()
 	op, err := s.repo.Update(ctx, op)
@@ -589,7 +606,9 @@ func (s *service) ensureOperationTarget(ctx context.Context, op Operation) error
 }
 
 func (s *service) fail(ctx context.Context, op Operation, reason string) (Operation, error) {
-	op.Status = StatusFailed
+	if err := op.Transition(StatusFailed); err != nil {
+		return op, ErrConflict{Field: "status", Reason: err.Error()}
+	}
 	op.Reason = reason
 	op.UpdatedAt = s.clock.Now().UTC()
 	op.FinishedAt = op.UpdatedAt

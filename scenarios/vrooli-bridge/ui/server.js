@@ -26,7 +26,6 @@ startScenarioServer({
   apiPort,
   distDir: './dist',
   serviceName: 'vrooli-bridge',
-  corsOrigins: '*',
   setupRoutes(app) {
     app.use((req, res, next) => {
       if (!connectRpcPath.test(req.path)) {

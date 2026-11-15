@@ -55,6 +55,38 @@ func newPubKeyB64(t *testing.T) string {
 	return base64.StdEncoding.EncodeToString(pub)
 }
 
+func TestRequestStatusTransitionGraphRejectsInvalidAndTerminalEdges(t *testing.T) {
+	req := pairing.PairingRequest{Status: pairing.RequestPending}
+	require.NoError(t, req.TransitionTo(pairing.RequestApproved))
+	require.Equal(t, pairing.RequestApproved, req.Status)
+	require.ErrorIs(t, req.TransitionTo(pairing.RequestRejected), pairing.ErrRequestDecided)
+	require.Equal(t, pairing.RequestApproved, req.Status, "terminal decisions cannot be reversed")
+
+	var invalid pairing.ErrInvalid
+	require.ErrorAs(t, req.TransitionTo(pairing.RequestStatus("unknown")), &invalid)
+	require.Equal(t, pairing.RequestApproved, req.Status)
+}
+
+func TestSQLiteRepository_DecideRequestRejectsInvalidTargetsAndUnknownStoredState(t *testing.T) {
+	d, clk := newPairingDB(t)
+	repo := pairing.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+	req, err := repo.CreateRequest(ctx, pairing.PairingRequest{PublicKey: newPubKeyB64(t)})
+	require.NoError(t, err)
+
+	require.ErrorIs(t, repo.DecideRequest(ctx, req.ID, pairing.RequestPending, ""), pairing.ErrRequestDecided)
+	var invalid pairing.ErrInvalid
+	require.ErrorAs(t, repo.DecideRequest(ctx, req.ID, pairing.RequestStatus("unknown"), ""), &invalid)
+	got, err := repo.GetRequest(ctx, req.ID)
+	require.NoError(t, err)
+	require.Equal(t, pairing.RequestPending, got.Status, "invalid decisions must not mutate storage")
+
+	_, err = d.ExecContext(ctx, "UPDATE pairing_requests SET status = 'unknown' WHERE id = ?", req.ID)
+	require.NoError(t, err)
+	_, err = repo.GetRequest(ctx, req.ID)
+	require.ErrorAs(t, err, &invalid, "unknown persisted status fails closed")
+}
+
 // [REQ:BRG-P0-002] One-touch bootstrap: an issued code redeems exactly once,
 // registering the node (owner-assigned name/scopes win) and storing its key so
 // the node can immediately authenticate.

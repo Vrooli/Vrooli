@@ -62,6 +62,9 @@ func (r *sqliteRepository) Create(ctx context.Context, op Operation) (Operation,
 	if op.Status == StatusUnspecified {
 		op.Status = StatusQueued
 	}
+	if !op.Status.Valid() {
+		return Operation{}, fmt.Errorf("insert cleanup operation %q: invalid status %d", op.ID, op.Status)
+	}
 	_, err := r.db.ExecContext(ctx, `INSERT INTO cleanup_operations (`+opColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		op.ID, op.MachineID, op.NodeID, op.Target, op.Scope, int(op.Status), op.Transport, op.TransportReason, op.Reason, op.PlanHash,
 		op.PlanJSON, op.ReceiptJSON, op.OperatorID, op.SealedPassphrase, op.Capability, op.SealingPublicKey, op.CreatedAt.Format(opTimeFormat), op.UpdatedAt.Format(opTimeFormat), formatTime(op.FinishedAt))
@@ -108,6 +111,9 @@ func (r *sqliteRepository) Update(ctx context.Context, op Operation) (Operation,
 	existing, err := r.Get(ctx, op.ID)
 	if err != nil {
 		return Operation{}, err
+	}
+	if err := TransitionStatus(existing.Status, op.Status); err != nil {
+		return Operation{}, fmt.Errorf("update cleanup operation %q: %w", op.ID, err)
 	}
 	// Updates are intentionally field-complete so a stale caller cannot erase a
 	// frozen plan, receipt, or confirmation while resuming an apply.
@@ -181,6 +187,9 @@ func scanOperation(s scanner) (Operation, error) {
 		return Operation{}, err
 	}
 	op.Status = Status(status)
+	if !op.Status.Valid() {
+		return Operation{}, fmt.Errorf("invalid persisted cleanup operation status %d", status)
+	}
 	if op.CreatedAt, err = time.Parse(opTimeFormat, created); err != nil {
 		return Operation{}, err
 	}

@@ -321,7 +321,7 @@ func (s durableRunStore) Load(ctx context.Context) ([]queue.DurableEntry, error)
 			Job:   queue.Job{RunID: run.ID, NodeID: run.NodeID, Scenario: run.Scenario, Verb: run.Verb, Args: append([]string(nil), run.Args...), TimeoutSeconds: run.TimeoutSeconds},
 			State: state, EnqueuedAt: run.QueuedSince, StartedAt: run.StartedAt,
 			PushedAt: run.PushedAt, AckedAt: run.AckedAt, LeaseExpiresAt: run.DeliveryLeaseExpiresAt,
-			DeliveryAttempts: run.DeliveryAttempts, Acked: run.Status == runs.StatusAcked,
+			DeliveryAttempts: run.DeliveryAttempts, Acked: !run.AckedAt.IsZero(),
 			CancelRequestedAt: run.CancelRequestedAt, CancellationConfirmed: run.CancellationConfirmed,
 			Uncertain: run.Status == runs.StatusUncertain, CancelReason: run.StatusReason,
 		})

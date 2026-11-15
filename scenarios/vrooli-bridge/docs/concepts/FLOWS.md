@@ -88,6 +88,11 @@ identity from a hostname, IP, username, display name, or Node name.
 | Service install / Presence | attempt checkpoint + observed result | resume only after checkpoint postcondition revalidation | paired-but-install-failed remains linked and exposes retry/repair |
 | Terminal result | immutable terminal outcome + diagnostics | no revival | retry creates `retry_of_attempt_id` |
 
+Enrollment attempt state starts as `created`; only `created` or `running` can
+transition to a terminal result. The repository compares the observed state on
+write, and the domain owner rejects unknown states and terminal reversal. A
+retry is a new linked row, never an update that reopens the old attempt.
+
 Readiness is derived, never written as a single mutable flag:
 
 `MachineService.GetMachine` returns this read-time explanation as

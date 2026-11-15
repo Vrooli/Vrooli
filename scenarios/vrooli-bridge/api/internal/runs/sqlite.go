@@ -58,7 +58,7 @@ FROM runs
 	updateRunSQL = `
 UPDATE runs
 SET status = ?, exit_code = ?, started_at = ?, finished_at = ?, artifact_refs = ?, queued_since = ?, pushed_at = ?, acked_at = ?, delivery_attempts = ?, last_delivery_error = ?, delivery_lease_expires_at = ?, cancel_requested_at = ?, cancellation_confirmed = ?, status_reason = ?
-WHERE id = ?
+WHERE id = ? AND status = ?
 `
 
 	insertRunEventSQL = `
@@ -89,6 +89,9 @@ func (s *sqliteRepository) Create(ctx context.Context, r Run) (Run, error) {
 	}
 	if r.Status == StatusUnspecified {
 		r.Status = StatusQueued
+	}
+	if r.Status != StatusQueued {
+		return Run{}, ErrInvalidRun{Field: "status", Reason: "new runs must start queued"}
 	}
 	if r.QueuedSince.IsZero() {
 		r.QueuedSince = r.CreatedAt
@@ -174,6 +177,10 @@ func (s *sqliteRepository) Update(ctx context.Context, r Run) (Run, error) {
 	if err != nil {
 		return Run{}, err
 	}
+	if err := ValidateStatusTransition(existing.Status, r.Status); err != nil {
+		return Run{}, err
+	}
+	expectedStatus := existing.Status
 	existing.Status = r.Status
 	existing.ExitCode = r.ExitCode
 	existing.StartedAt = r.StartedAt
@@ -193,13 +200,21 @@ func (s *sqliteRepository) Update(ctx context.Context, r Run) (Run, error) {
 	if err != nil {
 		return Run{}, fmt.Errorf("encode artifact_refs: %w", err)
 	}
-	if _, err := s.db.ExecContext(ctx, updateRunSQL,
+	result, err := s.db.ExecContext(ctx, updateRunSQL,
 		int(existing.Status), existing.ExitCode,
 		formatNullableTime(existing.StartedAt), formatNullableTime(existing.FinishedAt), refs,
 		formatNullableTime(existing.QueuedSince), formatNullableTime(existing.PushedAt), formatNullableTime(existing.AckedAt), existing.DeliveryAttempts,
-		existing.LastDeliveryError, formatNullableTime(existing.DeliveryLeaseExpiresAt), formatNullableTime(existing.CancelRequestedAt), existing.CancellationConfirmed, existing.StatusReason, existing.ID,
-	); err != nil {
+		existing.LastDeliveryError, formatNullableTime(existing.DeliveryLeaseExpiresAt), formatNullableTime(existing.CancelRequestedAt), existing.CancellationConfirmed, existing.StatusReason, existing.ID, int(expectedStatus),
+	)
+	if err != nil {
 		return Run{}, fmt.Errorf("update run %q: %w", r.ID, err)
+	}
+	updated, err := result.RowsAffected()
+	if err != nil {
+		return Run{}, fmt.Errorf("count updated run %q: %w", r.ID, err)
+	}
+	if updated != 1 {
+		return Run{}, ErrInvalidRun{Field: "status", Reason: "run changed before its status update was saved"}
 	}
 	return existing, nil
 }
@@ -285,6 +300,9 @@ func scanRun(sc rowScanner) (Run, error) {
 		return Run{}, err
 	}
 	r.Status = RunStatus(status)
+	if !r.Status.Valid() {
+		return Run{}, ErrInvalidRun{Field: "status", Reason: fmt.Sprintf("unknown persisted status %d", status)}
+	}
 
 	args, err := unmarshalStrings(argsRaw)
 	if err != nil {

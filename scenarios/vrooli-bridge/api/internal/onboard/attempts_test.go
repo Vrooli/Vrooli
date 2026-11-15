@@ -16,6 +16,51 @@ import (
 	apiDB "github.com/vrooli/api-core/database"
 )
 
+func TestEnrollmentAttemptTransitionOwnerRejectsTerminalReversal(t *testing.T) {
+	for _, edge := range [][2]onboard.AttemptState{
+		{onboard.AttemptCreated, onboard.AttemptSucceeded},
+		{onboard.AttemptRunning, onboard.AttemptFailed},
+		{onboard.AttemptCreated, onboard.AttemptInterrupted},
+	} {
+		attempt := onboard.EnrollmentAttempt{State: edge[0]}
+		if err := attempt.TransitionState(edge[1]); err != nil || attempt.State != edge[1] {
+			t.Fatalf("legal transition %q -> %q: state=%q err=%v", edge[0], edge[1], attempt.State, err)
+		}
+	}
+	for _, edge := range [][2]onboard.AttemptState{
+		{onboard.AttemptSucceeded, onboard.AttemptFailed},
+		{onboard.AttemptFailed, onboard.AttemptRunning},
+		{onboard.AttemptState("mystery"), onboard.AttemptSucceeded},
+		{onboard.AttemptCreated, onboard.AttemptState("mystery")},
+	} {
+		attempt := onboard.EnrollmentAttempt{State: edge[0]}
+		if err := attempt.TransitionState(edge[1]); err == nil || attempt.State != edge[0] {
+			t.Errorf("invalid transition %q -> %q: state=%q err=%v", edge[0], edge[1], attempt.State, err)
+		}
+	}
+}
+
+func TestEnrollmentAttemptStoreRejectsInvalidInitialAndPersistedState(t *testing.T) {
+	ctx := context.Background()
+	d := db.NewSQLite(t)
+	require.NoError(t, apiDB.EnsureSchemas(ctx, d, apiDB.SchemaProviderFunc(onboard.Schema)))
+	store := onboard.NewSQLiteRepository(d, scheduletest.New(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))).(onboard.AttemptStore)
+	invalid, err := onboard.NewAttempt("machine-1", nil)
+	require.NoError(t, err)
+	invalid.State = onboard.AttemptSucceeded
+	_, err = store.CreateAttempt(ctx, invalid)
+	require.Error(t, err)
+	attempt, err := onboard.NewAttempt("machine-1", nil)
+	require.NoError(t, err)
+	attempt, err = store.CreateAttempt(ctx, attempt)
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `UPDATE enrollment_attempts SET state='mystery' WHERE id=?`, attempt.ID)
+	require.NoError(t, err)
+	_, err = store.GetAttempt(ctx, attempt.ID)
+	var invalidState onboard.ErrInvalidAttemptState
+	require.ErrorAs(t, err, &invalidState)
+}
+
 type recordingMachineLinker struct{ correlation, nodeID string }
 
 func (l *recordingMachineLinker) LinkCorrelatedNode(_ context.Context, correlationID, nodeID string) error {

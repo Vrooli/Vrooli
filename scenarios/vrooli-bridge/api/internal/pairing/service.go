@@ -413,8 +413,15 @@ func (s *Service) approve(ctx context.Context, requestID string, approve bool, s
 	if err != nil {
 		return "", "", err
 	}
-	if req.Status != RequestPending {
-		return "", "", ErrRequestDecided
+	decision := RequestRejected
+	if approve {
+		decision = RequestApproved
+	}
+	if err := req.TransitionTo(decision); err != nil {
+		if req.Status.Valid() && !req.Status.CanTransitionTo(decision) {
+			return "", "", ErrRequestDecided
+		}
+		return "", "", err
 	}
 	if requireConfirmation {
 		if s.validateConfirmation == nil {
@@ -426,7 +433,7 @@ func (s *Service) approve(ctx context.Context, requestID string, approve bool, s
 	}
 
 	if !approve {
-		if err := s.repo.DecideRequest(ctx, req.ID, RequestRejected, ""); err != nil {
+		if err := s.repo.DecideRequest(ctx, req.ID, decision, ""); err != nil {
 			return "", "", err
 		}
 		return RequestRejected, "", nil
@@ -448,7 +455,7 @@ func (s *Service) approve(ctx context.Context, requestID string, approve bool, s
 	if err := s.repo.StoreCredential(ctx, Credential{NodeID: nodeID, PublicKey: req.PublicKey, CreatedAt: s.clock.Now().UTC()}); err != nil {
 		return "", "", fmt.Errorf("store credential: %w", err)
 	}
-	if err := s.repo.DecideRequest(ctx, req.ID, RequestApproved, nodeID); err != nil {
+	if err := s.repo.DecideRequest(ctx, req.ID, decision, nodeID); err != nil {
 		return "", "", err
 	}
 	return RequestApproved, nodeID, nil

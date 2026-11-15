@@ -60,12 +60,8 @@ const (
 // run reaches a terminal status; a late event for a terminal run is ignored
 // (stale-completion safety).
 func (s RunStatus) Terminal() bool {
-	switch s {
-	case StatusPassed, StatusFailed, StatusAborted, StatusFailedDelivery:
-		return true
-	default:
-		return false
-	}
+	transitions, known := runStatusTransitions[s]
+	return known && len(transitions) == 0
 }
 
 // String renders the status as a short lowercase label for logs/CLI.
