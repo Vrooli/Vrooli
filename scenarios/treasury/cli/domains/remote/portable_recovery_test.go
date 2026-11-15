@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/cli-core/cliapp"
-	authv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
+	walletv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -18,7 +18,7 @@ func TestPortableRecoveryRequestPreparationKeepsSecretOffArgvAndLoadsEncryptedBy
 	bundlePath := filepath.Join(t.TempDir(), "wallet.bundle")
 	require.NoError(t, os.WriteFile(bundlePath, ciphertext, 0o600))
 	stdin := bytes.NewBufferString(secret + "\n")
-	request := &authv1.RestorePortableResearchWalletRecoveryRequest{}
+	request := &walletv1.RestorePortableResearchWalletRecoveryRequest{}
 	ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
 		Schema: cliapp.ArgSchema{Flags: []cliapp.Flag{
 			{Name: "secret-stdin", Bool: true, LocalOnly: true},
@@ -31,7 +31,7 @@ func TestPortableRecoveryRequestPreparationKeepsSecretOffArgvAndLoadsEncryptedBy
 		baseCalled = true
 		return map[string]string{"X-Test": "present"}, nil
 	}, stdin)
-	headers, err := prepare(ctx, "TreasuryAdmin.RestorePortableResearchWalletRecovery", request)
+	headers, err := prepare(ctx, "WalletAdminService.RestorePortableResearchWalletRecovery", request)
 	require.NoError(t, err)
 	require.True(t, baseCalled)
 	require.Equal(t, "present", headers["X-Test"])
@@ -40,9 +40,9 @@ func TestPortableRecoveryRequestPreparationKeepsSecretOffArgvAndLoadsEncryptedBy
 }
 
 func TestPortableRecoveryRequestPreparationRequiresExplicitStdinAndRegularBundle(t *testing.T) {
-	request := &authv1.ExportPortableResearchWalletRecoveryRequest{}
+	request := &walletv1.ExportPortableResearchWalletRecoveryRequest{}
 	ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "secret-stdin", Bool: true, LocalOnly: true}}}})
-	_, err := portableRecoveryRequestPreparer(nil, bytes.NewBufferString("must-not-be-read"))(ctx, "TreasuryAdmin.ExportPortableResearchWalletRecovery", request)
+	_, err := portableRecoveryRequestPreparer(nil, bytes.NewBufferString("must-not-be-read"))(ctx, "WalletAdminService.ExportPortableResearchWalletRecovery", request)
 	require.ErrorContains(t, err, "--secret-stdin")
 	require.Empty(t, request.OperatorSecret)
 
@@ -51,23 +51,23 @@ func TestPortableRecoveryRequestPreparationRequiresExplicitStdinAndRegularBundle
 	backing := filepath.Join(t.TempDir(), "bundle")
 	require.NoError(t, os.WriteFile(backing, []byte("ciphertext"), 0o600))
 	require.NoError(t, os.Symlink(backing, path))
-	restore := &authv1.RestorePortableResearchWalletRecoveryRequest{}
+	restore := &walletv1.RestorePortableResearchWalletRecoveryRequest{}
 	ctx = cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
 		Schema: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "secret-stdin", Bool: true, LocalOnly: true}, {Name: "bundle-file", LocalOnly: true}}},
 		Flags:  map[string]string{"bundle-file": path}, BoolFlags: map[string]bool{"secret-stdin": true},
 	})
-	_, err = portableRecoveryRequestPreparer(nil, bytes.NewBufferString(secret))(ctx, "TreasuryAdmin.RestorePortableResearchWalletRecovery", restore)
+	_, err = portableRecoveryRequestPreparer(nil, bytes.NewBufferString(secret))(ctx, "WalletAdminService.RestorePortableResearchWalletRecovery", restore)
 	require.ErrorContains(t, err, "regular file")
 	require.Empty(t, restore.Bundle)
 }
 
 func TestPortableRecoveryRequestPreparationUsesDBMRestoredServerBundleWhenPathOmitted(t *testing.T) {
-	request := &authv1.RestorePortableResearchWalletRecoveryRequest{}
+	request := &walletv1.RestorePortableResearchWalletRecoveryRequest{}
 	ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
 		Schema:    cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "secret-stdin", Bool: true, LocalOnly: true}, {Name: "bundle-file", LocalOnly: true}}},
 		BoolFlags: map[string]bool{"secret-stdin": true},
 	})
-	_, err := portableRecoveryRequestPreparer(nil, bytes.NewBufferString("operator test secret long enough for the recovery kdf"))(ctx, "TreasuryAdmin.RestorePortableResearchWalletRecovery", request)
+	_, err := portableRecoveryRequestPreparer(nil, bytes.NewBufferString("operator test secret long enough for the recovery kdf"))(ctx, "WalletAdminService.RestorePortableResearchWalletRecovery", request)
 	require.NoError(t, err)
 	require.NotEmpty(t, request.OperatorSecret)
 	require.Empty(t, request.Bundle, "empty bundle tells the API to use the ciphertext already restored under its Treasury data root")

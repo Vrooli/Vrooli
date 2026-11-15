@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/databasetest"
@@ -84,9 +86,9 @@ func TestStoreIngestRejectsChangedPayloadForSameExternalIdentity(t *testing.T) {
 	require.False(t, duplicate)
 
 	// Fetch time is observation metadata and can legitimately differ on retry.
-	replay := *event
+	replay := proto.CloneOf(event)
 	replay.FetchedAt = timestamppb.New(time.Date(2026, 11, 2, 12, 5, 0, 0, time.UTC))
-	replayed, duplicate, err := s.Ingest(ctx, &replay, "adapter")
+	replayed, duplicate, err := s.Ingest(ctx, replay, "adapter")
 	require.NoError(t, err)
 	require.True(t, duplicate)
 	require.Equal(t, accepted.Id, replayed.Id)
@@ -104,9 +106,9 @@ func TestStoreIngestRejectsChangedPayloadForSameExternalIdentity(t *testing.T) {
 	}
 	for _, test := range mutations {
 		t.Run(test.name, func(t *testing.T) {
-			changed := replay
-			test.mutate(&changed)
-			_, duplicate, err := s.Ingest(ctx, &changed, "adapter")
+			changed := proto.CloneOf(replay)
+			test.mutate(changed)
+			_, duplicate, err := s.Ingest(ctx, changed, "adapter")
 			require.ErrorContains(t, err, "same adapter_id and external_id already exists with a different payload")
 			require.False(t, duplicate)
 		})

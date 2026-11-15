@@ -57,3 +57,20 @@ CREATE TABLE IF NOT EXISTS approval_relay_attempts (
 
 CREATE INDEX IF NOT EXISTS idx_approval_queue ON approval_requests(status, created_at);
 CREATE INDEX IF NOT EXISTS idx_approval_relay_attempts ON approval_relay_attempts(approval_id, attempted_at);
+
+-- Durable, owner-side state for Notification Hub decision asks. The Hub owns
+-- the human answer; this table binds that answer back to one Treasury approval.
+CREATE TABLE IF NOT EXISTS approval_decision_asks (
+    id TEXT PRIMARY KEY,
+    subject TEXT NOT NULL,
+    state TEXT NOT NULL,
+    raised_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    event_id TEXT NOT NULL DEFAULT '',
+    published INTEGER NOT NULL DEFAULT 0,
+    resolved_at TEXT NOT NULL DEFAULT '',
+    resolved_by TEXT NOT NULL DEFAULT '',
+    extra_json TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_approval_decision_asks_subject_state
+ON approval_decision_asks(subject,state,expires_at);

@@ -27,6 +27,21 @@ const literalSelectors = {
   notifications: {
     summary: "notifications-summary",
   },
+  access: {
+    noticeRegion: "access-notice-region",
+    notice: "access-notice",
+    status: "access-status",
+    signIn: "access-sign-in",
+    signOut: "access-sign-out",
+    signInForm: "access-sign-in-form",
+    email: "access-email",
+    password: "access-password",
+    code: "access-code",
+    signInSubmit: "access-sign-in-submit",
+    signInError: "access-sign-in-error",
+    signInRefusal: "access-sign-in-refusal",
+    settings: "access-settings",
+  },
   layout: {
     shell: "layout-shell",
     topBar: "layout-top-bar",

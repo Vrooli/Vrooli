@@ -12,9 +12,9 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
-	approvalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/approval"
 	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
 	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/shared"
 )
 
 type approvalResolver struct{ gotResolver string }
@@ -40,7 +40,7 @@ func TestListApprovalsUsesLocalQueue(t *testing.T) {
 	server := httptest.NewServer(transport)
 	t.Cleanup(server.Close)
 	client := authorizationconnect.NewTreasuryAdminClient(server.Client(), server.URL)
-	request := connect.NewRequest(&authorizationv1.ListApprovalsRequest{Status: approvalv1.ApprovalStatus_APPROVAL_STATUS_QUEUED, BookId: "book-1"})
+	request := connect.NewRequest(&authorizationv1.ListApprovalsRequest{Status: sharedv1.ApprovalStatus_APPROVAL_STATUS_QUEUED, BookId: "book-1"})
 	request.Header().Set(operatorauth.HeaderOperatorToken, "operator-secret")
 	response, err := client.ListApprovals(context.Background(), request)
 	require.NoError(t, err)
@@ -60,10 +60,10 @@ func TestResolveApprovalUsesLocalService(t *testing.T) {
 	server := httptest.NewServer(transport)
 	t.Cleanup(server.Close)
 	client := authorizationconnect.NewTreasuryAdminClient(server.Client(), server.URL)
-	request := connect.NewRequest(&authorizationv1.ResolveApprovalRequest{ApprovalId: "approval-1", Resolution: approvalv1.ApprovalStatus_APPROVAL_STATUS_DECLINED})
+	request := connect.NewRequest(&authorizationv1.ResolveApprovalRequest{ApprovalId: "approval-1", Resolution: sharedv1.ApprovalStatus_APPROVAL_STATUS_DECLINED})
 	request.Header().Set(operatorauth.HeaderOperatorToken, "operator-secret")
 	response, err := client.ResolveApproval(context.Background(), request)
 	require.NoError(t, err)
-	require.Equal(t, approvalv1.ApprovalStatus_APPROVAL_STATUS_DECLINED, response.Msg.GetApproval().GetStatus())
+	require.Equal(t, sharedv1.ApprovalStatus_APPROVAL_STATUS_DECLINED, response.Msg.GetApproval().GetStatus())
 	require.Equal(t, "local-operator", resolver.gotResolver)
 }

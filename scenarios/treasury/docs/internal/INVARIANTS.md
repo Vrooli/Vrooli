@@ -16,11 +16,11 @@ by a `CHECK`; books reference that singleton; budgets reference books; and
 mandate/instrument insert and update triggers require their parent authority to
 belong to the same book. Subordinate tables contain no beneficiary column.
 
-**Enforcement anchors.** `path:api/internal/book/schema.sql:1`,
-`path:api/internal/mandate/schema.sql`, and
-`path:api/internal/instrument/schema.sql`.
+**Enforcement anchors.** `path:scenarios/treasury/api/internal/book/schema.sql:1`,
+`path:scenarios/treasury/api/internal/mandate/schema.sql`, and
+`path:scenarios/treasury/api/internal/instrument/schema.sql`.
 
-**Violation evidence.** `path:api/internal/book/sqlite_test.go` performs raw SQL
+**Violation evidence.** `path:scenarios/treasury/api/internal/book/sqlite_test.go` performs raw SQL
 inserts, bypassing services and handlers, and proves that a second beneficiary,
 an unknown-book budget, a cross-book mandate, and a cross-book instrument are
 all rejected. It also reads subordinate table metadata and proves no alternate
@@ -58,8 +58,8 @@ the retained signature.
 retry an x402 payment with newly generated authorization timing/nonce, or infer
 failure from an HTTP timeout.
 
-**Evidence.** `path:api/internal/settlement/sqlite_test.go` and
-`path:api/internal/rail/x402/client_integration_test.go`. The x402 payload is
+**Evidence.** `path:scenarios/treasury/api/internal/settlement/sqlite_test.go` and
+`path:scenarios/treasury/api/internal/rail/x402/client_integration_test.go`. The x402 payload is
 provisioned to Credential Authority before paid dispatch by
 `RecordX402RecoveryInput`; SQLite never stores the payload. Terminal completion
 removes the protected value after recording the terminal receipt. Requirements:
@@ -83,9 +83,9 @@ response. It returns the existing admission. An unknown admission needs a
 future chain-aware reconciliation operation; it must not be settled again by
 the ordinary admission path.
 
-**Evidence.** `path:api/internal/rail/x402/facilitator_test.go`,
-`path:api/internal/rail/x402/facilitator_integration_test.go`, and
-`path:api/internal/rail/x402/facilitator_concurrency_test.go`. Requirement:
+**Evidence.** `path:scenarios/treasury/api/internal/rail/x402/facilitator_test.go`,
+`path:scenarios/treasury/api/internal/rail/x402/facilitator_integration_test.go`, and
+`path:scenarios/treasury/api/internal/rail/x402/facilitator_concurrency_test.go`. Requirement:
 `TRS-P1-002`.
 
 ## Cross-references

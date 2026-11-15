@@ -58,11 +58,20 @@ type TerminalRecorder interface {
 }
 
 type Service struct {
-	repository Repository
-	controller Controller
-	relay      Relay
-	evidence   TerminalRecorder
-	clock      schedule.Clock
+	repository    Repository
+	controller    Controller
+	relay         Relay
+	decisionAsker DecisionAsker
+	evidence      TerminalRecorder
+	clock         schedule.Clock
+}
+
+// WithDecisionAsker connects the durable local queue to the operator decision
+// rail. It is deliberately optional: a local approval remains valid when
+// Notification Hub or Vrooli Events is unavailable.
+func (s *Service) WithDecisionAsker(asker DecisionAsker) *Service {
+	s.decisionAsker = asker
+	return s
 }
 
 func NewService(repository Repository, controller Controller, relay Relay, clock schedule.Clock, evidence ...TerminalRecorder) *Service {
@@ -90,7 +99,14 @@ func (s *Service) Admit(ctx context.Context, in authorization.ApprovalAdmission)
 		return fmt.Errorf("%w: approval id was already used for a different authorization", ErrInvalid)
 	}
 	attempt := RelayAttempt{ID: request.ID + ":relay:1", ApprovalID: request.ID, Outcome: "skipped", AttemptedAt: now}
-	if s.relay != nil {
+	if s.decisionAsker != nil {
+		if err := s.decisionAsker.Raise(ctx, created); err != nil {
+			attempt.Outcome, attempt.Error = "failed", err.Error()
+			slog.Error("Treasury approval decision raise failed", "approval_id", request.ID, "error", err)
+		} else {
+			attempt.Outcome = "sent"
+		}
+	} else if s.relay != nil {
 		if err := s.relay.Relay(ctx, request); err != nil {
 			attempt.Outcome, attempt.Error = "failed", err.Error()
 			slog.Error("Treasury approval notification relay failed", "approval_id", request.ID, "error", err)

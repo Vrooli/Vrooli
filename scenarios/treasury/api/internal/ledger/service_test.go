@@ -49,6 +49,32 @@ type sequenceEmitter struct {
 	err   error
 }
 
+type receiptSequenceEmitter struct {
+	acceptance ledger.Acceptance
+	calls      int
+	err        error
+}
+
+func (e *receiptSequenceEmitter) Emit(context.Context, ledger.Emission) (bool, error) {
+	return false, errors.New("legacy emission path must not be called")
+}
+
+func (e *receiptSequenceEmitter) EmitWithReceipt(context.Context, ledger.Emission) (ledger.Acceptance, error) {
+	e.calls++
+	return e.acceptance, e.err
+}
+
+type receiptMemoryRepository struct{ memoryRepository }
+
+func (r *receiptMemoryRepository) MarkAcceptedReceipt(_ context.Context, _ string, at time.Time, postingID, receiptID string) error {
+	r.value.Attempts++
+	r.value.Status = ledger.StatusAccepted
+	r.value.AcceptedAt = at
+	r.value.PostingID = postingID
+	r.value.ReceiptID = receiptID
+	return nil
+}
+
 func (e *sequenceEmitter) Emit(context.Context, ledger.Emission) (bool, error) {
 	e.calls++
 	return e.calls > 1, e.err
@@ -71,4 +97,16 @@ func TestDeferredEmissionIsAcceptedExactlyOnce(t *testing.T) {
 	require.Equal(t, 2, repository.value.Attempts)
 	require.NoError(t, service.DrainPending(context.Background()))
 	require.Equal(t, 2, emitter.calls, "accepted outbox rows must never be delivered again")
+}
+
+func TestAcceptedPostingIdentityIsPersistedForOwnerReadback(t *testing.T) {
+	now := time.Date(2026, 11, 14, 12, 0, 0, 0, time.UTC)
+	repository := &receiptMemoryRepository{memoryRepository: memoryRepository{value: ledger.Emission{ID: "inbound-1:ledger", SettlementID: "inbound-1", ExternalID: "treasury-x402-inflow:0xabc", Status: ledger.StatusQueued}}}
+	emitter := &receiptSequenceEmitter{acceptance: ledger.Acceptance{PostingID: "posting-seller-1", ReceiptID: "receipt-seller-1"}}
+	service := ledger.NewService(repository, emitter, func() time.Time { return now })
+	require.NoError(t, service.DrainPending(context.Background()))
+	require.Equal(t, 1, emitter.calls)
+	require.Equal(t, "posting-seller-1", repository.value.PostingID)
+	require.Equal(t, "receipt-seller-1", repository.value.ReceiptID)
+	require.Equal(t, ledger.StatusAccepted, repository.value.Status)
 }

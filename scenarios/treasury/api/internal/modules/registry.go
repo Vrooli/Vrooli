@@ -24,14 +24,25 @@ import (
 	budgetH "treasury/handlers/budget"
 	capsH "treasury/handlers/capabilities"
 	evidenceH "treasury/handlers/evidence"
+	fundingH "treasury/handlers/funding"
+	instrumentH "treasury/handlers/instrument"
 	ledgeradminH "treasury/handlers/ledgeradmin"
 	mandateH "treasury/handlers/mandate"
 	treasuryadminH "treasury/handlers/treasuryadmin"
+	walletH "treasury/handlers/wallet"
 	x402gateH "treasury/handlers/x402gate"
+	x402receiptH "treasury/handlers/x402receipt"
+	x402resourceH "treasury/handlers/x402resource"
 
 	apidb "github.com/vrooli/api-core/database"
 	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
+	bookv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/book"
+	budgetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/budget"
+	fundingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/funding"
+	instrumentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/instrument"
 	ledgerv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/ledger"
+	mandatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/mandate"
+	walletv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "treasury/handlers/health"
@@ -47,9 +58,18 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
 	out = append(out, agentspendH.Endpoints...)
+	out = append(out, budgetH.Endpoints...)
+	out = append(out, bookH.Endpoints...)
+	out = append(out, fundingH.Endpoints...)
+	out = append(out, fundingH.AgentEndpoints...)
+	out = append(out, instrumentH.Endpoints...)
 	out = append(out, ledgeradminH.Endpoints...)
+	out = append(out, mandateH.Endpoints...)
+	out = append(out, walletH.Endpoints...)
 	out = append(out, treasuryadminH.Endpoints...)
 	out = append(out, x402gateH.Endpoints...)
+	out = append(out, x402resourceH.Endpoints...)
+	out = append(out, x402receiptH.Endpoints...)
 	return out
 }
 
@@ -77,6 +97,12 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "agentspend", File: authorizationv1.File_treasury_v1_authorization_authorization_proto},
+		{Module: "budget", File: budgetv1.File_treasury_v1_budget_budget_proto},
+		{Module: "book", File: bookv1.File_treasury_v1_book_book_proto},
+		{Module: "fundingadmin", File: fundingv1.File_treasury_v1_funding_wallet_ops_proto},
+		{Module: "instrument", File: instrumentv1.File_treasury_v1_instrument_instrument_proto},
+		{Module: "mandate", File: mandatev1.File_treasury_v1_mandate_mandate_proto},
+		{Module: "wallet", File: walletv1.File_treasury_v1_wallet_wallet_proto},
 		{Module: "ledgeradmin", File: ledgerv1.File_treasury_v1_ledger_ledger_proto},
 	}
 }
@@ -93,8 +119,10 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(bookH.Schema),
+		apidb.SchemaProviderFunc(instrumentH.Schema),
 		apidb.SchemaProviderFunc(budgetH.Schema),
 		apidb.SchemaProviderFunc(mandateH.Schema),
+		apidb.SchemaProviderFunc(walletH.Schema),
 		apidb.SchemaProviderFunc(agentspendH.Schema),
 		apidb.SchemaProviderFunc(treasuryadminH.Schema),
 		apidb.SchemaProviderFunc(x402gateH.Schema),

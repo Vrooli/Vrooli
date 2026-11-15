@@ -99,7 +99,9 @@ func (s *Store) adapter(ctx context.Context, id string) (*ingestpb.Adapter, erro
 	return &a, nil
 }
 
-func (s *Store) IngestEvent(ctx context.Context, event *sharedpb.MoneyEvent) (*sharedpb.Posting, bool, *ingestpb.Receipt, error) {
+// IngestEvent journals one event; actor is the verified caller the handler
+// authorized, recorded on the posting.
+func (s *Store) IngestEvent(ctx context.Context, event *sharedpb.MoneyEvent, actor string) (*sharedpb.Posting, bool, *ingestpb.Receipt, error) {
 	if event == nil {
 		return nil, false, nil, errors.New("money event is required")
 	}
@@ -111,7 +113,7 @@ func (s *Store) IngestEvent(ctx context.Context, event *sharedpb.MoneyEvent) (*s
 	if a.Kind == ingestpb.AdapterKind_ADAPTER_KIND_MANUAL {
 		normalized.Basis = sharedpb.Basis_BASIS_OPERATOR_ASSERTED
 	}
-	p, duplicate, err := s.journal.Ingest(ctx, normalized, "operator")
+	p, duplicate, err := s.journal.Ingest(ctx, normalized, actor)
 	r := s.newReceipt(event.AdapterId, nil, nil, 1, 0, 0, "failed", err)
 	if err != nil {
 		_, _ = s.insertReceipt(ctx, r)
@@ -130,7 +132,8 @@ func (s *Store) IngestEvent(ctx context.Context, event *sharedpb.MoneyEvent) (*s
 	return p, duplicate, r, err
 }
 
-func (s *Store) ImportFile(ctx context.Context, adapterID string, data []byte, from, to *timestamppb.Timestamp) (*ingestpb.Receipt, error) {
+// ImportFile journals each CSV row through a file adapter as actor.
+func (s *Store) ImportFile(ctx context.Context, actor, adapterID string, data []byte, from, to *timestamppb.Timestamp) (*ingestpb.Receipt, error) {
 	a, err := s.adapter(ctx, adapterID)
 	if err != nil {
 		return nil, err
@@ -140,31 +143,42 @@ func (s *Store) ImportFile(ctx context.Context, adapterID string, data []byte, f
 	}
 	reader := csv.NewReader(strings.NewReader(string(data)))
 	header, err := reader.Read()
-	if err != nil || len(header) < 8 {
-		return nil, errors.New("file header must contain eight columns")
+	if err != nil {
+		return nil, errors.New("file must start with a header row")
 	}
+	columns, err := csvColumns(header)
+	if err != nil {
+		return nil, err
+	}
+	reader.FieldsPerRecord = len(header)
 	var events []*sharedpb.MoneyEvent
 	for row := 1; ; row++ {
 		record, readErr := reader.Read()
 		if errors.Is(readErr, io.EOF) {
 			break
 		}
-		if readErr != nil || len(record) < 8 {
+		if readErr != nil {
 			return s.failedReceipt(ctx, adapterID, from, to, row-1, fmt.Errorf("malformed CSV row %d", row))
 		}
+		field := func(name string) string {
+			if index, ok := columns[name]; ok {
+				return strings.TrimSpace(record[index])
+			}
+			return ""
+		}
 		amount := int64(0)
-		if _, scanErr := fmt.Sscan(strings.TrimSpace(record[3]), &amount); scanErr != nil {
+		if _, scanErr := fmt.Sscan(field("amount_minor"), &amount); scanErr != nil {
 			return s.failedReceipt(ctx, adapterID, from, to, row-1, fmt.Errorf("row %d amount_minor: %w", row, scanErr))
 		}
-		occurred, parseErr := time.Parse(time.RFC3339, strings.TrimSpace(record[4]))
+		occurred, parseErr := time.Parse(time.RFC3339, field("occurred_at"))
 		if parseErr != nil {
 			return s.failedReceipt(ctx, adapterID, from, to, row-1, fmt.Errorf("row %d occurred_at: %w", row, parseErr))
 		}
-		events = append(events, &sharedpb.MoneyEvent{ExternalId: record[0], AccountId: record[1], BookId: record[2], AdapterId: adapterID, AmountMinor: amount, Currency: strings.ToUpper(record[5]), OccurredAt: timestamppb.New(occurred), FetchedAt: timestamppb.New(s.now()), Basis: sharedpb.Basis_BASIS_AUTHORITATIVE, Description: record[6], Category: record[7]})
+		events = append(events, &sharedpb.MoneyEvent{ExternalId: field("external_id"), AccountId: field("account_id"), BookId: field("book_id"), AdapterId: adapterID, AmountMinor: amount, Currency: strings.ToUpper(field("currency")), OccurredAt: timestamppb.New(occurred), FetchedAt: timestamppb.New(s.now()), Basis: sharedpb.Basis_BASIS_AUTHORITATIVE, Description: field("description"), Category: field("category")})
 	}
 	r := s.newReceipt(adapterID, from, to, len(events), 0, 0, "succeeded", nil)
 	for _, event := range events {
-		_, duplicate, ingestErr := s.journal.Ingest(ctx, event, "operator")
+		_, duplicate, ingestErr := s.journal.Ingest(ctx, event, actor)
 		if ingestErr != nil {
 			r.Status, r.Error = "failed", ingestErr.Error()
 			_, _ = s.insertReceipt(ctx, r)
@@ -181,6 +195,34 @@ func (s *Store) ImportFile(ctx context.Context, adapterID string, data []byte, f
 	}
 	_, err = s.insertReceipt(ctx, r)
 	return r, err
+}
+
+// csvRequiredColumns are the columns every imported row must carry; a file
+// may also carry description and category, and may order its columns freely.
+var csvRequiredColumns = []string{"external_id", "account_id", "book_id", "amount_minor", "currency", "occurred_at"}
+
+// csvColumns maps each header name to its column. Columns are read by name,
+// never by position, so a file whose columns are reordered cannot journal an
+// amount as a date or a currency as an account.
+func csvColumns(header []string) (map[string]int, error) {
+	columns := make(map[string]int, len(header))
+	for index, name := range header {
+		name = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(name, "\ufeff")))
+		if _, duplicate := columns[name]; duplicate {
+			return nil, fmt.Errorf("file header names column %q twice", name)
+		}
+		columns[name] = index
+	}
+	var missing []string
+	for _, name := range csvRequiredColumns {
+		if _, ok := columns[name]; !ok {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("file header is missing required columns: %s", strings.Join(missing, ", "))
+	}
+	return columns, nil
 }
 
 func (s *Store) RunAdapter(ctx context.Context, adapterID string, from, to *timestamppb.Timestamp) (*ingestpb.Receipt, []*ingestpb.Availability, error) {

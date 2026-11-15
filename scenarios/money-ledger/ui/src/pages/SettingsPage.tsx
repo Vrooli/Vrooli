@@ -9,6 +9,8 @@ import { useQuery } from "@tanstack/react-query";
 import { archiveGoal, configuredBookId, fetchBooks, fetchGoals, reparentGoal } from "../api/ledger";
 import { formatCurrency } from "../i18n/format";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { AccessPanel } from "../features/access/AccessPanel";
+import { useCanWrite } from "../features/access/useWriteAccess";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 const THEME_LABEL_KEYS = {
@@ -27,6 +29,7 @@ export function SettingsPage() {
   const currentLocale = getCurrentLocale();
   const { choice, setTheme } = useTheme();
   const queryClient = useQueryClient();
+  const canWrite = useCanWrite();
   const books = useQuery({ queryKey: ["settings-books"], queryFn: fetchBooks, retry: false });
   const bookId = configuredBookId() || books.data?.books[0]?.id || "";
   const goals = useQuery({ queryKey: ["settings-goals", bookId], queryFn: () => fetchGoals(bookId), retry: false, enabled: Boolean(bookId) });
@@ -52,6 +55,11 @@ export function SettingsPage() {
         {t(strings.pages.settings.title)}
       </h2>
 
+      <section data-testid={selectors.access.settings} className="rounded-md border p-4" aria-labelledby="settings-access-heading">
+        <h3 id="settings-access-heading" className="mb-2 font-semibold">{t(strings.access.title)}</h3>
+        <AccessPanel />
+      </section>
+
       <section className="rounded-md border p-4" aria-labelledby="settings-goals-heading">
         <h3 id="settings-goals-heading" className="font-semibold">{t(strings.pages.settings.goalsHeading)}</h3>
         <ul data-testid="settings-goal-list" aria-label={t(strings.pages.settings.goalsHeading)} className="mt-2 text-sm text-app-muted-foreground">
@@ -61,8 +69,8 @@ export function SettingsPage() {
             if (!goal) return null;
             return <li key={goal.id} className="flex flex-wrap items-center gap-2">
               <span>{t(strings.pages.settings.goalSummary, { name: goal.name, threshold: formatCurrency(Number(goal.thresholdMinor) / 100, books.data?.books.find((book) => book.id === bookId)?.currency || "USD"), comparator: goal.comparator, periods: goal.sustainPeriods })}</span>
-              <Button type="button" size="sm" variant="secondary" data-testid="settings-goal-archive" disabled={archiveGoalMutation.isPending} onClick={() => archiveGoalMutation.mutate(goal.id)}>{t(strings.pages.settings.archiveGoal)}</Button>
-              {targetBook && <Button type="button" size="sm" variant="secondary" data-testid="settings-goal-reparent" disabled={reparentGoalMutation.isPending} onClick={() => reparentGoalMutation.mutate({ goalId: goal.id, targetBookId: targetBook.id })}>{t(strings.pages.settings.moveGoal)}</Button>}
+              <Button type="button" size="sm" variant="secondary" data-testid="settings-goal-archive" disabled={!canWrite || archiveGoalMutation.isPending} onClick={() => archiveGoalMutation.mutate(goal.id)}>{t(strings.pages.settings.archiveGoal)}</Button>
+              {targetBook && <Button type="button" size="sm" variant="secondary" data-testid="settings-goal-reparent" disabled={!canWrite || reparentGoalMutation.isPending} onClick={() => reparentGoalMutation.mutate({ goalId: goal.id, targetBookId: targetBook.id })}>{t(strings.pages.settings.moveGoal)}</Button>}
             </li>;
           })}
         </ul>

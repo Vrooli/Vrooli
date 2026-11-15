@@ -8,6 +8,10 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/vrooli/api-core/authn"
+
+	"money-ledger/internal/access"
+
 	"github.com/vrooli/api-core/apihttptest"
 	"github.com/vrooli/api-core/databasetest"
 	httpx "github.com/vrooli/api-core/servertest"
@@ -88,7 +92,7 @@ func TestHealthHandler(t *testing.T) {
 				},
 			}
 			srv := server.New(
-				server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)},
+				server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0), Gate: access.NewGate(authn.Config{})},
 				mod,
 			)
 			live := httpx.NewLiveServer(t, srv)

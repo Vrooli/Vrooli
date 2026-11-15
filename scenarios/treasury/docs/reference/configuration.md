@@ -33,12 +33,26 @@ ports as outbound source ports. See the project-level port allocation reference
 | `TREASURY_BASE_RPC_URL` | `https://mainnet.base.org` | Read-only Base RPC endpoint for operator-authenticated native-USDC receipt checks. Remote endpoints must use HTTPS; loopback HTTP is allowed for local proxies. The RPC client refuses redirects and only calls chain ID, transaction receipt, and block-read methods. |
 | `TREASURY_MANDATE_SIGNING_KEY` | unset | HMAC key used only to sign canonical immutable mandate payloads. Missing configuration leaves reads available but makes mandate creation fail closed. Keep it independent from the operator API credential so either authority can rotate without changing the other. |
 | `NOTIFICATION_HUB_API_URL` | unset | Optional approval-relay base URL supplied by scenario dependency discovery. Missing or unreachable relay records a failed attempt while the local approval queue remains authoritative. |
-| `MONEY_LEDGER_API_URL` | unset | Money Ledger Connect origin. Missing or unreachable configuration leaves emissions durably queued and never changes a settlement outcome. |
-| `TREASURY_LEDGER_BOOK_ID` | unset | Existing Money Ledger book that receives settlement events. Required with `MONEY_LEDGER_API_URL`; Treasury never guesses or creates an operator's journal structure. |
-| `TREASURY_LEDGER_ACCOUNT_ID` | unset | Existing Money Ledger account in the configured book. Its currency must match the settlement. Expenses are emitted as negative minor units. |
+| `MONEY_LEDGER_API_URL` | resolved by service discovery | Override for the Money Ledger Connect origin; leave it unset when money-ledger runs under the lifecycle. An unresolvable or unreachable origin leaves emissions durably queued and never changes a settlement outcome. |
+| `TREASURY_LEDGER_BOOK_ID` | unset | Rehearsal seed only, with `TREASURY_LEDGER_ACCOUNT_ID`: the book a disposable test instance posts to when no destination has been chosen. A destination chosen with `treasury ledger destination-set` always wins, and the seed is never stored. Production does not set it. |
+| `TREASURY_LEDGER_ACCOUNT_ID` | unset | Rehearsal seed only, with `TREASURY_LEDGER_BOOK_ID`. |
 | `X402_FACILITATOR_URL` | `http://127.0.0.1:14020` | Self-hosted x402 v2 facilitator origin used for inbound verify/settle calls. Non-loopback origins must use HTTPS. The managed resource starts in an intentionally empty, fail-closed state until an operator provisions a network and signer. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth and fallback `TreasuryAdmin` operator credential. Prefer `TREASURY_OPERATOR_TOKEN` when the two authorities should rotate independently. |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
+
+### Settlement destination
+
+Where settlements post is the operator's choice, recorded in Treasury rather than
+in the environment: `treasury ledger destination-set --book-id <id> --account-id <id>`.
+Treasury checks it against Money Ledger (the book exists, is not archived and is
+USD; the account belongs to that book) and stores nothing otherwise. It never
+creates a book or account; `money-ledger ledger books-list` and `accounts-list`
+show the choices. The choice is read on every delivery, so it needs no restart, and
+until it is made every settlement stays durably queued: `treasury ledger
+destination-show` and `emissions-list` say so, and how many are waiting.
+
+Treasury presents its `treasury-money-ledger` service principal on each delivery;
+the operator issues it with `scenario-authenticator service-principals sync --apply`.
 
 Automated instrument credentials require no Treasury environment variable. The API uses
 the repository-standard typed credential client backed by the lifecycle-managed

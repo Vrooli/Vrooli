@@ -23,7 +23,7 @@ an unknown honestly rather than estimating.
 
 | You want | Command |
 |---|---|
-| Record one expense, income or other money event | `money-ledger ingest event-ingest` |
+| Record one expense, income or other money event | `money-ledger ingest event-ingest` (the operator runs it with `--local-owner`; an agent run is refused, so ask the operator) |
 | Import a bank or card CSV | `money-ledger ingest file-import` (after `ingest adapter-register` for a file adapter) |
 | Move money between accounts | `money-ledger ledger journal-transfer` |
 | Undo a posting | `money-ledger ledger journal-reverse` |

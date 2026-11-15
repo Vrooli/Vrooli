@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +20,8 @@ import (
 	fundingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/funding"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"treasury/cli/internal/envx"
 )
 
 func TestSessionIntentSignatureMatchesTreasuryCanonicalMessage(t *testing.T) {
@@ -82,6 +85,89 @@ type proofReaderFixture struct {
 	walletCalls        int
 }
 
+type testEnvironment map[string]string
+
+func (e testEnvironment) LookupEnv(key string) (string, bool) {
+	value, ok := e[key]
+	return value, ok
+}
+
+type testSessionClock struct{ now time.Time }
+
+func (c testSessionClock) Now() time.Time { return c.now }
+
+func TestSessionRequestUsesInjectedEnvironmentAndCredentialResolver(t *testing.T) {
+	key := "0000000000000000000000000000000000000000000000000000000000000001"
+	env := testEnvironment{
+		sessionPrivateKeyEnv:     key,
+		cliutil.EnvIdentityToken: "run-token",
+	}
+	var resolvedOperation, resolvedTarget string
+	dependencies := Dependencies{
+		Environment: env,
+		Clock:       testSessionClock{now: time.Date(2026, 11, 13, 22, 0, 0, 0, time.UTC)},
+		ResolveAgentGrant: func(_ context.Context, operation, target string) (cliutil.AgentCredentials, error) {
+			resolvedOperation, resolvedTarget = operation, target
+			return cliutil.AgentCredentials{BaselineToken: "run-token", OperationToken: "read-grant"}, nil
+		},
+	}
+	request := connect.NewRequest(&fundingv1.GetBudgetWalletRequest{BudgetId: "budget-7", MandateId: "mandate-3"})
+	prepare := treasurySessionRequestHeadersWithDependencies(nil, nil, dependencies)
+	headers, err := prepare(nil, "FundingAgentService.GetBudgetWallet", request.Msg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if headers[sessionPublicKeyHeader] == "" || headers[cliutil.HeaderAgentIdentityToken] != "run-token" || headers[cliutil.HeaderAgentOperationToken] != "read-grant" {
+		t.Fatalf("request did not use injected run identity, grant and session key: %#v", headers)
+	}
+	if resolvedOperation != "treasury.read" || resolvedTarget != "treasury:budget/budget-7" {
+		t.Fatalf("credential resolver received operation=%q target=%q", resolvedOperation, resolvedTarget)
+	}
+}
+
+func TestSessionPrivateKeyValueUsesInjectedEnvironmentForOrdinaryRun(t *testing.T) {
+	key := "0x0000000000000000000000000000000000000000000000000000000000000001"
+	if got := sessionPrivateKeyValue(nil, testEnvironment{sessionPrivateKeyEnv: key}); got != strings.TrimPrefix(key, "0x") {
+		t.Fatalf("ordinary run environment session key = %q, want unprefixed key", got)
+	}
+	if got := sessionPrivateKeyValue(func() string { return "  source-key  " }, testEnvironment{sessionPrivateKeyEnv: "environment-key"}); got != "source-key" {
+		t.Fatalf("explicit key source = %q, want source-key", got)
+	}
+	if got := sessionPrivateKeyValue(nil, testEnvironment{}); got != "" {
+		t.Fatalf("missing session key = %q, want empty", got)
+	}
+}
+
+func TestInjectedClockRefusesExpiredAuthorizationBeforeReadingWallet(t *testing.T) {
+	key, err := parseSessionPrivateKey("0000000000000000000000000000000000000000000000000000000000000001")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixture := &proofReaderFixture{authorization: &authorizationv1.AuthorizationRecord{
+		Id: "auth-expired", MandateId: "mandate-1", BudgetId: "budget-1", RequestingAgent: "agent:research",
+		SettlementId: "settle-1", InstrumentId: "instrument-1", SettlementIdempotencyKey: "idem-1",
+		Verdict:   authorizationv1.AuthorizationVerdict_AUTHORIZATION_VERDICT_APPROVED,
+		ExpiresAt: timestamppb.New(time.Date(2026, 11, 12, 23, 0, 0, 0, time.UTC)),
+	}}
+	dependencies := Dependencies{
+		Environment: testEnvironment{cliutil.EnvIdentityToken: "run-token"},
+		Clock:       testSessionClock{now: time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC)},
+		ResolveAgentGrant: func(_ context.Context, operation, target string) (cliutil.AgentCredentials, error) {
+			return cliutil.AgentCredentials{BaselineToken: "run-token", OperationToken: operation + ":" + target}, nil
+		},
+	}
+	request := &authorizationv1.ReportOutcomeRequest{AuthorizationId: "auth-expired", SettlementId: "settle-1", InstrumentId: "instrument-1", IdempotencyKey: "idem-1"}
+	_, _, err = prepareSettlementProofFromClientWithDependencies(fixture, request, key, dependencies)
+	if err == nil || !strings.Contains(err.Error(), "expired") {
+		t.Fatalf("expired authorization produced no refusal: %v", err)
+	}
+	if fixture.authorizationCalls != 1 || fixture.walletCalls != 0 {
+		t.Fatalf("expired authorization reached wallet path: auth=%d wallet=%d", fixture.authorizationCalls, fixture.walletCalls)
+	}
+}
+
+var _ envx.Reader = testEnvironment{}
+
 func (f *proofReaderFixture) GetAuthorization(_ context.Context, request *connect.Request[authorizationv1.GetAuthorizationRequest]) (*connect.Response[authorizationv1.GetAuthorizationResponse], error) {
 	f.authorizationCalls++
 	if request.Msg.GetId() != f.authorization.GetId() {
@@ -122,7 +208,7 @@ func TestSessionPublicKeyHeaderUsesInjectedKeySource(t *testing.T) {
 	prepare := treasurySessionRequestHeadersWithKeySource(nil, func() string {
 		return "0000000000000000000000000000000000000000000000000000000000000001"
 	})
-	headers, err := prepare(nil, "AgentSpend.GetBudgetWallet", request.Msg)
+	headers, err := prepare(nil, "FundingAgentService.GetBudgetWallet", request.Msg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +248,7 @@ func TestTreasuryAgentCallForwardsCurrentPairedOperationGrant(t *testing.T) {
 	prepare := treasurySessionRequestHeadersWithKeySource(nil, func() string {
 		return "0000000000000000000000000000000000000000000000000000000000000001"
 	})
-	headers, err := prepare(nil, "AgentSpend.GetBudgetWallet", request.Msg)
+	headers, err := prepare(nil, "FundingAgentService.GetBudgetWallet", request.Msg)
 	if err != nil {
 		t.Fatal(err)
 	}

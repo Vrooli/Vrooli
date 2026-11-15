@@ -33,6 +33,15 @@ import (
 type Deps struct {
 	Clock  schedule.Clock
 	Logger *log.Logger
+	// Gate authenticates every request and applies the access policy before
+	// any module route runs. Required: the server has no unguarded mode.
+	Gate Gate
+}
+
+// Gate is the request guard the server installs in front of every route.
+// Production passes *access.Gate.
+type Gate interface {
+	Middleware(http.Handler) http.Handler
 }
 
 // Server is the wired HTTP application: cross-cutting deps + router
@@ -44,9 +53,10 @@ type Server struct {
 	router *mux.Router
 }
 
-// New builds a Server with logging middleware applied and every module's
-// Mount invoked. Logger defaults to log.Default() if nil; Clock has no
-// default and is required so the logging middleware never hides its time seam.
+// New builds a Server with logging middleware and the access gate applied and
+// every module's Mount invoked. Logger defaults to log.Default() if nil; Clock
+// and Gate have no default: the logging middleware never hides its time seam,
+// and no route is served without the gate.
 //
 // The handler test in handlers/health/handler_test.go reproduces a
 // stripped-down version of the middleware composition; if you add
@@ -59,9 +69,13 @@ func New(d Deps, modules ...module.Module) *Server {
 	if d.Clock == nil {
 		panic("server.New requires Deps.Clock")
 	}
+	if d.Gate == nil {
+		panic("server.New requires Deps.Gate")
+	}
 	s := &Server{deps: d, router: mux.NewRouter()}
 	s.router.Use(middleware.NewSecurityHeadersMiddleware())
 	s.router.Use(middleware.NewLoggingMiddleware(d.Clock, d.Logger))
+	s.router.Use(d.Gate.Middleware)
 	for _, m := range modules {
 		m.Mount(s.router)
 	}

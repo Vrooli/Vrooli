@@ -36,7 +36,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "BookAdminService",
             "method": "GetBook"
           },
           "governance": {
@@ -63,7 +63,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "BookAdminService",
             "method": "CreateBook"
           },
           "governance": {
@@ -130,7 +130,7 @@
     },
     {
       "name": "ledger",
-      "description": "Inspect the durable Money Ledger emission boundary.",
+      "description": "Inspect the durable Money Ledger emission boundary and choose where settlements post.",
       "commands": [
         {
           "name": "describe",
@@ -168,6 +168,51 @@
             "permissions": [
               "network:internal"
             ]
+          }
+        },
+        {
+          "name": "destination-show",
+          "description": "Show the Money Ledger book and account settlements post to, or why none is chosen, with how many settlements are waiting.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LedgerService",
+            "method": "GetLedgerDestination"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "destination-set",
+          "description": "Choose the existing Money Ledger book and account settlements post to. Treasury checks the choice against Money Ledger (book exists and is not archived, account is in that book, currency is USD) and stores nothing otherwise. It never creates a book or account; list the choices with `money-ledger ledger books-list` and `accounts-list`. Waiting settlements are delivered on the next drain.",
+          "flags": [
+            {
+              "name": "book-id",
+              "required": true,
+              "description": "Id of an existing, active USD Money Ledger book."
+            },
+            {
+              "name": "account-id",
+              "required": true,
+              "description": "Id of an account in that book."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LedgerService",
+            "method": "SetLedgerDestination"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
           }
         }
       ]
@@ -301,7 +346,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "MandateAdminService",
             "method": "CreateMandate"
           },
           "governance": {
@@ -325,8 +370,32 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "MandateAdminService",
             "method": "RevokeMandate"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          }
+        },
+        {
+          "name": "revoke-session",
+          "description": "Revoke the active mandate-scoped signing session immediately.",
+          "positionals": [
+            {
+              "name": "mandate-id",
+              "required": true,
+              "description": "Mandate identifier whose active signing session will be revoked."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MandateAdminService",
+            "method": "RevokeMandateSession"
           },
           "governance": {
             "effect": "destructive",
@@ -349,7 +418,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "MandateAdminService",
             "method": "CancelStandingMandate"
           },
           "governance": {
@@ -366,7 +435,7 @@
           "description": "List all mandates visible to the authenticated operator across books.",
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "MandateAdminService",
             "method": "ListMandates"
           },
           "governance": {
@@ -399,7 +468,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "BudgetAdminService",
             "method": "SetBudgetCaps"
           },
           "governance": {
@@ -428,7 +497,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "BudgetAdminService",
             "method": "SetGating"
           },
           "governance": {
@@ -452,7 +521,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "BudgetAdminService",
             "method": "FreezeBudget"
           },
           "governance": {
@@ -476,7 +545,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "BudgetAdminService",
             "method": "UnfreezeBudget"
           },
           "governance": {
@@ -523,7 +592,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "BudgetAdminService",
             "method": "FreezeBook"
           },
           "governance": {
@@ -547,7 +616,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "BudgetAdminService",
             "method": "UnfreezeBook"
           },
           "governance": {
@@ -564,7 +633,7 @@
           "description": "Read the durable scenario-wide kill-switch state.",
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "BudgetAdminService",
             "method": "GetFreezeStatus"
           },
           "governance": {
@@ -580,7 +649,7 @@
           "description": "Engage the scenario-wide kill switch.",
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "BudgetAdminService",
             "method": "FreezeAll"
           },
           "governance": {
@@ -597,7 +666,7 @@
           "description": "Release the scenario-wide kill switch.",
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "BudgetAdminService",
             "method": "UnfreezeAll"
           },
           "governance": {
@@ -613,18 +682,26 @@
           "name": "agent-wallet",
           "description": "Read the budget wallet address assigned to the verified agent run.",
           "flags": [
-            { "name": "budget-id", "required": true },
-            { "name": "mandate-id", "required": true }
+            {
+              "name": "budget-id",
+              "required": true
+            },
+            {
+              "name": "mandate-id",
+              "required": true
+            }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "AgentSpend",
+            "service": "FundingAgentService",
             "method": "GetBudgetWallet"
           },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
@@ -724,7 +801,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "InstrumentAdminService",
             "method": "RegisterInstrument"
           },
           "governance": {
@@ -854,7 +931,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "WalletAdminService",
             "method": "CreateResearchWallet"
           },
           "governance": {
@@ -880,7 +957,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "WalletAdminService",
             "method": "GetResearchWallet"
           },
           "governance": {
@@ -906,8 +983,38 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "WalletAdminService",
             "method": "VerifyBaseUSDCReceipt"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "receipt-recheck",
+          "description": "Recheck a retained Base receipt observation against current canonical chain state.",
+          "flags": [
+            {
+              "name": "wallet-id",
+              "required": true
+            },
+            {
+              "name": "transaction-hash",
+              "required": true
+            },
+            {
+              "name": "prior-check-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WalletAdminService",
+            "method": "RecheckBaseUSDCReceipt"
           },
           "governance": {
             "effect": "read",
@@ -932,7 +1039,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "WalletAdminService",
             "method": "ListBaseUSDCReceiptChecks"
           },
           "governance": {
@@ -962,7 +1069,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "WalletAdminService",
             "method": "ProveResearchWallet"
           },
           "governance": {
@@ -988,7 +1095,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "WalletAdminService",
             "method": "QualifyResearchWalletRecovery"
           },
           "governance": {
@@ -1014,7 +1121,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "WalletAdminService",
             "method": "RecoverResearchWallet"
           },
           "governance": {
@@ -1029,39 +1136,69 @@
           "name": "export-portable-recovery",
           "description": "Create a portable encrypted key-only recovery bundle. Pipe the operator-held secret on stdin; the encrypted bundle is stored privately in Treasury data for DBM transport.",
           "flags": [
-            {"name": "id", "required": true},
-            {"name": "network", "required": true},
-            {"name": "secret-stdin", "bool": true, "local_only": true, "description": "Read the operator-held recovery secret from stdin."}
+            {
+              "name": "id",
+              "required": true
+            },
+            {
+              "name": "network",
+              "required": true
+            },
+            {
+              "name": "secret-stdin",
+              "bool": true,
+              "local_only": true,
+              "description": "Read the operator-held recovery secret from stdin."
+            }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "WalletAdminService",
             "method": "ExportPortableResearchWalletRecovery"
           },
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "restore-portable-recovery",
           "description": "Restore an encrypted key-only bundle. Pipe the operator-held recovery secret on stdin. After DBM restores the Treasury data root on this node, the API reads its private bundle automatically; use --bundle-file only to upload ciphertext from a local file.",
           "flags": [
-            {"name": "id", "required": true},
-            {"name": "network", "required": true},
-            {"name": "bundle-file", "local_only": true, "description": "Optional path to encrypted bundle bytes to upload instead of using the API's DBM-restored private bundle."},
-            {"name": "secret-stdin", "bool": true, "local_only": true, "description": "Read the operator-held recovery secret from stdin."}
+            {
+              "name": "id",
+              "required": true
+            },
+            {
+              "name": "network",
+              "required": true
+            },
+            {
+              "name": "bundle-file",
+              "local_only": true,
+              "description": "Optional path to encrypted bundle bytes to upload instead of using the API's DBM-restored private bundle."
+            },
+            {
+              "name": "secret-stdin",
+              "bool": true,
+              "local_only": true,
+              "description": "Read the operator-held recovery secret from stdin."
+            }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "WalletAdminService",
             "method": "RestorePortableResearchWalletRecovery"
           },
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
@@ -1129,7 +1266,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "FundingAdminService",
             "method": "SubmitReceiptFunding"
           },
           "governance": {
@@ -1151,7 +1288,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "TreasuryAdmin",
+            "service": "FundingAdminService",
             "method": "GetReceiptFunding"
           },
           "governance": {
@@ -1164,86 +1301,313 @@
         },
         {
           "name": "provision-budget",
-          "description": "Derive a wallet for the selected budget and optional agent run.",
+          "description": "Derive a budget wallet or rotate its mandate session key with a durable retry key.",
           "flags": [
-            { "name": "budget-id", "required": true },
-            { "name": "network", "default": "eip155:8453" },
-            { "name": "agent-subject" },
-            { "name": "agent-run-id" }
+            {
+              "name": "budget-id",
+              "required": true
+            },
+            {
+              "name": "network",
+              "default": "eip155:8453"
+            },
+            {
+              "name": "agent-subject"
+            },
+            {
+              "name": "agent-run-id"
+            },
+            {
+              "name": "mandate-id"
+            },
+            {
+              "name": "rotate-session",
+              "bool": true,
+              "description": "Retire the active generation and create the next; requires mandate-id and rotation-idempotency-key."
+            },
+            {
+              "name": "rotation-idempotency-key",
+              "description": "Stable unique key for this rotation; reuse it unchanged when retrying."
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "TreasuryAdmin", "method": "ProvisionBudgetWallet" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FundingAdminService",
+            "method": "ProvisionBudgetWallet"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          }
         },
         {
           "name": "budget-wallet",
           "description": "Read a derived budget wallet address.",
-          "flags": [{ "name": "budget-id", "required": true }],
-          "binding": { "kind": "connect-rpc", "service": "TreasuryAdmin", "method": "GetBudgetWallet" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "flags": [
+            {
+              "name": "budget-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FundingAdminService",
+            "method": "GetBudgetWallet"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "fund-intent",
           "description": "Create a local-fork funding intent with an exact amount and valuation basis.",
           "flags": [
-            { "name": "id" }, { "name": "budget-id", "required": true }, { "name": "atomic-amount", "required": true },
-            { "name": "ledger-book-id", "required": true }, { "name": "ledger-account-id", "required": true },
-            { "name": "valuation", "description": "Inline generated protobuf JSON.", "bind": { "field": "valuation", "kind": "json_inline" }, "required": true }
+            {
+              "name": "id"
+            },
+            {
+              "name": "budget-id",
+              "required": true
+            },
+            {
+              "name": "atomic-amount",
+              "required": true
+            },
+            {
+              "name": "ledger-book-id",
+              "required": true
+            },
+            {
+              "name": "ledger-account-id",
+              "required": true
+            },
+            {
+              "name": "valuation",
+              "description": "Inline generated protobuf JSON.",
+              "bind": {
+                "field": "valuation",
+                "kind": "json_inline"
+              },
+              "required": true
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "TreasuryAdmin", "method": "CreateFundingIntent" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FundingAdminService",
+            "method": "CreateFundingIntent"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          }
         },
         {
           "name": "fund-intent-get",
           "description": "Read funding intent, verified receipt and notification status.",
-          "flags": [{ "name": "id", "required": true }],
-          "binding": { "kind": "connect-rpc", "service": "TreasuryAdmin", "method": "GetFundingIntent" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "flags": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FundingAdminService",
+            "method": "GetFundingIntent"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "fund-confirm",
           "description": "Verify a submitted transaction against the funding intent and post accepted evidence.",
-          "flags": [{ "name": "id", "required": true }, { "name": "transaction-hash", "required": true }],
-          "binding": { "kind": "connect-rpc", "service": "TreasuryAdmin", "method": "ConfirmFundingTransfer" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true }
+          "flags": [
+            {
+              "name": "id",
+              "required": true
+            },
+            {
+              "name": "transaction-hash",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FundingAdminService",
+            "method": "ConfirmFundingTransfer"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          }
         },
         {
           "name": "fund-list",
           "description": "List funding intents for one budget.",
-          "flags": [{ "name": "budget-id", "required": true }],
-          "binding": { "kind": "connect-rpc", "service": "TreasuryAdmin", "method": "ListFundingIntents" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "flags": [
+            {
+              "name": "budget-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FundingAdminService",
+            "method": "ListFundingIntents"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "withdrawal-destination-set",
           "description": "Allowlist an operator-owned withdrawal destination using generated protobuf JSON.",
-          "flags": [{ "name": "destination", "description": "Inline WithdrawalDestination protobuf JSON.", "bind": { "field": "destination", "kind": "json_inline" }, "required": true }],
-          "binding": { "kind": "connect-rpc", "service": "TreasuryAdmin", "method": "SetWithdrawalDestination" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true }
+          "flags": [
+            {
+              "name": "destination",
+              "description": "Inline WithdrawalDestination protobuf JSON.",
+              "bind": {
+                "field": "destination",
+                "kind": "json_inline"
+              },
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FundingAdminService",
+            "method": "SetWithdrawalDestination"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          }
         },
         {
           "name": "withdrawal-preview",
           "description": "Persist a local-fork withdrawal fee and time quote for an allowlisted destination.",
           "flags": [
-            { "name": "budget-id", "required": true }, { "name": "destination", "required": true }, { "name": "atomic-amount", "required": true },
-            { "name": "fee-valuation-minor", "type": "int", "required": true }, { "name": "max-fee-wei", "required": true },
-            { "name": "valuation", "description": "Inline generated protobuf JSON.", "bind": { "field": "valuation", "kind": "json_inline" }, "required": true }
+            {
+              "name": "budget-id",
+              "required": true
+            },
+            {
+              "name": "destination",
+              "required": true
+            },
+            {
+              "name": "atomic-amount",
+              "required": true
+            },
+            {
+              "name": "fee-valuation-minor",
+              "type": "int",
+              "required": true
+            },
+            {
+              "name": "max-fee-wei",
+              "required": true
+            },
+            {
+              "name": "valuation",
+              "description": "Inline generated protobuf JSON.",
+              "bind": {
+                "field": "valuation",
+                "kind": "json_inline"
+              },
+              "required": true
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "TreasuryAdmin", "method": "PreviewWithdrawal" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FundingAdminService",
+            "method": "PreviewWithdrawal"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "withdrawal-execute",
           "description": "Execute an approved local-fork withdrawal; real-value execution is gated.",
-          "flags": [{ "name": "quote-id", "required": true }, { "name": "idempotency-key", "required": true }],
-          "binding": { "kind": "connect-rpc", "service": "TreasuryAdmin", "method": "ExecuteWithdrawal" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true }
+          "flags": [
+            {
+              "name": "quote-id",
+              "required": true
+            },
+            {
+              "name": "idempotency-key",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FundingAdminService",
+            "method": "ExecuteWithdrawal"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          }
         },
         {
           "name": "withdrawal-get",
           "description": "Read the retained withdrawal outcome.",
-          "flags": [{ "name": "id", "required": true }],
-          "binding": { "kind": "connect-rpc", "service": "TreasuryAdmin", "method": "GetWithdrawal" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "flags": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FundingAdminService",
+            "method": "GetWithdrawal"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     }
@@ -1253,11 +1617,6 @@
   },
   "exceptions": [],
   "omitted": [
-    {
-      "service": "TreasuryAdmin",
-      "method": "RecheckBaseUSDCReceipt",
-      "reason": "No CLI command is defined for authenticated provider receipt rechecks."
-    },
     {
       "service": "TreasuryAdmin",
       "method": "ResolveUnknownSettlement",

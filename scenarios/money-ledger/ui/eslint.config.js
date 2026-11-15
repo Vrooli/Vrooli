@@ -220,7 +220,9 @@ export default tseslint.config(
     },
   },
   {
-    files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
+    // src/test-setup.ts is Vitest's setup file: it runs only under the test
+    // runner, so it is test code and wires the test-only helpers it imports.
+    files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "src/test-setup.ts"],
     rules: {
       "@typescript-eslint/no-non-null-assertion": "off",
       "@typescript-eslint/no-unsafe-call": "off",

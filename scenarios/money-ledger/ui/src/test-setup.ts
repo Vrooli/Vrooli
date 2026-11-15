@@ -30,8 +30,13 @@ import { i18n } from "./i18n";
 import { installConsoleGuard } from "./test-utils/console";
 import { Providers } from "./app/providers";
 
-if (!window.matchMedia) {
-  window.matchMedia = ((query: string) => ({
+// jsdom does not implement matchMedia although the DOM types promise one;
+// components that read media queries need it to answer "no match". A test can
+// still replace it (the property stays writable).
+Object.defineProperty(window, "matchMedia", {
+  configurable: true,
+  writable: true,
+  value: (query: string): MediaQueryList => ({
     matches: false,
     media: query,
     onchange: null,
@@ -40,10 +45,18 @@ if (!window.matchMedia) {
     addEventListener: () => undefined,
     removeEventListener: () => undefined,
     dispatchEvent: () => false,
-  })) as typeof window.matchMedia;
-}
+  }),
+});
 
 configureTestProviders((children) => React.createElement(Providers, { children }));
+
+// Every page asks Money Ledger whether this browser may write. Answer as the
+// signed-in owner by default so no test reaches the network; a test about
+// another caller overrides `fetchWriteAccess` (see features/access/mocks).
+vi.mock("./api/access", async () => {
+  const { makeAccessMocks } = await import("./features/access/mocks/accessMocks");
+  return makeAccessMocks();
+});
 
 let finishConsoleGuard: () => void;
 

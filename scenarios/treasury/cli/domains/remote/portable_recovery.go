@@ -19,7 +19,7 @@ const maxRecoveryBundleBytes = 1 << 20
 // is accepted as an argv flag or copied into diagnostics.
 func portableRecoveryRequestPreparer(base cliapp.RequestPreparer, stdin io.Reader) cliapp.RequestPreparer {
 	return func(ctx cliapp.OperationContext, method string, request proto.Message) (map[string]string, error) {
-		if method != "TreasuryAdmin.ExportPortableResearchWalletRecovery" && method != "TreasuryAdmin.RestorePortableResearchWalletRecovery" {
+		if method != "WalletAdminService.ExportPortableResearchWalletRecovery" && method != "WalletAdminService.RestorePortableResearchWalletRecovery" {
 			if base != nil {
 				return base(ctx, method, request)
 			}
@@ -35,7 +35,7 @@ func portableRecoveryRequestPreparer(base cliapp.RequestPreparer, stdin io.Reade
 		if err := setStringField(request, "operator_secret", secret); err != nil {
 			return nil, err
 		}
-		if method == "TreasuryAdmin.RestorePortableResearchWalletRecovery" {
+		if method == "WalletAdminService.RestorePortableResearchWalletRecovery" {
 			path := strings.TrimSpace(ctx.Flag("bundle-file"))
 			if path != "" {
 				bundle, err := readRecoveryBundle(path)

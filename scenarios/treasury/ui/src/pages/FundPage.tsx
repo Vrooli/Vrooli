@@ -1,8 +1,9 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, Clipboard, ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
-import { createFundingIntent, confirmFundingTransfer, executeWithdrawal, listFundingIntents, previewWithdrawal, type FundingIntent, type Withdrawal, type WithdrawalQuote } from "../api/funding";
+import { createFundingIntent, confirmFundingTransfer, executeWithdrawal, getBudgetHeadroom, listFundingIntents, previewWithdrawal, type FundingIntent, type Withdrawal, type WithdrawalQuote } from "../api/funding";
+import type { AgentBudgetHeadroom } from "@vrooli/proto-types/treasury/v1/authorization/authorization_pb";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -25,6 +26,8 @@ export function FundPage() {
   const [form, setForm] = useState<FundingForm>({ budgetId: "", amount: "", value: "", bookId: "", accountId: "" });
   const [intents, setIntents] = useState<FundingIntent[]>([]);
   const [activeIntent, setActiveIntent] = useState<FundingIntent>();
+  const [headroom, setHeadroom] = useState<AgentBudgetHeadroom>();
+  const [headroomError, setHeadroomError] = useState("");
   const [transactionHash, setTransactionHash] = useState("");
   const [destination, setDestination] = useState("");
   const [mandateId, setMandateId] = useState("");
@@ -39,6 +42,22 @@ export function FundPage() {
   const [notice, setNotice] = useState("");
   const withdrawalIdempotencyKeys = useRef(new Map<string, string>());
 
+  const refreshHeadroom = useCallback(async () => {
+    const budgetId = form.budgetId.trim();
+    if (!agentIdentityToken || !budgetId) {
+      setHeadroom(undefined);
+      setHeadroomError("");
+      return;
+    }
+    try {
+      setHeadroom(await getBudgetHeadroom(agentIdentityToken, budgetId));
+      setHeadroomError("");
+    } catch (reason) {
+      setHeadroom(undefined);
+      setHeadroomError(errorText(reason, t(strings.fund.headroomError)));
+    }
+  }, [agentIdentityToken, form.budgetId, t]);
+
   async function refreshIntents() {
     if (!operatorToken || !form.budgetId.trim()) return;
     setBusy(true);
@@ -47,6 +66,7 @@ export function FundPage() {
       const updated = await listFundingIntents(operatorToken, form.budgetId.trim());
       setIntents(updated);
       setActiveIntent((current) => updated.find((item) => item.id === current?.id) ?? current);
+      await refreshHeadroom();
     } catch (reason) {
       setError(errorText(reason, t(strings.fund.requestError)));
     } finally {
@@ -66,6 +86,7 @@ export function FundPage() {
         setIntents(updated);
         const latest = updated.find((item) => item.id === activeIntent.id);
         if (latest) setActiveIntent(latest);
+        await refreshHeadroom();
       } catch {
         // Keep the last known receipt state visible; the next bounded poll can recover.
       }
@@ -77,7 +98,7 @@ export function FundPage() {
       stopped = true;
       if (timer) clearTimeout(timer);
     };
-  }, [activeIntent, form.budgetId, operatorToken]);
+  }, [activeIntent, form.budgetId, operatorToken, refreshHeadroom]);
 
   useEffect(() => {
     if (!quote || quote.executionMode !== "local-fork" || !withdrawal || withdrawal.state !== "pending_approval" || !operatorToken || !agentIdentityToken) return;
@@ -244,6 +265,19 @@ export function FundPage() {
               <RefreshCw aria-hidden="true" className="size-4" /> {t(strings.fund.refresh)}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card data-testid={selectors.funding.headroomCard}>
+        <CardHeader><CardTitle>{t(strings.fund.headroomTitle)}</CardTitle><p className="text-sm text-app-muted-foreground">{t(strings.fund.headroomHelp)}</p></CardHeader>
+        <CardContent>
+          {headroom ? <dl className="grid gap-3 sm:grid-cols-3">
+            <Detail testId={selectors.funding.creditedMinor} label={t(strings.fund.creditedReserve)} value={formatUSDMinor(headroom.fundingCreditedMinor, headroom.currency || "USD")} />
+            <Detail testId={selectors.funding.remainingMinor} liveRegion label={t(strings.fund.remainingReserve)} value={formatUSDMinor(headroom.fundingRemainingMinor, headroom.currency || "USD")} />
+            <Detail testId={selectors.funding.spendAvailableMinor} label={t(strings.fund.spendAvailability)} value={formatUSDMinor(headroom.availableMinor, headroom.currency || "USD")} />
+          </dl> : <p data-testid={selectors.funding.headroomUnavailable} role={headroomError ? "alert" : "status"} className="text-sm text-app-muted-foreground">
+            {headroomError || t(strings.fund.headroomUnavailable)}
+          </p>}
         </CardContent>
       </Card>
 

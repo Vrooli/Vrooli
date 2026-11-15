@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS mandate_session_keys (
     id TEXT PRIMARY KEY,
     mandate_id TEXT NOT NULL,
     budget_id TEXT NOT NULL,
+    -- Legacy column name; this is an opaque per-generation reference, not a
+    -- wallet row. Session provisioning must not mint another signing key.
     wallet_id TEXT NOT NULL UNIQUE,
     operator_identity TEXT NOT NULL,
     agent_subject TEXT NOT NULL,
@@ -118,4 +120,18 @@ CREATE TABLE IF NOT EXISTS mandate_session_signatures (
     wallet_id TEXT NOT NULL,
     transaction_digest TEXT NOT NULL,
     consumed_at TEXT NOT NULL
+);
+
+-- Operator-initiated session rotations reserve one target generation per stable
+-- request key. The result snapshot makes response-loss retries idempotent.
+CREATE TABLE IF NOT EXISTS mandate_session_rotations (
+    mandate_id TEXT NOT NULL,
+    operator_identity TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    target_generation INTEGER NOT NULL CHECK (target_generation > 0),
+    result_json BLOB NOT NULL DEFAULT X'',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY(mandate_id,operator_identity,idempotency_key),
+    UNIQUE(mandate_id,target_generation)
 );

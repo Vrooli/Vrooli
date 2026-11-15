@@ -3,6 +3,7 @@ package walletops
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -74,16 +75,11 @@ func (s *Service) ProvisionMandateSession(ctx context.Context, operator, mandate
 		return MandateSessionWallet{}, err
 	}
 	generation++
-	walletID := stableID("mandate-session", mandateID, fmt.Sprint(generation))
-	// This short-lived generation marker is never the funded budget identity.
-	// The agent-held key binds its exact settlement intent to the derived budget
-	// address; Treasury keeps its separate budget signer behind the policy gate.
-	marker, err := s.Wallets.Create(ctx, wallet.CreateInput{
-		ID: walletID, BookID: grant.BookID, Network: b.network, OperatorIdentity: operator,
-	})
-	if err != nil {
-		return MandateSessionWallet{}, err
-	}
+	generationRef := stableID("mandate-session", mandateID, fmt.Sprint(generation))
+	// wallet_id is a legacy-named, opaque generation reference in this table. It
+	// is not a wallet and must never create an extra Treasury private key: the
+	// run-held public key below authorizes one intent while Treasury signs with
+	// the already-derived budget wallet behind its policy gate.
 	now := s.Clock.Now().UTC()
 	expiresAt := now.Add(mandateSessionTTL)
 	if grant.ExpiresAt.Before(expiresAt) {
@@ -94,7 +90,7 @@ func (s *Service) ProvisionMandateSession(ctx context.Context, operator, mandate
 	}
 	id := stableID("session", mandateID, fmt.Sprint(generation))
 	_, err = s.DB.ExecContext(ctx, `INSERT INTO mandate_session_keys(id,mandate_id,budget_id,wallet_id,operator_identity,agent_subject,agent_run_id,network,generation,state,expires_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,'active',?,?,?)`,
-		id, mandateID, b.budgetID, marker.ID, operator, grant.AgentSubject, grant.AgentRunID, b.network, generation,
+		id, mandateID, b.budgetID, generationRef, operator, grant.AgentSubject, grant.AgentRunID, b.network, generation,
 		expiresAt.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano))
 	if err != nil {
 		// Concurrent provisioning may have won the unique active-session race.
@@ -166,16 +162,97 @@ func (s *Service) retireMandateSession(ctx context.Context, operator, mandateID,
 	return ErrNotFound
 }
 
-// RotateMandateSession revokes the old generation before deriving the next.
-// If provisioning then fails, the mandate fails closed until the operator
-// retries; the former key cannot silently regain signing authority.
-func (s *Service) RotateMandateSession(ctx context.Context, operator, mandateID string) (MandateSessionWallet, error) {
-	if err := s.retireMandateSession(ctx, operator, mandateID, "rotated"); err != nil {
-		if !errors.Is(err, ErrNotFound) {
+// RotateMandateSession reserves a generation under a caller-stable idempotency
+// key, retires the old generation once, and durably records its public result.
+// A lost response can be replayed without retiring the fresh key again. An
+// incomplete request can resume with the same key; another key fails closed
+// until that request is recovered.
+func (s *Service) RotateMandateSession(ctx context.Context, operator, mandateID, idempotencyKey string) (MandateSessionWallet, error) {
+	if s == nil || s.DB == nil || s.Clock == nil || s.Mandates == nil || s.Budgets == nil || operator == "" || mandateID == "" || idempotencyKey == "" || strings.TrimSpace(idempotencyKey) != idempotencyKey || len(idempotencyKey) > 200 {
+		return MandateSessionWallet{}, ErrInvalid
+	}
+	grant, err := s.Mandates.RequireLive(ctx, mandateID)
+	if err != nil {
+		return MandateSessionWallet{}, ErrSessionInactive
+	}
+	binding, err := s.load(ctx, grant.BudgetID)
+	if err != nil {
+		return MandateSessionWallet{}, err
+	}
+	if binding.operator != operator || grant.BudgetID != binding.budgetID || grant.AgentSubject != binding.agent || grant.AgentRunID != binding.run {
+		return MandateSessionWallet{}, ErrInvalid
+	}
+
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return MandateSessionWallet{}, err
+	}
+	defer tx.Rollback()
+	var targetGeneration int64
+	var resultJSON []byte
+	err = tx.QueryRowContext(ctx, `SELECT target_generation,result_json FROM mandate_session_rotations WHERE mandate_id=? AND operator_identity=? AND idempotency_key=?`, mandateID, operator, idempotencyKey).Scan(&targetGeneration, &resultJSON)
+	if err == nil {
+		if len(resultJSON) > 0 {
+			var result MandateSessionWallet
+			if err := json.Unmarshal(resultJSON, &result); err != nil {
+				return MandateSessionWallet{}, fmt.Errorf("decode retained rotation result: %w", err)
+			}
+			return result, nil
+		}
+		if err := tx.Commit(); err != nil {
+			return MandateSessionWallet{}, err
+		}
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return MandateSessionWallet{}, err
+	} else {
+		var pending int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM mandate_session_rotations WHERE mandate_id=? AND length(result_json)=0`, mandateID).Scan(&pending); err != nil {
+			return MandateSessionWallet{}, err
+		}
+		if pending > 0 {
+			return MandateSessionWallet{}, ErrConflict
+		}
+		if err := tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(generation),0)+1 FROM mandate_session_keys WHERE mandate_id=?`, mandateID).Scan(&targetGeneration); err != nil {
+			return MandateSessionWallet{}, err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE mandate_session_keys SET state='rotated',updated_at=? WHERE mandate_id=? AND operator_identity=? AND state='active'`, s.Clock.Now().UTC().Format(time.RFC3339Nano), mandateID, operator); err != nil {
+			return MandateSessionWallet{}, err
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO mandate_session_rotations(mandate_id,operator_identity,idempotency_key,target_generation,result_json,created_at,updated_at) VALUES(?,?,?,?,X'',?,?)`, mandateID, operator, idempotencyKey, targetGeneration, s.Clock.Now().UTC().Format(time.RFC3339Nano), s.Clock.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+			return MandateSessionWallet{}, err
+		}
+		if err := tx.Commit(); err != nil {
 			return MandateSessionWallet{}, err
 		}
 	}
-	return s.ProvisionMandateSession(ctx, operator, mandateID)
+
+	var result MandateSessionWallet
+	active, activeErr := s.sessionByMandate(ctx, mandateID, "active")
+	if activeErr == nil {
+		if active.generation != targetGeneration || active.operator != operator {
+			return MandateSessionWallet{}, ErrConflict
+		}
+		result, err = s.publicSession(ctx, active)
+	} else if errors.Is(activeErr, sql.ErrNoRows) {
+		result, err = s.ProvisionMandateSession(ctx, operator, mandateID)
+	} else {
+		return MandateSessionWallet{}, activeErr
+	}
+	if err != nil {
+		return MandateSessionWallet{}, err
+	}
+	if result.Generation != targetGeneration {
+		return MandateSessionWallet{}, ErrConflict
+	}
+	encoded, err := json.Marshal(result)
+	if err != nil {
+		return MandateSessionWallet{}, err
+	}
+	_, err = s.DB.ExecContext(ctx, `UPDATE mandate_session_rotations SET result_json=?,updated_at=? WHERE mandate_id=? AND operator_identity=? AND idempotency_key=? AND target_generation=? AND length(result_json)=0`, encoded, s.Clock.Now().UTC().Format(time.RFC3339Nano), mandateID, operator, idempotencyKey, targetGeneration)
+	if err != nil {
+		return MandateSessionWallet{}, err
+	}
+	return result, nil
 }
 
 func (s *Service) AuthorizeAndConsumeSessionSign(ctx context.Context, request wallet.SessionSignAuthorization) error {

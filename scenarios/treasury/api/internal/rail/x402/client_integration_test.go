@@ -2,11 +2,15 @@ package x402
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -39,6 +43,7 @@ func TestOutboundPayAndRetryReturnsFacilitatorReceipt(t *testing.T) {
 		require.NoError(t, err)
 		writer.Header().Set(paymentResponseHeader, base64.StdEncoding.EncodeToString(receipt))
 		writer.WriteHeader(http.StatusOK)
+		_, _ = writer.Write([]byte(`{"nodes":[{"name":"research-result"}]}`))
 	}))
 	defer server.Close()
 	endpoint = server.URL + "/priced"
@@ -53,9 +58,40 @@ func TestOutboundPayAndRetryReturnsFacilitatorReceipt(t *testing.T) {
 	require.Equal(t, "0xabc123", result.ExternalID)
 	require.Equal(t, "x402_facilitator_confirmation", result.Basis)
 	require.NotEmpty(t, result.ReceiptReference)
+	paidBody := []byte(`{"nodes":[{"name":"research-result"}]}`)
+	digest := sha256.Sum256(paidBody)
+	require.Contains(t, result.Detail, fmt.Sprintf("response_bytes=%d", len(paidBody)))
+	require.Contains(t, result.Detail, "response_sha256="+hex.EncodeToString(digest[:]))
+	require.NotContains(t, result.Detail, "research-result", "only a digest, never resource content, is retained")
 	require.EqualValues(t, 1, signer.calls.Load())
 	require.EqualValues(t, 2, attempts.Load())
 	require.NotNil(t, signer.typed["message"])
+}
+
+func TestOutboundPaidResponseEvidenceIsBounded(t *testing.T) {
+	var endpoint string
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Header.Get(paymentSignatureHeader) == "" {
+			writer.Header().Set(paymentRequiredHeader, paymentRequiredValue(t, endpoint, "10000"))
+			writer.WriteHeader(http.StatusPaymentRequired)
+			return
+		}
+		receipt, err := json.Marshal(map[string]any{"success": true, "payer": "0x1111111111111111111111111111111111111111", "transaction": "0xbounded", "network": "eip155:8453"})
+		require.NoError(t, err)
+		writer.Header().Set(paymentResponseHeader, base64.StdEncoding.EncodeToString(receipt))
+		writer.WriteHeader(http.StatusOK)
+		_, _ = writer.Write([]byte(strings.Repeat("x", maxResponseBytes+100)))
+	}))
+	defer server.Close()
+	endpoint = server.URL + "/bounded"
+	adapter, err := New(server.Client(), &fixtureSigner{})
+	require.NoError(t, err)
+	result, err := adapter.Settle(context.Background(), command(t, endpoint, 1))
+	require.NoError(t, err)
+	require.Equal(t, rail.OutcomeSettled, result.Outcome, "the facilitator receipt remains authoritative when result metadata is oversized")
+	require.Contains(t, result.Detail, "response_evidence=truncated")
+	require.Contains(t, result.Detail, fmt.Sprintf("response_bytes_at_least=%d", maxResponseBytes+1))
+	require.NotContains(t, result.Detail, "response_sha256=", "truncated bodies must not claim a complete-content digest")
 }
 
 func TestOutboundPersistsExactPayloadBeforePaidDispatch(t *testing.T) {

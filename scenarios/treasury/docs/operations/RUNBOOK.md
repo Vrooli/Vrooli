@@ -150,7 +150,7 @@ completed work to [`../internal/PROGRESS.md`](../internal/PROGRESS.md).
 
 ## Receive-only research wallet qualification
 
-The source exposes `wallet create`, `wallet get`, `wallet prove`, `wallet qualify-recovery` and `wallet recover` through TreasuryAdmin. Use an established authenticated human operator ingress; agent-attributed and mixed-realm calls must retain their refusal. Production commissioning through the current agent session has not been qualified.
+The source exposes `wallet create`, `wallet get`, `wallet prove`, `wallet qualify-recovery` and `wallet recover` through `WalletAdminService`. Use an established authenticated human operator ingress; agent-attributed and mixed-realm calls must retain their refusal. Production commissioning through the current agent session has not been qualified.
 
 For an operator commissioning session, start with Base Sepolia (`eip155:84532`) and a book whose beneficiary is the verified operator. Keep one stable wallet ID for retries. Creation persists its opaque reference before minting, so retrying a partial response must recover the same binding. A mainnet wallet is a separate explicit wallet ID/network (`eip155:8453`), never an automatic promotion of the testnet record.
 

@@ -137,7 +137,14 @@
     "withdrawalStatus": "Withdrawal {{id}}: {{state}}",
     "withdrawNotice": "Local-fork withdrawal {{state}}.",
     "requestError": "Treasury could not complete the request. Check the operator token and try again.",
-    "valueError": "Enter a USD value with up to two decimal places."
+    "valueError": "Enter a USD value with up to two decimal places.",
+    "headroomTitle": "Budget funding and spend headroom",
+    "headroomHelp": "Funded reserve tracks accepted deposits and withdrawals. Spend availability is the current mandate authorization limit.",
+    "creditedReserve": "Total accepted funding",
+    "remainingReserve": "Funded reserve remaining",
+    "spendAvailability": "Current spend availability",
+    "headroomUnavailable": "Enter an agent identity token and budget ID to view headroom.",
+    "headroomError": "Could not load budget headroom."
   },
   "health": {
     "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",

@@ -28,6 +28,7 @@ func RegisterIngest(core *cliapp.ScenarioApp, manifest []byte) (cliapp.Subcomman
 
 func ledgerBindings(h *handlers) map[string]cliapp.PrimitiveHandler {
 	return map[string]cliapp.PrimitiveHandler{
+		"AccessService.GetWriteAccess":      cliapp.ProtoList(h.writeAccess, writeAccessReport),
 		"BooksService.ListBooks":            cliapp.ProtoList(h.booksList, booksListReport),
 		"BooksService.CreateBook":           cliapp.ProtoMutation(h.booksCreate, booksCreateReport),
 		"BooksService.ArchiveBook":          cliapp.ProtoMutation(h.booksArchive, booksArchiveReport),

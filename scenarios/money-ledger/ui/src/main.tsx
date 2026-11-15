@@ -4,7 +4,9 @@ import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
 import { i18n } from "./i18n";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Code, ConnectError } from "@connectrpc/connect";
+import { writeAccessQueryKey } from "./features/access/useWriteAccess";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import "./styles.css";
@@ -34,7 +36,18 @@ if (!rootEl) {
 }
 const appRoot = rootEl;
 
-const queryClient = new QueryClient();
+// A write refused for identity means this page's idea of who it is has gone
+// stale (a session expired, or was signed out elsewhere): re-ask, so the
+// access notice and the disabled forms catch up at once.
+const queryClient: QueryClient = new QueryClient({
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      if (error instanceof ConnectError && (error.code === Code.Unauthenticated || error.code === Code.PermissionDenied)) {
+        void queryClient.invalidateQueries({ queryKey: writeAccessQueryKey });
+      }
+    },
+  }),
+});
 
 async function bootstrap() {
   const [{ default: App }, { ErrorBoundary }, { onProfilerRender }] = await Promise.all([

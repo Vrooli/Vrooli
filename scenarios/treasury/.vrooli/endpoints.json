@@ -71,37 +71,6 @@
       }
     },
     {
-      "id": "agentspend_get_budget_wallet",
-      "path": "/vrooli.treasury.v1.authorization.AgentSpend/GetBudgetWallet",
-      "method": "POST",
-      "summary": "Read the verified agent run's mandate-bound budget wallet address",
-      "description": "",
-      "category": "budget",
-      "request": {
-        "type": "GetBudgetWalletRequest"
-      },
-      "response": {
-        "type": "BudgetWalletResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Verified agent identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Wallet is bound to another agent run or budget grant"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "Budget wallet does not exist"
-        }
-      ]
-    },
-    {
       "id": "agentspend_propose_charge",
       "path": "/vrooli.treasury.v1.authorization.AgentSpend/ProposeCharge",
       "method": "POST",
@@ -178,14 +147,14 @@
       "id": "agentspend_list_mandates",
       "path": "/vrooli.treasury.v1.authorization.AgentSpend/ListMandates",
       "method": "POST",
-      "summary": "List mandates visible to the verified agent",
+      "summary": "List mandate-safe projections visible to the verified agent",
       "description": "",
       "category": "mandate",
       "request": {
-        "type": "ListMandatesRequest"
+        "type": "AgentListMandatesRequest"
       },
       "response": {
-        "type": "ListMandatesResponse"
+        "type": "AgentListMandatesResponse"
       },
       "errors": [
         {
@@ -199,7 +168,7 @@
       "id": "agentspend_report_outcome",
       "path": "/vrooli.treasury.v1.authorization.AgentSpend/ReportOutcome",
       "method": "POST",
-      "summary": "Execute an approved charge once and return its durable rail outcome",
+      "summary": "Verify the run-held mandate session proof, then execute a new charge once or reconcile the exact prior outcome",
       "description": "",
       "category": "settlement",
       "request": {
@@ -223,6 +192,901 @@
           "status": 500,
           "code": "internal",
           "description": "Settlement execution or durable outcome recording failed"
+        }
+      ]
+    },
+    {
+      "id": "treasury_budget_set_caps",
+      "path": "/vrooli.treasury.v1.budget.BudgetAdminService/SetBudgetCaps",
+      "method": "POST",
+      "summary": "Set spend caps and counterparty scope for a budget",
+      "description": "",
+      "category": "budget",
+      "request": {
+        "type": "SetBudgetCapsRequest"
+      },
+      "response": {
+        "type": "SetBudgetCapsResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or budget service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_budget_set_gating",
+      "path": "/vrooli.treasury.v1.budget.BudgetAdminService/SetGating",
+      "method": "POST",
+      "summary": "Set approval gating for a budget",
+      "description": "",
+      "category": "budget",
+      "request": {
+        "type": "SetGatingRequest"
+      },
+      "response": {
+        "type": "SetGatingResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or budget service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_budget_freeze",
+      "path": "/vrooli.treasury.v1.budget.BudgetAdminService/FreezeBudget",
+      "method": "POST",
+      "summary": "Freeze the budget before its next authorization",
+      "description": "",
+      "category": "budget",
+      "request": {
+        "type": "FreezeBudgetRequest"
+      },
+      "response": {
+        "type": "FreezeBudgetResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or budget service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_budget_unfreeze",
+      "path": "/vrooli.treasury.v1.budget.BudgetAdminService/UnfreezeBudget",
+      "method": "POST",
+      "summary": "Release a budget freeze",
+      "description": "",
+      "category": "budget",
+      "request": {
+        "type": "UnfreezeBudgetRequest"
+      },
+      "response": {
+        "type": "UnfreezeBudgetResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or budget service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_budget_freeze_book",
+      "path": "/vrooli.treasury.v1.budget.BudgetAdminService/FreezeBook",
+      "method": "POST",
+      "summary": "Freeze every authorization and unsettled charge in a book",
+      "description": "",
+      "category": "budget",
+      "request": {
+        "type": "FreezeBookRequest"
+      },
+      "response": {
+        "type": "FreezeBookResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or budget service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_budget_unfreeze_book",
+      "path": "/vrooli.treasury.v1.budget.BudgetAdminService/UnfreezeBook",
+      "method": "POST",
+      "summary": "Release a book freeze",
+      "description": "",
+      "category": "budget",
+      "request": {
+        "type": "UnfreezeBookRequest"
+      },
+      "response": {
+        "type": "UnfreezeBookResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or budget service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_budget_freeze_all",
+      "path": "/vrooli.treasury.v1.budget.BudgetAdminService/FreezeAll",
+      "method": "POST",
+      "summary": "Engage the scenario-wide kill switch",
+      "description": "",
+      "category": "budget",
+      "request": {
+        "type": "FreezeAllRequest"
+      },
+      "response": {
+        "type": "FreezeAllResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or budget service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_budget_freeze_status",
+      "path": "/vrooli.treasury.v1.budget.BudgetAdminService/GetFreezeStatus",
+      "method": "POST",
+      "summary": "Read the scenario-wide kill-switch state",
+      "description": "",
+      "category": "budget",
+      "request": {
+        "type": "GetFreezeStatusRequest"
+      },
+      "response": {
+        "type": "GetFreezeStatusResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or budget service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_budget_unfreeze_all",
+      "path": "/vrooli.treasury.v1.budget.BudgetAdminService/UnfreezeAll",
+      "method": "POST",
+      "summary": "Release the scenario-wide kill switch",
+      "description": "",
+      "category": "budget",
+      "request": {
+        "type": "UnfreezeAllRequest"
+      },
+      "response": {
+        "type": "UnfreezeAllResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or budget service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_book_create",
+      "path": "/vrooli.treasury.v1.book.BookAdminService/CreateBook",
+      "method": "POST",
+      "summary": "Create an operator-owned Treasury book",
+      "description": "",
+      "category": "book",
+      "request": {
+        "type": "CreateBookRequest"
+      },
+      "response": {
+        "type": "CreateBookResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or book service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_book_get",
+      "path": "/vrooli.treasury.v1.book.BookAdminService/GetBook",
+      "method": "POST",
+      "summary": "Read a Treasury book",
+      "description": "",
+      "category": "book",
+      "request": {
+        "type": "GetBookRequest"
+      },
+      "response": {
+        "type": "GetBookResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or book service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_funding_intent_create",
+      "path": "/vrooli.treasury.v1.funding.FundingAdminService/CreateFundingIntent",
+      "method": "POST",
+      "summary": "Create a durable funding intent for a budget",
+      "description": "",
+      "category": "funding",
+      "request": {
+        "type": "CreateFundingIntentRequest"
+      },
+      "response": {
+        "type": "FundingIntentResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Funding intent or budget does not exist"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Funding intent identity conflicts with an existing request"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Funding intent service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_funding_intent_get",
+      "path": "/vrooli.treasury.v1.funding.FundingAdminService/GetFundingIntent",
+      "method": "POST",
+      "summary": "Read an operator-owned funding intent",
+      "description": "",
+      "category": "funding",
+      "request": {
+        "type": "FundingIntentRequest"
+      },
+      "response": {
+        "type": "FundingIntentResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Funding intent or budget does not exist"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Funding intent identity conflicts with an existing request"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Funding intent service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_funding_transfer_confirm",
+      "path": "/vrooli.treasury.v1.funding.FundingAdminService/ConfirmFundingTransfer",
+      "method": "POST",
+      "summary": "Confirm a funding transfer against its verified receipt",
+      "description": "",
+      "category": "funding",
+      "request": {
+        "type": "ConfirmFundingTransferRequest"
+      },
+      "response": {
+        "type": "FundingIntentResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Funding intent or budget does not exist"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Funding intent identity conflicts with an existing request"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Funding intent service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_funding_intent_list",
+      "path": "/vrooli.treasury.v1.funding.FundingAdminService/ListFundingIntents",
+      "method": "POST",
+      "summary": "List funding intents for a budget",
+      "description": "",
+      "category": "funding",
+      "request": {
+        "type": "ListFundingIntentsRequest"
+      },
+      "response": {
+        "type": "ListFundingIntentsResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Funding intent or budget does not exist"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Funding intent identity conflicts with an existing request"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Funding intent service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_budget_wallet_provision",
+      "path": "/vrooli.treasury.v1.funding.FundingAdminService/ProvisionBudgetWallet",
+      "method": "POST",
+      "summary": "Provision a derived wallet for an operator-owned budget and agent run",
+      "description": "",
+      "category": "funding",
+      "request": {
+        "type": "ProvisionBudgetWalletRequest"
+      },
+      "response": {
+        "type": "BudgetWalletResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Funding intent or budget does not exist"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Funding intent identity conflicts with an existing request"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Funding intent service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_budget_wallet_get",
+      "path": "/vrooli.treasury.v1.funding.FundingAdminService/GetBudgetWallet",
+      "method": "POST",
+      "summary": "Read an operator-owned budget wallet address",
+      "description": "",
+      "category": "funding",
+      "request": {
+        "type": "GetBudgetWalletRequest"
+      },
+      "response": {
+        "type": "BudgetWalletResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Funding intent or budget does not exist"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Funding intent identity conflicts with an existing request"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Funding intent service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_withdrawal_destination_set",
+      "path": "/vrooli.treasury.v1.funding.FundingAdminService/SetWithdrawalDestination",
+      "method": "POST",
+      "summary": "Allowlist an operator-controlled withdrawal destination",
+      "description": "",
+      "category": "funding",
+      "request": {
+        "type": "SetWithdrawalDestinationRequest"
+      },
+      "response": {
+        "type": "WithdrawalDestinationResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Funding intent or budget does not exist"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Funding intent identity conflicts with an existing request"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Funding intent service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_withdrawal_preview",
+      "path": "/vrooli.treasury.v1.funding.FundingAdminService/PreviewWithdrawal",
+      "method": "POST",
+      "summary": "Preview an allowlisted withdrawal with fee and time estimates",
+      "description": "",
+      "category": "funding",
+      "request": {
+        "type": "PreviewWithdrawalRequest"
+      },
+      "response": {
+        "type": "WithdrawalQuoteResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Funding intent or budget does not exist"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Funding intent identity conflicts with an existing request"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Funding intent service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_withdrawal_execute",
+      "path": "/vrooli.treasury.v1.funding.FundingAdminService/ExecuteWithdrawal",
+      "method": "POST",
+      "summary": "Execute an approved local-fork withdrawal once",
+      "description": "",
+      "category": "funding",
+      "request": {
+        "type": "ExecuteWithdrawalRequest"
+      },
+      "response": {
+        "type": "WithdrawalResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Funding intent or budget does not exist"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Funding intent identity conflicts with an existing request"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Funding intent service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_withdrawal_get",
+      "path": "/vrooli.treasury.v1.funding.FundingAdminService/GetWithdrawal",
+      "method": "POST",
+      "summary": "Read a persisted withdrawal outcome",
+      "description": "",
+      "category": "funding",
+      "request": {
+        "type": "GetWithdrawalRequest"
+      },
+      "response": {
+        "type": "WithdrawalResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Funding intent or budget does not exist"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Funding intent identity conflicts with an existing request"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Funding intent service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_receipt_funding_submit",
+      "path": "/vrooli.treasury.v1.funding.FundingAdminService/SubmitReceiptFunding",
+      "method": "POST",
+      "summary": "Submit retained token evidence for exact ledger acceptance and budget funding",
+      "description": "",
+      "category": "funding",
+      "request": {
+        "type": "SubmitReceiptFundingRequest"
+      },
+      "response": {
+        "type": "ReceiptFundingResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Funding intent or budget does not exist"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Funding intent identity conflicts with an existing request"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Funding intent service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_receipt_funding_get",
+      "path": "/vrooli.treasury.v1.funding.FundingAdminService/GetReceiptFunding",
+      "method": "POST",
+      "summary": "Read receipt acceptance and budget funding delivery",
+      "description": "",
+      "category": "funding",
+      "request": {
+        "type": "GetReceiptFundingRequest"
+      },
+      "response": {
+        "type": "ReceiptFundingResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Funding intent or budget does not exist"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Funding intent identity conflicts with an existing request"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Funding intent service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "funding_agent_budget_wallet_get",
+      "path": "/vrooli.treasury.v1.funding.FundingAgentService/GetBudgetWallet",
+      "method": "POST",
+      "summary": "Bind the agent-run public session key and read its mandate-bound derived budget wallet",
+      "description": "",
+      "category": "funding",
+      "request": {
+        "type": "GetBudgetWalletRequest"
+      },
+      "response": {
+        "type": "BudgetWalletResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Verified agent identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Wallet is bound to another agent run or budget grant"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Budget wallet does not exist"
+        }
+      ]
+    },
+    {
+      "id": "treasury_instrument_register",
+      "path": "/vrooli.treasury.v1.instrument.InstrumentAdminService/RegisterInstrument",
+      "method": "POST",
+      "summary": "Register a mandate-scoped instrument reference",
+      "description": "",
+      "category": "instrument",
+      "request": {
+        "type": "RegisterInstrumentRequest"
+      },
+      "response": {
+        "type": "RegisterInstrumentResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or instrument service is unavailable"
         }
       ]
     },
@@ -263,694 +1127,12 @@
       ]
     },
     {
-      "id": "treasuryadmin_provision_budget_wallet",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/ProvisionBudgetWallet",
-      "method": "POST",
-      "summary": "Provision a derived wallet for an operator-owned budget and agent run",
-      "description": "",
-      "category": "budget",
-      "request": {
-        "type": "ProvisionBudgetWalletRequest"
-      },
-      "response": {
-        "type": "BudgetWalletResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_get_budget_wallet",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/GetBudgetWallet",
-      "method": "POST",
-      "summary": "Read an operator-owned budget wallet address",
-      "description": "",
-      "category": "budget",
-      "request": {
-        "type": "GetBudgetWalletRequest"
-      },
-      "response": {
-        "type": "BudgetWalletResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_create_funding_intent",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/CreateFundingIntent",
-      "method": "POST",
-      "summary": "Create a native Base USDC funding intent for a budget",
-      "description": "",
-      "category": "funding",
-      "request": {
-        "type": "CreateFundingIntentRequest"
-      },
-      "response": {
-        "type": "FundingIntentResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_get_funding_intent",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/GetFundingIntent",
-      "method": "POST",
-      "summary": "Read a persisted funding intent and receipt status",
-      "description": "",
-      "category": "funding",
-      "request": {
-        "type": "FundingIntentRequest"
-      },
-      "response": {
-        "type": "FundingIntentResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_confirm_funding_transfer",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/ConfirmFundingTransfer",
-      "method": "POST",
-      "summary": "Verify a funding transaction against the intent and accept its receipt",
-      "description": "",
-      "category": "funding",
-      "request": {
-        "type": "ConfirmFundingTransferRequest"
-      },
-      "response": {
-        "type": "FundingIntentResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_list_funding_intents",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/ListFundingIntents",
-      "method": "POST",
-      "summary": "List budget funding intents and their accepted receipt status",
-      "description": "",
-      "category": "funding",
-      "request": {
-        "type": "ListFundingIntentsRequest"
-      },
-      "response": {
-        "type": "ListFundingIntentsResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_set_withdrawal_destination",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/SetWithdrawalDestination",
-      "method": "POST",
-      "summary": "Allowlist an operator-controlled withdrawal destination",
-      "description": "",
-      "category": "withdrawal",
-      "request": {
-        "type": "SetWithdrawalDestinationRequest"
-      },
-      "response": {
-        "type": "WithdrawalDestinationResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_preview_withdrawal",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/PreviewWithdrawal",
-      "method": "POST",
-      "summary": "Preview an allowlisted withdrawal with fee and time estimates",
-      "description": "",
-      "category": "withdrawal",
-      "request": {
-        "type": "PreviewWithdrawalRequest"
-      },
-      "response": {
-        "type": "WithdrawalQuoteResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_execute_withdrawal",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/ExecuteWithdrawal",
-      "method": "POST",
-      "summary": "Execute an approved local-fork withdrawal once",
-      "description": "",
-      "category": "withdrawal",
-      "request": {
-        "type": "ExecuteWithdrawalRequest"
-      },
-      "response": {
-        "type": "WithdrawalResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_get_withdrawal",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/GetWithdrawal",
-      "method": "POST",
-      "summary": "Read a persisted withdrawal outcome",
-      "description": "",
-      "category": "withdrawal",
-      "request": {
-        "type": "GetWithdrawalRequest"
-      },
-      "response": {
-        "type": "WithdrawalResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_submit_receipt_funding",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/SubmitReceiptFunding",
-      "method": "POST",
-      "summary": "Submit retained token evidence for exact ledger acceptance and budget funding",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "SubmitReceiptFundingRequest"
-      },
-      "response": {
-        "type": "ReceiptFundingResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_get_receipt_funding",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/GetReceiptFunding",
-      "method": "POST",
-      "summary": "Read receipt acceptance and budget funding delivery",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "GetReceiptFundingRequest"
-      },
-      "response": {
-        "type": "ReceiptFundingResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_recover_research_wallet",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/RecoverResearchWallet",
-      "method": "POST",
-      "summary": "Restore a missing wallet key from verified encrypted custody",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "ResearchWalletRequest"
-      },
-      "response": {
-        "type": "ResearchWalletResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_create_research_wallet",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/CreateResearchWallet",
-      "method": "POST",
-      "summary": "Create a receive-only research wallet",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "CreateResearchWalletRequest"
-      },
-      "response": {
-        "type": "ResearchWalletResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_get_research_wallet",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/GetResearchWallet",
-      "method": "POST",
-      "summary": "Read qualified public wallet custody",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "ResearchWalletRequest"
-      },
-      "response": {
-        "type": "ResearchWalletResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_verify_base_usdc_receipt",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/VerifyBaseUSDCReceipt",
-      "method": "POST",
-      "summary": "Read and verify a Base native-USDC transaction receipt without posting or allocation",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "VerifyBaseUSDCReceiptRequest"
-      },
-      "response": {
-        "type": "VerifyBaseUSDCReceiptResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_recheck_base_usdc_receipt",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/RecheckBaseUSDCReceipt",
-      "method": "POST",
-      "summary": "Recheck an exact prior verified Base receipt without posting or allocation",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "RecheckBaseUSDCReceiptRequest"
-      },
-      "response": {
-        "type": "RecheckBaseUSDCReceiptResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_list_base_usdc_receipt_checks",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/ListBaseUSDCReceiptChecks",
-      "method": "POST",
-      "summary": "Read retained Base receipt checks for an operator-bound wallet and transaction",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "ListBaseUSDCReceiptChecksRequest"
-      },
-      "response": {
-        "type": "ListBaseUSDCReceiptChecksResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_prove_research_wallet",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/ProveResearchWallet",
-      "method": "POST",
-      "summary": "Prove address control without spending authority",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "ProveResearchWalletRequest"
-      },
-      "response": {
-        "type": "ProveResearchWalletResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_qualify_research_wallet_recovery",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/QualifyResearchWalletRecovery",
-      "method": "POST",
-      "summary": "Qualify encrypted same-host wallet recovery",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "ResearchWalletRequest"
-      },
-      "response": {
-        "type": "ResearchWalletResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_create_book",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/CreateBook",
-      "method": "POST",
-      "summary": "Create an operator custody book",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "CreateBookRequest"
-      },
-      "response": {
-        "type": "CreateBookResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_get_book",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/GetBook",
-      "method": "POST",
-      "summary": "Read an operator custody book",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "GetBookRequest"
-      },
-      "response": {
-        "type": "GetBookResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_create_mandate",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/CreateMandate",
+      "id": "treasury_mandate_create",
+      "path": "/vrooli.treasury.v1.mandate.MandateAdminService/CreateMandate",
       "method": "POST",
       "summary": "Create a signed mandate",
       "description": "",
-      "category": "admin",
+      "category": "mandate",
       "request": {
         "type": "CreateMandateRequest"
       },
@@ -969,19 +1151,24 @@
           "description": "Agent-realm or invalid operator credential"
         },
         {
+          "status": 404,
+          "code": "not_found",
+          "description": "Mandate or active session does not exist"
+        },
+        {
           "status": 412,
           "code": "failed_precondition",
-          "description": "Operator realm is not configured"
+          "description": "Operator realm or mandate service is unavailable"
         }
       ]
     },
     {
-      "id": "treasuryadmin_revoke_mandate",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/RevokeMandate",
+      "id": "treasury_mandate_revoke",
+      "path": "/vrooli.treasury.v1.mandate.MandateAdminService/RevokeMandate",
       "method": "POST",
-      "summary": "Revoke a mandate",
+      "summary": "Revoke a mandate and its active session",
       "description": "",
-      "category": "admin",
+      "category": "mandate",
       "request": {
         "type": "RevokeMandateRequest"
       },
@@ -1000,19 +1187,60 @@
           "description": "Agent-realm or invalid operator credential"
         },
         {
+          "status": 404,
+          "code": "not_found",
+          "description": "Mandate or active session does not exist"
+        },
+        {
           "status": 412,
           "code": "failed_precondition",
-          "description": "Operator realm is not configured"
+          "description": "Operator realm or mandate service is unavailable"
         }
       ]
     },
     {
-      "id": "treasuryadmin_cancel_standing_mandate",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/CancelStandingMandate",
+      "id": "treasury_mandate_revoke_session",
+      "path": "/vrooli.treasury.v1.mandate.MandateAdminService/RevokeMandateSession",
+      "method": "POST",
+      "summary": "Revoke an active run-owned mandate session key",
+      "description": "",
+      "category": "mandate",
+      "request": {
+        "type": "RevokeMandateSessionRequest"
+      },
+      "response": {
+        "type": "RevokeMandateSessionResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Mandate or active session does not exist"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or mandate service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_mandate_cancel_standing",
+      "path": "/vrooli.treasury.v1.mandate.MandateAdminService/CancelStandingMandate",
       "method": "POST",
       "summary": "Cancel a standing mandate before its next recurrence",
       "description": "",
-      "category": "admin",
+      "category": "mandate",
       "request": {
         "type": "CancelStandingMandateRequest"
       },
@@ -1031,19 +1259,24 @@
           "description": "Agent-realm or invalid operator credential"
         },
         {
+          "status": 404,
+          "code": "not_found",
+          "description": "Mandate or active session does not exist"
+        },
+        {
           "status": 412,
           "code": "failed_precondition",
-          "description": "Operator realm is not configured"
+          "description": "Operator realm or mandate service is unavailable"
         }
       ]
     },
     {
-      "id": "treasuryadmin_list_mandates",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/ListMandates",
+      "id": "treasury_mandate_list",
+      "path": "/vrooli.treasury.v1.mandate.MandateAdminService/ListMandates",
       "method": "POST",
       "summary": "List operator mandates across books",
       "description": "",
-      "category": "admin",
+      "category": "mandate",
       "request": {
         "type": "ListMandatesRequest"
       },
@@ -1062,24 +1295,29 @@
           "description": "Agent-realm or invalid operator credential"
         },
         {
+          "status": 404,
+          "code": "not_found",
+          "description": "Mandate or active session does not exist"
+        },
+        {
           "status": 412,
           "code": "failed_precondition",
-          "description": "Operator realm is not configured"
+          "description": "Operator realm or mandate service is unavailable"
         }
       ]
     },
     {
-      "id": "treasuryadmin_set_budget_caps",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/SetBudgetCaps",
+      "id": "treasury_wallet_create",
+      "path": "/vrooli.treasury.v1.wallet.WalletAdminService/CreateResearchWallet",
       "method": "POST",
-      "summary": "Set budget caps",
+      "summary": "Create an operator-bound receive-only research wallet",
       "description": "",
-      "category": "admin",
+      "category": "wallet",
       "request": {
-        "type": "SetBudgetCapsRequest"
+        "type": "CreateResearchWalletRequest"
       },
       "response": {
-        "type": "SetBudgetCapsResponse"
+        "type": "ResearchWalletResponse"
       },
       "errors": [
         {
@@ -1090,27 +1328,27 @@
         {
           "status": 403,
           "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
+          "description": "Agent-realm or another operator's wallet"
         },
         {
           "status": 412,
           "code": "failed_precondition",
-          "description": "Operator realm is not configured"
+          "description": "Operator realm or wallet service is unavailable"
         }
       ]
     },
     {
-      "id": "treasuryadmin_set_gating",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/SetGating",
+      "id": "treasury_wallet_get",
+      "path": "/vrooli.treasury.v1.wallet.WalletAdminService/GetResearchWallet",
       "method": "POST",
-      "summary": "Set budget approval gating",
+      "summary": "Read operator-bound wallet custody metadata",
       "description": "",
-      "category": "admin",
+      "category": "wallet",
       "request": {
-        "type": "SetGatingRequest"
+        "type": "ResearchWalletRequest"
       },
       "response": {
-        "type": "SetGatingResponse"
+        "type": "ResearchWalletResponse"
       },
       "errors": [
         {
@@ -1121,12 +1359,260 @@
         {
           "status": 403,
           "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
+          "description": "Agent-realm or another operator's wallet"
         },
         {
           "status": 412,
           "code": "failed_precondition",
-          "description": "Operator realm is not configured"
+          "description": "Operator realm or wallet service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_wallet_prove",
+      "path": "/vrooli.treasury.v1.wallet.WalletAdminService/ProveResearchWallet",
+      "method": "POST",
+      "summary": "Prove wallet address control without granting spending authority",
+      "description": "",
+      "category": "wallet",
+      "request": {
+        "type": "ProveResearchWalletRequest"
+      },
+      "response": {
+        "type": "ProveResearchWalletResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or another operator's wallet"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or wallet service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_wallet_recovery_export",
+      "path": "/vrooli.treasury.v1.wallet.WalletAdminService/ExportPortableResearchWalletRecovery",
+      "method": "POST",
+      "summary": "Export an encrypted portable wallet recovery bundle",
+      "description": "",
+      "category": "wallet",
+      "request": {
+        "type": "ExportPortableResearchWalletRecoveryRequest"
+      },
+      "response": {
+        "type": "ExportPortableResearchWalletRecoveryResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or another operator's wallet"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or wallet service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_wallet_recovery_restore",
+      "path": "/vrooli.treasury.v1.wallet.WalletAdminService/RestorePortableResearchWalletRecovery",
+      "method": "POST",
+      "summary": "Restore a wallet from an encrypted portable recovery bundle",
+      "description": "",
+      "category": "wallet",
+      "request": {
+        "type": "RestorePortableResearchWalletRecoveryRequest"
+      },
+      "response": {
+        "type": "ResearchWalletResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or another operator's wallet"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or wallet service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_wallet_recovery_qualify",
+      "path": "/vrooli.treasury.v1.wallet.WalletAdminService/QualifyResearchWalletRecovery",
+      "method": "POST",
+      "summary": "Qualify same-host encrypted wallet recovery",
+      "description": "",
+      "category": "wallet",
+      "request": {
+        "type": "ResearchWalletRequest"
+      },
+      "response": {
+        "type": "ResearchWalletResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or another operator's wallet"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or wallet service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_wallet_recovery_run",
+      "path": "/vrooli.treasury.v1.wallet.WalletAdminService/RecoverResearchWallet",
+      "method": "POST",
+      "summary": "Recover a missing wallet key from qualified custody",
+      "description": "",
+      "category": "wallet",
+      "request": {
+        "type": "ResearchWalletRequest"
+      },
+      "response": {
+        "type": "ResearchWalletResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or another operator's wallet"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or wallet service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_wallet_receipt_verify",
+      "path": "/vrooli.treasury.v1.wallet.WalletAdminService/VerifyBaseUSDCReceipt",
+      "method": "POST",
+      "summary": "Verify an exact Base receipt without posting or allocating funds",
+      "description": "",
+      "category": "wallet",
+      "request": {
+        "type": "VerifyBaseUSDCReceiptRequest"
+      },
+      "response": {
+        "type": "VerifyBaseUSDCReceiptResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or another operator's wallet"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or wallet service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_wallet_receipt_recheck",
+      "path": "/vrooli.treasury.v1.wallet.WalletAdminService/RecheckBaseUSDCReceipt",
+      "method": "POST",
+      "summary": "Recheck a previously retained Base receipt observation",
+      "description": "",
+      "category": "wallet",
+      "request": {
+        "type": "RecheckBaseUSDCReceiptRequest"
+      },
+      "response": {
+        "type": "RecheckBaseUSDCReceiptResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or another operator's wallet"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or wallet service is unavailable"
+        }
+      ]
+    },
+    {
+      "id": "treasury_wallet_receipt_history",
+      "path": "/vrooli.treasury.v1.wallet.WalletAdminService/ListBaseUSDCReceiptChecks",
+      "method": "POST",
+      "summary": "Read durable receipt check history bound to a wallet and transaction",
+      "description": "",
+      "category": "wallet",
+      "request": {
+        "type": "ListBaseUSDCReceiptChecksRequest"
+      },
+      "response": {
+        "type": "ListBaseUSDCReceiptChecksResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or another operator's wallet"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm or wallet service is unavailable"
         }
       ]
     },
@@ -1173,254 +1659,6 @@
       },
       "response": {
         "type": "ResolveApprovalResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_freeze_budget",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/FreezeBudget",
-      "method": "POST",
-      "summary": "Freeze a budget",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "FreezeBudgetRequest"
-      },
-      "response": {
-        "type": "FreezeBudgetResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_unfreeze_budget",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/UnfreezeBudget",
-      "method": "POST",
-      "summary": "Unfreeze a budget",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "UnfreezeBudgetRequest"
-      },
-      "response": {
-        "type": "UnfreezeBudgetResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_freeze_book",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/FreezeBook",
-      "method": "POST",
-      "summary": "Freeze every authorization and unsettled charge in a book",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "FreezeBookRequest"
-      },
-      "response": {
-        "type": "FreezeBookResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_unfreeze_book",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/UnfreezeBook",
-      "method": "POST",
-      "summary": "Release a book freeze",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "UnfreezeBookRequest"
-      },
-      "response": {
-        "type": "UnfreezeBookResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_freeze_all",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/FreezeAll",
-      "method": "POST",
-      "summary": "Engage the scenario-wide kill switch",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "FreezeAllRequest"
-      },
-      "response": {
-        "type": "FreezeAllResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_get_freeze_status",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/GetFreezeStatus",
-      "method": "POST",
-      "summary": "Read the scenario-wide kill-switch state",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "GetFreezeStatusRequest"
-      },
-      "response": {
-        "type": "GetFreezeStatusResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_unfreeze_all",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/UnfreezeAll",
-      "method": "POST",
-      "summary": "Release the scenario-wide kill switch",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "UnfreezeAllRequest"
-      },
-      "response": {
-        "type": "UnfreezeAllResponse"
-      },
-      "errors": [
-        {
-          "status": 401,
-          "code": "unauthenticated",
-          "description": "Operator identity is required"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Agent-realm or invalid operator credential"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "Operator realm is not configured"
-        }
-      ]
-    },
-    {
-      "id": "treasuryadmin_register_instrument",
-      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/RegisterInstrument",
-      "method": "POST",
-      "summary": "Register an instrument reference",
-      "description": "",
-      "category": "admin",
-      "request": {
-        "type": "RegisterInstrumentRequest"
-      },
-      "response": {
-        "type": "RegisterInstrumentResponse"
       },
       "errors": [
         {
@@ -1529,9 +1767,35 @@
       }
     },
     {
+      "id": "x402_offer_desk_price_declare",
+      "path": "/api/v1/x402/prices/offer-desk",
+      "method": "POST",
+      "summary": "Declare x402 price terms from an Offer Desk sells_at edge",
+      "description": "",
+      "category": "x402",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "x402 is standardized as HTTP 402 plus Payment-Required, Payment-Signature, and Payment-Response headers; its request, success, challenge, and error bodies intentionally retain that external JSON shape.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
       "id": "x402_payment_admit",
       "path": "/api/v1/x402/prices/{price_id}/admit",
-      "method": "POST",
+      "method": "GET",
       "summary": "Verify and settle an x402 payment before admitting a priced request",
       "description": "",
       "category": "x402",
@@ -1541,6 +1805,329 @@
         "proto_payloads": {
           "request": {
             "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "x402_payment_admit_post_compat",
+      "path": "/api/v1/x402/prices/{price_id}/admit",
+      "method": "POST",
+      "summary": "Compatibility form of x402 payment admission",
+      "description": "",
+      "category": "x402",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "x402 is standardized as HTTP 402 plus Payment-Required, Payment-Signature, and Payment-Response headers; its request, success, challenge, and error bodies intentionally retain that external JSON shape.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "x402_resource_payment_verify",
+      "path": "/api/v1/x402/authorizations/verify",
+      "method": "POST",
+      "summary": "Verify and durably bind an x402 payment to an LPBS job without settling it",
+      "description": "",
+      "category": "x402",
+      "request": {
+        "type": "TreasuryX402ResourceAuthorization",
+        "properties": {
+          "job_id": "string",
+          "order_id": "string",
+          "payment_signature": "string",
+          "price_id": "string",
+          "resource_id": "string"
+        }
+      },
+      "response": {
+        "type": "TreasuryX402ResourceAdmission",
+        "properties": {
+          "admission_id": "string",
+          "job_id": "string",
+          "mode": "production|local-fork",
+          "network": "string",
+          "order_id": "string",
+          "payer": "string",
+          "price_id": "string",
+          "resource_id": "string",
+          "status": "authorized|settling|recovering|unknown|settled|failed|cancelled"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "A verified service principal is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "The treasury:x402-authorize capability is required"
+        },
+        {
+          "status": 409,
+          "code": "failed_precondition",
+          "description": "The payment is already bound to a different job/resource/order"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Treasury or the facilitator is unavailable"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Private service-to-service verification. Successful verification creates a durable resource-scoped authorization but does not settle payment.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "x402_resource_payment_settle",
+      "path": "/api/v1/x402/authorizations/{admission_id}/settle",
+      "method": "POST",
+      "summary": "Settle one previously verified LPBS x402 authorization idempotently",
+      "description": "",
+      "category": "x402",
+      "request": {
+        "type": "TreasuryX402ResourceSettlement",
+        "properties": {
+          "job_id": "string",
+          "order_id": "string",
+          "resource_id": "string"
+        }
+      },
+      "response": {
+        "type": "TreasuryX402ResourceAdmission",
+        "properties": {
+          "admission_id": "string",
+          "job_id": "string",
+          "mode": "production|local-fork",
+          "network": "string",
+          "order_id": "string",
+          "payer": "string",
+          "resource_id": "string",
+          "status": "authorized|settling|recovering|unknown|settled|failed|cancelled",
+          "transaction_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "A verified service principal is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "The treasury:x402-settle capability is required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "The resource admission was not found"
+        },
+        {
+          "status": 409,
+          "code": "failed_precondition",
+          "description": "The admission is bound to a different job/resource/order"
+        },
+        {
+          "status": 202,
+          "code": "unavailable",
+          "description": "Settlement is still in progress or needs same-admission recovery"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Private service-to-service settlement. Replays use the same durable admission and protected payment nonce; settled receipts are emitted by Treasury only once.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "x402_resource_payment_cancel",
+      "path": "/api/v1/x402/authorizations/{admission_id}/cancel",
+      "method": "POST",
+      "summary": "Cancel an unsettled LPBS x402 authorization when its delivery verifier declines",
+      "description": "",
+      "category": "x402",
+      "request": {
+        "type": "TreasuryX402ResourceCancellation",
+        "properties": {
+          "job_id": "string",
+          "order_id": "string",
+          "resource_id": "string"
+        }
+      },
+      "response": {
+        "type": "TreasuryX402ResourceAdmission",
+        "properties": {
+          "admission_id": "string",
+          "job_id": "string",
+          "mode": "production|local-fork",
+          "network": "string",
+          "order_id": "string",
+          "payer": "string",
+          "resource_id": "string",
+          "status": "cancelled"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "A verified service principal is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "The treasury:x402-cancel capability is required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "The resource admission was not found"
+        },
+        {
+          "status": 409,
+          "code": "failed_precondition",
+          "description": "The admission does not match or settlement has already started"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Protected payload cleanup is temporarily unavailable; retry the same cancellation"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Private service-to-service release. Cancellation is allowed only for a matching verified admission before settlement begins; it never calls the facilitator.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "x402_accepted_receipt_readback",
+      "path": "/api/v1/x402/receipts",
+      "method": "GET",
+      "summary": "Read one accepted Treasury x402 seller receipt for LPBS reconciliation",
+      "description": "",
+      "category": "x402",
+      "request": {
+        "type": "AcceptedX402ReceiptQuery",
+        "properties": {
+          "external_id": "string"
+        }
+      },
+      "response": {
+        "type": "AcceptedX402Receipt",
+        "properties": {
+          "accepted_at": "string",
+          "amount_minor": "integer",
+          "basis": "string",
+          "currency": "string",
+          "external_id": "string",
+          "posting_id": "string",
+          "receipt_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "A Treasury x402 transaction external ID is required"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "A verified service principal is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "The treasury:x402-receipt-read capability is required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No accepted receipt exists for this transaction"
+        },
+        {
+          "status": 409,
+          "code": "failed_precondition",
+          "description": "More than one accepted receipt has this transaction identity"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Receipt readback is temporarily unavailable"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Private service-to-service reconciliation endpoint. A narrowly scoped verified service principal receives only the accepted receipt matching the exact x402 transaction identity.",
+        "proto_payloads": {
+          "request": {
+            "transport": "query-json",
             "conformance": "external_shape"
           },
           "response": {

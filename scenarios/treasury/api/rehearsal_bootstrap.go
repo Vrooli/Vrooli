@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	"treasury/internal/envx"
 	"treasury/internal/ledger"
 )
 
@@ -23,18 +24,24 @@ const rehearsalAuthorityPassphrase = "CF2 local fork synthetic custody; never va
 func init() { openCredentialAuthority = rehearsalAuthority }
 
 func rehearsalAuthority() (*credentialauthority.Authority, error) {
+	return rehearsalAuthorityWithEnvironment(envx.OS{})
+}
+
+func rehearsalAuthorityWithEnvironment(environment envx.Reader) (*credentialauthority.Authority, error) {
 	for _, key := range []string{"TREASURY_OPERATOR_TOKEN", "TREASURY_MANDATE_SIGNING_KEY", "API_TOKEN"} {
-		if os.Getenv(key) != "" {
+		value, _ := environment.LookupEnv(key)
+		if value != "" {
 			return nil, fmt.Errorf("rehearsal refuses ambient credential %s", key)
 		}
 	}
 	for _, key := range []string{"TREASURY_BASE_RPC_URL", "MONEY_LEDGER_API_URL", "SCENARIO_AUTHENTICATOR_API_URL"} {
-		u, err := url.Parse(os.Getenv(key))
+		value, _ := environment.LookupEnv(key)
+		u, err := url.Parse(value)
 		if err != nil || u.Scheme != "http" || u.Hostname() != "127.0.0.1" || u.User != nil || u.Port() == "" {
 			return nil, fmt.Errorf("rehearsal requires an explicit loopback %s", key)
 		}
 	}
-	dir := os.Getenv("TREASURY_REHEARSAL_DIR")
+	dir, _ := environment.LookupEnv("TREASURY_REHEARSAL_DIR")
 	if !filepath.IsAbs(dir) || strings.Contains(dir, "\x00") {
 		return nil, errors.New("rehearsal requires an absolute isolated custody directory")
 	}
@@ -49,6 +56,8 @@ func rehearsalAuthority() (*credentialauthority.Authority, error) {
 		{"vrooli/treasury", "operator-token", "cf2-local-operator-only"},
 		{"vrooli/treasury", "mandate-signing-key", "cf2-local-mandate-signing-key-only"},
 		{ledger.TreasuryServiceCredentialIdentity, "credential", "cf2-local-treasury-service-only"},
+		{ledger.TreasuryNoticeCredentialIdentity, "credential", "cf2-local-treasury-notice-only"},
+		{ledger.TreasuryAgentManagerCredentialIdentity, "credential", "cf2-local-treasury-agent-manager-only"},
 		{"vrooli/landing-page-business-suite", "service-secret", "cf2-local-lpbs-service-only"},
 	} {
 		identity, err := credentialauthority.ParseIdentity(item.identity)

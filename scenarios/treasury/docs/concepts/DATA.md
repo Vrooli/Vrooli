@@ -100,6 +100,7 @@ Each domain's schema file lives beside the code that interprets it. The
 | `settlements` | settlement | `api/internal/settlement/schema.sql` | settlement repository/service; includes the durable idempotency claim |
 | `evidence_records`, `spend_attempt_evidence` | evidence | `api/internal/evidence/schema.sql` | chronological decisions plus one immutable, self-contained terminal attempt snapshot |
 | `ledger_emissions` | ledger | `api/internal/ledger/schema.sql` | ledger emitter |
+| `ledger_destination` | ledger | `api/internal/ledger/schema.sql` | operator-chosen Money Ledger book and account (one row) |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
 **Cross-domain reads are one-way and read-only.** The authorization

@@ -138,7 +138,14 @@
     "withdrawalStatus": "出金 {{id}}: {{state}}",
     "withdrawNotice": "ローカルフォークの出金 {{state}}。",
     "requestError": "Treasury がリクエストを完了できませんでした。オペレータートークンを確認してください。",
-    "valueError": "小数点以下 2 桁までの USD 金額を入力してください。"
+    "valueError": "小数点以下 2 桁までの USD 金額を入力してください。",
+    "headroomTitle": "予算の入金と利用可能額",
+    "headroomHelp": "入金済み残高は受け付けた入金と出金を反映します。支出可能額は現在の委任承認上限です。",
+    "creditedReserve": "受け付けた入金の合計",
+    "remainingReserve": "入金済み残高の残り",
+    "spendAvailability": "現在の支出可能額",
+    "headroomUnavailable": "エージェント認証トークンと予算 ID を入力すると残高を表示します。",
+    "headroomError": "予算残高を読み込めませんでした。"
   },
   "health": {
     "title": "API ステータス",

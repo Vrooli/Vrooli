@@ -20,6 +20,7 @@ const (
 
 type Emission struct {
 	ID, SettlementID, ExternalID, AdapterID, AccountID, BookID string
+	PostingID, ReceiptID                                       string
 	AmountMinor                                                int64
 	Currency, Basis, Description, LastError                    string
 	Status                                                     Status
@@ -40,6 +41,24 @@ type Repository interface {
 	MarkFailure(context.Context, string, string) error
 	MarkAccepted(context.Context, string, time.Time) error
 }
+
+// AcceptedReceipt is the narrow readback LPBS needs to link an accepted x402
+// job to Treasury's seller-side Money Ledger posting.
+type AcceptedReceipt struct {
+	ExternalID, PostingID, ReceiptID, Currency, Basis string
+	AmountMinor                                       int64
+	AcceptedAt                                        time.Time
+}
+
+type AcceptanceRecorder interface {
+	MarkAcceptedReceipt(context.Context, string, time.Time, string, string) error
+}
+
+type AcceptedReceiptReader interface {
+	GetAcceptedReceiptByExternalID(context.Context, string) (AcceptedReceipt, error)
+}
+
+var ErrAmbiguousAcceptedReceipt = errors.New("multiple accepted Treasury receipts have the same external id")
 
 type SQLiteRepository struct{ db DB }
 
@@ -63,6 +82,13 @@ func (r *SQLiteRepository) Pending(ctx context.Context, limit int) ([]Emission, 
 		values = append(values, value)
 	}
 	return values, rows.Err()
+}
+
+// QueuedCount is every settlement still waiting for delivery.
+func (r *SQLiteRepository) QueuedCount(ctx context.Context) (int, error) {
+	var n int
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM ledger_emissions WHERE status='queued'`).Scan(&n)
+	return n, err
 }
 
 // List returns a bounded operator read of durable emission state. Exact external
@@ -136,18 +162,71 @@ func (r *SQLiteRepository) MarkAccepted(ctx context.Context, id string, accepted
 	return nil
 }
 
+func (r *SQLiteRepository) MarkAcceptedReceipt(ctx context.Context, id string, acceptedAt time.Time, postingID, receiptID string) error {
+	if strings.TrimSpace(postingID) == "" || strings.TrimSpace(receiptID) == "" {
+		return errors.New("Money Ledger posting and receipt ids are required for accepted delivery")
+	}
+	result, err := r.db.ExecContext(ctx, `UPDATE ledger_emissions SET status='accepted',attempts=attempts+1,last_error='',accepted_at=?,posting_id=?,receipt_id=? WHERE id=? AND status='queued'`, acceptedAt.UTC().Format(time.RFC3339Nano), strings.TrimSpace(postingID), strings.TrimSpace(receiptID), id)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		current, getErr := r.GetByID(ctx, id)
+		if getErr == nil && current.Status == StatusAccepted && current.PostingID == strings.TrimSpace(postingID) && current.ReceiptID == strings.TrimSpace(receiptID) {
+			return nil
+		}
+		return errors.New("accepted Treasury receipt did not match the durable outbox row")
+	}
+	return nil
+}
+
+func (r *SQLiteRepository) GetAcceptedReceiptByExternalID(ctx context.Context, externalID string) (AcceptedReceipt, error) {
+	externalID = strings.TrimSpace(externalID)
+	rows, err := r.db.QueryContext(ctx, `SELECT external_id,posting_id,receipt_id,amount_minor,currency,basis,accepted_at FROM ledger_emissions WHERE external_id=? AND status='accepted' ORDER BY accepted_at,id LIMIT 2`, externalID)
+	if err != nil {
+		return AcceptedReceipt{}, err
+	}
+	defer rows.Close()
+	var value AcceptedReceipt
+	count := 0
+	for rows.Next() {
+		count++
+		if count > 1 {
+			return AcceptedReceipt{}, ErrAmbiguousAcceptedReceipt
+		}
+		var acceptedAt string
+		if err := rows.Scan(&value.ExternalID, &value.PostingID, &value.ReceiptID, &value.AmountMinor, &value.Currency, &value.Basis, &acceptedAt); err != nil {
+			return AcceptedReceipt{}, err
+		}
+		if value.AcceptedAt, err = time.Parse(time.RFC3339Nano, acceptedAt); err != nil {
+			return AcceptedReceipt{}, err
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return AcceptedReceipt{}, err
+	}
+	if count == 0 || strings.TrimSpace(value.PostingID) == "" || strings.TrimSpace(value.ReceiptID) == "" {
+		return AcceptedReceipt{}, ErrNotFound
+	}
+	return value, nil
+}
+
 func (r *SQLiteRepository) GetByID(ctx context.Context, id string) (Emission, error) {
 	return scanEmission(r.db.QueryRowContext(ctx, selectEmission+` WHERE id=?`, id))
 }
 
-const selectEmission = `SELECT id,settlement_id,external_id,adapter_id,account_id,book_id,amount_minor,currency,basis,occurred_at,fetched_at,description,status,attempts,last_error,created_at,accepted_at FROM ledger_emissions`
+const selectEmission = `SELECT id,settlement_id,external_id,adapter_id,account_id,book_id,amount_minor,currency,basis,occurred_at,fetched_at,description,status,attempts,last_error,created_at,accepted_at,posting_id,receipt_id FROM ledger_emissions`
 
 type scanner interface{ Scan(...any) error }
 
 func scanEmission(row scanner) (Emission, error) {
 	var value Emission
 	var occurredAt, fetchedAt, createdAt, acceptedAt, status string
-	err := row.Scan(&value.ID, &value.SettlementID, &value.ExternalID, &value.AdapterID, &value.AccountID, &value.BookID, &value.AmountMinor, &value.Currency, &value.Basis, &occurredAt, &fetchedAt, &value.Description, &status, &value.Attempts, &value.LastError, &createdAt, &acceptedAt)
+	err := row.Scan(&value.ID, &value.SettlementID, &value.ExternalID, &value.AdapterID, &value.AccountID, &value.BookID, &value.AmountMinor, &value.Currency, &value.Basis, &occurredAt, &fetchedAt, &value.Description, &status, &value.Attempts, &value.LastError, &createdAt, &acceptedAt, &value.PostingID, &value.ReceiptID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Emission{}, ErrNotFound
 	}
@@ -170,4 +249,8 @@ func scanEmission(row scanner) (Emission, error) {
 	return value, err
 }
 
-var _ Repository = (*SQLiteRepository)(nil)
+var (
+	_ Repository            = (*SQLiteRepository)(nil)
+	_ AcceptanceRecorder    = (*SQLiteRepository)(nil)
+	_ AcceptedReceiptReader = (*SQLiteRepository)(nil)
+)

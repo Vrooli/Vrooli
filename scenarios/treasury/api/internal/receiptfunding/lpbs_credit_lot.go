@@ -82,7 +82,7 @@ func (c *LPBSCreditLotClient) GrantAcceptedReceipt(ctx context.Context, receipt 
 		return CreditLotLink{}, err
 	}
 	if response.StatusCode != http.StatusOK {
-		return CreditLotLink{}, fmt.Errorf("LPBS credit lot owner returned HTTP %d", response.StatusCode)
+		return CreditLotLink{}, fmt.Errorf("LPBS credit lot owner returned HTTP %d: %s", response.StatusCode, strings.TrimSpace(string(responseBody)))
 	}
 	var result struct {
 		LotID     string `json:"credit_lot_id"`

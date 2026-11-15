@@ -11,11 +11,11 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/stretchr/testify/require"
-	authv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
-	authconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
+	walletv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet"
+	walletconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet/wallet_v1connect"
 	"treasury/internal/baseusdc"
 
-	"treasury/handlers/treasuryadmin"
+	walletHandler "treasury/handlers/wallet"
 	"treasury/internal/operatorauth"
 	"treasury/internal/wallet"
 )
@@ -87,41 +87,41 @@ func TestResearchWalletRPCsPreserveOperatorRealmAndAttribution(t *testing.T) {
 	authorizer, err := operatorauth.NewStaticToken("test-operator-secret")
 	require.NoError(t, err)
 	stub := &walletStub{}
-	_, transport := authconnect.NewTreasuryAdminHandler(treasuryadmin.NewConnectHandler(authorizer, stub))
+	_, transport := walletconnect.NewWalletAdminServiceHandler(walletHandler.NewConnectHandler(authorizer, stub, nil, nil))
 	server := httptest.NewServer(transport)
 	defer server.Close()
-	client := authconnect.NewTreasuryAdminClient(server.Client(), server.URL)
+	client := walletconnect.NewWalletAdminServiceClient(server.Client(), server.URL)
 	methods := map[string]func(http.Header) error{
 		"RecoverResearchWallet": func(h http.Header) error {
-			r := connect.NewRequest(&authv1.ResearchWalletRequest{Id: "wallet-1", Network: "eip155:84532"})
+			r := connect.NewRequest(&walletv1.ResearchWalletRequest{Id: "wallet-1", Network: "eip155:84532"})
 			r.Header().Set(operatorauth.HeaderOperatorToken, h.Get(operatorauth.HeaderOperatorToken))
 			r.Header().Set(operatorauth.HeaderAgentToken, h.Get(operatorauth.HeaderAgentToken))
 			_, err := client.RecoverResearchWallet(context.Background(), r)
 			return err
 		},
 		"CreateResearchWallet": func(h http.Header) error {
-			r := connect.NewRequest(&authv1.CreateResearchWalletRequest{Id: "wallet-1", BookId: "book-1", Network: "eip155:84532"})
+			r := connect.NewRequest(&walletv1.CreateResearchWalletRequest{Id: "wallet-1", BookId: "book-1", Network: "eip155:84532"})
 			r.Header().Set(operatorauth.HeaderOperatorToken, h.Get(operatorauth.HeaderOperatorToken))
 			r.Header().Set(operatorauth.HeaderAgentToken, h.Get(operatorauth.HeaderAgentToken))
 			_, err := client.CreateResearchWallet(context.Background(), r)
 			return err
 		},
 		"GetResearchWallet": func(h http.Header) error {
-			r := connect.NewRequest(&authv1.ResearchWalletRequest{Id: "wallet-1", Network: "eip155:84532"})
+			r := connect.NewRequest(&walletv1.ResearchWalletRequest{Id: "wallet-1", Network: "eip155:84532"})
 			r.Header().Set(operatorauth.HeaderOperatorToken, h.Get(operatorauth.HeaderOperatorToken))
 			r.Header().Set(operatorauth.HeaderAgentToken, h.Get(operatorauth.HeaderAgentToken))
 			_, err := client.GetResearchWallet(context.Background(), r)
 			return err
 		},
 		"ProveResearchWallet": func(h http.Header) error {
-			r := connect.NewRequest(&authv1.ProveResearchWalletRequest{Id: "wallet-1", Network: "eip155:84532", Nonce: "fixed_test_nonce_20261027"})
+			r := connect.NewRequest(&walletv1.ProveResearchWalletRequest{Id: "wallet-1", Network: "eip155:84532", Nonce: "fixed_test_nonce_20261027"})
 			r.Header().Set(operatorauth.HeaderOperatorToken, h.Get(operatorauth.HeaderOperatorToken))
 			r.Header().Set(operatorauth.HeaderAgentToken, h.Get(operatorauth.HeaderAgentToken))
 			_, err := client.ProveResearchWallet(context.Background(), r)
 			return err
 		},
 		"QualifyResearchWalletRecovery": func(h http.Header) error {
-			r := connect.NewRequest(&authv1.ResearchWalletRequest{Id: "wallet-1", Network: "eip155:84532"})
+			r := connect.NewRequest(&walletv1.ResearchWalletRequest{Id: "wallet-1", Network: "eip155:84532"})
 			r.Header().Set(operatorauth.HeaderOperatorToken, h.Get(operatorauth.HeaderOperatorToken))
 			r.Header().Set(operatorauth.HeaderAgentToken, h.Get(operatorauth.HeaderAgentToken))
 			_, err := client.QualifyResearchWalletRecovery(context.Background(), r)
@@ -155,19 +155,19 @@ func TestVerifyBaseUSDCReceiptIsOperatorAuthenticatedAndReadOnly(t *testing.T) {
 		BlockTime: time.Date(2026, 11, 2, 18, 0, 0, 0, time.UTC), Finality: "finalized",
 		ObservedAt: time.Date(2026, 11, 2, 18, 1, 0, 0, time.UTC),
 	}}}}
-	_, transport := authconnect.NewTreasuryAdminHandler(treasuryadmin.NewConnectHandler(authorizer, wallets, verifier))
+	_, transport := walletconnect.NewWalletAdminServiceHandler(walletHandler.NewConnectHandler(authorizer, wallets, nil, verifier))
 	server := httptest.NewServer(transport)
 	defer server.Close()
-	client := authconnect.NewTreasuryAdminClient(server.Client(), server.URL)
+	client := walletconnect.NewWalletAdminServiceClient(server.Client(), server.URL)
 
-	request := connect.NewRequest(&authv1.VerifyBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: "0x" + strings.Repeat("a", 64)})
+	request := connect.NewRequest(&walletv1.VerifyBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: "0x" + strings.Repeat("a", 64)})
 	request.Header().Set(operatorauth.HeaderAgentToken, "agent")
 	_, err = client.VerifyBaseUSDCReceipt(context.Background(), request)
 	require.Error(t, err)
 	require.Zero(t, wallets.calls)
 	require.Zero(t, verifier.calls)
 
-	request = connect.NewRequest(&authv1.VerifyBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: "0x" + strings.Repeat("a", 64)})
+	request = connect.NewRequest(&walletv1.VerifyBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: "0x" + strings.Repeat("a", 64)})
 	request.Header().Set(operatorauth.HeaderOperatorToken, "test-operator-secret")
 	response, err := client.VerifyBaseUSDCReceipt(context.Background(), request)
 	require.NoError(t, err)
@@ -194,17 +194,17 @@ func TestListBaseUSDCReceiptChecksRequiresOperatorAndReturnsBoundHistory(t *test
 		TransactionHash: hash, ProviderID: "fixture-base-rpc", Outcome: "verified", CheckedAt: time.Date(2026, 11, 2, 18, 1, 0, 0, time.UTC),
 		Transfers: []baseusdc.Observation{{AtomicAmount: "5901522", Finality: "finalized"}},
 	}}}
-	_, transport := authconnect.NewTreasuryAdminHandler(treasuryadmin.NewConnectHandler(authorizer, wallets, checks))
+	_, transport := walletconnect.NewWalletAdminServiceHandler(walletHandler.NewConnectHandler(authorizer, wallets, nil, checks))
 	server := httptest.NewServer(transport)
 	defer server.Close()
-	client := authconnect.NewTreasuryAdminClient(server.Client(), server.URL)
-	request := connect.NewRequest(&authv1.ListBaseUSDCReceiptChecksRequest{WalletId: "wallet-1", TransactionHash: hash})
+	client := walletconnect.NewWalletAdminServiceClient(server.Client(), server.URL)
+	request := connect.NewRequest(&walletv1.ListBaseUSDCReceiptChecksRequest{WalletId: "wallet-1", TransactionHash: hash})
 	request.Header().Set(operatorauth.HeaderAgentToken, "agent")
 	_, err = client.ListBaseUSDCReceiptChecks(context.Background(), request)
 	require.Error(t, err)
 	require.Zero(t, wallets.calls)
 
-	request = connect.NewRequest(&authv1.ListBaseUSDCReceiptChecksRequest{WalletId: "wallet-1", TransactionHash: hash})
+	request = connect.NewRequest(&walletv1.ListBaseUSDCReceiptChecksRequest{WalletId: "wallet-1", TransactionHash: hash})
 	request.Header().Set(operatorauth.HeaderOperatorToken, "test-operator-secret")
 	response, err := client.ListBaseUSDCReceiptChecks(context.Background(), request)
 	require.NoError(t, err)

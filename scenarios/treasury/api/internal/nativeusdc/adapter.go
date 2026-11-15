@@ -22,6 +22,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
+	treasuryclock "treasury/internal/clock"
 	"treasury/internal/rail"
 	"treasury/internal/wallet"
 )
@@ -63,9 +64,14 @@ type Adapter struct {
 	custody        Custody
 	endpoint, mode string
 	client         *http.Client
+	clock          treasuryclock.Clock
 }
 
 func New(db DB, custody Custody, endpoint, mode string) (*Adapter, error) {
+	return NewWithClock(db, custody, endpoint, mode, treasuryclock.System{})
+}
+
+func NewWithClock(db DB, custody Custody, endpoint, mode string, clk treasuryclock.Clock) (*Adapter, error) {
 	u, err := url.Parse(endpoint)
 	if err != nil || u.Hostname() == "" || u.User != nil || u.Fragment != "" || (u.Scheme != "https" && !(u.Scheme == "http" && u.Hostname() == "127.0.0.1")) {
 		return nil, errors.New("native USDC requires an operator-configured HTTPS or loopback RPC")
@@ -76,8 +82,11 @@ func New(db DB, custody Custody, endpoint, mode string) (*Adapter, error) {
 	if mode == "local-fork" && (u.Scheme != "http" || u.Hostname() != "127.0.0.1") {
 		return nil, errors.New("local-fork execution requires loopback")
 	}
+	if clk == nil {
+		return nil, errors.New("native USDC requires an injected clock")
+	}
 	client := &http.Client{Timeout: 12 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("native RPC redirects refused") }}
-	return &Adapter{db: db, custody: custody, endpoint: endpoint, mode: mode, client: client}, nil
+	return &Adapter{db: db, custody: custody, endpoint: endpoint, mode: mode, client: client, clock: clk}, nil
 }
 func (a *Adapter) Name() string { return "base-usdc" }
 func (a *Adapter) Mode() string { return a.mode }
@@ -226,7 +235,7 @@ func (a *Adapter) Preview(ctx context.Context, w wallet.Wallet, recipient, atoms
 			return Quote{}, errors.New("fee preview exceeds the requested maximum")
 		}
 	}
-	return Quote{WalletID: w.ID, Operator: w.OperatorIdentity, Network: w.Network, From: w.Address, Recipient: strings.ToLower(recipient), AtomicAmount: atoms, ValueMinor: value, Currency: currency, Gas: gasLimit, FeeCap: cap.String(), Tip: tip.String(), MaxFee: bound.String(), ExpiresAt: time.Now().UTC().Add(2 * time.Minute)}, nil
+	return Quote{WalletID: w.ID, Operator: w.OperatorIdentity, Network: w.Network, From: w.Address, Recipient: strings.ToLower(recipient), AtomicAmount: atoms, ValueMinor: value, Currency: currency, Gas: gasLimit, FeeCap: cap.String(), Tip: tip.String(), MaxFee: bound.String(), ExpiresAt: a.clock.Now().UTC().Add(2 * time.Minute)}, nil
 }
 
 type replay struct {
@@ -251,7 +260,7 @@ func (a *Adapter) Settle(ctx context.Context, c rail.SettleCommand) (rail.Result
 	if authorizationValue == 0 {
 		authorizationValue = quote.ValueMinor
 	}
-	if amountErr != nil || expectedAtoms != quote.AtomicAmount || authorizationValue != c.AmountMinor || quote.Currency != c.Currency || quote.Recipient != c.Counterparty || !time.Now().Before(quote.ExpiresAt) {
+	if amountErr != nil || expectedAtoms != quote.AtomicAmount || authorizationValue != c.AmountMinor || quote.Currency != c.Currency || quote.Recipient != c.Counterparty || !a.clock.Now().Before(quote.ExpiresAt) {
 		return failed("native USDC quote is expired or does not cover this exact charge"), nil
 	}
 	if err := a.network(ctx); err != nil {

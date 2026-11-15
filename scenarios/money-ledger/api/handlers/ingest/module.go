@@ -5,14 +5,13 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"os"
 
+	"money-ledger/internal/access"
 	"money-ledger/internal/ingest"
 	"money-ledger/internal/module"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	ingestpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest"
 	ingestconnect "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest/ingest_v1connect"
@@ -28,30 +27,14 @@ func NewService(db *database.RoutedDB, logger *log.Logger) *Service {
 	return &Service{store: ingest.NewStore(db, nil), logger: logger}
 }
 
+// Module mounts the ingestion service. Who may call each procedure is decided
+// by the access gate in front of every route (internal/access); handlers here
+// apply only the per-adapter rule and journal the admitted actor.
 func Module(db *database.RoutedDB, _ interface{}, logger *log.Logger) module.Module {
 	s := NewService(db, logger)
-	cfg, err := authn.FromEnvironment(func(key string) string {
-		if value := os.Getenv(key); value != "" {
-			return value
-		}
-		switch key {
-		case "VROOLI_AUTH_PROVIDERS":
-			return "scenario_authenticator"
-		case "VROOLI_AUTH_SCENARIO_AUDIENCE":
-			return "scenario-authenticator:money-ledger"
-		}
-		return ""
-	})
-	if err != nil {
-		// Misconfiguration must never turn acceptance into an anonymous route.
-		if logger != nil {
-			logger.Printf("crypto receipt authentication unavailable: %v", err)
-		}
-		cfg = authn.Config{}
-	}
 	return module.Module{Name: "ingest", Mount: func(r *mux.Router) {
 		p, h := ingestconnect.NewIngestServiceHandler(s)
-		r.PathPrefix(p).Handler(authn.Middleware(cfg)(h))
+		r.PathPrefix(p).Handler(h)
 	}, Endpoints: Endpoints}
 }
 
@@ -68,6 +51,9 @@ func (s *Service) PreviewCryptoObservation(ctx context.Context, req *connect.Req
 }
 
 func (s *Service) RegisterAdapter(ctx context.Context, req *connect.Request[ingestpb.RegisterAdapterRequest]) (*connect.Response[ingestpb.RegisterAdapterResponse], error) {
+	if err := access.AuthorizeAdapter(ctx, req.Msg.GetAdapter().GetId()); err != nil {
+		return nil, err
+	}
 	a, err := s.store.RegisterAdapter(ctx, req.Msg.Adapter)
 	if err != nil {
 		return nil, invalid(err)
@@ -84,7 +70,10 @@ func (s *Service) ListAdapters(ctx context.Context, _ *connect.Request[ingestpb.
 }
 
 func (s *Service) IngestEvent(ctx context.Context, req *connect.Request[ingestpb.IngestEventRequest]) (*connect.Response[ingestpb.IngestEventResponse], error) {
-	p, dup, receipt, err := s.store.IngestEvent(ctx, req.Msg.Event)
+	if err := access.AuthorizeAdapter(ctx, req.Msg.GetEvent().GetAdapterId()); err != nil {
+		return nil, err
+	}
+	p, dup, receipt, err := s.store.IngestEvent(ctx, req.Msg.Event, string(access.ActorFrom(ctx)))
 	if err != nil {
 		return nil, invalid(err)
 	}
@@ -92,6 +81,9 @@ func (s *Service) IngestEvent(ctx context.Context, req *connect.Request[ingestpb
 }
 
 func (s *Service) RunAdapter(ctx context.Context, req *connect.Request[ingestpb.RunAdapterRequest]) (*connect.Response[ingestpb.RunAdapterResponse], error) {
+	if err := access.AuthorizeAdapter(ctx, req.Msg.GetAdapterId()); err != nil {
+		return nil, err
+	}
 	r, a, err := s.store.RunAdapter(ctx, req.Msg.AdapterId, req.Msg.From, req.Msg.To)
 	if err != nil && r == nil {
 		return nil, notFound(err)
@@ -100,7 +92,10 @@ func (s *Service) RunAdapter(ctx context.Context, req *connect.Request[ingestpb.
 }
 
 func (s *Service) ImportFile(ctx context.Context, req *connect.Request[ingestpb.ImportFileRequest]) (*connect.Response[ingestpb.ImportFileResponse], error) {
-	r, err := s.store.ImportFile(ctx, req.Msg.AdapterId, req.Msg.Csv, req.Msg.From, req.Msg.To)
+	if err := access.AuthorizeAdapter(ctx, req.Msg.GetAdapterId()); err != nil {
+		return nil, err
+	}
+	r, err := s.store.ImportFile(ctx, string(access.ActorFrom(ctx)), req.Msg.AdapterId, req.Msg.Csv, req.Msg.From, req.Msg.To)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			return nil, err
@@ -111,6 +106,10 @@ func (s *Service) ImportFile(ctx context.Context, req *connect.Request[ingestpb.
 }
 
 func (s *Service) ImportOperatorInputs(ctx context.Context, req *connect.Request[ingestpb.OperatorImportRequest]) (*connect.Response[ingestpb.OperatorImportResponse], error) {
+	if err := access.AuthorizeAdapter(ctx, req.Msg.GetAdapterId()); err != nil {
+		return nil, err
+	}
+	actor := string(access.ActorFrom(ctx))
 	mode := ingest.OperatorSourceModeOperator
 	if req.Msg.SourceMode == ingestpb.SourceMode_SOURCE_MODE_FIXTURE {
 		mode = ingest.OperatorSourceModeFixture
@@ -118,9 +117,9 @@ func (s *Service) ImportOperatorInputs(ctx context.Context, req *connect.Request
 	var report *ingest.OperatorImportReport
 	var err error
 	if len(req.Msg.SourceJson) > 0 {
-		report, err = s.store.ImportOperatorInputsJSON(ctx, req.Msg.SourceJson, req.Msg.Apply, req.Msg.AdapterId, req.Msg.BookId, req.Msg.AccountId)
+		report, err = s.store.ImportOperatorInputsJSON(ctx, actor, req.Msg.SourceJson, req.Msg.Apply, req.Msg.AdapterId, req.Msg.BookId, req.Msg.AccountId)
 	} else {
-		report, err = s.store.ImportOperatorInputsSource(ctx, req.Msg.SourcePath, mode, req.Msg.Apply, req.Msg.AdapterId, req.Msg.BookId, req.Msg.AccountId)
+		report, err = s.store.ImportOperatorInputsSource(ctx, actor, req.Msg.SourcePath, mode, req.Msg.Apply, req.Msg.AdapterId, req.Msg.BookId, req.Msg.AccountId)
 	}
 	if err != nil && report == nil {
 		return nil, invalid(err)

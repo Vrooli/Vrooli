@@ -121,6 +121,26 @@
       "testId": "funding-refresh-intents",
       "selector": "[data-testid=\"funding-refresh-intents\"]"
     },
+    "funding.headroomCard": {
+      "testId": "funding-headroom-card",
+      "selector": "[data-testid=\"funding-headroom-card\"]"
+    },
+    "funding.creditedMinor": {
+      "testId": "funding-credited-minor",
+      "selector": "[data-testid=\"funding-credited-minor\"]"
+    },
+    "funding.remainingMinor": {
+      "testId": "funding-remaining-minor",
+      "selector": "[data-testid=\"funding-remaining-minor\"]"
+    },
+    "funding.spendAvailableMinor": {
+      "testId": "funding-spend-available-minor",
+      "selector": "[data-testid=\"funding-spend-available-minor\"]"
+    },
+    "funding.headroomUnavailable": {
+      "testId": "funding-headroom-unavailable",
+      "selector": "[data-testid=\"funding-headroom-unavailable\"]"
+    },
     "funding.recentIntent": {
       "testId": "funding-recent-intent",
       "selector": "[data-testid=\"funding-recent-intent\"]"
@@ -411,7 +431,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "0317e60f9b44f46ba791f33d24ad9c624fb630defca459a591a1ccf4482bcebc",
-    "ui/src/consts/selectors.ts": "b7032a03e9624dda306638529d02a9aeace188fe1b3afab752cb30e59af894a8",
+    "ui/src/consts/selectors.ts": "a9cdbf296e5795beb10d33c6a91b415f7cec4d000af3d21a2c074ff1cb868d53",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

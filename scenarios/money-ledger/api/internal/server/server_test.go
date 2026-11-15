@@ -87,13 +87,47 @@ func TestServer_HandlerNotNil(t *testing.T) {
 
 func TestServer_NewRequiresClock(t *testing.T) {
 	require.PanicsWithValue(t, "server.New requires Deps.Clock", func() {
-		server.New(server.Deps{Logger: log.New(io.Discard, "", 0)})
+		server.New(server.Deps{Logger: log.New(io.Discard, "", 0), Gate: passGate{}})
 	})
+}
+
+// The server has no unguarded mode: without a gate it refuses to build.
+func TestServer_NewRequiresGate(t *testing.T) {
+	require.PanicsWithValue(t, "server.New requires Deps.Gate", func() {
+		server.New(server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)})
+	})
+}
+
+// The gate runs in front of every module route.
+func TestServer_GateGuardsEveryRoute(t *testing.T) {
+	deps := newTestDeps()
+	deps.Gate = refuseGate{}
+	reached := false
+	srv := server.New(deps, module.Module{Name: "a", Mount: func(r *mux.Router) {
+		r.HandleFunc("/a", func(http.ResponseWriter, *http.Request) { reached = true }).Methods(http.MethodGet)
+	}})
+	live := httpx.NewLiveServer(t, srv)
+	resp, _ := live.Do(t, http.MethodGet, "/a", nil)
+	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+	require.False(t, reached)
+}
+
+// passGate admits everything, so these tests pin the server's own wiring;
+// the access policy has its own tests in internal/access.
+type passGate struct{}
+
+func (passGate) Middleware(next http.Handler) http.Handler { return next }
+
+type refuseGate struct{}
+
+func (refuseGate) Middleware(http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusForbidden) })
 }
 
 func newTestDeps() server.Deps {
 	return server.Deps{
 		Clock:  schedule.System(),
 		Logger: log.New(io.Discard, "", 0),
+		Gate:   passGate{},
 	}
 }

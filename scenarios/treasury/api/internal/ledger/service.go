@@ -16,6 +16,19 @@ type Emitter interface {
 	Emit(context.Context, Emission) (duplicate bool, err error)
 }
 
+type Acceptance struct {
+	Duplicate bool
+	PostingID string
+	ReceiptID string
+}
+
+// ReceiptEmitter is implemented by Money Ledger's typed ingress adapter. It
+// returns the immutable posting/receipt identity required for owner-to-owner
+// reconciliation; legacy emitters continue through Emitter.
+type ReceiptEmitter interface {
+	EmitWithReceipt(context.Context, Emission) (Acceptance, error)
+}
+
 type Service struct {
 	repository Repository
 	emitter    Emitter
@@ -42,7 +55,15 @@ func (s *Service) DrainPending(ctx context.Context) error {
 	}
 	var failures []error
 	for _, value := range values {
-		if _, emitErr := s.emitter.Emit(ctx, value); emitErr != nil {
+		var accepted Acceptance
+		var emitErr error
+		receiptEmitter, hasReceipt := s.emitter.(ReceiptEmitter)
+		if hasReceipt {
+			accepted, emitErr = receiptEmitter.EmitWithReceipt(ctx, value)
+		} else {
+			accepted.Duplicate, emitErr = s.emitter.Emit(ctx, value)
+		}
+		if emitErr != nil {
 			if _, transitionErr := ledgerflow.Transition(ledgerflow.State{Status: ledgerflow.Status(value.Status)}, ledgerflow.EventDeliveryFailed); transitionErr != nil {
 				failures = append(failures, transitionErr)
 				continue
@@ -55,7 +76,18 @@ func (s *Service) DrainPending(ctx context.Context) error {
 			failures = append(failures, transitionErr)
 			continue
 		}
-		if markErr := s.repository.MarkAccepted(context.WithoutCancel(ctx), value.ID, s.now().UTC()); markErr != nil {
+		var markErr error
+		if hasReceipt {
+			recorder, ok := s.repository.(AcceptanceRecorder)
+			if !ok {
+				markErr = errors.New("ledger repository cannot persist accepted posting and receipt ids")
+			} else {
+				markErr = recorder.MarkAcceptedReceipt(context.WithoutCancel(ctx), value.ID, s.now().UTC(), accepted.PostingID, accepted.ReceiptID)
+			}
+		} else {
+			markErr = s.repository.MarkAccepted(context.WithoutCancel(ctx), value.ID, s.now().UTC())
+		}
+		if markErr != nil {
 			failures = append(failures, markErr)
 		}
 	}

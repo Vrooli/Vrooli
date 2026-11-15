@@ -154,11 +154,27 @@ func (a *Adapter) Settle(ctx context.Context, command rail.SettleCommand) (rail.
 	if !settled.Success || settled.Transaction == "" || settled.Payer == "" || settled.Network != accepted.Network {
 		return unknown(payload, "facilitator response did not contain a complete matching settlement"), fmt.Errorf("incomplete x402 settlement response")
 	}
+	// Keep a bounded digest of the paid resource body with Treasury's outcome.
+	// The content itself can contain research data or provider material, so it
+	// is never persisted in the settlement record or logs.
+	resultBody, bodyErr := io.ReadAll(io.LimitReader(paid.Body, maxResponseBytes+1))
+	detail := fmt.Sprintf("x402 v2 exact payment settled on %s (%d asset decimals)", settled.Network, decimals)
+	switch {
+	case bodyErr != nil:
+		detail += "; response_evidence=read_error"
+	case len(resultBody) > maxResponseBytes:
+		detail += fmt.Sprintf("; response_evidence=truncated; response_bytes_at_least=%d", len(resultBody))
+	case len(resultBody) == 0:
+		detail += "; response_evidence=empty"
+	default:
+		digest := sha256.Sum256(resultBody)
+		detail += fmt.Sprintf("; response_bytes=%d; response_sha256=%s", len(resultBody), hex.EncodeToString(digest[:]))
+	}
 	return rail.Result{
 		Outcome: rail.OutcomeSettled, ExternalID: settled.Transaction,
 		ReceiptReference: paymentDigest(payload), Basis: "x402_facilitator_confirmation",
 		OccurredAt: a.now().UTC(),
-		Detail:     fmt.Sprintf("x402 v2 exact payment settled on %s (%d asset decimals)", settled.Network, decimals),
+		Detail:     detail,
 	}, nil
 }
 

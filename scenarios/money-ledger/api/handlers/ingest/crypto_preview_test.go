@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"connectrpc.com/connect"
 
 	"github.com/stretchr/testify/require"
@@ -90,15 +92,15 @@ func TestCryptoPreviewTransportKeepsEconomicIdentityAcrossBlockReinclusion(t *te
 	}
 	first, err := client.PreviewCryptoObservation(ctx, connect.NewRequest(in))
 	require.NoError(t, err)
-	reincluded := *in
+	reincluded := proto.CloneOf(in)
 	reincluded.BlockHash = "0x" + strings.Repeat("c", 64)
-	second, err := client.PreviewCryptoObservation(ctx, connect.NewRequest(&reincluded))
+	second, err := client.PreviewCryptoObservation(ctx, connect.NewRequest(reincluded))
 	require.NoError(t, err)
-	oneUSDC := *in
+	oneUSDC := proto.CloneOf(in)
 	oneUSDC.AtomicAmount = "1000000"
 	oneUSDC.TransactionHash = "0x" + strings.Repeat("d", 64)
 	oneUSDC.BlockHash = "0x" + strings.Repeat("e", 64)
-	unitScale, err := client.PreviewCryptoObservation(ctx, connect.NewRequest(&oneUSDC))
+	unitScale, err := client.PreviewCryptoObservation(ctx, connect.NewRequest(oneUSDC))
 	require.NoError(t, err)
 
 	require.Equal(t, "1", first.Msg.AtomicAmount, "one atomic unit must remain exact")

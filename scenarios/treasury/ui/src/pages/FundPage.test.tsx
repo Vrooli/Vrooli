@@ -2,6 +2,7 @@ import { create } from "@bufbuild/protobuf";
 import { cleanup, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AgentBudgetHeadroomSchema } from "@vrooli/proto-types/treasury/v1/authorization/authorization_pb";
 import {
   FundingIntentSchema,
   WithdrawalQuoteSchema,
@@ -60,6 +61,7 @@ const mocks = vi.hoisted(() => ({
   confirmFundingTransfer: vi.fn(),
   executeWithdrawal: vi.fn(),
   listFundingIntents: vi.fn(),
+  getBudgetHeadroom: vi.fn(),
   previewWithdrawal: vi.fn(),
 }));
 
@@ -72,6 +74,7 @@ beforeEach(async () => {
   await setLocale("en");
   mocks.createFundingIntent.mockResolvedValue(intent);
   mocks.listFundingIntents.mockResolvedValue([]);
+  mocks.getBudgetHeadroom.mockResolvedValue(create(AgentBudgetHeadroomSchema, { availableMinor: 100n, fundingCreditedMinor: 0n, fundingRemainingMinor: 0n, currency: "USD" }));
 });
 
 afterEach(() => {
@@ -81,6 +84,31 @@ afterEach(() => {
 });
 
 describe("Fund page", () => {
+  it("separates accepted funded reserve from unchanged spend authorization", async () => {
+    const user = userEvent.setup();
+    mocks.confirmFundingTransfer.mockResolvedValue(acceptedIntent);
+    mocks.getBudgetHeadroom
+      .mockResolvedValueOnce(create(AgentBudgetHeadroomSchema, { availableMinor: 100n, fundingCreditedMinor: 0n, fundingRemainingMinor: 0n }))
+      .mockResolvedValueOnce(create(AgentBudgetHeadroomSchema, { availableMinor: 100n, fundingCreditedMinor: 260n, fundingRemainingMinor: 260n }));
+    renderWithProviders(<FundPage />);
+
+    await user.type(screen.getByTestId(selectors.funding.operatorToken), "operator-secret");
+    await user.type(screen.getByTestId(selectors.funding.agentToken), "agent-token");
+    await user.type(screen.getByTestId(selectors.funding.budgetId), "research-budget");
+    await user.type(screen.getByTestId(selectors.funding.atomicAmount), "2.60");
+    await user.type(screen.getByTestId(selectors.funding.declaredValue), "2.60");
+    await user.type(screen.getByTestId(selectors.funding.ledgerBookId), "book-1");
+    await user.type(screen.getByTestId(selectors.funding.ledgerAccountId), "account-1");
+    await user.click(screen.getByTestId(selectors.funding.createIntentButton));
+    expect(await screen.findByTestId(selectors.funding.remainingMinor)).toHaveTextContent("$0.00");
+
+    await user.type(screen.getByLabelText(en.fund.transactionHash), "0xlocal-receipt");
+    await user.click(screen.getByRole("button", { name: en.fund.confirmAllocate }));
+    expect(await screen.findByTestId(selectors.funding.creditedMinor)).toHaveTextContent("$2.60");
+    expect(screen.getByTestId(selectors.funding.remainingMinor)).toHaveTextContent("$2.60");
+    expect(screen.getByTestId(selectors.funding.spendAvailableMinor)).toHaveTextContent("$1.00");
+  });
+
   it("renders the exact server payment URI as an accessible scannable QR", async () => {
     const user = userEvent.setup();
     renderWithProviders(<FundPage />);
@@ -121,7 +149,55 @@ describe("Fund page", () => {
 
     expect(mocks.listFundingIntents).toHaveBeenCalledWith("operator-secret", "research-budget");
     expect(writeText).toHaveBeenCalledWith(paymentUri);
-    expect(await screen.findByRole("status")).toHaveTextContent(en.fund.copiedNotice);
+    expect(await screen.findByText(en.fund.copiedNotice)).toBeVisible();
+  });
+
+  it("keeps the receipt visible when clipboard access is denied", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: vi.fn().mockRejectedValue(new Error("permission denied")) },
+    });
+    mocks.listFundingIntents.mockResolvedValue([intent]);
+    renderWithProviders(<FundPage />);
+
+    await user.type(screen.getByTestId(selectors.funding.operatorToken), "operator-secret");
+    await user.type(screen.getByTestId(selectors.funding.budgetId), "research-budget");
+    await user.click(screen.getByTestId(selectors.funding.refreshButton));
+    await user.click(await screen.findByRole("button", { name: /intent-1/ }));
+    await user.click(screen.getByTestId(selectors.funding.copyLinkButton));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(en.fund.copyError);
+    expect(screen.getByTestId(selectors.funding.paymentUri)).toHaveValue(paymentUri);
+  });
+
+  it("reports malformed funding amounts without creating an intent", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<FundPage />);
+
+    await user.type(screen.getByTestId(selectors.funding.operatorToken), "operator-secret");
+    await user.type(screen.getByTestId(selectors.funding.budgetId), "research-budget");
+    await user.type(screen.getByTestId(selectors.funding.atomicAmount), "0");
+    await user.type(screen.getByTestId(selectors.funding.declaredValue), "2.50");
+    await user.type(screen.getByTestId(selectors.funding.ledgerBookId), "book-1");
+    await user.type(screen.getByTestId(selectors.funding.ledgerAccountId), "account-1");
+    await user.click(screen.getByTestId(selectors.funding.createIntentButton));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(en.fund.amountError);
+    expect(mocks.createFundingIntent).not.toHaveBeenCalled();
+  });
+
+  it("shows why headroom is unavailable when the agent identity lookup fails", async () => {
+    const user = userEvent.setup();
+    mocks.getBudgetHeadroom.mockRejectedValueOnce(new Error("agent identity rejected"));
+    renderWithProviders(<FundPage />);
+
+    await user.type(screen.getByTestId(selectors.funding.operatorToken), "operator-secret");
+    await user.type(screen.getByTestId(selectors.funding.agentToken), "agent-token");
+    await user.type(screen.getByTestId(selectors.funding.budgetId), "research-budget");
+    await user.click(screen.getByTestId(selectors.funding.refreshButton));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("agent identity rejected");
   });
 
   it("confirms the entered receipt hash and announces accepted allocation", async () => {
@@ -141,7 +217,7 @@ describe("Fund page", () => {
     await user.click(screen.getByRole("button", { name: en.fund.confirmAllocate }));
 
     expect(mocks.confirmFundingTransfer).toHaveBeenCalledWith("operator-secret", intent.id, "0xlocal-receipt");
-    expect(await screen.findByRole("status")).toHaveTextContent("receipt-delivery-1");
+    expect(await screen.findByText(/receipt-delivery-1/)).toBeVisible();
   });
 
   it("keeps the active receipt state current while the watcher delivers it", async () => {

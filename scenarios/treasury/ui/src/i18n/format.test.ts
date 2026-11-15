@@ -29,6 +29,10 @@ describe("locale-aware Intl formatters", () => {
       expect(formatNumber(12345.6, undefined, "en-US")).toBe("12,345.6");
     });
 
+    it("uses the runtime default when an explicit locale is empty", () => {
+      expect(formatNumber(12345.6, undefined, "")).toMatch(/12.?345/);
+    });
+
     it("switches output when i18n.language changes", async () => {
       // Using a locale pair whose Intl output actually diverges (en-US uses
       // ',' as thousands separator + '.' as decimal; de-DE inverts both) so

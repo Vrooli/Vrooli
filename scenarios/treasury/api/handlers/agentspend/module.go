@@ -19,20 +19,37 @@ import (
 	"treasury/internal/rail"
 	"treasury/internal/rail/card"
 	"treasury/internal/settlement"
+	"treasury/internal/walletops"
 )
 
-func Module(db *database.RoutedDB, verifier identity.Verifier, clock schedule.Clock, relay approval.Relay, rails *rail.Registry, cardIssuers *card.Registry, credentials instrument.CredentialResolver, optional ...any) module.Module {
+type HandlerOverrides struct {
+	WalletOps      *walletops.Service
+	Authorization  *authorization.Service
+	Settlements    *settlement.Service
+	ResearchBudget ResearchBudgetPublisher
+}
+
+func Module(db *database.RoutedDB, verifier identity.Verifier, clk schedule.Clock, relay approval.Relay, rails *rail.Registry, cardIssuers *card.Registry, credentials instrument.CredentialResolver, overrides HandlerOverrides) module.Module {
 	authorizations := authorization.NewSQLiteRepository(db)
 	evidenceRecorder := evidence.NewRecorder(evidence.NewSQLiteRecorder(db))
-	mandates := mandate.NewService(mandate.NewSQLiteRepository(db), clock, nil)
-	budgets := budget.NewService(budget.NewSQLiteRepository(db), clock, authorizations)
-	approvals := approval.NewService(approval.NewSQLiteRepository(db), authorization.NewApprovalController(authorizations, mandates, budgets, clock), relay, clock, evidenceRecorder)
-	authorizationService := authorization.NewService(authorizations, verifier, mandates, budgets, evidenceRecorder, clock, approvals)
-	instruments := instrument.NewServiceWithCardIssuers(instrument.NewSQLiteRepository(db), mandates, rails, credentials, clock, cardIssuers)
-	settlementService := settlement.NewService(settlement.NewSQLiteRepository(db), authorizations, instruments, rails, verifier, clock, budgets)
-	services := []any{authorizationService, settlementService, mandates, budgets, verifier}
-	services = append(services, optional...)
-	path, handler := authorizationconnect.NewAgentSpendHandler(NewConnectHandler(services...))
+	mandates := mandate.NewService(mandate.NewSQLiteRepository(db), clk, nil)
+	budgets := budget.NewService(budget.NewSQLiteRepository(db), clk, authorizations)
+	approvals := approval.NewService(approval.NewSQLiteRepository(db), authorization.NewApprovalController(authorizations, mandates, budgets, clk), relay, clk, evidenceRecorder)
+	authorizationService := authorization.NewService(authorizations, verifier, mandates, budgets, evidenceRecorder, clk, approvals)
+	instruments := instrument.NewServiceWithCardIssuers(instrument.NewSQLiteRepository(db), mandates, rails, credentials, clk, cardIssuers)
+	settlementService := settlement.NewService(settlement.NewSQLiteRepository(db), authorizations, instruments, rails, verifier, clk, budgets)
+	if overrides.Authorization != nil {
+		authorizationService = overrides.Authorization
+	}
+	if overrides.Settlements != nil {
+		settlementService = overrides.Settlements
+	}
+	path, handler := authorizationconnect.NewAgentSpendHandler(NewConnectHandler(AgentSpendDependencies{
+		Authorization: authorizationService, Settlements: settlementService,
+		Mandates: mandates, MandateReader: mandates, Verifier: verifier,
+		Headroom: budgets, WalletOps: overrides.WalletOps, Clock: clk,
+		ResearchBudget: overrides.ResearchBudget,
+	}))
 	return module.Module{Name: "agentspend", Mount: func(router *mux.Router) {
 		connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: handler})
 	}, Endpoints: Endpoints}

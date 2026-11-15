@@ -105,22 +105,12 @@ var operatorPaths = []string{
 	"servicesRevenue.leadGen", "servicesRevenue.doneForYou", "servicesRevenue.consulting", "servicesTime.hoursThisWindow", "subscriptions.mrr",
 }
 
-// ImportOperatorInputs verifies the source shape and admits only populated,
-// non-pending numeric fields. Null and pending-operator are absent facts, never
-// zeroes. The source bytes are supplied by the caller and are never deleted.
-func (s *Store) ImportOperatorInputs(ctx context.Context, data []byte, adapterID, bookID, accountID string) (*OperatorImportReport, error) {
-	return s.importOperatorInputs(ctx, data, "operator-inputs.json", adapterID, bookID, accountID, true)
-}
-
-func (s *Store) ImportOperatorInputsJSON(ctx context.Context, data []byte, apply bool, adapterID, bookID, accountID string) (*OperatorImportReport, error) {
-	return s.importOperatorInputs(ctx, data, "money-ledger-console", adapterID, bookID, accountID, apply)
-}
-
-// ImportOperatorInputsFile is the fixture-only migration seam. The caller
-// chooses the source explicitly; the importer never discovers or mutates a
-// live shared/operator-inputs.json path.
-func (s *Store) ImportOperatorInputsFile(ctx context.Context, sourcePath, adapterID, bookID, accountID string) (*OperatorImportReport, error) {
-	return s.ImportOperatorInputsSource(ctx, sourcePath, OperatorSourceModeFixture, true, adapterID, bookID, accountID)
+// ImportOperatorInputsJSON verifies the source shape and admits only populated,
+// non-pending numeric fields, journaling them as actor when apply is set. Null
+// and pending-operator are absent facts, never zeroes. The source bytes are
+// supplied by the caller and are never deleted.
+func (s *Store) ImportOperatorInputsJSON(ctx context.Context, actor string, data []byte, apply bool, adapterID, bookID, accountID string) (*OperatorImportReport, error) {
+	return s.importOperatorInputs(ctx, actor, data, "money-ledger-console", adapterID, bookID, accountID, apply)
 }
 
 type OperatorSourceMode string
@@ -133,7 +123,7 @@ const (
 // ImportOperatorInputsSource is the safe operator seam. The caller chooses the
 // source mode and must opt into apply; dry-run reports never call the journal or
 // write the source file.
-func (s *Store) ImportOperatorInputsSource(ctx context.Context, sourcePath string, mode OperatorSourceMode, apply bool, adapterID, bookID, accountID string) (*OperatorImportReport, error) {
+func (s *Store) ImportOperatorInputsSource(ctx context.Context, actor, sourcePath string, mode OperatorSourceMode, apply bool, adapterID, bookID, accountID string) (*OperatorImportReport, error) {
 	if strings.TrimSpace(sourcePath) == "" {
 		return nil, errors.New("operator-inputs source path is required")
 	}
@@ -145,10 +135,10 @@ func (s *Store) ImportOperatorInputsSource(ctx context.Context, sourcePath strin
 	if err != nil {
 		return nil, fmt.Errorf("read operator-inputs source: %w", err)
 	}
-	return s.importOperatorInputs(ctx, data, sourcePath, adapterID, bookID, accountID, apply)
+	return s.importOperatorInputs(ctx, actor, data, sourcePath, adapterID, bookID, accountID, apply)
 }
 
-func (s *Store) importOperatorInputs(ctx context.Context, data []byte, sourcePath, adapterID, bookID, accountID string, apply bool) (*OperatorImportReport, error) {
+func (s *Store) importOperatorInputs(ctx context.Context, actor string, data []byte, sourcePath, adapterID, bookID, accountID string, apply bool) (*OperatorImportReport, error) {
 	var root map[string]any
 	decoder := json.NewDecoder(strings.NewReader(string(data)))
 	decoder.UseNumber()
@@ -276,7 +266,7 @@ func (s *Store) importOperatorInputs(ctx context.Context, data []byte, sourcePat
 		}
 		now := s.now().UTC()
 		event := &sharedpb.MoneyEvent{ExternalId: "operator-inputs:" + p.path, AdapterId: adapterID, AccountId: target, BookId: bookID, AmountMinor: p.amountMinor, Currency: bookCurrency, OccurredAt: timestamppb.New(now), FetchedAt: timestamppb.New(now), Basis: sharedpb.Basis_BASIS_OPERATOR_ASSERTED, Category: p.path, Description: "Imported operator input from " + sourcePath}
-		_, duplicate, err := s.journal.Ingest(ctx, event, "operator")
+		_, duplicate, err := s.journal.Ingest(ctx, event, actor)
 		if err != nil {
 			return nil, fmt.Errorf("operator-inputs field %s: %w", p.path, err)
 		}

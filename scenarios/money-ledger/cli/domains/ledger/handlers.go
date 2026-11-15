@@ -1,14 +1,13 @@
 package ledger
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
 
-	"connectrpc.com/connect"
-
 	"github.com/vrooli/cli-core/cliapp"
+	accesspb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/access"
+	accessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/access/access_v1connect"
 	ingestpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest"
 	ingestconnect "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest/ingest_v1connect"
 	ledgerpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ledger"
@@ -18,6 +17,7 @@ import (
 )
 
 type handlers struct {
+	clientA accessconnect.AccessServiceClient
 	clientB ledgerconnect.BooksServiceClient
 	clientJ ledgerconnect.JournalServiceClient
 	clientP ledgerconnect.PositionServiceClient
@@ -26,15 +26,18 @@ type handlers struct {
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	hc, base := cliapp.NewConnectHTTPClient(core)
-	return &handlers{clientB: ledgerconnect.NewBooksServiceClient(hc, base), clientJ: ledgerconnect.NewJournalServiceClient(hc, base), clientP: ledgerconnect.NewPositionServiceClient(hc, base), clientI: ingestconnect.NewIngestServiceClient(hc, base)}
+	return &handlers{clientA: accessconnect.NewAccessServiceClient(hc, base), clientB: ledgerconnect.NewBooksServiceClient(hc, base), clientJ: ledgerconnect.NewJournalServiceClient(hc, base), clientP: ledgerconnect.NewPositionServiceClient(hc, base), clientI: ingestconnect.NewIngestServiceClient(hc, base)}
+}
+
+// writeAccess asks Money Ledger whether this caller may write, and as whom.
+// With --local-owner it checks the owner session this machine would present,
+// so the operator can confirm the owner binding before writing.
+func (h *handlers) writeAccess(c cliapp.OperationContext) (*accesspb.GetWriteAccessResponse, error) {
+	return asOwner(c, h.clientA.GetWriteAccess, &accesspb.GetWriteAccessRequest{})
 }
 
 func (h *handlers) adaptersList(_ cliapp.OperationContext) (*ingestpb.ListAdaptersResponse, error) {
-	r, e := h.clientI.ListAdapters(context.Background(), connect.NewRequest(&ingestpb.ListAdaptersRequest{}))
-	if e != nil {
-		return nil, e
-	}
-	return r.Msg, nil
+	return read(h.clientI.ListAdapters, &ingestpb.ListAdaptersRequest{})
 }
 
 func (h *handlers) adapterRegister(c cliapp.OperationContext) (*ingestpb.RegisterAdapterResponse, error) {
@@ -42,43 +45,24 @@ func (h *handlers) adapterRegister(c cliapp.OperationContext) (*ingestpb.Registe
 	if strings.EqualFold(c.Flag("kind"), "manual") {
 		kind = ingestpb.AdapterKind_ADAPTER_KIND_MANUAL
 	}
-	r, e := h.clientI.RegisterAdapter(context.Background(), connect.NewRequest(&ingestpb.RegisterAdapterRequest{Adapter: &ingestpb.Adapter{Id: c.Flag("id"), Name: c.Flag("name"), Kind: kind, Enabled: true}}))
-	if e != nil {
-		return nil, e
-	}
-	return r.Msg, nil
+	return asOwner(c, h.clientI.RegisterAdapter, &ingestpb.RegisterAdapterRequest{Adapter: &ingestpb.Adapter{Id: c.Flag("id"), Name: c.Flag("name"), Kind: kind, Enabled: true}})
 }
 
 func (h *handlers) ingestEvent(c cliapp.OperationContext) (*ingestpb.IngestEventResponse, error) {
-	basis := sharedpb.Basis_BASIS_AUTHORITATIVE
-	if strings.EqualFold(c.Flag("basis"), "derived") {
-		basis = sharedpb.Basis_BASIS_DERIVED
-	}
-	if strings.EqualFold(c.Flag("basis"), "operator-asserted") {
-		basis = sharedpb.Basis_BASIS_OPERATOR_ASSERTED
-	}
-	e := &sharedpb.MoneyEvent{ExternalId: c.Flag("external-id"), AdapterId: c.Flag("adapter-id"), AccountId: c.Flag("account-id"), BookId: c.Flag("book-id"), AmountMinor: parseInt(c.Flag("amount-minor")), Currency: strings.ToUpper(c.Flag("currency")), OccurredAt: timestamppb.Now(), FetchedAt: timestamppb.Now(), Basis: basis, Description: c.Flag("description"), Category: c.Flag("category")}
-	r, err := h.clientI.IngestEvent(context.Background(), connect.NewRequest(&ingestpb.IngestEventRequest{Event: e}))
-	if err != nil {
+	f := readFlags(c)
+	e := &sharedpb.MoneyEvent{ExternalId: c.Flag("external-id"), AdapterId: c.Flag("adapter-id"), AccountId: c.Flag("account-id"), BookId: c.Flag("book-id"), AmountMinor: f.Int64("amount-minor"), Currency: strings.ToUpper(c.Flag("currency")), OccurredAt: timestamppb.Now(), FetchedAt: timestamppb.Now(), Basis: f.Basis("basis"), Description: c.Flag("description"), Category: c.Flag("category")}
+	if err := f.Err(); err != nil {
 		return nil, err
 	}
-	return r.Msg, nil
+	return asOwner(c, h.clientI.IngestEvent, &ingestpb.IngestEventRequest{Event: e})
 }
 
 func (h *handlers) adapterRun(c cliapp.OperationContext) (*ingestpb.RunAdapterResponse, error) {
-	r, e := h.clientI.RunAdapter(context.Background(), connect.NewRequest(&ingestpb.RunAdapterRequest{AdapterId: c.Flag("adapter-id")}))
-	if e != nil {
-		return nil, e
-	}
-	return r.Msg, nil
+	return asOwner(c, h.clientI.RunAdapter, &ingestpb.RunAdapterRequest{AdapterId: c.Flag("adapter-id")})
 }
 
 func (h *handlers) fileImport(c cliapp.OperationContext) (*ingestpb.ImportFileResponse, error) {
-	r, e := h.clientI.ImportFile(context.Background(), connect.NewRequest(&ingestpb.ImportFileRequest{AdapterId: c.Flag("adapter-id"), Csv: []byte(c.Flag("csv"))}))
-	if e != nil {
-		return nil, e
-	}
-	return r.Msg, nil
+	return asOwner(c, h.clientI.ImportFile, &ingestpb.ImportFileRequest{AdapterId: c.Flag("adapter-id"), Csv: []byte(c.Flag("csv"))})
 }
 
 func (h *handlers) operatorImport(c cliapp.OperationContext) (*ingestpb.OperatorImportResponse, error) {
@@ -86,134 +70,86 @@ func (h *handlers) operatorImport(c cliapp.OperationContext) (*ingestpb.Operator
 	if strings.EqualFold(c.Flag("source-mode"), "fixture") {
 		mode = ingestpb.SourceMode_SOURCE_MODE_FIXTURE
 	}
-	r, err := h.clientI.ImportOperatorInputs(context.Background(), connect.NewRequest(&ingestpb.OperatorImportRequest{SourcePath: c.Flag("source-path"), SourceMode: mode, Apply: strings.EqualFold(c.Flag("apply"), "true"), AdapterId: c.Flag("adapter-id"), BookId: c.Flag("book-id"), AccountId: c.Flag("account-id")}))
-	if err != nil && r == nil {
-		return nil, err
-	}
-	if r == nil {
-		return nil, fmt.Errorf("operator import returned no report")
-	}
-	return r.Msg, err
+	return asOwner(c, h.clientI.ImportOperatorInputs, &ingestpb.OperatorImportRequest{SourcePath: c.Flag("source-path"), SourceMode: mode, Apply: strings.EqualFold(c.Flag("apply"), "true"), AdapterId: c.Flag("adapter-id"), BookId: c.Flag("book-id"), AccountId: c.Flag("account-id")})
 }
 
 func (h *handlers) operatorInputStatus(c cliapp.OperationContext) (*ingestpb.OperatorInputStatusResponse, error) {
-	r, err := h.clientI.OperatorInputStatus(context.Background(), connect.NewRequest(&ingestpb.OperatorInputStatusRequest{BookId: c.Flag("book-id")}))
-	if err != nil {
-		return nil, err
-	}
-	return r.Msg, nil
+	return read(h.clientI.OperatorInputStatus, &ingestpb.OperatorInputStatusRequest{BookId: c.Flag("book-id")})
 }
 
 func (h *handlers) booksList(c cliapp.OperationContext) (*ledgerpb.ListBooksResponse, error) {
-	r, e := h.clientB.ListBooks(context.Background(), connect.NewRequest(&ledgerpb.ListBooksRequest{IncludeArchived: strings.EqualFold(c.Flag("include-archived"), "true")}))
-	if e != nil {
-		return nil, e
-	}
-	return r.Msg, nil
+	return read(h.clientB.ListBooks, &ledgerpb.ListBooksRequest{IncludeArchived: strings.EqualFold(c.Flag("include-archived"), "true")})
 }
 
 func (h *handlers) booksArchive(c cliapp.OperationContext) (*ledgerpb.ArchiveBookResponse, error) {
-	r, e := h.clientB.ArchiveBook(context.Background(), connect.NewRequest(&ledgerpb.ArchiveBookRequest{BookId: c.Flag("book-id"), Actor: "operator"}))
-	if e != nil {
-		return nil, e
-	}
-	return r.Msg, nil
+	return asOwner(c, h.clientB.ArchiveBook, &ledgerpb.ArchiveBookRequest{BookId: c.Flag("book-id")})
 }
 
 func (h *handlers) booksCreate(c cliapp.OperationContext) (*ledgerpb.CreateBookResponse, error) {
-	r, e := h.clientB.CreateBook(context.Background(), connect.NewRequest(&ledgerpb.CreateBookRequest{Name: c.Flag("name"), Currency: c.Flag("currency")}))
-	if e != nil {
-		return nil, e
-	}
-	return r.Msg, nil
+	return asOwner(c, h.clientB.CreateBook, &ledgerpb.CreateBookRequest{Name: c.Flag("name"), Currency: c.Flag("currency")})
 }
 
 func (h *handlers) accountsList(c cliapp.OperationContext) (*ledgerpb.ListAccountsResponse, error) {
-	r, e := h.clientB.ListAccounts(context.Background(), connect.NewRequest(&ledgerpb.ListAccountsRequest{BookId: c.Flag("book-id")}))
-	if e != nil {
-		return nil, e
-	}
-	return r.Msg, nil
+	return read(h.clientB.ListAccounts, &ledgerpb.ListAccountsRequest{BookId: c.Flag("book-id")})
 }
 
 func (h *handlers) accountsCreate(c cliapp.OperationContext) (*ledgerpb.CreateAccountResponse, error) {
-	r, e := h.clientB.CreateAccount(context.Background(), connect.NewRequest(&ledgerpb.CreateAccountRequest{BookId: c.Flag("book-id"), Name: c.Flag("name"), AccountKind: parseAccountKind(c.Flag("kind"))}))
-	if e != nil {
-		return nil, e
-	}
-	return r.Msg, nil
+	return asOwner(c, h.clientB.CreateAccount, &ledgerpb.CreateAccountRequest{BookId: c.Flag("book-id"), Name: c.Flag("name"), AccountKind: parseAccountKind(c.Flag("kind"))})
 }
 
 func (h *handlers) goalsArchive(c cliapp.OperationContext) (*ledgerpb.ArchiveGoalResponse, error) {
-	r, e := h.clientP.ArchiveGoal(context.Background(), connect.NewRequest(&ledgerpb.ArchiveGoalRequest{GoalId: c.Flag("goal-id"), Actor: "operator"}))
-	if e != nil {
-		return nil, e
-	}
-	return r.Msg, nil
+	return asOwner(c, h.clientP.ArchiveGoal, &ledgerpb.ArchiveGoalRequest{GoalId: c.Flag("goal-id")})
 }
 
 func (h *handlers) goalReparent(c cliapp.OperationContext) (*ledgerpb.ReparentGoalResponse, error) {
-	r, e := h.clientP.ReparentGoal(context.Background(), connect.NewRequest(&ledgerpb.ReparentGoalRequest{GoalId: c.Flag("goal-id"), BookId: c.Flag("book-id"), Actor: "operator"}))
-	if e != nil {
-		return nil, e
-	}
-	return r.Msg, nil
+	return asOwner(c, h.clientP.ReparentGoal, &ledgerpb.ReparentGoalRequest{GoalId: c.Flag("goal-id"), BookId: c.Flag("book-id")})
 }
 
 func (h *handlers) postingsList(c cliapp.OperationContext) (*ledgerpb.ListPostingsResponse, error) {
-	r, e := h.clientJ.ListPostings(context.Background(), connect.NewRequest(&ledgerpb.ListPostingsRequest{AccountId: c.Flag("account-id"), BookId: c.Flag("book-id"), Limit: int32(parseInt(c.Flag("limit")))}))
-	if e != nil {
-		return nil, e
+	f := readFlags(c)
+	req := &ledgerpb.ListPostingsRequest{AccountId: c.Flag("account-id"), BookId: c.Flag("book-id"), Limit: f.Int32("limit")}
+	if err := f.Err(); err != nil {
+		return nil, err
 	}
-	return r.Msg, nil
+	return read(h.clientJ.ListPostings, req)
 }
 
 func (h *handlers) reverse(c cliapp.OperationContext) (*ledgerpb.ReversePostingResponse, error) {
-	r, e := h.clientJ.ReversePosting(context.Background(), connect.NewRequest(&ledgerpb.ReversePostingRequest{PostingId: c.Flag("posting-id"), Reason: c.Flag("reason")}))
-	if e != nil {
-		return nil, e
-	}
-	return r.Msg, nil
+	return asOwner(c, h.clientJ.ReversePosting, &ledgerpb.ReversePostingRequest{PostingId: c.Flag("posting-id"), Reason: c.Flag("reason")})
 }
 
 func (h *handlers) postingGet(c cliapp.OperationContext) (*ledgerpb.GetPostingResponse, error) {
-	r, e := h.clientJ.GetPosting(context.Background(), connect.NewRequest(&ledgerpb.GetPostingRequest{PostingId: c.Flag("posting-id")}))
-	if e != nil {
-		return nil, e
-	}
-	return r.Msg, nil
+	return read(h.clientJ.GetPosting, &ledgerpb.GetPostingRequest{PostingId: c.Flag("posting-id")})
 }
 
 func (h *handlers) transfer(c cliapp.OperationContext) (*ledgerpb.TransferResponse, error) {
-	r, e := h.clientJ.Transfer(context.Background(), connect.NewRequest(&ledgerpb.TransferRequest{FromAccountId: c.Flag("from-account-id"), ToAccountId: c.Flag("to-account-id"), AmountMinor: parseInt(c.Flag("amount-minor")), Currency: c.Flag("currency"), ExternalId: c.Flag("external-id"), Description: c.Flag("description"), OccurredAt: timestamppb.Now()}))
-	if e != nil {
-		return nil, e
+	f := readFlags(c)
+	req := &ledgerpb.TransferRequest{FromAccountId: c.Flag("from-account-id"), ToAccountId: c.Flag("to-account-id"), AmountMinor: f.Int64("amount-minor"), Currency: c.Flag("currency"), ExternalId: c.Flag("external-id"), Description: c.Flag("description"), OccurredAt: timestamppb.Now()}
+	if err := f.Err(); err != nil {
+		return nil, err
 	}
-	return r.Msg, nil
+	return asOwner(c, h.clientJ.Transfer, req)
 }
 
 func (h *handlers) position(c cliapp.OperationContext) (*ledgerpb.PositionResponse, error) {
-	r, e := h.clientP.GetPosition(context.Background(), connect.NewRequest(&ledgerpb.PositionRequest{BookId: c.Flag("book-id")}))
-	if e != nil {
-		return nil, e
-	}
-	return r.Msg, nil
+	return read(h.clientP.GetPosition, &ledgerpb.PositionRequest{BookId: c.Flag("book-id")})
 }
 
 func (h *handlers) statement(c cliapp.OperationContext) (*ledgerpb.StatementResponse, error) {
-	r, e := h.clientP.GetStatement(context.Background(), connect.NewRequest(&ledgerpb.StatementRequest{BookId: c.Flag("book-id"), From: c.Flag("from"), To: c.Flag("to")}))
-	if e != nil {
-		return nil, e
-	}
-	return r.Msg, nil
+	return read(h.clientP.GetStatement, &ledgerpb.StatementRequest{BookId: c.Flag("book-id"), From: c.Flag("from"), To: c.Flag("to")})
 }
 
 func (h *handlers) goals(c cliapp.OperationContext) (*ledgerpb.ListGoalsResponse, error) {
-	r, e := h.clientP.ListGoals(context.Background(), connect.NewRequest(&ledgerpb.ListGoalsRequest{BookId: c.Flag("book-id"), IncludeArchived: strings.EqualFold(c.Flag("include-archived"), "true")}))
-	if e != nil {
-		return nil, e
+	return read(h.clientP.ListGoals, &ledgerpb.ListGoalsRequest{BookId: c.Flag("book-id"), IncludeArchived: strings.EqualFold(c.Flag("include-archived"), "true")})
+}
+
+func (h *handlers) goalDeclare(c cliapp.OperationContext) (*ledgerpb.DeclareGoalResponse, error) {
+	f := readFlags(c)
+	g := &ledgerpb.Goal{BookId: c.Flag("book-id"), Name: c.Flag("name"), Metric: c.Flag("metric"), Comparator: c.Flag("comparator"), ThresholdMinor: f.Int64("threshold-minor"), ThresholdRatio: f.Float("threshold-ratio"), ComparandMetric: c.Flag("comparand-metric"), SustainPeriods: f.Int32("sustain-periods"), SustainPeriodUnit: parsePeriodUnit(c.Flag("sustain-period-unit")), BufferMultiple: f.Float("buffer-multiple")}
+	if err := f.Err(); err != nil {
+		return nil, err
 	}
-	return r.Msg, nil
+	return asOwner(c, h.clientP.DeclareGoal, &ledgerpb.DeclareGoalRequest{Goal: g})
 }
 
 func parseAccountKind(v string) ledgerpb.AccountKind {
@@ -233,15 +169,6 @@ func parseAccountKind(v string) ledgerpb.AccountKind {
 	}
 }
 
-func (h *handlers) goalDeclare(c cliapp.OperationContext) (*ledgerpb.DeclareGoalResponse, error) {
-	g := &ledgerpb.Goal{BookId: c.Flag("book-id"), Name: c.Flag("name"), Metric: c.Flag("metric"), Comparator: c.Flag("comparator"), ThresholdMinor: parseInt(c.Flag("threshold-minor")), ThresholdRatio: parseFloat(c.Flag("threshold-ratio")), ComparandMetric: c.Flag("comparand-metric"), SustainPeriods: int32(parseInt(c.Flag("sustain-periods"))), SustainPeriodUnit: parsePeriodUnit(c.Flag("sustain-period-unit")), BufferMultiple: parseFloat(c.Flag("buffer-multiple"))}
-	r, e := h.clientP.DeclareGoal(context.Background(), connect.NewRequest(&ledgerpb.DeclareGoalRequest{Goal: g}))
-	if e != nil {
-		return nil, e
-	}
-	return r.Msg, nil
-}
-
 func parsePeriodUnit(v string) ledgerpb.SustainPeriodUnit {
 	switch strings.ToLower(strings.TrimSpace(v)) {
 	case "day", "days":
@@ -251,6 +178,13 @@ func parsePeriodUnit(v string) ledgerpb.SustainPeriodUnit {
 	default:
 		return ledgerpb.SustainPeriodUnit_MONTH
 	}
+}
+
+func writeAccessReport(_ cliapp.OperationContext, m *accesspb.GetWriteAccessResponse) cliapp.ListReport {
+	if m.CanWrite {
+		return cliapp.ListReport{Summary: []string{"This caller may write; Money Ledger records its writes as " + m.Actor + "."}, ResultsHeading: "Write access", Results: []string{m.Reason}}
+	}
+	return cliapp.ListReport{Summary: []string{"This caller may not write to Money Ledger."}, ResultsHeading: "Write access", Results: []string{fmt.Sprintf("refusal=%s %s", strings.ToLower(strings.TrimPrefix(m.Refusal.String(), "WRITE_REFUSAL_")), m.Reason)}}
 }
 
 func booksListReport(_ cliapp.OperationContext, m *ledgerpb.ListBooksResponse) cliapp.ListReport {
@@ -360,8 +294,7 @@ func fileImportReport(_ cliapp.OperationContext, m *ingestpb.ImportFileResponse)
 func operatorImportReport(_ cliapp.OperationContext, m *ingestpb.OperatorImportResponse) cliapp.MutationReport {
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Inspected %d operator fields, applied=%t, findings=%d.", m.Read, m.Applied, m.Findings)}}
 }
-func parseInt(v string) int64     { var n int64; _, _ = fmt.Sscan(v, &n); return n }
-func parseFloat(v string) float64 { var n float64; _, _ = fmt.Sscan(v, &n); return n }
+
 func mapStrings(n int, f func(int) string) []string {
 	out := make([]string, n)
 	for i := range out {

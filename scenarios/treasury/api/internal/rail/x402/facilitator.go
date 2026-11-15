@@ -17,6 +17,8 @@ type HTTPFacilitator struct {
 	base   *url.URL
 }
 
+func (f *HTTPFacilitator) LocalOnly() bool { return f != nil && isLoopback(f.base.Hostname()) }
+
 func NewHTTPFacilitator(baseURL string, client *http.Client) (*HTTPFacilitator, error) {
 	base, err := url.Parse(strings.TrimSpace(baseURL))
 	if err != nil || base.Hostname() == "" || base.User != nil || base.RawQuery != "" || base.Fragment != "" {

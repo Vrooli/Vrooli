@@ -150,6 +150,13 @@ export const strings = {
     withdrawNotice: "fund.withdrawNotice",
     requestError: "fund.requestError",
     valueError: "fund.valueError",
+    headroomTitle: "fund.headroomTitle",
+    headroomHelp: "fund.headroomHelp",
+    creditedReserve: "fund.creditedReserve",
+    remainingReserve: "fund.remainingReserve",
+    spendAvailability: "fund.spendAvailability",
+    headroomUnavailable: "fund.headroomUnavailable",
+    headroomError: "fund.headroomError",
   },
   health: {
     error: "health.error",

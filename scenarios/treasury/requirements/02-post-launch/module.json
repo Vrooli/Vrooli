@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P1 requirements: the rails and the operator controls that make the P0 spine useful against real counterparties. Each assumes the P0 properties rather than re-establishing them.",
-    "last_validated_at": "2026-11-09T15:10:20-05:00",
+    "last_validated_at": "2026-11-14T14:17:06-05:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -69,7 +69,7 @@
           "type": "test",
           "ref": "api/internal/rail/card/contract_test.go#TestIssuerContractIsProviderNeutralAndRejectsScopeWidening; api/internal/instrument/sqlite_test.go#TestScopedCardIssuanceUsesMandateAndCredentialAuthority; api/internal/rail/card/lithic/adapter_test.go#TestIssueAndInspectProviderEnforcedScope",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Issued card scope is derived from the live mandate, the contract carries no provider type, and provider/issued credentials cross Credential Authority only. [REQ:TRS-P1-003]"
         },
         {
@@ -84,7 +84,7 @@
     {
       "id": "TRS-P1-004",
       "title": "Personal and business books",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "criticality": "P1",
       "description": "A mandate should belong to exactly one book, and books should not share instruments, budgets or approval chains",
@@ -93,14 +93,14 @@
           "type": "test",
           "ref": "api/internal/authorization/sqlite_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Raw SQL cannot reassign an authorization or approval chain across the mandate and budget book boundary. [REQ:TRS-P1-004]"
         },
         {
           "type": "test",
           "ref": "ui/src/pages/DashboardPage.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The operator queue switches books without displaying approval cards from another book. [REQ:TRS-P1-004]"
         }
       ]
@@ -108,7 +108,7 @@
     {
       "id": "TRS-P1-005",
       "title": "Standing mandates and obligations",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-005",
       "criticality": "P1",
       "description": "The scenario should represent a renewal as a standing mandate that surfaces its next charge date and its cancellation path in one action",
@@ -117,14 +117,14 @@
           "type": "test",
           "ref": "api/internal/mandate/standing_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A standing mandate carries durable recurrence state; an atomic cancellation prevents the next boundary from being claimed. [REQ:TRS-P1-005]"
         },
         {
           "type": "test",
           "ref": "ui/src/pages/SettingsPage.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The operator sees the next charge by book and cancels the obligation in one action. [REQ:TRS-P1-005]"
         }
       ]
@@ -132,7 +132,7 @@
     {
       "id": "TRS-P1-006",
       "title": "Kill switch",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-006",
       "criticality": "P1",
       "description": "When an operator freezes a budget, a book or the whole scenario, the freeze should take effect before the next authorization rather than at the next settlement",
@@ -141,14 +141,14 @@
           "type": "test",
           "ref": "api/internal/budget/freeze_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Budget, book, and scenario freeze scope is durable and the broadest active scope wins. [REQ:TRS-P1-006]"
         },
         {
           "type": "test",
           "ref": "api/internal/settlement/sqlite_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A freeze engaged after approval releases the hold and stops settlement before the rail adapter is called. [REQ:TRS-P1-006]"
         }
       ]
@@ -156,7 +156,7 @@
     {
       "id": "TRS-P1-007",
       "title": "Spend position without a ledger round-trip",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-007",
       "criticality": "P1",
       "description": "The scenario should report remaining headroom per budget from its own authorization records, so an agent can plan without querying money-ledger",
@@ -165,14 +165,14 @@
           "type": "test",
           "ref": "api/internal/budget/headroom_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Headroom is computed from authorization records rather than a mutable balance; pending and settled records count while released records do not. [REQ:TRS-P1-007]"
         },
         {
           "type": "test",
           "ref": "api/handlers/agentspend/surface_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The generated agent-facing service exposes computed headroom without accepting a caller-owned balance. [REQ:TRS-P1-007]"
         }
       ]
@@ -180,7 +180,7 @@
     {
       "id": "TRS-P1-008",
       "title": "Durable external wallet receipt evidence",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-008",
       "criticality": "P1",
       "description": "When an operator checks a Base native-USDC transaction for a Treasury wallet, Treasury shall retain the result and exact provider-reported transfer observations for operator readback, without creating a fiat posting or spending authority",
@@ -189,14 +189,14 @@
           "type": "test",
           "ref": "api/internal/baseusdc/service_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A successful check, pending or unavailable result, repeated check, and transaction re-inclusion under a different block hash remain attributable and readable by only the bound operator; no check writes Money Ledger or Treasury allocation. [REQ:TRS-P1-008]"
         },
         {
           "type": "test",
           "ref": "api/handlers/treasuryadmin/wallet_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "TreasuryAdmin returns and reads receipt evidence only for a verified operator and the operator-bound wallet. [REQ:TRS-P1-008]"
         },
         {

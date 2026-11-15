@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "treasury",
   "generator": "v1.0.0",
-  "manifest_hash": "495e6d752ebf301b27b673ec4cb630d7e3cfd2c07db89f51d69b87de7d5835c5",
+  "manifest_hash": "87887f4a979809e6f3f9cd896a0fb62cf124e6e8f83f286c4fdb0411417c44fd",
   "commands": [
     {
       "path": "approval list",
@@ -34,43 +34,43 @@
       "path": "book create",
       "group": "book",
       "command": "create",
-      "binding": "TreasuryAdmin.CreateBook"
+      "binding": "BookAdminService.CreateBook"
     },
     {
       "path": "book get",
       "group": "book",
       "command": "get",
-      "binding": "TreasuryAdmin.GetBook"
+      "binding": "BookAdminService.GetBook"
     },
     {
       "path": "budget agent-wallet",
       "group": "budget",
       "command": "agent-wallet",
-      "binding": "AgentSpend.GetBudgetWallet"
+      "binding": "FundingAgentService.GetBudgetWallet"
     },
     {
       "path": "budget freeze",
       "group": "budget",
       "command": "freeze",
-      "binding": "TreasuryAdmin.FreezeBudget"
+      "binding": "BudgetAdminService.FreezeBudget"
     },
     {
       "path": "budget freeze-all",
       "group": "budget",
       "command": "freeze-all",
-      "binding": "TreasuryAdmin.FreezeAll"
+      "binding": "BudgetAdminService.FreezeAll"
     },
     {
       "path": "budget freeze-book",
       "group": "budget",
       "command": "freeze-book",
-      "binding": "TreasuryAdmin.FreezeBook"
+      "binding": "BudgetAdminService.FreezeBook"
     },
     {
       "path": "budget freeze-status",
       "group": "budget",
       "command": "freeze-status",
-      "binding": "TreasuryAdmin.GetFreezeStatus"
+      "binding": "BudgetAdminService.GetFreezeStatus"
     },
     {
       "path": "budget headroom",
@@ -82,31 +82,31 @@
       "path": "budget set-caps",
       "group": "budget",
       "command": "set-caps",
-      "binding": "TreasuryAdmin.SetBudgetCaps"
+      "binding": "BudgetAdminService.SetBudgetCaps"
     },
     {
       "path": "budget set-gating",
       "group": "budget",
       "command": "set-gating",
-      "binding": "TreasuryAdmin.SetGating"
+      "binding": "BudgetAdminService.SetGating"
     },
     {
       "path": "budget unfreeze",
       "group": "budget",
       "command": "unfreeze",
-      "binding": "TreasuryAdmin.UnfreezeBudget"
+      "binding": "BudgetAdminService.UnfreezeBudget"
     },
     {
       "path": "budget unfreeze-all",
       "group": "budget",
       "command": "unfreeze-all",
-      "binding": "TreasuryAdmin.UnfreezeAll"
+      "binding": "BudgetAdminService.UnfreezeAll"
     },
     {
       "path": "budget unfreeze-book",
       "group": "budget",
       "command": "unfreeze-book",
-      "binding": "TreasuryAdmin.UnfreezeBook"
+      "binding": "BudgetAdminService.UnfreezeBook"
     },
     {
       "path": "evidence describe",
@@ -124,7 +124,7 @@
       "path": "instrument register",
       "group": "instrument",
       "command": "register",
-      "binding": "TreasuryAdmin.RegisterInstrument"
+      "binding": "InstrumentAdminService.RegisterInstrument"
     },
     {
       "path": "ledger describe",
@@ -133,16 +133,34 @@
       "binding": "."
     },
     {
+      "path": "ledger destination-set",
+      "group": "ledger",
+      "command": "destination-set",
+      "binding": "LedgerService.SetLedgerDestination"
+    },
+    {
+      "path": "ledger destination-show",
+      "group": "ledger",
+      "command": "destination-show",
+      "binding": "LedgerService.GetLedgerDestination"
+    },
+    {
+      "path": "ledger emissions-list",
+      "group": "ledger",
+      "command": "emissions-list",
+      "binding": "LedgerService.ListEmissions"
+    },
+    {
       "path": "mandate cancel-standing",
       "group": "mandate",
       "command": "cancel-standing",
-      "binding": "TreasuryAdmin.CancelStandingMandate"
+      "binding": "MandateAdminService.CancelStandingMandate"
     },
     {
       "path": "mandate create",
       "group": "mandate",
       "command": "create",
-      "binding": "TreasuryAdmin.CreateMandate"
+      "binding": "MandateAdminService.CreateMandate"
     },
     {
       "path": "mandate list",
@@ -154,13 +172,19 @@
       "path": "mandate list-all",
       "group": "mandate",
       "command": "list-all",
-      "binding": "TreasuryAdmin.ListMandates"
+      "binding": "MandateAdminService.ListMandates"
     },
     {
       "path": "mandate revoke",
       "group": "mandate",
       "command": "revoke",
-      "binding": "TreasuryAdmin.RevokeMandate"
+      "binding": "MandateAdminService.RevokeMandate"
+    },
+    {
+      "path": "mandate revoke-session",
+      "group": "mandate",
+      "command": "revoke-session",
+      "binding": "MandateAdminService.RevokeMandateSession"
     },
     {
       "path": "rail describe",
@@ -190,127 +214,133 @@
       "path": "wallet budget-wallet",
       "group": "wallet",
       "command": "budget-wallet",
-      "binding": "TreasuryAdmin.GetBudgetWallet"
+      "binding": "FundingAdminService.GetBudgetWallet"
     },
     {
       "path": "wallet create",
       "group": "wallet",
       "command": "create",
-      "binding": "TreasuryAdmin.CreateResearchWallet"
+      "binding": "WalletAdminService.CreateResearchWallet"
     },
     {
       "path": "wallet export-portable-recovery",
       "group": "wallet",
       "command": "export-portable-recovery",
-      "binding": "TreasuryAdmin.ExportPortableResearchWalletRecovery"
+      "binding": "WalletAdminService.ExportPortableResearchWalletRecovery"
     },
     {
       "path": "wallet fund-confirm",
       "group": "wallet",
       "command": "fund-confirm",
-      "binding": "TreasuryAdmin.ConfirmFundingTransfer"
+      "binding": "FundingAdminService.ConfirmFundingTransfer"
     },
     {
       "path": "wallet fund-intent",
       "group": "wallet",
       "command": "fund-intent",
-      "binding": "TreasuryAdmin.CreateFundingIntent"
+      "binding": "FundingAdminService.CreateFundingIntent"
     },
     {
       "path": "wallet fund-intent-get",
       "group": "wallet",
       "command": "fund-intent-get",
-      "binding": "TreasuryAdmin.GetFundingIntent"
+      "binding": "FundingAdminService.GetFundingIntent"
     },
     {
       "path": "wallet fund-list",
       "group": "wallet",
       "command": "fund-list",
-      "binding": "TreasuryAdmin.ListFundingIntents"
+      "binding": "FundingAdminService.ListFundingIntents"
     },
     {
       "path": "wallet get",
       "group": "wallet",
       "command": "get",
-      "binding": "TreasuryAdmin.GetResearchWallet"
+      "binding": "WalletAdminService.GetResearchWallet"
     },
     {
       "path": "wallet prove",
       "group": "wallet",
       "command": "prove",
-      "binding": "TreasuryAdmin.ProveResearchWallet"
+      "binding": "WalletAdminService.ProveResearchWallet"
     },
     {
       "path": "wallet provision-budget",
       "group": "wallet",
       "command": "provision-budget",
-      "binding": "TreasuryAdmin.ProvisionBudgetWallet"
+      "binding": "FundingAdminService.ProvisionBudgetWallet"
     },
     {
       "path": "wallet qualify-recovery",
       "group": "wallet",
       "command": "qualify-recovery",
-      "binding": "TreasuryAdmin.QualifyResearchWalletRecovery"
+      "binding": "WalletAdminService.QualifyResearchWalletRecovery"
     },
     {
       "path": "wallet receipt-check",
       "group": "wallet",
       "command": "receipt-check",
-      "binding": "TreasuryAdmin.VerifyBaseUSDCReceipt"
+      "binding": "WalletAdminService.VerifyBaseUSDCReceipt"
     },
     {
       "path": "wallet receipt-checks",
       "group": "wallet",
       "command": "receipt-checks",
-      "binding": "TreasuryAdmin.ListBaseUSDCReceiptChecks"
+      "binding": "WalletAdminService.ListBaseUSDCReceiptChecks"
     },
     {
       "path": "wallet receipt-fund",
       "group": "wallet",
       "command": "receipt-fund",
-      "binding": "TreasuryAdmin.SubmitReceiptFunding"
+      "binding": "FundingAdminService.SubmitReceiptFunding"
     },
     {
       "path": "wallet receipt-funding",
       "group": "wallet",
       "command": "receipt-funding",
-      "binding": "TreasuryAdmin.GetReceiptFunding"
+      "binding": "FundingAdminService.GetReceiptFunding"
+    },
+    {
+      "path": "wallet receipt-recheck",
+      "group": "wallet",
+      "command": "receipt-recheck",
+      "binding": "WalletAdminService.RecheckBaseUSDCReceipt"
     },
     {
       "path": "wallet recover",
       "group": "wallet",
       "command": "recover",
-      "binding": "TreasuryAdmin.RecoverResearchWallet"
+      "binding": "WalletAdminService.RecoverResearchWallet"
     },
     {
       "path": "wallet restore-portable-recovery",
       "group": "wallet",
       "command": "restore-portable-recovery",
-      "binding": "TreasuryAdmin.RestorePortableResearchWalletRecovery"
+      "binding": "WalletAdminService.RestorePortableResearchWalletRecovery"
     },
     {
       "path": "wallet withdrawal-destination-set",
       "group": "wallet",
       "command": "withdrawal-destination-set",
-      "binding": "TreasuryAdmin.SetWithdrawalDestination"
+      "binding": "FundingAdminService.SetWithdrawalDestination"
     },
     {
       "path": "wallet withdrawal-execute",
       "group": "wallet",
       "command": "withdrawal-execute",
-      "binding": "TreasuryAdmin.ExecuteWithdrawal"
+      "binding": "FundingAdminService.ExecuteWithdrawal"
     },
     {
       "path": "wallet withdrawal-get",
       "group": "wallet",
       "command": "withdrawal-get",
-      "binding": "TreasuryAdmin.GetWithdrawal"
+      "binding": "FundingAdminService.GetWithdrawal"
     },
     {
       "path": "wallet withdrawal-preview",
       "group": "wallet",
       "command": "withdrawal-preview",
-      "binding": "TreasuryAdmin.PreviewWithdrawal"
+      "binding": "FundingAdminService.PreviewWithdrawal"
     }
   ]
 }

@@ -1,4 +1,4 @@
-package treasuryadmin
+package wallet
 
 import (
 	"context"
@@ -6,15 +6,15 @@ import (
 
 	"connectrpc.com/connect"
 
-	authv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/shared"
 	walletv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"treasury/internal/baseusdc"
-	"treasury/internal/wallet"
+	walletdomain "treasury/internal/wallet"
 )
 
-func walletToProto(w wallet.Wallet) *walletv1.Wallet {
-	return &walletv1.Wallet{Id: w.ID, BookId: w.BookID, OperatorIdentity: w.OperatorIdentity, Network: w.Network, Address: w.Address, PublicKey: w.PublicKey, CustodyReference: w.CustodyReference, CreatedAt: timestamppb.New(w.CreatedAt), RecoveryStatus: w.RecoveryStatus, RecoverySha256: w.RecoverySHA256, IndependentRecoveryVerified: false}
+func walletToProto(w walletdomain.Wallet) *sharedv1.Wallet {
+	return &sharedv1.Wallet{Id: w.ID, BookId: w.BookID, OperatorIdentity: w.OperatorIdentity, Network: w.Network, Address: w.Address, PublicKey: w.PublicKey, CustodyReference: w.CustodyReference, CreatedAt: timestamppb.New(w.CreatedAt), RecoveryStatus: w.RecoveryStatus, RecoverySha256: w.RecoverySHA256, IndependentRecoveryVerified: false}
 }
 
 func walletError(err error) error {
@@ -23,68 +23,68 @@ func walletError(err error) error {
 	}
 	code := connect.CodeFailedPrecondition
 	switch {
-	case errors.Is(err, wallet.ErrInvalid):
+	case errors.Is(err, walletdomain.ErrInvalid):
 		code = connect.CodeInvalidArgument
-	case errors.Is(err, wallet.ErrMismatch):
+	case errors.Is(err, walletdomain.ErrMismatch):
 		code = connect.CodePermissionDenied
-	case errors.Is(err, wallet.ErrNotFound):
+	case errors.Is(err, walletdomain.ErrNotFound):
 		code = connect.CodeNotFound
 	}
 	return connect.NewError(code, err)
 }
 
-func (h *connectHandler) CreateResearchWallet(ctx context.Context, request *connect.Request[authv1.CreateResearchWalletRequest]) (*connect.Response[authv1.ResearchWalletResponse], error) {
+func (h *connectHandler) CreateResearchWallet(ctx context.Context, request *connect.Request[walletv1.CreateResearchWalletRequest]) (*connect.Response[walletv1.ResearchWalletResponse], error) {
 	operator, err := h.operatorIdentity(ctx, request)
 	if err != nil {
 		return nil, err
 	}
 	if h.wallets == nil {
-		return nil, walletError(wallet.ErrUnavailable)
+		return nil, walletError(walletdomain.ErrUnavailable)
 	}
-	w, err := h.wallets.Create(ctx, wallet.CreateInput{ID: request.Msg.GetId(), BookID: request.Msg.GetBookId(), Network: request.Msg.GetNetwork(), OperatorIdentity: operator.Subject})
+	w, err := h.wallets.Create(ctx, walletdomain.CreateInput{ID: request.Msg.GetId(), BookID: request.Msg.GetBookId(), Network: request.Msg.GetNetwork(), OperatorIdentity: operator.Subject})
 	if err != nil {
 		return nil, walletError(err)
 	}
-	return connect.NewResponse(&authv1.ResearchWalletResponse{Wallet: walletToProto(w)}), nil
+	return connect.NewResponse(&walletv1.ResearchWalletResponse{Wallet: walletToProto(w)}), nil
 }
 
-func (h *connectHandler) GetResearchWallet(ctx context.Context, request *connect.Request[authv1.ResearchWalletRequest]) (*connect.Response[authv1.ResearchWalletResponse], error) {
+func (h *connectHandler) GetResearchWallet(ctx context.Context, request *connect.Request[walletv1.ResearchWalletRequest]) (*connect.Response[walletv1.ResearchWalletResponse], error) {
 	operator, err := h.operatorIdentity(ctx, request)
 	if err != nil {
 		return nil, err
 	}
 	if h.wallets == nil {
-		return nil, walletError(wallet.ErrUnavailable)
+		return nil, walletError(walletdomain.ErrUnavailable)
 	}
 	w, err := h.wallets.Get(ctx, request.Msg.GetId(), request.Msg.GetNetwork(), operator.Subject)
 	if err != nil {
 		return nil, walletError(err)
 	}
-	return connect.NewResponse(&authv1.ResearchWalletResponse{Wallet: walletToProto(w)}), nil
+	return connect.NewResponse(&walletv1.ResearchWalletResponse{Wallet: walletToProto(w)}), nil
 }
 
-func (h *connectHandler) ProveResearchWallet(ctx context.Context, request *connect.Request[authv1.ProveResearchWalletRequest]) (*connect.Response[authv1.ProveResearchWalletResponse], error) {
+func (h *connectHandler) ProveResearchWallet(ctx context.Context, request *connect.Request[walletv1.ProveResearchWalletRequest]) (*connect.Response[walletv1.ProveResearchWalletResponse], error) {
 	operator, err := h.operatorIdentity(ctx, request)
 	if err != nil {
 		return nil, err
 	}
 	if h.wallets == nil {
-		return nil, walletError(wallet.ErrUnavailable)
+		return nil, walletError(walletdomain.ErrUnavailable)
 	}
 	p, err := h.wallets.Prove(ctx, request.Msg.GetId(), request.Msg.GetNetwork(), operator.Subject, request.Msg.GetNonce())
 	if err != nil {
 		return nil, walletError(err)
 	}
-	return connect.NewResponse(&authv1.ProveResearchWalletResponse{Proof: &walletv1.ControlProof{Wallet: walletToProto(p.Wallet), Message: p.Message, Signature: p.Signature, Scheme: p.Scheme, Verified: p.Verified}}), nil
+	return connect.NewResponse(&walletv1.ProveResearchWalletResponse{Proof: &walletv1.ControlProof{Wallet: walletToProto(p.Wallet), Message: p.Message, Signature: p.Signature, Scheme: p.Scheme, Verified: p.Verified}}), nil
 }
 
-func (h *connectHandler) ExportPortableResearchWalletRecovery(ctx context.Context, request *connect.Request[authv1.ExportPortableResearchWalletRecoveryRequest]) (*connect.Response[authv1.ExportPortableResearchWalletRecoveryResponse], error) {
+func (h *connectHandler) ExportPortableResearchWalletRecovery(ctx context.Context, request *connect.Request[walletv1.ExportPortableResearchWalletRecoveryRequest]) (*connect.Response[walletv1.ExportPortableResearchWalletRecoveryResponse], error) {
 	operator, err := h.operatorIdentity(ctx, request)
 	if err != nil {
 		return nil, err
 	}
 	if h.portableRecovery == nil {
-		return nil, walletError(wallet.ErrUnavailable)
+		return nil, walletError(walletdomain.ErrUnavailable)
 	}
 	if request.Msg.GetId() == "" || request.Msg.GetNetwork() == "" || request.Msg.GetOperatorSecret() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("wallet ID, network, and operator recovery secret are required"))
@@ -93,21 +93,21 @@ func (h *connectHandler) ExportPortableResearchWalletRecovery(ctx context.Contex
 	if err != nil {
 		return nil, walletError(err)
 	}
-	return connect.NewResponse(&authv1.ExportPortableResearchWalletRecoveryResponse{RelativePath: artifact.RelativePath, Sha256: artifact.SHA256, SizeBytes: artifact.SizeBytes}), nil
+	return connect.NewResponse(&walletv1.ExportPortableResearchWalletRecoveryResponse{RelativePath: artifact.RelativePath, Sha256: artifact.SHA256, SizeBytes: artifact.SizeBytes}), nil
 }
 
-func (h *connectHandler) RestorePortableResearchWalletRecovery(ctx context.Context, request *connect.Request[authv1.RestorePortableResearchWalletRecoveryRequest]) (*connect.Response[authv1.ResearchWalletResponse], error) {
+func (h *connectHandler) RestorePortableResearchWalletRecovery(ctx context.Context, request *connect.Request[walletv1.RestorePortableResearchWalletRecoveryRequest]) (*connect.Response[walletv1.ResearchWalletResponse], error) {
 	operator, err := h.operatorIdentity(ctx, request)
 	if err != nil {
 		return nil, err
 	}
 	if h.portableRecovery == nil {
-		return nil, walletError(wallet.ErrUnavailable)
+		return nil, walletError(walletdomain.ErrUnavailable)
 	}
 	if request.Msg.GetId() == "" || request.Msg.GetNetwork() == "" || request.Msg.GetOperatorSecret() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("wallet ID, network, and operator recovery secret are required"))
 	}
-	var recovered wallet.Wallet
+	var recovered walletdomain.Wallet
 	if len(request.Msg.GetBundle()) > 0 {
 		recovered, err = h.portableRecovery.RestorePortableRecoveryBundle(ctx, request.Msg.GetId(), request.Msg.GetNetwork(), operator.Subject, request.Msg.GetBundle(), request.Msg.GetOperatorSecret())
 	} else {
@@ -116,16 +116,16 @@ func (h *connectHandler) RestorePortableResearchWalletRecovery(ctx context.Conte
 	if err != nil {
 		return nil, walletError(err)
 	}
-	return connect.NewResponse(&authv1.ResearchWalletResponse{Wallet: walletToProto(recovered)}), nil
+	return connect.NewResponse(&walletv1.ResearchWalletResponse{Wallet: walletToProto(recovered)}), nil
 }
 
-func (h *connectHandler) VerifyBaseUSDCReceipt(ctx context.Context, request *connect.Request[authv1.VerifyBaseUSDCReceiptRequest]) (*connect.Response[authv1.VerifyBaseUSDCReceiptResponse], error) {
+func (h *connectHandler) VerifyBaseUSDCReceipt(ctx context.Context, request *connect.Request[walletv1.VerifyBaseUSDCReceiptRequest]) (*connect.Response[walletv1.VerifyBaseUSDCReceiptResponse], error) {
 	operator, err := h.operatorIdentity(ctx, request)
 	if err != nil {
 		return nil, err
 	}
 	if h.wallets == nil {
-		return nil, walletError(wallet.ErrUnavailable)
+		return nil, walletError(walletdomain.ErrUnavailable)
 	}
 	if h.baseUSDC == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("Base receipt verifier unavailable"))
@@ -148,20 +148,20 @@ func (h *connectHandler) VerifyBaseUSDCReceipt(ctx context.Context, request *con
 		}
 		return nil, connect.NewError(code, err)
 	}
-	response := &authv1.VerifyBaseUSDCReceiptResponse{
+	response := &walletv1.VerifyBaseUSDCReceiptResponse{
 		Transfers: baseUSDCObservationsToProto(check.Transfers), CheckId: check.ID,
 		CheckOutcome: check.Outcome, ProviderId: check.ProviderID, CheckedAt: timestamppb.New(check.CheckedAt),
 	}
 	return connect.NewResponse(response), nil
 }
 
-func (h *connectHandler) ListBaseUSDCReceiptChecks(ctx context.Context, request *connect.Request[authv1.ListBaseUSDCReceiptChecksRequest]) (*connect.Response[authv1.ListBaseUSDCReceiptChecksResponse], error) {
+func (h *connectHandler) ListBaseUSDCReceiptChecks(ctx context.Context, request *connect.Request[walletv1.ListBaseUSDCReceiptChecksRequest]) (*connect.Response[walletv1.ListBaseUSDCReceiptChecksResponse], error) {
 	operator, err := h.operatorIdentity(ctx, request)
 	if err != nil {
 		return nil, err
 	}
 	if h.wallets == nil {
-		return nil, walletError(wallet.ErrUnavailable)
+		return nil, walletError(walletdomain.ErrUnavailable)
 	}
 	if h.baseUSDC == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("Base receipt evidence service unavailable"))
@@ -176,20 +176,20 @@ func (h *connectHandler) ListBaseUSDCReceiptChecks(ctx context.Context, request 
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	response := &authv1.ListBaseUSDCReceiptChecksResponse{Checks: make([]*walletv1.BaseUSDCReceiptCheck, 0, len(checks))}
+	response := &walletv1.ListBaseUSDCReceiptChecksResponse{Checks: make([]*walletv1.BaseUSDCReceiptCheck, 0, len(checks))}
 	for _, check := range checks {
 		response.Checks = append(response.Checks, baseUSDCCheckToProto(check))
 	}
 	return connect.NewResponse(response), nil
 }
 
-func (h *connectHandler) RecheckBaseUSDCReceipt(ctx context.Context, request *connect.Request[authv1.RecheckBaseUSDCReceiptRequest]) (*connect.Response[authv1.RecheckBaseUSDCReceiptResponse], error) {
+func (h *connectHandler) RecheckBaseUSDCReceipt(ctx context.Context, request *connect.Request[walletv1.RecheckBaseUSDCReceiptRequest]) (*connect.Response[walletv1.RecheckBaseUSDCReceiptResponse], error) {
 	operator, err := h.operatorIdentity(ctx, request)
 	if err != nil {
 		return nil, err
 	}
 	if h.wallets == nil {
-		return nil, walletError(wallet.ErrUnavailable)
+		return nil, walletError(walletdomain.ErrUnavailable)
 	}
 	if h.baseUSDC == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("Base receipt verifier unavailable"))
@@ -203,7 +203,7 @@ func (h *connectHandler) RecheckBaseUSDCReceipt(ctx context.Context, request *co
 	}
 	check, err := h.baseUSDC.Recheck(ctx, operator.Subject, w, request.Msg.GetTransactionHash(), request.Msg.GetPriorCheckId())
 	if check.ID != "" {
-		return connect.NewResponse(&authv1.RecheckBaseUSDCReceiptResponse{Check: baseUSDCCheckToProto(check)}), nil
+		return connect.NewResponse(&walletv1.RecheckBaseUSDCReceiptResponse{Check: baseUSDCCheckToProto(check)}), nil
 	}
 	if errors.Is(err, baseusdc.ErrPriorCheckNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
@@ -247,10 +247,10 @@ func baseUSDCRelationToProto(relation string) walletv1.BaseUSDCReceiptRelation {
 	}
 }
 
-func baseUSDCObservationsToProto(observations []baseusdc.Observation) []*walletv1.BaseUSDCTransferObservation {
-	transfers := make([]*walletv1.BaseUSDCTransferObservation, 0, len(observations))
+func baseUSDCObservationsToProto(observations []baseusdc.Observation) []*sharedv1.BaseUSDCTransferObservation {
+	transfers := make([]*sharedv1.BaseUSDCTransferObservation, 0, len(observations))
 	for _, observation := range observations {
-		transfers = append(transfers, &walletv1.BaseUSDCTransferObservation{
+		transfers = append(transfers, &sharedv1.BaseUSDCTransferObservation{
 			EconomicKey: observation.EconomicKey, InclusionRevision: observation.InclusionRevision, WalletId: observation.WalletID,
 			Network: observation.Network, AssetId: observation.AssetID, Decimals: observation.Decimals,
 			From: observation.From, To: observation.To, AtomicAmount: observation.AtomicAmount,
@@ -264,32 +264,32 @@ func baseUSDCObservationsToProto(observations []baseusdc.Observation) []*walletv
 	return transfers
 }
 
-func (h *connectHandler) QualifyResearchWalletRecovery(ctx context.Context, request *connect.Request[authv1.ResearchWalletRequest]) (*connect.Response[authv1.ResearchWalletResponse], error) {
+func (h *connectHandler) QualifyResearchWalletRecovery(ctx context.Context, request *connect.Request[walletv1.ResearchWalletRequest]) (*connect.Response[walletv1.ResearchWalletResponse], error) {
 	operator, err := h.operatorIdentity(ctx, request)
 	if err != nil {
 		return nil, err
 	}
 	if h.wallets == nil {
-		return nil, walletError(wallet.ErrUnavailable)
+		return nil, walletError(walletdomain.ErrUnavailable)
 	}
 	w, err := h.wallets.QualifyRecovery(ctx, request.Msg.GetId(), request.Msg.GetNetwork(), operator.Subject)
 	if err != nil {
 		return nil, walletError(err)
 	}
-	return connect.NewResponse(&authv1.ResearchWalletResponse{Wallet: walletToProto(w)}), nil
+	return connect.NewResponse(&walletv1.ResearchWalletResponse{Wallet: walletToProto(w)}), nil
 }
 
-func (h *connectHandler) RecoverResearchWallet(ctx context.Context, request *connect.Request[authv1.ResearchWalletRequest]) (*connect.Response[authv1.ResearchWalletResponse], error) {
+func (h *connectHandler) RecoverResearchWallet(ctx context.Context, request *connect.Request[walletv1.ResearchWalletRequest]) (*connect.Response[walletv1.ResearchWalletResponse], error) {
 	operator, err := h.operatorIdentity(ctx, request)
 	if err != nil {
 		return nil, err
 	}
 	if h.wallets == nil {
-		return nil, walletError(wallet.ErrUnavailable)
+		return nil, walletError(walletdomain.ErrUnavailable)
 	}
 	w, err := h.wallets.Recover(ctx, request.Msg.GetId(), request.Msg.GetNetwork(), operator.Subject)
 	if err != nil {
 		return nil, walletError(err)
 	}
-	return connect.NewResponse(&authv1.ResearchWalletResponse{Wallet: walletToProto(w)}), nil
+	return connect.NewResponse(&walletv1.ResearchWalletResponse{Wallet: walletToProto(w)}), nil
 }

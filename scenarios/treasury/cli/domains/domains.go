@@ -41,10 +41,14 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	_ = core
 	_ = manifest
 	groups := []cliapp.SubcommandGroup{safety.Register()}
-	for _, name := range []string{"rail", "evidence", "ledger", "identity"} {
-		groups = append(groups, catalog.Register(name))
+	for _, name := range []string{"rail", "evidence", "identity"} {
+		group, err := catalog.Register(name)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, group)
 	}
-	for _, name := range []string{"book", "authorization", "mandate", "budget", "approval", "instrument", "settlement", "wallet"} {
+	for _, name := range []string{"book", "authorization", "mandate", "budget", "approval", "instrument", "settlement", "wallet", "ledger"} {
 		group, err := remote.Register(core, manifest, name)
 		if err != nil {
 			return nil, err

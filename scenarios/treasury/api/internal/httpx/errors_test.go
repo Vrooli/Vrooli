@@ -1,17 +1,28 @@
 package httpx_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"treasury/internal/httpx"
+	"treasury/internal/logx"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	errorsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/shared"
 )
+
+type recordingLogger struct{ messages []string }
+
+func (l *recordingLogger) Error(message string, args ...any) {
+	l.messages = append(l.messages, fmt.Sprintf(message, args...))
+}
+
+var _ logx.Logger = (*recordingLogger)(nil)
 
 // TestWriteError exercises the canonical non-2xx writer end-to-end:
 // status code, content-type, and the proto-typed body decoded back via
@@ -72,4 +83,16 @@ func TestWriteError(t *testing.T) {
 			require.Equal(t, tc.wantMessage, got.Message)
 		})
 	}
+}
+
+func TestWriteProtoUsesInjectedLoggerOnMarshalFailure(t *testing.T) {
+	logger := &recordingLogger{}
+	rec := httptest.NewRecorder()
+	invalid := &errorsv1.ErrorEnvelope{Code: "invalid", Message: string([]byte{0xff})}
+
+	httpx.WriteProtoWithLogger(rec, http.StatusOK, invalid, logger)
+
+	require.Equal(t, http.StatusInternalServerError, rec.Code)
+	require.Len(t, logger.messages, 1)
+	require.True(t, strings.Contains(logger.messages[0], "WriteProto"))
 }

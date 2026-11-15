@@ -16,10 +16,9 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 	ca "github.com/vrooli/vrooli/packages/credential-authority-go"
-	authv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
-	authconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
-	bookv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/book"
-	"treasury/handlers/treasuryadmin"
+	walletv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet"
+	walletconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet/wallet_v1connect"
+	walletHandler "treasury/handlers/wallet"
 	"treasury/internal/book"
 	"treasury/internal/budget"
 	"treasury/internal/instrument"
@@ -63,7 +62,7 @@ func TestResearchWalletActualOwnerHTTPRoundTripAndReopen(t *testing.T) {
 	ctx := context.Background()
 	dir := t.TempDir()
 	credentials := &walletTestCredentials{values: map[string]string{}}
-	open := func() (*sql.DB, authconnect.TreasuryAdminClient, func()) {
+	open := func() (*sql.DB, walletconnect.WalletAdminServiceClient, func()) {
 		db, err := sql.Open("sqlite", "file:"+filepath.Join(dir, "owner.sqlite")+"?_pragma=foreign_keys(1)&_pragma=busy_timeout(1000)")
 		require.NoError(t, err)
 		db.SetMaxOpenConns(1)
@@ -73,12 +72,16 @@ func TestResearchWalletActualOwnerHTTPRoundTripAndReopen(t *testing.T) {
 		authority, err := ca.NewAuthority(credentials)
 		require.NoError(t, err)
 		books := book.NewService(book.NewSQLiteRepository(db), schedule.System())
+		if _, getErr := books.Get(ctx, "receive-fixture"); getErr != nil {
+			_, err = books.Create(ctx, book.CreateInput{ID: "receive-fixture", Name: "Isolated receive fixture", BeneficiaryIdentity: "local-operator"})
+			require.NoError(t, err)
+		}
 		wallets := wallet.NewService(wallet.NewSQLiteRepository(db), books, authority, schedule.System(), func(_ context.Context, rel string) (string, error) { return filepath.Join(dir, rel), nil })
 		authorizer, err := operatorauth.NewStaticToken("isolated-test-operator")
 		require.NoError(t, err)
-		_, handler := authconnect.NewTreasuryAdminHandler(treasuryadmin.NewConnectHandler(authorizer, books, wallets))
+		_, handler := walletconnect.NewWalletAdminServiceHandler(walletHandler.NewConnectHandler(authorizer, wallets, wallets, nil))
 		server := httptest.NewServer(handler)
-		return db, authconnect.NewTreasuryAdminClient(server.Client(), server.URL), func() { server.Close(); require.NoError(t, db.Close()) }
+		return db, walletconnect.NewWalletAdminServiceClient(server.Client(), server.URL), func() { server.Close(); require.NoError(t, db.Close()) }
 	}
 	operator := func(h http.Header) { h.Set(operatorauth.HeaderOperatorToken, "isolated-test-operator") }
 	db, client, closeOwner := open()
@@ -88,12 +91,7 @@ func TestResearchWalletActualOwnerHTTPRoundTripAndReopen(t *testing.T) {
 			closeOwner()
 		}
 	}()
-	bookRequest := connect.NewRequest(&authv1.CreateBookRequest{Book: &bookv1.Book{Id: "receive-fixture", Name: "Isolated receive fixture", BeneficiaryIdentity: "untrusted-subject"}})
-	operator(bookRequest.Header())
-	bookResponse, err := client.CreateBook(ctx, bookRequest)
-	require.NoError(t, err)
-	require.Equal(t, "local-operator", bookResponse.Msg.Book.BeneficiaryIdentity)
-	create := connect.NewRequest(&authv1.CreateResearchWalletRequest{Id: "receive-fixture", BookId: "receive-fixture", Network: "eip155:84532"})
+	create := connect.NewRequest(&walletv1.CreateResearchWalletRequest{Id: "receive-fixture", BookId: "receive-fixture", Network: "eip155:84532"})
 	operator(create.Header())
 	created, err := client.CreateResearchWallet(ctx, create)
 	require.NoError(t, err)
@@ -102,14 +100,14 @@ func TestResearchWalletActualOwnerHTTPRoundTripAndReopen(t *testing.T) {
 	require.Len(t, w.Address, 42)
 	require.False(t, w.IndependentRecoveryVerified)
 	nonce := "http_control_nonce_20261027"
-	proofRequest := connect.NewRequest(&authv1.ProveResearchWalletRequest{Id: w.Id, Network: w.Network, Nonce: nonce})
+	proofRequest := connect.NewRequest(&walletv1.ProveResearchWalletRequest{Id: w.Id, Network: w.Network, Nonce: nonce})
 	operator(proofRequest.Header())
 	proofResponse, err := client.ProveResearchWallet(ctx, proofRequest)
 	require.NoError(t, err)
 	p := proofResponse.Msg.Proof
 	require.True(t, p.Verified)
 	require.True(t, wallet.Verify(wallet.Proof{Wallet: wallet.Wallet{ID: w.Id, BookID: w.BookId, OperatorIdentity: w.OperatorIdentity, Network: w.Network, Address: w.Address, PublicKey: w.PublicKey}, Message: p.Message, Signature: p.Signature, Scheme: p.Scheme}, nonce))
-	qualify := connect.NewRequest(&authv1.ResearchWalletRequest{Id: w.Id, Network: w.Network})
+	qualify := connect.NewRequest(&walletv1.ResearchWalletRequest{Id: w.Id, Network: w.Network})
 	operator(qualify.Header())
 	backup, err := client.QualifyResearchWalletRecovery(ctx, qualify)
 	require.NoError(t, err)
@@ -117,7 +115,7 @@ func TestResearchWalletActualOwnerHTTPRoundTripAndReopen(t *testing.T) {
 	require.False(t, backup.Msg.Wallet.IndependentRecoveryVerified)
 	require.Len(t, backup.Msg.Wallet.RecoverySha256, 64)
 	operatorSecret := strings.Repeat("operator-held-test-secret-", 2)
-	portable := connect.NewRequest(&authv1.ExportPortableResearchWalletRecoveryRequest{Id: w.Id, Network: w.Network, OperatorSecret: operatorSecret})
+	portable := connect.NewRequest(&walletv1.ExportPortableResearchWalletRecoveryRequest{Id: w.Id, Network: w.Network, OperatorSecret: operatorSecret})
 	operator(portable.Header())
 	portableExport, err := client.ExportPortableResearchWalletRecovery(ctx, portable)
 	require.NoError(t, err)
@@ -139,7 +137,7 @@ func TestResearchWalletActualOwnerHTTPRoundTripAndReopen(t *testing.T) {
 	closed = true
 	freshDB, fresh, closeFresh := open()
 	defer closeFresh()
-	get := connect.NewRequest(&authv1.ResearchWalletRequest{Id: w.Id, Network: w.Network})
+	get := connect.NewRequest(&walletv1.ResearchWalletRequest{Id: w.Id, Network: w.Network})
 	operator(get.Header())
 	readback, err := fresh.GetResearchWallet(ctx, get)
 	require.NoError(t, err)
@@ -157,7 +155,7 @@ func TestResearchWalletActualOwnerHTTPRoundTripAndReopen(t *testing.T) {
 	require.NoError(t, fixtureAuthority.Delete(identity, "secp256k1-scalar"))
 	_, err = fresh.GetResearchWallet(ctx, get)
 	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
-	portableRestore := connect.NewRequest(&authv1.RestorePortableResearchWalletRecoveryRequest{Id: w.Id, Network: w.Network, OperatorSecret: operatorSecret})
+	portableRestore := connect.NewRequest(&walletv1.RestorePortableResearchWalletRecoveryRequest{Id: w.Id, Network: w.Network, OperatorSecret: operatorSecret})
 	operator(portableRestore.Header())
 	portableRestored, err := fresh.RestorePortableResearchWalletRecovery(ctx, portableRestore)
 	require.NoError(t, err)
@@ -173,7 +171,7 @@ func TestResearchWalletActualOwnerHTTPRoundTripAndReopen(t *testing.T) {
 	idempotent, err := fresh.RecoverResearchWallet(ctx, get)
 	require.NoError(t, err)
 	require.Equal(t, restored.Msg.Wallet.Address, idempotent.Msg.Wallet.Address)
-	wrongNetwork := connect.NewRequest(&authv1.ResearchWalletRequest{Id: w.Id, Network: "eip155:8453"})
+	wrongNetwork := connect.NewRequest(&walletv1.ResearchWalletRequest{Id: w.Id, Network: "eip155:8453"})
 	operator(wrongNetwork.Header())
 	_, err = fresh.GetResearchWallet(ctx, wrongNetwork)
 	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))

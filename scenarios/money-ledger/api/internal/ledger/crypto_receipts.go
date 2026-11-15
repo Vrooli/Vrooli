@@ -51,6 +51,9 @@ func readCryptoReceipt(ctx context.Context, db cryptoRowReader, query string, ar
 // posting and audit commit. The initial insert acquires SQLite's writer lock
 // before any predecessor read, including across independent processes.
 func (s *Store) AcceptCryptoReceipt(ctx context.Context, candidate CryptoReceiptCandidate, actor string) (*pb.AcceptCryptoReceiptResponse, error) {
+	if err := requireActor(actor); err != nil {
+		return nil, err
+	}
 	in := candidate.Request
 	id := uuid.NewString()
 	at := s.now().UTC()

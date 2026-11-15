@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
+	"money-ledger/internal/access"
 	"money-ledger/internal/capabilities"
 	"money-ledger/internal/modules"
 	"money-ledger/internal/server"
@@ -13,6 +15,8 @@ import (
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/browsersession"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/filerouting"
@@ -21,6 +25,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	accessH "money-ledger/handlers/access"
 	capsH "money-ledger/handlers/capabilities"
 	healthH "money-ledger/handlers/health"
 	ingestH "money-ledger/handlers/ingest"
@@ -43,6 +48,18 @@ func scenarioStorageRoots() (storage.Paths, error) {
 		return storage.Paths{}, fmt.Errorf("resolve money-ledger storage namespace: %w", err)
 	}
 	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
+}
+
+// authentication loads the gate's provider chain. A configuration error
+// leaves no provider: reads keep working and every write is refused, never
+// admitted anonymously.
+func authentication(logger *log.Logger) authn.Config {
+	cfg, err := access.Authentication(os.Getenv)
+	if err != nil {
+		logger.Printf("money-ledger authentication unavailable, refusing every write: %v", err)
+		return authn.Config{}
+	}
+	return cfg
 }
 
 func main() {
@@ -74,10 +91,12 @@ func main() {
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
 
+	gate := access.NewGate(authentication(log.Default()))
 	srv := server.New(
-		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default(), Gate: gate},
 		healthH.Module(db, "money-ledger-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
+		accessH.Module(gate, browsersession.New(access.Resource)),
 		ledgerH.Module(db, schedule.System(), log.Default()),
 		ingestH.Module(db, schedule.System(), log.Default()),
 	)

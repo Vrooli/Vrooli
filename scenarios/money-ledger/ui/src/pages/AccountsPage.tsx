@@ -17,12 +17,16 @@ import { formatCurrency } from "../i18n/format";
 import { useTranslation } from "../i18n";
 import { configuredBookId } from "../api/ledger";
 import { useSurfaceState } from "../hooks/useSurfaceState";
+import { errorMessage } from "../lib/errorMessage";
+import { WriteFieldset } from "../features/access/WriteFieldset";
+import { useCanWrite } from "../features/access/useWriteAccess";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
 export function AccountsPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const canWrite = useCanWrite();
   const books = useQuery({ queryKey: ["books"], queryFn: fetchBooks, retry: false });
   const [selectedBookId, setSelectedBookId] = useState(configuredBookId());
   const bookId = selectedBookId || books.data?.books[0]?.id || "";
@@ -189,10 +193,11 @@ export function AccountsPage() {
             ))}
           </ul>
           {selectedBook && <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Button type="button" data-testid="book-archive-control" variant="secondary" disabled={archiveBookMutation.isPending} onClick={() => archiveBookMutation.mutate(selectedBook.id)}>
+            <Button type="button" data-testid="book-archive-control" variant="secondary" disabled={!canWrite || archiveBookMutation.isPending} onClick={() => archiveBookMutation.mutate(selectedBook.id)}>
               {t(strings.pages.accounts.archiveBookAction)}
             </Button>
             <span data-testid="archived-book-notice" role="status" className="text-sm text-app-muted-foreground">{t(strings.pages.accounts.archivedBookNotice)}</span>
+            {archiveBookMutation.isError && <p role="alert" className="w-full text-sm text-app-danger">{errorMessage(archiveBookMutation.error, t)}</p>}
           </div>}
         </CardContent>
       </Card>
@@ -200,27 +205,31 @@ export function AccountsPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <DirtyStateGuard isDirty={Boolean(bookForm.name || bookForm.currency !== "USD")} protectUnload title={t(strings.pages.accounts.createBookTitle)} description={t(strings.pages.accounts.description)}>
           <FormSection title={t(strings.pages.accounts.createBookTitle)}>
+            <WriteFieldset>
             <form className="grid gap-3" onSubmit={submitBook}>
               <label className="grid gap-1" htmlFor="book-name"><span>{t(strings.pages.accounts.bookNameLabel)}</span><Input id="book-name" value={bookForm.name} onChange={(event) => setBookForm({ ...bookForm, name: event.target.value })} /></label>
               <label className="grid gap-1" htmlFor="book-currency"><span>{t(strings.pages.accounts.currencyLabel)}</span><Input id="book-currency" value={bookForm.currency} onChange={(event) => setBookForm({ ...bookForm, currency: event.target.value })} maxLength={3} /></label>
-              {bookError && <p role="alert" className="text-sm text-app-danger">{createBookMutation.isError ? t(strings.pages.accounts.requestError) : t(strings.pages.accounts.validationError)}</p>}
+              {bookError && <p role="alert" className="text-sm text-app-danger">{createBookMutation.isError ? errorMessage(createBookMutation.error, t) : t(strings.pages.accounts.validationError)}</p>}
               {bookMessage && <p role="status" className="text-sm text-app-success">{bookMessage}</p>}
               <Button type="submit" disabled={createBookMutation.isPending}>{t(strings.pages.accounts.createBookAction)}</Button>
             </form>
+            </WriteFieldset>
           </FormSection>
         </DirtyStateGuard>
 
         <DirtyStateGuard isDirty={Boolean(accountForm.name || accountForm.kind !== "ASSET")} protectUnload title={t(strings.pages.accounts.createAccountTitle)} description={t(strings.pages.accounts.description)}>
           <FormSection title={t(strings.pages.accounts.createAccountTitle)}>
+            <WriteFieldset>
             <form className="grid gap-3" onSubmit={submitAccount}>
               <label className="grid gap-1" htmlFor="account-book"><span id="account-book-label">{t(strings.pages.accounts.selectBook)}</span><Select id="account-book" aria-labelledby="account-book-label" value={bookId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setSelectedBookId(event.target.value)} options={(books.data?.books ?? []).map((book) => ({ value: book.id, label: `${book.name} · ${book.currency}` }))} placeholder={t(strings.pages.accounts.selectBook)} /></label>
               <label className="grid gap-1" htmlFor="account-name"><span>{t(strings.pages.accounts.accountNameLabel)}</span><Input id="account-name" value={accountForm.name} onChange={(event) => setAccountForm({ ...accountForm, name: event.target.value })} /></label>
               <label className="grid gap-1" htmlFor="account-kind"><span>{t(strings.pages.accounts.accountKindLabel)}</span><Input id="account-kind" value={accountForm.kind} onChange={(event) => setAccountForm({ ...accountForm, kind: event.target.value.toUpperCase() })} aria-describedby="account-kind-vocabulary" /></label>
               <span id="account-kind-vocabulary" data-testid="account-kind-vocabulary" role="group" className="text-xs text-app-muted-foreground">{t(strings.pages.accounts.acceptedKinds)}</span>
-              {accountError && <p role="alert" className="text-sm text-app-danger">{createAccountMutation.isError ? t(strings.pages.accounts.requestError) : t(strings.pages.accounts.validationError)}</p>}
+              {accountError && <p role="alert" className="text-sm text-app-danger">{createAccountMutation.isError ? errorMessage(createAccountMutation.error, t) : t(strings.pages.accounts.validationError)}</p>}
               {accountMessage && <p role="status" className="text-sm text-app-success">{accountMessage}</p>}
               <Button type="submit" disabled={createAccountMutation.isPending || !bookId}>{t(strings.pages.accounts.createAccountAction)}</Button>
             </form>
+            </WriteFieldset>
           </FormSection>
         </DirtyStateGuard>
       </div>
@@ -238,6 +247,7 @@ export function AccountsPage() {
       <DirtyStateGuard isDirty={Boolean(transferForm.fromAccountId || transferForm.toAccountId || transferForm.amountMinor || transferForm.description)} protectUnload title={t(strings.pages.accounts.transferTitle)} description={t(strings.pages.accounts.transferPair)}>
         <div id="transfer-form">
           <FormSection title={t(strings.pages.accounts.transferTitle)}>
+            <WriteFieldset>
             <form className="grid gap-3" onSubmit={submitTransfer}>
               <label className="grid gap-1" htmlFor="transfer-from"><span id="transfer-from-label">{t(strings.pages.accounts.fromAccountLabel)}</span><Select id="transfer-from" aria-labelledby="transfer-from-label" value={transferForm.fromAccountId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setTransferForm({ ...transferForm, fromAccountId: event.target.value })} options={accountOptions} placeholder={t(strings.pages.accounts.fromAccountLabel)} /></label>
               <label className="grid gap-1" htmlFor="transfer-to"><span id="transfer-to-label">{t(strings.pages.accounts.toAccountLabel)}</span><Select id="transfer-to" aria-labelledby="transfer-to-label" value={transferForm.toAccountId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setTransferForm({ ...transferForm, toAccountId: event.target.value })} options={accountOptions} placeholder={t(strings.pages.accounts.toAccountLabel)} /></label>
@@ -245,10 +255,11 @@ export function AccountsPage() {
               <label className="grid gap-1" htmlFor="transfer-currency"><span>{t(strings.pages.accounts.currencyLabel)}</span><Input id="transfer-currency" value={transferForm.currency} onChange={(event) => setTransferForm({ ...transferForm, currency: event.target.value })} maxLength={3} /></label>
               <label className="grid gap-1" htmlFor="transfer-date"><span>{t(strings.pages.journal.dateLabel)}</span><Input id="transfer-date" type="date" value={transferForm.date} onChange={(event) => setTransferForm({ ...transferForm, date: event.target.value })} /></label>
               <label className="grid gap-1" htmlFor="transfer-description"><span>{t(strings.pages.accounts.transferDescriptionLabel)}</span><Textarea id="transfer-description" value={transferForm.description} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setTransferForm({ ...transferForm, description: event.target.value })} /></label>
-              {transferError && <p role="alert" className="text-sm text-app-danger">{transferMutation.isError ? t(strings.pages.accounts.requestError) : t(strings.pages.accounts.validationError)}</p>}
+              {transferError && <p role="alert" className="text-sm text-app-danger">{transferMutation.isError ? errorMessage(transferMutation.error, t) : t(strings.pages.accounts.validationError)}</p>}
               {transferMessage && <p role="status" className="text-sm text-app-success">{transferMessage}</p>}
               <Button type="submit" disabled={transferMutation.isPending}>{t(strings.pages.accounts.transferAction)}</Button>
             </form>
+            </WriteFieldset>
           </FormSection>
         </div>
       </DirtyStateGuard>

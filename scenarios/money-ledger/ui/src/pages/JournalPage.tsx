@@ -19,6 +19,9 @@ import { formatCurrency, formatDate } from "../i18n/format";
 import { useTranslation } from "../i18n";
 import { configuredBookId } from "../api/ledger";
 import { useSurfaceState } from "../hooks/useSurfaceState";
+import { errorMessage } from "../lib/errorMessage";
+import { WriteFieldset } from "../features/access/WriteFieldset";
+import { useCanWrite } from "../features/access/useWriteAccess";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const newExternalId = () => `manual-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -43,6 +46,7 @@ const formatTimestamp = (timestamp?: TimestampLike) => {
 export function JournalPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const canWrite = useCanWrite();
   const books = useQuery({ queryKey: ["books"], queryFn: fetchBooks, retry: false });
   const bookId = configuredBookId() || books.data?.books[0]?.id || "";
   const accounts = useQuery({ queryKey: ["accounts", bookId], queryFn: () => fetchAccounts(bookId), retry: false, enabled: Boolean(bookId) });
@@ -70,7 +74,7 @@ export function JournalPage() {
   const eventMutation = useMutation({
     mutationFn: async (input: { externalId: string; accountId: string; bookId: string; amountMinor: bigint; currency: string; occurredAt: Date; description: string }) => {
       const manualAdapter = adapters.data?.adapters.find((adapter) => adapter.id === "manual");
-      if (manualAdapter && !manualAdapter.enabled) throw new Error("manual adapter is disabled");
+      if (manualAdapter && !manualAdapter.enabled) throw new Error(t(strings.pages.journal.manualAdapterDisabled));
       if (!manualAdapter) await registerManualAdapter();
       return ingestEvent(input);
     },
@@ -110,7 +114,7 @@ export function JournalPage() {
     { id: "currency", header: t(strings.pages.journal.postingCurrency), accessor: (posting: typeof postingRows[number]) => posting.event?.currency || "—", className: "break-words" },
     { id: "basis", header: t(strings.pages.journal.postingBasis), accessor: (posting: typeof postingRows[number]) => posting.event ? basisName(posting.event.basis) : "—", className: "break-words" },
     { id: "source", header: t(strings.pages.journal.sourceLabel), accessor: (posting: typeof postingRows[number]) => posting.event?.adapterId || "—", className: "break-words" },
-    { id: "reversal", header: t(strings.pages.journal.reversalLink), accessor: (posting: typeof postingRows[number]) => { const reversalId = posting.reversalOf || reversalByOriginal.get(posting.id); const canReverse = !posting.reversalOf && !reversalByOriginal.has(posting.id); return reversalId ? <span>{t(strings.pages.journal.linkedReversal)}: {reversalId}</span> : canReverse ? <Button type="button" size="sm" variant="secondary" data-testid={`journal-reverse-${posting.id}`} onClick={() => { setSelectedPosting(posting); setReversalReason(""); setReversalValidationError(false); }}>{t(strings.pages.journal.reverseAction)}</Button> : "—"; }, className: "break-words" },
+    { id: "reversal", header: t(strings.pages.journal.reversalLink), accessor: (posting: typeof postingRows[number]) => { const reversalId = posting.reversalOf || reversalByOriginal.get(posting.id); const canReverse = !posting.reversalOf && !reversalByOriginal.has(posting.id); return reversalId ? <span>{t(strings.pages.journal.linkedReversal)}: {reversalId}</span> : canReverse ? <Button type="button" size="sm" variant="secondary" data-testid={`journal-reverse-${posting.id}`} disabled={!canWrite} onClick={() => { setSelectedPosting(posting); setReversalReason(""); setReversalValidationError(false); }}>{t(strings.pages.journal.reverseAction)}</Button> : "—"; }, className: "break-words" },
   ];
   const submitEvent = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -163,6 +167,7 @@ export function JournalPage() {
           <div aria-label={t(strings.pages.journal.manualEntry)} className="mt-4">
             <DirtyStateGuard isDirty={Boolean(eventForm.accountId || eventForm.amountMinor || eventForm.description || eventForm.externalId !== entryExternalId)} protectUnload title={t(strings.pages.journal.manualEntry)} description={t(strings.pages.journal.eventBasis)}>
               <FormSection title={t(strings.pages.journal.manualEntry)} description={t(strings.pages.journal.eventSource)}>
+                <WriteFieldset>
                 <form data-testid={selectors.pages.manualEntry} aria-label={t(strings.pages.journal.manualEntry)} className="grid gap-3" onSubmit={submitEvent}>
                   <label className="grid gap-1" htmlFor="journal-date"><span>{t(strings.pages.journal.dateLabel)}</span><Input id="journal-date" type="date" value={eventForm.date} onChange={(event) => setEventForm({ ...eventForm, date: event.target.value })} /></label>
                   <label className="grid gap-1" htmlFor="journal-account"><span id="journal-account-label">{t(strings.pages.journal.accountLabel)}</span><Select id="journal-account" aria-labelledby="journal-account-label" value={eventForm.accountId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setEventForm({ ...eventForm, accountId: event.target.value })} options={(accounts.data?.accounts ?? []).map((account) => ({ value: account.id, label: `${account.name} · ${account.kind}` }))} placeholder={t(strings.pages.journal.accountLabel)} /></label>
@@ -171,10 +176,11 @@ export function JournalPage() {
                   <label className="grid gap-1" htmlFor="journal-description"><span>{t(strings.pages.journal.descriptionLabel)}</span><Textarea id="journal-description" value={eventForm.description} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setEventForm({ ...eventForm, description: event.target.value })} /></label>
                   <label className="grid gap-1" htmlFor="journal-external-id"><span>{t(strings.pages.journal.externalIdLabel)}</span><Input id="journal-external-id" value={eventForm.externalId} onChange={(event) => setEventForm({ ...eventForm, externalId: event.target.value })} /></label>
                   <label className="grid gap-1" htmlFor="journal-basis"><span>{t(strings.pages.journal.basisLabel)}</span><Input id="journal-basis" value={basisName(Basis.OPERATOR_ASSERTED)} readOnly /></label>
-                  {eventValidationError && <p role="alert" className="text-sm text-app-danger">{eventMutation.isError ? t(strings.pages.journal.requestError) : t(strings.pages.journal.validationError)}</p>}
+                  {eventValidationError && <p role="alert" className="text-sm text-app-danger">{eventMutation.isError ? errorMessage(eventMutation.error, t) : t(strings.pages.journal.validationError)}</p>}
                   {eventMessage && <p role="status" className="text-sm text-app-success">{eventMessage}</p>}
                   <Button type="submit" disabled={eventMutation.isPending || !bookId}>{t(strings.pages.journal.submitEntry)}</Button>
                 </form>
+                </WriteFieldset>
               </FormSection>
             </DirtyStateGuard>
           </div>
@@ -192,11 +198,11 @@ export function JournalPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={Boolean(selectedPosting)} title={t(strings.pages.journal.reversalDialogTitle)} description={t(strings.pages.journal.reversalDialogDescription)} onClose={() => setSelectedPosting(null)} closeLabel={t(strings.pages.journal.cancel)} footer={<div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setSelectedPosting(null)}>{t(strings.pages.journal.cancel)}</Button><Button type="submit" form="reverse-posting-form" disabled={reversalMutation.isPending}>{t(strings.pages.journal.confirmReversal)}</Button></div>}>
+      <Dialog open={Boolean(selectedPosting)} title={t(strings.pages.journal.reversalDialogTitle)} description={t(strings.pages.journal.reversalDialogDescription)} onClose={() => setSelectedPosting(null)} closeLabel={t(strings.pages.journal.cancel)} footer={<div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setSelectedPosting(null)}>{t(strings.pages.journal.cancel)}</Button><Button type="submit" form="reverse-posting-form" disabled={!canWrite || reversalMutation.isPending}>{t(strings.pages.journal.confirmReversal)}</Button></div>}>
         <form id="reverse-posting-form" className="grid gap-3" onSubmit={submitReversal}>
           <p className="text-sm text-app-muted-foreground">{selectedPosting?.id}</p>
           <label className="grid gap-1" htmlFor="reversal-reason"><span>{t(strings.pages.journal.reversalReasonLabel)}</span><Textarea id="reversal-reason" value={reversalReason} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setReversalReason(event.target.value)} /></label>
-          {reversalValidationError && <p role="alert" className="text-sm text-app-danger">{reversalMutation.isError ? t(strings.pages.journal.requestError) : t(strings.pages.journal.validationError)}</p>}
+          {reversalValidationError && <p role="alert" className="text-sm text-app-danger">{reversalMutation.isError ? errorMessage(reversalMutation.error, t) : t(strings.pages.journal.validationError)}</p>}
         </form>
       </Dialog>
     </ExperienceSurface>

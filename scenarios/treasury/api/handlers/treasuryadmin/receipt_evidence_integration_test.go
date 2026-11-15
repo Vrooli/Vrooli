@@ -14,10 +14,9 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
-	authv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
-	authconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
 	walletv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet"
-	"treasury/handlers/treasuryadmin"
+	walletconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet/wallet_v1connect"
+	walletHandler "treasury/handlers/wallet"
 	"treasury/internal/baseusdc"
 	"treasury/internal/operatorauth"
 	"treasury/internal/wallet"
@@ -121,7 +120,7 @@ func TestBaseReceiptEvidenceSurvivesOwnerHTTPAndDatabaseReopen(t *testing.T) {
 		ProviderID: providerID, ObservedAt: checkedAt,
 	}
 
-	openOwner := func() (*sql.DB, *httptest.Server, authconnect.TreasuryAdminClient) {
+	openOwner := func() (*sql.DB, *httptest.Server, walletconnect.WalletAdminServiceClient) {
 		db, err := sql.Open("sqlite", "file:"+dbPath+"?_pragma=busy_timeout(1000)")
 		require.NoError(t, err)
 		db.SetMaxOpenConns(1)
@@ -129,13 +128,13 @@ func TestBaseReceiptEvidenceSurvivesOwnerHTTPAndDatabaseReopen(t *testing.T) {
 		authorizer, err := operatorauth.NewStaticToken("isolated-test-operator")
 		require.NoError(t, err)
 		service := baseusdc.NewService(baseusdc.NewSQLiteStore(db), fixedReceiptVerifier{transfers: []baseusdc.Observation{transfer}}, providerID, func() time.Time { return checkedAt })
-		_, handler := authconnect.NewTreasuryAdminHandler(treasuryadmin.NewConnectHandler(authorizer, &walletStub{network: baseusdc.Network}, service))
+		_, handler := walletconnect.NewWalletAdminServiceHandler(walletHandler.NewConnectHandler(authorizer, &walletStub{network: baseusdc.Network}, nil, service))
 		server := httptest.NewServer(handler)
-		return db, server, authconnect.NewTreasuryAdminClient(server.Client(), server.URL)
+		return db, server, walletconnect.NewWalletAdminServiceClient(server.Client(), server.URL)
 	}
 	db, server, client := openOwner()
 	defer func() { server.Close(); _ = db.Close() }()
-	verify := connect.NewRequest(&authv1.VerifyBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: transactionHash})
+	verify := connect.NewRequest(&walletv1.VerifyBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: transactionHash})
 	verify.Header().Set(operatorauth.HeaderOperatorToken, "isolated-test-operator")
 	result, err := client.VerifyBaseUSDCReceipt(ctx, verify)
 	require.NoError(t, err)
@@ -148,7 +147,7 @@ func TestBaseReceiptEvidenceSurvivesOwnerHTTPAndDatabaseReopen(t *testing.T) {
 
 	freshDB, freshServer, freshClient := openOwner()
 	defer func() { freshServer.Close(); _ = freshDB.Close() }()
-	list := connect.NewRequest(&authv1.ListBaseUSDCReceiptChecksRequest{WalletId: "wallet-1", TransactionHash: transactionHash})
+	list := connect.NewRequest(&walletv1.ListBaseUSDCReceiptChecksRequest{WalletId: "wallet-1", TransactionHash: transactionHash})
 	list.Header().Set(operatorauth.HeaderOperatorToken, "isolated-test-operator")
 	readback, err := freshClient.ListBaseUSDCReceiptChecks(ctx, list)
 	require.NoError(t, err)
@@ -175,7 +174,7 @@ func TestAuthenticatedRecheckLinksReinclusionAndProviderReportedNoncanonicalAcro
 		{err: baseusdc.ErrNotCanonical},
 	}}
 
-	openOwner := func(v baseusdc.Verification) (*sql.DB, *httptest.Server, authconnect.TreasuryAdminClient) {
+	openOwner := func(v baseusdc.Verification) (*sql.DB, *httptest.Server, walletconnect.WalletAdminServiceClient) {
 		db, err := sql.Open("sqlite", "file:"+dbPath+"?_pragma=busy_timeout(1000)")
 		require.NoError(t, err)
 		db.SetMaxOpenConns(1)
@@ -184,17 +183,17 @@ func TestAuthenticatedRecheckLinksReinclusionAndProviderReportedNoncanonicalAcro
 			serviceClock = serviceClock.Add(time.Second)
 			return serviceClock
 		})
-		_, handler := authconnect.NewTreasuryAdminHandler(treasuryadmin.NewConnectHandler(subjectAuthorizer{}, wallets, service))
+		_, handler := walletconnect.NewWalletAdminServiceHandler(walletHandler.NewConnectHandler(subjectAuthorizer{}, wallets, nil, service))
 		server := httptest.NewServer(handler)
-		return db, server, authconnect.NewTreasuryAdminClient(server.Client(), server.URL)
+		return db, server, walletconnect.NewWalletAdminServiceClient(server.Client(), server.URL)
 	}
-	authorized := func(token string) *connect.Request[authv1.VerifyBaseUSDCReceiptRequest] {
-		request := connect.NewRequest(&authv1.VerifyBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: transactionHash})
+	authorized := func(token string) *connect.Request[walletv1.VerifyBaseUSDCReceiptRequest] {
+		request := connect.NewRequest(&walletv1.VerifyBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: transactionHash})
 		request.Header().Set(operatorauth.HeaderOperatorToken, token)
 		return request
 	}
 	db, server, client := openOwner(verifier)
-	unauthenticated := connect.NewRequest(&authv1.RecheckBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: transactionHash, PriorCheckId: "synthetic-prior"})
+	unauthenticated := connect.NewRequest(&walletv1.RecheckBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: transactionHash, PriorCheckId: "synthetic-prior"})
 	_, err := client.RecheckBaseUSDCReceipt(ctx, unauthenticated)
 	require.Error(t, err)
 	require.Zero(t, verifier.calls, "unauthenticated recheck must not query the provider")
@@ -203,7 +202,7 @@ func TestAuthenticatedRecheckLinksReinclusionAndProviderReportedNoncanonicalAcro
 	require.Equal(t, "verified", initial.Msg.CheckOutcome)
 	priorID := initial.Msg.CheckId
 
-	recheck := connect.NewRequest(&authv1.RecheckBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: transactionHash, PriorCheckId: priorID})
+	recheck := connect.NewRequest(&walletv1.RecheckBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: transactionHash, PriorCheckId: priorID})
 	recheck.Header().Set(operatorauth.HeaderOperatorToken, "operator-a-token")
 	reincluded, err := client.RecheckBaseUSDCReceipt(ctx, recheck)
 	require.NoError(t, err)
@@ -213,21 +212,21 @@ func TestAuthenticatedRecheckLinksReinclusionAndProviderReportedNoncanonicalAcro
 	require.Equal(t, initial.Msg.Transfers[0].EconomicKey, reincluded.Msg.Check.Transfers[0].EconomicKey)
 	require.NotEqual(t, initial.Msg.Transfers[0].InclusionRevision, reincluded.Msg.Check.Transfers[0].InclusionRevision)
 
-	badWallet := connect.NewRequest(&authv1.RecheckBaseUSDCReceiptRequest{WalletId: "wallet-2", TransactionHash: transactionHash, PriorCheckId: reincluded.Msg.Check.Id})
+	badWallet := connect.NewRequest(&walletv1.RecheckBaseUSDCReceiptRequest{WalletId: "wallet-2", TransactionHash: transactionHash, PriorCheckId: reincluded.Msg.Check.Id})
 	badWallet.Header().Set(operatorauth.HeaderOperatorToken, "operator-a-token")
 	_, err = client.RecheckBaseUSDCReceipt(ctx, badWallet)
 	require.Error(t, err)
-	badTransaction := connect.NewRequest(&authv1.RecheckBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: "0x" + strings.Repeat("f", 64), PriorCheckId: reincluded.Msg.Check.Id})
+	badTransaction := connect.NewRequest(&walletv1.RecheckBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: "0x" + strings.Repeat("f", 64), PriorCheckId: reincluded.Msg.Check.Id})
 	badTransaction.Header().Set(operatorauth.HeaderOperatorToken, "operator-a-token")
 	_, err = client.RecheckBaseUSDCReceipt(ctx, badTransaction)
 	require.Error(t, err)
-	otherOperator := connect.NewRequest(&authv1.RecheckBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: transactionHash, PriorCheckId: reincluded.Msg.Check.Id})
+	otherOperator := connect.NewRequest(&walletv1.RecheckBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: transactionHash, PriorCheckId: reincluded.Msg.Check.Id})
 	otherOperator.Header().Set(operatorauth.HeaderOperatorToken, "operator-b-token")
 	_, err = client.RecheckBaseUSDCReceipt(ctx, otherOperator)
 	require.Error(t, err)
 	require.Equal(t, 2, verifier.calls, "invalid scopes must be rejected before another provider call")
 
-	noncanonicalRequest := connect.NewRequest(&authv1.RecheckBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: transactionHash, PriorCheckId: reincluded.Msg.Check.Id})
+	noncanonicalRequest := connect.NewRequest(&walletv1.RecheckBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: transactionHash, PriorCheckId: reincluded.Msg.Check.Id})
 	noncanonicalRequest.Header().Set(operatorauth.HeaderOperatorToken, "operator-a-token")
 	noncanonical, err := client.RecheckBaseUSDCReceipt(ctx, noncanonicalRequest)
 	require.NoError(t, err)
@@ -241,7 +240,7 @@ func TestAuthenticatedRecheckLinksReinclusionAndProviderReportedNoncanonicalAcro
 
 	freshDB, freshServer, freshClient := openOwner(fixedReceiptVerifier{})
 	defer func() { freshServer.Close(); _ = freshDB.Close() }()
-	list := connect.NewRequest(&authv1.ListBaseUSDCReceiptChecksRequest{WalletId: "wallet-1", TransactionHash: transactionHash})
+	list := connect.NewRequest(&walletv1.ListBaseUSDCReceiptChecksRequest{WalletId: "wallet-1", TransactionHash: transactionHash})
 	list.Header().Set(operatorauth.HeaderOperatorToken, "operator-a-token")
 	history, err := freshClient.ListBaseUSDCReceiptChecks(ctx, list)
 	require.NoError(t, err)
@@ -275,18 +274,18 @@ func TestAuthenticatedRecheckPersistenceFailureReturnsInternal(t *testing.T) {
 	store := &failSecondReceiptAppendStore{Store: baseusdc.NewSQLiteStore(db)}
 	service := baseusdc.NewService(store, fixedReceiptVerifier{transfers: []baseusdc.Observation{transfer}}, providerID, func() time.Time { return checkedAt })
 	wallets := &scopedReceiptWallets{owners: map[string]string{"wallet-1": "operator-a"}}
-	_, handler := authconnect.NewTreasuryAdminHandler(treasuryadmin.NewConnectHandler(subjectAuthorizer{}, wallets, service))
+	_, handler := walletconnect.NewWalletAdminServiceHandler(walletHandler.NewConnectHandler(subjectAuthorizer{}, wallets, nil, service))
 	server := httptest.NewServer(handler)
 	defer server.Close()
-	client := authconnect.NewTreasuryAdminClient(server.Client(), server.URL)
+	client := walletconnect.NewWalletAdminServiceClient(server.Client(), server.URL)
 
-	initial := connect.NewRequest(&authv1.VerifyBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: transactionHash})
+	initial := connect.NewRequest(&walletv1.VerifyBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: transactionHash})
 	initial.Header().Set(operatorauth.HeaderOperatorToken, "operator-a-token")
 	verified, err := client.VerifyBaseUSDCReceipt(ctx, initial)
 	require.NoError(t, err)
 	require.NotEmpty(t, verified.Msg.CheckId)
 
-	recheck := connect.NewRequest(&authv1.RecheckBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: transactionHash, PriorCheckId: verified.Msg.CheckId})
+	recheck := connect.NewRequest(&walletv1.RecheckBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: transactionHash, PriorCheckId: verified.Msg.CheckId})
 	recheck.Header().Set(operatorauth.HeaderOperatorToken, "operator-a-token")
 	_, err = client.RecheckBaseUSDCReceipt(ctx, recheck)
 	require.Error(t, err)

@@ -51,6 +51,7 @@ var (
 )
 
 type DB interface {
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
@@ -77,7 +78,12 @@ type Config struct {
 }
 type Service struct{ Config }
 
-func New(c Config) *Service { return &Service{Config: c} }
+func New(c Config) *Service {
+	if c.Clock == nil {
+		c.Clock = schedule.System()
+	}
+	return &Service{Config: c}
+}
 
 type binding struct{ budgetID, walletID, parentID, operator, network, agent, run string }
 
@@ -96,7 +102,15 @@ func stableID(prefix string, parts ...string) string {
 }
 
 func (s *Service) Provision(ctx context.Context, operator string, in *fundingpb.ProvisionBudgetWalletRequest) (*fundingpb.BudgetWallet, error) {
-	if s.Wallets == nil || in == nil || in.BudgetId == "" || in.Network != baseusdc.Network || (in.AgentSubject == "") != (in.AgentRunId == "") {
+	if s == nil || s.Wallets == nil || in == nil || in.BudgetId == "" || in.Network != baseusdc.Network || (in.AgentSubject == "") != (in.AgentRunId == "") {
+		return nil, ErrInvalid
+	}
+	rotationKey := in.GetRotationIdempotencyKey()
+	if in.GetRotateSession() {
+		if in.GetMandateId() == "" || rotationKey == "" || strings.TrimSpace(rotationKey) != rotationKey || len(rotationKey) > 200 {
+			return nil, ErrInvalid
+		}
+	} else if rotationKey != "" {
 		return nil, ErrInvalid
 	}
 	policy, err := s.Budgets.Get(ctx, in.BudgetId)
@@ -134,7 +148,7 @@ func (s *Service) Provision(ctx context.Context, operator string, in *fundingpb.
 	if in.GetMandateId() != "" {
 		var session MandateSessionWallet
 		if in.GetRotateSession() {
-			session, err = s.RotateMandateSession(ctx, operator, in.GetMandateId())
+			session, err = s.RotateMandateSession(ctx, operator, in.GetMandateId(), rotationKey)
 		} else {
 			session, err = s.ProvisionMandateSession(ctx, operator, in.GetMandateId())
 		}
@@ -222,9 +236,6 @@ type fundingIntent struct {
 }
 
 func (s *Service) now() time.Time {
-	if s.Clock == nil {
-		return time.Now().UTC()
-	}
 	return s.Clock.Now().UTC()
 }
 

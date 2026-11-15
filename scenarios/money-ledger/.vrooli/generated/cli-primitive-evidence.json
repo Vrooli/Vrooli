@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "money-ledger",
   "generator": "v1.0.0",
-  "manifest_hash": "8027421cc0bf7af4bc055fe01022b03dfc23a6ee0e523c3d9d798622aac9eea7",
+  "manifest_hash": "9711a120b6c9b0ab63df3982d02758824e80d45cc6ec857d9b6a4ac0346de53e",
   "commands": [
     {
       "path": "ingest adapter-register",
@@ -187,6 +187,14 @@
       "group": "ledger",
       "command": "statement-show",
       "binding": "PositionService.GetStatement",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ledger write-access",
+      "group": "ledger",
+      "command": "write-access",
+      "binding": "AccessService.GetWriteAccess",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     }

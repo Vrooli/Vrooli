@@ -4,7 +4,11 @@
 // same operational report shape in human and --json modes.
 package catalog
 
-import "github.com/vrooli/cli-core/cliapp"
+import (
+	"fmt"
+
+	"github.com/vrooli/cli-core/cliapp"
+)
 
 var descriptions = map[string]string{
 	"book":     "Operator-owned source-of-funds boundary and book registry",
@@ -14,15 +18,18 @@ var descriptions = map[string]string{
 	"identity": "Fail-closed Agent Manager identity verification boundary",
 }
 
-func Register(name string) cliapp.SubcommandGroup {
-	description := descriptions[name]
+func Register(name string) (cliapp.SubcommandGroup, error) {
+	description, exists := descriptions[name]
+	if !exists || name == "ledger" {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("Treasury catalog does not own group %q", name)
+	}
 	return cliapp.SubcommandGroup{
 		Name: name, Description: description,
 		Subcommands: []cliapp.Command{{
 			Name: "describe", Description: "Describe this domain's owned financial boundary",
 			RunCtx: Describe(name),
 		}},
-	}
+	}, nil
 }
 
 func Describe(name string) func(cliapp.RunContext) error {

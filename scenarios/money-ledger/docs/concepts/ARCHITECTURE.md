@@ -14,7 +14,7 @@ Adapters normalize into `MoneyEvent` values through the ingest store. Ordinary s
 
 ## Treasury receipts
 
-The native USDC on Base adapter accepts only a verified `treasury` service principal from Scenario Authenticator with the `money-ledger:write` capability. The relying-party audience is `scenario-authenticator:money-ledger`. Preview remains an untrusted, read-only interpretation. A service acceptance asserts Treasury's verification; Money Ledger does not independently query chain consensus or infer a stablecoin's fiat value.
+The native USDC on Base adapter accepts only a verified `treasury-money-ledger` service principal (Treasury's principal for Money Ledger; the journal records the actor as `treasury`) from Scenario Authenticator with the `money-ledger:write` capability. The relying-party audience is `scenario-authenticator:money-ledger`. Preview remains an untrusted, read-only interpretation. A service acceptance asserts Treasury's verification; Money Ledger does not independently query chain consensus or infer a stablecoin's fiat value.
 
 Every accepted receipt carries a typed Treasury check/wallet link, exact unsigned token amount, signed token delta, separately declared valuation and valuation delta, and payer address. Customer payments also carry payer identity, credit lot id and lot owner. The `no_chargeback` field records the rail's consumer-chargeback distinction; chain reorgs and accounting corrections remain possible. A credit lot cannot be attributed to two different payments.
 

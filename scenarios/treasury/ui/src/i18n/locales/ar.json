@@ -138,7 +138,14 @@
     "withdrawalStatus": "السحب {{id}}: {{state}}",
     "withdrawNotice": "السحب المحلي {{state}}.",
     "requestError": "تعذر على Treasury إكمال الطلب. تحقق من رمز المشغل وحاول مرة أخرى.",
-    "valueError": "أدخل قيمة USD مع رقمين عشريين كحد أقصى."
+    "valueError": "أدخل قيمة USD مع رقمين عشريين كحد أقصى.",
+    "headroomTitle": "تمويل الميزانية وحدود الإنفاق",
+    "headroomHelp": "يعكس الرصيد الممول الإيداعات والسحوبات المقبولة. وتعرض إتاحة الإنفاق حد التفويض الحالي.",
+    "creditedReserve": "إجمالي التمويل المقبول",
+    "remainingReserve": "الرصيد الممول المتبقي",
+    "spendAvailability": "إتاحة الإنفاق الحالية",
+    "headroomUnavailable": "أدخل رمز هوية الوكيل ومعرّف الميزانية لعرض الرصيد.",
+    "headroomError": "تعذر تحميل رصيد الميزانية."
   },
   "health": {
     "title": "حالة API",

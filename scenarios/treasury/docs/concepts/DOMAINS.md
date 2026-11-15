@@ -30,19 +30,19 @@ belong in [`DATA.md`](DATA.md).
 
 | Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
 |---|---|---|---|---|---|---|---|
-| book | Contain custody and separate personal from business. | Keep one operator's contexts from borrowing each other's instruments, budgets, or approvers, and hold the operator-funds-only boundary. | Books, beneficiary identity. | crud | policy | Book, Beneficiary | `api/internal/book/` |
-| budget | Hold caps, counterparty scope, gating intent, and freeze state. | Give an operator one place to say how much may be spent, on what, and whether a human must agree first. | Budgets, caps, allow/deny entries, freeze state. | crud | policy, reporting | Budget, Cap, Headroom, Freeze | `api/internal/budget/` |
-| mandate | Issue and expire the scoped grant that authorizes a spend. | Make authority a signed object with a cap and an expiry rather than a credential handed over. | Mandates, recurrence, templates. | crud | workflow | Mandate, Standing Mandate, Scope, Expiry | `api/internal/mandate/` |
+| book | Contain custody and separate personal from business. | Keep one operator's contexts from borrowing each other's instruments, budgets, or approvers, and hold the operator-funds-only boundary. | Books, beneficiary identity. | crud | policy | Book, Beneficiary | `api/internal/book/`, `api/handlers/book/`, `packages/proto/schemas/treasury/v1/book/` |
+| budget | Hold caps, counterparty scope, gating intent, and freeze state. | Give an operator one place to say how much may be spent, on what, and whether a human must agree first. | Budgets, caps, allow/deny entries, freeze state. | crud | policy, reporting | Budget, Cap, Headroom, Freeze | `api/internal/budget/`, `api/handlers/budget/`, `packages/proto/schemas/treasury/v1/budget/` |
+| mandate | Issue and expire the scoped grant that authorizes a spend. | Make authority a signed object with a cap and an expiry rather than a credential handed over. | Mandates, recurrence, templates. | crud | workflow | Mandate, Standing Mandate, Scope, Expiry | `api/internal/mandate/`, `api/handlers/mandate/`, `packages/proto/schemas/treasury/v1/mandate/` |
 | authorization | Decide whether one proposed charge sits inside a live grant. | Keep the decision server-side and away from the agent that read untrusted content. | Authorization records, verdicts, holds. | policy | service | Authorization, Verdict, Hold | `api/internal/authorization/` |
 | approval | Hold charges awaiting a human and resolve them. | Own the gate in-scenario so approval never depends on another scenario being up. | Approval requests, resolutions, relay attempts. | workflow | service | Approval Request, Resolution | `api/internal/approval/` |
-| instrument | Hold payment instruments and scope them to a mandate. | Ensure what reaches a counterparty is already bounded, so a compromised flow cannot overspend. | Instrument records and credential references. | crud | gateway | Instrument, Scoped Instrument | `api/internal/instrument/` |
+| instrument | Hold payment instruments and scope them to a mandate. | Ensure what reaches a counterparty is already bounded, so a compromised flow cannot overspend; credential references stay internal. | Instrument records and credential references. | crud | gateway | Instrument, Scoped Instrument | `api/internal/instrument/`, `api/handlers/instrument/`, `packages/proto/schemas/treasury/v1/instrument/` |
 | rail | Define the execution contract and host its adapters. | Let a new payment mechanism arrive as an adapter rather than a rewrite. | Rail registrations, adapter config. | gateway | service | Rail, Adapter, Facilitator | `api/internal/rail/` |
 | settlement | Execute an authorized charge exactly once. | Make retry safe so a network failure never becomes a double charge. | Charges, idempotency keys, outcomes. | service | workflow | Charge, Idempotency Key, Outcome | `api/internal/settlement/` |
 | evidence | Retain one replayable record per spend attempt. | Make every decision reconstructable afterwards, including the ones that refused. | Append-only evidence records. | reporting | query | Evidence Record, Replay | `api/internal/evidence/` |
 | ledger | Emit settled movement to `money-ledger`. | Keep the journal complete without giving it any knowledge of this scenario. | Emission log, emission idempotency. | gateway | service | Money Event, Basis, Emission | `api/internal/ledger/` |
 | identity | Verify the calling agent and resolve its authority. | Refuse spend that cannot be attributed, rather than recording it at a weaker grade. | No durable data; caches nothing across requests. | gateway | policy | Verified Claims, Fail Closed | `api/internal/identity/` |
-| wallet | Bind a receive-only EVM address to the operator custody book. | Allow research funding setup without granting spending or exposing keys. | Public address/network/book/operator metadata, credential mint witness, encrypted recovery metadata. | service | custody, query | Research Wallet, Address Control | `api/internal/wallet/`, operator-only TreasuryAdmin RPCs |
-| baseusdc | Verify and retain operator-requested Base native-USDC receipt observations. | Preserve provider evidence for later accounting review without assigning USD value or spending authority. | Append-only check attempts and exact provider-reported transfer observations, linked by wallet ID. | service | query | Base Receipt Evidence | `api/internal/baseusdc/`, operator-only TreasuryAdmin RPCs |
+| wallet | Bind a receive-only EVM address to the operator custody book. | Allow research funding setup without granting spending or exposing keys. | Public address/network/book/operator metadata, credential mint witness, encrypted recovery metadata. | service | custody, query | Research Wallet, Address Control | `api/internal/wallet/`, `api/handlers/wallet/`, `schemas/treasury/v1/wallet/wallet.proto`, operator-only WalletAdminService RPCs |
+| baseusdc | Verify and retain operator-requested Base native-USDC receipt observations. | Preserve provider evidence for later accounting review without assigning USD value or spending authority. | Append-only check attempts and exact provider-reported transfer observations, linked by wallet ID. | service | query | Base Receipt Evidence | `api/internal/baseusdc/`, `api/handlers/wallet/`, operator-only WalletAdminService RPCs |
 | health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/treasury/v1/shared/health.proto` |
 
 ## Domain Details
@@ -80,7 +80,7 @@ belong in [`DATA.md`](DATA.md).
 - Headroom rule: computed, never stored as a mutable field. Pending
   authorizations reduce headroom before they settle, so two agents planning
   concurrently cannot both believe the same money is available.
-- API: `api/internal/budget/`.
+- API: `api/internal/budget/`, `api/handlers/budget/`; its operator policy contract is the `BudgetAdminService` in `packages/proto/schemas/treasury/v1/budget/budget.proto`.
 - CLI: `treasury budgets list|show|create|freeze|thaw|headroom`.
 - UI: budget list, budget detail with cap meters, freeze control.
 - Storage: `budgets`, `budget_scope_entries`; see [`DATA.md`](DATA.md).
@@ -235,12 +235,16 @@ belong in [`DATA.md`](DATA.md).
   interpretation of the numbers. Duplicating those would create two
   authorities over the same figures.
 - Direction rule: strictly one-way and fire-and-record. `money-ledger`
-  admits this scenario as one anonymous adapter through the contract every
-  source satisfies.
+  admits this scenario as one adapter through the contract every source
+  satisfies, and only from Treasury's verified `treasury-money-ledger`
+  service principal: Money Ledger refuses an unverified journal write.
 - API: `api/internal/ledger/`.
-- CLI: `treasury ledger emissions-list [--external-id <key>] [--status queued|accepted]` (operator-authenticated readback).
+- CLI (operator-authenticated):
+  - `treasury ledger emissions-list [--external-id <key>] [--status queued|accepted]` reads delivery state, the destination, and how many settlements are waiting.
+  - `treasury ledger destination-show` shows the chosen destination, or why none is chosen.
+  - `treasury ledger destination-set --book-id <id> --account-id <id>` chooses it, after checking it against Money Ledger.
 - UI: emission status on a settled charge.
-- Storage: `ledger_emissions`; see [`DATA.md`](DATA.md).
+- Storage: `ledger_emissions` and the one-row `ledger_destination`; see [`DATA.md`](DATA.md).
 - Requirements: `TRS-P0-008`.
 - Tests: contract conformance, basis selection, replay safety.
 
@@ -350,6 +354,6 @@ piece into an owning domain instead of growing infrastructure.
 
 The operator-authorized research extension binds an independently generated secp256k1 EOA to a book, authenticated operator and explicitly supported EVM network (Base mainnet8453 or Base Sepolia84532). Credential Authority stores scalar material by opaque logical identity; Treasury stores only public metadata and an independent durable mint witness. Missing witnessed custody, provider errors, a mismatched public address and changed creation scope refuse; a retry must never generate a replacement wallet silently.
 
-Only TreasuryAdmin may create, read, prove control or qualify recovery. The proof signs a fixed domain-separated EIP191 non-payment message including wallet/book/operator/network and a bounded nonce. No arbitrary typed data, transaction or spend signing, broadcast, mandate creation or automatic budget credit is added. AgentSpend remains structurally without these operations.
+Only the wallet-owned WalletAdminService may create, read, prove control or qualify recovery. The proof signs a fixed domain-separated EIP191 non-payment message including wallet/book/operator/network and a bounded nonce. No arbitrary typed data, transaction or spend signing, broadcast, mandate creation or automatic budget credit is added. AgentSpend remains structurally without these operations.
 
 Recovery qualification uses Credential Authority authenticated encrypted export for this wallet only and retains the bundle in Treasury-owned restricted data storage. An owner-held recovery passphrase supports a same-host encrypted recovery check; it is explicitly not independent off-host/operator recovery. The operator must establish a separately recoverable passphrase and off-host encrypted copy before treating disaster recovery as qualified. Public control proof, chain observation, authoritative fiat accounting and spend authorization remain distinct.

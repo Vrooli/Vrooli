@@ -1,6 +1,6 @@
 import { createClient } from "@connectrpc/connect";
-import type { ApprovalRequest } from "@vrooli/proto-types/treasury/v1/approval/approval_pb";
-import { ApprovalStatus } from "@vrooli/proto-types/treasury/v1/approval/approval_pb";
+import type { ApprovalRequest } from "@vrooli/proto-types/treasury/v1/shared/approval_pb";
+import { ApprovalStatus } from "@vrooli/proto-types/treasury/v1/shared/approval_pb";
 import { TreasuryAdmin } from "@vrooli/proto-types/treasury/v1/authorization/authorization_pb";
 
 import { transport } from "./client";

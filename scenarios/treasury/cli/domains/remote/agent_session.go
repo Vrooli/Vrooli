@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -18,9 +17,11 @@ import (
 	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
 	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
 	fundingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/funding"
+	fundingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/funding/funding_v1connect"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"treasury/cli/internal/envx"
 )
 
 const (
@@ -50,13 +51,18 @@ type agentSettlementIntent struct {
 	ExpiresAt       string `json:"expires_at"`
 }
 
-func treasurySessionRequestHeaders(core *cliapp.ScenarioApp) cliapp.RequestPreparer {
-	return treasurySessionRequestHeadersWithKeySource(core, func() string { return os.Getenv(sessionPrivateKeyEnv) })
+func treasurySessionRequestHeaders(core *cliapp.ScenarioApp, dependencies Dependencies) cliapp.RequestPreparer {
+	return treasurySessionRequestHeadersWithDependencies(core, nil, dependencies)
 }
 
 func treasurySessionRequestHeadersWithKeySource(core *cliapp.ScenarioApp, keySource func() string) cliapp.RequestPreparer {
+	return treasurySessionRequestHeadersWithDependencies(core, keySource, ProductionDependencies())
+}
+
+func treasurySessionRequestHeadersWithDependencies(core *cliapp.ScenarioApp, keySource func() string, dependencies Dependencies) cliapp.RequestPreparer {
+	dependencies = dependencies.withDefaults()
 	return func(_ cliapp.OperationContext, method string, request proto.Message) (map[string]string, error) {
-		if !strings.HasPrefix(method, "AgentSpend.") {
+		if !strings.HasPrefix(method, "AgentSpend.") && method != "FundingAgentService.GetBudgetWallet" {
 			return nil, nil
 		}
 		operation, target := "", ""
@@ -70,24 +76,27 @@ func treasurySessionRequestHeadersWithKeySource(core *cliapp.ScenarioApp, keySou
 			})
 		case "AgentSpend.GetAuthorization":
 			operation, target = "treasury.read", "treasury:authorization/"+protoStringField(request, "id")
-		case "AgentSpend.GetBudgetWallet":
+		case "FundingAgentService.GetBudgetWallet":
 			operation, target = "treasury.read", "treasury:budget/"+protoStringField(request, "budget_id")
 		case "AgentSpend.GetBudgetHeadroom":
 			operation, target = "treasury.read", "treasury:budget/"+protoStringField(request, "budget_id")
 		case "AgentSpend.ReportOutcome":
-			if keySource == nil {
+			privateKeyValue := sessionPrivateKeyValue(keySource, dependencies.Environment)
+			if privateKeyValue == "" {
 				return nil, fmt.Errorf("run-owned Treasury session-key source is unavailable")
 			}
-			privateKey := strings.TrimPrefix(strings.TrimSpace(keySource()), "0x")
+			privateKey := strings.TrimPrefix(privateKeyValue, "0x")
 			key, err := parseSessionPrivateKey(privateKey)
 			if err != nil {
 				return nil, err
 			}
-			proof, exactTarget, err := prepareSettlementProofAndTarget(core, request, key)
+			httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+			client := agentSessionProofClients{authorizations: authorizationconnect.NewAgentSpendClient(httpClient, baseURL), wallets: fundingconnect.NewFundingAgentServiceClient(httpClient, baseURL)}
+			proof, exactTarget, err := prepareSettlementProofFromClientWithDependencies(client, request, key, dependencies)
 			if err != nil {
 				return nil, err
 			}
-			headers, err := treasuryAgentOperationHeaders("treasury.spend", exactTarget)
+			headers, err := treasuryAgentOperationHeadersWithDependencies("treasury.spend", exactTarget, dependencies)
 			if err != nil {
 				return nil, err
 			}
@@ -99,22 +108,17 @@ func treasurySessionRequestHeadersWithKeySource(core *cliapp.ScenarioApp, keySou
 		default:
 			return nil, fmt.Errorf("unsupported Treasury agent operation %q", method)
 		}
-		headers, err := treasuryAgentOperationHeaders(operation, target)
+		headers, err := treasuryAgentOperationHeadersWithDependencies(operation, target, dependencies)
 		if err != nil {
 			return nil, err
 		}
-		if method != "AgentSpend.GetBudgetWallet" {
+		if method != "FundingAgentService.GetBudgetWallet" {
 			return headers, nil
 		}
-		if keySource == nil {
-			return headers, nil
-		}
-		privateKey := strings.TrimPrefix(strings.TrimSpace(keySource()), "0x")
+		privateKeyValue := sessionPrivateKeyValue(keySource, dependencies.Environment)
+		privateKey := strings.TrimPrefix(privateKeyValue, "0x")
 		if privateKey == "" {
-			if method == "AgentSpend.GetBudgetWallet" {
-				return headers, nil // Operator reads and manually provisioned callers remain unchanged.
-			}
-			return nil, fmt.Errorf("run-owned Treasury session key is unavailable")
+			return headers, nil // Operator reads and manually provisioned callers remain unchanged.
 		}
 		key, err := parseSessionPrivateKey(privateKey)
 		if err != nil {
@@ -132,15 +136,32 @@ func treasurySessionRequestHeadersWithKeySource(core *cliapp.ScenarioApp, keySou
 	}
 }
 
+func sessionPrivateKeyValue(source func() string, environment envx.Reader) string {
+	value := ""
+	if source != nil {
+		value = source()
+	} else if environment != nil {
+		value, _ = environment.LookupEnv(sessionPrivateKeyEnv)
+	}
+	value = strings.TrimPrefix(strings.TrimSpace(value), "0x")
+	return value
+}
+
 func treasuryAgentOperationHeaders(operation, target string) (map[string]string, error) {
-	if strings.TrimSpace(os.Getenv(cliutil.EnvIdentityToken)) == "" {
+	return treasuryAgentOperationHeadersWithDependencies(operation, target, ProductionDependencies())
+}
+
+func treasuryAgentOperationHeadersWithDependencies(operation, target string, dependencies Dependencies) (map[string]string, error) {
+	dependencies = dependencies.withDefaults()
+	identityToken, _ := dependencies.Environment.LookupEnv(cliutil.EnvIdentityToken)
+	if strings.TrimSpace(identityToken) == "" {
 		return nil, nil
 	}
 	// Resolve the currently approved, run-bound operation grant for each
 	// Treasury agent call. This keeps baseline identity separate from the
 	// human-approved operation proof and permits a new exact grant to take
 	// effect without restarting the run.
-	credentials, err := cliutil.ResolveAgentCredentialsForOperation(context.Background(), operation, target)
+	credentials, err := dependencies.ResolveAgentGrant(context.Background(), operation, target)
 	if err != nil {
 		return nil, fmt.Errorf("resolve current Treasury operation grant: %w", err)
 	}
@@ -166,19 +187,32 @@ func parseSessionPrivateKey(value string) (*secp256k1.PrivateKey, error) {
 }
 
 func prepareSettlementProof(core *cliapp.ScenarioApp, request proto.Message, key *secp256k1.PrivateKey) (string, error) {
-	proof, _, err := prepareSettlementProofAndTarget(core, request, key)
+	proof, _, err := prepareSettlementProofAndTarget(core, request, key, ProductionDependencies())
 	return proof, err
 }
 
-func prepareSettlementProofAndTarget(core *cliapp.ScenarioApp, request proto.Message, key *secp256k1.PrivateKey) (string, string, error) {
+func prepareSettlementProofAndTarget(core *cliapp.ScenarioApp, request proto.Message, key *secp256k1.PrivateKey, dependencies Dependencies) (string, string, error) {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	client := authorizationconnect.NewAgentSpendClient(httpClient, baseURL)
-	return prepareSettlementProofFromClientAndTarget(client, request, key)
+	client := agentSessionProofClients{authorizations: authorizationconnect.NewAgentSpendClient(httpClient, baseURL), wallets: fundingconnect.NewFundingAgentServiceClient(httpClient, baseURL)}
+	return prepareSettlementProofFromClientAtAndTargetWithDependencies(client, request, key, dependencies.Clock.Now().UTC(), dependencies)
 }
 
 type agentSpendProofReader interface {
 	GetAuthorization(context.Context, *connect.Request[authorizationv1.GetAuthorizationRequest]) (*connect.Response[authorizationv1.GetAuthorizationResponse], error)
 	GetBudgetWallet(context.Context, *connect.Request[fundingv1.GetBudgetWalletRequest]) (*connect.Response[fundingv1.BudgetWalletResponse], error)
+}
+
+type agentSessionProofClients struct {
+	authorizations authorizationconnect.AgentSpendClient
+	wallets        fundingconnect.FundingAgentServiceClient
+}
+
+func (c agentSessionProofClients) GetAuthorization(ctx context.Context, request *connect.Request[authorizationv1.GetAuthorizationRequest]) (*connect.Response[authorizationv1.GetAuthorizationResponse], error) {
+	return c.authorizations.GetAuthorization(ctx, request)
+}
+
+func (c agentSessionProofClients) GetBudgetWallet(ctx context.Context, request *connect.Request[fundingv1.GetBudgetWalletRequest]) (*connect.Response[fundingv1.BudgetWalletResponse], error) {
+	return c.wallets.GetBudgetWallet(ctx, request)
 }
 
 func prepareSettlementProofFromClient(client agentSpendProofReader, request proto.Message, key *secp256k1.PrivateKey) (string, error) {
@@ -187,7 +221,13 @@ func prepareSettlementProofFromClient(client agentSpendProofReader, request prot
 }
 
 func prepareSettlementProofFromClientAndTarget(client agentSpendProofReader, request proto.Message, key *secp256k1.PrivateKey) (string, string, error) {
-	return prepareSettlementProofFromClientAtAndTarget(client, request, key, time.Now().UTC())
+	dependencies := ProductionDependencies()
+	return prepareSettlementProofFromClientWithDependencies(client, request, key, dependencies)
+}
+
+func prepareSettlementProofFromClientWithDependencies(client agentSpendProofReader, request proto.Message, key *secp256k1.PrivateKey, dependencies Dependencies) (string, string, error) {
+	dependencies = dependencies.withDefaults()
+	return prepareSettlementProofFromClientAtAndTargetWithDependencies(client, request, key, dependencies.Clock.Now().UTC(), dependencies)
 }
 
 func prepareSettlementProofFromClientAt(client agentSpendProofReader, request proto.Message, key *secp256k1.PrivateKey, now time.Time) (string, error) {
@@ -196,6 +236,11 @@ func prepareSettlementProofFromClientAt(client agentSpendProofReader, request pr
 }
 
 func prepareSettlementProofFromClientAtAndTarget(client agentSpendProofReader, request proto.Message, key *secp256k1.PrivateKey, now time.Time) (string, string, error) {
+	return prepareSettlementProofFromClientAtAndTargetWithDependencies(client, request, key, now, ProductionDependencies())
+}
+
+func prepareSettlementProofFromClientAtAndTargetWithDependencies(client agentSpendProofReader, request proto.Message, key *secp256k1.PrivateKey, now time.Time, dependencies Dependencies) (string, string, error) {
+	dependencies = dependencies.withDefaults()
 	if client == nil || key == nil {
 		return "", "", fmt.Errorf("Treasury proof client and session key are required")
 	}
@@ -207,7 +252,7 @@ func prepareSettlementProofFromClientAtAndTarget(client agentSpendProofReader, r
 		return "", "", fmt.Errorf("settlement request requires authorization, settlement, instrument, and idempotency IDs")
 	}
 	authorizationTarget := "treasury:authorization/" + authorizationID
-	credentials, err := treasuryAgentOperationHeaders("treasury.read", authorizationTarget)
+	credentials, err := treasuryAgentOperationHeadersWithDependencies("treasury.read", authorizationTarget, dependencies)
 	if err != nil {
 		return "", "", err
 	}
@@ -235,7 +280,7 @@ func prepareSettlementProofFromClientAtAndTarget(client agentSpendProofReader, r
 	if auth.GetSettlementId() == "" || auth.GetInstrumentId() == "" || auth.GetSettlementIdempotencyKey() == "" || auth.GetSettlementId() != settlementID || auth.GetInstrumentId() != instrumentID || auth.GetSettlementIdempotencyKey() != idempotencyKey {
 		return "", "", fmt.Errorf("settlement request does not match the immutable terms approved with its authorization")
 	}
-	credentials, err = treasuryAgentOperationHeaders("treasury.read", "treasury:budget/"+auth.GetBudgetId())
+	credentials, err = treasuryAgentOperationHeadersWithDependencies("treasury.read", "treasury:budget/"+auth.GetBudgetId(), dependencies)
 	if err != nil {
 		return "", "", err
 	}

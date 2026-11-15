@@ -62,7 +62,7 @@ func TestReportOutcomeRejectsUnboundAgentSessionBeforeSettlement(t *testing.T) {
 	verifier := handlerVerifier{claims: agentclaims.For("agent:1")}
 	authorizationService := authorization.NewService(authorizations, verifier, mandates, budget.NewService(budget.NewSQLiteRepository(handle), clock), evidence.NewRecorder(evidence.NewSQLiteRecorder(handle)), clock)
 	settlementService := settlement.NewService(settlement.NewSQLiteRepository(handle), authorizations, instruments, registry, verifier, clock)
-	_, transport := authorizationconnect.NewAgentSpendHandler(NewConnectHandler(authorizationService, settlementService))
+	_, transport := authorizationconnect.NewAgentSpendHandler(NewConnectHandler(AgentSpendDependencies{Authorization: authorizationService, Settlements: settlementService}))
 	server := httptest.NewServer(transport)
 	t.Cleanup(server.Close)
 	client := authorizationconnect.NewAgentSpendClient(server.Client(), server.URL)

@@ -3,6 +3,7 @@ package agentspend
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -13,17 +14,15 @@ import (
 	"treasury/internal/approval"
 	"treasury/internal/authorization"
 	"treasury/internal/budget"
+	"treasury/internal/clock"
 	"treasury/internal/identity"
 	"treasury/internal/mandate"
-	mandateflow "treasury/internal/mandate/flow"
+	"treasury/internal/researchbudget"
 	"treasury/internal/settlement"
 	"treasury/internal/walletops"
 
 	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
 	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
-	budgetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/budget"
-	fundingpb "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/funding"
-	mandatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/mandate"
 	settlementv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/settlement"
 )
 
@@ -35,66 +34,50 @@ type HeadroomReader interface {
 	Headroom(context.Context, string) (budget.Headroom, error)
 }
 
+type MandateReader interface {
+	Get(context.Context, string) (mandate.Mandate, error)
+}
+
+type ResearchBudgetPublisher interface {
+	PutSnapshot(context.Context, string, researchbudget.Snapshot) error
+	RecordSettlement(context.Context, string, researchbudget.Settlement) error
+}
+
 type connectHandler struct {
-	service     *authorization.Service
-	settlements *settlement.Service
-	mandates    MandateLister
-	verifier    identity.Verifier
-	headroom    HeadroomReader
-	walletOps   *walletops.Service
+	service        *authorization.Service
+	settlements    *settlement.Service
+	mandates       MandateLister
+	verifier       identity.Verifier
+	headroom       HeadroomReader
+	mandateRead    MandateReader
+	researchBudget ResearchBudgetPublisher
+	walletOps      *walletops.Service
+	clock          clock.Clock
 }
 
-func NewConnectHandler(services ...any) authorizationconnect.AgentSpendHandler {
-	handler := &connectHandler{}
-	for _, service := range services {
-		switch value := service.(type) {
-		case *authorization.Service:
-			handler.service = value
-		case *settlement.Service:
-			handler.settlements = value
-		case MandateLister:
-			handler.mandates = value
-		case identity.Verifier:
-			handler.verifier = value
-		case HeadroomReader:
-			handler.headroom = value
-		case *walletops.Service:
-			handler.walletOps = value
-		}
-	}
-	return handler
+// AgentSpendDependencies is the complete capability set accepted by the
+// agent-facing transport. In particular, it deliberately exposes budget
+// reads, never the policy-mutating budget service used by TreasuryAdmin.
+type AgentSpendDependencies struct {
+	Authorization  *authorization.Service
+	Settlements    *settlement.Service
+	Mandates       MandateLister
+	MandateReader  MandateReader
+	Verifier       identity.Verifier
+	Headroom       HeadroomReader
+	WalletOps      *walletops.Service
+	Clock          clock.Clock
+	ResearchBudget ResearchBudgetPublisher
 }
 
-func (h *connectHandler) GetBudgetWallet(ctx context.Context, request *connect.Request[fundingpb.GetBudgetWalletRequest]) (*connect.Response[fundingpb.BudgetWalletResponse], error) {
-	if request == nil || request.Msg == nil || strings.TrimSpace(request.Msg.GetBudgetId()) == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("budget ID is required"))
+func NewConnectHandler(deps AgentSpendDependencies) authorizationconnect.AgentSpendHandler {
+	return &connectHandler{
+		service: deps.Authorization, settlements: deps.Settlements,
+		mandates: deps.Mandates, mandateRead: deps.MandateReader,
+		verifier: deps.Verifier, headroom: deps.Headroom,
+		walletOps: deps.WalletOps, clock: deps.Clock,
+		researchBudget: deps.ResearchBudget,
 	}
-	if h.walletOps == nil || h.verifier == nil {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("budget wallet reporting is unavailable"))
-	}
-	claims, err := identity.VerifyRequest(ctx, h.verifier, request.Header())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
-	}
-	if mandateID := request.Msg.GetMandateId(); mandateID != "" {
-		if publicKey := strings.TrimSpace(request.Header().Get(walletops.HeaderAgentSessionPublicKey)); publicKey != "" {
-			if err = h.walletOps.BindAgentSessionPublicKey(ctx, request.Msg.GetBudgetId(), mandateID, claims, publicKey); err != nil {
-				return nil, connect.NewError(connect.CodePermissionDenied, err)
-			}
-		}
-	}
-	wallet, err := h.walletOps.GetForAgent(ctx, request.Msg.GetBudgetId(), request.Msg.GetMandateId(), claims)
-	if err != nil {
-		switch {
-		case errors.Is(err, identity.ErrUnverifiable):
-			return nil, connect.NewError(connect.CodePermissionDenied, err)
-		case errors.Is(err, walletops.ErrNotFound):
-			return nil, connect.NewError(connect.CodeNotFound, err)
-		default:
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-	}
-	return connect.NewResponse(&fundingpb.BudgetWalletResponse{Wallet: wallet}), nil
 }
 
 func (h *connectHandler) GetBudgetHeadroom(ctx context.Context, request *connect.Request[authorizationv1.GetBudgetHeadroomRequest]) (*connect.Response[authorizationv1.GetBudgetHeadroomResponse], error) {
@@ -108,7 +91,10 @@ func (h *connectHandler) GetBudgetHeadroom(ctx context.Context, request *connect
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
-	if err := identity.Authorize(claims, "treasury.read", "treasury:budget/"+request.Msg.GetBudgetId(), time.Now()); err != nil {
+	if h.clock == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("authorization clock is unavailable"))
+	}
+	if err := identity.Authorize(claims, "treasury.read", "treasury:budget/"+request.Msg.GetBudgetId(), h.clock.Now()); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 	value, err := h.headroom.Headroom(ctx, request.Msg.GetBudgetId())
@@ -118,7 +104,7 @@ func (h *connectHandler) GetBudgetHeadroom(ctx context.Context, request *connect
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&authorizationv1.GetBudgetHeadroomResponse{Headroom: &budgetv1.Headroom{
+	return connect.NewResponse(&authorizationv1.GetBudgetHeadroomResponse{Headroom: &authorizationv1.AgentBudgetHeadroom{
 		BudgetId: value.BudgetID, BookId: value.BookID, Currency: value.Currency,
 		TotalCapMinor: value.TotalCapMinor, TotalUsedMinor: value.TotalUsedMinor, TotalRemainingMinor: value.TotalRemainingMinor,
 		PeriodicCapMinor: value.PeriodicCapMinor, PeriodUsedMinor: value.PeriodUsedMinor, PeriodRemainingMinor: value.PeriodRemainingMinor,
@@ -166,13 +152,13 @@ func (h *connectHandler) GetAuthorization(ctx context.Context, request *connect.
 	if err != nil {
 		return nil, mapError(err)
 	}
-	if result.RequestingAgent != claims.Subject || identity.Authorize(claims, "treasury.read", "treasury:budget/"+result.BudgetID, time.Now()) != nil {
+	if h.clock == nil || result.RequestingAgent != claims.Subject || identity.Authorize(claims, "treasury.read", "treasury:budget/"+result.BudgetID, h.clock.Now()) != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("authorization belongs to another owner"))
 	}
 	return connect.NewResponse(&authorizationv1.GetAuthorizationResponse{Authorization: toProto(result)}), nil
 }
 
-func (h *connectHandler) ListMandates(ctx context.Context, request *connect.Request[authorizationv1.ListMandatesRequest]) (*connect.Response[authorizationv1.ListMandatesResponse], error) {
+func (h *connectHandler) ListMandates(ctx context.Context, request *connect.Request[authorizationv1.AgentListMandatesRequest]) (*connect.Response[authorizationv1.AgentListMandatesResponse], error) {
 	if request == nil || request.Msg == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request is required"))
 	}
@@ -187,9 +173,9 @@ func (h *connectHandler) ListMandates(ctx context.Context, request *connect.Requ
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	response := &authorizationv1.ListMandatesResponse{Mandates: make([]*mandatev1.Mandate, 0, len(values))}
+	response := &authorizationv1.AgentListMandatesResponse{Mandates: make([]*authorizationv1.AgentMandate, 0, len(values))}
 	for _, value := range values {
-		if value.AgentSubject != claims.Subject || value.AgentRunID != claims.RunID || identity.Authorize(claims, "treasury.read", "treasury:budget/"+value.BudgetID, time.Now()) != nil {
+		if h.clock == nil || value.AgentSubject != claims.Subject || value.AgentRunID != claims.RunID || identity.Authorize(claims, "treasury.read", "treasury:budget/"+value.BudgetID, h.clock.Now()) != nil {
 			continue
 		}
 		response.Mandates = append(response.Mandates, mandateToProto(value))
@@ -197,26 +183,10 @@ func (h *connectHandler) ListMandates(ctx context.Context, request *connect.Requ
 	return connect.NewResponse(response), nil
 }
 
-func mandateToProto(value mandate.Mandate) *mandatev1.Mandate {
-	status := mandatev1.MandateStatus_MANDATE_STATUS_UNSPECIFIED
-	switch value.Status {
-	case mandateflow.MandateDraft:
-		status = mandatev1.MandateStatus_MANDATE_STATUS_DRAFT
-	case mandateflow.MandateLive:
-		status = mandatev1.MandateStatus_MANDATE_STATUS_LIVE
-	case mandateflow.MandateExhausted:
-		status = mandatev1.MandateStatus_MANDATE_STATUS_EXHAUSTED
-	case mandateflow.MandateExpired:
-		status = mandatev1.MandateStatus_MANDATE_STATUS_EXPIRED
-	case mandateflow.MandateRevoked:
-		status = mandatev1.MandateStatus_MANDATE_STATUS_REVOKED
-	}
-	result := &mandatev1.Mandate{AgentSubject: value.AgentSubject, AgentRunId: value.AgentRunID, Id: value.ID, IdempotencyKey: value.IdempotencyKey, BookId: value.BookID, BudgetId: value.BudgetID, Authorizer: value.Authorizer, CapMinor: value.CapMinor, Currency: value.Currency, AllowedCounterparties: value.AllowedCounterparties, DeniedCounterparties: value.DeniedCounterparties, RequiredEvidence: value.RequiredEvidence, ExpiresAt: timestamppb.New(value.ExpiresAt), IssuedAt: timestamppb.New(value.IssuedAt), Signature: value.Signature, Status: status, RecurrenceSeconds: int64(value.RecurrenceInterval / time.Second)}
+func mandateToProto(value mandate.Mandate) *authorizationv1.AgentMandate {
+	result := &authorizationv1.AgentMandate{Id: value.ID, BookId: value.BookID, BudgetId: value.BudgetID, CapMinor: value.CapMinor, Currency: value.Currency, AllowedCounterparties: value.AllowedCounterparties, DeniedCounterparties: value.DeniedCounterparties, ExpiresAt: timestamppb.New(value.ExpiresAt), Status: string(value.Status), RequiredEvidence: value.RequiredEvidence, RecurrenceSeconds: int64(value.RecurrenceInterval / time.Second)}
 	if !value.NextChargeAt.IsZero() {
 		result.NextChargeAt = timestamppb.New(value.NextChargeAt)
-	}
-	if !value.CancelledAt.IsZero() {
-		result.CancelledAt = timestamppb.New(value.CancelledAt)
 	}
 	return result
 }
@@ -271,7 +241,74 @@ func (h *connectHandler) ReportOutcome(ctx context.Context, request *connect.Req
 	if err != nil {
 		return nil, mapError(err)
 	}
+	if err := h.publishResearchBudgetEvidence(ctx, claims, auth, charge); err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("Treasury settled the x402 charge but Agent Manager budget evidence was not accepted; retry this exact ReportOutcome: %w", err))
+	}
 	return connect.NewResponse(&authorizationv1.ReportOutcomeResponse{Authorization: toProto(auth), Settlement: settlementToProto(charge)}), nil
+}
+
+func (h *connectHandler) publishResearchBudgetEvidence(ctx context.Context, claims identity.Claims, auth authorization.Record, charge settlement.Record) error {
+	if h.researchBudget == nil || charge.Outcome != settlement.OutcomeSettled || charge.Rail != "x402" {
+		return nil
+	}
+	runID := strings.TrimSpace(claims.RunID)
+	if runID == "" {
+		return nil
+	}
+	if h.mandateRead == nil || h.headroom == nil {
+		return errors.New("run-bound mandate and Treasury headroom readers are unavailable")
+	}
+	boundMandate, err := h.mandateRead.Get(ctx, auth.MandateID)
+	if err != nil {
+		return fmt.Errorf("read mandate for run-bound settlement: %w", err)
+	}
+	if boundMandate.ID != auth.MandateID || boundMandate.AgentRunID != runID || boundMandate.AgentSubject != claims.Subject || auth.BudgetID != boundMandate.BudgetID {
+		return errors.New("settled mandate does not match the verified Agent Manager run and subject")
+	}
+	if boundMandate.IssuedAt.IsZero() {
+		return errors.New("run-bound mandate has no stable issuance time for the budget snapshot")
+	}
+	headroom, err := h.headroom.Headroom(ctx, auth.BudgetID)
+	if err != nil {
+		return fmt.Errorf("read Treasury budget headroom for run snapshot: %w", err)
+	}
+	currency := strings.ToUpper(strings.TrimSpace(headroom.Currency))
+	if headroom.BudgetID != auth.BudgetID || currency == "" || currency != strings.ToUpper(strings.TrimSpace(auth.Currency)) || currency != strings.ToUpper(strings.TrimSpace(charge.Currency)) || charge.AmountMinor < 0 || strings.TrimSpace(charge.ExternalID) == "" {
+		return errors.New("Treasury headroom and settled receipt do not match the authorized run budget")
+	}
+	unitCode := currency + "_MINOR"
+	snapshot := researchbudget.Snapshot{
+		TreasuryBudgetID: auth.BudgetID, MandateID: boundMandate.ID, AgentSubject: claims.Subject,
+		CapMinor: headroom.TotalCapMinor, Currency: currency, UnitCode: unitCode,
+		PolicyRevision: "treasury-budget-headroom-v1", CreatedAt: boundMandate.IssuedAt.UTC(),
+	}
+	if err := h.researchBudget.PutSnapshot(ctx, runID, snapshot); err != nil {
+		return fmt.Errorf("publish immutable Treasury budget snapshot: %w", err)
+	}
+	benefitState := "pending"
+	benefitSummary := "Treasury settlement is confirmed; bounded paid-resource result evidence is unavailable."
+	if strings.Contains(charge.Detail, "; response_bytes=") && strings.Contains(charge.Detail, "; response_sha256=") {
+		benefitState = "measured"
+		benefitSummary = charge.Detail
+	}
+	settledAt := charge.OccurredAt
+	if settledAt.IsZero() {
+		settledAt = charge.UpdatedAt
+	}
+	if settledAt.IsZero() {
+		return errors.New("settled Treasury record has no stable settlement time")
+	}
+	settlementEvidence := researchbudget.Settlement{
+		ID: "treasury:" + charge.ID, SettlementID: charge.ID, TreasuryReceiptID: charge.ExternalID,
+		IntegrationID: "x402:" + strings.ToLower(strings.TrimSpace(charge.Counterparty)), Category: "x402_call",
+		AmountMinor: charge.AmountMinor, Currency: currency, UnitCode: unitCode,
+		ResultRef: "treasury:settlement/" + charge.ID, BenefitState: benefitState,
+		BenefitSummary: benefitSummary, SettledAt: settledAt.UTC(),
+	}
+	if err := h.researchBudget.RecordSettlement(ctx, runID, settlementEvidence); err != nil {
+		return fmt.Errorf("publish Treasury receipt-backed settlement evidence: %w", err)
+	}
+	return nil
 }
 
 func identityTokenFromHeaders(headers http.Header) string {

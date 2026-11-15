@@ -19,7 +19,7 @@ cannot bypass the Treasury settlement API.
    filtering to the runner process and resolved again for continuations. The
    existing terminal credential cleanup owner deletes it when the run ends.
 3. The Treasury CLI derives the public key and calls
-   `AgentSpend.GetBudgetWallet` with the baseline run token plus operation
+   `FundingAgentService.GetBudgetWallet` with the baseline run token plus operation
    token, budget ID, mandate ID, and
    `X-Vrooli-Treasury-Session-Public-Key: 0x04…` (65-byte uncompressed public
    key). The response contains the derived budget address, mandate generation,
@@ -74,6 +74,19 @@ changing the fork nonce, blocks the next request while frozen, and recovers the
 same approved settlement after a normal Treasury restart. It stores public
 keys, intent digests and signature digests in the isolated evidence folder; no
 private agent key is written there.
+
+## Policy boundary in the API composition
+
+`AgentSpend` is constructed through the typed `AgentSpendDependencies`
+contract. Its budget capability is `HeadroomReader`, which exposes only the
+read needed for authorization snapshots and reporting; the mutable budget
+service is composed into `TreasuryAdmin`, not this handler. `Module` also uses
+named `HandlerOverrides` for optional settlement/reporting dependencies, so
+the agent surface no longer receives a positional `...any` service bag. The
+generated `AgentSpend` descriptor remains guarded by an exact reviewed-method
+allowlist in `handlers/agentspend/surface_test.go`; adding a method such as
+`SetGating` fails that test. This is an in-process/API-composition boundary,
+not a claim that the generated proto alone protects direct database access.
 
 The Agent Manager lifecycle, Treasury CLI signer, and paired-verification path
 now implement the normal-run integration surface. Focused unit tests exercise

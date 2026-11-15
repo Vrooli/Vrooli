@@ -5,17 +5,36 @@ import (
 	"errors"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
-	"connectrpc.com/connect"
-	accountsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts"
-	accountsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts/accounts_v1connect"
+	"github.com/vrooli/api-core/servicetoken"
 )
 
+// Treasury calls three peers, and holds one service principal per peer: a
+// principal name is unique (it is the token subject and part of the credential's
+// address), and one subject per credential lets each peer accept exactly its own
+// principal, so a token minted for one peer can never satisfy another. The
+// operator issues them with `scenario-authenticator service-principals sync
+// --apply` from .vrooli/service-principals.json; TestTreasuryDeclaresExactlyTheServicePrincipalsItUses holds that
+// file to the names below.
 const (
-	TreasuryServiceCredentialIdentity = "scenario-authenticator/service-principal/treasury/money-ledger"
-	TreasuryNoticeCredentialIdentity  = "scenario-authenticator/service-principal/treasury/notification-hub"
+	// MoneyLedgerPrincipal is Treasury's principal at Money Ledger, which accepts
+	// only this subject (and journals the actor as "treasury").
+	MoneyLedgerPrincipal = "treasury-money-ledger"
+	MoneyLedgerResource  = "money-ledger"
+	// AgentManagerPrincipal is Treasury's principal at Agent Manager, for run-bound
+	// research-budget evidence. It is also the subject of the one-time grant an
+	// operator approves.
+	AgentManagerPrincipal = "treasury-agent-manager"
+	AgentManagerResource  = "agent-manager"
+	// NoticePrincipal is Treasury's sender principal at Notification Hub: the Hub
+	// reads the source "treasury" off the name (api-core hubsender).
+	NoticePrincipal = "treasury-notification-hub"
+	NoticeResource  = "notification-hub"
+
+	TreasuryServiceCredentialIdentity      = "scenario-authenticator/service-principal/" + MoneyLedgerPrincipal + "/" + MoneyLedgerResource
+	TreasuryAgentManagerCredentialIdentity = "scenario-authenticator/service-principal/" + AgentManagerPrincipal + "/" + AgentManagerResource
+	TreasuryNoticeCredentialIdentity       = "scenario-authenticator/service-principal/" + NoticePrincipal + "/" + NoticeResource
 )
 
 type TokenSource interface {
@@ -26,67 +45,51 @@ type CredentialReader interface {
 	Resolve(context.Context, string, string) (string, error)
 }
 
-// ServiceTokenSource consumes an operator-issued scenario-authenticator service
+// NewServiceTokenSource consumes Treasury's operator-issued money-ledger service
 // principal. It cannot mint one, and a caller's agent or human token is never
 // forwarded as Treasury identity. The credential owner remains authoritative
 // for issuance, rotation and revocation.
-type ServiceTokenSource struct {
-	credentials        CredentialReader
-	credentialIdentity string
-	client             accountsconnect.AccountsServiceClient
-	now                func() time.Time
-	mu                 sync.Mutex
-	token              string
-	expires            time.Time
-}
-
-func NewServiceTokenSource(credentials CredentialReader, authenticatorURL string, client *http.Client) (*ServiceTokenSource, error) {
-	return NewServiceTokenSourceFor(credentials, authenticatorURL, client, "treasury", "money-ledger")
+func NewServiceTokenSource(credentials CredentialReader, authenticatorURL string, client *http.Client, options ...servicetoken.Option) (*servicetoken.Tokens, error) {
+	return NewServiceTokenSourceFor(credentials, authenticatorURL, client, MoneyLedgerPrincipal, MoneyLedgerResource, options...)
 }
 
 // NewServiceTokenSourceFor consumes one operator-issued service principal
-// bound to the supplied service name and resource. Separate resources must
-// use separate credentials and audiences.
-func NewServiceTokenSourceFor(credentials CredentialReader, authenticatorURL string, client *http.Client, serviceName, resource string) (*ServiceTokenSource, error) {
+// bound to the supplied principal name and resource. Separate resources must
+// use separate credentials and audiences. Each peer verifies the token it is
+// given, so no identity is expected here, and the errors are deliberately
+// terse: they never carry the credential authority's or authenticator's reason.
+func NewServiceTokenSourceFor(credentials CredentialReader, authenticatorURL string, client *http.Client, principal, resource string, options ...servicetoken.Option) (*servicetoken.Tokens, error) {
 	if credentials == nil || strings.TrimSpace(authenticatorURL) == "" {
 		return nil, errors.New("Treasury service credential authority and authenticator are required")
 	}
-	serviceName, resource = strings.TrimSpace(serviceName), strings.TrimSpace(resource)
-	if serviceName == "" || resource == "" {
+	principal, resource = strings.TrimSpace(principal), strings.TrimSpace(resource)
+	if principal == "" || resource == "" {
 		return nil, errors.New("Treasury service principal name and resource are required")
 	}
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
 	}
-	identity := "scenario-authenticator/service-principal/" + serviceName + "/" + resource
-	return &ServiceTokenSource{credentials: credentials, credentialIdentity: identity, client: accountsconnect.NewAccountsServiceClient(client, strings.TrimRight(authenticatorURL, "/")), now: time.Now}, nil
+	identity := "scenario-authenticator/service-principal/" + principal + "/" + resource
+	exchanger := servicetoken.AuthenticatorExchanger(client, func(context.Context) (string, error) {
+		return strings.TrimRight(authenticatorURL, "/"), nil
+	})
+	return servicetoken.New(servicetoken.Config{
+		Credential: func(ctx context.Context) (string, error) {
+			return credentials.Resolve(ctx, identity, "credential")
+		},
+		RefreshMargin: time.Minute,
+		Describe:      describeTreasuryServiceFailure,
+	}, append([]servicetoken.Option{servicetoken.WithExchanger(exchanger)}, options...)...), nil
 }
 
-func (s *ServiceTokenSource) Token(ctx context.Context) (string, error) {
-	if s == nil || s.credentials == nil || s.client == nil {
-		return "", errors.New("Treasury service identity is unavailable")
+func describeTreasuryServiceFailure(kind, _ error) error {
+	switch kind {
+	case servicetoken.ErrNotIssued:
+		return servicetoken.Kind(kind, errors.New("Treasury service credential is unavailable"))
+	case servicetoken.ErrExchangeFailed:
+		return servicetoken.Kind(kind, errors.New("Treasury service credential exchange failed"))
+	case servicetoken.ErrNoUsableToken:
+		return servicetoken.Kind(kind, errors.New("Treasury service credential exchange returned no current token"))
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.token != "" && s.now().Add(time.Minute).Before(s.expires) {
-		return s.token, nil
-	}
-	s.token, s.expires = "", time.Time{}
-	identity := strings.TrimSpace(s.credentialIdentity)
-	if identity == "" {
-		identity = TreasuryServiceCredentialIdentity
-	}
-	credential, err := s.credentials.Resolve(ctx, identity, "credential")
-	if err != nil || strings.TrimSpace(credential) == "" {
-		return "", errors.New("Treasury service credential is unavailable")
-	}
-	response, err := s.client.ExchangeServiceCredential(ctx, connect.NewRequest(&accountsv1.ExchangeServiceCredentialRequest{Credential: credential}))
-	if err != nil {
-		return "", errors.New("Treasury service credential exchange failed")
-	}
-	if response.Msg == nil || strings.TrimSpace(response.Msg.GetAccessToken()) == "" || response.Msg.GetAccessTokenExpiresAt() == nil || response.Msg.GetAccessTokenExpiresAt().CheckValid() != nil || !s.now().Before(response.Msg.GetAccessTokenExpiresAt().AsTime()) {
-		return "", errors.New("Treasury service credential exchange returned no current token")
-	}
-	s.token, s.expires = response.Msg.GetAccessToken(), response.Msg.GetAccessTokenExpiresAt().AsTime()
-	return s.token, nil
+	return servicetoken.Kind(kind, errors.New("Treasury service identity is unavailable"))
 }

@@ -49,8 +49,8 @@ func TestIdentityTokenHeadersSupportGeneratedCLIAndExplicitAgentRealm(t *testing
 func TestListMandatesRequiresVerifiedAgentAndReturnsTypedGrants(t *testing.T) {
 	verifier := &capturingVerifier{}
 	now := time.Now().UTC()
-	handler := NewConnectHandler(mandateLister{values: []mandate.Mandate{{AgentSubject: "agent:1", AgentRunID: "test-run", BudgetID: "budget-1", ID: "mandate-1", Authorizer: "local-operator", ExpiresAt: now.Add(time.Hour), IssuedAt: now, Status: mandateflow.MandateLive}}}, verifier).(*connectHandler)
-	request := connect.NewRequest(&authorizationv1.ListMandatesRequest{})
+	handler := NewConnectHandler(AgentSpendDependencies{Mandates: mandateLister{values: []mandate.Mandate{{AgentSubject: "agent:1", AgentRunID: "test-run", BudgetID: "budget-1", ID: "mandate-1", Authorizer: "local-operator", ExpiresAt: now.Add(time.Hour), IssuedAt: now, Status: mandateflow.MandateLive}}}, Verifier: verifier, Clock: schedule.NewFake(now)}).(*connectHandler)
+	request := connect.NewRequest(&authorizationv1.AgentListMandatesRequest{})
 	request.Header().Set("Authorization", "Bearer generated-cli-agent-token")
 	response, err := handler.ListMandates(context.Background(), request)
 	require.NoError(t, err)
@@ -79,7 +79,7 @@ func TestProposeChargeFailsClosedWhenIdentityAuthorityIsUnavailable(t *testing.T
 	require.NoError(t, database.EnsureSchemas(context.Background(), handle, database.SchemaProviderFunc(authorization.Schema), database.SchemaProviderFunc(evidence.Schema)))
 	now := time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC)
 	service := authorization.NewService(authorization.NewSQLiteRepository(handle), handlerVerifier{err: errors.New("connection refused")}, handlerMandates{}, handlerBudgets{}, evidence.NewRecorder(evidence.NewSQLiteRecorder(handle)), schedule.NewFake(now))
-	handler := NewConnectHandler(service).(*connectHandler)
+	handler := NewConnectHandler(AgentSpendDependencies{Authorization: service}).(*connectHandler)
 	request := connect.NewRequest(&authorizationv1.ProposeChargeRequest{Id: "auth-1", IdempotencyKey: "key-1", MandateId: "mandate-1", AmountMinor: 10, Currency: "USD", Counterparty: "api.example", SettlementId: "settlement-1", InstrumentId: "instrument-1", SettlementIdempotencyKey: "settlement-key-1"})
 
 	response, err := handler.ProposeCharge(context.Background(), request)
@@ -101,7 +101,7 @@ func TestProposeChargeCannotSupplyItsOwnVerdict(t *testing.T) {
 	grant := mandate.Mandate{AgentSubject: "operator:1", AgentRunID: "test-run", ID: "mandate-1", BookID: "book-1", BudgetID: "budget-1", CapMinor: 100, Currency: "USD", AllowedCounterparties: []string{"api.example"}, ExpiresAt: now.Add(time.Hour), Status: mandateflow.MandateLive}
 	policy := budget.Budget{ID: "budget-1", BookID: "book-1", Currency: "USD", TotalCapMinor: 100, PeriodicCapMinor: 100, PerTransactionCapMinor: 50, Period: time.Hour, AllowedCounterparties: []string{"api.example"}}
 	service := authorization.NewService(authorization.NewSQLiteRepository(handle), handlerVerifier{claims: agentclaims.For("operator:1")}, handlerMandates{grant}, handlerBudgets{policy}, evidence.NewRecorder(evidence.NewSQLiteRecorder(handle)), schedule.NewFake(now))
-	handler := NewConnectHandler(service).(*connectHandler)
+	handler := NewConnectHandler(AgentSpendDependencies{Authorization: service}).(*connectHandler)
 	request := connect.NewRequest(&authorizationv1.ProposeChargeRequest{Id: "auth-1", IdempotencyKey: "key-1", MandateId: "mandate-1", AmountMinor: 125, Currency: "USD", Counterparty: "api.example", SettlementId: "settlement-1", InstrumentId: "instrument-1", SettlementIdempotencyKey: "settlement-key-1"})
 	request.Header().Set(identity.HeaderAgentIdentityToken, "opaque")
 
@@ -159,11 +159,12 @@ func TestGetAuthorizationRequiresLiveOwnerIdentity(t *testing.T) {
 			repository := &authorizationReadRepository{record: authorization.Record{ID: "public-attempt", RequestingAgent: "owner-account", Counterparty: "private-counterparty.example", AmountMinor: 10}}
 			service := authorization.NewService(repository, nil, nil, nil, nil, nil)
 			verifier := &authorizationReadVerifier{claims: agentclaims.For(test.subject), err: test.verifyErr}
+			clk := schedule.NewFake(time.Now().UTC())
 			var handler *connectHandler
 			if test.noVerifier {
-				handler = NewConnectHandler(service).(*connectHandler)
+				handler = NewConnectHandler(AgentSpendDependencies{Authorization: service, Clock: clk}).(*connectHandler)
 			} else {
-				handler = NewConnectHandler(service, verifier).(*connectHandler)
+				handler = NewConnectHandler(AgentSpendDependencies{Authorization: service, Verifier: verifier, Clock: clk}).(*connectHandler)
 			}
 			request := connect.NewRequest(&authorizationv1.GetAuthorizationRequest{Id: "public-attempt"})
 			request.Header().Set(identity.HeaderAgentIdentityToken, test.token)
@@ -192,7 +193,7 @@ func TestGetAuthorizationRechecksRevokedIdentity(t *testing.T) {
 	repository := &authorizationReadRepository{record: authorization.Record{ID: "public-attempt", RequestingAgent: "owner-account"}}
 	service := authorization.NewService(repository, nil, nil, nil, nil, nil)
 	verifier := &authorizationReadVerifier{claims: agentclaims.For("owner-account")}
-	handler := NewConnectHandler(service, verifier).(*connectHandler)
+	handler := NewConnectHandler(AgentSpendDependencies{Authorization: service, Verifier: verifier, Clock: schedule.NewFake(time.Now().UTC())}).(*connectHandler)
 	request := connect.NewRequest(&authorizationv1.GetAuthorizationRequest{Id: "public-attempt"})
 	request.Header().Set(identity.HeaderAgentIdentityToken, "public-fake-token")
 	_, err := handler.GetAuthorization(context.Background(), request)

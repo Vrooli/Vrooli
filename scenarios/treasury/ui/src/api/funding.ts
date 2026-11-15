@@ -1,14 +1,16 @@
 import { createClient } from "@connectrpc/connect";
-import { TreasuryAdmin } from "@vrooli/proto-types/treasury/v1/authorization/authorization_pb";
+import { AgentSpend, TreasuryAdmin } from "@vrooli/proto-types/treasury/v1/authorization/authorization_pb";
 import type {
   FundingIntent,
   Withdrawal,
   WithdrawalQuote,
 } from "@vrooli/proto-types/treasury/v1/funding/wallet_ops_pb";
+import type { AgentBudgetHeadroom } from "@vrooli/proto-types/treasury/v1/authorization/authorization_pb";
 
 import { transport } from "./client";
 
 const treasuryAdmin = createClient(TreasuryAdmin, transport);
+const agentSpend = createClient(AgentSpend, transport);
 
 function operatorHeaders(operatorToken: string): HeadersInit {
   return { Authorization: `Bearer ${operatorToken}` };
@@ -33,6 +35,14 @@ export async function createFundingIntent(
 export async function listFundingIntents(operatorToken: string, budgetId: string): Promise<FundingIntent[]> {
   const response = await treasuryAdmin.listFundingIntents({ budgetId }, { headers: operatorHeaders(operatorToken) });
   return response.intents;
+}
+
+export async function getBudgetHeadroom(agentIdentityToken: string, budgetId: string): Promise<AgentBudgetHeadroom> {
+  const response = await agentSpend.getBudgetHeadroom({ budgetId }, {
+    headers: { "X-Agent-Identity-Token": agentIdentityToken },
+  });
+  if (!response.headroom) throw new Error("Treasury returned empty budget headroom");
+  return response.headroom;
 }
 
 export async function confirmFundingTransfer(operatorToken: string, id: string, transactionHash: string): Promise<FundingIntent> {

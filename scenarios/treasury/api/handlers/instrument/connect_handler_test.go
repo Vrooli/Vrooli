@@ -1,4 +1,4 @@
-package treasuryadmin_test
+package instrument_test
 
 import (
 	"context"
@@ -6,15 +6,14 @@ import (
 	"testing"
 	"time"
 
-	"treasury/handlers/treasuryadmin"
+	handler "treasury/handlers/instrument"
 	"treasury/internal/instrument"
 	"treasury/internal/operatorauth"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
-	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
-	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
 	instrumentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/instrument"
+	instrumentconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/instrument/instrument_v1connect"
 )
 
 type instrumentRegistrar struct{ input instrument.RegisterInput }
@@ -28,11 +27,16 @@ func TestRegisterInstrumentNeverReturnsCredentialReference(t *testing.T) {
 	authorizer, err := operatorauth.NewStaticToken("operator-secret")
 	require.NoError(t, err)
 	registrar := &instrumentRegistrar{}
-	_, transport := authorizationconnect.NewTreasuryAdminHandler(treasuryadmin.NewConnectHandler(authorizer, registrar))
+	_, transport := instrumentconnect.NewInstrumentAdminServiceHandler(handler.NewConnectHandler(authorizer, registrar))
 	server := httptest.NewServer(transport)
 	t.Cleanup(server.Close)
-	client := authorizationconnect.NewTreasuryAdminClient(server.Client(), server.URL)
-	request := connect.NewRequest(&authorizationv1.RegisterInstrumentRequest{Instrument: &instrumentv1.Instrument{Id: "instrument-1", MandateId: "mandate-1", Rail: "manual", CredentialReference: "vrooli/treasury/manual-1", Counterparty: "vendor.example", CapMinor: 999999}})
+	client := instrumentconnect.NewInstrumentAdminServiceClient(server.Client(), server.URL)
+	agentRequest := connect.NewRequest(&instrumentv1.RegisterInstrumentRequest{Instrument: &instrumentv1.Instrument{Id: "agent-instrument", MandateId: "mandate-1", Rail: "manual"}})
+	agentRequest.Header().Set(operatorauth.HeaderAgentToken, "valid-agent-token")
+	_, err = client.RegisterInstrument(context.Background(), agentRequest)
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	require.Empty(t, registrar.input.ID, "agent realm is denied before instrument registration")
+	request := connect.NewRequest(&instrumentv1.RegisterInstrumentRequest{Instrument: &instrumentv1.Instrument{Id: "instrument-1", MandateId: "mandate-1", Rail: "manual", CredentialReference: "vrooli/treasury/manual-1", Counterparty: "vendor.example", CapMinor: 999999}})
 	request.Header().Set(operatorauth.HeaderOperatorToken, "operator-secret")
 
 	response, err := client.RegisterInstrument(context.Background(), request)

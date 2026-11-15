@@ -136,6 +136,40 @@ func TestProvisionBudgetWalletIsStableBoundAndContainsNoCustodyMaterial(t *testi
 	}
 }
 
+func TestProvisionBudgetWalletsAreIsolatedAcrossBudgets(t *testing.T) { // [REQ:TRS-P0-001]
+	service, ctx := setupWalletOpsTest(t)
+	_, err := service.Budgets.Create(ctx, budget.Budget{
+		ID: "second-research-budget", BookID: "research", Currency: "USD",
+		TotalCapMinor: 10_000, PeriodicCapMinor: 5_000, PerTransactionCapMinor: 1_000,
+		Period: time.Hour, AllowedCounterparties: []string{"vendor.example"},
+	})
+	require.NoError(t, err)
+
+	first, err := service.Provision(ctx, "local-operator", &fundingpb.ProvisionBudgetWalletRequest{
+		BudgetId: "research-budget", Network: baseusdc.Network, AgentSubject: "agent:research-a", AgentRunId: "run-a",
+	})
+	require.NoError(t, err)
+	second, err := service.Provision(ctx, "local-operator", &fundingpb.ProvisionBudgetWalletRequest{
+		BudgetId: "second-research-budget", Network: baseusdc.Network, AgentSubject: "agent:research-b", AgentRunId: "run-b",
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, first.GetWalletId(), second.GetWalletId())
+	require.NotEqual(t, first.GetAddress(), second.GetAddress(), "different budget identities must derive different addresses")
+
+	firstClaims := walletReadClaims(t, service.Clock.Now(), "agent:research-a", "run-a", "research-budget")
+	secondClaims := walletReadClaims(t, service.Clock.Now(), "agent:research-b", "run-b", "second-research-budget")
+	firstRead, err := service.GetForAgent(ctx, first.GetBudgetId(), "", firstClaims)
+	require.NoError(t, err)
+	require.Equal(t, first.GetAddress(), firstRead.GetAddress())
+	secondRead, err := service.GetForAgent(ctx, second.GetBudgetId(), "", secondClaims)
+	require.NoError(t, err)
+	require.Equal(t, second.GetAddress(), secondRead.GetAddress())
+	_, err = service.GetForAgent(ctx, first.GetBudgetId(), "", secondClaims)
+	require.Error(t, err, "a second budget's run identity must not read the first budget wallet")
+	_, err = service.GetForAgent(ctx, second.GetBudgetId(), "", firstClaims)
+	require.Error(t, err, "a first budget's run identity must not read the second budget wallet")
+}
+
 func TestProvisionBudgetWalletRefusesIdentityReuseAndForeignReads(t *testing.T) {
 	service, ctx := setupWalletOpsTest(t)
 	request := &fundingpb.ProvisionBudgetWalletRequest{
@@ -299,7 +333,7 @@ func TestMandateSessionWalletExpiresRotatesAndRevokesByGeneration(t *testing.T) 
 	_, err = service.GetMandateSessionForAgent(ctx, "research-budget", session.MandateID, claims)
 	require.ErrorIs(t, err, ErrNotFound)
 
-	rotated, err := service.RotateMandateSession(ctx, "local-operator", session.MandateID)
+	rotated, err := service.RotateMandateSession(ctx, "local-operator", session.MandateID, "rotate-session-test-key")
 	require.NoError(t, err)
 	require.Equal(t, int64(2), rotated.Generation)
 	require.Equal(t, session.Address, rotated.Address, "rotation preserves the derived budget address")
@@ -309,6 +343,160 @@ func TestMandateSessionWalletExpiresRotatesAndRevokesByGeneration(t *testing.T) 
 	require.NoError(t, service.RevokeMandateSession(ctx, "local-operator", session.MandateID))
 	_, err = service.GetMandateSessionForAgent(ctx, "research-budget", session.MandateID, claims)
 	require.Error(t, err)
+}
+
+func TestMandateSessionRotationReplayReturnsSameGenerationAcrossServiceRestart(t *testing.T) { // [REQ:TRS-P0-001]
+	service, ctx, _, session, _ := provisionTestMandateSession(t)
+	request := &fundingpb.ProvisionBudgetWalletRequest{
+		BudgetId: session.BudgetID, Network: session.Network, AgentSubject: session.AgentSubject, AgentRunId: session.AgentRunID,
+		MandateId: session.MandateID, RotateSession: true, RotationIdempotencyKey: "rotate-generation-2",
+	}
+	first, err := service.Provision(ctx, "local-operator", request)
+	require.NoError(t, err)
+	require.Equal(t, session.Generation+1, first.GetSessionGeneration())
+	changedPayload := proto.Clone(request).(*fundingpb.ProvisionBudgetWalletRequest)
+	changedPayload.AgentRunId = "different-run"
+	_, err = service.Provision(ctx, "local-operator", changedPayload)
+	require.ErrorIs(t, err, ErrConflict, "the same rotation request identity cannot be rebound to a different run")
+	var unchangedGeneration int64
+	require.NoError(t, service.DB.QueryRowContext(ctx, `SELECT generation FROM mandate_session_keys WHERE mandate_id=? AND state='active'`, session.MandateID).Scan(&unchangedGeneration))
+	require.Equal(t, first.GetSessionGeneration(), unchangedGeneration, "changed-input rejection must preserve the active generation")
+
+	// Simulate process death after the new generation is active but before the
+	// caller's result snapshot is persisted. A different request must fail
+	// closed; the same request must resume that generation rather than retire it.
+	_, err = service.DB.ExecContext(ctx, `UPDATE mandate_session_rotations SET result_json=X'' WHERE mandate_id=? AND operator_identity=? AND idempotency_key=?`, session.MandateID, "local-operator", request.GetRotationIdempotencyKey())
+	require.NoError(t, err)
+	changed := proto.Clone(request).(*fundingpb.ProvisionBudgetWalletRequest)
+	changed.RotationIdempotencyKey = "different-rotation"
+	_, err = service.Provision(ctx, "local-operator", changed)
+	require.ErrorIs(t, err, ErrConflict)
+
+	restarted := New(Config{
+		DB: service.DB, Wallets: service.Wallets, Books: service.Books, Budgets: service.Budgets, Clock: service.Clock,
+		Mandates: service.Mandates, Authorizations: service.Authorizations,
+	})
+	replay, err := restarted.Provision(ctx, "local-operator", proto.Clone(request).(*fundingpb.ProvisionBudgetWalletRequest))
+	require.NoError(t, err)
+	require.True(t, proto.Equal(first, replay))
+	var activeGeneration int64
+	require.NoError(t, restarted.DB.QueryRowContext(ctx, `SELECT generation FROM mandate_session_keys WHERE mandate_id=? AND state='active'`, session.MandateID).Scan(&activeGeneration))
+	require.Equal(t, first.GetSessionGeneration(), activeGeneration, "replay after service reconstruction must leave exactly the original rotated generation active")
+
+	secondRequest := proto.Clone(request).(*fundingpb.ProvisionBudgetWalletRequest)
+	secondRequest.RotationIdempotencyKey = "rotate-generation-3"
+	second, err := restarted.Provision(ctx, "local-operator", secondRequest)
+	require.NoError(t, err)
+	require.Equal(t, first.GetSessionGeneration()+1, second.GetSessionGeneration(), "a distinct key expresses a distinct rotation")
+	conflict, err := restarted.Provision(ctx, "local-operator", proto.Clone(request).(*fundingpb.ProvisionBudgetWalletRequest))
+	require.NoError(t, err)
+	require.True(t, proto.Equal(first, conflict), "replaying a completed old key returns its retained result without rolling back or rotating again")
+}
+
+func TestProvisionBudgetWalletRotationRequiresIdempotencyKeyBeforeCreatingWallet(t *testing.T) { // [REQ:TRS-P0-001]
+	service, ctx := setupWalletOpsTest(t)
+	_, err := service.Provision(ctx, "local-operator", &fundingpb.ProvisionBudgetWalletRequest{
+		BudgetId: "research-budget", Network: baseusdc.Network, AgentSubject: "agent:research", AgentRunId: "run-42",
+		MandateId: "missing-mandate", RotateSession: true,
+	})
+	require.ErrorIs(t, err, ErrInvalid)
+	var roots, children int
+	require.NoError(t, service.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM research_wallets`).Scan(&roots))
+	require.NoError(t, service.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM budget_wallets`).Scan(&children))
+	require.Zero(t, roots, "invalid rotate request must fail before creating the budget root wallet")
+	require.Zero(t, children, "invalid rotate request must fail before persisting the budget wallet binding")
+}
+
+func TestMandateSessionRotationAndRevocationStayWithinBudgetRun(t *testing.T) { // [REQ:TRS-P0-001]
+	service, ctx, now, first, firstPrivateKey := provisionTestMandateSession(t)
+	_, err := service.Budgets.Create(ctx, budget.Budget{
+		ID: "second-research-budget", BookID: "research", Currency: "USD",
+		TotalCapMinor: 10_000, PeriodicCapMinor: 5_000, PerTransactionCapMinor: 1_000,
+		Period: time.Hour, AllowedCounterparties: []string{"vendor.example"},
+	})
+	require.NoError(t, err)
+	_, err = service.Provision(ctx, "local-operator", &fundingpb.ProvisionBudgetWalletRequest{
+		BudgetId: "second-research-budget", Network: baseusdc.Network, AgentSubject: "agent:research-b", AgentRunId: "run-b",
+	})
+	require.NoError(t, err)
+	_, err = service.Mandates.Issue(ctx, mandate.IssueInput{
+		ID: "second-mandate-session-test", IdempotencyKey: "second-mandate-session-test-key", BookID: "research", BudgetID: "second-research-budget",
+		AgentSubject: "agent:research-b", AgentRunID: "run-b", Authorizer: "local-operator", CapMinor: 1_000,
+		Currency: "USD", AllowedCounterparties: []string{"vendor.example"}, ExpiresAt: now.Add(time.Hour),
+	})
+	require.NoError(t, err)
+	second, err := service.ProvisionMandateSession(ctx, "local-operator", "second-mandate-session-test")
+	require.NoError(t, err)
+	require.NotEqual(t, first.Address, second.Address)
+	var phantomSessionWallets int
+	require.NoError(t, service.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM research_wallets WHERE id LIKE 'mandate-session-%'`).Scan(&phantomSessionWallets))
+	require.Zero(t, phantomSessionWallets, "agent session generations must not mint unused Treasury wallet keys")
+	secondKey, err := gethcrypto.GenerateKey()
+	require.NoError(t, err)
+	secondClaims := walletWriteClaims(t, now, second.AgentSubject, second.AgentRunID, second.BudgetID)
+	require.NoError(t, service.BindAgentSessionPublicKey(ctx, second.BudgetID, second.MandateID, secondClaims, "0x"+hex.EncodeToString(gethcrypto.FromECDSAPub(&secondKey.PublicKey))))
+	secondAuthorization := authorization.Record{
+		ID: "second-budget-rotation-auth", IdempotencyKey: "second-budget-rotation-auth", BookID: "research", MandateID: second.MandateID,
+		BudgetID: second.BudgetID, RequestingAgent: second.AgentSubject, AmountMinor: 100, Currency: "USD",
+		Counterparty: "vendor.example", Verdict: authorization.VerdictApproved, HoldMinor: 100,
+		CreatedAt: now, ExpiresAt: now.Add(time.Minute),
+	}
+	require.NoError(t, insertApprovedAuthorization(t, ctx, service, secondAuthorization))
+	secondIntent := intentForSession(second, secondAuthorization.ID, "second-budget-rotation-settlement", "instrument-test", secondAuthorization.ID, secondAuthorization.AmountMinor, secondAuthorization.Currency, secondAuthorization.Counterparty)
+	secondSignature, err := signAgentIntent("0x"+hex.EncodeToString(gethcrypto.FromECDSA(secondKey)), secondIntent)
+	require.NoError(t, err)
+	require.NoError(t, service.AuthorizeAgentSettlement(ctx, secondClaims, secondIntent, secondSignature), "second run's key must authorize only its own approved spend")
+
+	firstAuthorization := authorization.Record{
+		ID: "first-budget-rotation-auth", IdempotencyKey: "first-budget-rotation-auth", BookID: "research", MandateID: first.MandateID,
+		BudgetID: first.BudgetID, RequestingAgent: first.AgentSubject, AmountMinor: 100, Currency: "USD",
+		Counterparty: "0x0000000000000000000000000000000000000001", Verdict: authorization.VerdictApproved, HoldMinor: 100,
+		CreatedAt: now, ExpiresAt: now.Add(time.Minute),
+	}
+	require.NoError(t, insertApprovedAuthorization(t, ctx, service, firstAuthorization))
+	firstIntent := intentForSession(first, firstAuthorization.ID, "first-budget-rotation-settlement", "instrument-test", firstAuthorization.ID, firstAuthorization.AmountMinor, firstAuthorization.Currency, firstAuthorization.Counterparty)
+	firstSignature, err := signAgentIntent(firstPrivateKey, firstIntent)
+	require.NoError(t, err)
+	firstClaims := walletWriteClaims(t, now, first.AgentSubject, first.AgentRunID, first.BudgetID)
+
+	firstRotated, err := service.RotateMandateSession(ctx, "local-operator", first.MandateID, "first-budget-rotation-key")
+	require.NoError(t, err)
+	require.Equal(t, first.Generation+1, firstRotated.Generation)
+	require.Equal(t, first.Address, firstRotated.Address)
+	require.NoError(t, service.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM research_wallets WHERE id LIKE 'mandate-session-%'`).Scan(&phantomSessionWallets))
+	require.Zero(t, phantomSessionWallets, "rotation must create a new run-held public-key generation without minting a Treasury key")
+	require.ErrorIs(t, service.AuthorizeAgentSettlement(ctx, firstClaims, firstIntent, firstSignature), ErrSessionInactive,
+		"the retired generation cannot authorize a settlement after rotation")
+	secondVisible, err := service.GetMandateSessionForAgent(ctx, second.BudgetID, second.MandateID, walletReadClaims(t, now, second.AgentSubject, second.AgentRunID, second.BudgetID))
+	require.NoError(t, err, "rotating one budget must not revoke another budget's run session")
+	require.Equal(t, second, secondVisible)
+	require.NoError(t, service.AuthorizeAgentSettlement(ctx, secondClaims, secondIntent, secondSignature),
+		"rotating a different budget must not invalidate its run-owned settlement authority")
+
+	rotatedFirstKey, err := gethcrypto.GenerateKey()
+	require.NoError(t, err)
+	require.NoError(t, service.BindAgentSessionPublicKey(ctx, first.BudgetID, first.MandateID, firstClaims,
+		"0x"+hex.EncodeToString(gethcrypto.FromECDSAPub(&rotatedFirstKey.PublicKey))))
+	firstIntent.Generation = firstRotated.Generation
+	firstIntent.ExpiresAt = firstRotated.ExpiresAt.UTC().Format(time.RFC3339Nano)
+	firstIntent.SettlementID = "first-budget-rotated-settlement"
+	rotatedFirstSignature, err := signAgentIntent("0x"+hex.EncodeToString(gethcrypto.FromECDSA(rotatedFirstKey)), firstIntent)
+	require.NoError(t, err)
+	require.NoError(t, service.AuthorizeAgentSettlement(ctx, firstClaims, firstIntent, rotatedFirstSignature),
+		"an operator-rotated generation accepts a newly bound key for that same run")
+	_, err = service.GetMandateSessionForAgent(ctx, second.BudgetID, second.MandateID, walletReadClaims(t, now, first.AgentSubject, first.AgentRunID, first.BudgetID))
+	require.Error(t, err, "a different budget/run cannot read the second budget's session")
+
+	require.NoError(t, service.RevokeMandateSession(ctx, "local-operator", first.MandateID))
+	_, err = service.GetMandateSessionForAgent(ctx, first.BudgetID, first.MandateID, walletReadClaims(t, now, first.AgentSubject, first.AgentRunID, first.BudgetID))
+	require.Error(t, err, "revocation must disable only the bound budget/run session")
+	require.ErrorIs(t, service.AuthorizeAgentSettlement(ctx, firstClaims, firstIntent, rotatedFirstSignature), ErrSessionInactive,
+		"revocation prevents the previously rebound session from authorizing future work")
+	secondVisible, err = service.GetMandateSessionForAgent(ctx, second.BudgetID, second.MandateID, secondClaims)
+	require.NoError(t, err, "revoking one budget must leave another independently bound session active")
+	require.Equal(t, second, secondVisible)
+	require.NoError(t, service.AuthorizeAgentSettlement(ctx, secondClaims, secondIntent, secondSignature),
+		"first-budget revocation does not disturb idempotent recovery for the second budget's already consumed exact proof")
 }
 
 func TestMandateRotationRejectsProofFromPreviousGeneration(t *testing.T) { // [REQ:TRS-P0-001]
@@ -325,7 +513,7 @@ func TestMandateRotationRejectsProofFromPreviousGeneration(t *testing.T) { // [R
 	require.NoError(t, err)
 	claims := walletWriteClaims(t, now, session.AgentSubject, session.AgentRunID, session.BudgetID)
 
-	rotated, err := service.RotateMandateSession(ctx, "local-operator", session.MandateID)
+	rotated, err := service.RotateMandateSession(ctx, "local-operator", session.MandateID, "rotate-session-test-key")
 	require.NoError(t, err)
 	require.Equal(t, session.Generation+1, rotated.Generation)
 	require.Equal(t, session.Address, rotated.Address)

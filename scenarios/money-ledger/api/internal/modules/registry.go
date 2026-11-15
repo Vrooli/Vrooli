@@ -19,6 +19,7 @@ package modules
 import (
 	"money-ledger/internal/module"
 
+	accessH "money-ledger/handlers/access"
 	capsH "money-ledger/handlers/capabilities"
 
 	apidb "github.com/vrooli/api-core/database"
@@ -29,6 +30,7 @@ import (
 	ledgerH "money-ledger/handlers/ledger"
 	localdb "money-ledger/internal/database"
 
+	accessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/access"
 	ingestv1 "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest"
 	ledgerv1 "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ledger"
 )
@@ -41,6 +43,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
+	out = append(out, accessH.Endpoints...)
 	out = append(out, ledgerH.Endpoints...)
 	out = append(out, ingestH.Endpoints...)
 	return out
@@ -69,6 +72,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "access", File: accessv1.File_money_ledger_v1_access_access_proto},
 		{Module: "ledger", File: ledgerv1.File_money_ledger_v1_ledger_ledger_proto},
 		{Module: "ingest", File: ingestv1.File_money_ledger_v1_ingest_ingest_proto},
 	}

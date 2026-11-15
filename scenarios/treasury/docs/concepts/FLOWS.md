@@ -155,7 +155,9 @@ workflow model.
   own idempotency.
 - **Constraint:** emission never blocks settlement. A downstream outage
   must not prevent money that already moved from being recorded locally;
-  the emission queue drains later.
+  the emission queue drains later. Until the operator has chosen a
+  destination (`treasury ledger destination-set`), every settlement waits in
+  the queue and `emissions-list` and `destination-show` say so.
 - **Basis rule:** `authoritative` when a rail confirmed the movement,
   `operator-asserted` for the manual rail.
 - **Tests:** `TRS-P0-008`.

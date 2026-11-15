@@ -13,11 +13,12 @@
 package httpx
 
 import (
-	"log"
 	"net/http"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+
+	"treasury/internal/logx"
 
 	errorsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/shared"
 )
@@ -62,6 +63,12 @@ const (
 // new shape introduces a real failure mode. If that day comes, the
 // right move is to thread the logger; do not silently drop the log.
 func WriteError(w http.ResponseWriter, status int, code, message string) {
+	WriteErrorWithLogger(w, status, code, message, logx.System{})
+}
+
+// WriteErrorWithLogger is the injectable form used by boundary tests and
+// callers that own a request-scoped logger.
+func WriteErrorWithLogger(w http.ResponseWriter, status int, code, message string, logger logx.Logger) {
 	envelope := &errorsv1.ErrorEnvelope{
 		Code:    code,
 		Message: message,
@@ -72,7 +79,7 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 		// comment). If a future shape change makes this firable, the
 		// scenario MUST thread a logger through WriteError instead of
 		// keeping this global-log fallback.
-		log.Printf("httpx.WriteError: protojson marshal failed: %v", err)
+		logger.Error("httpx.WriteError: protojson marshal failed: %v", err)
 		body = []byte(`{"code":"internal","message":"error envelope marshal failed"}`)
 		status = http.StatusInternalServerError
 	}
@@ -84,10 +91,16 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 // WriteProto serialises msg as proto JSON for REST endpoints whose response
 // metadata is still proto-typed. Connect-RPC handlers do not use this helper.
 func WriteProto(w http.ResponseWriter, status int, msg proto.Message) {
+	WriteProtoWithLogger(w, status, msg, logx.System{})
+}
+
+// WriteProtoWithLogger is the injectable form used by boundary tests and
+// callers that own a request-scoped logger.
+func WriteProtoWithLogger(w http.ResponseWriter, status int, msg proto.Message, logger logx.Logger) {
 	body, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(msg)
 	if err != nil {
-		log.Printf("httpx.WriteProto: protojson marshal failed: %v", err)
-		WriteError(w, http.StatusInternalServerError, CodeInternal, "response marshal failed")
+		logger.Error("httpx.WriteProto: protojson marshal failed: %v", err)
+		WriteErrorWithLogger(w, http.StatusInternalServerError, CodeInternal, "response marshal failed", logger)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

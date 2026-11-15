@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"money-ledger/internal/ledger"
 
 	"github.com/stretchr/testify/require"
@@ -40,12 +42,12 @@ func TestManualAdapterUsesOperatorBasisAndDeduplicates(t *testing.T) { // [REQ:C
 	_, err = s.RegisterAdapter(ctx, &ingestpb.Adapter{Id: "manual", Name: "Hand entry", Kind: ingestpb.AdapterKind_ADAPTER_KIND_MANUAL, Enabled: true})
 	require.NoError(t, err)
 	event := &sharedpb.MoneyEvent{ExternalId: "cash-1", AdapterId: "manual", AccountId: account.Id, BookId: book.Id, AmountMinor: 900, Currency: "USD", OccurredAt: timestamppb.Now(), Basis: sharedpb.Basis_BASIS_AUTHORITATIVE}
-	posting, duplicate, receipt, err := s.IngestEvent(ctx, event)
+	posting, duplicate, receipt, err := s.IngestEvent(ctx, event, "operator")
 	require.NoError(t, err)
 	require.False(t, duplicate)
 	require.Equal(t, sharedpb.Basis_BASIS_OPERATOR_ASSERTED, posting.Event.Basis)
 	require.EqualValues(t, 1, receipt.Written)
-	_, duplicate, _, err = s.IngestEvent(ctx, event)
+	_, duplicate, _, err = s.IngestEvent(ctx, event, "operator")
 	require.NoError(t, err)
 	require.True(t, duplicate)
 }
@@ -66,13 +68,13 @@ func TestIngestEventRecordsFailureWhenSourceIdentityPayloadChanges(t *testing.T)
 		Basis:       sharedpb.Basis_BASIS_AUTHORITATIVE,
 		Description: "Base USDC transfer", Category: "funding",
 	}
-	_, duplicate, _, err := s.IngestEvent(ctx, event)
+	_, duplicate, _, err := s.IngestEvent(ctx, event, "operator")
 	require.NoError(t, err)
 	require.False(t, duplicate)
 
-	changed := *event
+	changed := proto.CloneOf(event)
 	changed.AmountMinor++
-	_, duplicate, receipt, err := s.IngestEvent(ctx, &changed)
+	_, duplicate, receipt, err := s.IngestEvent(ctx, changed, "operator")
 	require.ErrorIs(t, err, ledger.ErrExternalIDPayloadConflict)
 	require.False(t, duplicate)
 	require.Equal(t, "failed", receipt.Status)
@@ -113,7 +115,7 @@ func TestOperatorInputsImportPreservesPendingAsAbsent(t *testing.T) { // [REQ:CT
 	}
 	data, err := json.Marshal(root)
 	require.NoError(t, err)
-	report, err := s.ImportOperatorInputs(ctx, data, "operator-inputs", book.Id, account.Id)
+	report, err := s.ImportOperatorInputsJSON(ctx, "operator", data, true, "operator-inputs", book.Id, account.Id)
 	require.NoError(t, err)
 	require.Equal(t, len(operatorPaths), report.Read)
 	require.Equal(t, 7, report.Written)
@@ -137,7 +139,7 @@ func TestOperatorInputsFixtureImportCarriesSourceProvenance(t *testing.T) { // [
 	require.NoError(t, err)
 	_, err = s.RegisterAdapter(ctx, &ingestpb.Adapter{Id: "operator-inputs", Name: "Operator inputs", Kind: ingestpb.AdapterKind_ADAPTER_KIND_MANUAL, Enabled: true})
 	require.NoError(t, err)
-	report, err := s.ImportOperatorInputsFile(ctx, "testdata/operator-inputs.json", "operator-inputs", book.Id, account.Id)
+	report, err := s.ImportOperatorInputsSource(ctx, "operator", "testdata/operator-inputs.json", OperatorSourceModeFixture, true, "operator-inputs", book.Id, account.Id)
 	require.NoError(t, err)
 	require.Equal(t, 7, report.Written)
 	var description string
@@ -167,7 +169,7 @@ func TestOperatorInputStalenessIsReportedAndNotPosted(t *testing.T) { // [REQ:PO
 	}
 	data, err := json.Marshal(root)
 	require.NoError(t, err)
-	report, err := s.ImportOperatorInputs(ctx, data, "operator-inputs", book.Id, account.Id)
+	report, err := s.ImportOperatorInputsJSON(ctx, "operator", data, true, "operator-inputs", book.Id, account.Id)
 	require.NoError(t, err)
 	require.Equal(t, "stale", report.Fields[0].Status)
 	require.False(t, report.Fields[0].Written)
@@ -195,7 +197,7 @@ func TestConsoleOperatorImportDryRunClassifiesMoneyMeasureAndDerivedRate(t *test
 	}
 	data, err := json.Marshal(root)
 	require.NoError(t, err)
-	report, err := s.ImportOperatorInputsJSON(ctx, data, false, "manual", book.Id, account.Id)
+	report, err := s.ImportOperatorInputsJSON(ctx, "operator", data, false, "manual", book.Id, account.Id)
 	require.NoError(t, err)
 	require.False(t, report.Applied)
 	require.Equal(t, 13, report.Read)
@@ -204,7 +206,7 @@ func TestConsoleOperatorImportDryRunClassifiesMoneyMeasureAndDerivedRate(t *test
 	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM postings`).Scan(&postings))
 	require.Zero(t, postings)
 	require.NoError(t, func() error {
-		applied, applyErr := s.ImportOperatorInputsJSON(ctx, data, true, "manual", book.Id, account.Id)
+		applied, applyErr := s.ImportOperatorInputsJSON(ctx, "operator", data, true, "manual", book.Id, account.Id)
 		if applyErr != nil {
 			return applyErr
 		}
@@ -225,10 +227,39 @@ func TestFileImportReportsMalformedInputWithoutWriting(t *testing.T) { // [REQ:C
 	s, ctx := newIngestStore(t)
 	_, err := s.RegisterAdapter(ctx, &ingestpb.Adapter{Id: "file", Name: "CSV", Kind: ingestpb.AdapterKind_ADAPTER_KIND_FILE, Enabled: true})
 	require.NoError(t, err)
-	receipt, err := s.ImportFile(ctx, "file", []byte("external_id,account_id,book_id,amount_minor,currency,occurred_at,description,category\nfoo,account,book,nope,USD,2026-01-01T00:00:00Z,,"), nil, nil)
+	receipt, err := s.ImportFile(ctx, "operator", "file", []byte("external_id,account_id,book_id,amount_minor,currency,occurred_at,description,category\nfoo,account,book,nope,USD,2026-01-01T00:00:00Z,,"), nil, nil)
 	require.Error(t, err)
 	require.Equal(t, "failed", receipt.Status)
 	require.EqualValues(t, 0, receipt.Written)
+}
+
+// Columns are read by name: a file that orders them differently journals the
+// same event, and a file missing a required column is refused before any row.
+func TestFileImportReadsColumnsByName(t *testing.T) { // [REQ:CTR-003]
+	s, ctx := newIngestStore(t)
+	book, err := s.journal.CreateBook(ctx, "Operating", "USD")
+	require.NoError(t, err)
+	account, err := s.journal.CreateAccount(ctx, book.Id, "Cash", ledgerpb.AccountKind_ASSET)
+	require.NoError(t, err)
+	_, err = s.RegisterAdapter(ctx, &ingestpb.Adapter{Id: "file", Name: "CSV", Kind: ingestpb.AdapterKind_ADAPTER_KIND_FILE, Enabled: true})
+	require.NoError(t, err)
+	reordered := "occurred_at,currency,amount_minor,book_id,account_id,external_id,category\n2026-01-02T00:00:00Z,usd,-425," + book.Id + "," + account.Id + ",row-1,food\n"
+	receipt, err := s.ImportFile(ctx, "operator", "file", []byte(reordered), nil, nil)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, receipt.Written)
+	var amount int64
+	var currency, occurred, category string
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT amount_minor,currency,occurred_at,category FROM postings WHERE external_id='row-1'`).Scan(&amount, &currency, &occurred, &category))
+	require.EqualValues(t, -425, amount)
+	require.Equal(t, "USD", currency)
+	require.Contains(t, occurred, "2026-01-02")
+	require.Equal(t, "food", category)
+
+	_, err = s.ImportFile(ctx, "operator", "file", []byte("external_id,account_id,book_id,amount_minor,occurred_at\nrow-2,"+account.Id+","+book.Id+",1,2026-01-03T00:00:00Z\n"), nil, nil)
+	require.ErrorContains(t, err, "missing required columns: currency")
+	var postings int
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM postings`).Scan(&postings))
+	require.Equal(t, 1, postings)
 }
 
 func TestFailedAdapterIsVisibleAndNeverWritesZero(t *testing.T) { // [REQ:POS-004]
@@ -356,7 +387,7 @@ func TestOperatorInputsRouteToTheAccountKindPositionReads(t *testing.T) {
 		"monthlyBurn.infrastructure": 1500.0,
 		"servicesRevenue.consulting": 2500.0,
 	})
-	report, err := s.ImportOperatorInputsJSON(ctx, data, true, "operator-console", book.Id, "")
+	report, err := s.ImportOperatorInputsJSON(ctx, "operator", data, true, "operator-console", book.Id, "")
 	require.NoError(t, err)
 	require.Equal(t, 4, report.Written)
 
@@ -389,7 +420,7 @@ func TestOperatorImportRejectsFractionalMinorUnitsAndKeepsIntegerInputs(t *testi
 		"cash":              1250,
 		"monthlyBurn.aiApi": 1250.75,
 	})
-	report, err := s.ImportOperatorInputsJSON(ctx, data, true, "operator-console", book.Id, "")
+	report, err := s.ImportOperatorInputsJSON(ctx, "operator", data, true, "operator-console", book.Id, "")
 	require.NoError(t, err)
 	require.True(t, report.Applied)
 	require.Equal(t, 1, report.Written)
@@ -423,7 +454,7 @@ func TestUnroutableOperatorInputIsReportedRatherThanGuessed(t *testing.T) {
 	require.NoError(t, err)
 
 	data := operatorPayload(t, map[string]any{"cash": 100000.0, "monthlyBurn.aiApi": 4000.0})
-	report, err := s.ImportOperatorInputsJSON(ctx, data, true, "operator-console", book.Id, "")
+	report, err := s.ImportOperatorInputsJSON(ctx, "operator", data, true, "operator-console", book.Id, "")
 	require.NoError(t, err)
 	require.Equal(t, 1, report.Written, "only cash is routable in a book with no expense account")
 
@@ -453,7 +484,7 @@ func TestOperatorInputStatusIsBookScopedAndIgnoresArchivedBooks(t *testing.T) {
 	require.NoError(t, err)
 
 	data := operatorPayload(t, map[string]any{"cash": 5000.0, "timeAllocation.services": 0.4})
-	_, err = s.ImportOperatorInputsJSON(ctx, data, true, "operator-console", drill.Id, "")
+	_, err = s.ImportOperatorInputsJSON(ctx, "operator", data, true, "operator-console", drill.Id, "")
 	require.NoError(t, err)
 	_, err = s.journal.ArchiveBook(ctx, drill.Id, "operator")
 	require.NoError(t, err)

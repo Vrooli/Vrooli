@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { TimestampSchema } from "@bufbuild/protobuf/wkt";
-import { ApprovalRequestSchema, ApprovalStatus } from "@vrooli/proto-types/treasury/v1/approval/approval_pb";
+import { ApprovalRequestSchema, ApprovalStatus } from "@vrooli/proto-types/treasury/v1/shared/approval_pb";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

@@ -7,6 +7,7 @@ import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 import { NAV_ITEMS } from "./navItems";
+import { AccessNotice } from "../features/access/AccessNotice";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
@@ -76,6 +77,7 @@ export function AppShell() {
       sidebarStorageKey="money-ledger.sidebar-width"
       testId={selectors.layout.shell}
     >
+      <AccessNotice />
       <Outlet />
     </LibraryAppShell>
   );

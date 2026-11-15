@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/database"
 	ledgerpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ledger"
@@ -245,7 +247,22 @@ func (s *Store) ListBooks(ctx context.Context, includeArchived bool) ([]*ledgerp
 	return out, rows.Err()
 }
 
+// ErrNoActor refuses a journal change that names nobody. Every posting and
+// audit row records who made it; the API's access gate supplies the actor, so
+// a change without one never came through the gate.
+var ErrNoActor = errors.New("a journal change must name its actor")
+
+func requireActor(actor string) error {
+	if strings.TrimSpace(actor) == "" {
+		return ErrNoActor
+	}
+	return nil
+}
+
 func (s *Store) ArchiveBook(ctx context.Context, bookID, actor string) (*ledgerpb.Book, error) {
+	if err := requireActor(actor); err != nil {
+		return nil, err
+	}
 	var book ledgerpb.Book
 	var created string
 	var archived int
@@ -309,6 +326,9 @@ func (s *Store) ListAccounts(ctx context.Context, bookID string) ([]*ledgerpb.Ac
 }
 
 func (s *Store) Ingest(ctx context.Context, e *sharedpb.MoneyEvent, actor string) (*sharedpb.Posting, bool, error) {
+	if err := requireActor(actor); err != nil {
+		return nil, false, err
+	}
 	if e == nil {
 		return nil, false, errors.New("money event is required")
 	}
@@ -507,6 +527,9 @@ func (s *Store) ListPostings(ctx context.Context, accountID, bookID, from, to st
 // The first write in the transaction acquires SQLite's writer lock, so the
 // absence check and insertion are one atomic statement across handles.
 func (s *Store) Reverse(ctx context.Context, id, reason, actor string) (*sharedpb.Posting, error) {
+	if err := requireActor(actor); err != nil {
+		return nil, err
+	}
 	if strings.TrimSpace(reason) == "" {
 		return nil, errors.New("reversal reason is required")
 	}
@@ -520,7 +543,7 @@ func (s *Store) Reverse(ctx context.Context, id, reason, actor string) (*sharedp
 	if original.Event.AmountMinor == math.MinInt64 {
 		return nil, errors.New("posting amount cannot be negated in int64")
 	}
-	e := *original.Event
+	e := proto.CloneOf(original.Event)
 	e.AmountMinor = -e.AmountMinor
 	e.ExternalId = "reversal:" + id
 	e.Basis = sharedpb.Basis_BASIS_OPERATOR_ASSERTED
@@ -567,6 +590,9 @@ func (s *Store) Reverse(ctx context.Context, id, reason, actor string) (*sharedp
 }
 
 func (s *Store) Transfer(ctx context.Context, fromAccount, toAccount string, amount int64, currency, externalID, description string, occurred *timestamppb.Timestamp, actor string) ([]*sharedpb.Posting, error) {
+	if err := requireActor(actor); err != nil {
+		return nil, err
+	}
 	if amount <= 0 || strings.TrimSpace(externalID) == "" || occurred == nil {
 		return nil, errors.New("transfer requires a positive amount, external_id, and occurred_at")
 	}
@@ -863,6 +889,9 @@ func (s *Store) ListGoals(ctx context.Context, bookID string, includeArchived bo
 }
 
 func (s *Store) ArchiveGoal(ctx context.Context, goalID, actor string) (*ledgerpb.Goal, error) {
+	if err := requireActor(actor); err != nil {
+		return nil, err
+	}
 	goal, err := s.goalByID(ctx, goalID)
 	if err != nil {
 		return nil, err
@@ -880,6 +909,9 @@ func (s *Store) ArchiveGoal(ctx context.Context, goalID, actor string) (*ledgerp
 }
 
 func (s *Store) ReparentGoal(ctx context.Context, goalID, bookID, actor string) (*ledgerpb.Goal, error) {
+	if err := requireActor(actor); err != nil {
+		return nil, err
+	}
 	goal, err := s.goalByID(ctx, goalID)
 	if err != nil {
 		return nil, err

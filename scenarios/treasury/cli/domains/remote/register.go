@@ -8,13 +8,29 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	_ "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
+	_ "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/book"
+	_ "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/budget"
+	_ "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/funding"
+	_ "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/instrument"
+	_ "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/ledger"
+	_ "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/mandate"
+	_ "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"treasury/cli/domains/catalog"
 )
 
 const (
-	agentService = "vrooli.treasury.v1.authorization.AgentSpend"
-	adminService = "vrooli.treasury.v1.authorization.TreasuryAdmin"
+	agentService        = "vrooli.treasury.v1.authorization.AgentSpend"
+	adminService        = "vrooli.treasury.v1.authorization.TreasuryAdmin"
+	budgetService       = "vrooli.treasury.v1.budget.BudgetAdminService"
+	bookService         = "vrooli.treasury.v1.book.BookAdminService"
+	instrumentService   = "vrooli.treasury.v1.instrument.InstrumentAdminService"
+	mandateService      = "vrooli.treasury.v1.mandate.MandateAdminService"
+	walletService       = "vrooli.treasury.v1.wallet.WalletAdminService"
+	fundingService      = "vrooli.treasury.v1.funding.FundingAdminService"
+	agentFundingService = "vrooli.treasury.v1.funding.FundingAgentService"
+	ledgerService       = "vrooli.treasury.v1.ledger.LedgerService"
 )
 
 type serviceSpec struct {
@@ -23,19 +39,24 @@ type serviceSpec struct {
 }
 
 var groups = map[string][]serviceSpec{
-	"wallet":        {{name: adminService, methods: []string{"TreasuryAdmin.CreateResearchWallet", "TreasuryAdmin.GetResearchWallet", "TreasuryAdmin.VerifyBaseUSDCReceipt", "TreasuryAdmin.ListBaseUSDCReceiptChecks", "TreasuryAdmin.ProveResearchWallet", "TreasuryAdmin.QualifyResearchWalletRecovery", "TreasuryAdmin.RecoverResearchWallet", "TreasuryAdmin.ExportPortableResearchWalletRecovery", "TreasuryAdmin.RestorePortableResearchWalletRecovery", "TreasuryAdmin.SubmitReceiptFunding", "TreasuryAdmin.GetReceiptFunding", "TreasuryAdmin.ProvisionBudgetWallet", "TreasuryAdmin.GetBudgetWallet", "TreasuryAdmin.CreateFundingIntent", "TreasuryAdmin.GetFundingIntent", "TreasuryAdmin.ConfirmFundingTransfer", "TreasuryAdmin.ListFundingIntents", "TreasuryAdmin.SetWithdrawalDestination", "TreasuryAdmin.PreviewWithdrawal", "TreasuryAdmin.ExecuteWithdrawal", "TreasuryAdmin.GetWithdrawal"}}},
-	"book":          {{name: adminService, methods: []string{"TreasuryAdmin.CreateBook", "TreasuryAdmin.GetBook"}}},
+	"ledger": {{name: ledgerService, methods: []string{"LedgerService.ListEmissions", "LedgerService.GetLedgerDestination", "LedgerService.SetLedgerDestination"}}},
+	"wallet": {
+		{name: walletService, methods: []string{"WalletAdminService.CreateResearchWallet", "WalletAdminService.GetResearchWallet", "WalletAdminService.VerifyBaseUSDCReceipt", "WalletAdminService.RecheckBaseUSDCReceipt", "WalletAdminService.ListBaseUSDCReceiptChecks", "WalletAdminService.ProveResearchWallet", "WalletAdminService.QualifyResearchWalletRecovery", "WalletAdminService.RecoverResearchWallet", "WalletAdminService.ExportPortableResearchWalletRecovery", "WalletAdminService.RestorePortableResearchWalletRecovery"}},
+		{name: fundingService, methods: []string{"FundingAdminService.CreateFundingIntent", "FundingAdminService.GetFundingIntent", "FundingAdminService.ConfirmFundingTransfer", "FundingAdminService.ListFundingIntents", "FundingAdminService.SubmitReceiptFunding", "FundingAdminService.GetReceiptFunding", "FundingAdminService.ProvisionBudgetWallet", "FundingAdminService.GetBudgetWallet", "FundingAdminService.SetWithdrawalDestination", "FundingAdminService.PreviewWithdrawal", "FundingAdminService.ExecuteWithdrawal", "FundingAdminService.GetWithdrawal"}},
+	},
+	"book":          {{name: bookService, methods: []string{"BookAdminService.CreateBook", "BookAdminService.GetBook"}}},
 	"authorization": {{name: agentService, methods: []string{"AgentSpend.ProposeCharge", "AgentSpend.GetAuthorization"}}},
 	"mandate": {
 		{name: agentService, methods: []string{"AgentSpend.ListMandates"}},
-		{name: adminService, methods: []string{"TreasuryAdmin.CreateMandate", "TreasuryAdmin.RevokeMandate", "TreasuryAdmin.CancelStandingMandate", "TreasuryAdmin.ListMandates"}},
+		{name: mandateService, methods: []string{"MandateAdminService.CreateMandate", "MandateAdminService.RevokeMandate", "MandateAdminService.CancelStandingMandate", "MandateAdminService.RevokeMandateSession", "MandateAdminService.ListMandates"}},
 	},
 	"budget": {
-		{name: agentService, methods: []string{"AgentSpend.GetBudgetHeadroom", "AgentSpend.GetBudgetWallet"}},
-		{name: adminService, methods: []string{"TreasuryAdmin.SetBudgetCaps", "TreasuryAdmin.SetGating", "TreasuryAdmin.FreezeBudget", "TreasuryAdmin.UnfreezeBudget", "TreasuryAdmin.FreezeBook", "TreasuryAdmin.UnfreezeBook", "TreasuryAdmin.GetFreezeStatus", "TreasuryAdmin.FreezeAll", "TreasuryAdmin.UnfreezeAll"}},
+		{name: agentService, methods: []string{"AgentSpend.GetBudgetHeadroom"}},
+		{name: agentFundingService, methods: []string{"FundingAgentService.GetBudgetWallet"}},
+		{name: budgetService, methods: []string{"BudgetAdminService.SetBudgetCaps", "BudgetAdminService.SetGating", "BudgetAdminService.FreezeBudget", "BudgetAdminService.UnfreezeBudget", "BudgetAdminService.FreezeBook", "BudgetAdminService.UnfreezeBook", "BudgetAdminService.GetFreezeStatus", "BudgetAdminService.FreezeAll", "BudgetAdminService.UnfreezeAll"}},
 	},
 	"approval":   {{name: adminService, methods: []string{"TreasuryAdmin.ListApprovals", "TreasuryAdmin.ResolveApproval"}}},
-	"instrument": {{name: adminService, methods: []string{"TreasuryAdmin.RegisterInstrument"}}},
+	"instrument": {{name: instrumentService, methods: []string{"InstrumentAdminService.RegisterInstrument"}}},
 	"settlement": {
 		{name: agentService, methods: []string{"AgentSpend.ReportOutcome"}},
 		{name: adminService, methods: []string{"TreasuryAdmin.ReportManualOutcome"}},
@@ -43,23 +64,26 @@ var groups = map[string][]serviceSpec{
 }
 
 var readMethods = map[string]bool{
-	"TreasuryAdmin.GetReceiptFunding":         true,
-	"TreasuryAdmin.GetResearchWallet":         true,
-	"TreasuryAdmin.VerifyBaseUSDCReceipt":     true,
-	"TreasuryAdmin.ListBaseUSDCReceiptChecks": true,
-	"AgentSpend.GetAuthorization":             true,
-	"AgentSpend.GetBudgetHeadroom":            true,
-	"AgentSpend.ListMandates":                 true,
-	"TreasuryAdmin.GetBook":                   true,
-	"TreasuryAdmin.ListApprovals":             true,
-	"TreasuryAdmin.ListMandates":              true,
-	"TreasuryAdmin.GetFreezeStatus":           true,
-	"AgentSpend.GetBudgetWallet":              true,
-	"TreasuryAdmin.GetBudgetWallet":           true,
-	"TreasuryAdmin.GetFundingIntent":          true,
-	"TreasuryAdmin.ListFundingIntents":        true,
-	"TreasuryAdmin.GetWithdrawal":             true,
-	"TreasuryAdmin.PreviewWithdrawal":         true,
+	"FundingAdminService.GetReceiptFunding":        true,
+	"WalletAdminService.GetResearchWallet":         true,
+	"WalletAdminService.VerifyBaseUSDCReceipt":     true,
+	"WalletAdminService.RecheckBaseUSDCReceipt":    true,
+	"WalletAdminService.ListBaseUSDCReceiptChecks": true,
+	"AgentSpend.GetAuthorization":                  true,
+	"AgentSpend.GetBudgetHeadroom":                 true,
+	"AgentSpend.ListMandates":                      true,
+	"BookAdminService.GetBook":                     true,
+	"TreasuryAdmin.ListApprovals":                  true,
+	"MandateAdminService.ListMandates":             true,
+	"BudgetAdminService.GetFreezeStatus":           true,
+	"FundingAgentService.GetBudgetWallet":          true,
+	"FundingAdminService.GetBudgetWallet":          true,
+	"FundingAdminService.GetFundingIntent":         true,
+	"FundingAdminService.ListFundingIntents":       true,
+	"FundingAdminService.GetWithdrawal":            true,
+	"FundingAdminService.PreviewWithdrawal":        true,
+	"LedgerService.ListEmissions":                  true,
+	"LedgerService.GetLedgerDestination":           true,
 }
 
 func Register(core *cliapp.ScenarioApp, manifest []byte, groupName string) (cliapp.SubcommandGroup, error) {
@@ -68,6 +92,9 @@ func Register(core *cliapp.ScenarioApp, manifest []byte, groupName string) (clia
 		return cliapp.SubcommandGroup{}, fmt.Errorf("unknown Treasury remote group %q", groupName)
 	}
 	selected := make(map[string]func(cliapp.RunContext) error)
+	if groupName == "ledger" {
+		selected["describe"] = catalog.Describe(groupName)
+	}
 	for _, spec := range specs {
 		renderers := make(map[string]cliapp.Renderer, len(spec.methods))
 		for _, method := range spec.methods {
@@ -78,7 +105,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte, groupName string) (clia
 			}
 		}
 		available, err := cliapp.ProtoBindings(core, spec.name, cliapp.ProtoBindingOptions{
-			Render: renderers, Prepare: portableRecoveryRequestPreparer(treasurySessionRequestHeaders(core), os.Stdin),
+			Render: renderers, Prepare: portableRecoveryRequestPreparer(treasurySessionRequestHeaders(core, ProductionDependencies()), os.Stdin),
 		})
 		if err != nil {
 			return cliapp.SubcommandGroup{}, fmt.Errorf("%s: build proto bindings: %w", groupName, err)

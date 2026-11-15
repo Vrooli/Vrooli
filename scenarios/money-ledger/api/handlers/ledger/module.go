@@ -5,8 +5,8 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"strings"
 
+	"money-ledger/internal/access"
 	"money-ledger/internal/ledger"
 	"money-ledger/internal/module"
 
@@ -30,6 +30,9 @@ func EnsureMigrations(db *database.RoutedDB) error {
 	return ledger.NewStore(db, nil).EnsureMigrations(context.Background())
 }
 
+// Module mounts the books, journal and position services. Who may call each
+// procedure is decided by the access gate in front of every route
+// (internal/access).
 func Module(db *database.RoutedDB, _ interface{}, logger *log.Logger) module.Module {
 	s := NewService(db, logger)
 	return module.Module{Name: "ledger", Mount: func(r *mux.Router) {
@@ -45,16 +48,10 @@ func Module(db *database.RoutedDB, _ interface{}, logger *log.Logger) module.Mod
 func invalid(err error) error  { return connect.NewError(connect.CodeInvalidArgument, err) }
 func internal(err error) error { return connect.NewError(connect.CodeInternal, err) }
 func notFound(err error) error { return connect.NewError(connect.CodeNotFound, err) }
-func actor(ctx context.Context) string {
-	if value := ctx.Value(actorKey{}); value != nil {
-		if v, ok := value.(string); ok && strings.TrimSpace(v) != "" {
-			return strings.TrimSpace(v)
-		}
-	}
-	return "operator"
-}
 
-type actorKey struct{}
+// actor is the journal name of the caller the access gate admitted. The gate
+// refuses a write before it reaches a handler unless it resolved an actor.
+func actor(ctx context.Context) string { return string(access.ActorFrom(ctx)) }
 
 func (s *Service) CreateBook(ctx context.Context, req *connect.Request[ledgerpb.CreateBookRequest]) (*connect.Response[ledgerpb.CreateBookResponse], error) {
 	b, err := s.store.CreateBook(ctx, req.Msg.Name, req.Msg.Currency)
@@ -148,7 +145,10 @@ func (s *Service) GetStatement(ctx context.Context, req *connect.Request[ledgerp
 }
 
 func (s *Service) DeclareGoal(ctx context.Context, req *connect.Request[ledgerpb.DeclareGoalRequest]) (*connect.Response[ledgerpb.DeclareGoalResponse], error) {
-	g, err := s.store.DeclareGoal(ctx, req.Msg.Goal.BookId, req.Msg.Goal)
+	if req.Msg.GetGoal() == nil {
+		return nil, invalid(errors.New("goal is required"))
+	}
+	g, err := s.store.DeclareGoal(ctx, req.Msg.GetGoal().GetBookId(), req.Msg.GetGoal())
 	if err != nil {
 		return nil, invalid(err)
 	}

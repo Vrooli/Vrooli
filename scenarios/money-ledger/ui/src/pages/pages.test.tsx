@@ -341,11 +341,11 @@ describe("ledger page empty and degraded states", () => {
     renderWithProviders(<AdaptersPage />);
     await screen.findByTestId("operator-input-surface");
     await user.type(screen.getByLabelText(/^Cash/), "125");
-    const previewButton = screen.getAllByRole("button").find((button) => /preview import/i.test(button.textContent ?? ""));
+    const previewButton = screen.getAllByRole("button").find((button) => /preview import/i.test(button.textContent));
     expect(previewButton).toBeDefined();
     await user.click(previewButton!);
     await waitFor(() => expect(api.importOperatorInputsJSON).toHaveBeenCalledWith(expect.objectContaining({ apply: false })));
-    const applyButton = screen.getAllByRole("button").find((button) => /apply reviewed import/i.test(button.textContent ?? ""));
+    const applyButton = screen.getAllByRole("button").find((button) => /apply reviewed import/i.test(button.textContent));
     expect(applyButton).toBeDefined();
     await user.click(applyButton!);
     await waitFor(() => expect(api.importOperatorInputsJSON).toHaveBeenCalledWith(expect.objectContaining({ apply: true })));

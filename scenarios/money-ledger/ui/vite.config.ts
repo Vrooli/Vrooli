@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 const localNodeModules = fileURLToPath(new URL("./node_modules", import.meta.url));
 const libraryRuntimeAliases = {
@@ -41,7 +42,7 @@ export default defineConfig(({ mode }): UserConfig => {
   return {
     // INTEROP-CRITICAL: relative assets keep the bundle safe behind a proxy or iframe.
     base: './',
-    plugins: [react(), stringsCodegen()],
+    plugins: [sourceLibraryResolver({ devOnly: true }), react(), stringsCodegen()],
     resolve: {
       alias: libraryRuntimeAliases,
       ...(isProfile

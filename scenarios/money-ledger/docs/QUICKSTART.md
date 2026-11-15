@@ -41,6 +41,10 @@ money-ledger ingest event-ingest --external-id first-event --adapter-id manual \
 money-ledger ledger position-show --book-id <book-id> --json
 ```
 
+The journal accepts a write only from a verified identity. Run `adapter-register`
+and `event-ingest` yourself with `--local-owner` (outside an agent run); the
+Treasury and Landing Page writers present their own service credentials.
+
 Repeat ingestion with the same external ID to receive a duplicate receipt,
 not a second posting. If an adapter is unavailable, the CLI and console show a
 named gap and `partial=true`; they never replace the missing value with zero.

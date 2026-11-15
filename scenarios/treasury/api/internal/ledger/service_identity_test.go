@@ -4,12 +4,17 @@ import (
 	"context"
 	"errors"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/hubsender"
+	"github.com/vrooli/api-core/serviceprincipal"
+	"github.com/vrooli/api-core/servicetoken"
 	accountsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts"
 	accountsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts/accounts_v1connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -25,7 +30,7 @@ type serviceCredentialFixture struct {
 func (f *serviceCredentialFixture) Resolve(_ context.Context, identity, field string) (string, error) {
 	expected := f.identity
 	if expected == "" {
-		expected = TreasuryServiceCredentialIdentity
+		expected = "scenario-authenticator/service-principal/treasury-money-ledger/money-ledger"
 	}
 	if identity != expected || field != "credential" {
 		return "", errors.New("wrong authority identity")
@@ -35,12 +40,12 @@ func (f *serviceCredentialFixture) Resolve(_ context.Context, identity, field st
 }
 
 func TestServiceTokenSourceCanUseDistinctAudienceBoundPrincipal(t *testing.T) {
-	authority := &serviceCredentialFixture{value: "notice-credential", identity: TreasuryNoticeCredentialIdentity}
+	authority := &serviceCredentialFixture{value: "notice-credential", identity: "scenario-authenticator/service-principal/treasury-notification-hub/notification-hub"}
 	exchange := &exchangeFixture{credential: "notice-credential", token: "notice-service-jwt", expires: time.Now().Add(time.Hour)}
 	_, handler := accountsconnect.NewAccountsServiceHandler(exchange)
 	server := httptest.NewServer(handler)
 	defer server.Close()
-	source, err := NewServiceTokenSourceFor(authority, server.URL, server.Client(), "treasury", "notification-hub")
+	source, err := NewServiceTokenSourceFor(authority, server.URL, server.Client(), NoticePrincipal, NoticeResource)
 	require.NoError(t, err)
 	token, err := source.Token(context.Background())
 	require.NoError(t, err)
@@ -75,9 +80,8 @@ func TestServiceIdentityExchangesAuthorityCredentialAndRefreshesAfterRotation(t 
 	_, handler := accountsconnect.NewAccountsServiceHandler(exchange)
 	server := httptest.NewServer(handler)
 	defer server.Close()
-	source, err := NewServiceTokenSource(authority, server.URL, server.Client())
+	source, err := NewServiceTokenSource(authority, server.URL, server.Client(), servicetoken.WithClock(func() time.Time { return now }))
 	require.NoError(t, err)
-	source.now = func() time.Time { return now }
 	var wg sync.WaitGroup
 	for range 12 {
 		wg.Go(func() {
@@ -117,4 +121,72 @@ func TestServiceIdentityRefusesRevokedCredentialOrExpiredExchange(t *testing.T) 
 	authority.value = "current"
 	_, err = source.Token(context.Background())
 	require.ErrorContains(t, err, "no current token")
+}
+
+// The terse texts are deliberate: no reason from the authority or authenticator
+// reaches a log line.
+func TestServiceIdentityErrorsNeverCarryTheUnderlyingReason(t *testing.T) {
+	authority := &serviceCredentialFixture{err: errors.New("authority path /secret/entry unreadable")}
+	source, err := NewServiceTokenSource(authority, "http://127.0.0.1:1", nil)
+	require.NoError(t, err)
+	_, err = source.Token(context.Background())
+	require.EqualError(t, err, "Treasury service credential is unavailable")
+	require.ErrorIs(t, err, servicetoken.ErrNotIssued)
+	authority.err, authority.value = nil, "issued-credential"
+	_, err = source.Token(context.Background())
+	require.EqualError(t, err, "Treasury service credential exchange failed")
+	require.ErrorIs(t, err, servicetoken.ErrExchangeFailed)
+}
+
+// Treasury holds one principal per peer, so each peer can accept exactly its own
+// and a token minted for one can never satisfy another. The credential a token
+// source reads is the one `service-principals sync --apply` issues for that name.
+func TestEachPeerPrincipalReadsItsOwnCredentialAddress(t *testing.T) {
+	for _, tc := range []struct {
+		name, principal, resource, address string
+	}{
+		{"money ledger", MoneyLedgerPrincipal, MoneyLedgerResource, "scenario-authenticator/service-principal/treasury-money-ledger/money-ledger"},
+		{"agent manager", AgentManagerPrincipal, AgentManagerResource, "scenario-authenticator/service-principal/treasury-agent-manager/agent-manager"},
+		{"notification hub", NoticePrincipal, NoticeResource, "scenario-authenticator/service-principal/treasury-notification-hub/notification-hub"},
+	} {
+		authority := &serviceCredentialFixture{value: tc.name + "-credential", identity: tc.address}
+		exchange := &exchangeFixture{credential: authority.value, token: tc.name + "-jwt", expires: time.Now().Add(time.Hour)}
+		_, handler := accountsconnect.NewAccountsServiceHandler(exchange)
+		server := httptest.NewServer(handler)
+		source, err := NewServiceTokenSourceFor(authority, server.URL, server.Client(), tc.principal, tc.resource)
+		require.NoError(t, err, tc.name)
+		token, err := source.Token(context.Background())
+		require.NoError(t, err, "%s must read exactly %s", tc.name, tc.address)
+		require.Equal(t, tc.name+"-jwt", token)
+		server.Close()
+	}
+	require.Equal(t, hubsender.Principal("treasury"), NoticePrincipal, "the Hub reads the source off the sender principal's name")
+	require.Equal(t, hubsender.CredentialIdentity("treasury"), TreasuryNoticeCredentialIdentity)
+	require.Equal(t, "scenario-authenticator/service-principal/treasury-money-ledger/money-ledger", TreasuryServiceCredentialIdentity)
+	require.Equal(t, "scenario-authenticator/service-principal/treasury-agent-manager/agent-manager", TreasuryAgentManagerCredentialIdentity)
+}
+
+// The operator issues these with one command from .vrooli/service-principals.json,
+// so the file has to say exactly what the code asks the authenticator for: the
+// name, the resource, the audience each peer verifies and its one scope.
+func TestTreasuryDeclaresExactlyTheServicePrincipalsItUses(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", filepath.Base(serviceprincipal.DeclarationFile)))
+	require.NoError(t, err)
+	declared, err := serviceprincipal.ParseDeclarations(raw)
+	require.NoError(t, err)
+	byName := map[string]serviceprincipal.Declaration{}
+	for _, d := range declared {
+		_, duplicate := byName[d.Name]
+		require.False(t, duplicate, "principal %s is declared twice", d.Name)
+		byName[d.Name] = d
+	}
+	for _, want := range []serviceprincipal.Declaration{
+		{Name: MoneyLedgerPrincipal, Resource: MoneyLedgerResource, Audience: "scenario-authenticator:money-ledger", Scopes: []string{"money-ledger:write"}},
+		{Name: AgentManagerPrincipal, Resource: AgentManagerResource, Audience: "scenario-authenticator:agent-manager", Scopes: []string{"agent-manager:write"}},
+		{Name: NoticePrincipal, Resource: NoticeResource, Audience: hubsender.Audience, Scopes: []string{hubsender.Scope}},
+	} {
+		require.Equal(t, want, byName[want.Name], "Treasury must declare %s exactly", want.Name)
+	}
+	_, shared := byName["treasury"]
+	require.False(t, shared, "one name across three resources cannot be issued; each peer has its own principal")
 }

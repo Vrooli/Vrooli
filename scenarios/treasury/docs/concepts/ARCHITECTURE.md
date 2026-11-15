@@ -195,7 +195,7 @@ reference domains. Replace this table as the scenario becomes real.
 |---|---|---|---|
 | API | Reference-ready | Domain-owned vertical-slice stack, module registry, per-domain schema, documented seams. | Starter domains must be replaced with scenario-specific capabilities. |
 | UI | Reference-ready | Feature folders, typed API clients, selector/i18n registries, modeltest helpers. | Real scenarios may need routing/state patterns once multiple screens exist. |
-| CLI | Reference-ready | Domain command groups wrap API calls and render reports. | New domains must add commands intentionally; CLI should remain thin. |
+| CLI | Manifest-backed, runtime-verified | `cli/manifest.json` declares the CLI surface; `domains/remote.Register` binds generated Connect handlers, and CLI Health's installed-binary probe checks exposed help against the manifest. | CLI Health remains at L3 with undeclared renderer-primitive warnings; keep renderer/operation separation as follow-up work. |
 | Docs | Contract-ready | Manifest v2 registers docs, maturity, stages, and validation hints. | Scenario-specific stubs must be filled or marked not-applicable. |
 
 Use `docs/manifest.json` as the documentation contract. The declared

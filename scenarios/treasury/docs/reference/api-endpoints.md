@@ -67,6 +67,76 @@ reference (see the fenced example below); `template-manager detemplate
 
 ---
 
+## Budget policy
+
+Budget caps, gating, and budget freeze controls belong to the budget-owned
+`BudgetAdminService` in
+`packages/proto/schemas/treasury/v1/budget/budget.proto`. The four operator
+methods are `SetBudgetCaps`, `SetGating`, `FreezeBudget`, and
+`UnfreezeBudget`. They are mounted by `handlers/budget/` and mirrored by the
+Treasury CLI manifest. Agent-facing spend APIs expose authorization-owned
+headroom projections; they do not grant agents policy mutation authority.
+
+---
+
+## Book administration
+
+Book creation and lookup belong to the book-owned `BookAdminService` in
+`packages/proto/schemas/treasury/v1/book/book.proto`. `CreateBook` binds the
+beneficiary identity to the authenticated operator; caller-supplied identity
+is ignored. Both `CreateBook` and `GetBook` require operator authentication.
+Their CLI mirrors are listed under `treasury book`.
+
+---
+
+## Wallet administration and receipt observation
+
+Receive-only operator wallets and Base native-USDC receipt observations belong to
+`WalletAdminService` in `packages/proto/schemas/treasury/v1/wallet/wallet.proto`.
+All wallet creation, lookup, control proof, recovery qualification/recovery,
+portable encrypted recovery bundle export/restore, and receipt verify/recheck/list
+methods require an authenticated operator. Receipt observation retains exact
+provider-reported transfer evidence only; it neither posts Money Ledger entries
+nor assigns valuation or budget credit. The CLI mirrors these operations under
+`treasury wallet`; recovery secrets are accepted only through the explicit stdin
+flow, and encrypted bundles are loaded from regular local files.
+
+## Budget wallet session rotation
+
+Operator budget-wallet provisioning remains available through TreasuryAdmin's
+funding operation. For an active mandate, `rotate_session=true` requires a
+`rotation_idempotency_key`; the same key must be reused for an exact retry. The
+owner atomically retires the old generation and reserves the next one, then
+retains the public result for replay after a process restart. Reusing the key
+with changed run binding is rejected; a different key requests a distinct
+rotation. The CLI exposes these fields under `treasury wallet provision-budget`
+with confirmation required. Rotation changes the run-owned session generation
+while preserving the derived budget address; it does not grant an agent policy
+or budget mutation authority.
+
+## Instrument administration
+
+Instrument registration belongs to `InstrumentAdminService` in
+`packages/proto/schemas/treasury/v1/instrument/instrument.proto`. The
+operator-only `RegisterInstrument` binds the submitted credential reference
+to mandate and counterparty scope. The reference is consumed internally and
+is deliberately omitted from the returned `Instrument` message. The CLI
+mirror is listed under `treasury instrument`.
+
+---
+
+## Mandate administration
+
+Operator creation, listing, cancellation, and revocation live under the
+mandate-owned `MandateAdminService` in
+`packages/proto/schemas/treasury/v1/mandate/mandate.proto`. It also owns the
+separate operator `RevokeMandateSession` lifecycle action. Revoking a mandate
+also revokes its active session key. The separate `AgentSpend.ListMandates`
+response is an authorization-owned projection that omits operator and signing
+fields. CLI mirrors are listed under `treasury mandate`.
+
+---
+
 ## Adding a new endpoint
 
 For a new domain, copy the worked vertical slice in the fenced example

@@ -71,6 +71,30 @@
       }
     },
     {
+      "id": "access_get_write_access",
+      "path": "/vrooli.money_ledger.v1.access.AccessService/GetWriteAccess",
+      "method": "POST",
+      "summary": "Report whether the caller may write and, if not, why; renews an expired browser session",
+      "description": "",
+      "category": "access"
+    },
+    {
+      "id": "access_sign_in",
+      "path": "/vrooli.money_ledger.v1.access.AccessService/SignIn",
+      "method": "POST",
+      "summary": "Sign the owner's browser in through scenario-authenticator and set the session cookies",
+      "description": "",
+      "category": "access"
+    },
+    {
+      "id": "access_sign_out",
+      "path": "/vrooli.money_ledger.v1.access.AccessService/SignOut",
+      "method": "POST",
+      "summary": "Clear the browser session cookies and revoke the session",
+      "description": "",
+      "category": "access"
+    },
+    {
       "id": "books_create",
       "path": "/vrooli.money_ledger.v1.ledger.BooksService/CreateBook",
       "method": "POST",
