@@ -74,7 +74,7 @@ func isPublicSPARoute(path string) bool {
 	case "/contact", "/privacy", "/terms", "/thank-you", "/account", "/account/security", "/account/credits":
 		return true
 	}
-	if path == "/" || path == "/checkout" || path == "/feedback" || strings.HasPrefix(path, "/auth/") || strings.HasPrefix(path, "/admin") {
+	if path == "/" || path == "/checkout" || path == "/feedback" || path == "/services/company-market-scan" || strings.HasPrefix(path, "/auth/") || strings.HasPrefix(path, "/admin") {
 		return true
 	}
 	parts := strings.Split(strings.Trim(path, "/"), "/")

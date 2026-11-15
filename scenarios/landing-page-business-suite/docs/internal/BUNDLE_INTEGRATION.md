@@ -63,7 +63,21 @@ warnings so the gap is visible instead of silent.
 - `pnpm build`: production UI build passed.
 - `GOWORK=off go test ./... -count=1 -timeout 10m`: API suite passed.
 - Live Connect `LandingConfigService/GetLandingConfig` returned 20 catalog records; the lifecycle-managed browser DOM reached `ready`, showed `bundle-app-web-console`, omitted disabled entries, and exposed the Web Console CTA.
-- Final visual artifacts: desktop/mobile full-page screenshots, a dedicated Aquila catalog screenshot, hero/catalog video frames, and a 12-second valid MP4 under `.vrooli/artifacts/lpbs-20260914-aquila-final3/`.
+- Final visual artifacts: desktop/mobile full-page screenshots, a dedicated Aquila catalog screenshot, hero/catalog video frames, and a 12-second valid MP4 under `.vrooli/artifacts/lpbs-20260914-aquila-final2/`.
+
+### Duplicate Capture Retirement — 2026-11-15
+
+Removed byte-identical capture copies after checking that no source or documentation referenced their paths. SHA-256 prefixes below identify each duplicate group; the retained file is the canonical copy.
+
+| SHA-256 prefix | Retained path | Removed duplicate paths |
+|---|---|---|
+| `051869bc6c26` | `.vrooli/artifacts/lpbs-20260914-final5/public-landing-control-mobile.png` | `.vrooli/artifacts/lpbs-20260914/public-landing-control-mobile.png`; `.vrooli/artifacts/lpbs-20260914-final2/public-landing-control-mobile.png`; `.vrooli/artifacts/lpbs-20260914-final3/public-landing-control-mobile.png`; `.vrooli/artifacts/lpbs-20260914-final4/public-landing-control-mobile.png` |
+| `8d75d74751db` | `.vrooli/artifacts/lpbs-20260914-final5/public-landing-control-desktop.png` | `.vrooli/artifacts/lpbs-20260914-final3/public-landing-control-desktop.png`; `.vrooli/artifacts/lpbs-20260914-final4/public-landing-control-desktop.png` |
+| `d0aa67fc452b` | `.vrooli/artifacts/lpbs-20260914-final5/public-landing-control-web-console-section.png` | `.vrooli/artifacts/lpbs-20260914-final3/public-landing-control-web-console-section.png` |
+| `2f800e0b7659` | `.vrooli/artifacts/lpbs-20260914-final2/public-landing-control-desktop.mp4` | `.vrooli/artifacts/lpbs-20260914/public-landing-control-desktop.mp4` |
+| `a1b952a566e3` | `.vrooli/artifacts/lpbs-20260914/public-landing-business-suite-final.mp4` | `.vrooli/artifacts/lpbs-20260914/public-landing-cms-final.mp4`; `.vrooli/artifacts/lpbs-20260914/public-landing-final.mp4` |
+
+The repeated copies contained no distinct image or video data. Distinct frames and recordings remain in their original capture folders.
 
 ## Remaining Qualification
 

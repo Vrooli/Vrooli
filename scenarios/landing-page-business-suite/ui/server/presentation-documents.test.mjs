@@ -37,6 +37,12 @@ test('LP-PRES-011: root and app metadata follow the public revision before JavaS
     assert.equal(doc.querySelectorAll('meta[property="og:title"]').length, 1);
     assert.equal(doc.querySelector('meta[property="og:image"]'), null);
     assert.equal(doc.querySelector('link[rel="canonical"]').href, `https://suite.example/base${route}`);
+    const structuredData = JSON.parse(doc.querySelector('#lpbs-page-structured-data').textContent);
+    assert.equal(structuredData['@type'], 'WebPage');
+    assert.equal(structuredData.name, 'Aquila — a place for your agents');
+    assert.equal(structuredData.description, 'Voice, files & sessions.');
+    assert.equal(structuredData.url, `https://suite.example/base${route}`);
+    assert.equal(structuredData.isPartOf.name, 'Aquila');
     const boot = JSON.parse(doc.querySelector('#lpbs-presentation-bootstrap').textContent);
     assert.equal(boot.request.route, route); assert.equal(boot.config.presentation.diagnostics.resolvedRevision, 'a'.repeat(64));
     assert.equal(boot.canonicalBaseUrl, 'https://suite.example/base');
@@ -50,7 +56,7 @@ test('LP-PRES-011: root and app metadata follow the public revision before JavaS
 
 test('LP-PRES-009: admin and unknown paths never request a public assignment', async () => {
   const run = harness();
-  for (const route of ['/admin/presentation/control', '/login', '/account', '/account/credits', '/checkout', '/feedback', '/not-a-page']) {
+  for (const route of ['/admin/presentation/control', '/login', '/account', '/account/credits', '/checkout', '/service-checkout', '/feedback', '/not-a-page']) {
     const result = await run.request(route);
     assert.equal(result.statusCode, route === '/not-a-page' ? 404 : 200);
     assert.equal(result.headers['X-Robots-Tag'], 'noindex, nofollow');
@@ -59,6 +65,20 @@ test('LP-PRES-009: admin and unknown paths never request a public assignment', a
   assert.equal(run.calls.length, 0);
   for (const route of ['/assets/app.js', '/public/icon.svg', '/api/health', '/health', '/config', '/embedded/app']) assert.equal((await run.request(route)).next, true);
   assert.equal((await run.request('/', 'POST')).next, true);
+  assert.equal(run.calls.length, 0);
+});
+
+test('company market scan offer is indexable and publishes machine-readable alternates', async () => {
+  const run = harness();
+  const result = await run.request('/services/company-market-scan');
+  assert.equal(result.statusCode, 200);
+  assert.equal(result.headers['X-Robots-Tag'], undefined);
+  const doc = new JSDOM(result.body).window.document;
+  assert.equal(doc.title, 'Company Market Scan');
+  assert.match(doc.querySelector('meta[name="description"]').content, /\$49/);
+  assert.equal(doc.querySelector('meta[name="robots"]').content, 'index, follow');
+  assert.equal(doc.querySelector('link[rel="alternate"][type="application/ld+json"]').getAttribute('href'), '/services/company-market-scan.json');
+  assert.equal(doc.querySelector('link[rel="alternate"][type="text/plain"]').getAttribute('href'), '/llms.txt');
   assert.equal(run.calls.length, 0);
 });
 
@@ -116,6 +136,16 @@ test('LP-PRES-011: untrusted copy cannot escape head or bootstrap script context
   assert.equal(doc.querySelectorAll('script').length, 2); // existing app script + inert JSON
   assert.equal(JSON.parse(doc.querySelector('#lpbs-presentation-bootstrap').textContent).text, attack);
   assert.equal(doc.querySelector('meta[name="description"]').content, attack);
+
+  const config = fixture();
+  config.presentation.page.title = attack;
+  config.presentation.page.description = attack;
+  const qualifiedHead = presentationHead(config, { route: '/', variant: '', locale: '' }, branding.branding);
+  const qualifiedDoc = new JSDOM(injectPresentationHead(template, qualifiedHead, null)).window.document;
+  assert.equal(qualifiedDoc.querySelectorAll('script').length, 2);
+  const structuredData = JSON.parse(qualifiedDoc.querySelector('#lpbs-page-structured-data').textContent);
+  assert.equal(structuredData.name, attack);
+  assert.equal(structuredData.description, attack);
 });
 
 test('LP-PRES-011: real scenario server handles root before static index and nested routes identically', async t => {

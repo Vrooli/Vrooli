@@ -15,6 +15,16 @@ const CheckoutPage = lazy(() =>
     default: module.CheckoutPage,
   }))
 );
+const ServiceCheckoutPage = lazy(() =>
+  import('../../surfaces/public-landing/routes/ServiceCheckoutPage').then((module) => ({
+    default: module.ServiceCheckoutPage,
+  }))
+);
+const ServiceOfferPage = lazy(() =>
+  import('../../surfaces/public-landing/routes/ServiceOfferPage').then((module) => ({
+    default: module.ServiceOfferPage,
+  }))
+);
 const ContactPage = lazy(() => import('../../surfaces/public-landing/site/ContactPage').then(module => ({ default: module.ContactPage })));
 const ThankYouPage = lazy(() => import('../../surfaces/public-landing/site/SitePages').then(module => ({ default: module.ThankYouPage })));
 const LegalPage = lazy(() => import('../../surfaces/public-landing/site/SitePages').then(module => ({ default: module.LegalPage })));
@@ -40,6 +50,8 @@ export const publicRoutes = (
     <Route path="/apps/:slug" element={<PublicRoute name="AppDetail"><PublicLanding /></PublicRoute>} />
     <Route path="/apps/:slug/download" element={<PublicRoute name="AppDownload"><DownloadPage /></PublicRoute>} />
     <Route path="/checkout" element={<PublicRoute name="Checkout"><CheckoutPage /></PublicRoute>} />
+    <Route path="/service-checkout" element={<PublicRoute name="ServiceCheckout"><ServiceCheckoutPage /></PublicRoute>} />
+    <Route path="/services/company-market-scan" element={<PublicRoute name="CompanyMarketScan"><ServiceOfferPage /></PublicRoute>} />
     <Route path="/contact" element={<PublicRoute name="Contact"><ContactPage /></PublicRoute>} />
     <Route path="/feedback" element={<Navigate to="/contact" replace />} />
     <Route path="/thank-you" element={<PublicRoute name="ThankYou"><ThankYouPage /></PublicRoute>} />

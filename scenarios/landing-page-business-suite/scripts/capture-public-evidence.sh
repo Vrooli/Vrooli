@@ -7,8 +7,9 @@ set -euo pipefail
 # valid DOM plus black or first-run-dialog video. Historical launch flags are
 # not known, so this script does not claim to reproduce them.
 
+scenario_root="$(cd "$(dirname "$0")/.." && pwd)"
 base_url="${1:-${LPBS_CAPTURE_BASE_URL:-http://127.0.0.1:23224}}"
-output_dir="${2:-${LPBS_CAPTURE_OUTPUT_DIR:-.vrooli/artifacts/lpbs-evidence}}"
+output_dir="${2:-${LPBS_CAPTURE_OUTPUT_DIR:-$scenario_root/.vrooli/artifacts/lpbs-evidence}}"
 variant_slug="${3:-${LPBS_CAPTURE_VARIANT:-control}}"
 
 command -v node >/dev/null || {

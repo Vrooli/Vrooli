@@ -59,6 +59,9 @@ import (
 func (s *Server) setupRoutes() {
 	s.router.Use(securityHeadersMiddleware)
 	s.router.Use(loggingMiddleware)
+	if s.serviceOrderHTTP != nil {
+		s.router.PathPrefix("/api/v1/service-orders").Handler(s.serviceOrderHTTP)
+	}
 
 	registerHealthRoutes(s)
 	registerMonetizationJourneyRoute(s)

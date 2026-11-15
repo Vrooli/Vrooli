@@ -88,6 +88,7 @@ type Server struct {
 	feedbackService          *domainmetrics.FeedbackService
 	backdropResolver         func(context.Context) (string, error)
 	backdropHTTPClient       *http.Client
+	serviceOrderHTTP         http.Handler
 	presentationAssetHandler http.Handler
 	adminAuthService         *administration.AdminAuthService
 	readerTokens             *administration.ReaderTokens
@@ -550,6 +551,10 @@ func NewServer() (*Server, error) {
 	}
 	srv.landingConfigService.UsePresentationExposureRecorder(srv.metricsService)
 	userAuthService.UseCodeCallback(captureFixtureSignInCode)
+	if err := configurePS2ServiceOrders(srv); err != nil {
+		_ = routedDB.Close()
+		return nil, fmt.Errorf("configure PS2 test service orders: %w", err)
+	}
 
 	srv.setupRoutes()
 	if err := registerScenarioDevRouting(srv.router, routedDB, fileRoots); err != nil {

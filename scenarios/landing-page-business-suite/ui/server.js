@@ -5,12 +5,13 @@ import { pathToFileURL } from 'node:url';
 import { createScenarioServer } from '@vrooli/api-base/server';
 import { createPresentationDocuments } from './server/presentation-documents.mjs';
 
-export function createLandingServer({ uiPort, apiPort, distDir = './dist', fetchImplementation = fetch }) {
+export function createLandingServer({ uiPort, apiPort, distDir = './dist', fetchImplementation = fetch, verbose = false, allowedOrigins = [] }) {
   const validPort = value => /^\d+$/.test(String(value)) && Number(value) > 0 && Number(value) <= 65535;
   if (!validPort(uiPort) || !validPort(apiPort)) throw new Error('UI_PORT and API_PORT must be ports between 1 and 65535');
   const indexPath = resolve(distDir, 'index.html');
   return createScenarioServer({
-    uiPort, apiPort, distDir, serviceName: 'landing-page-business-suite', version: '1.0.0', corsOrigins: '*',
+    uiPort, apiPort, distDir, serviceName: 'landing-page-business-suite', version: '1.0.0',
+    verbose, allowedOrigins,
     setupRoutes: app => {
       // Handle HTML before express.static: its root index uses sendFile, which
       // bypasses send-interception and previously skipped root-page SEO entirely.

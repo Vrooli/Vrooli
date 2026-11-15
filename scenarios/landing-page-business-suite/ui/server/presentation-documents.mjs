@@ -7,7 +7,8 @@ const BRANDING = '/landing_page_business_suite.v1.BrandingService/GetPublicBrand
 const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
 const detailRoute = /^\/apps\/[a-z0-9][a-z0-9-]*$/;
 const downloadRoute = /^\/apps\/[a-z0-9][a-z0-9-]*\/download$/;
-const privateRoute = /^\/(?:admin(?:\/|$)|login$|auth(?:\/|$)|account(?:\/|$)|checkout$|feedback$)/;
+const serviceOfferRoute = '/services/company-market-scan';
+const privateRoute = /^\/(?:admin(?:\/|$)|login$|auth(?:\/|$)|account(?:\/|$)|checkout$|service-checkout$|feedback$)/;
 const field = (value, camel, snake) => value?.[camel] ?? value?.[snake];
 
 // The API's canonical development routing marker is the only caller header
@@ -103,6 +104,21 @@ export function presentationHead(config, request, branding) {
     canonical: base ? base + request.route : '', noindex: Boolean(d.noindex || request.variant),
     revision: field(d, 'resolvedRevision', 'resolved_revision'),
     variant: field(d, 'resolvedVariant', 'resolved_variant'),
+    structuredData: {
+      '@context': 'https://schema.org',
+      '@type': 'WebPage',
+      name: page.title,
+      description: page.description,
+      inLanguage: page.locale,
+      ...(base ? { url: base + request.route } : {}),
+      ...(field(page.display?.shell, 'brandName', 'brand_name') ? {
+        isPartOf: {
+          '@type': 'WebSite',
+          name: field(page.display.shell, 'brandName', 'brand_name'),
+          ...(base ? { url: base + '/' } : {}),
+        },
+      } : {}),
+    },
   };
 }
 
@@ -126,6 +142,7 @@ export function injectPresentationHead(html, head, bootstrap) {
     `<meta name="twitter:title" content="${escapeHtml(head.title)}">`,
     `<meta name="twitter:description" content="${escapeHtml(head.description)}">`,
   ];
+  if (head.structuredData) tags.push(`<script type="application/ld+json" id="lpbs-page-structured-data">${scriptJSON(head.structuredData)}</script>`);
   if (head.siteName) tags.push(`<meta property="og:site_name" content="${escapeHtml(head.siteName)}">`, `<meta name="apple-mobile-web-app-title" content="${escapeHtml(head.siteName)}">`);
   if (head.canonical) tags.push(`<link rel="canonical" href="${escapeHtml(head.canonical)}">`, `<meta property="og:url" content="${escapeHtml(head.canonical)}">`);
   if (head.canonicalBaseUrl) tags.push(`<meta name="presentation-canonical-base" content="${escapeHtml(head.canonicalBaseUrl)}">`);
@@ -136,6 +153,7 @@ export function injectPresentationHead(html, head, bootstrap) {
   if (bootstrap) tags.push(`<script type="application/json" id="lpbs-presentation-bootstrap">${scriptJSON(bootstrap)}</script>`);
   const clean = html.replace(/<title\b[^>]*>[\s\S]*?<\/title>/gi, '')
     .replace(/<meta\b[^>]*\b(?:name|property)\s*=\s*["'](?:description|robots|og:[^"']*|twitter:[^"']*|theme-color|(?:apple-)?mobile-web-app-[^"']*|presentation-[^"']*)["'][^>]*>/gi, '')
+    .replace(/<script\b[^>]*\bid=["']lpbs-page-structured-data["'][^>]*>[\s\S]*?<\/script>/gi, '')
     // A per-app document must not advertise the static first-app install
     // manifest/icon. The finite configured mark owns its browser identity.
     .replace(/<link\b[^>]*\brel\s*=\s*["'](?:canonical|icon|shortcut icon|apple-touch-icon|manifest)["'][^>]*>/gi, '')
@@ -178,11 +196,19 @@ export function createPresentationDocuments({ apiBase, readIndex, fetchImplement
     // A download chooser consumes the app's exact presentation revision. It is
     // a noindex workflow, not a second marketing page or a different app scope.
     const isDownload = downloadRoute.test(path);
+    const isServiceOffer = path === serviceOfferRoute;
     const route = isDownload ? path.slice(0, -9) : path;
     const request = { route, locale: url.searchParams.get('locale') || '', variant: url.searchParams.get('variant') || url.searchParams.get('variant_slug') || '' };
     let status = 200; let bootstrap;
     let head = { title: 'Private page', description: '', locale: 'en', noindex: true };
-    if (path === '/' || detailRoute.test(path) || isDownload) {
+    if (isServiceOffer) {
+      head = {
+        title: 'Company Market Scan',
+        description: 'A cited snapshot of public company and market information. One $49 test offer with a 500-character sector input and Markdown sample result.',
+        locale: 'en',
+        noindex: false,
+      };
+    } else if (path === '/' || detailRoute.test(path) || isDownload) {
       try {
         const visitor = presentationVisitor(req);
         if (visitor.fresh) {
@@ -205,7 +231,13 @@ export function createPresentationDocuments({ apiBase, readIndex, fetchImplement
     }
     res.setHeader('Cache-Control', 'private, no-store');
     if (head.noindex) res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-    try { return res.status(status).type('html').send(injectPresentationHead(await readIndex(), head, bootstrap)); }
+    try {
+      let html = injectPresentationHead(await readIndex(), head, bootstrap);
+      if (isServiceOffer) {
+        html = html.replace('</head>', '<link rel="alternate" type="application/ld+json" href="/services/company-market-scan.json"><link rel="alternate" type="text/plain" href="/llms.txt">\n</head>');
+      }
+      return res.status(status).type('html').send(html);
+    }
     catch { res.setHeader('X-Robots-Tag', 'noindex, nofollow'); return res.status(503).type('text').send('Page temporarily unavailable'); }
   };
 }

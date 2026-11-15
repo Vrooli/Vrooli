@@ -73,6 +73,70 @@ CREATE TABLE IF NOT EXISTS business_account_credit_reservations (
   completion_tokens BIGINT NOT NULL DEFAULT 0,
   provider VARCHAR(100) NOT NULL DEFAULT 'openrouter'
 );
+
+-- Per-job service orders have a separate identity and lifecycle from plan and
+-- credit checkout sessions. The current provider implementation is sandbox
+-- only; no live session is represented by these rows.
+CREATE TABLE IF NOT EXISTS service_orders (
+  id UUID PRIMARY KEY,
+  job_id UUID NOT NULL UNIQUE,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  terms_sha256 CHAR(64) NOT NULL,
+  offer_id TEXT NOT NULL,
+  offer_version INTEGER NOT NULL,
+  job_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  amount_minor BIGINT NOT NULL CHECK (amount_minor > 0),
+  currency CHAR(3) NOT NULL,
+  door TEXT NOT NULL,
+  agent_manager_run_id TEXT NOT NULL DEFAULT '',
+  x402_price_id TEXT NOT NULL DEFAULT '',
+  x402_payer TEXT NOT NULL DEFAULT '',
+  x402_network TEXT NOT NULL DEFAULT '',
+  mode TEXT NOT NULL CHECK (mode = 'sandbox'),
+  state TEXT NOT NULL CHECK (state IN ('created','authorized','verification_failed','verified','capture_pending','captured','voided','declined','ledger_pending','reconciled')),
+  authorization_id TEXT,
+  verification_id TEXT,
+  capture_id TEXT,
+  ledger_posting_id TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS x402_price_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS agent_manager_run_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS x402_payer TEXT NOT NULL DEFAULT '';
+ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS x402_network TEXT NOT NULL DEFAULT '';
+ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS ledger_receipt_id TEXT;
+ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS treasury_external_id TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS service_orders_treasury_external_id ON service_orders(treasury_external_id) WHERE treasury_external_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS service_orders_state_created ON service_orders(state, created_at);
+
+CREATE TABLE IF NOT EXISTS service_order_events (
+  id BIGSERIAL PRIMARY KEY,
+  order_id UUID NOT NULL REFERENCES service_orders(id),
+  event_id TEXT NOT NULL UNIQUE,
+  event_kind TEXT NOT NULL,
+  payload_sha256 CHAR(64) NOT NULL,
+  receipt_id TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS service_order_events_order ON service_order_events(order_id, created_at);
+
+CREATE TABLE IF NOT EXISTS service_order_ledger_outbox (
+  order_id UUID PRIMARY KEY REFERENCES service_orders(id),
+  fixture_id TEXT NOT NULL,
+  adapter_id TEXT NOT NULL,
+  book_id TEXT NOT NULL,
+  account_id TEXT NOT NULL,
+  external_id TEXT NOT NULL UNIQUE,
+  amount_minor BIGINT NOT NULL CHECK (amount_minor > 0),
+  currency CHAR(3) NOT NULL,
+  capture_id TEXT NOT NULL,
+  occurred_at TIMESTAMP NOT NULL,
+  delivered_at TIMESTAMP,
+  posting_id TEXT,
+  duplicate BOOLEAN NOT NULL DEFAULT FALSE
+);
+CREATE INDEX IF NOT EXISTS service_order_ledger_pending ON service_order_ledger_outbox(delivered_at, occurred_at);
 ALTER TABLE business_account_credit_reservations ADD COLUMN IF NOT EXISTS charged_amount BIGINT NOT NULL DEFAULT 0;
 ALTER TABLE business_account_credit_reservations ADD COLUMN IF NOT EXISTS overrun_amount BIGINT NOT NULL DEFAULT 0;
 -- Null means the funding mode was not recorded. Never infer it from an
