@@ -12,10 +12,11 @@ import (
 
 func pageCensus(layoutJSON, pageURL, viewport, screenshotRef string) PagePatternCensus {
 	var layout struct {
-		PatternCensus              map[string]int            `json:"patternCensus"`
-		Tokens                     []string                  `json:"tokens"`
-		CensusTokens               []string                  `json:"censusTokens"`
-		TokenizedPatternProperties map[string]map[string]int `json:"tokenizedPatternProperties"`
+		PatternCensus              map[string]int                 `json:"patternCensus"`
+		Tokens                     []string                       `json:"tokens"`
+		CensusTokens               []string                       `json:"censusTokens"`
+		TokenizedPatternProperties map[string]map[string]int      `json:"tokenizedPatternProperties"`
+		PatternPropertySelectors   map[string]map[string][]string `json:"patternPropertySelectors"`
 	}
 	if strings.TrimSpace(layoutJSON) == "" || json.Unmarshal([]byte(layoutJSON), &layout) != nil {
 		return PagePatternCensus{}
@@ -29,38 +30,40 @@ func pageCensus(layoutJSON, pageURL, viewport, screenshotRef string) PagePattern
 	if len(tokens) == 0 {
 		tokens = layout.Tokens
 	}
-	return PagePatternCensus{Route: route, Viewport: viewport, Patterns: layout.PatternCensus, Tokens: tokens, TokenizedPatternProperties: layout.TokenizedPatternProperties, ScreenshotRef: screenshotRef}
+	return PagePatternCensus{Route: route, Viewport: viewport, Patterns: layout.PatternCensus, Tokens: tokens, TokenizedPatternProperties: layout.TokenizedPatternProperties, PatternPropertySelectors: layout.PatternPropertySelectors, ScreenshotRef: screenshotRef}
 }
 
 // PagePatternCensus is the computed-pattern inventory captured from one served
 // route and viewport. Counts are retained so common repeated components weigh
 // more than one-off decorative elements.
 type PagePatternCensus struct {
-	Scenario                   string                    `json:"scenario"`
-	Route                      string                    `json:"route"`
-	Viewport                   string                    `json:"viewport"`
-	Patterns                   map[string]int            `json:"patterns"`
-	Tokens                     []string                  `json:"tokens,omitempty"`
-	TokenizedPatternProperties map[string]map[string]int `json:"tokenizedPatternProperties,omitempty"`
-	ScreenshotRef              string                    `json:"screenshotRef,omitempty"`
+	Scenario                   string                         `json:"scenario"`
+	Route                      string                         `json:"route"`
+	Viewport                   string                         `json:"viewport"`
+	Patterns                   map[string]int                 `json:"patterns"`
+	Tokens                     []string                       `json:"tokens,omitempty"`
+	TokenizedPatternProperties map[string]map[string]int      `json:"tokenizedPatternProperties,omitempty"`
+	PatternPropertySelectors   map[string]map[string][]string `json:"patternPropertySelectors,omitempty"`
+	ScreenshotRef              string                         `json:"screenshotRef,omitempty"`
 }
 
 // CensusOutlier reports page patterns that differ from the scenario-wide
 // majority, or values that do not match any declared design token.
 type CensusOutlier struct {
-	Scenario        string  `json:"scenario"`
-	Route           string  `json:"route"`
-	Viewport        string  `json:"viewport"`
-	Family          string  `json:"family,omitempty"`
-	ElementFamily   string  `json:"elementFamily,omitempty"`
-	Property        string  `json:"property,omitempty"`
-	ElementPattern  string  `json:"elementPattern,omitempty"`
-	ObservedCount   int     `json:"observedCount,omitempty"`
-	Pattern         string  `json:"pattern"`
-	DominantPattern string  `json:"dominantPattern,omitempty"`
-	Reason          string  `json:"reason"`
-	Score           float64 `json:"score"`
-	ScreenshotRef   string  `json:"screenshotRef,omitempty"`
+	Scenario        string   `json:"scenario"`
+	Route           string   `json:"route"`
+	Viewport        string   `json:"viewport"`
+	Family          string   `json:"family,omitempty"`
+	ElementFamily   string   `json:"elementFamily,omitempty"`
+	Property        string   `json:"property,omitempty"`
+	ElementPattern  string   `json:"elementPattern,omitempty"`
+	SourceSelectors []string `json:"sourceSelectors,omitempty"`
+	ObservedCount   int      `json:"observedCount,omitempty"`
+	Pattern         string   `json:"pattern"`
+	DominantPattern string   `json:"dominantPattern,omitempty"`
+	Reason          string   `json:"reason"`
+	Score           float64  `json:"score"`
+	ScreenshotRef   string   `json:"screenshotRef,omitempty"`
 }
 
 // CompareScenarioCensus finds patterns observed on a minority of the served
@@ -187,7 +190,7 @@ func CompareScenarioCensus(pages []PagePatternCensus, minorityThreshold float64)
 			if candidate := dominantUntokenizedDesignEvidence(page.Patterns, tokenSet, page.TokenizedPatternProperties); candidate.Value != "" {
 				out = append(out, CensusOutlier{
 					Scenario: page.Scenario, Route: page.Route, Viewport: page.Viewport,
-					ElementFamily: candidate.Family, Property: candidate.Property, ElementPattern: candidate.Pattern, ObservedCount: candidate.Count, Pattern: candidate.Value,
+					ElementFamily: candidate.Family, Property: candidate.Property, ElementPattern: candidate.Pattern, SourceSelectors: page.PatternPropertySelectors[candidate.Pattern][candidate.Property], ObservedCount: candidate.Count, Pattern: candidate.Value,
 					Reason: "computed design value is not present among the scenario's declared design tokens", Score: 0.75, ScreenshotRef: page.ScreenshotRef,
 				})
 			}

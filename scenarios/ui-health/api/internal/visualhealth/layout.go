@@ -3,30 +3,33 @@ package visualhealth
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"strings"
 
 	visualpb "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/visualhealth"
 )
 
 const (
-	overflowSlackPx     = 8
-	overlayAreaFraction = 0.75
-	mobileWidthPx       = 480
-	minMobileFontPx     = 16
+	overflowSlackPx      = 8
+	overlayAreaFraction  = 0.75
+	mobileWidthPx        = 480
+	minMobileFontPx      = 16
+	minMobileTapTargetPx = 44
 )
 
 type layoutSnapshot struct {
-	ViewportWidth  float64
-	ViewportHeight float64
-	DocumentWidth  float64
-	DocumentHeight float64
-	Elements       []layoutElement
-	Tokens         []string
-	Chrome         chromeIntent
-	SafeAreaInsets safeAreaInsets
-	CaptureKind    string
-	KeyboardFocus  keyboardFocusEvidence
+	ViewportWidth   float64
+	ViewportHeight  float64
+	DocumentWidth   float64
+	DocumentHeight  float64
+	Elements        []layoutElement
+	Tokens          []string
+	Chrome          chromeIntent
+	SafeAreaInsets  safeAreaInsets
+	CaptureKind     string
+	KeyboardFocus   keyboardFocusEvidence
+	OverflowSlackPx float64
+	UnsafeEdgeScope string
+	ChromeScope     string
 }
 
 // keyboardFocusEvidence records a post-Tab observation. It only qualifies an
@@ -72,6 +75,8 @@ type layoutElement struct {
 	NodeIdentity      string
 	ParentSelector    string
 	NodeType          string
+	TestID            string
+	SurfaceRoot       bool
 	Tag               string
 	Role              string
 	Text              string
@@ -106,7 +111,10 @@ type layoutElement struct {
 }
 
 func analyzeLayout(step *visualpb.VisualStepArtifact) ([]*visualpb.VisualFinding, []*visualpb.VisualMetric) {
-	if step == nil || strings.TrimSpace(step.GetLayoutJson()) == "" {
+	if step == nil {
+		return nil, nil
+	}
+	if strings.TrimSpace(step.GetLayoutJson()) == "" {
 		return nil, nil
 	}
 	snap, err := parseLayoutSnapshot(step)
@@ -125,6 +133,7 @@ func analyzeLayout(step *visualpb.VisualStepArtifact) ([]*visualpb.VisualFinding
 
 	var findings []*visualpb.VisualFinding
 	var metrics []*visualpb.VisualMetric
+	findings = append(findings, geometryFindings(step, snap)...)
 	if snap.mobileLike() && !snap.Chrome.empty() && (snap.CaptureKind != "physical_screen" || len(step.GetScreenshotPng()) == 0 && step.GetScreenshotRef() == nil) {
 		severity := visualpb.VisualSeverity_VISUAL_SEVERITY_INFO
 		if snap.Chrome.RequireNativeScreen {
@@ -151,40 +160,12 @@ func analyzeLayout(step *visualpb.VisualStepArtifact) ([]*visualpb.VisualFinding
 	}
 
 	if snap.ViewportWidth > 0 && snap.DocumentWidth > 0 {
-		overflow := math.Max(0, snap.DocumentWidth-snap.ViewportWidth)
-		metrics = append(metrics, metric("visual_horizontal_overflow_px", overflow))
-		if overflow > overflowSlackPx {
-			findings = append(findings, &visualpb.VisualFinding{
-				Code:        "visual_viewport_overflow",
-				Severity:    severityError,
-				Category:    categoryLayout,
-				Message:     "layout width exceeds the visible viewport",
-				Location:    locationFor(step),
-				Evidence:    fmt.Sprintf("document width %.0fpx exceeds viewport width %.0fpx", snap.DocumentWidth, snap.ViewportWidth),
-				Remediation: "Constrain page width to the viewport and move wide content into an intentional scroll container.",
-				StepId:      step.GetStepId(),
-				Metrics: []*visualpb.VisualMetric{
-					metric("overflow_px", overflow),
-				},
-			})
-		}
+		metrics = append(metrics, metric("visual_horizontal_overflow_px", max(0, snap.DocumentWidth-snap.ViewportWidth)))
 	}
 
 	for _, el := range snap.Elements {
 		if !el.visible() {
 			continue
-		}
-		if el.isInteractive() && !el.InScrollContainer && snap.hasViewport() && el.offscreen(snap) && !snap.sameNodeReachedByKeyboard(el) {
-			findings = append(findings, &visualpb.VisualFinding{
-				Code:        "visual_offscreen_interactive",
-				Severity:    severityError,
-				Category:    categoryLayout,
-				Message:     "interactive element is outside the visible viewport",
-				Location:    firstNonEmpty(el.NodeKey, el.Selector, locationFor(step)),
-				Evidence:    el.describeRect(),
-				Remediation: "Keep interactive controls inside the visible viewport or inside reachable scroll containers.",
-				StepId:      step.GetStepId(),
-			})
 		}
 		if el.hasClippedText() {
 			findings = append(findings, &visualpb.VisualFinding{
@@ -195,18 +176,6 @@ func analyzeLayout(step *visualpb.VisualStepArtifact) ([]*visualpb.VisualFinding
 				Location:    firstNonEmpty(el.Selector, locationFor(step)),
 				Evidence:    el.describeOverflow(),
 				Remediation: "Allow text containers to grow, wrap, or scroll instead of clipping meaningful text.",
-				StepId:      step.GetStepId(),
-			})
-		}
-		if snap.hasViewport() && !el.InScrollContainer && el.overflowsViewport(snap) {
-			findings = append(findings, &visualpb.VisualFinding{
-				Code:        "visual_viewport_overflow",
-				Severity:    severityError,
-				Category:    categoryLayout,
-				Message:     "visible element extends beyond the captured viewport",
-				Location:    firstNonEmpty(el.Selector, locationFor(step)),
-				Evidence:    el.describeRect(),
-				Remediation: "Constrain page width to the viewport and move wide content into an intentional scroll container.",
 				StepId:      step.GetStepId(),
 			})
 		}
@@ -234,18 +203,6 @@ func analyzeLayout(step *visualpb.VisualStepArtifact) ([]*visualpb.VisualFinding
 				StepId:      step.GetStepId(),
 			})
 		}
-		if edge := el.unsafeSafeAreaEdge(snap); edge != "" {
-			findings = append(findings, &visualpb.VisualFinding{
-				Code:        "visual_unsafe_edge_tap_zone",
-				Severity:    severityError,
-				Category:    categoryLayout,
-				Message:     "interactive element overlaps an unsafe edge or notch zone",
-				Location:    firstNonEmpty(el.Selector, locationFor(step)),
-				Evidence:    fmt.Sprintf("%s overlaps %s safe area", el.describeRect(), edge),
-				Remediation: "Move interactive controls out of unsafe edge and notch zones or pad the layout with env(safe-area-inset-*).",
-				StepId:      step.GetStepId(),
-			})
-		}
 	}
 	findings = append(findings, headingNotBlockFindings(step, snap)...)
 	findings = append(findings, tokenFallbackFindings(step, snap)...)
@@ -258,7 +215,7 @@ func parseLayoutSnapshot(step *visualpb.VisualStepArtifact) (layoutSnapshot, err
 	if err := json.Unmarshal([]byte(step.GetLayoutJson()), &raw); err != nil {
 		return layoutSnapshot{}, err
 	}
-	snap := layoutSnapshot{}
+	snap := layoutSnapshot{OverflowSlackPx: overflowSlackPx}
 	if vp := mapValue(raw, "viewport"); vp != nil {
 		snap.ViewportWidth = firstNumber(vp, "width", "clientWidth", "innerWidth")
 		snap.ViewportHeight = firstNumber(vp, "height", "clientHeight", "innerHeight")
@@ -286,6 +243,18 @@ func parseLayoutSnapshot(step *visualpb.VisualStepArtifact) (layoutSnapshot, err
 	}
 	if snap.DocumentHeight == 0 {
 		snap.DocumentHeight = firstNumber(raw, "scrollHeight", "documentHeight")
+	}
+	if policy := firstMap(raw, "geometryPolicy", "geometry_policy"); policy != nil {
+		snap.UnsafeEdgeScope = strings.ToLower(firstString(policy, "unsafeEdgeScope", "unsafe_edge_scope"))
+		snap.ChromeScope = strings.ToLower(firstString(policy, "chromeScope", "chrome_scope"))
+		for _, key := range []string{"overflowSlackPx", "overflow_slack_px"} {
+			if _, exists := policy[key]; exists {
+				if slack := firstNumber(policy, key); slack >= 0 {
+					snap.OverflowSlackPx = slack
+				}
+				break
+			}
+		}
 	}
 	snap.CaptureKind = firstString(firstMap(raw, "capture"), "kind")
 	if focus := mapValue(raw, "keyboardFocus"); focus != nil {
@@ -453,6 +422,8 @@ func parseLayoutElement(m map[string]any) layoutElement {
 		NodeIdentity:      firstString(m, "nodeIdentity", "node_identity"),
 		ParentSelector:    firstString(m, "parentSelector", "parent_selector", "parent"),
 		NodeType:          strings.ToLower(firstString(m, "nodeType", "node_type")),
+		TestID:            firstString(m, "testId", "testid", "dataTestId", "data-testid"),
+		SurfaceRoot:       boolValue(m, "surfaceRoot", "surface_root"),
 		Tag:               strings.ToLower(firstString(m, "tag", "tagName", "nodeName")),
 		Role:              strings.ToLower(firstString(m, "role")),
 		Text:              strings.TrimSpace(firstString(m, "text", "innerText", "label")),
@@ -546,7 +517,7 @@ func (e layoutElement) hasClippedText() bool {
 }
 
 func (e layoutElement) overflowsViewport(s layoutSnapshot) bool {
-	return e.X < -overflowSlackPx || e.X+e.Width > s.ViewportWidth+overflowSlackPx
+	return e.X < -s.OverflowSlackPx || e.X+e.Width > s.ViewportWidth+s.OverflowSlackPx
 }
 
 func (e layoutElement) isTextNode() bool {

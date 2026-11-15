@@ -69,7 +69,7 @@
         {
           "type": "test",
           "status": "not_implemented",
-          "notes": "api/handlers/preview/module_test.go asserts the harness route returns HTML with same-origin /preview/runtime imports, stable `libraryId` route ids resolve, and runtime routes serve JavaScript. ui/src/features/components/ComponentEditor.test.tsx asserts the iframe uses the harness URL and sandbox attributes. ui/server.test.js asserts the production UI server proxies /preview harness and runtime paths to the API before SPA fallback, preventing recursive loading of the library UI inside the iframe. bas/cases/preview/preview-renders-component.json catches the user-visible recursion symptom through test-genie playbooks. BAS CaptureService captures the isolated /preview/... route and returns structured evidence through api/internal/componenttests/bas_executor.go."
+          "notes": "api/handlers/preview/module_test.go asserts the harness route returns HTML with same-origin /preview/runtime imports, stable `libraryId` route ids resolve, and runtime routes serve JavaScript. ui/src/features/components/ComponentEditor.test.tsx asserts the iframe uses the harness URL and sandbox attributes. ui/server.test.js asserts the production UI server proxies /preview harness and runtime paths to the API before SPA fallback, preventing recursive loading of the library UI inside the iframe. bas/cases/preview/preview-renders-component.json catches the user-visible recursion symptom through test-genie playbooks. BAS ux-capture.v1 captures the isolated /preview/... scenario route and returns bundle artifacts through the manifest-scoped artifact reader through api/internal/componenttests/bas_executor.go."
         }
       ]
     },
@@ -132,7 +132,7 @@
         {
           "type": "test",
           "status": "not_implemented",
-          "notes": "api/handlers/preview/static_test.go asserts harness render failures post `preview-error`. ui/src/features/components/ComponentEditor.test.tsx asserts a `preview-error` message renders the failure panel and retry reloads the iframe with a fresh retry key. BAS CaptureService asserts the isolated harness reaches its declared ready state and returns console, network, accessibility, performance, DOM, and screenshot evidence. `pnpm type-check`, `pnpm lint`, and targeted Go preview tests passed."
+          "notes": "api/handlers/preview/static_test.go asserts harness render failures post `preview-error`. ui/src/features/components/ComponentEditor.test.tsx asserts a `preview-error` message renders the failure panel and retry reloads the iframe with a fresh retry key. BAS ux-capture.v1 asserts the isolated harness reaches its declared ready state and returns redacted console counts, accessibility snapshot, performance summary, frozen DOM, and region screenshot artifacts. `pnpm type-check`, `pnpm lint`, and targeted Go preview tests passed."
         }
       ]
     }

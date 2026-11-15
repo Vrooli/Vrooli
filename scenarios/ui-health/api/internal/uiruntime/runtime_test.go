@@ -9,6 +9,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"net/http"
 	"strings"
 	"sync"
 	"testing"
@@ -101,7 +102,22 @@ func TestCheckSkipsWhenBASUnavailable(t *testing.T) {
 		t.Fatalf("want single runtime_skipped_bas_unavailable, got %v", codes(finds))
 	}
 	if finds[0].Severity != manifestvalidation.SeverityInfo {
-		t.Fatalf("BAS-down skip must be informational (graceful degradation), got %s", finds[0].Severity)
+		t.Fatalf("BAS-down finding should report missing runtime evidence, got %s", finds[0].Severity)
+	}
+}
+
+func TestCheckReportsNotEvaluatedForRealUnreachableBAS(t *testing.T) {
+	bas := &connectRunner{
+		resolveBAS: func(context.Context) (string, error) { return "http://127.0.0.1:1", nil },
+		httpClient: &http.Client{Timeout: 100 * time.Millisecond},
+	}
+	r := newRunner("http://localhost:5173", nil, bas)
+	finds := r.Check(context.Background(), Input{Scenario: "demo"})
+	if len(finds) != 1 || finds[0].Code != "runtime_skipped_bas_unavailable" {
+		t.Fatalf("real unreachable BAS must produce one not-evaluated runtime finding, got %v", codes(finds))
+	}
+	if finds[0].Severity != manifestvalidation.SeverityInfo {
+		t.Fatalf("BAS availability must not fabricate a product defect, got %s", finds[0].Severity)
 	}
 }
 
@@ -143,6 +159,72 @@ func TestCheckCollectsEveryDeclaredReadinessRoute(t *testing.T) {
 	}
 	if len(bas.defs) != 4 || !hasNavigationURL(bas.defs, "http://localhost:5173/dashboard") || !hasNavigationURL(bas.defs, "http://localhost:5173/settings") {
 		t.Fatalf("route workflows = %#v", bas.defs)
+	}
+}
+
+func TestCheckRetainsScreenshotEvidenceForPagesWithoutPatternAlerts(t *testing.T) {
+	bas := &fakeBAS{run: func(_ context.Context, def map[string]any) (*runResult, error) {
+		width, height := viewportFromDef(def)
+		res := completeRuntimeResult(t, width, height)
+		res.screenshotRef = "http://bas.local/screenshots/page.png"
+		res.layoutJSON = `{"patternCensus":{"button:36|4|12|400|gray|black":1}}`
+		return res, nil
+	}}
+	r := newRunner("http://localhost:5173", nil, bas)
+	var profile readinessProfile
+	if err := json.Unmarshal([]byte(`{"pages":[{"routes":["/dashboard","/settings"],"regions":[]}]}`), &profile); err != nil {
+		t.Fatal(err)
+	}
+	r.readinessProfile = func(context.Context, string) (*readinessProfile, error) { return &profile, nil }
+
+	findings := r.Check(context.Background(), Input{Scenario: "demo"})
+	captures := make([]manifestvalidation.Finding, 0, 4)
+	for _, finding := range findings {
+		if finding.Code == "runtime_page_capture" {
+			captures = append(captures, finding)
+		}
+	}
+	if len(captures) != 4 {
+		t.Fatalf("want a screenshot evidence record for each route and viewport, got %d: %v", len(captures), codes(findings))
+	}
+	for _, capture := range captures {
+		if capture.Severity != manifestvalidation.SeverityInfo {
+			t.Fatalf("page screenshot evidence must be informational, got %s", capture.Severity)
+		}
+		if capture.Location != "http://bas.local/screenshots/page.png" {
+			t.Fatalf("page screenshot location = %q", capture.Location)
+		}
+		if !strings.Contains(capture.Message, "viewport") || capture.Suggestion == "" {
+			t.Fatalf("page screenshot evidence must identify its scope and caveat, got %+v", capture)
+		}
+	}
+}
+
+func TestCheckKeepsUnverifiedTokenMismatchAsInformationalCandidate(t *testing.T) {
+	const layout = `{"patternCensus":{"button:44px|4px|13.3333px|400|rgba(0, 0, 0, 0)|rgb(0, 93, 140)":1},"censusTokens":["44px","4px","400","#005d8c"],"patternPropertySelectors":{"button:44px|4px|13.3333px|400|rgba(0, 0, 0, 0)|rgb(0, 93, 140)":{"font-size":["button"]}}}`
+	bas := &fakeBAS{run: func(_ context.Context, def map[string]any) (*runResult, error) {
+		width, height := viewportFromDef(def)
+		res := completeRuntimeResult(t, width, height)
+		res.layoutJSON = layout
+		return res, nil
+	}}
+	r := newRunner("http://localhost:5173", nil, bas)
+	var profile readinessProfile
+	if err := json.Unmarshal([]byte(`{"pages":[{"routes":["/a","/b"],"regions":[]}]}`), &profile); err != nil {
+		t.Fatal(err)
+	}
+	r.readinessProfile = func(context.Context, string) (*readinessProfile, error) { return &profile, nil }
+
+	findings := r.Check(context.Background(), Input{Scenario: "demo"})
+	candidate, ok := findingForCode(findings, "scenario_token_candidate")
+	if !ok {
+		t.Fatalf("token-list mismatch should remain visible as a candidate, got %v", codes(findings))
+	}
+	if candidate.Severity != manifestvalidation.SeverityInfo {
+		t.Fatalf("unverified token mismatch severity = %s, want info", candidate.Severity)
+	}
+	if !strings.Contains(candidate.Message, "winning declaration not verified") || !strings.Contains(candidate.Message, "13.3333px") {
+		t.Fatalf("candidate should report its measurement and provenance limit, got %q", candidate.Message)
 	}
 }
 

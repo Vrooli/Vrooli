@@ -32,14 +32,15 @@ const (
 )
 
 type Result struct {
-	Stage          Stage      `json:"stage"`
-	AssetLibraryID string     `json:"assetLibraryId"`
-	Version        string     `json:"version"`
-	Subject        string     `json:"subject,omitempty"`
-	Verdict        Verdict    `json:"verdict"`
-	Message        string     `json:"message,omitempty"`
-	Remediation    string     `json:"remediation,omitempty"`
-	Evidence       []Evidence `json:"evidence,omitempty"`
+	Stage          Stage                     `json:"stage"`
+	AssetLibraryID string                    `json:"assetLibraryId"`
+	Version        string                    `json:"version"`
+	Subject        string                    `json:"subject,omitempty"`
+	Geometry       *components.StoryGeometry `json:"geometry,omitempty"`
+	Verdict        Verdict                   `json:"verdict"`
+	Message        string                    `json:"message,omitempty"`
+	Remediation    string                    `json:"remediation,omitempty"`
+	Evidence       []Evidence                `json:"evidence,omitempty"`
 }
 
 type Evidence struct {
@@ -111,8 +112,27 @@ type StoryExecution struct {
 	Duration          time.Duration
 	Console           ConsoleEvidence
 	Performance       PerformanceEvidence
+	AxeResults        *StoryAxeResults
 	AccessibilityJSON string
 	Artifacts         []Artifact
+}
+
+// StoryAxeResults is the sanitized, versioned output produced by the isolated
+// RCL story harness. It is merged into the persisted accessibility snapshot.
+type StoryAxeResults struct {
+	Schema     string              `json:"schema"`
+	Status     string              `json:"status"`
+	Reason     string              `json:"reason,omitempty"`
+	Engine     string              `json:"engine,omitempty"`
+	Version    string              `json:"version,omitempty"`
+	Violations []StoryAxeViolation `json:"violations,omitempty"`
+}
+
+type StoryAxeViolation struct {
+	ID          string   `json:"id"`
+	Impact      string   `json:"impact"`
+	Description string   `json:"description"`
+	Targets     []string `json:"targets,omitempty"`
 }
 
 // ExecutorUnavailableError means the browser harness cannot run in the
@@ -269,7 +289,7 @@ func (r Runner) contractStoryResults(ctx context.Context, asset components.Compo
 	artifacts := make([]Artifact, 0, len(story.Stories)*4+1)
 	for _, definition := range story.Stories {
 		if r.Executor == nil {
-			results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: VerdictBlocked, Message: "story executor is not configured", Remediation: "configure the preview harness executor before trusting story results"})
+			results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Geometry: definition.Geometry, Verdict: VerdictBlocked, Message: "story executor is not configured", Remediation: "configure the preview harness executor before trusting story results"})
 			continue
 		}
 		var execution StoryExecution
@@ -282,10 +302,10 @@ func (r Runner) contractStoryResults(ctx context.Context, asset components.Compo
 		if err != nil {
 			var unavailable ExecutorUnavailableError
 			if errors.As(err, &unavailable) {
-				results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: VerdictBlocked, Message: unavailable.Error(), Remediation: "install or configure Chrome before trusting story results"})
+				results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Geometry: definition.Geometry, Verdict: VerdictBlocked, Message: unavailable.Error(), Remediation: "install or configure Chrome before trusting story results"})
 				continue
 			}
-			results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: VerdictFailed, Message: "story did not render: " + err.Error(), Remediation: "fix the preview harness or story mount before adopting this version"})
+			results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Geometry: definition.Geometry, Verdict: VerdictFailed, Message: "story did not render: " + err.Error(), Remediation: "fix the preview harness or story mount before adopting this version"})
 			continue
 		}
 		message := fmt.Sprintf("rendered story assertion completed in %s", execution.Duration.Round(time.Millisecond))
@@ -299,7 +319,7 @@ func (r Runner) contractStoryResults(ctx context.Context, asset components.Compo
 		if !execution.Passed {
 			verdict = VerdictFailed
 		}
-		results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: verdict, Message: message, Remediation: remediationFor(verdict), Evidence: storyEvidence(execution)})
+		results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Geometry: definition.Geometry, Verdict: verdict, Message: message, Remediation: remediationFor(verdict), Evidence: storyEvidence(execution)})
 		artifacts = append(artifacts, execution.Artifacts...)
 		evidenceVerdict := VerdictPassed
 		evidenceMessage := "BAS evidence bundle captured and parsed"

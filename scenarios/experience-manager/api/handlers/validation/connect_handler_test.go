@@ -85,6 +85,26 @@ func TestSharedValidateScenarioHonorsExperienceGate(t *testing.T) { // [REQ:EXPE
 	}
 }
 
+func TestSharedValidateScenarioReportsNotEvaluatedWhenCaptureIsUnavailable(t *testing.T) {
+	report := spec.Report{
+		Scenario:   "demo",
+		TargetPath: "/tmp/demo",
+		Findings: []spec.Finding{{
+			Code:     spec.CodeCaptureUnavailable,
+			Severity: spec.SeverityInfo,
+			Message:  "BAS capture unavailable",
+		}},
+	}
+	h := NewConnectHandler(Deps{Engine: fakeEngine{report: report}})
+	resp, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "demo"}))
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	if got := resp.Msg.GetStatus(); got != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED {
+		t.Fatalf("capture-unavailable status = %s, want NOT_EVALUATED", got)
+	}
+}
+
 func TestNativeValidateScenarioReturnsStatusFromFindings(t *testing.T) {
 	h := NewConnectHandler(Deps{Engine: fakeEngine{report: spec.Report{
 		Scenario:   "demo",

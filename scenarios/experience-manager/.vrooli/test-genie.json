@@ -2,9 +2,9 @@
   "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
   "schemaVersion": "1.0.0",
   "scenario": "experience-manager",
-  "phase": "experience",
-  "displayName": "Experience",
-  "description": "Validates scenario-experience-spec/v1 contracts and experience maturity through experience-manager.",
+  "phase": "experience-contract",
+  "displayName": "Experience Contract",
+  "description": "Validates authored scenario-experience-spec/v1 contracts and their maturity; served-UI verdicts belong to the experience phase.",
   "source": "validation-provider",
   "runtimeClass": "execution",
   "orderHint": 14,
@@ -46,7 +46,7 @@
   },
   "runnability": {},
   "docs": {
-    "path": "scenarios/test-genie/docs/phases/experience/README.md"
+    "path": "scenarios/test-genie/docs/phases/experience-contract/README.md"
   },
   "concurrency": {
     "mode": "provider-serial"

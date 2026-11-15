@@ -54,6 +54,7 @@ type GateEvidence struct {
 // GateDefinition is the config projection needed by the coverage engine.
 type GateDefinition struct {
 	ID                   string
+	Tier                 string `json:"tier"`
 	Rung                 AchievedRung
 	Blocking             bool
 	Attribution          string
@@ -63,8 +64,10 @@ type GateDefinition struct {
 	ExperienceClaimTypes []string `json:"experienceClaimTypes"`
 	EvidenceKinds        []string `json:"evidenceKinds"`
 	RunnerConfig         struct {
-		MinimumViewports int  `json:"minimumViewports"`
-		RequiresCapture  bool `json:"requiresCapture"`
+		MinimumViewports         int   `json:"minimumViewports"`
+		RequiredViewportWidthsPx []int `json:"requiredViewportWidthsPx"`
+		RequireAxeResults        bool  `json:"requireAxeResults"`
+		RequiresCapture          bool  `json:"requiresCapture"`
 	} `json:"runnerConfig"`
 	ExperienceMinimumViewports int  `json:"-"`
 	ExperienceRequiresCapture  bool `json:"-"`
@@ -135,6 +138,9 @@ type Report struct {
 	FailEvidence       int
 	UnmeasuredEvidence int
 	ByGate             map[string]ScoreBreakdown
+	// ByTier rolls each blocking, asset-attributable gate into one of the three
+	// operator-facing quality tiers. Empty tiers remain absent, never green.
+	ByTier             map[string]ScoreBreakdown
 	ByRungScore        map[AchievedRung]ScoreBreakdown
 	Corpus             []CorpusStatus
 	KindMismatches     []KindMismatch
@@ -203,7 +209,7 @@ func ComputeWithEvidence(assets []Asset, impls []Implementation, evidence []Gate
 		ByDomain:   map[string]DomainCount{},
 		ByPriority: map[string]DomainCount{},
 		Maturity:   MaturityCoverage{ByDomain: map[string]DomainCount{}, ByPriority: map[string]DomainCount{}, ByRung: map[AchievedRung]int{}},
-		ByGate:     map[string]ScoreBreakdown{}, ByRungScore: map[AchievedRung]ScoreBreakdown{},
+		ByGate:     map[string]ScoreBreakdown{}, ByTier: map[string]ScoreBreakdown{}, ByRungScore: map[AchievedRung]ScoreBreakdown{},
 		CompositionScores: map[string]float64{},
 	}
 	latestEvidence := map[string]GateEvidence{}
@@ -351,6 +357,15 @@ func ComputeWithEvidence(assets []Asset, impls []Implementation, evidence []Gate
 			}
 			breakdown.Score = ratio(breakdown.Passed, breakdown.Applicable)
 			rep.ByGate[gate.ID] = breakdown
+			if gate.Tier != "" {
+				tier := rep.ByTier[gate.Tier]
+				tier.Applicable++
+				if contains(row.PassedGates, gate.ID) {
+					tier.Passed++
+				}
+				tier.Score = ratio(tier.Passed, tier.Applicable)
+				rep.ByTier[gate.Tier] = tier
+			}
 		}
 		if row.Bucket == BucketPlannedBuilt {
 			breakdown := rep.ByRungScore[row.Achieved]

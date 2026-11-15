@@ -2,35 +2,8 @@ package capture
 
 import (
 	"context"
-	"encoding/json"
-	"strings"
 	"testing"
 )
-
-func TestStrictTokenInteractionFlowSetsMagentaSentinel(t *testing.T) {
-	raw, err := strictTokenInteractionFlowJSON()
-	if err != nil {
-		t.Fatal(err)
-	}
-	var flow map[string]any
-	if err := json.Unmarshal([]byte(raw), &flow); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(raw, "#ff00ff") || !strings.Contains(raw, "cssRules") {
-		t.Fatalf("strict flow does not set CSSOM sentinel: %s", raw)
-	}
-	if len(flow["nodes"].([]any)) != 1 {
-		t.Fatalf("strict flow node count = %d, want 1", len(flow["nodes"].([]any)))
-	}
-}
-
-func TestStrictTokenNonSentinelColorsRecordsUnboundElements(t *testing.T) {
-	raw := `{"tagName":"BODY","selector":"body","computed":{"color":"rgb(0, 0, 0)","backgroundColor":"rgba(0, 0, 0, 0)"},"children":[{"selector":"#bound","computed":{"color":"rgb(255, 0, 255)","backgroundColor":"color(srgb 1 0 1)"}}]}`
-	sentinelCount, count, samples := strictTokenColorObservation(raw)
-	if sentinelCount != 1 || count != 1 || len(samples) != 1 || !strings.HasPrefix(samples[0], "body ") {
-		t.Fatalf("strict color report = sentinel %d, non-sentinel %d, %v", sentinelCount, count, samples)
-	}
-}
 
 func TestMatchesIntentAcceptsProductPhrasing(t *testing.T) {
 	tests := []struct {

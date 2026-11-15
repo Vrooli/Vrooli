@@ -29,6 +29,10 @@ export function redactPageInPage(): RedactionReport {
   const mask = '[REDACTED]';
   const sensitiveName =
     /(?:password|passwd|passcode|secret|token|otp|one[-_ ]?time|verification[-_ ]?code|cvv|cvc|card[-_ ]?(?:number|security)|api[-_ ]?key|credential|authorization|e[-_ ]?mail|phone|mobile|telephone|address|customer|user[-_ ]?(?:name|id)|account[-_ ]?number|social[-_ ]?security|\bssn\b|date[-_ ]?of[-_ ]?birth|\bdob\b|tax[-_ ]?id)/i;
+  // Attribute names that hold a secret or contact value themselves
+  // (`data-api-key`, `data-email`), not layout words like `data-mobile-nav`.
+  const sensitiveAttributeName =
+    /(?:password|passwd|passcode|secret|token|otp|cvv|cvc|api[-_]?key|credential|authorization|e[-_]?mail|\bssn\b|tax[-_]?id)/i;
   const assignment =
     /\b(password|passwd|passcode|secret|token|otp|one[-_ ]?time[-_ ]?code|verification[-_ ]?code|cvv|cvc|api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token)\b\s*([:=])\s*([^\s,;]+)/gi;
   const email = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
@@ -47,41 +51,82 @@ export function redactPageInPage(): RedactionReport {
       return mask;
     });
   };
+  // Returns the value unchanged unless it carries credentials, parameters or a
+  // fragment, so an ordinary relative link is not rewritten.
   const redactUrl = (value: string): string => {
+    if (value.trim().startsWith('#')) return value;
     try {
       const parsed = new URL(value, doc.baseURI);
+      let changed = false;
       if (parsed.username || parsed.password) {
         parsed.username = mask;
         parsed.password = mask;
         redacted.urlParameters += 1;
+        changed = true;
       }
       for (const key of [...parsed.searchParams.keys()]) {
         parsed.searchParams.set(key, mask);
         redacted.urlParameters += 1;
+        changed = true;
       }
-      if (parsed.hash) parsed.hash = '#[REDACTED]';
-      return parsed.href;
+      if (parsed.hash) {
+        parsed.hash = '#[REDACTED]';
+        changed = true;
+      }
+      return changed ? parsed.href : value;
     } catch {
       return redactText(value);
     }
   };
+  // Only navigation targets are rewritten in the live page. Rewriting a
+  // resource URL (stylesheet, image, SVG sprite) makes the browser reload or
+  // drop it, so the pixels stop showing the app. The frozen page replaces
+  // resource URLs with inlined data or redacted diagnostics itself.
+  // Text-pattern redaction applies to attributes that carry words for people.
+  // Geometry and styling (`viewBox="0 0 24 24"`, path data, class, style) look
+  // like phone numbers to the pattern and must never be rewritten.
+  const textAttribute = (name: string): boolean =>
+    name.startsWith('data-') ||
+    [
+      'aria-label',
+      'aria-description',
+      'aria-valuetext',
+      'aria-placeholder',
+      'title',
+      'alt',
+      'placeholder',
+      'value',
+      'label',
+      'content',
+    ].includes(name);
+  const navigationAttribute = (tag: string, name: string): boolean =>
+    ((tag === 'a' || tag === 'area') && name === 'href') ||
+    name === 'action' ||
+    name === 'formaction';
   const elements = Array.from(doc.querySelectorAll('*'));
+  // Field names such as "phone" or "address" mark a data-entry control. On any
+  // other element they are interface words ("Mobile navigation"), and masking
+  // the element would delete visible chrome from the capture.
+  const entryControl = (element: Element): boolean =>
+    /^(input|textarea|select)$/i.test(element.tagName) ||
+    element.getAttribute('contenteditable') === 'true';
   const marked = (element: Element): boolean =>
     element.hasAttribute('data-sensitive') ||
     element.hasAttribute('data-private') ||
     element.getAttribute('data-redact') === 'true' ||
     element.getAttribute('data-capture') === 'redact' ||
-    sensitiveName.test(
-      [
-        element.getAttribute('aria-label') || '',
-        element.getAttribute('type') || '',
-        element.getAttribute('name') || '',
-        element.getAttribute('id') || '',
-        element.getAttribute('placeholder') || '',
-        element.getAttribute('autocomplete') || '',
-        element.getAttribute('title') || '',
-      ].join(' ')
-    );
+    (entryControl(element) &&
+      sensitiveName.test(
+        [
+          element.getAttribute('aria-label') || '',
+          element.getAttribute('type') || '',
+          element.getAttribute('name') || '',
+          element.getAttribute('id') || '',
+          element.getAttribute('placeholder') || '',
+          element.getAttribute('autocomplete') || '',
+          element.getAttribute('title') || '',
+        ].join(' ')
+      ));
   const hideControl = (element: Element): void => {
     const control = element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
     if ('value' in control && control.value && control.value !== mask) {
@@ -121,16 +166,15 @@ export function redactPageInPage(): RedactionReport {
     if (element.shadowRoot)
       unsupported.push({ surface: 'shadow-root', reason: 'Shadow tree content is not inspected.' });
     const control = tag === 'input' || tag === 'textarea' || tag === 'select';
-    if (control) hideControl(element);
+    // Typed values are private; a select shows one of the app's own options.
+    if (control && tag !== 'select') hideControl(element);
     for (const attribute of Array.from(element.attributes)) {
       const name = attribute.name.toLowerCase();
       let value = attribute.value;
-      if (['href', 'src', 'action', 'formaction', 'xlink:href'].includes(name)) {
-        value = redactUrl(value);
-      } else {
-        if (sensitiveName.test(name) && value) value = mask;
-        else value = redactText(value);
-      }
+      if (['href', 'src', 'action', 'formaction', 'xlink:href', 'srcset'].includes(name)) {
+        if (navigationAttribute(tag, name)) value = redactUrl(value);
+      } else if (sensitiveAttributeName.test(name) && value) value = mask;
+      else if (textAttribute(name)) value = redactText(value);
       if (value !== attribute.value) {
         element.setAttribute(attribute.name, value);
         redacted.attributes += 1;

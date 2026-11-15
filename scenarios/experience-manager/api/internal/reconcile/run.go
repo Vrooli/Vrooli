@@ -120,12 +120,56 @@ func (c Check) reconcileCaptures(ctx context.Context, scenario, loc string, page
 				continue
 			}
 			target.StateFingerprints = fingerprints
-			result := reconcileActivePage(loc, page, target, snapshot, snapshots)
+			var sharedGeometry []spec.Finding
+			if c.GeometryEvaluator != nil {
+				var geometryErr error
+				sharedGeometry, geometryErr = c.GeometryEvaluator.EvaluateGeometry(ctx, scenario, target, snapshot)
+				if geometryErr != nil {
+					sharedGeometry = []spec.Finding{{
+						Code: spec.CodeClaimUnverifiable, Severity: spec.SeverityInfo,
+						Message: fmt.Sprintf("shared geometry evaluation was not completed: %v", geometryErr), Locations: []string{loc},
+						Suggestion: "Run ui-health's experience evaluator to measure the captured layout geometry.",
+					}}
+				}
+				sharedGeometry = filterOptedOutGeometry(sharedGeometry, page.FloorOptOuts)
+			} else {
+				sharedGeometry = []spec.Finding{{
+					Code: "visual_geometry_unmeasured", Severity: spec.SeverityInfo,
+					Message: "canonical ui-health geometry evaluator is not configured", Locations: []string{loc},
+					Suggestion: "Configure ui-health as the shared geometry evaluator.",
+				}}
+			}
+			result := reconcileActivePageWithGeometry(loc, page, target, snapshot, sharedGeometry, snapshots)
 			findings = append(findings, result.Findings...)
+			if c.GeometryEvaluator != nil {
+				findings = append(findings, sharedGeometry...)
+			}
 			findings = append(findings, c.persistEvidence(ctx, scenario, loc, page, target, snapshot, result.Evidence)...)
 		}
 	}
 	return findings
+}
+
+func filterOptedOutGeometry(findings []spec.Finding, optOuts []spec.FloorOptOut) []spec.Finding {
+	if len(findings) == 0 || len(optOuts) == 0 {
+		return findings
+	}
+	ignored := make(map[string]bool, len(optOuts))
+	for _, optOut := range optOuts {
+		if code := geometryRuleForFloor(strings.TrimSpace(optOut.Floor)); code != "" {
+			ignored[code] = true
+		}
+	}
+	if len(ignored) == 0 {
+		return findings
+	}
+	filtered := findings[:0]
+	for _, finding := range findings {
+		if !ignored[finding.Code] {
+			filtered = append(filtered, finding)
+		}
+	}
+	return filtered
 }
 
 // A waiver is intentionally a required warning, not a silent opt-out. The

@@ -16,6 +16,7 @@
     "1.0.10",
     "1.0.12"
   ],
+  "description": "The page- or application-level notice with priority ordering, persistence policy, actions, responsive layout, and deterministic stacking when several apply at once.",
   "designStyles": [
     {
       "affinity": "native",
@@ -23,6 +24,7 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "Banner",
   "draft": "",
   "evictedVersions": [
     "1.0.9",
@@ -42,7 +44,5 @@
   ],
   "latest": "1.0.15",
   "libraryId": "react-component-library:Banner",
-  "displayName": "Banner",
-  "description": "The page- or application-level notice with priority ordering, persistence policy, actions, responsive layout, and deterministic stacking when several apply at once.",
   "tags": []
 }

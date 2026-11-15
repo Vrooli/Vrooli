@@ -486,3 +486,16 @@ active required guide. Current counts must be
 recreated from the catalog index for each validation run; they must not be
 copied forward from the historical report.
 | 2026-08-31 | Keep retired rows cold during presence reconciliation | Retired versions are deliberately evicted and retained only in the durable mirror. The reconciler previously treated every evicted row outside the current retire-candidate set as a warm-tier repair, which proposed rematerializing all 737 retired rows. | Presence reconciliation now excludes rows whose lifecycle status is `retired` (and the legacy `archived` status) from materialization. A live rebuilt API preview now reports 0 materializations and 1,070 unchanged rows while preserving the 19 current eviction candidates. | Revisit if lifecycle state is normalized so retired rows no longer appear as a component-version status; keep the cold-tier invariant regardless of storage representation. |
+
+# 2026-11-14 — ControlBase owns the coarse-pointer tap-target floor
+
+Before `ControlBase/1.2.0` a rung below 44px only marked itself with `data-control-below-tap-target`, and the
+touch floor was every scenario's own CSS (Notification Hub carried a `[data-rcl-control]` override). That left the
+fleet's phone captures failing tap-target claims one scenario at a time, and the Hub override also lowered `xl` from
+48px to 44px because it set the token unconditionally.
+
+`ControlBase` now raises marked rungs to `--tap-target-min` on `@media (pointer: coarse)` only, on both axes. It
+grows the real box, not a pseudo-element hit slop: slop overlaps neighbouring hit areas on dense strips, needs
+`position: relative` against consumers that position controls themselves, and is invisible to the box measurement
+that layout and accessibility audits use. `denseTapTarget` is the explicit, auditable opt-out and matches
+`IconButton`. See `docs/reference/sizing-contract.md#touch-floor`.

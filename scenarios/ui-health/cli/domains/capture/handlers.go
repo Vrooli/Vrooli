@@ -18,9 +18,6 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/ai"
 	aiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/ai/aiconnect"
-	basev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
-	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
-	captureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture/captureconnect"
 	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/search"
 	searchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/search/search_v1connect"
 	visualv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/visualhealth"
@@ -35,12 +32,6 @@ type handlers struct {
 	ai       aiconnect.AIServiceClient
 	http     connect.HTTPClient
 }
-
-// Story-sheet surfaces can mount several asynchronous preview iframes before
-// their first meaningful paint. The previous 800ms fixed delay captured the
-// shell before those frames rendered, producing false visual_pixel_blank
-// findings even though the page later became visible.
-const captureSettleTimeoutMs = 15_000
 
 // CommandGroup exposes capture as the top-level `ui-health capture` command.
 // The other ui-health domains are hierarchical Connect groups, but capture is
@@ -88,15 +79,20 @@ type resolution struct {
 }
 
 type captureArtifact struct {
-	Viewport                 string   `json:"viewport"`
-	Theme                    string   `json:"theme"`
-	ExecutionID              string   `json:"executionId"`
-	ScreenshotRef            string   `json:"screenshotRef,omitempty"`
-	SnapshotRef              string   `json:"snapshotRef,omitempty"`
-	Readiness                any      `json:"readiness,omitempty"`
-	StrictTokenSentinelCount int      `json:"strictTokenSentinelCount,omitempty"`
-	NonSentinelColorCount    int      `json:"nonSentinelColorCount,omitempty"`
-	NonSentinelColorSamples  []string `json:"nonSentinelColorSamples,omitempty"`
+	Viewport                 string         `json:"viewport"`
+	Theme                    string         `json:"theme"`
+	ExecutionID              string         `json:"executionId"`
+	ScreenshotRef            string         `json:"screenshotRef,omitempty"`
+	SnapshotRef              string         `json:"snapshotRef,omitempty"`
+	Readiness                any            `json:"readiness,omitempty"`
+	StrictTokenSentinelCount int            `json:"strictTokenSentinelCount,omitempty"`
+	StrictTokenCount         int            `json:"strictTokenCount,omitempty"`
+	NonSentinelColorCount    int            `json:"nonSentinelColorCount,omitempty"`
+	NonSentinelColorSamples  []string       `json:"nonSentinelColorSamples,omitempty"`
+	BundleSchema             string         `json:"bundleSchema,omitempty"`
+	BundleID                 string         `json:"bundleId,omitempty"`
+	Lenses                   map[string]any `json:"lenses,omitempty"`
+	BundleDir                string         `json:"bundleDir,omitempty"`
 }
 
 type finding struct {
@@ -107,6 +103,8 @@ type finding struct {
 	Viewport string `json:"viewport"`
 	Theme    string `json:"theme"`
 }
+
+const strictTokenSentinel = "#ff00ff"
 
 type envelope struct {
 	Status       string            `json:"status"`
@@ -178,11 +176,9 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 		env.Error = "browser-automation-studio is not running; start it with `vrooli scenario start browser-automation-studio`"
 		return h.render(ctx, env, nil)
 	}
-	captures := captureconnect.NewCaptureServiceClient(h.http, strings.TrimRight(basURL, "/"))
-
 	for _, viewport := range viewports {
 		for _, theme := range themes {
-			artifact, finds, captureErr := h.captureOne(context.Background(), captures, baseURL, resolved, viewport, theme, strictTokens)
+			artifact, finds, captureErr := h.captureOne(context.Background(), basURL, scenario, baseURL, resolved, viewport, theme, strictTokens)
 			if captureErr != nil {
 				env.Error = firstError(env.Error, captureErr.Error())
 				continue
@@ -368,188 +364,41 @@ func (h *handlers) observeBaseLink(ctx context.Context, targetURL, query string)
 	return found, found.route != "", nil
 }
 
-func (h *handlers) captureOne(ctx context.Context, client captureconnect.CaptureServiceClient, baseURL string, resolved *resolution, viewport, theme string, strictTokens bool) (captureArtifact, []finding, error) {
+func (h *handlers) captureOne(ctx context.Context, basURL, scenario, baseURL string, resolved *resolution, viewport, theme string, strictTokens bool) (captureArtifact, []finding, error) {
 	if resolved == nil || !concreteRoute(resolved.Route) {
 		return captureArtifact{}, nil, errors.New(unresolvedRouteReason)
 	}
-	dimensions, err := dimensionsFor(viewport)
+	bundle, files, err := h.captureUXBundle(ctx, basURL, scenario, resolved.Route, theme, viewport, strictTokens)
 	if err != nil {
 		return captureArtifact{}, nil, err
 	}
-	url := strings.TrimRight(baseURL, "/") + resolved.Route
-	colorScheme := theme
-	request := &capturev1.CaptureRequest{
-		Url:                url,
-		Captures:           []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT, capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE},
-		Dimensions:         dimensions,
-		WaitFor:            &capturev1.WaitFor{Spec: &capturev1.WaitFor_TimeoutMs{TimeoutMs: captureSettleTimeoutMs}},
-		Label:              fmt.Sprintf("ui-health:%s:%s:%s", resolved.SurfaceID, viewport, theme),
-		InlineDom:          true,
-		InlineDomTree:      true,
-		BrowserProfile:     &basev1.BrowserProfile{Fingerprint: &basev1.FingerprintSettings{ColorScheme: &colorScheme}},
-		ScreenshotSelector: resolved.Selector,
+	finds, err := analyzeUXBundle(ctx, h.visual, scenario, strings.TrimRight(baseURL, "/")+resolved.Route, viewport, theme, bundle.Manifest, files)
+	if err != nil {
+		return captureArtifact{}, nil, fmt.Errorf("analyze %s/%s: %w", viewport, theme, err)
 	}
+	lens := map[string]any{}
+	for name, value := range bundle.Manifest.Lenses {
+		lens[name] = map[string]string{"status": value.Status, "reason": value.Reason}
+	}
+	artifact := captureArtifact{Viewport: viewport, Theme: theme, ExecutionID: bundle.Manifest.ID, BundleSchema: bundle.Manifest.SchemaVersion, BundleID: bundle.Manifest.ID, BundleDir: bundle.BundleDir, Lenses: lens}
 	if strictTokens {
-		request.InteractionFlowJson, err = strictTokenInteractionFlowJSON()
-		if err != nil {
-			return captureArtifact{}, nil, err
+		var diagnostic struct {
+			Schema                string `json:"schema"`
+			TokenCount            int    `json:"token_count"`
+			SentinelElementCount  int    `json:"sentinel_element_count"`
+			NonSentinelColorCount int    `json:"non_sentinel_color_count"`
 		}
-	}
-	resp, err := client.Capture(ctx, connect.NewRequest(request))
-	if err != nil {
-		return captureArtifact{}, nil, fmt.Errorf("capture %s/%s: %w", viewport, theme, err)
-	}
-	if resp == nil || resp.Msg == nil {
-		return captureArtifact{}, nil, fmt.Errorf("capture %s/%s returned no response", viewport, theme)
-	}
-	artifact := captureArtifact{Viewport: viewport, Theme: theme, ExecutionID: resp.Msg.GetExecutionId()}
-	var screenshot []byte
-	for _, item := range resp.Msg.GetArtifacts() {
-		switch item.GetType() {
-		case capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT:
-			if item.GetPrimary() || len(screenshot) == 0 {
-				artifact.ScreenshotRef = item.GetReference()
-				if item.GetPath() != "" {
-					screenshot, _ = os.ReadFile(item.GetPath())
-				}
-			}
-		case capturev1.CaptureType_CAPTURE_TYPE_DOM_TREE:
-			artifact.SnapshotRef = item.GetReference()
+		if err := json.Unmarshal(files["diagnostics/strict-tokens.json"], &diagnostic); err != nil {
+			return artifact, nil, fmt.Errorf("strict-token diagnostic is missing or invalid: %w", err)
 		}
-	}
-	if resp.Msg.GetReadiness() != nil {
-		artifact.Readiness = map[string]any{"outcome": resp.Msg.GetReadiness().GetOutcome(), "selectedStrategy": resp.Msg.GetReadiness().GetSelectedStrategy()}
-	}
-	if strictTokens {
-		artifact.StrictTokenSentinelCount, artifact.NonSentinelColorCount, artifact.NonSentinelColorSamples = strictTokenColorObservation(resp.Msg.GetDomTreeJson())
-	}
-
-	visualResp, err := h.visual.AnalyzeArtifacts(ctx, connect.NewRequest(&visualv1.AnalyzeArtifactsRequest{
-		Scenario: "ui-health",
-		RunId:    resp.Msg.GetExecutionId(),
-		Steps: []*visualv1.VisualStepArtifact{{
-			StepId:        "capture",
-			Label:         fmt.Sprintf("%s %s", viewport, theme),
-			Url:           url,
-			Viewport:      viewportFor(viewport),
-			LayoutJson:    resp.Msg.GetDomTreeJson(),
-			ScreenshotPng: screenshot,
-			DomHtml:       resp.Msg.GetDomHtml(),
-		}},
-	}))
-	if err != nil {
-		return artifact, nil, fmt.Errorf("analyze %s/%s: %w", viewport, theme, err)
-	}
-	findings := make([]finding, 0)
-	for _, step := range visualResp.Msg.GetSteps() {
-		for _, item := range step.GetFindings() {
-			findings = append(findings, finding{Rule: item.GetCode(), Severity: item.GetSeverity().String(), Selector: item.GetLocation(), Message: item.GetMessage(), Viewport: viewport, Theme: theme})
+		if diagnostic.Schema != "bas-strict-token-diagnostic/v1" {
+			return artifact, nil, fmt.Errorf("strict-token diagnostic schema is %q", diagnostic.Schema)
 		}
+		artifact.StrictTokenSentinelCount = diagnostic.SentinelElementCount
+		artifact.NonSentinelColorCount = diagnostic.NonSentinelColorCount
+		artifact.StrictTokenCount = diagnostic.TokenCount
 	}
-	return artifact, findings, nil
-}
-
-const strictTokenSentinel = "#ff00ff"
-
-// strictTokenInteractionFlowJSON is deliberately expressed as a BAS evaluate
-// flow so the diagnostic runs in the same browser session and before the
-// computed DOM snapshot. CSSOM is used instead of a source-side token list so
-// injected library styles and scenario styles are both included.
-func strictTokenInteractionFlowJSON() (string, error) {
-	flow := map[string]any{
-		"nodes": []any{map[string]any{
-			"id": "strict-token-sentinel",
-			"action": map[string]any{
-				"type": "ACTION_TYPE_EVALUATE",
-				"evaluate": map[string]any{"expression": `(function() {
-  const names = new Set();
-  const visit = (rules) => {
-    for (const rule of Array.from(rules || [])) {
-      if (rule.style) for (const name of Array.from(rule.style)) if (name.startsWith('--')) names.add(name);
-      if (rule.cssRules) visit(rule.cssRules);
-    }
-  };
-  for (const sheet of Array.from(document.styleSheets || [])) {
-    try { visit(sheet.cssRules); } catch (_) {}
-  }
-  for (const style of Array.from(document.querySelectorAll('style'))) {
-    for (const match of style.textContent.matchAll(/(--[A-Za-z0-9_-]+)\s*:/g)) names.add(match[1]);
-  }
-  for (const name of names) document.documentElement.style.setProperty(name, '#ff00ff');
-  return { sentinel: '#ff00ff', tokenCount: names.size, tokens: Array.from(names).sort() };
-})()`},
-			},
-		}},
-		"edges": []any{},
-	}
-	data, err := json.Marshal(flow)
-	if err != nil {
-		return "", fmt.Errorf("encode strict-token interaction flow: %w", err)
-	}
-	return string(data), nil
-}
-
-type strictTokenTreeNode struct {
-	Selector string `json:"selector"`
-	Computed struct {
-		Color           string `json:"color"`
-		BackgroundColor string `json:"backgroundColor"`
-	} `json:"computed"`
-	Children []strictTokenTreeNode `json:"children"`
-}
-
-func strictTokenColorObservation(raw string) (int, int, []string) {
-	var root strictTokenTreeNode
-	if strings.TrimSpace(raw) == "" {
-		return 0, 0, nil
-	}
-	var envelope struct {
-		Tree *strictTokenTreeNode `json:"tree"`
-	}
-	if json.Unmarshal([]byte(raw), &root) != nil {
-		return 0, 0, nil
-	}
-	_ = json.Unmarshal([]byte(raw), &envelope)
-	if root.Selector == "" && envelope.Tree != nil {
-		root = *envelope.Tree
-	}
-	sentinelCount := 0
-	nonSentinelCount := 0
-	samples := make([]string, 0, 20)
-	seen := map[string]bool{}
-	var walk func(strictTokenTreeNode)
-	walk = func(node strictTokenTreeNode) {
-		color := strings.TrimSpace(node.Computed.Color)
-		background := strings.TrimSpace(node.Computed.BackgroundColor)
-		if (isStrictSentinelColor(color) || isStrictSentinelColor(background)) && node.Selector != "" {
-			sentinelCount++
-		}
-		if (nonSentinelColor(color) || nonSentinelColor(background)) && node.Selector != "" {
-			nonSentinelCount++
-			key := node.Selector + " color=" + color + " background=" + background
-			if len(samples) < 20 && !seen[key] {
-				seen[key] = true
-				samples = append(samples, key)
-			}
-		}
-		for _, child := range node.Children {
-			walk(child)
-		}
-	}
-	walk(root)
-	return sentinelCount, nonSentinelCount, samples
-}
-
-func nonSentinelColor(value string) bool {
-	if value == "" || strings.EqualFold(value, "transparent") || strings.EqualFold(value, "rgba(0, 0, 0, 0)") {
-		return false
-	}
-	return !isStrictSentinelColor(value)
-}
-
-func isStrictSentinelColor(value string) bool {
-	normalized := strings.ToLower(strings.ReplaceAll(value, " ", ""))
-	return normalized == "#ff00ff" || normalized == "rgb(255,0,255)" || normalized == "rgba(255,0,255,1)" || strings.HasPrefix(normalized, "color(srgb101")
+	return artifact, finds, nil
 }
 
 func (h *handlers) render(ctx cliapp.RunContext, env envelope, _ error) error {
@@ -598,21 +447,6 @@ func normalizeValues(values, defaults []string) []string {
 		out = append(out, v)
 	}
 	return out
-}
-
-func dimensionsFor(name string) (*capturev1.Dimensions, error) {
-	var preset capturev1.DimensionsPreset
-	switch name {
-	case "desktop":
-		preset = capturev1.DimensionsPreset_DIMENSIONS_PRESET_DESKTOP
-	case "mobile":
-		preset = capturev1.DimensionsPreset_DIMENSIONS_PRESET_MOBILE
-	case "tablet":
-		preset = capturev1.DimensionsPreset_DIMENSIONS_PRESET_TABLET
-	default:
-		return nil, fmt.Errorf("unsupported viewport %q (use desktop, tablet, or mobile)", name)
-	}
-	return &capturev1.Dimensions{Preset: preset}, nil
 }
 
 func viewportFor(name string) *visualv1.Viewport {

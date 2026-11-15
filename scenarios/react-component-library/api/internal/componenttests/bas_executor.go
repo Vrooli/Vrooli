@@ -6,6 +6,8 @@ package componenttests
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -13,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -25,13 +28,15 @@ import (
 )
 
 var basStoryResult = regexp.MustCompile(`(?s)<pre[^>]*id="rcl-story-result"[^>]*>(.*?)</pre>`)
+var captureScenarioSlug = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
+var captureBundleID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
-// BASCaptureExecutor delegates story execution to BAS CaptureService. It is
+// BASCaptureExecutor delegates story execution to BAS's canonical UX capture bundle. It is
 // intentionally small so the runner remains independently testable while
 // production receives BAS's screenshot, DOM, accessibility, console, network,
 // and performance artifacts from one browser session.
 type BASCaptureExecutor struct {
-	RCLBaseURL     string
+	RCLUIBaseURL   string
 	BASBaseURL     string
 	HTTPClient     *http.Client
 	PageSourceRoot string
@@ -39,21 +44,14 @@ type BASCaptureExecutor struct {
 	discoverBAS    bool
 }
 
-// ReportFreshnessKey versions the BAS evidence policy that affects durable
-// component reports. Policy 3 also applies each story's declared pixel
-// geometry to the browser viewport, so desktop reports cannot certify a
-// phone-width story.
+// ReportFreshnessKey versions the canonical UX bundle evidence consumed by
+// component reports.
 func (BASCaptureExecutor) ReportFreshnessKey() string {
-	return "bas-story-sheet-dsf=" + strconv.FormatFloat(basStorySheetDeviceScaleFactor, 'f', -1, 64) + ";policy=3"
+	return "ux-capture-componenttests=1;policy=4"
 }
 
-const basCaptureServicePath = "/browser_automation_studio.v1.capture.CaptureService/Capture"
-
-// Story-sheet screenshots contain several rendered stories in one image, so
-// reduce only their raster scale to stay below BAS's fixed PNG payload cap.
-// Keeping the CSS viewport unchanged preserves the grouped sheet's layout;
-// individual story captures retain the standard review scale.
-const basStorySheetDeviceScaleFactor = 1.0
+const uxScenarioCapturePath = "/ux-capture/scenario"
+const uxArtifactPathPrefix = "/ux-capture/bundles/"
 
 // BASProviderInspection is the read-only observation of the BAS endpoint
 // selected by this executor. It intentionally contains no response body or
@@ -69,12 +67,6 @@ type BASProviderInspection struct {
 }
 
 func NewBASCaptureExecutor() BASCaptureExecutor {
-	rclBase := strings.TrimRight(strings.TrimSpace(os.Getenv("RCL_API_BASE_URL")), "/")
-	if rclBase == "" {
-		if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
-			rclBase = "http://127.0.0.1:" + port
-		}
-	}
 	basBase := strings.TrimRight(strings.TrimSpace(os.Getenv("RCL_BAS_API_URL")), "/")
 	if basBase == "" {
 		basBase = strings.TrimRight(strings.TrimSpace(os.Getenv("BAS_API_URL")), "/")
@@ -85,7 +77,13 @@ func NewBASCaptureExecutor() BASCaptureExecutor {
 		defer cancel()
 		basBase, _ = discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURL(ctx, "browser-automation-studio", "API_PORT")
 	}
-	return BASCaptureExecutor{RCLBaseURL: rclBase, BASBaseURL: basBase, HTTPClient: &http.Client{Timeout: 2 * time.Minute}, discoverBAS: discoverBAS}
+	rclUIBase := strings.TrimRight(strings.TrimSpace(os.Getenv("RCL_UI_BASE_URL")), "/")
+	if rclUIBase == "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		rclUIBase, _ = discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURL(ctx, "react-component-library", "UI_PORT")
+	}
+	return BASCaptureExecutor{RCLUIBaseURL: rclUIBase, BASBaseURL: basBase, HTTPClient: &http.Client{Timeout: 2 * time.Minute}, discoverBAS: discoverBAS}
 }
 
 // Probe confirms that the browser boundary is reachable before a sweep
@@ -96,11 +94,11 @@ func (e BASCaptureExecutor) Probe(ctx context.Context) error {
 	return err
 }
 
-// InspectProvider resolves and health-checks the same BAS endpoint used by
-// capture operations, but never invokes CaptureService.
+// InspectProvider resolves and health-checks the BAS endpoint used by
+// canonical UX-bundle capture operations without starting a browser capture.
 func (e BASCaptureExecutor) InspectProvider(ctx context.Context) (BASProviderInspection, error) {
 	inspection := BASProviderInspection{
-		CapturePath:  basCaptureServicePath,
+		CapturePath:  uxScenarioCapturePath,
 		HealthStatus: "unavailable",
 	}
 	basBase, err := e.basBaseURL(ctx)
@@ -110,7 +108,7 @@ func (e BASCaptureExecutor) InspectProvider(ctx context.Context) (BASProviderIns
 	}
 	if strings.TrimSpace(e.BASBaseURL) == "" && !e.discoverBAS {
 		inspection.FailureClass = "selection_missing"
-		return inspection, ExecutorUnavailableError{Err: fmt.Errorf("BAS CaptureService base URL is required")}
+		return inspection, ExecutorUnavailableError{Err: fmt.Errorf("BAS UX capture base URL is required")}
 	}
 	inspection.BASBaseURL, inspection.SelectionExact = sanitizedBASBaseURL(basBase)
 	inspection.ResolvedAt = time.Now().UTC()
@@ -189,54 +187,72 @@ func (e BASCaptureExecutor) basBaseURL(ctx context.Context) (string, error) {
 	}
 	base, err := discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURL(ctx, "browser-automation-studio", "API_PORT")
 	if err != nil {
-		return "", fmt.Errorf("BAS CaptureService discovery: %w", err)
+		return "", fmt.Errorf("BAS UX capture discovery: %w", err)
 	}
 	return base, nil
 }
 
-type basCaptureRequest struct {
-	URL                 string        `json:"url"`
-	Captures            []string      `json:"captures"`
-	Dimensions          basDimensions `json:"dimensions"`
-	WaitFor             basWaitFor    `json:"waitFor"`
-	InlineDOM           bool          `json:"inlineDom"`
-	InlineAccessibility bool          `json:"inlineAccessibility"`
-	InlineComputedStyle bool          `json:"inlineComputedStyle"`
-	ScreenshotSelector  string        `json:"screenshotSelector,omitempty"`
-	Label               string        `json:"label"`
+type uxScenarioCaptureRequest struct {
+	Scenario        string `json:"scenario"`
+	Route           string `json:"route"`
+	WaitSelector    string `json:"wait_selector"`
+	Width           int    `json:"width"`
+	Height          int    `json:"height"`
+	EvidenceProfile string `json:"evidence_profile"`
+	RegionSelector  string `json:"region_selector"`
 }
 
 type basDimensions struct {
-	Width             int     `json:"width"`
-	Height            int     `json:"height"`
-	DeviceScaleFactor float64 `json:"deviceScaleFactor,omitempty"`
+	Width  int `json:"width"`
+	Height int `json:"height"`
 }
 
-type basWaitFor struct {
-	Selector string `json:"selector"`
+type uxCaptureArtifact struct {
+	Kind      string `json:"kind"`
+	Path      string `json:"path"`
+	SizeBytes int64  `json:"size_bytes"`
+	SHA256    string `json:"sha256"`
 }
 
-type basCaptureResponse struct {
-	ExecutionID   string          `json:"executionId"`
-	DurationMS    json.RawMessage `json:"durationMs"`
-	DOMHTML       string          `json:"domHtml"`
-	Accessibility string          `json:"accessibilityJson"`
-	Artifacts     []basArtifact   `json:"artifacts"`
-	Readiness     basReadiness    `json:"readiness"`
+type uxCaptureBundle struct {
+	SchemaVersion string `json:"schema_version"`
+	ID            string `json:"id"`
+	Source        struct {
+		Kind     string `json:"kind"`
+		Scenario string `json:"scenario"`
+		Route    string `json:"route"`
+	} `json:"source"`
+	Privacy struct {
+		RedactionStatus string `json:"redaction_status"`
+	} `json:"privacy"`
+	Lenses map[string]struct {
+		Status string `json:"status"`
+	} `json:"lenses"`
+	Artifacts []uxCaptureArtifact `json:"artifacts"`
 }
 
-type basReadiness struct {
-	SelectedStrategy string `json:"selectedStrategy"`
-	Outcome          string `json:"outcome"`
+type uxCaptureResponse struct {
+	Manifest uxCaptureBundle `json:"manifest"`
 }
 
-type basArtifact struct {
-	Type      string            `json:"type"`
-	Path      string            `json:"path"`
-	Reference string            `json:"reference"`
-	SizeBytes json.RawMessage   `json:"sizeBytes"`
-	Metadata  map[string]string `json:"metadata"`
-	Primary   bool              `json:"primary"`
+type componentAccessibility struct {
+	Schema   string           `json:"schema"`
+	Snapshot string           `json:"snapshot"`
+	Axe      *StoryAxeResults `json:"axe,omitempty"`
+}
+
+type componentRegionStyle struct {
+	Schema        string `json:"schema"`
+	ComputedStyle struct {
+		Color       string `json:"color"`
+		Background  string `json:"background_color"`
+		BorderColor string `json:"border_color"`
+		BorderStyle string `json:"border_style"`
+		BorderWidth string `json:"border_width"`
+		Visibility  string `json:"visibility"`
+		Display     string `json:"display"`
+		Opacity     string `json:"opacity"`
+	} `json:"computed_style"`
 }
 
 // URLCapture is the structured result for a non-RCL page captured through the
@@ -245,7 +261,8 @@ type basArtifact struct {
 type URLCapture struct {
 	DOMHTML       string
 	Accessibility string
-	Artifacts     []basArtifact
+	RegionStyle   string
+	Artifacts     []Artifact
 }
 
 func (e BASCaptureExecutor) ExecuteStory(ctx context.Context, libraryID, version, storyID string) (StoryExecution, error) {
@@ -253,17 +270,17 @@ func (e BASCaptureExecutor) ExecuteStory(ctx context.Context, libraryID, version
 }
 
 func (e BASCaptureExecutor) ExecuteStoryWithGeometry(ctx context.Context, libraryID, version, storyID string, geometry *components.StoryGeometry) (StoryExecution, error) {
-	if strings.TrimSpace(e.RCLBaseURL) == "" {
-		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("RCL preview API base URL is required")}
+	if strings.TrimSpace(e.RCLUIBaseURL) == "" {
+		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("RCL UI base URL is required")}
 	}
 	if strings.TrimSpace(e.BASBaseURL) == "" && !e.discoverBAS {
-		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("BAS CaptureService base URL is required")}
+		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("BAS UX capture base URL is required")}
 	}
 	storyURL, err := e.storyURL(libraryID, version, storyID)
 	if err != nil {
 		return StoryExecution{}, err
 	}
-	return e.executeCaptureAtDimensions(ctx, storyURL, fmt.Sprintf("rcl:%s@%s:%s", libraryID, version, storyID), libraryID, version, storyID, storyViewport(geometry))
+	return e.executeScenarioCapture(ctx, storyURL, libraryID, version, storyID, storyViewport(geometry))
 }
 
 var pixelDimension = regexp.MustCompile(`^([1-9][0-9]{0,3})px$`)
@@ -287,11 +304,11 @@ func storyViewport(geometry *components.StoryGeometry) basDimensions {
 }
 
 func (e BASCaptureExecutor) ExecuteStorySheet(ctx context.Context, libraryID, version string, storyIDs []string) (StoryExecution, error) {
-	if strings.TrimSpace(e.RCLBaseURL) == "" {
-		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("RCL preview API base URL is required")}
+	if strings.TrimSpace(e.RCLUIBaseURL) == "" {
+		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("RCL UI base URL is required")}
 	}
 	if strings.TrimSpace(e.BASBaseURL) == "" && !e.discoverBAS {
-		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("BAS CaptureService base URL is required")}
+		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("BAS UX capture base URL is required")}
 	}
 	if len(storyIDs) == 0 {
 		return StoryExecution{}, fmt.Errorf("story sheet must contain at least one story")
@@ -308,132 +325,189 @@ func (e BASCaptureExecutor) ExecuteStorySheet(ctx context.Context, libraryID, ve
 	query.Del("story")
 	query.Set("stories", strings.Join(storyIDs, ","))
 	parsed.RawQuery = query.Encode()
-	return e.executeCaptureAtDimensions(ctx, parsed.String(), fmt.Sprintf("rcl:%s@%s:sheet:%s", libraryID, version, strings.Join(storyIDs, ",")), libraryID, version, "review-sheet:"+strings.Join(storyIDs, ","), basDimensions{Width: 1280, Height: 800, DeviceScaleFactor: basStorySheetDeviceScaleFactor})
+	return e.executeScenarioCapture(ctx, parsed.String(), libraryID, version, "review-sheet:"+strings.Join(storyIDs, ","), basDimensions{Width: 1280, Height: 800})
 }
 
-func (e BASCaptureExecutor) executeCapture(ctx context.Context, storyURL, label, libraryID, version, storyID string) (StoryExecution, error) {
-	return e.executeCaptureAtDimensions(ctx, storyURL, label, libraryID, version, storyID, basDimensions{Width: 1280, Height: 800})
-}
-
-func (e BASCaptureExecutor) executeCaptureAtDimensions(ctx context.Context, storyURL, label, libraryID, version, storyID string, dimensions basDimensions) (StoryExecution, error) {
+func (e BASCaptureExecutor) executeScenarioCapture(ctx context.Context, storyURL, libraryID, version, storyID string, dimensions basDimensions) (StoryExecution, error) {
 	ready := `[data-preview-readiness-marker][data-preview-ready="true"][data-rcl-story-status="passed"]`
-	screenshotSelector := `[data-preview-capture-boundary="component-sheet"]`
+	regionSelector := `[data-preview-capture-boundary="component-sheet"]`
 	if strings.HasPrefix(libraryID, components.PageStoryPrefix) {
 		ready = `[data-preview-readiness-marker][data-preview-ready="true"]`
-		// Page stories mark the app-owned root with data-preview-sheet; they do
-		// not participate in the component harness capture-boundary contract.
-		screenshotSelector = `[data-preview-sheet]`
+		regionSelector = `[data-preview-sheet]`
 	}
-	capture, err := e.captureURLAtDimensions(ctx, storyURL, label, ready, screenshotSelector, dimensions)
+	started := time.Now()
+	capture, err := e.captureScenarioPage(ctx, storyURL, ready, regionSelector, dimensions)
 	if err != nil {
 		return StoryExecution{}, err
 	}
-	result, err := decodeBASStoryResult(capture.DOMHTML)
+	frozen, err := e.readBundleArtifact(ctx, capture, "frozen-page")
 	if err != nil {
 		return StoryExecution{}, err
 	}
-	result.Duration = time.Duration(parseBASInt(capture.DurationMS)) * time.Millisecond
-	result.AccessibilityJSON = capture.Accessibility
-	result.Artifacts = basArtifacts(libraryID, version, storyID, e.BASBaseURL, capture.Artifacts)
-	for _, artifact := range capture.Artifacts {
-		if strings.Contains(strings.ToLower(artifact.Type), "console") && artifact.Path != "" {
-			result.Console = readConsoleArtifact(artifact.Path)
-		}
+	result, err := decodeBASStoryResult(string(frozen))
+	if err != nil {
+		return StoryExecution{}, err
 	}
+	accessibilityBytes, err := e.readBundleArtifact(ctx, capture, "accessibility-snapshot")
+	if err != nil {
+		return StoryExecution{}, err
+	}
+	var accessibility componentAccessibility
+	if err := json.Unmarshal(accessibilityBytes, &accessibility); err != nil || accessibility.Schema != "bas-accessibility-snapshot/v1" || strings.TrimSpace(accessibility.Snapshot) == "" {
+		return StoryExecution{}, fmt.Errorf("BAS bundle accessibility snapshot is invalid")
+	}
+	accessibility.Axe = result.AxeResults
+	accessibilityJSON, _ := json.Marshal(accessibility)
+	result.AccessibilityJSON = string(accessibilityJSON)
+	consoleBytes, err := e.readBundleArtifact(ctx, capture, "console-summary")
+	if err != nil {
+		return StoryExecution{}, err
+	}
+	var console struct {
+		Schema       string `json:"schema"`
+		ErrorCount   int    `json:"error_count"`
+		WarningCount int    `json:"warning_count"`
+	}
+	if err := json.Unmarshal(consoleBytes, &console); err != nil || console.Schema != "bas-console-summary/v1" || console.ErrorCount < 0 || console.WarningCount < 0 {
+		return StoryExecution{}, fmt.Errorf("BAS bundle console summary is invalid")
+	}
+	if console.ErrorCount > 0 {
+		result.Console.ConsoleErrors = []string{fmt.Sprintf("%d console error(s)", console.ErrorCount)}
+	}
+	performanceBytes, err := e.readBundleArtifact(ctx, capture, "performance-metrics")
+	if err != nil {
+		return StoryExecution{}, err
+	}
+	var performance struct {
+		Schema string `json:"schema"`
+	}
+	if err := json.Unmarshal(performanceBytes, &performance); err != nil || performance.Schema != "bas-performance-metrics/v1" {
+		return StoryExecution{}, fmt.Errorf("BAS bundle performance metrics are invalid")
+	}
+	styleBytes, err := e.readBundleArtifact(ctx, capture, "region-style-sample")
+	if err != nil {
+		return StoryExecution{}, err
+	}
+	if err := validateRegionStyleSample(styleBytes); err != nil {
+		return StoryExecution{}, err
+	}
+	region := findUXArtifact(capture.Manifest, "region-pixels")
+	if region == nil {
+		return StoryExecution{}, fmt.Errorf("BAS component capture did not produce its story region image")
+	}
+	result.Artifacts, err = e.componentArtifacts(ctx, capture.Manifest, libraryID, version, storyID)
+	if err != nil {
+		return StoryExecution{}, err
+	}
+	result.Duration = time.Since(started)
 	return result, nil
 }
 
-// CaptureURL captures an arbitrary page through BAS. Callers should provide a
-// semantic readiness selector and a bounded screenshot selector; BAS owns the
-// browser lifecycle and returns the durable structured evidence bundle.
-func (e BASCaptureExecutor) CaptureURL(ctx context.Context, pageURL, label, readinessSelector, screenshotSelector string) (URLCapture, error) {
-	capture, err := e.captureURL(ctx, pageURL, label, readinessSelector, screenshotSelector)
+func (e BASCaptureExecutor) CaptureScenarioURL(ctx context.Context, scenario, route, readinessSelector, regionSelector string) (URLCapture, error) {
+	if !captureScenarioSlug.MatchString(scenario) {
+		return URLCapture{}, fmt.Errorf("scenario must be a valid slug")
+	}
+	parsed, err := url.ParseRequestURI(route)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || !strings.HasPrefix(parsed.Path, "/") {
+		return URLCapture{}, fmt.Errorf("route must be an absolute local path")
+	}
+	dimensions := basDimensions{Width: 1280, Height: 800}
+	if e.BASBaseURL == "" && !e.discoverBAS {
+		return URLCapture{}, fmt.Errorf("BAS UX capture base URL is required")
+	}
+	capture, err := e.captureScenario(ctx, scenario, route, readinessSelector, regionSelector, dimensions)
 	if err != nil {
 		return URLCapture{}, err
 	}
-	return URLCapture{DOMHTML: capture.DOMHTML, Accessibility: capture.Accessibility, Artifacts: capture.Artifacts}, nil
+	a11y, err := e.readBundleArtifact(ctx, capture, "accessibility-snapshot")
+	if err != nil {
+		return URLCapture{}, err
+	}
+	style, err := e.readBundleArtifact(ctx, capture, "region-style-sample")
+	if err != nil {
+		return URLCapture{}, err
+	}
+	if err := validateRegionStyleSample(style); err != nil {
+		return URLCapture{}, err
+	}
+	if _, err := e.readBundleArtifact(ctx, capture, "region-pixels"); err != nil {
+		return URLCapture{}, err
+	}
+	return URLCapture{Accessibility: string(a11y), RegionStyle: string(style), Artifacts: []Artifact{}}, nil
 }
 
-func (e BASCaptureExecutor) captureURL(ctx context.Context, pageURL, label, readinessSelector, screenshotSelector string) (basCaptureResponse, error) {
-	return e.captureURLAtDimensions(ctx, pageURL, label, readinessSelector, screenshotSelector, basDimensions{Width: 1280, Height: 800})
+func validateRegionStyleSample(raw []byte) error {
+	var sample componentRegionStyle
+	decoder := json.NewDecoder(strings.NewReader(string(raw)))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&sample); err != nil || sample.Schema != "bas-region-style-sample/v1" {
+		return fmt.Errorf("BAS region style sample is invalid")
+	}
+	for _, value := range []string{sample.ComputedStyle.Color, sample.ComputedStyle.Background, sample.ComputedStyle.BorderColor, sample.ComputedStyle.BorderStyle, sample.ComputedStyle.BorderWidth, sample.ComputedStyle.Visibility, sample.ComputedStyle.Display, sample.ComputedStyle.Opacity} {
+		if value == "" || len(value) > 128 {
+			return fmt.Errorf("BAS region style sample contains an invalid property value")
+		}
+	}
+	return nil
 }
 
-func (e BASCaptureExecutor) captureURLAtDimensions(ctx context.Context, pageURL, label, readinessSelector, screenshotSelector string, dimensions basDimensions) (basCaptureResponse, error) {
+func (e BASCaptureExecutor) captureScenarioPage(ctx context.Context, targetURL, readinessSelector, regionSelector string, dimensions basDimensions) (uxCaptureResponse, error) {
+	parsed, err := url.Parse(targetURL)
+	if err != nil {
+		return uxCaptureResponse{}, fmt.Errorf("parse RCL story URL: %w", err)
+	}
+	return e.captureScenario(ctx, "react-component-library", parsed.RequestURI(), readinessSelector, regionSelector, dimensions)
+}
+
+func (e BASCaptureExecutor) captureScenario(ctx context.Context, scenario, route, readinessSelector, regionSelector string, dimensions basDimensions) (uxCaptureResponse, error) {
 	basBase, err := e.basBaseURL(ctx)
 	if err != nil {
-		return basCaptureResponse{}, ExecutorUnavailableError{Err: err}
+		return uxCaptureResponse{}, ExecutorUnavailableError{Err: err}
 	}
-	if strings.TrimSpace(pageURL) == "" {
-		return basCaptureResponse{}, fmt.Errorf("BAS capture URL is required")
+	if strings.TrimSpace(route) == "" {
+		return uxCaptureResponse{}, fmt.Errorf("BAS capture route is required")
 	}
 	if strings.TrimSpace(e.BASBaseURL) == "" && !e.discoverBAS {
-		return basCaptureResponse{}, fmt.Errorf("BAS CaptureService base URL is required")
+		return uxCaptureResponse{}, fmt.Errorf("BAS UX capture base URL is required")
 	}
-	payload := basCaptureRequest{
-		URL: pageURL,
-		Captures: []string{
-			"CAPTURE_TYPE_SCREENSHOT",
-			"CAPTURE_TYPE_DOM",
-			"CAPTURE_TYPE_CONSOLE_LOGS",
-			"CAPTURE_TYPE_NETWORK",
-			"CAPTURE_TYPE_PERFORMANCE",
-			"CAPTURE_TYPE_ACCESSIBILITY",
-		},
-		Dimensions:          dimensions,
-		WaitFor:             basWaitFor{Selector: readinessSelector},
-		InlineDOM:           true,
-		InlineAccessibility: true,
-		InlineComputedStyle: true,
-		ScreenshotSelector:  screenshotSelector,
-		Label:               label,
+	payload := uxScenarioCaptureRequest{
+		Scenario: scenario, Route: route, WaitSelector: readinessSelector,
+		Width: dimensions.Width, Height: dimensions.Height,
+		EvidenceProfile: "componenttests", RegionSelector: regionSelector,
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return basCaptureResponse{}, fmt.Errorf("encode BAS capture request: %w", err)
+		return uxCaptureResponse{}, fmt.Errorf("encode BAS UX capture request: %w", err)
 	}
-	captureURL, err := appendURLPath(basBase, basCaptureServicePath)
+	captureURL, err := appendURLPath(basBase, uxScenarioCapturePath)
 	if err != nil {
-		return basCaptureResponse{}, err
+		return uxCaptureResponse{}, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, captureURL, strings.NewReader(string(body)))
 	if err != nil {
-		return basCaptureResponse{}, fmt.Errorf("create BAS capture request: %w", err)
+		return uxCaptureResponse{}, fmt.Errorf("create BAS UX capture request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := e.client().Do(req)
 	if err != nil {
-		return basCaptureResponse{}, ExecutorUnavailableError{Err: err}
+		return uxCaptureResponse{}, ExecutorUnavailableError{Err: err}
 	}
 	defer resp.Body.Close()
 	responseBody, readErr := io.ReadAll(resp.Body)
 	if readErr != nil {
-		return basCaptureResponse{}, fmt.Errorf("read BAS capture response: %w", readErr)
+		return uxCaptureResponse{}, fmt.Errorf("read BAS UX capture response: %w", readErr)
 	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return basCaptureResponse{}, fmt.Errorf("BAS CaptureService returned HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(responseBody)))
+		return uxCaptureResponse{}, fmt.Errorf("BAS UX capture returned HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(responseBody)))
 	}
-	var capture basCaptureResponse
+	var capture uxCaptureResponse
 	if err := json.Unmarshal(responseBody, &capture); err != nil {
-		return basCaptureResponse{}, fmt.Errorf("decode BAS capture response: %w", err)
+		return uxCaptureResponse{}, fmt.Errorf("decode BAS UX capture response: %w", err)
+	}
+	if capture.Manifest.SchemaVersion != "ux-capture.v1" || capture.Manifest.ID == "" || capture.Manifest.Source.Kind != "scenario" || capture.Manifest.Source.Scenario != scenario || capture.Manifest.Privacy.RedactionStatus != "complete" {
+		return uxCaptureResponse{}, fmt.Errorf("BAS returned a mismatched or incompletely redacted UX capture bundle")
 	}
 	return capture, nil
-}
-
-func parseBASInt(raw json.RawMessage) int64 {
-	if len(raw) == 0 || string(raw) == "null" {
-		return 0
-	}
-	var number int64
-	if json.Unmarshal(raw, &number) == nil {
-		return number
-	}
-	var text string
-	if json.Unmarshal(raw, &text) == nil {
-		var parsed int64
-		_, _ = fmt.Sscanf(text, "%d", &parsed)
-		return parsed
-	}
-	return 0
 }
 
 func (e BASCaptureExecutor) client() *http.Client {
@@ -464,6 +538,9 @@ func (e BASCaptureExecutor) storyURL(libraryID, version, storyID string) (string
 		}
 		uiBase := e.PageUIBaseURL
 		if uiBase == "" {
+			uiBase = e.RCLUIBaseURL
+		}
+		if uiBase == "" {
 			uiBase, err = discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURL(ctx, "react-component-library", "UI_PORT")
 			if err != nil {
 				return "", err
@@ -485,7 +562,15 @@ func (e BASCaptureExecutor) storyURL(libraryID, version, storyID string) (string
 		pageURL.RawQuery = query.Encode()
 		return pageURL.String(), nil
 	}
-	base, err := url.Parse(e.RCLBaseURL + "/preview/" + url.PathEscape(libraryID) + "/harness.html")
+	uiBase := strings.TrimRight(e.RCLUIBaseURL, "/")
+	if uiBase == "" {
+		var err error
+		uiBase, err = discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURL(context.Background(), "react-component-library", "UI_PORT")
+		if err != nil {
+			return "", fmt.Errorf("resolve RCL UI URL: %w", err)
+		}
+	}
+	base, err := url.Parse(uiBase + "/preview/" + url.PathEscape(libraryID) + "/harness.html")
 	if err != nil {
 		return "", fmt.Errorf("build story URL: %w", err)
 	}
@@ -507,9 +592,13 @@ func decodeBASStoryResult(dom string) (StoryExecution, error) {
 		Passed      bool                `json:"passed"`
 		Failures    []json.RawMessage   `json:"failures"`
 		Performance PerformanceEvidence `json:"performance"`
+		Axe         *StoryAxeResults    `json:"axe"`
 	}
 	if err := json.Unmarshal([]byte(html.UnescapeString(match[1])), &result); err != nil {
 		return StoryExecution{}, fmt.Errorf("decode rcl-story-result: %w", err)
+	}
+	if err := validateStoryAxeResults(result.Axe); err != nil {
+		return StoryExecution{}, err
 	}
 	failures := make([]string, 0, len(result.Failures))
 	for _, raw := range result.Failures {
@@ -527,51 +616,132 @@ func decodeBASStoryResult(dom string) (StoryExecution, error) {
 		}
 		failures = append(failures, string(raw))
 	}
-	return StoryExecution{Passed: result.Passed, Failures: failures, Performance: result.Performance}, nil
+	return StoryExecution{Passed: result.Passed, Failures: failures, Performance: result.Performance, AxeResults: result.Axe}, nil
 }
 
-func basArtifacts(libraryID, version, storyID, basBaseURL string, artifacts []basArtifact) []Artifact {
-	result := make([]Artifact, 0, len(artifacts))
-	seen := make(map[string]struct{}, len(artifacts))
-	for _, artifact := range artifacts {
-		// BAS may return intermediate screenshots from navigation and readiness
-		// steps. The final authoritative frame is marked primary. Selecting the
-		// first frame made dynamically mounted stories (especially overlays)
-		// appear blank even though the browser captured the correct final frame.
-		if strings.EqualFold(artifact.Type, "CAPTURE_TYPE_SCREENSHOT") && !artifact.Primary && hasPrimaryScreenshot(artifacts) {
-			continue
-		}
-		kind := strings.ToLower(strings.TrimPrefix(artifact.Type, "CAPTURE_TYPE_"))
-		reference := artifact.Reference
-		if reference == "" {
-			reference = artifact.Path
-		}
-		if reference == "" {
-			continue
-		}
-		artifactKind := "bas-" + kind
-		if strings.HasPrefix(storyID, "review-sheet:") && kind == "screenshot" {
-			artifactKind = "bas-story-sheet"
-		}
-		if viewURL := strings.TrimSpace(artifact.Metadata["view_url"]); viewURL != "" {
-			reference = browserVisibleBASArtifactPath(viewURL)
-		}
-		if _, ok := seen[reference]; ok {
-			continue
-		}
-		seen[reference] = struct{}{}
-		result = append(result, Artifact{Kind: artifactKind, Label: fmt.Sprintf("%s:%s", storyID, kind), StoryID: storyID, AssetLibraryID: libraryID, Version: version, Reference: reference})
+func validateStoryAxeResults(result *StoryAxeResults) error {
+	if result == nil {
+		return nil
 	}
-	return result
+	if result.Schema != "rcl-axe-results/v1" {
+		return fmt.Errorf("decode rcl-story-result axe: unsupported schema %q", result.Schema)
+	}
+	switch result.Status {
+	case "unavailable":
+		if strings.TrimSpace(result.Reason) == "" {
+			return fmt.Errorf("decode rcl-story-result axe: unavailable result requires a reason")
+		}
+	case "complete":
+		if result.Engine != "axe-core" || strings.TrimSpace(result.Version) == "" || result.Violations == nil {
+			return fmt.Errorf("decode rcl-story-result axe: complete result requires axe-core version and violations")
+		}
+	default:
+		return fmt.Errorf("decode rcl-story-result axe: unsupported status %q", result.Status)
+	}
+	return nil
 }
 
-func hasPrimaryScreenshot(artifacts []basArtifact) bool {
-	for _, artifact := range artifacts {
-		if strings.EqualFold(artifact.Type, "CAPTURE_TYPE_SCREENSHOT") && artifact.Primary {
-			return true
+func findUXArtifact(bundle uxCaptureBundle, kind string) *uxCaptureArtifact {
+	var found *uxCaptureArtifact
+	for index := range bundle.Artifacts {
+		if bundle.Artifacts[index].Kind == kind {
+			if found != nil {
+				return nil
+			}
+			found = &bundle.Artifacts[index]
 		}
 	}
-	return false
+	return found
+}
+
+func safeBundleArtifactPath(value string) bool {
+	return value != "" && !strings.Contains(value, `\\`) && !strings.HasPrefix(value, "/") && path.Clean(value) == value && value != "." && value != ".." && !strings.HasPrefix(value, "../")
+}
+
+func (e BASCaptureExecutor) readBundleArtifact(ctx context.Context, capture uxCaptureResponse, kind string) ([]byte, error) {
+	artifact := findUXArtifact(capture.Manifest, kind)
+	if artifact == nil {
+		return nil, fmt.Errorf("BAS UX bundle is missing %s evidence", kind)
+	}
+	base, err := e.basBaseURL(ctx)
+	if err != nil {
+		return nil, ExecutorUnavailableError{Err: err}
+	}
+	if !captureBundleID.MatchString(capture.Manifest.ID) || !safeBundleArtifactPath(artifact.Path) {
+		return nil, fmt.Errorf("BAS UX bundle declared an unsafe artifact")
+	}
+	segments := strings.Split(artifact.Path, "/")
+	escaped := make([]string, len(segments))
+	for i, segment := range segments {
+		if segment == "" {
+			return nil, fmt.Errorf("BAS UX bundle declared an unsafe artifact")
+		}
+		escaped[i] = url.PathEscape(segment)
+	}
+	endpoint := uxArtifactPathPrefix + url.PathEscape(capture.Manifest.ID) + "/artifacts/" + strings.Join(escaped, "/")
+	artifactURL, err := appendURLPath(base, endpoint)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, artifactURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create BAS UX artifact request: %w", err)
+	}
+	resp, err := e.client().Do(req)
+	if err != nil {
+		return nil, ExecutorUnavailableError{Err: err}
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("BAS UX artifact returned HTTP %d", resp.StatusCode)
+	}
+	const maxArtifactBytes = 5 * 1024 * 1024
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxArtifactBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("read BAS UX artifact: %w", err)
+	}
+	if len(data) > maxArtifactBytes || int64(len(data)) != artifact.SizeBytes {
+		return nil, fmt.Errorf("BAS UX artifact size does not match its manifest")
+	}
+	digest := sha256.Sum256(data)
+	if !strings.EqualFold(hex.EncodeToString(digest[:]), artifact.SHA256) {
+		return nil, fmt.Errorf("BAS UX artifact digest does not match its manifest")
+	}
+	return data, nil
+}
+
+func (e BASCaptureExecutor) componentArtifacts(ctx context.Context, bundle uxCaptureBundle, libraryID, version, storyID string) ([]Artifact, error) {
+	wanted := []struct{ kind, label string }{
+		{"region-pixels", "story-region"}, {"accessibility-snapshot", "accessibility"},
+		{"region-style-sample", "region-style"}, {"console-summary", "console"},
+		{"performance-metrics", "performance"}, {"frozen-page", "frozen-page"},
+	}
+	result := make([]Artifact, 0, len(wanted))
+	base, err := e.basBaseURL(ctx)
+	if err != nil {
+		return nil, ExecutorUnavailableError{Err: err}
+	}
+	for _, item := range wanted {
+		artifact := findUXArtifact(bundle, item.kind)
+		if artifact == nil {
+			return nil, fmt.Errorf("BAS UX bundle is missing %s evidence", item.kind)
+		}
+		if !captureBundleID.MatchString(bundle.ID) || !safeBundleArtifactPath(artifact.Path) {
+			return nil, fmt.Errorf("BAS UX bundle declared an unsafe artifact")
+		}
+		segments := strings.Split(artifact.Path, "/")
+		for index := range segments {
+			segments[index] = url.PathEscape(segments[index])
+		}
+		refPath := uxArtifactPathPrefix + url.PathEscape(bundle.ID) + "/artifacts/" + strings.Join(segments, "/")
+		abs, err := appendURLPath(base, refPath)
+		if err != nil {
+			return nil, err
+		}
+		ref := browserVisibleBASArtifactPath(abs)
+		result = append(result, Artifact{Kind: "bas-" + item.label, Label: fmt.Sprintf("%s:%s", storyID, item.label), StoryID: storyID, AssetLibraryID: libraryID, Version: version, Reference: ref})
+	}
+	return result, nil
 }
 
 // browserVisibleBASArtifactPath deliberately returns an RCL-origin route.
@@ -591,25 +761,4 @@ func browserVisibleBASArtifactPath(viewURL string) string {
 		}()
 	}
 	return viewURL
-}
-
-func readConsoleArtifact(path string) ConsoleEvidence {
-	evidence := ConsoleEvidence{}
-	data, err := os.ReadFile(filepath.Clean(path))
-	if err != nil {
-		return evidence
-	}
-	var entries []struct {
-		Level   string `json:"level"`
-		Message string `json:"message"`
-	}
-	if json.Unmarshal(data, &entries) != nil {
-		return evidence
-	}
-	for _, entry := range entries {
-		if strings.EqualFold(entry.Level, "error") {
-			evidence.ConsoleErrors = append(evidence.ConsoleErrors, entry.Message)
-		}
-	}
-	return evidence
 }

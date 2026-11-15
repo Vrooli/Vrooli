@@ -1,4 +1,3 @@
-import json
 import re
 
 inputs = program.inputs()
@@ -111,7 +110,7 @@ def step_act():
 
 def step_report():
     envelope["phase"] = "report"
-    print(json.dumps(envelope, allow_nan=False))
+    program.report(envelope)
     return None
 
 

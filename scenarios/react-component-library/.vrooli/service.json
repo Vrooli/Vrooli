@@ -1,6 +1,13 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "skills": {
+    "feature": [
+      {
+        "source": "skills/ux-capture/SKILL.md"
+      }
+    ]
+  },
   "storage": {
     "entries": {
       "data": {

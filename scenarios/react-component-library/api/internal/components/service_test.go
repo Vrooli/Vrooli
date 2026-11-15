@@ -596,6 +596,13 @@ func TestAuthoringDraftRewritesInheritedDependencyLockIdentity(t *testing.T) {
   "resolvedAt": "2026-08-27T00:00:00Z",
   "dependencies": []
 }
+
+`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Stack", "versions", "1.0.0", "usage-contract.json"), []byte(`{
+  "componentId": "react-component-library:Stack",
+  "version": "1.0.0",
+  "children": {"typicalCount": 1, "maximumCount": 1, "allowedChildComponents": []}
+}
 `), 0o600))
 
 	draft, err := svc.(components.AuthoringService).BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{
@@ -612,6 +619,65 @@ func TestAuthoringDraftRewritesInheritedDependencyLockIdentity(t *testing.T) {
 	require.NoError(t, json.Unmarshal(lockBytes, &lock))
 	require.Equal(t, created.Component.LibraryID, lock.LibraryID)
 	require.Equal(t, draft.Version.Version, lock.Version)
+	contractBytes, err := os.ReadFile(filepath.Join(root, "components", "Stack", "versions", draft.Version.Version, "usage-contract.json"))
+	require.NoError(t, err)
+	var contract struct {
+		ComponentID string `json:"componentId"`
+		Version     string `json:"version"`
+	}
+	require.NoError(t, json.Unmarshal(contractBytes, &contract))
+	require.Equal(t, created.Component.LibraryID, contract.ComponentID)
+	require.Equal(t, draft.Version.Version, contract.Version)
+}
+
+func TestDraftPublishRejectsMissingOrStaleUsageContractIdentity(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		mutate func(string, string) string
+		remove bool
+		valid  bool
+	}{
+		{name: "stale component id", mutate: func(_, version string) string {
+			return `{"componentId":"react-component-library:Other","version":"` + version + `"}`
+		}},
+		{name: "stale version", mutate: func(id, _ string) string { return `{"componentId":"` + id + `","version":"1.0.0"}` }},
+		{name: "missing contract", remove: true},
+		{name: "current identity", mutate: func(id, version string) string { return `{"componentId":"` + id + `","version":"` + version + `"}` }, valid: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repo := mocks.NewFakeRepository()
+			root := t.TempDir()
+			svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+			created, err := svc.InitializeComponent(context.Background(), components.InitializeComponentInput{
+				LibraryID: "react-component-library:Stack", Slug: "Stack", DisplayName: "Stack",
+				InitialVersion: "1.0.0", InitialSource: `export function Stack() { return <div />; }`, ScaffoldExamples: true,
+			})
+			require.NoError(t, err)
+			latestContract := filepath.Join(root, "components", "Stack", "versions", "1.0.0", "usage-contract.json")
+			require.NoError(t, os.WriteFile(latestContract, []byte(`{"componentId":"react-component-library:Stack","version":"1.0.0"}`), 0o600))
+			authoring := svc.(components.AuthoringService)
+			draft, err := authoring.BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{Component: created.Component.LibraryID, Bump: "patch"})
+			require.NoError(t, err)
+			contractPath := filepath.Join(root, "components", "Stack", "versions", draft.Version.Version, "usage-contract.json")
+			if test.remove {
+				require.NoError(t, os.Remove(contractPath))
+			} else {
+				require.NoError(t, os.WriteFile(contractPath, []byte(test.mutate(created.Component.LibraryID, draft.Version.Version)), 0o600))
+			}
+			checked, err := authoring.CheckComponentVersion(context.Background(), created.Component.LibraryID, draft.Version.Version)
+			require.NoError(t, err)
+			_, err = authoring.PublishComponentVersion(context.Background(), components.PublishComponentVersionInput{Component: created.Component.LibraryID})
+			if test.valid {
+				require.True(t, checked.Passed, checked.Checks)
+				require.NoError(t, err)
+			} else {
+				require.False(t, checked.Passed)
+				require.Equal(t, "failed", checkByStage(t, checked.Checks, "usage-contract").Verdict)
+				var failed components.ErrVersionCheckFailed
+				require.ErrorAs(t, err, &failed)
+			}
+		})
+	}
 }
 
 func TestAuthoringVersionCopiesRewriteExperienceStoryRef(t *testing.T) {
@@ -1188,7 +1254,7 @@ func TestAuthoringSuccessorPreservesAlteredHistoricalRelease(t *testing.T) {
 	require.NoError(t, err)
 	source := filepath.Join(root, original.SourcePath)
 	changed := original.Content + "\n// Existing working-tree migration.\n"
-	require.NoError(t, os.WriteFile(source, []byte(changed), 0600))
+	require.NoError(t, os.WriteFile(source, []byte(changed), 0o600))
 
 	// A full refresh continues to refuse unrecorded changes to released bytes.
 	_, err = components.NewIndexer(repo, root, nil).IndexManifest(ctx, created.Component.ManifestPath)

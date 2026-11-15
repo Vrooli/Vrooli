@@ -13,6 +13,13 @@ import { collectOutlineInPage, type OutlineResult } from './outline';
 import { collectComponentIdentityInPage, type ComponentIdentityResult } from './identity';
 import { redactPageInPage, type RedactionReport } from './redaction';
 import {
+  isBlankPixels,
+  measurePng,
+  waitForPaintReadinessInPage,
+  type PaintReadiness,
+  type PixelStats,
+} from './paint';
+import {
   collectRclStyleTokensInPage,
   collectStyleCensusInPage,
   type StyleCensusResult,
@@ -114,6 +121,9 @@ type CapturePageDependencies = {
   now?: () => Date;
   redact?: (page: Page) => Promise<RedactionReport>;
   capturePixels?: (page: Page) => Promise<Buffer>;
+  waitForPaint?: (page: Page) => Promise<PaintReadiness>;
+  /** Pause between blank-pixel retries; tests pass 0. */
+  blankRetryDelayMs?: number;
   collectFrozen?: (page: Page) => Promise<ReturnType<typeof serializeFrozenPage>>;
   collectOutline?: (page: Page, budget: number) => Promise<OutlineResult>;
   collectIdentity?: (page: Page) => Promise<ComponentIdentityResult>;
@@ -197,6 +207,10 @@ export async function captureHTMLFile(
   }
 }
 
+/** Synthetic origin for file captures. `.invalid` never resolves, so relative
+ * links in the artifact cannot reach a real host even if a route were missed. */
+export const FILE_CAPTURE_URL = 'http://frozen.capture.invalid/page.html';
+
 /** Remove parser-blocking script source before Chromium parses a local artifact. */
 export function inertHTMLFileBeforeParse(html: string): string {
   // Script elements are raw-text in HTML. Removing them before setContent is
@@ -242,10 +256,11 @@ export async function captureScenarioPage(
             : socketURL.protocol === 'wss:'
               ? `https://${socketURL.host}`
               : socketURL.origin;
-        if (allowed.has(origin)) socket.connectToServer();
-        else socket.close({ code: 1008, reason: 'scenario capture origin is not allowlisted' });
+        if (allowed.has(origin)) void socket.connectToServer();
+        else
+          void socket.close({ code: 1008, reason: 'scenario capture origin is not allowlisted' });
       } catch {
-        socket.close({ code: 1008, reason: 'invalid websocket origin' });
+        void socket.close({ code: 1008, reason: 'invalid websocket origin' });
       }
     });
   }
@@ -360,11 +375,17 @@ export async function capturePublicPageInContext(
     }
   });
 
+  let paint: PaintReadiness | undefined;
   if (source.kind === 'file') {
-    await page.setContent(inertHTMLFileBeforeParse(options.html!), {
-      waitUntil: 'domcontentloaded',
-      timeout: 15_000,
-    });
+    // Serve the inert document from a synthetic URL rather than setContent:
+    // under rebrowser-playwright, setContent timed out for every document
+    // (even `<h1>Hi</h1>`, scripts on or off), so every file capture failed. The page-level route wins over the context's deny-all route
+    // for this one URL; every other request is still denied.
+    const body = inertHTMLFileBeforeParse(options.html ?? '');
+    await page.route(FILE_CAPTURE_URL, (route) =>
+      route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body })
+    );
+    await page.goto(FILE_CAPTURE_URL, { waitUntil: 'domcontentloaded', timeout: 15_000 });
     await page.evaluate(() => {
       document.querySelectorAll('script, iframe, object, embed').forEach((node) => node.remove());
       for (const element of Array.from(document.querySelectorAll('*')))
@@ -386,39 +407,62 @@ export async function capturePublicPageInContext(
       waitUntil: options.waitUntil ?? (source.kind === 'scenario' ? 'load' : 'domcontentloaded'),
       timeout: Math.max(1_000, Math.min(options.timeoutMs ?? 45_000, 120_000)),
     });
+    // `load` fires before a single-page app commits its first render. Wait for
+    // visible content and a quiet DOM before state steps (their targets must
+    // exist) and again before the privacy prepass, so redaction, pixels and
+    // every later lens see the same rendered page.
+    const waitForPaint = async (): Promise<PaintReadiness | undefined> => {
+      try {
+        return await (
+          dependencies.waitForPaint ??
+          ((target) =>
+            target.evaluate(waitForPaintReadinessInPage, { timeoutMs: 10_000, quietMs: 300 }))
+        )(page);
+      } catch {
+        return undefined;
+      }
+    };
+    paint = await waitForPaint();
     if (source.kind === 'scenario') {
       if (options.waitSelector)
         await page.waitForSelector(options.waitSelector, { state: 'visible', timeout: 10_000 });
       if (options.waitHiddenSelector)
-        await page.waitForSelector(options.waitHiddenSelector, { state: 'hidden', timeout: 15_000 });
-      await runScenarioSteps(page, options.steps ?? []);
+        await page.waitForSelector(options.waitHiddenSelector, {
+          state: 'hidden',
+          timeout: 15_000,
+        });
+      if (options.steps?.length) {
+        await runScenarioSteps(page, options.steps);
+        paint = await waitForPaint();
+      }
     }
   }
-  let redaction: RedactionReport;
-  try {
-    redaction = await (dependencies.redact ?? ((target) => target.evaluate(redactPageInPage)))(
-      page
-    );
-  } catch (error) {
-    redaction = {
-      schema: 'bas-capture-redaction/v1',
-      status: 'blocked',
-      redacted: {
-        formValues: 0,
-        markedRegions: 0,
-        assignments: 0,
-        attributes: 0,
-        urlParameters: 0,
-        personalData: 0,
-      },
-      unsupported: [
-        {
-          surface: 'redaction',
-          reason: error instanceof Error ? error.message : 'privacy prepass failed',
+  // Fail closed: a prepass that throws blocks every content lens.
+  const redact = async (target: Page): Promise<RedactionReport> => {
+    try {
+      return await (dependencies.redact ?? ((value) => value.evaluate(redactPageInPage)))(target);
+    } catch (error) {
+      return {
+        schema: 'bas-capture-redaction/v1',
+        status: 'blocked',
+        redacted: {
+          formValues: 0,
+          markedRegions: 0,
+          assignments: 0,
+          attributes: 0,
+          urlParameters: 0,
+          personalData: 0,
         },
-      ],
-    };
-  }
+        unsupported: [
+          {
+            surface: 'redaction',
+            reason: error instanceof Error ? error.message : 'privacy prepass failed',
+          },
+        ],
+      };
+    }
+  };
+  let redaction = await redact(page);
 
   let strictTokens: StrictTokenDiagnostic | undefined;
   let strictTokenError = '';
@@ -533,19 +577,49 @@ export async function capturePublicPageInContext(
   const lensJsonLimit = Math.max(8 * 1024, options.maxLensJsonBytes ?? 1024 * 1024);
   let screenshot: Buffer | undefined;
   let screenshotError = '';
+  let pixelStats: PixelStats | undefined;
+  let blankAttempts = 0;
   if (redaction.status === 'safe') {
+    const shoot =
+      dependencies.capturePixels ??
+      // EX9 L0 is an exact viewport slice. Full-page capture can allocate
+      // unbounded image memory and mislabel a different canvas as pixels.
+      ((target: Page) =>
+        target.screenshot({ type: 'png', fullPage: false, animations: 'disabled' }));
     try {
-      screenshot = await (
-        dependencies.capturePixels ??
-        // EX9 L0 is an exact viewport slice. Full-page capture can allocate
-        // unbounded image memory and mislabel a different canvas as pixels.
-        ((target) => target.screenshot({ type: 'png', fullPage: false, animations: 'disabled' }))
-      )(page);
+      // A flat image is never reported as pixels. Late-painting pages get two
+      // more chances; each retry re-runs redaction on the newly painted DOM.
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        screenshot = await shoot(page);
+        try {
+          pixelStats = measurePng(screenshot);
+        } catch {
+          pixelStats = undefined;
+        }
+        if (!pixelStats || !isBlankPixels(pixelStats)) break;
+        blankAttempts = attempt;
+        if (attempt === 3 || source.kind === 'file') break;
+        await new Promise((resolve) =>
+          setTimeout(resolve, dependencies.blankRetryDelayMs ?? 1_000)
+        );
+        redaction = await redact(page);
+        if (redaction.status !== 'safe') {
+          screenshot = undefined;
+          break;
+        }
+      }
     } catch (error) {
       screenshotError = error instanceof Error ? error.message : 'screenshot failed';
     }
   }
-  const screenshotFits = screenshot !== undefined && screenshot.byteLength <= screenshotLimit;
+  const blankPixels = pixelStats !== undefined && isBlankPixels(pixelStats);
+  const screenshotFits =
+    !blankPixels && screenshot !== undefined && screenshot.byteLength <= screenshotLimit;
+  const blankReason = blankPixels
+    ? `Pixels were one flat colour (${((pixelStats?.dominantShare ?? 1) * 100).toFixed(1)}% of the image) ` +
+      `after ${blankAttempts} attempt${blankAttempts === 1 ? '' : 's'}; the page painted no visible content` +
+      (paint && !paint.content ? ' (no visible text or media appeared within 10 s).' : '.')
+    : '';
 
   let fullPageScreenshot: Buffer | undefined;
   let fullPageScreenshotError = '';
@@ -578,6 +652,26 @@ export async function capturePublicPageInContext(
     fullPageScreenshotError =
       'Privacy prepass did not clear page surfaces; full-page pixels were not emitted.';
   }
+  // The outline runs before the frozen page so its node ids are stamped into
+  // the frozen markup (`data-ux-node`), which makes regions editable by id.
+  let outline: OutlineResult | undefined;
+  let outlineError = '';
+  if (redaction.status === 'safe') {
+    try {
+      outline = await (
+        dependencies.collectOutline ??
+        ((target, budget) =>
+          target.evaluate(collectOutlineInPage, {
+            tokenBudget: budget,
+            stampAttribute: 'data-ux-node',
+          }))
+      )(page, options.outlineTokenBudget ?? 8000);
+    } catch (error) {
+      outlineError = error instanceof Error ? error.message : 'outline collection failed';
+    }
+  } else
+    outlineError =
+      'Privacy prepass did not clear page surfaces; text and actions were not emitted.';
   const frameOnlyRedactionBlock =
     redaction.status === 'blocked' &&
     redaction.unsupported.length > 0 &&
@@ -598,20 +692,6 @@ export async function capturePublicPageInContext(
       frozenError = error instanceof Error ? error.message : 'frozen page collection failed';
     }
   } else frozenError = 'Privacy prepass did not clear page surfaces; frozen HTML was not emitted.';
-  let outline: OutlineResult | undefined;
-  let outlineError = '';
-  if (redaction.status === 'safe') {
-    try {
-      outline = await (
-        dependencies.collectOutline ??
-        ((target, budget) => target.evaluate(collectOutlineInPage, { tokenBudget: budget }))
-      )(page, options.outlineTokenBudget ?? 8000);
-    } catch (error) {
-      outlineError = error instanceof Error ? error.message : 'outline collection failed';
-    }
-  } else
-    outlineError =
-      'Privacy prepass did not clear page surfaces; text and actions were not emitted.';
   let identity: ComponentIdentityResult | undefined;
   let identityError = '';
   if (redaction.status === 'safe') {
@@ -705,19 +785,21 @@ export async function capturePublicPageInContext(
             status: 'absent',
             reason: `Redaction prepass blocked pixel output: ${redaction.unsupported.map((item) => item.surface).join(', ')}`,
           }
+        : blankPixels
+          ? { status: 'absent', reason: blankReason }
           : !screenshotFits
-          ? {
-              status: 'partial',
-              reason:
-                screenshotError ||
-                `Screenshot exceeded ${screenshotLimit} bytes or was unavailable.`,
-            }
-          : missingResources > 0
             ? {
                 status: 'partial',
-                reason: missingResourceReason,
+                reason:
+                  screenshotError ||
+                  `Screenshot exceeded ${screenshotLimit} bytes or was unavailable.`,
               }
-            : { status: 'present' },
+            : missingResources > 0
+              ? {
+                  status: 'partial',
+                  reason: missingResourceReason,
+                }
+              : { status: 'present' },
     L1:
       redaction.status !== 'safe' && !frameOnlyRedactionBlock
         ? {
@@ -771,24 +853,24 @@ export async function capturePublicPageInContext(
               status: 'partial',
               reason: `${failedResourceCounts.get('stylesheet')} stylesheet request${failedResourceCounts.get('stylesheet') === 1 ? ' failed or was blocked' : 's failed or were blocked'}; measured styles may be incomplete.`,
             }
-        : style.tokenCatalogStatus !== 'rcl'
-          ? {
-              status: 'partial',
-              reason:
-                'RCL token stylesheet was not present; measured styles are retained without an RCL token match.',
-            }
-          : style.clusters.some((cluster) => cluster.token === null)
+          : style.tokenCatalogStatus !== 'rcl'
             ? {
                 status: 'partial',
                 reason:
-                  'Some measured styles have no comparable RCL token; unmatched values are identified in the census.',
+                  'RCL token stylesheet was not present; measured styles are retained without an RCL token match.',
               }
-            : style.sampledElementCount < style.elementCount
+            : style.clusters.some((cluster) => cluster.token === null)
               ? {
                   status: 'partial',
-                  reason: `Style census sampled ${style.sampledElementCount} of ${style.elementCount} elements.`,
+                  reason:
+                    'Some measured styles have no comparable RCL token; unmatched values are identified in the census.',
                 }
-              : { status: 'present' },
+              : style.sampledElementCount < style.elementCount
+                ? {
+                    status: 'partial',
+                    reason: `Style census sampled ${style.sampledElementCount} of ${style.elementCount} elements.`,
+                  }
+                : { status: 'present' },
     L4: !identity
       ? { status: 'absent', reason: identityError || 'Component identity collection failed.' }
       : !identityFits
@@ -922,11 +1004,15 @@ async function runScenarioSteps(page: Page, steps: string[]): Promise<void> {
     const label = match[1].trim();
     const roles = ['button', 'link', 'tab', 'menuitem', 'option'] as const;
     let selected: Locator | undefined;
-    for (const role of roles) {
-      const candidate = page.getByRole(role, { name: label, exact: true });
-      if ((await candidate.count()) === 1) {
-        selected = candidate;
-        break;
+    // The target may render a moment after the previous step; look for 5 s.
+    for (let tries = 0; !selected && tries < 20; tries++) {
+      if (tries) await new Promise((resolve) => setTimeout(resolve, 250));
+      for (const role of roles) {
+        const candidate = page.getByRole(role, { name: label, exact: true });
+        if ((await candidate.count()) === 1) {
+          selected = candidate;
+          break;
+        }
       }
     }
     if (!selected) throw new Error(`click:${label} did not match exactly one accessible action`);
@@ -939,8 +1025,7 @@ async function runScenarioSteps(page: Page, steps: string[]): Promise<void> {
 async function collectFrameScreenshotTiles(page: Page): Promise<FrozenFrameTile[]> {
   const tiles: FrozenFrameTile[] = [];
   const frames = page.frames().filter((frame) => frame !== page.mainFrame());
-  for (let index = 0; index < frames.length && index < 16; index++) {
-    const frame = frames[index]!;
+  for (const [index, frame] of frames.slice(0, 16).entries()) {
     const label = `Embedded frame ${index + 1}`;
     try {
       const privacy = await frame.evaluate(redactPageInPage);

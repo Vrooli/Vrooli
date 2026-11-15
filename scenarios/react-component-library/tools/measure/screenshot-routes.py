@@ -1,25 +1,52 @@
 #!/usr/bin/env python3
-"""Capture a set of RCL UI routes for retained visual evidence."""
-import json, os, pathlib, sys
-from playwright.sync_api import sync_playwright
+"""Capture RCL routes through GCT's redacted, versioned EX9 bundle."""
 
-base = os.environ.get('RCL_BASE', 'http://localhost:23906')
-output = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else '/tmp/rclshots'); output.mkdir(parents=True, exist_ok=True)
-routes = json.loads(os.environ.get('ROUTES', '["/"]'))
-width = int(os.environ.get('W', '1440')); height = int(os.environ.get('H', '900')); full = os.environ.get('FULL', '1') == '1'
-with sync_playwright() as playwright:
-    browser = playwright.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--no-sandbox', '--disable-dev-shm-usage'])
-    page = browser.new_context(viewport={'width': width, 'height': height}, device_scale_factor=1).new_page()
-    errors = []
-    page.on('console', lambda message: errors.append(f'[{message.type}] {message.text}') if message.type in ('error', 'warning') else None)
-    page.on('pageerror', lambda error: errors.append(f'[pageerror] {error}'))
+import argparse
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "tools"))
+from ux_capture_bundle import copy_response
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("output", nargs="?", default="/tmp/rclshots")
+    output = Path(parser.parse_args().output)
+    output.mkdir(parents=True, exist_ok=True)
+    routes = json.loads(os.environ.get("ROUTES", '["/"]'))
+    width = int(os.environ.get("W", "1440"))
+    height = int(os.environ.get("H", "900"))
+    ready = os.environ.get(
+        "RCL_READY_SELECTOR", "#root[data-experience-state=ready][data-rcl-theme]"
+    )
+    results = []
     for route in routes:
-        name = route.strip('/').replace('/', '_') or 'root'
-        try: page.goto(base + route, wait_until='networkidle', timeout=25000)
-        except Exception as error: print(f'{route}: goto issue {error}')
-        page.wait_for_timeout(1400); path = output / f'{name}.png'; page.screenshot(path=str(path), full_page=full)
-        print(f'{route} -> {path} (title={page.title()!r})')
-    if errors:
-        print('--- console ---')
-        for error in errors[:40]: print(error[:300])
-    browser.close()
+        name = route.strip("/").replace("/", "_") or "root"
+        response_path = output / f"{name}.json"
+        screenshot_path = output / f"{name}.png"
+        args = [
+            "git-control-tower", "ux-capture", "--scenario", "react-component-library",
+            "--path", route, "--width", str(width), "--height", str(height),
+            "--evidence-profile", "componenttests",
+        ]
+        if ready:
+            args.extend(["--wait-selector", ready])
+        try:
+            completed = subprocess.run(args, check=True, capture_output=True, text=True, timeout=120)
+            response = json.loads(completed.stdout)
+            response_path.write_text(json.dumps(response, indent=2))
+            copy_response(response, "pixels", screenshot_path)
+            results.append({"route": route, "status": "captured", "path": str(screenshot_path), "bundle_id": response["manifest"]["id"]})
+        except Exception as error:
+            results.append({"route": route, "status": "failed", "reason": str(error)[:500]})
+    print(json.dumps({"captured": sum(row["status"] == "captured" for row in results), "failed": sum(row["status"] == "failed" for row in results), "results": results}, indent=2))
+    return 1 if any(row["status"] == "failed" for row in results) else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

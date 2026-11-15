@@ -27,7 +27,13 @@ export type OutlineResult = {
   actionCount: number;
 };
 
-export type OutlineOptions = { tokenBudget?: number; maxTextLength?: number };
+export type OutlineOptions = {
+  tokenBudget?: number;
+  maxTextLength?: number;
+  /** Write each node id onto its element (space-separated) so a later frozen
+   * page can be edited by outline id: `[data-ux-node~="n12"]`. */
+  stampAttribute?: string;
+};
 
 /** Keep this function free of module closures: it is serialized into the page. */
 export function collectOutlineInPage(options: OutlineOptions = {}): OutlineResult {
@@ -111,13 +117,19 @@ export function collectOutlineInPage(options: OutlineOptions = {}): OutlineResul
         'gridcell',
       ].includes(role) ||
       element.hasAttribute('onclick') ||
-      element.hasAttribute('tabindex') ||
+      // tabindex="-1" is a programmatic focus target (a skip-link landing), not an action.
+      (element.hasAttribute('tabindex') && element.getAttribute('tabindex') !== '-1') ||
       ['aria-haspopup', 'aria-expanded', 'aria-pressed', 'aria-selected'].some((attribute) =>
         element.hasAttribute(attribute)
       )
     );
   };
   const textOf = (element: Element): string => clean(element.textContent).slice(0, maxText);
+  const stamp = (element: Element, id: string): void => {
+    if (!options.stampAttribute) return;
+    const current = element.getAttribute(options.stampAttribute);
+    element.setAttribute(options.stampAttribute, current ? `${current} ${id}` : id);
+  };
   const add = (
     element: Element,
     kind: OutlineNode['kind'],
@@ -134,6 +146,7 @@ export function collectOutlineInPage(options: OutlineOptions = {}): OutlineResul
       selector: selectorOf(element),
       ...extra,
     };
+    stamp(element, node.id);
     nodes.push(node);
     return node;
   };
@@ -201,12 +214,11 @@ export function collectOutlineInPage(options: OutlineOptions = {}): OutlineResul
   for (const siblings of groups.values()) {
     const sample = siblings[0];
     if (!sample) continue;
-    const examples = siblings.slice(0, 3).map((element) => ({
-      id: `n${++serial}`,
-      name: nameOf(element),
-      text: textOf(element),
-      rect: rectOf(element),
-    }));
+    const examples = siblings.slice(0, 3).map((element) => {
+      const id = `n${++serial}`;
+      stamp(element, id);
+      return { id, name: nameOf(element), text: textOf(element), rect: rectOf(element) };
+    });
     const actionIds = siblings
       .flatMap((element) => {
         return [
@@ -229,8 +241,10 @@ export function collectOutlineInPage(options: OutlineOptions = {}): OutlineResul
       if (node?.selector && memberSelectors.has(node.selector) && node.kind !== 'action')
         nodes.splice(index, 1);
     }
+    const templateId = `n${++serial}`;
+    stamp(sample.parentElement ?? sample, templateId);
     nodes.push({
-      id: `n${++serial}`,
+      id: templateId,
       kind: 'repeated-template',
       tag: sample.tagName.toLowerCase(),
       role: sample.getAttribute('role'),
@@ -287,11 +301,16 @@ export function collectOutlineInPage(options: OutlineOptions = {}): OutlineResul
     Math.ceil(new TextEncoder().encode(JSON.stringify(items)).byteLength / 3);
   const actionCount = nodes.filter((node) => node.kind === 'action').length;
   let estimatedTokens = estimate(nodes);
-  if (estimatedTokens > budget) {
-    // Reduce non-action copy first; never remove action nodes or action examples.
+  // Over budget: shorten non-action copy in two steps; a short label beats none. Never remove action
+  // nodes or action examples. Headings keep a short label in both passes.
+  for (const limit of [48, 24]) {
+    if (estimatedTokens <= budget) break;
     for (const node of nodes)
       if (node.kind !== 'action' && node.kind !== 'repeated-template') {
-        node.text = '';
+        node.text =
+          node.kind === 'heading'
+            ? (node.text ?? '').slice(0, 48)
+            : (node.text ?? '').slice(0, limit);
         node.name = node.name.slice(0, 48);
       }
     estimatedTokens = estimate(nodes);

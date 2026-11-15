@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "react-component-library",
   "generator": "v1.0.0",
-  "manifest_hash": "54431452475676ca15e70f499f6f19d0dcad09612bb28dc9beb8fa0993dbb74a",
+  "manifest_hash": "ca29955de4ea583267c4bf84ba57c73f5dbe6413de753c41ebbd2b1930b43287",
   "commands": [
     {
       "path": "adoptions link",
@@ -195,12 +195,24 @@
       "observed_primitive": "proto_mutation"
     },
     {
+      "path": "page capture",
+      "group": "page",
+      "command": "capture",
+      "binding": "."
+    },
+    {
       "path": "page inspect",
       "group": "page",
       "command": "inspect",
       "binding": "PageService.Inspect",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "page render",
+      "group": "page",
+      "command": "render",
+      "binding": "."
     },
     {
       "path": "preview bundle",

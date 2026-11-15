@@ -1,6 +1,6 @@
 {
   "componentId": "react-component-library:FullPageDrawer",
-  "version": "1.5.3-draft.1",
+  "version": "1.5.3",
   "children": {
     "typicalCount": 1,
     "maximumCount": 1,

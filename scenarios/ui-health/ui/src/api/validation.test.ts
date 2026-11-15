@@ -20,7 +20,7 @@ describe("validateScenario (FromProto)", () => {
       assessment: create(MaturityAssessmentSchema, {
         scenario: "ui-health",
         provider: "ui-health",
-        phase: "ui-health",
+        phase: "experience",
         findings: [
           {
             severity: "SEVERITY_ERROR",

@@ -94,14 +94,16 @@ func Commands(ctx *appctx.Context) cliapp.CommandGroup {
 					return fmt.Errorf("HTML file must be between 1 byte and 2 MiB")
 				}
 				request = map[string]any{"filename": filepath.Base(fileValue), "html": string(content), "width": width, "height": height, "theme": theme}
-				endpoint = "/api/v1/ux-capture/file"
+				endpoint = "/ux-capture/file"
 			} else if scenario != "" {
 				request = buildScenarioRequest(scenario, strings.TrimSpace(rc.Flag("path")), rc.FlagValues("step"), width, height, theme, waitSelector, evidenceProfile, regionSelector)
-				endpoint = "/api/v1/ux-capture/scenario"
+				endpoint = "/ux-capture/scenario"
 			} else {
 				request = map[string]any{"url": urlValue, "width": width, "height": height, "theme": theme}
-				endpoint = "/api/v1/ux-capture/public"
+				endpoint = "/ux-capture/public"
 			}
+			// api.Do adds the scenario's /api/v1 prefix; a prefixed path here
+			// became /api/v1/api/v1/... and every capture returned 404.
 			body, err := json.Marshal(request)
 			if err != nil {
 				return err

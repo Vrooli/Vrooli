@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Repeatable visual capture instrument for the bounded preview inventory.
 # Usage: capture-assets.sh [asset ...]
-# Output: coverage/visual/baseline/<asset>/<viewport>-<theme>.jpg
+# Output: coverage/visual/baseline/<asset>/<viewport>-<theme>.png
 # The capture path is intentionally bounded: readiness is a DOM signal and
 # matrix entries run through a small worker pool. Set RCL_CHANGED_ONLY=1 to
 # skip assets whose catalog/source revision is unchanged since the last run.
@@ -103,22 +103,16 @@ for asset in "${assets[@]}"; do
       mkdir -p "${destination}"
       echo "capture asset=${asset} viewport=${viewport} theme=${theme}" >&2
       (
-      browser-automation-studio capture \
-        --url "http://127.0.0.1:${api_port}/preview/${component_id}/harness.html?theme=${theme}&motion=reduce&seed=rcl-calibration-v1&kit=vrooli-default" \
-        --capture screenshot \
+      git-control-tower ux-capture \
+        --scenario react-component-library \
+        --path "/preview/${component_id}/harness.html?theme=${theme}&motion=reduce&seed=rcl-calibration-v1&kit=vrooli-default" \
         --width "${width}" \
         --height "${height}" \
-        --wait-for "${wait_for}" \
-        --label "${asset} ${viewport} ${theme}" \
-        --out "${destination}" \
-        --json \
+        --theme "${theme}" \
+        --wait-selector "${wait_for}" \
         >"${destination}/${viewport}-${theme}.json"
-      artifact="$(jq -r '.primary_artifact_path // empty' "${destination}/${viewport}-${theme}.json")"
-      if [[ -z "${artifact}" ]]; then
-        echo "capture produced no screenshot for ${asset} ${viewport} ${theme}" >&2
-        exit 1
-      fi
-      cp "${artifact}" "${destination}/${viewport}-${theme}.jpg"
+      python3 "${scenario_root}/tools/ux_capture_bundle.py" \
+        "${destination}/${viewport}-${theme}.json" pixels "${destination}/${viewport}-${theme}.png"
       ) &
       pids+=("$!")
       ((running+=1))

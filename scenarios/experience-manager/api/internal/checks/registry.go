@@ -10,6 +10,7 @@ import (
 // RegistryDeps wires runtime seams needed by checks.
 type RegistryDeps struct {
 	EvidenceRepository     reconcile.EvidenceRepository
+	GeometryEvaluator      reconcile.GeometryEvaluator
 	AttestationRepository  attestation.Repository
 	AttestationCurrentTime func() time.Time
 }
@@ -25,6 +26,6 @@ func Registry(deps ...RegistryDeps) []Check {
 		StateCoverageCheck{},
 		OracleCoverageCheck{},
 		attestation.Check{Repository: d.AttestationRepository, Now: d.AttestationCurrentTime},
-		reconcile.Check{Repository: d.EvidenceRepository},
+		reconcile.Check{Repository: d.EvidenceRepository, GeometryEvaluator: d.GeometryEvaluator},
 	}
 }

@@ -38,7 +38,7 @@
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
-      "description": "The catalog evidence service enumerates eligible authored versions, invokes the version-pinned BAS CaptureService through the component-test runner, validates each declared story, and persists screenshot, DOM, accessibility, console, network, and performance artifact references. The gate fails closed when BAS evidence is missing or the story contract fails; it never marks a manifest pass from contract metadata alone.",
+      "description": "The catalog evidence service enumerates eligible authored versions, invokes BAS canonical ux-capture.v1 scenario bundles through the component-test runner, validates each declared story, and persists story-region screenshot, frozen DOM, accessibility snapshot, redacted console counts, style sample, and performance artifact references. The gate fails closed when BAS evidence is missing or the story contract fails; it never marks a manifest pass from contract metadata alone.",
       "tags": [
         "catalog",
         "browser",

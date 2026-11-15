@@ -12,13 +12,14 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
-	contractv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract"
-	contractconnect "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract/contract_v1connect"
+	readinessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/readiness"
+	readinessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/readiness/readinessconnect"
 )
 
-// ReadinessProfileFetcher is the only contract boundary Workflow Health uses.
-// Experience Manager owns compilation; Workflow Health never reads authored
-// experience files or maintains a parallel readiness registry.
+// ReadinessProfileFetcher reads the single BAS-owned profile boundary.
+// Experience Manager owns profile compilation; BAS owns the shared read path,
+// and Workflow Health never reads authored experience files or maintains a
+// parallel readiness registry.
 type ReadinessProfileFetcher func(ctx context.Context, scenario, scenarioPath string) (*readinessProfile, error)
 
 type readinessProfile struct {
@@ -49,11 +50,11 @@ func newExperienceManagerFetcher() ReadinessProfileFetcher {
 	resolver := discovery.NewResolver(discovery.ResolverConfig{})
 	client := &http.Client{Timeout: 15 * time.Second}
 	return func(ctx context.Context, scenario, scenarioPath string) (*readinessProfile, error) {
-		base, err := resolver.ResolveScenarioURLDefault(ctx, "experience-manager")
+		base, err := resolver.ResolveScenarioURLDefault(ctx, "browser-automation-studio")
 		if err != nil {
 			return nil, err
 		}
-		resp, err := contractconnect.NewContractServiceClient(client, base).GetReadinessProfile(ctx, connect.NewRequest(&contractv1.GetReadinessProfileRequest{Scenario: scenario, Path: scenarioPath}))
+		resp, err := readinessconnect.NewReadinessServiceClient(client, base).GetReadinessProfile(ctx, connect.NewRequest(&readinessv1.GetReadinessProfileRequest{Scenario: scenario, Path: scenarioPath}))
 		if err != nil {
 			return nil, err
 		}

@@ -91,6 +91,13 @@ func TestLiveUtilityClassAllowlistIsExactAndShrinkOnly(t *testing.T) {
 	}
 }
 
+func TestValidateUsageContractsMeasuresLiveCatalogCoverage(t *testing.T) {
+	result, err := ValidateUsageContracts(Scope{Context: context.Background(), Root: liveRoot(t)})
+	require.NoError(t, err)
+	require.Equal(t, 102, result.Inspected)
+	require.Empty(t, result.Findings)
+}
+
 func TestValidateConsumerPinsNamesEveryDefectAndConsumer(t *testing.T) {
 	root := t.TempDir()
 	assetRoot := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Fixture")

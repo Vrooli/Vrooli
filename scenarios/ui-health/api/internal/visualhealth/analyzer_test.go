@@ -7,6 +7,7 @@ import (
 	"image/color"
 	"image/png"
 	"slices"
+	"strings"
 	"testing"
 
 	"ui-health/internal/visualhealth/pixel"
@@ -474,6 +475,122 @@ func TestAnalyzeReportsUnsafeEdgeTapZone(t *testing.T) {
 	assertFindingCodes(t, resp, "visual_unsafe_edge_tap_zone")
 }
 
+func TestGeometryAdapterPoliciesPreserveScopedSafeAreaAndChromeBounds(t *testing.T) {
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId:   "adapter-policy",
+		Viewport: &visualpb.Viewport{Width: 390, Height: 844, DeviceProfile: "mobile"},
+		LayoutJson: `{"safeArea":{"bottom":24},"geometryPolicy":{"unsafeEdgeScope":"app-chrome-controls"},"elements":[
+			{"selector":"button.global","tag":"button","role":"button","rect":{"x":10,"y":830,"width":44,"height":44}},
+			{"selector":"[data-testid=mobile-nav-save]","testId":"mobile-nav-save","tag":"button","role":"button","rect":{"x":10,"y":830,"width":44,"height":44}},
+			{"selector":"[data-testid=mobile-header]","testId":"mobile-header","tag":"header","role":"banner","rect":{"x":0,"y":0,"width":390,"height":60}},
+			{"selector":"[data-testid=mobile-nav]","testId":"mobile-nav","tag":"nav","role":"navigation","interactive":true,"rect":{"x":0,"y":800,"width":390,"height":64}}
+		]}`,
+	}}})
+	assertFindingCodes(t, resp, "visual_unsafe_edge_tap_zone", "visual_chrome_outside_viewport")
+	var unsafeLocations []string
+	for _, finding := range resp.GetFindings() {
+		if finding.GetCode() == "visual_unsafe_edge_tap_zone" {
+			unsafeLocations = append(unsafeLocations, finding.GetLocation())
+		}
+	}
+	if len(unsafeLocations) != 1 || unsafeLocations[0] != "[data-testid=mobile-nav-save]" {
+		t.Fatalf("scoped unsafe-area findings = %v, want only the app chrome control", unsafeLocations)
+	}
+}
+
+func TestApplicationChromePolicyMatchesSemanticChromeAndSingleLineScope(t *testing.T) {
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId:   "application-chrome-policy",
+		Viewport: &visualpb.Viewport{Width: 390, Height: 844, DeviceProfile: "mobile"},
+		LayoutJson: `{"geometryPolicy":{"chromeScope":"application-chrome"},"elements":[
+			{"selector":"header.generic","tag":"header","rect":{"x":0,"y":-2,"width":390,"height":60}},
+			{"selector":"header.app","tag":"header","role":"banner","rect":{"x":0,"y":-2,"width":390,"height":60}},
+			{"selector":"main","tag":"main","rect":{"x":0,"y":60,"width":390,"height":784}},
+			{"selector":"main .card","tag":"button","role":"button","text":"Saved preset\nDescription of the saved preset","parentSelector":"main","rect":{"x":16,"y":107,"width":358,"height":94}},
+			{"selector":"nav","tag":"nav","role":"navigation","rect":{"x":0,"y":760,"width":390,"height":60}},
+			{"selector":"nav button","tag":"button","role":"button","text":"Wrapped\naction","parentSelector":"nav","rect":{"x":16,"y":770,"width":120,"height":64}}
+		]}`,
+	}}})
+	assertFindingCodes(t, resp, "visual_chrome_outside_viewport", "visual_multiline_chrome_label")
+	for _, finding := range resp.GetFindings() {
+		if finding.GetCode() == "visual_chrome_outside_viewport" && finding.GetLocation() == "header.generic" {
+			t.Fatalf("generic header must not acquire the EXM application-chrome floor: %+v", finding)
+		}
+		if finding.GetCode() == "visual_multiline_chrome_label" && finding.GetLocation() != "nav button" {
+			t.Fatalf("only wrapped navigation control should fail: %+v", finding)
+		}
+	}
+}
+
+func TestAnalyzeReportsSmallMobileTouchTarget(t *testing.T) {
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId:   "touch-target",
+		Viewport: &visualpb.Viewport{Width: 390, Height: 844},
+		LayoutJson: `{"elements":[
+			{"selector":"[data-testid=small-action]","tag":"button","rect":{"x":16,"y":20,"width":43,"height":44}},
+			{"selector":"[data-testid=good-action]","tag":"button","rect":{"x":70,"y":20,"width":44,"height":44}},
+			{"selector":"[data-testid=label]","tag":"span","rect":{"x":130,"y":20,"width":12,"height":12}}
+		]}`,
+	}}})
+
+	assertFindingCodes(t, resp, "visual_touch_target_too_small")
+	for _, finding := range resp.GetFindings() {
+		if finding.GetCode() == "visual_touch_target_too_small" {
+			if finding.GetLocation() != "[data-testid=small-action]" {
+				t.Fatalf("finding location = %q, want the undersized button", finding.GetLocation())
+			}
+			if !strings.Contains(finding.GetEvidence(), "43.0x44.0px") {
+				t.Fatalf("finding evidence = %q, want measured dimensions", finding.GetEvidence())
+			}
+		}
+	}
+}
+
+func TestAnalyzeReportsSharedGeometryPackFloors(t *testing.T) {
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId:   "chrome-geometry",
+		Viewport: &visualpb.Viewport{Width: 390, Height: 844},
+		LayoutJson: `{"elements":[
+			{"selector":"body","tag":"body","surfaceRoot":true,"rect":{"x":0,"y":0,"width":380,"height":800}},
+			{"selector":"[data-testid=layout-top-bar]","testId":"layout-top-bar","tag":"header","rect":{"x":-2,"y":0,"width":390,"height":52}},
+			{"selector":"[data-testid=layout-bottom-nav-link-account]","testId":"layout-bottom-nav-link-account","role":"link","text":"Account settings","parentSelector":"[data-testid=layout-bottom-nav]","rect":{"x":20,"y":730,"width":80,"height":80}}
+		]}`,
+	}}})
+	assertFindingCodes(t, resp, "visual_chrome_outside_viewport", "visual_multiline_chrome_label", "visual_surface_does_not_fill_viewport")
+}
+
+func TestAnalyzeMarksMissingGeometryEvidenceAsUnmeasured(t *testing.T) {
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId:     "layout-empty",
+		Viewport:   &visualpb.Viewport{Width: 390, Height: 844},
+		LayoutJson: `{"elements":[]}`,
+	}}})
+	assertFindingCodes(t, resp, "visual_geometry_unmeasured")
+
+	rootMissing := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId:     "root-missing",
+		Viewport:   &visualpb.Viewport{Width: 390, Height: 844},
+		LayoutJson: `{"elements":[{"selector":"button","tag":"button","rect":{"x":4,"y":4,"width":44,"height":44}}]}`,
+	}}})
+	assertFindingCodes(t, rootMissing, "visual_surface_root_unmeasured")
+}
+
+func TestAnalyzeUsesArtifactOverflowPolicyWhenProvided(t *testing.T) {
+	step := &visualpb.VisualStepArtifact{
+		StepId:     "overflow-policy",
+		Viewport:   &visualpb.Viewport{Width: 390, Height: 844},
+		LayoutJson: `{"geometryPolicy":{"overflowSlackPx":2},"document":{"scrollWidth":393},"elements":[]}`,
+	}
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{step}})
+	assertFindingCodes(t, resp, "visual_viewport_overflow")
+
+	step.LayoutJson = `{"document":{"scrollWidth":393},"elements":[]}`
+	defaultPolicy := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{step}})
+	if slices.ContainsFunc(defaultPolicy.GetFindings(), func(finding *visualpb.VisualFinding) bool { return finding.GetCode() == "visual_viewport_overflow" }) {
+		t.Fatal("ui-health's default 8px overflow slack should remain unchanged without an artifact policy")
+	}
+}
+
 func TestIntentionalDialogDoesNotReportBlockingOverlay(t *testing.T) {
 	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
 		StepId: "layout",
@@ -506,6 +623,12 @@ func TestRulesIncludesPhaseThreeCodes(t *testing.T) {
 		"visual_status_bar_color_mismatch",
 		"visual_safe_area_color_mismatch",
 		"visual_unsafe_edge_tap_zone",
+		"visual_touch_target_too_small",
+		"visual_chrome_outside_viewport",
+		"visual_multiline_chrome_label",
+		"visual_surface_does_not_fill_viewport",
+		"visual_geometry_unmeasured",
+		"visual_surface_root_unmeasured",
 		"visual_heading_not_block",
 		"visual_token_fallback_used",
 		"visual_adjacent_text_collision",

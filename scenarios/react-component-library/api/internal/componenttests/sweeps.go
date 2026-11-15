@@ -32,7 +32,10 @@ func (s SweepStatus) CanTransitionTo(next SweepStatus) bool {
 		return false
 	}
 	if s == next {
-		return true
+		// Only an active sweep may checkpoint in place. Blocked and failed
+		// sweeps must resume through running before changing their snapshot,
+		// and completed sweeps are immutable.
+		return s == SweepRunning
 	}
 	switch s {
 	case SweepRunning:

@@ -10,6 +10,7 @@ type MockElement = {
   disabled: boolean;
   shadowRoot: null;
   getAttribute(name: string): string | null;
+  setAttribute(name: string, value: string): void;
   hasAttribute(name: string): boolean;
   getBoundingClientRect(): { x: number; y: number; width: number; height: number };
   querySelectorAll(selector: string): MockElement[];
@@ -27,6 +28,9 @@ function element(tagName: string, text = '', attrs: Record<string, string> = {})
     shadowRoot: null,
     getAttribute(name) {
       return this.attrs[name] ?? null;
+    },
+    setAttribute(name, value) {
+      this.attrs[name] = value;
     },
     hasAttribute(name) {
       return Object.prototype.hasOwnProperty.call(this.attrs, name);
@@ -116,6 +120,23 @@ describe('collectOutlineInPage', () => {
       expect(result.estimatedTokens).toBe(
         Math.ceil(new TextEncoder().encode(JSON.stringify(result.nodes)).byteLength / 3)
       );
+    } finally {
+      restore();
+    }
+  });
+
+  it('stamps node ids onto elements when asked, so a frozen page is editable by id', () => {
+    const body = element('body');
+    const main = element('main');
+    append(body, main);
+    append(main, element('button', 'Save'));
+    const restore = installDocument(body);
+    try {
+      const result = collectOutlineInPage({ stampAttribute: 'data-ux-node' });
+      const save = result.nodes.find((node) => node.kind === 'action');
+      expect(save).toBeDefined();
+      expect(main.children[0]?.getAttribute('data-ux-node')).toBe(save?.id);
+      expect(collectOutlineInPage({}).nodes.length).toBe(result.nodes.length);
     } finally {
       restore();
     }

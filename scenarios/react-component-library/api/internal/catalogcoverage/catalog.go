@@ -146,12 +146,33 @@ func LoadGateDefinitions(configPath string) ([]GateDefinition, error) {
 		return nil, fmt.Errorf("read catalog config: %w", err)
 	}
 	var doc struct {
+		GateTiers []struct {
+			ID string `json:"id"`
+		} `json:"gateTiers"`
 		Gates []GateDefinition `json:"gates"`
 	}
 	if err := json.Unmarshal(data, &doc); err != nil {
 		return nil, fmt.Errorf("parse catalog config: %w", err)
 	}
+	knownTiers := map[string]bool{}
+	for _, tier := range doc.GateTiers {
+		if strings.TrimSpace(tier.ID) == "" || knownTiers[tier.ID] {
+			return nil, fmt.Errorf("catalog gate tier is empty or duplicated: %q", tier.ID)
+		}
+		knownTiers[tier.ID] = true
+	}
+	for _, expected := range []string{"release-integrity", "asset-quality", "consumer-use"} {
+		if !knownTiers[expected] {
+			return nil, fmt.Errorf("catalog gate tiers must include %q", expected)
+		}
+	}
+	if len(knownTiers) != 3 {
+		return nil, fmt.Errorf("catalog gate config defines %d tiers; exactly three are supported", len(knownTiers))
+	}
 	for i := range doc.Gates {
+		if !knownTiers[doc.Gates[i].Tier] {
+			return nil, fmt.Errorf("gate %q has missing or unknown tier %q", doc.Gates[i].ID, doc.Gates[i].Tier)
+		}
 		if definition, ok := gates.Lookup(doc.Gates[i].ID); ok && definition.Reads == gates.ReadsCorpus {
 			if doc.Gates[i].Reads != "" && doc.Gates[i].Reads != "corpus" {
 				return nil, fmt.Errorf("gate %q reads mismatch: config=%q registry=corpus", doc.Gates[i].ID, doc.Gates[i].Reads)

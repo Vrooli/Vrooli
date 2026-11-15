@@ -143,3 +143,34 @@ describe('capture redaction prepass', () => {
     }
   });
 });
+
+describe('redaction keeps interface chrome intact', () => {
+  it('does not mask layout words, geometry or resource URLs, but still masks a phone field', () => {
+    const body = el('body');
+    const nav = el('nav', { 'aria-label': 'Mobile navigation', 'data-mobile-nav': 'tabs' });
+    text(nav, 'Home');
+    const icon = el('svg', { viewBox: '0 0 24 24', class: 'h-4 w-4' });
+    const path = el('path', { d: 'M3 3h7v7H3z M14 3 2 2 0 0 1-2 2' });
+    icon.children.push(path);
+    const sprite = el('use', { href: '#icon-home' });
+    const stylesheet = el('link', { rel: 'stylesheet', href: '/assets/index.css?v=12' });
+    const theme = el('select', { 'aria-label': 'Theme' }, 'system');
+    const phone = el('input', { type: 'tel', name: 'phone' }, '+1 555 010 9999');
+    body.children.push(nav, icon, sprite, stylesheet, theme, phone);
+    const restore = install(body);
+    try {
+      const report = redactPageInPage();
+      expect(nav.textContent).toBeNull();
+      expect(nav.attrs['data-mobile-nav']).toBe('tabs');
+      expect(icon.attrs.viewBox).toBe('0 0 24 24');
+      expect(path.attrs.d).toBe('M3 3h7v7H3z M14 3 2 2 0 0 1-2 2');
+      expect(sprite.attrs.href).toBe('#icon-home');
+      expect(stylesheet.attrs.href).toBe('/assets/index.css?v=12');
+      expect(theme.value).toBe('system');
+      expect(phone.value).toBe('[REDACTED]');
+      expect(report.redacted.markedRegions).toBe(1);
+    } finally {
+      restore();
+    }
+  });
+});

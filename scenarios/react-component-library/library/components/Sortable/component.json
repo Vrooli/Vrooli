@@ -10,6 +10,7 @@
     "1.0.7",
     "1.0.8"
   ],
+  "description": "The reorder controller with collision strategies, animated displacement, keyboard operation, nested containers, optimistic persistence, and rollback when the write fails.",
   "designStyles": [
     {
       "affinity": "native",
@@ -17,6 +18,7 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "Sortable",
   "draft": "",
   "evictedVersions": [
     "1.0.5",
@@ -30,7 +32,5 @@
   ],
   "latest": "1.1.2",
   "libraryId": "react-component-library:Sortable",
-  "displayName": "Sortable",
-  "description": "The reorder controller with collision strategies, animated displacement, keyboard operation, nested containers, optimistic persistence, and rollback when the write fails.",
   "tags": []
 }

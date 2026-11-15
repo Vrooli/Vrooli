@@ -285,7 +285,11 @@ function writeGeneratedTSConfig(outputPath, files) {
         compilerOptions: {
           paths: { ...(catalogConfig.compilerOptions?.paths ?? {}), ...packagePaths },
         },
-        files: [path.join(uiDir, "src/catalog-story-harness.d.ts"), ...files],
+        files: [
+          path.join(uiDir, "src/catalog-story-harness.d.ts"),
+          path.join(libraryRoot, "usage-contracts/type-fixtures.tsx"),
+          ...files,
+        ],
         include: compileApp ? [path.join(uiDir, "src")] : [],
       },
       null,

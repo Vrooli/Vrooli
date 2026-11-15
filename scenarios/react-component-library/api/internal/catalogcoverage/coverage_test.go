@@ -63,6 +63,32 @@ func TestLoadCatalogReadsEveryAsset(t *testing.T) {
 	}
 }
 
+func TestGateDefinitionsExposeAllThreeTiersAndRealBrowserInputs(t *testing.T) {
+	root := repoRoot(t)
+	definitions, err := LoadGateDefinitions(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]int{}
+	byID := map[string]GateDefinition{}
+	for _, definition := range definitions {
+		seen[definition.Tier]++
+		byID[definition.ID] = definition
+	}
+	for _, tier := range []string{"release-integrity", "asset-quality", "consumer-use"} {
+		if seen[tier] == 0 {
+			t.Errorf("tier %q has no gates", tier)
+		}
+	}
+	responsive := byID["responsive"]
+	if len(responsive.RunnerConfig.RequiredViewportWidthsPx) != 2 || responsive.RunnerConfig.RequiredViewportWidthsPx[0] != 320 || responsive.RunnerConfig.RequiredViewportWidthsPx[1] != 390 {
+		t.Fatalf("responsive gate lacks the 320/390 px browser requirement: %+v", responsive.RunnerConfig)
+	}
+	if !byID["accessibility"].RunnerConfig.RequireAxeResults {
+		t.Fatal("accessibility gate must require an actual axe-core result")
+	}
+}
+
 // TestEveryRowIsAccountedFor is the integrity property of the join: no asset and
 // no implementation may vanish, and nothing may be counted twice.
 func TestEveryRowIsAccountedFor(t *testing.T) {
@@ -174,6 +200,31 @@ func TestCoverageDerivesMaturityFromEvidence(t *testing.T) {
 	partial := ComputeWithEvidence(assets, impls, []GateEvidence{{AssetID: "controls.button", Target: "react-vite", Gate: "types", Result: "pass"}, {AssetID: "controls.button", Target: "react-vite", Gate: "api", Result: "pass"}}, gates)
 	if got := partial.Rows[0].Achieved; got != RungImplemented {
 		t.Fatalf("partial evidence achieved %q, want implemented", got)
+	}
+}
+
+func TestGateTierRollupKeepsMeasuredPassesAndFailuresVisible(t *testing.T) {
+	assets := []Asset{{ID: "controls.button", Name: "Button", Kind: "component", Domain: "controls", Priority: "P0", Maturity: "verified", Targets: []string{"react-vite"}}}
+	impls := []Implementation{{Name: "Button", Root: "components", CatalogID: "controls.button"}}
+	gates := []GateDefinition{
+		{ID: "types", Tier: "release-integrity", Rung: RungScaffolded, Blocking: true, AppliesTo: []string{"component"}},
+		{ID: "responsive", Tier: "asset-quality", Rung: RungScaffolded, Blocking: true, AppliesTo: []string{"component"}},
+		{ID: "consumer-pin", Tier: "consumer-use", Rung: RungScaffolded, Blocking: true, AppliesTo: []string{"component"}},
+	}
+	evidence := []GateEvidence{
+		{AssetID: "controls.button", Target: "react-vite", Gate: "types", Result: "pass"},
+		{AssetID: "controls.button", Target: "react-vite", Gate: "responsive", Result: "fail"},
+		{AssetID: "controls.button", Target: "react-vite", Gate: "consumer-pin", Result: "unmeasured"},
+	}
+	report := ComputeWithEvidence(assets, impls, evidence, gates)
+	for tier, want := range map[string]ScoreBreakdown{
+		"release-integrity": {Passed: 1, Applicable: 1, Score: 1},
+		"asset-quality":     {Passed: 0, Applicable: 1, Score: 0},
+		"consumer-use":      {Passed: 0, Applicable: 1, Score: 0},
+	} {
+		if got := report.ByTier[tier]; got != want {
+			t.Errorf("tier %q = %+v, want %+v", tier, got, want)
+		}
 	}
 }
 

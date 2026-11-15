@@ -14,7 +14,7 @@
       "validation": [
         {
           "type": "test",
-          "phase": "ui-health",
+          "phase": "experience",
           "status": "implemented",
           "notes": "UI tests and BAS captures verify dashboard, inventory, search, run detail, and fix preview states across desktop and mobile without overlapping controls."
         }

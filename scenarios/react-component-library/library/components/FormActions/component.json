@@ -8,6 +8,7 @@
     "1.0.0",
     "1.0.3"
   ],
+  "description": "The coordinated action region for submit, cancel, reset, and delete, with save status, responsive placement, optional sticky behavior, and awareness of the form's async state.",
   "designStyles": [
     {
       "affinity": "native",
@@ -15,6 +16,7 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "FormActions",
   "draft": "",
   "evictedVersions": [
     "1.0.1",
@@ -24,7 +26,5 @@
   ],
   "latest": "1.0.6",
   "libraryId": "react-component-library:FormActions",
-  "displayName": "FormActions",
-  "description": "The coordinated action region for submit, cancel, reset, and delete, with save status, responsive placement, optional sticky behavior, and awareness of the form's async state.",
   "tags": []
 }

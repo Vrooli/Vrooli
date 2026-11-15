@@ -8,6 +8,15 @@
     "1.2.0",
     "1.2.1"
   ],
+  "description": "Composes a field and its attached controls as one bordered, labelled, and focusable control row.",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "InputGroup",
   "draft": "",
   "evictedVersions": [
     "1.1.0",
@@ -17,14 +26,5 @@
   ],
   "latest": "1.2.3",
   "libraryId": "react-component-library:InputGroup",
-  "displayName": "InputGroup",
-  "description": "Composes a field and its attached controls as one bordered, labelled, and focusable control row.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "tags": []
 }

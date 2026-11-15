@@ -62,6 +62,7 @@ func Module(logger *log.Logger, repoRoot string, engine *checks.Engine, opts ...
 	if engine == nil {
 		engine = NewEngine(repoRoot, checks.RegistryDeps{
 			EvidenceRepository:    cfg.evidenceRepository,
+			GeometryEvaluator:     reconcile.NewUIHealthGeometryEvaluator(),
 			AttestationRepository: cfg.attestationRepository,
 		})
 	}

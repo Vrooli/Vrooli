@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "libraryId": "react-component-library:Menu",
   "version": "2.0.3-draft.1",
-  "resolvedAt": "2026-11-13T21:18:41Z",
+  "resolvedAt": "2026-11-14T15:27:12.245Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:ClassMerge",
@@ -13,7 +13,7 @@
     {
       "libraryId": "react-component-library:Popover",
       "major": 1,
-      "observed": "1.4.0",
+      "observed": "1.4.1",
       "rank": 4
     },
     {

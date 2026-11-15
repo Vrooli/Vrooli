@@ -2398,8 +2398,100 @@
     },
     {
       "name": "page",
-      "description": "Observe running pages and their library source",
+      "description": "Capture, inspect and render served pages",
       "commands": [
+        {
+          "name": "capture",
+          "description": "Capture a served scenario, URL or HTML file into one bundle: verified pixels per view and theme, an editable frozen page per view, and an outline",
+          "needs_api": false,
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Running scenario to capture"
+            },
+            {
+              "name": "route",
+              "description": "Scenario route; default /"
+            },
+            {
+              "name": "step",
+              "repeated": true,
+              "description": "State step before capture, e.g. click:Branches; repeat for more"
+            },
+            {
+              "name": "wait-selector",
+              "description": "CSS selector that must be visible before capture (scenario only)"
+            },
+            {
+              "name": "url",
+              "description": "Public http(s) page to capture"
+            },
+            {
+              "name": "file",
+              "description": "Local .html file to capture (for example an exported artifact)"
+            },
+            {
+              "name": "views",
+              "description": "phone, small-phone, tablet, desktop or WIDTHxHEIGHT, comma separated; default phone,desktop"
+            },
+            {
+              "name": "themes",
+              "description": "light, dark or light,dark; default light,dark"
+            },
+            {
+              "name": "out",
+              "description": "Bundle directory; default ~/.vrooli/data/react-component-library/ux-captures/<capture-id>"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "render",
+          "description": "Render an edited frozen page to verified pixels (fails on a blank image)",
+          "needs_api": false,
+          "positionals": [
+            {
+              "name": "file",
+              "required": true,
+              "description": "Edited .html page, usually a copy of a capture's page/<view>.html"
+            }
+          ],
+          "flags": [
+            {
+              "name": "views",
+              "description": "phone, small-phone, tablet, desktop or WIDTHxHEIGHT; default phone"
+            },
+            {
+              "name": "themes",
+              "description": "light, dark or light,dark; default light"
+            },
+            {
+              "name": "out",
+              "description": "Output path prefix; default the file path without .html"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
         {
           "name": "inspect",
           "description": "Capture a screenshot and DOM tree with resolved asset provenance",

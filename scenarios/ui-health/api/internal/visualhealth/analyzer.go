@@ -195,6 +195,18 @@ func Rules() []*visualpb.VisualRule {
 			Remediation:       "Move interactive controls out of unsafe edge and notch zones or pad the layout with env(safe-area-inset-*).",
 		},
 		{
+			Id:                "visual_touch_target_too_small",
+			Category:          visualpb.VisualCategory_VISUAL_CATEGORY_LAYOUT,
+			Severity:          visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR,
+			RequiredArtifacts: []string{"layout_json", "viewport"},
+			Remediation:       "Give mobile controls at least 44 by 44 CSS pixels of interactive area, including icon-only controls.",
+		},
+		{Id: "visual_chrome_outside_viewport", Category: visualpb.VisualCategory_VISUAL_CATEGORY_LAYOUT, Severity: visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR, RequiredArtifacts: []string{"layout_json", "viewport"}, Remediation: "Keep application navigation and chrome inside the captured viewport."},
+		{Id: "visual_multiline_chrome_label", Category: visualpb.VisualCategory_VISUAL_CATEGORY_LAYOUT, Severity: visualpb.VisualSeverity_VISUAL_SEVERITY_WARNING, RequiredArtifacts: []string{"layout_json"}, Remediation: "Keep navigation and chrome labels on one line; shorten or restructure controls when labels do not fit."},
+		{Id: "visual_surface_does_not_fill_viewport", Category: visualpb.VisualCategory_VISUAL_CATEGORY_LAYOUT, Severity: visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR, RequiredArtifacts: []string{"layout_json", "viewport"}, Remediation: "Make the root application surface fill at least 98% of the captured viewport in both dimensions."},
+		{Id: "visual_geometry_unmeasured", Category: visualpb.VisualCategory_VISUAL_CATEGORY_LAYOUT, Severity: visualpb.VisualSeverity_VISUAL_SEVERITY_INFO, RequiredArtifacts: []string{"layout_json", "viewport"}, Remediation: "Retain viewport dimensions and element bounds in layout_json."},
+		{Id: "visual_surface_root_unmeasured", Category: visualpb.VisualCategory_VISUAL_CATEGORY_LAYOUT, Severity: visualpb.VisualSeverity_VISUAL_SEVERITY_INFO, RequiredArtifacts: []string{"layout_json", "viewport"}, Remediation: "Identify the root application surface in layout_json to measure viewport fill."},
+		{
 			Id:                "visual_heading_not_block",
 			Category:          visualpb.VisualCategory_VISUAL_CATEGORY_LAYOUT,
 			Severity:          visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR,

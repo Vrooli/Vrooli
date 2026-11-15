@@ -111,11 +111,7 @@ func (v *generatedFixtureValidator) Validate(ctx context.Context) (err error) {
 	if err := runControlPlane(ctx, root, "vrooli", "scenario", "start", positive, "--timeout", "240", "--json"); err != nil {
 		return fmt.Errorf("start positive generated fixture: %w", err)
 	}
-	port, err := scenarioUIPort(ctx, root, positive)
-	if err != nil {
-		return err
-	}
-	if err := runGeneratedFixtureBrowser(ctx, root, port); err != nil {
+	if err := runGeneratedFixtureBrowser(ctx, positive); err != nil {
 		return err
 	}
 
@@ -213,85 +209,54 @@ func (v *generatedFixtureValidator) cleanup(parent context.Context, root, name, 
 	}
 }
 
-func runGeneratedFixtureBrowser(ctx context.Context, root string, port int) error {
-	_ = root
-	capture, err := domain.NewBASCaptureExecutor().CaptureURL(
+func runGeneratedFixtureBrowser(ctx context.Context, scenario string) error {
+	capture, err := domain.NewBASCaptureExecutor().CaptureScenarioURL(
 		ctx,
-		fmt.Sprintf("http://127.0.0.1:%d/", port),
-		"rcl:generated-fixture",
+		scenario,
+		"/",
 		`[data-rcl-control="true"]`,
 		`[data-rcl-control="true"]`,
 	)
 	if err != nil {
 		return fmt.Errorf("capture generated fixture through BAS: %w", err)
 	}
-	if !accessibilityHasStyledControl(capture.Accessibility) {
-		return fmt.Errorf("generated fixture BAS accessibility evidence did not contain a visibly styled adopted control")
+	if !regionStyleHasStyledControl(capture.RegionStyle) {
+		return fmt.Errorf("generated fixture BAS region style evidence did not contain a visibly styled adopted control")
 	}
 	return nil
 }
 
-func accessibilityHasStyledControl(raw string) bool {
-	var document any
-	if json.Unmarshal([]byte(raw), &document) != nil {
+func regionStyleHasStyledControl(raw string) bool {
+	var sample struct {
+		Schema        string `json:"schema"`
+		ComputedStyle struct {
+			Color       string `json:"color"`
+			Background  string `json:"background_color"`
+			BorderColor string `json:"border_color"`
+			BorderStyle string `json:"border_style"`
+			BorderWidth string `json:"border_width"`
+			Visibility  string `json:"visibility"`
+			Display     string `json:"display"`
+			Opacity     string `json:"opacity"`
+		} `json:"computed_style"`
+	}
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&sample) != nil || sample.Schema != "bas-region-style-sample/v1" {
 		return false
 	}
-	var visit func(any) bool
-	visit = func(value any) bool {
-		node, ok := value.(map[string]any)
-		if !ok {
-			if children, ok := value.([]any); ok {
-				for _, child := range children {
-					if visit(child) {
-						return true
-					}
-				}
-			}
+	style := sample.ComputedStyle
+	for _, value := range []string{style.Color, style.Background, style.BorderColor, style.BorderStyle, style.BorderWidth, style.Visibility, style.Display, style.Opacity} {
+		if value == "" || len(value) > 128 {
 			return false
 		}
-		if dom, ok := node["dom"].(map[string]any); ok {
-			if attributes, ok := dom["attributes"].(map[string]any); ok && attributes["data-rcl-control"] == "true" {
-				style, _ := node["computedStyle"].(map[string]any)
-				return painted(style["background-color"]) &&
-					painted(style["border-color"]) &&
-					style["border-style"] != "none" && style["border-width"] != "0px" &&
-					painted(style["color"])
-			}
-		}
-		for _, child := range node {
-			if visit(child) {
-				return true
-			}
-		}
-		return false
 	}
-	return visit(document)
+	return painted(style.Background) && painted(style.BorderColor) && style.BorderStyle != "none" && style.BorderWidth != "0px" && painted(style.Color) && style.Visibility == "visible" && style.Display != "none" && style.Opacity != "0"
 }
 
-func painted(value any) bool {
-	text, ok := value.(string)
-	if !ok {
-		return false
-	}
-	value = strings.ToLower(strings.TrimSpace(text))
+func painted(value string) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
 	return value != "" && value != "transparent" && value != "rgba(0, 0, 0, 0)"
-}
-
-func scenarioUIPort(ctx context.Context, root, name string) (int, error) {
-	output, err := runControlPlaneOutput(ctx, root, "vrooli", "scenario", "port", name, "ui", "--json")
-	if err != nil {
-		return 0, fmt.Errorf("resolve UI port for generated fixture: %w", err)
-	}
-	var result struct {
-		Port int `json:"port"`
-	}
-	if err := json.Unmarshal(output, &result); err != nil {
-		return 0, fmt.Errorf("decode generated fixture UI port: %w", err)
-	}
-	if result.Port <= 0 {
-		return 0, fmt.Errorf("generated fixture returned invalid UI port %d", result.Port)
-	}
-	return result.Port, nil
 }
 
 func runControlPlane(ctx context.Context, root, name string, args ...string) error {

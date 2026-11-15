@@ -839,6 +839,13 @@ func (s *service) CheckComponentVersion(ctx context.Context, componentID, versio
 		verdict, message := draftFallbackParity(s.source.Root(), filepath.Dir(v.SourcePath))
 		add("fallback-parity", verdict, message, "write var(--token) without a fallback, copy the canonical value verbatim, or declare the property inside this version")
 	}
+	if version == c.DraftVersion && strings.Contains(version, "-draft.") && componentAssetRoot(c) == "components" {
+		if err := validateDraftUsageContract(s.source.Root(), c, version); err != nil {
+			add("usage-contract", "failed", err.Error(), "restore usage-contract.json and stamp componentId/version to this asset draft")
+		} else {
+			add("usage-contract", "passed", "usage contract is present when required and identifies this draft", "")
+		}
+	}
 	if s.typescript != nil && version == c.DraftVersion && strings.Contains(version, "-draft.") {
 		manifestPath, sourcePath := c.ManifestPath, v.SourcePath
 		if !filepath.IsAbs(manifestPath) {
@@ -898,6 +905,39 @@ func (s *service) CheckComponentVersion(ctx context.Context, componentID, versio
 		add("experience-contract", "passed", "experience contract is readable and its state references match story.json", "")
 	}
 	return result, nil
+}
+
+// validateDraftUsageContract makes the usage-contract identity part of the
+// publish check whenever the current release has adopted the contract. Older
+// assets without one remain editable; once introduced, the contract cannot be
+// dropped or carried forward with a stale identity.
+func validateDraftUsageContract(root string, component Component, version string) error {
+	base := filepath.Join(root, componentAssetRoot(component), component.Slug, "versions")
+	latestPath := filepath.Join(base, component.LatestVersion, "usage-contract.json")
+	if _, err := os.Stat(latestPath); os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("cannot inspect latest usage contract: %w", err)
+	}
+	draftPath := filepath.Join(base, version, "usage-contract.json")
+	body, err := os.ReadFile(draftPath)
+	if err != nil {
+		return fmt.Errorf("usage-contract.json is missing or unreadable: %w", err)
+	}
+	var contract struct {
+		ComponentID string `json:"componentId"`
+		Version     string `json:"version"`
+	}
+	if err := json.Unmarshal(body, &contract); err != nil {
+		return fmt.Errorf("usage-contract.json is invalid JSON: %w", err)
+	}
+	if contract.ComponentID != component.LibraryID {
+		return fmt.Errorf("usage-contract componentId %q does not match %q", contract.ComponentID, component.LibraryID)
+	}
+	if contract.Version != version {
+		return fmt.Errorf("usage-contract version %q does not match draft %q", contract.Version, version)
+	}
+	return nil
 }
 
 func requiresStoryValidation(c Component) bool {

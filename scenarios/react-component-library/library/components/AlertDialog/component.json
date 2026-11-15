@@ -14,6 +14,7 @@
     "1.0.0",
     "2.0.9"
   ],
+  "description": "The focused confirmation surface for consequential decisions, explaining impact, separating safe from destructive actions, and resisting accidental dismissal.",
   "designStyles": [
     {
       "affinity": "native",
@@ -21,7 +22,8 @@
       "styleId": "vrooli-default"
     }
   ],
-  "draft": "",
+  "displayName": "AlertDialog",
+  "draft": "2.0.13-draft.1",
   "evictedVersions": [
     "1.0.4",
     "1.0.2",
@@ -36,7 +38,5 @@
   ],
   "latest": "2.0.12",
   "libraryId": "react-component-library:AlertDialog",
-  "displayName": "AlertDialog",
-  "description": "The focused confirmation surface for consequential decisions, explaining impact, separating safe from destructive actions, and resisting accidental dismissal.",
   "tags": []
 }

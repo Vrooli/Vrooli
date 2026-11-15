@@ -318,15 +318,17 @@ export function SkipActivation() {
         testId="story-shell"
         onNavigate={() => setNavigations((count) => count + 1)}
       >
-        <p
-          data-testid="story-skip-status"
-          data-navigation-count={navigations}
-          data-default-prevented={String(defaultPrevented)}
-          data-skip-activations={activations}
-        >
-          Current page remains mounted.
-        </p>
-        <Page />
+        <>
+          <p
+            data-testid="story-skip-status"
+            data-navigation-count={navigations}
+            data-default-prevented={String(defaultPrevented)}
+            data-skip-activations={activations}
+          >
+            Current page remains mounted.
+          </p>
+          <Page />
+        </>
       </AppShell>
     </div>
   );

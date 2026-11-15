@@ -3,6 +3,15 @@
   "deprecatedVersions": [
     "1.1.0"
   ],
+  "description": "The multi-step form controller with per-step validation boundaries, optional branches, resumable drafts, progress, back navigation, URL synchronization, and final submission.",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "FormWizard",
   "draft": "",
   "evictedVersions": [
     "1.0.3",
@@ -13,14 +22,5 @@
   ],
   "latest": "1.1.4",
   "libraryId": "react-component-library:FormWizard",
-  "displayName": "FormWizard",
-  "description": "The multi-step form controller with per-step validation boundaries, optional branches, resumable drafts, progress, back navigation, URL synchronization, and final submission.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "tags": []
 }

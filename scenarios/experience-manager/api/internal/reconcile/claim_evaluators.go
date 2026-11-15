@@ -97,44 +97,38 @@ type claimEvaluatorFunc func(spec.PageDocument, spec.Claim, CaptureTarget, []*AX
 // exposes its keys so the capability registry can derive checker coverage
 // instead of asserting it.
 var claimEvaluators = map[string]claimEvaluatorFunc{
-	"no-document-horizontal-overflow": evaluateNoDocumentHorizontalOverflowClaim,
-	"viewport-fill":                   evaluateViewportFillClaim,
-	"chrome-pinned":                   evaluateChromePinnedClaim,
-	"content-not-clipped":             evaluateContentNotClippedClaim,
-	"safe-area-tap-targets":           evaluateSafeAreaTapTargetsClaim,
-	"single-line-chrome":              evaluateSingleLineChromeClaim,
-	"tap-target-size":                 evaluateTapTargetSizeClaim,
-	"state-covered":                   evaluateStateCoveredClaim,
-	"state-distinct":                  evaluateStateDistinctClaim,
-	"element-present":                 evaluateElementPresenceClaim,
-	"element-absent":                  evaluateElementAbsentClaim,
-	"single-dominant-action":          evaluateSingleDominantActionClaim,
-	"keyboard-reachable":              evaluateElementPresenceClaim,
-	"accessible-name":                 evaluateAccessibleNameClaim,
-	"affordance-present":              evaluateAffordancePresentClaim,
-	"announced":                       evaluateAnnouncedClaim,
-	"error-association":               evaluateErrorAssociationClaim,
-	"font-size":                       evaluateFontSizeClaim,
-	"focus-contained":                 evaluateFocusContainedClaim,
-	"focus-containment":               evaluateFocusContainedClaim,
-	"focus-order":                     evaluateFocusOrderClaim,
-	"focus-restored":                  evaluateFocusRestoredClaim,
-	"heading-hierarchy":               evaluateHeadingHierarchyClaim,
-	"layered-dismissal":               evaluateLayeredDismissalClaim,
-	"motion-duration":                 evaluateMotionDurationClaim,
-	"no-layout-animation":             evaluateNoLayoutAnimationClaim,
-	"responsive-transformation":       evaluateResponsiveTransformationClaim,
-	"spacing":                         evaluateSpacingClaim,
-	"state-contrast":                  evaluateStateContrastClaim,
-	"size-parity":                     evaluateSizeParityClaim,
-	"visible-without-scroll":          evaluateVisibleWithoutScrollClaim,
-	"transition-class-conformance":    evaluateTransitionClassConformanceClaim,
-	"reading-order":                   evaluateReadingOrderClaim,
-	"differential":                    evaluateDifferentialWithoutContexts,
-	"dark-parity":                     evaluateDifferentialWithoutContexts,
-	"token-resolution":                evaluateTokenResolutionClaim,
-	"portal-boundary":                 evaluatePortalBoundaryClaim,
-	"chrome-color-agreement":          evaluateChromeColorAgreementClaim,
+	"content-not-clipped":          evaluateContentNotClippedClaim,
+	"state-covered":                evaluateStateCoveredClaim,
+	"state-distinct":               evaluateStateDistinctClaim,
+	"element-present":              evaluateElementPresenceClaim,
+	"element-absent":               evaluateElementAbsentClaim,
+	"single-dominant-action":       evaluateSingleDominantActionClaim,
+	"keyboard-reachable":           evaluateElementPresenceClaim,
+	"accessible-name":              evaluateAccessibleNameClaim,
+	"affordance-present":           evaluateAffordancePresentClaim,
+	"announced":                    evaluateAnnouncedClaim,
+	"error-association":            evaluateErrorAssociationClaim,
+	"font-size":                    evaluateFontSizeClaim,
+	"focus-contained":              evaluateFocusContainedClaim,
+	"focus-containment":            evaluateFocusContainedClaim,
+	"focus-order":                  evaluateFocusOrderClaim,
+	"focus-restored":               evaluateFocusRestoredClaim,
+	"heading-hierarchy":            evaluateHeadingHierarchyClaim,
+	"layered-dismissal":            evaluateLayeredDismissalClaim,
+	"motion-duration":              evaluateMotionDurationClaim,
+	"no-layout-animation":          evaluateNoLayoutAnimationClaim,
+	"responsive-transformation":    evaluateResponsiveTransformationClaim,
+	"spacing":                      evaluateSpacingClaim,
+	"state-contrast":               evaluateStateContrastClaim,
+	"size-parity":                  evaluateSizeParityClaim,
+	"visible-without-scroll":       evaluateVisibleWithoutScrollClaim,
+	"transition-class-conformance": evaluateTransitionClassConformanceClaim,
+	"reading-order":                evaluateReadingOrderClaim,
+	"differential":                 evaluateDifferentialWithoutContexts,
+	"dark-parity":                  evaluateDifferentialWithoutContexts,
+	"token-resolution":             evaluateTokenResolutionClaim,
+	"portal-boundary":              evaluatePortalBoundaryClaim,
+	"chrome-color-agreement":       evaluateChromeColorAgreementClaim,
 }
 
 func claimEvaluator(claimType string) claimEvaluatorFunc {
@@ -926,69 +920,6 @@ func relativeLuminance(color rgbColor) float64 {
 		return math.Pow((channel+0.055)/1.055, 2.4)
 	}
 	return 0.2126*linear(color.r) + 0.7152*linear(color.g) + 0.0722*linear(color.b)
-}
-
-func evaluateNoDocumentHorizontalOverflowClaim(_ spec.PageDocument, _ spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
-	node := firstHorizontalOverflowNode(nodes, target)
-	if node == nil {
-		return claimEvaluation{Pass: true}
-	}
-	return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Failure: describeBoundsFailure("node extends horizontally outside the viewport", node, target)}
-}
-
-func evaluateViewportFillClaim(_ spec.PageDocument, _ spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
-	root := snapshotRoot(nodes)
-	if viewportFill(root, target) {
-		return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(root)}
-	}
-	return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(root), Failure: describeBoundsFailure("root surface does not fill the viewport", root, target)}
-}
-
-func evaluateChromePinnedClaim(_ spec.PageDocument, _ spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
-	node := firstUnpinnedChromeNode(nodes, target)
-	if node == nil {
-		return claimEvaluation{Pass: true}
-	}
-	return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Failure: describeBoundsFailure("chrome node sits outside the captured viewport", node, target)}
-}
-
-func evaluateSafeAreaTapTargetsClaim(_ spec.PageDocument, _ spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
-	node := firstUnsafeAreaTapTarget(nodes, target)
-	if node == nil {
-		return claimEvaluation{Pass: true}
-	}
-	return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Failure: describeBoundsFailure("interactive target overlaps the mobile unsafe bottom area", node, target)}
-}
-
-func evaluateSingleLineChromeClaim(_ spec.PageDocument, _ spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
-	node := firstMultilineChromeLabel(nodes, target)
-	if node == nil {
-		return claimEvaluation{Pass: true}
-	}
-	return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Failure: describeBoundsFailure("chrome label appears wrapped or too tall for a single-line control", node, target)}
-}
-
-func evaluateTapTargetSizeClaim(_ spec.PageDocument, claim spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
-	node := firstUndersizedTapTarget(nodes, target)
-	if node == nil {
-		return claimEvaluation{Pass: true}
-	}
-	minimum := 44.0
-	observed := math.Min(node.Bounds.Width, node.Bounds.Height)
-	elementID := "tap-target"
-	if len(claim.Elements) > 0 {
-		elementID = claim.Elements[0]
-	}
-	m := measurement("tap-target-size", "px", "gte", &observed, &minimum, measuredNodeSubject(elementID, node))
-	// Name the offending control. A bare "observed 34px below required 44px"
-	// tells an author a control is too small but not which one, and every other
-	// floor evaluator here already reports its node.
-	return claimEvaluation{
-		Pass:        false,
-		AXNodeJSON:  encodeAXNode(node),
-		Measurement: m,
-		Failure:     describeBoundsFailure(measurementFailure(m), node, target),
-	}
 }
 
 func evaluateStateCoveredClaim(_ spec.PageDocument, claim spec.Claim, target CaptureTarget, _ []*AXNode) claimEvaluation {

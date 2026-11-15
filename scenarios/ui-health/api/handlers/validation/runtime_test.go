@@ -71,8 +71,8 @@ func TestStaticOnlySkipsCodeFactsAndRuntime(t *testing.T) {
 	if !hasAssessmentFinding(resp.Msg, "runtime_not_evaluated_static_only") {
 		t.Fatal("static-only validation must explicitly report that runtime render was not evaluated")
 	}
-	if got := resp.Msg.GetStatus(); got != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED {
-		t.Fatalf("static-only status = %s, want DEGRADED", got)
+	if got := resp.Msg.GetStatus(); got != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED {
+		t.Fatalf("static-only status = %s, want NOT_EVALUATED", got)
 	}
 }
 
@@ -152,8 +152,8 @@ func TestExecutionWithoutRuntimeCheckerIsStatic(t *testing.T) {
 	if !hasAssessmentFinding(resp.Msg, "runtime_not_evaluated_unconfigured") {
 		t.Fatal("an execution request without a runtime collector must explicitly report it as not evaluated")
 	}
-	if got := resp.Msg.GetStatus(); got != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED {
-		t.Fatalf("unconfigured runtime status = %s, want DEGRADED", got)
+	if got := resp.Msg.GetStatus(); got != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED {
+		t.Fatalf("unconfigured runtime status = %s, want NOT_EVALUATED", got)
 	}
 }
 

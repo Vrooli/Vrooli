@@ -59,8 +59,6 @@ describe("ControlBase documented geometry", () => {
     expect(controlBaseSource).toMatch(
       /icon:\s*\{\s*minBlockSize: "var\(--control-size-icon\)",\s*minInlineSize: "var\(--control-size-icon\)"/,
     );
-    expect(controlBaseSource).not.toContain("min-height: var(--tap-target-min)");
-    expect(controlBaseSource).not.toContain("min-width: var(--tap-target-min)");
   });
 
   it("keeps the direct-child icon scale monotonic and tokenized", () => {
@@ -112,6 +110,41 @@ describe("ControlBase documented geometry", () => {
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/\/\/[^\n]*/g, "");
     expect(executable).not.toContain("import.meta");
+  });
+
+  // jsdom does not evaluate media queries, so the floor is asserted from the
+  // stylesheet text: the rule must sit inside the coarse-pointer query, reach
+  // only marked (sub-44px) rungs that have not opted out, raise both axes to
+  // the token, and come after the size recipes it has to beat at equal
+  // specificity. Pointer behaviour in a real browser is covered by the
+  // consumer capture, not by this file.
+  it("raises sub-44px rungs to the tap target on coarse pointers only", () => {
+    const coarse = /@media \(pointer: coarse\) \{([\s\S]*?)\n\}/.exec(controlBaseSource)?.[1] ?? "";
+    expect(coarse).toMatch(
+      /\[data-rcl-control\]:where\(\[data-control-below-tap-target\]\[data-rcl-tap-target="comfortable"\]\)\s*\{\s*min-block-size: var\(--tap-target-min\);\s*min-inline-size: var\(--tap-target-min\);\s*\}/,
+    );
+    const outsideCoarse = controlBaseSource.replace(coarse, "");
+    expect(outsideCoarse).not.toContain("var(--tap-target-min)");
+    expect(controlBaseSource.indexOf("@media (pointer: coarse)")).toBeGreaterThan(
+      controlBaseSource.indexOf('${recipeRules("data-control-size", sizeStyles)}'),
+    );
+    expect(baseStylesSource).toMatch(/--tap-target-min: 44px;/);
+  });
+
+  it("opts a control into the floor by default and out of it on request", () => {
+    const { rerender } = renderWithProviders(
+      createElement(ControlBase, { size: "xs", children: "Action" }),
+    );
+    expect(screen.getByRole("button", { name: "Action" })).toHaveAttribute(
+      "data-rcl-tap-target",
+      "comfortable",
+    );
+
+    rerender(createElement(ControlBase, { size: "xs", denseTapTarget: true, children: "Action" }));
+    const dense = screen.getByRole("button", { name: "Action" });
+    expect(dense).toHaveAttribute("data-rcl-tap-target", "dense");
+    expect(dense).not.toHaveAttribute("denseTapTarget");
+    expect(dense).toHaveAttribute("data-control-below-tap-target", "true");
   });
 
   it("marks dense rungs in the DOM without blocking rendering", () => {

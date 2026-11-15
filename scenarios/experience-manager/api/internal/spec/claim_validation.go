@@ -314,7 +314,7 @@ func knownClaimType(t string) bool {
 	// documents; portable library contracts explicitly reject it at their
 	// boundary in checkPortableContract. New library contracts use the named
 	// manual-review vocabulary instead.
-	return t == "custom" || t == "manual-review" || claimtypes.IsImplemented(t)
+	return t == "custom" || t == "manual-review" || claimtypes.IsKnown(t)
 }
 
 func paramString(params map[string]any, keys ...string) string {

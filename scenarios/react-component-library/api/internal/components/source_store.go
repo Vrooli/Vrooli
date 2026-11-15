@@ -474,6 +474,18 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 				return "", fmt.Errorf("format draft dependency lock: %w", formatErr)
 			}
 			body = string(append(formatted, '\n'))
+		} else if intent == VersionIntentDraft && file.Path == "usage-contract.json" {
+			var contract map[string]any
+			if err := json.Unmarshal([]byte(body), &contract); err != nil {
+				return "", fmt.Errorf("decode draft usage contract: %w", err)
+			}
+			contract["componentId"] = c.LibraryID
+			contract["version"] = version
+			formatted, formatErr := json.MarshalIndent(contract, "", "  ")
+			if formatErr != nil {
+				return "", fmt.Errorf("format draft usage contract: %w", formatErr)
+			}
+			body = string(append(formatted, '\n'))
 		} else if file.Path == "experience-contract.json" {
 			// Experience contracts travel with a version folder. Keep their
 			// story binding local to the copy being created instead of carrying

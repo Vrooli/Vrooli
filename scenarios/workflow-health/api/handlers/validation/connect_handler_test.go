@@ -35,6 +35,13 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
+func TestWorkflowStatusIsNotEvaluatedWhenBASRefusesAllRuns(t *testing.T) {
+	options := validationStatusOptions(providerReport{Summary: execution.Summary{Selected: 1, Refused: 1}})
+	response, err := assessment.BuildValidationResponse("demo", &commonv1.MaturityAssessment{Scenario: "demo", Provider: "workflow-health", Phase: "workflow", Version: "1", Local: &commonv1.LocalMaturityAssessment{CurrentLevel: "L0"}}, nil, nil, options...)
+	require.NoError(t, err)
+	require.Equal(t, scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED, response.GetStatus())
+}
+
 type recordingBASURLResolver struct {
 	address string
 	base    string

@@ -2,6 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "overlays.action-bar",
+  "deprecatedVersions": [],
   "description": "A one-row overlay action bar with one primary action, short labels, and overflow for additional actions.",
   "designStyles": [
     {
@@ -13,7 +14,7 @@
   "displayName": "OverlayActionBar",
   "draft": "",
   "evictedVersions": [],
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:OverlayActionBar",
   "tags": [
     "overlay",

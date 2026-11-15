@@ -8,6 +8,7 @@
     "1.1.1",
     "1.1.0"
   ],
+  "description": "Reusable control base component implementation for the React component library.",
   "designStyles": [
     {
       "affinity": "native",
@@ -15,6 +16,7 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "Control Base",
   "draft": "",
   "evictedVersions": [
     "1.0.1",
@@ -22,9 +24,7 @@
     "1.1.0",
     "1.1.4"
   ],
-  "latest": "1.1.6",
+  "latest": "1.2.0",
   "libraryId": "react-component-library:ControlBase",
-  "displayName": "Control Base",
-  "description": "Reusable control base component implementation for the React component library.",
   "tags": []
 }

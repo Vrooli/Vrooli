@@ -264,7 +264,12 @@ func (scenarioURLResolver) ResolveScenarioURLDefault(ctx context.Context, scenar
 }
 
 func validationStatusOptions(report providerReport) []assessment.ValidationResponseOption {
-	if report.Summary.Failed > 0 || report.Summary.Refused > 0 {
+	if report.Summary.NotEvaluated > 0 || report.Summary.Refused > 0 {
+		return []assessment.ValidationResponseOption{
+			assessment.WithValidationStatus(scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED),
+		}
+	}
+	if report.Summary.Failed > 0 {
 		return []assessment.ValidationResponseOption{
 			assessment.WithValidationStatus(scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED),
 		}
@@ -276,13 +281,14 @@ func nativeDetail(report providerReport) (*structpb.Struct, error) {
 	payload := map[string]any{
 		"catalog": catalogSummary(report.Catalog),
 		"execution": map[string]any{
-			"selected": report.Summary.Selected,
-			"executed": report.Summary.Executed,
-			"refused":  report.Summary.Refused,
-			"skipped":  report.Summary.Skipped,
-			"failed":   report.Summary.Failed,
-			"passed":   report.Summary.Passed,
-			"runs":     runSummaries(report.Runs),
+			"selected":      report.Summary.Selected,
+			"executed":      report.Summary.Executed,
+			"refused":       report.Summary.Refused,
+			"skipped":       report.Summary.Skipped,
+			"not_evaluated": report.Summary.NotEvaluated,
+			"failed":        report.Summary.Failed,
+			"passed":        report.Summary.Passed,
+			"runs":          runSummaries(report.Runs),
 			"isolation": map[string]any{
 				"installed":                            report.Isolation.Installed,
 				"lease_id":                             report.Isolation.LeaseID,

@@ -24,7 +24,7 @@ Only the specific current-behavior claims mapped below are asserted as checked. 
 | Exiting drawers, sheets, responsive dialogs, dialogs, alerts and command palettes relinquish input immediately and restore it on reopen | `library/tests/overlay-exit-composition.test.tsx`; live Web Console pointer-hit evidence in `docs/internal/PROBLEMS.md` |
 | Canonical library ID stamps retain separate legacy source-slot metadata | `ui/scripts/vite-plugin-asset-stamp.test.mjs` |
 | Consumer major/exact imports resolve through one implementation | `packages/react-component-library/tooling/resolve-specifier.test.mjs` |
-| A page capture joins its bounded DOM to real source and leaves unstamped nodes unstamped | `api/internal/pageinspect/service_test.go` |
+| A BAS `ux-capture.v1` outline and identity artifact join to consumer source; unstamped nodes remain unattributed | `api/internal/pageinspect/service_test.go` |
 | Literal selector/testid forwarding is proven conservatively | `api/internal/reconcile/resolver_test.go`; `packages/react-component-library/tooling/dom-bindings.test.mjs` |
 | Local source can resolve without a sketch adoption; zero proven bindings cannot pass | `api/internal/reconcile/verdict_test.go` |
 | Required region defaults match the schema | `TestRegionRequiredDefaultsToSchemaContract` in resolver tests |

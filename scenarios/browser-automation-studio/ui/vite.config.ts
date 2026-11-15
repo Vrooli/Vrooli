@@ -6,6 +6,7 @@ import path from 'path';
 import type { Connect, Plugin, ViteDevServer } from 'vite';
 import { defineConfig, type UserConfig } from 'vite';
 import { defineProject } from 'vitest/config';
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 // Get environment variables with fallbacks for build time
 // AUDITOR NOTE: These fallbacks are intentional for development mode.
@@ -214,7 +215,7 @@ export default defineConfig(({ mode }): UserConfig => {
   // ║  DO NOT change to '/' or remove this setting.                ║
   // ╚══════════════════════════════════════════════════════════════╝
   base: './',
-  plugins: [react(), healthEndpointPlugin()],
+  plugins: [sourceLibraryResolver({ devOnly: true }), react(), healthEndpointPlugin()],
   resolve: {
     alias: isProfile
       ? {

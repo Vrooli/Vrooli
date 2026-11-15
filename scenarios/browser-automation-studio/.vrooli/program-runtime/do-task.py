@@ -24,10 +24,6 @@ envelope = {"program": "browser-automation-studio.do-task", "version": "6", "sta
             "task_id": identity.get("task_id"), "key": identity.get("key")}}, "errors": [], "evidence": []}
 
 
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:160], "where": where})
-    return "report"
 
 
 def child_result(handle):
@@ -63,38 +59,38 @@ def finish(status, evidence=None, reused=None, grade=True):
 
 def step_validate():
     if not task:
-        return fail("failed", "invalid_input", "task must be a nonempty string", "validate")
+        return program.fail("failed", "invalid_input", "task must be a nonempty string", "validate", detail_limit=160)
     if "parameters" in inputs and not isinstance(inputs["parameters"], dict):
-        return fail("failed", "invalid_input", "parameters must be an ExecutionParameters object", "validate")
+        return program.fail("failed", "invalid_input", "parameters must be an ExecutionParameters object", "validate", detail_limit=160)
     for field in ("workflow_id", "project_id", "session", "model", "scenario", "site", "url", "navigation_id", "advice_attempt_id"):
         if field in inputs and (not isinstance(inputs[field], str) or len(inputs[field]) > 512):
-            return fail("failed", "invalid_input", "Invalid " + field, "validate")
+            return program.fail("failed", "invalid_input", "Invalid " + field, "validate", detail_limit=160)
     selected = sum(bool(inputs.get(k)) for k in ("workflow_id", "flow", "session", "navigation_id"))
     if selected > 1:
-        return fail("failed", "invalid_input", "Select one workflow, candidate flow, navigation session, or navigation to resume", "validate")
+        return program.fail("failed", "invalid_input", "Select one workflow, candidate flow, navigation session, or navigation to resume", "validate", detail_limit=160)
     if inputs.get("workflow_id") and (type(inputs.get("version")) is not int or inputs["version"] < 1):
-        return fail("failed", "invalid_input", "Execution requires the exact selected version", "validate")
+        return program.fail("failed", "invalid_input", "Execution requires the exact selected version", "validate", detail_limit=160)
     wait = inputs.get("wait_millis", 0)
     if type(wait) is not int or not 0 <= wait <= 300000:
-        return fail("failed", "invalid_input", "wait_millis must be an integer in 0..300000", "validate")
+        return program.fail("failed", "invalid_input", "wait_millis must be an integer in 0..300000", "validate", detail_limit=160)
     conditions = inputs.get("postconditions", [])
     if not isinstance(conditions, list) or len(conditions) > 16 or any(not isinstance(a, dict) or not a.get("selector") or not a.get("mode") for a in conditions):
-        return fail("failed", "invalid_input", "postconditions must be bounded typed assertions", "validate")
+        return program.fail("failed", "invalid_input", "postconditions must be bounded typed assertions", "validate", detail_limit=160)
     extraction = inputs.get("extraction", [])
     if not isinstance(extraction, list) or len(extraction) > 16 or any(not isinstance(e, dict) or not e.get("name") or not e.get("selector") or type(e.get("limit", 10)) is not int or not 0 <= e.get("limit", 10) <= 100 for e in extraction):
-        return fail("failed", "invalid_input", "extraction must contain bounded named selector specifications", "validate")
+        return program.fail("failed", "invalid_input", "extraction must contain bounded named selector specifications", "validate", detail_limit=160)
     authorized = inputs.get("authorized_workflows", [])
     if not isinstance(authorized, list) or len(authorized) > 100 or any(not isinstance(a, str) for a in authorized):
-        return fail("failed", "invalid_input", "authorized_workflows must be a bounded list of revision identities", "validate")
+        return program.fail("failed", "invalid_input", "authorized_workflows must be a bounded list of revision identities", "validate", detail_limit=160)
     if inputs.get("effect_policy", "explicit") not in ("explicit", "read_only"):
-        return fail("failed", "invalid_input", "effect_policy must be explicit or read_only", "validate")
+        return program.fail("failed", "invalid_input", "effect_policy must be explicit or read_only", "validate", detail_limit=160)
     if inputs.get("auto_select") and (not inputs.get("authorized_workflows") or not inputs.get("postconditions")):
-        return fail("failed", "invalid_input", "auto_select requires authorized_workflows and task postconditions", "validate")
+        return program.fail("failed", "invalid_input", "auto_select requires authorized_workflows and task postconditions", "validate", detail_limit=160)
     if "qualify" in inputs and type(inputs["qualify"]) is not bool:
-        return fail("failed", "invalid_input", "qualify must be a boolean", "validate")
+        return program.fail("failed", "invalid_input", "qualify must be a boolean", "validate", detail_limit=160)
     if inputs.get("qualify") and not inputs.get("postconditions"):
         # Qualification re-executes the task. Without an assertion it would buy nothing.
-        return fail("failed", "invalid_input", "qualify requires postconditions; an unasserted replay cannot verify anything", "validate")
+        return program.fail("failed", "invalid_input", "qualify requires postconditions; an unasserted replay cannot verify anything", "validate", detail_limit=160)
     envelope["inputs"] = {"task": task[:160], "workflow_id": inputs.get("workflow_id"), "site": site[:160],
                           "navigation_id": inputs.get("navigation_id"), "advice_attempt_id": inputs.get("advice_attempt_id")}
     return "act"
@@ -129,7 +125,7 @@ def workflow_eligible(workflow_id, version):
 def route_workflow():
     workflow_id, version = inputs["workflow_id"], inputs["version"]
     if not workflow_eligible(workflow_id, version):
-        return fail("refused", "learning_ineligible", "Workflow revision is contradicted or its eligibility cannot be checked", "act")
+        return program.fail("refused", "learning_ineligible", "Workflow revision is contradicted or its eligibility cannot be checked", "act", detail_limit=160)
     with learn.step("verify") as step:
         child = child_result(lib.browser_automation_studio.smoke_flow(
             workflow_id=workflow_id, version=version, parameters=inputs.get("parameters", {}), postconditions=inputs.get("postconditions", []),
@@ -227,7 +223,7 @@ def qualification_refusal(candidate):
 def route_navigation():
     resume = str(inputs.get("navigation_id", "") or "")
     if not resume and not inputs.get("model"):
-        return fail("failed", "model_required", "Select a navigator model before starting navigation", "act")
+        return program.fail("failed", "model_required", "Select a navigator model before starting navigation", "act", detail_limit=160)
     kwargs = {"prompt": task, "max_steps": inputs.get("max_steps", 10), "wait_millis": inputs.get("wait_millis", 0)}
     if resume:
         kwargs["navigation_id"] = resume
@@ -342,7 +338,7 @@ def route_search():
         choice = learn.choose(options, options[0])
         if choice["selected_id"] is None:
             envelope["signals"]["learning"]["advice"] = choice["learning"]["advice"][:10]
-            return fail("partial", "selection_required", "All matching workflows are excluded by learning evidence", "act")
+            return program.fail("partial", "selection_required", "All matching workflows are excluded by learning evidence", "act", detail_limit=160)
         selected_id, _, selected_version = choice["selected_id"].partition("@")
         envelope["signals"]["recommended_workflow"] = {"workflow_id": selected_id, "version": int(selected_version) if selected_version.isdigit() else selected_version,
                                                        "option_id": choice["selected_id"], "source": choice["source"], "why": choice.get("why", [])[:3]}

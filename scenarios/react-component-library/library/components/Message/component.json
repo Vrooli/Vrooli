@@ -12,6 +12,7 @@
     "1.0.8",
     "1.0.9"
   ],
+  "description": "The structured conversational item carrying actor, content, status, citations, attachments, tool activity, actions, timestamp, error state, and expandable metadata as one coherent unit.",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,6 +20,7 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "Message",
   "draft": "",
   "evictedVersions": [
     "1.0.3",
@@ -33,7 +35,5 @@
   ],
   "latest": "1.2.4",
   "libraryId": "react-component-library:Message",
-  "displayName": "Message",
-  "description": "The structured conversational item carrying actor, content, status, citations, attachments, tool activity, actions, timestamp, error state, and expandable metadata as one coherent unit.",
   "tags": []
 }

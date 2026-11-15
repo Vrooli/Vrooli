@@ -9,6 +9,15 @@
     "1.0.6",
     "1.0.0"
   ],
+  "description": "The hierarchical collection with lazily loaded nodes, expansion, selection, keyboard traversal, drag reordering, filtering, virtualization, and accessible tree semantics.",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "TreeView",
   "draft": "",
   "evictedVersions": [
     "1.0.5",
@@ -19,14 +28,5 @@
   ],
   "latest": "1.0.8",
   "libraryId": "react-component-library:TreeView",
-  "displayName": "TreeView",
-  "description": "The hierarchical collection with lazily loaded nodes, expansion, selection, keyboard traversal, drag reordering, filtering, virtualization, and accessible tree semantics.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "tags": []
 }

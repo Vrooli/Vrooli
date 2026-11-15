@@ -1,5 +1,38 @@
 # Problems — React Component Library
 
+## 2026-11-14 — Overlapping package builds delete each other's compiler inputs (FIXED in source)
+
+A non-strict `--runtime` build (reached through `vrooli package refresh`) ended
+`degraded` with `TS2559` on the frozen release `StyleSheet/versions/1.0.1`
+(`globalThis` has no `process`), while a strict build run minutes earlier passed.
+The release was never at fault. `tooling/build.mjs` wrote its generated
+`tsconfig` and the `declare var process` environment declaration to fixed names
+in the package root (`.build-tsconfig.json`, `.build-environment.d.ts`), and
+every build deleted them when it finished or aborted. Two overlapping builds (a
+scenario start's `build --runtime --scenario`, a refresh, an agent's build)
+therefore removed each other's inputs while `tsc` was about to read them; only
+StyleSheet 1.0.1 reads `process` through `globalThis`, which is why only it
+failed. The non-strict path then kept the previous verified artifact, so
+nothing was replaced and the failure looked like a toolchain problem.
+
+Fixed in `tooling/build.mjs`: the generated config and declaration now live in
+a per-build scratch directory inside the build's own `.rcl-candidate-<uuid>`
+directory (removed before publication, so the artifact never contains them), and
+`typeRoots` is set explicitly. Draft type-checks already used a temporary
+directory. `tooling/build-concurrency.test.mjs` freezes one build at its
+compiler through a gated `tsc`, runs a second build to completion and cleanup,
+then releases the first, in a throwaway package root with the real build
+scripts and the real StyleSheet asset. It fails on the old code
+(`TS5058: The specified path does not exist: .build-tsconfig.json`) and passes
+now. The artifact store already serialised publish, select and materialize with
+a lock; its timeout error now names the holder pid and whether it is still
+running (`ArtifactStore` `lockTimeoutMs` option, tested). Strict build after the
+fix: artifact **f2f7bb1b55fc76c704494c4c9a206eb6b28745a41dea56705be01f3459ea4354**.
+
+Known, unrelated tooling-test failures at this point: `sync-exports` expects the
+retired export `./Button/2.2.4`, and `dom-bindings` needs the repository root as
+its working directory.
+
 ## 2026-10-15–16 — Overlay canvas selectors amplify Web Console work (W3)
 
 Web Console's 574-message real-session audit traced excessive style work to

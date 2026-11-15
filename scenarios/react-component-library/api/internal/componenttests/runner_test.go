@@ -92,6 +92,42 @@ func TestRunnerRequiresPinAndReportsEachClosureAsset(t *testing.T) {
 	require.Equal(t, StageStatic, report.Results[1].Stage)
 }
 
+func TestRunnerCarriesDeclaredViewportGeometryIntoEvidenceRows(t *testing.T) {
+	root := components.Component{ID: "root", LibraryID: "rcl:root", Slug: "root", AssetKind: components.AssetKindComponent}
+	story := componentStory("phone")
+	story.Stories[0].Geometry = &components.StoryGeometry{Width: "320px", Height: "640px"}
+	runner := Runner{
+		Assets:  assets{root: root, versions: map[string]components.ComponentVersion{"root@1.0.0": {ComponentID: "root", Version: "1.0.0", Content: "export const Root = () => null", ContentSHA256: "root"}}},
+		Stories: stories{"root@1.0.0": story}, Executor: executor{},
+	}
+	report, err := runner.Run(context.Background(), Request{ComponentID: "root", Version: "1.0.0"})
+	require.NoError(t, err)
+	var declared *Result
+	for index := range report.Results {
+		if report.Results[index].Stage == StageDeclared {
+			declared = &report.Results[index]
+			break
+		}
+	}
+	require.NotNil(t, declared)
+	require.NotNil(t, declared.Geometry)
+	require.Equal(t, "320px", declared.Geometry.Width)
+	serialized, err := json.Marshal(report)
+	require.NoError(t, err)
+	var persisted Report
+	require.NoError(t, json.Unmarshal(serialized, &persisted))
+	var persistedDeclared *Result
+	for index := range persisted.Results {
+		if persisted.Results[index].Stage == StageDeclared {
+			persistedDeclared = &persisted.Results[index]
+			break
+		}
+	}
+	require.NotNil(t, persistedDeclared)
+	require.NotNil(t, persistedDeclared.Geometry)
+	require.Equal(t, "320px", persistedDeclared.Geometry.Width)
+}
+
 func TestRunnerFailsWhenStoryIsMissing(t *testing.T) {
 	root := components.Component{ID: "root", LibraryID: "rcl:root", Slug: "root", AssetKind: components.AssetKindComponent}
 	runner := Runner{Assets: assets{root: root, versions: map[string]components.ComponentVersion{"root@1.0.0": {ComponentID: "root", Version: "1.0.0", Content: "export const Root = () => null", ContentSHA256: "root"}}}, Stories: stories{}, Executor: executor{}}

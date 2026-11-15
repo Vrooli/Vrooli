@@ -2,12 +2,13 @@
   "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
   "schemaVersion": "1.0.0",
   "scenario": "ui-health",
-  "phase": "ui-health",
-  "displayName": "UI Health",
-  "description": "Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health.",
+  "phase": "experience",
+  "displayName": "Experience",
+  "description": "Owns the single served-UI experience verdict: static UI contracts plus runtime evaluation and evidence.",
   "source": "validation-provider",
   "artifactComparisonProvider": true,
   "orderHint": 2,
+  "supersedes": ["ui-health"],
   "timeout": "900s",
   "findingSource": "ui",
   "validation": {
@@ -39,7 +40,7 @@
     ]
   },
   "docs": {
-    "path": "scenarios/test-genie/docs/phases/ui-health/README.md"
+    "path": "scenarios/test-genie/docs/phases/experience/README.md"
   },
   "maturity": {
     "version": "2.0.0",
@@ -1031,6 +1032,28 @@
         ],
         "clean_requirement": "advisory"
       },
+      "visual_geometry_unmeasured": {
+        "capability_id": "runtime_render",
+        "local_level_impact": "L3",
+        "global_impact": "advisory",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_INFO",
+        "recommended_skill_ids": [
+          "ui-health"
+        ],
+        "clean_requirement": "advisory"
+      },
+      "visual_surface_root_unmeasured": {
+        "capability_id": "runtime_render",
+        "local_level_impact": "L3",
+        "global_impact": "advisory",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_INFO",
+        "recommended_skill_ids": [
+          "ui-health"
+        ],
+        "clean_requirement": "advisory"
+      },
       "visual_viewport_overflow": {
         "capability_id": "runtime_render",
         "local_level_impact": "L3",
@@ -1414,8 +1437,8 @@
     "architecture-audit"
   ],
   "freshnessRequirement": "never",
-  "phaseClass": "architecture",
-  "runtimeClass": "static",
+  "phaseClass": "runtime",
+  "runtimeClass": "execution",
   "concurrency": {
     "mode": "provider-serial"
   },
@@ -1433,6 +1456,8 @@
     "network",
     "dom",
     "trace",
-    "har"
+    "har",
+    "visual.layout",
+    "experience.verdict"
   ]
 }

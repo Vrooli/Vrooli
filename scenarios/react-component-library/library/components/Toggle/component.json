@@ -7,6 +7,7 @@
     "1.0.2",
     "1.0.1"
   ],
+  "description": "The two-state pressable with selected semantics, optional icon and label, tooltip integration, and controlled or uncontrolled operation.",
   "designStyles": [
     {
       "affinity": "native",
@@ -14,6 +15,7 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "Toggle",
   "draft": "",
   "evictedVersions": [
     "1.0.2",
@@ -22,7 +24,5 @@
   ],
   "latest": "1.0.6",
   "libraryId": "react-component-library:Toggle",
-  "displayName": "Toggle",
-  "description": "The two-state pressable with selected semantics, optional icon and label, tooltip integration, and controlled or uncontrolled operation.",
   "tags": []
 }

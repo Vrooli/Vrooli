@@ -53,15 +53,15 @@ curl "http://localhost:${API_PORT}/health"
 
 The provider validation response includes a provider-owned `native_detail`
 snapshot for the BAS boundary when available. It reports the sanitized BAS
-base URL and CaptureService route selected by the same executor used for
-component evidence, the resolution timestamp, and the `/health` result. The
+base URL and canonical `/ux-capture/scenario` route selected by the same
+executor used for component evidence, the resolution timestamp, and the `/health` result. The
 inspection itself performs a BAS health GET and never starts a browser capture.
 With `include_execution=false`, `ValidateScenario` returns `SKIPPED` after this
 readiness check and does not inspect the catalog, write test reports, invoke the
-generated fixture, or call CaptureService. The response assessment and
+generated fixture, or call UX bundle capture. The response assessment and
 `native_detail` mark this as inspection-only, not a catalog pass. Set
 `include_execution=true` to validate catalog contracts; that path may issue
-CaptureService requests for uncached component evidence. `DescribeProvider`
+canonical UX bundle requests for uncached component evidence. `DescribeProvider`
 remains target-independent and does not report a runtime BAS selection. In
 discovered mode, the executor resolves BAS again for each operation, so this
 timestamped observation does not pin the endpoint for a later capture.

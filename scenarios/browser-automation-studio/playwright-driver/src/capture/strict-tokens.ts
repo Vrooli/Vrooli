@@ -27,8 +27,8 @@ export function applyStrictTokenSentinelInPage(): StrictTokenDiagnostic {
     }
   }
   for (const style of Array.from(document.querySelectorAll('style'))) {
-    for (const match of (style.textContent || '').matchAll(/(--[A-Za-z0-9_-]+)\s*:/g))
-      names.add(match[1]!);
+    for (const [, name] of (style.textContent || '').matchAll(/(--[A-Za-z0-9_-]+)\s*:/g))
+      if (name) names.add(name);
   }
   for (const name of names) document.documentElement.style.setProperty(name, '#ff00ff');
 

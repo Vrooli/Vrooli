@@ -8,6 +8,7 @@
     "1.1.5",
     "1.0.0"
   ],
+  "description": "The query-control surface coordinating search, structured filters, active-filter chips, presets, reset, responsive overflow, and URL synchronization.",
   "designStyles": [
     {
       "affinity": "native",
@@ -15,13 +16,12 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "FilterBar",
   "draft": "",
   "evictedVersions": [
     "1.2.1"
   ],
   "latest": "1.3.2",
   "libraryId": "react-component-library:FilterBar",
-  "displayName": "FilterBar",
-  "description": "The query-control surface coordinating search, structured filters, active-filter chips, presets, reset, responsive overflow, and URL synchronization.",
   "tags": []
 }

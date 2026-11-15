@@ -106,6 +106,32 @@ func TestHarnessPublishesConsumerContrastFloor(t *testing.T) {
 	require.Contains(t, html, `<meta name="viewport" content="width=device-width, initial-scale=1" />`)
 }
 
+func TestHarnessInjectsAxeOnlyForTheIsolatedStoryRunner(t *testing.T) {
+	marker := "window.__rclAxeTestMarker = true;"
+	withAxe := renderHarnessHTML("component", internalpreview.Bundle{}, harnessStory{}, "", false, "", "", "", "", marker)
+	require.Contains(t, withAxe, marker)
+	require.Contains(t, withAxe, "window.__rclRunAxeEvidence")
+
+	withoutAxe := renderHarnessHTML("component", internalpreview.Bundle{}, harnessStory{}, "")
+	require.NotContains(t, withoutAxe, marker)
+}
+
+func TestIsolatedStoryEnvelopeStoresAxeEvidenceForPersistence(t *testing.T) {
+	require.Contains(t, harnessJavaScript, `captureMode === "isolated"`)
+	require.Contains(t, harnessJavaScript, `window.__rclRunAxeEvidence(captureRoot)`)
+	require.Contains(t, harnessJavaScript, `result.axe = axeEvidence`)
+	require.Contains(t, harnessJavaScript, `storyResultEl.textContent = JSON.stringify(result)`)
+}
+
+func TestLoadAxeCoreJavaScriptUsesTheInstalledRCLDependencyAndFailsClosed(t *testing.T) {
+	repo := t.TempDir()
+	axePath := filepath.Join(repo, "scenarios", "react-component-library", "ui", "node_modules", "axe-core", "axe.min.js")
+	require.NoError(t, os.MkdirAll(filepath.Dir(axePath), 0o755))
+	require.NoError(t, os.WriteFile(axePath, []byte("window.axe = { version: 'test' };"), 0o644))
+	require.Equal(t, "window.axe = { version: 'test' };", loadAxeCoreJavaScript(repo))
+	require.Empty(t, loadAxeCoreJavaScript(t.TempDir()))
+}
+
 const testPreviewCSS = `:root { --color-primary: #2563eb; } .bg-app-primary { background: var(--color-primary); } .rounded-control { border-radius: var(--radius-control); }`
 
 func TestBuildImportMapJSONPinsDeclaredDeps(t *testing.T) {

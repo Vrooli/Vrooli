@@ -8,6 +8,7 @@
     "1.0.3",
     "1.0.2"
   ],
+  "description": "Reusable async panel component implementation for the React component library.",
   "designStyles": [
     {
       "styleId": "vrooli-default",
@@ -15,11 +16,10 @@
       "reason": "token-native operational-console baseline"
     }
   ],
+  "displayName": "Async Panel",
   "draft": "",
   "evictedVersions": [],
   "latest": "1.0.7",
   "libraryId": "react-component-library:AsyncPanel",
-  "displayName": "Async Panel",
-  "description": "Reusable async panel component implementation for the React component library.",
   "tags": []
 }

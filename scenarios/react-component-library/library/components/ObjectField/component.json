@@ -12,6 +12,7 @@
     "1.0.6",
     "1.0.7"
   ],
+  "description": "The nested-object field grouping child fields, collapsing sections, summarizing nested errors, supporting optional objects, and preserving per-field subscriptions.",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,6 +20,7 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "ObjectField",
   "draft": "",
   "evictedVersions": [
     "1.0.3",
@@ -33,7 +35,5 @@
   ],
   "latest": "1.0.10",
   "libraryId": "react-component-library:ObjectField",
-  "displayName": "ObjectField",
-  "description": "The nested-object field grouping child fields, collapsing sections, summarizing nested errors, supporting optional objects, and preserving per-field subscriptions.",
   "tags": []
 }

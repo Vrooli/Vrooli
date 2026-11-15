@@ -48,7 +48,7 @@ func TestVisionRunCircuitSkipsRemainingPagesAfterProviderFailure(t *testing.T) {
 
 func TestVisionJudgeUsesLocalImageRouteAndReturnsConfidentFinding(t *testing.T) {
 	client := &fakeVisionRunClient{response: &inferencev1.RunResponse{
-		ValueJson: `{"findings":[{"category":"visual polish","description":"The page is uneven.","confidence":0.71,"severity":"warning"},{"category":"touch target","description":"The main action is visibly too small for comfortable tapping.","confidence":0.91,"severity":"warning"}]}`,
+		ValueJson: `{"findings":[{"category":"visual polish","description":"The page is uneven.","confidence":0.71,"severity":"warning"},{"category":"touch target","description":"The main action is visibly too small for comfortable tapping.","confidence":0.99,"severity":"error"}]}`,
 		Validated: true,
 	}}
 	judge := newGatewayVisionJudge(func(context.Context) (visionRunClient, error) { return client, nil })
@@ -65,8 +65,8 @@ func TestVisionJudgeUsesLocalImageRouteAndReturnsConfidentFinding(t *testing.T) 
 	if len(client.request.GetAttachments()) != 1 || len(client.request.GetAttachments()[0].GetInlineBytes()) != 3 {
 		t.Fatalf("screenshot bytes were not attached: %+v", client.request.GetAttachments())
 	}
-	if findings[0].Location == "http://sample/" || findings[0].Severity != "warning" {
-		t.Fatalf("finding must carry served screenshot evidence and warning severity: %+v", findings[0])
+	if findings[0].Location == "http://sample/" || findings[0].Severity != "warning" || findings[1].Severity != "warning" {
+		t.Fatalf("critic findings must carry screenshot evidence and remain advisory even at high confidence: %+v", findings)
 	}
 }
 

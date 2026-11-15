@@ -7,20 +7,20 @@
     "1.0.1",
     "1.0.2"
   ],
-  "draft": "",
-  "evictedVersions": [
-    "1.0.2"
-  ],
-  "latest": "1.0.4",
-  "libraryId": "react-component-library:ExperienceSurface",
-  "displayName": "Experience Surface",
   "description": "Reusable experience surface component implementation for the React component library.",
-  "tags": [],
   "designStyles": [
     {
       "styleId": "vrooli-default",
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "displayName": "Experience Surface",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.2"
+  ],
+  "latest": "1.0.4",
+  "libraryId": "react-component-library:ExperienceSurface",
+  "tags": []
 }

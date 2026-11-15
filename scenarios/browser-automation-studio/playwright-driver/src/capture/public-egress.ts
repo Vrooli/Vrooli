@@ -248,14 +248,15 @@ export async function createPublicEgressProxy(options: PublicEgressOptions = {})
         const { hostname, port } = hostPort(url.host, 80);
         if (port !== 80 || (isIP(hostname) && !isPublicAddress(hostname))) throw new PublicEgressError('Only public websocket destinations are allowed');
         const pinned = await resolvePublicAddress(hostname, lookup);
-        upstream = dial(pinned, port);
-        upstream.once('connect', () => {
+        const socket = dial(pinned, port);
+        upstream = socket;
+        socket.once('connect', () => {
           const headers = stripCredentialHeaders({ ...req.headers, host: url.host });
           const lines = Object.entries(headers).filter(([, value]) => value !== undefined).map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`).join('\r\n');
-          upstream!.write(`${req.method} ${url.pathname}${url.search} HTTP/${req.httpVersion}\r\n${lines}\r\n\r\n`);
-          if (head.length) upstream!.write(head);
-          upstream!.pipe(client);
-          client.pipe(upstream!);
+          socket.write(`${req.method} ${url.pathname}${url.search} HTTP/${req.httpVersion}\r\n${lines}\r\n\r\n`);
+          if (head.length) socket.write(head);
+          socket.pipe(client);
+          client.pipe(socket);
         });
         upstream.once('error', () => client.destroy());
         client.once('error', () => upstream?.destroy());

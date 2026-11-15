@@ -118,7 +118,6 @@ export function startServer() {
     distDir: path.join(__dirname, 'dist'),
     serviceName: SERVICE_NAME,
     version: VERSION,
-    corsOrigins: '*',
     wsPathPrefix: '/ws',
     wsPathTransform: (pathValue) => pathValue,
     proxyTimeoutMs: 60000,

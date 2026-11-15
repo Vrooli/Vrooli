@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "five-german-actions",
+      "name": "Five long German actions at phone width",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "FiveGermanActions"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-overlay-action-bar]"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-overlay-action-bar] > button",
+          "value": "2"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-overflow-trigger]"
+        },
+        {
+          "kind": "layout",
+          "selector": "[data-rcl-overlay-action-bar]",
+          "noOverflow": true
+        }
+      ],
+      "role": "boundary",
+      "mode": "live",
+      "geometry": {
+        "width": "390px",
+        "height": "240px"
+      }
+    },
+    {
+      "id": "missing-ids",
+      "name": "Missing stable ids are reported",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "MissingIDs"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-overlay-action-bar]"
+        },
+        {
+          "kind": "layout",
+          "selector": "[data-rcl-overlay-action-bar]",
+          "noOverflow": true
+        }
+      ],
+      "role": "boundary",
+      "mode": "live",
+      "geometry": {
+        "width": "390px",
+        "height": "240px"
+      }
+    },
+    {
+      "id": "pseudo-localised-labels",
+      "name": "Pseudo-localised labels retain one row",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "PseudoLocalisedLabels"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-overlay-action-bar]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-overflow-trigger]"
+        },
+        {
+          "kind": "layout",
+          "selector": "[data-rcl-overlay-action-bar]",
+          "noOverflow": true
+        }
+      ],
+      "role": "boundary",
+      "mode": "live",
+      "geometry": {
+        "width": "390px",
+        "height": "240px"
+      }
+    },
+    {
+      "id": "overflow-open",
+      "name": "Overflow opens for the remaining three actions",
+      "args": {},
+      "geometry": {
+        "width": "390px",
+        "height": "240px"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "FiveGermanActions"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "selector": "[data-overflow-trigger]"
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-overflow-menu]"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-overflow-menu] [role=\"menuitem\"]",
+          "value": "3"
+        },
+        {
+          "kind": "layout",
+          "selector": "[data-rcl-overlay-action-bar]",
+          "noOverflow": true
+        }
+      ],
+      "role": "boundary",
+      "mode": "live"
+    }
+  ]
+}

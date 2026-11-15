@@ -93,7 +93,7 @@ func TestValidateScenarioReportsSelectedBASRouteWithoutCapture(t *testing.T) {
 		case r.Method == http.MethodGet && r.URL.Path == "/health":
 			healthGets.Add(1)
 			w.WriteHeader(http.StatusOK)
-		case r.Method == http.MethodPost && r.URL.Path == "/browser_automation_studio.v1.capture.CaptureService/Capture":
+		case r.Method == http.MethodPost && r.URL.Path == "/ux-capture/scenario":
 			capturePosts.Add(1)
 			w.WriteHeader(http.StatusInternalServerError)
 		default:
@@ -120,7 +120,7 @@ func TestValidateScenarioReportsSelectedBASRouteWithoutCapture(t *testing.T) {
 	require.NoError(t, anypb.UnmarshalTo(response.GetNativeDetail(), &detail, proto.UnmarshalOptions{}))
 	fields := detail.AsMap()
 	require.Equal(t, server.URL, fields["bas_base_url"])
-	require.Equal(t, "/browser_automation_studio.v1.capture.CaptureService/Capture", fields["capture_path"])
+	require.Equal(t, "/ux-capture/scenario", fields["capture_path"])
 	require.NotEmpty(t, fields["resolved_at"])
 	require.Equal(t, "healthy", fields["health_status"])
 	require.Equal(t, true, fields["inspection_only"])
@@ -137,10 +137,10 @@ func TestValidateScenarioInspectionOnlyDoesNotRunPopulatedCatalog(t *testing.T) 
 		case r.Method == http.MethodGet && r.URL.Path == "/health":
 			healthGets.Add(1)
 			w.WriteHeader(http.StatusOK)
-		case r.Method == http.MethodPost && r.URL.Path == "/browser_automation_studio.v1.capture.CaptureService/Capture":
+		case r.Method == http.MethodPost && r.URL.Path == "/ux-capture/scenario":
 			capturePosts.Add(1)
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"executionId":"capture-1","durationMs":42,"domHtml":"<pre id=\"rcl-story-result\" hidden>{\"passed\":true,\"failures\":[],\"performance\":{\"mountMs\":12.5,\"commitCount\":2,\"nodeCount\":8}}</pre>","accessibilityJson":"{\"contract\":\"bas-accessibility-snapshot/v1\"}","artifacts":[{"type":"CAPTURE_TYPE_SCREENSHOT","reference":"artifact://screenshot-1","sizeBytes":1234}]}`))
+			w.WriteHeader(http.StatusBadGateway)
+			_, _ = w.Write([]byte(`{"error":"fixture capture unavailable"}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -161,7 +161,7 @@ func TestValidateScenarioInspectionOnlyDoesNotRunPopulatedCatalog(t *testing.T) 
 	router := mux.NewRouter()
 	components.ModuleFromService(assets, repo, sourceRoot, log.New(io.Discard, "", 0)).Mount(router)
 	fixture := &countingFixture{}
-	executor := domain.BASCaptureExecutor{RCLBaseURL: "http://rcl.test", BASBaseURL: server.URL, HTTPClient: server.Client()}
+	executor := domain.BASCaptureExecutor{RCLUIBaseURL: "http://rcl-ui.test", BASBaseURL: server.URL, HTTPClient: server.Client()}
 	componenttests.ModuleWithExecutorAndFixture(database, assets, sourceRoot, executor, fixture, log.New(io.Discard, "", 0)).Mount(router)
 	index := call(router, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
 	require.Equal(t, http.StatusOK, index.Code, index.Body.String())
@@ -251,7 +251,7 @@ func TestValidateScenarioReportsBASHealthFailureWithoutSensitiveNoise(t *testing
 		require.NotContains(t, provider.Body.String(), secret)
 	}
 	require.EqualValues(t, 1, healthGets.Load())
-	require.Zero(t, capturePosts.Load(), "a failed health inspection must never try CaptureService")
+	require.Zero(t, capturePosts.Load(), "a failed health inspection must never try UX bundle capture")
 }
 
 func TestModuleRunsAndListsDurableContractReport(t *testing.T) {

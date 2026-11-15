@@ -70,6 +70,20 @@ type Resolution struct {
 	RouteMatched       bool
 }
 
+// Profile is the compiled Experience Manager profile preserved at the shared
+// BAS ownership boundary. Consumers that need route and surface metadata use
+// the same profile read as capture/workflow readiness settling.
+type Profile struct {
+	Scenario       string
+	ProfileJSON    string
+	ProfileVersion string
+}
+
+// ProfileReader is the one interface for retrieving the compiled profile.
+type ProfileReader interface {
+	GetReadinessProfile(ctx context.Context, scenario, path string) (Profile, error)
+}
+
 // FallbackReason explains, in one phrase, why a resolution produced no waits.
 // It returns "" when the resolution did produce waits.
 func (r Resolution) FallbackReason() string {
@@ -89,11 +103,21 @@ func (r Resolution) FallbackReason() string {
 type experienceResolver struct {
 	resolver *discovery.Resolver
 	client   *http.Client
+	resolve  func(context.Context) (string, error)
 }
 
 // NewProfileResolver constructs the production resolver for the Experience
 // Manager-owned profile RPC.
 func NewProfileResolver() Resolver {
+	return newProfileReader()
+}
+
+// NewProfileReader constructs the shared Experience Manager profile reader.
+func NewProfileReader() ProfileReader {
+	return newProfileReader()
+}
+
+func newProfileReader() *experienceResolver {
 	return &experienceResolver{
 		resolver: discovery.NewResolver(discovery.ResolverConfig{}),
 		client:   &http.Client{Timeout: 5 * time.Second},
@@ -101,21 +125,44 @@ func NewProfileResolver() Resolver {
 }
 
 func (r *experienceResolver) ResolveReadinessWaits(ctx context.Context, scenario, route string) (Resolution, error) {
-	base, err := r.resolver.ResolveScenarioURLDefault(ctx, "experience-manager")
-	if err != nil {
-		return Resolution{}, err
-	}
-	resp, err := contractconnect.NewContractServiceClient(r.client, base).
-		GetReadinessProfile(ctx, connect.NewRequest(&contractv1.GetReadinessProfileRequest{Scenario: scenario}))
+	profileResult, err := r.GetReadinessProfile(ctx, scenario, "")
 	if err != nil {
 		return Resolution{}, err
 	}
 	var profile profileDocument
-	if err := json.Unmarshal([]byte(resp.Msg.GetProfileJson()), &profile); err != nil {
+	if err := json.Unmarshal([]byte(profileResult.ProfileJSON), &profile); err != nil {
 		return Resolution{}, fmt.Errorf("decode readiness profile: %w", err)
 	}
-	resolution := resolveProfile(profile, route, resp.Msg.GetProfileVersion())
+	resolution := resolveProfile(profile, route, profileResult.ProfileVersion)
 	return resolution, nil
+}
+
+func (r *experienceResolver) GetReadinessProfile(ctx context.Context, scenario, path string) (Profile, error) {
+	var base string
+	var err error
+	if r.resolve != nil {
+		base, err = r.resolve(ctx)
+	} else if r.resolver != nil {
+		base, err = r.resolver.ResolveScenarioURLDefault(ctx, "experience-manager")
+	} else {
+		err = fmt.Errorf("experience-manager readiness endpoint resolver is unavailable")
+	}
+	if err != nil {
+		return Profile{}, err
+	}
+	if strings.TrimSpace(base) == "" {
+		return Profile{}, fmt.Errorf("experience-manager readiness endpoint resolved an empty URL")
+	}
+	client := r.client
+	if client == nil {
+		client = &http.Client{Timeout: 5 * time.Second}
+	}
+	resp, err := contractconnect.NewContractServiceClient(client, base).
+		GetReadinessProfile(ctx, connect.NewRequest(&contractv1.GetReadinessProfileRequest{Scenario: scenario, Path: path}))
+	if err != nil {
+		return Profile{}, err
+	}
+	return Profile{Scenario: resp.Msg.GetScenario(), ProfileJSON: resp.Msg.GetProfileJson(), ProfileVersion: resp.Msg.GetProfileVersion()}, nil
 }
 
 // resolveProfile combines every page that matches a route. A scenario can
@@ -125,6 +172,8 @@ func (r *experienceResolver) ResolveReadinessWaits(ctx context.Context, scenario
 // downgrade the caller to generic navigation.
 func resolveProfile(profile profileDocument, route, profileVersion string) Resolution {
 	resolution := Resolution{ProfileVersion: profileVersion, Route: route}
+	waitSelectors := make(map[string]struct{})
+	surfaceIDs := make(map[string]struct{})
 	for _, page := range profile.Pages {
 		if !PageMatchesRoute(page.Routes, page.RuntimeRoutes, route) {
 			continue
@@ -136,29 +185,62 @@ func resolveProfile(profile profileDocument, route, profileVersion string) Resol
 			}
 			selector := strings.TrimSpace(region.Binding.Selector)
 			if selector == "" && strings.TrimSpace(region.Binding.TestID) != "" {
-				selector = `[data-testid="` + strings.TrimSpace(region.Binding.TestID) + `"]`
+				selector = `[data-testid="` + escapeCSSString(strings.TrimSpace(region.Binding.TestID)) + `"]`
 			}
 			if selector == "" {
 				continue
 			}
 			selector = TerminalSelector(selector, region.Lifecycle.Kind, region.Lifecycle.States)
-			resolution.Waits = append(resolution.Waits, &actionsv1.WaitParams{
-				WaitFor: &actionsv1.WaitParams_Selector{Selector: selector},
-				// ATTACHED, not VISIBLE. This probes a lifecycle state, and a
-				// surface reporting empty or error may legitimately render
-				// nothing visible. Requiring visibility would time out on
-				// exactly the terminal states this exists to detect fast.
-				State: actionsv1.WaitState_WAIT_STATE_ATTACHED.Enum(),
-				// Bounded well below the 30s driver default. A surface that is
-				// going to settle settles quickly; anything longer is a route
-				// where this region does not render, and paying 30s there would
-				// cost more than the timeout this replaces.
-				TimeoutMs: proto.Int32(int32(settleTimeout.Milliseconds())),
-			})
-			resolution.RequiredSurfaceIDs = append(resolution.RequiredSurfaceIDs, region.ID)
+			if _, exists := waitSelectors[selector]; !exists {
+				waitSelectors[selector] = struct{}{}
+				resolution.Waits = append(resolution.Waits, &actionsv1.WaitParams{
+					WaitFor: &actionsv1.WaitParams_Selector{Selector: selector},
+					// ATTACHED, not VISIBLE. This probes a lifecycle state, and a
+					// surface reporting empty or error may legitimately render
+					// nothing visible. Requiring visibility would time out on
+					// exactly the terminal states this exists to detect fast.
+					State: actionsv1.WaitState_WAIT_STATE_ATTACHED.Enum(),
+					// Bounded well below the 30s driver default. A surface that is
+					// going to settle settles quickly; anything longer is a route
+					// where this region does not render, and paying 30s there would
+					// cost more than the timeout this replaces.
+					TimeoutMs: proto.Int32(int32(settleTimeout.Milliseconds())),
+				})
+			}
+			if id := strings.TrimSpace(region.ID); id != "" {
+				if _, exists := surfaceIDs[id]; !exists {
+					surfaceIDs[id] = struct{}{}
+					resolution.RequiredSurfaceIDs = append(resolution.RequiredSurfaceIDs, id)
+				}
+			}
 		}
 	}
 	return resolution
+}
+
+// escapeCSSString encodes a value for a double-quoted CSS attribute selector.
+// Profile bindings can contain arbitrary test IDs; escaping here keeps one
+// unusual ID from turning a valid readiness profile into an invalid selector.
+func escapeCSSString(value string) string {
+	var out strings.Builder
+	for _, r := range value {
+		switch r {
+		case '\\', '"':
+			out.WriteByte('\\')
+			out.WriteRune(r)
+		case '\n':
+			out.WriteString(`\a `)
+		case '\r':
+			out.WriteString(`\d `)
+		case '\f':
+			out.WriteString(`\c `)
+		case 0:
+			out.WriteRune('\uFFFD')
+		default:
+			out.WriteRune(r)
+		}
+	}
+	return out.String()
 }
 
 type profileDocument struct {

@@ -149,18 +149,18 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 // policy. Runtime infrastructure/incomplete evidence is degraded rather than a
 // source failure, but it must never be rendered as a clean validation pass.
 func (h *connectHandler) sharedStatus(findings []manifestvalidation.Finding) scenariovalidationv1.ValidationStatus {
-	degraded := false
+	notEvaluated := false
 	for _, finding := range findings {
 		if finding.Severity == manifestvalidation.SeverityError {
 			return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
 		}
 		switch finding.Code {
 		case "runtime_evidence_incomplete", "runtime_not_evaluated_static_only", "runtime_not_evaluated_unconfigured", "runtime_skipped_ui_unavailable", "runtime_skipped_bas_unavailable":
-			degraded = true
+			notEvaluated = true
 		}
 	}
-	if degraded {
-		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED
+	if notEvaluated {
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED
 	}
 	return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
 }

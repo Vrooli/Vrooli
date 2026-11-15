@@ -1,6 +1,7 @@
 {
   "catalogId": "ai.composer-attachment-tray",
   "deprecatedVersions": [],
+  "description": "The attachment manager for pending uploads, files, links, images, and contextual records, with progress, errors, cancellation, reordering, and removal per item.",
   "designStyles": [
     {
       "affinity": "native",
@@ -8,6 +9,7 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "ComposerAttachmentTray",
   "draft": "",
   "evictedVersions": [
     "0.1.0",
@@ -15,7 +17,5 @@
   ],
   "latest": "1.0.5",
   "libraryId": "react-component-library:ComposerAttachmentTray",
-  "displayName": "ComposerAttachmentTray",
-  "description": "The attachment manager for pending uploads, files, links, images, and contextual records, with progress, errors, cancellation, reordering, and removal per item.",
   "tags": []
 }

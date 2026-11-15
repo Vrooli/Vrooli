@@ -7,10 +7,13 @@ import (
 
 func TestPageCensusRetainsTokenizedSourcePropertyCounts(t *testing.T) {
 	const pattern = "footer:nav|fixed|block|nowrap|color(srgb 1 1 1 / 0.96)"
-	layout := `{"patternCensus":{"footer:nav|fixed|block|nowrap|color(srgb 1 1 1 / 0.96)":1},"tokenizedPatternProperties":{"footer:nav|fixed|block|nowrap|color(srgb 1 1 1 / 0.96)":{"background-color":1}}}`
+	layout := `{"patternCensus":{"footer:nav|fixed|block|nowrap|color(srgb 1 1 1 / 0.96)":1},"tokenizedPatternProperties":{"footer:nav|fixed|block|nowrap|color(srgb 1 1 1 / 0.96)":{"background-color":1}},"patternPropertySelectors":{"footer:nav|fixed|block|nowrap|color(srgb 1 1 1 / 0.96)":{"background-color":["[data-rcl-bottom-nav]"]}}}`
 	got := pageCensus(layout, "http://sample/", "mobile", "http://bas/screenshot.png")
 	if got.TokenizedPatternProperties[pattern]["background-color"] != 1 {
 		t.Fatalf("token-backed property evidence not captured: %+v", got)
+	}
+	if got.PatternPropertySelectors[pattern]["background-color"][0] != "[data-rcl-bottom-nav]" {
+		t.Fatalf("matched CSS selector evidence not captured: %+v", got)
 	}
 }
 

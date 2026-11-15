@@ -80,7 +80,9 @@ export function startReactComponentLibraryServer() {
     apiPort,
     distDir: "./dist",
     serviceName: "react-component-library",
-    corsOrigins: "*",
+    // Design compositions run in opaque-origin sandbox frames that import the
+    // versioned React runtime; those modules are public, uncredentialed code.
+    publicPaths: ["/preview/runtime/"],
     embeddedProxy: { allowedScenarios: ["browser-automation-studio"] },
     setupRoutes(app) {
       app.get("/assets/:id/preview", (req, res, next) => {

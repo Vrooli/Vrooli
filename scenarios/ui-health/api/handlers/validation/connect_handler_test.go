@@ -37,8 +37,8 @@ func TestBuildMaturityAssessmentMapsUIFindings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildMaturityAssessment returned error: %v", err)
 	}
-	if got.GetProvider() != "ui-health" || got.GetPhase() != "ui-health" {
-		t.Fatalf("assessment identity = %s/%s, want ui-health/ui-health", got.GetProvider(), got.GetPhase())
+	if got.GetProvider() != "ui-health" || got.GetPhase() != "experience" {
+		t.Fatalf("assessment identity = %s/%s, want ui-health/experience", got.GetProvider(), got.GetPhase())
 	}
 	if got.GetLocal().GetCurrentLevel() != "L2" || got.GetLocal().GetNextLevel() != "L3" {
 		t.Fatalf("local maturity = current %q next %q, want L2/L3", got.GetLocal().GetCurrentLevel(), got.GetLocal().GetNextLevel())
@@ -372,7 +372,7 @@ func TestValidateScenarioAttachesMetrics(t *testing.T) {
 func testMaturitySpec() *assessment.Spec {
 	spec := &assessment.Spec{
 		Provider: "ui-health",
-		Phase:    "ui-health",
+		Phase:    "experience",
 		Version:  "test",
 		Levels: []assessment.Level{
 			{ID: "L0", Name: "No UI"},

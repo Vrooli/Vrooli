@@ -18,7 +18,7 @@ func TestArtifactCaptureScriptCollectsOnlyDeclaredExperienceSurfaces(t *testing.
 
 func TestArtifactCaptureScriptEmitsComputedPatternCensus(t *testing.T) {
 	script := artifactCaptureScript()
-	for _, fragment := range []string{"function computedPatternCensus(doc)", "function tokenValues(doc)", "tokenizedSourceRules(doc)", "doc.styleSheets", "button:'", "heading:'", "footer:'", "spacing:'", "patternCensus: patternCensus.patterns", "tokenizedPatternProperties: patternCensus.tokenizedProperties", "tokens: tokenValues(doc)"} {
+	for _, fragment := range []string{"function computedPatternCensus(doc)", "function tokenValues(doc)", "tokenizedSourceRules(doc)", "element.matches(rule.selector)", "doc.styleSheets", "button:'", "heading:'", "footer:'", "spacing:'", "patternCensus: patternCensus.patterns", "tokenizedPatternProperties: patternCensus.tokenizedProperties", "patternPropertySelectors: patternCensus.propertySelectors", "tokens: tokenValues(doc)"} {
 		if !strings.Contains(script, fragment) {
 			t.Fatalf("artifact capture script missing computed-pattern census fragment %q", fragment)
 		}

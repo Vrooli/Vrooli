@@ -93,27 +93,29 @@ type IsolationLease interface {
 }
 
 type Summary struct {
-	Selected int
-	Executed int
-	Refused  int
-	Skipped  int
-	Failed   int
-	Passed   int
+	Selected     int
+	Executed     int
+	Refused      int
+	Skipped      int
+	NotEvaluated int
+	Failed       int
+	Passed       int
 }
 
 type WorkflowRun struct {
-	Asset       workflows.WorkflowAsset
-	ExecutionID string
-	Status      string
-	Success     bool
-	Refused     bool
-	Skipped     bool
-	DryRun      bool
-	Error       string
-	StartedAt   time.Time
-	CompletedAt time.Time
-	Artifact    artifacts.RunArtifact
-	Timeline    *bastimeline.ExecutionTimeline
+	Asset        workflows.WorkflowAsset
+	ExecutionID  string
+	Status       string
+	Success      bool
+	Refused      bool
+	Skipped      bool
+	NotEvaluated bool
+	DryRun       bool
+	Error        string
+	StartedAt    time.Time
+	CompletedAt  time.Time
+	Artifact     artifacts.RunArtifact
+	Timeline     *bastimeline.ExecutionTimeline
 }
 
 type BASClient interface {

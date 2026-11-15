@@ -295,4 +295,4 @@ else:
                     envelope["evidence"].append("BAS isolated story harness per story x viewport x theme")
                     envelope["phase"] = "report"
 
-print(json.dumps(envelope, allow_nan=False))
+program.report(envelope)

@@ -133,7 +133,7 @@ export default defineConfig(({ mode }): UserConfig => {
     // The stamp must see original TSX, before React's Babel pre-transform. It
     // parses the entry module and adds the marker before Vite hands it to the
     // JSX compiler.
-    plugins: [sourceLibraryResolver({ libraryRoot, draftOverrides: testDraftOverrides(mode) }), ...assetStampPlugins, react(), stringsCodegen()],
+    plugins: [sourceLibraryResolver({ libraryRoot, draftOverrides: testDraftOverrides(mode), usageContractsInTests: true }), ...assetStampPlugins, react(), stringsCodegen()],
     resolve: {
       alias: isProfile
           ? [

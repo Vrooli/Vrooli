@@ -13,6 +13,7 @@ import {
   type NotificationBadgeTone,
 } from "@vrooli/react-component-library/NotificationBadge/1";
 import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
+import type { ContractItems } from "../../../../usage-contracts/generated-contract-limits";
 import { useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 export const bottomNavStyles = `
 [data-rcl-bottom-nav] { position: fixed; inset-inline: 0; inset-block-end: 0; z-index: var(--layer-sticky); box-sizing: border-box; border-block-start: var(--border-hairline) solid var(--color-border); background: color-mix(in srgb, var(--color-surface-raised) 96%, transparent); box-shadow: var(--elev-raised); padding-block-start: var(--space-2xs); padding-inline: var(--rcl-safe-left, env(safe-area-inset-left, 0px)) var(--rcl-safe-right, env(safe-area-inset-right, 0px)); backdrop-filter: blur(var(--space-xs)); }
@@ -51,8 +52,8 @@ export interface BottomNavItem {
   testId?: string;
   badge?: BottomNavBadge;
 }
-export interface BottomNavProps {
-  items: BottomNavItem[];
+export interface BottomNavProps<Items extends readonly BottomNavItem[] = readonly BottomNavItem[]> {
+  items: Items & ContractItems<"react-component-library:BottomNav@1.5.7", Items>;
   label: string;
   testId?: string;
   onItemSelect?: (
@@ -71,7 +72,7 @@ export interface BottomNavProps {
 const joinClasses = (...classes: Array<string | undefined | false>) =>
   classes.filter(Boolean).join(" ");
 
-export const BottomNav = withClassName(function BottomNav({
+export const BottomNav = withClassName(function BottomNav<const Items extends readonly BottomNavItem[]>({
   items,
   label,
   testId = "bottom-nav",
@@ -83,7 +84,7 @@ export const BottomNav = withClassName(function BottomNav({
   presentation = "fixed",
   safeArea = "floor",
   activeIndicator = "slide",
-}: BottomNavProps) {
+}: BottomNavProps<Items>) {
   const trackRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Record<string, HTMLElement | null>>({});
   const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null);

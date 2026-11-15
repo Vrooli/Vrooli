@@ -158,7 +158,7 @@ export function ApplicationShell({ children }: Props) {
           </div>
         }
       >
-        {children ?? <Outlet />}
+        <>{children ?? <Outlet />}</>
       </LibraryAppShell>
       {showCreate && <CreateComponentDialog onClose={() => setShowCreate(false)} />}
       <ActionLauncher

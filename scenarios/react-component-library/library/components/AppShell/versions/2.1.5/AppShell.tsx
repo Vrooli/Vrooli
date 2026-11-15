@@ -2,7 +2,7 @@
  * @libraryId react-component-library:AppShell
  * @displayName AppShell
  * @description The one application frame a generated scenario mounts: brand, a SidebarShell-owned navigation column (resizable sidebar or icon rail), a BottomNav-owned phone tab bar or drawer, an optional header strip, a skip link, and the routed main pane in scroll or fill mode. Navigation is data; the router plugs in through renderLink and onNavigate.
- * @version 2.1.5-draft.1
+ * @version 2.1.5
  * @tags []
  * @deps {"react":"^18","lucide-react":"^0.424.0"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
@@ -14,6 +14,7 @@ import {
   useRef,
   useState,
   type MouseEvent,
+  type ReactElement,
   type ReactNode,
 } from "react";
 
@@ -29,6 +30,7 @@ import {
   type SidebarShellResizeConfig,
 } from "@vrooli/react-component-library/SidebarShell/2";
 import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
+import type { ContractItems } from "../../../../usage-contracts/generated-contract-limits";
 import { useBreakpoint } from "@vrooli/react-component-library/useMediaQuery/1";
 import { useStrings } from "@vrooli/react-component-library/useLocale/1";
 
@@ -89,13 +91,15 @@ export type AppShellSidebarResize = Omit<
   "containerRef"
 >;
 
-export interface AppShellProps {
+export interface AppShellProps<
+  Items extends readonly AppShellNavItem[] = readonly AppShellNavItem[],
+> {
   /** Product name, shown at the head of the sidebar and the phone drawer. */
   brand: ReactNode;
   /** Compact mark shown beside the brand and alone in the rail. */
   brandMark?: ReactNode;
   brandHref?: string;
-  items: readonly AppShellNavItem[];
+  items: Items & ContractItems<"react-component-library:AppShell@2.1.5", Items>;
   /**
    * Router adapter for desktop links. Receives the item and the props the
    * shell would put on a plain anchor; return your router's link element with
@@ -118,7 +122,7 @@ export interface AppShellProps {
   utility?: ReactNode;
   /** `scroll` pads and scrolls the routed content; `fill` hands the page the full pane so it can pin its own chrome. */
   mainMode?: AppShellMainMode;
-  children: ReactNode;
+  children: ReactElement | string | number | boolean | null;
   navigationLabel?: string;
   mobileNavigationLabel?: string;
   skipLabel?: string;
@@ -138,6 +142,8 @@ export const appShellStyles = `
 [data-rcl-app-shell] { position: relative; display: flex; flex-direction: column; block-size: var(--rcl-app-shell-block-size, 100dvh); min-block-size: 0; min-inline-size: 0; background: var(--color-background); color: var(--color-foreground); }
 [data-rcl-app-shell-skip] { position: absolute; inset-block-start: var(--space-2xs); inset-inline-start: var(--space-2xs); z-index: var(--layer-modal); padding: var(--space-2xs) var(--space-sm); border-radius: var(--radius-control); background: var(--color-primary); color: var(--color-primary-foreground); font: var(--text-label); text-decoration: none; transform: translateY(-200%); transition: transform var(--dur-quick) var(--ease-standard); }
 [data-rcl-app-shell-skip]:focus-visible { transform: none; outline: var(--border-focus) solid var(--color-focus); outline-offset: 2px; }
+/* A skip link is only visible while focused, but a touch screen with a keyboard still hits it with a thumb, so it carries the library's coarse-pointer tap-target floor like every other control. */
+@media (pointer: coarse) { [data-rcl-app-shell-skip] { box-sizing: border-box; display: flex; align-items: center; min-block-size: var(--tap-target-min); } }
 [data-rcl-app-shell-body] { position: relative; display: flex; flex: 1; min-block-size: 0; min-inline-size: 0; }
 [data-rcl-app-shell-sidebar] { display: contents; }
 [data-rcl-app-shell-column] { display: flex; flex-direction: column; block-size: 100%; min-block-size: 0; min-inline-size: 0; }
@@ -206,7 +212,9 @@ function defaultRenderLink(_item: AppShellNavItem, props: AppShellLinkProps) {
   );
 }
 
-export const AppShell = withClassName(function AppShell({
+export const AppShell = withClassName(function AppShell<
+  const Items extends readonly AppShellNavItem[],
+>({
   brand,
   brandMark,
   brandHref = "/",
@@ -229,7 +237,7 @@ export const AppShell = withClassName(function AppShell({
   testId = "app-shell",
   className,
   mainClassName,
-}: AppShellProps) {
+}: AppShellProps<Items>) {
   const libraryStrings = useStrings();
   const resolvedNavigationLabel =
     navigationLabel ??
@@ -450,7 +458,7 @@ export const AppShell = withClassName(function AppShell({
     >
       <StyleSheet
         libraryId="react-component-library:AppShell"
-        version="2.1.5-draft.1"
+        version="2.1.5"
         css={appShellStyles}
       />
       <a

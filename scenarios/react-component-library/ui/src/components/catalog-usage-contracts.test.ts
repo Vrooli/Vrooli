@@ -13,7 +13,9 @@ function fixture() {
   const version = "1.2.3";
   fs.mkdirSync(path.join(component, "versions", version), { recursive: true });
   fs.writeFileSync(path.join(component, "component.json"), JSON.stringify({ latest: version }));
-  fs.writeFileSync(path.join(component, "versions", version, "FixturePanel.tsx"), `
+  fs.writeFileSync(
+    path.join(component, "versions", version, "FixturePanel.tsx"),
+    `
     type Action = { id: string; label: string; onSelect: () => void };
     type ActionList = readonly [Action, ...Action[]];
     type Row = { key: string; title: string };
@@ -24,17 +26,25 @@ function fixture() {
       searchFields?: string[];
       defaultExpandedIds?: string[];
     }
-  `);
+  `,
+  );
   return { root, library, version };
 }
 function run({ library }: { library: string }) {
-  return spawnSync(process.execPath, [
-    path.resolve(import.meta.dirname, "../../scripts/check-catalog-usage-contracts.mjs"),
-    "--library-root", library,
-    "--json",
-  ], { encoding: "utf8" });
+  return spawnSync(
+    process.execPath,
+    [
+      path.resolve(import.meta.dirname, "../../scripts/check-catalog-usage-contracts.mjs"),
+      "--library-root",
+      library,
+      "--json",
+    ],
+    { encoding: "utf8" },
+  );
 }
-afterEach(() => tempDirs.splice(0).forEach((dir) => fs.rmSync(dir, { recursive: true, force: true })));
+afterEach(() =>
+  tempDirs.splice(0).forEach((dir) => fs.rmSync(dir, { recursive: true, force: true })),
+);
 
 describe("catalog usage-contract coverage", () => {
   it("fails with actionable missing-contract findings, then accepts a complete contract", () => {
@@ -48,15 +58,68 @@ describe("catalog usage-contract coverage", () => {
     ]);
     expect(JSON.parse(failed.stdout).errors[0]).toContain("missing usage-contract.json");
 
-    fs.writeFileSync(path.join(fixtureData.library, "components", "FixturePanel", "versions", fixtureData.version, "usage-contract.json"), JSON.stringify({
-      componentId: "react-component-library:FixturePanel",
-      version: fixtureData.version,
-      children: { typicalCount: 1, maximumCount: 4, allowedChildComponents: ["Text", "Button"] },
-      items: { property: "actions", typicalCount: 2, maximumCount: 3, requiredFields: ["id", "label"], maximumLabelCharacters: 24, primaryField: "primary", primaryCount: 1 },
-      collections: [{ property: "rows", typicalCount: 5, maximumCount: 20, stableIdField: "key", labelField: "title", maximumLabelCharacters: 64, primaryAction: "not-applicable" }],
-    }));
+    fs.writeFileSync(
+      path.join(
+        fixtureData.library,
+        "components",
+        "FixturePanel",
+        "versions",
+        fixtureData.version,
+        "usage-contract.json",
+      ),
+      JSON.stringify({
+        componentId: "react-component-library:FixturePanel",
+        version: fixtureData.version,
+        children: {
+          typicalCount: 1,
+          maximumCount: 4,
+          allowedChildComponents: ["Text", "Button"],
+          excludedChildComponents: ["AlertDialog"],
+        },
+        items: {
+          property: "actions",
+          typicalCount: 2,
+          maximumCount: 3,
+          requiredFields: ["id", "label"],
+          maximumLabelCharacters: 24,
+          primaryField: "primary",
+          primaryCount: 1,
+        },
+        collections: [
+          {
+            property: "rows",
+            typicalCount: 5,
+            maximumCount: 20,
+            stableIdField: "key",
+            labelField: "title",
+            maximumLabelCharacters: 64,
+            mobileMaximumCount: 5,
+            mobileField: "mobile",
+            phoneLabelField: "shortTitle",
+            primaryAction: "not-applicable",
+          },
+        ],
+      }),
+    );
     const passed = run(fixtureData);
     expect(passed.status).toBe(0);
     expect(JSON.parse(passed.stdout).errors).toEqual([]);
+
+    const contractPath = path.join(
+      fixtureData.library,
+      "components",
+      "FixturePanel",
+      "versions",
+      fixtureData.version,
+      "usage-contract.json",
+    );
+    const invalid = JSON.parse(fs.readFileSync(contractPath, "utf8"));
+    invalid.collections[0].mobileMaximumCount = 21;
+    fs.writeFileSync(contractPath, JSON.stringify(invalid));
+    const rejected = run(fixtureData);
+    expect(rejected.status).toBe(1);
+    expect(JSON.parse(rejected.stdout).errors).toContain(
+      "FixturePanel.rows: mobileMaximumCount must be a non-negative integer no larger than maximumCount",
+    );
   });
 });

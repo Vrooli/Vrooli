@@ -42,7 +42,7 @@ Commands live under `cli/domains/`. Argument and API routing tests in those dire
 
 | Boundary | Current checked behavior | Check |
 | --- | --- | --- |
-| Page capture | One BAS session returns screenshot and bounded DOM, then resolves stamped assets through the consumer resolver | `api/internal/pageinspect/service_test.go` |
+| Page capture | One BAS `ux-capture.v1` bundle provides pixels, bounded outline and component identity; RCL resolves stamped assets through the consumer resolver | `api/internal/pageinspect/service_test.go` |
 | Stamp identity | `data-rcl-asset` carries a library ID; legacy source-slot annotation is separate | `ui/scripts/vite-plugin-asset-stamp.test.mjs`, package resolver tests |
 | Page binding | Literal testid/attribute selectors and supported prop forwarding establish source evidence; ambiguity stays unresolved | `api/internal/reconcile/resolver_test.go`, package `dom-bindings.test.mjs` |
 | Verification | Custom source can resolve locally; zero proven bindings cannot pass | `api/internal/reconcile/verdict_test.go` |

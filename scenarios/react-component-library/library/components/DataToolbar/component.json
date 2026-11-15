@@ -10,6 +10,7 @@
     "1.0.6",
     "1.0.7"
   ],
+  "description": "The collection action surface holding search, filters, saved views, sort, refresh, export, density, and column controls with responsive overflow.",
   "designStyles": [
     {
       "affinity": "native",
@@ -17,6 +18,7 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "DataToolbar",
   "draft": "",
   "evictedVersions": [
     "1.0.3",
@@ -28,7 +30,5 @@
   ],
   "latest": "1.0.13",
   "libraryId": "react-component-library:DataToolbar",
-  "displayName": "DataToolbar",
-  "description": "The collection action surface holding search, filters, saved views, sort, refresh, export, density, and column controls with responsive overflow.",
   "tags": []
 }

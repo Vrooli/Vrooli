@@ -250,15 +250,14 @@ react-component-library page inspect react-component-library /coverage --json
 react-component-library page inspect react-component-library /
 ```
 
-`page inspect <scenario> <route>` resolves the running UI port and asks BAS for a
-1280×800 screenshot and computed DOM tree in one browser session. The response
-contains the capture execution id, screenshot path and URL, node counts, and a
-recursive `tree`. Use `--wait-selector` to wait for a visible page state; without
-it the capture is a point-in-time observation after BAS navigation readiness. Each node preserves BAS fields (including `data`, `computed`,
-`rect`, and `selector`) under `observation`; `source` reports `resolved`,
+`page inspect <scenario> <route>` consumes the shared GCT `ux-capture.v1`
+bundle from one BAS browser session. The response includes the bundle id,
+outline counts, source attribution, and any available screenshot or component
+identity artifact. Use `--wait-selector` to wait for a visible page state;
+without it the capture proceeds after BAS navigation readiness. Each outline
+node retains its selected observation fields; `source` reports `resolved`,
 `unresolved` with a reason, or `unstamped`. Unstamped nodes are never attributed
-from their parent. The human form lists unique stamped assets and source files;
-JSON retains every node.
+from their parent. JSON retains every outline node.
 
 Source resolution calls the same `resolveLibrarySpecifier` used by package
 consumers. Exact releases report `exact-release`; major selectors report
@@ -266,10 +265,19 @@ consumers. Exact releases report `exact-release`; major selectors report
 current consumer resolution and cannot prove which historical build rendered a
 page. Only canonical library IDs drive attribution. `data-rcl-source-slot` preserves the old catalog/source-slot annotation for compatibility and is not an identity alias.
 Routes must be concrete and same-origin; there is no unresolved-route fallback.
-BAS limits the tree to 4,000 nodes and depth 20; this is an observation of captured
-nodes, not a claim to cover every element of arbitrarily large pages. A capture
-without either the screenshot or DOM root fails. These behaviors are exercised
-by `api/internal/pageinspect/service_test.go`.
+Page inspection consumes GCT's `ux-capture.v1` scenario bundle: its screenshot,
+bounded L2 outline, and L4 component identity artifact. The result counts outline
+nodes, not every DOM element. BAS records unavailable or partial lenses as warnings;
+an unavailable screenshot or identity lens does not discard the remaining evidence,
+but a missing outline fails inspection. A requested wait selector
+uses BAS's visible-element wait, bounded to ten seconds and to the local scenario
+origin. These behaviors are exercised by `api/internal/pageinspect/service_test.go`.
+
+RCL visual preview jobs use `git-control-tower ux-capture` for both viewport
+matrices and released-version story previews. The scripts verify the selected
+artifact against its bundle size and digest, copy the PNG into the RCL output,
+and retain the BAS bundle as the source evidence under BAS's private capture
+retention policy.
 
 ## Application page stories
 

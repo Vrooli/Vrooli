@@ -11,6 +11,15 @@
     "2.0.3",
     "2.0.4"
   ],
+  "description": "The sidebar with pointer and keyboard resizing, minimum and maximum constraints, double-click reset, persisted width, collapse thresholds, and content that stays usable at every width.",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "ResizableSidebar",
   "draft": "",
   "evictedVersions": [
     "1.0.3",
@@ -23,14 +32,5 @@
   ],
   "latest": "2.0.7",
   "libraryId": "react-component-library:ResizableSidebar",
-  "displayName": "ResizableSidebar",
-  "description": "The sidebar with pointer and keyboard resizing, minimum and maximum constraints, double-click reset, persisted width, collapse thresholds, and content that stays usable at every width.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "tags": []
 }

@@ -9,6 +9,7 @@
     "1.0.6",
     "1.0.7"
   ],
+  "description": "The coordinated collection-and-detail layout preserving selection, scroll position, route state, and transition continuity, and drilling in rather than splitting on compact viewports.",
   "designStyles": [
     {
       "affinity": "native",
@@ -16,6 +17,7 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "MasterDetail",
   "draft": "",
   "evictedVersions": [
     "1.0.5",
@@ -27,7 +29,5 @@
   ],
   "latest": "1.0.10",
   "libraryId": "react-component-library:MasterDetail",
-  "displayName": "MasterDetail",
-  "description": "The coordinated collection-and-detail layout preserving selection, scroll position, route state, and transition continuity, and drilling in rather than splitting on compact viewports.",
   "tags": []
 }

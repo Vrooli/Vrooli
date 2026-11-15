@@ -11,6 +11,7 @@
     "1.0.6",
     "1.0.7"
   ],
+  "description": "The schema-driven form compiling data, layout, validation, dependency, permission, and action schemas into a cached field-dependency graph with polished defaults and no per-consumer configuration.",
   "designStyles": [
     {
       "affinity": "native",
@@ -18,6 +19,7 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "GeneratedForm",
   "draft": "",
   "evictedVersions": [
     "1.0.1",
@@ -31,7 +33,5 @@
   ],
   "latest": "1.0.12",
   "libraryId": "react-component-library:GeneratedForm",
-  "displayName": "GeneratedForm",
-  "description": "The schema-driven form compiling data, layout, validation, dependency, permission, and action schemas into a cached field-dependency graph with polished defaults and no per-consumer configuration.",
   "tags": []
 }

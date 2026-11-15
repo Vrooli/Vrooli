@@ -132,9 +132,9 @@ func TestSQLiteSweepRepositoryResumesDurableResults(t *testing.T) {
 func TestSweepStatusTransitionMatrix(t *testing.T) {
 	allowed := map[SweepStatus][]SweepStatus{
 		SweepRunning:  {SweepRunning, SweepComplete, SweepBlocked, SweepFailed},
-		SweepBlocked:  {SweepBlocked, SweepRunning},
-		SweepFailed:   {SweepFailed, SweepRunning},
-		SweepComplete: {SweepComplete},
+		SweepBlocked:  {SweepRunning},
+		SweepFailed:   {SweepRunning},
+		SweepComplete: {},
 	}
 	for from, targets := range allowed {
 		for _, to := range []SweepStatus{SweepRunning, SweepComplete, SweepBlocked, SweepFailed, "unknown"} {
@@ -177,6 +177,14 @@ func TestSQLiteSweepRepositoryRejectsInvalidEdgesAndRecoversDurably(t *testing.T
 	require.NoError(t, resumed.TransitionStatus(SweepComplete))
 	resumed.CompletedAt = time.Now().UTC()
 	require.NoError(t, store.Save(context.Background(), resumed))
+	completed := resumed
+	completed.Results = map[string]string{"rcl:Button@1.0.0": string(VerdictFailed)}
+	require.Error(t, store.Save(context.Background(), completed), "terminal snapshots must not be rewritten without a recovery transition")
+	_, err = store.LatestOpen(context.Background(), "component-id")
+	require.ErrorIs(t, err, sql.ErrNoRows, "completed sweeps stay terminal")
+	retained, err := scanSweep(database.QueryRowContext(context.Background(), `SELECT id, component_filter, include_closure, started_at, completed_at, status, results_json, errors_json FROM component_test_sweeps WHERE id = ?`, resumed.ID))
+	require.NoError(t, err)
+	require.Equal(t, string(VerdictPassed), retained.Results["rcl:Button@1.0.0"])
 	resumed.Status = SweepRunning
 	resumed.CompletedAt = time.Time{}
 	require.Error(t, store.Save(context.Background(), resumed))

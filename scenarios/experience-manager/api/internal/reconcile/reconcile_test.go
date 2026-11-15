@@ -83,6 +83,12 @@ type fakeCapturer struct {
 	mu               *sync.Mutex
 }
 
+type passingGeometryEvaluator struct{}
+
+func (passingGeometryEvaluator) EvaluateGeometry(context.Context, string, CaptureTarget, Snapshot) ([]spec.Finding, error) {
+	return []spec.Finding{}, nil
+}
+
 func (f fakeCapturer) CaptureAccessibility(_ context.Context, target CaptureTarget) (Snapshot, error) {
 	if f.targets != nil {
 		if f.mu != nil {
@@ -129,7 +135,7 @@ func TestDraftCalibrationEmitsExpectedMatrixFailuresOnly(t *testing.T) { // [REQ
 	if err != nil {
 		t.Fatalf("ParseScenario: %v", err)
 	}
-	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	if got := len(findings); got != 8 {
 		t.Fatalf("findings = %d, want 8: %+v", got, findings)
 	}
@@ -160,7 +166,7 @@ func TestActivePageReconcilesAgainstAccessibilitySnapshot(t *testing.T) { // [RE
 	page.Bindings.Elements["summary"] = spec.Binding{TestID: "summary"}
 	report.Spec.Pages["home"] = page
 
-	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}}.Run(context.Background(), report)
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{snapshot: passingSnapshot()}}.Run(context.Background(), report)
 	if len(findings) != 0 {
 		t.Fatalf("expected active page to reconcile green, got %+v", findings)
 	}
@@ -175,7 +181,7 @@ func TestActivePagePersistsPerClaimEvidence(t *testing.T) { // [REQ:EXPERIEN-P0-
 	repo := NewSQLiteRepository(db)
 	now := time.Date(2026, 7, 5, 16, 30, 0, 0, time.UTC)
 
-	findings := Check{
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{},
 		Capturer:        fakeCapturer{snapshot: passingSnapshot()},
 		Repository:      repo,
 		Now:             func() time.Time { return now },
@@ -209,7 +215,7 @@ func TestActivePagePersistsViewportMatrixEvidence(t *testing.T) { // [REQ:EXPERI
 	repo := NewSQLiteRepository(db)
 	now := time.Date(2026, 7, 5, 16, 30, 0, 0, time.UTC)
 
-	findings := Check{
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{},
 		Capturer:   fakeCapturer{snapshot: passingSnapshot()},
 		Repository: repo,
 		Now:        func() time.Time { return now },
@@ -245,7 +251,7 @@ func TestActivePagePersistsPerTargetCaptureTimings(t *testing.T) {
 	repo := NewSQLiteRepository(db)
 	snapshot := passingSnapshot()
 	snapshot.Timing = CaptureTiming{TotalMilliseconds: 210, NavigationMilliseconds: 60, ReadinessWaitMilliseconds: 150, Strategy: "declared-surface", Outcome: "ready"}
-	findings := Check{Capturer: fakeCapturer{snapshot: snapshot}, Repository: repo}.Run(context.Background(), report)
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{snapshot: snapshot}, Repository: repo}.Run(context.Background(), report)
 	if len(findings) != 0 {
 		t.Fatalf("expected green reconciliation, got %+v", findings)
 	}
@@ -261,7 +267,7 @@ func TestActivePagePersistsPerTargetCaptureTimings(t *testing.T) {
 func TestActivePageBoundsCaptureConcurrencyToConfiguredWorkers(t *testing.T) {
 	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
 	capturer := &concurrentCapturer{snapshot: passingSnapshot()}
-	findings := Check{Capturer: capturer, CaptureConcurrency: 2}.Run(context.Background(), report)
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: capturer, CaptureConcurrency: 2}.Run(context.Background(), report)
 	if len(findings) != 0 {
 		t.Fatalf("expected green reconciliation, got %+v", findings)
 	}
@@ -283,7 +289,7 @@ func TestActiveComponentBuildsHarnessTargetsAndPersistsEvidence(t *testing.T) { 
 	var targets []CaptureTarget
 	now := time.Date(2026, 7, 10, 14, 15, 0, 0, time.UTC)
 
-	findings := Check{
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{},
 		Capturer: fakeCapturer{
 			snapshot: componentButtonSnapshot(24, 80, 140, 48),
 			targets:  &targets,
@@ -349,7 +355,7 @@ func TestActiveComponentFailuresAreBlocking(t *testing.T) {
 	}}
 	report.Spec.Components["button"] = component
 
-	findings := Check{
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{},
 		Capturer:        fakeCapturer{snapshot: componentButtonSnapshot(24, 900, 140, 48)},
 		CaptureProfiles: testProfiles(),
 	}.Run(context.Background(), report)
@@ -375,7 +381,7 @@ func TestViewportScopedClaimCapturesMatchingProfileOnly(t *testing.T) { // [REQ:
 	repo := NewSQLiteRepository(db)
 	var targets []CaptureTarget
 
-	findings := Check{
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{},
 		Capturer:   fakeCapturer{snapshot: passingSnapshot(), targets: &targets},
 		Repository: repo,
 		Now:        func() time.Time { return time.Date(2026, 7, 5, 16, 30, 0, 0, time.UTC) },
@@ -404,7 +410,7 @@ func TestViewportScopedClaimUsesProfileAlias(t *testing.T) { // [REQ:EXPERIEN-P0
 	report.Spec.Pages["home"] = page
 	var targets []CaptureTarget
 
-	findings := Check{
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{},
 		Capturer: fakeCapturer{snapshot: passingSnapshot(), targets: &targets},
 	}.Run(context.Background(), report)
 	findings = withoutFloorWarnings(findings)
@@ -422,7 +428,7 @@ func TestViewportScopedClaimOutsideMatrixIsUnverifiable(t *testing.T) {
 	page.Claims[0].Viewports = []string{"tablet"}
 	report.Spec.Pages["home"] = page
 
-	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}}.Run(context.Background(), report)
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{snapshot: passingSnapshot()}}.Run(context.Background(), report)
 	if len(findings) != 1 || findings[0].Code != spec.CodeClaimUnverifiable {
 		t.Fatalf("expected one unverifiable viewport finding, got %+v", findings)
 	}
@@ -445,7 +451,7 @@ func TestActivePageFailsUnresolvedBinding(t *testing.T) {
 	page.Bindings.Elements["missing"] = spec.Binding{TestID: "not-rendered"}
 	report.Spec.Pages["home"] = page
 
-	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	if !hasCode(findings, spec.CodeBindingUnresolved) || !hasCode(findings, spec.CodeClaimFailed) {
 		t.Fatalf("expected binding and claim failures, got %+v", findings)
 	}
@@ -468,13 +474,13 @@ func TestVisibleWithoutScrollChecksBoundGeometry(t *testing.T) {
 	snapshot := passingSnapshot()
 	snapshot.Root.Children[1].Bounds = &Bounds{X: 24, Y: 760, Width: 120, Height: 48}
 
-	findings := Check{Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	if !hasCode(findings, spec.CodeClaimFailed) {
 		t.Fatalf("expected visible-without-scroll failure, got %+v", findings)
 	}
 
 	snapshot.Root.Children[1].Bounds = &Bounds{X: 24, Y: 80, Width: 120, Height: 48}
-	findings = Check{Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings = Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	findings = withoutFloorWarnings(findings)
 	if len(findings) != 0 {
 		t.Fatalf("expected visible-without-scroll pass, got %+v", findings)
@@ -702,78 +708,6 @@ func TestResponsiveTransformationRequiresTheViewportPresentation(t *testing.T) {
 	}
 }
 
-func TestZeroAreaAccessibilityNodesDoNotBecomePageOverflowFindings(t *testing.T) {
-	node := &AXNode{
-		Role:   "textbox",
-		Name:   "Terminal input",
-		Bounds: &Bounds{X: -159975, Y: 37, Width: 0, Height: 0},
-	}
-	target := CaptureTarget{ViewportWidth: 1280, ViewportHeight: 720}
-	if got := firstHorizontalOverflowNode([]*AXNode{node}, target); got != nil {
-		t.Fatalf("zero-area accessibility node should not be treated as document overflow: %+v", got)
-	}
-}
-
-func TestSingleLineChromeUsesSemanticScopeRatherThanPagePosition(t *testing.T) {
-	target := CaptureTarget{ViewportID: "mobile", ViewportWidth: 390, ViewportHeight: 844}
-	card := AXNode{Role: "button", Name: "Saved preset\nDescription of the saved preset", Bounds: &Bounds{X: 16, Y: 107, Width: 358, Height: 94.6}}
-	for _, container := range []AXNode{
-		{Role: "main"},
-		{Role: "list"},
-		{DOM: DOMNode{Tag: "header"}},
-	} {
-		container.Children = []AXNode{card}
-		snapshot := Snapshot{Root: container}
-		if got := firstMultilineChromeLabel(snapshot.Flatten(), target); got != nil {
-			t.Fatalf("multiline content card must remain valid inside %+v: %+v", container.DOM, got)
-		}
-	}
-	for _, container := range []AXNode{
-		{Role: "banner"},
-		{Role: "navigation"},
-		{Role: "toolbar"},
-		{Role: "menubar"},
-		{Role: "tablist"},
-		{DOM: DOMNode{Tag: "nav"}},
-		{DOM: DOMNode{TestID: "workspace-header"}},
-	} {
-		for _, y := range []float64{50, 700} {
-			control := AXNode{Role: "button", Name: "Wrapped\naction", Bounds: &Bounds{X: 16, Y: y, Width: 120, Height: 64}}
-			container.Children = []AXNode{{Role: "group", Children: []AXNode{control}}}
-			snapshot := Snapshot{Root: container}
-			if got := firstMultilineChromeLabel(snapshot.Flatten(), target); got == nil {
-				t.Fatalf("chrome action inside %s/%s at y=%v must fail", container.Role, container.DOM.TestID, y)
-			}
-			snapshot.Root.Children[0].Children[0].Name = "Action"
-			if got := firstMultilineChromeLabel(snapshot.Flatten(), target); got != nil {
-				t.Fatal("single-line chrome action should pass")
-			}
-		}
-	}
-}
-
-func TestChromeVocabularyIsFleetWideAndExcludesGenericHeaders(t *testing.T) {
-	tests := []struct {
-		name string
-		node *AXNode
-		want bool
-	}{
-		{name: "banner role", node: &AXNode{Role: "banner"}, want: true},
-		{name: "navigation role", node: &AXNode{Role: "navigation"}, want: true},
-		{name: "semantic nav", node: &AXNode{DOM: DOMNode{Tag: "nav"}}, want: true},
-		{name: "application chrome marker", node: &AXNode{DOM: DOMNode{TestID: "workspace-header"}}, want: true},
-		{name: "generic header", node: &AXNode{DOM: DOMNode{Tag: "header"}}, want: false},
-		{name: "unmarked section header", node: &AXNode{Role: "sectionheader"}, want: false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := isChromeNode(tt.node); got != tt.want {
-				t.Fatalf("isChromeNode() = %v, want %v for %+v", got, tt.want, tt.node)
-			}
-		})
-	}
-}
-
 func TestSelectorMatchesAriaLabelBinding(t *testing.T) {
 	node := &AXNode{Role: "button", Name: "Dismiss voice input error"}
 	if !selectorMatches(node, `[aria-label='Dismiss voice input error']`) {
@@ -875,7 +809,7 @@ func TestAffordancePresentChecksExpectedControls(t *testing.T) {
 			{Role: "combobox", Name: "Filter status", Bounds: &Bounds{X: 320, Y: 40, Width: 140, Height: 40}, DOM: DOMNode{TestID: "debt-filter"}},
 		}},
 	}
-	findings := Check{Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	findings = withoutFloorWarnings(findings)
 	if len(findings) != 0 {
 		t.Fatalf("expected affordance-present claim to pass, got %+v", findings)
@@ -894,14 +828,14 @@ func TestAffordancePresentChecksExpectedControls(t *testing.T) {
 			}},
 		}},
 	}
-	findings = Check{Capturer: fakeCapturer{snapshot: localizedSnapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings = Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{snapshot: localizedSnapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	findings = withoutFloorWarnings(findings)
 	if len(findings) != 0 {
 		t.Fatalf("expected localized semantic affordances to pass, got %+v", findings)
 	}
 
 	snapshot.Root.Children = snapshot.Root.Children[:1]
-	findings = Check{Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings = Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	if !hasCode(findings, spec.CodeAffordanceMissing) {
 		t.Fatalf("expected missing affordance finding, got %+v", findings)
 	}
@@ -916,13 +850,13 @@ func TestAccessibleNameClaimReconcilesDeclaredIntent(t *testing.T) {
 	report.Spec.Pages["home"] = page
 	snapshot := passingSnapshot()
 	snapshot.Root.Children[1].Name = "Create report"
-	findings := (Check{Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}).Run(context.Background(), report)
+	findings := (Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}).Run(context.Background(), report)
 	findings = withoutFloorWarnings(findings)
 	if len(findings) != 0 {
 		t.Fatalf("expected accessible name claim to pass, got %+v", findings)
 	}
 	snapshot.Root.Children[1].Name = "Unnamed action"
-	findings = (Check{Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}).Run(context.Background(), report)
+	findings = (Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}).Run(context.Background(), report)
 	if !hasCode(findings, spec.CodeClaimFailed) {
 		t.Fatalf("expected accessible name claim failure, got %+v", findings)
 	}
@@ -991,17 +925,24 @@ func TestBaselineFloorClaimsFailFromGeometry(t *testing.T) {
 		}},
 	})
 
-	findings := Check{
+	findings := Check{GeometryEvaluator: &fixedGeometryEvaluator{findings: []spec.Finding{
+		{Code: "visual_viewport_overflow", Severity: spec.SeverityError},
+		{Code: "visual_surface_does_not_fill_viewport", Severity: spec.SeverityError},
+		{Code: "visual_chrome_outside_viewport", Severity: spec.SeverityError},
+		{Code: "visual_unsafe_edge_tap_zone", Severity: spec.SeverityError},
+		{Code: "visual_multiline_chrome_label", Severity: spec.SeverityWarning},
+		{Code: "visual_touch_target_too_small", Severity: spec.SeverityError},
+	}},
 		Capturer:        fakeCapturer{snapshot: snapshot},
 		CaptureProfiles: []CaptureProfile{{ID: "mobile", Width: 390, Height: 844}},
 	}.Run(context.Background(), report)
 	for _, code := range []string{
-		spec.CodeFloorNoDocOverflow,
-		spec.CodeFloorViewportFill,
-		spec.CodeFloorChromePinned,
-		spec.CodeFloorSafeArea,
-		spec.CodeFloorSingleLine,
-		spec.CodeFloorTapTargetSize,
+		"visual_viewport_overflow",
+		"visual_surface_does_not_fill_viewport",
+		"visual_chrome_outside_viewport",
+		"visual_unsafe_edge_tap_zone",
+		"visual_multiline_chrome_label",
+		"visual_touch_target_too_small",
 	} {
 		if !hasCode(findings, code) {
 			t.Fatalf("missing %s in findings: %+v", code, findings)
@@ -1043,11 +984,11 @@ func TestSafeAreaFloorRecognizesScenarioMobileNavControls(t *testing.T) {
 		}},
 	})
 
-	findings := Check{
+	findings := Check{GeometryEvaluator: &fixedGeometryEvaluator{findings: []spec.Finding{{Code: "visual_unsafe_edge_tap_zone", Severity: spec.SeverityError, Message: "mobile chrome enters unsafe area"}}},
 		Capturer:        fakeCapturer{snapshot: snapshot},
 		CaptureProfiles: []CaptureProfile{{ID: "mobile", Width: 390, Height: 844}},
 	}.Run(context.Background(), report)
-	if !hasCode(findings, spec.CodeFloorSafeArea) {
+	if !hasCode(findings, "visual_unsafe_edge_tap_zone") {
 		t.Fatalf("expected safe-area floor to catch scenario mobile nav controls, got %+v", findings)
 	}
 }
@@ -1063,14 +1004,17 @@ func TestBaselineFloorOptOutSuppressesOnlyNamedFloor(t *testing.T) {
 	snapshot := passingSnapshot()
 	snapshot.Root.Bounds = &Bounds{Width: 430, Height: 600}
 
-	findings := Check{
+	findings := Check{GeometryEvaluator: &fixedGeometryEvaluator{findings: []spec.Finding{
+		{Code: "visual_surface_does_not_fill_viewport", Severity: spec.SeverityError},
+		{Code: "visual_viewport_overflow", Severity: spec.SeverityError},
+	}},
 		Capturer:        fakeCapturer{snapshot: snapshot},
 		CaptureProfiles: []CaptureProfile{{ID: "mobile", Width: 390, Height: 844}},
 	}.Run(context.Background(), report)
-	if hasCode(findings, spec.CodeFloorViewportFill) {
+	if hasCode(findings, "visual_surface_does_not_fill_viewport") {
 		t.Fatalf("viewport-fill opt-out was ignored: %+v", findings)
 	}
-	if !hasCode(findings, spec.CodeFloorNoDocOverflow) {
+	if !hasCode(findings, "visual_viewport_overflow") {
 		t.Fatalf("opt-out suppressed unrelated floors: %+v", findings)
 	}
 }
@@ -1087,7 +1031,7 @@ func TestNonDefaultStateClaimReportsSingleCaptureLimitation(t *testing.T) {
 	}}
 	report.Spec.Pages["home"] = page
 
-	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	if len(findings) != 1 {
 		t.Fatalf("findings = %d, want 1: %+v", len(findings), findings)
 	}
@@ -1126,7 +1070,7 @@ func TestNonDefaultStateSetupCapturesStateRoute(t *testing.T) { // [REQ:EXPERIEN
 	}
 	repo := NewSQLiteRepository(db)
 
-	findings := Check{
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{},
 		Capturer:   fakeCapturer{snapshot: passingSnapshot(), targets: &targets},
 		Repository: repo,
 		Now: func() time.Time {
@@ -1172,14 +1116,14 @@ func TestStateDistinctComparesCapturedStateFingerprints(t *testing.T) {
 	}}
 	report.Spec.Pages["home"] = page
 
-	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	if !hasCode(findings, spec.CodeClaimFailed) {
 		t.Fatalf("expected identical state fingerprints to fail distinct claim, got %+v", findings)
 	}
 
 	stale := passingSnapshot()
 	stale.Root.Children[1].Name = "Stale primary action"
-	findings = Check{Capturer: fakeCapturer{
+	findings = Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{
 		snapshot:         passingSnapshot(),
 		snapshotsByState: map[string]Snapshot{"stale": stale},
 	}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
@@ -1200,7 +1144,7 @@ func TestNonDefaultStateWithoutSetupReportsLimitation(t *testing.T) {
 	}}
 	report.Spec.Pages["home"] = page
 
-	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	if len(findings) != 1 || findings[0].Code != spec.CodeClaimUnverifiable {
 		t.Fatalf("expected one missing setup limitation, got %+v", findings)
 	}
@@ -1211,7 +1155,7 @@ func TestNonDefaultStateWithoutSetupReportsLimitation(t *testing.T) {
 
 func TestActivePageWithNoJoinedBindingsBlocks(t *testing.T) {
 	report := activeReport("missing", spec.Binding{TestID: "not-rendered"})
-	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	findings = withoutFloorWarnings(findings)
 	if len(findings) != 1 || findings[0].Code != spec.CodeBindingsUnjoined || findings[0].Severity != spec.SeverityError {
 		t.Fatalf("expected zero-binding blocking finding, got %+v", findings)
@@ -1227,7 +1171,7 @@ func TestElementAbsentClaimDoesNotRequireAJoinedBinding(t *testing.T) {
 	page.Claims[0].Type = "element-absent"
 	report.Spec.Pages["home"] = page
 
-	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	if len(findings) != 0 {
 		t.Fatalf("absence-only claim should pass when the bound element is absent, got %+v", findings)
 	}
@@ -1235,7 +1179,7 @@ func TestElementAbsentClaimDoesNotRequireAJoinedBinding(t *testing.T) {
 
 func TestActiveComponentWithNoJoinedBindingsBlocks(t *testing.T) {
 	report := activeComponentReport("action", spec.Binding{TestID: "not-rendered"})
-	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	findings = withoutFloorWarnings(findings)
 	if len(findings) != 1 || findings[0].Code != spec.CodeBindingsUnjoined || findings[0].Severity != spec.SeverityError {
 		t.Fatalf("expected component zero-binding blocking finding, got %+v", findings)
@@ -1247,7 +1191,7 @@ func TestActiveComponentWithNoJoinedBindingsBlocks(t *testing.T) {
 
 func TestCaptureUnavailableIsSkippedInfo(t *testing.T) {
 	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
-	findings := Check{Capturer: fakeCapturer{err: ErrCaptureUnavailable}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings := Check{GeometryEvaluator: passingGeometryEvaluator{}, Capturer: fakeCapturer{err: ErrCaptureUnavailable}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	if len(findings) != 1 || findings[0].Code != spec.CodeCaptureUnavailable || findings[0].Severity != spec.SeverityInfo {
 		t.Fatalf("expected capture unavailable info finding, got %+v", findings)
 	}

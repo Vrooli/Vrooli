@@ -224,7 +224,7 @@ contract, while `role`, `axis`, `story`, `viewport`, and `theme` narrow the
 selection. The route renders every selected story in a labeled iframe and
 exposes exactly one outer `data-preview-sheet` boundary. The outer harness
 reaches `ready` only after all child stories report a result. BAS captures this
-URL through the same CaptureService workflow used for individual stories. Each
+URL through the canonical scenario UX bundle workflow used for individual stories. Each
 tile is rendered and validated in its own isolated harness before it is placed
 on the labeled sheet, and missing required states occupy labeled placeholder
 tiles so the coverage gap remains visible.

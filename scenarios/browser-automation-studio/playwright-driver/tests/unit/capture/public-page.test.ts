@@ -1,6 +1,7 @@
 import type { BrowserContext, Page, Request, Response } from 'rebrowser-playwright';
 import {
   capturePublicPageInContext,
+  FILE_CAPTURE_URL,
   inertHTMLFileBeforeParse,
 } from '../../../src/capture/public-page';
 import type { RedactionReport } from '../../../src/capture/redaction';
@@ -8,6 +9,7 @@ import type { OutlineResult } from '../../../src/capture/outline';
 import type { FrozenPageResult } from '../../../src/capture/frozen-page';
 import type { StyleCensusResult } from '../../../src/capture/style-census';
 import type { ComponentIdentityResult } from '../../../src/capture/identity';
+import { rgbPng } from './paint.test';
 
 function createContext() {
   const page = {
@@ -30,6 +32,7 @@ function createContext() {
       return page;
     }),
     goto: jest.fn(async () => null),
+    route: jest.fn(async () => undefined),
     setContent: jest.fn(async () => undefined),
     evaluate: jest.fn(async () => ({
       schema: 'bas-strict-token-diagnostic/v1',
@@ -127,9 +130,9 @@ describe('public URL page capture composition', () => {
     expect(result.lenses.L0).toEqual({
       status: 'partial',
       reason:
-        '1 script request failed or blocked before pixels were captured; rendered content may be incomplete.',
+        '1 script request failed or was blocked before pixels were captured; rendered content may be incomplete.',
     });
-    expect(JSON.stringify(result)).not.toContain('localhost:4300');
+    expect(JSON.stringify(result.lenses)).not.toContain('localhost:4300');
   });
 
   it('marks pixel fidelity partial when a stylesheet request is blocked before capture', async () => {
@@ -163,7 +166,7 @@ describe('public URL page capture composition', () => {
       status: 'partial',
       reason: '1 stylesheet request failed or was blocked; measured styles may be incomplete.',
     });
-    expect(JSON.stringify(result)).not.toContain('localhost:4300');
+    expect(JSON.stringify(result.lenses)).not.toContain('localhost:4300');
   });
 
   it('adds optional bounded full-page pixels after redaction without changing L0 viewport pixels', async () => {
@@ -334,7 +337,24 @@ describe('public URL page capture composition', () => {
       true
     );
 
-    expect(page.setContent).toHaveBeenCalled();
+    // The artifact is served inert from a synthetic URL; setContent never
+    // reaches DOMContentLoaded under the patched driver.
+    expect(page.setContent).not.toHaveBeenCalled();
+    expect(page.goto).toHaveBeenCalledWith(FILE_CAPTURE_URL, expect.anything());
+    const [routed, handler] = page.route.mock.calls[0] as unknown as [
+      string,
+      (route: { fulfill: (response: { body: string }) => Promise<void> }) => Promise<void>,
+    ];
+    expect(routed).toBe(FILE_CAPTURE_URL);
+    let served = '';
+    await handler({
+      fulfill: (response) => {
+        served = response.body;
+        return Promise.resolve();
+      },
+    });
+    expect(served).toContain('<main>shell</main>');
+    expect(served).not.toContain('render()');
     expect(result.source).toEqual({ kind: 'file', filename: 'artifact.html' });
     expect(result.lenses.L0).toEqual({
       status: 'partial',
@@ -645,5 +665,58 @@ describe('public URL page capture composition', () => {
     expect(result.artifacts.frozen_page_html).toContain('before<figure');
     expect(result.artifacts.frozen_page_html).toContain('</figure>after');
     expect(result.lenses.L1.status).toBe('present');
+  });
+});
+
+describe('L0 never reports blank pixels as present', () => {
+  const flat = rgbPng(64, 64, () => [249, 248, 244]);
+  const painted = rgbPng(64, 64, (x) => (x < 32 ? [20, 20, 20] : [249, 248, 244]));
+
+  it('marks L0 absent and emits no image when every attempt is one flat colour', async () => {
+    const { context } = createContext();
+    const redact = jest.fn(async () => safeReport);
+    const result = await capturePublicPageInContext(
+      context,
+      'http://localhost:4300/',
+      { styleTokens: [] },
+      {
+        redact,
+        capturePixels: async () => flat,
+        waitForPaint: async () => ({ content: false, settled: true, waitedMs: 10_000 }),
+        blankRetryDelayMs: 0,
+        collectFrozen: async () => frozen,
+        collectOutline: async () => outline,
+        collectStyle: async () => style,
+      }
+    );
+    expect(result.artifacts.screenshot_png_base64).toBeUndefined();
+    expect(result.lenses.L0.status).toBe('absent');
+    expect(result.lenses.L0.reason).toContain('one flat colour');
+    expect(result.lenses.L0.reason).toContain('after 3 attempts');
+    // Each retry re-runs the privacy prepass on the newly painted page.
+    expect(redact).toHaveBeenCalledTimes(3);
+  });
+
+  it('retries a late-painting page and reports the painted image', async () => {
+    const { context } = createContext();
+    const shots = [flat, painted];
+    const result = await capturePublicPageInContext(
+      context,
+      'http://localhost:4300/',
+      { styleTokens: [] },
+      {
+        redact: async () => safeReport,
+        capturePixels: async () => shots.shift() ?? painted,
+        waitForPaint: async () => ({ content: true, settled: true, waitedMs: 40 }),
+        blankRetryDelayMs: 0,
+        collectFrozen: async () => frozen,
+        collectOutline: async () => outline,
+        collectStyle: async () => style,
+      }
+    );
+    expect(result.lenses.L0).toEqual({ status: 'present' });
+    expect(Buffer.from(result.artifacts.screenshot_png_base64!, 'base64').equals(painted)).toBe(
+      true
+    );
   });
 });

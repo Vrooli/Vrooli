@@ -4,7 +4,8 @@
       "Card",
       "CardGrid",
       "Form",
-      "FormSection"
+      "FormSection",
+      "ExperienceSurface"
     ],
     "maximumCount": 4,
     "typicalCount": 1

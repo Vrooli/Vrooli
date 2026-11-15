@@ -1,9 +1,11 @@
 package page
 
 import (
-	"connectrpc.com/connect"
 	"context"
 	"fmt"
+
+	"connectrpc.com/connect"
+
 	"github.com/vrooli/cli-core/cliapp"
 	pagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/page"
 	pageconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/page/page_v1connect"
@@ -19,10 +21,22 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		}
 		return result.Msg, nil
 	}
-	return cliapp.LoadFromManifestPrimitives(manifest, "page", map[string]cliapp.PrimitiveHandler{"PageService.Inspect": cliapp.ProtoList(call, inspectReport)})
+	captures := captureHandlers{bas: newBASClient}
+	return cliapp.LoadFromManifestPrimitives(manifest, "page", map[string]cliapp.PrimitiveHandler{
+		"PageService.Inspect": cliapp.ProtoList(call, inspectReport),
+		"capture":             {Run: captures.capture},
+		"render":              {Run: captures.render},
+	})
 }
+
 func inspectReport(_ cliapp.OperationContext, result *pagev1.InspectResponse) cliapp.ListReport {
-	rows := []string{"Screenshot: " + result.ScreenshotPath, "Open: " + result.ScreenshotUrl}
+	rows := []string{}
+	if result.ScreenshotPath != "" {
+		rows = append(rows, "Screenshot: "+result.ScreenshotPath)
+	}
+	if result.ScreenshotUrl != "" {
+		rows = append(rows, "Open: "+result.ScreenshotUrl)
+	}
 	seen := map[string]bool{}
 	var walk func(*pagev1.PageNode)
 	walk = func(node *pagev1.PageNode) {

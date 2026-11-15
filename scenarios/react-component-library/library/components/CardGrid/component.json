@@ -7,6 +7,7 @@
     "1.0.1",
     "1.0.2"
   ],
+  "description": "A restrained responsive card arrangement that establishes a raised surface context for repeated records without turning every page section into a floating panel.",
   "designStyles": [
     {
       "affinity": "native",
@@ -14,6 +15,7 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "Card Grid",
   "draft": "",
   "evictedVersions": [
     "1.0.0",
@@ -23,7 +25,5 @@
   ],
   "latest": "1.0.5",
   "libraryId": "react-component-library:CardGrid",
-  "displayName": "Card Grid",
-  "description": "A restrained responsive card arrangement that establishes a raised surface context for repeated records without turning every page section into a floating panel.",
   "tags": []
 }

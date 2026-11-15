@@ -721,7 +721,7 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 		}
 	}
 	if appearanceGate(gate) {
-		result, err = h.runAppearanceGate(ctx, gate, strings.TrimSpace(req.Msg.GetAssetId()))
+		result, err = h.runAppearanceGate(ctx, gate, strings.TrimSpace(req.Msg.GetAssetId()), definition)
 	} else if runner == nil {
 		result, err = gates.UnmeasuredGate(h.repoRoot)
 	} else {
@@ -1187,7 +1187,7 @@ func (h *handler) CaptureEvidence(ctx context.Context, req *connect.Request[cata
 		}
 		if runErr != nil {
 			rows = append(rows, captureRow{AssetID: id, Version: impl.Latest, ArtifactKind: "individual", Result: "failed", Report: map[string]any{"error": runErr.Error(), "libraryId": libraryID}})
-			measurement, _ := json.Marshal(map[string]any{"runner": "bas-capture-service", "error": runErr.Error()})
+			measurement, _ := json.Marshal(map[string]any{"runner": "browser-automation-studio.ux-capture.v1", "error": runErr.Error()})
 			evidenceRows = append(evidenceRows, catalogcoverage.GateEvidence{AssetID: id, Target: assetTarget, Gate: "visual", Version: impl.Latest, Result: "fail", MeasurementJSON: string(measurement), SourceRevision: revision})
 			continue
 		}
@@ -1207,14 +1207,14 @@ func (h *handler) CaptureEvidence(ctx context.Context, req *connect.Request[cata
 			}
 			rows = append(rows, row)
 		}
-		measurement, _ := json.Marshal(map[string]any{"runner": "bas-capture-service", "reportId": report.ID, "artifacts": report.Artifacts})
+		measurement, _ := json.Marshal(map[string]any{"runner": "browser-automation-studio.ux-capture.v1", "reportId": report.ID, "artifacts": report.Artifacts})
 		result := "fail"
 		if assetPassed {
 			result = "pass"
 		}
 		evidenceRows = append(evidenceRows, catalogcoverage.GateEvidence{AssetID: id, Target: assetTarget, Gate: "visual", Version: impl.Latest, Result: result, MeasurementJSON: string(measurement), SourceRevision: revision})
 	}
-	manifest := map[string]any{"asset_id": assetID, "changed_only": req.Msg.GetChangedOnly(), "runner": "browser-automation-studio.capture-service", "captured_at": time.Now().UTC().Format(time.RFC3339Nano), "captures": rows, "bounded": req.Msg.GetAll() && req.Msg.GetLimit() > 0, "offset": req.Msg.GetOffset(), "limit": req.Msg.GetLimit()}
+	manifest := map[string]any{"asset_id": assetID, "changed_only": req.Msg.GetChangedOnly(), "runner": "browser-automation-studio.ux-capture.v1", "captured_at": time.Now().UTC().Format(time.RFC3339Nano), "captures": rows, "bounded": req.Msg.GetAll() && req.Msg.GetLimit() > 0, "offset": req.Msg.GetOffset(), "limit": req.Msg.GetLimit()}
 	data, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("encode capture manifest: %w", err))

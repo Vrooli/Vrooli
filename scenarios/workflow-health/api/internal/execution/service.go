@@ -15,6 +15,7 @@ import (
 	"workflow-health/internal/validation"
 	"workflow-health/internal/workflows"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliutil"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 )
@@ -264,6 +265,8 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 			report.Findings = append(report.Findings, executionFinding(validation.CodeExecutionRefused, run))
 		case run.Skipped:
 			report.Summary.Skipped++
+		case run.NotEvaluated:
+			report.Summary.NotEvaluated++
 		case run.Success:
 			report.Summary.Executed++
 			report.Summary.Passed++
@@ -388,6 +391,10 @@ func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset 
 	if validation, err := s.Client.ValidateResolved(ctx, definition); err != nil {
 		run.Status = "failed"
 		run.Error = fmt.Sprintf("BAS validation request failed: %v", err)
+		if basUnavailable(err) {
+			run.Status = "not_evaluated"
+			run.NotEvaluated = true
+		}
 		return run
 	} else if validation != nil && !validation.Valid {
 		run.Status = "failed"
@@ -426,6 +433,10 @@ func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset 
 		} else {
 			run.Error = err.Error()
 		}
+		if basUnavailable(err) {
+			run.Status = "not_evaluated"
+			run.NotEvaluated = true
+		}
 		return run
 	}
 	if heartbeatErr := isolationHealthError(lease); heartbeatErr != nil {
@@ -450,6 +461,11 @@ func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset 
 		}
 	}
 	return run
+}
+
+func basUnavailable(err error) bool {
+	code := connect.CodeOf(err)
+	return code == connect.CodeUnavailable || code == connect.CodeDeadlineExceeded
 }
 
 // bindElectronValidation makes the validation-cell identity concrete for one

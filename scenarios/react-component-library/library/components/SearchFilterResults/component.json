@@ -7,6 +7,7 @@
     "1.0.0",
     "1.0.3"
   ],
+  "description": "The complete search experience combining query entry, structured filters, URL state, suggestions, loading, stale results, empty and no-match distinction, errors, pagination, and result actions.",
   "designStyles": [
     {
       "affinity": "native",
@@ -14,6 +15,7 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "SearchFilterResults",
   "draft": "",
   "evictedVersions": [
     "1.0.2",
@@ -23,7 +25,5 @@
   ],
   "latest": "1.0.7",
   "libraryId": "react-component-library:SearchFilterResults",
-  "displayName": "SearchFilterResults",
-  "description": "The complete search experience combining query entry, structured filters, URL state, suggestions, loading, stale results, empty and no-match distinction, errors, pagination, and result actions.",
   "tags": []
 }

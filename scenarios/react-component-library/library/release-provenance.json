@@ -272,6 +272,12 @@
       "publishedAt": "2026-11-07T18:16:46Z"
     },
     {
+      "libraryId": "react-component-library:AppShell",
+      "version": "2.1.5",
+      "draftVersion": "2.1.5-draft.1",
+      "publishedAt": "2026-11-14T15:51:42Z"
+    },
+    {
       "libraryId": "react-component-library:ApprovalPrompt",
       "version": "1.0.2",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -1386,6 +1392,12 @@
       "version": "2.2.13",
       "draftVersion": "2.2.13-draft.1",
       "publishedAt": "2026-11-13T21:16:44Z"
+    },
+    {
+      "libraryId": "react-component-library:Button",
+      "version": "2.2.14",
+      "draftVersion": "2.2.14-draft.1",
+      "publishedAt": "2026-11-14T15:33:05Z"
     },
     {
       "libraryId": "react-component-library:ButtonGroup",
@@ -2598,6 +2610,12 @@
       "version": "1.1.6",
       "draftVersion": "1.1.6-draft.1",
       "publishedAt": "2026-11-13T21:17:23Z"
+    },
+    {
+      "libraryId": "react-component-library:ControlBase",
+      "version": "1.2.0",
+      "draftVersion": "1.2.0-draft.1",
+      "publishedAt": "2026-11-14T15:32:06Z"
     },
     {
       "libraryId": "react-component-library:CopyIconButton",
@@ -3962,6 +3980,12 @@
       "publishedAt": "2026-11-07T17:40:20Z"
     },
     {
+      "libraryId": "react-component-library:FullPageDrawer",
+      "version": "1.5.3",
+      "draftVersion": "1.5.3-draft.1",
+      "publishedAt": "2026-11-14T06:48:01Z"
+    },
+    {
       "libraryId": "react-component-library:GeneratedForm",
       "version": "1.0.2",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -5276,6 +5300,12 @@
       "publishedAt": "2026-08-31T05:05:52Z"
     },
     {
+      "libraryId": "react-component-library:OverlayActionBar",
+      "version": "1.0.1",
+      "draftVersion": "1.0.1-draft.1",
+      "publishedAt": "2026-11-14T06:45:46Z"
+    },
+    {
       "libraryId": "react-component-library:OverlayCanvas",
       "version": "1.0.7",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -5712,6 +5742,12 @@
       "version": "1.0.5",
       "draftVersion": "1.0.5-draft.1",
       "publishedAt": "2026-11-13T21:29:20Z"
+    },
+    {
+      "libraryId": "react-component-library:Pressable",
+      "version": "1.0.6",
+      "draftVersion": "1.0.6-draft.1",
+      "publishedAt": "2026-11-14T15:32:58Z"
     },
     {
       "libraryId": "react-component-library:PreviewDock",

@@ -52,6 +52,7 @@ var ErrCaptureUnavailable = errors.New("accessibility capture unavailable")
 // Check runs structure reconciliation as a checks.Check.
 type Check struct {
 	Capturer           Capturer
+	GeometryEvaluator  GeometryEvaluator
 	Repository         EvidenceRepository
 	Now                func() time.Time
 	CaptureProfiles    []CaptureProfile
@@ -177,7 +178,10 @@ type pageReconciliation struct {
 	Evidence []Evidence
 }
 
-func reconcileActivePage(loc string, page spec.PageDocument, target CaptureTarget, snapshot Snapshot, contextSnapshots ...map[string]Snapshot) pageReconciliation {
+// reconcileActivePageWithGeometry consumes ui-health's canonical artifact
+// findings for baseline geometry claims. A nil geometry slice means the
+// shared evaluator was unavailable; an empty non-nil slice is a measured pass.
+func reconcileActivePageWithGeometry(loc string, page spec.PageDocument, target CaptureTarget, snapshot Snapshot, geometry []spec.Finding, contextSnapshots ...map[string]Snapshot) pageReconciliation {
 	nodes := snapshot.Flatten()
 	var findings []spec.Finding
 	var evidence []Evidence
@@ -230,9 +234,21 @@ func reconcileActivePage(loc string, page spec.PageDocument, target CaptureTarge
 			}
 			continue
 		}
-		claimEvidence, ok := evaluateClaim(page, claim, target, nodes, contextSnapshots...)
+		var claimEvidence Evidence
+		var ok bool
+		if isBaselineFloorType(claim.Type) && geometry != nil {
+			claimEvidence, ok = evaluateGeometryFloorClaim(page, claim, target, nodes, geometry)
+		} else {
+			claimEvidence, ok = evaluateClaim(page, claim, target, nodes, contextSnapshots...)
+		}
 		evidence = append(evidence, claimEvidence)
 		if ok {
+			continue
+		}
+		if isBaselineFloorType(claim.Type) && geometry != nil {
+			// The canonical ui-health finding is already attached once to this
+			// result. Keep the claim-specific evidence row without duplicating the
+			// same geometry defect as a second finding.
 			continue
 		}
 		code := claimFailureCode(claim.Type)
@@ -256,6 +272,67 @@ func reconcileActivePage(loc string, page spec.PageDocument, target CaptureTarge
 		})
 	}
 	return pageReconciliation{Findings: findings, Evidence: evidence}
+}
+
+func evaluateGeometryFloorClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarget, nodes []*AXNode, geometry []spec.Finding) (Evidence, bool) {
+	evidence := Evidence{
+		PageID: page.Page.ID, Route: targetEvidenceRoute(page, target), StateID: target.StateID,
+		ViewportID: target.ViewportID, ViewportWidth: target.ViewportWidth, ViewportHeight: target.ViewportHeight,
+		ClaimID: claim.ID, ClaimType: claim.Type,
+	}
+	if geometry == nil {
+		evidence.Verdict = "unverifiable"
+		evidence.Message = "canonical ui-health geometry evaluator was unavailable"
+		return evidence, false
+	}
+	rule := geometryRuleForFloor(claim.Type)
+	if rule == "" {
+		evidence.Verdict = "unverifiable"
+		evidence.Message = "floor has no canonical ui-health geometry rule"
+		return evidence, false
+	}
+	for _, finding := range geometry {
+		if finding.Code == "visual_geometry_unmeasured" ||
+			(finding.Code == "visual_surface_root_unmeasured" && rule == "visual_surface_does_not_fill_viewport") {
+			evidence.Verdict = "unverifiable"
+			evidence.Message = finding.Message
+			return evidence, false
+		}
+		if finding.Code != rule || (finding.Severity != spec.SeverityError && finding.Severity != spec.SeverityWarning) {
+			continue
+		}
+		evidence.Verdict = "failed"
+		evidence.Message = finding.Message
+		if len(nodes) > 0 {
+			evidence.AXNodeJSON = encodeAXNode(nodes[0])
+		}
+		return evidence, false
+	}
+	evidence.Verdict = "passed"
+	evidence.Message = "canonical ui-health geometry rule passed"
+	if len(nodes) > 0 {
+		evidence.AXNodeJSON = encodeAXNode(nodes[0])
+	}
+	return evidence, true
+}
+
+func geometryRuleForFloor(floor string) string {
+	switch floor {
+	case "no-document-horizontal-overflow":
+		return "visual_viewport_overflow"
+	case "viewport-fill":
+		return "visual_surface_does_not_fill_viewport"
+	case "chrome-pinned":
+		return "visual_chrome_outside_viewport"
+	case "safe-area-tap-targets":
+		return "visual_unsafe_edge_tap_zone"
+	case "single-line-chrome":
+		return "visual_multiline_chrome_label"
+	case "tap-target-size":
+		return "visual_touch_target_too_small"
+	default:
+		return ""
+	}
 }
 
 func unreachableEvidence(page spec.PageDocument, claim spec.Claim, target CaptureTarget, reason string) Evidence {

@@ -154,6 +154,8 @@ func statusLabel(s scenariovalidationv1.ValidationStatus) string {
 		return "error"
 	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_SKIPPED:
 		return "skipped"
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED:
+		return "not-evaluated"
 	default:
 		return "unspecified"
 	}

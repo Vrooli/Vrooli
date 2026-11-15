@@ -10,7 +10,25 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../.
 const flagships = ["web-console", "agent-manager", "notification-hub", "prompt-manager", "nutrition-planner", "personal-planner", "image-tools", "brand-manager"];
 const args = process.argv.slice(2);
 const rootsArg = args.indexOf("--roots");
-const scenarioRoots = rootsArg >= 0 ? args[rootsArg + 1].split(",") : flagships.map((name) => `scenarios/${name}/ui/src`);
+const allReactUIs = args.includes("--all-react-uis");
+const ratchetArg = args.indexOf("--ratchet-file");
+const reactScenarioRoots = () => fs.readdirSync(path.join(repo, "scenarios"), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name)
+  .filter((name) => {
+    const uiRoot = path.join(repo, "scenarios", name, "ui");
+    const packagePath = path.join(uiRoot, "package.json");
+    if (!fs.existsSync(path.join(uiRoot, "src")) || !fs.existsSync(packagePath)) return false;
+    try {
+      const pkg = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+      return Boolean(pkg.dependencies?.react || pkg.devDependencies?.react || pkg.peerDependencies?.react);
+    } catch { return false; }
+  })
+  .sort()
+  .map((name) => `scenarios/${name}/ui/src`);
+const scenarioRoots = allReactUIs
+  ? reactScenarioRoots()
+  : rootsArg >= 0 ? args[rootsArg + 1].split(",") : flagships.map((name) => `scenarios/${name}/ui/src`);
 const linter = new Linter({ configType: "flat" });
 const config = [{
   files: ["**/*.{ts,tsx}"],
@@ -19,6 +37,7 @@ const config = [{
   rules: { "rcl-usage-contracts/usage-contract": "error" },
 }];
 const findings = [];
+let checkedFiles = 0;
 
 function walk(dir) {
   if (!fs.existsSync(dir)) return [];
@@ -31,8 +50,13 @@ function walk(dir) {
 
 for (const relativeRoot of scenarioRoots) {
   for (const file of walk(path.resolve(repo, relativeRoot))) {
+    checkedFiles++;
     const source = fs.readFileSync(file, "utf8");
-    const messages = linter.verify(source, config, { filename: file });
+    // Flat-config file globs are matched against paths relative to the
+    // repository root. Passing an absolute path outside the current working
+    // directory causes ESLint to ignore the file silently, turning the
+    // flagship check into an always-green report.
+    const messages = linter.verify(source, config, { filename: path.relative(repo, file) });
     for (const message of messages) {
       if (message.severity !== 2 || message.ruleId !== "rcl-usage-contracts/usage-contract") continue;
       findings.push({
@@ -45,7 +69,48 @@ for (const relativeRoot of scenarioRoots) {
   }
 }
 
-if (args.includes("--json")) console.log(JSON.stringify({ findings }, null, 2));
-else for (const finding of findings) console.log(`${finding.file}:${finding.line} ${finding.code}: ${finding.message}`);
-if (findings.length) process.exitCode = 1;
-else console.log(`Usage contracts passed for ${scenarioRoots.length} scenario UI source tree(s).`);
+const byContract = Object.fromEntries([...findings.reduce((counts, finding) => {
+  const contract = /^([A-Z][A-Za-z0-9]*)(?:\.([A-Za-z][A-Za-z0-9]*))?/.exec(finding.message);
+  const key = contract ? `${contract[1]}${contract[2] ? `.${contract[2]}` : ""}` : "overlay-footer";
+  counts.set(key, (counts.get(key) ?? 0) + 1);
+  return counts;
+}, new Map())].sort(([left], [right]) => left.localeCompare(right)));
+const fleet = { scenarios: scenarioRoots.length, files: checkedFiles, findings: findings.length, byContract };
+let ratchet = null;
+let ratchetFailed = false;
+if (ratchetArg >= 0) {
+  const ratchetPath = path.resolve(repo, args[ratchetArg + 1] ?? "");
+  try {
+    const baseline = JSON.parse(fs.readFileSync(ratchetPath, "utf8"));
+    const failures = [];
+    if (!Number.isInteger(baseline.scenarios) || baseline.scenarios < 1) failures.push("ratchet baseline must declare a positive scenario count");
+    else if (fleet.scenarios !== baseline.scenarios) failures.push(`checked ${fleet.scenarios} React UI trees; ratchet requires ${baseline.scenarios}`);
+    if (!baseline.byContract || typeof baseline.byContract !== "object" || Array.isArray(baseline.byContract)) failures.push("ratchet baseline must declare per-contract counts");
+    const comparisons = {};
+    for (const contract of new Set([...Object.keys(baseline.byContract ?? {}), ...Object.keys(byContract)])) {
+      const before = baseline.byContract?.[contract] ?? 0;
+      const after = byContract[contract] ?? 0;
+      comparisons[contract] = { baseline: before, current: after, delta: after - before };
+      if (!Number.isInteger(before) || before < 0) failures.push(`invalid ratchet count for ${contract}`);
+      else if (after > before) failures.push(`${contract} findings increased from ${before} to ${after}`);
+    }
+    ratchet = { status: failures.length ? "failed" : "passed", baseline: path.relative(repo, ratchetPath), comparisons, failures };
+    ratchetFailed = failures.length > 0;
+  } catch (error) {
+    ratchet = { status: "not-evaluated", baseline: path.relative(repo, ratchetPath), comparisons: {}, failures: [`ratchet baseline could not be read: ${error.message}`] };
+    ratchetFailed = true;
+  }
+}
+
+if (args.includes("--json")) console.log(JSON.stringify({ fleet, ratchet, findings }, null, 2));
+else {
+  for (const finding of findings) console.log(`${finding.file}:${finding.line} ${finding.code}: ${finding.message}`);
+  console.log(`Usage-contract fleet: ${fleet.scenarios} UI trees, ${fleet.files} source files, ${fleet.findings} findings.`);
+  for (const [contract, count] of Object.entries(byContract)) console.log(`${contract}\t${count}`);
+  if (ratchet) {
+    console.log(`Fleet ratchet ${ratchet.status}: ${ratchet.baseline}`);
+    for (const [contract, row] of Object.entries(ratchet.comparisons)) console.log(`${contract}\t${row.baseline} → ${row.current}\t${row.delta >= 0 ? "+" : ""}${row.delta}`);
+    for (const failure of ratchet.failures) console.error(failure);
+  }
+}
+if (ratchetArg >= 0 ? ratchetFailed : findings.length > 0) process.exitCode = 1;

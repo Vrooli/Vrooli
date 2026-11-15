@@ -12,6 +12,7 @@
     "1.0.8",
     "1.0.1"
   ],
+  "description": "The responsive chart framework standardizing axes, legends, tooltips, value formatting, selection, theme integration, keyboard summaries, and every generic data state around a pluggable rendering engine.",
   "designStyles": [
     {
       "affinity": "compatible",
@@ -19,6 +20,7 @@
       "styleId": "vrooli-command-display"
     }
   ],
+  "displayName": "Chart",
   "draft": "",
   "evictedVersions": [
     "1.0.5",
@@ -32,7 +34,5 @@
   ],
   "latest": "1.0.12",
   "libraryId": "react-component-library:Chart",
-  "displayName": "Chart",
-  "description": "The responsive chart framework standardizing axes, legends, tooltips, value formatting, selection, theme integration, keyboard summaries, and every generic data state around a pluggable rendering engine.",
   "tags": []
 }

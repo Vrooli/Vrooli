@@ -83,7 +83,7 @@ func TestResolvedSurfaceWithoutRouteCannotCaptureRoot(t *testing.T) {
 	for _, rung := range []string{"selector", "declared-route", "observed-route", "corpus"} {
 		require.Contains(t, resolved.FollowUp, rung)
 	}
-	_, _, err = h.captureOne(context.Background(), nil, "http://localhost:1234", resolved, "desktop", "light", false)
+	_, _, err = h.captureOne(context.Background(), "http://localhost:5678", "ui-health", "http://localhost:1234", resolved, "desktop", "light", false)
 	require.ErrorContains(t, err, "surface route unresolved")
 }
 

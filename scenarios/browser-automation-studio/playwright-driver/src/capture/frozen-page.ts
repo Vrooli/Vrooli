@@ -47,8 +47,31 @@ export async function collectFrozenPageInPage(): Promise<FrozenPageSnapshot> {
     clone.querySelectorAll('script, noscript, object, embed, applet, template')
   ))
     node.remove();
-  for (const node of Array.from(clone.querySelectorAll('style, link[rel="stylesheet"]')))
-    node.remove();
+  // Styles are re-emitted below as one pruned sheet; other links (preload,
+  // icons, manifests) cannot load offline and may carry private parameters.
+  for (const node of Array.from(clone.querySelectorAll('style, link'))) node.remove();
+  // cloneNode copies attributes, not live form state: carry the chosen option,
+  // checked boxes and (already redacted) typed values into the frozen markup.
+  const liveControls = Array.from(doc.querySelectorAll('select, input, textarea'));
+  const clonedControls = Array.from(clone.querySelectorAll('select, input, textarea'));
+  liveControls.forEach((live, index) => {
+    const copy = clonedControls[index];
+    if (!copy) return;
+    if (live.tagName === 'SELECT')
+      Array.from(copy.querySelectorAll('option')).forEach((option, optionIndex) => {
+        if (optionIndex === (live as HTMLSelectElement).selectedIndex)
+          option.setAttribute('selected', '');
+        else option.removeAttribute('selected');
+      });
+    else if (live.tagName === 'INPUT') {
+      const input = live as HTMLInputElement;
+      if (input.type === 'checkbox' || input.type === 'radio') {
+        if (input.checked) copy.setAttribute('checked', '');
+        else copy.removeAttribute('checked');
+      } else if (input.type !== 'password' && input.type !== 'file')
+        copy.setAttribute('value', input.value);
+    } else if (live.tagName === 'TEXTAREA') copy.textContent = (live as HTMLTextAreaElement).value;
+  });
   const comments = doc.createTreeWalker(clone, NodeFilter.SHOW_COMMENT);
   let comment = comments.nextNode();
   while (comment) {
@@ -66,6 +89,15 @@ export async function collectFrozenPageInPage(): Promise<FrozenPageSnapshot> {
         /^\s*javascript:/i.test(attribute.value)
       )
         element.removeAttribute(attribute.name);
+      else if (
+        ['href', 'src', 'xlink:href', 'poster'].includes(name) &&
+        /[?#@]/.test(attribute.value) &&
+        !/^\s*(#|data:)/i.test(attribute.value)
+      )
+        // The live page keeps resource URLs intact for its pixels; the frozen
+        // copy drops their parameters, fragments and credentials.
+        element.setAttribute(attribute.name, safeDiagnosticUrlInPage(attribute.value));
+      if (name === 'srcset') element.removeAttribute(attribute.name);
     }
   }
 
@@ -91,10 +123,18 @@ export async function collectFrozenPageInPage(): Promise<FrozenPageSnapshot> {
   }
   const isUsedSelector = (selector: string): boolean => {
     try {
-      const query = selector.replace(
-        /::?(before|after|first-line|first-letter|placeholder|marker|selection)\b/gi,
-        ''
-      );
+      // Match the element a pseudo-element hangs off. A part that is only a
+      // pseudo-element (`*, ::before, ::after`) applies to every element.
+      const query = selector
+        .split(/,(?![^(]*\))/)
+        .map(
+          (part) =>
+            part
+              .replace(/::[\w-]+(\([^)]*\))?/g, '')
+              .replace(/:(before|after|first-line|first-letter)\b/gi, '')
+              .trim() || '*'
+        )
+        .join(', ');
       return Array.from(doc.querySelectorAll(query)).some((element) => element.isConnected);
     } catch {
       unsupported.push({
@@ -219,12 +259,39 @@ export async function collectFrozenPageInPage(): Promise<FrozenPageSnapshot> {
     if (!image || !copy) continue;
     const source = image.currentSrc || image.src;
     if (!source) continue;
-    const data = await inline(source);
-    if (data) {
-      copy.setAttribute('src', data);
-      copy.removeAttribute('srcset');
-      copy.removeAttribute('sizes');
+    // Inline at twice the drawn size, not the file's size: a 7 MB photo drawn
+    // as a 64 px thumbnail otherwise blows the page budget.
+    const box = image.getBoundingClientRect();
+    const scale = Math.min(
+      1,
+      2 *
+        Math.max(
+          Math.max(box.width, 32) / Math.max(image.naturalWidth, 1),
+          Math.max(box.height, 32) / Math.max(image.naturalHeight, 1)
+        )
+    );
+    if (image.complete && image.naturalWidth > 0 && scale < 0.9) {
+      try {
+        const canvas = doc.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        canvas.getContext('2d')?.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const scaled = canvas.toDataURL('image/webp', 0.86);
+        if (scaled.startsWith('data:image/webp')) {
+          assets.push({ url: safeDiagnosticUrlInPage(source), dataUrl: scaled });
+          copy.setAttribute('src', scaled);
+          copy.removeAttribute('srcset');
+          copy.removeAttribute('sizes');
+          continue;
+        }
+      } catch {
+        /* cross-origin pixels are tainted; fall back to the original file */
+      }
     }
+    const data = await inline(source);
+    copy.setAttribute('src', data ?? safeDiagnosticUrlInPage(source));
+    copy.removeAttribute('srcset');
+    copy.removeAttribute('sizes');
   }
   // Keep frame content out of markup and leave an indexed slot for a sanitized screenshot tile.
   for (const [index, frame] of Array.from(clone.querySelectorAll('iframe, frame')).entries()) {

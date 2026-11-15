@@ -235,8 +235,7 @@ describe('collectFrozenPageInPage', () => {
       },
     };
     const clone = {
-      querySelectorAll: (selector: string) =>
-        selector === 'style, link[rel="stylesheet"]' ? [oldStyle] : [],
+      querySelectorAll: (selector: string) => (selector === 'style, link' ? [oldStyle] : []),
       querySelector: (selector: string) => (selector === 'head' ? head : null),
       outerHTML: '<html><head></head><body></body></html>',
     };

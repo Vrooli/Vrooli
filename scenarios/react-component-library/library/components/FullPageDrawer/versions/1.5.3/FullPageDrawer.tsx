@@ -2,7 +2,7 @@
  * @libraryId react-component-library:FullPageDrawer
  * @displayName FullPageDrawer
  * @description The drawer presentation occupying the full application viewport while retaining source context, navigation continuity, safe areas, and route-compatible dismissal.
- * @version 1.5.3-draft.1
+ * @version 1.5.3
  * @tags []
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
@@ -200,11 +200,7 @@ export function FullPageDrawer({
   contentClassName,
   backdropClassName,
 }: FullPageDrawerProps) {
-  useLibraryStyleSheet(
-    "react-component-library:FullPageDrawer",
-    "1.5.3-draft.1",
-    fullPageDrawerStyles,
-  );
+  useLibraryStyleSheet("react-component-library:FullPageDrawer", "1.5.3", fullPageDrawerStyles);
   const desktop = useBreakpoint("md");
   const showGrabber = dismissAffordance === "grabber" || (dismissAffordance === "auto" && !desktop);
   const [expanded, setExpanded] = useState(false);
@@ -348,7 +344,16 @@ export function FullPageDrawer({
           </div>
           {actions?.length || footer ? (
             <footer key="footer">
-              {actions?.length ? <>{footer ? <div className="rcl-full-page-drawer__footer-content">{footer}</div> : null}<OverlayActionBar actions={actions} /></> : footer}
+              {actions?.length ? (
+                <>
+                  {footer ? (
+                    <div className="rcl-full-page-drawer__footer-content">{footer}</div>
+                  ) : null}
+                  <OverlayActionBar actions={actions} />
+                </>
+              ) : (
+                footer
+              )}
             </footer>
           ) : null}
         </section>

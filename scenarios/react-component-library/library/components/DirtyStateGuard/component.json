@@ -12,6 +12,15 @@
     "1.0.0",
     "1.0.1"
   ],
+  "description": "The navigation and dismissal guard detecting meaningful unsaved changes and offering save, discard, continue editing, or background preservation before the work is lost.",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "DirtyStateGuard",
   "draft": "",
   "evictedVersions": [
     "1.0.5",
@@ -25,14 +34,5 @@
   ],
   "latest": "1.0.10",
   "libraryId": "react-component-library:DirtyStateGuard",
-  "displayName": "DirtyStateGuard",
-  "description": "The navigation and dismissal guard detecting meaningful unsaved changes and offering save, discard, continue editing, or background preservation before the work is lost.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "tags": []
 }

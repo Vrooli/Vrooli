@@ -40,6 +40,7 @@ import (
 	observabilityconnect "github.com/vrooli/browser-automation-studio/handlers/observability"
 	projectfilesconnect "github.com/vrooli/browser-automation-studio/handlers/project_files"
 	projectsconnect "github.com/vrooli/browser-automation-studio/handlers/projects"
+	readinessconnect "github.com/vrooli/browser-automation-studio/handlers/readiness"
 	recordingsconnect "github.com/vrooli/browser-automation-studio/handlers/recordings"
 	replayconfigconnect "github.com/vrooli/browser-automation-studio/handlers/replay_config"
 	scenariosconnect "github.com/vrooli/browser-automation-studio/handlers/scenarios"
@@ -57,6 +58,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/credits"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	"github.com/vrooli/browser-automation-studio/services/recovery"
+	readinessservice "github.com/vrooli/browser-automation-studio/services/readiness"
 	"github.com/vrooli/browser-automation-studio/services/retention"
 	"github.com/vrooli/browser-automation-studio/services/scheduler"
 	"github.com/vrooli/browser-automation-studio/services/testgenie"
@@ -436,6 +438,7 @@ func main() {
 		WithCaptureRoot(capturesEvidenceRoot).
 		WithRecoveryLockPath(sharedRecoveryLockPath())
 	connectMounts := []connectx.ServiceMount{
+		readinessconnect.Module(readinessconnect.Deps{Reader: readinessservice.NewProfileReader(), Logger: log}),
 		consumerdeclarationsconnect.Module(consumerdeclarationsconnect.Deps{Logger: log}),
 		drillsconnect.Module(drillsconnect.Deps{AdminSecret: drillSecret, SessionBroker: deps.SessionBroker, Logger: log}),
 		captureconnect.Module(captureconnect.Deps{

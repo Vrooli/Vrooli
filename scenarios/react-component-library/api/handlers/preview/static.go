@@ -27,7 +27,7 @@ import (
 	"react-component-library/internal/themes"
 )
 
-//go:embed assets/harness.js assets/story-evaluator.js assets/story-sheet.css assets/story-sheet.js
+//go:embed assets/harness.js assets/story-evaluator.js assets/story-sheet.css assets/story-sheet.js assets/axe-evidence.js
 var previewAssets embed.FS
 
 var (
@@ -35,6 +35,7 @@ var (
 	storyEvaluatorJavaScript = mustPreviewAsset("assets/story-evaluator.js")
 	storySheetCSS            = mustPreviewAsset("assets/story-sheet.css")
 	storySheetJavaScript     = mustPreviewAsset("assets/story-sheet.js")
+	axeEvidenceJavaScript    = mustPreviewAsset("assets/axe-evidence.js")
 )
 
 func mustPreviewAsset(name string) string {
@@ -63,10 +64,11 @@ var (
 // loads into the live-preview iframe. Inlines the transpiled module so
 // one request gives the browser everything it needs to render.
 type HarnessHandler struct {
-	service    internalpreview.Service
-	components components.Service
-	logger     *log.Logger
-	repoRoot   string
+	service           internalpreview.Service
+	components        components.Service
+	logger            *log.Logger
+	repoRoot          string
+	axeCoreJavaScript string
 }
 
 func NewHarnessHandler(svc internalpreview.Service, logger *log.Logger) *HarnessHandler {
@@ -84,7 +86,8 @@ func NewHarnessHandlerWithStoriesAtRoot(svc internalpreview.Service, comp compon
 	if logger == nil {
 		logger = log.Default()
 	}
-	return &HarnessHandler{service: svc, components: comp, logger: logger, repoRoot: discoverRepoRoot(repoRoot)}
+	resolvedRoot := discoverRepoRoot(repoRoot)
+	return &HarnessHandler{service: svc, components: comp, logger: logger, repoRoot: resolvedRoot, axeCoreJavaScript: loadAxeCoreJavaScript(resolvedRoot)}
 }
 
 // ServeHTTP returns the iframe-friendly HTML shell. Status mapping
@@ -190,7 +193,11 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if theme != "light" && theme != "dark" {
 		theme = ""
 	}
-	doc := renderHarnessHTML(id, bundle, story, css, strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("view")), "canvas"), direction, consumer, theme, contrastFloor)
+	axeScript := ""
+	if r.URL.Query().Get("runner") == "1" {
+		axeScript = h.axeCoreJavaScript
+	}
+	doc := renderHarnessHTML(id, bundle, story, css, strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("view")), "canvas"), direction, consumer, theme, contrastFloor, axeScript)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	// Same-origin: the host iframe controls the `src`, and same-origin
@@ -733,6 +740,10 @@ func renderHarnessHTML(id string, b internalpreview.Bundle, ex harnessStory, des
 	if len(galleryMode) > 4 {
 		contrastFloor, _ = galleryMode[4].(string)
 	}
+	axeCoreScript := ""
+	if len(galleryMode) > 5 {
+		axeCoreScript, _ = galleryMode[5].(string)
+	}
 	if direction != "rtl" && direction != "ltr" {
 		direction = ""
 	}
@@ -951,6 +962,15 @@ func renderHarnessHTML(id string, b internalpreview.Bundle, ex harnessStory, des
 	sb.WriteString(`
 <div id="preview-error" hidden></div>
 <pre id="rcl-story-result" hidden></pre>
+`)
+	if axeCoreScript != "" {
+		sb.WriteString(`<script>`)
+		sb.WriteString(strings.ReplaceAll(axeCoreScript, `</script`, `<\/script`))
+		sb.WriteString(`</script>`)
+	}
+	sb.WriteString(`<script>`)
+	sb.WriteString(axeEvidenceJavaScript)
+	sb.WriteString(`</script>
 <script type="module">`)
 	sb.WriteString(renderHarnessJavaScript(id, b, ex))
 	sb.WriteString(`</script>
@@ -958,6 +978,15 @@ func renderHarnessHTML(id string, b internalpreview.Bundle, ex harnessStory, des
 </html>
 `)
 	return sb.String()
+}
+
+func loadAxeCoreJavaScript(repoRoot string) string {
+	path := filepath.Join(repoRoot, "scenarios", "react-component-library", "ui", "node_modules", "axe-core", "axe.min.js")
+	data, err := os.ReadFile(path)
+	if err != nil || len(data) == 0 || len(data) > 1024*1024 {
+		return ""
+	}
+	return string(data)
 }
 
 func renderHarnessJavaScript(id string, b internalpreview.Bundle, ex harnessStory) string {

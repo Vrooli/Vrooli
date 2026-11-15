@@ -3,6 +3,7 @@ package execution
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"workflow-health/internal/validation"
 
 	"github.com/stretchr/testify/require"
@@ -29,6 +31,27 @@ func TestRunScenarioStaticOnlyDoesNotCallBAS(t *testing.T) {
 	require.Equal(t, 1, report.Summary.Skipped)
 	require.Zero(t, client.executeCalls)
 	require.Empty(t, report.Runs)
+}
+
+func TestBASUnavailableIsNotAnEvaluatedRun(t *testing.T) {
+	err := connect.NewError(connect.CodeUnavailable, fmt.Errorf("BAS unavailable"))
+	if !basUnavailable(err) {
+		t.Fatal("Connect UNAVAILABLE must be classified as not evaluated")
+	}
+	if basUnavailable(connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workflow"))) {
+		t.Fatal("invalid workflow must not be classified as unavailable")
+	}
+}
+
+func TestRunScenarioPreservesUnavailableBASAsNotEvaluated(t *testing.T) {
+	root := makeExecutionFixture(t, false)
+	client := &fakeBASClient{validateErr: connect.NewError(connect.CodeUnavailable, errors.New("BAS offline"))}
+	report, err := NewService(client).RunScenario(context.Background(), "sample", root, Options{IncludeExecution: true})
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Summary.NotEvaluated)
+	require.Equal(t, 0, report.Summary.Failed)
+	require.Len(t, report.Runs, 1)
+	require.True(t, report.Runs[0].NotEvaluated)
 }
 
 func TestRunScenarioExecutesObserverCaseAndWritesArtifacts(t *testing.T) {
@@ -579,6 +602,8 @@ func writeFixtureJSON(t *testing.T, path string, value any) {
 
 type fakeBASClient struct {
 	validated      map[string]any
+	validateErr    error
+	executeErr     error
 	validateCalls  int
 	executeCalls   int
 	timelineCalls  int
@@ -638,6 +663,9 @@ func (f *fakeIsolation) failHealth(err error) {
 func (f *fakeBASClient) ValidateResolved(_ context.Context, definition map[string]any) (*ValidationResult, error) {
 	f.validated = definition
 	f.validateCalls++
+	if f.validateErr != nil {
+		return nil, f.validateErr
+	}
 	if f.validate != nil {
 		return f.validate, nil
 	}
@@ -649,6 +677,9 @@ func (f *fakeBASClient) ExecuteAdhoc(ctx context.Context, req ExecuteRequest) (*
 	f.lastRequest = req
 	if f.onExecute != nil {
 		f.onExecute()
+	}
+	if f.executeErr != nil {
+		return nil, f.executeErr
 	}
 	if f.waitForContext {
 		if f.started != nil {

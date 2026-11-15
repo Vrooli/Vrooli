@@ -15,8 +15,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
 	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
-	contractv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract"
-	contractconnect "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract/contract_v1connect"
+	readinessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/readiness"
+	readinessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/readiness/readinessconnect"
 	visualpb "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/visualhealth"
 
 	"ui-health/internal/evidence"
@@ -83,11 +83,11 @@ func New(logger *log.Logger) *Runner {
 		runtimeTimeout: defaultRuntimeGroupTimeout,
 	}
 	runner.readinessProfile = func(ctx context.Context, scenario string) (*readinessProfile, error) {
-		base, err := resolver.ResolveScenarioURLDefault(ctx, "experience-manager")
+		base, err := resolver.ResolveScenarioURLDefault(ctx, basScenarioID)
 		if err != nil {
 			return nil, err
 		}
-		resp, err := contractconnect.NewContractServiceClient(&http.Client{Timeout: 15 * time.Second}, base).GetReadinessProfile(ctx, connect.NewRequest(&contractv1.GetReadinessProfileRequest{Scenario: scenario}))
+		resp, err := readinessconnect.NewReadinessServiceClient(&http.Client{Timeout: 15 * time.Second}, base).GetReadinessProfile(ctx, connect.NewRequest(&readinessv1.GetReadinessProfileRequest{Scenario: scenario}))
 		if err != nil {
 			return nil, err
 		}
@@ -140,26 +140,75 @@ func (r *Runner) Check(ctx context.Context, in Input) []manifestvalidation.Findi
 		findings = append(findings, routeFindings...)
 		census = append(census, routeCensus...)
 	}
-	for _, outlier := range CompareScenarioCensus(census, 0.5) {
+	outliers := CompareScenarioCensus(census, 0.5)
+	outlierPages := make(map[string]bool, len(outliers))
+	for _, outlier := range outliers {
+		outlierPages[pageCensusKey(outlier.Route, outlier.Viewport)] = true
 		location := runtimeURLForRoute(url, outlier.Route)
 		if strings.TrimSpace(outlier.ScreenshotRef) != "" {
 			location = outlier.ScreenshotRef
 		}
+		code := "scenario_pattern_outlier"
+		severity := manifestvalidation.SeverityWarning
 		message := fmt.Sprintf("%s differs from the declared scenario design tokens on %s (%s viewport, rank score %.2f)", outlier.Pattern, outlier.Route, outlier.Viewport, outlier.Score)
 		if outlier.Property != "" {
-			message = fmt.Sprintf("%s %s value %q is absent from declared scenario design tokens on %s (%s viewport, observed %d times, rank score %.2f; captured pattern: %s)", outlier.ElementFamily, outlier.Property, outlier.Pattern, outlier.Route, outlier.Viewport, outlier.ObservedCount, outlier.Score, outlier.ElementPattern)
+			// A flat token inventory and matching selector candidates do not prove
+			// which declaration won the CSS cascade. Keep this measurement visible,
+			// but do not present a token-list mismatch as a confirmed UX warning.
+			code = "scenario_token_candidate"
+			severity = manifestvalidation.SeverityInfo
+			sourceSelectors := "none captured"
+			if len(outlier.SourceSelectors) > 0 {
+				sourceSelectors = strings.Join(outlier.SourceSelectors, ", ")
+			}
+			message = fmt.Sprintf("possible token mismatch: %s %s value %q has no exact match in the captured scenario token values on %s (%s viewport, observed %d times; captured pattern: %s; source selector candidates: %s; winning declaration not verified)", outlier.ElementFamily, outlier.Property, outlier.Pattern, outlier.Route, outlier.Viewport, outlier.ObservedCount, outlier.ElementPattern, sourceSelectors)
 		} else if outlier.Family != "" {
 			message = fmt.Sprintf("%s style %q differs from dominant style %q on %s (%s viewport, rank score %.2f)", outlier.Family, outlier.Pattern, outlier.DominantPattern, outlier.Route, outlier.Viewport, outlier.Score)
 		}
 		findings = append(findings, manifestvalidation.Finding{
-			Severity:   manifestvalidation.SeverityWarning,
-			Code:       "scenario_pattern_outlier",
+			Severity:   severity,
+			Code:       code,
 			Location:   location,
 			Message:    message,
 			Suggestion: "Open the served screenshot at the finding location, then compare this page with the scenario's other routes and current React Component Library tokens.",
 		})
 	}
+	for _, page := range census {
+		if outlierPages[pageCensusKey(page.Route, page.Viewport)] {
+			continue
+		}
+		if finding, ok := pageScreenshotEvidence(page); ok {
+			findings = append(findings, finding)
+		}
+	}
 	return findings
+}
+
+func pageCensusKey(route, viewport string) string {
+	return route + "\x00" + viewport
+}
+
+func pageScreenshotEvidence(page PagePatternCensus) (manifestvalidation.Finding, bool) {
+	ref := strings.TrimSpace(page.ScreenshotRef)
+	parsed, err := urlpkg.Parse(ref)
+	if err != nil || parsed == nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return manifestvalidation.Finding{}, false
+	}
+	route := page.Route
+	if strings.TrimSpace(route) == "" {
+		route = "/"
+	}
+	viewport := page.Viewport
+	if strings.TrimSpace(viewport) == "" {
+		viewport = "unknown"
+	}
+	return manifestvalidation.Finding{
+		Severity:   manifestvalidation.SeverityInfo,
+		Code:       "runtime_page_capture",
+		Location:   ref,
+		Message:    fmt.Sprintf("Served screenshot captured for %s at the %s viewport; no scenario pattern outlier was reported for this page.", route, viewport),
+		Suggestion: "Use this image as page evidence; a capture with no pattern outlier is not a complete UX verdict.",
+	}, true
 }
 
 func runtimeURLForRoute(base, route string) string {
@@ -469,7 +518,46 @@ func findingsFromEvidence(ev evidence.Evidence, profileID string) []manifestvali
 			Message:  fmt.Sprintf("%d console error(s) logged during render (non-fatal)", v.ConsoleErrorCount),
 		})
 	}
+	// RCL usage-contract checks deliberately use console.warn in development so
+	// served pages remain usable while UI Health can still report the concrete
+	// component and contract violation from the same browser evidence.
+	for _, entry := range ev.Console {
+		if strings.Contains(entry.Message, "[RCL usage contract]") {
+			location := rclUsageContractCallSite(ev.URL, entry.Message)
+			finds = append(finds, manifestvalidation.Finding{
+				Severity:   manifestvalidation.SeverityError,
+				Code:       "runtime_rcl_usage_contract",
+				Location:   location,
+				Message:    fmt.Sprintf("%s (served page: %s)", strings.TrimSpace(entry.Message), ev.URL),
+				Suggestion: "Use the declared RCL component contract: supply stable ids and labels, shorten labels, keep action counts within budget, and mark exactly one primary action.",
+			})
+		}
+	}
 	return finds
+}
+
+func rclUsageContractCallSite(pageURL, message string) string {
+	marker := "call site:"
+	index := strings.Index(message, marker)
+	if index < 0 {
+		return pageURL
+	}
+	frame := strings.TrimSpace(message[index+len(marker):])
+	for _, scheme := range []string{"http://", "https://"} {
+		start := strings.Index(frame, scheme)
+		if start < 0 {
+			continue
+		}
+		candidate := frame[start:]
+		if end := strings.IndexByte(candidate, ')'); end >= 0 {
+			candidate = candidate[:end]
+		}
+		candidate = strings.TrimSpace(candidate)
+		if parsed, err := urlpkg.Parse(candidate); err == nil && parsed != nil && parsed.Host != "" {
+			return candidate
+		}
+	}
+	return pageURL
 }
 
 // codeForFailure picks the finding code matching the verdict's failure cause,

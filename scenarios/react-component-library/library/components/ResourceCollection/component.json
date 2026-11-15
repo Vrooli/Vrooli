@@ -12,6 +12,7 @@
     "1.0.7",
     "1.0.8"
   ],
+  "description": "The resource-list pattern with querying, sorting, filtering, selection, row actions, pagination, every generic state, and responsive row-or-card presentation.",
   "designStyles": [
     {
       "affinity": "native",
@@ -19,6 +20,7 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "ResourceCollection",
   "draft": "",
   "evictedVersions": [
     "1.0.3",
@@ -33,7 +35,5 @@
   ],
   "latest": "1.0.14",
   "libraryId": "react-component-library:ResourceCollection",
-  "displayName": "ResourceCollection",
-  "description": "The resource-list pattern with querying, sorting, filtering, selection, row actions, pagination, every generic state, and responsive row-or-card presentation.",
   "tags": []
 }

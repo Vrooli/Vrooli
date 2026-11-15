@@ -23,6 +23,7 @@ import { SwipeActions } from "@vrooli/react-component-library/SwipeActions/1";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";
 import { useStrings } from "@vrooli/react-component-library/useLocale/1";
 import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
+import type { ContractItems } from "../../../../usage-contracts/generated-contract-limits";
 /** Literal, top-level record fields for serializable collection compositions. */
 export interface CollectionListFields {
   key: string;
@@ -49,8 +50,11 @@ function fieldText(item: unknown, field: string | undefined): string {
   const value = fieldValue(item, field);
   return typeof value === "string" || typeof value === "number" ? String(value) : "";
 }
-export interface CollectionListProps<T> extends Omit<UseCollectionOptions<T>, "getKey"> {
-  items: readonly T[];
+export interface CollectionListProps<
+  T,
+  Items extends readonly T[] = readonly T[],
+> extends Omit<UseCollectionOptions<T>, "getKey"> {
+  items: readonly T[] & Items & ContractItems<"react-component-library:CollectionList@1.3.6", Items>;
   /** Use fields for JSON fixtures, or retain the custom key and renderer ports. */
   fields?: CollectionListFields;
   /** Literal record fields searched case-insensitively; custom search takes precedence. */
@@ -69,7 +73,10 @@ export interface CollectionListProps<T> extends Omit<UseCollectionOptions<T>, "g
   bulkBar?: "docked" | "floating" | "none";
   className?: string;
 }
-export const CollectionList = withClassName(function CollectionList<T>({
+export const CollectionList = withClassName(function CollectionList<
+  T,
+  const Items extends readonly T[],
+>({
   items,
   renderItem,
   getKey: suppliedGetKey,
@@ -86,7 +93,7 @@ export const CollectionList = withClassName(function CollectionList<T>({
   bulkBar = "docked",
   className,
   ...options
-}: CollectionListProps<T>) {
+}: CollectionListProps<T, Items>) {
   const strings = useStrings();
   const getKey = useCallback(
     (item: T) => {

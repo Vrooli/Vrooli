@@ -567,6 +567,7 @@ const artifactCaptureTemplate = `(() => {
   function computedPatternCensus(doc) {
     var counts = Object.create(null);
     var tokenizedProperties = Object.create(null);
+    var propertySelectors = Object.create(null);
     var sourceRuleCache = null;
     var propertyAliases = {
       height: ['height', 'min-height', 'max-height'],
@@ -583,12 +584,15 @@ const artifactCaptureTemplate = `(() => {
       var sourceRules = tokenizedSourceRules(doc);
       var tokenized = Object.create(null);
       var literal = Object.create(null);
+      var selectors = Object.create(null);
       sourceRules.forEach(function (rule) {
         try {
           if (!element.matches(rule.selector)) { return; }
           Object.keys(rule.properties).forEach(function (property) {
             Object.keys(propertyAliases).forEach(function (measured) {
               if (propertyAliases[measured].indexOf(property) !== -1) {
+                if (!selectors[measured]) { selectors[measured] = []; }
+                if (selectors[measured].indexOf(rule.selector) === -1 && selectors[measured].length < 4) { selectors[measured].push(rule.selector); }
                 if (rule.properties[property]) { tokenized[measured] = true; }
                 else { literal[measured] = true; }
               }
@@ -596,6 +600,21 @@ const artifactCaptureTemplate = `(() => {
           });
         } catch (e) {}
       });
+      var inline = element.style;
+      if (inline) {
+        Object.keys(propertyAliases).forEach(function (measured) {
+          propertyAliases[measured].forEach(function (property) {
+            var value = inline.getPropertyValue(property);
+            if (!value) { return; }
+            if (!selectors[measured]) { selectors[measured] = []; }
+            if (selectors[measured].indexOf('<inline style>') === -1 && selectors[measured].length < 4) { selectors[measured].push('<inline style>'); }
+            if (/var\(\s*--[\w-]+/.test(value)) { tokenized[measured] = true; }
+            else { literal[measured] = true; }
+          });
+        });
+      }
+      if (!propertySelectors[pattern]) { propertySelectors[pattern] = Object.create(null); }
+      Object.keys(selectors).forEach(function (property) { propertySelectors[pattern][property] = selectors[property]; });
       Object.keys(tokenized).forEach(function (property) { if (literal[property]) { delete tokenized[property]; } });
       if (Object.keys(tokenized).length === 0) { return; }
       if (!tokenizedProperties[pattern]) { tokenizedProperties[pattern] = Object.create(null); }
@@ -665,7 +684,7 @@ const artifactCaptureTemplate = `(() => {
       add(pattern);
       recordTokenizedProperties(el, pattern);
     });
-    return { patterns: counts, tokenizedProperties: tokenizedProperties };
+    return { patterns: counts, tokenizedProperties: tokenizedProperties, propertySelectors: propertySelectors };
   }
 
   // Shell readiness only proves the iframe booted. Semantic surfaces are
@@ -838,6 +857,7 @@ const artifactCaptureTemplate = `(() => {
     elements: collectElements(doc),
     patternCensus: patternCensus.patterns,
     tokenizedPatternProperties: patternCensus.tokenizedProperties,
+    patternPropertySelectors: patternCensus.propertySelectors,
     experienceSurfaces: experienceSurfaces(doc)
   };
   var network = [];

@@ -59,3 +59,13 @@ func browserObservationFindings(row *pb.BrowserObservation) []*pb.VisualFinding 
 	}
 	return out
 }
+
+// ReplayBrowserObservationFindings evaluates a frozen client observation without
+// persisting it. Test Genie uses this adapter to replay immutable corpus cases
+// through the same evaluator as a fresh browser observation.
+func ReplayBrowserObservationFindings(row *pb.BrowserObservation) []*pb.VisualFinding {
+	if row == nil {
+		return nil
+	}
+	return browserObservationFindings(row)
+}

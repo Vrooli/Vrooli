@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -53,6 +54,33 @@ type sharedHandler struct {
 // durable report reuse below.
 const componentValidationWorkers = 9
 
+const consumerContractPhase = "consumer-contract"
+
+type usageContractFleetReport struct {
+	Fleet struct {
+		Scenarios  int            `json:"scenarios"`
+		Files      int            `json:"files"`
+		Findings   int            `json:"findings"`
+		ByContract map[string]int `json:"byContract"`
+	} `json:"fleet"`
+	Ratchet struct {
+		Status      string `json:"status"`
+		Baseline    string `json:"baseline"`
+		Comparisons map[string]struct {
+			Baseline int `json:"baseline"`
+			Current  int `json:"current"`
+			Delta    int `json:"delta"`
+		} `json:"comparisons"`
+		Failures []string `json:"failures"`
+	} `json:"ratchet"`
+	Findings []struct {
+		File    string `json:"file"`
+		Line    int    `json:"line"`
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	} `json:"findings"`
+}
+
 type assetValidationResult struct {
 	libraryID string
 	detail    string
@@ -69,10 +97,17 @@ type assetValidationJob struct {
 // The catalog suite is deliberately not touched here: readiness must stay
 // O(1), otherwise Test Genie falls back to running the entire browser suite
 // before it can even schedule component-tests.
-func (h *sharedHandler) DescribeProvider(context.Context, *connect.Request[scenariovalidationv1.DescribeProviderRequest]) (*connect.Response[scenariovalidationv1.DescribeProviderResponse], error) {
+func (h *sharedHandler) DescribeProvider(_ context.Context, req *connect.Request[scenariovalidationv1.DescribeProviderRequest]) (*connect.Response[scenariovalidationv1.DescribeProviderResponse], error) {
+	phase := "component-tests"
+	if req != nil && strings.TrimSpace(req.Msg.GetPhase()) != "" {
+		phase = strings.TrimSpace(req.Msg.GetPhase())
+	}
+	if phase != "component-tests" && phase != consumerContractPhase {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported provider phase %q", phase))
+	}
 	return connect.NewResponse(&scenariovalidationv1.DescribeProviderResponse{
 		Provider:    "react-component-library",
-		Phase:       "component-tests",
+		Phase:       phase,
 		SpecVersion: "2.0.0",
 		Contract:    "scenario-validation/v1",
 		Capabilities: &scenariovalidationv1.ProviderCapabilities{
@@ -84,6 +119,9 @@ func (h *sharedHandler) DescribeProvider(context.Context, *connect.Request[scena
 }
 
 func (h *sharedHandler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+	if req != nil && req.Msg.GetPhase() == consumerContractPhase {
+		return h.validateConsumerContractFleet(ctx, req.Msg)
+	}
 	collector := metrics.Start()
 	allVersions := domain.FullVersionAuditRequested(req.Msg.GetCapabilitySubset())
 	var nativeDetail *anypb.Any
@@ -292,6 +330,138 @@ func (h *sharedHandler) ValidateScenario(ctx context.Context, req *connect.Reque
 		NativeDetail: nativeDetail,
 		Metrics:      collector.Stop(),
 	}), nil
+}
+
+// validateConsumerContractFleet runs the same package script as
+// `pnpm run usage-contracts:fleet`; the phase is one bounded fleet observation,
+// not 114 copies of a per-scenario scanner.
+func (h *sharedHandler) validateConsumerContractFleet(ctx context.Context, req *scenariovalidationv1.ValidateScenarioRequest) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+	collector := metrics.Start()
+	if !req.GetIncludeExecution() {
+		assessment := consumerContractAssessment(req.GetScenario(), true, nil)
+		assessment.Local.CurrentLevel = "L0"
+		assessment.Local.NextLevel = "L1"
+		assessment.Local.Clean = false
+		capability := assessment.Capabilities[0]
+		capability.CurrentLevel = "L0"
+		capability.NextLevel = "L1"
+		capability.CurrentSummary = "Fleet scan was not evaluated."
+		capability.NextUnlock = "Request execution to scan the React UI fleet."
+		capability.Clean = false
+		assessment.HighestPriorityCapability.CurrentLevel = "L0"
+		assessment.HighestPriorityCapability.NextLevel = "L1"
+		assessment.Presentation = canonicalComponentTestsPresentation(assessment)
+		return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{
+			Scenario: req.GetScenario(), Status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_SKIPPED,
+			Assessment: assessment, Metrics: collector.Stop(),
+		}), nil
+	}
+	uiRoot := filepath.Dir(h.sourceRoot)
+	commandCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
+	command := exec.CommandContext(commandCtx, "pnpm", "--silent", "run", "usage-contracts:fleet", "--", "--json")
+	command.Dir = filepath.Join(uiRoot, "ui")
+	var stderr strings.Builder
+	command.Stderr = &stderr
+	output, commandErr := command.Output()
+	var report usageContractFleetReport
+	if err := json.Unmarshal(output, &report); err != nil {
+		message := strings.TrimSpace(string(output))
+		if message == "" && commandErr != nil {
+			message = strings.TrimSpace(stderr.String())
+			if message == "" {
+				message = commandErr.Error()
+			}
+		}
+		assessment := consumerContractAssessment(req.GetScenario(), false, []string{"Fleet contract scan returned no valid machine-readable report: " + message})
+		collector.Gauge("usage_contract_fleet_available", 0)
+		return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{
+			Scenario: req.GetScenario(), Status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR,
+			Assessment: assessment, FailureClassification: "system", Metrics: collector.Stop(),
+		}), nil
+	}
+	validReport := report.Fleet.Scenarios > 0 && report.Fleet.Files > 0 && report.Fleet.ByContract != nil && report.Findings != nil && strings.TrimSpace(report.Ratchet.Baseline) != "" && report.Ratchet.Comparisons != nil && report.Ratchet.Failures != nil && (report.Ratchet.Status == "passed" || report.Ratchet.Status == "failed")
+	if !validReport || (commandErr == nil && report.Ratchet.Status != "passed") || (commandErr != nil && report.Ratchet.Status != "failed") {
+		message := fmt.Sprintf("Fleet contract scan returned an inconsistent or incomplete report (scenarios=%d files=%d ratchet=%q baseline=%q, command error=%v)", report.Fleet.Scenarios, report.Fleet.Files, report.Ratchet.Status, report.Ratchet.Baseline, commandErr)
+		assessment := consumerContractAssessment(req.GetScenario(), false, []string{message})
+		collector.Gauge("usage_contract_fleet_available", 0)
+		return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{
+			Scenario: req.GetScenario(), Status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR,
+			Assessment: assessment, FailureClassification: "system", Metrics: collector.Stop(),
+		}), nil
+	}
+
+	clean := report.Ratchet.Status == "passed"
+	findings := append([]string(nil), report.Ratchet.Failures...)
+	if !clean && len(findings) == 0 {
+		findings = append(findings, "Fleet contract ratchet failed without reporting a reason.")
+	}
+	assessment := consumerContractAssessment(req.GetScenario(), clean, findings)
+	collector.Gauge("usage_contract_fleet_available", 1)
+	collector.Gauge("usage_contract_fleet_scenarios", float64(report.Fleet.Scenarios))
+	collector.Gauge("usage_contract_fleet_files", float64(report.Fleet.Files))
+	collector.Gauge("usage_contract_fleet_findings", float64(report.Fleet.Findings))
+	collector.Gauge("usage_contract_fleet_ratchet_passed", boolGauge(clean))
+	var native *anypb.Any
+	var reportMap map[string]any
+	if err := json.Unmarshal(output, &reportMap); err == nil {
+		if detail, detailErr := structpb.NewStruct(reportMap); detailErr == nil {
+			native, _ = anypb.New(detail)
+		}
+	}
+	status := scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
+	failureClass := ""
+	if !clean {
+		status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
+		failureClass = "test_failure"
+	}
+	return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{
+		Scenario: req.GetScenario(), Status: status, Assessment: assessment, NativeDetail: native,
+		FailureClassification: failureClass, Metrics: collector.Stop(),
+	}), nil
+}
+
+func consumerContractAssessment(scenario string, clean bool, findings []string) *commonv1.MaturityAssessment {
+	const (
+		provider = "react-component-library"
+		phase    = consumerContractPhase
+	)
+	levels := []*commonv1.LocalMaturityLevel{
+		{Id: "L0", Name: "Fleet ratchet failed", StatusLabel: "Needs repair", CapabilitySummary: "The fleet contract scan or its downward-only ratchet failed.", NextUnlock: "Resolve reported contract violations or restore a valid fleet scan."},
+		{Id: "L1", Name: "Fleet ratchet passed", StatusLabel: "Ready", CapabilitySummary: "Every React UI in the governed fleet was scanned and no per-contract count exceeded its baseline."},
+	}
+	current, next := "L1", ""
+	blocking := []string(nil)
+	if !clean {
+		current, next = "L0", "L1"
+		blocking = []string{"USAGE_CONTRACT_RATCHET_FAILED"}
+	}
+	capability := &commonv1.CapabilityMaturityAssessment{
+		Id: "consumer_contracts", Label: "React Consumer Contracts", Description: "Fleet-wide static checks enforce each published component usage contract at its React call sites.",
+		CurrentLevel: current, NextLevel: next, Levels: levels, CurrentSummary: levels[0].CapabilitySummary,
+		NextUnlock: levels[0].NextUnlock, Clean: clean, BlockingFindingCodes: blocking, PriorityRank: 1,
+	}
+	if clean {
+		capability.CurrentSummary = levels[1].CapabilitySummary
+		capability.NextUnlock = "No per-contract violation count exceeded its ratchet baseline."
+	}
+	assessment := &commonv1.MaturityAssessment{
+		Scenario: scenario, Provider: provider, Phase: phase, Version: "1.0.0",
+		Local:                     &commonv1.LocalMaturityAssessment{CurrentLevel: current, NextLevel: next, Levels: levels, Clean: clean, BlockingFindingCodes: blocking},
+		Capabilities:              []*commonv1.CapabilityMaturityAssessment{capability},
+		HighestPriorityCapability: &commonv1.PriorityFocus{CapabilityId: capability.Id, CapabilityLabel: capability.Label, CurrentLevel: current, NextLevel: next, Reason: "fleet usage-contract counts must not rise"},
+	}
+	for _, message := range findings {
+		assessment.Findings = append(assessment.Findings, &commonv1.AssessmentFinding{
+			Code: "USAGE_CONTRACT_RATCHET_FAILED", Severity: "SEVERITY_ERROR", Title: "React consumer usage-contract ratchet failed",
+			Message: message, Location: "scenarios/react-component-library/ui/usage-contract-ratchet.json",
+			Remediation: "inspect the per-contract fleet report, fix the listed call sites, and update a baseline only when the change is intentional",
+			Maturity:    &commonv1.FindingMaturity{LocalLevel: "L0", GlobalImpact: commonv1.GlobalImpact_GLOBAL_IMPACT_FOUNDATION_BLOCKER, Dimension: "tests", CleanRequirement: commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED, CapabilityId: capability.Id},
+			FixClass:    "manual",
+		})
+	}
+	assessment.Presentation = canonicalComponentTestsPresentation(assessment)
+	return assessment
 }
 
 func basInspectionNativeDetail(inspection domain.BASProviderInspection, inspectionOnly, executionRequested bool) (*anypb.Any, error) {

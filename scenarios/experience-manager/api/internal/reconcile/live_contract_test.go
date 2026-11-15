@@ -18,8 +18,9 @@ import (
 // This is opt-in because it requires the lifecycle-managed BAS and target UI.
 func TestLiveFleetAffordanceContract(t *testing.T) {
 	baseURL := strings.TrimSpace(os.Getenv("EXPERIENCE_BAS_INTEGRATION_URL"))
-	if baseURL == "" {
-		t.Skip("set EXPERIENCE_BAS_INTEGRATION_URL to exercise the live fleet capture contract")
+	uiHealthURL := strings.TrimSpace(os.Getenv("EXPERIENCE_UI_HEALTH_INTEGRATION_URL"))
+	if baseURL == "" || uiHealthURL == "" {
+		t.Skip("set EXPERIENCE_BAS_INTEGRATION_URL and EXPERIENCE_UI_HEALTH_INTEGRATION_URL to exercise the live fleet contract and geometry evaluators")
 	}
 	repoRoot := repoRoot(t)
 	report, err := spec.ParseScenario(filepath.Join(repoRoot, "scenarios", "experience-manager"))
@@ -35,6 +36,7 @@ func TestLiveFleetAffordanceContract(t *testing.T) {
 		t.Fatalf("CaptureProfilesFromAxes: %v", err)
 	}
 	capturer := BASCapturer{Resolve: func(context.Context) (string, error) { return baseURL, nil }}
+	geometry := &UIHealthGeometryEvaluator{resolveBaseURL: func(context.Context) (string, error) { return uiHealthURL, nil }}
 	for _, profile := range profiles {
 		targets := captureTargetsForProfile("experience-manager", page, profile)
 		for _, target := range targets {
@@ -43,7 +45,11 @@ func TestLiveFleetAffordanceContract(t *testing.T) {
 				t.Logf("profile %q state %q capture unavailable: %v", profile.MatrixID, target.StateID, captureErr)
 				continue
 			}
-			result := reconcileActivePage("experience/pages/fleet.json", pageWithBaselineClaims(page), target, snapshot)
+			geometryFindings, geometryErr := geometry.EvaluateGeometry(context.Background(), "experience-manager", target, snapshot)
+			if geometryErr != nil {
+				t.Fatalf("ui-health geometry evaluation: %v", geometryErr)
+			}
+			result := reconcileActivePageWithGeometry("experience/pages/fleet.json", pageWithBaselineClaims(page), target, snapshot, geometryFindings)
 			for _, finding := range result.Findings {
 				if (finding.Code == spec.CodeClaimFailed || finding.Code == spec.CodeAffordanceMissing) && strings.Contains(finding.Message, "debt-table-affordances") {
 					t.Fatalf("live fleet affordance claim failed for profile %q state %q: %+v", profile.MatrixID, target.StateID, finding)

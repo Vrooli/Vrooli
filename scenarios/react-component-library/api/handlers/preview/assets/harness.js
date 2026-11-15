@@ -394,7 +394,7 @@ const measurePaintedContent = () => {
   }
   return { paintedNodes, renderedWidth: paintedNodes ? Math.round(right - left) : 0, renderedHeight: paintedNodes ? Math.round(bottom - top) : 0 };
 };
-const reportStoryResult = (passed, failures, skipped = [], painted = measurePaintedContent()) => {
+const reportStoryResult = (passed, failures, skipped = [], painted = measurePaintedContent(), axeEvidence = null) => {
   performanceEntries.push(...performance.getEntriesByType("measure").map((entry) => ({ name: entry.name, duration: entry.duration })));
   const result = {
     passed,
@@ -412,6 +412,7 @@ const reportStoryResult = (passed, failures, skipped = [], painted = measurePain
       measures: performanceEntries,
     },
   };
+  if (axeEvidence) result.axe = axeEvidence;
   if (harnessRoot) {
     harnessRoot.dataset.rclStoryStatus = passed ? "passed" : "failed";
     harnessRoot.dataset.rclStoryRole = previewStory.role || "";
@@ -765,7 +766,17 @@ try {
       renderSheet(wrapStandalone(standaloneSubject), "standalone");
     };
     renderPreview({});
-    void runStory(previewStory, { document, window }, { queries: testingLibraryDOM, report: reportStoryResult, measure: measurePaintedContent, browser: true }).then(() => {
+    void runStory(previewStory, { document, window }, { queries: testingLibraryDOM, measure: measurePaintedContent, browser: true }).then(async (storyResult) => {
+      let axeEvidence = null;
+      if (captureMode === "isolated") {
+        const captureRoot = document.querySelector('[data-preview-capture-boundary="component-sheet"]') || harnessRoot;
+        if (typeof window.__rclRunAxeEvidence === "function") {
+          axeEvidence = await window.__rclRunAxeEvidence(captureRoot);
+        } else {
+          axeEvidence = { schema: "rcl-axe-results/v1", status: "unavailable", reason: "axe-runner-not-installed" };
+        }
+      }
+      reportStoryResult(storyResult.passed, storyResult.failures, storyResult.skipped, storyResult, axeEvidence);
       setHarnessState("ready");
       parent.postMessage({ type: "preview-ready", id: __PREVIEW_ID__, sha256: __BUNDLE_SHA256__, story: previewStory.name || "", version: previewStory.version || "" }, "*");
     }).catch((error) => {

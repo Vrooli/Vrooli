@@ -150,10 +150,9 @@ func (j *gatewayVisionJudge) Check(ctx context.Context, screenshot []byte, width
 		if category == "" || codeCategory == "" || description == "" || finding.Confidence < 0.65 || finding.Confidence > 1 {
 			continue
 		}
+		// The critic has no measured false-positive/false-negative rate yet.
+		// Model severity and confidence are evidence for review, never a gate.
 		severity := manifestvalidation.SeverityWarning
-		if strings.EqualFold(finding.Severity, "error") && finding.Confidence >= 0.9 {
-			severity = manifestvalidation.SeverityError
-		}
 		location := pageURL
 		pageContext := ""
 		if strings.TrimSpace(screenshotRef) != "" {
