@@ -122,6 +122,22 @@ func TestAskResolvedEventPayloadIsVrooliEventsSerializable(t *testing.T) {
 	}
 }
 
+// The answering agent starts the executor from the packet, so the resolution
+// carries it as stored, whatever route raised the ask.
+func TestTheResolutionCarriesTheAsksPacket(t *testing.T) {
+	service, _ := testService(t)
+	now := time.Date(2026, time.October, 7, 12, 0, 0, 0, time.UTC)
+	service.SetClockForTest(fixedClock{now: now})
+	spec := decisionSpec(now, "evt-packet")
+	spec.Packet = "/home/me/.vrooli/research/work/RE-AIM/BRIEF.md"
+	ask, _, err := service.AskWithSpec(context.Background(), spec)
+	require.NoError(t, err)
+	stored, err := service.GetAsk(context.Background(), ask.ID)
+	require.NoError(t, err)
+	require.Equal(t, spec.Packet, stored.Packet)
+	require.Equal(t, spec.Packet, hub.AskResolvedEvent(stored).Payload["packet"])
+}
+
 // [REQ:NOTIFICA-P1-009][REQ:NOTIFICA-P1-010]
 func TestAskWithSpec_PersistsStructuredDecisionAtNormalUrgencyUnlessTheRequesterSaysHigh(t *testing.T) {
 	service, _ := testService(t)

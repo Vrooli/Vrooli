@@ -362,6 +362,9 @@ choice question. `text` and notes are at most 4,000 characters.
 | `question_attachment_unknown` | advice | A choice or section points at an attachment name the ask does not have. |
 | `internal_id_in_question`, `path_in_question`, `long_question`, `missing_big_picture`, `missing_recommendation_reason`, `local_context_url`, `unattached_path` | advice | The cover reads poorly to a reader with no context. |
 | `explainer_not_html`, `explainer_too_large`, `explainer_network`, `explainer_no_viewport`, `explainer_form`, `explainer_unknown_attachment` | advice | The explainer page will not work as intended in its sealed frame. |
+| `missing_recommendation_reason`, `explainer_restates`, `page_unreadable` | blocking (an agent's direct ask), advice (a scenario's event) | The decision would waste the operator's attention: no reason for the recommendation, a page that only restates the cover, or text below 3:1 contrast. A blocking finding refuses `Ask` with `FailedPrecondition` and `Hub-Error-Reason: ask_refused`, stores nothing, and `CheckAsk` reports it with severity `blocking`. |
+| `command_hidden`, `recurring_subject` | advice | An answer has the operator run a command the page never shows on a line of its own; or this is the third similar ask from one sender in 14 days with no option that stops the repeats. |
+| `page_no_picture`, `page_picture_uncropped` | advice | The page shows nothing (no image, chart, table or kit decision block), or shows two or more pictures whole, at full height. |
 
 Warnings are computed for every `Ask` response, including a repeat of an
 earlier request.

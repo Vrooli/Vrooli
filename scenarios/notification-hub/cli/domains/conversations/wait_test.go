@@ -60,6 +60,18 @@ func TestWaitPrintsTheAnswerSummaryWhenAnswered(t *testing.T) {
 	require.Empty(t, stderr)
 }
 
+func TestAnAnsweredWaitNamesThePacketAndTheExecutorMessage(t *testing.T) {
+	stub := &hubStub{waitResp: &v1.WaitResponse{
+		AskId: "ask-7", State: "answered", Answer: "approve", AnswerSummary: "Answer: Approve (approve)",
+		Packet: "/home/me/.vrooli/research/topics/t/work/NAV-1/BRIEF.md",
+	}}
+	svc := newTestService(t, stub)
+	stdout, _, err := runCommand(t, svc, "wait", "--ask-id", "ask-7", "--timeout", "10m")
+	require.NoError(t, err)
+	require.Contains(t, stdout, "Packet: /home/me/.vrooli/research/topics/t/work/NAV-1/BRIEF.md")
+	require.Contains(t, stdout, "Execute the approved decision NAV-1. Read /home/me/.vrooli/research/topics/t/work/NAV-1/BRIEF.md; the answer is approve.")
+}
+
 func TestWaitFallsBackToTheBareAnswerWithoutASummary(t *testing.T) {
 	stub := &hubStub{waitResp: &v1.WaitResponse{AskId: "ask-7", State: "defaulted", Answer: "no", Reason: "default applied"}}
 	svc := newTestService(t, stub)

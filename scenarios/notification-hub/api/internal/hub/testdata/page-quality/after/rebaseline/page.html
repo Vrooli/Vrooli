@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install the disk capacity update</title>
+<style>
+  .eyebrow { margin: 0 0 .25rem; color: var(--hub-muted); font-size: .8125rem; }
+  .stat { display: grid; grid-template-columns: auto 1fr; gap: .25rem .875rem; align-items: baseline; margin: 1rem 0; }
+  .stat strong { font-size: 1.4rem; }
+  .stat span { color: var(--hub-muted); }
+</style>
+</head>
+<body>
+  <p class="eyebrow">A stored data change needs your approval</p>
+  <h1>May I finish installing the disk capacity update?</h1>
+  <p><span class="hub-chip is-primary">I recommend running it today</span> The update is built and its tests pass; the install can proceed only after you approve the stored data change.</p>
+
+  <section class="hub-command">
+    <p class="hub-command__where">In a terminal on the Vrooli computer</p>
+    <div class="hub-command__line"><code>cd ~/Vrooli &amp;&amp; make rebaseline</code><button type="button" class="is-quiet" data-hub-copy>Copy</button></div>
+    <ol class="hub-command__steps">
+      <li>Runs the full build check first. It takes several minutes.</li>
+      <li>Shows the stored data changes, then waits for your confirmation.</li>
+      <li>Saves the currently installed version, pauses automatic updates, installs and checks the update, then turns automatic updates back on.</li>
+      <li>After you say you ran it here, I finish the install and check it.</li>
+    </ol>
+    <p><strong>Before anything changes:</strong> the build check runs, then the command lists the changes and asks you to type a confirmation. It makes no stored data change until you confirm.</p>
+    <p><strong>Undo:</strong> there is no automatic rollback because the old version cannot read the new stored data. The saved copy makes a manual rollback possible.</p>
+  </section>
+
+  <div class="stat"><strong>5 areas</strong><span>of stored data change: disk capacity, resources, process records, managed services and operator state</span></div>
+  <div class="hub-callout is-warning"><strong>Why this is coming back:</strong> this is the second request in five days. The installer stops whenever any stored field is added, even when no field is removed or renamed. A rule change could prevent repeats, but it needs its own operator decision because it changes a safety rule.</div>
+  <aside class="hub-recurrence"><strong class="hub-recurrence__count">2×</strong><div><p>You have been asked to run this kind of rebaseline twice in five days: 11 Nov and 15 Nov.</p><p class="hub-recurrence__stop">A separate decision could change the installer to stop only for removed or renamed stored fields.</p></div></aside>
+
+  <h2>Your choices</h2>
+  <div class="hub-tradeoffs">
+    <section class="is-recommended">
+      <span class="hub-chip is-primary">Recommended</span>
+      <h3>Run it today</h3>
+      <p>Run the command above, review its listed changes, and confirm if they match this update. Then tell me you ran it; I finish and check the install. This changes stored data and has no automatic rollback.</p>
+      <button type="button" data-answer="run">Choose this</button>
+    </section>
+    <section>
+      <h3>Hold</h3>
+      <p>The installed version stays in place, disk capacity remains inactive, and I continue source work only. Nothing breaks. I can prepare a separate decision about changing the installer rule, which would need your approval too.</p>
+      <button type="button" class="is-quiet" data-answer="hold">Choose this</button>
+    </section>
+  </div>
+  <div class="hub-callout"><strong>If you do not answer:</strong> the result is the same as Hold. The current install stays in place and the feature remains inactive.</div>
+  <details>
+    <summary>Where these details come from</summary>
+    <p>The update is built and its tests pass. The installer identified stored data changes across five areas; only you may approve this switch. The command saves the installed version under your Vrooli state directory before installing.</p>
+  </details>
+  <script>
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-answer]");
+      if (b && window.hub && window.hub.prefill) window.hub.prefill("answer", b.getAttribute("data-answer"));
+    });
+  </script>
+</body>
+</html>

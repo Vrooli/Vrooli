@@ -169,9 +169,9 @@ func encodeCorrelation(spec AskSpec) (string, error) {
 
 // insertAskTx writes one ask row. asserted is "" for an ask without a subject.
 func insertAskTx(ctx context.Context, tx dbTx, id, notificationID string, spec AskSpec, enc askRowEncoding, now, asserted string) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, reason, created_at, updated_at, options_json, recommended, recommendation_reason, default_answer, reversible, urgency, context_url, big_picture, technical_details, source, source_event_type, requester_ref, correlation_json, subject_key, last_asserted_at, reassert_within_seconds, current_event_id, questions_json, accepts_context_requests, created_by, created_conversation, created_subject, sender) VALUES (?, ?, ?, ?, ?, 'pending', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	_, err := tx.ExecContext(ctx, `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, reason, created_at, updated_at, options_json, recommended, recommendation_reason, default_answer, reversible, urgency, context_url, big_picture, technical_details, source, source_event_type, requester_ref, correlation_json, subject_key, last_asserted_at, reassert_within_seconds, current_event_id, questions_json, accepts_context_requests, created_by, created_conversation, created_subject, sender, packet) VALUES (?, ?, ?, ?, ?, 'pending', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, notificationID, spec.Question, enc.allowed, storedTime(spec.Deadline), now, now, enc.options, spec.Recommended, strings.TrimSpace(spec.RecommendationReason), spec.DefaultAnswer, dbvalue.BoolInt(spec.Reversible), spec.Urgency, strings.TrimSpace(spec.ContextURL), spec.BigPicture, spec.TechnicalDetails, spec.Source, strings.TrimSpace(spec.SourceEventType), spec.IdempotencyKey, enc.correlation,
-		spec.SubjectKey, asserted, int(spec.ReassertWithin/time.Second), spec.IdempotencyKey, enc.questions, dbvalue.BoolInt(spec.AcceptsContextRequests), spec.CreatedBy, spec.CreatedConversation, spec.CreatedSubject, spec.Sender)
+		spec.SubjectKey, asserted, int(spec.ReassertWithin/time.Second), spec.IdempotencyKey, enc.questions, dbvalue.BoolInt(spec.AcceptsContextRequests), spec.CreatedBy, spec.CreatedConversation, spec.CreatedSubject, spec.Sender, spec.Packet)
 	return err
 }
 
@@ -343,7 +343,7 @@ func sameSubjectContent(existing AskRecord, n Notification, spec AskSpec) bool {
 		existing.BigPicture == spec.BigPicture && existing.TechnicalDetails == spec.TechnicalDetails &&
 		sameQuestions(existing.Questions, spec.Questions) &&
 		existing.AcceptsContextRequests == spec.AcceptsContextRequests &&
-		existing.AttachmentsDigest == attachmentDigest(spec.Attachments) &&
+		existing.AttachmentsDigest == attachmentDigest(spec.Attachments) && existing.Packet == spec.Packet &&
 		sameCorrelation(existing.Correlation, spec.Correlation)
 }
 
@@ -704,8 +704,8 @@ func updateSubjectAskTx(ctx context.Context, tx dbTx, open AskRecord, n Notifica
 	if err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE asks SET question=?, recommendation_reason=?, context_url=?, big_picture=?, technical_details=?, options_json=?, questions_json=?, accepts_context_requests=?, correlation_json=?, deadline=?, revision_count=revision_count+1, requester_ref=?, current_event_id=?, last_asserted_at=?, reassert_within_seconds=?, updated_at=? WHERE id=? AND state IN ('pending','escalated')`,
-		spec.Question, strings.TrimSpace(spec.RecommendationReason), strings.TrimSpace(spec.ContextURL), spec.BigPicture, spec.TechnicalDetails, enc.options, enc.questions, dbvalue.BoolInt(spec.AcceptsContextRequests), enc.correlation, deadline, spec.IdempotencyKey, spec.IdempotencyKey, subjectTime(asserted), int(spec.ReassertWithin/time.Second), nowText, open.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE asks SET question=?, recommendation_reason=?, context_url=?, big_picture=?, technical_details=?, options_json=?, questions_json=?, accepts_context_requests=?, correlation_json=?, packet=?, deadline=?, revision_count=revision_count+1, requester_ref=?, current_event_id=?, last_asserted_at=?, reassert_within_seconds=?, updated_at=? WHERE id=? AND state IN ('pending','escalated')`,
+		spec.Question, strings.TrimSpace(spec.RecommendationReason), strings.TrimSpace(spec.ContextURL), spec.BigPicture, spec.TechnicalDetails, enc.options, enc.questions, dbvalue.BoolInt(spec.AcceptsContextRequests), enc.correlation, spec.Packet, deadline, spec.IdempotencyKey, spec.IdempotencyKey, subjectTime(asserted), int(spec.ReassertWithin/time.Second), nowText, open.ID); err != nil {
 		return err
 	}
 	// The revision answers every context request still open.

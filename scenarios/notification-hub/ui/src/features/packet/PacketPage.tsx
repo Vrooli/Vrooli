@@ -7,6 +7,7 @@ import type { Ask } from "@vrooli/proto-types/notification-hub/v1/conversations/
 import { FileQuestion } from "lucide-react";
 
 import { conversationsClient } from "../../api/notifications";
+import { resolveLinkedArtifact, type LinkedArtifact } from "../../api/attachments";
 import { EmptyNotice, QueryError } from "../../components/QueryNotice";
 import { SkeletonRows } from "../../components/Skeleton";
 import { selectors } from "../../consts/selectors";
@@ -33,7 +34,6 @@ import { OutcomeNotices } from "./status/OutcomeNotices";
 import { PacketStatus } from "./status/PacketStatus";
 import { useAnswerFlow } from "./useAnswerFlow";
 import { usePacketOrigin } from "./usePacketOrigin";
-import { useWebConsole } from "./useDecisionLinks";
 import { AttachmentStrip } from "./viewer/AttachmentStrip";
 import { explainerOf, type AttachmentTarget } from "./viewer/attachments";
 
@@ -126,9 +126,11 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
   const now = useNow();
   const [draft, updateDraft] = usePacketDraft(subject, ask.id);
   const flow = useAnswerFlow({ ask, subject, attemptSubject, draft });
-  const webConsole = useWebConsole(ask);
-
   const [viewing, setViewing] = useState<AttachmentTarget | null>(null);
+  const [linkedArtifact, setLinkedArtifact] = useState<LinkedArtifact>();
+  const [linkedArtifactError, setLinkedArtifactError] = useState(false);
+  const [resolvingArtifact, setResolvingArtifact] = useState(false);
+  const [failedArtifactPath, setFailedArtifactPath] = useState("");
   const [askingContext, setAskingContext] = useState(false);
   const [revisionsOpen, setRevisionsOpen] = useState(false);
   const [answering, setAnswering] = useState(false);
@@ -140,9 +142,23 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
   const hasPacket = ask.attachments.length > 0 || ask.questions.length > 0;
   // A sent answer is shown as one stacked, read-only form, never as steps.
   const paged = phone && ask.questions.length >= 2 && !flow.settling;
+  const openAttachment = useCallback((target: AttachmentTarget) => {
+    setLinkedArtifact(undefined);
+    setLinkedArtifactError(false);
+    setViewing(target);
+  }, []);
+  const openLinkedArtifact = useCallback((path: string) => {
+    setFailedArtifactPath(path);
+    setResolvingArtifact(true);
+    setLinkedArtifactError(false);
+    void resolveLinkedArtifact(ask.id, path).then((artifact) => {
+      setLinkedArtifact(artifact);
+      setViewing({ name: "linked-artifact", path: artifact.name });
+    }).catch(() => setLinkedArtifactError(true)).finally(() => setResolvingArtifact(false));
+  }, [ask.id]);
   const links = useMemo(
-    () => ({ webConsoleUrl: webConsole.query.data, attachments: ask.attachments, onOpenAttachment: setViewing }),
-    [webConsole.query.data, ask.attachments],
+    () => ({ attachments: ask.attachments, onOpenAttachment: openAttachment, onOpenLinkedArtifact: openLinkedArtifact }),
+    [ask.attachments, openAttachment, openLinkedArtifact],
   );
 
   const onExplainerPrefill = useCallback(
@@ -176,7 +192,7 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
       onSubmit={flow.submit}
       onDismiss={flow.dismiss}
       onRequestContext={() => setAskingContext(true)}
-      onOpenAttachment={setViewing}
+      onOpenAttachment={openAttachment}
       onBackToCover={() => setAnswering(false)}
     />
   );
@@ -204,8 +220,7 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
             <PacketCover
               ask={ask}
               links={links}
-              webConsole={webConsole}
-              onOpenAttachment={setViewing}
+              onOpenAttachment={openAttachment}
               outcome={open ? undefined : status}
               afterQuestion={
                 <>
@@ -221,9 +236,16 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
                 </>
               }
             />
-            <AttachmentStrip askId={ask.id} attachments={ask.attachments} notedAttachments={notedAttachments} onOpen={setViewing} />
+            <AttachmentStrip askId={ask.id} attachments={ask.attachments} notedAttachments={notedAttachments} onOpen={openAttachment} />
             <Revisions ask={ask} links={links} open={revisionsOpen} onToggle={setRevisionsOpen} />
             {open && status}
+            {resolvingArtifact && <p role="status" className="text-sm text-app-muted-foreground">{t(strings.packet.text.fileLinksLoading)}</p>}
+            {linkedArtifactError && (
+              <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-app-muted-foreground">
+                <p>{t(strings.packet.text.fileLinksUnavailable)}</p>
+                <Button data-testid={selectors.asks.retryFileLinks} className="min-h-11" type="button" variant="outline" disabled={resolvingArtifact} onClick={() => failedArtifactPath && openLinkedArtifact(failedArtifactPath)}>{t(strings.packet.text.retryFileLinks)}</Button>
+              </div>
+            )}
             <OutcomeNotices
               ask={ask}
               outcome={flow.outcome}
@@ -273,8 +295,9 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
             <AttachmentViewer
               askId={ask.id}
               attachments={ask.attachments}
+              linkedArtifact={linkedArtifact}
               target={viewing}
-              onClose={() => setViewing(null)}
+              onClose={() => { setViewing(null); setLinkedArtifact(undefined); }}
               draft={draft}
               onDraftChange={updateDraft}
               canNote={canAnswer && signedIn && !flow.settling}

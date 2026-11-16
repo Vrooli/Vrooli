@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "notification-hub-decision-eval",
+  "profileKey": "notification-hub/decision-eval",
+  "description": "The decision-quality eval of the notification-hub skill (scenarios/notification-hub/evals/decision-quality). One Codex Luna run gets one case's facts, reads the notification-hub skill and prepares the decision with a dry run through the eval's check-decision wrapper, writing only in its case folder under ~/.vrooli/research/notification-hub-decision-eval/. It sends nothing. No sandbox, because the case folder is outside the repository.",
+  "roleRef": "code.cheap",
+  "effort": "medium",
+  "maxTurns": 0,
+  "timeout": "1800s",
+  "allowedTools": ["read", "glob", "grep", "shell", "edit", "write"],
+  "toolRestrictionPolicy": "advisory",
+  "skipPermissionPrompt": true,
+  "networkAccess": "NETWORK_ACCESS_LOCALHOST",
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_OFF",
+    "networkMode": "NETWORK_ACCESS_LOCALHOST"
+  },
+  "createdBy": "notification-hub",
+  "spawnPolicy": {
+    "axisOrder": ["executionMode", "sandboxMode"],
+    "executionMode": {"prefer": ["codec_pipe"]},
+    "sandboxMode": {"prefer": ["off"]},
+    "require": []
+  }
+}

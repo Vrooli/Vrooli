@@ -2,15 +2,21 @@ package conversations
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"log/slog"
 	"maps"
+	"mime"
 	"net/http"
+	"net/url"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/filekind"
 	"github.com/vrooli/api-core/operatordecision"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
 	connectv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations/conversations_v1connect"
@@ -18,6 +24,7 @@ import (
 
 	"notification-hub/internal/hub"
 	identity "notification-hub/internal/identity"
+	"notification-hub/internal/linkedartifact"
 	"notification-hub/internal/module"
 )
 
@@ -38,9 +45,15 @@ const warnAskReadRestricted = "ask_read_restricted"
 // an ask whose requester did not declare it answers questions.
 const ReasonContextNotAccepted = "context_not_accepted"
 
+// ReasonAskRefused marks a FailedPrecondition that refused an agent's ask for a
+// blocking decision-quality finding (hub.RefusedError): nothing was stored, and
+// the message names each finding and its fix.
+const ReasonAskRefused = "ask_refused"
+
 type handler struct {
-	service  *hub.Service
-	verifier identity.Verifier
+	service         *hub.Service
+	verifier        identity.Verifier
+	linkedArtifacts *linkedartifact.Resolver
 	// services verifies the service-principal roles: ask readers and senders. A
 	// nil verifier turns its role off.
 	services identity.ServiceVerifiers
@@ -62,11 +75,15 @@ func ModuleWithVerifier(service *hub.Service, verifier identity.Verifier) module
 // roles: the tokens that read a service's own asks (askreader.NewVerifier) and
 // the tokens that send as a service (hubsender.NewVerifier).
 func ModuleWithIdentities(service *hub.Service, verifier identity.Verifier, services identity.ServiceVerifiers) module.Module {
-	return newHandler(service, verifier, services).module()
+	return ModuleWithLinkedArtifacts(service, verifier, services, nil)
 }
 
-func newHandler(service *hub.Service, verifier identity.Verifier, services identity.ServiceVerifiers) *handler {
-	return &handler{service: service, verifier: verifier, services: services, uploads: make(chan struct{}, maxConcurrentUploads), uploadWait: uploadSlotWait}
+func ModuleWithLinkedArtifacts(service *hub.Service, verifier identity.Verifier, services identity.ServiceVerifiers, artifacts *linkedartifact.Resolver) module.Module {
+	return newHandler(service, verifier, services, artifacts).module()
+}
+
+func newHandler(service *hub.Service, verifier identity.Verifier, services identity.ServiceVerifiers, artifacts *linkedartifact.Resolver) *handler {
+	return &handler{service: service, verifier: verifier, services: services, linkedArtifacts: artifacts, uploads: make(chan struct{}, maxConcurrentUploads), uploadWait: uploadSlotWait}
 }
 
 func (h *handler) module() module.Module {
@@ -76,7 +93,83 @@ func (h *handler) module() module.Module {
 		r.Handle(connectv1.ConversationsServiceWaitProcedure, budgetWait(general)).Methods(http.MethodPost)
 		r.PathPrefix(path).Handler(general)
 		r.HandleFunc(attachmentContentPath, h.serveAttachment).Methods(http.MethodGet, http.MethodHead)
+		r.HandleFunc(linkedArtifactMetadataPath, h.linkedArtifactMetadata).Methods(http.MethodGet)
+		r.HandleFunc(linkedArtifactContentPath, h.serveLinkedArtifact).Methods(http.MethodGet, http.MethodHead)
 	}, Endpoints: Endpoints}
+}
+
+type linkedArtifactMetadata struct {
+	Name       string `json:"name"`
+	Kind       string `json:"kind"`
+	MIMEType   string `json:"mimeType"`
+	SizeBytes  int64  `json:"sizeBytes"`
+	ContentURL string `json:"contentUrl"`
+}
+
+func (h *handler) authorizeLinkedArtifact(w http.ResponseWriter, r *http.Request) bool {
+	owner, err := identity.Subject(r.Context(), r.Header, h.verifier)
+	if err != nil || owner == "" {
+		http.Error(w, "verified owner identity is required", http.StatusUnauthorized)
+		return false
+	}
+	if _, err := h.service.GetAskFor(r.Context(), mux.Vars(r)["ask_id"], owner, hub.OwnerAudience()); err != nil {
+		notFound(w)
+		return false
+	}
+	return true
+}
+
+func (h *handler) linkedArtifactMetadata(w http.ResponseWriter, r *http.Request) {
+	if !h.authorizeLinkedArtifact(w, r) {
+		return
+	}
+	file, info, err := h.linkedArtifacts.Open(r.URL.Query().Get("path"))
+	if err != nil {
+		linkedArtifactError(w, err)
+		return
+	}
+	defer file.Close()
+	name := filepath.Base(info.Name())
+	result := filekind.Classify(name, nil)
+	contentURL := linkedArtifactContentPath + "?path=" + url.QueryEscape(r.URL.Query().Get("path"))
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "private, no-store")
+	_ = json.NewEncoder(w).Encode(linkedArtifactMetadata{Name: name, Kind: string(result.Kind), MIMEType: result.MIME, SizeBytes: info.Size(), ContentURL: contentURL})
+}
+
+func (h *handler) serveLinkedArtifact(w http.ResponseWriter, r *http.Request) {
+	if !h.authorizeLinkedArtifact(w, r) {
+		return
+	}
+	file, info, err := h.linkedArtifacts.Open(r.URL.Query().Get("path"))
+	if err != nil {
+		linkedArtifactError(w, err)
+		return
+	}
+	defer file.Close()
+	name := filepath.Base(info.Name())
+	result := filekind.Classify(name, nil)
+	header := w.Header()
+	header.Set("Content-Type", result.MIME)
+	header.Set("X-Content-Type-Options", "nosniff")
+	header.Set("Cache-Control", "private, no-store")
+	header.Set("Content-Security-Policy", attachmentContentCSP)
+	if disposition := mime.FormatMediaType("inline", map[string]string{"filename": name}); disposition != "" {
+		header.Set("Content-Disposition", disposition)
+	}
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(transferTimeout))
+	http.ServeContent(w, r, name, info.ModTime(), file)
+}
+
+func linkedArtifactError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, linkedartifact.ErrUnavailable):
+		http.Error(w, "linked artifact source is unavailable", http.StatusServiceUnavailable)
+	case errors.Is(err, linkedartifact.ErrTooLarge):
+		http.Error(w, "linked artifact exceeds the preview limit", http.StatusRequestEntityTooLarge)
+	default:
+		notFound(w)
+	}
 }
 
 // producer admits verified senders to read or withdraw their own asks. Ask and
@@ -249,9 +342,48 @@ func (h *handler) findAsk(ctx context.Context, askID, subjectKey string, audienc
 		ask, err = h.service.GetAskFor(ctx, askID, recipient, audience)
 	}
 	if err != nil {
+		if errors.Is(err, hub.ErrNotFound) {
+			h.logUnseenAsk(ctx, askID, subjectKey, recipient, audience)
+		}
 		return hub.AskRecord{}, connectError(err)
 	}
 	return ask, nil
+}
+
+// logUnseenAsk records why a verified reader was told an ask does not exist,
+// without telling the reader: whether the ask exists for the recipient at all,
+// and which kind of reader asked. A scenario whose read-back of its own ask
+// fails is diagnosed from this line, not by guessing at its token.
+func (h *handler) logUnseenAsk(ctx context.Context, askID, subjectKey, recipient string, audience hub.AskAudience) {
+	attrs := []any{"ask_id", askID, "subject_key", subjectKey, "reader", readerKind(audience), "recipient", recipient}
+	if audience.Source != "" {
+		attrs = append(attrs, "reader_source", audience.Source)
+	}
+	if askID != "" {
+		record, err := h.service.GetAskForRecipient(ctx, askID, recipient)
+		switch {
+		case err != nil:
+			attrs = append(attrs, "exists_for_recipient", false)
+		default:
+			attrs = append(attrs, "exists_for_recipient", true, "ask_source", record.Source, "event_sourced", record.SourceEventType != "")
+		}
+	}
+	slog.Info("ask read refused as not found", attrs...)
+}
+
+// readerKind names the kind of verified reader an audience belongs to.
+func readerKind(audience hub.AskAudience) string {
+	switch {
+	case audience.Owner:
+		return "owner"
+	case audience.Source != "":
+		return "source"
+	case strings.HasPrefix(audience.CreatedBy, "run:"):
+		return "run"
+	case audience.CreatedBy != "":
+		return "sender"
+	}
+	return "none"
 }
 
 // maxKeyedWaitHops bounds how many replacements a wait by subject key follows.
@@ -290,7 +422,7 @@ func (h *handler) Wait(ctx context.Context, req *connect.Request[v1.WaitRequest]
 	response := &v1.WaitResponse{
 		AskId: result.Ask.ID, State: result.Ask.State, Answer: result.Ask.Answer, Reason: result.Reason, Note: result.Ask.Note,
 		Responses: responsesToProto(result.Ask.Responses), AnswerSummary: result.Ask.AnswerSummary,
-		AttachmentNotes: attachmentNotesToProto(result.Ask.AttachmentNotes),
+		AttachmentNotes: attachmentNotesToProto(result.Ask.AttachmentNotes), Packet: result.Ask.Packet,
 	}
 	if result.ContextRequest != nil {
 		response.ContextRequest = contextRequestToProto(*result.ContextRequest)
@@ -325,7 +457,7 @@ func (h *handler) GetAsk(ctx context.Context, req *connect.Request[v1.GetAskRequ
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out.Attachments = attachmentsToProto(attachments)
+	out.Attachments = attachmentsToProto(hub.WithCoverPage(ask, attachments))
 	for _, revision := range revisions {
 		options := make([]*v1.AskOption, 0, len(revision.Options))
 		for _, option := range revision.Options {
@@ -427,6 +559,7 @@ func (h *handler) toProto(ask hub.AskRecord) *v1.Ask {
 		CanRequestContext: ask.CanRequestContext(), Correlation: maps.Clone(ask.Correlation),
 		Sender:      ask.Sender,
 		ClosingSoon: ask.ClosingSoon,
+		Packet:      ask.Packet, ApprovalUrl: ask.NativeApprovalURL(),
 	}
 }
 
@@ -484,6 +617,10 @@ func connectError(err error) error {
 		refused := connect.NewError(connect.CodeFailedPrecondition, err)
 		refused.Meta().Set(ErrorReasonHeader, ReasonContextNotAccepted)
 		return refused
+	case errors.Is(err, hub.ErrAskRefused):
+		refused := connect.NewError(connect.CodeFailedPrecondition, err)
+		refused.Meta().Set(ErrorReasonHeader, ReasonAskRefused)
+		return refused
 	case errors.Is(err, hub.ErrContextRequestLimit):
 		return connect.NewError(connect.CodeResourceExhausted, err)
 	case errors.Is(err, hub.ErrAskIdentityConflict):
@@ -499,6 +636,8 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "conversations_stat_attachment_blobs", Path: connectv1.ConversationsServiceStatAttachmentBlobsProcedure, Method: http.MethodPost, Summary: "Report which attachment content hashes the Hub does not hold (verified sender)", Category: "conversations"},
 	{ID: "conversations_put_attachment_blob", Path: connectv1.ConversationsServicePutAttachmentBlobProcedure, Method: http.MethodPost, Summary: "Store one attachment file under its SHA-256 (at most 64 MiB; sender identity is optional)", Category: "conversations"},
 	attachmentContentEndpoint,
+	{ID: "conversations_linked_artifact_metadata", Path: linkedArtifactMetadataPath, Method: http.MethodGet, Summary: "Resolve one decision-linked artifact inside an allowed local root", Category: "conversations", RESTException: linkedArtifactRESTException},
+	{ID: "conversations_linked_artifact_content", Path: linkedArtifactContentPath, Method: http.MethodGet, Summary: "Stream one owner-authorized decision-linked artifact", Category: "conversations", RESTException: linkedArtifactRESTException},
 	{ID: "conversations_list_native_consents", Path: connectv1.ConversationsServiceListNativeConsentsProcedure, Method: http.MethodPost, Summary: "Read source-owned native consent without approving or creating an ask", Category: "conversations"},
 	{ID: "conversations_ask", Path: connectv1.ConversationsServiceAskProcedure, Method: http.MethodPost, Summary: "Ask a question and persist its deadline", Category: "conversations"},
 	{ID: "conversations_check_ask", Path: connectv1.ConversationsServiceCheckAskProcedure, Method: http.MethodPost, Summary: "Run the packet check and preview the notification for an ask without storing it", Category: "conversations"},
@@ -509,4 +648,14 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "conversations_request_context", Path: connectv1.ConversationsServiceRequestContextProcedure, Method: http.MethodPost, Summary: "Ask the requester for more context on an open ask", Category: "conversations"},
 	{ID: "conversations_get_ask", Path: connectv1.ConversationsServiceGetAskProcedure, Method: http.MethodPost, Summary: "Read one ask without changing it", Category: "conversations"},
 	{ID: "conversations_list_asks", Path: connectv1.ConversationsServiceListAsksProcedure, Method: http.MethodPost, Summary: "List the owner's asks, optionally only open ones", Category: "conversations"},
+}
+
+var linkedArtifactRESTException = &module.RESTException{
+	Reason: module.RESTReasonBrowserSurface,
+	Note:   "The read-only file viewer uses this route for metadata and byte-range content. Both require the verified owner and an ask addressed to that owner. File access is restricted to configured roots and 64 MiB; missing optional roots return 503.",
+	ProtoPayloads: &module.RESTProtoPayloads{
+		Request:  module.RESTPayload{Transport: "none", Conformance: "none"},
+		Response: module.RESTPayload{Transport: "none", Conformance: "external_shape"},
+		Error:    module.RESTPayload{Transport: "none", Conformance: "external_shape"},
+	},
 }

@@ -71,7 +71,7 @@ type AttachmentInit = {
   mediaType?: string;
   sizeBytes?: number;
   sha256?: string;
-  entries?: { path: string; previewKind?: string; mediaType?: string; sizeBytes?: number }[];
+  entries?: { path: string; previewKind?: string; mediaType?: string; sizeBytes?: number; sha256?: string }[];
 };
 
 export function makeAttachment({ folder, explainer, entries = [], sizeBytes = 1024, ...rest }: AttachmentInit): AskAttachment {

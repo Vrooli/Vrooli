@@ -2,7 +2,6 @@
 
 Threat model, secret handling, and the authorization boundary.
 
-## Purpose Of This Document
 
 This scenario can be told anything by any scenario in the fleet, and it
 sends what it is told to a human's locked screen. That makes two questions

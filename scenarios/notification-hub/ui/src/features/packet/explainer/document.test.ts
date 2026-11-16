@@ -71,6 +71,19 @@ describe("buildExplainerDocument", () => {
     expect(parse(html).documentElement.getAttribute("data-theme")).toBe("dark");
   });
 
+  // A page whose literal colours only work in light is shown in light even when
+  // the Hub is dark, and the lock tells the bridge to ignore theme changes.
+  it("keeps a page written for one scheme in that scheme and locks it there", () => {
+    const lightOnly = "<style>:root{color:#192723;background:#f5f7f4}.card{background:white}</style><div class=card>Option A</div>";
+    const locked = parse(buildExplainerDocument(lightOnly, options({ kitCss, theme: "dark" }))).documentElement;
+    expect(locked.getAttribute("data-theme")).toBe("light");
+    expect(locked.getAttribute("data-hub-scheme")).toBe("light");
+
+    const themed = parse(buildExplainerDocument('<div style="background:var(--hub-surface);color:var(--hub-fg)">x</div>', options({ kitCss, theme: "dark" }))).documentElement;
+    expect(themed.getAttribute("data-theme")).toBe("dark");
+    expect(themed.hasAttribute("data-hub-scheme")).toBe(false);
+  });
+
   it("leaves the kit out, but not the policy or the bridge, when the page opts out", () => {
     const doc = parse(buildExplainerDocument('<meta name="hub-kit" content="off"><p>mine</p>', options()));
     expect(doc.querySelector('style[data-hub="kit"]')).toBeNull();

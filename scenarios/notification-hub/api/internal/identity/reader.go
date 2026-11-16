@@ -2,6 +2,7 @@ package identity
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -76,6 +77,11 @@ func ReaderFor(ctx context.Context, headers http.Header, owner Verifier, service
 	}
 	if source, err := askreader.VerifiedSource(ctx, services.AskReaders, headers); err == nil {
 		return hub.AskAudience{Source: source}, nil
+	} else if strings.TrimSpace(headers.Get("Authorization")) != "" {
+		// Keep the public refusal generic, but retain the role verifier's
+		// noncredential diagnostic so configured JWKS and claim mismatches can
+		// be separated without logging bearer material.
+		slog.Warn("ask-reader service identity refused", "reason", err)
 	}
 	if source, err := hubsender.VerifiedSource(ctx, services.Senders, headers); err == nil {
 		// A sender reads back the asks it sent, as a run does; it never reads the

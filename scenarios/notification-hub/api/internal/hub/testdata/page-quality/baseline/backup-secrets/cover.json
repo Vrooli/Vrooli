@@ -1,0 +1,21 @@
+{
+ "question": "Should I back up these 45 secret-holding places and automatically include new ones in future backups?",
+ "big_picture": "Data Backup Manager found 45 places holding sign-ins, keys, private chat history and other secrets without backups. This is the third time the list has returned because new places keep appearing and there is no standing rule. You alone can choose whether to set a lasting rule: back up all 45 now and automatically include future secret-holding places with a weekly list, back up only groups you select while future places wait, or add nothing. If you do not answer within seven days, nothing is added.",
+ "recommend": "standing",
+ "reason": "A disk loss could erase private history, keys and secrets that exist nowhere else; the encrypted backup adds 3.1 GiB and stops this question recurring.",
+ "options": [
+  {
+   "key": "standing",
+   "label": "Back up all 45 now and automatically add future secret-holding places with a weekly list"
+  },
+  {
+   "key": "groups",
+   "label": "Back up only the groups I select; new secret-holding places still wait for my answer"
+  },
+  {
+   "key": "not-now",
+   "label": "Add nothing; new secret-holding places still wait for my answer"
+  }
+ ],
+ "technical_details": "Inventory: 45 places. AI tools and local services: 12 items, 2.9 GiB. Vrooli apps’ keys and records: 10 items, 222.5 MiB. Host settings written by Vrooli setup: 23 files, 10.9 KiB. A full backup adds 3.1 GiB to each encrypted backup. Restoring may require signing in again once if a sign-in or token is out of date; the saved data remains intact. If the disk fails without backup, material that exists nowhere else is lost. Evidence folder was not present. Prepared work brief: backup-secrets-decision/BRIEF.md."
+}

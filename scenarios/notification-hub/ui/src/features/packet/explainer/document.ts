@@ -17,10 +17,17 @@
  *     kit's CSS nor its script is injected);
  *  4. the bridge script and then the kit's behaviours.
  *
+ * The root gets the theme the page is shown in: the Hub's theme for a page
+ * that works in both, and otherwise the one scheme its own colours were
+ * written for (theme.ts), marked `data-hub-scheme` so the bridge keeps it
+ * there when the operator switches the Hub's theme.
+ *
  * Attachment names used as `src`, `href` and `poster` become `data:` URLs
  * within size limits; beyond them an element keeps a placeholder that opens
  * the Hub's viewer when tapped.
  */
+import { pageColorScheme, pageTheme } from "./theme";
+
 export const EXPLAINER_CSP =
   "default-src 'none'; img-src data: blob:; media-src data: blob:; font-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'";
 
@@ -179,7 +186,9 @@ export function buildExplainerDocument(html: string, options: ExplainerDocumentO
     ...(kitOff || !options.kitJs ? [] : [element(doc, "script", { "data-hub": "kit" }, inertScript(options.kitJs))]),
   ];
   for (const node of [...injected].reverse()) doc.head.insertBefore(node, doc.head.firstChild);
-  doc.documentElement.setAttribute("data-theme", options.theme);
+  const scheme = pageColorScheme(html, options.kitCss);
+  doc.documentElement.setAttribute("data-theme", pageTheme(scheme, options.theme));
+  if (scheme !== "both") doc.documentElement.setAttribute("data-hub-scheme", scheme);
 
   return `<!doctype html>\n${doc.documentElement.outerHTML}`;
 }

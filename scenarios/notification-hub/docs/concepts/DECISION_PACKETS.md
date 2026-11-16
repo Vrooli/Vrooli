@@ -141,10 +141,16 @@ These rules hold everywhere. They exist so that a broken attachment, form, or
 explainer can never stop a decision from reaching the operator or lose the
 operator's answer.
 
-1. **Sending never fails because of a packet part.** An attachment whose blob is
-   missing, an invalid question, or an explainer that breaks a rule is left out
-   or kept with advice, and `AskResponse.warnings` says so. Only the cover
-   fields keep their existing hard validation.
+1. **Sending never fails because of a broken packet part.** An attachment whose
+   blob is missing, an invalid question, or an explainer that breaks a rule is
+   left out or kept with advice, and `AskResponse.warnings` says so. The cover
+   fields keep their hard validation. One exception, for agents only: a direct
+   ask (no producer source) that has a recommendation without a reason, a page
+   that only restates the cover, or a page the operator cannot read is refused
+   whole before anything is stored (see "Decision quality" below). The agent is
+   still running and can fix it; the refusal names each finding and its fix, and
+   `--dry-run` reports it first. A scenario's event-built decision is never
+   refused for these: it gets advice, because no agent stands behind it.
 2. **The operator can always answer.** "Other" with free text and "Accept
    recommendations" are always available. A required question binds only when
    the operator picks one of the requester's options.
@@ -152,9 +158,16 @@ operator's answer.
    question type shows its prompt with a free-text box and returns the text.
 4. **Explainers inform; the Hub form answers.** An explainer page can pre-fill
    the form through the bridge, but only the Hub's own submit button answers.
-5. **The Hub serves only its own copies.** Attachment bytes are copied when the
-   ask is sent. The Hub never serves a host path, so the public tunnel exposes
-   nothing the requester did not deliberately attach.
+5. **Attached bytes are copied; linked artifacts are bounded reads.** An
+   attachment is served from the Hub's stored copy. A local path in decision
+   prose opens only after the owner taps it, only for an ask addressed to that
+   owner, only beneath an allowed artifact root, and only for a regular file no
+   larger than 64 MiB. Symlink escapes and directories are refused. The default
+   roots are `.vrooli/work`, the steward delegation folder and the research home
+   (so Research Desk packets open); add operator-owned
+   roots with `NOTIFICATION_HUB_LINKED_ARTIFACT_ROOTS` (platform path-list
+   syntax). Missing roots leave the decision answerable and show an in-Hub
+   unavailable message.
 
 ## Attachments
 
@@ -521,8 +534,10 @@ correlation as they are when it is published.
 
 ## Packet check
 
-`AskResponse.warnings` returns advice and drops. A packet part never blocks an ask;
-the cover fields' limits (big picture 4,000 characters, technical details 12,000,
+`AskResponse.warnings` returns advice and drops; `CheckAskResponse.warnings` (the
+dry run) also returns `blocking`, the findings that would refuse an agent's ask.
+Apart from those (next section), a packet part never blocks an ask; the cover
+fields' limits (big picture 4,000 characters, technical details 12,000,
 option label 200, 2 to 8 options, a default only with `reversible`) are validation
 and do refuse it with an error, and nothing is sent.
 
@@ -536,13 +551,18 @@ dropped) are never carried over, and neither are those of a first send. Checks:
 
 | Code | Rule |
 |---|---|
-| `internal_id_in_question` | The question contains internal-looking IDs (`S-14`, `O7`, `F49-MOR-CHECKOUT`, `BAS-065`, UUIDs) or a bracketed tag prefix (`[BAS] ...`). Ordinary text is left alone: years, dates, times, money, versions (`v2`, `V2.1`), quarters (`Q3`), Apple chips (`M1`), latency percentiles (`P95`), and standards such as `UTF-8`, `SHA-256` and `GPT-4`. |
-| `path_in_question` | The question or big picture contains a file path (under a host root such as `/home` or `/tmp`, `~/`, `./`, a Windows drive, or any absolute path with a directory and a file extension); attach the file and name it in words. URLs and API routes such as `/api/v1/asks` are not paths. |
+| `internal_id_in_question` | A field the operator reads (the question, the big picture, the recommendation reason or an option label; `field` names which) contains internal-looking IDs (`S-14`, `O7`, `F49-MOR-CHECKOUT`, `BAS-065`, dated slugs such as `run-20261114`, hashes of 12 or more hex digits, UUIDs) or the question starts with a bracketed tag (`[BAS] ...`). Ordinary text is left alone: years, dates, times, money, versions (`v2`, `V2.1`), quarters (`Q3`), Apple chips (`M1`), latency percentiles (`P95`), and standards such as `UTF-8`, `SHA-256` and `GPT-4`. |
+| `path_in_question` | The question or big picture contains a file path (under a host root such as `/home` or `/tmp`, `~/`, `./`, a Windows drive, any absolute path with a directory and a file extension, or a repository file such as `api/main.go`); attach the file and name it in words. URLs and API routes such as `/api/v1/asks` are not paths. |
 | `long_question` | The question is longer than 200 characters. |
 | `missing_big_picture` | No big picture. |
-| `missing_recommendation_reason` | A recommendation without a reason. |
+| `missing_recommendation_reason` | A recommendation without a reason. Blocking for an agent's ask. |
 | `local_context_url` | `context_url` is a local path or loopback URL. |
 | `unattached_path` | `technical_details` names a local file that no attachment's `source_path` covers (the path itself or a file inside an attached folder). Paths in the question or big picture are `path_in_question`, attached or not. |
+
+The cover rules (the first five rows) are api-core's `operatordecision.CheckCover`. A
+scenario that raises decisions asserts `operatordecision.CoverProblems(facts)` (or
+`PayloadCoverProblems` on the published event) is empty in its tests, so a producer
+never sends a cover the Hub would advise against.
 | `attachment_blob_missing` | Dropped: the referenced blob is not stored (for a folder, only the entries whose blobs are missing). |
 | `attachment_limit` | Dropped: too many attachments (counted after invalid ones are dropped) or too many bytes. |
 | `attachment_invalid` | Dropped: unknown kind, a file without a valid `sha256`, or a folder with no valid entry. Advice for an unknown role (listed as evidence). |
@@ -555,12 +575,85 @@ dropped) are never carried over, and neither are those of a first send. Checks:
 | `context_requests_need_subject_key` | Dropped: `accepts_context_requests` without a `subject_key`. |
 | `question_type_unknown` | Kept; shown as free text. |
 | `question_attachment_unknown` | Advice: a choice or section names an attachment the ask does not have; the question is kept. |
+| `explainer_missing` | Advice: the ask has no explainer; it is shown with the Hub's page (below). |
+| `packet_missing` | Advice: a direct ask names no `packet` (the brief that carries out the answer). |
 | `explainer_*` | Explainer rules below. |
+
+### Decision quality
+
+These rules judge whether the decision is worth the operator's attention, not
+only its shape. Three refuse an agent's ask (severity `blocking`); the rest
+advise. A scenario's `*.decision_requested.v1` decision only gets advice from
+all of them. A revision is refused only for a finding about a part it changed:
+one carried over from the open ask stays advice.
+
+| Code | Severity for an agent | Rule |
+|---|---|---|
+| `missing_recommendation_reason` | blocking | A recommendation with no reason (in the table above). |
+| `explainer_restates` | blocking | The page adds under 40 content words to the cover (question, big picture, recommendation reason, option keys and labels), or under a quarter of its words and under 80. Common words and page furniture do not count; each image, video, SVG, canvas or `[data-hub-compare]` counts as 30 words. The fix names the kit blocks and the skill's starters. |
+| `page_unreadable` | blocking | Some text is below 3:1 contrast against its background, in a scheme the frame shows the page in. The Hub runs the page's CSS cascade over the kit (selectors, specificity, inheritance, `var()` and `color-mix()`) in light and dark; text that is hidden, or positioned over something with no opaque background, is not judged. The message names up to three texts with their colours and the fix: colour with `--hub-*` tokens, and set a background's text colour in the same rule. |
+| `command_hidden` | advice | An answer has the operator run something (a terminal, "you will run", "I'll run", `sudo`), and neither the page nor the question or big picture shows the command. On the page, a command counts in `.hub-command`, a `<pre>`, or a `<code>`/`<kbd>`/`<samp>` that is the whole of its block; one inside a sentence does not. The fix is the kit's `.hub-command` block (`operatordecision.Page.Command`) on the first screen. `technical_details` does not count. |
+| `page_no_picture` | advice | The page shows nothing: no `img`, `svg`, `canvas` or `video`, no `role="img"` or `role="figure"` element, no table of two or more rows, and none of the kit's decision blocks (`.hub-proportion`, `.hub-groups`, `.hub-matrix`, `.hub-timeline`, `.hub-compare`, `.hub-recurrence`, `.hub-command`). Option cards, callouts and chips arrange words and do not count. Not reported when `explainer_restates` is. |
+| `page_picture_uncropped` | advice | Two or more images are shown whole: no `height` or `max-height` length, `aspect-ratio` or `height` attribute bounds them, so each full screenshot takes a phone screen. The fix crops each to the part the decision is about. |
+| `recurring_subject` | advice | The third ask from one sender within 14 days on the same subject key or a similar question (numbers ignored), and no option stops the repeats (a standing rule, a policy, "from now on", a root-cause fix). The fix names the earlier dates and the kit's `.hub-recurrence` block. |
+
+A refused ask returns `FailedPrecondition` with the header
+`Hub-Error-Reason: ask_refused` and the message `refused, nothing was sent:
+code (field): message | ... | Fix each one, check with --dry-run, then send
+again.` Nothing is stored, the open ask a revision targeted is left as it was, and
+an idempotent retry of the same request is refused the same way. The CLI prints
+one finding per line; a dry run lists them first under "Would refuse the ask".
+
+**Theme.** The frame shows a page in a scheme its own colours work in.
+`theme.ts` (UI) and `packages/api-core/pagescheme` (the API and the page tools) read the page's CSS the same way:
+a declared `color-scheme`, then its own dark styles (`prefers-color-scheme`,
+`[data-theme=dark]`, a theme-change script) mean it handles both; otherwise
+literal root or body colours, then unpaired literal colours, decide light or
+dark. A one-scheme page gets that `data-theme` and `data-hub-scheme`, the bridge
+stops passing theme changes to it, and the frame's `color-scheme` matches, so the
+browser's own defaults agree with the page. The kit colours `html`, not `body`,
+so a page that sets its root colours replaces the kit's for all its text.
+
+Feature-loss redesign decisions use the same packet check. Their versioned JSON card and
+phone-rendered page are checked together for evidence, choices, recommendation, exact
+finding/build identity, and answer actions. See [Feature loss decision cards](FEATURE_DECISION_CARDS.md).
 
 ## HTML explainers
 
 An explainer is an attachment with `role = ROLE_EXPLAINER` and an `.html`
-file. The Hub shows it at the top of the decision in a sealed frame.
+file. The Hub shows it at the top of the decision in a sealed frame. Every
+decision is expected to have one (`explainer_missing` advises when it does not).
+
+**No decision is bare.** An ask with no explainer is read with the Hub's page,
+`decision-summary.html`, made when the ask is read by
+`operatordecision.CoverPage` from the cover as it is now: question, big picture,
+option cards with the recommendation and reason, how to answer, "What happens
+when you approve" (with the packet's brief when attached) and what happens with
+no answer. It is never stored; the first page the sender attaches takes its
+place.
+
+**Packet.** `AskRequest.packet` (`operatordecision.Facts.Packet`, CLI
+`--packet`) is the absolute path of the ready-to-run brief, normally
+`work/<ID>/BRIEF.md` (`docs/agent-system/LEVELS.md`). It is shown by `get`,
+returned by `wait` with the executor's start message, and carried in the
+resolution event as `packet`. The CLI attaches the brief as evidence.
+
+**From scenario code.** A `*.decision_requested.v1` event carries no uploaded
+file, so a producer sends its page inline as `explainer_html`
+(`operatordecision.Facts.Explainer`, built with `operatordecision.NewPage`; at most
+720 KiB as JSON encodes it). The Hub stores it as a blob and attaches it as the
+explainer `decision.html`; a re-send under the same subject key replaces it by
+that name. A page the store refuses is left out with a `dropped` warning and the
+ask is still created.
+
+A decision event can also carry an answer form, `questions`
+(`operatordecision.Facts.Questions`: `single_choice`, `multi_choice` or `text`,
+naming no file). The Hub checks it as it checks an agent's `--form`, so a broken
+question is dropped with a warning. A page's `.hub-groups` block fills the
+`multi_choice` question it names. The answers return as `responses` on
+`notification_hub.ask.resolved.v1` and on the ask the raising scenario reads back.
+`operatordecision.VerifiedResolution` takes them from that readback
+(`DecisionResolution.Response(id)`).
 
 **Sealing.** The UI fetches the page and renders it in an
 `<iframe sandbox="allow-scripts">` (no `allow-same-origin`, so the page has an
@@ -594,11 +687,12 @@ script exposes:
 |---|---|
 | `hub.open(name, path?)` | Opens an attachment in the Hub viewer. Elements with `data-hub-open="name"` do this on tap. |
 | `hub.prefill(questionId, response)` | Fills one form question in the draft (`response` is an `AskQuestionResponse` in JSON form, or a choice key string). Also `hub.prefill("answer", key)` for the main option. The operator still submits. |
-| `hub.theme` | `"light"` or `"dark"`; the page root also gets `data-theme`. |
+| `hub.theme` | `"light"` or `"dark"`; the page root also gets `data-theme`. A page locked to one scheme (`data-hub-scheme`) keeps it. |
 
 Height is reported automatically. The Hub ignores any other message.
 
-**Rules the packet check tests** (all advice; none blocks):
+**Rules the packet check tests** (advice; the decision-quality rules above
+also judge the page):
 
 | Code | Rule |
 |---|---|
@@ -611,3 +705,15 @@ Height is reported automatically. The Hub ignores any other message.
 
 Writing guidance, the starter kit's building blocks, and worked examples are in
 `skills/notification-hub/references/html-explainers.md`.
+
+## Served-feature keep/drop cards
+
+UI Health feature-loss cards use an attached `research-feature-decision/v2` JSON model,
+a rendered HTML explainer, and a matching keep/drop answer form. The packet checker verifies
+the card and page agree on the feature, finding version, measured build pair, embedded
+evidence and answer choices; it returns actionable `feature_card_*` warnings when a required
+part is missing. The one-command CLI path and the later proof-bound disposition flow are
+documented in [`FEATURE_DECISION_CARDS.md`](FEATURE_DECISION_CARDS.md) and
+[`ui-health's preservation guide`](../../../ui-health/docs/concepts/FEATURE-PRESERVATION.md).
+
+For EX12 capture comparisons and region notes, see [`FEATURE_REGION_FEEDBACK.md`](FEATURE_REGION_FEEDBACK.md).

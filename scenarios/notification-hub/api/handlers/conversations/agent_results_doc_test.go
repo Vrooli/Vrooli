@@ -27,12 +27,14 @@ var updateResultsDoc = flag.Bool("update", false, "rewrite skills/notification-h
 const resultsDocPath = "../../../skills/notification-hub/references/cli-results.md"
 
 var (
-	uuidPattern    = regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
-	timePattern    = regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z`)
-	hashPattern    = regexp.MustCompile(`\b[0-9a-f]{64}\b`)
-	keyPattern     = regexp.MustCompile(`ask-[0-9a-f]{20}`)
-	sourcePattern  = regexp.MustCompile(`"source_path": "[^"]*"`)
-	hostPattern    = regexp.MustCompile(`"source_host": "[^"]*"`)
+	uuidPattern   = regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
+	timePattern   = regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z`)
+	hashPattern   = regexp.MustCompile(`\b[0-9a-f]{64}\b`)
+	keyPattern    = regexp.MustCompile(`ask-[0-9a-f]{20}`)
+	sourcePattern = regexp.MustCompile(`"source_path": "[^"]*"`)
+	hostPattern   = regexp.MustCompile(`"source_host": "[^"]*"`)
+	// briefPattern is the absolute path of an example's packet brief.
+	briefPattern   = regexp.MustCompile(`/[^\s"']*/work/`)
 	versionPattern = regexp.MustCompile(`\(HTTP \d+\)`)
 )
 
@@ -93,6 +95,7 @@ func stable(text string) string {
 	text = keyPattern.ReplaceAllString(text, "ask-<key>")
 	text = sourcePattern.ReplaceAllString(text, `"source_path": "<path>"`)
 	text = hostPattern.ReplaceAllString(text, `"source_host": "<host>"`)
+	text = briefPattern.ReplaceAllString(text, "<home>/work/")
 	return text
 }
 
@@ -148,6 +151,8 @@ func TestAgentResultsDocumentIsWhatTheCLIPrints(t *testing.T) {
 	plan := j.file("plan.md", "# Release plan\n\n## Storage\nMove to the new volume.\n\n## Retention\nKeep 90 days.\n")
 	j.file("cards.png", "card stack mockup")
 	j.file("table.png", "table mockup")
+	require.NoError(t, os.MkdirAll(filepath.Join(j.workdir, "work", "RELEASE-CHECK"), 0o700))
+	j.file("work/RELEASE-CHECK/BRIEF.md", "# Release check\n\nOn yes: tag and publish the release. On no: hold the window.\n")
 	form := j.file("form.yaml", `questions:
   - id: rollout
     type: single_choice
@@ -179,7 +184,7 @@ func TestAgentResultsDocumentIsWhatTheCLIPrints(t *testing.T) {
 	doc.paragraph("`ask_id`, `state`, `outcome` and `warnings` are always present. `outcome` is `created`, `updated`, `replaced`, `reasserted`, `suppressed` or `returned`; `state` is the ask's state after the call. Each warning has `code`, `field`, `message`, `severity` (`advice`: the ask is complete but reads poorly; `dropped`: the Hub left that part out) and `carried_over`.")
 	args := []string{
 		"ask", "--subject-key", "release-check", "--yes-no", "--question", "Ship the release today?",
-		"--big-picture", "The release is green and the window closes at noon.", "--attach", "plan.md", "--attach", "cards.png", "--attach", "table.png", "--form", "form.yaml", "--json",
+		"--big-picture", "The release is green and the window closes at noon.", "--packet", "work/RELEASE-CHECK", "--attach", "plan.md", "--attach", "cards.png", "--attach", "table.png", "--form", "form.yaml", "--json",
 	}
 	created := run(runOne, replacePaths(args, j, plan, form)...)
 	require.Zero(t, created.code, created.stderr)
@@ -345,7 +350,7 @@ func replacePaths(args []string, j *journey, plan, form string) []string {
 			out[i] = plan
 		case "form.yaml":
 			out[i] = form
-		case "cards.png", "table.png":
+		case "cards.png", "table.png", "work/RELEASE-CHECK":
 			out[i] = filepath.Join(j.workdir, arg)
 		default:
 			out[i] = arg

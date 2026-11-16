@@ -36,7 +36,11 @@ func prepareForm(spec AskSpec) (AskSpec, []PacketWarning) {
 // checkPacket returns the packet check's advice for a normalized request. The
 // explainer page is read from the Hub's own copy; a page the Hub cannot read
 // gets no content advice (the attachment warnings already say why).
-func (s *Service) checkPacket(ctx context.Context, spec AskSpec, read BlobReader) []PacketWarning {
+//
+// except is the ask itself when it is stored or revised (so it is not its own
+// history), and sender the name the operator sees on it; the recurring-subject
+// rule reads the sender's recent asks.
+func (s *Service) checkPacket(ctx context.Context, spec AskSpec, read BlobReader, except, sender string) []PacketWarning {
 	attachments := make([]PacketAttachment, 0, len(spec.Attachments))
 	var explainer *PacketExplainer
 	for index, attachment := range spec.Attachments {
@@ -56,7 +60,11 @@ func (s *Service) checkPacket(ctx context.Context, spec AskSpec, read BlobReader
 			explainer.HTML = page
 		}
 	}
-	return CheckPacket(spec, attachments, explainer)
+	warnings := CheckPacket(spec, attachments, explainer)
+	warnings = append(warnings, checkFeatureDecisionCards(ctx, spec, explainer, read)...)
+	warnings = append(warnings, checkRegionFeedbackBundles(ctx, spec, read)...)
+	warnings = append(warnings, s.checkRecurring(ctx, spec, sender, except)...)
+	return warnings
 }
 
 // attachmentNotesFor validates the operator's attachment notes against the
@@ -267,6 +275,9 @@ func keepOpenTerms(spec AskSpec, open AskRecord) AskSpec {
 	}
 	if keep.AcceptsContextRequests {
 		spec.AcceptsContextRequests = open.AcceptsContextRequests
+	}
+	if keep.Packet {
+		spec.Packet = open.Packet
 	}
 	return spec
 }

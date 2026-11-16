@@ -74,10 +74,12 @@
   });
 
   // The Hub tells the page when the operator switches between light and dark.
+  // A page whose own colours work in one scheme only (data-hub-scheme) stays in it.
   window.addEventListener("message", function (event) {
     if (event.source !== window.parent) return;
     var data = event.data;
     if (!data || data.hub !== PROTOCOL || data.type !== "theme") return;
+    if (root.hasAttribute("data-hub-scheme")) return;
     root.setAttribute("data-theme", data.theme === "dark" ? "dark" : "light");
     window.dispatchEvent(new CustomEvent("hubthemechange", { detail: hub.theme }));
   });

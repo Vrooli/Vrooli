@@ -115,6 +115,9 @@ func askDetailReport(ask *v1.Ask) cliapp.ListReport {
 	if ask.GetDeadline() != "" {
 		summary = append(summary, "Deadline: "+ask.GetDeadline())
 	}
+	if ask.GetPacket() != "" {
+		summary = append(summary, "Packet: "+ask.GetPacket())
+	}
 	var details []string
 	add := func(heading string, lines []string) {
 		if len(lines) > 0 {

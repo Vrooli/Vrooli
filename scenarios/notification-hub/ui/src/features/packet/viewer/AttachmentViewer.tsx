@@ -6,6 +6,7 @@ import type { AskAttachment } from "@vrooli/proto-types/notification-hub/v1/conv
 import { ChevronLeft, ChevronRight, Download, ExternalLink, MessageSquarePlus, Pin } from "lucide-react";
 
 import { sessionFetch } from "../../../api/notifications";
+import { fetchAttachment, type LinkedArtifact } from "../../../api/attachments";
 import { selectors } from "../../../consts/selectors";
 import { strings } from "../../../consts/strings";
 import { useTranslation } from "../../../i18n";
@@ -13,12 +14,15 @@ import { TextArea } from "../form/TextArea";
 import { attachmentNoteFor, withAttachmentNote, type PacketDraft } from "../model/draft";
 import { ANSWER_LIMITS } from "../model/questions";
 import { evidenceAttachments, targetPath, type AttachmentTarget } from "./attachments";
+import { isRegionFeedbackFolder, parseRegionFeedbackBundle, REGION_FEEDBACK_MANIFEST, validateRegionEntries, type ParsedRegionFeedback } from "./regionFeedback";
+import { RegionFeedbackCompare } from "./RegionFeedbackCompare";
 import { packetManifest } from "./manifest";
 import { viewerLoaders } from "./viewerLoaders";
 
 interface AttachmentViewerProps {
   askId: string;
   attachments: readonly AskAttachment[];
+  linkedArtifact?: LinkedArtifact;
   /** Where the viewer opens: a file, a folder, or a heading inside a Markdown file. */
   target: AttachmentTarget;
   onClose: () => void;
@@ -39,22 +43,47 @@ interface AttachmentViewerProps {
  * file-info bar are off: the path is a location on the requester's host, which
  * the operator cannot use.
  */
-export function AttachmentViewer({ askId, attachments, target, onClose, draft, onDraftChange, canNote }: AttachmentViewerProps) {
+export function AttachmentViewer({ askId, attachments, linkedArtifact, target, onClose, draft, onDraftChange, canNote }: AttachmentViewerProps) {
   const { i18n } = useTranslation();
   // The scope is the ask: a refetch that builds new attachment objects keeps the open file.
   const source = useMemo(
-    () => createManifestPreviewSource({ scope: askId, files: packetManifest(askId, attachments), fetch: sessionFetch }),
-    [askId, attachments],
+    () => createManifestPreviewSource({ scope: askId, files: packetManifest(askId, attachments, linkedArtifact), fetch: sessionFetch }),
+    [askId, attachments, linkedArtifact],
   );
   const controller = useFilePreviewController(source);
   const { openPreview, close } = controller;
   const { name, path, anchor } = target;
+  const regionFolder = attachments.find((item) => item.name === name && isRegionFeedbackFolder(item));
+  const isRegionManifest = Boolean(regionFolder && path === REGION_FEEDBACK_MANIFEST);
   useEffect(() => {
+    if (isRegionManifest) return close;
     void openPreview(targetPath({ name, path }), undefined, anchor ? { anchor } : undefined);
     return close;
-  }, [openPreview, close, name, path, anchor]);
+  }, [openPreview, close, name, path, anchor, isRegionManifest]);
 
   const evidence = useMemo(() => evidenceAttachments(attachments), [attachments]);
+  const [regionFeedback, setRegionFeedback] = useState<ParsedRegionFeedback | null>(null);
+  const [regionFeedbackError, setRegionFeedbackError] = useState(false);
+  useEffect(() => {
+    setRegionFeedback(null);
+    setRegionFeedbackError(false);
+    if (!isRegionManifest || !regionFolder) return;
+    const abort = new AbortController();
+    void fetchAttachment(askId, regionFolder.name, REGION_FEEDBACK_MANIFEST, abort.signal)
+      .then(async (response) => {
+        const contentLength = Number(response.headers.get("content-length") || "0");
+        if (contentLength > 1 << 20) throw new Error("region manifest exceeds 1 MiB");
+        const content = await response.text();
+        if (content.length > 1 << 20) throw new Error("region manifest exceeds 1 MiB");
+        const raw = JSON.parse(content);
+        const parsed = parseRegionFeedbackBundle(raw);
+        if (!parsed || !regionFolder) throw new Error("invalid region feedback manifest");
+        parsed.issues.push(...validateRegionEntries(parsed.bundle, regionFolder));
+        setRegionFeedback(parsed);
+      })
+      .catch(() => { if (!abort.signal.aborted) setRegionFeedbackError(true); });
+    return () => abort.abort();
+  }, [askId, isRegionManifest, regionFolder]);
   const onOpen = (attachmentName: string) => void openPreview(attachmentName);
   const renderHeaderActions = (context: ViewerActionContext) => <ViewerPosition context={context} attachments={evidence} onOpen={onOpen} />;
   const renderFooter = (context: ViewerActionContext) => (
@@ -68,6 +97,23 @@ export function AttachmentViewer({ askId, attachments, target, onClose, draft, o
       onDraftChange={onDraftChange}
     />
   );
+
+  if (isRegionManifest) {
+    return (
+      <FileViewerProvider locale={i18n.resolvedLanguage} loaders={viewerLoaders} fileInfo="host">
+        <RegionFeedbackCompare
+          askId={askId}
+          attachment={regionFolder!}
+          parsed={regionFeedback}
+          failed={regionFeedbackError}
+          onClose={onClose}
+          draft={draft}
+          onDraftChange={onDraftChange}
+          canNote={canNote}
+        />
+      </FileViewerProvider>
+    );
+  }
 
   return (
     <FileViewerProvider locale={i18n.resolvedLanguage} loaders={viewerLoaders} fileInfo="host">

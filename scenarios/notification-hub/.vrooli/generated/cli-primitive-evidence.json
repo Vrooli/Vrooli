@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "notification-hub",
   "generator": "v1.0.0",
-  "manifest_hash": "baf9d3fe50e529891582854b26b9320a52d0d7059dc27704ca7d350944dae6b7",
+  "manifest_hash": "c2932e242c3724bfc03aab2244437dfc0f0beb69732c924454062da38ab6e45f",
   "commands": [
     {
       "path": "channels status",
@@ -113,6 +113,18 @@
       "group": "notifications",
       "command": "send",
       "binding": "NotificationsService.Send"
+    },
+    {
+      "path": "pages check",
+      "group": "pages",
+      "command": "check",
+      "binding": "."
+    },
+    {
+      "path": "pages shoot",
+      "group": "pages",
+      "command": "shoot",
+      "binding": "."
     },
     {
       "path": "recipients address-remove",

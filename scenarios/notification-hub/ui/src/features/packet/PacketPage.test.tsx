@@ -5,7 +5,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { create } from "@bufbuild/protobuf";
 import { AskAttachmentNoteSchema, AskContextRequestSchema, AskQuestionResponseSchema, AskRevisionSchema, AskOptionSchema } from "@vrooli/proto-types/notification-hub/v1/conversations/conversations_pb";
 
-import { fetchScenarioExternalUrl } from "../../api/client";
+import { resolveLinkedArtifact } from "../../api/attachments";
 import { conversationsClient, identityClient } from "../../api/notifications";
 import { TestAppRouter } from "../../app/routes";
 import { selectors } from "../../consts/selectors";
@@ -22,15 +22,15 @@ vi.mock("../../api/notifications", () => ({
 }));
 vi.mock("../../api/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/client")>()),
-  fetchScenarioExternalUrl: vi.fn(() => Promise.resolve("https://web-console.example.test/")),
 }));
 vi.mock("../../api/attachments", () => ({
   attachmentUrl: (askId: string, name: string, path = "") => `/files/${askId}/${name}${path ? `?path=${path}` : ""}`,
   fetchAttachment: vi.fn(),
+  resolveLinkedArtifact: vi.fn((askId: string, path: string) => Promise.resolve({ name: path.split("/").at(-1) ?? "file.md", kind: "markdown", mimeType: "text/markdown", sizeBytes: 12, contentUrl: `/artifact?ask=${askId}` })),
 }));
 // The viewer has its own tests; here it only has to say what it was asked to open.
 vi.mock("./viewer/AttachmentViewer", () => ({
-  AttachmentViewer: ({ target }: { target: { name: string; path: string } }) => <div data-testid="viewer-stub">{`${target.name}|${target.path}`}</div>,
+  AttachmentViewer: ({ target, onClose }: { target: { name: string; path: string }; onClose: () => void }) => <div data-testid="viewer-stub">{`${target.name}|${target.path}`}<button type="button" onClick={onClose}>Close viewer</button></div>,
 }));
 
 const TEXT_BACKUPS_ARE_BLOCKED = "Backups are blocked.";
@@ -830,21 +830,29 @@ describe("links in the decision text", () => {
     expect(literal).toHaveAttribute("dir", "ltr");
   });
 
-  it("opens local file references in Web Console, and retries when it is unreachable", async () => {
+  it("opens local file references in the Hub viewer, including the context link", async () => {
     const user = userEvent.setup();
-    vi.mocked(fetchScenarioExternalUrl).mockRejectedValueOnce(new Error("offline")).mockRejectedValueOnce(new Error("offline"));
     vi.mocked(conversationsClient.getAsk).mockResolvedValue({
       ask: makeAsk({ question: "Review [the source](scenarios/notification-hub/README.md) and docs/internal/PROBLEMS.md.", contextUrl: "steward/RETURN.md" }),
     } as never);
     renderAsk();
 
     expect(await screen.findByTestId(selectors.asks.question)).toHaveTextContent("scenarios/notification-hub/README.md".slice(0, 0) + "Review the source");
-    await user.click(await screen.findByTestId(selectors.asks.retryFileLinks));
-    const source = await screen.findByRole("link", { name: "the source" });
-    expect(source).toHaveAttribute("href", "https://web-console.example.test/?file=scenarios%2Fnotification-hub%2FREADME.md");
-    expect(source).toHaveAttribute("title", text.text.openInWebConsole);
-    expect(screen.getByRole("link", { name: "docs/internal/PROBLEMS.md" })).toHaveAttribute("href", "https://web-console.example.test/?file=docs%2Finternal%2FPROBLEMS.md");
-    expect(screen.getByRole("link", { name: text.cover.more })).toHaveAttribute("href", "https://web-console.example.test/?file=steward%2FRETURN.md");
+    await user.click(screen.getByRole("button", { name: "the source" }));
+    expect(await screen.findByTestId("viewer-stub")).toHaveTextContent("linked-artifact|README.md");
+    expect(resolveLinkedArtifact).toHaveBeenCalledWith(ASK_ID, "scenarios/notification-hub/README.md");
+  });
+
+  it("returns from an unattached artifact to the same decision with its answer draft intact", async () => {
+    const user = userEvent.setup();
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({ ask: makeAsk({ technicalDetails: "Read /work/plan.md before answering." }) } as never);
+    renderAsk();
+    await user.click(await optionByKey("re-aim"));
+    await user.click(await screen.findByRole("button", { name: "/work/plan.md" }));
+    expect(await screen.findByTestId("viewer-stub")).toHaveTextContent("linked-artifact|plan.md");
+    await user.click(screen.getByRole("button", { name: "Close viewer" }));
+    expect(screen.queryByTestId("viewer-stub")).not.toBeInTheDocument();
+    expect(await optionByKey("re-aim")).toBeChecked();
   });
 
   it("opens a path that names an attachment in the Hub's own viewer, without asking Web Console", async () => {
@@ -859,7 +867,6 @@ describe("links in the decision text", () => {
 
     await user.click(await screen.findByRole("button", { name: "/home/op/work/plan.md" }));
     expect(screen.getByTestId("viewer-stub")).toHaveTextContent("plan.md|");
-    expect(fetchScenarioExternalUrl).not.toHaveBeenCalled();
   });
 
   it("opens the context file in the viewer when it is attached", async () => {

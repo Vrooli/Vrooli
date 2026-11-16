@@ -3,6 +3,7 @@ package conversations
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -41,8 +42,9 @@ func parseOptions(values []string) ([]askOption, error) {
 }
 
 // parseTime reads the value of a time flag (--expires or --timeout): an RFC 3339
-// time, or a positive duration from now such as 24h. It returns RFC 3339 for the
-// API; flag names the flag in the error.
+// time, or a positive duration from now such as 24h or 7d (whole days, because
+// "answer within 7 days" is how decisions are usually written). It returns
+// RFC 3339 for the API; flag names the flag in the error.
 func parseTime(flag, value string, now time.Time) (string, error) {
 	value = strings.TrimSpace(value)
 	if parsed, err := time.Parse(time.RFC3339, value); err == nil {
@@ -51,8 +53,16 @@ func parseTime(flag, value string, now time.Time) (string, error) {
 	if duration, err := time.ParseDuration(value); err == nil && duration > 0 {
 		return now.Add(duration).UTC().Format(time.RFC3339), nil
 	}
-	return "", fmt.Errorf("%s %q must be an RFC 3339 time or a positive duration such as 24h", flag, value)
+	if days, ok := strings.CutSuffix(value, "d"); ok {
+		if n, err := strconv.Atoi(days); err == nil && n > 0 && n <= maxDays {
+			return now.AddDate(0, 0, n).UTC().Format(time.RFC3339), nil
+		}
+	}
+	return "", fmt.Errorf("%s %q must be an RFC 3339 time or a positive duration such as 24h or 7d", flag, value)
 }
+
+// maxDays bounds a duration written in days to one year.
+const maxDays = 366
 
 // waitGrace lets the server answer its own deadline before the client gives up.
 const waitGrace = time.Minute

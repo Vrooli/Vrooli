@@ -4,11 +4,14 @@ import { selectors } from "../../../consts/selectors";
 import { strings } from "../../../consts/strings";
 import { useTranslation } from "../../../i18n";
 import { orderedOptions } from "../../asks/askView";
+import { Chip } from "../Chip";
 import { OTHER_ANSWER } from "../model/answer";
 import type { PacketDraft } from "../model/draft";
 import { ChoiceCard } from "./ChoiceCard";
 import { NoteDisclosure } from "./NoteDisclosure";
 import { TextArea } from "./TextArea";
+
+const APPROVE = "approve";
 
 interface MainOptionsProps {
   ask: Ask;
@@ -20,7 +23,8 @@ interface MainOptionsProps {
 /**
  * The decision's own answer key: the requester's options, "Other" always
  * available, and the note. The note is the explanation of "Other" (required),
- * or an optional comment on any other option.
+ * or an optional comment on any other option. When the ask names an
+ * approval page (ask.approvalUrl), "approve" is a link to that page.
  */
 export function MainOptions({ ask, draft, disabled, onChange }: MainOptionsProps) {
   const { t } = useTranslation();
@@ -33,6 +37,27 @@ export function MainOptions({ ask, draft, disabled, onChange }: MainOptionsProps
         <legend className="mb-2 text-sm font-semibold">{t(strings.packet.form.choose)}</legend>
         {choices.map((option) => {
           const isOther = option.key === OTHER_ANSWER;
+          if (option.key === APPROVE && ask.approvalUrl) {
+            // Only the source's own page, with the operator's sign-in, can
+            // approve; the Hub would refuse this answer.
+            return (
+              <a
+                key={option.key}
+                href={ask.approvalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid={selectors.asks.option}
+                data-option-key={option.key}
+                className="flex min-h-12 flex-col gap-0.5 rounded-panel border border-app-primary bg-app-primary/10 p-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+              >
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium leading-snug">
+                  <span dir="auto" className="min-w-0 break-words">{option.label}</span>
+                  {option.key === ask.recommended && <Chip tone="attention">{t(strings.packet.form.recommended)}</Chip>}
+                </span>
+                <span className="text-sm text-app-muted-foreground">{t(strings.packet.form.approveOnPage)} ↗</span>
+              </a>
+            );
+          }
           return (
             <ChoiceCard
               key={option.key}

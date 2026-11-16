@@ -3,7 +3,6 @@
 This document is the canonical dependency contract for resources,
 other scenarios, and third-party services used by the scenario.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -163,11 +162,12 @@ the decision text follows the [`notification-hub` skill](../../skills/notificati
 | `deadline` | no | RFC 3339; defaults to 24 h after receipt |
 | `urgency` | no | `low`, `normal` (default), `high` or `critical`; say `high` when work is blocked on the answer right now. Only `critical` can pass a quiet window, and only when that window allows it |
 | `subject` | no | Short name shown in the title ("Decision needed: BAS") |
-| `context_url` | no | HTTPS/HTTP link, or a local artifact path opened in Web Console |
+| `context_url` | no | HTTPS/HTTP link, an attached file opened in the Hub, or a local artifact path opened in the Hub when it is under an allowed root |
 | `correlation` | no | String map (at most 1 KB) echoed verbatim in the resolution event |
+| `explainer_html` | expected | The decision's page: one self-contained HTML document (images as `data:` URIs), at most 720 KiB as JSON encodes it. The Hub attaches it as the explainer `decision.html`. Build it with `operatordecision.NewPage` and set `Facts.Explainer` |
 
-An event carries no files and no answer form, and file bytes do not fit a JSON
-event. A decision that needs a packet is raised through the CLI or the direct
+An event carries its page inline but no other files and no answer form. A
+decision that needs attachments or a form is raised through the CLI or the direct
 `Ask` RPC; these writes need no identity or approval, and an identityless
 uploader sends content directly without reading the shared hash inventory. The
 [`notification-hub` skill](../../skills/notification-hub/SKILL.md) compares the
@@ -386,9 +386,19 @@ subscription or catalog entry: the event type is documented here and in
 
 ## Native human consent visibility
 
-Agent Manager interactive authorization stays native. Its
-`agent_manager.authorization_requested.notification.v1` FYI is delivery evidence,
-not an answerable Hub ask. `ConversationsService.ListNativeConsents` projects
+Agent Manager interactive authorization stays native: only the operator's own
+sign-in on Agent Manager's consent page approves it. Each pending request now
+arrives as an `agent_manager.authorization_consent.decision_requested.v1`
+decision with a page (operations, targets and their reach, lifetime, deadline,
+requester). Its `context_url` is the consent page and its correlation carries
+`authorization_id`; when both match, `Ask.approval_url` names that page, the UI
+renders "approve" as a link to it, and `AnswerAsk` refuses an `approve` answer.
+Agent Manager withdraws the ask once the request is approved there or
+superseded. A Hub answer grants nothing.
+
+Requests raised before that change arrived as the
+`agent_manager.authorization_requested.notification.v1` FYI.
+`ConversationsService.ListNativeConsents` projects those
 existing configured-recipient notifications whose source is `agent-manager`,
 category is `authorization-requested`, canonical UUID dedupe identity matches the
 original consent URL, and current source state is checked. Candidate pagination

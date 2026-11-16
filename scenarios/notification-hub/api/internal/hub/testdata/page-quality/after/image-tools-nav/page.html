@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Image Tools on a phone</title>
+<style>
+  .lede { color: var(--hub-muted); }
+  .cause { border-left: 4px solid var(--hub-primary); padding: .75rem 1rem; background: var(--hub-surface-muted); color: var(--hub-fg); }
+  .option { padding: 1rem; }
+  .option h2 { margin-top: .25rem; }
+  .option img { width: 100%; height: auto; border-radius: var(--hub-radius); }
+  .option.is-recommended { border-color: var(--hub-primary); box-shadow: 0 0 0 1px var(--hub-primary); }
+  .option footer { margin-top: 1rem; }
+  .option button { min-height: 44px; width: 100%; }
+  .evidence { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+  .evidence figure { margin: 0; }
+  .evidence img { display: block; width: 100%; height: auto; border-radius: var(--hub-radius); }
+  figcaption, .small { color: var(--hub-muted); font-size: .875rem; }
+  .tap-count { font-weight: 700; color: var(--hub-primary); }
+</style>
+</head>
+<body>
+  <h1>Choose Image Tools’ phone navigation</h1>
+  <p class="lede">I recommend <strong>four tabs</strong>: Home, Workspace, Library and Activity stay readable and one tap away, while the other four places move into the menu.</p>
+
+  <div class="hub-callout">
+    <strong>The cause is the crowded bottom bar.</strong> Eight places compete for space on a narrow phone, cutting every name down to a few letters. The four-tab layout addresses that crowding while keeping the editing destinations close.
+  </div>
+
+  <h2>What the phone shows</h2>
+  <div class="evidence">
+    <figure><img src="today-light.webp" alt="Image Tools today, with eight compressed labels along the phone bottom bar"><figcaption>Today: eight places, clipped labels.</figcaption></figure>
+    <figure><img src="four-tabs-light.webp" alt="Image Tools with four readable bottom tabs: Home, Workspace, Library and Activity"><figcaption>Four tabs: four readable destinations remain one tap away.</figcaption></figure>
+  </div>
+  <figure class="hub-figure"><img src="four-tabs-menu-open-light.webp" alt="The four-tab layout with its menu open, showing all eight named destinations"><figcaption>The menu keeps all eight places available by name. Home, Workspace, Library and Activity are in the bar; Select, Compare, Models and Settings are in the menu.</figcaption></figure>
+  <div class="hub-pair">
+    <figure class="hub-figure"><img src="today-tabbar-320.webp" alt="Eight tiny, clipped labels in the bottom bar at 320 pixels wide"><figcaption>At 320 px, today’s eight labels are especially hard to read.</figcaption></figure>
+    <figure class="hub-figure"><img src="four-tabs-tabbar-320.webp" alt="Four labels in the bottom bar at 320 pixels wide, with Workspace still shortened"><figcaption>Four tabs create room; Workspace remains shortened at 320 px.</figcaption></figure>
+  </div>
+
+  <h2>Three ways to arrange it</h2>
+  <div class="hub-tradeoffs">
+    <section class="option is-recommended">
+      <span class="hub-chip is-success">Recommended</span>
+      <h2>Four tabs + menu</h2>
+      <img src="four-tabs-dark.webp" alt="Four-tab layout shown in dark theme">
+      <p><span class="tap-count">One tap</span> to Home, Workspace, Library and Activity; the other four places take two taps from the menu.</p>
+      <p><strong>Next:</strong> I update the phone layout and send you a capture. <strong>Cost:</strong> Select, Compare, Models and Settings move one tap farther away.</p>
+      <footer><button type="button" data-pick="four">Choose four tabs</button></footer>
+    </section>
+    <section class="option">
+      <span class="hub-chip">More image room</span>
+      <h2>Menu only</h2>
+      <img src="menu-only-light.webp" alt="Image Tools phone layout with no bottom bar and a top-left menu button">
+      <p><span class="tap-count">Two taps</span> to any of the eight places; removing the bar gives the image more room.</p>
+      <p><strong>Next:</strong> I remove the phone bottom bar and send you a capture. <strong>Cost:</strong> Every place takes an extra tap to reach.</p>
+      <footer><button type="button" class="is-quiet" data-pick="menu">Choose menu only</button></footer>
+    </section>
+    <section class="option">
+      <span class="hub-chip">Keep today’s layout</span>
+      <h2>Keep eight tabs</h2>
+      <img src="today-dark.webp" alt="Today’s eight-tab layout shown in dark theme">
+      <p><span class="tap-count">One tap</span> to every place, with the names still cut off on a phone.</p>
+      <p><strong>Next:</strong> I leave the phone layout as it is and send a capture. <strong>Cost:</strong> The crowded bar and clipped labels remain.</p>
+      <footer><button type="button" class="is-quiet" data-pick="keep">Keep eight tabs</button></footer>
+    </section>
+  </div>
+
+  <h2>What your answer sets in motion</h2>
+  <p>I’ll change the phone layout to match your choice and send a capture. If you do not answer, the bar stays as it is today.</p>
+  <p class="small">These are phone captures of the current and proposed layouts. Desktop is not affected.</p>
+  <p class="lede" id="picked" role="status"></p>
+  <script>
+    document.querySelectorAll("[data-pick]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        if (!window.hub || !window.hub.prefill) return;
+        window.hub.prefill("answer", button.getAttribute("data-pick"));
+        document.getElementById("picked").textContent = "Filled in below. Check your answer and send it in Notification Hub.";
+      });
+    });
+  </script>
+</body>
+</html>

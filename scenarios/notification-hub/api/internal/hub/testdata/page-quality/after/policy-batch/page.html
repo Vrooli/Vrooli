@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Choose standing-team policies</title>
+<style>
+  .lead { margin-bottom: 1.25rem; }
+  .lead p { margin: .4rem 0; }
+  .cause { margin: 1rem 0; padding: 1rem; border-radius: var(--hub-radius); background: var(--hub-surface-muted); color: var(--hub-fg); }
+  .cause h2 { margin-top: 0; }
+  .policy-table { width: 100%; border-collapse: collapse; }
+  .policy-table th, .policy-table td { padding: .65rem .5rem; border-bottom: 1px solid var(--hub-border); text-align: left; vertical-align: top; }
+  .policy-table th { color: var(--hub-muted); font-size: .85rem; }
+  .policy-table .hard { color: var(--hub-warning); font-weight: 600; }
+  .policy-table tr:last-child td { border-bottom: 0; }
+  .hub-tradeoffs section { padding: 1rem; }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Standing-team programme · eight operating policies</p>
+  <h1>Choose how far the teams may go</h1>
+  <div class="lead">
+    <p><strong>I recommend adopting all eight policies</strong>, because together they cap and supervise the programme while cutting repeated permission asks and noisy notices.</p>
+    <p>Choose any subset in the policy list below. Your unselected policies keep their safe defaults; no answer also leaves every default in place.</p>
+  </div>
+
+  <div class="hub-callout"><strong>The workload behind two settings:</strong> 2,448 of 3,366 notices in the last 30 days were “turn finished” alerts. Eight of the last 11 permission requests came from agents the operator had launched.</div>
+  <h2>Eight settings, three kinds of change</h2>
+  <table class="hub-matrix policy-table">
+    <thead><tr><th scope="col">Policy</th><th scope="col">Recommended setting</th><th scope="col">If left at default</th><th scope="col">Undo</th></tr></thead>
+    <tbody>
+      <tr class="is-recommended"><th scope="row">1 · Usage limit</th><td data-label="Recommended setting" data-tone="good">15 quota points per 24 hours; stop and report at 50% of the week; cheaper-model mode on</td><td data-label="Default">Cheaper-model mode on, no ceiling</td><td data-label="Undo" data-tone="good">Yes</td></tr>
+      <tr class="is-recommended"><th scope="row">2 · Remove unused code</th><td data-label="Recommended setting" data-tone="warn">Delete about 8,000 lines: a control stack, duplicate plan editor and three dormant plan families</td><td data-label="Default">Keep the code; board shrinks 10% rather than 25%</td><td data-label="Undo" data-tone="good">Code stays in history</td></tr>
+      <tr><th scope="row">3 · Grant from a notification</th><td data-label="Recommended setting" data-tone="warn">Access lasts until revoked; show active grants in each daily digest</td><td data-label="Default">Grant by link or command line, up to 30 days</td><td data-label="Undo" data-tone="warn">Revocable; no end date</td></tr>
+      <tr class="is-recommended"><th scope="row">4 · Reviews in Hub</th><td data-label="Recommended setting" data-tone="good">Answer reviews and goal close-outs in Notification Hub</td><td data-label="Default">Keep them in command line and web console</td><td data-label="Undo" data-tone="good">Yes</td></tr>
+      <tr><th scope="row">5 · Delete old runs</th><td data-label="Recommended setting" data-tone="bad">Agents may permanently delete any old run of the same owner without asking</td><td data-label="Default">Agent must ask first</td><td data-label="Undo" data-tone="bad">No; deleted runs are gone</td></tr>
+      <tr class="is-recommended"><th scope="row">6 · Launched-agent asks</th><td data-label="Recommended setting" data-tone="good">Agents you launched may notify and ask without a separate grant each time</td><td data-label="Default">A grant each time</td><td data-label="Undo" data-tone="good">Yes</td></tr>
+      <tr class="is-recommended"><th scope="row">7 · Turn-finished notices</th><td data-label="Recommended setting" data-tone="good">Mute them; one normal-urgency daily digest</td><td data-label="Default">Keep current notices</td><td data-label="Undo" data-tone="good">Yes</td></tr>
+      <tr class="is-recommended"><th scope="row">8 · Supervision scope</th><td data-label="Recommended setting" data-tone="good">Cover research and standing-team owners; enable this last</td><td data-label="Default">Current scope, enabled last</td><td data-label="Undo" data-tone="good">Yes</td></tr>
+    </tbody>
+  </table>
+
+  <aside class="cause">
+    <h2>Why decide before the programme starts?</h2>
+    <p>These policies set the programme's boundaries before teams begin. Today, the choice is often presented as all eight or none, even though each policy has its own default and can be selected separately.</p>
+    <p>The policy list today lives in a file, and the choice has been all eight or none. Policy 2 determines whether the board code shrinks by 25% or 10%. Policies 3 and 6 target repeat permission asks. Policy 3 creates access until revoked; policy 5 permits permanent deletion. They deserve particular care.</p>
+  </aside>
+
+  <h2>Your two paths</h2>
+  <div class="hub-tradeoffs">
+    <section class="is-recommended">
+      <span class="hub-chip is-primary">Recommended</span>
+      <h3>Apply the policies you select</h3>
+      <p>The selected settings are recorded and handed to their teams. Unselected settings stay at their defaults. Take care with 3 (no expiry) and 5 (permanent deletion).</p>
+      <button type="button" data-answer="apply">Choose this</button>
+    </section>
+    <section>
+      <h3>Keep all defaults</h3>
+      <p>None of the eight settings changes. The teams proceed within today's limits, including a separate grant each time and no automatic permanent run deletion.</p>
+      <button type="button" class="is-quiet" data-answer="keep">Choose this</button>
+    </section>
+  </div>
+  <div class="hub-callout"><strong>If you do not answer:</strong> all eight safe defaults remain in force, and the programme does not wait for your reply.</div>
+  <p><small>Second opinion: policies 3 and 5 are harder to take back and deserve their own answer; the other six are easy to reverse.</small></p>
+  <script>
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-answer]");
+      if (b && window.hub && window.hub.prefill) window.hub.prefill("answer", b.getAttribute("data-answer"));
+    });
+  </script>
+</body>
+</html>

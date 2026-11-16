@@ -33,10 +33,10 @@
     "answerQuestions_one": "Answer · 1 question"
   },
   "text": {
-    "openInWebConsole": "Open file in Web Console",
+    "openLinkedArtifact": "Open file in Notification Hub",
     "openAttachment": "Open the attached file",
     "fileLinksLoading": "Preparing file links…",
-    "fileLinksUnavailable": "The file paths are shown, but Web Console could not be reached to open them.",
+    "fileLinksUnavailable": "The file could not be opened here. Check that it is inside an available file folder, then try again.",
     "retryFileLinks": "Retry file links"
   },
   "attachments": {
@@ -64,6 +64,7 @@
   "form": {
     "choose": "Choose an answer",
     "otherOption": "Other",
+    "approveOnPage": "Opens Agent Manager’s page, where you approve with your sign-in",
     "otherPrompt": "What do you have in mind?",
     "noteLabel": "Add a note (optional)",
     "recommended": "Recommended",
@@ -171,5 +172,29 @@
     "missing": "The original file no longer exists. You are looking at the copy the agent attached.",
     "download": "Download this file",
     "openInNewTab": "Open in a new tab"
+  },
+  "regionFeedback": {
+    "title": "Compare captures",
+    "close": "Close comparison",
+    "before": "Before",
+    "after": "After",
+    "fidelity": "Image type: {{label}}",
+    "route": "Screen: {{route}}",
+    "viewport": "{{width}} × {{height}} pixels",
+    "build": "Build {{build}}",
+    "comparisonWarning": "These captures differ: {{reason}} The pictures may not be a direct comparison.",
+    "regionsTitle": "Choose a screen region",
+    "region": "{{label}} · {{component}}",
+    "regionId": "Region {{id}}",
+    "commentLabel": "One sentence about {{region}}",
+    "commentHint": "Your note will travel with this region and the capture details in your answer.",
+    "save": "Add note to answer",
+    "noteSaved": "Note added to answer",
+    "unavailable": "The capture compare could not be opened because its manifest or image evidence is incomplete.",
+    "notAnswerable": "You can view this capture, but this decision does not accept comments.",
+    "captured": "Captured",
+    "composited": "Composited",
+    "rendered": "Rendered",
+    "sketch": "Sketch"
   }
 }

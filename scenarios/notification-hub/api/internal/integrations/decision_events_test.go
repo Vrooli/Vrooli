@@ -78,9 +78,11 @@ func TestDecisionAskSpecNeedsNoRecommendation(t *testing.T) {
 }
 
 // An event cannot say who published it, so a decision event never brings files
-// or an explainer into the ask, whatever its payload claims. A scenario that
-// wants a packet sends Ask as its own verified sender.
-func TestDecisionAskSpecIgnoresFilesAPayloadClaims(t *testing.T) {
+// into the ask, whatever its payload claims. A scenario that wants files sends
+// Ask as its own verified sender. Its answer form comes along: questions name
+// no file the event could vouch for, and the Hub checks them as it checks a
+// --form.
+func TestDecisionAskSpecIgnoresFilesAPayloadClaimsButKeepsItsForm(t *testing.T) {
 	encoded, err := json.Marshal(map[string]any{
 		"question": "Apply this change?",
 		"options":  []map[string]string{{"key": "apply", "label": "Apply"}, {"key": "reject", "label": "Reject"}},
@@ -93,6 +95,20 @@ func TestDecisionAskSpecIgnoresFilesAPayloadClaims(t *testing.T) {
 	spec, err := DecisionAskSpec("operator", "research-desk", "research_desk.needs_you.decision_requested.v1", "event-1", encoded, time.Now().UTC())
 	require.NoError(t, err)
 	require.Empty(t, spec.Attachments)
-	require.Empty(t, spec.Questions)
+	require.Equal(t, []hub.AskQuestion{{ID: "q1", Type: "text", Prompt: "Why?"}}, spec.Questions)
 	require.False(t, spec.VerifiedProducer, "an event ask is never a verified producer's")
+}
+
+func TestDecisionAskSpecCarriesTheProducersPageAndPacket(t *testing.T) {
+	encoded, err := json.Marshal(map[string]any{
+		"question":       "Apply this change?",
+		"options":        []map[string]string{{"key": "apply", "label": "Apply"}, {"key": "reject", "label": "Reject"}},
+		"explainer_html": "<!doctype html><h1>Apply?</h1>",
+		"packet":         "/home/me/.vrooli/research/topics/t/work/APPLY/BRIEF.md",
+	})
+	require.NoError(t, err)
+	spec, err := DecisionAskSpec("operator", "storage-manager", "storage-manager.deletion-grant.decision_requested.v1", "event-1", encoded, time.Now().UTC())
+	require.NoError(t, err)
+	require.Equal(t, "<!doctype html><h1>Apply?</h1>", spec.ExplainerHTML)
+	require.Equal(t, "/home/me/.vrooli/research/topics/t/work/APPLY/BRIEF.md", spec.Packet)
 }

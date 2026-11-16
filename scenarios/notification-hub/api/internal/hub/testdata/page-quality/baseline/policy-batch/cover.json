@@ -1,0 +1,17 @@
+{
+ "question": "Which standing-teams policies should take effect: selected recommendations or all current defaults?",
+ "big_picture": "Before the standing-teams programme runs, eight policies set its limits and permissions. I recommend all eight because they cap usage, reduce repeat permission requests and clarify team actions. The form lets you choose any subset; policies 3 and 5 are harder to undo and can stay at their defaults. Your answer is recorded and handed to the teams; without an answer, all defaults stay in force and the programme continues.",
+ "recommend": "apply",
+ "reason": "Applying the recommendations sets clearer limits and removes repeated permission asks; leave lasting grants or permanent deletion unselected if you prefer.",
+ "options": [
+  {
+   "key": "apply",
+   "label": "Apply only the recommendations you select in the form; leave the rest at their defaults"
+  },
+  {
+   "key": "defaults",
+   "label": "Keep all eight current defaults"
+  }
+ ],
+ "technical_details": "Research Desk standing-teams programme. Policies 1–8 and their exact recommended settings/defaults are in the attached decision page and worker brief. Evidence mentioned in the case is under work/evidence when present."
+}

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -263,12 +264,26 @@ func waitReport(msg *v1.WaitResponse) cliapp.ListReport {
 			results = append(results, "Notes on files:\n  "+strings.Join(notes, "\n  "))
 		}
 	}
+	if packet := msg.GetPacket(); packet != "" && (msg.GetState() == "answered" || msg.GetState() == "defaulted") {
+		results = append(results, "Packet: "+packet, "Start the executor with: "+executorMessage(packet, msg.GetAnswer()))
+	}
 	return cliapp.ListReport{
 		Summary:        []string{fmt.Sprintf("Ask %s: %s", msg.GetAskId(), msg.GetState())},
 		ResultsHeading: "Answer",
 		Results:        results,
 		RetrievalHints: []string{"Read the whole ask: " + getCommand(msg.GetAskId())},
 	}
+}
+
+// executorMessage is the standard spawn message for the executor of an
+// answered decision (docs/agent-system/LEVELS.md), named by the packet's
+// folder when the packet is a work/<ID>/BRIEF.md.
+func executorMessage(packet, answer string) string {
+	id := filepath.Base(packet)
+	if id == "BRIEF.md" {
+		id = filepath.Base(filepath.Dir(packet))
+	}
+	return fmt.Sprintf("Execute the approved decision %s. Read %s; the answer is %s.", id, packet, answer)
 }
 
 // getCommand is the command that reads one ask in full.

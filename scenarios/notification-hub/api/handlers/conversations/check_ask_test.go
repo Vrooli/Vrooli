@@ -4,9 +4,13 @@ import (
 	"context"
 	"testing"
 
+	"connectrpc.com/connect"
+
 	"github.com/stretchr/testify/require"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
 	"google.golang.org/protobuf/proto"
+	conversationsH "notification-hub/handlers/conversations"
+	"notification-hub/internal/hub"
 )
 
 func warningCodesOf(warnings []*v1.PacketWarning) []string {
@@ -23,6 +27,7 @@ func TestCheckAsk_PreviewsTheNotificationAndStoresNothing(t *testing.T) {
 	request := bareAsk("dry-1")
 	request.Question = "[BAS] Retry S-14 tonight?"
 	request.Recommended = proto.String("yes")
+	request.RecommendationReason = proto.String("The disk has room again.")
 
 	checked, err := client.CheckAsk(ctx, as("alice", &v1.CheckAskRequest{Ask: request}))
 	require.NoError(t, err)
@@ -46,6 +51,42 @@ func TestCheckAsk_PreviewsTheNotificationAndStoresNothing(t *testing.T) {
 	shown, err := client.GetAsk(ctx, as("alice", &v1.GetAskRequest{AskId: asked.Msg.GetAskId()}))
 	require.NoError(t, err)
 	require.Equal(t, checked.Msg.GetSender(), shown.Msg.GetAsk().GetSender(), "the check names the sender the ask then has")
+}
+
+// An agent's ask with a recommendation and no reason is refused whole, and the
+// dry run says so first, with the same finding, so the agent fixes it before
+// it sends. Nothing of the refused ask is stored.
+func TestAgentAskWithABlockingFindingIsRefusedAndTheDryRunSaysSoFirst(t *testing.T) {
+	ctx := context.Background()
+	client := newFormClient(t)
+	request := bareAsk("refused-1")
+	request.Recommended = proto.String("yes")
+
+	checked, err := client.CheckAsk(ctx, as("alice", &v1.CheckAskRequest{Ask: request}))
+	require.NoError(t, err)
+	var blocking []string
+	for _, warning := range checked.Msg.GetWarnings() {
+		if warning.GetSeverity() == hub.WarningBlocking {
+			blocking = append(blocking, warning.GetCode())
+		}
+	}
+	require.Equal(t, []string{hub.WarnMissingRecommendReason}, blocking)
+
+	_, err = client.Ask(ctx, as("alice", request))
+	var refused *connect.Error
+	require.ErrorAs(t, err, &refused)
+	require.Equal(t, connect.CodeFailedPrecondition, refused.Code())
+	require.Equal(t, conversationsH.ReasonAskRefused, refused.Meta().Get(conversationsH.ErrorReasonHeader))
+	require.Contains(t, refused.Message(), "missing_recommendation_reason")
+	require.Contains(t, refused.Message(), "nothing was sent")
+	listed, err := client.ListAsks(ctx, as("alice", &v1.ListAsksRequest{}))
+	require.NoError(t, err)
+	require.Empty(t, listed.Msg.GetAsks(), "a refused ask leaves nothing behind")
+
+	request.RecommendationReason = proto.String("The disk has room again.")
+	asked, err := client.Ask(ctx, as("alice", request))
+	require.NoError(t, err, "fixed, the same request goes out")
+	require.Equal(t, "pending", asked.Msg.GetState())
 }
 
 func TestCheckAsk_NamesTheOpenAskAKeyedRequestWouldRevise(t *testing.T) {

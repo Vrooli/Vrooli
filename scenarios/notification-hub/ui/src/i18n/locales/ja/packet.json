@@ -32,10 +32,10 @@
     "answerQuestions": "回答する · 質問{{count}}件"
   },
   "text": {
-    "openInWebConsole": "Web Console でファイルを開く",
+    "openLinkedArtifact": "Notification Hub でファイルを開く",
     "openAttachment": "添付ファイルを開く",
     "fileLinksLoading": "ファイルリンクを準備しています…",
-    "fileLinksUnavailable": "ファイルパスを表示していますが、Web Consoleに接続できないため開けません。",
+    "fileLinksUnavailable": "ここではファイルを開けません。利用可能なファイルフォルダー内にあるか確認して、もう一度お試しください。",
     "retryFileLinks": "ファイルリンクを再試行"
   },
   "attachments": {
@@ -62,6 +62,7 @@
   "form": {
     "choose": "回答を選択",
     "otherOption": "その他",
+    "approveOnPage": "Agent Manager のページが開きます。そこでサインインして承認してください",
     "otherPrompt": "どのような案をお考えですか？",
     "noteLabel": "メモを追加（任意）",
     "recommended": "おすすめ",
@@ -168,5 +169,29 @@
     "missing": "元のファイルはもう存在しません。表示しているのは、エージェントが添付した時点のコピーです。",
     "download": "このファイルをダウンロード",
     "openInNewTab": "新しいタブで開く"
+  },
+  "regionFeedback": {
+    "title": "キャプチャを比較",
+    "close": "比較を閉じる",
+    "before": "変更前",
+    "after": "変更後",
+    "fidelity": "画像の種類: {{label}}",
+    "route": "画面: {{route}}",
+    "viewport": "{{width}} × {{height}} ピクセル",
+    "build": "ビルド {{build}}",
+    "comparisonWarning": "キャプチャが異なります: {{reason}} 直接比較できない場合があります。",
+    "regionsTitle": "画面の領域を選択",
+    "region": "{{label}} · {{component}}",
+    "regionId": "領域 {{id}}",
+    "commentLabel": "{{region}}について一文で入力",
+    "commentHint": "メモは領域とキャプチャ情報とともに回答に含まれます。",
+    "save": "メモを回答に追加",
+    "noteSaved": "メモを回答に追加しました",
+    "unavailable": "マニフェストまたは画像証拠が不足しているため、比較を開けません。",
+    "notAnswerable": "キャプチャを表示できますが、この判断ではコメントを送れません。",
+    "captured": "実際のキャプチャ",
+    "composited": "実アプリ合成",
+    "rendered": "実コンポーネント表示",
+    "sketch": "スケッチ"
   }
 }

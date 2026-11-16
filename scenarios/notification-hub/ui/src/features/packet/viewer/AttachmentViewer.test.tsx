@@ -5,6 +5,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { selectors } from "../../../consts/selectors";
+import { fetchAttachment } from "../../../api/attachments";
 import { strings } from "../../../consts/strings";
 import { renderWithProviders } from "../../../test-utils";
 import { makeAttachment } from "../mocks/askFactory";
@@ -58,6 +59,30 @@ afterEach(() => {
 });
 
 describe("AttachmentViewer", () => {
+  it("opens a region-feedback folder manifest as the capture compare surface", async () => {
+    const before = "1".repeat(64);
+    const after = "2".repeat(64);
+    const crop = "3".repeat(64);
+    const manifest = {
+      schema: "ux-region-feedback/v1", id: "compare-1", route: "/settings", state_id: "menu-open", data_id: "fixture-1",
+      before: { id: "before", build_id: `sha256:${"a".repeat(64)}`, route: "/settings", state_id: "menu-open", data_id: "fixture-1", fidelity: "captured", viewport: { width: 390, height: 844 }, image: { path: "captures/before.png", sha256: before } },
+      after: { id: "after", build_id: `sha256:${"b".repeat(64)}`, route: "/settings", state_id: "menu-open", data_id: "fixture-1", fidelity: "rendered", viewport: { width: 390, height: 844 }, image: { path: "captures/after.png", sha256: after } },
+      regions: [{ id: "settings-nav", node_id: "node-1", label: "Settings navigation", component: "BottomNav", evidence_id: "crop-1", bounds: { x: 0, y: 0.8, width: 1, height: 0.2 }, crop: { path: "regions/crops/settings.png", sha256: crop } }],
+    };
+    const folder = makeAttachment({ name: "capture-review", folder: true, entries: [
+      { path: "ux-region-feedback.json", mediaType: "application/json", sha256: "4".repeat(64) },
+      { path: "captures/before.png", mediaType: "image/png", sha256: before, sizeBytes: 128 },
+      { path: "captures/after.png", mediaType: "image/png", sha256: after, sizeBytes: 128 },
+      { path: "regions/crops/settings.png", mediaType: "image/png", sha256: crop, sizeBytes: 64 },
+      { path: "regions/settings-nav.json", mediaType: "application/json", sha256: "5".repeat(64), sizeBytes: 16 },
+    ] });
+    const content = JSON.stringify(manifest);
+    vi.mocked(fetchAttachment).mockResolvedValue(new Response(content, { status: 200, headers: { "content-length": String(content.length) } }));
+    renderWithProviders(<AttachmentViewer askId="ask-1" attachments={[folder]} target={{ name: folder.name, path: "ux-region-feedback.json" }} onClose={vi.fn()} draft={emptyDraft()} onDraftChange={vi.fn()} canNote />);
+    expect(await screen.findByRole("dialog", { name: strings.packet.regionFeedback.title })).toBeInTheDocument();
+    expect(fetchAttachment).toHaveBeenCalledWith("ask-1", "capture-review", "ux-region-feedback.json", expect.any(AbortSignal));
+  });
+
   it("shows the Hub's own copy of an image and says when the original changed since", async () => {
     renderWithProviders(<Harness start={{ name: "set-a.png", path: "" }} />);
 

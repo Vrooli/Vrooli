@@ -23,6 +23,12 @@
     --hub-success: #15803d;
     --hub-warning: #b45309;
     --hub-danger: #dc2626;
+    --hub-series-1: #2563eb;
+    --hub-series-2: #0d9488;
+    --hub-series-3: #7c3aed;
+    --hub-series-4: #c2410c;
+    --hub-series-5: #be185d;
+    --hub-series-6: #64748b;
     --hub-font: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     --hub-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
     --hub-radius: 0.5rem;
@@ -43,6 +49,12 @@
       --hub-success: #22c55e;
       --hub-warning: #f59e0b;
       --hub-danger: #f87171;
+      --hub-series-1: #60a5fa;
+      --hub-series-2: #2dd4bf;
+      --hub-series-3: #a78bfa;
+      --hub-series-4: #fb923c;
+      --hub-series-5: #f472b6;
+      --hub-series-6: #94a3b8;
     }
   }
   :root[data-theme="dark"] {
@@ -59,17 +71,27 @@
     --hub-success: #22c55e;
     --hub-warning: #f59e0b;
     --hub-danger: #f87171;
+    --hub-series-1: #60a5fa;
+    --hub-series-2: #2dd4bf;
+    --hub-series-3: #a78bfa;
+    --hub-series-4: #fb923c;
+    --hub-series-5: #f472b6;
+    --hub-series-6: #94a3b8;
   }
 
   /* Base ------------------------------------------------------------------ */
   *, *::before, *::after { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
+  /*
+   * The page colours sit on the root, not on body: a page that sets its own
+   * `:root`/`html` colour or background then replaces them whole. On body they
+   * half-overrode such a page (its background stayed, the kit's dark-theme text
+   * landed on it), which made light pages unreadable in dark mode.
+   */
+  html { -webkit-text-size-adjust: 100%; background: var(--hub-bg); color: var(--hub-fg); }
   body {
     margin: 0 auto;
     max-width: 44rem;
     padding: 0.75rem 1rem 1rem;
-    background: var(--hub-bg);
-    color: var(--hub-fg);
     font: 400 1rem/1.55 var(--hub-font);
     overflow-wrap: break-word;
   }
@@ -171,5 +193,87 @@
   .hub-chip.is-success { --tone: var(--hub-success); }
   .hub-chip.is-warning { --tone: var(--hub-warning); }
   .hub-chip.is-danger { --tone: var(--hub-danger); }
+
+  /* .hub-proportion: a whole split into shares, with a legend ---------------- */
+  .hub-proportion { margin: 0 0 var(--hub-gap); padding: 0.875rem; background: var(--hub-surface); color: var(--hub-fg); border: 1px solid var(--hub-border); border-radius: var(--hub-radius); }
+  .hub-proportion figcaption { display: flex; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.5rem; font-weight: 600; }
+  .hub-proportion figcaption strong { font-variant-numeric: tabular-nums; }
+  .hub-proportion__bar { display: flex; gap: 2px; height: 0.875rem; overflow: hidden; border-radius: 999px; background: var(--hub-surface-muted); }
+  .hub-proportion__bar > span { flex: 0 0 var(--share, 0%); min-width: 3px; background: var(--tone, var(--hub-series-1)); }
+  .hub-proportion__legend { list-style: none; margin: 0.75rem 0 0; padding: 0; }
+  .hub-proportion__legend > li { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.375rem 0; border-top: 1px solid var(--hub-border); }
+  .hub-proportion__legend > li:first-child { border-top: 0; }
+  .hub-proportion__legend > li::before { content: ""; flex: none; width: 0.625rem; height: 0.625rem; border-radius: 2px; background: var(--tone, var(--hub-series-1)); transform: translateY(0.05rem); }
+  .hub-proportion__label { flex: 1; min-width: 0; }
+  .hub-proportion__label small, .hub-proportion__value small { display: block; color: var(--hub-muted); font-size: 0.8125rem; }
+  .hub-proportion__value { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  [data-tone="1"] { --tone: var(--hub-series-1); }
+  [data-tone="2"] { --tone: var(--hub-series-2); }
+  [data-tone="3"] { --tone: var(--hub-series-3); }
+  [data-tone="4"] { --tone: var(--hub-series-4); }
+  [data-tone="5"] { --tone: var(--hub-series-5); }
+  [data-tone="6"] { --tone: var(--hub-series-6); }
+
+  /* .hub-groups: grouped items switched on by group (fills a multi_choice) ---- */
+  .hub-groups { display: grid; gap: 0.625rem; margin: 0 0 var(--hub-gap); }
+  .hub-group { padding: 0.75rem 0.875rem; background: var(--hub-surface); color: var(--hub-fg); border: 1px solid var(--hub-border); border-radius: var(--hub-radius); }
+  .hub-group:has(.hub-group__toggle[aria-pressed="true"]) { border-color: var(--hub-primary); box-shadow: 0 0 0 1px var(--hub-primary); }
+  .hub-group__head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+  .hub-group__head h3 { margin: 0; font-size: 1rem; }
+  .hub-group__meta { margin: 0.125rem 0 0.25rem; color: var(--hub-muted); font-size: 0.875rem; }
+  .hub-group > p:last-of-type { margin-bottom: 0; }
+  .hub-group details { margin-top: 0.5rem; font-size: 0.9375rem; }
+  .hub-group summary { cursor: pointer; color: var(--hub-primary); font-weight: 600; min-height: 2.75rem; display: flex; align-items: center; }
+  .hub-group details ul { margin: 0.25rem 0 0; }
+  .hub-group__toggle { flex: none; position: relative; width: 3.25rem; min-height: 2rem; height: 2rem; padding: 0; border-radius: 999px; border: 1px solid var(--hub-border); background: var(--hub-surface-muted); }
+  .hub-group__toggle::after { content: ""; position: absolute; top: 0.1875rem; left: 0.1875rem; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--hub-muted); transition: transform 0.15s; }
+  .hub-group__toggle[aria-pressed="true"] { background: var(--hub-primary); border-color: var(--hub-primary); }
+  .hub-group__toggle[aria-pressed="true"]::after { transform: translateX(1.25rem); background: var(--hub-on-primary); }
+
+  /* .hub-command: a command the operator runs, with where / what / undo ------- */
+  .hub-command { margin: 0 0 var(--hub-gap); padding: 0.875rem; background: var(--hub-surface); color: var(--hub-fg); border: 1px solid var(--hub-border); border-left: 4px solid var(--hub-primary); border-radius: var(--hub-radius); }
+  .hub-command__where { margin: 0 0 0.5rem; font-weight: 600; }
+  .hub-command__where small { font-weight: 400; color: var(--hub-muted); }
+  .hub-command__line { display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.75rem; padding: 0.5rem 0.5rem 0.5rem 0.75rem; background: var(--hub-surface-muted); border-radius: var(--hub-radius); }
+  .hub-command__line code { flex: 1; min-width: 0; padding: 0; background: none; font-size: 0.9375rem; overflow-wrap: anywhere; user-select: all; -webkit-user-select: all; }
+  .hub-command__line button { flex: none; min-height: 2.5rem; }
+  .hub-command__steps { margin: 0 0 0.75rem; }
+  .hub-command > p:last-child { margin-bottom: 0; }
+
+  /* .hub-recurrence: "you have been asked this N times" ---------------------- */
+  .hub-recurrence { display: flex; gap: 0.875rem; align-items: flex-start; margin: 0 0 var(--hub-gap); padding: 0.75rem 0.875rem; color: var(--hub-fg); background: var(--hub-surface); background: color-mix(in srgb, var(--hub-warning) 10%, var(--hub-surface)); border: 1px solid var(--hub-warning); border-radius: var(--hub-radius); }
+  .hub-recurrence__count { flex: none; font: 700 1.75rem/1 var(--hub-font); color: var(--hub-warning); font-variant-numeric: tabular-nums; }
+  .hub-recurrence p { margin: 0 0 0.25rem; }
+  .hub-recurrence__stop { font-weight: 600; }
+  .hub-recurrence__marks { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0.5rem 0 0; padding: 0; }
+  .hub-recurrence__marks > li { width: 0.75rem; height: 0.75rem; border-radius: 50%; background: var(--hub-warning); }
+  .hub-recurrence__marks > li > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+  /* .hub-matrix: options against criteria; rows become cards on a phone ----- */
+  table.hub-matrix { width: 100%; margin: 0 0 var(--hub-gap); border-collapse: collapse; background: var(--hub-surface); color: var(--hub-fg); }
+  table.hub-matrix th, table.hub-matrix td { padding: 0.625rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--hub-border); }
+  table.hub-matrix thead th { font: 600 0.75rem/1.25rem var(--hub-font); letter-spacing: 0.04em; text-transform: uppercase; color: var(--hub-muted); }
+  table.hub-matrix td[data-tone]::before { display: inline-block; width: 1.25rem; font-weight: 700; }
+  table.hub-matrix td[data-tone="good"]::before { content: "\2713"; color: var(--hub-success); }
+  table.hub-matrix td[data-tone="warn"]::before { content: "!"; color: var(--hub-warning); }
+  table.hub-matrix td[data-tone="bad"]::before { content: "\2715"; color: var(--hub-danger); }
+  table.hub-matrix tr.is-recommended > * { background: var(--hub-surface-muted); background: color-mix(in srgb, var(--hub-primary) 10%, var(--hub-surface)); }
+  table.hub-matrix tr.is-recommended > th::after { content: "Recommended"; display: block; margin-top: 0.25rem; font: 600 0.75rem/1.25rem var(--hub-font); color: var(--hub-primary); }
+  @media (max-width: 560px) {
+    table.hub-matrix, table.hub-matrix tbody, table.hub-matrix tr, table.hub-matrix th, table.hub-matrix td { display: block; }
+    table.hub-matrix thead { position: absolute; left: -9999px; }
+    table.hub-matrix tr { margin-bottom: 0.625rem; border: 1px solid var(--hub-border); border-radius: var(--hub-radius); overflow: hidden; }
+    table.hub-matrix tr.is-recommended { border-color: var(--hub-primary); box-shadow: 0 0 0 1px var(--hub-primary); }
+    table.hub-matrix th[scope="row"] { font-size: 1rem; background: var(--hub-surface-muted); }
+    table.hub-matrix td { display: grid; grid-template-columns: 7.5rem 1fr; gap: 0.5rem; }
+    table.hub-matrix td[data-label]::before { content: attr(data-label); display: block; width: auto; font: 600 0.75rem/1.25rem var(--hub-font); letter-spacing: 0.04em; text-transform: uppercase; color: var(--hub-muted); }
+    table.hub-matrix td[data-label][data-tone="good"]::before { content: "\2713  " attr(data-label); }
+    table.hub-matrix td[data-label][data-tone="warn"]::before { content: "!  " attr(data-label); }
+    table.hub-matrix td[data-label][data-tone="bad"]::before { content: "\2715  " attr(data-label); }
+    table.hub-matrix td[data-tone="good"] { box-shadow: inset 3px 0 0 var(--hub-success); }
+    table.hub-matrix td[data-tone="warn"] { box-shadow: inset 3px 0 0 var(--hub-warning); }
+    table.hub-matrix td[data-tone="bad"] { box-shadow: inset 3px 0 0 var(--hub-danger); }
+    table.hub-matrix td:last-child { border-bottom: 0; }
+  }
 
 }

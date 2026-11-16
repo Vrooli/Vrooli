@@ -866,6 +866,9 @@ func (s *Service) OpenAskAttachment(ctx context.Context, askID, recipient, name,
 	var kind, sha, sourcePath, mediaType string
 	var size int64
 	err = s.db.QueryRowContext(ctx, `SELECT kind, sha256, source_path, size_bytes, media_type FROM ask_attachments WHERE ask_id = ? AND name = ?`, ask.ID, name).Scan(&kind, &sha, &sourcePath, &size, &mediaType)
+	if errors.Is(err, sql.ErrNoRows) && name == CoverPageName && entryPath == "" {
+		return s.openCoverPage(ctx, ask)
+	}
 	if errors.Is(err, sql.ErrNoRows) {
 		return AttachmentContent{}, ErrNotFound
 	}

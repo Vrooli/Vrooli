@@ -3,7 +3,6 @@
 Storage model: what is persisted, which domain owns it, how long it is
 kept, and what must never be written here.
 
-## Purpose Of This Document
 
 This document fixes the data shape before the tables exist. Two decisions
 in particular are cheap now and expensive later: the retention rule, and

@@ -1,0 +1,17 @@
+{
+ "question": "May I build and independently review a safe cleanup path, then delete the one BAS execution holding unrelated terminal text?",
+ "big_picture": "A BAS test opened an unrelated live terminal conversation and saved its text in one recorded execution. The worker deleted its local output and stopped further captures, but that execution remains stored. I recommend building and independently reviewing a cleanup path that deletes exactly that execution and only files belonging to it alone; the current workflow preview includes 6,121 unrelated runs. Choose hold to keep the execution and keep BAS out of this proof until a safe path exists. If you do not answer, we hold and other work continues.",
+ "recommend": "clean",
+ "reason": "It removes the stored private text while protecting the 6,121 unrelated runs from the broad cleanup.",
+ "options": [
+  {
+   "key": "clean",
+   "label": "Build and review the exact cleanup, then delete this one execution"
+  },
+  {
+   "key": "hold",
+   "label": "Keep it stored and hold BAS out of this proof"
+  }
+ ],
+ "technical_details": "Case: bas-purge, from Notification Hub ask 16f2442e (15 Nov 2026). The existing BAS cleanup tool selects by age, workflow or project; its preview for this workflow would delete 6,121 unrelated runs, so it was not run. The worker removed local output and stopped further captures. The stored execution still exists. Proposed cleanup must target exactly one execution and only exclusively owned files, be independently reviewed, then delete this execution; deletion is irreversible. If target identity or file ownership is uncertain, stop without deleting. Packet: /home/matthalloran8/.vrooli/research/notification-hub-decision-eval/after/bas-purge/work/BRIEF.md"
+}

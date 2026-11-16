@@ -1,0 +1,17 @@
+{
+ "question": "Which standing-team policies should take effect before the programme begins?",
+ "big_picture": "Eight policies set the programme’s usage, permissions, work handling and supervision. I recommend all eight because they add a weekly stop rule and reduce repeated permission asks and noisy notices. You can select any subset; unselected policies keep their safe defaults. With no answer, every default remains and the programme continues.",
+ "recommend": "apply",
+ "reason": "Together the policies set clear usage and supervision limits while reducing repeated permission asks; select cautiously for lasting access and permanent deletion.",
+ "options": [
+  {
+   "key": "apply",
+   "label": "Apply the policies I select in the form"
+  },
+  {
+   "key": "keep",
+   "label": "Keep all eight defaults"
+  }
+ ],
+ "technical_details": "Source: Hub ask 6052a317, 15 Nov 2026. Evidence files, when available: work/evidence/. Apply selected policy keys only, then record them and hand them to the teams responsible. The weekly usage proposal is at most 15 quota points per 24 hours and stop/report at 50% of the week; cheaper-model mode stays on. Policy 2 covers about 8,000 lines: an unused 4,800-line control stack, a 3,200-line duplicate plan editor and three dormant plan families. Policy 3 grants last until revoked and active grants appear in each daily digest. Policy 5 allows permanent deletion of any old run belonging to the same owner. Policy 8 broadens supervision to research and standing-team owners and is enabled last. The case reports 2,448 of 3,366 notifications were turn-finished alerts, and 8 of 11 recent permission requests were from launched agents."
+}

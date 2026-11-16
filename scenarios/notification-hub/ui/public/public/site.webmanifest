@@ -32,6 +32,9 @@
       "type": "image/png"
     }
   ],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "name": "Chimesail",
   "scope": "../",
   "short_name": "Chimesail",

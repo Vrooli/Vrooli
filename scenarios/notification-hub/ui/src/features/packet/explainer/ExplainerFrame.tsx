@@ -12,6 +12,7 @@ import frameBridgeJs from "./frameBridge.js?raw";
 import { buildExplainerDocument } from "./document";
 import kitCss from "./kit/kit.css?raw";
 import kitJs from "./kit/kit.js?raw";
+import { pageColorScheme, pageTheme } from "./theme";
 import { useExplainerPage } from "./useExplainerPage";
 
 interface ExplainerFrameProps {
@@ -53,6 +54,11 @@ export function ExplainerFrame({ askId, explainer, attachments, onOpen, onPrefil
         : "",
     [page.data],
   );
+
+  // The frame's own color-scheme is the theme the page is shown in, so the
+  // page's prefers-color-scheme and the canvas behind it agree with its colours.
+  const scheme = useMemo(() => (page.data ? pageColorScheme(page.data.html, kitCss) : "both"), [page.data]);
+  const frameTheme = pageTheme(scheme, theme);
 
   const known = useRef(attachments);
   useEffect(() => {
@@ -110,9 +116,13 @@ export function ExplainerFrame({ askId, explainer, attachments, onOpen, onPrefil
           ref={frame}
           title={t(strings.packet.explainer.frameTitle, { name: explainer.label || explainer.name })}
           sandbox="allow-scripts"
+          // The kit's Copy button for a command the operator must run; without
+          // it the kit selects the text so a long-press copies it.
+          allow="clipboard-write"
           referrerPolicy="no-referrer"
           srcDoc={srcDoc}
-          style={{ height }}
+          style={{ height, colorScheme: frameTheme }}
+          data-page-scheme={scheme}
           className="block w-full border-0 bg-transparent"
         />
       )}

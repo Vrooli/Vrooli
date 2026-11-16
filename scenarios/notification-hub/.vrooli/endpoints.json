@@ -71,39 +71,6 @@
       }
     },
     {
-      "id": "external_url",
-      "path": "/api/v1/external-url",
-      "method": "GET",
-      "summary": "Resolve an installed scenario's browser-openable URL.",
-      "description": "",
-      "category": "system",
-      "response": {
-        "type": "Response",
-        "properties": {
-          "scenario": "string",
-          "url": "string"
-        }
-      },
-      "rest_exception": {
-        "reason": "ops_probe",
-        "note": "Read-only URL lookup for UI navigation; returns an empty URL when the allowlisted scenario cannot be resolved.",
-        "proto_payloads": {
-          "request": {
-            "transport": "none",
-            "conformance": "none"
-          },
-          "response": {
-            "transport": "json",
-            "conformance": "external_shape"
-          },
-          "error": {
-            "transport": "json",
-            "conformance": "external_shape"
-          }
-        }
-      }
-    },
-    {
       "id": "app_delivery_state",
       "path": "/vrooli.notification_hub.v1.appdelivery.AppDeliveryService/GetAppState",
       "method": "POST",
@@ -155,7 +122,7 @@
       "id": "conversations_stat_attachment_blobs",
       "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/StatAttachmentBlobs",
       "method": "POST",
-      "summary": "Report which attachment content hashes the Hub does not hold (producer-only)",
+      "summary": "Report which attachment content hashes the Hub does not hold (verified sender)",
       "description": "",
       "category": "conversations"
     },
@@ -163,7 +130,7 @@
       "id": "conversations_put_attachment_blob",
       "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/PutAttachmentBlob",
       "method": "POST",
-      "summary": "Store one attachment file under its SHA-256 (producer-only, at most 64 MiB)",
+      "summary": "Store one attachment file under its SHA-256 (at most 64 MiB; sender identity is optional)",
       "description": "",
       "category": "conversations"
     },
@@ -189,6 +156,58 @@
           "error": {
             "transport": "none",
             "conformance": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "conversations_linked_artifact_metadata",
+      "path": "/api/v1/asks/{ask_id}/linked-artifact/metadata",
+      "method": "GET",
+      "summary": "Resolve one decision-linked artifact inside an allowed local root",
+      "description": "",
+      "category": "conversations",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The read-only file viewer uses this route for metadata and byte-range content. Both require the verified owner and an ask addressed to that owner. File access is restricted to configured roots and 64 MiB; missing optional roots return 503.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "conversations_linked_artifact_content",
+      "path": "/api/v1/asks/{ask_id}/linked-artifact/content",
+      "method": "GET",
+      "summary": "Stream one owner-authorized decision-linked artifact",
+      "description": "",
+      "category": "conversations",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The read-only file viewer uses this route for metadata and byte-range content. Both require the verified owner and an ask addressed to that owner. File access is restricted to configured roots and 64 MiB; missing optional roots return 503.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "external_shape"
           }
         }
       }

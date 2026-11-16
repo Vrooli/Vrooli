@@ -23,7 +23,9 @@ import (
 
 const (
 	// attachmentContentPath serves one stored file of an ask to its recipient.
-	attachmentContentPath = "/api/v1/asks/{ask_id}/attachments/{name}"
+	attachmentContentPath      = "/api/v1/asks/{ask_id}/attachments/{name}"
+	linkedArtifactMetadataPath = "/api/v1/asks/{ask_id}/linked-artifact/metadata"
+	linkedArtifactContentPath  = "/api/v1/asks/{ask_id}/linked-artifact/content"
 	// putMessageLimit is what the upload RPC may receive: a 64 MiB file, which
 	// the JSON codec carries as base64 (4/3 larger), plus its small envelope.
 	putMessageLimit = hub.MaxAttachmentBlobBytes/3*4 + 64<<10

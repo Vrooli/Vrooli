@@ -30,7 +30,9 @@ function mockCache(entry?: { url: string; ts: number }) {
       return Promise.resolve(raw === undefined ? undefined : { json: () => Promise.resolve(JSON.parse(raw)) });
     },
     delete: (key: string) => Promise.resolve(store.delete(key)),
-    put: () => Promise.resolve(),
+    put: async (key: string, response: Response) => {
+      store.set(key, JSON.stringify(await response.json()));
+    },
   };
   vi.stubGlobal("caches", { open: () => Promise.resolve(cache) });
   return store;
@@ -113,6 +115,57 @@ describe("takePendingNav", () => {
 });
 
 describe("initPendingNavigation", () => {
+  it("routes an inbound Android app link into the already-open Hub", async () => {
+    const assign = setLocation(HUB);
+    mockCache();
+    let consumeLaunch: ((params: { targetURL?: string }) => void) | undefined;
+    vi.stubGlobal("navigator", {
+      serviceWorker: { addEventListener: () => {}, removeEventListener: () => {} },
+      launchQueue: {
+        setConsumer: (consumer: (params: { targetURL?: string }) => void) => {
+          consumeLaunch = consumer;
+        },
+      },
+    });
+    const dispose = initPendingNavigation();
+
+    expect(consumeLaunch).toBeTypeOf("function");
+    consumeLaunch?.({ targetURL: `${HUB}asks/incoming-decision?source=push` });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(assign).toHaveBeenCalledWith(`${HUB}asks/incoming-decision?source=push`);
+    dispose();
+  });
+
+  it("keeps an inbound launch URL until the app becomes visible", async () => {
+    const assign = setLocation(HUB);
+    setVisibility("hidden");
+    const store = mockCache();
+    let consumeLaunch: ((params: { targetURL?: string }) => void) | undefined;
+    vi.stubGlobal("navigator", {
+      serviceWorker: { addEventListener: () => {}, removeEventListener: () => {} },
+      launchQueue: {
+        setConsumer: (consumer: (params: { targetURL?: string }) => void) => {
+          consumeLaunch = consumer;
+        },
+      },
+    });
+    const dispose = initPendingNavigation();
+    const targetURL = `${HUB}asks/resumed-decision`;
+
+    consumeLaunch?.({ targetURL });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(assign).not.toHaveBeenCalled();
+    expect(JSON.parse(store.get("/__pending_nav") ?? "{}").url).toBe(targetURL);
+
+    setVisibility("visible");
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(assign).toHaveBeenCalledWith(targetURL);
+    expect(store.has("/__pending_nav")).toBe(false);
+    dispose();
+  });
+
   it("navigates to a fresh stashed target on boot", async () => {
     const assign = setLocation(HUB);
     mockCache({ url: "https://web-console.itsagitime.com/?session=s1", ts: Date.now() });

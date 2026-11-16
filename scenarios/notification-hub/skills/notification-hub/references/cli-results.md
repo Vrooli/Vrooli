@@ -17,15 +17,27 @@ the examples). A field with no value is left out.
 `ask_id`, `state`, `outcome` and `warnings` are always present. `outcome` is `created`, `updated`, `replaced`, `reasserted`, `suppressed` or `returned`; `state` is the ask's state after the call. Each warning has `code`, `field`, `message`, `severity` (`advice`: the ask is complete but reads poorly; `dropped`: the Hub left that part out) and `carried_over`.
 
 ```text
-$ notification-hub conversations ask --subject-key release-check --yes-no --question 'Ship the release today?' --big-picture 'The release is green and the window closes at noon.' --attach plan.md --attach cards.png --attach table.png --form form.yaml --json
+$ notification-hub conversations ask --subject-key release-check --yes-no --question 'Ship the release today?' --big-picture 'The release is green and the window closes at noon.' --packet work/RELEASE-CHECK --attach plan.md --attach cards.png --attach table.png --form form.yaml --json
 # exit status 0
 # stdout
 {
   "ask_id": "<ask-id>",
   "outcome": "created",
-  "warnings": [],
+  "warnings": [
+    {
+      "code": "explainer_missing",
+      "field": "attachments",
+      "message": "no page of its own: the operator gets the Hub's plain page, which only repeats your question and options. Make a real one from a starter (ls \"$VROOLI_ROOT/scenarios/notification-hub/skills/notification-hub/examples/\") that shows the situation and what happens on approval, and send it with --explainer page.html; it replaces the Hub's page (skill section \"Make the page\")",
+      "severity": "advice",
+      "carried_over": false
+    }
+  ],
   "state": "pending"
 }
+# stderr
+Packet check: 1 advice. The ask was sent; nothing here blocked it.
+  Advice:
+    - attachments: no page of its own: the operator gets the Hub's plain page, which only repeats your question and options. Make a real one from a starter (ls "$VROOLI_ROOT/scenarios/notification-hub/skills/notification-hub/examples/") that shows the situation and what happens on approval, and send it with --explainer page.html; it replaces the Hub's page (skill section "Make the page") (explainer_missing)
 ```
 
 `carried_over` is true for a finding the open ask already had, about a part the revision did not touch; the human output folds those into one line (`2 earlier warnings still apply`). Here the first send has no big picture, and the revision adds technical details only:
@@ -44,14 +56,30 @@ $ notification-hub conversations ask --subject-key disk-low --yes-no --question 
       "message": "there is no big picture; add the situation and what each answer causes, so the operator can decide without your context",
       "severity": "advice",
       "carried_over": false
+    },
+    {
+      "code": "explainer_missing",
+      "field": "attachments",
+      "message": "no page of its own: the operator gets the Hub's plain page, which only repeats your question and options. Make a real one from a starter (ls \"$VROOLI_ROOT/scenarios/notification-hub/skills/notification-hub/examples/\") that shows the situation and what happens on approval, and send it with --explainer page.html; it replaces the Hub's page (skill section \"Make the page\")",
+      "severity": "advice",
+      "carried_over": false
+    },
+    {
+      "code": "packet_missing",
+      "field": "packet",
+      "message": "no packet: write the brief a worker needs to carry out each answer (work/<ID>/BRIEF.md, see docs/agent-system/LEVELS.md) and send it with --packet <path>, so whoever gets the answer starts the work without re-deriving it",
+      "severity": "advice",
+      "carried_over": false
     }
   ],
   "state": "pending"
 }
 # stderr
-Packet check: 1 advice. The ask was sent; nothing here blocked it.
+Packet check: 3 advice. The ask was sent; nothing here blocked it.
   Advice:
     - big_picture: there is no big picture; add the situation and what each answer causes, so the operator can decide without your context (missing_big_picture)
+    - attachments: no page of its own: the operator gets the Hub's plain page, which only repeats your question and options. Make a real one from a starter (ls "$VROOLI_ROOT/scenarios/notification-hub/skills/notification-hub/examples/") that shows the situation and what happens on approval, and send it with --explainer page.html; it replaces the Hub's page (skill section "Make the page") (explainer_missing)
+    - packet: no packet: write the brief a worker needs to carry out each answer (work/<ID>/BRIEF.md, see docs/agent-system/LEVELS.md) and send it with --packet <path>, so whoever gets the answer starts the work without re-deriving it (packet_missing)
 ```
 
 ```text
@@ -68,14 +96,30 @@ $ notification-hub conversations ask --subject-key disk-low --technical-details 
       "message": "there is no big picture; add the situation and what each answer causes, so the operator can decide without your context",
       "severity": "advice",
       "carried_over": true
+    },
+    {
+      "code": "explainer_missing",
+      "field": "attachments",
+      "message": "no page of its own: the operator gets the Hub's plain page, which only repeats your question and options. Make a real one from a starter (ls \"$VROOLI_ROOT/scenarios/notification-hub/skills/notification-hub/examples/\") that shows the situation and what happens on approval, and send it with --explainer page.html; it replaces the Hub's page (skill section \"Make the page\")",
+      "severity": "advice",
+      "carried_over": true
+    },
+    {
+      "code": "packet_missing",
+      "field": "packet",
+      "message": "no packet: write the brief a worker needs to carry out each answer (work/<ID>/BRIEF.md, see docs/agent-system/LEVELS.md) and send it with --packet <path>, so whoever gets the answer starts the work without re-deriving it",
+      "severity": "advice",
+      "carried_over": false
     }
   ],
   "state": "pending"
 }
 # stderr
 Kept as the open ask has them: the question, the options, the recommendation, the big picture, the context link, the urgency, the sender, the attachments, the form.
-Packet check: no new findings. The ask was sent; nothing here blocked it.
-  1 earlier warning still applies (same as before; --json lists them).
+Packet check: 1 advice. The ask was sent; nothing here blocked it.
+  Advice:
+    - packet: no packet: write the brief a worker needs to carry out each answer (work/<ID>/BRIEF.md, see docs/agent-system/LEVELS.md) and send it with --packet <path>, so whoever gets the answer starts the work without re-deriving it (packet_missing)
+  2 earlier warnings still apply (same as before; --json lists them).
 ```
 
 
@@ -90,9 +134,11 @@ $ notification-hub conversations ask --subject-key retry-window --yes-no --quest
 Created ask <ask-id>.
 ask_id=<ask-id> state=pending outcome=created idempotency_key=ask-<key> next: notification-hub conversations wait <ask-id>
 # stderr
-Packet check: 1 advice. The ask was sent; nothing here blocked it.
+Packet check: 3 advice. The ask was sent; nothing here blocked it.
   Advice:
     - big_picture: there is no big picture; add the situation and what each answer causes, so the operator can decide without your context (missing_big_picture)
+    - attachments: no page of its own: the operator gets the Hub's plain page, which only repeats your question and options. Make a real one from a starter (ls "$VROOLI_ROOT/scenarios/notification-hub/skills/notification-hub/examples/") that shows the situation and what happens on approval, and send it with --explainer page.html; it replaces the Hub's page (skill section "Make the page") (explainer_missing)
+    - packet: no packet: write the brief a worker needs to carry out each answer (work/<ID>/BRIEF.md, see docs/agent-system/LEVELS.md) and send it with --packet <path>, so whoever gets the answer starts the work without re-deriving it (packet_missing)
 ```
 
 ```text
@@ -103,8 +149,10 @@ Updated open ask <ask-id> in place; no new notification was sent.
 ask_id=<ask-id> state=pending outcome=updated idempotency_key=ask-<key> next: notification-hub conversations wait <ask-id>
 # stderr
 Kept as the open ask has them: the question, the options, the recommendation, the big picture, the context link, the urgency, the sender, the attachments, the form.
-Packet check: no new findings. The ask was sent; nothing here blocked it.
-  1 earlier warning still applies (same as before; --json lists them).
+Packet check: 1 advice. The ask was sent; nothing here blocked it.
+  Advice:
+    - packet: no packet: write the brief a worker needs to carry out each answer (work/<ID>/BRIEF.md, see docs/agent-system/LEVELS.md) and send it with --packet <path>, so whoever gets the answer starts the work without re-deriving it (packet_missing)
+  2 earlier warnings still apply (same as before; --json lists them).
 ```
 
 
@@ -126,6 +174,9 @@ Notification the operator would get:
       Ship the release today?
 Retrieval Hints:
   To send it, run the same command without --dry-run.
+# stderr
+Packet check: no new findings. Nothing was sent (dry run); the ask would go out as it is, so fix these first if they matter.
+  1 earlier warning still applies (same as before; --json lists them).
 ```
 
 ```text
@@ -138,6 +189,18 @@ $ notification-hub conversations ask --subject-key gate-check --yes-no --questio
       "code": "missing_big_picture",
       "field": "big_picture",
       "message": "there is no big picture; add the situation and what each answer causes, so the operator can decide without your context",
+      "severity": "advice"
+    },
+    {
+      "code": "explainer_missing",
+      "field": "attachments",
+      "message": "no page of its own: the operator gets the Hub's plain page, which only repeats your question and options. Make a real one from a starter (ls \"$VROOLI_ROOT/scenarios/notification-hub/skills/notification-hub/examples/\") that shows the situation and what happens on approval, and send it with --explainer page.html; it replaces the Hub's page (skill section \"Make the page\")",
+      "severity": "advice"
+    },
+    {
+      "code": "packet_missing",
+      "field": "packet",
+      "message": "no packet: write the brief a worker needs to carry out each answer (work/<ID>/BRIEF.md, see docs/agent-system/LEVELS.md) and send it with --packet <path>, so whoever gets the answer starts the work without re-deriving it",
       "severity": "advice"
     }
   ],
@@ -171,7 +234,8 @@ $ notification-hub conversations wait --subject-key release-check --json
     "question": "Is the storage migration finished?",
     "requested_by": "alice",
     "requested_at": "<time>"
-  }
+  },
+  "packet": "<home>/work/RELEASE-CHECK/BRIEF.md"
 }
 # stderr
 The operator asked for more context before answering ask <ask-id>:
@@ -192,11 +256,21 @@ $ notification-hub conversations ask --subject-key release-check --context-respo
 {
   "ask_id": "<ask-id>",
   "outcome": "updated",
-  "warnings": [],
+  "warnings": [
+    {
+      "code": "explainer_missing",
+      "field": "attachments",
+      "message": "no page of its own: the operator gets the Hub's plain page, which only repeats your question and options. Make a real one from a starter (ls \"$VROOLI_ROOT/scenarios/notification-hub/skills/notification-hub/examples/\") that shows the situation and what happens on approval, and send it with --explainer page.html; it replaces the Hub's page (skill section \"Make the page\")",
+      "severity": "advice",
+      "carried_over": true
+    }
+  ],
   "state": "pending"
 }
 # stderr
 Kept as the open ask has them: the question, the options, the recommendation, the big picture, the technical details, the context link, the urgency, the sender, the attachments, the form.
+Packet check: no new findings. The ask was sent; nothing here blocked it.
+  1 earlier warning still applies (same as before; --json lists them).
 ```
 
 
@@ -211,7 +285,8 @@ $ notification-hub conversations wait --subject-key release-check --timeout 1s -
 {
   "ask_id": "<ask-id>",
   "state": "pending",
-  "reason": "the wait timed out; the ask is still open"
+  "reason": "the wait timed out; the ask is still open",
+  "packet": "<home>/work/RELEASE-CHECK/BRIEF.md"
 }
 # stderr
 Error: your wait timed out (exit status 4): the operator has not answered yet, and ask <ask-id> is still open; the ask has not expired. Wait again: notification-hub conversations wait --subject-key release-check
@@ -270,7 +345,8 @@ $ notification-hub conversations wait --subject-key release-check --json
       "attachment": "plan.md",
       "note": "The storage section is the one that worries me."
     }
-  ]
+  ],
+  "packet": "<home>/work/RELEASE-CHECK/BRIEF.md"
 }
 ```
 
@@ -293,6 +369,11 @@ Answer:
 Retrieval Hints:
   Read the whole ask: notification-hub conversations get <ask-id>
 ask_id=<ask-id> state=answered answer=yes
+# stderr
+Packet check: 2 advice. The ask was sent; nothing here blocked it.
+  Advice:
+    - attachments: no page of its own: the operator gets the Hub's plain page, which only repeats your question and options. Make a real one from a starter (ls "$VROOLI_ROOT/scenarios/notification-hub/skills/notification-hub/examples/") that shows the situation and what happens on approval, and send it with --explainer page.html; it replaces the Hub's page (skill section "Make the page") (explainer_missing)
+    - packet: no packet: write the brief a worker needs to carry out each answer (work/<ID>/BRIEF.md, see docs/agent-system/LEVELS.md) and send it with --packet <path>, so whoever gets the answer starts the work without re-deriving it (packet_missing)
 ```
 
 ```text
@@ -302,7 +383,22 @@ $ notification-hub conversations ask --subject-key dessert-order --yes-no --ques
 {
   "ask_id": "<ask-id>",
   "outcome": "created",
-  "warnings": [],
+  "warnings": [
+    {
+      "code": "explainer_missing",
+      "field": "attachments",
+      "message": "no page of its own: the operator gets the Hub's plain page, which only repeats your question and options. Make a real one from a starter (ls \"$VROOLI_ROOT/scenarios/notification-hub/skills/notification-hub/examples/\") that shows the situation and what happens on approval, and send it with --explainer page.html; it replaces the Hub's page (skill section \"Make the page\")",
+      "severity": "advice",
+      "carried_over": false
+    },
+    {
+      "code": "packet_missing",
+      "field": "packet",
+      "message": "no packet: write the brief a worker needs to carry out each answer (work/<ID>/BRIEF.md, see docs/agent-system/LEVELS.md) and send it with --packet <path>, so whoever gets the answer starts the work without re-deriving it",
+      "severity": "advice",
+      "carried_over": false
+    }
+  ],
   "state": "pending"
 }
 {
@@ -312,6 +408,11 @@ $ notification-hub conversations ask --subject-key dessert-order --yes-no --ques
   "reason": "answered by the operator",
   "answer_summary": "Answer: No (no)"
 }
+# stderr
+Packet check: 2 advice. The ask was sent; nothing here blocked it.
+  Advice:
+    - attachments: no page of its own: the operator gets the Hub's plain page, which only repeats your question and options. Make a real one from a starter (ls "$VROOLI_ROOT/scenarios/notification-hub/skills/notification-hub/examples/") that shows the situation and what happens on approval, and send it with --explainer page.html; it replaces the Hub's page (skill section "Make the page") (explainer_missing)
+    - packet: no packet: write the brief a worker needs to carry out each answer (work/<ID>/BRIEF.md, see docs/agent-system/LEVELS.md) and send it with --packet <path>, so whoever gets the answer starts the work without re-deriving it (packet_missing)
 ```
 
 
@@ -412,6 +513,19 @@ $ notification-hub conversations get --subject-key old-volume --json
     "answered_by_identity_kind": "unknown",
     "subject_key": "old-volume",
     "last_asserted_at": "<time>",
+    "attachments": [
+      {
+        "name": "decision-summary.html",
+        "label": "The Hub's page, made from the question and options",
+        "kind": "KIND_FILE",
+        "role": "ROLE_EXPLAINER",
+        "sha256": "<sha256>",
+        "size_bytes": "1490",
+        "media_type": "text/plain; charset=utf-8",
+        "preview_kind": "code",
+        "source_status": "unknown"
+      }
+    ],
     "sender": "Agent run"
   }
 }
@@ -463,6 +577,30 @@ $ notification-hub conversations get --subject-key release-check --json
     "subject_key": "release-check",
     "last_asserted_at": "<time>",
     "attachments": [
+      {
+        "name": "decision-summary.html",
+        "label": "The Hub's page, made from the question and options",
+        "kind": "KIND_FILE",
+        "role": "ROLE_EXPLAINER",
+        "sha256": "<sha256>",
+        "size_bytes": "1742",
+        "media_type": "text/plain; charset=utf-8",
+        "preview_kind": "code",
+        "source_status": "unknown"
+      },
+      {
+        "name": "BRIEF.md",
+        "label": "BRIEF.md",
+        "kind": "KIND_FILE",
+        "role": "ROLE_EVIDENCE",
+        "source_path": "<path>",
+        "source_host": "<host>",
+        "sha256": "<sha256>",
+        "size_bytes": "78",
+        "media_type": "text/markdown; charset=utf-8",
+        "preview_kind": "markdown",
+        "source_status": "unknown"
+      },
       {
         "name": "plan.md",
         "label": "plan.md",
@@ -606,7 +744,7 @@ $ notification-hub conversations get --subject-key release-check --json
       }
     ],
     "answer_summary": "Answer: Yes (yes)\nNote: Go ahead.\nWhich rollout do you prefer: Staged (staged)\nWhich layout should the page use: Card stack (cards)\nReview each section of the plan:\n  - Retention: change — Keep 30 days.\n  - Other sections: approve\nAnything else we should know: Watch the disk graph for an hour.\nNotes on files:\n  - plan.md: The storage section is the one that worries me.",
-    "attachment_count": 3,
+    "attachment_count": 4,
     "question_count": 4,
     "attachment_notes": [
       {
@@ -614,7 +752,8 @@ $ notification-hub conversations get --subject-key release-check --json
         "note": "The storage section is the one that worries me."
       }
     ],
-    "sender": "Agent run"
+    "sender": "Agent run",
+    "packet": "<home>/work/RELEASE-CHECK/BRIEF.md"
   }
 }
 ```

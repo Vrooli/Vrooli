@@ -68,8 +68,11 @@ func (s *Service) ListNativeConsents(ctx context.Context, recipient, query, curs
 			return out, ErrInvalidArgument
 		}
 	}
-	sql := `SELECT id, title, body, context_url, dedupe_key, created_at FROM notifications WHERE requested_by = ? AND source_scenario = ? AND category = ? AND instr(lower(title || ' ' || body), lower(?)) > 0`
-	args := []any{recipient, nativeConsentSource, nativeConsentCategory, query}
+	// A request that arrived as a decision ask (or was raised again as one) is
+	// read there, not here.
+	sql := `SELECT id, title, body, context_url, dedupe_key, created_at FROM notifications WHERE requested_by = ? AND source_scenario = ? AND category = ? AND instr(lower(title || ' ' || body), lower(?)) > 0
+		AND NOT EXISTS (SELECT 1 FROM asks a WHERE a.source = ? AND a.source_event_type = ? AND json_valid(a.correlation_json) AND json_extract(a.correlation_json, '$.authorization_id') = notifications.dedupe_key)`
+	args := []any{recipient, nativeConsentSource, nativeConsentCategory, query, nativeConsentSource, nativeConsentDecisionType}
 	if cursor != "" {
 		sql += ` AND (created_at < ? OR (created_at = ? AND id < ?))`
 		args = append(args, after.CreatedAt, after.CreatedAt, after.ID)
@@ -169,6 +172,24 @@ func (n Notification) NativeConsentReviewURL() string {
 		return ""
 	}
 	return n.ContextURL
+}
+
+// nativeConsentDecisionType is the decision Agent Manager raises for a pending
+// permission request (orchestration.ConsentDecisionEventType).
+const nativeConsentDecisionType = "agent_manager.authorization_consent.decision_requested.v1"
+
+// NativeApprovalURL is Agent Manager's approval page when this ask is its
+// permission request, and "" for every other ask. Approval needs the
+// operator's own sign-in on that page, so the ask's "approve" option opens it
+// and AnswerAsk refuses an "approve" answer.
+func (a AskRecord) NativeApprovalURL() string {
+	if a.Source != nativeConsentSource || a.SourceEventType != nativeConsentDecisionType {
+		return ""
+	}
+	if !validNativeConsentIdentity(NativeConsent{AuthorizationID: a.Correlation["authorization_id"], ReviewURL: a.ContextURL}) {
+		return ""
+	}
+	return a.ContextURL
 }
 
 func validNativeConsentIdentity(c NativeConsent) bool {

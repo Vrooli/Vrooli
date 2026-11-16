@@ -3,7 +3,6 @@
 Domain map for the scenario: the product capability boundaries, what each
 owns, and what deliberately is not a domain.
 
-## Purpose Of This Document
 
 This document is the boundary authority. It decides where a capability
 lives before any code is written, so a later agent adds behavior to the

@@ -114,9 +114,11 @@ func TestAsk_AttachmentsFromAnIdentitylessProducerAreKeptWithoutHostPathProvenan
 	require.NoError(t, err, "an ask from a host process is still accepted")
 	got, err := f.client.GetAsk(context.Background(), connect.NewRequest(&v1.GetAskRequest{AskId: response.Msg.GetAskId()}))
 	require.NoError(t, err)
-	require.Len(t, got.Msg.GetAsk().GetAttachments(), 1)
-	require.Empty(t, got.Msg.GetAsk().GetAttachments()[0].GetSourcePath(), "the Hub must not probe caller-selected host paths")
-	require.Empty(t, got.Msg.GetAsk().GetAttachments()[0].GetSourceHost())
+	attachments := got.Msg.GetAsk().GetAttachments()
+	require.Len(t, attachments, 2, "the Hub's page, then the plan")
+	require.Equal(t, "plan.md", attachments[1].GetName())
+	require.Empty(t, attachments[1].GetSourcePath(), "the Hub must not probe caller-selected host paths")
+	require.Empty(t, attachments[1].GetSourceHost())
 }
 
 // ---- memory --------------------------------------------------------------------

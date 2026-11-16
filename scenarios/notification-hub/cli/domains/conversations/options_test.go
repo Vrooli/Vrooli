@@ -32,10 +32,15 @@ func TestParseTimeAcceptsATimeOrADurationAndNamesTheFlagThatWasWrong(t *testing.
 	got, err = parseTime("--timeout", "2026-10-09T08:30:00+02:00", now)
 	require.NoError(t, err)
 	require.Equal(t, "2026-10-09T06:30:00Z", got)
+	got, err = parseTime("--expires", "7d", now)
+	require.NoError(t, err, "a decision is often given days to answer")
+	require.Equal(t, "2026-10-14T12:00:00Z", got)
 	_, err = parseTime("--timeout", "tomorrow", now)
-	require.ErrorContains(t, err, `--timeout "tomorrow" must be an RFC 3339 time or a positive duration such as 24h`)
-	_, err = parseTime("--expires", "-5m", now)
-	require.ErrorContains(t, err, "--expires")
+	require.ErrorContains(t, err, `--timeout "tomorrow" must be an RFC 3339 time or a positive duration such as 24h or 7d`)
+	for _, bad := range []string{"-5m", "0d", "-2d", "1.5d", "400d"} {
+		_, err = parseTime("--expires", bad, now)
+		require.ErrorContains(t, err, "--expires", bad)
+	}
 }
 
 func TestWaitContextOutlivesDefaultTimeoutUntilDeadline(t *testing.T) {

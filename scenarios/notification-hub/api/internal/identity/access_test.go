@@ -114,6 +114,31 @@ func TestAccessAssertionIsTheOwner(t *testing.T) {
 	}
 }
 
+// An absent owner credential is expected for host-shell producers. The
+// production middleware must leave that request available to the direct-send
+// policy, which accepts it for the configured recipient without granting any
+// owner authority.
+func TestOwnerMiddlewareLeavesIdentitylessDirectProducerAvailable(t *testing.T) {
+	provider := NewAccessProvider(func(context.Context) (cloudflareaccess.Config, error) {
+		return cloudflareaccess.Config{}, nil
+	})
+	auth := OwnerAuthenticator{Providers: []authn.Provider{provider}, OwnerSubject: func(context.Context) string { return "configured-owner" }}
+	var producer Producer
+	var producerErr error
+	handler := auth.Middleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		producer, producerErr = ResolveDirectProducer(r.Context(), r.Header, nil, ServiceVerifiers{}, "configured-owner")
+	}))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/host-producer", nil)
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+
+	if producerErr != nil {
+		t.Fatalf("identityless direct producer refused after owner middleware: %v", producerErr)
+	}
+	if producer.Recipient != "configured-owner" || !producer.Anonymous() {
+		t.Fatalf("identityless producer = %+v, want configured recipient and anonymous source bucket", producer)
+	}
+}
+
 // The verified human behind an Access request is captured for attribution
 // (AnsweredBy) as the Access subject, distinct from the recipient subject the
 // authorization check uses. The email rides along as before.

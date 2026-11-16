@@ -38,9 +38,10 @@ func (s *Service) beginRevision(ctx context.Context, spec AskSpec, read BlobRead
 	before := AskSpec{
 		Question: open.Question, BigPicture: open.BigPicture, TechnicalDetails: open.TechnicalDetails, ContextURL: open.ContextURL,
 		Recommended: open.Recommended, RecommendationReason: open.RecommendationReason,
+		Options: open.Options, Source: open.Source, SourceEventType: open.SourceEventType, SubjectKey: open.SubjectKey,
 		Attachments: attachments, Questions: open.Questions,
 	}
-	return revisionFindings{said: spec, before: s.checkPacket(ctx, before, read), revising: true}
+	return revisionFindings{said: spec, before: s.checkPacket(ctx, before, read, open.ID, open.Sender), revising: true}
 }
 
 // markCarriedOver marks every finding that the open ask already had, word for
@@ -80,12 +81,23 @@ func (r revisionFindings) saidPart(field string) bool {
 	case "attachments":
 		// The packet check names the explainer page; a request that sent an
 		// explainer, or took attachments away, touched it.
-		for _, attachment := range r.said.Attachments {
-			if attachment.Role == AttachmentRoleExplainer {
-				return true
-			}
-		}
-		return r.said.ClearAttachments || len(r.said.RemoveAttachments) > 0
+		return r.touchedPage()
+	case "options":
+		return !keep.Options
+	case "explainer":
+		// Whether the page shows a command depends on the page and on the
+		// cover that asks for one.
+		return r.touchedPage() || !keep.Question || !keep.Options || !keep.BigPicture
 	}
 	return true
+}
+
+// touchedPage reports a request that sent an explainer or took attachments away.
+func (r revisionFindings) touchedPage() bool {
+	for _, attachment := range r.said.Attachments {
+		if attachment.Role == AttachmentRoleExplainer {
+			return true
+		}
+	}
+	return r.said.ClearAttachments || len(r.said.RemoveAttachments) > 0
 }

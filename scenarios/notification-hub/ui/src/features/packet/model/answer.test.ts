@@ -76,6 +76,14 @@ describe("buildAnswer", () => {
     draft = withAttachmentNote(draft, "removed.png", "", "stale");
     expect(buildAnswer(ask, draft).attachmentNotes).toEqual([{ attachment: "character.glb", path: "", note: "Hair is too glossy" }]);
   });
+
+  it("returns a redesign region ID and correction text in the packet answer payload", () => {
+    const captureAsk = makeAsk({ attachments: [makeAttachment({ name: "capture-review", folder: true })] });
+    const draft = withAttachmentNote(emptyDraft(), "capture-review", "regions/nav-main.json", "Keep the selected destination visible.");
+    expect(buildAnswer(captureAsk, draft).attachmentNotes).toEqual([
+      { attachment: "capture-review", path: "regions/nav-main.json", note: "Keep the selected destination visible." },
+    ]);
+  });
 });
 
 describe("required questions", () => {

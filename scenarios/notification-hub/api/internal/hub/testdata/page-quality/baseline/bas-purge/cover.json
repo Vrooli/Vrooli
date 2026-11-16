@@ -1,0 +1,17 @@
+{
+ "question": "Should we build and review a safe cleanup for one BAS execution, then delete it?",
+ "big_picture": "A BAS test saved an unrelated live terminal conversation inside one recorded execution, and that text is still stored. The worker has stopped captures and deleted local output files, but the existing cleanup preview would also delete 6,121 unrelated runs. I recommend approving a narrowly scoped cleanup path, an independent review, and deletion only after the exact execution and its exclusive files are verified. If you choose hold or do not answer, the execution stays and BAS is not used for this proof until a safe path exists; other work continues.",
+ "recommend": "purge",
+ "reason": "It removes the stored private text while protecting the 6,121 unrelated runs through exact targeting and independent review.",
+ "options": [
+  {
+   "key": "purge",
+   "label": "Build and independently review an exact one-execution cleanup, then delete that execution if scope checks pass"
+  },
+  {
+   "key": "hold",
+   "label": "Keep the execution and pause BAS use for this proof until a safe path exists"
+  }
+ ],
+ "technical_details": "Source: Browser Automation Studio. Case reference: Hub ask 16f2442e (15 Nov 2026). No execution identifier or evidence file was supplied; the worker must identify the unique execution from its originating test context before action. Existing cleanup selects by age, workflow, or project; preview for this workflow includes 6,121 unrelated runs. Plan brief: /home/matthalloran8/.vrooli/research/notification-hub-decision-eval/baseline/bas-purge/work/BAS-PURGE/BRIEF.md."
+}

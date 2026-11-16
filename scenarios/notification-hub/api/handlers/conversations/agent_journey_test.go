@@ -211,7 +211,10 @@ func (o operator) waitForAsk(subjectKey string) string {
 
 const (
 	planV1Text    = "# Release plan\n\n## Storage\nMove to the new volume.\n\n## Retention\nKeep 90 days.\n"
-	explainerText = "<!doctype html><html><head><title>Release</title></head><body><h1>Release check</h1><p>Everything is green.</p></body></html>"
+	explainerText = "<!doctype html><html><head><title>Release</title></head><body><h1>Release check</h1>" +
+		"<table><tr><th>Check</th><th>Result</th></tr><tr><td>Unit and end-to-end suites</td><td>1,284 passed in 9 minutes</td></tr>" +
+		"<tr><td>Storage migration dry run</td><td>3 volumes copied, checksums match</td></tr><tr><td>Canary on staging</td><td>No errors over 2 hours of traffic</td></tr></table>" +
+		"<p>Shipping today puts the payments fix in front of customers before the weekend promotion; waiting moves it to Monday, after the traffic peak, with the rollback plan unchanged.</p></body></html>"
 )
 
 const (
@@ -265,7 +268,7 @@ func TestAgentJourney_RaiseReviseFollowAndWithdrawDecisionsWithTheCLI(t *testing
 
 	// 2. Raise it for real and wait in the same command. The operator asks for
 	// more context, so the command ends with status 3 and the question printed.
-	raising := j.start(runOne, "ask", "--subject-key", "release-check", "--yes-no", "--recommend", "yes",
+	raising := j.start(runOne, "ask", "--subject-key", "release-check", "--yes-no", "--recommend", "yes", "--recommend-reason", "Every check is green and the window closes at noon.",
 		"--question", "Ship the release today?", "--big-picture", "The release is green and the window closes at noon.",
 		"--attach", plan, "--explainer", explainer, "--form", form, "--and-wait")
 	askID := operator.waitForAsk("release-check")

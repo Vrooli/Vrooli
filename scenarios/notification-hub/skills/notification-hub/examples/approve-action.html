@@ -1,0 +1,82 @@
+<!doctype html>
+<!--
+  Technique: approve one action. What will happen, the exact effect, the risk, how to undo it.
+  Shows: a lead with the recommendation, a "what changes" table, a risk/undo pair, option cards
+  with buttons that fill in the answer, and what happens with no answer.
+  Based on a real decision: an agent asked to delete a test folder it had created.
+
+  notification-hub conversations ask \
+    --subject-key delete-sda-test-folder \
+    --question 'May an agent delete the test folder it made while checking the dependency installer?' \
+    --big-picture '...' \
+    --option 'approve=Yes — delete the folder within the next 7 days' \
+    --option 'deny=No — keep it; nothing is deleted' \
+    --recommend approve --recommend-reason 'It is a throwaway test folder that nothing uses, and it can be recreated in a minute.' \
+    --technical-details 'Path: scenarios/zz-sda-fixture. Grant: 168h, one path.' \
+    --packet ./work/DELETE-SDA-TEST-FOLDER \
+    --explainer ./approve-action.html
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delete a test folder</title>
+<style>
+  .eyebrow { margin: 0 0 .25rem; font-size: .8125rem; color: var(--hub-muted); }
+  .verdict { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin: .25rem 0 1rem; }
+  .what { display: grid; grid-template-columns: auto 1fr; gap: .5rem .75rem; margin: 0 0 1rem; padding: .75rem; border: 1px solid var(--hub-border); border-radius: var(--hub-radius); background: var(--hub-surface); }
+  .what dt { font-weight: 700; }
+  .what dd { margin: 0; color: var(--hub-muted); }
+  .pair { display: grid; gap: .75rem; grid-template-columns: 1fr 1fr; margin: 1rem 0; }
+  .pair section { border: 1px solid var(--hub-border); border-radius: var(--hub-radius); padding: .75rem; background: var(--hub-surface); }
+  .pair h3 { margin: 0 0 .25rem; font-size: .9375rem; }
+  .pair p { margin: 0; font-size: .9375rem; }
+  @media (max-width: 360px) { .pair { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <p class="eyebrow">An agent wants to delete something</p>
+  <h1>Delete one throwaway test folder?</h1>
+  <div class="verdict"><span class="hub-chip is-primary">I recommend yes</span><span>Nothing uses it, and it can be recreated in a minute.</span></div>
+
+  <dl class="what">
+    <dt>Folder</dt><dd>A test copy of a small app, made today to check the dependency installer</dd>
+    <dt>Inside</dt><dd>Two settings files and one downloaded library</dd>
+    <dt>Used by</dt><dd>Nothing; it was never part of the project</dd>
+    <dt>Allowed for</dt><dd>7 days, this one folder only, nothing beside or above it</dd>
+  </dl>
+
+  <div class="pair">
+    <section><h3>Risk</h3><p>Very low. It is a copy made for one test.</p></section>
+    <section><h3>Undo</h3><p>Run the same test again; it rebuilds the folder in about a minute.</p></section>
+  </div>
+
+  <h2>Your choices</h2>
+  <div class="hub-tradeoffs">
+    <section class="is-recommended">
+      <span class="hub-chip is-primary">Recommended</span>
+      <h3>Yes, delete it</h3>
+      <p>The agent deletes the folder within 7 days. Its permission then ends.</p>
+      <button type="button" data-answer="approve">Choose this</button>
+    </section>
+    <section>
+      <h3>No, keep it</h3>
+      <p>Nothing is deleted. The folder stays until someone removes it by hand.</p>
+      <button type="button" class="is-quiet" data-answer="deny">Choose this</button>
+    </section>
+  </div>
+
+  <h2>What happens when you approve</h2>
+  <p>The agent deletes only the folder above within 7 days, then tells you it is gone. Its permission ends there.</p>
+  <button type="button" class="is-quiet" data-hub-open="BRIEF.md">Read the prepared plan</button>
+
+  <div class="hub-callout is-warning"><strong>If you do not answer,</strong> nothing is deleted and the request closes in 24 hours.</div>
+
+  <script>
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-answer]");
+      if (b && window.hub && window.hub.prefill) window.hub.prefill("answer", b.getAttribute("data-answer"));
+    });
+  </script>
+</body>
+</html>

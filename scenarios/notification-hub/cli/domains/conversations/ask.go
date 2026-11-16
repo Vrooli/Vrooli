@@ -3,9 +3,12 @@ package conversations
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -17,18 +20,24 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// buildPacket reads the decision packet named by --explainer, --attach and
-// --form. The explainer goes first so it survives the Hub's attachment cap.
+// buildPacket reads the decision packet named by --explainer, --attach,
+// --packet (brief, its resolved brief file) and --form. The explainer goes
+// first so it survives the Hub's attachment cap; the brief follows it.
 //
 // It never fails. Every part is optional, so a part that cannot be used (a
 // missing or oversize file, a form mistake) is left out and named in
 // packet.Warnings, and the ask is still sent: a broken packet part must never
 // keep a decision from the operator.
-func buildPacket(attach []string, explainer, formPath string) (*packet, []*v1.AskQuestion) {
+func buildPacket(attach []string, explainer, brief, formPath string) (*packet, []*v1.AskQuestion) {
 	pkt := newPacket()
 	leaveOut := func(err error) { pkt.warnf("Left out %v. The ask is sent without it.", err) }
 	if explainer != "" {
 		if err := pkt.addAttachment(attachSpec{Path: explainer}, v1.AskAttachment_ROLE_EXPLAINER); err != nil {
+			leaveOut(err)
+		}
+	}
+	if brief != "" {
+		if err := pkt.addAttachment(attachSpec{Path: brief}, v1.AskAttachment_ROLE_EVIDENCE); err != nil {
 			leaveOut(err)
 		}
 	}
@@ -61,6 +70,20 @@ type askRequest struct {
 // is returned beside the request, because a dry run has to send what the check
 // reads of it while a real send uploads the blobs the Hub lacks.
 func (s *service) buildAsk(ctx cliapp.RunContext) (askRequest, error) {
+	featureCardPath := ctx.Flag("feature-card")
+	var featureCard *featureDecisionCardInput
+	if featureCardPath != "" {
+		var err error
+		featureCard, err = readFeatureDecisionCard(featureCardPath)
+		if err != nil {
+			return askRequest{}, err
+		}
+		for _, flag := range []string{"question", "body-file", "big-picture", "technical-details", "option", "yes-no", "recommend", "recommend-reason", "subject-key", "attach", "explainer", "form"} {
+			if ctx.Flag(flag) != "" || len(ctx.FlagValues(flag)) > 0 || ctx.BoolFlag(flag) {
+				return askRequest{}, fmt.Errorf("--feature-card cannot be combined with --%s; edit the card packet itself", flag)
+			}
+		}
+	}
 	var body *askText
 	if path := ctx.Flag("body-file"); path != "" {
 		parsed, err := s.readBody(path)
@@ -73,10 +96,19 @@ func (s *service) buildAsk(ctx cliapp.RunContext) (askRequest, error) {
 	if err != nil {
 		return askRequest{}, err
 	}
+	if featureCard != nil {
+		text.Question = "Keep or drop “" + featureCard.Title + "”?"
+		text.BigPicture = featureCard.Summary
+		text.TechnicalDetails = fmt.Sprintf("Finding %s. Before %s; after %s. Screen %s. Component %s. Source %s.", featureCard.Finding.Version, featureCard.Finding.BeforeBuild, featureCard.Finding.AfterBuild, featureCard.Location.Screen, featureCard.Finding.Component, featureCard.Finding.Source)
+	}
 	// A keyed ask may be a revision, which says only what changes: the Hub keeps
 	// the question and answers of the open ask for whatever is left out, and
 	// refuses a first send that has none. Without a key there is nothing to revise.
-	keyed := ctx.Flag("subject-key") != ""
+	subjectKey := ctx.Flag("subject-key")
+	if featureCard != nil {
+		subjectKey = featureCard.SubjectKey
+	}
+	keyed := subjectKey != ""
 	if text.Question == "" && !keyed {
 		return askRequest{}, fmt.Errorf("an ask needs a question: --question, or the first paragraph of --body-file")
 	}
@@ -84,8 +116,13 @@ func (s *service) buildAsk(ctx cliapp.RunContext) (askRequest, error) {
 		fmt.Fprintf(ctx.Stderr(), "Warning: the body file's section %q has no place in an ask and was left out; only the first paragraph, ## Background and ## Details are read.\n", section)
 	}
 	var askOptions []*v1.AskOption
-	if len(ctx.FlagValues("option")) > 0 || ctx.BoolFlag("yes-no") || !keyed {
-		options, err := resolveOptions(ctx.FlagValues("option"), ctx.BoolFlag("yes-no"))
+	optionValues, yesNo := ctx.FlagValues("option"), ctx.BoolFlag("yes-no")
+	if featureCard != nil {
+		optionValues = []string{"keep=" + featureCard.Options[0].Label, "drop=" + featureCard.Options[1].Label}
+		yesNo = false
+	}
+	if len(optionValues) > 0 || yesNo || !keyed {
+		options, err := resolveOptions(optionValues, yesNo)
 		if err != nil {
 			return askRequest{}, err
 		}
@@ -100,7 +137,7 @@ func (s *service) buildAsk(ctx cliapp.RunContext) (askRequest, error) {
 			return askRequest{}, err
 		}
 	}
-	reassertWithin, err := parseReassertWithin(ctx.Flag("reassert-within"), ctx.Flag("subject-key"))
+	reassertWithin, err := parseReassertWithin(ctx.Flag("reassert-within"), subjectKey)
 	if err != nil {
 		return askRequest{}, err
 	}
@@ -108,7 +145,20 @@ func (s *service) buildAsk(ctx cliapp.RunContext) (askRequest, error) {
 	if err != nil {
 		return askRequest{}, err
 	}
-	pkt, questions := buildPacket(ctx.FlagValues("attach"), ctx.Flag("explainer"), ctx.Flag("form"))
+	packetFlag := ctx.Flag("packet")
+	if featureCard != nil && packetFlag == "" {
+		packetFlag = featureCard.PacketPath
+	}
+	packetPath, brief, err := resolvePacket(packetFlag)
+	if err != nil {
+		return askRequest{}, err
+	}
+	attach, explainer, form := ctx.FlagValues("attach"), ctx.Flag("explainer"), ctx.Flag("form")
+	if featureCard != nil {
+		attach = append(attach, featureCard.Path)
+		explainer, form = featureCard.PagePath, ""
+	}
+	pkt, questions := buildPacket(attach, explainer, brief, form)
 	for _, warning := range pkt.Warnings {
 		fmt.Fprintf(ctx.Stderr(), "Warning: %s\n", warning)
 	}
@@ -134,7 +184,7 @@ func (s *service) buildAsk(ctx cliapp.RunContext) (askRequest, error) {
 		Deadline:              deadline,
 		SensitivityLabel:      ctx.Flag("sensitivity-label"),
 		IdempotencyKey:        ctx.Flag("idempotency-key"),
-		SubjectKey:            ctx.Flag("subject-key"),
+		SubjectKey:            subjectKey,
 		ReassertWithinSeconds: givenSeconds(ctx, reassertWithin),
 		Attachments:           attachments,
 		Questions:             questions,
@@ -143,6 +193,11 @@ func (s *service) buildAsk(ctx cliapp.RunContext) (askRequest, error) {
 		RemoveAttachments:     ctx.FlagValues("remove-attachment"),
 		RemoveQuestions:       ctx.FlagValues("remove-question"),
 		ContextResponse:       strings.TrimSpace(ctx.Flag("context-response")),
+		Packet:                packetPath,
+	}
+	if featureCard != nil {
+		recommended, reason := featureCard.Recommendation, featureCard.RecommendationReason
+		req.Recommended, req.RecommendationReason = &recommended, &reason
 	}
 	if ctx.BoolFlag("reversible") {
 		req.Reversible = proto.Bool(true)
@@ -167,6 +222,113 @@ func (s *service) buildAsk(ctx cliapp.RunContext) (askRequest, error) {
 		}
 	}
 	return askRequest{req: req, derived: derived, packet: pkt}, nil
+}
+
+type featureDecisionCardInput struct {
+	Path                 string `json:"-"`
+	PagePath             string `json:"-"`
+	PacketPath           string `json:"-"`
+	Schema               string `json:"schema"`
+	ID                   string `json:"id"`
+	FeatureID            string `json:"feature_id"`
+	Title                string `json:"title"`
+	Summary              string `json:"summary"`
+	Recommendation       string `json:"recommendation"`
+	RecommendationReason string `json:"recommendation_reason"`
+	Status               string `json:"status"`
+	SubjectKey           string `json:"subject_key"`
+	Location             struct {
+		Screen string `json:"screen"`
+	} `json:"location"`
+	Options []struct {
+		Key   string `json:"key"`
+		Label string `json:"label"`
+	} `json:"options"`
+	Finding struct {
+		Version     string `json:"version"`
+		BeforeBuild string `json:"before_build"`
+		AfterBuild  string `json:"after_build"`
+		Component   string `json:"component"`
+		Source      string `json:"source"`
+	} `json:"finding"`
+}
+
+func readFeatureDecisionCard(path string) (*featureDecisionCardInput, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return nil, fmt.Errorf("--feature-card %q: %w", path, err)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("--feature-card %q must be a regular local JSON file", path)
+	}
+	if info.Size() > 4<<20 {
+		return nil, fmt.Errorf("--feature-card %q exceeds 4 MiB", path)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("--feature-card %q: %w", path, err)
+	}
+	var card featureDecisionCardInput
+	if err := json.Unmarshal(data, &card); err != nil {
+		return nil, fmt.Errorf("--feature-card %q is invalid JSON: %w", path, err)
+	}
+	if card.Schema != "research-feature-decision/v2" || card.Status != "pending" || card.ID == "" || card.FeatureID == "" || card.Title == "" || card.Summary == "" || card.RecommendationReason == "" || card.SubjectKey == "" {
+		return nil, fmt.Errorf("--feature-card %q must be a complete pending research-feature-decision/v2 card", path)
+	}
+	if len(card.Options) != 2 || card.Options[0].Key != "keep" || card.Options[1].Key != "drop" || card.Options[0].Label == "" || card.Options[1].Label == "" {
+		return nil, fmt.Errorf("--feature-card %q must offer keep followed by drop", path)
+	}
+	if card.Recommendation != "keep" && card.Recommendation != "drop" {
+		return nil, fmt.Errorf("--feature-card %q recommendation must be keep or drop", path)
+	}
+	subjectHash := sha256.Sum256([]byte(card.ID + "\x00" + card.FeatureID + "\x00" + card.Finding.Version))
+	if card.SubjectKey != "feature-loss:"+hex.EncodeToString(subjectHash[:]) {
+		return nil, fmt.Errorf("--feature-card %q subject_key does not match its finding", path)
+	}
+	if card.Finding.Version == "" || card.Finding.BeforeBuild == "" || card.Finding.AfterBuild == "" || card.Finding.BeforeBuild == card.Finding.AfterBuild {
+		return nil, fmt.Errorf("--feature-card %q needs a distinct measured build pair and finding version", path)
+	}
+	if strings.EqualFold(filepath.Ext(path), ".json") == false {
+		return nil, fmt.Errorf("--feature-card %q must end in .json", path)
+	}
+	card.Path = path
+	card.PagePath = strings.TrimSuffix(path, filepath.Ext(path)) + ".html"
+	card.PacketPath = strings.TrimSuffix(path, filepath.Ext(path)) + ".BRIEF.md"
+	pageInfo, err := os.Lstat(card.PagePath)
+	if err != nil {
+		return nil, fmt.Errorf("--feature-card companion page %q: %w", card.PagePath, err)
+	}
+	if !pageInfo.Mode().IsRegular() {
+		return nil, fmt.Errorf("--feature-card companion page %q must be a regular local HTML file", card.PagePath)
+	}
+	briefInfo, err := os.Lstat(card.PacketPath)
+	if err != nil {
+		return nil, fmt.Errorf("--feature-card companion packet %q: %w", card.PacketPath, err)
+	}
+	if !briefInfo.Mode().IsRegular() {
+		return nil, fmt.Errorf("--feature-card companion packet %q must be a regular local Markdown file", card.PacketPath)
+	}
+	return &card, nil
+}
+
+// resolvePacket is --packet as the Hub keeps it: an absolute path, the folder's
+// BRIEF.md when it names a folder that holds one. brief is the file to attach
+// beside it ("" when there is no readable file); a packet that names nothing
+// readable is still sent, and the attach step says why the brief is missing.
+func resolvePacket(value string) (packet *string, brief string, err error) {
+	if strings.TrimSpace(value) == "" {
+		return nil, "", nil
+	}
+	abs, err := filepath.Abs(strings.TrimSpace(value))
+	if err != nil {
+		return nil, "", fmt.Errorf("--packet %q: %w", value, err)
+	}
+	if info, statErr := os.Stat(abs); statErr == nil && info.IsDir() {
+		if _, err := os.Stat(filepath.Join(abs, "BRIEF.md")); err == nil {
+			abs = filepath.Join(abs, "BRIEF.md")
+		}
+	}
+	return &abs, abs, nil
 }
 
 // given is a flag's value when the command gave the flag (even empty, which
@@ -392,12 +554,21 @@ func (s *service) dryRun(ctx cliapp.RunContext, built askRequest) error {
 		Summary:        summary,
 		ResultsHeading: "Notification the operator would get",
 		Results:        []string{"Title: " + msg.GetPushTitle(), "Body:\n    " + body},
-		RetrievalHints: []string{"To send it, run the same command without --dry-run."},
+		RetrievalHints: []string{dryRunNextStep(msg.GetWarnings())},
 	}); err != nil {
 		return err
 	}
 	writePacketWarnings(ctx.Stderr(), msg.GetWarnings(), false)
 	return nil
+}
+
+// dryRunNextStep is what to do after a dry run: send it, or first fix what
+// would refuse it.
+func dryRunNextStep(warnings []*v1.PacketWarning) string {
+	if hasBlocking(warnings) {
+		return "Do not send it yet: the Hub would refuse it. Fix the findings listed under \"Would refuse the ask\" (on stderr), then run --dry-run again."
+	}
+	return "To send it, run the same command without --dry-run."
 }
 
 // senderSources say, for each sender_source the Hub reports, where the name the

@@ -70,9 +70,11 @@ func TestAnswerForm_RoundTripsThroughTheConnectSurface(t *testing.T) {
 	client := newFormClient(t)
 	asked, err := client.Ask(ctx, as("alice", formAskRequest("form-1")))
 	require.NoError(t, err)
-	require.Len(t, asked.Msg.GetWarnings(), 1, "the invalid question is reported, not fatal")
+	require.Len(t, asked.Msg.GetWarnings(), 3, "the invalid question is reported, not fatal; the page-less, packet-less ask is advised to add both")
 	require.Equal(t, "question_invalid", asked.Msg.GetWarnings()[0].GetCode())
 	require.Equal(t, "dropped", asked.Msg.GetWarnings()[0].GetSeverity())
+	require.Equal(t, "explainer_missing", asked.Msg.GetWarnings()[1].GetCode())
+	require.Equal(t, "packet_missing", asked.Msg.GetWarnings()[2].GetCode())
 	askID := asked.Msg.GetAskId()
 
 	got, err := client.GetAsk(ctx, as("alice", &v1.GetAskRequest{AskId: askID}))

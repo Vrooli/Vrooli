@@ -55,3 +55,30 @@ func TestWarningsFoldWhatTheOpenAskAlreadyHadIntoOneLine(t *testing.T) {
   1 earlier warning still applies (same as before; --json lists them).
 `, render(&v1.PacketWarning{Code: "missing_big_picture", Message: "Add a big picture.", Severity: "advice", CarriedOver: true}))
 }
+
+// A finding that would refuse the ask comes first, and a dry run says to fix it
+// before sending.
+func TestADryRunListsWhatWouldRefuseTheAskFirst(t *testing.T) {
+	warnings := []*v1.PacketWarning{
+		{Code: "long_question", Field: "question", Message: "Shorten it.", Severity: "advice"},
+		{Code: "explainer_restates", Field: "attachments[0]", Message: "The page repeats the cover.", Severity: "blocking"},
+	}
+	var out bytes.Buffer
+	writePacketWarnings(&out, warnings, false)
+	require.Equal(t, `Packet check: 1 would refuse the ask, 1 advice. Nothing was sent (dry run). Sending now would be refused: fix every finding under "Would refuse the ask", then run --dry-run again.
+  Would refuse the ask (fix before sending):
+    - attachments[0]: The page repeats the cover. (explainer_restates)
+  Advice:
+    - question: Shorten it. (long_question)
+`, out.String())
+	require.Contains(t, dryRunNextStep(warnings), "Do not send it yet")
+	require.Equal(t, "To send it, run the same command without --dry-run.", dryRunNextStep(warnings[:1]))
+}
+
+func TestARefusedAskListsEachFindingOnItsOwnLine(t *testing.T) {
+	err := refusedError("refused, nothing was sent: explainer_restates (attachments[0]): the page repeats the cover. | missing_recommendation_reason (recommendation_reason): say why. | Fix each one, check with --dry-run, then send again.")
+	require.Equal(t, `ask notification question: the Hub refused the ask and nothing was sent. Fix each finding:
+  - explainer_restates (attachments[0]): the page repeats the cover.
+  - missing_recommendation_reason (recommendation_reason): say why.
+Then check with the same command plus --dry-run until nothing would refuse it, and send again.`, err.Error())
+}

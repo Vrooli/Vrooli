@@ -284,13 +284,23 @@
       },
       "agent-manager": {
         "degraded_behavior": "Missing, invalid, unreachable, unknown or in-flight source state remains visibly unverified in Needs You. Direct notifications and Hub Ask flows continue; Hub never grants native permission.",
-        "description": "Read-only current native authorization state for Needs You; permission decisions remain on the original Agent Manager consent page.",
+        "description": "Read-only current native authorization state for Needs You; permission decisions remain on the original Agent Manager consent page. Also hosts the Hub's declared decision-page-writer profile, which the shared decision-page writer (packages/api-core/decisionpage) runs for senders that hold facts but cannot design a page, and the decision-eval profile, on which the decision-quality eval (evals/decision-quality) runs Codex Luna against the notification-hub skill with dry runs only.",
         "enabled": true,
         "required": false,
         "runtime_only": true,
-        "runtime_only_rationale": "The injected lifecycle URL resolver locates Agent Manager at runtime for loopback GET /api/v1/authorizations/{id}/status. No Agent Manager Go package is imported and Hub never starts the source or sends owner credentials.",
+        "runtime_only_rationale": "The injected lifecycle URL resolver locates Agent Manager at runtime for loopback GET /api/v1/authorizations/{id}/status. No Agent Manager Go package is imported and Hub never starts the source or sends owner credentials. The decision-page-writer profile is a declaration Agent Manager reconciles; the Hub process never launches it.",
         "startup_policy": "ignore",
-        "type": "scenario"
+        "type": "scenario",
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "profileMode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-manager/decision-page-writer.json",
+              ".vrooli/agent-manager/decision-eval.json"
+            ]
+          }
+        }
       }
     }
   },

@@ -180,7 +180,7 @@ func subjectAsk(key, question string, options ...string) *connect.Request[v1.Ask
 		askOptions = append(askOptions, &v1.AskOption{Key: option, Label: option})
 	}
 	req := connect.NewRequest(&v1.AskRequest{
-		Question: question, Options: askOptions, Recommended: proto.String(options[0]), Deadline: askDeadline,
+		Question: question, Options: askOptions, Recommended: proto.String(options[0]), RecommendationReason: proto.String("It frees the disk before it fills."), Deadline: askDeadline,
 		SensitivityLabel: "private", IdempotencyKey: key, SubjectKey: "disk-pressure",
 	})
 	req.Header().Set(cliutil.HeaderAgentIdentityToken, "valid-run-1")

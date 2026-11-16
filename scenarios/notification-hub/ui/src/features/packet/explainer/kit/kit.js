@@ -8,9 +8,16 @@
  *   [data-hub-compare]  before/after slider over its first two children.
  *       data-before-label / data-after-label   tag text (default "Before" / "After")
  *       data-position                          start position, 0 to 100 (default 50)
+ *   [data-hub-groups="<question id>"]  grouped items; each .hub-group[data-key]
+ *       has a .hub-group__toggle button (aria-pressed). A tap flips it and fills
+ *       the Hub form's multi_choice question with the keys switched on, through
+ *       hub.prefill. The operator still sends.
+ *   [data-hub-copy]     a button that copies the text of the nearest <code> in
+ *       its parent. A sealed frame may refuse the clipboard; the command text is
+ *       then selected so one long-press copies it, and the button says so.
  *
  * The slider's range input is created here, so authored HTML needs no form control.
- * Call `window.hubKit.init(root)` after adding compare blocks to the page later.
+ * Call `window.hubKit.init(root)` after adding blocks to the page later.
  */
 (function () {
   "use strict";
@@ -98,9 +105,71 @@
     root.setAttribute(READY, "");
   }
 
+  function selectedKeys(root) {
+    var keys = [];
+    var groups = root.querySelectorAll(".hub-group[data-key]");
+    for (var i = 0; i < groups.length; i++) {
+      var toggle = groups[i].querySelector(".hub-group__toggle");
+      if (toggle && toggle.getAttribute("aria-pressed") === "true") keys.push(groups[i].getAttribute("data-key"));
+    }
+    return keys;
+  }
+
+  function initGroups(root) {
+    if (root.hasAttribute(READY)) return;
+    var question = root.getAttribute("data-hub-groups");
+    root.addEventListener("click", function (event) {
+      var toggle = event.target && event.target.closest ? event.target.closest(".hub-group__toggle") : null;
+      if (!toggle || !root.contains(toggle)) return;
+      toggle.setAttribute("aria-pressed", toggle.getAttribute("aria-pressed") === "true" ? "false" : "true");
+      if (question && window.hub && window.hub.prefill) window.hub.prefill(question, { selected: selectedKeys(root) });
+    });
+    root.setAttribute(READY, "");
+  }
+
+  function selectText(node) {
+    var selection = window.getSelection && window.getSelection();
+    if (!selection || !document.createRange) return;
+    var range = document.createRange();
+    range.selectNodeContents(node);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  function initCopy(button) {
+    if (button.hasAttribute(READY)) return;
+    var label = button.textContent || "Copy";
+    function say(text) {
+      button.textContent = text;
+      window.setTimeout(function () { button.textContent = label; }, 2500);
+    }
+    button.addEventListener("click", function () {
+      var code = button.parentNode && button.parentNode.querySelector("code");
+      if (!code) return;
+      var text = code.textContent || "";
+      function fallback() {
+        selectText(code);
+        var copied = false;
+        try { copied = document.execCommand && document.execCommand("copy"); } catch (e) { copied = false; }
+        say(copied ? "Copied" : "Selected: hold to copy");
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { say("Copied"); }, fallback);
+      } else {
+        fallback();
+      }
+    });
+    button.setAttribute(READY, "");
+  }
+
   function init(scope) {
-    var nodes = (scope || document).querySelectorAll("[data-hub-compare]");
+    var root = scope || document;
+    var nodes = root.querySelectorAll("[data-hub-compare]");
     for (var i = 0; i < nodes.length; i++) initCompare(nodes[i]);
+    var groups = root.querySelectorAll("[data-hub-groups]");
+    for (var j = 0; j < groups.length; j++) initGroups(groups[j]);
+    var copies = root.querySelectorAll("[data-hub-copy]");
+    for (var k = 0; k < copies.length; k++) initCopy(copies[k]);
   }
 
   if (window.hubKit && typeof window.hubKit.init === "function") {

@@ -163,6 +163,47 @@ describe("explainer kit: compare", () => {
   });
 });
 
+describe("explainer kit: groups and copy", () => {
+  beforeEach(() => {
+    runScript("delete window.hubKit; window.__prefills = []; window.hub = { prefill: function (q, v) { window.__prefills.push([q, v]); } };");
+  });
+  afterEach(() => {
+    document.body.innerHTML = "";
+    runScript("delete window.hub; delete window.__prefills");
+  });
+
+  const GROUPS = `
+    <div class="hub-groups" data-hub-groups="add">
+      <section class="hub-group" data-key="keys"><button class="hub-group__toggle" aria-pressed="true">Keys</button></section>
+      <section class="hub-group" data-key="logs"><button class="hub-group__toggle" aria-pressed="false">Logs</button></section>
+    </div>`;
+
+  function prefills(): unknown {
+    document.body.removeAttribute("data-probe");
+    runScript(`document.body.setAttribute("data-probe", JSON.stringify(window.__prefills))`);
+    return JSON.parse(document.body.getAttribute("data-probe") ?? "null");
+  }
+
+  it("toggles a group and fills the form's multi-select with every selected key", () => {
+    const body = mount(GROUPS);
+    body.querySelectorAll<HTMLButtonElement>(".hub-group__toggle")[1]?.click();
+    expect(body.querySelectorAll(".hub-group__toggle")[1]?.getAttribute("aria-pressed")).toBe("true");
+    body.querySelectorAll<HTMLButtonElement>(".hub-group__toggle")[0]?.click();
+    expect(prefills()).toEqual([
+      ["add", { selected: ["keys", "logs"] }],
+      ["add", { selected: ["logs"] }],
+    ]);
+  });
+
+  it("selects the command text when the clipboard is not available", () => {
+    const body = mount(`<section class="hub-command"><div class="hub-command__line"><code>vrooli setup --rebaseline</code><button data-hub-copy>Copy</button></div></section>`);
+    const button = body.querySelector<HTMLButtonElement>("[data-hub-copy]");
+    button?.click();
+    expect(window.getSelection()?.toString()).toBe("vrooli setup --rebaseline");
+    expect(button?.textContent).toMatch(/Copied|Selected: hold to copy/);
+  });
+});
+
 describe("explainer kit: stylesheet contract", () => {
   it("keeps every rule inside the hub-kit layer", () => {
     const stripped = kitCss.replace(/\/\*[\s\S]*?\*\//g, "").trim();
@@ -180,6 +221,18 @@ describe("explainer kit: stylesheet contract", () => {
       }
     }
     expect(closedAt).toBe(stripped.length - 1);
+  });
+
+  // A page that sets its own root colours replaces the kit's, because the kit
+  // colours html and body inherits; a kit colour on body would beat the page's
+  // root colour and leave light text on the page's own white cards.
+  it("colours html, not body, so a page's root colours reach its text", () => {
+    const stripped = kitCss.replace(/\/\*[\s\S]*?\*\//g, "");
+    const html = /\n\s*html \{([^}]*)\}/.exec(stripped)?.[1] ?? "";
+    const body = /\n\s*body \{([^}]*)\}/.exec(stripped)?.[1] ?? "";
+    expect(html).toContain("color: var(--hub-fg)");
+    expect(html).toContain("background: var(--hub-bg)");
+    expect(body).not.toMatch(/(^|[\s;])(color|background)\s*:/);
   });
 
   it("uses plain colour values, so an older browser never loses text or backgrounds", () => {
@@ -209,16 +262,19 @@ describe("explainer kit: stylesheet contract", () => {
 
   it("defines every token the stylesheet uses", () => {
     // --hub-pos is the slider position that kit.js sets at runtime.
-    const defined = new Set([...kitCss.matchAll(/(--hub-[a-z-]+):/g)].map((m) => m[1]).concat("--hub-pos"));
-    const used = [...kitCss.matchAll(/var\((--hub-[a-z-]+)/g)].map((m) => m[1]);
+    const defined = new Set([...kitCss.matchAll(/(--hub-[a-z0-9-]+):/g)].map((m) => m[1]).concat("--hub-pos"));
+    const used = [...kitCss.matchAll(/var\((--hub-[a-z0-9-]+)/g)].map((m) => m[1]);
 
     expect(used.filter((name) => !defined.has(name))).toEqual([]);
   });
 
+  // Every page carries the kit. The budget was 10 KiB before the decision
+  // blocks (proportion, groups, command, recurrence, matrix) took it to about
+  // 18 KiB; a new block has to earn its bytes against this line.
   it("stays small", () => {
     const stripped = kitCss.replace(/\/\*[\s\S]*?\*\//g, "");
 
-    expect(stripped.length).toBeLessThan(10 * 1024);
+    expect(stripped.length).toBeLessThan(20 * 1024);
   });
 
   it("names every documented building block", () => {
@@ -230,6 +286,11 @@ describe("explainer kit: stylesheet contract", () => {
       ".hub-callout",
       ".hub-figure",
       ".hub-chip",
+      ".hub-proportion",
+      ".hub-groups",
+      ".hub-command",
+      ".hub-recurrence",
+      ".hub-matrix",
     ]) {
       expect(kitCss).toContain(name);
     }

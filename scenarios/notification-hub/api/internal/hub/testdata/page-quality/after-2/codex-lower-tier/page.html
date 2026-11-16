@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keep the usage setting without a daily prompt?</title>
+<style>
+  .lead { padding: 1rem; border-radius: var(--hub-radius); background: var(--hub-surface); color: var(--hub-fg); border: 1px solid var(--hub-border); }
+  .lead p { margin-bottom: .5rem; }
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; margin: 1rem 0; }
+  .stat { padding: .75rem; border-radius: var(--hub-radius); background: var(--hub-surface-muted); color: var(--hub-fg); }
+  .stat strong { display: block; font-size: 1.25rem; }
+  .stat span { color: var(--hub-muted); font-size: .85rem; }
+  .bar { display: flex; height: 1rem; overflow: hidden; border-radius: 999px; background: var(--hub-surface-muted); color: var(--hub-fg); margin: .75rem 0 .35rem; }
+  .bar span { display: block; }
+  .legend { display: flex; flex-wrap: wrap; gap: .5rem 1rem; color: var(--hub-muted); font-size: .9rem; }
+  .legend i { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; margin-right: .25rem; background: var(--hub-primary); }
+  .legend .keep { background: var(--hub-success); }
+  .legend .expired { background: var(--hub-warning); }
+  .legend .dismissed { background: var(--hub-muted); }
+  .rule { padding: .85rem 1rem; border-left: .25rem solid var(--hub-primary); background: var(--hub-surface); color: var(--hub-fg); border-radius: var(--hub-radius); }
+  .rule p { margin: .25rem 0; }
+  .hub-tradeoffs section p { margin-bottom: .5rem; }
+</style>
+</head>
+<body>
+  <p class="eyebrow">A repeated usage choice</p>
+  <h1>Keep the quota-saving mode, and end its daily check?</h1>
+  <div class="lead">
+    <p><strong>I recommend keeping the mode on as a standing choice.</strong></p>
+    <p>New Codex work stays on GPT-6 Luna to make the weekly quota last longer; ask again only if usage or quality changes. You have kept it on every time you answered, so a daily question is costing attention without changing the setting.</p>
+  </div>
+
+  <h2>What the recent asks show</h2>
+  <div class="stats" aria-label="Fourteen asks since November 4">
+    <div class="stat"><strong>14</strong><span>asks since Nov 4</span></div>
+    <div class="stat"><strong>Every reply</strong><span>said keep it on</span></div>
+    <div class="stat"><strong>4</strong><span>ended without a reply: 2 expired, 2 dismissed</span></div>
+  </div>
+  <div class="bar" role="img" aria-label="Of 14 asks, 10 received a keep-on answer and 4 ended without an answer: two expired and two were dismissed">
+    <span style="width:71.43%;background:var(--hub-success);color:var(--hub-fg)"></span>
+    <span style="width:14.285%;background:var(--hub-warning);color:var(--hub-fg)"></span>
+    <span style="width:14.285%;background:var(--hub-muted);color:var(--hub-fg)"></span>
+  </div>
+  <div class="legend"><span><i class="keep"></i>Keep-on reply</span><span><i class="expired"></i>Expired unanswered</span><span><i class="dismissed"></i>Dismissed</span></div>
+  <aside class="hub-recurrence">
+    <strong class="hub-recurrence__count">14×</strong>
+    <div><p>You have been asked 14 times since 4 November. Every answer was “keep it on.”</p><p class="hub-recurrence__stop">“Keep it on as a standing choice” stops the daily repeat. The setting can still be turned off at any time.</p></div>
+  </aside>
+
+  <h2>How the choices differ</h2>
+  <div class="hub-tradeoffs">
+    <section class="is-recommended">
+      <span class="hub-chip is-primary">Recommended</span>
+      <h3>Keep it on; make it standing</h3>
+      <p>Quota use stays lower. Stop daily checks and ask again only if weekly usage passes 80% or work quality drops. You can end the mode at any time with Agent Manager.</p>
+      <button type="button" data-answer="standing">Choose this</button>
+    </section>
+    <section>
+      <h3>Keep it on; keep the daily check</h3>
+      <p>Nothing changes today, and the same question returns tomorrow. Quota use stays lower while the reminders continue.</p>
+      <button type="button" class="is-quiet" data-answer="daily">Choose this</button>
+    </section>
+    <section>
+      <h3>Turn the mode off</h3>
+      <p>New Codex work returns to the stronger models, which use the weekly quota faster. Agent Manager ends the current usage mode.</p>
+      <button type="button" class="is-quiet" data-answer="off">Choose this</button>
+    </section>
+  </div>
+
+  <h2>If you approve the recommendation</h2>
+  <p>Agent Manager will keep the current lower-cost setting, remove its daily confirmation, and use the change triggers above for the next check. No answer leaves the setting on and brings the question back tomorrow.</p>
+  <script>
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-answer]");
+      if (b && window.hub && window.hub.prefill) window.hub.prefill("answer", b.getAttribute("data-answer"));
+    });
+  </script>
+</body>
+</html>

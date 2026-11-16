@@ -299,7 +299,7 @@
             },
             {
               "name": "expires",
-              "description": "When the ask closes if nobody answers it: an RFC 3339 time, or a duration from now such as 6h. Default 24h. This is the ask's life, not how long your command waits (that is --timeout). With a duration, a resend still counts as the same request: the key is derived from the duration you wrote, not from the clock.",
+              "description": "When the ask closes if nobody answers it: an RFC 3339 time, or a duration from now such as 6h or 7d. Default 24h. This is the ask's life, not how long your command waits (that is --timeout). With a duration, a resend still counts as the same request: the key is derived from the duration you wrote, not from the clock.",
               "local_only": true
             },
             {
@@ -313,6 +313,10 @@
             {
               "name": "subject-key",
               "description": "Names the situation this ask is about, for example disk-pressure; always set it. Sending the same key again revises the open ask instead of adding another: identical terms change nothing, new text updates it without a new push, different options replace it, and an ask the operator dismissed is not reopened by identical terms. If the ask has already been answered or closed, a partial revision is refused with what became of the ask (read it with `get --subject-key`), and a whole ask starts a new one. 1-128 of A-Z a-z 0-9 . _ : / @ -, starting with a letter or digit."
+            },
+            {
+              "name": "feature-card",
+              "description": "Send one complete research-feature-decision/v2 JSON card generated with its matching sibling HTML page and BRIEF.md. The Hub derives the question, keep/drop choices, recommendation, finding-version subject key, evidence attachment, explainer, and execution packet from these files; the resolved event returns that subject key with the chosen answer. Do not combine this with manual question, option, recommendation, attachment, explainer, or form flags. Use --dry-run first to see the packet check."
             },
             {
               "name": "no-context-requests",
@@ -351,7 +355,12 @@
             },
             {
               "name": "explainer",
-              "description": "One self-contained HTML file the Hub shows sealed at the top of the decision. It is its own attachment: you do not also --attach it. It can name other attachments in src/href/poster. A revision that sends an explainer replaces the current one. Rules and a starter kit: skills/notification-hub/references/html-explainers.md.",
+              "description": "One self-contained HTML file the Hub shows sealed at the top of the decision. It is its own attachment: you do not also --attach it. It can name other attachments in src/href/poster. A revision that sends an explainer replaces the current one. Without one the operator gets the Hub's plain page made from the question and options. Rules and a starter kit: skills/notification-hub/references/html-explainers.md.",
+              "local_only": true
+            },
+            {
+              "name": "packet",
+              "description": "The decision's ready-to-run packet: the brief (work/<ID>/BRIEF.md, or its folder) saying what executes on each answer. The Hub keeps its absolute path on the ask and gives it back in get, wait and the resolution, so the agent that receives the answer starts a worker from it. The brief is also attached, so the operator can open it. A revision without --packet keeps the open ask's packet.",
               "local_only": true
             },
             {
@@ -1040,6 +1049,84 @@
             "run_eligible": true,
             "permissions": [
               "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "pages",
+      "description": "Check and photograph a decision page the way the Hub will judge and show it, before any ask is sent.",
+      "commands": [
+        {
+          "name": "check",
+          "description": "Run the Hub's packet check (the one behind ask --dry-run) on one page and the decision it belongs to, without sending or storing anything. Findings marked blocking are what would refuse the ask: a page that only restates the cover, text the operator cannot read in light or dark, a recommendation with no reason. Exit 0 when nothing would refuse it, 1 when something would. Without --cover-file only the page itself is judged.",
+          "positionals": [
+            {
+              "name": "page",
+              "required": true,
+              "description": "The HTML page."
+            }
+          ],
+          "flags": [
+            {
+              "name": "cover-file",
+              "description": "A JSON file with the decision's cover: question, options [{key, label}], recommended, recommendation_reason, big_picture, technical_details. Other keys are ignored, so a page writer's request file works as it is."
+            },
+            {
+              "name": "attach",
+              "repeatable": true,
+              "description": "A file the page names (for example a screenshot in src), as for ask --attach; repeat for each."
+            },
+            {
+              "name": "form",
+              "description": "The answer form the decision will carry, as for ask --form, so a page's group switches are checked against its question ids."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "needs_api": true,
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "shoot",
+          "description": "Photograph a page as the Hub frames it, with the Hub's kit, 390 px wide in light and dark, using headless Chrome. Writes the screenshots to --out (default shots/ beside the page) and prints their paths. Look at every one.",
+          "positionals": [
+            {
+              "name": "page",
+              "required": true,
+              "description": "The HTML page."
+            }
+          ],
+          "flags": [
+            {
+              "name": "out",
+              "description": "The folder for the screenshots. Default: shots/ beside the page."
+            },
+            {
+              "name": "narrow",
+              "bool": true,
+              "description": "Also photograph 320 px wide."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "needs_api": false,
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
             ]
           }
         }

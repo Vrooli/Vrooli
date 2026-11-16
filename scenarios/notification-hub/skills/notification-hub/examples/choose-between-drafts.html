@@ -16,6 +16,7 @@
     --subject-key medical-office-first-message \
     --attach ./drafts/draft-a-plain-request.md \
     --attach ./drafts/draft-b-second-opinion.md \
+    --packet ./work/OFFICE-REQUEST \
     --explainer ./choose-between-drafts.html
 
   The option keys above are what hub.prefill("answer", ...) uses below.
@@ -80,8 +81,9 @@
     </section>
   </div>
 
-  <h2>What happens next</h2>
+  <h2>What happens when you choose one</h2>
   <p>I do not send anything. I wait for you to send the message you chose, then watch for the office's reply and use its facts to write the proposal.</p>
+  <button type="button" class="is-quiet" data-hub-open="BRIEF.md">Read the prepared plan</button>
 
   <p class="lede" id="picked" role="status"></p>
 

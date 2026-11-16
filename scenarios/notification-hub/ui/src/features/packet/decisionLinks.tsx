@@ -25,21 +25,8 @@ function filePath(value: string): string | null {
   return path;
 }
 
-function fileViewerHref(base: string, path: string): string | null {
-  try {
-    const url = new URL(base);
-    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
-    url.searchParams.set("file", path);
-    return url.href;
-  } catch {
-    return null;
-  }
-}
-
-/** Resolve one local artifact path into Web Console's existing preview entry. */
-export function fileReferenceHref(value: string, webConsoleUrl = ""): string | null {
-  const path = filePath(value);
-  return path && webConsoleUrl ? fileViewerHref(webConsoleUrl, path) : null;
+export function isLocalFileReference(value: string): boolean {
+  return filePath(value) !== null;
 }
 
 const DECISION_LINKS = /\[([^\]]+)\]\(([^)]+)\)|`([^`\n]+)`|(https?:\/\/[^\s<>()]+)|((?:(?:file:\/\/\/?|~\/|\.{1,2}\/|\/)?[\w.@+-]+(?:\/[\w.@+-]+)*(?:\.[a-z0-9]{1,8}|\/))(?::\d+)?)/gi;
@@ -51,24 +38,11 @@ function localReference(match: RegExpMatchArray): string | null {
   return filePath(match[2] ?? match[3] ?? match[5] ?? "");
 }
 
-/**
- * Whether the text names a local file the Hub itself cannot open: those are
- * the references that need Web Console. A path that matches one of the ask's
- * attachments opens in the Hub's own viewer.
- */
-export function hasLocalFileReference(value: string, attachments: readonly AskAttachment[] = []): boolean {
-  for (const match of value.matchAll(new RegExp(DECISION_LINKS.source, DECISION_LINKS.flags))) {
-    const path = localReference(match);
-    if (path && !findAttachmentByPath(attachments, path)) return true;
-  }
-  return false;
-}
-
 export interface DecisionLinks {
-  webConsoleUrl?: string;
-  webConsoleTitle?: string;
   attachments?: readonly AskAttachment[];
   onOpenAttachment?: (target: AttachmentTarget) => void;
+  onOpenLinkedArtifact?: (path: string) => void;
+  openLinkedArtifactTitle?: string;
   openAttachmentTitle?: string;
   /** Lay links out inline at the surrounding line height (headings), instead of as 44px touch targets. */
   dense?: boolean;
@@ -78,14 +52,11 @@ const LINK_CLASS = "inline-flex min-h-11 max-w-full items-center break-words und
 const DENSE_LINK_CLASS = "break-words underline";
 
 /**
- * Render safe web links, attachment references and local file references in
- * decision prose. A path naming one of the ask's attachments opens the Hub's
- * viewer; any other local path hands off to Web Console's file preview, and
- * when that sibling is unavailable it stays visible instead of becoming a dead
- * link. Other Markdown remains plain text by design.
+ * Render safe web links and file references in decision prose. Attached files
+ * and other allowed local artifacts both open in the Hub viewer.
  */
 export function renderDecisionText(value: string, links: DecisionLinks = {}): ReactNode[] {
-  const { webConsoleUrl = "", attachments = [], onOpenAttachment, dense = false } = links;
+  const { attachments = [], onOpenAttachment, onOpenLinkedArtifact, openLinkedArtifactTitle, dense = false } = links;
   const linkClass = dense ? DENSE_LINK_CLASS : LINK_CLASS;
   const parts: ReactNode[] = [];
   let cursor = 0;
@@ -146,11 +117,18 @@ export function renderDecisionText(value: string, links: DecisionLinks = {}): Re
       );
       continue;
     }
-    const fileHref = localPath && webConsoleUrl ? fileViewerHref(webConsoleUrl, localPath) : null;
-    const href = httpUrl ?? fileHref;
+    if (localPath && onOpenLinkedArtifact) {
+      parts.push(
+        <button key={`linked-artifact-${index}`} type="button" data-testid={selectors.packet.textLink} title={openLinkedArtifactTitle} onClick={() => onOpenLinkedArtifact(localPath)} className={`${linkClass} text-start`}>
+          {label}
+        </button>,
+      );
+      continue;
+    }
+    const href = httpUrl;
     parts.push(
       href ? (
-        <a key={`link-${index}`} href={href} data-testid={selectors.packet.textLink} target="_blank" rel="noopener noreferrer" title={fileHref ? links.webConsoleTitle : undefined} className={linkClass}>
+        <a key={`link-${index}`} href={href} data-testid={selectors.packet.textLink} target="_blank" rel="noopener noreferrer" className={linkClass}>
           {label}
         </a>
       ) : (
@@ -163,4 +141,4 @@ export function renderDecisionText(value: string, links: DecisionLinks = {}): Re
 }
 
 /** The link targets a text surface needs; the component supplies the localized titles. */
-export type TextLinks = Omit<DecisionLinks, "webConsoleTitle" | "openAttachmentTitle">;
+export type TextLinks = Omit<DecisionLinks, "openAttachmentTitle" | "openLinkedArtifactTitle">;

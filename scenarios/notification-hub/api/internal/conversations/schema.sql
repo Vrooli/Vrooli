@@ -61,7 +61,10 @@ CREATE TABLE IF NOT EXISTS asks (
   -- Who the operator reads as asking: the sender the requester declared, else
   -- the verified service's name, else the kind of caller (ask_sender.go). It is
   -- display and filter text; it never decides who may read the ask.
-  sender TEXT NOT NULL DEFAULT ''
+  sender TEXT NOT NULL DEFAULT '',
+  -- Absolute path of the decision's ready-to-run packet (the brief the agent
+  -- that receives the answer starts a worker from); '' for none.
+  packet TEXT NOT NULL DEFAULT ''
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_asks_notification ON asks(notification_id);
 CREATE INDEX IF NOT EXISTS idx_asks_resolution_outbox ON asks(resolution_published_at, resolved_at, id);

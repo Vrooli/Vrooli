@@ -101,10 +101,15 @@ func TestConversationsCodeAndManifestDeclareTheSameArguments(t *testing.T) {
 	var declared, bound []string
 	declaredSet := map[string]bool{}
 	for _, group := range readManifestGroups(t) {
-		if group.Name != GroupName {
+		if group.Name != GroupName && group.Name != "pages" {
 			continue
 		}
 		for _, command := range group.Commands {
+			// This package implements `pages check` (PageCheck); the pages
+			// package implements the rest of its group.
+			if group.Name == "pages" && command.Name != "check" {
+				continue
+			}
 			for _, flag := range command.Flags {
 				declaredSet[flag.Name] = true
 				if len(flag.Bind) > 0 {
@@ -173,7 +178,8 @@ func TestProseNamesOnlyFlagsTheManifestDeclares(t *testing.T) {
 	for where, text := range sources {
 		for _, match := range flagMention.FindAllStringSubmatch(text, -1) {
 			name := match[1]
-			if !known[name] && !helpWords[name] {
+			// --hub-* are the page kit's CSS custom properties, not flags.
+			if !known[name] && !helpWords[name] && !strings.HasPrefix(name, "hub-") {
 				t.Errorf("%s names --%s, which no command in cli/manifest.json declares", where, name)
 			}
 		}

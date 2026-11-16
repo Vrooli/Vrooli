@@ -9,6 +9,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -29,6 +32,7 @@ import (
 	conversationsH "notification-hub/handlers/conversations"
 	"notification-hub/internal/hub"
 	"notification-hub/internal/identity"
+	"notification-hub/internal/linkedartifact"
 	"notification-hub/internal/modules"
 	"notification-hub/internal/testutil/hubtest"
 )
@@ -205,6 +209,34 @@ func TestAttachmentSendFlow_StatPutAskThenGetAsk(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int32(2), list.Msg.GetAsks()[0].GetAttachmentCount(), "a list row carries the count, not the attachments")
 	require.Empty(t, list.Msg.GetAsks()[0].GetAttachments())
+}
+
+func TestLinkedArtifactRoutesServeOnlyOwnerAuthorizedFilesInsideConfiguredRoots(t *testing.T) {
+	root := t.TempDir()
+	artifactPath := filepath.Join(root, "decision.md")
+	require.NoError(t, os.WriteFile(artifactPath, []byte("# Decision context"), 0o600))
+	outside := t.TempDir()
+	secretPath := filepath.Join(outside, "private.txt")
+	require.NoError(t, os.WriteFile(secretPath, []byte("private"), 0o600))
+	f := newAttachmentFixture(t)
+	ask := f.ask(t, "linked-artifact")
+	router := mux.NewRouter()
+	conversationsH.ModuleWithLinkedArtifacts(f.service, nil, identity.ServiceVerifiers{}, linkedartifact.New(root)).Mount(router)
+	server := httptest.NewServer(router)
+	t.Cleanup(server.Close)
+	f.url, f.http = server.URL, server.Client()
+	path := url.QueryEscape(artifactPath)
+	metadataStatus, metadata := fetch(t, server, "/api/v1/asks/"+ask.GetAskId()+"/linked-artifact/metadata?path="+path, map[string]string{"X-Vrooli-Identity-Subject": "alice"})
+	require.Equal(t, http.StatusOK, metadataStatus)
+	require.Contains(t, metadata, `"name":"decision.md"`)
+	contentStatus, content := fetch(t, server, "/api/v1/asks/"+ask.GetAskId()+"/linked-artifact/content?path="+path, map[string]string{"X-Vrooli-Identity-Subject": "alice"})
+	require.Equal(t, http.StatusOK, contentStatus)
+	require.Equal(t, "# Decision context", content)
+
+	denied, _ := fetch(t, server, "/api/v1/asks/"+ask.GetAskId()+"/linked-artifact/content?path="+url.QueryEscape(secretPath), map[string]string{"X-Vrooli-Identity-Subject": "alice"})
+	require.Equal(t, http.StatusNotFound, denied)
+	unauthorized, _ := fetch(t, server, "/api/v1/asks/"+ask.GetAskId()+"/linked-artifact/content?path="+path, nil)
+	require.Equal(t, http.StatusUnauthorized, unauthorized)
 }
 
 func TestPutAttachmentBlob_RefusesAMismatchedHashAndOversizeFiles(t *testing.T) {

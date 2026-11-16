@@ -4,7 +4,6 @@ This document is the canonical contract for first-class FYI notifications:
 how any scenario raises one, how it is branded, how recipients configure
 which ones reach them, and why delivery stays in one place.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

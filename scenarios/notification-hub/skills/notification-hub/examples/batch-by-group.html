@@ -1,0 +1,109 @@
+<!doctype html>
+<!--
+  Technique: a list or batch decision. Many items become a few groups the operator can switch on
+  or off, a bar shows how the whole splits, and the cause says why the list exists and why it will
+  not come back.
+  Shows: lead with the recommendation, .hub-proportion, .hub-groups tied to a --form multi_choice,
+  the cause, choice cards, what happens on approval and with no answer.
+  Based on a real decision: 104 leftover test folders a rehearsal test left in the data folder.
+
+  form.yaml (choice keys = the data-key of each group):
+    questions:
+      - {id: groups, type: multi_choice, prompt: Which groups may be deleted?,
+         recommended: [money-ledger, notification-hub, treasury],
+         choices: [{key: money-ledger, label: Money Ledger copies (38)},
+                   {key: notification-hub, label: Notification Hub copies (35)},
+                   {key: treasury, label: Treasury copies (31)}]}
+
+  notification-hub conversations ask \
+    --subject-key cleanup-rehearsal-test-copies \
+    --question 'May I delete 104 leftover test copies (91 MiB) that a payments rehearsal test left behind?' \
+    --big-picture '...' \
+    --option 'delete=Delete the groups I switch on' --option 'keep=Keep everything; nothing is deleted' \
+    --recommend delete --recommend-reason 'They are copies a test made and never cleaned up; the test is fixed, so they will not come back.' \
+    --form form.yaml --explainer batch-by-group.html --packet work/CLEANUP-REHEARSAL-COPIES
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delete 104 leftover test copies</title>
+<style>
+  .eyebrow { margin: 0 0 .25rem; font-size: .8125rem; color: var(--hub-muted); }
+  .verdict { display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap; margin: .25rem 0 1rem; }
+  .cause { margin: 1rem 0; padding: .75rem .875rem; border-radius: var(--hub-radius); background: var(--hub-surface-muted); color: var(--hub-fg); }
+  .cause h2 { margin: 0 0 .375rem; font-size: 1rem; }
+  .cause p { margin: 0 0 .375rem; }
+  .cause p:last-child { margin: 0; }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Clean-up of the data folder</p>
+  <h1>Delete 104 leftover test copies?</h1>
+  <div class="verdict"><span class="hub-chip is-primary">I recommend all three groups</span><span>Nothing uses them, and the test that made them is fixed.</span></div>
+
+  <figure class="hub-proportion">
+    <figcaption><span>What the 104 folders are</span><strong>91 MiB</strong></figcaption>
+    <div class="hub-proportion__bar" role="img" aria-label="Money Ledger 38, Notification Hub 35, Treasury 31">
+      <span data-tone="1" style="--share:36.5%"></span><span data-tone="2" style="--share:33.7%"></span><span data-tone="3" style="--share:29.8%"></span>
+    </div>
+    <ol class="hub-proportion__legend">
+      <li data-tone="1"><span class="hub-proportion__label">Money Ledger copies<small>a test copy of the ledger's database</small></span><span class="hub-proportion__value">38<small>37%</small></span></li>
+      <li data-tone="2"><span class="hub-proportion__label">Notification Hub copies<small>a test copy of the Hub's database</small></span><span class="hub-proportion__value">35<small>34%</small></span></li>
+      <li data-tone="3"><span class="hub-proportion__label">Treasury copies<small>one also holds a made-up recovery file</small></span><span class="hub-proportion__value">31<small>30%</small></span></li>
+    </ol>
+  </figure>
+
+  <h2>Switch on what may go</h2>
+  <div class="hub-groups" data-hub-groups="groups">
+    <section class="hub-group" data-key="money-ledger">
+      <div class="hub-group__head"><h3>Money Ledger copies</h3><button type="button" class="hub-group__toggle" aria-pressed="true" aria-label="Include Money Ledger copies"></button></div>
+      <p class="hub-group__meta">38 folders · newest written 13 Nov, 19:08</p>
+      <p>Each holds only a small database the test made. The real ledger keeps its data elsewhere.</p>
+      <details><summary>Show the 38 items</summary><ul><li>Copy from 13 Nov, 00:02</li><li>Copy from 13 Nov, 06:31</li><li>… one line per folder, in plain words</li></ul></details>
+    </section>
+    <section class="hub-group" data-key="notification-hub">
+      <div class="hub-group__head"><h3>Notification Hub copies</h3><button type="button" class="hub-group__toggle" aria-pressed="true" aria-label="Include Notification Hub copies"></button></div>
+      <p class="hub-group__meta">35 folders · none open by any program</p>
+      <p>Test copies only. Your decisions and notifications are not in these folders.</p>
+      <details><summary>Show the 35 items</summary><ul><li>Copy from 13 Nov, 00:03</li><li>… one line per folder</li></ul></details>
+    </section>
+    <section class="hub-group" data-key="treasury">
+      <div class="hub-group__head"><h3>Treasury copies</h3><button type="button" class="hub-group__toggle" aria-pressed="true" aria-label="Include Treasury copies"></button></div>
+      <p class="hub-group__meta">31 folders · one holds a made-up recovery file</p>
+      <p>The recovery file is test data the same test invented, not a real one.</p>
+      <details><summary>Show the 31 items</summary><ul><li>Copy from 13 Nov, 00:04</li><li>… one line per folder</li></ul></details>
+    </section>
+  </div>
+
+  <section class="cause">
+    <h2>Why they are here, and why they stop</h2>
+    <p>A payments rehearsal test started its test copies without saying where to keep them, so every run left three folders in your data folder.</p>
+    <p>The test now keeps its copies inside its own run folder. New runs leave nothing here, so this question will not come back.</p>
+  </section>
+
+  <h2>Your choices</h2>
+  <div class="hub-tradeoffs">
+    <section class="is-recommended">
+      <span class="hub-chip is-primary">Recommended</span>
+      <h3>Delete the groups switched on</h3>
+      <p>I delete exactly those folders within 3 days and tell you when they are gone. The permission then ends.</p>
+      <button type="button" data-answer="delete">Choose this</button>
+    </section>
+    <section>
+      <h3>Keep everything</h3>
+      <p>Nothing is deleted. The 91 MiB stays until someone removes it by hand.</p>
+      <button type="button" class="is-quiet" data-answer="keep">Choose this</button>
+    </section>
+  </div>
+
+  <div class="hub-callout"><strong>If you do not answer</strong> within 7 days, nothing is deleted.</div>
+
+  <script>
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-answer]");
+      if (b && window.hub && window.hub.prefill) window.hub.prefill("answer", b.getAttribute("data-answer"));
+    });
+  </script>
+</body>
+</html>

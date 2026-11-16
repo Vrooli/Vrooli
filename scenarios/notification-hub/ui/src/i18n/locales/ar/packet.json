@@ -34,10 +34,10 @@
     "answerQuestions_two": "إجابة · سؤالان"
   },
   "text": {
-    "openInWebConsole": "فتح الملف في Web Console",
+    "openLinkedArtifact": "فتح الملف في Notification Hub",
     "openAttachment": "فتح الملف المرفق",
     "fileLinksLoading": "جارٍ تجهيز روابط الملفات…",
-    "fileLinksUnavailable": "تظهر مسارات الملفات، لكن تعذر الوصول إلى Web Console لفتحها.",
+    "fileLinksUnavailable": "تعذر فتح الملف هنا. تأكد من وجوده داخل مجلد ملفات متاح، ثم حاول مرة أخرى.",
     "retryFileLinks": "إعادة محاولة روابط الملفات"
   },
   "attachments": {
@@ -66,6 +66,7 @@
   "form": {
     "choose": "اختر إجابة",
     "otherOption": "أخرى",
+    "approveOnPage": "تُفتح صفحة Agent Manager، حيث توافق بتسجيل دخولك",
     "otherPrompt": "ما الخيار الذي تفكر فيه؟",
     "noteLabel": "أضف ملاحظة (اختياري)",
     "recommended": "موصى به",
@@ -174,5 +175,29 @@
     "missing": "لم يعد الملف الأصلي موجودًا. ما تراه هو النسخة التي أرفقها الوكيل.",
     "download": "تنزيل هذا الملف",
     "openInNewTab": "فتح في علامة تبويب جديدة"
+  },
+  "regionFeedback": {
+    "title": "مقارنة اللقطات",
+    "close": "إغلاق المقارنة",
+    "before": "قبل",
+    "after": "بعد",
+    "fidelity": "نوع الصورة: {{label}}",
+    "route": "الشاشة: {{route}}",
+    "viewport": "{{width}} × {{height}} بكسل",
+    "build": "البناء {{build}}",
+    "comparisonWarning": "تختلف هذه اللقطات: {{reason}} قد لا تكون الصور مقارنة مباشرة.",
+    "regionsTitle": "اختر منطقة من الشاشة",
+    "region": "{{label}} · {{component}}",
+    "regionId": "المنطقة {{id}}",
+    "commentLabel": "اكتب جملة واحدة عن {{region}}",
+    "commentHint": "ستُرفق ملاحظتك بهذه المنطقة وتفاصيل الالتقاط في إجابتك.",
+    "save": "أضف الملاحظة إلى الإجابة",
+    "noteSaved": "أُضيفت الملاحظة إلى الإجابة",
+    "unavailable": "تعذر فتح المقارنة لأن ملفها أو صورها غير مكتملة.",
+    "notAnswerable": "يمكنك مشاهدة الالتقاط، لكن هذا القرار لا يقبل التعليقات.",
+    "captured": "لقطة أصلية",
+    "composited": "مركّب",
+    "rendered": "معروض",
+    "sketch": "تصوّر أولي"
   }
 }

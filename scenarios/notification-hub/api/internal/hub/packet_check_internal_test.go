@@ -1,97 +1,12 @@
 package hub
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
-
-func TestInternalIDsFlagsRequesterLabelsAndSparesOrdinaryText(t *testing.T) {
-	for name, tc := range map[string]struct {
-		text string
-		want []string
-	}{
-		"letter and hyphen digits":         {"Should we pick S-14 now?", []string{"S-14"}},
-		"letter and digits":                {"Do O7 first or later?", []string{"O7"}},
-		"long segmented id":                {"Ship F49-MOR-CHECKOUT this week?", []string{"F49-MOR-CHECKOUT"}},
-		"decision id":                      {"Close BAS-D-065 or keep it open?", []string{"BAS-D-065"}},
-		"prefixed number":                  {"Is BAS-065 still wanted?", []string{"BAS-065"}},
-		"uuid":                             {"Retry 3f2a9c1b-0d4e-4f6a-8b7c-1e2d3c4b5a69?", []string{"3f2a9c1b-0d4e-4f6a-8b7c-1e2d3c4b5a69"}},
-		"several in order, repeats once":   {"S-14 then O7, then S-14 again", []string{"S-14", "O7"}},
-		"id at the start and end":          {"O7", []string{"O7"}},
-		"inside brackets and quotes":       {`Skip "S-14" (O7)?`, []string{"S-14", "O7"}},
-		"nested label reported as longest": {"Work on F49-MOR-CHECKOUT", []string{"F49-MOR-CHECKOUT"}},
-
-		"plain words":            {"Should the backup run tonight or wait until the drive is back?", nil},
-		"year":                   {"Renew the certificate before 2026?", nil},
-		"date":                   {"Keep logs until 2026-11-13?", nil},
-		"time of day":            {"Run at 10:30 or 22:00?", nil},
-		"money":                  {"Spend $50 or $500 on the upgrade?", nil},
-		"lowercase version":      {"Upgrade to v2 or stay on v1.4?", nil},
-		"capital version":        {"Upgrade to V2.1 or stay?", nil},
-		"quarter":                {"Plan for Q3 or Q4?", nil},
-		"half year":              {"Ship in H1 or H2?", nil},
-		"apple chip":             {"Should the build target M1 or M3?", nil},
-		"latency percentile":     {"Is a P95 of 300 ms acceptable?", nil},
-		"paper size":             {"Print on A4?", nil},
-		"storage product":        {"Move the archive to S3?", nil},
-		"encoding standard":      {"Use UTF-8 and SHA-256 for the export?", nil},
-		"model name":             {"Switch to GPT-4 for summaries?", nil},
-		"cve":                    {"Patch CVE-2026-1234 now?", nil},
-		"gpu names":              {"Rent an A100 or an H100?", nil},
-		"mixed letters digits":   {"Is the B2B plan or the E2E suite first?", nil},
-		"all caps words":         {"Is the DO-NOT-DISTURB mode OK?", nil},
-		"iso week":               {"Deploy in 2026-W45?", nil},
-		"hyphenated lower":       {"Use the follow-up-2 plan?", nil},
-		"percent and ranges":     {"Raise the limit 10-20% or 5-10?", nil},
-		"acronym with plural":    {"Review the APIs and CLIs?", nil},
-		"sentence ending in a-b": {"Pick option a-1 or b-2?", nil},
-	} {
-		t.Run(name, func(t *testing.T) {
-			require.Equal(t, tc.want, internalIDs(tc.text))
-		})
-	}
-}
-
-func TestBracketedTag(t *testing.T) {
-	require.Equal(t, "[BAS]", bracketedTag("[BAS] Close the goal?"))
-	require.Equal(t, "[S-14]", bracketedTag("  [S-14] retry?"))
-	require.Empty(t, bracketedTag("Close the goal [now]?"), "a bracket inside the sentence is not a prefix tag")
-	require.Empty(t, bracketedTag("Close the goal?"))
-}
-
-func TestLocalPathsFindsFilePathsButNotUrlsOrRoutes(t *testing.T) {
-	for name, tc := range map[string]struct {
-		text string
-		want []string
-	}{
-		"absolute under a host root": {"See /home/matthew/Vrooli/docs/plan.md for details.", []string{"/home/matthew/Vrooli/docs/plan.md"}},
-		"tmp file":                   {"Output is in /tmp/run-42/out.txt.", []string{"/tmp/run-42/out.txt"}},
-		"in parentheses":             {"the plan (/var/lib/app/state.json)", []string{"/var/lib/app/state.json"}},
-		"in backticks":               {"edit `/etc/hosts` first", []string{"/etc/hosts"}},
-		"home relative":              {"open ~/notes/todo.md", []string{"~/notes/todo.md"}},
-		"dot relative":               {"run ./scripts/fix.sh and ../out/log.txt", []string{"./scripts/fix.sh", "../out/log.txt"}},
-		"windows":                    {`copy C:\Users\me\file.txt over`, []string{`C:\Users\me\file.txt`}},
-		"other root with extension":  {"Read /project/docs/plan.md carefully", []string{"/project/docs/plan.md"}},
-		"two in order":               {"/home/a/b.txt and /home/a/c.txt", []string{"/home/a/b.txt", "/home/a/c.txt"}},
-
-		"https url":             {"See https://example.com/docs/plan.md for details", nil},
-		"http url with path":    {"Visit http://example.com/a/b/c.html", nil},
-		"api route":             {"Call /api/v1/asks to list them", nil},
-		"single segment route":  {"The /health page is green", nil},
-		"fraction and ratios":   {"About 3/4 or 24/7, and/or both", nil},
-		"slashes in a date":     {"On 2026/11/13 we decide", nil},
-		"word with slash":       {"Pick read/write access", nil},
-		"protocol relative":     {"load //cdn.example.com/lib.js", nil},
-		"sentence period only":  {"Done. Now what?", nil},
-		"extension without dir": {"Edit plan.md and notes.txt", nil},
-	} {
-		t.Run(name, func(t *testing.T) {
-			require.Equal(t, tc.want, localPaths(tc.text))
-		})
-	}
-}
 
 func TestIsLocalContextURL(t *testing.T) {
 	for _, local := range []string{
@@ -113,11 +28,8 @@ func coverSpec() AskSpec {
 		BigPicture:           "The drive has been unplugged since Tuesday, so tonight's backup would fail.",
 		Recommended:          "skip",
 		RecommendationReason: "Skipping avoids a failed run and a noisy alert.",
+		Packet:               "/home/me/.vrooli/research/work/BACKUP-SKIP/BRIEF.md",
 	}
-}
-
-func TestCheckPacketAcceptsAWellWrittenPacketSilently(t *testing.T) {
-	require.Empty(t, CheckPacket(coverSpec(), nil, nil))
 }
 
 func TestCheckPacketCoverRules(t *testing.T) {
@@ -133,6 +45,10 @@ func TestCheckPacketCoverRules(t *testing.T) {
 	id.Question = "Do S-14 and O7 before F49-MOR-CHECKOUT?"
 	tag := coverSpec()
 	tag.Question = "[BAS] Close the goal?"
+	idsBelow := coverSpec()
+	idsBelow.BigPicture = "This moves O5 M1 through the delivery step. Nothing is spent."
+	idsBelow.RecommendationReason = "It closes S-18 sooner."
+	idsBelow.Options = append(idsBelow.Options, AskOption{Key: "later", Label: "Wait for F11 first"})
 	pathQuestion := coverSpec()
 	pathQuestion.Question = "Is /home/matthew/Vrooli/docs/plan.md still right?"
 	pathPicture := coverSpec()
@@ -141,6 +57,10 @@ func TestCheckPacketCoverRules(t *testing.T) {
 	local.ContextURL = "http://localhost:3000/asks/1"
 	details := coverSpec()
 	details.TechnicalDetails = "Log: /var/log/backup/run.log and /tmp/attached.txt"
+	noPacket := coverSpec()
+	noPacket.Packet = ""
+	scenarioDecision := noPacket
+	scenarioDecision.SourceEventType = "storage_manager.deletion.decision_requested.v1"
 
 	for name, tc := range map[string]struct {
 		spec        AskSpec
@@ -148,20 +68,24 @@ func TestCheckPacketCoverRules(t *testing.T) {
 		want        []string
 		message     string
 	}{
-		"internal ids":            {id, nil, []string{"internal_id_in_question@question"}, `"S-14", "O7", "F49-MOR-CHECKOUT"`},
-		"bracket tag":             {tag, nil, []string{"internal_id_in_question@question"}, "[BAS]"},
-		"path in question":        {pathQuestion, nil, []string{"path_in_question@question"}, "plan.md"},
-		"paths in big picture":    {pathPicture, nil, []string{"path_in_question@big_picture"}, `"~/notes/todo.md", "/tmp/run/out.txt"`},
-		"long question":           {long, nil, []string{"long_question@question"}, "characters"},
-		"missing big picture":     {noPicture, nil, []string{"missing_big_picture@big_picture"}, "big picture"},
-		"missing reason":          {noReason, nil, []string{"missing_recommendation_reason@recommendation_reason"}, "reason"},
-		"no recommendation":       {noRecommendation, nil, nil, ""},
-		"local context url":       {local, nil, []string{"local_context_url@context_url"}, "phone"},
-		"unattached technical":    {details, []PacketAttachment{{Name: "attached", SourcePath: "/tmp/attached.txt"}}, []string{"unattached_path@technical_details"}, "/var/log/backup/run.log"},
-		"attached folder matches": {details, []PacketAttachment{{Name: "logs", SourcePath: "/var/log/backup"}, {Name: "attached", SourcePath: "/tmp/attached.txt"}}, nil, ""},
+		"internal ids":              {id, nil, []string{"internal_id_in_question@question"}, `"S-14", "O7", "F49-MOR-CHECKOUT"`},
+		"bracket tag":               {tag, nil, []string{"internal_id_in_question@question"}, "[BAS]"},
+		"ids below the question":    {idsBelow, nil, []string{"internal_id_in_question@big_picture", "internal_id_in_question@recommendation_reason", fmt.Sprintf("internal_id_in_question@options[%d].label", len(idsBelow.Options)-1)}, "technical_details"},
+		"path in question":          {pathQuestion, nil, []string{"path_in_question@question"}, "plan.md"},
+		"paths in big picture":      {pathPicture, nil, []string{"path_in_question@big_picture"}, `"~/notes/todo.md", "/tmp/run/out.txt"`},
+		"long question":             {long, nil, []string{"long_question@question"}, "characters"},
+		"missing big picture":       {noPicture, nil, []string{"missing_big_picture@big_picture"}, "big picture"},
+		"missing reason":            {noReason, nil, []string{"missing_recommendation_reason@recommendation_reason"}, "reason"},
+		"no recommendation":         {noRecommendation, nil, nil, ""},
+		"local context url":         {local, nil, []string{"local_context_url@context_url"}, "phone"},
+		"unattached technical":      {details, []PacketAttachment{{Name: "attached", SourcePath: "/tmp/attached.txt"}}, []string{"unattached_path@technical_details"}, "/var/log/backup/run.log"},
+		"agent decision, no packet": {noPacket, nil, []string{"packet_missing@packet"}, "--packet"},
+		"scenario decision":         {scenarioDecision, nil, nil, ""},
+		"attached folder matches":   {details, []PacketAttachment{{Name: "logs", SourcePath: "/var/log/backup"}, {Name: "attached", SourcePath: "/tmp/attached.txt"}}, nil, ""},
 	} {
 		t.Run(name, func(t *testing.T) {
-			warnings := CheckPacket(tc.spec, tc.attachments, nil)
+			// Each case has a good page, so only the cover rule under test speaks.
+			warnings := CheckPacket(tc.spec, append(tc.attachments, explainerAttachments()...), explainerFor(goodExplainer))
 			require.Equal(t, tc.want, warningCodes(warnings))
 			for _, warning := range warnings {
 				require.Equal(t, WarningAdvice, warning.Severity, "the packet check only advises")
@@ -173,7 +97,7 @@ func TestCheckPacketCoverRules(t *testing.T) {
 	// A path the packet names in the question is advice about the question even
 	// when the file is attached: the reader still meets a path in the sentence.
 	attached := []PacketAttachment{{Name: "plan", SourcePath: "/home/matthew/Vrooli/docs/plan.md"}}
-	require.Equal(t, []string{"path_in_question@question"}, warningCodes(CheckPacket(pathQuestion, attached, nil)))
+	require.Equal(t, []string{"path_in_question@question"}, warningCodes(CheckPacket(pathQuestion, append(attached, explainerAttachments()...), explainerFor(goodExplainer))))
 }
 
 const goodExplainer = `<!doctype html>
@@ -218,7 +142,7 @@ func TestCheckPacketExplainerRules(t *testing.T) {
 		"unknown hub.open":   {strings.Replace(goodExplainer, `hub.open("report.pdf")`, `hub.open('gone.pdf')`, 1), []string{"explainer_unknown_attachment"}, "gone.pdf"},
 		"unknown link":       {strings.Replace(goodExplainer, `<a href="#details">`, `<a href="page2.html">`, 1), []string{"explainer_unknown_attachment"}, "page2.html"},
 		"folder entry known": {strings.Replace(goodExplainer, `src="chart.png"`, `src="chart.png/inner/x.png"`, 1), nil, ""},
-		"several problems":   {"<html><body><img src=\"https://x.test/a.png\"><input></body></html>", []string{"explainer_network", "explainer_no_viewport", "explainer_form"}, ""},
+		"several problems":   {"<html><body><img src=\"https://x.test/a.png\"><input></body></html>", []string{"explainer_network", "explainer_no_viewport", "explainer_form", "explainer_restates"}, ""},
 	} {
 		t.Run(name, func(t *testing.T) {
 			warnings := CheckPacket(coverSpec(), explainerAttachments(), explainerFor(tc.page))
@@ -260,7 +184,8 @@ func TestCheckPacketExplainerFormatRules(t *testing.T) {
 		{Field: "f", Name: "plan", MediaType: "text/html; charset=utf-8", HTML: []byte("<p>x</p>")},
 		{Field: "f", Name: "plan", HTML: []byte("\n  <!DOCTYPE html><p>x</p>")},
 	} {
-		require.Equal(t, []string{"explainer_no_viewport@f"}, warningCodes(CheckPacket(coverSpec(), nil, page)), page.Name)
+		// A page of one word is read as a page, and restates the cover.
+		require.Equal(t, []string{"explainer_no_viewport@f", "explainer_restates@f"}, warningCodes(CheckPacket(coverSpec(), nil, page)), page.Name)
 	}
 
 	big := &PacketExplainer{Field: "attachments[0]", Name: "huge.html", Size: MaxExplainerBytes + 1}

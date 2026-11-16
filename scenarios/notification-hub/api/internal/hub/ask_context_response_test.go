@@ -47,7 +47,7 @@ func TestContextResponse_AnswersTheQuestionAndChangesNothingElse(t *testing.T) {
 	require.Equal(t, ask.Question, got.Ask.Question)
 	require.Equal(t, ask.BigPicture, got.Ask.BigPicture, "the response is not written into the ask's text")
 	require.Equal(t, ask.RevisionCount, got.Ask.RevisionCount, "no term changed, so there is no new revision to show")
-	require.Empty(t, got.Warnings)
+	require.Empty(t, withoutPageAdvice(got.Warnings))
 
 	listed, err := service.ListContextRequests(ctx, ask.ID)
 	require.NoError(t, err)
@@ -270,7 +270,7 @@ func TestRevision_RemovingAFormQuestionByIdKeepsTheOthers(t *testing.T) {
 	got := respond(t, service, "evt-2", func(spec *hub.AskSpec) { spec.RemoveQuestions = []string{"owner"} })
 	require.Equal(t, hub.AskUpdated, got.Outcome)
 	require.Equal(t, []string{"layout", "when"}, questionIDs(got.Ask.Questions))
-	require.Empty(t, got.Warnings)
+	require.Empty(t, withoutPageAdvice(got.Warnings))
 }
 
 func TestRevision_RemovingAndSendingTheSameQuestionIdReplacesIt(t *testing.T) {

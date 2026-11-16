@@ -1,6 +1,8 @@
 package conversations
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -22,6 +24,42 @@ func TestAskWithoutPacketPartsSendsNoAttachmentsOrQuestions(t *testing.T) {
 	require.Len(t, stub.asks, 1)
 	require.Empty(t, stub.asks[0].GetAttachments())
 	require.Empty(t, stub.asks[0].GetQuestions())
+}
+
+func TestAskFeatureCardBuildsPhoneDecisionAndBoundPacket(t *testing.T) {
+	dir := t.TempDir()
+	id := "FEATURE_LOSS_NAV"
+	featureID := "component-nav-settings"
+	version, before, after := "sha256:"+strings.Repeat("c", 64), "sha256:"+strings.Repeat("a", 64), "sha256:"+strings.Repeat("b", 64)
+	subjectHash := sha256.Sum256([]byte(id + "\x00" + featureID + "\x00" + version))
+	subject := "feature-loss:" + hex.EncodeToString(subjectHash[:])
+	card := map[string]any{
+		"schema": "research-feature-decision/v2", "id": id, "feature_id": featureID,
+		"title": "Settings navigation", "summary": "Settings disappeared from the served mobile navigation.",
+		"recommendation": "keep", "recommendation_reason": "The product requires Settings on mobile.",
+		"status": "pending", "subject_key": subject,
+		"options":  []map[string]string{{"key": "keep", "label": "Keep this feature"}, {"key": "drop", "label": "Drop this feature"}},
+		"location": map[string]string{"screen": "/settings"},
+		"finding":  map[string]string{"version": version, "before_build": before, "after_build": after},
+	}
+	cardBytes, err := json.Marshal(card)
+	require.NoError(t, err)
+	cardPath := writeFile(t, dir, id+".json", string(cardBytes))
+	page := writeFile(t, dir, id+".html", "<html><meta name=viewport content=x></html>")
+	brief := writeFile(t, dir, id+".BRIEF.md", "# Restore the feature after the operator chooses keep.\n")
+	require.FileExists(t, page)
+	stub := &hubStub{}
+	svc := newTestService(t, stub)
+	_, _, err = runCommand(t, svc, "ask", "--feature-card", cardPath, "--expires", "24h", "--sensitivity-label", "private", "--idempotency-key", "k1")
+	require.NoError(t, err)
+	require.Len(t, stub.asks, 1)
+	request := stub.asks[0]
+	require.Equal(t, "Keep or drop “Settings navigation”?", request.GetQuestion())
+	require.Equal(t, []string{"keep", "drop"}, []string{request.GetOptions()[0].GetKey(), request.GetOptions()[1].GetKey()})
+	require.Equal(t, "keep", request.GetRecommended())
+	require.Equal(t, subject, request.GetSubjectKey())
+	require.Equal(t, brief, request.GetPacket())
+	require.Len(t, request.GetAttachments(), 3, "the JSON card, matching HTML page and execution brief are attached")
 }
 
 func TestAskUploadsOnlyBlobsTheHubLacksAndReferencesThemByHash(t *testing.T) {
@@ -110,6 +148,27 @@ questions:
 	require.Equal(t, "layout", questions[0].GetRecommended().GetQuestionId())
 	require.Equal(t, "plan.md", questions[1].GetSectionsFrom(), "the Hub reads the headings, and again when a revision replaces the plan")
 	require.Empty(t, questions[1].GetSections())
+}
+
+func TestAskPacketNamesTheBriefAndAttachesIt(t *testing.T) {
+	work := filepath.Join(t.TempDir(), "work", "NAV-1")
+	require.NoError(t, os.MkdirAll(work, 0o700))
+	brief := writeFile(t, work, "BRIEF.md", "# Nav\nOn menu: build the menu.\n")
+	stub := &hubStub{}
+	svc := newTestService(t, stub)
+	_, _, err := runCommand(t, svc, "ask", askArgs("--packet", work)...)
+	require.NoError(t, err)
+	require.Equal(t, brief, stub.asks[0].GetPacket(), "a packet folder names its BRIEF.md")
+	atts := stub.asks[0].GetAttachments()
+	require.Len(t, atts, 1)
+	require.Equal(t, "BRIEF.md", atts[0].GetName())
+	require.Equal(t, v1.AskAttachment_ROLE_EVIDENCE, atts[0].GetRole())
+
+	stub = &hubStub{}
+	svc = newTestService(t, stub)
+	_, _, err = runCommand(t, svc, "ask", askArgs()...)
+	require.NoError(t, err)
+	require.Nil(t, stub.asks[0].Packet, "no --packet leaves a revision's packet as it is")
 }
 
 func TestAskStillSendsWhenPacketPartsAreBrokenAndSaysWhatWasLeftOut(t *testing.T) {

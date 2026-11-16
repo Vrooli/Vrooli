@@ -79,6 +79,9 @@ func askError(err error, req *v1.AskRequest) error {
 			"To change the wording of an open ask, add --subject-key <situation> and drop --idempotency-key: the Hub then updates that ask in place. "+
 			"To ask something new, drop --idempotency-key or pick another one", key, connectMessage(connectErr))
 	case connect.CodeFailedPrecondition:
+		if connectErr.Meta().Get(errorReasonHeader) == reasonAskRefused {
+			return refusedError(connectMessage(connectErr))
+		}
 		if strings.Contains(connectErr.Message(), "withdrawn") {
 			return fmt.Errorf("ask notification question: %s. The situation %q was withdrawn after this request was made; send the ask again (a request made now is newer than the withdrawal)", connectMessage(connectErr), req.GetSubjectKey())
 		}
@@ -86,6 +89,31 @@ func askError(err error, req *v1.AskRequest) error {
 		return fmt.Errorf("ask notification question: the Hub could not verify who is asking. Run this inside the agent run that needs the answer, or give the shell the owner's credential (set NOTIFICATION_HUB_API_TOKEN, or run it on this machine in personal_local mode)")
 	}
 	return cliapp.WrapAPIError("ask notification question", err, nil)
+}
+
+// The Hub names why it refused a request in this header; ask_refused is an
+// agent's ask a blocking finding of the packet check refused.
+const (
+	errorReasonHeader = "Hub-Error-Reason"
+	reasonAskRefused  = "ask_refused"
+)
+
+// refusedError lists, one per line, the findings that refused an ask and how
+// to fix each. The Hub's message is "refused, nothing was sent: f1 | f2 | next".
+func refusedError(message string) error {
+	body := strings.TrimPrefix(message, "refused, nothing was sent: ")
+	parts := strings.Split(body, " | ")
+	var b strings.Builder
+	b.WriteString("ask notification question: the Hub refused the ask and nothing was sent. Fix each finding:")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" || strings.HasPrefix(part, "Fix each one") {
+			continue
+		}
+		b.WriteString("\n  - " + part)
+	}
+	b.WriteString("\nThen check with the same command plus --dry-run until nothing would refuse it, and send again.")
+	return errors.New(b.String())
 }
 
 // connectMessage is the Hub's own words, without the Connect error prefix.

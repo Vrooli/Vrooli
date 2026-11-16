@@ -3,7 +3,6 @@
 Ordered, stateful behavior in this scenario: what moves through the
 system, in what order, and which states are illegal.
 
-## Purpose Of This Document
 
 A notification is not a CRUD record. It is accepted, judged, held,
 attempted, retried, and finally resolved — and at several points it can

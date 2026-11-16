@@ -154,6 +154,14 @@ type AskSpec struct {
 	// each question it answers. sealAsk drops it, with a warning, when no question
 	// is open.
 	ContextResponse string
+	// ExplainerHTML is an event producer's page, sent inline because an event
+	// carries no uploaded file (operatordecision.Facts.Explainer). The Hub stores
+	// it as the ask's explainer attachment, named InlineExplainerName.
+	ExplainerHTML string
+	// Packet is the absolute path of the decision's ready-to-run packet
+	// (operatordecision.Facts.Packet). The asker reads it back on the ask and
+	// the resolution; the operator never needs it.
+	Packet string
 	// Questions is the answer form shown under the main options. normalizeQuestions
 	// validates it; a question that breaks a rule is dropped with a warning.
 	Questions []AskQuestion
@@ -161,6 +169,11 @@ type AskSpec struct {
 	// prepareAttachments validates them against the blob inventory; one the Hub
 	// cannot accept is dropped with a warning.
 	Attachments []AskAttachment
+	// AgentSent is set by the handler for a direct ask from anything but a
+	// verified scenario service: an agent run, the owner's CLI, or a caller with
+	// no identity. Its blocking quality findings refuse it (packet_quality.go);
+	// a scenario's event or service ask only gets advice.
+	AgentSent bool
 	// VerifiedProducer is set by the handler when it can verify who is asking
 	// (an agent run, owner or declared service sender). Anonymous asks can carry
 	// uploaded content too; prepareAttachments strips their host-path provenance.
@@ -201,6 +214,7 @@ type AskKeep struct {
 	Urgency, ContextURL                    bool
 	BigPicture, TechnicalDetails           bool
 	ReassertWithin, AcceptsContextRequests bool
+	Packet                                 bool
 }
 
 // Any reports whether the request left any field unsaid.
@@ -245,6 +259,8 @@ type AskRecord struct {
 	UpdatedAt                string
 	// SubjectKey is the producer's subject key; empty for a one-off decision.
 	SubjectKey string
+	// Packet is the decision's ready-to-run packet path; empty for none.
+	Packet string
 	// LastAssertedAt is when the producer last confirmed the decision.
 	LastAssertedAt string
 	// ReassertWithinSeconds is the producer's re-send cadence bound; 0 means none.
@@ -377,6 +393,11 @@ func normalizeAskSpec(spec AskSpec) (AskSpec, error) {
 	spec.BigPicture = normalizeExplanation(spec.BigPicture)
 	spec.TechnicalDetails = normalizeExplanation(spec.TechnicalDetails)
 	spec.ContextResponse = normalizeExplanation(spec.ContextResponse)
+	if spec.Packet = strings.TrimSpace(spec.Packet); spec.Packet != "" {
+		if problem := operatordecision.PacketPathProblem(spec.Packet); problem != "" {
+			return spec, fmt.Errorf("%w: packet %s", ErrInvalidArgument, problem)
+		}
+	}
 	sender, err := normalizeSender(spec.Sender)
 	if err != nil {
 		return spec, err
@@ -528,13 +549,26 @@ func (s *Service) AskDecision(ctx context.Context, spec AskSpec, pushSource stri
 	if err != nil {
 		return AskResult{}, err
 	}
+	// An agent's ask is checked as it would be stored before anything is
+	// written: a blocking finding refuses it whole, so a refused ask leaves no
+	// trace and the open ask it would revise stays as it was.
+	if spec.AgentSent {
+		check, err := s.checkPrepared(ctx, spec, warnings, s.ReadAttachmentBlob)
+		if err != nil {
+			return AskResult{}, err
+		}
+		if err := refusal(check.Warnings); err != nil {
+			return AskResult{}, err
+		}
+	}
 	// What the request says is read before it is sealed (sealing clears Keep), and
 	// the open ask is read before the revision changes it: together they tell which
 	// findings of the packet check are news.
 	revision := s.beginRevision(ctx, spec, s.ReadAttachmentBlob)
 	result, err := s.openAsk(ctx, spec, pushSource)
 	if err == nil && result.packet != nil {
-		result.Warnings = append(result.Warnings, revision.markCarriedOver(s.checkPacket(ctx, *result.packet, s.ReadAttachmentBlob))...)
+		findings := revision.markCarriedOver(s.checkPacket(ctx, *result.packet, s.ReadAttachmentBlob, result.Ask.ID, result.Ask.Sender))
+		result.Warnings = append(result.Warnings, findings...)
 	}
 	result.Warnings = append(warnings, result.Warnings...)
 	return result, err
@@ -554,7 +588,9 @@ func (s *Service) prepareAsk(ctx context.Context, spec AskSpec, check bool) (Ask
 		return spec, nil, err
 	}
 	spec.sourceName = s.resolveDisplayName(ctx, spec.Source)
-	return s.prepareAttachments(ctx, spec, check)
+	spec, inlineWarnings := s.storeInlineExplainer(ctx, spec, check)
+	spec, warnings, err := s.prepareAttachments(ctx, spec, check)
+	return spec, append(inlineWarnings, warnings...), err
 }
 
 // AskCheck is what a request would do, found without storing anything.
@@ -604,6 +640,13 @@ func (s *Service) CheckAsk(ctx context.Context, spec AskSpec, in CheckInput) (As
 	if err != nil {
 		return AskCheck{}, err
 	}
+	return s.checkPrepared(ctx, spec, warnings, read)
+}
+
+// checkPrepared seals a prepared request over the open ask of its subject and
+// runs the packet check, storing nothing. Findings an agent's ask would be
+// refused for carry the blocking severity.
+func (s *Service) checkPrepared(ctx context.Context, spec AskSpec, warnings []PacketWarning, read BlobReader) (AskCheck, error) {
 	open, found, err := s.openSubjectAsk(ctx, spec)
 	if err != nil {
 		return AskCheck{}, err
@@ -619,16 +662,22 @@ func (s *Service) CheckAsk(ctx context.Context, spec AskSpec, in CheckInput) (As
 	revision := s.beginRevision(ctx, spec, read)
 	spec, sealed, err := sealAsk(ctx, spec, openAsk, current, read)
 	if err != nil {
+		if !found && errors.Is(err, ErrInvalidArgument) {
+			err = explainNoOpenAskTx(ctx, s.db, spec, err)
+		}
 		return AskCheck{}, err
 	}
-	findings := revision.markCarriedOver(s.checkPacket(ctx, spec, read))
-	check := AskCheck{Warnings: append(append(warnings, sealed...), findings...), PushTitle: spec.Title, PushBody: spec.Body}
 	kept := ""
 	if found {
-		check.RevisesAskID = open.ID
 		kept = open.Sender
 	}
-	check.Sender, check.SenderSource = senderOf(spec, kept)
+	sender, senderSource := senderOf(spec, kept)
+	findings := markBlocking(spec, revision.markCarriedOver(s.checkPacket(ctx, spec, read, open.ID, sender)))
+	check := AskCheck{Warnings: append(append(append([]PacketWarning(nil), warnings...), sealed...), findings...), PushTitle: spec.Title, PushBody: spec.Body}
+	if found {
+		check.RevisesAskID = open.ID
+	}
+	check.Sender, check.SenderSource = sender, senderSource
 	return check, nil
 }
 
@@ -781,7 +830,7 @@ func sameAskTerms(existing AskRecord, notification Notification, spec AskSpec) b
 		existing.DefaultAnswer != spec.DefaultAnswer || existing.Reversible != spec.Reversible ||
 		existing.Urgency != spec.Urgency || existing.ContextURL != spec.ContextURL ||
 		existing.BigPicture != spec.BigPicture || existing.TechnicalDetails != spec.TechnicalDetails ||
-		existing.SourceEventType != spec.SourceEventType || len(existing.Options) != len(spec.Options) ||
+		existing.Packet != spec.Packet || existing.SourceEventType != spec.SourceEventType || len(existing.Options) != len(spec.Options) ||
 		!sameProviderDecisionContext(existing.ProviderDecisionContext, spec.ProviderDecisionContext) ||
 		!sameQuestions(existing.Questions, spec.Questions) ||
 		!sameCorrelation(existing.Correlation, spec.Correlation) {
@@ -827,7 +876,7 @@ const askSelect = `SELECT a.id, a.notification_id, a.question, a.allowed_answers
   a.subject_key, a.last_asserted_at, a.reassert_within_seconds, a.revision_count, a.superseded_by_ask_id, a.current_event_id,
   a.questions_json, a.accepts_context_requests, COALESCE(ans.responses_json, ''), COALESCE(ans.attachment_notes_json, ''),
   (SELECT COUNT(*) FROM ask_context_requests c WHERE c.ask_id = a.id AND c.addressed_at = ''),
-  a.attachment_count, a.attachments_digest, a.created_by, a.created_conversation, a.created_subject, a.sender,
+  a.attachment_count, a.attachments_digest, a.created_by, a.created_conversation, a.created_subject, a.sender, a.packet,
   COALESCE(ans.answer, ''), COALESCE(ans.answered_by, ''), COALESCE(ans.answered_at, ''), COALESCE(ans.note, ''), COALESCE(ans.late, 0),
   COALESCE(ai.identity_kind, ''), COALESCE(ai.identity_source, ''),
   COALESCE((SELECT MIN(r.delivered_at) FROM receipts r WHERE r.notification_id = a.notification_id), ''),
@@ -842,7 +891,7 @@ func scanAsk(row rowScanner) (AskRecord, error) {
 	err := row.Scan(&record.ID, &record.NotificationID, &record.Question, &allowedJSON, &optionsJSON, &record.Recommended, &record.RecommendationReason, &record.DefaultAnswer, &reversible, &record.Urgency, &record.ContextURL, &record.BigPicture, &record.TechnicalDetails, &record.Source, &record.SourceEventType, &record.RequesterRef, &correlationJSON, &record.Deadline, &record.State, &record.Reason, &record.DefaultAppliedAt, &record.ResolvedAt, &record.CreatedAt, &record.UpdatedAt,
 		&record.SubjectKey, &record.LastAssertedAt, &record.ReassertWithinSeconds, &record.RevisionCount, &record.SupersededByAskID, &record.CurrentEventID,
 		&questionsJSON, &acceptsContext, &responsesJSON, &notesJSON, &record.OpenContextRequestCount,
-		&record.AttachmentCount, &record.AttachmentsDigest, &record.CreatedBy, &record.CreatedConversation, &record.CreatedSubject, &record.Sender,
+		&record.AttachmentCount, &record.AttachmentsDigest, &record.CreatedBy, &record.CreatedConversation, &record.CreatedSubject, &record.Sender, &record.Packet,
 		&record.Answer, &record.AnsweredBy, &record.AnsweredAt, &record.Note, &late, &record.AnsweredByIdentityKind, &record.AnsweredByIdentitySource, &record.FirstDeliveredAt, &record.Recipient, &record.Title)
 	if errors.Is(err, sql.ErrNoRows) {
 		return AskRecord{}, ErrNotFound
@@ -1001,6 +1050,9 @@ func (s *Service) AnswerAsk(ctx context.Context, in AnswerInput) (AskRecord, err
 	if !found {
 		return AskRecord{}, fmt.Errorf("%w: answer is not one of the allowed answers", ErrInvalidArgument)
 	}
+	if page := record.NativeApprovalURL(); page != "" && answer == "approve" {
+		return AskRecord{}, fmt.Errorf("%w: approve this on Agent Manager's page with your sign-in: %s", ErrInvalidArgument, page)
+	}
 	responses, err := normalizeResponses(record.Questions, answer, in.Responses)
 	if err != nil {
 		return AskRecord{}, err
@@ -1138,7 +1190,12 @@ func (s *Service) WithdrawDirectAsk(ctx context.Context, askID, source, reason s
 		return AskRecord{}, err
 	}
 	source = strings.TrimSpace(source)
-	if source == "" || source != record.Source || record.SourceEventType != "" || !audience.Sees(record) {
+	// The sender's own ask is its to withdraw even when it was stored under an
+	// earlier source: a requester that later gained its own source (the
+	// steward, once it sent as portfolio-steward) must still be able to
+	// replace the copies it sent as "operator".
+	ownAsk := audience.CreatedBy != "" && record.CreatedBy == audience.CreatedBy
+	if source == "" || (source != record.Source && !ownAsk) || record.SourceEventType != "" || !audience.Sees(record) {
 		return AskRecord{}, ErrNotFound
 	}
 	if record.State == AskWithdrawn {
@@ -1152,7 +1209,7 @@ func (s *Service) WithdrawDirectAsk(ctx context.Context, askID, source, reason s
 		return AskRecord{}, fmt.Errorf("%w: a withdrawal reason of 1-2000 bytes is required", ErrInvalidArgument)
 	}
 	now := storedTime(s.clock.Now())
-	result, err := s.db.ExecContext(ctx, `UPDATE asks SET state='withdrawn', reason=?, resolved_at=?, resolution_published_at='', updated_at=? WHERE id=? AND source=? AND source_event_type='' AND state IN ('pending','escalated')`, reason, now, now, record.ID, source)
+	result, err := s.db.ExecContext(ctx, `UPDATE asks SET state='withdrawn', reason=?, resolved_at=?, resolution_published_at='', updated_at=? WHERE id=? AND source=? AND source_event_type='' AND state IN ('pending','escalated')`, reason, now, now, record.ID, record.Source)
 	if err != nil {
 		return AskRecord{}, err
 	}
@@ -1356,6 +1413,7 @@ func AskResolvedEvent(record AskRecord) eventbus.DomainEvent {
 			"correlation":                 correlationPayload(record.Correlation),
 			"resolved_at":                 record.ResolvedAt,
 			"subject_key":                 record.SubjectKey,
+			"packet":                      record.Packet,
 			"superseded_by_ask_id":        record.SupersededByAskID,
 			"responses":                   ResponsePayload(record.Responses),
 			"attachment_notes":            AttachmentNotePayload(record.AttachmentNotes),

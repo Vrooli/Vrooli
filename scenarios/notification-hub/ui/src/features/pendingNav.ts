@@ -18,6 +18,14 @@ const PENDING_NAV_KEY = "/__pending_nav";
 // acting on it would yank them away unexpectedly.
 const MAX_AGE_MS = 120_000;
 
+interface WebAppLaunchParams {
+  targetURL?: string;
+}
+
+interface WebAppLaunchQueue {
+  setConsumer(consumer: (params: WebAppLaunchParams) => void): void;
+}
+
 function baseDomain(host: string): string {
   const parts = host.split(".");
   return parts.length <= 2 ? host : parts.slice(-2).join(".");
@@ -70,6 +78,21 @@ export function goTo(href: string): void {
   window.location.assign(href);
 }
 
+async function rememberPendingNav(url: string): Promise<void> {
+  if (typeof caches === "undefined") return;
+  try {
+    const cache = await caches.open(PENDING_NAV_CACHE);
+    await cache.put(
+      PENDING_NAV_KEY,
+      new Response(JSON.stringify({ url, ts: Date.now() }), {
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+  } catch {
+    // The OS launch is still delivered; a failed stash only loses hidden recovery.
+  }
+}
+
 /**
  * Act on a destination that just arrived (via SW postMessage) or was stashed.
  * `messageUrl` is validated the same way as a stashed one. Returns the URL it
@@ -109,6 +132,17 @@ export function initPendingNavigation(): () => void {
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.addEventListener("message", onMessage);
   }
+  const launchQueue = (navigator as Navigator & { launchQueue?: WebAppLaunchQueue }).launchQueue;
+  launchQueue?.setConsumer(({ targetURL }) => {
+    if (typeof targetURL !== "string") return;
+    const target = sameSiteTarget(targetURL);
+    if (!target) return;
+    if (document.visibilityState !== "visible") {
+      void rememberPendingNav(target);
+      return;
+    }
+    void act(target);
+  });
   // Boot: a cold launch from a notification tap lands here with a fresh stash.
   void act();
 

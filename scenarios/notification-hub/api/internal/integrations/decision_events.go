@@ -152,6 +152,15 @@ type decisionFacts struct {
 	// AcceptsContextRequests declares that the producer answers the operator's
 	// questions by re-sending the decision under the same subject key.
 	AcceptsContextRequests bool `json:"accepts_context_requests"`
+	// ExplainerHTML is the decision's page (operatordecision.Facts.Explainer).
+	ExplainerHTML string `json:"explainer_html"`
+	// Packet is the decision's ready-to-run packet path (operatordecision.Facts.Packet).
+	Packet string `json:"packet"`
+	// Questions is the decision's answer form (operatordecision.Facts.Questions).
+	// The Hub validates it as it does an agent's --form: a broken question is
+	// dropped with a warning and the ask is still created. The answers return on
+	// the resolved event's responses.
+	Questions []hub.AskQuestion `json:"questions"`
 }
 
 // DecisionAskSpec turns a decision-request event into an ask. The event id is
@@ -242,5 +251,8 @@ func DecisionAskSpecWithDefaults(recipient, sourceScenario, eventType, eventID s
 		ReassertWithin:         time.Duration(facts.ReassertWithinSeconds) * time.Second,
 		AssertedAt:             assertedAt,
 		AcceptsContextRequests: facts.AcceptsContextRequests,
+		ExplainerHTML:          facts.ExplainerHTML,
+		Packet:                 facts.Packet,
+		Questions:              facts.Questions,
 	}, nil
 }

@@ -576,3 +576,22 @@ linked and its result is actionable end to end.
   `20261114-101655-41ea8b9f` did not reach a phase before its one wait timed out
   in `preparing:provider_readiness`; the phase-less run was then explicitly
   aborted. Reports are `knw-1794651212521488486` and `knw-1794651641400210129`.
+
+## Work ladder — warm Android app links (2026-11-15)
+
+- Rung: scoped W3; operator feedback F130 establishes expected routing. No W0–W2 readiness claim.
+- Evidence: Android Moto G7 was available; a deep link to the live Hub URL passed on device but opened in Chrome. The Hub PWA was not installed on this target, so its warm-PWA path could not be physically reproduced. Before the fix, the focused regression failed because no launch-queue consumer was registered.
+- Result: the PWA now requests reuse of an existing client and routes validated Android launch-queue URLs through the existing same-site navigation guard. Focused UI validation passed (48 tests across 2 files), type-check passed, and the manifest parses as JSON.
+- Measured: 2026-11-15.
+
+## Work ladder — in-Hub linked artifact review (2026-11-15)
+
+- Rung: scoped W3; existing decision behavior and ownership contract retained.
+- Result: decision text paths under configured local roots open in the existing
+  Hub attachment viewer. Reads require the ask owner, reject symlink escapes and
+  non-regular files, and cap previews at 64 MiB. Missing/unavailable sources
+  report a recoverable viewer error. The Web Console URL handoff was removed.
+- Evidence: focused UI tests (103 tests), UI type-check, focused Go resolver and
+  owner-route tests, endpoint generation, and Test Genie unit run
+  `20261115-111450-cec587f6` passed. A real live ask was unavailable in the
+  owner context, so mobile capture of a real decision remains for the steward.

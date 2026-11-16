@@ -86,6 +86,7 @@ func newReaderFixtureBehind(t *testing.T, behind func(http.Handler) http.Handler
 		"svc-autoheal":    servicePrincipal("vrooli-autoheal-ask-reader"),
 		"svc-desk":        servicePrincipal("research-desk-ask-reader"),
 		"svc-storage":     servicePrincipal("storage-manager-ask-reader"),
+		"svc-backup":      servicePrincipal("data-backup-manager-ask-reader"),
 		"svc-wrong-aud":   {Kind: apiidentity.ActorService, Subject: "vrooli-autoheal-ask-reader", Verified: true, Audience: "scenario-authenticator:other", Scopes: []string{askreader.Scope}},
 		"svc-no-scope":    {Kind: apiidentity.ActorService, Subject: "vrooli-autoheal-ask-reader", Verified: true, Audience: askreader.Audience},
 		"svc-human":       {Kind: apiidentity.ActorHuman, Subject: "vrooli-autoheal-ask-reader", Verified: true, Audience: askreader.Audience, Scopes: []string{askreader.Scope}},
@@ -362,18 +363,20 @@ func TestOnlyTheOwnerGetsTheSourceDriftCheck(t *testing.T) {
 
 	owner, err := f.client.GetAsk(ctx, reading("owner", &v1.GetAskRequest{AskId: askID}))
 	require.NoError(t, err)
-	require.Equal(t, "fresh", owner.Msg.GetAsk().GetAttachments()[0].GetSourceStatus(), "the owner learns whether the source still matches")
+	attachments := owner.Msg.GetAsk().GetAttachments()
+	require.Equal(t, hub.CoverPageName, attachments[0].GetName(), "a page-less ask is read with the Hub's page first")
+	require.Equal(t, "fresh", attachments[1].GetSourceStatus(), "the owner learns whether the source still matches")
 
 	// The creator knows its own path already, but must not be able to turn the
 	// Hub into a file-existence and content oracle.
 	require.NoError(t, os.WriteFile(source, []byte("changed"), 0o600))
 	creator, err := f.client.GetAsk(ctx, reading("run:valid-run-1", &v1.GetAskRequest{AskId: askID}))
 	require.NoError(t, err)
-	require.Equal(t, "unknown", creator.Msg.GetAsk().GetAttachments()[0].GetSourceStatus())
-	require.Empty(t, creator.Msg.GetAsk().GetAttachments()[0].GetSourceCheckedAt())
+	require.Equal(t, "unknown", creator.Msg.GetAsk().GetAttachments()[1].GetSourceStatus())
+	require.Empty(t, creator.Msg.GetAsk().GetAttachments()[1].GetSourceCheckedAt())
 	changed, err := f.client.GetAsk(ctx, reading("owner", &v1.GetAskRequest{AskId: askID}))
 	require.NoError(t, err)
-	require.Equal(t, "changed", changed.Msg.GetAsk().GetAttachments()[0].GetSourceStatus())
+	require.Equal(t, "changed", changed.Msg.GetAsk().GetAttachments()[1].GetSourceStatus())
 }
 
 func TestARunThatReusesTheSubjectKeyOfAnotherOwnersAskIsToldItCannotReadIt(t *testing.T) {

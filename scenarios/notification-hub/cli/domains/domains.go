@@ -6,6 +6,7 @@ import (
 	"notification-hub/cli/domains/delivery"
 	"notification-hub/cli/domains/integrations"
 	"notification-hub/cli/domains/notifications"
+	"notification-hub/cli/domains/pages"
 	"notification-hub/cli/domains/recipients"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -65,5 +66,9 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{group, channelsGroup, deliveryGroup, conversationsGroup, recipientsGroup, integrationsGroup}, nil
+	pagesGroup, err := pages.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{group, channelsGroup, deliveryGroup, conversationsGroup, recipientsGroup, integrationsGroup, pagesGroup}, nil
 }

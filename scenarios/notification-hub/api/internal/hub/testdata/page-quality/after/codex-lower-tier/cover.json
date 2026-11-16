@@ -1,0 +1,21 @@
+{
+ "question": "Should I keep the lower usage setting and stop asking you every day?",
+ "big_picture": "This setting sends new Codex work to GPT-6 Luna so your weekly quota lasts longer; it has been on since 9 Nov with no end time. Because it has no end time, I ask daily, and you have chosen keep on every time you answered. Make it standing to keep the quota benefit and stop the daily question, keep today’s daily check, or turn it off so new work returns to the usual stronger models and uses quota faster. If you do not answer, it stays on and I will ask again tomorrow.",
+ "recommend": "standing",
+ "reason": "You have said keep on every time you answered, and a standing setting preserves that quota benefit without another daily prompt.",
+ "options": [
+  {
+   "key": "standing",
+   "label": "Keep it on and make it standing; ask again only if usage or quality changes"
+  },
+  {
+   "key": "daily",
+   "label": "Keep it on with the daily check"
+  },
+  {
+   "key": "off",
+   "label": "Turn it off; send new Codex work to the usual stronger models"
+  }
+ ],
+ "technical_details": "History: Agent Manager ask bd401fbc (15 Nov 2026), with 14 asks since 4 Nov: keep on every time answered, two expired unanswered, two dismissed. Setting enabled 9 Nov 2026 without an end time. Four exceptions remain on usual models: fallback, review, supervision, judgment. To turn it off: agent-manager usage mode end <id>. No evidence files were present."
+}

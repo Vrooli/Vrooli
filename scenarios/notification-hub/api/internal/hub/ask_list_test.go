@@ -655,3 +655,23 @@ func TestListAsksAttentionPagesAgainstTheTimeTheFirstPageWasRead(t *testing.T) {
 	fresh, _ := l.pageThrough(hub.AskListOptions{OpenOnly: true, Limit: 50, Order: hub.AskOrderAttention})
 	require.Equal(t, askIDs(all), fresh)
 }
+
+// A sender that later gained its own source (the steward sent as "operator",
+// then as "portfolio-steward") still withdraws the asks it sent earlier, so
+// its re-ask replaces the old copy instead of leaving two on the phone.
+// Another sender's ask stays out of reach.
+func TestASenderWithdrawsItsOwnAskStoredUnderAnEarlierSource(t *testing.T) {
+	l := newListAsks(t)
+	ctx := context.Background()
+	mine := l.ask(raise{direct: true, by: "service:portfolio-steward"})
+	theirs := l.ask(raise{direct: true, by: "service:treasury"})
+	require.NotEqual(t, "portfolio-steward", mine.Source, "the old copy was stored under the earlier source")
+
+	steward := hub.AskAudience{CreatedBy: "service:portfolio-steward"}
+	_, err := l.service.WithdrawDirectAsk(ctx, theirs.ID, "portfolio-steward", "Replaced.", steward)
+	require.ErrorIs(t, err, hub.ErrNotFound)
+
+	closed, err := l.service.WithdrawDirectAsk(ctx, mine.ID, "portfolio-steward", "Replaced by an updated version of this question.", steward)
+	require.NoError(t, err)
+	require.Equal(t, hub.AskWithdrawn, closed.State)
+}

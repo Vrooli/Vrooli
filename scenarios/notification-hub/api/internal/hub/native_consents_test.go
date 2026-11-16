@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
-	"notification-hub/internal/hub"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+	"notification-hub/internal/hub"
 )
 
 type consentReader struct {
@@ -28,6 +29,7 @@ func (r *consentReader) ReadConsent(_ context.Context, id string) (hub.NativeCon
 	}
 	return r.statuses[id], nil
 }
+
 func TestNativeConsent_GivenRecipientEvidence_WhenSourceIsRead_ThenOnlyCurrentPendingOrUnknownRemain(t *testing.T) {
 	ctx := context.Background()
 	s, db := testService(t)
@@ -74,6 +76,7 @@ func TestNativeConsent_GivenRecipientEvidence_WhenSourceIsRead_ThenOnlyCurrentPe
 	require.Len(t, page.Consents, 1)
 	require.Equal(t, "unavailable", page.Consents[0].State)
 }
+
 func TestNativeConsent_GivenOlderOrMalformedEvidence_WhenPaging_ThenNoHiddenCapOrUnsafeFetch(t *testing.T) {
 	ctx := context.Background()
 	s, _ := testService(t)
@@ -112,4 +115,28 @@ func TestNativeConsent_GivenOlderOrMalformedEvidence_WhenPaging_ThenNoHiddenCapO
 	}
 	require.Equal(t, 3, count)
 	require.Len(t, reader.calls, 2)
+}
+
+// A request Agent Manager raised as its decision ask (including one raised
+// again after an older notice) is answered there, so the notice is not listed
+// as a second thing waiting.
+func TestNativeConsent_GivenTheRequestHasItsDecisionAsk_ThenItsNoticeIsNotListed(t *testing.T) {
+	ctx := context.Background()
+	s, _ := testService(t)
+	asked, notice := uuid.NewString(), uuid.NewString()
+	for _, id := range []string{asked, notice} {
+		_, err := s.Send(ctx, hub.SendInput{RequestedBy: "alice", Title: "Permission", Body: "Permission scope", SensitivityLabel: "private", IdempotencyKey: id, DedupeKey: id, SourceScenario: "agent-manager", Category: "authorization-requested", ContextURL: "https://agent-manager.example.test/api/v1/authorizations/" + id + "/approve"})
+		require.NoError(t, err)
+	}
+	_, err := s.AskDecision(ctx, hub.AskSpec{
+		Recipient: "alice", Source: "agent-manager", SourceEventType: "agent_manager.authorization_consent.decision_requested.v1",
+		Question: "Allow it?", Options: []hub.AskOption{{Key: "approve", Label: "Allow"}, {Key: "decline", Label: "Don't"}},
+		Deadline: time.Now().Add(time.Hour), DeadlineSpecified: true, SensitivityLabel: "private", IdempotencyKey: "consent-" + asked,
+		SubjectKey: "consent:" + asked, Correlation: map[string]string{"authorization_id": asked},
+	}, "")
+	require.NoError(t, err)
+	page, err := s.ListNativeConsents(ctx, "alice", "", "", 25)
+	require.NoError(t, err)
+	require.Len(t, page.Consents, 1)
+	require.Equal(t, notice, page.Consents[0].AuthorizationID)
 }

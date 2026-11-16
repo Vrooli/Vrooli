@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keep the Codex usage setting?</title>
+<style>
+  body { font-family: var(--hub-font); }
+  h1 { font-size: 1.55rem; line-height: 1.15; }
+  .eyebrow { color: var(--hub-accent); font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .recommendation { border-left: .3rem solid var(--hub-success); padding-left: 1rem; }
+  .hub-tradeoffs section { padding: 1rem; }
+  .hub-tradeoffs section.is-recommended { border: 2px solid var(--hub-success); }
+  .hub-tradeoffs p { margin-bottom: .5rem; }
+  .choose { min-height: 44px; margin-top: .5rem; }
+  .history { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Codex usage setting</p>
+  <h1>Should the cheaper model stay on, and should the daily check stop?</h1>
+  <p><strong>Decision:</strong> choose whether to keep GPT-6 Luna for new Codex work and whether to keep asking about it each day.</p>
+  <p class="recommendation"><strong>Recommended:</strong> keep Luna as a standing setting and stop the daily check. You have kept it on every time you answered, so another daily prompt costs attention without changing the setting.</p>
+  <p>Tap <strong>Choose this</strong>, then send your answer in the Hub.</p>
+
+  <div class="hub-callout">
+    <strong>What the setting does.</strong> New Codex work uses GPT-6 Luna, a cheaper model that helps your weekly usage quota last longer. Fallback, review, supervision, and judgment work continue using their usual models.
+  </div>
+
+  <h2>What your past answers show</h2>
+  <div class="history" aria-label="Decision history">
+    <p><strong>14 times asked since 4 November</strong></p>
+    <p><strong>Every time you answered:</strong> “keep on”</p>
+    <p><strong>Also:</strong> twice expired without an answer; twice were dismissed</p>
+    <p><strong>Setting:</strong> turned on 9 November, with no end time</p>
+  </div>
+
+  <div class="hub-tradeoffs">
+    <section class="is-recommended">
+      <h3>Keep it on; make it standing <span class="hub-chip is-success">Recommended</span></h3>
+      <p><strong>Next:</strong> leave Luna enabled and stop the daily check. Ask again only if usage or work quality changes, such as weekly usage passing 80% or quality dropping.</p>
+      <p><strong>Cost:</strong> new Codex work continues to use the cheaper model. You can end this setting any time.</p>
+      <button type="button" class="choose" onclick="if(window.hub&&window.hub.prefill)window.hub.prefill('answer','standing')">Choose this</button>
+    </section>
+    <section>
+      <h3>Keep it on; keep the daily check</h3>
+      <p><strong>Next:</strong> nothing changes today; Agent Manager asks again tomorrow.</p>
+      <p><strong>Cost:</strong> the same choice keeps returning each day and uses your attention.</p>
+      <button type="button" class="choose is-quiet" onclick="if(window.hub&&window.hub.prefill)window.hub.prefill('answer','daily')">Choose this</button>
+    </section>
+    <section>
+      <h3>Turn it off</h3>
+      <p><strong>Next:</strong> new Codex work returns to the stronger usual models.</p>
+      <p><strong>Cost:</strong> those models use your weekly usage quota faster.</p>
+      <button type="button" class="choose is-quiet" onclick="if(window.hub&&window.hub.prefill)window.hub.prefill('answer','off')">Choose this</button>
+    </section>
+  </div>
+
+  <h2>What happens when you approve</h2>
+  <p>If you choose the recommendation, Agent Manager will retain the current Luna setting, remove its daily confirmation, and review it again only when usage or quality changes. You can still turn it off at any time.</p>
+  <h2>What happens with no answer</h2>
+  <p>The setting stays on under its current daily-check arrangement, and the question comes back tomorrow.</p>
+  <p><small>This choice concerns Codex model usage and the reminder schedule. It does not change the four work types that keep their usual models.</small></p>
+</body>
+</html>

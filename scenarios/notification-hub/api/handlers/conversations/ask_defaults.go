@@ -72,6 +72,7 @@ func askSpecFromProto(msg *v1.AskRequest, producer identity.Producer, now time.T
 		ReassertWithin:          time.Duration(msg.GetReassertWithinSeconds()) * time.Second,
 		Attachments:             attachmentsFromProto(msg.GetAttachments()),
 		VerifiedProducer:        !producer.Anonymous(),
+		AgentSent:               producer.Source == "",
 		CreatedBy:               producer.Creator(),
 		CreatedConversation:     producer.Conversation,
 		CreatedSubject:          producer.Subject,
@@ -84,6 +85,7 @@ func askSpecFromProto(msg *v1.AskRequest, producer identity.Producer, now time.T
 		RemoveAttachments:       msg.GetRemoveAttachments(),
 		RemoveQuestions:         msg.GetRemoveQuestions(),
 		ContextResponse:         msg.GetContextResponse(),
+		Packet:                  msg.GetPacket(),
 	}, nil
 }
 
@@ -105,5 +107,6 @@ func askKeepFromProto(msg *v1.AskRequest) hub.AskKeep {
 		TechnicalDetails:       msg.TechnicalDetails == nil,
 		ReassertWithin:         msg.ReassertWithinSeconds == nil,
 		AcceptsContextRequests: msg.AcceptsContextRequests == nil,
+		Packet:                 msg.Packet == nil,
 	}
 }

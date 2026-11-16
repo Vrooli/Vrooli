@@ -20,8 +20,8 @@ export function DecisionText({ value, className = "", inheritText = false, dense
       {renderDecisionText(value, {
         ...links,
         dense,
-        webConsoleTitle: t(strings.packet.text.openInWebConsole),
         openAttachmentTitle: t(strings.packet.text.openAttachment),
+        openLinkedArtifactTitle: t(strings.packet.text.openLinkedArtifact),
       })}
     </span>
   );

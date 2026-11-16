@@ -278,13 +278,25 @@ func TestPacketCheck_AdviceRidesOnTheAskResultAndNeverBlocksIt(t *testing.T) {
 		codes = append(codes, warning.Code)
 		require.Equal(t, hub.WarningAdvice, warning.Severity)
 	}
-	require.ElementsMatch(t, []string{"internal_id_in_question", "path_in_question", "missing_big_picture", "missing_recommendation_reason", "local_context_url"}, codes)
+	require.ElementsMatch(t, []string{"internal_id_in_question", "path_in_question", "missing_big_picture", "missing_recommendation_reason", "local_context_url", hub.WarnExplainerMissing}, codes)
 
 	good := subjectSpec(formNow, "evt-good")
 	good.SubjectKey = "backup-failure:other"
 	good.Question = "Should tonight's backup skip the Elements drive until it is plugged in?"
 	good.BigPicture = "The drive has been unplugged since Tuesday, so tonight's backup would fail."
-	require.Empty(t, askSubject(t, service, good).Warnings)
+	require.Equal(t, []string{hub.WarnExplainerMissing}, warningCodes(askSubject(t, service, good).Warnings), "a well-written cover still needs its page")
+}
+
+// withoutPageAdvice drops the page advice, for tests about other rules on a
+// page-less ask.
+func withoutPageAdvice(warnings []hub.PacketWarning) []hub.PacketWarning {
+	var out []hub.PacketWarning
+	for _, warning := range warnings {
+		if warning.Code != hub.WarnExplainerMissing {
+			out = append(out, warning)
+		}
+	}
+	return out
 }
 
 func TestPacketCheck_ReadsTheExplainerFromTheHubsOwnCopy(t *testing.T) {
@@ -301,7 +313,8 @@ func TestPacketCheck_ReadsTheExplainerFromTheHubsOwnCopy(t *testing.T) {
 			codes = append(codes, warning.Code)
 		}
 	}
-	require.ElementsMatch(t, []string{"explainer_network", "explainer_no_viewport", "explainer_form", "explainer_unknown_attachment"}, codes)
+	// The two images are shown whole, which the picture rule reports too.
+	require.ElementsMatch(t, []string{"explainer_network", "explainer_no_viewport", "explainer_form", "explainer_unknown_attachment", hub.WarnPagePictureUncropped}, codes)
 }
 
 func TestAnswerForm_QuestionsAndAttachmentNamesAreCrossChecked(t *testing.T) {
@@ -363,7 +376,8 @@ func TestAnswerForm_AttachmentNotesAreValidatedStoredAndReturnedToTheRequester(t
 	ctx := context.Background()
 	asked := env.ask(t, "evt-notes",
 		env.file(t, "character.glb", "mesh"),
-		env.folder(t, "shots", map[string]string{"day-1/intro.png": "png one", "day-2/outro.png": "png two"}))
+		env.folder(t, "shots", map[string]string{"day-1/intro.png": "png one", "day-2/outro.png": "png two"}),
+		env.folder(t, "capture-review", map[string]string{"regions/settings-nav.json": "{}"}))
 	ask := asked.Ask
 
 	for name, notes := range map[string][]hub.AskAttachmentNote{
@@ -381,11 +395,12 @@ func TestAnswerForm_AttachmentNotesAreValidatedStoredAndReturnedToTheRequester(t
 	notes := []hub.AskAttachmentNote{
 		{Attachment: "character.glb", Note: "Hair is too glossy."},
 		{Attachment: "shots", Path: "day-1/intro.png", Note: "Crop the top."},
+		{Attachment: "capture-review", Path: "regions/settings-nav.json", Note: "Keep the selected destination visible."},
 	}
 	answered, err := env.service.AnswerAsk(ctx, hub.AnswerInput{AskID: ask.ID, Answer: "retry", Actor: "alice", AttachmentNotes: notes})
 	require.NoError(t, err)
 	require.Equal(t, notes, answered.AttachmentNotes)
-	const wantSummary = "Answer: Retry (retry)\nNotes on files:\n  - character.glb: Hair is too glossy.\n  - shots/day-1/intro.png: Crop the top."
+	const wantSummary = "Answer: Retry (retry)\nNotes on files:\n  - character.glb: Hair is too glossy.\n  - shots/day-1/intro.png: Crop the top.\n  - capture-review/regions/settings-nav.json: Keep the selected destination visible."
 	require.Equal(t, wantSummary, answered.AnswerSummary)
 
 	waited, err := env.service.Wait(ctx, ask.ID, hub.WaitOptions{})

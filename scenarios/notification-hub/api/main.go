@@ -24,6 +24,7 @@ import (
 	"notification-hub/internal/hub"
 	internalidentity "notification-hub/internal/identity"
 	"notification-hub/internal/integrations"
+	"notification-hub/internal/linkedartifact"
 	"notification-hub/internal/modules"
 	"notification-hub/internal/preferences"
 	"notification-hub/internal/push"
@@ -42,6 +43,7 @@ import (
 	apilifecycle "github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/researchhome"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/api-core/trustposture"
@@ -51,7 +53,6 @@ import (
 	capsH "notification-hub/handlers/capabilities"
 	conversationH "notification-hub/handlers/conversations"
 	deliveryH "notification-hub/handlers/delivery"
-	externalURLH "notification-hub/handlers/externalurl"
 	healthH "notification-hub/handlers/health"
 	identityH "notification-hub/handlers/identity"
 	notificationH "notification-hub/handlers/notifications"
@@ -206,6 +207,10 @@ func main() {
 		slog.Warn("notification catalog: declared-manifest ingestion failed", "error", err)
 	}
 	service.SetPreferences(preferenceSeam{store: preferenceStore, repoRoot: repoRoot})
+	home, _ := os.UserHomeDir()
+	researchDir, _ := researchhome.Dir(os.Getenv)
+	artifactRoots := linkedArtifactRoots(repoRoot, home, researchDir, os.Getenv("NOTIFICATION_HUB_LINKED_ARTIFACT_ROOTS"))
+	artifactResolver := linkedartifact.New(artifactRoots...)
 	service.BackfillAskSenders(context.Background()) // now that source names resolve
 	service.SetDefaultRecipient(strings.TrimSpace(os.Getenv("VROOLI_NOTIFICATION_RECIPIENT")))
 	service.SetRecipientResolver(integrations.OperatorStateRecipient())
@@ -226,7 +231,15 @@ func main() {
 	ownerVerifier := owneridentity.NewClient(owneridentity.Config{Resolver: scenarioResolver})
 	// Service principals the Hub admits besides the owner and agent runs: a scenario
 	// reading back the asks it raised, and a scenario sending as itself.
-	serviceVerifiers := internalidentity.ServiceVerifiers{AskReaders: askreader.NewVerifier(), Senders: hubsender.NewVerifier()}
+	askReaderJWKSURL := strings.TrimSpace(os.Getenv("VROOLI_AUTH_SCENARIO_JWKS_URL"))
+	slog.Info("ask-reader service verifier configured", "custom_jwks_source", askReaderJWKSURL != "")
+	serviceVerifiers := internalidentity.ServiceVerifiers{
+		AskReaders: askreader.NewVerifierWithConfig(authn.JWTConfig{
+			JWKSURL: askReaderJWKSURL,
+			Client:  &http.Client{Timeout: 5 * time.Second},
+		}),
+		Senders: hubsender.NewVerifier(),
+	}
 	providerDecisionAudience := strings.TrimSpace(os.Getenv("VROOLI_AUTH_PROVIDER_DECISION_AUDIENCE"))
 	var providerDecisionVerifier authn.TokenVerifier
 	if providerDecisionAudience != "" {
@@ -353,14 +366,13 @@ func main() {
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.ModuleWithIdentity(db, ownerVerifier, "notification-hub-api", "1.0.0", posture),
 		capsH.Module(capabilities.NewRegistry()),
-		externalURLH.Module(),
 		notificationH.ModuleWithIdentities(service, ownerVerifier, serviceVerifiers),
 		recipientsH.ModuleWithVerifier(service, ownerVerifier),
 		appDeliveryH.ModuleWithVerifier(service, ownerVerifier),
 		preferencesH.ModuleWithRecipientResolver(preferenceStore, service.ResolveRecipient, ownerVerifier),
 		routingH.ModuleWithVerifier(service, ownerVerifier),
 		deliveryH.ModuleWithVerifier(service, ownerVerifier),
-		conversationH.ModuleWithIdentities(service, ownerVerifier, serviceVerifiers),
+		conversationH.ModuleWithLinkedArtifacts(service, ownerVerifier, serviceVerifiers, artifactResolver),
 		identityH.Module(internalidentity.Forwarder{Resolver: scenarioResolver}, ownerVerifier),
 	)
 

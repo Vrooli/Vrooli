@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/api-core/operatordecision"
 )
 
 // The explainer rules of the packet check. An explainer is shown in a sealed
@@ -55,7 +57,7 @@ func checkExplainer(explainer PacketExplainer, attached map[string]bool) []Packe
 	var warnings []PacketWarning
 	if urls := networkReferences(page, markup); len(urls) > 0 {
 		warnings = append(warnings, advice(WarnExplainerNetwork, explainer.Field,
-			fmt.Sprintf("the explainer loads resources from the network (%s); the sealed frame blocks them, so attach the file and refer to it by name", quoteList(urls))))
+			fmt.Sprintf("the explainer loads resources from the network (%s); the sealed frame blocks them, so attach the file and refer to it by name", operatordecision.QuoteList(urls))))
 	}
 	if !viewportPattern.MatchString(markup) {
 		warnings = append(warnings, advice(WarnExplainerNoViewport, explainer.Field,
@@ -67,9 +69,9 @@ func checkExplainer(explainer PacketExplainer, attached map[string]bool) []Packe
 	}
 	if unknown := unknownAttachmentNames(page, markup, attached); len(unknown) > 0 {
 		warnings = append(warnings, advice(WarnExplainerUnknownAttachment, explainer.Field,
-			fmt.Sprintf("the explainer refers to files that are not attached (%s); attach them, or fix the names", quoteList(unknown))))
+			fmt.Sprintf("the explainer refers to files that are not attached (%s); attach them, or fix the names", operatordecision.QuoteList(unknown))))
 	}
-	return warnings
+	return append(warnings, checkReadable(explainer)...)
 }
 
 // looksLikeHTML reports whether the explainer is an HTML page, by its file

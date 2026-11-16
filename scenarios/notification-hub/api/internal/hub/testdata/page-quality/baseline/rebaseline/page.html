@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install the disk-capacity update?</title>
+<style>
+  .eyebrow { margin: 0 0 .25rem; color: var(--hub-muted); font-size: .8125rem; }
+  .verdict { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; margin: .25rem 0 1rem; }
+  .change-list { display: grid; gap: .5rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 1rem 0; }
+  .change-list div { border: 1px solid var(--hub-border); border-radius: var(--hub-radius); padding: .75rem; background: var(--hub-surface); }
+  .change-list strong { display: block; }
+  .change-list span { color: var(--hub-muted); font-size: .875rem; }
+  .choice { margin: 1rem 0; }
+  .choice p { margin-bottom: .75rem; }
+  .choice button { min-height: 44px; }
+  @media (max-width: 360px) { .change-list { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <p class="eyebrow">One operator decision · Vrooli control plane</p>
+  <h1>Run the disk-capacity update rebaseline today?</h1>
+  <div class="verdict"><span class="hub-chip is-primary">I recommend yes</span><span>The update is built and its tests pass; this activates the feature.</span></div>
+
+  <p>The installer found changes to how Vrooli saves its state. Only you can approve this switch, and the command asks you to confirm after its full build check.</p>
+
+  <h2>What changes in saved state</h2>
+  <div class="change-list" aria-label="Five areas in the persistent-state contract">
+    <div><strong>Disk capacity</strong><span>New update data</span></div>
+    <div><strong>Resources</strong><span>Stored resource records</span></div>
+    <div><strong>Process records</strong><span>Stored process information</span></div>
+    <div><strong>Managed services</strong><span>Stored service information</span></div>
+    <div><strong>Operator state</strong><span>Saved operator information</span></div>
+  </div>
+
+  <div class="hub-callout is-warning"><strong>Recovery:</strong> the previous installed version cannot read the new saved data, so there is no automatic rollback. The command saves a copy of the current installed version first; rollback from it would be manual.</div>
+
+  <h2>Your choices</h2>
+  <div class="hub-tradeoffs">
+    <section class="is-recommended choice">
+      <span class="hub-chip is-primary">Recommended</span>
+      <h3>Approve the rebaseline</h3>
+      <p>Run the command on your Vrooli computer. It checks the build, shows the changes for your confirmation, saves the current version, installs and checks the update, then resumes automatic updates. Afterward, tell the install agent you ran it so it can finish and verify the install.</p>
+      <p><strong>Cost or risk:</strong> the update changes stored data; returning to the old version requires a manual rollback from the saved copy.</p>
+      <button type="button" data-answer="approve">Choose this</button>
+    </section>
+    <section class="choice">
+      <h3>Hold</h3>
+      <p>The installed version stays. Disk capacity remains inactive and work continues on source only. Nothing breaks.</p>
+      <p><strong>Cost:</strong> the feature is delayed. No answer has this same effect.</p>
+      <button type="button" class="is-quiet" data-answer="hold">Choose this</button>
+    </section>
+  </div>
+  <p><strong>To answer:</strong> tap “Choose this,” then send your choice in Notification Hub.</p>
+
+  <h2>What happens with approval</h2>
+  <p>In a terminal on your Vrooli computer, run <code>cd ~/Vrooli &amp;&amp; make rebaseline</code>. The command performs the full build check first, then pauses for your confirmation before it saves the current version and installs the update.</p>
+  <p>A separate proposal to change when the installer stops for stored-data changes would need its own decision.</p>
+
+  <div class="hub-callout"><strong>If you do not answer:</strong> the installed version remains in place, disk capacity stays inactive, and work continues on source only.</div>
+  <script>
+    document.addEventListener("click", function (event) {
+      var button = event.target.closest && event.target.closest("[data-answer]");
+      if (button && window.hub && window.hub.prefill) {
+        window.hub.prefill("answer", button.getAttribute("data-answer"));
+      }
+    });
+  </script>
+</body>
+</html>

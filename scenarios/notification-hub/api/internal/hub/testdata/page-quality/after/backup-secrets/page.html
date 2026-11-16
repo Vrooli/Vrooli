@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Choose how secret data is backed up</title>
+<style>
+  .lede { margin: .25rem 0 1rem; }
+  .verdict { display: flex; align-items: baseline; flex-wrap: wrap; gap: .5rem; margin: .25rem 0 1rem; }
+  .cause { margin: 1rem 0; padding: .875rem; border-radius: var(--hub-radius); background: var(--hub-surface-muted); color: var(--hub-fg); }
+  .cause h2 { margin: 0 0 .35rem; font-size: 1rem; }
+  .cause p { margin: .35rem 0 0; }
+  .risk { margin: .75rem 0; }
+</style>
+</head>
+<body>
+  <p class="lede">Data Backup Manager found 45 secret-holding places with no backup. Choose whether this is a one-time selection or a standing rule.</p>
+  <h1>I recommend backing up all 45 and including new secret locations automatically.</h1>
+  <div class="verdict"><span class="hub-chip is-primary">Recommended</span><span>A disk failure could erase data that exists nowhere else; encrypted backups add 3.1 GiB each.</span></div>
+
+  <figure class="hub-proportion">
+    <figcaption><span>45 places, grouped by what they protect</span><strong>3.1 GiB per backup</strong></figcaption>
+    <div class="hub-proportion__bar" role="img" aria-label="12 AI tool and local service items, 10 Vrooli app items, 23 small host settings files">
+      <span data-tone="1" style="--share:26.7%"></span><span data-tone="2" style="--share:22.2%"></span><span data-tone="3" style="--share:51.1%"></span>
+    </div>
+    <ol class="hub-proportion__legend">
+      <li data-tone="1"><span class="hub-proportion__label">AI tools and local services<small>histories, memories, sign-ins, Vault and service settings</small></span><span class="hub-proportion__value">12<small>2.9 GiB</small></span></li>
+      <li data-tone="2"><span class="hub-proportion__label">Vrooli apps' keys and records<small>saved work, event history, session profiles and app keys</small></span><span class="hub-proportion__value">10<small>222.5 MiB</small></span></li>
+      <li data-tone="3"><span class="hub-proportion__label">Host settings from setup<small>sudo, kernel, AppArmor, systemd, logs, GRUB and DNS</small></span><span class="hub-proportion__value">23 files<small>10.9 KiB</small></span></li>
+    </ol>
+  </figure>
+
+  <p class="risk"><strong>If backed up:</strong> after a restore, a saved sign-in or token may be out of date, so you sign in again once. The data itself returns intact.</p>
+  <p class="risk"><strong>If left out:</strong> a disk failure loses anything in these places that exists nowhere else, including AI coding history, Vault secrets and app keys.</p>
+
+  <aside class="hub-recurrence">
+    <strong class="hub-recurrence__count">3×</strong>
+    <div><p>This same decision has come back on 13 Nov, 14 Nov and today as new secret-holding places appeared.</p><p class="hub-recurrence__stop">A standing rule with a weekly additions note stops the repeated approval request; you can exclude an item from the note.</p></div>
+  </aside>
+
+  <section class="cause">
+    <h2>Why this keeps returning</h2>
+    <p>Secret-holding locations are left out until you decide, and there is no standing rule for new ones. That protects against backing up a secret without your say, but each new discovery restarts this choice.</p>
+  </section>
+
+  <h2>What each choice does</h2>
+  <div class="hub-tradeoffs">
+    <section class="is-recommended">
+      <span class="hub-chip is-primary">Sender's recommendation</span>
+      <h3>Back up all 45 and set a standing rule</h3>
+      <p>All groups enter encrypted backups now. New secret-holding locations are added automatically and listed in a weekly note. Cost: 3.1 GiB more per backup. Restore may require one sign-in again.</p>
+      <button type="button" data-answer="standing">Choose this</button>
+    </section>
+    <section>
+      <h3>Back up selected groups only</h3>
+      <p>Choose groups in the question below. Only those groups are added now; new secret locations still wait for your answer, so this request may return.</p>
+      <button type="button" class="is-quiet" data-answer="groups">Choose this</button>
+    </section>
+    <section>
+      <h3>Leave them out for now</h3>
+      <p>Nothing is added. The 45 locations remain at risk of loss if the disk fails, and new ones continue to wait for a decision.</p>
+      <button type="button" class="is-quiet" data-answer="skip">Choose this</button>
+    </section>
+  </div>
+
+  <div class="hub-callout is-warning"><strong>If you do not answer within 7 days:</strong> nothing is added. The 45 places remain unbacked-up.</div>
+  <p>When you approve, Data Backup Manager will apply the chosen scope to its encrypted backup plan and report what it registered.</p>
+
+  <script>
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-answer]");
+      if (b && window.hub && window.hub.prefill) window.hub.prefill("answer", b.getAttribute("data-answer"));
+    });
+  </script>
+</body>
+</html>

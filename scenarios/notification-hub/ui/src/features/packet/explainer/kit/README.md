@@ -7,8 +7,9 @@ explainers"). Authors read `skills/notification-hub/references/html-explainers.m
 
 | File | Role |
 |---|---|
-| `kit.css` | Hub colors, type and spacing as `--hub-*` custom properties (light and dark), base styles, and the building blocks `.hub-pair`, `.hub-compare`, `.hub-timeline`, `.hub-tradeoffs`, `.hub-callout`, `.hub-figure`, `.hub-chip`. |
-| `kit.js` | Behaviour for `[data-hub-compare]`: an accessible range input plus pointer drag. Plain ES2019, no dependencies, safe to run twice. |
+| `kit.css` | Hub colors, type and spacing as `--hub-*` custom properties (light and dark), base styles, the building blocks `.hub-pair`, `.hub-compare`, `.hub-timeline`, `.hub-tradeoffs`, `.hub-callout`, `.hub-figure`, `.hub-chip`, and the decision blocks `.hub-proportion` (a whole split into shares, coloured by `--hub-series-1..6`), `.hub-groups` (items chosen by group), `.hub-command` (a command with where / what / undo), `.hub-recurrence` ("asked N times") and `table.hub-matrix` (options against criteria, cards on a phone). `operatordecision.Page` in `packages/api-core` writes every decision block. |
+| `kit.js` | Behaviour for `[data-hub-compare]` (an accessible range input plus pointer drag), `[data-hub-groups]` (a group's switch fills the form's multi-select through `hub.prefill`) and `[data-hub-copy]` (copies the command, or selects it where the clipboard is blocked). Plain ES2019, no dependencies, safe to run twice. |
+| `theme.ts` (one folder up) | Which schemes a page's own colours work in. A page that only works in one is shown in it and locked there (`data-hub-scheme`); the API's packet check and the page tools make the same call (`packages/api-core/pagescheme`, shared fixtures in `api/internal/hub/testdata/page-schemes`). |
 | `kit.test.ts` | Vitest and jsdom tests for `kit.js`, and checks on the `kit.css` contract. |
 
 ## What the Hub injects
@@ -39,6 +40,14 @@ dark mode never overrides `data-theme="light"`. The kit uses no color function
 that an older iPhone browser lacks for text or backgrounds; `color-mix()` only
 tints a few accents, and each use has a plain value before it.
 
+The page's colours live on `html`, never on `body`. Text inherits from `html`,
+so a page that sets `:root { color: ...; background: ... }` replaces the kit's
+colours for all its text. A kit colour on `body` would beat that inheritance and
+leave the kit's dark-mode text (near white) on the page's own white cards: the
+unreadable page of November 2026. The API holds a byte copy of `kit.css`
+(`api/internal/hub/explainer_kit.css`) for its readability check; copy the file
+over it after every change (`TestExplainerKitMirrorsTheUIKit` fails otherwise).
+
 ## The gutter
 
 The Hub's frame runs the page the full width of the phone, so `body` carries the
@@ -57,12 +66,16 @@ its styles, and `[data-hub-compare]` does nothing.
 ## Changing the kit
 
 - Keep `kit.css` small: every explainer page carries it, and comments do not count
-  toward its size. Tokens come from `ui/src/design-tokens.css`; update the values
+  toward its size (budget 20 KiB in `kit.test.ts`). Tokens come from `ui/src/design-tokens.css`; update the values
   here when those change.
 - Keep every rule inside the layer. `kit.test.ts` fails otherwise.
-- Authored HTML must stay free of form controls, because the packet check flags
-  them (`explainer_form`). `kit.js` therefore creates the compare range input at
-  runtime.
+- Authored HTML must stay free of form controls (`form`, `input`, `select`,
+  `textarea`), because the packet check flags them (`explainer_form`). `kit.js`
+  therefore creates the compare range input at runtime; plain `<button>`
+  elements, as the group switches and Copy use, are fine.
+- Whenever a rule sets a background, it sets the text colour in the same rule
+  from a token. The packet check refuses an agent's page with text below 3:1
+  contrast in either theme (`page_unreadable`).
 - Check a change on a 390 px wide screen in both themes. The worked examples in
   `skills/notification-hub/examples/` use every block; open them with the kit
   injected.
