@@ -1,0 +1,797 @@
+{
+  "schemaVersion": 1,
+  "syntheticOnly": true,
+  "cases": {
+    "case-study-type": {
+      "operation": "read_type",
+      "type": {
+        "name": "case_study",
+        "label": "Case studies",
+        "fields": [
+          {
+            "name": "client_type",
+            "type": "text"
+          },
+          {
+            "name": "outcome_metric",
+            "type": "number"
+          },
+          {
+            "name": "verified_on",
+            "type": "date"
+          }
+        ]
+      },
+      "expected": {
+        "exists": true,
+        "fieldCount": 3
+      }
+    },
+    "post-with-fields": {
+      "operation": "read_post",
+      "post": {
+        "slug": "measured-onboarding",
+        "client_type": "synthetic",
+        "outcome_metric": 24,
+        "verified_on": "2026-11-14"
+      },
+      "expected": {
+        "client_type": "synthetic",
+        "outcome_metric": 24
+      }
+    },
+    "post-missing-field": {
+      "operation": "read_field",
+      "post": {
+        "slug": "content-migration",
+        "client_type": "synthetic",
+        "outcome_metric": 6
+      },
+      "field": "unconfigured_private_field",
+      "expected": {
+        "exists": false
+      }
+    },
+    "same-update-twice": {
+      "operation": "idempotent_update",
+      "post": {
+        "id": 77,
+        "slug": "measured-onboarding",
+        "outcome_metric": 24,
+        "verified_on": "2026-11-14"
+      },
+      "update": {
+        "outcome_metric": 25
+      },
+      "expected": {
+        "created": 1,
+        "updated": 1,
+        "duplicate": 1,
+        "finalOutcomeMetric": 25
+      }
+    },
+    "migration-create": {
+      "operation": "migration_apply",
+      "record": {
+        "slug": "migration-case-study",
+        "title": "Synthetic migrated case study",
+        "content": "<h2>Migration ground</h2><p>Preserve body and metadata.</p>",
+        "excerpt": "Synthetic migration fixture.",
+        "status": "publish",
+        "client_type": "synthetic",
+        "outcome_metric": 24,
+        "verified_on": "2026-11-14",
+        "sourceKey": "migration-source/migration-case-study",
+        "contentHash": "auto",
+        "categories": [
+          "Synthetic Ground"
+        ],
+        "tags": [
+          "synthetic",
+          "migration"
+        ]
+      },
+      "expected": {
+        "accepted": true,
+        "disposition": "created"
+      }
+    },
+    "migration-plan-create": {
+      "operation": "migration_plan",
+      "record": {
+        "slug": "planned-case-study",
+        "title": "Synthetic planned case study",
+        "content": "<h2>Plan ground</h2><p>Plan first.</p>",
+        "excerpt": "Synthetic plan.",
+        "status": "publish",
+        "client_type": "synthetic",
+        "outcome_metric": 4,
+        "verified_on": "2026-11-14",
+        "sourceKey": "migration-source/planned-case-study",
+        "contentHash": "auto",
+        "categories": [
+          "Synthetic Ground"
+        ],
+        "tags": [
+          "synthetic",
+          "migration"
+        ]
+      },
+      "expected": {
+        "accepted": true,
+        "disposition": "created"
+      }
+    },
+    "migration-replay": {
+      "operation": "migration_apply",
+      "record": {
+        "slug": "migration-case-study",
+        "title": "Synthetic migrated case study",
+        "content": "<h2>Migration ground</h2><p>Preserve body and metadata.</p>",
+        "excerpt": "Synthetic migration fixture.",
+        "status": "publish",
+        "client_type": "synthetic",
+        "outcome_metric": 24,
+        "verified_on": "2026-11-14",
+        "sourceKey": "migration-source/migration-case-study",
+        "contentHash": "auto",
+        "categories": [
+          "Synthetic Ground"
+        ],
+        "tags": [
+          "synthetic",
+          "migration"
+        ]
+      },
+      "expected": {
+        "accepted": true,
+        "disposition": "duplicate"
+      }
+    },
+    "migration-plan-duplicate": {
+      "operation": "migration_plan",
+      "record": {
+        "slug": "migration-case-study",
+        "title": "Synthetic migrated case study",
+        "content": "<h2>Migration ground</h2><p>Preserve body and metadata.</p>",
+        "excerpt": "Synthetic migration fixture.",
+        "status": "publish",
+        "client_type": "synthetic",
+        "outcome_metric": 24,
+        "verified_on": "2026-11-14",
+        "sourceKey": "migration-source/migration-case-study",
+        "contentHash": "auto",
+        "categories": [
+          "Synthetic Ground"
+        ],
+        "tags": [
+          "synthetic",
+          "migration"
+        ]
+      },
+      "expected": {
+        "accepted": true,
+        "disposition": "duplicate"
+      }
+    },
+    "migration-update": {
+      "operation": "migration_apply",
+      "record": {
+        "slug": "migration-case-study",
+        "title": "Synthetic migrated case study",
+        "content": "<h2>Migration ground</h2><p>Preserve the revision and metadata.</p>",
+        "excerpt": "Updated synthetic migration fixture.",
+        "status": "publish",
+        "client_type": "synthetic",
+        "outcome_metric": 25,
+        "verified_on": "2026-11-14",
+        "sourceKey": "migration-source/migration-case-study",
+        "contentHash": "auto",
+        "categories": [
+          "Synthetic Ground"
+        ],
+        "tags": [
+          "synthetic",
+          "migration"
+        ]
+      },
+      "expected": {
+        "accepted": true,
+        "disposition": "updated"
+      }
+    },
+    "migration-plan-update": {
+      "operation": "migration_plan",
+      "record": {
+        "slug": "migration-case-study",
+        "title": "Synthetic migrated case study",
+        "content": "<h2>Migration ground</h2><p>Preserve the revision and metadata.</p>",
+        "excerpt": "Updated synthetic migration fixture.",
+        "status": "publish",
+        "client_type": "synthetic",
+        "outcome_metric": 25,
+        "verified_on": "2026-11-14",
+        "sourceKey": "migration-source/migration-case-study",
+        "contentHash": "auto",
+        "categories": [
+          "Synthetic Ground"
+        ],
+        "tags": [
+          "synthetic",
+          "migration"
+        ]
+      },
+      "expected": {
+        "accepted": true,
+        "disposition": "updated"
+      }
+    },
+    "migration-source-conflict": {
+      "operation": "migration_apply",
+      "record": {
+        "slug": "migration-case-study",
+        "title": "Synthetic migrated case study",
+        "content": "<h2>Migration ground</h2><p>Preserve the revision and metadata.</p>",
+        "excerpt": "Updated synthetic migration fixture.",
+        "status": "publish",
+        "client_type": "synthetic",
+        "outcome_metric": 25,
+        "verified_on": "2026-11-14",
+        "sourceKey": "other-source/migration-case-study",
+        "contentHash": "auto",
+        "categories": [
+          "Synthetic Ground"
+        ],
+        "tags": [
+          "synthetic",
+          "migration"
+        ]
+      },
+      "expected": {
+        "accepted": true,
+        "disposition": "source_conflict"
+      }
+    },
+    "migration-plan-conflict": {
+      "operation": "migration_plan",
+      "record": {
+        "slug": "migration-case-study",
+        "title": "Synthetic migrated case study",
+        "content": "<h2>Migration ground</h2><p>Preserve the revision and metadata.</p>",
+        "excerpt": "Updated synthetic migration fixture.",
+        "status": "publish",
+        "client_type": "synthetic",
+        "outcome_metric": 25,
+        "verified_on": "2026-11-14",
+        "sourceKey": "other-source/migration-case-study",
+        "contentHash": "auto",
+        "categories": [
+          "Synthetic Ground"
+        ],
+        "tags": [
+          "synthetic",
+          "migration"
+        ]
+      },
+      "expected": {
+        "accepted": true,
+        "disposition": "source_conflict"
+      }
+    },
+    "migration-client-data-rejected": {
+      "operation": "migration_apply",
+      "record": {
+        "slug": "private-client-case",
+        "title": "Private client case study",
+        "content": "Private client content.",
+        "excerpt": "Not allowed.",
+        "status": "publish",
+        "client_type": "client",
+        "outcome_metric": 24,
+        "verified_on": "2026-11-14",
+        "sourceKey": "migration-source/private-client-case",
+        "contentHash": "auto",
+        "categories": [
+          "Synthetic Ground"
+        ],
+        "tags": [
+          "synthetic",
+          "migration"
+        ]
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "client_data_disallowed"
+      }
+    },
+    "migration-hash-mismatch": {
+      "operation": "migration_apply",
+      "record": {
+        "slug": "migration-hash-case",
+        "title": "Synthetic hash case",
+        "content": "<p>Hash check.</p>",
+        "excerpt": "Synthetic.",
+        "status": "publish",
+        "client_type": "synthetic",
+        "outcome_metric": 24,
+        "verified_on": "2026-11-14",
+        "sourceKey": "migration-source/migration-hash-case",
+        "contentHash": "deadbeef",
+        "categories": [
+          "Synthetic Ground"
+        ],
+        "tags": [
+          "synthetic",
+          "migration"
+        ]
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "hash_mismatch"
+      }
+    },
+    "migration-taxonomy-plan": {
+      "operation": "migration_plan",
+      "record": {
+        "slug": "migration-case-study",
+        "title": "Synthetic migrated case study",
+        "content": "<h2>Migration ground</h2><p>Preserve the revision and metadata.</p>",
+        "excerpt": "Updated synthetic migration fixture.",
+        "status": "publish",
+        "client_type": "synthetic",
+        "outcome_metric": 25,
+        "verified_on": "2026-11-14",
+        "sourceKey": "migration-source/migration-case-study",
+        "contentHash": "auto",
+        "categories": [
+          "Content Operations"
+        ],
+        "tags": [
+          "synthetic",
+          "taxonomy"
+        ]
+      },
+      "expected": {
+        "accepted": true,
+        "disposition": "updated"
+      }
+    },
+    "migration-taxonomy-apply": {
+      "operation": "migration_apply",
+      "record": {
+        "slug": "migration-case-study",
+        "title": "Synthetic migrated case study",
+        "content": "<h2>Migration ground</h2><p>Preserve the revision and metadata.</p>",
+        "excerpt": "Updated synthetic migration fixture.",
+        "status": "publish",
+        "client_type": "synthetic",
+        "outcome_metric": 25,
+        "verified_on": "2026-11-14",
+        "sourceKey": "migration-source/migration-case-study",
+        "contentHash": "auto",
+        "categories": [
+          "Content Operations"
+        ],
+        "tags": [
+          "synthetic",
+          "taxonomy"
+        ]
+      },
+      "expected": {
+        "accepted": true,
+        "disposition": "updated"
+      }
+    },
+    "migration-taxonomy-replay": {
+      "operation": "migration_plan",
+      "record": {
+        "slug": "migration-case-study",
+        "title": "Synthetic migrated case study",
+        "content": "<h2>Migration ground</h2><p>Preserve the revision and metadata.</p>",
+        "excerpt": "Updated synthetic migration fixture.",
+        "status": "publish",
+        "client_type": "synthetic",
+        "outcome_metric": 25,
+        "verified_on": "2026-11-14",
+        "sourceKey": "migration-source/migration-case-study",
+        "contentHash": "auto",
+        "categories": [
+          "Content Operations"
+        ],
+        "tags": [
+          "synthetic",
+          "taxonomy"
+        ]
+      },
+      "expected": {
+        "accepted": true,
+        "disposition": "duplicate"
+      }
+    },
+    "audit-ready": {
+      "operation": "content_audit",
+      "posts": [
+        {
+          "slug": "audit-ready",
+          "title": "A complete synthetic editorial sample",
+          "content": "<h2>Summary</h2><p>This synthetic article has enough meaningful body text for a reader to understand the scenario, reproduce the work, and inspect the verified results without any client information.</p>",
+          "excerpt": "A complete synthetic sample with a concise editorial summary and measured outcome.",
+          "categories": [
+            "Editorial Ground"
+          ],
+          "tags": [
+            "synthetic",
+            "audit"
+          ],
+          "status": "publish",
+          "client_type": "synthetic",
+          "outcome_metric": 24,
+          "verified_on": "2026-11-14"
+        }
+      ],
+      "expected": {
+        "postCount": 1,
+        "readyCount": 1,
+        "reviewCount": 0,
+        "firstDisposition": "ready",
+        "firstScore": 100,
+        "firstWordCount": 28,
+        "firstHeadingCount": 1,
+        "firstFindings": [],
+        "firstActions": []
+      }
+    },
+    "audit-needs-review": {
+      "operation": "content_audit",
+      "posts": [
+        {
+          "slug": "audit-needs-review",
+          "title": "Tiny",
+          "content": "<p>Short.</p>",
+          "excerpt": "",
+          "categories": [],
+          "tags": [],
+          "status": "draft",
+          "client_type": "synthetic",
+          "outcome_metric": 0,
+          "verified_on": "2026-11-14"
+        }
+      ],
+      "expected": {
+        "postCount": 1,
+        "readyCount": 0,
+        "reviewCount": 1,
+        "firstDisposition": "needs-review",
+        "firstScore": 15,
+        "firstWordCount": 1,
+        "firstHeadingCount": 0,
+        "firstFindings": [
+          "short_title",
+          "missing_excerpt",
+          "sparse_body",
+          "missing_heading",
+          "missing_category",
+          "missing_tag"
+        ],
+        "firstActions": [
+          "Write a descriptive title with at least three words.",
+          "Add a concise editorial excerpt.",
+          "Add substantive body text with at least twenty words.",
+          "Add a descriptive HTML heading to structure the body.",
+          "Assign at least one appropriate WordPress category.",
+          "Assign at least one useful WordPress tag."
+        ]
+      }
+    },
+    "audit-mixed": {
+      "operation": "content_audit",
+      "posts": [
+        {
+          "slug": "audit-ready",
+          "title": "A complete synthetic editorial sample",
+          "content": "<h2>Summary</h2><p>This synthetic article has enough meaningful body text for a reader to understand the scenario, reproduce the work, and inspect the verified results without any client information.</p>",
+          "excerpt": "A complete synthetic sample with a concise editorial summary and measured outcome.",
+          "categories": [
+            "Editorial Ground"
+          ],
+          "tags": [
+            "synthetic",
+            "audit"
+          ],
+          "status": "publish",
+          "client_type": "synthetic",
+          "outcome_metric": 24,
+          "verified_on": "2026-11-14"
+        },
+        {
+          "slug": "audit-needs-review",
+          "title": "Tiny",
+          "content": "<p>Short.</p>",
+          "excerpt": "",
+          "categories": [],
+          "tags": [],
+          "status": "draft",
+          "client_type": "synthetic",
+          "outcome_metric": 0,
+          "verified_on": "2026-11-14"
+        }
+      ],
+      "expected": {
+        "postCount": 2,
+        "readyCount": 1,
+        "reviewCount": 1,
+        "firstDisposition": "ready",
+        "firstScore": 100,
+        "firstWordCount": 28,
+        "firstHeadingCount": 1,
+        "firstFindings": [],
+        "firstActions": []
+      }
+    },
+    "audit-short-title": {
+      "operation": "content_audit",
+      "posts": [
+        {
+          "slug": "audit-ready",
+          "title": "Thin",
+          "content": "<h2>Summary</h2><p>This synthetic article has enough meaningful body text for a reader to understand the scenario, reproduce the work, and inspect the verified results without any client information.</p>",
+          "excerpt": "A complete synthetic sample with a concise editorial summary and measured outcome.",
+          "categories": [
+            "Editorial Ground"
+          ],
+          "tags": [
+            "synthetic",
+            "audit"
+          ],
+          "status": "publish",
+          "client_type": "synthetic",
+          "outcome_metric": 24,
+          "verified_on": "2026-11-14"
+        }
+      ],
+      "expected": {
+        "postCount": 1,
+        "readyCount": 0,
+        "reviewCount": 1,
+        "firstDisposition": "needs-review",
+        "firstScore": 90,
+        "firstWordCount": 28,
+        "firstHeadingCount": 1,
+        "firstFindings": [
+          "short_title"
+        ],
+        "firstActions": [
+          "Write a descriptive title with at least three words."
+        ]
+      }
+    },
+    "audit-short-excerpt": {
+      "operation": "content_audit",
+      "posts": [
+        {
+          "slug": "audit-ready",
+          "title": "A complete synthetic editorial sample",
+          "content": "<h2>Summary</h2><p>This synthetic article has enough meaningful body text for a reader to understand the scenario, reproduce the work, and inspect the verified results without any client information.</p>",
+          "excerpt": "Short note only.",
+          "categories": [
+            "Editorial Ground"
+          ],
+          "tags": [
+            "synthetic",
+            "audit"
+          ],
+          "status": "publish",
+          "client_type": "synthetic",
+          "outcome_metric": 24,
+          "verified_on": "2026-11-14"
+        }
+      ],
+      "expected": {
+        "postCount": 1,
+        "readyCount": 0,
+        "reviewCount": 1,
+        "firstDisposition": "needs-review",
+        "firstScore": 90,
+        "firstWordCount": 28,
+        "firstHeadingCount": 1,
+        "firstFindings": [
+          "short_excerpt"
+        ],
+        "firstActions": [
+          "Expand the excerpt to at least six words."
+        ]
+      }
+    },
+    "audit-sparse-body": {
+      "operation": "content_audit",
+      "posts": [
+        {
+          "slug": "audit-ready",
+          "title": "A complete synthetic editorial sample",
+          "content": "<h2>Summary</h2><p>Short summary text only.</p>",
+          "excerpt": "A complete synthetic sample with a concise editorial summary and measured outcome.",
+          "categories": [
+            "Editorial Ground"
+          ],
+          "tags": [
+            "synthetic",
+            "audit"
+          ],
+          "status": "publish",
+          "client_type": "synthetic",
+          "outcome_metric": 24,
+          "verified_on": "2026-11-14"
+        }
+      ],
+      "expected": {
+        "postCount": 1,
+        "readyCount": 0,
+        "reviewCount": 1,
+        "firstDisposition": "needs-review",
+        "firstScore": 80,
+        "firstWordCount": 5,
+        "firstHeadingCount": 1,
+        "firstFindings": [
+          "sparse_body"
+        ],
+        "firstActions": [
+          "Add substantive body text with at least twenty words."
+        ]
+      }
+    },
+    "audit-missing-heading": {
+      "operation": "content_audit",
+      "posts": [
+        {
+          "slug": "audit-ready",
+          "title": "A complete synthetic editorial sample",
+          "content": "This synthetic article has enough meaningful body text for a reader to understand the scenario, reproduce the work, and inspect the verified results without any client information.",
+          "excerpt": "A complete synthetic sample with a concise editorial summary and measured outcome.",
+          "categories": [
+            "Editorial Ground"
+          ],
+          "tags": [
+            "synthetic",
+            "audit"
+          ],
+          "status": "publish",
+          "client_type": "synthetic",
+          "outcome_metric": 24,
+          "verified_on": "2026-11-14"
+        }
+      ],
+      "expected": {
+        "postCount": 1,
+        "readyCount": 0,
+        "reviewCount": 1,
+        "firstDisposition": "needs-review",
+        "firstScore": 90,
+        "firstWordCount": 27,
+        "firstHeadingCount": 0,
+        "firstFindings": [
+          "missing_heading"
+        ],
+        "firstActions": [
+          "Add a descriptive HTML heading to structure the body."
+        ]
+      }
+    },
+    "audit-missing-category": {
+      "operation": "content_audit",
+      "posts": [
+        {
+          "slug": "audit-ready",
+          "title": "A complete synthetic editorial sample",
+          "content": "<h2>Summary</h2><p>This synthetic article has enough meaningful body text for a reader to understand the scenario, reproduce the work, and inspect the verified results without any client information.</p>",
+          "excerpt": "A complete synthetic sample with a concise editorial summary and measured outcome.",
+          "categories": [],
+          "tags": [
+            "synthetic",
+            "audit"
+          ],
+          "status": "publish",
+          "client_type": "synthetic",
+          "outcome_metric": 24,
+          "verified_on": "2026-11-14"
+        }
+      ],
+      "expected": {
+        "postCount": 1,
+        "readyCount": 0,
+        "reviewCount": 1,
+        "firstDisposition": "needs-review",
+        "firstScore": 85,
+        "firstWordCount": 28,
+        "firstHeadingCount": 1,
+        "firstFindings": [
+          "missing_category"
+        ],
+        "firstActions": [
+          "Assign at least one appropriate WordPress category."
+        ]
+      }
+    },
+    "audit-missing-tag": {
+      "operation": "content_audit",
+      "posts": [
+        {
+          "slug": "audit-ready",
+          "title": "A complete synthetic editorial sample",
+          "content": "<h2>Summary</h2><p>This synthetic article has enough meaningful body text for a reader to understand the scenario, reproduce the work, and inspect the verified results without any client information.</p>",
+          "excerpt": "A complete synthetic sample with a concise editorial summary and measured outcome.",
+          "categories": [
+            "Editorial Ground"
+          ],
+          "tags": [],
+          "status": "publish",
+          "client_type": "synthetic",
+          "outcome_metric": 24,
+          "verified_on": "2026-11-14"
+        }
+      ],
+      "expected": {
+        "postCount": 1,
+        "readyCount": 0,
+        "reviewCount": 1,
+        "firstDisposition": "needs-review",
+        "firstScore": 90,
+        "firstWordCount": 28,
+        "firstHeadingCount": 1,
+        "firstFindings": [
+          "missing_tag"
+        ],
+        "firstActions": [
+          "Assign at least one useful WordPress tag."
+        ]
+      }
+    },
+    "audit-encoded-html": {
+      "operation": "content_audit",
+      "posts": [
+        {
+          "slug": "audit-ready",
+          "title": "A complete synthetic editorial sample",
+          "content": "<h2>Summary &amp; Notes</h2><p>Encoded &amp; content remains readable with nested <strong>markup</strong> and multiple paragraphs. This synthetic example confirms that the audit counts decoded text without counting HTML tags or skipping substantive words from the post body.</p><h3>Details</h3><p>It also verifies more than one heading.</p>",
+          "excerpt": "A complete synthetic sample with a concise editorial summary and measured outcome.",
+          "categories": [
+            "Editorial Ground"
+          ],
+          "tags": [
+            "synthetic",
+            "audit"
+          ],
+          "status": "publish",
+          "client_type": "synthetic",
+          "outcome_metric": 24,
+          "verified_on": "2026-11-14"
+        }
+      ],
+      "expected": {
+        "postCount": 1,
+        "readyCount": 1,
+        "reviewCount": 0,
+        "firstDisposition": "ready",
+        "firstScore": 100,
+        "firstWordCount": 44,
+        "firstHeadingCount": 2,
+        "firstFindings": [],
+        "firstActions": []
+      }
+    },
+    "audit-empty": {
+      "operation": "content_audit",
+      "posts": [],
+      "expected": {
+        "postCount": 0,
+        "readyCount": 0,
+        "reviewCount": 0,
+        "firstDisposition": "empty",
+        "firstScore": 0,
+        "firstWordCount": 0,
+        "firstHeadingCount": 0,
+        "firstFindings": [],
+        "firstActions": []
+      }
+    }
+  }
+}

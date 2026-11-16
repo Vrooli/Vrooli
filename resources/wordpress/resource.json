@@ -1,0 +1,111 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "wordpress",
+  "display_name": "WordPress Site Workshop",
+  "description": "Owner-managed, isolated WordPress sites for repeatable forms, commerce, and content delivery work.",
+  "category": "developer-tooling",
+  "driver": "managed-service",
+  "cli": {"enabled": false},
+  "requirements": {
+    "ram_mb": 2048,
+    "disk_mb": 4096,
+    "cpu_cores": 2,
+    "network": "required",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "medium",
+    "class": "infrastructure",
+    "weight": 1
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "hostTools": [
+    {
+      "name": "docker",
+      "required": true,
+      "reason": "WordPress, MariaDB and WP-CLI are separate owner-managed containers."
+    }
+  ],
+  "dependencies": [],
+  "managed_service": {
+    "task_scoped_container": true,
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private"
+      ],
+      "shared_reuse_requires_consent": false,
+      "external_management": "forbidden",
+      "external_access_capabilities": []
+    }
+  },
+  "runtime": {
+    "image": "wordpress:7.1.4-php8.3-apache@sha256:8b64037bb2a3bdc41bebccb165f20ad5e4c786b684ae4a2bd5981f98aa1eb107"
+  },
+  "storage": {
+    "entries": {
+      "instances": {
+        "rung": "pinned",
+        "kind": "dir",
+        "regenerable": false,
+        "class": "data",
+        "subpath": "instances",
+        "rationale": "Per-site database and WordPress content are durable until that exact owner instance is reset or removed."
+      },
+      "snapshots": {
+        "rung": "pinned",
+        "kind": "dir",
+        "regenerable": false,
+        "class": "data",
+        "subpath": "snapshots",
+        "rationale": "WordPress snapshots are explicit recovery and review evidence; reset never removes them."
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 999,
+    "startup_timeout_seconds": 180,
+    "startup_time_estimate": "20-60s after image acquisition",
+    "dependencies": [],
+    "recovery_attempts": 0,
+    "priority": "optional"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 180,
+    "stop_timeout_seconds": 60,
+    "retries": 0
+  },
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "A desktop-bundled Docker daemon and container lifecycle contract are not defined."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "A desktop-bundled Docker daemon and container lifecycle contract are not defined."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "A desktop-bundled Docker daemon and container lifecycle contract are not defined."
+        }
+      }
+    }
+  }
+}

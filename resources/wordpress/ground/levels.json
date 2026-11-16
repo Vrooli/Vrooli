@@ -1,0 +1,553 @@
+{
+  "schemaVersion": 1,
+  "groundId": "wordpress-delivery-ground-v1",
+  "dataClassification": "synthetic-only",
+  "levelFamilies": [
+    {
+      "id": "forms",
+      "hardLevels": [
+        {
+          "id": "forms.cf7.valid",
+          "input": "fixtures/forms.json#cf7-valid",
+          "expected": {
+            "accepted": true,
+            "identity": "cf7-evt-1001"
+          }
+        },
+        {
+          "id": "forms.wpforms-lite.valid",
+          "input": "fixtures/forms.json#wpforms-valid",
+          "expected": {
+            "accepted": true,
+            "identity": "wpforms-evt-1001",
+            "entryId": 0
+          }
+        },
+        {
+          "id": "forms.forminator.valid",
+          "input": "fixtures/forms.json#forminator-valid",
+          "expected": {
+            "accepted": true,
+            "identity": "forminator-evt-1001"
+          }
+        },
+        {
+          "id": "forms.elementor-shaped.valid",
+          "input": "fixtures/forms.json#elementor-shaped-valid",
+          "expected": {
+            "accepted": true,
+            "identity": "elementor-evt-1001",
+            "syntheticCompatibilityOnly": true
+          }
+        },
+        {
+          "id": "forms.invalid-email",
+          "input": "fixtures/forms.json#invalid-email",
+          "expected": {
+            "accepted": false,
+            "reason": "invalid_email"
+          }
+        },
+        {
+          "id": "forms.missing-name",
+          "input": "fixtures/forms.json#missing-name",
+          "expected": {
+            "accepted": false,
+            "reason": "missing_name"
+          }
+        },
+        {
+          "id": "forms.replayed-event",
+          "input": "fixtures/forms.json#replayed-event",
+          "expected": {
+            "accepted": false,
+            "reason": "duplicate"
+          }
+        },
+        {
+          "id": "forms.lost-response-replay",
+          "input": "fixtures/forms.json#lost-response-replay",
+          "expected": {
+            "accepted": false,
+            "reason": "duplicate"
+          }
+        },
+        {
+          "id": "forms.identity-collision",
+          "input": "fixtures/forms.json#identity-collision",
+          "expected": {
+            "accepted": false,
+            "reason": "identity_conflict"
+          }
+        },
+        {
+          "id": "forms.unicode-name-multibyte-in-limit",
+          "input": "fixtures/forms.json#unicode-name-multibyte-in-limit",
+          "expected": {
+            "accepted": true,
+            "identity": "unicode-name-101"
+          }
+        },
+        {
+          "id": "forms.unicode-name-supplementary-in-limit",
+          "input": "fixtures/forms.json#unicode-name-supplementary-in-limit",
+          "expected": {
+            "accepted": true,
+            "identity": "unicode-emoji-name-101"
+          }
+        },
+        {
+          "id": "forms.unicode-message-supplementary-in-limit",
+          "input": "fixtures/forms.json#unicode-message-supplementary-in-limit",
+          "expected": {
+            "accepted": true,
+            "identity": "unicode-emoji-message-2001"
+          }
+        },
+        {
+          "id": "forms.unicode-name-supplementary-over-limit",
+          "input": "fixtures/forms.json#unicode-name-supplementary-over-limit",
+          "expected": {
+            "accepted": false,
+            "reason": "form field exceeds its accepted size"
+          }
+        },
+        {
+          "id": "forms.unicode-message-supplementary-over-limit",
+          "input": "fixtures/forms.json#unicode-message-supplementary-over-limit",
+          "expected": {
+            "accepted": false,
+            "reason": "form field exceeds its accepted size"
+          }
+        },
+        {
+          "id": "forms.unicode-wpforms-name-in-limit",
+          "input": "fixtures/forms.json#unicode-wpforms-name-in-limit",
+          "expected": {
+            "accepted": true,
+            "identity": "unicode-wpforms-name-101",
+            "entryId": 0
+          }
+        },
+        {
+          "id": "forms.unicode-forminator-message-in-limit",
+          "input": "fixtures/forms.json#unicode-forminator-message-in-limit",
+          "expected": {
+            "accepted": true,
+            "identity": "unicode-forminator-message-2001"
+          }
+        }
+      ]
+    },
+    {
+      "id": "shop",
+      "hardLevels": [
+        {
+          "id": "shop.product-catalog",
+          "input": "fixtures/shop.json#catalog",
+          "expected": {
+            "productCount": 3,
+            "syntheticOnly": true
+          }
+        },
+        {
+          "id": "shop.order-export",
+          "input": "fixtures/shop.json#order-1001",
+          "expected": {
+            "accepted": true,
+            "orderId": "1001",
+            "status": "processing",
+            "revision": "2026-11-14T11:00:00"
+          }
+        },
+        {
+          "id": "shop.order-replay",
+          "input": "fixtures/shop.json#order-1001-replay",
+          "expected": {
+            "accepted": false,
+            "reason": "duplicate"
+          }
+        },
+        {
+          "id": "shop.lost-response-replay",
+          "input": "fixtures/shop.json#order-lost-response-replay",
+          "expected": {
+            "accepted": false,
+            "reason": "duplicate"
+          }
+        },
+        {
+          "id": "shop.status-change",
+          "input": "fixtures/shop.json#order-status-change",
+          "expected": {
+            "accepted": true,
+            "orderId": "1001",
+            "status": "completed",
+            "revision": "2026-11-14T12:00:00"
+          }
+        },
+        {
+          "id": "shop.unknown-sku",
+          "input": "fixtures/shop.json#unknown-sku",
+          "expected": {
+            "accepted": false,
+            "reason": "unknown_sku"
+          }
+        },
+        {
+          "id": "shop.missing-revision",
+          "input": "fixtures/shop.json#missing-revision",
+          "expected": {
+            "accepted": false,
+            "reason": "missing_revision"
+          }
+        }
+      ]
+    },
+    {
+      "id": "content",
+      "hardLevels": [
+        {
+          "id": "content.custom-type",
+          "input": "fixtures/content.json#case-study-type",
+          "expected": {
+            "exists": true,
+            "fieldCount": 3
+          }
+        },
+        {
+          "id": "content.custom-field-read",
+          "input": "fixtures/content.json#post-with-fields",
+          "expected": {
+            "client_type": "synthetic",
+            "outcome_metric": 24
+          }
+        },
+        {
+          "id": "content.missing-field",
+          "input": "fixtures/content.json#post-missing-field",
+          "expected": {
+            "exists": false
+          }
+        },
+        {
+          "id": "content.update-idempotency",
+          "input": "fixtures/content.json#same-update-twice",
+          "expected": {
+            "created": 1,
+            "updated": 1,
+            "duplicate": 1,
+            "finalOutcomeMetric": 25
+          }
+        },
+        {
+          "id": "content.migration-create",
+          "input": "fixtures/content.json#migration-create",
+          "expected": {
+            "accepted": true,
+            "disposition": "created"
+          }
+        },
+        {
+          "id": "content.migration-plan-create",
+          "input": "fixtures/content.json#migration-plan-create",
+          "expected": {
+            "accepted": true,
+            "disposition": "created"
+          }
+        },
+        {
+          "id": "content.migration-replay",
+          "input": "fixtures/content.json#migration-replay",
+          "expected": {
+            "accepted": true,
+            "disposition": "duplicate"
+          }
+        },
+        {
+          "id": "content.migration-plan-duplicate",
+          "input": "fixtures/content.json#migration-plan-duplicate",
+          "expected": {
+            "accepted": true,
+            "disposition": "duplicate"
+          }
+        },
+        {
+          "id": "content.migration-plan-update",
+          "input": "fixtures/content.json#migration-plan-update",
+          "expected": {
+            "accepted": true,
+            "disposition": "updated"
+          }
+        },
+        {
+          "id": "content.migration-update",
+          "input": "fixtures/content.json#migration-update",
+          "expected": {
+            "accepted": true,
+            "disposition": "updated"
+          }
+        },
+        {
+          "id": "content.migration-plan-conflict",
+          "input": "fixtures/content.json#migration-plan-conflict",
+          "expected": {
+            "accepted": true,
+            "disposition": "source_conflict"
+          }
+        },
+        {
+          "id": "content.migration-taxonomy-plan",
+          "input": "fixtures/content.json#migration-taxonomy-plan",
+          "expected": {
+            "accepted": true,
+            "disposition": "updated"
+          }
+        },
+        {
+          "id": "content.migration-taxonomy-apply",
+          "input": "fixtures/content.json#migration-taxonomy-apply",
+          "expected": {
+            "accepted": true,
+            "disposition": "updated"
+          }
+        },
+        {
+          "id": "content.migration-taxonomy-replay",
+          "input": "fixtures/content.json#migration-taxonomy-replay",
+          "expected": {
+            "accepted": true,
+            "disposition": "duplicate"
+          }
+        },
+        {
+          "id": "content.migration-source-conflict",
+          "input": "fixtures/content.json#migration-source-conflict",
+          "expected": {
+            "accepted": true,
+            "disposition": "source_conflict"
+          }
+        },
+        {
+          "id": "content.audit-ready",
+          "input": "fixtures/content.json#audit-ready",
+          "expected": {
+            "postCount": 1,
+            "readyCount": 1,
+            "reviewCount": 0,
+            "firstDisposition": "ready",
+            "firstScore": 100,
+            "firstWordCount": 28,
+            "firstHeadingCount": 1,
+            "firstFindings": [],
+            "firstActions": []
+          }
+        },
+        {
+          "id": "content.audit-needs-review",
+          "input": "fixtures/content.json#audit-needs-review",
+          "expected": {
+            "postCount": 1,
+            "readyCount": 0,
+            "reviewCount": 1,
+            "firstDisposition": "needs-review",
+            "firstScore": 15,
+            "firstWordCount": 1,
+            "firstHeadingCount": 0,
+            "firstFindings": [
+              "short_title",
+              "missing_excerpt",
+              "sparse_body",
+              "missing_heading",
+              "missing_category",
+              "missing_tag"
+            ],
+            "firstActions": [
+              "Write a descriptive title with at least three words.",
+              "Add a concise editorial excerpt.",
+              "Add substantive body text with at least twenty words.",
+              "Add a descriptive HTML heading to structure the body.",
+              "Assign at least one appropriate WordPress category.",
+              "Assign at least one useful WordPress tag."
+            ]
+          }
+        },
+        {
+          "id": "content.audit-mixed",
+          "input": "fixtures/content.json#audit-mixed",
+          "expected": {
+            "postCount": 2,
+            "readyCount": 1,
+            "reviewCount": 1,
+            "firstDisposition": "ready",
+            "firstScore": 100,
+            "firstWordCount": 28,
+            "firstHeadingCount": 1,
+            "firstFindings": [],
+            "firstActions": []
+          }
+        },
+        {
+          "id": "content.audit.short-title",
+          "input": "fixtures/content.json#audit-short-title",
+          "expected": {
+            "postCount": 1,
+            "readyCount": 0,
+            "reviewCount": 1,
+            "firstDisposition": "needs-review",
+            "firstScore": 90,
+            "firstWordCount": 28,
+            "firstHeadingCount": 1,
+            "firstFindings": [
+              "short_title"
+            ],
+            "firstActions": [
+              "Write a descriptive title with at least three words."
+            ]
+          }
+        },
+        {
+          "id": "content.audit.short-excerpt",
+          "input": "fixtures/content.json#audit-short-excerpt",
+          "expected": {
+            "postCount": 1,
+            "readyCount": 0,
+            "reviewCount": 1,
+            "firstDisposition": "needs-review",
+            "firstScore": 90,
+            "firstWordCount": 28,
+            "firstHeadingCount": 1,
+            "firstFindings": [
+              "short_excerpt"
+            ],
+            "firstActions": [
+              "Expand the excerpt to at least six words."
+            ]
+          }
+        },
+        {
+          "id": "content.audit.sparse-body",
+          "input": "fixtures/content.json#audit-sparse-body",
+          "expected": {
+            "postCount": 1,
+            "readyCount": 0,
+            "reviewCount": 1,
+            "firstDisposition": "needs-review",
+            "firstScore": 80,
+            "firstWordCount": 5,
+            "firstHeadingCount": 1,
+            "firstFindings": [
+              "sparse_body"
+            ],
+            "firstActions": [
+              "Add substantive body text with at least twenty words."
+            ]
+          }
+        },
+        {
+          "id": "content.audit.missing-heading",
+          "input": "fixtures/content.json#audit-missing-heading",
+          "expected": {
+            "postCount": 1,
+            "readyCount": 0,
+            "reviewCount": 1,
+            "firstDisposition": "needs-review",
+            "firstScore": 90,
+            "firstWordCount": 27,
+            "firstHeadingCount": 0,
+            "firstFindings": [
+              "missing_heading"
+            ],
+            "firstActions": [
+              "Add a descriptive HTML heading to structure the body."
+            ]
+          }
+        },
+        {
+          "id": "content.audit.missing-category",
+          "input": "fixtures/content.json#audit-missing-category",
+          "expected": {
+            "postCount": 1,
+            "readyCount": 0,
+            "reviewCount": 1,
+            "firstDisposition": "needs-review",
+            "firstScore": 85,
+            "firstWordCount": 28,
+            "firstHeadingCount": 1,
+            "firstFindings": [
+              "missing_category"
+            ],
+            "firstActions": [
+              "Assign at least one appropriate WordPress category."
+            ]
+          }
+        },
+        {
+          "id": "content.audit.missing-tag",
+          "input": "fixtures/content.json#audit-missing-tag",
+          "expected": {
+            "postCount": 1,
+            "readyCount": 0,
+            "reviewCount": 1,
+            "firstDisposition": "needs-review",
+            "firstScore": 90,
+            "firstWordCount": 28,
+            "firstHeadingCount": 1,
+            "firstFindings": [
+              "missing_tag"
+            ],
+            "firstActions": [
+              "Assign at least one useful WordPress tag."
+            ]
+          }
+        },
+        {
+          "id": "content.audit.encoded-html",
+          "input": "fixtures/content.json#audit-encoded-html",
+          "expected": {
+            "postCount": 1,
+            "readyCount": 1,
+            "reviewCount": 0,
+            "firstDisposition": "ready",
+            "firstScore": 100,
+            "firstWordCount": 44,
+            "firstHeadingCount": 2,
+            "firstFindings": [],
+            "firstActions": []
+          }
+        },
+        {
+          "id": "content.audit.empty",
+          "input": "fixtures/content.json#audit-empty",
+          "expected": {
+            "postCount": 0,
+            "readyCount": 0,
+            "reviewCount": 0,
+            "firstDisposition": "empty",
+            "firstScore": 0,
+            "firstWordCount": 0,
+            "firstHeadingCount": 0,
+            "firstFindings": [],
+            "firstActions": []
+          }
+        },
+        {
+          "id": "content.migration-client-data-rejected",
+          "input": "fixtures/content.json#migration-client-data-rejected",
+          "expected": {
+            "accepted": false,
+            "reason": "client_data_disallowed"
+          }
+        },
+        {
+          "id": "content.migration-hash-mismatch",
+          "input": "fixtures/content.json#migration-hash-mismatch",
+          "expected": {
+            "accepted": false,
+            "reason": "hash_mismatch"
+          }
+        }
+      ]
+    }
+  ]
+}

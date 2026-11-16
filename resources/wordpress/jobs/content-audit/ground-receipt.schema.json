@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.local/contracts/wordpress/content-audit-ground/v1",
+  "title": "Vrooli WordPress synthetic content-audit ground receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["siteId", "contract", "temporarySlug", "findingCodes", "disposition", "cleanup", "status"],
+  "properties": {
+    "siteId": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "contract": { "const": "vrooli.wordpress.content-audit-ground.v1" },
+    "temporarySlug": { "type": "string", "pattern": "^k3-audit-ground-[a-z0-9]+$" },
+    "findingCodes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["short_title", "missing_excerpt", "short_excerpt", "sparse_body", "missing_heading", "missing_category", "missing_tag"] }
+    },
+    "disposition": { "const": "needs-review" },
+    "cleanup": { "const": "deleted-in-finally" },
+    "status": { "const": "verified" }
+  }
+}
