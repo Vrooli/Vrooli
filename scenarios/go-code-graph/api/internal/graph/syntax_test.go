@@ -7,7 +7,7 @@ import (
 	"go/types"
 	"testing"
 
-	intgraph "go-code-graph/internal/graph"
+	intgraph "github.com/vrooli/api-core/gograph"
 	"golang.org/x/tools/go/packages"
 )
 

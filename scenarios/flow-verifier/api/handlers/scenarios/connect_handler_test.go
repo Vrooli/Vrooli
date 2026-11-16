@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/connectx"
 	connectxtest "github.com/vrooli/api-core/connectxtest"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	scenariosH "flow-verifier/handlers/scenarios"
 	"flow-verifier/internal/artifacts"
@@ -70,7 +71,7 @@ func TestListLifecyclesReturnsRankedEvidenceAndHuntReviewStatus(t *testing.T) {
 					MatchedStates: []string{"queued"}, CandidateStateCount: 1, ContractStateCount: 1, ExactLifecycleMatch: true,
 				}},
 				TransitionOwners:  []lifecycleinference.Evidence{{Path: "scenarios/alpha/api/job.go", Line: 20, Text: "func (job *Job) TransitionStatus(next JobState) error"}},
-				ExplicitlyModeled: true,
+				ExplicitlyModeled: true, TransitionGraphVerified: true, InvalidTransitionTested: true,
 				Persistence: lifecycleinference.PersistenceClassification{
 					Class: lifecycleinference.ClassPersistedLifecycle, Reason: "candidate data reaches Save", Scope: "scenario production Go source", FilesScanned: 12, ScanComplete: true,
 					Evidence: []lifecycleinference.Evidence{{Path: "scenarios/alpha/api/job.go", Line: 30, Text: "store.Save(job)"}},
@@ -97,6 +98,8 @@ func TestListLifecyclesReturnsRankedEvidenceAndHuntReviewStatus(t *testing.T) {
 	require.Equal(t, "queued", resp.Msg.Candidates[0].States[0].Value)
 	require.Equal(t, "review", resp.Msg.Candidates[0].HuntRecords[0].Status)
 	require.True(t, resp.Msg.Candidates[0].ExplicitlyModeled)
+	require.True(t, resp.Msg.Candidates[0].GetTransitionGraphVerified())
+	require.True(t, resp.Msg.Candidates[0].GetInvalidTransitionTested())
 	require.Len(t, resp.Msg.Candidates[0].ExplicitFlows, 1)
 	require.True(t, resp.Msg.Candidates[0].ExplicitFlows[0].ExactLifecycleMatch)
 	require.Len(t, resp.Msg.Candidates[0].TransitionOwners, 1)
@@ -112,6 +115,18 @@ func TestListLifecyclesReturnsRankedEvidenceAndHuntReviewStatus(t *testing.T) {
 	require.Equal(t, int32(1), resp.Msg.PreselectionCandidateCount)
 	require.Equal(t, "owner_adjudication_candidate", resp.Msg.Candidates[0].PreselectionStatus)
 	require.Len(t, resp.Msg.PreselectionCandidates, 1)
+}
+
+func TestLifecycleProofFieldsSerializeExplicitFalse(t *testing.T) {
+	service := &fakeScenarios{inventory: lifecycleinference.Inventory{Candidates: []lifecycleinference.Candidate{{ID: "unverified"}}}}
+	client := newClient(t, service, nil)
+	resp, err := client.ListLifecycles(context.Background(), connect.NewRequest(&scenariosv1.ListLifecyclesRequest{}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.Candidates, 1)
+	data, err := protojson.Marshal(resp.Msg.Candidates[0])
+	require.NoError(t, err)
+	require.Contains(t, string(data), `"transitionGraphVerified":false`)
+	require.Contains(t, string(data), `"invalidTransitionTested":false`)
 }
 
 func TestGetScenarioNotFound(t *testing.T) {

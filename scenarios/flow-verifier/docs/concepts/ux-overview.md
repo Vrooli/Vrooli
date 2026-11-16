@@ -1,6 +1,5 @@
 # UX Overview
 
-## Purpose Of This Document
 
 Map every visible route in the `flow-verifier` UI to the data it depends on, the
 backend endpoints it consumes, and a textual description of what a user sees on

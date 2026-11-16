@@ -2,15 +2,11 @@
 import json
 
 inputs = program.inputs()
-envelope = {
-    "program": "performance-health.packaged-experiment", "version": "1",
-    "status": "failed", "phase": "validate", "inputs": {},
-    "signals": {"experiment_id": "", "expected_launches": 480, "completed_launches": 0,
+envelope = program.envelope('performance-health.packaged-experiment', '1', phase='validate', inputs={})
+envelope["signals"] = {"experiment_id": "", "expected_launches": 480, "completed_launches": 0,
                 "completed_cells": 0, "built_artifacts": 0, "built_pipeline_ids": [],
                 "failed_cells": [], "report_json": "",
-                "report_markdown": "", "missing_data": []},
-    "errors": [], "evidence": [],
-}
+                "report_markdown": "", "missing_data": []}
 manifest = None
 operations = []
 

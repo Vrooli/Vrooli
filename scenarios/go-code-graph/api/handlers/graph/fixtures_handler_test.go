@@ -10,7 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	intgraph "go-code-graph/internal/graph"
+	intgraph "github.com/vrooli/api-core/gograph"
 
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph/graph_v1connect"

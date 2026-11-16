@@ -15,6 +15,26 @@ import (
 
 type fakeDiscoverer struct{ inv surfaces.Inventory }
 
+func TestCountFindingsPartitionsSeverity(t *testing.T) {
+	errors, warnings, infos := CountFindings([]Finding{
+		{Severity: "error"},
+		{Severity: "warning"},
+		{Severity: "info"},
+		{Severity: "unknown"},
+	})
+	require.Equal(t, 1, errors)
+	require.Equal(t, 1, warnings)
+	require.Equal(t, 2, infos)
+}
+
+func TestCountAutofixableCountsAvailableFixes(t *testing.T) {
+	require.Equal(t, 2, CountAutofixable([]Finding{
+		{AutofixAvailable: true},
+		{AutofixAvailable: false},
+		{AutofixAvailable: true},
+	}))
+}
+
 func (f fakeDiscoverer) Discover(context.Context, string, string, bool) (surfaces.Inventory, error) {
 	return f.inv, nil
 }

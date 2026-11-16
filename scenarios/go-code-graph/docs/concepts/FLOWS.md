@@ -2,7 +2,6 @@
 
 This document is the canonical workflow and state-transition map for the scenario. Use it when behavior depends on ordered states, retries, cancellation, stale completion, or background coordination.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

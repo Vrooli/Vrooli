@@ -8,7 +8,7 @@ import { Input } from "../components/ui/input";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { LoadingState } from "../components/LoadingState";
-import { Tabs, TabsList, TabsTrigger, TabsPanel } from "../components/ui/tabs";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1.3.6";
 import { useExtract } from "../features/explorer/controllers/useExtract";
 import { summarizeGraph } from "../features/explorer/lib/graphAdapter";
 import { ExplorerTab } from "../features/explorer/ExplorerTab";
@@ -182,34 +182,30 @@ export function WorkbenchPage() {
           </p>
 
           <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
+            active={activeTab}
+            onChange={setActiveTab}
             ariaLabel={t(strings.workbench.tabs.label)}
-          >
-            <TabsList>
-              <TabsTrigger value={TAB_GRAPH}>{t(strings.workbench.tabs.graph)}</TabsTrigger>
-              <TabsTrigger value={TAB_WARNINGS}>{t(strings.workbench.tabs.warnings)}</TabsTrigger>
-              <TabsTrigger value={TAB_REWRITE}>{t(strings.workbench.tabs.rewrite)}</TabsTrigger>
-              <TabsTrigger value={TAB_FIXTURES}>{t(strings.workbench.tabs.fixtures)}</TabsTrigger>
-            </TabsList>
-
-            <TabsPanel value={TAB_GRAPH}>
-              <ExplorerTab graph={graph} target={submittedPath} />
-            </TabsPanel>
-            <TabsPanel value={TAB_WARNINGS}>
-              <WarningsTab
-                warnings={warnings}
-                includeVendor={includeVendor}
-                onToggleVendor={handleToggleVendor}
-              />
-            </TabsPanel>
-            <TabsPanel value={TAB_REWRITE}>
-              <RewriteTab modulePath={submittedPath} />
-            </TabsPanel>
-            <TabsPanel value={TAB_FIXTURES}>
-              <FixturesTab />
-            </TabsPanel>
-          </Tabs>
+            testId={selectors.ui.tabs.root}
+            itemTestId={(id) => selectors.ui.tabs.trigger({ value: id })}
+            items={[
+              { id: TAB_GRAPH, label: t(strings.workbench.tabs.graph) },
+              { id: TAB_WARNINGS, label: t(strings.workbench.tabs.warnings) },
+              { id: TAB_REWRITE, label: t(strings.workbench.tabs.rewrite) },
+              { id: TAB_FIXTURES, label: t(strings.workbench.tabs.fixtures) },
+            ]}
+            panels={{
+              [TAB_GRAPH]: <ExplorerTab graph={graph} target={submittedPath} />,
+              [TAB_WARNINGS]: (
+                <WarningsTab
+                  warnings={warnings}
+                  includeVendor={includeVendor}
+                  onToggleVendor={handleToggleVendor}
+                />
+              ),
+              [TAB_REWRITE]: <RewriteTab modulePath={submittedPath} />,
+              [TAB_FIXTURES]: <FixturesTab />,
+            }}
+          />
         </>
       )}
     </section>

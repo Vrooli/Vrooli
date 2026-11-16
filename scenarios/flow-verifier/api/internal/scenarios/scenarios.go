@@ -61,48 +61,16 @@ func (s *Service) Root() string { return s.root }
 // joins supplied hunt evidence. The scan is explicit rather than part of the
 // ordinary scenario index, so browse requests stay inexpensive.
 func (s *Service) ListLifecycles(ctx context.Context, scenarioID string, huntIndexJSON []byte) (lifecycleinference.Inventory, error) {
-	inventory, err := lifecycleinference.AnalyzeContext(ctx, s.root, lifecycleinference.Options{HuntIndexJSON: huntIndexJSON})
+	inventory, err := lifecycleinference.AnalyzeContext(ctx, s.root, lifecycleinference.Options{ScenarioID: scenarioID, HuntIndexJSON: huntIndexJSON})
 	if err != nil {
 		return lifecycleinference.Inventory{}, err
 	}
 	if scenarioID == "" {
 		return inventory, nil
 	}
-	var selected *lifecycleinference.ScenarioSummary
-	for i := range inventory.Scenarios {
-		if inventory.Scenarios[i].ID == scenarioID {
-			selected = &inventory.Scenarios[i]
-			break
-		}
-	}
-	if selected == nil {
+	if len(inventory.Scenarios) == 0 {
 		return lifecycleinference.Inventory{}, fmt.Errorf("%w: %s", ErrScenarioNotFound, scenarioID)
 	}
-	candidates := inventory.Candidates[:0]
-	for _, candidate := range inventory.Candidates {
-		if candidate.ScenarioID == scenarioID {
-			candidates = append(candidates, candidate)
-		}
-	}
-	preselection := inventory.PreselectionCandidates[:0]
-	for _, candidate := range inventory.PreselectionCandidates {
-		if candidate.ScenarioID == scenarioID {
-			preselection = append(preselection, candidate)
-		}
-	}
-	inventory.Scenarios = []lifecycleinference.ScenarioSummary{*selected}
-	inventory.Candidates = candidates
-	inventory.PreselectionCandidates = preselection
-	unranked := inventory.UnrankedCandidates[:0]
-	for _, candidate := range inventory.UnrankedCandidates {
-		if candidate.ScenarioID == scenarioID {
-			unranked = append(unranked, candidate)
-		}
-	}
-	inventory.UnrankedCandidates = unranked
-	inventory.ScenarioCount = 1
-	inventory.CandidateCount = len(candidates)
-	inventory.PreselectionCandidateCount = len(preselection)
 	return inventory, nil
 }
 

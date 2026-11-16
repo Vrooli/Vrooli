@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 
 	"flow-verifier/internal/flows"
 	"flow-verifier/internal/lifecycleinference"
@@ -135,6 +136,8 @@ func lifecycleCandidateToProto(candidate lifecycleinference.Candidate) *scenario
 		PersistenceFilesScanned: int32(candidate.Persistence.FilesScanned),
 		PersistenceScanComplete: candidate.Persistence.ScanComplete,
 		PreselectionStatus:      candidate.PreselectionStatus,
+		TransitionGraphVerified: proto.Bool(candidate.TransitionGraphVerified),
+		InvalidTransitionTested: proto.Bool(candidate.InvalidTransitionTested),
 	}
 	for _, state := range candidate.States {
 		out.States = append(out.States, &scenariosv1.LifecycleStateEvidence{Name: state.Name, Value: state.Value, At: lifecycleEvidenceToProto(state.At)})

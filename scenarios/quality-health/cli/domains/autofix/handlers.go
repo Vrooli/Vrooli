@@ -3,10 +3,10 @@ package autofix
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/quality-health/v1/audit"
 	auditconnect "github.com/vrooli/vrooli/packages/proto/gen/go/quality-health/v1/audit/audit_v1connect"
 )
@@ -32,7 +32,7 @@ func (h *handlers) fix(ctx cliapp.RunContext, apply bool) error {
 	scenario := ctx.Positional("scenario")
 	req := connect.NewRequest(&auditv1.FixConfigRequest{
 		Scenario: scenario,
-		RuleIds:  splitCSV(ctx.FlagValues("rule")),
+		RuleIds:  cliutil.ParseUniqueCSVValues(ctx.FlagValues("rule")),
 	})
 	var resp *connect.Response[auditv1.FixConfigResponse]
 	var err error
@@ -55,20 +55,4 @@ func (h *handlers) fix(ctx cliapp.RunContext, apply bool) error {
 			fmt.Sprintf("`quality-health audit run %s --json` - refresh quality findings", scenario),
 		},
 	})
-}
-
-func splitCSV(values []string) []string {
-	seen := map[string]bool{}
-	var out []string
-	for _, value := range values {
-		for _, part := range strings.Split(value, ",") {
-			part = strings.TrimSpace(part)
-			if part == "" || seen[part] {
-				continue
-			}
-			seen[part] = true
-			out = append(out, part)
-		}
-	}
-	return out
 }

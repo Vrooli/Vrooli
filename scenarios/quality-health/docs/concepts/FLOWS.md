@@ -1,6 +1,5 @@
 # Flows — Quality Health
 
-## Purpose Of This Document
 
 This document records workflows with meaningful state, retries, cancellation, stale completion, or formal-model needs.
 

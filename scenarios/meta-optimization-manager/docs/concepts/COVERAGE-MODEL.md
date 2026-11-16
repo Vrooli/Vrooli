@@ -1,6 +1,5 @@
 # Coverage Model
 
-## Purpose Of This Document
 
 This is the **single canonical source** for the model that the coverage-space documents share, so none of them repeats it. The space docs cross-reference this file:
 

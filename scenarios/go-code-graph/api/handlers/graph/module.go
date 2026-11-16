@@ -8,7 +8,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 
-	intgraph "go-code-graph/internal/graph"
+	intgraph "github.com/vrooli/api-core/gograph"
 	intrewrite "go-code-graph/internal/rewrite"
 
 	"github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph/graph_v1connect"

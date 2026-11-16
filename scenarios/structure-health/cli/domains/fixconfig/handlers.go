@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/structure-health/v1/validation"
 	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/structure-health/v1/validation/validation_v1connect"
 )
@@ -94,7 +95,7 @@ func (h *handlers) fix(ctx cliapp.RunContext, apply bool) error {
 	req := connect.NewRequest(&validationv1.FixConfigRequest{
 		Scenario: scenario,
 		Path:     firstFlag(ctx.FlagValues("path")),
-		RuleIds:  splitCSV(ctx.FlagValues("rule")),
+		RuleIds:  cliutil.ParseCSVValues(ctx.FlagValues("rule")),
 		Apply:    apply,
 	})
 
@@ -140,18 +141,6 @@ func (h *handlers) fix(ctx cliapp.RunContext, apply bool) error {
 		Changes:     changes,
 		NextCommand: next,
 	})
-}
-
-func splitCSV(values []string) []string {
-	var out []string
-	for _, v := range values {
-		for _, part := range strings.Split(v, ",") {
-			if p := strings.TrimSpace(part); p != "" {
-				out = append(out, p)
-			}
-		}
-	}
-	return out
 }
 
 func firstFlag(values []string) string {

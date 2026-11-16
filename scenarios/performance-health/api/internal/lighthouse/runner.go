@@ -43,7 +43,8 @@ type CLIRunner struct {
 	LookLighthouse func(ctx context.Context) (string, error)
 
 	// RunAudit runs one Lighthouse audit for url and returns 0..1 category
-	// scores keyed by category id; nil uses the real CLI.
+	// scores keyed by category id; nil uses the real CLI. Accessibility scores are
+	// retained as evidence but never independently gated by Lighthouse thresholds.
 	RunAudit func(ctx context.Context, lighthouse, url string, options AuditOptions) (map[string]float64, error)
 }
 
@@ -63,7 +64,7 @@ func (r *CLIRunner) Run(ctx context.Context, scenario, path string) (Result, err
 	if err != nil {
 		return Result{Scenario: scenario, Outcome: OutcomeConfigurationInvalid, Reason: "invalid lighthouse config: " + err.Error()}, nil
 	}
-	if err := cfg.validateAccessibilityContract(); err != nil {
+	if err := cfg.validateConfig(); err != nil {
 		return Result{Scenario: scenario, Outcome: OutcomeConfigurationInvalid, Reason: err.Error()}, nil
 	}
 
@@ -103,6 +104,13 @@ func scorePage(url string, scores map[string]float64, thresholds map[string]thre
 		SEO:           scores["seo"],
 	}
 	for category, th := range thresholds {
+		// Lighthouse accessibility remains useful observed evidence, but its
+		// score is not an independent pass/fail judge. The unified experience
+		// phase owns accessibility gating and reports not-evaluated when it has
+		// no qualifying evidence.
+		if category == "accessibility" {
+			continue
+		}
 		score, ok := scores[category]
 		if !ok {
 			continue
@@ -228,7 +236,7 @@ type threshold struct {
 	Warn  float64 `json:"warn"`
 }
 
-func (c config) validateAccessibilityContract() error {
+func (c config) validateConfig() error {
 	if !c.Enabled {
 		return errors.New("lighthouse is disabled for a browser UI; only non-browser surfaces may opt out")
 	}
@@ -242,13 +250,6 @@ func (c config) validateAccessibilityContract() error {
 		}
 		if o.ThrottlingMethod != "" && o.ThrottlingMethod != "simulate" && o.ThrottlingMethod != "devtools" && o.ThrottlingMethod != "provided" {
 			return fmt.Errorf("page %q has unsupported throttling method %q", page.ID, o.ThrottlingMethod)
-		}
-		threshold, ok := page.Thresholds["accessibility"]
-		if !ok || threshold.Error <= 0 || threshold.Warn <= 0 {
-			return fmt.Errorf("page %q requires accessibility error and warn thresholds", page.ID)
-		}
-		if threshold.Warn < threshold.Error {
-			return fmt.Errorf("page %q accessibility warn threshold must be at least the error threshold", page.ID)
 		}
 	}
 	return nil

@@ -97,7 +97,6 @@ The authoritative quick-reference table. Detailed rows for each seam follow belo
 | Seam | Interface | Production wiring | Test wiring | Owner package |
 |---|---|---|---|---|
 | `schedule.Clock` | `packages/api-core/schedule.Clock` (`Now() time.Time`) | `schedule.System()` constructed in `api/main.go`; passed to `apihttp.NewScenarioModuleHandler`. | `packages/api-core/scheduletest::FakeClock` (`Now`, `Advance`, `SetNow`). | `packages/api-core/schedule` |
-| `httpc.Doer` | `internal/httpc/doer.go::Doer` (`Do(*http.Request) (*http.Response, error)`) | Production `*http.Client` (satisfies `Doer` directly); first outbound consumer wires it from `main.go`. | `packages/api-core/apihttptest::FakeDoer` (canned response queue, recorded request log). | `internal/httpc` |
 | `graph.PackagesLoader` | `internal/graph/loader.go::PackagesLoader` (`Load(ctx, modulePath string, opts LoadOptions) ([]*packages.Package, error)`) | `PackagesLoaderImpl` constructed via `graph.NewPackagesLoader()` in `main.go` with the fixed load mode `NeedFiles \| NeedImports \| NeedTypes \| NeedSyntax \| NeedTypesInfo \| NeedName \| NeedDeps`. | `internal/graph/mocks::FakeLoader` (canned `[]*packages.Package` from `bas/fixtures/`). | `internal/graph` |
 | `rewrite.RewriteExecutor` | `internal/rewrite/executor.go::RewriteExecutor` (`Execute(ctx context.Context, moduleRoot string, op Operation) error`) | `FSExecutor` constructed via `rewrite.NewFSExecutor()` in `main.go`; uses `os.Rename` for `FileMove` and `go/parser` + `go/printer` for `ImportRewrite`. | `internal/rewrite/mocks::FakeExecutor` (records ops, optional panic-after-N for partial-failure tests). | `internal/rewrite` |
 | `rewrite.PlanStore` | `internal/rewrite/store.go::PlanStore` (`Save(ctx, Plan) error`, `Load(ctx, PlanID) (Plan, bool, error)`) | `MemoryStore` constructed via `rewrite.NewMemoryStore()` in `main.go`. In-memory `sync.Map`; plans do not persist across restarts (see [`PROBLEMS.md`](PROBLEMS.md)). | `internal/rewrite/mocks::FakeStore` (deterministic, no TTL). | `internal/rewrite` |
@@ -203,16 +202,6 @@ The authoritative quick-reference table. Detailed rows for each seam follow belo
 | **Production wiring** | `internal/modules/registry.go::AllSchemas()` lists `apidb.SchemaProviderFunc(localdb.SystemSchema)` first; `main.go` passes the slice into `apidb.EnsureSchemas`. |
 | **Test fake** | None. The system file ships empty in the template and is verified empty by `internal/database/system_test.go::TestSystemSchema_IsEmpty` (a deliberate tripwire — adding a `CREATE TABLE` here forces a "yes, this is genuinely cross-cutting" decision). |
 | **Why it exists** | Some bits don't belong to any one domain — postgres extensions, type definitions, reporting views. Putting them in a domain package would force fictional ownership. The system home is honest: cross-cutting goes here, single-domain bits go in `internal/<dom>/schema.sql`. |
-
-### Doer (outbound HTTP)
-
-| | |
-|---|---|
-| **Seam** | Outbound HTTP request boundary |
-| **Interface** | `internal/httpc/doer.go::Doer` (`Do(*http.Request) (*http.Response, error)`) |
-| **Production wiring** | Ships unwired in production by intent (no consumer until a real outbound call lands). `*http.Client` satisfies `Doer` directly via the compile-time assertion in `doer.go`; the first scenario to need an outbound call adds the field to the scenario composition root and wires `&http.Client{Timeout: …}` from `main.go`. |
-| **Test fake** | `packages/api-core/apihttptest::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
-| **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
 
 ### PackagesLoader (Go parser delegation)
 

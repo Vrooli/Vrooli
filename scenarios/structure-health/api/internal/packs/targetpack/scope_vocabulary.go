@@ -71,13 +71,23 @@ func projectCLIManifestSchemaRules(root string) []rules.Finding {
 	if _, err := os.Stat(projectManifest); err == nil {
 		paths = append(paths, projectManifest)
 	}
-	_ = filepath.WalkDir(filepath.Join(root, "scenarios"), func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil || entry.IsDir() || entry.Name() != "manifest.json" || filepath.Base(filepath.Dir(path)) != "cli" {
-			return nil
+	// A scenario CLI manifest lives at one canonical direct-child path. Walking
+	// every scenario descendant to discover it traversed build outputs and
+	// dependency trees on large repositories, even though none can add a valid
+	// scenario manifest. Enumerate the scenario owners first, then inspect only
+	// their declared CLI boundary.
+	scenariosRoot := filepath.Join(root, "scenarios")
+	if scenarios, err := os.ReadDir(scenariosRoot); err == nil {
+		for _, scenario := range scenarios {
+			if !scenario.IsDir() {
+				continue
+			}
+			manifest := filepath.Join(scenariosRoot, scenario.Name(), "cli", "manifest.json")
+			if info, err := os.Stat(manifest); err == nil && !info.IsDir() {
+				paths = append(paths, manifest)
+			}
 		}
-		paths = append(paths, path)
-		return nil
-	})
+	}
 	if len(paths) == 0 {
 		return nil
 	}

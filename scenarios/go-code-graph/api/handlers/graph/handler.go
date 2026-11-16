@@ -9,7 +9,8 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/schedule"
 
-	intgraph "go-code-graph/internal/graph"
+	intgraph "github.com/vrooli/api-core/gograph"
+	grapherrors "go-code-graph/internal/graph"
 	intrewrite "go-code-graph/internal/rewrite"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -67,7 +68,7 @@ func (h *connectHandler) Extract(ctx context.Context, req *connect.Request[graph
 	g, warnings, stats, err := h.deps.GraphService.ExtractWithStats(ctx, in)
 	elapsedMs := schedule.Since(start).Milliseconds()
 	if err != nil {
-		connectErr := connectx.WrapError(err, intgraph.ErrorToConnectCode)
+		connectErr := connectx.WrapError(err, grapherrors.ErrorToConnectCode)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
 			h.deps.Logger.Printf("graph.Extract(%q): %v", in.ModulePath, err)
 		}

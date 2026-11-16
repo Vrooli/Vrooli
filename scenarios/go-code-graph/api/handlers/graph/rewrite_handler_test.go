@@ -9,7 +9,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	intgraph "go-code-graph/internal/graph"
+	intgraph "github.com/vrooli/api-core/gograph"
 	graphmocks "go-code-graph/internal/graph/mocks"
 	intrewrite "go-code-graph/internal/rewrite"
 	rewritemocks "go-code-graph/internal/rewrite/mocks"

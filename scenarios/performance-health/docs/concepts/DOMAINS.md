@@ -13,7 +13,6 @@ initialization. The scaffold also ships one clearly fenced worked example domain
 (`notes`, never product scope) as a copyable reference; `vrooli scenario
 detemplate <scenario>` removes every fenced example once a real domain is green.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

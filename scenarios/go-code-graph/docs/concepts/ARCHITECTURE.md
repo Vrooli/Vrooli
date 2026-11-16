@@ -9,7 +9,6 @@ Keep this file high-signal. Do not turn it into a warehouse for every
 domain, endpoint, workflow, or decision. If a concern has a dedicated
 document below, update that document and link it here.
 
-## Purpose Of This Document
 
 This document owns:
 
@@ -197,7 +196,6 @@ Every product path lives in exactly one of these layers. Add a row when a new di
 | `api/internal/graph` | Scenario adapter | graph | Type aliases and the Connect error mapping that preserve Go Code Graph's service contract while using API Core's shared extractor. |
 | `api/internal/rewrite` | Domain logic | rewrite | Plan/apply orchestration, operation normalization, plan store seam, executor seam. |
 | `packages/api-core/schedule` | Infrastructure | shared | Injectable deterministic time seam. |
-| `api/internal/httpc` | Infrastructure | shared | `httpc.Doer` seam; outbound HTTP boundary. |
 | `api/internal/database` | Infrastructure | shared | Cross-cutting `SystemSchema`; database reachability is `packages/api-core/database.Pinger`. |
 | `api/internal/modules` | Infrastructure | shared | Registry: schemas, endpoints, proto file entries. |
 | `api/internal/testutil` | Infrastructure | shared | Scenario-specific repo/fixture helpers and no-prod-import quarantine; reusable fakes live in `packages/api-core/*test`. |

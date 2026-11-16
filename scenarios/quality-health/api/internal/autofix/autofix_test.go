@@ -48,6 +48,8 @@ func TestApplyRepairsAllAutofixClassConfigRules(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(api, "main.go"), []byte("package main\nfunc main(){}\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(api, ".golangci.yml"), []byte("linters:\n  enable:\n    - govet\n  disable:\n    - errcheck\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "Makefile"), []byte("lint-ui:\n\t@echo TODO\n"), 0o644))
+	require.True(t, CanFix(root, contracts.RuleGoLintConfigPresent, filepath.Join(api, ".golangci.yml")))
+	require.True(t, CanFix(root, contracts.RuleGoLintRequiredLinters, filepath.Join(api, ".golangci.yml")))
 
 	rules := []string{
 		contracts.RuleTSConfigStrict,

@@ -138,7 +138,7 @@ func (h *Handler) ApplyFixConfig(ctx context.Context, req *connect.Request[audit
 // maturity assessment to the capabilities that apply to that target kind; pass
 // nil for a scenario-shaped run.
 func ResponseToProto(in internalaudit.Response, spec *assessment.Spec, target *commonv1.ValidationTarget) (*auditv1.AuditQualityResponse, error) {
-	errors, warnings, infos := findingCounts(in.Findings)
+	errors, warnings, infos := internalaudit.CountFindings(in.Findings)
 	assessment, err := buildMaturityAssessment(in, spec, target)
 	if err != nil {
 		return nil, err
@@ -162,7 +162,7 @@ func ResponseToProto(in internalaudit.Response, spec *assessment.Spec, target *c
 			Infos:            int32(infos),
 			Surfaces:         int32(len(in.Inventory.Surfaces)),
 			Contracts:        int32(len(in.Contracts)),
-			AutofixableCount: int32(autofixableCount(in.Findings)),
+			AutofixableCount: int32(internalaudit.CountAutofixable(in.Findings)),
 		},
 		NextSteps:  in.NextSteps,
 		Assessment: assessment,
@@ -254,28 +254,4 @@ func fixResponseToProto(inv surfaces.Inventory, applied bool, candidates []autof
 		out.Messages = append(out.Messages, "No supported config fixes are available.")
 	}
 	return out
-}
-
-func findingCounts(findings []internalaudit.Finding) (errors, warnings, infos int) {
-	for _, f := range findings {
-		switch f.Severity {
-		case "error":
-			errors++
-		case "warning":
-			warnings++
-		default:
-			infos++
-		}
-	}
-	return errors, warnings, infos
-}
-
-func autofixableCount(findings []internalaudit.Finding) int {
-	count := 0
-	for _, f := range findings {
-		if f.AutofixAvailable {
-			count++
-		}
-	}
-	return count
 }

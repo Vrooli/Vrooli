@@ -91,8 +91,14 @@ func (h *handlers) lifecycles(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("infer lifecycle candidates", err, nil)
 	}
-	results := make([]string, 0, len(resp.Msg.Candidates))
-	for _, candidate := range resp.Msg.Candidates {
+	listed := append([]*scenariosv1.LifecycleCandidate(nil), resp.Msg.Candidates...)
+	for _, candidate := range resp.Msg.UnrankedCandidates {
+		if candidate != nil && candidate.PreselectionStatus == "implicit_signal_non_ranked" {
+			listed = append(listed, candidate)
+		}
+	}
+	results := make([]string, 0, len(listed))
+	for _, candidate := range listed {
 		states := make([]string, 0, len(candidate.States))
 		for _, state := range candidate.States {
 			states = append(states, state.Value)
@@ -101,16 +107,29 @@ func (h *handlers) lifecycles(ctx cliapp.RunContext) error {
 		for _, record := range candidate.HuntRecords {
 			huntIDs = append(huntIDs, record.EntryId)
 		}
-		results = append(results, fmt.Sprintf("%4d | %s | %s.%s | persistence=%s | preselection=%s | states=%s | flags=%d writes=%d guards=%d tests=%d flows=%d owners=%d modeled=%t hunt=%v | %s",
+		results = append(results, fmt.Sprintf("%4d | %s | %s.%s | persistence=%s | preselection=%s | graph_verified=%t invalid_transition_tested=%t | states=%s | flags=%d writes=%d guards=%d tests=%d flows=%d owners=%d modeled=%t hunt=%v | %s",
 			candidate.BurdenScore, candidate.Confidence, candidate.TypeName, candidate.FieldName,
-			candidate.PersistenceClass, candidate.PreselectionStatus, strings.Join(states, ","), len(candidate.RelatedFlags), len(candidate.WriteSites), len(candidate.GuardSites), len(candidate.TestFiles), len(candidate.ExplicitFlows), len(candidate.TransitionOwners), candidate.ExplicitlyModeled, huntIDs, candidate.Package))
+			candidate.PersistenceClass, candidate.PreselectionStatus, candidate.GetTransitionGraphVerified(), candidate.GetInvalidTransitionTested(), strings.Join(states, ","), len(candidate.RelatedFlags), len(candidate.WriteSites), len(candidate.GuardSites), len(candidate.TestFiles), len(candidate.ExplicitFlows), len(candidate.TransitionOwners), candidate.ExplicitlyModeled, huntIDs, candidate.Package))
 	}
+	modeled := countPreselectionStatus(resp.Msg.UnrankedCandidates, "already_explicitly_modeled")
+	huntReview := countPreselectionStatus(resp.Msg.UnrankedCandidates, "prior_hunt_review_required")
+	implicitSignals := countPreselectionStatus(resp.Msg.UnrankedCandidates, "implicit_signal_non_ranked")
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Scanned %d scenario(s), %d Go lifecycle candidates, %d eligible for source-backed preselection, %d withheld from ranking, %d Go parse error(s), %d flow-contract parse error(s). Preselection requires a complete %s hunt export, source-backed persisted class, state/write/owner evidence, and no prior hunt match; candidates still need caller and owner adjudication. Unknown and unresolved candidates remain in the unranked inventory. Persistence classification covers scenario API production Go only. Hunt evidence: %s (complete=%t).", resp.Msg.ScenarioCount, resp.Msg.CandidateCount, resp.Msg.PreselectionCandidateCount, max(0, int(resp.Msg.CandidateCount-resp.Msg.PreselectionCandidateCount)), resp.Msg.ParseErrorCount, resp.Msg.FlowContractParseErrorCount, resp.Msg.HuntCoverageScope, huntCoverage, resp.Msg.HuntCoverageComplete)},
+		Summary:        []string{fmt.Sprintf("Scanned %d scenario(s), %d Go, TypeScript/JavaScript, Python, and Java lifecycle candidates, %d eligible for source-backed preselection, %d withheld from ranking (%d already explicitly modeled; %d need hunt review; %d implicit signal(s) separately shown as non-persisted review leads), %d source parse error(s), %d flow-contract parse error(s). TypeScript/JavaScript inference is lexical and requires finite typed vocabularies; Python/Java inference requires an enum and lifecycle-named typed field. These non-Go declaration scans do not prove persistence. Preselection requires a complete %s hunt export, source-backed persisted class, state/write/owner evidence, and no prior hunt match; candidates still need caller and owner adjudication. Unknown and unresolved candidates remain in the unranked inventory. Persistence classification currently proves scenario API Go source only. Hunt evidence: %s (complete=%t).", resp.Msg.ScenarioCount, resp.Msg.CandidateCount, resp.Msg.PreselectionCandidateCount, max(0, int(resp.Msg.CandidateCount-resp.Msg.PreselectionCandidateCount)), modeled, huntReview, implicitSignals, resp.Msg.ParseErrorCount, resp.Msg.FlowContractParseErrorCount, resp.Msg.HuntCoverageScope, huntCoverage, resp.Msg.HuntCoverageComplete)},
 		ResultsHeading: "Inferred lifecycle candidates (highest burden first)",
 		Results:        results,
-		RetrievalHints: []string{"`scenarios lifecycles --scenario <id>` — focus one owner", "`scenarios lifecycles --hunt-index <recall.json>` — attach review-only hunt record references using exact `candidate_ids` bindings or specific source identity terms"},
+		RetrievalHints: []string{"`scenarios lifecycles --scenario <id>` — focus one owner", "`scenarios lifecycles --hunt-index <export.json>` — attach review-only references from a complete Source Ledger export or Search Hub recall index"},
 	})
+}
+
+func countPreselectionStatus(candidates []*scenariosv1.LifecycleCandidate, status string) int {
+	count := 0
+	for _, candidate := range candidates {
+		if candidate != nil && candidate.PreselectionStatus == status {
+			count++
+		}
+	}
+	return count
 }
 
 func lifecycleHuntCoverage(data []byte) string {
@@ -118,7 +137,13 @@ func lifecycleHuntCoverage(data []byte) string {
 		return "unavailable (no index supplied)"
 	}
 	var envelope struct {
-		Coverage *struct {
+		Source     string          `json:"source"`
+		Scope      string          `json:"scope"`
+		Complete   *bool           `json:"complete"`
+		Degraded   json.RawMessage `json:"degraded"`
+		EntryCount int             `json:"entry_count"`
+		NextCursor json.RawMessage `json:"next_cursor"`
+		Coverage   *struct {
 			Complete   bool     `json:"complete"`
 			Degraded   []string `json:"degraded"`
 			EntryCount int      `json:"entry_count"`
@@ -128,12 +153,38 @@ func lifecycleHuntCoverage(data []byte) string {
 	if err := json.Unmarshal(data, &envelope); err != nil {
 		return "unknown (index has no readable coverage metadata)"
 	}
-	if envelope.Coverage == nil {
+	if envelope.Coverage != nil {
+		c := envelope.Coverage
+		if !c.Complete || len(c.Degraded) > 0 || c.NextCursor != nil {
+			return fmt.Sprintf("partial/degraded (%d entries, complete=%t, next_cursor=%t, degraded=%v)", c.EntryCount, c.Complete, c.NextCursor != nil, c.Degraded)
+		}
+		return fmt.Sprintf("complete (%d entries)", c.EntryCount)
+	}
+	if (envelope.Source != "source-ledger.journal.export" && envelope.Source != "source-ledger.journal.list") || envelope.Scope != "ecosystem-hunt" || envelope.Complete == nil {
 		return "unknown (index has no readable coverage metadata)"
 	}
-	c := envelope.Coverage
-	if !c.Complete || len(c.Degraded) > 0 || c.NextCursor != nil {
-		return fmt.Sprintf("partial/degraded (%d entries, complete=%t, next_cursor=%t, degraded=%v)", c.EntryCount, c.Complete, c.NextCursor != nil, c.Degraded)
+	degraded, degradedKnown := sourceLedgerDegraded(envelope.Degraded)
+	if !degradedKnown {
+		return "unknown (index has no readable coverage metadata)"
 	}
-	return fmt.Sprintf("complete (%d entries)", c.EntryCount)
+	cursorPresent := len(envelope.NextCursor) > 0 && string(envelope.NextCursor) != "null"
+	if !*envelope.Complete || degraded || cursorPresent {
+		return fmt.Sprintf("partial/degraded (%d entries, complete=%t, next_cursor=%t, degraded=%t)", envelope.EntryCount, *envelope.Complete, cursorPresent, degraded)
+	}
+	return fmt.Sprintf("complete (%d entries)", envelope.EntryCount)
+}
+
+func sourceLedgerDegraded(raw json.RawMessage) (bool, bool) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return false, false
+	}
+	var flag bool
+	if err := json.Unmarshal(raw, &flag); err == nil {
+		return flag, true
+	}
+	var reasons []string
+	if err := json.Unmarshal(raw, &reasons); err == nil {
+		return len(reasons) > 0, true
+	}
+	return false, false
 }

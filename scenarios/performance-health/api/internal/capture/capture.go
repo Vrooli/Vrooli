@@ -43,18 +43,23 @@ var ErrCaptureUnavailable = errors.New("capture mechanism unavailable")
 
 // Result is the outcome of one capture orchestration.
 type Result struct {
-	Scenario          string
-	Outcome           Outcome
-	Tier              readiness.Tier
-	TraceArtifact     string
-	WebVitalsArtifact string
-	Reason            string
+	Scenario           string
+	Outcome            Outcome
+	Tier               readiness.Tier
+	TraceArtifact      string
+	WebVitalsArtifact  string
+	TraceReference     string
+	WebVitalsReference string
+	Reason             string
 }
 
 // Artifacts is what a BAS perf capture returns.
 type Artifacts struct {
 	TraceArtifact     string
 	WebVitalsArtifact string
+	// BAS references remain opaque and travel with their PH-retained copies.
+	TraceReference     string
+	WebVitalsReference string
 	// HasComponentMarks is true when ⚛ marks were present (Tier 1 reached).
 	HasComponentMarks bool
 	// Unavailable is true when BAS was reached but explicitly reported that it
@@ -242,11 +247,13 @@ func (s *Service) Orchestrate(ctx context.Context, scenario, workflow string, ti
 	}
 
 	return Result{
-		Scenario:          scenario,
-		Outcome:           OutcomeCaptured,
-		Tier:              reachedTier(tier, artifacts.HasComponentMarks),
-		TraceArtifact:     artifacts.TraceArtifact,
-		WebVitalsArtifact: artifacts.WebVitalsArtifact,
+		Scenario:           scenario,
+		Outcome:            OutcomeCaptured,
+		Tier:               reachedTier(tier, artifacts.HasComponentMarks),
+		TraceArtifact:      artifacts.TraceArtifact,
+		WebVitalsArtifact:  artifacts.WebVitalsArtifact,
+		TraceReference:     artifacts.TraceReference,
+		WebVitalsReference: artifacts.WebVitalsReference,
 	}, nil
 }
 

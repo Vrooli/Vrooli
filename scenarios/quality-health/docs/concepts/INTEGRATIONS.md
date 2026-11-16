@@ -1,6 +1,5 @@
 # Integrations — Quality Health
 
-## Purpose Of This Document
 
 This document names Quality Health's scenario dependencies, resource posture, and degradation behavior.
 

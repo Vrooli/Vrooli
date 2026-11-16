@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	intgraph "go-code-graph/internal/graph"
+	intgraph "github.com/vrooli/api-core/gograph"
 )
 
 func newSvc(t *testing.T, exec RewriteExecutor) *Service {

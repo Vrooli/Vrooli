@@ -154,10 +154,10 @@ func TestExecutionOrchestratorLighthouseSkippedNoFinding(t *testing.T) {
 }
 
 func TestExecutionOrchestratorLighthouseConfigurationFails(t *testing.T) {
-	lh := &fakeLighthouse{res: lighthouse.Result{Outcome: lighthouse.OutcomeConfigurationInvalid, Reason: "accessibility thresholds missing"}}
+	lh := &fakeLighthouse{res: lighthouse.Result{Outcome: lighthouse.OutcomeConfigurationInvalid, Reason: "unsupported form factor"}}
 	o := NewExecutionOrchestrator(ExecutionDeps{Lighthouse: lh})
 	findings, _, _ := o.Run(context.Background(), "demo", "")
-	if !hasCode(findings, "PERF_LIGHTHOUSE_ACCESSIBILITY_CONFIG") {
+	if !hasCode(findings, "PERF_LIGHTHOUSE_CONFIG_INVALID") {
 		t.Fatalf("expected configuration finding, got %v", findingCodeList(findings))
 	}
 }

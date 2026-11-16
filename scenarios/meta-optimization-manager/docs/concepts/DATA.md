@@ -1,6 +1,5 @@
 # Data
 
-## Purpose Of This Document
 
 The data-ownership and storage map for **meta-optimization-manager**. Because this scenario is a read-mostly aggregator, its owned state is deliberately small: it caches and records its own *outputs*, but it never persists the numerators it computes, and it never owns the denominators (the space docs live with their owner scenarios).
 

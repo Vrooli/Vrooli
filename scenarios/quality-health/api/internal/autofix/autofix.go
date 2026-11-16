@@ -33,8 +33,8 @@ var registry = autofixcore.NewRegistry(
 	autofixcore.Fixer{RuleID: contracts.RuleESLintTypedConfig, Preview: previewESLintTypedConfig, CanFix: canFixESLint},
 	autofixcore.Fixer{RuleID: contracts.RuleTestingConfigStrict, Preview: previewTestingConfigStrict, CanFix: canFixTestingConfigStrict},
 	autofixcore.Fixer{RuleID: contracts.RuleGoModPresent, Preview: previewGoModPresent, CanFix: canFixGoModPresent},
-	autofixcore.Fixer{RuleID: contracts.RuleGoLintConfigPresent, Preview: previewGoLintConfigPresent, CanFix: canFixGoLintConfigPresent},
-	autofixcore.Fixer{RuleID: contracts.RuleGoLintRequiredLinters, Preview: previewGoLintRequiredLinters, CanFix: canFixGoLintRequiredLinters},
+	autofixcore.Fixer{RuleID: contracts.RuleGoLintConfigPresent, Preview: previewGoLintConfigPresent, CanFix: canFixGoLintConfig},
+	autofixcore.Fixer{RuleID: contracts.RuleGoLintRequiredLinters, Preview: previewGoLintRequiredLinters, CanFix: canFixGoLintConfig},
 	autofixcore.Fixer{RuleID: contracts.RuleMakefileQualityGates, Preview: previewMakefileQualityGates, CanFix: canFixMakefileQualityGates},
 )
 
@@ -326,7 +326,7 @@ func previewGoLintConfigPresent(root string) ([]Candidate, error) {
 	return out, nil
 }
 
-func canFixGoLintConfigPresent(root, findingPath string) bool {
+func canFixGoLintConfig(root, findingPath string) bool {
 	path := findingPathOrDefault(root, findingPath, filepath.Join("api", ".golangci.yml"))
 	_, _, changed, err := fixedGoLintConfig(path)
 	return err == nil && changed
@@ -372,12 +372,6 @@ func previewGoLintRequiredLinters(root string) ([]Candidate, error) {
 		})
 	}
 	return out, nil
-}
-
-func canFixGoLintRequiredLinters(root, findingPath string) bool {
-	path := findingPathOrDefault(root, findingPath, filepath.Join("api", ".golangci.yml"))
-	_, _, changed, err := fixedGoLintConfig(path)
-	return err == nil && changed
 }
 
 type goLintConfig struct {

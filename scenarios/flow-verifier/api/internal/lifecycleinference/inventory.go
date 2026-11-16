@@ -13,10 +13,12 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type Inventory struct {
@@ -41,29 +43,37 @@ type ScenarioSummary struct {
 	ExplicitFlows   int    `json:"explicitFlowContracts"`
 }
 
+type CandidateKind string
+
+const CandidateKindImplicitSignal CandidateKind = "implicit_signal"
+
 type Candidate struct {
-	ID                 string                    `json:"id"`
-	ScenarioID         string                    `json:"scenarioId"`
-	Package            string                    `json:"package"`
-	TypeName           string                    `json:"typeName"`
-	FieldName          string                    `json:"fieldName"`
-	FieldType          string                    `json:"fieldType"`
-	Declaration        Evidence                  `json:"declaration"`
-	States             []StateEvidence           `json:"states,omitempty"`
-	RelatedFlags       []Evidence                `json:"relatedFlags,omitempty"`
-	TimeFields         []Evidence                `json:"timeFields,omitempty"`
-	WriteSites         []Evidence                `json:"writeSites,omitempty"`
-	GuardSites         []Evidence                `json:"guardSites,omitempty"`
-	TransitionOwners   []Evidence                `json:"transitionOwners,omitempty"`
-	TestFiles          []string                  `json:"testFiles,omitempty"`
-	HuntRecords        []HuntReference           `json:"huntRecords,omitempty"`
-	Persistence        PersistenceClassification `json:"persistence"`
-	PreselectionStatus string                    `json:"preselectionStatus"`
-	ExplicitFlows      []FlowReference           `json:"explicitFlows,omitempty"`
-	ExplicitlyModeled  bool                      `json:"explicitlyModeled,omitempty"`
-	BurdenScore        int                       `json:"burdenScore"`
-	ScoreBreakdown     []string                  `json:"scoreBreakdown"`
-	Confidence         string                    `json:"confidence"`
+	Kind                    CandidateKind             `json:"kind,omitempty"`
+	ID                      string                    `json:"id"`
+	ScenarioID              string                    `json:"scenarioId"`
+	Package                 string                    `json:"package"`
+	Language                string                    `json:"language,omitempty"`
+	TypeName                string                    `json:"typeName"`
+	FieldName               string                    `json:"fieldName"`
+	FieldType               string                    `json:"fieldType"`
+	Declaration             Evidence                  `json:"declaration"`
+	States                  []StateEvidence           `json:"states,omitempty"`
+	RelatedFlags            []Evidence                `json:"relatedFlags,omitempty"`
+	TimeFields              []Evidence                `json:"timeFields,omitempty"`
+	WriteSites              []Evidence                `json:"writeSites,omitempty"`
+	GuardSites              []Evidence                `json:"guardSites,omitempty"`
+	TransitionOwners        []Evidence                `json:"transitionOwners,omitempty"`
+	TestFiles               []string                  `json:"testFiles,omitempty"`
+	HuntRecords             []HuntReference           `json:"huntRecords,omitempty"`
+	Persistence             PersistenceClassification `json:"persistence"`
+	PreselectionStatus      string                    `json:"preselectionStatus"`
+	ExplicitFlows           []FlowReference           `json:"explicitFlows,omitempty"`
+	ExplicitlyModeled       bool                      `json:"explicitlyModeled,omitempty"`
+	TransitionGraphVerified bool                      `json:"transitionGraphVerified,omitempty"`
+	InvalidTransitionTested bool                      `json:"invalidTransitionTested,omitempty"`
+	BurdenScore             int                       `json:"burdenScore"`
+	ScoreBreakdown          []string                  `json:"scoreBreakdown"`
+	Confidence              string                    `json:"confidence"`
 }
 
 type Evidence struct {
@@ -99,6 +109,10 @@ type FlowReference struct {
 }
 
 type Options struct {
+	// ScenarioID optionally limits source parsing and classification to one
+	// service-backed scenario. It is intended for focused owner review; an
+	// empty value retains the fleet-wide inventory contract.
+	ScenarioID string
 	// HuntIndex is an optional Search Hub recall JSON file whose `hits` rows
 	// contain entry_id and text. A reviewed `candidate_ids` binding may connect
 	// a source identity to a hunt record when prose uses generic domain terms.
@@ -175,6 +189,9 @@ func AnalyzeContext(ctx context.Context, root string, opts Options) (Inventory, 
 		if !entry.IsDir() {
 			continue
 		}
+		if opts.ScenarioID != "" && entry.Name() != opts.ScenarioID {
+			continue
+		}
 		scenarioRoot := filepath.Join(abs, "scenarios", entry.Name())
 		if _, err := os.Stat(filepath.Join(scenarioRoot, ".vrooli", "service.json")); err != nil {
 			if os.IsNotExist(err) {
@@ -189,23 +206,18 @@ func AnalyzeContext(ctx context.Context, root string, opts Options) (Inventory, 
 		inventory.ScenarioCount++
 		inventory.CandidateCount += len(candidates)
 		inventory.Scenarios = append(inventory.Scenarios, summary)
-		for i := range candidates {
-			if err := ctx.Err(); err != nil {
-				return Inventory{}, err
-			}
-			candidates[i].HuntRecords = matchHunt(candidates[i], index)
-			candidates[i].Persistence = persistenceClassifier.ClassifyContext(ctx, candidates[i])
-			if err := ctx.Err(); err != nil {
-				return Inventory{}, err
-			}
-			inventory.Candidates = append(inventory.Candidates, candidates[i])
+		if err := classifyCandidates(ctx, candidates, index, persistenceClassifier); err != nil {
+			return Inventory{}, err
 		}
+		inventory.Candidates = append(inventory.Candidates, candidates...)
 	}
 	rawCandidates := inventory.Candidates
 	inventory.Candidates = make([]Candidate, 0, len(rawCandidates))
 	for i := range rawCandidates {
 		candidate := rawCandidates[i]
-		candidate.PreselectionStatus = preselectionStatus(candidate, inventory.HuntCoverageComplete)
+		if candidate.Kind != "implicit_signal" {
+			candidate.PreselectionStatus = preselectionStatus(candidate, inventory.HuntCoverageComplete)
+		}
 		if candidate.PreselectionStatus == "owner_adjudication_candidate" {
 			inventory.PreselectionCandidates = append(inventory.PreselectionCandidates, candidate)
 			inventory.Candidates = append(inventory.Candidates, candidate)
@@ -227,6 +239,55 @@ func AnalyzeContext(ctx context.Context, root string, opts Options) (Inventory, 
 	return inventory, nil
 }
 
+// classifyCandidates shares the scenario source snapshot while distributing
+// candidate-specific AST flow analysis across available CPUs. Large scenarios
+// commonly have hundreds of candidate fields; serially rescanning their ASTs
+// consumed most of the two-minute API operation budget.
+func classifyCandidates(ctx context.Context, candidates []Candidate, index huntIndex, classifier *PersistenceClassifier) error {
+	if len(candidates) == 0 {
+		return nil
+	}
+	workers := min(runtime.GOMAXPROCS(0), len(candidates), 8)
+	if workers < 2 {
+		for i := range candidates {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			candidates[i].HuntRecords = matchHunt(candidates[i], index)
+			if candidates[i].Kind != "implicit_signal" && (candidates[i].Language == "" || candidates[i].Language == "go") {
+				candidates[i].Persistence = classifier.ClassifyContext(ctx, candidates[i])
+			}
+		}
+		return ctx.Err()
+	}
+	jobs := make(chan int)
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range jobs {
+				if ctx.Err() != nil {
+					continue
+				}
+				candidates[i].HuntRecords = matchHunt(candidates[i], index)
+				if candidates[i].Kind != "implicit_signal" && (candidates[i].Language == "" || candidates[i].Language == "go") {
+					candidates[i].Persistence = classifier.ClassifyContext(ctx, candidates[i])
+				}
+			}
+		}()
+	}
+	for i := range candidates {
+		if ctx.Err() != nil {
+			break
+		}
+		jobs <- i
+	}
+	close(jobs)
+	wg.Wait()
+	return ctx.Err()
+}
+
 func sortCandidates(candidates []Candidate) {
 	sort.Slice(candidates, func(i, j int) bool {
 		if candidates[i].BurdenScore != candidates[j].BurdenScore {
@@ -239,6 +300,9 @@ func sortCandidates(candidates []Candidate) {
 func preselectionStatus(candidate Candidate, huntCoverageComplete bool) string {
 	if !huntCoverageComplete {
 		return "unknown_hunt_coverage"
+	}
+	if candidate.TransitionGraphVerified && candidate.InvalidTransitionTested {
+		return "already_explicitly_modeled"
 	}
 	if len(candidate.HuntRecords) > 0 {
 		return "prior_hunt_review_required"
@@ -337,6 +401,7 @@ func analyzeScenario(ctx context.Context, root, scenarioRoot, scenarioID string)
 	for _, facts := range packages {
 		collectDeclarations(facts)
 		collectUses(facts)
+		candidates = append(candidates, implicitSignalCandidates(facts, scenarioID)...)
 		for typeName, fields := range facts.structs {
 			for fieldName, field := range fields {
 				if !isLifecycleField(fieldName) {
@@ -345,6 +410,7 @@ func analyzeScenario(ctx context.Context, root, scenarioRoot, scenarioID string)
 				candidate := Candidate{
 					ID:               filepath.ToSlash(filepath.Join(scenarioID, strings.TrimPrefix(facts.path, filepath.Join(root, "scenarios", scenarioID)+string(filepath.Separator)))) + "#" + typeName + "." + fieldName,
 					ScenarioID:       scenarioID,
+					Language:         "go",
 					Package:          filepath.ToSlash(strings.TrimPrefix(facts.path, filepath.Join(root, "scenarios", scenarioID)+string(filepath.Separator))),
 					TypeName:         typeName,
 					FieldName:        fieldName,
@@ -364,13 +430,422 @@ func analyzeScenario(ctx context.Context, root, scenarioRoot, scenarioID string)
 				for _, flow := range candidate.ExplicitFlows {
 					candidate.ExplicitlyModeled = candidate.ExplicitlyModeled || flow.ExactLifecycleMatch
 				}
+				candidate.TransitionGraphVerified, candidate.InvalidTransitionTested = explicitTransitionProof(facts, typeName+"."+fieldName)
+				if owner, ok := databaseTransitionOwner(facts, typeName, fieldName); ok {
+					candidate.TransitionOwners = appendUniqueEvidence(candidate.TransitionOwners, owner)
+					candidate.TransitionGraphVerified = true
+					candidate.InvalidTransitionTested = true
+				}
 				candidates = append(candidates, candidate)
 			}
 		}
 	}
+	tsCandidates, tsSourceFiles, tsParseErrors := analyzeTypeScriptScenario(scenarioRoot, scenarioID)
+	summary.SourceFiles += tsSourceFiles
+	summary.ParseErrors += tsParseErrors
+	for i := range tsCandidates {
+		tsCandidates[i].ExplicitFlows = matchFlowContracts(tsCandidates[i], flowContracts)
+		for _, flow := range tsCandidates[i].ExplicitFlows {
+			tsCandidates[i].ExplicitlyModeled = tsCandidates[i].ExplicitlyModeled || flow.ExactLifecycleMatch
+		}
+		candidates = append(candidates, tsCandidates[i])
+	}
+	otherCandidates, otherSourceFiles, otherParseErrors := analyzePythonJavaScenario(scenarioRoot, scenarioID)
+	summary.SourceFiles += otherSourceFiles
+	summary.ParseErrors += otherParseErrors
+	for i := range otherCandidates {
+		otherCandidates[i].ExplicitFlows = matchFlowContracts(otherCandidates[i], flowContracts)
+		for _, flow := range otherCandidates[i].ExplicitFlows {
+			otherCandidates[i].ExplicitlyModeled = otherCandidates[i].ExplicitlyModeled || flow.ExactLifecycleMatch
+		}
+		candidates = append(candidates, otherCandidates[i])
+	}
 	sort.Slice(candidates, func(i, j int) bool { return candidates[i].ID < candidates[j].ID })
 	summary.CandidateCount = len(candidates)
 	return summary, candidates, nil
+}
+
+// implicitSignalCandidates reports a separate, non-persistence inference when
+// a Go type couples multiple lifecycle-like booleans with temporal/retry
+// evidence and has executable receiver methods. It is deliberately never
+// eligible for persisted-lifecycle ranking: this lexical signal identifies a
+// review target, not a durable state machine.
+func implicitSignalCandidates(facts *packageFacts, scenarioID string) []Candidate {
+	var out []Candidate
+	for typeName := range facts.structFields {
+		if _, explicit := facts.structs[typeName]["Status"]; explicit {
+			continue
+		}
+		if _, explicit := facts.structs[typeName]["State"]; explicit {
+			continue
+		}
+		var flags, temporal, retry, events []Evidence
+		for _, parsed := range facts.files {
+			if parsed.test {
+				continue
+			}
+			for _, decl := range parsed.file.Decls {
+				gen, ok := decl.(*ast.GenDecl)
+				if !ok {
+					continue
+				}
+				for _, spec := range gen.Specs {
+					ts, ok := spec.(*ast.TypeSpec)
+					if !ok || ts.Name.Name != typeName {
+						continue
+					}
+					st, ok := ts.Type.(*ast.StructType)
+					if !ok {
+						continue
+					}
+					for _, field := range st.Fields.List {
+						for _, name := range field.Names {
+							typ, lower := exprName(field.Type), strings.ToLower(name.Name)
+							ev := Evidence{Path: filepath.ToSlash(parsed.path), Line: parsed.fset.Position(name.Pos()).Line, Text: sourceFragment(parsed, field)}
+							if typ == "bool" && isLifecycleFlag(name.Name) {
+								flags = append(flags, ev)
+							}
+							if isTimeField(name.Name, typ) {
+								temporal = append(temporal, ev)
+							}
+							if strings.Contains(lower, "retry") || strings.Contains(lower, "attempt") || strings.Contains(lower, "event") {
+								retry = append(retry, ev)
+							}
+							if strings.HasPrefix(typ, "chan ") || strings.Contains(lower, "done") || strings.Contains(lower, "event") {
+								events = append(events, ev)
+							}
+						}
+					}
+				}
+			}
+		}
+		hasReceiver := false
+		for _, parsed := range facts.files {
+			for _, decl := range parsed.file.Decls {
+				if fn, ok := decl.(*ast.FuncDecl); ok && fn.Recv != nil && exprName(fn.Recv.List[0].Type) == typeName {
+					hasReceiver = true
+				}
+			}
+		}
+		// A coupled flag set plus temporal field, retry/event evidence, and
+		// behavior is the minimum useful signal. Mere configuration records
+		// and single booleans therefore stay out of inventory.
+		if len(flags) < 2 || (len(temporal) == 0 && len(events) == 0) || (len(retry) == 0 && len(events) == 0) || !hasReceiver {
+			continue
+		}
+		decl := flags[0]
+		reason := "implicit signal only; persistence and lifecycle semantics are unproven"
+		if len(events) > 0 {
+			reason += "; coordination event evidence: " + events[0].Path + ":" + strconv.Itoa(events[0].Line) + " " + events[0].Text
+		}
+		c := Candidate{Kind: CandidateKindImplicitSignal, ID: scenarioID + "#" + typeName + ".<implicit-lifecycle>", ScenarioID: scenarioID, Package: filepath.Base(facts.path), TypeName: typeName, FieldName: "<implicit-lifecycle>", FieldType: "coupled flags", Declaration: decl, RelatedFlags: flags, TimeFields: temporal, Persistence: PersistenceClassification{Class: ClassUnknown, Reason: reason, Scope: "not classified"}, PreselectionStatus: "implicit_signal_non_ranked", Confidence: "review-only-implicit-signal", ScoreBreakdown: []string{"candidate kind: implicit_signal", "coupled lifecycle-like flags", "temporal/event/retry evidence", "receiver behavior present", "persistence unproven"}}
+		out = append(out, c)
+	}
+	return out
+}
+
+// explicitTransitionProof is deliberately conservative: a named transition
+// method alone is only a lead. We recognize a completed explicit lifecycle
+// only when the field-owning method visibly has a transition table, rejects
+// invalid edges before mutation, and an owner test invokes that method while
+// asserting its error. This keeps the inventory useful after conversions
+// without hiding weak setters or untested state graphs.
+func explicitTransitionProof(facts *packageFacts, key string) (bool, bool) {
+	for _, owner := range facts.owners[key] {
+		var text string
+		for _, parsed := range facts.files {
+			if parsed.path != owner.Path {
+				continue
+			}
+			for _, decl := range parsed.file.Decls {
+				fn, ok := decl.(*ast.FuncDecl)
+				if ok && fn.Body != nil && parsed.fset.Position(fn.Pos()).Line == owner.Line {
+					text = fullSourceFragment(parsed, fn)
+					break
+				}
+			}
+		}
+		if ownerIsTypedPolicy(text) {
+			if !strings.Contains(text, "switch") {
+				continue
+			}
+			if invalidPolicyBoundaryTest(facts, key) {
+				return true, true
+			}
+			continue
+		}
+		delegatedGraphCall := calledTransitionHelperHasGraph(facts, text)
+		hasReturnedError := strings.Contains(text, "return fmt.Errorf") || strings.Contains(text, ", fmt.Errorf") || strings.Contains(text, "return validationError") || strings.Contains(text, "return ErrInvalid") || strings.Contains(text, "return ErrIllegal") || delegatedGraphCall
+		if !hasReturnedError {
+			continue
+		}
+		lowerText := strings.ToLower(text)
+		if !strings.Contains(lowerText, "transitions[") && !strings.Contains(text, "CanTransition") && !strings.Contains(text, "switch") && !strings.Contains(text, "Valid()") && !calledPredicateHasGraph(facts, text) && !delegatedGraphCall {
+			continue
+		}
+		field := key[strings.Index(key, ".")+1:]
+		rejection := strings.Index(text, "return fmt.Errorf")
+		if rejection < 0 {
+			rejection = strings.Index(text, ", fmt.Errorf")
+		}
+		if rejection < 0 {
+			rejection = strings.Index(text, "return validationError")
+		}
+		if rejection < 0 {
+			rejection = strings.Index(text, "return ErrInvalid")
+		}
+		if rejection < 0 {
+			rejection = strings.Index(text, "return ErrIllegal")
+		}
+		if rejection < 0 && delegatedGraphCall {
+			rejection = strings.Index(strings.ToLower(text), "return transition")
+		}
+		mutation := fieldAssignmentIndex(text, field)
+		noMutationWithoutDelegation := mutation < 0 && !delegatedGraphCall && (!strings.Contains(text, ", nil") || !strings.Contains(text, "return "))
+		if rejection < 0 || (mutation >= 0 && rejection > mutation) || noMutationWithoutDelegation {
+			continue
+		}
+		method := transitionMethodName(owner.Text)
+		if method == "" {
+			continue
+		}
+		for _, parsed := range facts.files {
+			if !parsed.test {
+				continue
+			}
+			for _, decl := range parsed.file.Decls {
+				fn, ok := decl.(*ast.FuncDecl)
+				if !ok || fn.Body == nil || !strings.Contains(fn.Name.Name, "Test") {
+					continue
+				}
+				source := fullSourceFragment(parsed, fn)
+				lowerSource := strings.ToLower(source)
+				invalidCase := strings.Contains(lowerSource, "invalid") || strings.Contains(lowerSource, "illegal") || strings.Contains(lowerSource, "unknown") || (strings.Contains(source, "require.Error") && (strings.Contains(source, "isValid") || strings.Contains(source, "explicit") || strings.Contains(source, "allowed")))
+				errorAssertion := strings.Contains(source, "require.Error") || strings.Contains(source, "assert.Error") || strings.Contains(source, "ErrorIs(") || strings.Contains(source, "errors.Is(") || strings.Contains(source, "err != nil") || strings.Contains(source, "err == nil")
+				if strings.Contains(source, method+"(") && invalidCase && errorAssertion {
+					return true, true
+				}
+			}
+		}
+	}
+	return false, false
+}
+
+func ownerIsTypedPolicy(source string) bool {
+	return strings.Contains(source, "CanTransitionTo(") && strings.Contains(source, "bool")
+}
+
+func invalidPolicyBoundaryTest(facts *packageFacts, key string) bool {
+	typeName := key[:strings.Index(key, ".")]
+	for _, parsed := range facts.files {
+		if !parsed.test {
+			continue
+		}
+		for _, decl := range parsed.file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Body == nil || !strings.Contains(fn.Name.Name, "Test") {
+				continue
+			}
+			source := fullSourceFragment(parsed, fn)
+			lower := strings.ToLower(source)
+			policyRejectsInvalid := strings.Contains(source, "CanTransitionTo(") &&
+				(strings.Contains(source, "t.Fatal") || strings.Contains(source, "t.Errorf") || strings.Contains(source, "t.Fatalf") || strings.Contains(source, "require.False") || strings.Contains(source, "assert.False"))
+			if (strings.Contains(lower, "unknown") || strings.Contains(lower, "invalid") || strings.Contains(lower, "stale")) &&
+				((strings.Contains(source, "require.Error") || strings.Contains(source, "assert.Error") || strings.Contains(source, "err == nil") || strings.Contains(source, "err != nil")) &&
+					(strings.Contains(source, "Update(") || strings.Contains(source, "Create(")) || policyRejectsInvalid) &&
+				(strings.Contains(source, typeName) || strings.Contains(source, "State")) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// calledPredicateHasGraph accepts a transition owner that delegates its
+// vocabulary check to a source-local predicate (for example
+// knownPublicationState). The helper must itself contain a finite switch;
+// method names alone never establish a graph.
+func calledPredicateHasGraph(facts *packageFacts, source string) bool {
+	for _, parsed := range facts.files {
+		for _, decl := range parsed.file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Body == nil || fn.Recv != nil || !(strings.HasPrefix(strings.ToLower(fn.Name.Name), "known") || strings.HasPrefix(strings.ToLower(fn.Name.Name), "valid")) {
+				continue
+			}
+			if strings.Contains(source, fn.Name.Name+"(") && strings.Contains(fullSourceFragment(parsed, fn), "switch") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// calledTransitionHelperHasGraph accepts a field-owning receiver method that
+// delegates validation and mutation of an addressed lifecycle field to a
+// package-local helper. The helper must check a finite transition map and
+// return an error on rejection; a call by name alone is not proof.
+func calledTransitionHelperHasGraph(facts *packageFacts, source string) bool {
+	for _, parsed := range facts.files {
+		if parsed.test {
+			continue
+		}
+		for _, decl := range parsed.file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Body == nil || fn.Recv != nil || !strings.HasPrefix(strings.ToLower(fn.Name.Name), "transition") {
+				continue
+			}
+			if !strings.Contains(source, fn.Name.Name+"(") {
+				continue
+			}
+			helper := fullSourceFragment(parsed, fn)
+			if strings.Contains(helper, "allowed[") && strings.Contains(helper, "return fmt.Errorf") && strings.Contains(helper, "*current = next") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// databaseTransitionOwner recognizes an explicit lifecycle whose state is
+// persisted with compare-and-swap SQL rather than a Go field assignment. It
+// requires a typed owner return, a state CAS, a called validator backed by a
+// legal-transition graph, and a test that exercises the owner and asserts the
+// illegal-transition error.
+func databaseTransitionOwner(facts *packageFacts, typeName, fieldName string) (Evidence, bool) {
+	column := strings.ToLower(fieldName)
+	for _, parsed := range facts.files {
+		if parsed.test {
+			continue
+		}
+		for _, decl := range parsed.file.Decls {
+			owner, ok := decl.(*ast.FuncDecl)
+			if !ok || owner.Body == nil || owner.Name.Name != "Transition" || !functionReturnsNamedType(owner, typeName) {
+				continue
+			}
+			source := fullSourceFragment(parsed, owner)
+			lower := strings.ToLower(source)
+			if !strings.Contains(lower, "update ") || !strings.Contains(lower, "set "+column+" =") || !strings.Contains(lower, "where") || !strings.Contains(lower, column+" =") {
+				continue
+			}
+			validator := calledFunctionName(source, "validate")
+			if validator == "" || !hasLegalTransitionValidator(facts, validator) {
+				continue
+			}
+			if hasIllegalTransitionTest(facts, owner.Name.Name) {
+				return Evidence{Path: filepath.ToSlash(parsed.path), Line: parsed.fset.Position(owner.Pos()).Line, Text: "typed transition owner persists state with compare-and-swap SQL and validates legal edges"}, true
+			}
+		}
+	}
+	return Evidence{}, false
+}
+
+func functionReturnsNamedType(fn *ast.FuncDecl, name string) bool {
+	if fn.Type.Results == nil {
+		return false
+	}
+	for _, result := range fn.Type.Results.List {
+		if ident, ok := result.Type.(*ast.Ident); ok && ident.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func calledFunctionName(source, prefix string) string {
+	for _, token := range strings.FieldsFunc(source, func(r rune) bool {
+		return !(r == '_' || r == '.' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9')
+	}) {
+		if strings.HasPrefix(strings.ToLower(token), strings.ToLower(prefix)) {
+			return token
+		}
+	}
+	return ""
+}
+
+func hasLegalTransitionValidator(facts *packageFacts, validator string) bool {
+	for _, parsed := range facts.files {
+		if parsed.test {
+			continue
+		}
+		for _, decl := range parsed.file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Name.Name != validator {
+				continue
+			}
+			source := fullSourceFragment(parsed, fn)
+			if strings.Contains(source, "legalTransition(") && (strings.Contains(source, "ErrIllegalTransition") || strings.Contains(source, "return fmt.Errorf")) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasIllegalTransitionTest(facts *packageFacts, owner string) bool {
+	for _, parsed := range facts.files {
+		if !parsed.test {
+			continue
+		}
+		for _, decl := range parsed.file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Body == nil || !strings.Contains(fn.Name.Name, "Test") {
+				continue
+			}
+			source := fullSourceFragment(parsed, fn)
+			if strings.Contains(source, owner+"(") && strings.Contains(source, "ErrIllegalTransition") && (strings.Contains(source, "errors.Is(") || strings.Contains(source, "ErrorIs(")) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// fieldAssignmentIndex finds an assignment to the lifecycle field, skipping
+// equality comparisons such as `s.State == ModelReady` that share the same
+// prefix. A comparison before the rejection branch is part of the graph, not
+// an early state mutation.
+func fieldAssignmentIndex(source, field string) int {
+	needle := "." + field + " ="
+	for from := 0; from < len(source); {
+		relative := strings.Index(source[from:], needle)
+		if relative < 0 {
+			return -1
+		}
+		index := from + relative
+		afterEquals := index + len(needle) - 1
+		if afterEquals+1 >= len(source) || source[afterEquals+1] != '=' {
+			return index
+		}
+		from = afterEquals + 2
+	}
+	return -1
+}
+
+func fullSourceFragment(parsed parsedFile, node ast.Node) string {
+	start := parsed.fset.Position(node.Pos()).Offset
+	end := parsed.fset.Position(node.End()).Offset
+	if start < 0 || end < start || end > len(parsed.source) {
+		return ""
+	}
+	return parsed.source[start:end]
+}
+
+func transitionMethodName(source string) string {
+	start := strings.Index(source, "func ")
+	if start < 0 {
+		return ""
+	}
+	declaration := strings.TrimSpace(source[start+len("func "):])
+	if strings.HasPrefix(declaration, "(") {
+		if closeReceiver := strings.Index(declaration, ") "); closeReceiver >= 0 {
+			declaration = declaration[closeReceiver+2:]
+		}
+	}
+	end := strings.IndexByte(declaration, '(')
+	if end <= 0 {
+		return ""
+	}
+	return strings.TrimSpace(declaration[:end])
 }
 
 // packageImportPath returns the module-qualified import path for a directory
@@ -488,6 +963,8 @@ func collectDeclarations(facts *packageFacts) {
 			if isTransitionOwner(fn) {
 				owners = transitionOwnerFields(fn)
 			}
+			owners = append(owners, typedStatePolicyOwnerFields(fn, facts.structs)...)
+			owners = append(owners, recordTypedStatePolicyOwnerFields(fn, facts.structFields)...)
 			owners = append(owners, functionalTransitionOwnerFields(fn, facts.structs, facts.structFields)...)
 			for _, owner := range owners {
 				key := owner.TypeName + "." + owner.FieldName
@@ -501,6 +978,87 @@ func collectDeclarations(facts *packageFacts) {
 			}
 		}
 	}
+}
+
+func typedStatePolicyOwnerFields(fn *ast.FuncDecl, structs map[string]map[string]fieldFact) []transitionOwnerField {
+	if fn == nil || fn.Recv == nil || fn.Body == nil || fn.Name.Name != "CanTransitionTo" {
+		return nil
+	}
+	var result []transitionOwnerField
+	for _, receiver := range fn.Recv.List {
+		stateType := exprName(receiver.Type)
+		for ownerType, fields := range structs {
+			for fieldName, field := range fields {
+				if field.typeName == stateType {
+					result = append(result, transitionOwnerField{TypeName: ownerType, FieldName: fieldName})
+				}
+			}
+		}
+	}
+	return result
+}
+
+// recordTypedStatePolicyOwnerFields maps a CanTransitionTo method declared on
+// a persisted record back to the lifecycle field it reads. This covers
+// records whose field stores a string while the record method owns the graph,
+// rather than the state enum declaring the policy itself.
+func recordTypedStatePolicyOwnerFields(fn *ast.FuncDecl, structFields map[string]map[string]string) []transitionOwnerField {
+	if fn == nil || fn.Recv == nil || fn.Body == nil || fn.Name.Name != "CanTransitionTo" || fn.Type.Results == nil {
+		return nil
+	}
+	returnsBool := false
+	for _, result := range fn.Type.Results.List {
+		if exprName(result.Type) == "bool" {
+			returnsBool = true
+		}
+	}
+	if !returnsBool {
+		return nil
+	}
+	hasFinitePolicy := false
+	ast.Inspect(fn.Body, func(node ast.Node) bool {
+		switch node := node.(type) {
+		case *ast.SwitchStmt:
+			hasFinitePolicy = true
+		case *ast.CallExpr:
+			if ident, ok := node.Fun.(*ast.Ident); ok && (strings.HasPrefix(strings.ToLower(ident.Name), "known") || strings.HasPrefix(strings.ToLower(ident.Name), "valid")) {
+				hasFinitePolicy = true
+			}
+		}
+		return true
+	})
+	if !hasFinitePolicy {
+		return nil
+	}
+	var owners []transitionOwnerField
+	for _, receiver := range fn.Recv.List {
+		typeName := exprName(receiver.Type)
+		fields := structFields[typeName]
+		if len(fields) == 0 {
+			continue
+		}
+		for _, receiverName := range receiver.Names {
+			for fieldName := range fields {
+				if !isLifecycleField(fieldName) {
+					continue
+				}
+				readsField := false
+				ast.Inspect(fn.Body, func(node ast.Node) bool {
+					selector, ok := node.(*ast.SelectorExpr)
+					if !ok || selector.Sel.Name != fieldName {
+						return true
+					}
+					base, ok := selector.X.(*ast.Ident)
+					readsField = readsField || (ok && base.Name == receiverName.Name)
+					return true
+				})
+				if readsField {
+					owners = append(owners, transitionOwnerField{TypeName: typeName, FieldName: fieldName})
+				}
+			}
+		}
+	}
+	return owners
 }
 
 type transitionOwnerField struct {
@@ -525,6 +1083,16 @@ func transitionOwnerFields(fn *ast.FuncDecl) []transitionOwnerField {
 		typeName := exprName(receiver.Type)
 		for _, receiverName := range receiver.Names {
 			ast.Inspect(fn.Body, func(node ast.Node) bool {
+				unary, ok := node.(*ast.UnaryExpr)
+				if ok && unary.Op == token.AND {
+					selector, selectorOK := unary.X.(*ast.SelectorExpr)
+					if selectorOK {
+						base, baseOK := selector.X.(*ast.Ident)
+						if baseOK && base.Name == receiverName.Name && isLifecycleField(selector.Sel.Name) {
+							owners = append(owners, transitionOwnerField{TypeName: typeName, FieldName: selector.Sel.Name})
+						}
+					}
+				}
 				assignment, ok := node.(*ast.AssignStmt)
 				if !ok {
 					return true
@@ -857,7 +1425,7 @@ func isLifecycleField(name string) bool {
 
 func isLifecycleFlag(name string) bool {
 	lower := strings.ToLower(name)
-	for _, marker := range []string{"complete", "done", "failed", "cancel", "pause", "abandon", "active", "ready", "terminal", "retry"} {
+	for _, marker := range []string{"complete", "done", "failed", "cancel", "pause", "abandon", "active", "ready", "terminal", "retry", "start", "stop", "finish", "shutdown"} {
 		if strings.Contains(lower, marker) {
 			return true
 		}
@@ -1014,11 +1582,11 @@ func matchFlowContracts(candidate Candidate, contracts []flowContract) []FlowRef
 }
 
 type huntIndex struct {
-	Scope      string   `json:"scope"`
-	Complete   *bool    `json:"complete,omitempty"`
-	Degraded   []string `json:"degraded,omitempty"`
-	EntryCount int      `json:"entry_count,omitempty"`
-	NextCursor *string  `json:"next_cursor,omitempty"`
+	Scope      string          `json:"scope"`
+	Complete   *bool           `json:"complete,omitempty"`
+	Degraded   json.RawMessage `json:"degraded,omitempty"`
+	EntryCount int             `json:"entry_count,omitempty"`
+	NextCursor *string         `json:"next_cursor,omitempty"`
 	Coverage   struct {
 		Complete   bool     `json:"complete"`
 		Degraded   []string `json:"degraded"`
@@ -1047,15 +1615,33 @@ func (index huntIndex) coverageComplete() bool {
 	}
 	complete := index.Coverage.Complete
 	entryCount := index.Coverage.EntryCount
-	degraded := index.Coverage.Degraded
+	degraded := len(index.Coverage.Degraded) != 0
 	nextCursor := index.Coverage.NextCursor
 	if index.Complete != nil {
 		complete = *index.Complete
 		entryCount = index.EntryCount
-		degraded = index.Degraded
+		degraded = topLevelDegraded(index.Degraded)
 		nextCursor = index.NextCursor
 	}
-	return complete && entryCount > 0 && len(degraded) == 0 && nextCursor == nil
+	return complete && entryCount > 0 && !degraded && nextCursor == nil
+}
+
+// source-ledger journal export represents degradation as a boolean, while
+// Search Hub recall and earlier nested coverage envelopes use string arrays.
+// Unknown encodings remain degraded so incomplete coverage cannot rank owners.
+func topLevelDegraded(raw json.RawMessage) bool {
+	if len(raw) == 0 || string(raw) == "null" {
+		return false
+	}
+	var degraded bool
+	if err := json.Unmarshal(raw, &degraded); err == nil {
+		return degraded
+	}
+	var reasons []string
+	if err := json.Unmarshal(raw, &reasons); err == nil {
+		return len(reasons) > 0
+	}
+	return true
 }
 
 func readHuntIndex(opts Options) (huntIndex, error) {

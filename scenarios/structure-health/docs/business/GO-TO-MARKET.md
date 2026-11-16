@@ -3,7 +3,6 @@
 This document records launch strategy, positioning, channels, and
 validation experiments for the scenario.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

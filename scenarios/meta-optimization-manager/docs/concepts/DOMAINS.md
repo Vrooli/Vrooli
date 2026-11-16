@@ -1,6 +1,5 @@
 # Domains
 
-## Purpose Of This Document
 
 The durable domain map for **meta-optimization-manager**. It names the bounded contexts, what each owns, and how each maps back to a PRD operational target. The scenario is a thin, read-mostly aggregator: every domain *measures and surfaces*, none re-implements another scenario's measurement, makes the improvement, or makes a judgment call.
 

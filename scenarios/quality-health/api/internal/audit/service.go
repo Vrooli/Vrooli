@@ -502,9 +502,9 @@ func hasError(findings []Finding) bool {
 }
 
 func summary(res Response) string {
-	errors, warnings, infos := countFindings(res.Findings)
+	errors, warnings, infos := CountFindings(res.Findings)
 	base := fmt.Sprintf("%s: %d error(s), %d warning(s), %d info(s) across %d surface(s)", res.Inventory.Scenario, errors, warnings, infos, len(res.Inventory.Surfaces))
-	if n := autofixableCount(res.Findings); n > 0 {
+	if n := CountAutofixable(res.Findings); n > 0 {
 		base += fmt.Sprintf("; %d autofixable", n)
 	}
 	uncovered := 0
@@ -520,7 +520,7 @@ func summary(res Response) string {
 }
 
 func nextSteps(res Response) []string {
-	if n := autofixableCount(res.Findings); n > 0 {
+	if n := CountAutofixable(res.Findings); n > 0 {
 		return []string{fmt.Sprintf("%d finding(s) autofixable — run `quality-health fix-config run %s --dry-run` to inspect safe config repairs.", n, res.Inventory.Scenario)}
 	}
 	if len(res.Findings) > 0 {
@@ -529,7 +529,8 @@ func nextSteps(res Response) []string {
 	return []string{"No Quality Health remediation is required."}
 }
 
-func autofixableCount(findings []Finding) int {
+// CountAutofixable counts findings with an available fix for both summaries.
+func CountAutofixable(findings []Finding) int {
 	count := 0
 	for _, f := range findings {
 		if f.AutofixAvailable {
@@ -539,7 +540,8 @@ func autofixableCount(findings []Finding) int {
 	return count
 }
 
-func countFindings(findings []Finding) (errors, warnings, infos int) {
+// CountFindings groups findings for the API summary and the service summary.
+func CountFindings(findings []Finding) (errors, warnings, infos int) {
 	for _, f := range findings {
 		switch f.Severity {
 		case "error":

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"go-code-graph/internal/graph"
+	graph "github.com/vrooli/api-core/gograph"
 )
 
 // canonicalGraphBytes serializes g using the same scheme as graph.GraphHash:

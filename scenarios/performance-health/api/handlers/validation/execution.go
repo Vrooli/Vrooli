@@ -139,7 +139,7 @@ func (o *ExecutionOrchestrator) Run(ctx context.Context, scenario, path string) 
 			case lighthouse.OutcomeScored:
 				findings = append(findings, lighthouseFindings(res)...)
 			case lighthouse.OutcomeConfigurationInvalid:
-				findings = append(findings, phassessment.Finding{Code: "PERF_LIGHTHOUSE_ACCESSIBILITY_CONFIG", Severity: "error", Title: "Lighthouse accessibility configuration is required", Message: res.Reason})
+				findings = append(findings, phassessment.Finding{Code: "PERF_LIGHTHOUSE_CONFIG_INVALID", Severity: "error", Title: "Lighthouse configuration is invalid", Message: res.Reason})
 			case lighthouse.OutcomeUnavailable, lighthouse.OutcomeFailed:
 				degradedReason = firstNonEmpty(degradedReason, res.Reason)
 			}

@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/tools/go/packages"
 
-	intgraph "go-code-graph/internal/graph"
+	intgraph "github.com/vrooli/api-core/gograph"
 )
 
 // TestNormalizeEmpty exercises the trivial path: nil package slice

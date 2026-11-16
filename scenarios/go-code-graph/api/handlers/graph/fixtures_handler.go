@@ -11,7 +11,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/connectx"
 
-	intgraph "go-code-graph/internal/graph"
+	intgraph "github.com/vrooli/api-core/gograph"
+	grapherrors "go-code-graph/internal/graph"
 
 	"github.com/vrooli/api-core/graphfixtures"
 	"github.com/vrooli/api-core/textdiff"
@@ -90,7 +91,7 @@ func (h *connectHandler) ValidateFixture(ctx context.Context, req *connect.Reque
 
 	g, _, err := h.deps.GraphService.Extract(ctx, intgraph.ExtractInput{ModulePath: abs})
 	if err != nil {
-		connectErr := connectx.WrapError(err, intgraph.ErrorToConnectCode)
+		connectErr := connectx.WrapError(err, grapherrors.ErrorToConnectCode)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
 			h.deps.Logger.Printf("graph.ValidateFixture(%q): extract: %v", name, err)
 		}

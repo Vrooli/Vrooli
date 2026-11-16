@@ -26,7 +26,6 @@ startScenarioServer({
   apiPort,
   distDir: './dist',
   serviceName: 'flow-verifier',
-  corsOrigins: '*',
   setupRoutes(app) {
     app.use((req, res, next) => {
       if (!connectRpcPath.test(req.path)) {

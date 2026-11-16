@@ -1,6 +1,5 @@
 # Flows
 
-## Purpose Of This Document
 
 The workflow and state-transition map for **meta-optimization-manager**. Most flows are simple read-aggregate-respond; the one flow with real lifecycle and ordering risk is `trials run`, which dispatches work to other scenarios and must isolate and attribute it.
 

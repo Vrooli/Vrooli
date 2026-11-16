@@ -1,6 +1,5 @@
 # Condition Model
 
-## Purpose Of This Document
 
 This is the **single canonical source** for the **Condition axis**: the model that answers *"is the supply the board counts still working?"*
 

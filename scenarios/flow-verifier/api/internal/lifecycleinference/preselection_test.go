@@ -16,7 +16,20 @@ func TestPreselectionRequiresPersistenceStateMachineAndCompleteHuntEvidence(t *t
 	if got := preselectionStatus(candidate, true); got != "owner_adjudication_candidate" {
 		t.Fatalf("source-backed candidate got %q", got)
 	}
+	candidate.TransitionGraphVerified = true
+	if got := preselectionStatus(candidate, true); got != "owner_adjudication_candidate" {
+		t.Fatalf("graph without invalid-state test got %q", got)
+	}
+	candidate.InvalidTransitionTested = true
+	if got := preselectionStatus(candidate, true); got != "already_explicitly_modeled" {
+		t.Fatalf("verified explicit lifecycle got %q", got)
+	}
 	candidate.HuntRecords = []HuntReference{{EntryID: "round-32", Status: "review"}}
+	if got := preselectionStatus(candidate, true); got != "already_explicitly_modeled" {
+		t.Fatalf("verified explicit lifecycle with unrelated hunt lead got %q", got)
+	}
+	candidate.TransitionGraphVerified = false
+	candidate.InvalidTransitionTested = false
 	if got := preselectionStatus(candidate, true); got != "prior_hunt_review_required" {
 		t.Fatalf("previous hunt match got %q", got)
 	}

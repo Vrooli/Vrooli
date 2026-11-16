@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/gograph"
 )
 
 // ErrorToConnectCode translates a Service error to its canonical
@@ -22,16 +23,16 @@ func ErrorToConnectCode(err error) connect.Code {
 	if err == nil {
 		return connect.Code(0)
 	}
-	var ex ExtractError
+	var ex gograph.ExtractError
 	if errors.As(err, &ex) {
 		switch ex.Kind {
-		case ExtractErrorNoGoMod, ExtractErrorMultipleGoMod, ExtractErrorInvalidInput:
+		case gograph.ExtractErrorNoGoMod, gograph.ExtractErrorMultipleGoMod, gograph.ExtractErrorInvalidInput:
 			return connect.CodeInvalidArgument
-		case ExtractErrorWorkspaceUnsupported:
+		case gograph.ExtractErrorWorkspaceUnsupported:
 			return connect.CodeUnimplemented
-		case ExtractErrorPathUnreadable:
+		case gograph.ExtractErrorPathUnreadable:
 			return connect.CodeNotFound
-		case ExtractErrorInternal:
+		case gograph.ExtractErrorInternal:
 			return connect.CodeInternal
 		default:
 			return connect.CodeInternal

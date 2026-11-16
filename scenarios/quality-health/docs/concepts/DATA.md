@@ -1,6 +1,5 @@
 # Data — Quality Health
 
-## Purpose Of This Document
 
 This document records what Quality Health persists, what remains live-only, and what future run-history storage would own.
 

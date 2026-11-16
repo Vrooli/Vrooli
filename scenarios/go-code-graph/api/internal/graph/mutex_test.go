@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	intgraph "go-code-graph/internal/graph"
+	intgraph "github.com/vrooli/api-core/gograph"
 )
 
 // TestPathMutexSerializesSameKey asserts that two goroutines locking

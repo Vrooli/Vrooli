@@ -108,6 +108,79 @@ func TestAnalyzeReportsEveryScenarioAndParseFailures(t *testing.T) {
 	require.Empty(t, got.Scenarios[1].CandidateCount)
 }
 
+func TestAnalyzeScenarioIDScopesSourceWorkToOneOwner(t *testing.T) {
+	root := t.TempDir()
+	write := func(path, body string) {
+		t.Helper()
+		full := filepath.Join(root, path)
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+		require.NoError(t, os.WriteFile(full, []byte(body), 0o644))
+	}
+	write("scenarios/alpha/.vrooli/service.json", `{"service":{}}`)
+	write("scenarios/alpha/api/job.go", `package alpha
+type JobState string
+const ( Pending JobState = "pending"; Done JobState = "done" )
+type Job struct { State JobState }
+func finish(job *Job) { job.State = Done }
+`)
+	write("scenarios/beta/.vrooli/service.json", `{"service":{}}`)
+	write("scenarios/beta/api/broken.go", "package beta\nfunc (\n")
+
+	got, err := lifecycleinference.Analyze(root, lifecycleinference.Options{ScenarioID: "alpha"})
+	require.NoError(t, err)
+	require.Equal(t, 1, got.ScenarioCount)
+	require.Equal(t, "alpha", got.Scenarios[0].ID)
+	require.Equal(t, 0, got.Scenarios[0].ParseErrors)
+	require.NotEmpty(t, allInventoryCandidates(got))
+}
+
+func TestImplicitSignalIsTypedAndNeverRankedAsPersistedLifecycle(t *testing.T) {
+	root := t.TempDir()
+	write := func(path, body string) {
+		t.Helper()
+		full := filepath.Join(root, path)
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+		require.NoError(t, os.WriteFile(full, []byte(body), 0o644))
+	}
+	write("scenarios/alpha/.vrooli/service.json", `{"service":{}}`)
+	write("scenarios/alpha/api/work.go", `package alpha
+type Worker struct { started bool; stopped bool; done chan struct{}; attempts int }
+func (w *Worker) Start() { w.started = true }
+func (w *Worker) Stop() { w.stopped = true; close(w.done) }
+type RetryConfig struct { Retry bool; Attempts int }
+func configure(c RetryConfig) {}
+`)
+	got, err := lifecycleinference.Analyze(root, lifecycleinference.Options{})
+	require.NoError(t, err)
+	require.Empty(t, got.Candidates, "non-ranked implicit signals must not enter the persisted-lifecycle rank")
+	require.Len(t, got.UnrankedCandidates, 1, "channel and retry configuration without coupled flags on a behavior owner is a counterexample")
+	require.Equal(t, lifecycleinference.CandidateKindImplicitSignal, got.UnrankedCandidates[0].Kind)
+	require.Equal(t, "unknown", string(got.UnrankedCandidates[0].Persistence.Class))
+	require.Equal(t, "implicit_signal_non_ranked", got.UnrankedCandidates[0].PreselectionStatus)
+	require.Empty(t, got.PreselectionCandidates)
+}
+
+func TestAgentManagerRecoveryIsVisibleAsNonPersistentImplicitSignal(t *testing.T) {
+	repoRoot, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
+	require.NoError(t, err)
+	got, err := lifecycleinference.Analyze(repoRoot, lifecycleinference.Options{ScenarioID: "agent-manager"})
+	require.NoError(t, err)
+	var recovery *lifecycleinference.Candidate
+	implicitCount := 0
+	for i := range got.UnrankedCandidates {
+		if got.UnrankedCandidates[i].Kind == "implicit_signal" {
+			implicitCount++
+		}
+		if got.UnrankedCandidates[i].TypeName == "Recovery" && got.UnrankedCandidates[i].Kind == "implicit_signal" {
+			recovery = &got.UnrankedCandidates[i]
+		}
+	}
+	require.NotNil(t, recovery, "Recovery couples startupFinished/stopped with done-channel coordination and receiver behavior")
+	require.Equal(t, "unknown", string(recovery.Persistence.Class), "volatile in-memory coordination must not inflate durable lifecycle totals")
+	require.Equal(t, "implicit_signal_non_ranked", recovery.PreselectionStatus)
+	t.Logf("real owner scan: %d standard candidates + %d explicit non-ranked implicit signal(s); persisted rank unchanged", got.CandidateCount-implicitCount, implicitCount)
+}
+
 func TestAnalyzeUsesExactCandidateBindingsForGenericHuntTerms(t *testing.T) {
 	root := t.TempDir()
 	write := func(path, body string) {
@@ -177,7 +250,6 @@ func (job *Job) TransitionStatus(next JobState) error {
   job.Status = next
   return nil
 }
-
 func (job *Job) SetStatus(next JobState) { job.Status = next }
 `)
 
@@ -190,6 +262,373 @@ func (job *Job) SetStatus(next JobState) { job.Status = next }
 	require.Len(t, candidate.TransitionOwners, 1, "only the named transition method that owns the field write is authoritative")
 	require.Equal(t, "scenarios/queue/api/job.go", candidate.TransitionOwners[0].Path)
 	require.Contains(t, candidate.TransitionOwners[0].Text, "TransitionStatus")
+}
+
+func TestAnalyzeRecognizesTransitionGraphOnlyWithInvalidStateTest(t *testing.T) {
+	root := t.TempDir()
+	write := func(path, body string) {
+		t.Helper()
+		full := filepath.Join(root, path)
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+		require.NoError(t, os.WriteFile(full, []byte(body), 0o644))
+	}
+	write("scenarios/queue/.vrooli/service.json", `{"service":{}}`)
+	write("scenarios/queue/api/job.go", `package queue
+import "fmt"
+type JobState string
+const ( JobPending JobState = "pending"; JobRunning JobState = "running" )
+var jobTransitions = map[JobState]map[JobState]bool{JobPending: {JobRunning: true}}
+type Job struct { Status JobState }
+func (job *Job) TransitionStatus(next JobState) error {
+  if !jobTransitions[job.Status][next] { return fmt.Errorf("invalid transition: %s -> %s", job.Status, next) }
+  job.Status = next
+  return nil
+}
+
+
+`)
+	write("scenarios/queue/api/job_test.go", `package queue
+import "testing"
+func TestTransitionStatusRejectsUnknownState(t *testing.T) {
+  job := Job{Status: JobPending}
+  if err := job.TransitionStatus("unknown"); err == nil { t.Fatal("expected invalid state rejection") }
+}
+`)
+
+	got, err := lifecycleinference.Analyze(root, lifecycleinference.Options{HuntIndexJSON: []byte(`{"scope":"ecosystem-hunt","complete":true,"degraded":false,"entry_count":1,"entries":[]}`)})
+	require.NoError(t, err)
+	require.Len(t, allInventoryCandidates(got), 1)
+	candidate := allInventoryCandidates(got)[0]
+	require.True(t, candidate.TransitionGraphVerified)
+	require.True(t, candidate.InvalidTransitionTested)
+	require.Equal(t, "already_explicitly_modeled", candidate.PreselectionStatus)
+	require.NotEqual(t, lifecycleinference.ClassPersistedLifecycle, candidate.Persistence.Class, "explicit modeling is independent from the persistence classification")
+}
+
+func TestAnalyzeRecognizesFieldGraphDelegatedToTransitionHelper(t *testing.T) {
+	root := t.TempDir()
+	write := func(path, body string) {
+		t.Helper()
+		full := filepath.Join(root, path)
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+		require.NoError(t, os.WriteFile(full, []byte(body), 0o644))
+	}
+	write("scenarios/queue/.vrooli/service.json", `{"service":{}}`)
+	write("scenarios/queue/api/steps.go", `package queue
+import "fmt"
+type StepStatus string
+const (
+  StepPending StepStatus = "pending"
+  StepRunning StepStatus = "running"
+  StepDone StepStatus = "done"
+)
+var stepTransitions = map[StepStatus]map[StepStatus]struct{}{
+  StepPending: {StepRunning: {}},
+  StepRunning: {StepDone: {}},
+}
+type ReviewStep struct { Status StepStatus }
+func transitionStepStatus(current *StepStatus, next StepStatus, allowed map[StepStatus]map[StepStatus]struct{}) error {
+  if current == nil { return fmt.Errorf("missing current state") }
+  if _, ok := allowed[*current][next]; !ok { return fmt.Errorf("invalid transition: %s -> %s", *current, next) }
+  *current = next
+  return nil
+}
+func (review *ReviewStep) TransitionStatus(next StepStatus) error {
+  return transitionStepStatus(&review.Status, next, stepTransitions)
+}
+`)
+	write("scenarios/queue/api/steps_test.go", `package queue
+import "testing"
+func TestReviewStepTransitionRejectsUnknownState(t *testing.T) {
+  step := ReviewStep{Status: StepPending}
+  if err := step.TransitionStatus("unknown"); err == nil { t.Fatal("expected invalid state rejection") }
+}
+`)
+
+	got, err := lifecycleinference.Analyze(root, lifecycleinference.Options{HuntIndexJSON: []byte(`{"scope":"ecosystem-hunt","complete":true,"degraded":false,"entry_count":1,"entries":[]}`)})
+	require.NoError(t, err)
+	require.Len(t, allInventoryCandidates(got), 1)
+	candidate := allInventoryCandidates(got)[0]
+	require.Equal(t, "ReviewStep.Status", candidate.TypeName+"."+candidate.FieldName)
+	require.True(t, candidate.TransitionGraphVerified)
+	require.True(t, candidate.InvalidTransitionTested)
+	require.Equal(t, "already_explicitly_modeled", candidate.PreselectionStatus)
+	require.Len(t, candidate.TransitionOwners, 1)
+	require.Contains(t, candidate.TransitionOwners[0].Text, "TransitionStatus")
+}
+
+func TestAnalyzeRecognizesRecordOwnedTypedStatusPolicy(t *testing.T) {
+	root := t.TempDir()
+	write := func(path, body string) {
+		t.Helper()
+		full := filepath.Join(root, path)
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+		require.NoError(t, os.WriteFile(full, []byte(body), 0o644))
+	}
+	write("scenarios/queue/.vrooli/service.json", `{"service":{}}`)
+	write("scenarios/queue/api/file.go", `package queue
+const (
+  StatusPending = "pending"
+  StatusIndexed = "indexed"
+)
+type FileRow struct { Status string }
+func (row FileRow) CanTransitionTo(next string) bool {
+  if !knownStatus(next) || !knownStatus(row.Status) { return false }
+  if row.Status == next { return true }
+  switch row.Status {
+  case StatusPending: return next == StatusIndexed
+  default: return false
+  }
+}
+func knownStatus(status string) bool {
+  switch status { case StatusPending, StatusIndexed: return true; default: return false }
+}
+`)
+	write("scenarios/queue/api/file_test.go", `package queue
+import "testing"
+func TestFileRowRejectsUnknownTransition(t *testing.T) {
+  if (FileRow{Status: StatusPending}).CanTransitionTo("unknown") { t.Fatal("unknown transition allowed") }
+}
+`)
+
+	got, err := lifecycleinference.Analyze(root, lifecycleinference.Options{HuntIndexJSON: []byte(`{"scope":"ecosystem-hunt","complete":true,"degraded":false,"entry_count":1,"entries":[]}`)})
+	require.NoError(t, err)
+	require.Len(t, allInventoryCandidates(got), 1)
+	candidate := allInventoryCandidates(got)[0]
+	require.Equal(t, "FileRow.Status", candidate.TypeName+"."+candidate.FieldName)
+	require.True(t, candidate.TransitionGraphVerified)
+	require.True(t, candidate.InvalidTransitionTested)
+	require.Equal(t, "already_explicitly_modeled", candidate.PreselectionStatus)
+	require.Len(t, candidate.TransitionOwners, 1)
+	require.Contains(t, candidate.TransitionOwners[0].Text, "CanTransitionTo")
+}
+
+func TestAnalyzeRecognizesPureTransitionFunctionAndMatrixRejectionTests(t *testing.T) {
+	root := t.TempDir()
+	write := func(path, body string) {
+		t.Helper()
+		full := filepath.Join(root, path)
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+		require.NoError(t, os.WriteFile(full, []byte(body), 0o644))
+	}
+	write("scenarios/content-desk/.vrooli/service.json", `{"service":{}}`)
+	write("scenarios/content-desk/api/draft.go", `package artifacts
+import "fmt"
+type DraftStatus string
+type DraftEvent string
+const ( DraftRequested DraftStatus = "requested"; DraftDrafting DraftStatus = "drafting" )
+type Draft struct { Status DraftStatus }
+type DraftState struct { Status DraftStatus }
+func TransitionDraft(state DraftState, event DraftEvent) (DraftState, error) {
+  switch state.Status {
+  case DraftRequested:
+    if event == "begin" { return DraftState{Status: DraftDrafting}, nil }
+  }
+  return state, fmt.Errorf("invalid draft transition")
+}
+
+
+`)
+	write("scenarios/content-desk/api/draft_test.go", `package artifacts
+import "testing"
+func TestDraftTransitionMatrix(t *testing.T) {
+  valid := map[string]bool{"requested/begin": true}
+  for edge, isValid := range valid {
+    _, err := TransitionDraft(DraftState{Status: DraftRequested}, DraftEvent("begin"))
+    if isValid && err == nil { continue }
+    if !isValid && err == nil { t.Fatal("illegal transition accepted", edge) }
+  }
+  _, err := TransitionDraft(DraftState{Status: DraftDrafting}, "begin")
+  if err == nil { t.Fatal("invalid transition accepted") }
+}
+`)
+	got, err := lifecycleinference.Analyze(root, lifecycleinference.Options{HuntIndexJSON: []byte(`{"scope":"ecosystem-hunt","complete":true,"degraded":false,"entry_count":1,"entries":[]}`)})
+	require.NoError(t, err)
+	found := false
+	for _, candidate := range allInventoryCandidates(got) {
+		if candidate.TypeName == "Draft" && candidate.FieldName == "Status" {
+			found = true
+			require.True(t, candidate.TransitionGraphVerified)
+			require.True(t, candidate.InvalidTransitionTested)
+		}
+	}
+	require.True(t, found)
+}
+
+func TestAnalyzeRecognizesSwitchGuardBeforeFieldMutation(t *testing.T) {
+	root := t.TempDir()
+	write := func(path, body string) {
+		t.Helper()
+		full := filepath.Join(root, path)
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+		require.NoError(t, os.WriteFile(full, []byte(body), 0o644))
+	}
+	write("scenarios/models/.vrooli/service.json", `{"service":{}}`)
+	write("scenarios/models/api/model.go", `package models
+import "fmt"
+type State string
+const ( Ready State = "ready"; Failed State = "failed" )
+type ModelLifecycle struct { State State }
+func (s ModelLifecycle) Transition(next State) (ModelLifecycle, error) {
+  valid := false
+  switch next { case Ready: valid = s.State == Failed; case Failed: valid = s.State == Ready }
+  if !valid { return s, fmt.Errorf("invalid transition") }
+  s.State = next
+  return s, nil
+}`)
+	write("scenarios/models/api/model_test.go", `package models
+import "testing"
+func TestTransitionRejectsUnknown(t *testing.T) {
+  _, err := (ModelLifecycle{State: Ready}).Transition("unknown")
+  if err == nil { t.Fatal("invalid transition accepted") }
+}`)
+
+	got, err := lifecycleinference.Analyze(root, lifecycleinference.Options{HuntIndexJSON: []byte(`{"scope":"ecosystem-hunt","complete":true,"degraded":false,"entry_count":1,"entries":[]}`)})
+	require.NoError(t, err)
+	for _, candidate := range allInventoryCandidates(got) {
+		if candidate.TypeName == "ModelLifecycle" && candidate.FieldName == "State" {
+			require.True(t, candidate.TransitionGraphVerified)
+			require.True(t, candidate.InvalidTransitionTested)
+			return
+		}
+	}
+	t.Fatal("ModelLifecycle.State candidate not found")
+}
+
+func TestAnalyzeRecognizesSQLCompareAndSwapLifecycle(t *testing.T) {
+	root := t.TempDir()
+	write := func(path, body string) {
+		t.Helper()
+		full := filepath.Join(root, path)
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+		require.NoError(t, os.WriteFile(full, []byte(body), 0o644))
+	}
+	write("scenarios/arms/.vrooli/service.json", `{"service":{}}`)
+	write("scenarios/arms/api/registry.go", `package arms
+import ("context"; "database/sql"; "fmt")
+type State string
+const ( StateNew State = "new"; StateReady State = "ready" )
+type Arm struct { State State }
+type TransitionRequest struct { From, To State }
+type Registry struct { db *sql.DB }
+func (r *Registry) Transition(ctx context.Context, request TransitionRequest) (Arm, error) {
+  if err := validateTransitionRequest(request); err != nil { return Arm{}, err }
+  _, err := r.db.ExecContext(ctx, "UPDATE arms SET state = ? WHERE arm_id = ? AND state = ?", request.To, request.From, request.From)
+  if err != nil { return Arm{}, err }
+  return Arm{State: request.To}, nil
+}
+
+
+func validateTransitionRequest(request TransitionRequest) error {
+  if !legalTransition(request.From, request.To) { return fmt.Errorf("%w: illegal", ErrIllegalTransition) }
+  return nil
+}
+var ErrIllegalTransition = fmt.Errorf("illegal transition")
+func legalTransition(from, to State) bool { return from == StateNew && to == StateReady }
+`)
+	write("scenarios/arms/api/registry_test.go", `package arms
+import ("errors"; "testing")
+func TestTransitionRejectsIllegal(t *testing.T) {
+  _, err := new(Registry).Transition(nil, TransitionRequest{From: StateReady, To: StateNew})
+  if !errors.Is(err, ErrIllegalTransition) { t.Fatalf("expected illegal transition: %v", err) }
+}
+`)
+
+	got, err := lifecycleinference.Analyze(root, lifecycleinference.Options{HuntIndexJSON: []byte(`{"scope":"ecosystem-hunt","complete":true,"degraded":false,"entry_count":1,"entries":[]}`)})
+	require.NoError(t, err)
+	for _, candidate := range allInventoryCandidates(got) {
+		if candidate.TypeName == "Arm" && candidate.FieldName == "State" {
+			require.True(t, candidate.TransitionGraphVerified)
+			require.True(t, candidate.InvalidTransitionTested)
+			require.NotEmpty(t, candidate.TransitionOwners)
+			return
+		}
+	}
+	t.Fatal("Arm.State candidate not found")
+}
+
+func TestAnalyzeRecognizesNamedCanTransitionPolicy(t *testing.T) {
+	root := t.TempDir()
+	write := func(path, body string) {
+		t.Helper()
+		full := filepath.Join(root, path)
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+		require.NoError(t, os.WriteFile(full, []byte(body), 0o644))
+	}
+	write("scenarios/execution/.vrooli/service.json", `{"service":{}}`)
+	write("scenarios/execution/api/state.go", `package execution
+import "fmt"
+type Status string
+const ( Required Status = "required"; Complete Status = "complete" )
+type BaselineSetState struct { Status Status }
+func (s BaselineSetState) CanTransitionTo(next Status) bool {
+  switch s.Status { case Required: return next == Complete; case Complete: return next == Complete }
+  return false
+}
+
+func (s *BaselineSetState) TransitionTo(next Status) error {
+  if !s.CanTransitionTo(next) { return fmt.Errorf("invalid transition") }
+  s.Status = next
+  return nil
+}
+`)
+	write("scenarios/execution/api/state_test.go", `package execution
+import "testing"
+func TestTransitionToRejectsUnknown(t *testing.T) {
+  state := BaselineSetState{Status: Complete}
+  if err := state.TransitionTo("unknown"); err == nil { t.Fatal("unknown transition accepted") }
+}
+`)
+
+	got, err := lifecycleinference.Analyze(root, lifecycleinference.Options{HuntIndexJSON: []byte(`{"scope":"ecosystem-hunt","complete":true,"degraded":false,"entry_count":1,"entries":[]}`)})
+	require.NoError(t, err)
+	for _, candidate := range allInventoryCandidates(got) {
+		if candidate.TypeName == "BaselineSetState" && candidate.FieldName == "Status" {
+			require.True(t, candidate.TransitionGraphVerified)
+			require.True(t, candidate.InvalidTransitionTested)
+			return
+		}
+	}
+	t.Fatal("BaselineSetState.Status candidate not found")
+}
+
+func TestAnalyzeRecognizesTypedStatePolicyAtPersistedBoundary(t *testing.T) {
+	root := t.TempDir()
+	write := func(path, body string) {
+		t.Helper()
+		full := filepath.Join(root, path)
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+		require.NoError(t, os.WriteFile(full, []byte(body), 0o644))
+	}
+	write("scenarios/indexer/.vrooli/service.json", `{"service":{}}`)
+	write("scenarios/indexer/api/jobs.go", `package indexer
+import "fmt"
+type JobState string
+const ( Queued JobState = "queued"; Running JobState = "running"; Done JobState = "done" )
+func (s JobState) CanTransitionTo(next JobState) bool {
+ switch s { case Queued: return next == Running; case Running: return next == Done }
+ return false
+}
+type Job struct { State JobState }
+func (store *Store) Update(job *Job, next JobState) error { if !job.State.CanTransitionTo(next) { return fmt.Errorf("invalid transition") }; job.State = next; return nil }
+type Store struct{}
+`)
+	write("scenarios/indexer/api/jobs_test.go", `package indexer
+import "testing"
+func TestStoreRejectsUnknownState(t *testing.T) { var store Store; job := Job{State: JobState("unknown")}; if err := store.Update(&job, Running); err == nil { t.Fatal("unknown state accepted") } }
+`)
+
+	got, err := lifecycleinference.Analyze(root, lifecycleinference.Options{HuntIndexJSON: []byte(`{"scope":"ecosystem-hunt","complete":true,"degraded":false,"entry_count":1,"entries":[]}`)})
+	require.NoError(t, err)
+	for _, candidate := range allInventoryCandidates(got) {
+		if candidate.TypeName == "Job" && candidate.FieldName == "State" {
+			require.True(t, candidate.TransitionGraphVerified)
+			require.True(t, candidate.InvalidTransitionTested)
+			require.NotEmpty(t, candidate.TransitionOwners)
+			return
+		}
+	}
+	t.Fatal("Job.State candidate not found")
 }
 
 func TestAnalyzeDetectsTypedOutcomeLifecycleAndRanksPlainOutcomeAsWeak(t *testing.T) {
@@ -409,15 +848,53 @@ func TestAnalyzeAcceptsSourceLedgerTopLevelCompleteExportAndRejectsPartial(t *te
 	require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
 	require.NoError(t, os.WriteFile(full, []byte(`{"service":{}}`), 0o644))
 
-	complete := []byte(`{"source":"source-ledger.journal.list","scope":"ecosystem-hunt","complete":true,"entry_count":110,"degraded":[],"entries":[]}`)
+	complete := []byte(`{"source":"source-ledger.journal.export","scope":"ecosystem-hunt","complete":true,"entry_count":110,"degraded":false,"entries":[{"id":"record-1","body":"Ecosystem Hunt Round #7: Alpha Order workflow status lifecycle"}]}`)
 	got, err := lifecycleinference.Analyze(root, lifecycleinference.Options{HuntIndexJSON: complete})
 	require.NoError(t, err)
 	require.True(t, got.HuntCoverageComplete)
+
+	degraded := []byte(`{"source":"source-ledger.journal.export","scope":"ecosystem-hunt","complete":true,"entry_count":110,"degraded":true,"entries":[]}`)
+	got, err = lifecycleinference.Analyze(root, lifecycleinference.Options{HuntIndexJSON: degraded})
+	require.NoError(t, err)
+	require.False(t, got.HuntCoverageComplete, "a degraded authoritative export is not complete coverage")
 
 	partial := []byte(`{"source":"source-ledger.journal.list","scope":"ecosystem-hunt","complete":false,"entry_count":40,"degraded":["provider timeout"],"entries":[]}`)
 	got, err = lifecycleinference.Analyze(root, lifecycleinference.Options{HuntIndexJSON: partial})
 	require.NoError(t, err)
 	require.False(t, got.HuntCoverageComplete)
+}
+
+func TestAnalyzeSourceLedgerExportCrossReferencesEntryIDAndBody(t *testing.T) {
+	root := t.TempDir()
+	full := filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+	require.NoError(t, os.WriteFile(full, []byte(`{"service":{}}`), 0o644))
+	source := `package domain
+ type OrderStatus string
+ const (OrderPending OrderStatus = "pending"; OrderDone OrderStatus = "done")
+ type Order struct { Status OrderStatus }
+ func finish(order *Order) { run.Status = OrderDone }
+ `
+	path := filepath.Join(root, "scenarios", "alpha", "api", "domain", "run.go")
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	require.NoError(t, os.WriteFile(path, []byte(source), 0o644))
+	export := []byte(`{"source":"source-ledger.journal.export","scope":"ecosystem-hunt","complete":true,"degraded":false,"entry_count":1,"entries":[{"id":"entry-1","body":"Ecosystem Hunt Round #7: Alpha Order lifecycle"}]}`)
+	got, err := lifecycleinference.Analyze(root, lifecycleinference.Options{HuntIndexJSON: export})
+	require.NoError(t, err)
+	require.True(t, got.HuntCoverageComplete)
+	require.Equal(t, "ecosystem-hunt", got.HuntCoverageScope)
+	var candidate *lifecycleinference.Candidate
+	for _, item := range allInventoryCandidates(got) {
+		if item.TypeName == "Order" {
+			candidate = &item
+			break
+		}
+	}
+	require.NotNil(t, candidate)
+	require.Len(t, candidate.HuntRecords, 1)
+	require.Equal(t, "entry-1", candidate.HuntRecords[0].EntryID)
+	require.Equal(t, "review", candidate.HuntRecords[0].Status)
+	require.Equal(t, "prior_hunt_review_required", candidate.PreselectionStatus)
 }
 
 func allInventoryCandidates(inventory lifecycleinference.Inventory) []lifecycleinference.Candidate {

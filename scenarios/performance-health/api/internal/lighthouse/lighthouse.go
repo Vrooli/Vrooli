@@ -1,11 +1,13 @@
 // Package lighthouse wraps the Lighthouse CLI (its own Chrome — NOT via BAS) to
-// score a scenario's UI against per-page error/warn thresholds from
-// .vrooli/lighthouse.json. It is Tier 0 (works on any URL) and silently SKIPS
-// when the Lighthouse CLI is absent or there is no UI URL.
+// score a scenario's UI using per-page thresholds from .vrooli/lighthouse.json.
+// Lighthouse accessibility remains visible evidence but is not gated here; the
+// unified experience phase owns accessibility verdicts. This is Tier 0 (works
+// on any URL) and silently SKIPS when Lighthouse or a UI URL is unavailable.
 //
 // The production Runner is CLIRunner (runner.go): it loads .vrooli/lighthouse.json,
 // resolves the served UI URL, shells the Lighthouse CLI per configured page, and
-// records a violation for any category below its threshold. Tests drive a fake.
+// records a violation for any non-accessibility category below its threshold.
+// Tests drive a fake.
 package lighthouse
 
 import (
@@ -25,7 +27,8 @@ const (
 	OutcomeUnavailable
 )
 
-// PageScore is one Lighthouse run against one page.
+// PageScore is one Lighthouse run against one page. Accessibility is retained as
+// an observed score; the API classifies it explicitly as non-gating.
 type PageScore struct {
 	URL           string
 	Performance   float64

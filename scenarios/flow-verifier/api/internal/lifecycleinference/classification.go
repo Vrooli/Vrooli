@@ -40,16 +40,19 @@ type PersistenceClassification struct {
 type parsedSource struct {
 	path       string
 	packageDir string
+	importPath string
 	fset       *token.FileSet
 	file       *ast.File
 	imports    map[string]string
 }
 
 type scenarioSource struct {
-	files       []parsedSource
-	parseErrors []string
-	loadError   string
-	scope       string
+	files           []parsedSource
+	serializers     map[string]bool
+	filePersistence map[string]map[int]bool
+	parseErrors     []string
+	loadError       string
+	scope           string
 }
 
 // PersistenceClassifier parses each scenario's API source once and reuses the
@@ -134,7 +137,7 @@ func (classifier *PersistenceClassifier) ClassifyContext(ctx context.Context, ca
 			if !ok || decl.Body == nil {
 				continue
 			}
-			flow := analyzeFunctionFlow(ctx, decl, parsed, source.files, candidate, candidateImportPath, typeGraph)
+			flow := analyzeFunctionFlowCached(ctx, decl, parsed, source.files, candidate, candidateImportPath, typeGraph, source.serializers, source.filePersistence)
 			if err := ctx.Err(); err != nil {
 				unknown.Reason = err.Error()
 				return unknown
@@ -154,7 +157,7 @@ func (classifier *PersistenceClassifier) ClassifyContext(ctx context.Context, ca
 		if len(readModel) > 0 {
 			return unknownWithEvidence(unknown, "candidate has both durable-write and read-model serving evidence; classify by owner review", append(persistence, readModel...))
 		}
-		return classificationWithScope(ClassPersistedLifecycle, "candidate-containing value reaches a typed database/sql write; database durability is still owner-verified", source, persistence)
+		return classificationWithScope(ClassPersistedLifecycle, "candidate-containing value reaches a source-proven durable sink; storage durability is still owner-verified", source, persistence)
 	}
 	if len(readModel) > 0 {
 		if len(transient) > 0 {
@@ -165,14 +168,14 @@ func (classifier *PersistenceClassifier) ClassifyContext(ctx context.Context, ca
 	if len(transient) > 0 {
 		return classificationWithScope(ClassTransientResult, "candidate-containing value reaches an explicit HTTP/Connect response sink and no database/sql write/read sink was found", source, transient)
 	}
-	if len(writes) == 0 && len(otherUses) == 0 && len(candidate.States) > 0 && candidateDeclarationOnly(ctx, source.files, candidate, candidateImportPath, typeGraph) && !candidateHasStorageTag(source.files, candidate) {
+	if len(writes) == 0 && len(otherUses) == 0 && len(candidate.States) > 0 && candidateDeclarationOnly(ctx, source.files, candidate, candidateImportPath, typeGraph, source.serializers, source.filePersistence) && !candidateHasStorageTag(source.files, candidate) {
 		if err := ctx.Err(); err != nil {
 			unknown.Reason = err.Error()
 			return unknown
 		}
 		return classificationWithScope(ClassEnumOnly, "closed vocabulary has no production Go caller or write in the complete scanned scenario source; other-language paths are outside this boundary", source, []Evidence{candidate.Declaration})
 	}
-	unknown.Reason = "source does not prove candidate-specific flow to a typed durable sink, read-model source, or response sink"
+	unknown.Reason = "source does not prove candidate-specific flow to a durable sink, read-model source, or response sink"
 	unknown.Evidence = append(writes, otherUses...)
 	return unknown
 }
@@ -233,8 +236,10 @@ func (classifier *PersistenceClassifier) sourceFor(ctx context.Context, scenario
 		}
 		packageDir := filepath.ToSlash(filepath.Dir(filepath.FromSlash(relative)))
 		packageDir = strings.TrimPrefix(packageDir, "scenarios/"+scenarioID+"/")
-		loaded.files = append(loaded.files, parsedSource{path: filepath.ToSlash(relative), packageDir: packageDir, fset: fset, file: file, imports: imports})
+		loaded.files = append(loaded.files, parsedSource{path: filepath.ToSlash(relative), packageDir: packageDir, importPath: packageImportPath(classifier.root, filepath.Dir(path)), fset: fset, file: file, imports: imports})
 	}
+	loaded.serializers = fieldSerializerFunctions(loaded.files)
+	loaded.filePersistence = filePersistenceParameters(loaded.files)
 	classifier.scenarios[scenarioID] = loaded
 	return loaded
 }

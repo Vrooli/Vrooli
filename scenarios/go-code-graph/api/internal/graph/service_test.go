@@ -12,7 +12,8 @@ import (
 	"connectrpc.com/connect"
 	"golang.org/x/tools/go/packages"
 
-	intgraph "go-code-graph/internal/graph"
+	intgraph "github.com/vrooli/api-core/gograph"
+	grapherrors "go-code-graph/internal/graph"
 	graphmocks "go-code-graph/internal/graph/mocks"
 )
 
@@ -46,7 +47,7 @@ func TestServiceExtractInvalidInput(t *testing.T) {
 	if !errors.As(err, &ex) || ex.Kind != intgraph.ExtractErrorInvalidInput {
 		t.Fatalf("want ExtractErrorInvalidInput, got %#v", err)
 	}
-	if code := intgraph.ErrorToConnectCode(err); code != connect.CodeInvalidArgument {
+	if code := grapherrors.ErrorToConnectCode(err); code != connect.CodeInvalidArgument {
 		t.Fatalf("invalid input → InvalidArgument, got %v", code)
 	}
 }
@@ -62,7 +63,7 @@ func TestServiceExtractPathUnreadable(t *testing.T) {
 	if !errors.As(err, &ex) || ex.Kind != intgraph.ExtractErrorPathUnreadable {
 		t.Fatalf("want ExtractErrorPathUnreadable, got %#v", err)
 	}
-	if code := intgraph.ErrorToConnectCode(err); code != connect.CodeNotFound {
+	if code := grapherrors.ErrorToConnectCode(err); code != connect.CodeNotFound {
 		t.Fatalf("unreadable → NotFound, got %v", code)
 	}
 }
@@ -78,7 +79,7 @@ func TestServiceExtractNoGoMod(t *testing.T) {
 	if !errors.As(err, &ex) || ex.Kind != intgraph.ExtractErrorNoGoMod {
 		t.Fatalf("want ExtractErrorNoGoMod, got %#v", err)
 	}
-	if code := intgraph.ErrorToConnectCode(err); code != connect.CodeInvalidArgument {
+	if code := grapherrors.ErrorToConnectCode(err); code != connect.CodeInvalidArgument {
 		t.Fatalf("no go.mod → InvalidArgument, got %v", code)
 	}
 }
@@ -166,7 +167,7 @@ func TestServiceExtractWorkspaceUnsupported(t *testing.T) {
 	if !errors.As(err, &ex) || ex.Kind != intgraph.ExtractErrorWorkspaceUnsupported {
 		t.Fatalf("want ExtractErrorWorkspaceUnsupported, got %#v", err)
 	}
-	if code := intgraph.ErrorToConnectCode(err); code != connect.CodeUnimplemented {
+	if code := grapherrors.ErrorToConnectCode(err); code != connect.CodeUnimplemented {
 		t.Fatalf("workspace → Unimplemented, got %v", code)
 	}
 }
@@ -192,7 +193,7 @@ func TestServiceExtractLoaderError(t *testing.T) {
 	if !errors.Is(err, boom) {
 		t.Fatalf("loader cause not wrapped: %v", err)
 	}
-	if code := intgraph.ErrorToConnectCode(err); code != connect.CodeInternal {
+	if code := grapherrors.ErrorToConnectCode(err); code != connect.CodeInternal {
 		t.Fatalf("loader failure → Internal, got %v", code)
 	}
 }
@@ -313,7 +314,7 @@ func TestServiceExtractUsesContentCacheBeforeLoading(t *testing.T) {
 // TestErrorToConnectCodeNil asserts the nil-in/zero-out contract.
 func TestErrorToConnectCodeNil(t *testing.T) {
 	t.Parallel()
-	if got := intgraph.ErrorToConnectCode(nil); got != connect.Code(0) {
+	if got := grapherrors.ErrorToConnectCode(nil); got != connect.Code(0) {
 		t.Fatalf("nil err → code(0), got %v", got)
 	}
 }
@@ -322,7 +323,7 @@ func TestErrorToConnectCodeNil(t *testing.T) {
 // fall through to Internal.
 func TestErrorToConnectCodeUnknownErr(t *testing.T) {
 	t.Parallel()
-	if got := intgraph.ErrorToConnectCode(errors.New("random")); got != connect.CodeInternal {
+	if got := grapherrors.ErrorToConnectCode(errors.New("random")); got != connect.CodeInternal {
 		t.Fatalf("unknown err → Internal, got %v", got)
 	}
 }

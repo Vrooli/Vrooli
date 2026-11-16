@@ -3,7 +3,10 @@ package capture
 import (
 	"context"
 	"errors"
+	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"performance-health/internal/readiness"
 	"strings"
 	"testing"
@@ -15,29 +18,58 @@ import (
 
 func perfArtifact(kind, path string) *capturev1.CaptureArtifact {
 	return &capturev1.CaptureArtifact{
-		Type:     capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE,
-		Path:     path,
-		Metadata: map[string]string{"artifact": kind},
+		Type:      capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE,
+		Path:      path,
+		Reference: "bas-capture://123e4567-e89b-12d3-a456-426614174000/" + kind,
+		Metadata:  map[string]string{"artifact": kind, "view_url": "/api/v1/artifacts/artifacts/123e4567-e89b-12d3-a456-426614174000/performance-abc.json"},
 	}
 }
 
 // [REQ:PH-CAPTURE-001] A response carrying a trace with ⚛ marks resolves to
 // Artifacts with HasComponentMarks=true (Tier 1 detected from the trace).
 func TestArtifactsFromResponseDetectsComponentMarks(t *testing.T) {
-	c := &BASConnectClient{
-		ReadTrace: func(string) ([]byte, error) { return []byte(`{"name":"⚛ List (mount)"}`), nil },
+	root := t.TempDir()
+	c := &BASConnectClient{ArtifactStore: FileArtifactStore{Root: root},
+		ReadTrace: func(got string) ([]byte, error) {
+			if !strings.Contains(got, "/api/v1/artifacts/artifacts/123e4567-e89b-12d3-a456-426614174000/") {
+				t.Fatalf("unexpected owner URL %q", got)
+			}
+			return []byte(`{"name":"⚛ List (mount)"}`), nil
+		},
 	}
-	art := c.artifactsFromResponse(&capturev1.CaptureResponse{
+	art, err := c.artifactsFromResponse(context.Background(), "http://bas.test", &capturev1.CaptureResponse{
 		Artifacts: []*capturev1.CaptureArtifact{
 			perfArtifact("cdp-trace", "/runs/perf.json"),
 			perfArtifact("web-vitals", "/runs/perf.web-vitals.json"),
 		},
 	})
-	if art.TraceArtifact != "/runs/perf.json" || art.WebVitalsArtifact != "/runs/perf.web-vitals.json" {
-		t.Fatalf("artifact paths not mapped: %#v", art)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Dir(art.TraceArtifact) != filepath.Join(root, "performance-health", "captures", "123e4567-e89b-12d3-a456-426614174000") || filepath.Base(art.TraceArtifact) != "performance.json" || filepath.Base(art.WebVitalsArtifact) != "performance.web-vitals.json" {
+		t.Fatalf("PH retained artifact paths not mapped: %#v", art)
+	}
+	if art.TraceReference != "bas-capture://123e4567-e89b-12d3-a456-426614174000/cdp-trace" || art.WebVitalsReference != "bas-capture://123e4567-e89b-12d3-a456-426614174000/web-vitals" {
+		t.Fatalf("opaque BAS artifact identity was not preserved: %#v", art)
+	}
+	if _, err := os.Stat(art.TraceArtifact); err != nil {
+		t.Fatalf("trace not retained: %v", err)
 	}
 	if !art.HasComponentMarks {
 		t.Fatal("expected ⚛ marks detected (Tier 1)")
+	}
+}
+
+func TestArtifactsFromResponseRequiresOwnerURLAndNeverUsesServerPath(t *testing.T) {
+	artifact := perfArtifact("cdp-trace", "/bas/private/performance.json")
+	artifact.Metadata["view_url"] = ""
+	client := &BASConnectClient{ArtifactStore: FileArtifactStore{Root: t.TempDir()}}
+	art, err := client.artifactsFromResponse(context.Background(), "http://bas.test", &capturev1.CaptureResponse{Artifacts: []*capturev1.CaptureArtifact{artifact}})
+	if err == nil {
+		t.Fatal("missing artifact-owner URL must be an error")
+	}
+	if art.TraceArtifact != "" {
+		t.Fatalf("BAS-local path escaped without owner URL: %#v", art)
 	}
 }
 
@@ -51,8 +83,7 @@ func TestComponentMarksDecodeJSONWithoutCountingSchedulerTracks(t *testing.T) {
 		{`{"traceEvents":[{"name":"TimeStamp","args":{"data":{"trackGroup":"Scheduler \u269b"}}}]}`, false},
 		{`broken JSON with ⚛ App`, false},
 	} {
-		c := &BASConnectClient{ReadTrace: func(string) ([]byte, error) { return []byte(tc.raw), nil }}
-		if got := c.traceHasComponentMarks("trace"); got != tc.want {
+		if got := traceHasComponentMarks([]byte(tc.raw)); got != tc.want {
 			t.Errorf("%s: got %v, want %v", tc.raw, got, tc.want)
 		}
 	}
@@ -61,12 +92,13 @@ func TestComponentMarksDecodeJSONWithoutCountingSchedulerTracks(t *testing.T) {
 // [REQ:PH-CAPTURE-002] A trace without ⚛ marks resolves to HasComponentMarks=false
 // (Tier 0); capture never fails for lack of instrumentation.
 func TestArtifactsFromResponseTier0Trace(t *testing.T) {
-	c := &BASConnectClient{
-		ReadTrace: func(string) ([]byte, error) { return []byte(`{"name":"FunctionCall"}`), nil },
-	}
-	art := c.artifactsFromResponse(&capturev1.CaptureResponse{
+	c := &BASConnectClient{ArtifactStore: FileArtifactStore{Root: t.TempDir()}, ReadTrace: func(string) ([]byte, error) { return []byte(`{"name":"FunctionCall"}`), nil }}
+	art, err := c.artifactsFromResponse(context.Background(), "http://bas.test", &capturev1.CaptureResponse{
 		Artifacts: []*capturev1.CaptureArtifact{perfArtifact("cdp-trace", "/runs/perf.json")},
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if art.TraceArtifact == "" || art.HasComponentMarks {
 		t.Fatalf("expected Tier-0 trace, got %#v", art)
 	}
@@ -81,9 +113,12 @@ func TestArtifactsFromResponseUnavailable(t *testing.T) {
 		Path:     "/runs/performance.json",
 		Metadata: map[string]string{"unavailable": "true", "reason": "no browser"},
 	}
-	art := c.artifactsFromResponse(&capturev1.CaptureResponse{
+	art, err := c.artifactsFromResponse(context.Background(), "http://bas.test", &capturev1.CaptureResponse{
 		Artifacts: []*capturev1.CaptureArtifact{unavailable},
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if art.TraceArtifact != "" {
 		t.Fatalf("unavailable artifact should not be treated as a trace: %#v", art)
 	}
@@ -100,6 +135,40 @@ func TestCapturePerfRequiresURL(t *testing.T) {
 	c := &BASConnectClient{}
 	if _, err := c.CapturePerf(context.Background(), "", ""); err == nil {
 		t.Fatal("expected error for empty url")
+	}
+}
+
+func TestArtifactOwnerURLRejectsWrongExecutionAndNonOwnerURL(t *testing.T) {
+	ref := "bas-capture://123e4567-e89b-12d3-a456-426614174000/cdp-trace"
+	for _, raw := range []string{
+		"/api/v1/artifacts/artifacts/223e4567-e89b-12d3-a456-426614174000/performance.json",
+		"https://attacker.invalid/api/v1/artifacts/artifacts/123e4567-e89b-12d3-a456-426614174000/performance.json",
+		"/api/v1/artifacts/artifacts/123e4567-e89b-12d3-a456-426614174000/../../foreign.json",
+		"/api/v1/artifacts/artifacts/123e4567-e89b-12d3-a456-426614174000/performance.json?other=1",
+	} {
+		if _, _, err := artifactOwnerURL("http://bas.test", ref, "cdp-trace", raw); err == nil {
+			t.Errorf("accepted unsafe owner URL %q", raw)
+		}
+	}
+}
+
+func TestReadOwnerArtifactUsesCallerCancellation(t *testing.T) {
+	started := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(started)
+		<-r.Context().Done()
+	}))
+	t.Cleanup(server.Close)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		_, err := (&BASConnectClient{HTTPClient: server.Client()}).readOwnerArtifact(ctx, server.URL)
+		done <- err
+	}()
+	<-started
+	cancel()
+	if err := <-done; err == nil {
+		t.Fatal("expected caller cancellation to abort artifact GET")
 	}
 }
 

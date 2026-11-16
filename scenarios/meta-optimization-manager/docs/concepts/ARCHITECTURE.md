@@ -1,6 +1,5 @@
 # Architecture
 
-## Purpose Of This Document
 
 The system map for **meta-optimization-manager**: its shape, boundaries, contracts, and extension rules. Read this before changing structure. The defining property is that this scenario is a **thin, read-mostly aggregator** — it measures the project's readiness for local coding agents by reading other scenarios' typed outputs, and it never re-implements measurement, makes the improvement, or makes a judgment call.
 

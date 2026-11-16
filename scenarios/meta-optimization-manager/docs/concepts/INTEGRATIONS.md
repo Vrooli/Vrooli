@@ -1,6 +1,5 @@
 # Integrations
 
-## Purpose Of This Document
 
 The dependency contract for **meta-optimization-manager**: the resources, scenarios, and services it reads. Because it is a thin aggregator, almost every dependency is a **read** of another scenario's typed output, and every one is **soft** — it degrades gracefully rather than failing.
 

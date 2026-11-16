@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	intgraph "go-code-graph/internal/graph"
+	intgraph "github.com/vrooli/api-core/gograph"
 )
 
 // Service orchestrates Plan and Apply. The pattern matches the graph

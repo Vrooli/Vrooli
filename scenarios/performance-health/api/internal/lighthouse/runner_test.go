@@ -32,7 +32,7 @@ func writeLighthouseConfig(t *testing.T, body string) string {
 
 const enabledConfig = `{
   "enabled": true,
-  "pages": [{"id":"home","path":"/","thresholds":{"performance":{"error":0.75,"warn":0.85},"accessibility":{"error":0.90,"warn":0.95}}}]
+  "pages": [{"id":"home","path":"/","thresholds":{"performance":{"error":0.75,"warn":0.85}}}]
 }`
 
 // [REQ:PH-LH-001] A page meeting its threshold SCORES with no violations.
@@ -116,12 +116,42 @@ func TestCLIRunnerRejectsDisabledConfigForBrowserUI(t *testing.T) {
 	}
 }
 
-func TestCLIRunnerRejectsMissingAccessibilityThreshold(t *testing.T) {
+func TestCLIRunnerDoesNotRequireAccessibilityThreshold(t *testing.T) {
 	root := writeLighthouseConfig(t, `{"enabled":true,"pages":[{"id":"home","path":"/","thresholds":{"performance":{"error":0.75,"warn":0.85}}}]}`)
-	r := &CLIRunner{Resolve: func(_, _ string) (string, error) { return root, nil }}
+	r := &CLIRunner{
+		Resolve:      func(_, _ string) (string, error) { return root, nil },
+		ResolveUIURL: func(context.Context, string) (string, error) { return "", nil },
+	}
 	res, _ := r.Run(context.Background(), "demo", "")
-	if res.Outcome != OutcomeConfigurationInvalid {
-		t.Fatalf("expected configuration failure, got %#v", res)
+	if res.Outcome != OutcomeUnavailable {
+		t.Fatalf("without an accessibility threshold, execution should reach the unavailable-URL boundary, got %#v", res)
+	}
+}
+
+func TestCLIRunnerAccessibilityEvidenceDoesNotGate(t *testing.T) {
+	root := writeLighthouseConfig(t, `{"enabled":true,"pages":[{"id":"home","path":"/","thresholds":{"performance":{"error":0.75,"warn":0.85},"accessibility":{"error":0.90,"warn":0.95},"best-practices":{"error":0.85,"warn":0.90},"seo":{"error":0.80,"warn":0.90}}}]}`)
+	r := &CLIRunner{
+		Resolve:        func(_, _ string) (string, error) { return root, nil },
+		ResolveUIURL:   func(context.Context, string) (string, error) { return "http://localhost:3000", nil },
+		LookLighthouse: func(context.Context) (string, error) { return "lighthouse", nil },
+		RunAudit: func(context.Context, string, string, AuditOptions) (map[string]float64, error) {
+			return map[string]float64{"performance": 0.50, "accessibility": 0.40, "best-practices": 0.50, "seo": 0.50}, nil
+		},
+	}
+	res, err := r.Run(context.Background(), "demo", "")
+	if err != nil || res.Outcome != OutcomeScored || len(res.Pages) != 1 {
+		t.Fatalf("run: %#v %v", res, err)
+	}
+	page := res.Pages[0]
+	if page.Accessibility != 0.40 {
+		t.Fatalf("raw Lighthouse accessibility evidence must remain visible, got %#v", page)
+	}
+	joined := strings.Join(page.ErrorViolations, " ")
+	if len(page.ErrorViolations) != 3 || !strings.Contains(joined, "performance") || !strings.Contains(joined, "best-practices") || !strings.Contains(joined, "seo") {
+		t.Fatalf("performance, best-practices and SEO thresholds must still gate: %#v", page)
+	}
+	if len(page.Violations) != 3 || strings.Contains(strings.Join(page.Violations, " "), "accessibility") {
+		t.Fatalf("legacy accessibility threshold must not produce a violation: %#v", page)
 	}
 }
 

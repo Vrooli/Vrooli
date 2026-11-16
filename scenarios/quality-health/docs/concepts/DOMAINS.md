@@ -1,6 +1,5 @@
 # Domains — Quality Health
 
-## Purpose Of This Document
 
 This document names the bounded contexts that replaced the generated example domain and now back the API, CLI, and UI.
 

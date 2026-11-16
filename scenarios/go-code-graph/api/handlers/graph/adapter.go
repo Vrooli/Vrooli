@@ -1,7 +1,6 @@
 package graph
 
 import (
-	intgraph "go-code-graph/internal/graph"
 	intrewrite "go-code-graph/internal/rewrite"
 
 	"github.com/vrooli/api-core/gograph"
@@ -11,11 +10,11 @@ import (
 
 // domainToProtoGraph projects the domain Graph onto the shared common.v1
 // envelope. Pure data shaping; no I/O.
-func domainToProtoGraph(g intgraph.Graph) *commonv1.CodeGraph {
+func domainToProtoGraph(g gograph.Graph) *commonv1.CodeGraph {
 	return gograph.ToProtoGraph(g)
 }
 
-func warningsToProto(ws []intgraph.Warning) []*commonv1.CodeGraphWarning {
+func warningsToProto(ws []gograph.Warning) []*commonv1.CodeGraphWarning {
 	return gograph.WarningsToProto(ws)
 }
 

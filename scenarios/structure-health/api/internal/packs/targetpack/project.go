@@ -293,7 +293,7 @@ func projectLiveStructure(root string, c projectContract) error {
 			return fmt.Errorf("required file %q is missing", rel)
 		}
 	}
-	if countFilesNamed(filepath.Join(root, c.Layout.ScenarioDir), ".vrooli/service.json") == 0 || countFilesNamed(filepath.Join(root, c.Layout.ResourceDir), c.Resource.Manifest) == 0 {
+	if countOwnerManifests(filepath.Join(root, c.Layout.ScenarioDir), ".vrooli/service.json") == 0 || countOwnerManifests(filepath.Join(root, c.Layout.ResourceDir), c.Resource.Manifest) == 0 {
 		return fmt.Errorf("required scenario and resource manifests are missing")
 	}
 	return nil
@@ -550,18 +550,21 @@ func projectCredentialDescriptorRules(root string, c projectContract) []rules.Fi
 	return out
 }
 
-func countFilesNamed(root, name string) int {
+func countOwnerManifests(root, manifest string) int {
 	count := 0
-	_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
+	owners, err := os.ReadDir(root)
+	if err != nil {
+		return 0
+	}
+	for _, owner := range owners {
+		if !owner.IsDir() {
+			continue
 		}
-		cleanPath := filepath.ToSlash(path)
-		if !entry.IsDir() && (cleanPath == filepath.ToSlash(name) || strings.HasSuffix(cleanPath, "/"+filepath.ToSlash(name))) {
+		info, err := os.Stat(filepath.Join(root, owner.Name(), filepath.FromSlash(manifest)))
+		if err == nil && !info.IsDir() {
 			count++
 		}
-		return nil
-	})
+	}
 	return count
 }
 

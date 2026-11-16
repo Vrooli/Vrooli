@@ -60,6 +60,9 @@ func TestRunLighthouseScoredMapsToProto(t *testing.T) {
 	if p.GetUrl() != "http://localhost:3000/" || p.GetPerformance() != 0.91 || p.GetAccessibility() != 0.88 || p.GetBestPractices() != 1.0 || p.GetSeo() != 0.95 {
 		t.Errorf("page score mapped wrong: %+v", p)
 	}
+	if p.GetAccessibilityStatus() != lighthousev1.LighthouseAccessibilityStatus_LIGHTHOUSE_ACCESSIBILITY_STATUS_OBSERVED_NON_GATING {
+		t.Errorf("accessibility status = %v, want observed non-gating", p.GetAccessibilityStatus())
+	}
 	if len(p.GetViolations()) != 1 || p.GetViolations()[0] != "performance 0.91 < warn 0.95" {
 		t.Errorf("violations mapped wrong: %v", p.GetViolations())
 	}

@@ -3,7 +3,7 @@ package lifecycleinference_test
 import (
 	"os"
 	"path/filepath"
-	"runtime"
+	"strings"
 	"testing"
 
 	"flow-verifier/internal/lifecycleinference"
@@ -36,10 +36,11 @@ func persistAttempts(ctx context.Context, conn *sql.Conn, job Job) error {
   }
   return nil
 }
+
 `)
 	candidate := lifecycleCandidate("device-studio", "api/internal/jobs", "Attempt", "State")
 	got := lifecycleinference.NewPersistenceClassifier(root).Classify(candidate)
-	require.Equal(t, lifecycleinference.ClassPersistedLifecycle, got.Class, got.Reason)
+	require.Equal(t, lifecycleinference.ClassPersistedLifecycle, got.Class, got.Reason, got.Evidence)
 	require.True(t, got.ScanComplete)
 	require.Contains(t, got.Scope, "production Go")
 	require.Greater(t, got.FilesScanned, 0)
@@ -230,10 +231,7 @@ func persist(ctx context.Context, db *sql.DB, attempt *domain.Attempt) error {
 }
 
 func TestClassifyPersistenceDeviceStudioControlPairAgainstRepositorySource(t *testing.T) {
-	_, thisFile, _, ok := runtime.Caller(0)
-	require.True(t, ok)
-	root, err := filepath.Abs(filepath.Join(filepath.Dir(thisFile), "../../../../.."))
-	require.NoError(t, err)
+	root := repositoryRootForFixture(t)
 	classifier := lifecycleinference.NewPersistenceClassifier(root)
 	attempt := classifier.Classify(lifecycleCandidate("device-studio", "api/internal/jobs", "Attempt", "State"))
 	computed := classifier.Classify(lifecycleCandidate("device-studio", "api/internal/devices", "Compatibility", "Status"))
@@ -241,6 +239,92 @@ func TestClassifyPersistenceDeviceStudioControlPairAgainstRepositorySource(t *te
 	require.True(t, attempt.ScanComplete)
 	require.Equal(t, lifecycleinference.ClassUnknown, computed.Class, computed.Reason,
 		"computed Compatibility.Status is a labeled false positive control and must not be promoted by field-name or result-shape similarity")
+}
+
+func TestClassifyPersistenceAgentManagerWorkflowExecutionThroughEmbeddedTx(t *testing.T) {
+	root := repositoryRootForFixture(t)
+	got := lifecycleinference.NewPersistenceClassifier(root).Classify(lifecycleCandidate("agent-manager", "api/internal/domain", "WorkflowExecution", "Status"))
+	require.Equal(t, lifecycleinference.ClassPersistedLifecycle, got.Class, got.Reason, got.Evidence)
+	require.True(t, got.ScanComplete)
+	require.Contains(t, got.Evidence[len(got.Evidence)-1].Text, "database/sql.ExecContext")
+}
+
+func TestClassifyPersistenceRecognizesEmbeddedSQLTransactionWrapper(t *testing.T) {
+	root := t.TempDir()
+	write := sourceWriter(t, root)
+	write("scenarios/alpha/api/go.mod", "module alpha/api\n\ngo 1.24\n")
+	write("scenarios/alpha/api/domain/workflow.go", `package domain
+type Status string
+const ( Pending Status = "pending"; Running Status = "running" )
+type WorkflowExecution struct { ID string; Status Status }
+`)
+	write("scenarios/alpha/api/internal/database/connection.go", `package database
+import "database/sql"
+type Tx struct { *sql.Tx }
+`)
+	write("scenarios/alpha/api/internal/database/repository.go", `package database
+import (
+  "context"
+  "alpha/api/domain"
+)
+func persistExecution(ctx context.Context, tx *Tx, execution *domain.WorkflowExecution) error {
+  _, err := tx.ExecContext(ctx, "UPDATE workflow_executions SET status=? WHERE id=?", execution.Status, execution.ID)
+  return err
+}
+`)
+
+	got := lifecycleinference.NewPersistenceClassifier(root).Classify(lifecycleCandidate("alpha", "api/domain", "WorkflowExecution", "Status"))
+	require.Equal(t, lifecycleinference.ClassPersistedLifecycle, got.Class, got.Reason)
+	require.True(t, got.ScanComplete)
+	require.Contains(t, got.Evidence[len(got.Evidence)-1].Text, "database/sql.ExecContext")
+}
+
+func TestClassifyPersistenceDoesNotTrustOpaqueExecContextWrapper(t *testing.T) {
+	root := t.TempDir()
+	write := sourceWriter(t, root)
+	write("scenarios/alpha/api/go.mod", "module alpha/api\n\ngo 1.24\n")
+	write("scenarios/alpha/api/domain/workflow.go", `package domain
+type Status string
+const ( Pending Status = "pending"; Running Status = "running" )
+type WorkflowExecution struct { ID string; Status Status }
+`)
+	write("scenarios/alpha/api/internal/database/connection.go", `package database
+import "context"
+type Tx struct{}
+func (*Tx) ExecContext(context.Context, string, ...any) (int, error) { return 0, nil }
+`)
+	write("scenarios/alpha/api/internal/database/repository.go", `package database
+import (
+  "context"
+  "alpha/api/domain"
+)
+func persistExecution(ctx context.Context, tx *Tx, execution *domain.WorkflowExecution) error {
+  _, err := tx.ExecContext(ctx, "UPDATE workflow_executions SET status=? WHERE id=?", execution.Status, execution.ID)
+  return err
+}
+`)
+
+	got := lifecycleinference.NewPersistenceClassifier(root).Classify(lifecycleCandidate("alpha", "api/domain", "WorkflowExecution", "Status"))
+	require.Equal(t, lifecycleinference.ClassUnknown, got.Class, "a same-named custom method does not prove a SQL sink")
+}
+
+func repositoryRootForFixture(t *testing.T) string {
+	t.Helper()
+	root, err := os.Getwd()
+	require.NoError(t, err)
+	for {
+		marker := filepath.Join(root, "scenarios", "device-studio", "api", "internal", "jobs", "types.go")
+		if _, err := os.Stat(marker); err == nil {
+			return root
+		}
+		parent := filepath.Dir(root)
+		if parent == root {
+			break
+		}
+		root = parent
+	}
+	t.Fatalf("repository root not found from test working directory")
+	return ""
 }
 
 func TestClassifyPersistenceReturnsUnknownOnIncompleteOrUnresolvedSource(t *testing.T) {
@@ -279,4 +363,156 @@ func sourceWriter(t *testing.T, root string) func(string, string) {
 		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
 		require.NoError(t, os.WriteFile(full, []byte(source), 0o644))
 	}
+}
+
+func TestClassifyPersistenceRecognizesJSONFileStorageHelpers(t *testing.T) {
+	root := t.TempDir()
+	write := sourceWriter(t, root)
+	write("scenarios/alpha/api/go.mod", "module alpha\n\ngo 1.24\n")
+	write("scenarios/alpha/api/domain/types.go", `package domain
+import "alpha/storage"
+type Session struct { Status string }
+func save(session Session) error { return storage.WriteJSONAtomic("session.json", session) }
+`)
+	write("scenarios/alpha/api/storage/json.go", `package storage
+import (
+  "encoding/json"
+  "os"
+)
+func WriteJSONAtomic(path string, value any) error {
+  bytes, err := json.MarshalIndent(value, "", "  ")
+  if err != nil { return err }
+  file, err := os.CreateTemp("", "record-*.json")
+  if err != nil { return err }
+  if _, err := file.Write(bytes); err != nil { return err }
+  if err := file.Close(); err != nil { return err }
+  return os.Rename(file.Name(), path)
+}
+`)
+	got := lifecycleinference.NewPersistenceClassifier(root).Classify(lifecycleCandidate("alpha", "api/domain", "Session", "Status"))
+	require.Equal(t, lifecycleinference.ClassPersistedLifecycle, got.Class, got.Reason)
+	require.Contains(t, got.Reason, "durable sink")
+	require.NotEmpty(t, got.Evidence)
+	require.Contains(t, got.Evidence[len(got.Evidence)-1].Text, "alpha/storage.WriteJSONAtomic")
+}
+
+func TestClassifyPersistenceKeepsTransientJSONResponseAndUnboundJSONUnknown(t *testing.T) {
+	root := t.TempDir()
+	write := sourceWriter(t, root)
+	write("scenarios/alpha/api/go.mod", "module alpha\n\ngo 1.24\n")
+	write("scenarios/alpha/api/domain/record.go", `package domain
+import (
+  "encoding/json"
+  "connectrpc.com/connect"
+)
+type Record struct { Status string }
+func encode(value Record) ([]byte, error) { return json.Marshal(value) }
+func respond(value Record) *connect.Response[Record] { return connect.NewResponse(&value) }
+func encodeOnly(value Record) ([]byte, error) { return encode(value) }
+`)
+	classifier := lifecycleinference.NewPersistenceClassifier(root)
+	response := classifier.Classify(lifecycleCandidate("alpha", "api/domain", "Record", "Status"))
+	require.Equal(t, lifecycleinference.ClassTransientResult, response.Class, response.Reason)
+	require.NotContains(t, response.Reason, "durable sink")
+
+	write("scenarios/alpha/api/domain/record.go", `package domain
+import "encoding/json"
+type Record struct { Status string }
+func encode(value Record) ([]byte, error) { return json.Marshal(value) }
+func encodeOnly(value Record) ([]byte, error) { return encode(value) }
+`)
+	unknown := lifecycleinference.NewPersistenceClassifier(root).Classify(lifecycleCandidate("alpha", "api/domain", "Record", "Status"))
+	require.Equal(t, lifecycleinference.ClassUnknown, unknown.Class, unknown.Reason)
+	require.Contains(t, unknown.Reason, "does not prove")
+}
+
+func TestClassifyPersistenceRecognizesSwarmManagerFileStoreAndReviewRound(t *testing.T) {
+	root := repositoryRootForFixture(t)
+	classifier := lifecycleinference.NewPersistenceClassifier(root)
+	cases := []struct {
+		candidate lifecycleinference.Candidate
+		ownerPath string
+		helper    string
+	}{
+		{lifecycleCandidate("swarm-manager", "api/internal/agentsessions", "Session", "Status"), "scenarios/swarm-manager/api/internal/agentsessions/store.go", "swarm-manager/internal/storage.WriteJSONAtomic"},
+		{lifecycleCandidate("swarm-manager", "api/internal/agentsessions", "Proposal", "Status"), "scenarios/swarm-manager/api/internal/agentsessions/store.go", "swarm-manager/internal/storage.WriteJSONAtomic"},
+		{lifecycleCandidate("swarm-manager", "api/internal/review", "Round", "Status"), "scenarios/swarm-manager/api/internal/review/store.go", "swarm-manager/internal/attemptstore.SaveRound"},
+	}
+	for _, tc := range cases {
+		got := classifier.Classify(tc.candidate)
+		require.Equal(t, lifecycleinference.ClassPersistedLifecycle, got.Class, tc.candidate.TypeName+"."+tc.candidate.FieldName+": "+got.Reason)
+		require.True(t, got.ScanComplete)
+		require.Contains(t, got.Reason, "durable sink")
+		fileSink := false
+		for _, evidence := range got.Evidence {
+			if strings.Contains(evidence.Path, tc.ownerPath) && strings.Contains(evidence.Text, tc.helper) {
+				fileSink = true
+			}
+		}
+		require.True(t, fileSink, "expected candidate-specific file persistence evidence for %s.%s: %+v", tc.candidate.TypeName, tc.candidate.FieldName, got.Evidence)
+	}
+}
+
+func TestClassifyPersistenceFollowsSameTypeReceiverFileWriter(t *testing.T) {
+	root := t.TempDir()
+	write := sourceWriter(t, root)
+	write("scenarios/alpha/api/pipeline/status.go", `package pipeline
+import (
+  "encoding/json"
+  "os"
+)
+type State string
+const ( Pending State = "pending"; Running State = "running" )
+type Status struct { State State }
+type FileStore struct{}
+func (s *FileStore) writeToDisk(status *Status) error {
+  data, err := json.MarshalIndent(status, "", "  ")
+  if err != nil { return err }
+  return os.WriteFile("status.json", data, 0644)
+}
+
+func (s *FileStore) Update(status *Status) { _ = s.writeToDisk(status) }
+`)
+	got := lifecycleinference.NewPersistenceClassifier(root).Classify(lifecycleCandidate("alpha", "api/pipeline", "Status", "State"))
+	require.Equal(t, lifecycleinference.ClassPersistedLifecycle, got.Class, got.Reason)
+	var evidenceText []string
+	for _, evidence := range got.Evidence {
+		evidenceText = append(evidenceText, evidence.Text)
+	}
+	require.Contains(t, strings.Join(evidenceText, " "), "JSON file persistence helper")
+}
+func TestClassifyPersistenceDoesNotPromoteUnrelatedNestedRecordWrite(t *testing.T) {
+	root := t.TempDir()
+	write := sourceWriter(t, root)
+	write("scenarios/deployment-manager/api/deployments/orchestrator.go", `package deployments
+import (
+  "encoding/json"
+  "os"
+)
+type DeployDesktopResponse struct { Status string }
+type deployState struct { response DeployDesktopResponse; manifest string }
+type Orchestrator struct{}
+func (o *Orchestrator) writeManifest(ds *deployState) error {
+  data, err := json.Marshal(ds.manifest)
+  if err != nil { return err }
+  return os.WriteFile("manifest.json", data, 0644)
+}
+
+func (o *Orchestrator) deploy(ds *deployState) error { return o.writeManifest(ds) }
+`)
+	candidate := lifecycleCandidate("deployment-manager", "api/deployments", "DeployDesktopResponse", "Status")
+	got := lifecycleinference.NewPersistenceClassifier(root).Classify(candidate)
+	require.Equal(t, lifecycleinference.ClassUnknown, got.Class, got.Reason)
+}
+
+func TestClassifyNavigationSessionStatusIgnoresUnrelatedExportFileWrites(t *testing.T) {
+	candidate := lifecycleCandidate("browser-automation-studio", "api/services/vision", "NavigationSession", "Status")
+	got := lifecycleinference.NewPersistenceClassifier(repositoryRootForFixture(t)).Classify(candidate)
+	require.Equal(t, lifecycleinference.ClassUnknown, got.Class, got.Reason)
+}
+
+func TestClassifyDeploymentResponseStatusIgnoresUnrelatedManifestFileWrites(t *testing.T) {
+	candidate := lifecycleCandidate("deployment-manager", "api/deployments", "DeployDesktopResponse", "Status")
+	got := lifecycleinference.NewPersistenceClassifier(repositoryRootForFixture(t)).Classify(candidate)
+	require.Equal(t, lifecycleinference.ClassUnknown, got.Class, got.Reason)
 }

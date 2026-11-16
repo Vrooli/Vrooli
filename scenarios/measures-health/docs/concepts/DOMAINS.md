@@ -12,7 +12,6 @@ domain is added, renamed, split, merged, or removed.
 > notes-based worked examples — tracked as drift in
 > [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md).
 
-## Purpose Of This Document
 
 Use this document to answer:
 

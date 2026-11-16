@@ -27,7 +27,7 @@ const DefaultCommitBudgetMs = 8.0
 // flow-tagged samples + per-flow budget config). A nil sample writer disables
 // persistence.
 func Module(logger *log.Logger, repoRoot string, trendWriter SampleWriter, gate FlowGate, workloads *workload.Service) module.Module {
-	captureSvc := capture.NewService(&capture.BASConnectClient{}, &capture.CLIBuildController{}).
+	captureSvc := capture.NewService(capture.NewBASConnectClient(), &capture.CLIBuildController{}).
 		WithFlowResolver(&capture.FileFlowResolver{RepoRoot: repoRoot})
 	analyzer := internalanalysis.NewService(internalanalysis.FileTraceLoader{
 		Locator:  internalanalysis.SourceLocator{RepoRoot: repoRoot},

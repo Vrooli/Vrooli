@@ -20,13 +20,15 @@ type functionFlow struct {
 }
 
 func scenarioTypeGraph(files []parsedSource, candidate Candidate, candidateImport string) map[string]bool {
-	contained := map[string]bool{candidate.TypeName: true}
+	contained := map[string]bool{
+		candidate.Package + "." + candidate.TypeName: true,
+	}
+	if candidateImport != "" {
+		contained[candidateImport+"."+candidate.TypeName] = true
+	}
 	for changed := true; changed; {
 		changed = false
 		for _, source := range files {
-			if source.packageDir != filepath.ToSlash(candidate.Package) {
-				continue
-			}
 			for _, declaration := range source.file.Decls {
 				gen, ok := declaration.(*ast.GenDecl)
 				if !ok || gen.Tok != token.TYPE {
@@ -34,12 +36,16 @@ func scenarioTypeGraph(files []parsedSource, candidate Candidate, candidateImpor
 				}
 				for _, spec := range gen.Specs {
 					typeSpec, ok := spec.(*ast.TypeSpec)
-					if !ok || contained[typeSpec.Name.Name] {
+					if !ok {
 						continue
 					}
 					if astContainsCandidateType(typeSpec.Type, source, candidate, candidateImport, contained) {
-						contained[typeSpec.Name.Name] = true
-						changed = true
+						for _, key := range []string{source.packageDir + "." + typeSpec.Name.Name, source.importPath + "." + typeSpec.Name.Name} {
+							if !contained[key] {
+								contained[key] = true
+								changed = true
+							}
+						}
 					}
 				}
 			}
@@ -51,9 +57,10 @@ func scenarioTypeGraph(files []parsedSource, candidate Candidate, candidateImpor
 func astContainsCandidateType(expr ast.Expr, source parsedSource, candidate Candidate, candidateImport string, contained map[string]bool) bool {
 	switch node := expr.(type) {
 	case *ast.Ident:
-		return source.packageDir == filepath.ToSlash(candidate.Package) && contained[node.Name]
+		return contained[source.packageDir+"."+node.Name] || contained[source.importPath+"."+node.Name]
 	case *ast.SelectorExpr:
-		return source.imports[exprIdent(node.X)] == candidateImport && contained[node.Sel.Name]
+		importPath := source.imports[exprIdent(node.X)]
+		return contained[importPath+"."+node.Sel.Name]
 	case *ast.StarExpr:
 		return astContainsCandidateType(node.X, source, candidate, candidateImport, contained)
 	case *ast.ArrayType:
@@ -76,7 +83,7 @@ func astContainsCandidateType(expr ast.Expr, source parsedSource, candidate Cand
 	}
 }
 
-func analyzeFunctionFlow(ctx context.Context, fn *ast.FuncDecl, source parsedSource, allFiles []parsedSource, candidate Candidate, candidateImport string, typeGraph map[string]bool) functionFlow {
+func analyzeFunctionFlowCached(ctx context.Context, fn *ast.FuncDecl, source parsedSource, allFiles []parsedSource, candidate Candidate, candidateImport string, typeGraph map[string]bool, serializers map[string]bool, filePersistence map[string]map[int]bool) functionFlow {
 	flow := functionFlow{}
 	variables := map[string]bool{}
 	persistedFieldValues := map[string]bool{}
@@ -142,8 +149,6 @@ func analyzeFunctionFlow(ctx context.Context, fn *ast.FuncDecl, source parsedSou
 			}
 		}
 	}
-	serializers := fieldSerializerFunctions(allFiles)
-
 	for pass := 0; pass < 4; pass++ {
 		changed := false
 		ast.Inspect(fn.Body, func(node ast.Node) bool {
@@ -152,7 +157,7 @@ func analyzeFunctionFlow(ctx context.Context, fn *ast.FuncDecl, source parsedSou
 			}
 			switch current := node.(type) {
 			case *ast.RangeStmt:
-				if expressionCarriesCandidate(current.X, source, candidate, candidateImport, typeGraph, variables, structFields) {
+				if expressionCarriesCandidate(current.X, source, candidate, candidateImport, typeGraph, variables, structFields, variableTypes) {
 					if current.Key != nil {
 						if name, ok := current.Key.(*ast.Ident); ok {
 							changed = addVariable(name.Name, nil) || changed
@@ -172,14 +177,14 @@ func analyzeFunctionFlow(ctx context.Context, fn *ast.FuncDecl, source parsedSou
 					if index < len(current.Values) {
 						value = current.Values[index]
 					}
-					if expressionCarriesCandidate(value, source, candidate, candidateImport, typeGraph, variables, structFields) || astContainsCandidateType(current.Type, source, candidate, candidateImport, typeGraph) {
+					if expressionCarriesCandidate(value, source, candidate, candidateImport, typeGraph, variables, structFields, variableTypes) || astContainsCandidateType(current.Type, source, candidate, candidateImport, typeGraph) {
 						changed = addVariable(name.Name, current.Type) || changed
 						if !variables[name.Name] {
 							variables[name.Name] = true
 							changed = true
 						}
 					}
-					if expressionPersistsCandidateField(value, source, allFiles, candidate, candidateImport, typeGraph, variables, structFields, persistedFieldValues, serializers) && !persistedFieldValues[name.Name] {
+					if expressionPersistsCandidateField(value, source, allFiles, candidate, candidateImport, typeGraph, variables, structFields, variableTypes, persistedFieldValues, serializers) && !persistedFieldValues[name.Name] {
 						persistedFieldValues[name.Name] = true
 						changed = true
 					}
@@ -189,13 +194,13 @@ func analyzeFunctionFlow(ctx context.Context, fn *ast.FuncDecl, source parsedSou
 					if index >= len(current.Rhs) {
 						continue
 					}
-					if expressionPersistsCandidateField(current.Rhs[index], source, allFiles, candidate, candidateImport, typeGraph, variables, structFields, persistedFieldValues, serializers) {
+					if expressionPersistsCandidateField(current.Rhs[index], source, allFiles, candidate, candidateImport, typeGraph, variables, structFields, variableTypes, persistedFieldValues, serializers) {
 						if name, ok := left.(*ast.Ident); ok && !persistedFieldValues[name.Name] {
 							persistedFieldValues[name.Name] = true
 							changed = true
 						}
 					}
-					if !expressionCarriesCandidate(current.Rhs[index], source, candidate, candidateImport, typeGraph, variables, structFields) {
+					if !expressionCarriesCandidate(current.Rhs[index], source, candidate, candidateImport, typeGraph, variables, structFields, variableTypes) {
 						continue
 					}
 					if name, ok := left.(*ast.Ident); ok {
@@ -225,22 +230,28 @@ func analyzeFunctionFlow(ctx context.Context, fn *ast.FuncDecl, source parsedSou
 		}
 		method := selectorMethod(call.Fun)
 		receiver := selectorReceiver(call.Fun)
-		if isSQLReadSink(method) && isSQLReceiver(receiver, source, variableTypes, structFields) {
+		if isSQLReadSink(method) && isSQLReceiver(receiver, source, variableTypes, structFields, allFiles) {
 			if name, ok := parentAssignedName(fn.Body, call); ok {
 				queryVars[name] = true
 			}
 			return true
 		}
-		if isSQLWriteSink(method) && isSQLReceiver(receiver, source, variableTypes, structFields) && expressionListPersistsCandidateField(call.Args, source, allFiles, candidate, candidateImport, typeGraph, variables, structFields, persistedFieldValues, serializers) {
+		if isSQLWriteSink(method) && isSQLReceiver(receiver, source, variableTypes, structFields, allFiles) && expressionListPersistsCandidateField(call.Args, source, allFiles, candidate, candidateImport, typeGraph, variables, structFields, variableTypes, persistedFieldValues, serializers) {
 			flow.persistence = append(flow.persistence, flow.origins...)
 			flow.persistence = append(flow.persistence, sourceEvidence(source.fset, source.path, call, "candidate lifecycle field value or serialized containing record passed to database/sql."+method))
 			return true
 		}
-		if method == "Scan" && queryVars[exprIdent(receiver)] && expressionListContainsCandidateField(call.Args, source, candidate, candidateImport, typeGraph, variables, structFields) {
+		if !candidateFieldExcludedFromRecord(allFiles, candidate) && callCarriesPersistentJSON(call, source, fn, filePersistence, func(expr ast.Expr) bool {
+			return expressionPersistsCandidateField(expr, source, allFiles, candidate, candidateImport, typeGraph, variables, structFields, variableTypes, persistedFieldValues, serializers) || candidateRecordValue(expr, source, candidate, candidateImport, variableTypes)
+		}) {
+			flow.persistence = append(flow.persistence, flow.origins...)
+			flow.persistence = append(flow.persistence, sourceEvidence(source.fset, source.path, call, "candidate-containing value passed to source-verified JSON file persistence helper "+filePersistenceCallKey(call, source, fn)))
+		}
+		if method == "Scan" && queryVars[exprIdent(receiver)] && expressionListContainsCandidateField(call.Args, source, candidate, candidateImport, typeGraph, variables, structFields, variableTypes) {
 			flow.readModels = append(flow.readModels, sourceEvidence(source.fset, source.path, call, "database/sql row scan populates the candidate lifecycle field"))
 			return true
 		}
-		if isConnectResponse(call, source) && expressionListCarriesCandidate(call.Args, source, candidate, candidateImport, typeGraph, variables, structFields) {
+		if isConnectResponse(call, source) && expressionListCarriesCandidate(call.Args, source, candidate, candidateImport, typeGraph, variables, structFields, variableTypes) {
 			flow.transient = append(flow.transient, sourceEvidence(source.fset, source.path, call, "candidate-containing value passed to Connect response constructor"))
 		}
 		return true
@@ -254,7 +265,7 @@ func analyzeFunctionFlow(ctx context.Context, fn *ast.FuncDecl, source parsedSou
 		case *ast.AssignStmt:
 			for _, left := range current.Lhs {
 				selector, ok := left.(*ast.SelectorExpr)
-				if ok && selector.Sel.Name == candidate.FieldName && expressionCarriesCandidate(selector.X, source, candidate, candidateImport, typeGraph, variables, structFields) {
+				if ok && selector.Sel.Name == candidate.FieldName && expressionCarriesCandidate(selector.X, source, candidate, candidateImport, typeGraph, variables, structFields, variableTypes) {
 					flow.writes = append(flow.writes, sourceEvidence(source.fset, source.path, current, "candidate lifecycle field assignment"))
 				}
 			}
@@ -272,7 +283,7 @@ func analyzeFunctionFlow(ctx context.Context, fn *ast.FuncDecl, source parsedSou
 				}
 			}
 		case *ast.CallExpr:
-			if expressionListCarriesCandidate(current.Args, source, candidate, candidateImport, typeGraph, variables, structFields) {
+			if expressionListCarriesCandidate(current.Args, source, candidate, candidateImport, typeGraph, variables, structFields, variableTypes) {
 				flow.otherUses = append(flow.otherUses, sourceEvidence(source.fset, source.path, current, "candidate-containing value used by an unsupported call"))
 			}
 		}
@@ -281,7 +292,7 @@ func analyzeFunctionFlow(ctx context.Context, fn *ast.FuncDecl, source parsedSou
 	return flow
 }
 
-func expressionCarriesCandidate(expr ast.Expr, source parsedSource, candidate Candidate, candidateImport string, typeGraph map[string]bool, variables map[string]bool, fields map[string]map[string]ast.Expr) bool {
+func expressionCarriesCandidate(expr ast.Expr, source parsedSource, candidate Candidate, candidateImport string, typeGraph map[string]bool, variables map[string]bool, fields map[string]map[string]ast.Expr, variableTypes map[string]ast.Expr) bool {
 	if expr == nil {
 		return false
 	}
@@ -294,15 +305,15 @@ func expressionCarriesCandidate(expr ast.Expr, source parsedSource, candidate Ca
 			return false
 		}
 		switch current := node.(type) {
-		case *ast.Ident:
-			found = variables[current.Name]
 		case *ast.SelectorExpr:
-			if variables[exprIdent(current.X)] || current.Sel.Name == candidate.FieldName && variables[exprIdent(current.X)] {
+			if variables[exprIdent(current.X)] {
 				found = true
 			}
+		case *ast.Ident:
+			found = variables[current.Name]
 		case *ast.CallExpr:
 			for _, argument := range current.Args {
-				if expressionCarriesCandidate(argument, source, candidate, candidateImport, typeGraph, variables, fields) {
+				if expressionCarriesCandidate(argument, source, candidate, candidateImport, typeGraph, variables, fields, variableTypes) {
 					found = true
 					break
 				}
@@ -315,21 +326,21 @@ func expressionCarriesCandidate(expr ast.Expr, source parsedSource, candidate Ca
 	return found
 }
 
-func expressionListCarriesCandidate(expressions []ast.Expr, source parsedSource, candidate Candidate, candidateImport string, typeGraph map[string]bool, variables map[string]bool, fields map[string]map[string]ast.Expr) bool {
+func expressionListCarriesCandidate(expressions []ast.Expr, source parsedSource, candidate Candidate, candidateImport string, typeGraph map[string]bool, variables map[string]bool, fields map[string]map[string]ast.Expr, variableTypes map[string]ast.Expr) bool {
 	for _, expression := range expressions {
-		if expressionCarriesCandidate(expression, source, candidate, candidateImport, typeGraph, variables, fields) {
+		if expressionCarriesCandidate(expression, source, candidate, candidateImport, typeGraph, variables, fields, variableTypes) {
 			return true
 		}
 	}
 	return false
 }
 
-func expressionListContainsCandidateField(expressions []ast.Expr, source parsedSource, candidate Candidate, candidateImport string, typeGraph map[string]bool, variables map[string]bool, fields map[string]map[string]ast.Expr) bool {
+func expressionListContainsCandidateField(expressions []ast.Expr, source parsedSource, candidate Candidate, candidateImport string, typeGraph map[string]bool, variables map[string]bool, fields map[string]map[string]ast.Expr, variableTypes map[string]ast.Expr) bool {
 	for _, expression := range expressions {
 		found := false
 		ast.Inspect(expression, func(node ast.Node) bool {
 			selector, ok := node.(*ast.SelectorExpr)
-			if ok && selector.Sel.Name == candidate.FieldName && expressionCarriesCandidate(selector.X, source, candidate, candidateImport, typeGraph, variables, fields) {
+			if ok && selector.Sel.Name == candidate.FieldName && expressionCarriesCandidate(selector.X, source, candidate, candidateImport, typeGraph, variables, fields, variableTypes) {
 				found = true
 				return false
 			}
@@ -342,11 +353,11 @@ func expressionListContainsCandidateField(expressions []ast.Expr, source parsedS
 	return false
 }
 
-func expressionPersistsCandidateField(expression ast.Expr, source parsedSource, allFiles []parsedSource, candidate Candidate, candidateImport string, typeGraph map[string]bool, variables map[string]bool, fields map[string]map[string]ast.Expr, fieldValues map[string]bool, serializers map[string]bool) bool {
+func expressionPersistsCandidateField(expression ast.Expr, source parsedSource, allFiles []parsedSource, candidate Candidate, candidateImport string, typeGraph map[string]bool, variables map[string]bool, fields map[string]map[string]ast.Expr, variableTypes map[string]ast.Expr, fieldValues map[string]bool, serializers map[string]bool) bool {
 	if expression == nil {
 		return false
 	}
-	if expressionListContainsCandidateField([]ast.Expr{expression}, source, candidate, candidateImport, typeGraph, variables, fields) {
+	if expressionListContainsCandidateField([]ast.Expr{expression}, source, candidate, candidateImport, typeGraph, variables, fields, variableTypes) || candidateRecordValue(expression, source, candidate, candidateImport, variableTypes) {
 		return true
 	}
 	if ident, ok := expression.(*ast.Ident); ok && fieldValues[ident.Name] {
@@ -363,12 +374,41 @@ func expressionPersistsCandidateField(expression ast.Expr, source parsedSource, 
 	if !serializers[name] || candidateFieldExcludedFromRecord(allFiles, candidate) {
 		return false
 	}
-	return expressionListCarriesCandidate(call.Args, source, candidate, candidateImport, typeGraph, variables, fields)
+	return expressionListCarriesCandidate(call.Args, source, candidate, candidateImport, typeGraph, variables, fields, variableTypes)
 }
 
-func expressionListPersistsCandidateField(expressions []ast.Expr, source parsedSource, allFiles []parsedSource, candidate Candidate, candidateImport string, typeGraph map[string]bool, variables map[string]bool, fields map[string]map[string]ast.Expr, fieldValues map[string]bool, serializers map[string]bool) bool {
+func candidateRecordValue(expression ast.Expr, source parsedSource, candidate Candidate, candidateImport string, variableTypes map[string]ast.Expr) bool {
+	var candidateType = candidate.TypeName
+	var candidatePackage = filepath.ToSlash(candidate.Package)
+	var expressionType ast.Expr
+	switch value := expression.(type) {
+	case *ast.Ident:
+		expressionType = variableTypes[value.Name]
+	case *ast.CompositeLit:
+		expressionType = value.Type
+	default:
+		return false
+	}
+	for {
+		pointer, ok := expressionType.(*ast.StarExpr)
+		if !ok {
+			break
+		}
+		expressionType = pointer.X
+	}
+	switch value := expressionType.(type) {
+	case *ast.Ident:
+		return value.Name == candidateType && (source.packageDir == candidatePackage || candidateImport != "" && source.importPath == candidateImport)
+	case *ast.SelectorExpr:
+		return source.imports[exprIdent(value.X)] == candidateImport && value.Sel.Name == candidateType
+	default:
+		return false
+	}
+}
+
+func expressionListPersistsCandidateField(expressions []ast.Expr, source parsedSource, allFiles []parsedSource, candidate Candidate, candidateImport string, typeGraph map[string]bool, variables map[string]bool, fields map[string]map[string]ast.Expr, variableTypes map[string]ast.Expr, fieldValues map[string]bool, serializers map[string]bool) bool {
 	for _, expression := range expressions {
-		if expressionPersistsCandidateField(expression, source, allFiles, candidate, candidateImport, typeGraph, variables, fields, fieldValues, serializers) {
+		if expressionPersistsCandidateField(expression, source, allFiles, candidate, candidateImport, typeGraph, variables, fields, variableTypes, fieldValues, serializers) {
 			return true
 		}
 	}
@@ -474,7 +514,7 @@ func isSQLReadSink(method string) bool {
 	}
 }
 
-func isSQLReceiver(receiver ast.Expr, source parsedSource, variableTypes map[string]ast.Expr, fields map[string]map[string]ast.Expr) bool {
+func isSQLReceiver(receiver ast.Expr, source parsedSource, variableTypes map[string]ast.Expr, fields map[string]map[string]ast.Expr, allFiles []parsedSource) bool {
 	var typeExpr ast.Expr
 	switch value := receiver.(type) {
 	case *ast.Ident:
@@ -489,20 +529,7 @@ func isSQLReceiver(receiver ast.Expr, source parsedSource, variableTypes map[str
 			}
 		}
 	}
-	selector, ok := typeExpr.(*ast.StarExpr)
-	if !ok {
-		return false
-	}
-	qualified, ok := selector.X.(*ast.SelectorExpr)
-	if !ok || source.imports[exprIdent(qualified.X)] != "database/sql" {
-		return false
-	}
-	switch qualified.Sel.Name {
-	case "DB", "Tx", "Conn", "Stmt":
-		return true
-	default:
-		return false
-	}
+	return isSQLStorageType(typeExpr, source, allFiles, map[string]bool{})
 }
 
 func isConnectResponse(call *ast.CallExpr, source parsedSource) bool {
@@ -572,7 +599,7 @@ func classificationWithScope(class PersistenceClass, reason string, source scena
 	return result
 }
 
-func candidateDeclarationOnly(ctx context.Context, files []parsedSource, candidate Candidate, candidateImport string, typeGraph map[string]bool) bool {
+func candidateDeclarationOnly(ctx context.Context, files []parsedSource, candidate Candidate, candidateImport string, typeGraph map[string]bool, serializers map[string]bool, filePersistence map[string]map[int]bool) bool {
 	for _, source := range files {
 		if ctx.Err() != nil {
 			return false
@@ -594,7 +621,7 @@ func candidateDeclarationOnly(ctx context.Context, files []parsedSource, candida
 			if !ok || fn.Body == nil {
 				continue
 			}
-			flow := analyzeFunctionFlow(ctx, fn, source, files, candidate, candidateImport, typeGraph)
+			flow := analyzeFunctionFlowCached(ctx, fn, source, files, candidate, candidateImport, typeGraph, serializers, filePersistence)
 			if len(flow.otherUses)+len(flow.writes)+len(flow.persistence)+len(flow.readModels)+len(flow.transient) > 0 {
 				return false
 			}

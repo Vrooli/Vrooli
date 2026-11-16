@@ -3,7 +3,7 @@ package graph_test
 import (
 	"testing"
 
-	intgraph "go-code-graph/internal/graph"
+	intgraph "github.com/vrooli/api-core/gograph"
 )
 
 // TestGraphHashDeterministic asserts identical graphs hash identically.

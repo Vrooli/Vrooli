@@ -13,7 +13,7 @@ import (
 	"connectrpc.com/connect"
 	"golang.org/x/tools/go/packages"
 
-	intgraph "go-code-graph/internal/graph"
+	intgraph "github.com/vrooli/api-core/gograph"
 	graphmocks "go-code-graph/internal/graph/mocks"
 
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph"

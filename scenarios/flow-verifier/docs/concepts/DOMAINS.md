@@ -9,7 +9,6 @@ removed during Gate 7 once the four real flow-verifier domains
 (`flows`, `verification`, `codegen`, `runs`) and the orchestrator
 (`pipeline`) are green.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

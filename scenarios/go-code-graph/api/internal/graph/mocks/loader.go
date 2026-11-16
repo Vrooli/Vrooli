@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/tools/go/packages"
 
-	intgraph "go-code-graph/internal/graph"
+	intgraph "github.com/vrooli/api-core/gograph"
 )
 
 // FakeLoader is the canned PackagesLoader for tests. Set LoadFunc to

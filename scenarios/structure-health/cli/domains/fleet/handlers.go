@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 	repocontract "github.com/vrooli/repo-contract-go"
 	fleetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/structure-health/v1/fleet"
 	fleetconnect "github.com/vrooli/vrooli/packages/proto/gen/go/structure-health/v1/fleet/fleet_v1connect"
@@ -99,7 +100,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 // scan grades the fleet (or a requested subset) and renders the rollup.
 func (h *handlers) scan(ctx cliapp.RunContext) error {
 	resp, err := h.client.ScanFleet(context.Background(), connect.NewRequest(&fleetv1.ScanFleetRequest{
-		Scenarios: splitCSV(ctx.FlagValues("scenario")),
+		Scenarios: cliutil.ParseCSVValues(ctx.FlagValues("scenario")),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("scan fleet structure conformance", err, nil)
@@ -188,16 +189,4 @@ func ruleLines(rules []*fleetv1.RuleConformance) []string {
 			r.GetCode(), r.GetWorstSeverity(), r.GetOffendingScenarios(), r.GetTotalFindings(), fixable))
 	}
 	return lines
-}
-
-func splitCSV(values []string) []string {
-	var out []string
-	for _, v := range values {
-		for _, part := range strings.Split(v, ",") {
-			if p := strings.TrimSpace(part); p != "" {
-				out = append(out, p)
-			}
-		}
-	}
-	return out
 }

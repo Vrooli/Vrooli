@@ -20,6 +20,14 @@ var schemaScanExcludedDirs = map[string]struct{}{
 	".git": {}, ".cache": {}, "build": {}, "coverage": {}, "dist": {}, "evidence": {}, "node_modules": {}, "vendor": {},
 }
 
+// schemaScanExcludedPaths are root-relative evidence areas that must not be
+// confused with authoritative source trees. `.vrooli/work` retains delivery
+// snapshots, including source-before copies of schemas that are still owned by
+// their original paths.
+var schemaScanExcludedPaths = map[string]struct{}{
+	filepath.Join(".vrooli", "work"): {},
+}
+
 func projectSchemaIDRules(root string) []rules.Finding {
 	byID := map[string][]string{}
 	_ = filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
@@ -28,6 +36,11 @@ func projectSchemaIDRules(root string) []rules.Finding {
 		}
 		if entry.IsDir() {
 			if path != root {
+				if relative, err := filepath.Rel(root, path); err == nil {
+					if _, excluded := schemaScanExcludedPaths[filepath.Clean(relative)]; excluded {
+						return filepath.SkipDir
+					}
+				}
 				if _, excluded := schemaScanExcludedDirs[entry.Name()]; excluded {
 					return filepath.SkipDir
 				}

@@ -5,7 +5,7 @@ import (
 	"context"
 	"testing"
 
-	"go-code-graph/internal/graph"
+	graph "github.com/vrooli/api-core/gograph"
 )
 
 // TestExtractDeterministic runs Extract 10 times against go-cycles and

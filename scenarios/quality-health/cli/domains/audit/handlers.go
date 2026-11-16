@@ -3,10 +3,10 @@ package audit
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 	maturityreport "github.com/vrooli/maturity-go/report"
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/quality-health/v1/audit"
 	auditconnect "github.com/vrooli/vrooli/packages/proto/gen/go/quality-health/v1/audit/audit_v1connect"
@@ -30,7 +30,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 
 func (h *handlers) run(ctx cliapp.RunContext) error {
 	scenario := ctx.Positional("scenario")
-	if len(splitCSV(ctx.FlagValues("rule"))) > 0 || len(splitCSV(ctx.FlagValues("surface"))) > 0 || ctx.BoolFlag("autofix-preview") {
+	if len(cliutil.ParseUniqueCSVValues(ctx.FlagValues("rule"))) > 0 || len(cliutil.ParseUniqueCSVValues(ctx.FlagValues("surface"))) > 0 || ctx.BoolFlag("autofix-preview") {
 		return h.runDomainAudit(ctx, scenario)
 	}
 	resp, err := h.validationClient.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
@@ -68,8 +68,8 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 func (h *handlers) runDomainAudit(ctx cliapp.RunContext, scenario string) error {
 	resp, err := h.auditClient.AuditQuality(context.Background(), connect.NewRequest(&auditv1.AuditQualityRequest{
 		Scenario:                scenario,
-		RuleIds:                 splitCSV(ctx.FlagValues("rule")),
-		Surfaces:                splitCSV(ctx.FlagValues("surface")),
+		RuleIds:                 cliutil.ParseUniqueCSVValues(ctx.FlagValues("rule")),
+		Surfaces:                cliutil.ParseUniqueCSVValues(ctx.FlagValues("surface")),
 		IncludeCommandExecution: ctx.BoolFlag("commands"),
 		IncludeAutofixPreview:   ctx.BoolFlag("autofix-preview"),
 		UseCache:                true,
@@ -126,20 +126,4 @@ func auditListReport(msg *auditv1.AuditQualityResponse) cliapp.ListReport {
 		Results:        results,
 		RetrievalHints: msg.GetNextSteps(),
 	}
-}
-
-func splitCSV(values []string) []string {
-	seen := map[string]bool{}
-	var out []string
-	for _, value := range values {
-		for _, part := range strings.Split(value, ",") {
-			part = strings.TrimSpace(part)
-			if part == "" || seen[part] {
-				continue
-			}
-			seen[part] = true
-			out = append(out, part)
-		}
-	}
-	return out
 }

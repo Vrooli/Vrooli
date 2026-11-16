@@ -49,12 +49,13 @@ func (h *Handler) RunLighthouse(ctx context.Context, req *connect.Request[lighth
 	}
 	for _, p := range res.Pages {
 		out.Pages = append(out.Pages, &lighthousev1.PageScore{
-			Url:           p.URL,
-			Performance:   p.Performance,
-			Accessibility: p.Accessibility,
-			BestPractices: p.BestPractices,
-			Seo:           p.SEO,
-			Violations:    p.Violations,
+			Url:                 p.URL,
+			Performance:         p.Performance,
+			Accessibility:       p.Accessibility,
+			AccessibilityStatus: lighthousev1.LighthouseAccessibilityStatus_LIGHTHOUSE_ACCESSIBILITY_STATUS_OBSERVED_NON_GATING,
+			BestPractices:       p.BestPractices,
+			Seo:                 p.SEO,
+			Violations:          p.Violations,
 		})
 	}
 	return connect.NewResponse(out), nil

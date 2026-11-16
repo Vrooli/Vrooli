@@ -3,7 +3,6 @@
 This document is the canonical dependency contract for resources,
 other scenarios, and third-party services used by the scenario.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -61,7 +60,7 @@ client had shipped, which is exactly the wrong signal to send a reader.
 
 | Service | Status | Reason | Contract |
 |---|---|---|---|
-| Lighthouse CLI | planned | The performance-health-owned Lighthouse runner uses its own Chrome (NOT via BAS). Browser UI scenarios must declare per-route accessibility error and warning thresholds; unavailable execution is degraded rather than passed. | `.vrooli/lighthouse.json` thresholds. |
+| Lighthouse CLI | planned | The performance-health-owned Lighthouse runner uses its own Chrome (NOT via BAS). Lighthouse accessibility scores remain visible as observed evidence, but never gate independently. Accessibility is unmeasured unless the unified `experience` phase has qualifying evidence; that phase owns the pass/fail verdict. Per-route accessibility thresholds have been removed from all 106 authored configs that contained them. Each response marks the observed Lighthouse accessibility score as `OBSERVED_NON_GATING`; only the unified `experience` phase judges accessibility. Performance, best-practices, and SEO thresholds remain active. | `.vrooli/lighthouse.json` page/category scores and non-accessibility thresholds. |
 | Chrome | wired (indirect) | Reached via BAS perf-capture — now implemented — and the Lighthouse runner; the audit pipeline skips cleanly when unavailable. | indirect, through BAS / Lighthouse. |
 
 ## Failure Modes

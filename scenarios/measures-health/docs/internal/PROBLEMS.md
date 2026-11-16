@@ -168,7 +168,7 @@ corpus) rather than shipped unexercised.
      case), `ui/src/layout/AppShell.test.tsx` (drop `"notes"` from the nav loop).
    - **Generic doc-comments referencing `internal/notes` as the worked example**
      (NOT domain code — they don't block compile): `api/internal/database/pinger.go`,
-     `api/internal/httpc/doer.go`, `api/internal/httpx/errors.go`,
+     `api/internal/httpc/doer.go`,
      `api/internal/testutil/repokit/{doc.go,slicerepo.go}`,
      `api/internal/testutil/db/sqlite.go`, `api/internal/module/module.go`.
      Re-point these to the real domain (`internal/validation` /

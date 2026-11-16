@@ -208,6 +208,7 @@ func TestProjectPackIgnoresSchemaSnapshotsInEvidence(t *testing.T) {
 	schema := `{"$schema":"http://json-schema.org/draft-07/schema#","$id":"https://example.test/shared"}`
 	write(t, root, "schemas/first.schema.json", schema)
 	write(t, root, "scenarios/demo/docs/goal/evidence/E1/preimage/first.schema.json", schema)
+	write(t, root, ".vrooli/work/delivery/task/source-before/schemas/first.schema.json", schema)
 
 	for _, finding := range Evaluate("project", root, "repo") {
 		if finding.Code == "REPO_SCHEMA_ID_UNIQUE" {
@@ -239,18 +240,66 @@ func TestRepositorySchemaIDsAreUnique(t *testing.T) {
 func TestProjectPackReportsOwningScenarioManifestSchemaViolation(t *testing.T) {
 	root := validProjectFixture(t)
 	write(t, root, ".vrooli/schemas/cli-manifest.schema.json", `{"type":"object","required":["name"],"properties":{"name":{"type":"string"}},"additionalProperties":true}`)
-	write(t, root, "cli/manifest.json", `{"name":"repo"}`)
+	write(t, root, "cli/manifest.json", `{"name":42}`)
 	write(t, root, "scenarios/demo/cli/manifest.json", `{"name":42}`)
+	write(t, root, "scenarios/demo/fixtures/nested/cli/manifest.json", `{"name":42}`)
 
-	for _, finding := range Evaluate("project", root, "repo") {
-		if finding.Code == "PROJECT_CLI_MANIFEST_SCHEMA" && finding.Location == "scenarios/demo/cli/manifest.json" {
-			if !strings.Contains(finding.Message, "scenario/demo") {
-				t.Fatalf("manifest finding lacks owning scenario: %+v", finding)
-			}
-			return
+	findings := Evaluate("project", root, "repo")
+	var rootManifestFinding, directScenarioFinding, nestedFinding bool
+	for _, finding := range findings {
+		if finding.Code != "PROJECT_CLI_MANIFEST_SCHEMA" {
+			continue
+		}
+		switch finding.Location {
+		case "cli/manifest.json":
+			rootManifestFinding = true
+		case "scenarios/demo/cli/manifest.json":
+			directScenarioFinding = true
+		case "scenarios/demo/fixtures/nested/cli/manifest.json":
+			nestedFinding = true
 		}
 	}
-	t.Fatalf("expected owning scenario manifest schema finding, got %v", Evaluate("project", root, "repo"))
+	if !rootManifestFinding {
+		t.Fatalf("expected root CLI manifest to be validated, got %v", findings)
+	}
+	if !directScenarioFinding {
+		t.Fatalf("expected direct scenario CLI manifest to be validated, got %v", findings)
+	}
+	for _, finding := range findings {
+		if finding.Code == "PROJECT_CLI_MANIFEST_SCHEMA" && finding.Location == "scenarios/demo/cli/manifest.json" && !strings.Contains(finding.Message, "scenario/demo") {
+			t.Fatalf("manifest finding lacks owning scenario: %+v", finding)
+		}
+	}
+	if nestedFinding {
+		t.Fatalf("nested CLI manifest was misclassified as a scenario-owned manifest: %v", findings)
+	}
+}
+
+func TestProjectLiveStructureCountsDirectOwnerManifestsOnly(t *testing.T) {
+	tests := []struct {
+		name       string
+		ownedPath  string
+		nestedPath string
+	}{
+		{name: "scenario", ownedPath: "scenarios/demo/.vrooli/service.json", nestedPath: "scenarios/demo/fixtures/.vrooli/service.json"},
+		{name: "resource", ownedPath: "resources/demo/resource.json", nestedPath: "resources/demo/fixtures/resource.json"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := validProjectFixture(t)
+			var contract projectContract
+			if err := json.Unmarshal([]byte(projectFixtureJSON(t)), &contract); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Remove(filepath.Join(root, filepath.FromSlash(test.ownedPath))); err != nil {
+				t.Fatal(err)
+			}
+			write(t, root, test.nestedPath, `{}`)
+			if err := projectLiveStructure(root, contract); err == nil {
+				t.Fatal("nested fixture manifest satisfied direct owner manifest coverage")
+			}
+		})
+	}
 }
 
 func TestProjectPackNegativeRuleFixtures(t *testing.T) {

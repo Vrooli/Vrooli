@@ -1,6 +1,5 @@
 # Architecture — Quality Health
 
-## Purpose Of This Document
 
 This document defines Quality Health's system shape, ownership boundary, data flow, extension rules, and phase handoff responsibilities.
 

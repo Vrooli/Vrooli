@@ -25,7 +25,7 @@ import (
 	rewriteH "go-code-graph/handlers/rewrite"
 	validationH "go-code-graph/handlers/validation"
 
-	intgraph "go-code-graph/internal/graph"
+	intgraph "github.com/vrooli/api-core/gograph"
 	intrewrite "go-code-graph/internal/rewrite"
 )
 
