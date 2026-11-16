@@ -5,8 +5,25 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestReadCandidateMissingDoesNotCreateExperienceData(t *testing.T) {
+	root := t.TempDir()
+	experience := filepath.Join(root, "scenarios", "demo", "experience")
+	if err := os.MkdirAll(experience, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	store := NewStore(root)
+	_, err := store.ReadCandidate("demo", "design-one", strings.Repeat("a", 64))
+	if !os.IsNotExist(err) {
+		t.Fatalf("missing candidate error = %v, want not-exist", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "scenarios", "demo", "data")); !os.IsNotExist(err) {
+		t.Fatalf("read of a missing candidate created experience data: %v", err)
+	}
+}
 
 func TestCandidatesPreservePageAndRemainReadableAfterEdits(t *testing.T) {
 	root := t.TempDir()

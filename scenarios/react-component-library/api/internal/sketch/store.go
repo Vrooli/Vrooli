@@ -71,6 +71,17 @@ func (s *Store) openExperience(scenario string) (*os.Root, error) {
 // openExperienceData confines generated design records to the scenario's
 // ignored data home while keeping authored page contracts under experience/.
 func (s *Store) openExperienceData(scenario string) (*os.Root, error) {
+	return s.openExperienceDataRoot(scenario, true)
+}
+
+// openExistingExperienceData opens existing generated records without
+// creating their data home. Read paths use this so a missing candidate remains
+// a no-op rather than leaving directories behind.
+func (s *Store) openExistingExperienceData(scenario string) (*os.Root, error) {
+	return s.openExperienceDataRoot(scenario, false)
+}
+
+func (s *Store) openExperienceDataRoot(scenario string, create bool) (*os.Root, error) {
 	if !safeSegment.MatchString(scenario) {
 		return nil, fmt.Errorf("invalid scenario identity")
 	}
@@ -95,9 +106,11 @@ func (s *Store) openExperienceData(scenario string) (*os.Root, error) {
 		}
 		root = child
 	}
-	if err := root.MkdirAll(filepath.Join("data", "experience"), 0o700); err != nil {
-		root.Close()
-		return nil, err
+	if create {
+		if err := root.MkdirAll(filepath.Join("data", "experience"), 0o700); err != nil {
+			root.Close()
+			return nil, err
+		}
 	}
 	for _, part := range []string{"data", "experience"} {
 		info, err := root.Lstat(part)

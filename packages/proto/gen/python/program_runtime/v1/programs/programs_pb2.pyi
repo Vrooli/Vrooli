@@ -456,7 +456,14 @@ class RunAuthoringEvalRequest(_message.Message):
     def __init__(self, suite: _Optional[str] = ..., max_cases: _Optional[int] = ..., no_gate: _Optional[bool] = ...) -> None: ...
 
 class AuthoringCaseResult(_message.Message):
-    __slots__ = ("case_id", "authored", "first_attempt_ok", "cause", "agent_bytes", "model", "rule_id", "failure_detail")
+    __slots__ = ("case_id", "authored", "first_attempt_ok", "cause", "agent_bytes", "model", "rule_id", "failure_detail", "task_sha256", "source_sha256", "generation_elapsed_ms", "execution_elapsed_ms", "oracle_elapsed_ms", "elapsed_to_first_working_ms", "case_start_offset_ms", "case_status", "attempt_count", "retry_count", "fixture_calls", "author_provider")
+    class FixtureCallsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: int
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
     CASE_ID_FIELD_NUMBER: _ClassVar[int]
     AUTHORED_FIELD_NUMBER: _ClassVar[int]
     FIRST_ATTEMPT_OK_FIELD_NUMBER: _ClassVar[int]
@@ -465,6 +472,18 @@ class AuthoringCaseResult(_message.Message):
     MODEL_FIELD_NUMBER: _ClassVar[int]
     RULE_ID_FIELD_NUMBER: _ClassVar[int]
     FAILURE_DETAIL_FIELD_NUMBER: _ClassVar[int]
+    TASK_SHA256_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_SHA256_FIELD_NUMBER: _ClassVar[int]
+    GENERATION_ELAPSED_MS_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_ELAPSED_MS_FIELD_NUMBER: _ClassVar[int]
+    ORACLE_ELAPSED_MS_FIELD_NUMBER: _ClassVar[int]
+    ELAPSED_TO_FIRST_WORKING_MS_FIELD_NUMBER: _ClassVar[int]
+    CASE_START_OFFSET_MS_FIELD_NUMBER: _ClassVar[int]
+    CASE_STATUS_FIELD_NUMBER: _ClassVar[int]
+    ATTEMPT_COUNT_FIELD_NUMBER: _ClassVar[int]
+    RETRY_COUNT_FIELD_NUMBER: _ClassVar[int]
+    FIXTURE_CALLS_FIELD_NUMBER: _ClassVar[int]
+    AUTHOR_PROVIDER_FIELD_NUMBER: _ClassVar[int]
     case_id: str
     authored: bool
     first_attempt_ok: bool
@@ -473,7 +492,19 @@ class AuthoringCaseResult(_message.Message):
     model: str
     rule_id: str
     failure_detail: str
-    def __init__(self, case_id: _Optional[str] = ..., authored: _Optional[bool] = ..., first_attempt_ok: _Optional[bool] = ..., cause: _Optional[str] = ..., agent_bytes: _Optional[int] = ..., model: _Optional[str] = ..., rule_id: _Optional[str] = ..., failure_detail: _Optional[str] = ...) -> None: ...
+    task_sha256: str
+    source_sha256: str
+    generation_elapsed_ms: int
+    execution_elapsed_ms: int
+    oracle_elapsed_ms: int
+    elapsed_to_first_working_ms: int
+    case_start_offset_ms: int
+    case_status: str
+    attempt_count: int
+    retry_count: int
+    fixture_calls: _containers.ScalarMap[str, int]
+    author_provider: str
+    def __init__(self, case_id: _Optional[str] = ..., authored: _Optional[bool] = ..., first_attempt_ok: _Optional[bool] = ..., cause: _Optional[str] = ..., agent_bytes: _Optional[int] = ..., model: _Optional[str] = ..., rule_id: _Optional[str] = ..., failure_detail: _Optional[str] = ..., task_sha256: _Optional[str] = ..., source_sha256: _Optional[str] = ..., generation_elapsed_ms: _Optional[int] = ..., execution_elapsed_ms: _Optional[int] = ..., oracle_elapsed_ms: _Optional[int] = ..., elapsed_to_first_working_ms: _Optional[int] = ..., case_start_offset_ms: _Optional[int] = ..., case_status: _Optional[str] = ..., attempt_count: _Optional[int] = ..., retry_count: _Optional[int] = ..., fixture_calls: _Optional[_Mapping[str, int]] = ..., author_provider: _Optional[str] = ...) -> None: ...
 
 class AuthoringRuleMiss(_message.Message):
     __slots__ = ("rule_id", "count")
@@ -484,7 +515,7 @@ class AuthoringRuleMiss(_message.Message):
     def __init__(self, rule_id: _Optional[str] = ..., count: _Optional[int] = ...) -> None: ...
 
 class RunAuthoringEvalResponse(_message.Message):
-    __slots__ = ("suite", "status", "reason", "cases", "met", "missed", "wrong_result", "unavailable", "floor", "results", "not_attempted", "harness_stamp", "rule_misses", "floor_met")
+    __slots__ = ("suite", "status", "reason", "cases", "met", "missed", "wrong_result", "unavailable", "floor", "results", "not_attempted", "harness_stamp", "rule_misses", "floor_met", "receipt_version", "corpus_sha256", "instruction_sha256", "runtime_revision", "author_role", "author_schema_sha256", "route_policy_revision", "started_at", "elapsed_ms", "total_budget_ms", "per_case_reserve_ms")
     SUITE_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
@@ -499,6 +530,17 @@ class RunAuthoringEvalResponse(_message.Message):
     HARNESS_STAMP_FIELD_NUMBER: _ClassVar[int]
     RULE_MISSES_FIELD_NUMBER: _ClassVar[int]
     FLOOR_MET_FIELD_NUMBER: _ClassVar[int]
+    RECEIPT_VERSION_FIELD_NUMBER: _ClassVar[int]
+    CORPUS_SHA256_FIELD_NUMBER: _ClassVar[int]
+    INSTRUCTION_SHA256_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_REVISION_FIELD_NUMBER: _ClassVar[int]
+    AUTHOR_ROLE_FIELD_NUMBER: _ClassVar[int]
+    AUTHOR_SCHEMA_SHA256_FIELD_NUMBER: _ClassVar[int]
+    ROUTE_POLICY_REVISION_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    ELAPSED_MS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_BUDGET_MS_FIELD_NUMBER: _ClassVar[int]
+    PER_CASE_RESERVE_MS_FIELD_NUMBER: _ClassVar[int]
     suite: str
     status: str
     reason: str
@@ -513,7 +555,18 @@ class RunAuthoringEvalResponse(_message.Message):
     harness_stamp: str
     rule_misses: _containers.RepeatedCompositeFieldContainer[AuthoringRuleMiss]
     floor_met: bool
-    def __init__(self, suite: _Optional[str] = ..., status: _Optional[str] = ..., reason: _Optional[str] = ..., cases: _Optional[int] = ..., met: _Optional[int] = ..., missed: _Optional[int] = ..., wrong_result: _Optional[int] = ..., unavailable: _Optional[int] = ..., floor: _Optional[int] = ..., results: _Optional[_Iterable[_Union[AuthoringCaseResult, _Mapping]]] = ..., not_attempted: _Optional[int] = ..., harness_stamp: _Optional[str] = ..., rule_misses: _Optional[_Iterable[_Union[AuthoringRuleMiss, _Mapping]]] = ..., floor_met: _Optional[bool] = ...) -> None: ...
+    receipt_version: str
+    corpus_sha256: str
+    instruction_sha256: str
+    runtime_revision: str
+    author_role: str
+    author_schema_sha256: str
+    route_policy_revision: str
+    started_at: str
+    elapsed_ms: int
+    total_budget_ms: int
+    per_case_reserve_ms: int
+    def __init__(self, suite: _Optional[str] = ..., status: _Optional[str] = ..., reason: _Optional[str] = ..., cases: _Optional[int] = ..., met: _Optional[int] = ..., missed: _Optional[int] = ..., wrong_result: _Optional[int] = ..., unavailable: _Optional[int] = ..., floor: _Optional[int] = ..., results: _Optional[_Iterable[_Union[AuthoringCaseResult, _Mapping]]] = ..., not_attempted: _Optional[int] = ..., harness_stamp: _Optional[str] = ..., rule_misses: _Optional[_Iterable[_Union[AuthoringRuleMiss, _Mapping]]] = ..., floor_met: _Optional[bool] = ..., receipt_version: _Optional[str] = ..., corpus_sha256: _Optional[str] = ..., instruction_sha256: _Optional[str] = ..., runtime_revision: _Optional[str] = ..., author_role: _Optional[str] = ..., author_schema_sha256: _Optional[str] = ..., route_policy_revision: _Optional[str] = ..., started_at: _Optional[str] = ..., elapsed_ms: _Optional[int] = ..., total_budget_ms: _Optional[int] = ..., per_case_reserve_ms: _Optional[int] = ...) -> None: ...
 
 class RunDiscoveryEvalRequest(_message.Message):
     __slots__ = ("suite", "mode", "max_cases", "no_gate")

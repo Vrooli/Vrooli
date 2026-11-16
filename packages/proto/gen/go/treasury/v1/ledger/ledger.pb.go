@@ -257,8 +257,13 @@ func (x *ListEmissionsRequest) GetLimit() int32 {
 }
 
 type ListEmissionsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Emissions     []*LedgerEmission      `protobuf:"bytes,1,rep,name=emissions,proto3" json:"emissions,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Emissions []*LedgerEmission      `protobuf:"bytes,1,rep,name=emissions,proto3" json:"emissions,omitempty"`
+	// Where settlements are delivered, so an empty or stuck queue is never the
+	// only signal that nothing can be delivered.
+	Destination *LedgerDestination `protobuf:"bytes,2,opt,name=destination,proto3" json:"destination,omitempty"`
+	// Every settlement still waiting for delivery, whatever the filter above.
+	QueuedTotal   int32 `protobuf:"varint,3,opt,name=queued_total,json=queuedTotal,proto3" json:"queued_total,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -300,6 +305,321 @@ func (x *ListEmissionsResponse) GetEmissions() []*LedgerEmission {
 	return nil
 }
 
+func (x *ListEmissionsResponse) GetDestination() *LedgerDestination {
+	if x != nil {
+		return x.Destination
+	}
+	return nil
+}
+
+func (x *ListEmissionsResponse) GetQueuedTotal() int32 {
+	if x != nil {
+		return x.QueuedTotal
+	}
+	return 0
+}
+
+// LedgerDestination is the one Money Ledger book and account that Treasury
+// settlements post to. The operator chooses it; Treasury never guesses or
+// creates it.
+type LedgerDestination struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// False until a destination is chosen. Settlements stay durably queued.
+	Configured bool   `protobuf:"varint,1,opt,name=configured,proto3" json:"configured,omitempty"`
+	BookId     string `protobuf:"bytes,2,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	AccountId  string `protobuf:"bytes,3,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// Names as Money Ledger had them when the destination was chosen.
+	BookName    string `protobuf:"bytes,4,opt,name=book_name,json=bookName,proto3" json:"book_name,omitempty"`
+	AccountName string `protobuf:"bytes,5,opt,name=account_name,json=accountName,proto3" json:"account_name,omitempty"`
+	Currency    string `protobuf:"bytes,6,opt,name=currency,proto3" json:"currency,omitempty"`
+	// "operator" when chosen with SetLedgerDestination; "environment" when it
+	// comes from the rehearsal seed (TREASURY_LEDGER_BOOK_ID and
+	// TREASURY_LEDGER_ACCOUNT_ID). Empty when not configured.
+	Source string                 `protobuf:"bytes,7,opt,name=source,proto3" json:"source,omitempty"`
+	SetAt  *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=set_at,json=setAt,proto3" json:"set_at,omitempty"`
+	// Why settlements cannot be delivered. Empty when configured.
+	UnconfiguredReason string `protobuf:"bytes,9,opt,name=unconfigured_reason,json=unconfiguredReason,proto3" json:"unconfigured_reason,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *LedgerDestination) Reset() {
+	*x = LedgerDestination{}
+	mi := &file_treasury_v1_ledger_ledger_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LedgerDestination) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LedgerDestination) ProtoMessage() {}
+
+func (x *LedgerDestination) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_ledger_ledger_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LedgerDestination.ProtoReflect.Descriptor instead.
+func (*LedgerDestination) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_ledger_ledger_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *LedgerDestination) GetConfigured() bool {
+	if x != nil {
+		return x.Configured
+	}
+	return false
+}
+
+func (x *LedgerDestination) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+func (x *LedgerDestination) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *LedgerDestination) GetBookName() string {
+	if x != nil {
+		return x.BookName
+	}
+	return ""
+}
+
+func (x *LedgerDestination) GetAccountName() string {
+	if x != nil {
+		return x.AccountName
+	}
+	return ""
+}
+
+func (x *LedgerDestination) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
+func (x *LedgerDestination) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *LedgerDestination) GetSetAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SetAt
+	}
+	return nil
+}
+
+func (x *LedgerDestination) GetUnconfiguredReason() string {
+	if x != nil {
+		return x.UnconfiguredReason
+	}
+	return ""
+}
+
+type SetLedgerDestinationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	AccountId     string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetLedgerDestinationRequest) Reset() {
+	*x = SetLedgerDestinationRequest{}
+	mi := &file_treasury_v1_ledger_ledger_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetLedgerDestinationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetLedgerDestinationRequest) ProtoMessage() {}
+
+func (x *SetLedgerDestinationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_ledger_ledger_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetLedgerDestinationRequest.ProtoReflect.Descriptor instead.
+func (*SetLedgerDestinationRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_ledger_ledger_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SetLedgerDestinationRequest) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+func (x *SetLedgerDestinationRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+type SetLedgerDestinationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Destination   *LedgerDestination     `protobuf:"bytes,1,opt,name=destination,proto3" json:"destination,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetLedgerDestinationResponse) Reset() {
+	*x = SetLedgerDestinationResponse{}
+	mi := &file_treasury_v1_ledger_ledger_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetLedgerDestinationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetLedgerDestinationResponse) ProtoMessage() {}
+
+func (x *SetLedgerDestinationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_ledger_ledger_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetLedgerDestinationResponse.ProtoReflect.Descriptor instead.
+func (*SetLedgerDestinationResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_ledger_ledger_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *SetLedgerDestinationResponse) GetDestination() *LedgerDestination {
+	if x != nil {
+		return x.Destination
+	}
+	return nil
+}
+
+type GetLedgerDestinationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLedgerDestinationRequest) Reset() {
+	*x = GetLedgerDestinationRequest{}
+	mi := &file_treasury_v1_ledger_ledger_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLedgerDestinationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLedgerDestinationRequest) ProtoMessage() {}
+
+func (x *GetLedgerDestinationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_ledger_ledger_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLedgerDestinationRequest.ProtoReflect.Descriptor instead.
+func (*GetLedgerDestinationRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_ledger_ledger_proto_rawDescGZIP(), []int{6}
+}
+
+type GetLedgerDestinationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Destination   *LedgerDestination     `protobuf:"bytes,1,opt,name=destination,proto3" json:"destination,omitempty"`
+	QueuedTotal   int32                  `protobuf:"varint,2,opt,name=queued_total,json=queuedTotal,proto3" json:"queued_total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLedgerDestinationResponse) Reset() {
+	*x = GetLedgerDestinationResponse{}
+	mi := &file_treasury_v1_ledger_ledger_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLedgerDestinationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLedgerDestinationResponse) ProtoMessage() {}
+
+func (x *GetLedgerDestinationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_ledger_ledger_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLedgerDestinationResponse.ProtoReflect.Descriptor instead.
+func (*GetLedgerDestinationResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_ledger_ledger_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetLedgerDestinationResponse) GetDestination() *LedgerDestination {
+	if x != nil {
+		return x.Destination
+	}
+	return nil
+}
+
+func (x *GetLedgerDestinationResponse) GetQueuedTotal() int32 {
+	if x != nil {
+		return x.QueuedTotal
+	}
+	return 0
+}
+
 var File_treasury_v1_ledger_ledger_proto protoreflect.FileDescriptor
 
 const file_treasury_v1_ledger_ledger_proto_rawDesc = "" +
@@ -336,11 +656,38 @@ const file_treasury_v1_ledger_ledger_proto_rawDesc = "" +
 	"\vexternal_id\x18\x01 \x01(\tR\n" +
 	"externalId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\x05R\x05limit\"`\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"\xd3\x01\n" +
 	"\x15ListEmissionsResponse\x12G\n" +
-	"\temissions\x18\x01 \x03(\v2).vrooli.treasury.v1.ledger.LedgerEmissionR\temissions2\x83\x01\n" +
+	"\temissions\x18\x01 \x03(\v2).vrooli.treasury.v1.ledger.LedgerEmissionR\temissions\x12N\n" +
+	"\vdestination\x18\x02 \x01(\v2,.vrooli.treasury.v1.ledger.LedgerDestinationR\vdestination\x12!\n" +
+	"\fqueued_total\x18\x03 \x01(\x05R\vqueuedTotal\"\xc3\x02\n" +
+	"\x11LedgerDestination\x12\x1e\n" +
+	"\n" +
+	"configured\x18\x01 \x01(\bR\n" +
+	"configured\x12\x17\n" +
+	"\abook_id\x18\x02 \x01(\tR\x06bookId\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x03 \x01(\tR\taccountId\x12\x1b\n" +
+	"\tbook_name\x18\x04 \x01(\tR\bbookName\x12!\n" +
+	"\faccount_name\x18\x05 \x01(\tR\vaccountName\x12\x1a\n" +
+	"\bcurrency\x18\x06 \x01(\tR\bcurrency\x12\x16\n" +
+	"\x06source\x18\a \x01(\tR\x06source\x121\n" +
+	"\x06set_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\x05setAt\x12/\n" +
+	"\x13unconfigured_reason\x18\t \x01(\tR\x12unconfiguredReason\"U\n" +
+	"\x1bSetLedgerDestinationRequest\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\"n\n" +
+	"\x1cSetLedgerDestinationResponse\x12N\n" +
+	"\vdestination\x18\x01 \x01(\v2,.vrooli.treasury.v1.ledger.LedgerDestinationR\vdestination\"\x1d\n" +
+	"\x1bGetLedgerDestinationRequest\"\x91\x01\n" +
+	"\x1cGetLedgerDestinationResponse\x12N\n" +
+	"\vdestination\x18\x01 \x01(\v2,.vrooli.treasury.v1.ledger.LedgerDestinationR\vdestination\x12!\n" +
+	"\fqueued_total\x18\x02 \x01(\x05R\vqueuedTotal2\x97\x03\n" +
 	"\rLedgerService\x12r\n" +
-	"\rListEmissions\x12/.vrooli.treasury.v1.ledger.ListEmissionsRequest\x1a0.vrooli.treasury.v1.ledger.ListEmissionsResponseBMZKgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/ledger;ledger_v1b\x06proto3"
+	"\rListEmissions\x12/.vrooli.treasury.v1.ledger.ListEmissionsRequest\x1a0.vrooli.treasury.v1.ledger.ListEmissionsResponse\x12\x87\x01\n" +
+	"\x14SetLedgerDestination\x126.vrooli.treasury.v1.ledger.SetLedgerDestinationRequest\x1a7.vrooli.treasury.v1.ledger.SetLedgerDestinationResponse\x12\x87\x01\n" +
+	"\x14GetLedgerDestination\x126.vrooli.treasury.v1.ledger.GetLedgerDestinationRequest\x1a7.vrooli.treasury.v1.ledger.GetLedgerDestinationResponseBMZKgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/ledger;ledger_v1b\x06proto3"
 
 var (
 	file_treasury_v1_ledger_ledger_proto_rawDescOnce sync.Once
@@ -354,26 +701,39 @@ func file_treasury_v1_ledger_ledger_proto_rawDescGZIP() []byte {
 	return file_treasury_v1_ledger_ledger_proto_rawDescData
 }
 
-var file_treasury_v1_ledger_ledger_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_treasury_v1_ledger_ledger_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_treasury_v1_ledger_ledger_proto_goTypes = []any{
-	(*LedgerEmission)(nil),        // 0: vrooli.treasury.v1.ledger.LedgerEmission
-	(*ListEmissionsRequest)(nil),  // 1: vrooli.treasury.v1.ledger.ListEmissionsRequest
-	(*ListEmissionsResponse)(nil), // 2: vrooli.treasury.v1.ledger.ListEmissionsResponse
-	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
+	(*LedgerEmission)(nil),               // 0: vrooli.treasury.v1.ledger.LedgerEmission
+	(*ListEmissionsRequest)(nil),         // 1: vrooli.treasury.v1.ledger.ListEmissionsRequest
+	(*ListEmissionsResponse)(nil),        // 2: vrooli.treasury.v1.ledger.ListEmissionsResponse
+	(*LedgerDestination)(nil),            // 3: vrooli.treasury.v1.ledger.LedgerDestination
+	(*SetLedgerDestinationRequest)(nil),  // 4: vrooli.treasury.v1.ledger.SetLedgerDestinationRequest
+	(*SetLedgerDestinationResponse)(nil), // 5: vrooli.treasury.v1.ledger.SetLedgerDestinationResponse
+	(*GetLedgerDestinationRequest)(nil),  // 6: vrooli.treasury.v1.ledger.GetLedgerDestinationRequest
+	(*GetLedgerDestinationResponse)(nil), // 7: vrooli.treasury.v1.ledger.GetLedgerDestinationResponse
+	(*timestamppb.Timestamp)(nil),        // 8: google.protobuf.Timestamp
 }
 var file_treasury_v1_ledger_ledger_proto_depIdxs = []int32{
-	3, // 0: vrooli.treasury.v1.ledger.LedgerEmission.fetched_at:type_name -> google.protobuf.Timestamp
-	3, // 1: vrooli.treasury.v1.ledger.LedgerEmission.accepted_at:type_name -> google.protobuf.Timestamp
-	3, // 2: vrooli.treasury.v1.ledger.LedgerEmission.occurred_at:type_name -> google.protobuf.Timestamp
-	3, // 3: vrooli.treasury.v1.ledger.LedgerEmission.created_at:type_name -> google.protobuf.Timestamp
-	0, // 4: vrooli.treasury.v1.ledger.ListEmissionsResponse.emissions:type_name -> vrooli.treasury.v1.ledger.LedgerEmission
-	1, // 5: vrooli.treasury.v1.ledger.LedgerService.ListEmissions:input_type -> vrooli.treasury.v1.ledger.ListEmissionsRequest
-	2, // 6: vrooli.treasury.v1.ledger.LedgerService.ListEmissions:output_type -> vrooli.treasury.v1.ledger.ListEmissionsResponse
-	6, // [6:7] is the sub-list for method output_type
-	5, // [5:6] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	8,  // 0: vrooli.treasury.v1.ledger.LedgerEmission.fetched_at:type_name -> google.protobuf.Timestamp
+	8,  // 1: vrooli.treasury.v1.ledger.LedgerEmission.accepted_at:type_name -> google.protobuf.Timestamp
+	8,  // 2: vrooli.treasury.v1.ledger.LedgerEmission.occurred_at:type_name -> google.protobuf.Timestamp
+	8,  // 3: vrooli.treasury.v1.ledger.LedgerEmission.created_at:type_name -> google.protobuf.Timestamp
+	0,  // 4: vrooli.treasury.v1.ledger.ListEmissionsResponse.emissions:type_name -> vrooli.treasury.v1.ledger.LedgerEmission
+	3,  // 5: vrooli.treasury.v1.ledger.ListEmissionsResponse.destination:type_name -> vrooli.treasury.v1.ledger.LedgerDestination
+	8,  // 6: vrooli.treasury.v1.ledger.LedgerDestination.set_at:type_name -> google.protobuf.Timestamp
+	3,  // 7: vrooli.treasury.v1.ledger.SetLedgerDestinationResponse.destination:type_name -> vrooli.treasury.v1.ledger.LedgerDestination
+	3,  // 8: vrooli.treasury.v1.ledger.GetLedgerDestinationResponse.destination:type_name -> vrooli.treasury.v1.ledger.LedgerDestination
+	1,  // 9: vrooli.treasury.v1.ledger.LedgerService.ListEmissions:input_type -> vrooli.treasury.v1.ledger.ListEmissionsRequest
+	4,  // 10: vrooli.treasury.v1.ledger.LedgerService.SetLedgerDestination:input_type -> vrooli.treasury.v1.ledger.SetLedgerDestinationRequest
+	6,  // 11: vrooli.treasury.v1.ledger.LedgerService.GetLedgerDestination:input_type -> vrooli.treasury.v1.ledger.GetLedgerDestinationRequest
+	2,  // 12: vrooli.treasury.v1.ledger.LedgerService.ListEmissions:output_type -> vrooli.treasury.v1.ledger.ListEmissionsResponse
+	5,  // 13: vrooli.treasury.v1.ledger.LedgerService.SetLedgerDestination:output_type -> vrooli.treasury.v1.ledger.SetLedgerDestinationResponse
+	7,  // 14: vrooli.treasury.v1.ledger.LedgerService.GetLedgerDestination:output_type -> vrooli.treasury.v1.ledger.GetLedgerDestinationResponse
+	12, // [12:15] is the sub-list for method output_type
+	9,  // [9:12] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_treasury_v1_ledger_ledger_proto_init() }
@@ -387,7 +747,7 @@ func file_treasury_v1_ledger_ledger_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_treasury_v1_ledger_ledger_proto_rawDesc), len(file_treasury_v1_ledger_ledger_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

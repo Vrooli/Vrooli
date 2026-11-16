@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"react-component-library/internal/sqliterows"
 	"time"
 
 	"github.com/google/uuid"
@@ -121,23 +123,26 @@ func (r *Repository) exportTable(ctx context.Context, table string) (archiveTabl
 		return archiveTable{}, err
 	}
 	archive := archiveTable{Columns: columns}
-	for rows.Next() {
+	archive.Rows, err = sqliterows.CollectRows(rows, false, func(row sqliterows.Scanner) ([]any, error) {
 		values := make([]any, len(columns))
 		destinations := make([]any, len(columns))
 		for i := range values {
 			destinations[i] = &values[i]
 		}
-		if err := rows.Scan(destinations...); err != nil {
-			return archiveTable{}, err
+		if err := row.Scan(destinations...); err != nil {
+			return nil, err
 		}
 		for i, value := range values {
 			if bytes, ok := value.([]byte); ok {
 				values[i] = string(bytes)
 			}
 		}
-		archive.Rows = append(archive.Rows, values)
+		return values, nil
+	})
+	if err != nil {
+		return archiveTable{}, err
 	}
-	return archive, rows.Err()
+	return archive, nil
 }
 
 func (r *Repository) ImportArchive(ctx context.Context, path string, overwrite bool) (ArchiveSummary, error) {
@@ -368,59 +373,43 @@ func validatePublishedReleaseBundle(bundle PublishedReleaseBundle, attestation r
 }
 
 func (r *Repository) Doctor(ctx context.Context) ([]DoctorIssue, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, library_id, version, source_path FROM component_versions WHERE presence = 'evicted' ORDER BY library_id, version`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
 	type evictedVersion struct {
 		id, libraryID, version, sourcePath string
 	}
-	var evicted []evictedVersion
-	for rows.Next() {
+	evicted, err := sqliterows.Collect(ctx, r.db, `SELECT id, library_id, version, source_path FROM component_versions WHERE presence = 'evicted' ORDER BY library_id, version`, nil, true, func(row sqliterows.Scanner) (evictedVersion, error) {
 		var version evictedVersion
-		if err := rows.Scan(&version.id, &version.libraryID, &version.version, &version.sourcePath); err != nil {
-			rows.Close()
-			return nil, err
+		if err := row.Scan(&version.id, &version.libraryID, &version.version, &version.sourcePath); err != nil {
+			return evictedVersion{}, err
 		}
-		evicted = append(evicted, version)
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, err
-	}
-	if err := rows.Close(); err != nil {
+		return version, nil
+	})
+	if err != nil {
 		return nil, err
 	}
 	var issues []DoctorIssue
 	for _, version := range evicted {
-		mirror, err := r.db.QueryContext(ctx, `SELECT path, content, content_sha256 FROM component_version_files WHERE version_id = ? ORDER BY path`, version.id)
+		type mirroredFile struct{ path, content, expected string }
+		files, err := sqliterows.Collect(ctx, r.db, `SELECT path, content, content_sha256 FROM component_version_files WHERE version_id = ? ORDER BY path`, []any{version.id}, false, func(row sqliterows.Scanner) (mirroredFile, error) {
+			var file mirroredFile
+			if err := row.Scan(&file.path, &file.content, &file.expected); err != nil {
+				return mirroredFile{}, err
+			}
+			return file, nil
+		})
 		if err != nil {
 			return nil, err
 		}
-		checked := 0
-		for mirror.Next() {
-			var path, content, expected string
-			if err := mirror.Scan(&path, &content, &expected); err != nil {
-				mirror.Close()
-				return nil, err
+		for _, file := range files {
+			actual := fmt.Sprintf("%x", sha256.Sum256([]byte(file.content)))
+			if actual != file.expected {
+				issues = append(issues, DoctorIssue{LibraryID: version.libraryID, Version: version.version, Path: file.path, Expected: file.expected, Actual: actual, Reason: "mirror content hash mismatch"})
 			}
-			actual := fmt.Sprintf("%x", sha256.Sum256([]byte(content)))
-			if actual != expected {
-				issues = append(issues, DoctorIssue{LibraryID: version.libraryID, Version: version.version, Path: path, Expected: expected, Actual: actual, Reason: "mirror content hash mismatch"})
-			}
-			checked++
 		}
-		if err := mirror.Err(); err != nil {
-			mirror.Close()
-			return nil, err
-		}
-		mirror.Close()
-		if checked == 0 {
+		if len(files) == 0 {
 			issues = append(issues, DoctorIssue{LibraryID: version.libraryID, Version: version.version, Path: filepath.ToSlash(filepath.Dir(version.sourcePath)), Reason: "evicted version has no file mirror"})
 		}
 	}
-	ledgerRows, err := r.db.QueryContext(ctx, `
+	ledgerVersions, err := sqliterows.Collect(ctx, r.db, `
 SELECT ledger.library_id, ledger.version
      , ledger.created_at, ledger.released_at, ledger.retired_at
      , ledger.lifecycle_state, ledger.file_count
@@ -428,31 +417,18 @@ FROM version_ledger AS ledger
 LEFT JOIN component_versions AS component
   ON component.library_id = ledger.library_id AND component.version = ledger.version
 WHERE component.library_id IS NULL
-ORDER BY ledger.library_id, ledger.version`)
+ORDER BY ledger.library_id, ledger.version`, nil, true, func(row sqliterows.Scanner) (DoctorIssue, error) {
+		var libraryID, version string
+		metadata := &DoctorLedgerMetadata{}
+		if err := row.Scan(&libraryID, &version, &metadata.CreatedAt, &metadata.ReleasedAt, &metadata.RetiredAt, &metadata.LifecycleState, &metadata.FileCount); err != nil {
+			return DoctorIssue{}, err
+		}
+		return DoctorIssue{LibraryID: libraryID, Version: version, Reason: "version ledger row has no component version", LedgerMetadata: metadata}, nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	for ledgerRows.Next() {
-		var libraryID, version string
-		metadata := &DoctorLedgerMetadata{}
-		if err := ledgerRows.Scan(&libraryID, &version, &metadata.CreatedAt, &metadata.ReleasedAt, &metadata.RetiredAt, &metadata.LifecycleState, &metadata.FileCount); err != nil {
-			ledgerRows.Close()
-			return nil, err
-		}
-		issues = append(issues, DoctorIssue{
-			LibraryID:      libraryID,
-			Version:        version,
-			Reason:         "version ledger row has no component version",
-			LedgerMetadata: metadata,
-		})
-	}
-	if err := ledgerRows.Err(); err != nil {
-		ledgerRows.Close()
-		return nil, err
-	}
-	if err := ledgerRows.Close(); err != nil {
-		return nil, err
-	}
+	issues = append(issues, ledgerVersions...)
 	return issues, nil
 }
 

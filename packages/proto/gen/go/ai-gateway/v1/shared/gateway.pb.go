@@ -698,8 +698,15 @@ type GatewayRequest struct {
 	// no-reclaim capacity admission; absent means capacity is not evaluated.
 	// The Gateway does not infer this estimate from a concrete model name.
 	RequiredVramBytes *int64 `protobuf:"varint,14,opt,name=required_vram_bytes,json=requiredVramBytes,proto3,oneof" json:"required_vram_bytes,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// privacy_provenance is a non-sensitive caller statement naming the source
+	// and basis used to assign privacy_class. It does not override the class or
+	// authorize a less restrictive route.
+	PrivacyProvenance string `protobuf:"bytes,15,opt,name=privacy_provenance,json=privacyProvenance,proto3" json:"privacy_provenance,omitempty"`
+	// task_role identifies the caller's task contract independently of any
+	// resource policy role selected by routing.
+	TaskRole      string `protobuf:"bytes,16,opt,name=task_role,json=taskRole,proto3" json:"task_role,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GatewayRequest) Reset() {
@@ -830,6 +837,20 @@ func (x *GatewayRequest) GetRequiredVramBytes() int64 {
 	return 0
 }
 
+func (x *GatewayRequest) GetPrivacyProvenance() string {
+	if x != nil {
+		return x.PrivacyProvenance
+	}
+	return ""
+}
+
+func (x *GatewayRequest) GetTaskRole() string {
+	if x != nil {
+		return x.TaskRole
+	}
+	return ""
+}
+
 type ValidationIssue struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Field         string                 `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
@@ -914,7 +935,7 @@ const file_ai_gateway_v1_shared_gateway_proto_rawDesc = "" +
 	"\x05bytes\x18\x05 \x01(\x04R\x05bytes\x12#\n" +
 	"\finline_bytes\x18\x06 \x01(\fH\x00R\vinlineBytes\x12\x1e\n" +
 	"\treference\x18\a \x01(\tH\x00R\treferenceB\t\n" +
-	"\apayload\"\xb8\x06\n" +
+	"\apayload\"\x84\a\n" +
 	"\x0eGatewayRequest\x12<\n" +
 	"\x04kind\x18\x01 \x01(\x0e2(.vrooli.ai_gateway.v1.shared.RequestKindR\x04kind\x12\x12\n" +
 	"\x04role\x18\x02 \x01(\tR\x04role\x12>\n" +
@@ -933,7 +954,9 @@ const file_ai_gateway_v1_shared_gateway_proto_rawDesc = "" +
 	"\bmetadata\x18\v \x03(\v29.vrooli.ai_gateway.v1.shared.GatewayRequest.MetadataEntryR\bmetadata\x12I\n" +
 	"\vattachments\x18\f \x03(\v2'.vrooli.ai_gateway.v1.shared.AttachmentR\vattachments\x12I\n" +
 	"\bsampling\x18\r \x01(\v2-.vrooli.ai_gateway.v1.shared.SamplingControlsR\bsampling\x12<\n" +
-	"\x13required_vram_bytes\x18\x0e \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x11requiredVramBytes\x88\x01\x01\x1a;\n" +
+	"\x13required_vram_bytes\x18\x0e \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x11requiredVramBytes\x88\x01\x01\x12-\n" +
+	"\x12privacy_provenance\x18\x0f \x01(\tR\x11privacyProvenance\x12\x1b\n" +
+	"\ttask_role\x18\x10 \x01(\tR\btaskRole\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x16\n" +

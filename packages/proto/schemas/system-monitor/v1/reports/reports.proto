@@ -145,6 +145,53 @@ message EnhancedSystemReport {
 
   // Total investigations during period.
   int32 investigations_count = 14;
+
+  // Per-owner CPU, memory, swap, and GPU residency observed during the report window.
+  OwnerResourceReport owner_resources = 15;
+}
+
+// OwnerResourceReport is bounded process telemetry summarized by stable owner.
+message OwnerResourceReport {
+  // The requested process timeline window; complete also checks sample coverage.
+  google.protobuf.Timestamp window_start = 1;
+  google.protobuf.Timestamp window_end = 2;
+
+  // False when no samples, window-edge coverage gaps, or a saturated group cap were observed.
+  bool complete = 3;
+
+  // False when at least one process group has no known owner.
+  bool attribution_complete = 4;
+
+  // Number of process groups returned by the bounded source query.
+  int32 returned_process_groups = 5;
+
+  // Per-owner totals and sample means.
+  repeated OwnerResourceSummary owners = 6;
+
+  // Earliest and latest process samples that contributed to this report.
+  google.protobuf.Timestamp sample_coverage_start = 7;
+  google.protobuf.Timestamp sample_coverage_end = 8;
+
+  // Swap reporting is complete only when every returned process sample had a measured swap value and both window edges are covered.
+  bool swap_coverage_complete = 9;
+  int64 swap_measured_samples = 10;
+  int64 swap_unknown_samples = 11;
+  google.protobuf.Timestamp swap_coverage_start = 12;
+  google.protobuf.Timestamp swap_coverage_end = 13;
+}
+
+// OwnerResourceSummary is a process-group aggregate. Memory values are sums of
+// per-process-group sample means, not a simultaneous host allocation snapshot.
+message OwnerResourceSummary {
+  string owner = 1;
+  int32 process_groups = 2;
+  int64 samples = 3;
+  double core_hours = 4;
+  double mean_rss_gib_process_sum = 5;
+  double mean_swap_gib_process_sum = 6;
+  double peak_single_process_vram_gib = 7;
+  int64 swap_measured_samples = 8;
+  int64 swap_unknown_samples = 9;
 }
 
 // ReportTimeRange defines start and end for a report period.

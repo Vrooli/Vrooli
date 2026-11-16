@@ -35,6 +35,10 @@ message SubmitRequest {
   // backdrop was produced as a 1.6:1 landscape and cropped, and no store asset
   // was ever generated at its real aspect.
   string surface_id = 7;
+  // Require an admitted local GPU for every model inference in this render.
+  // The normal path may use an admitted CPU fallback; a GPU showcase or other
+  // caller that needs device provenance sets this before any image is drawn.
+  bool require_gpu = 8;
 }
 
 message GetJobRequest {

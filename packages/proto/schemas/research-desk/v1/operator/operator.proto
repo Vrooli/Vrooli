@@ -1,0 +1,453 @@
+syntax = "proto3";
+
+package vrooli.research_desk.v1.operator;
+
+import "google/protobuf/timestamp.proto";
+import "research-desk/v1/activity/activity.proto";
+import "research-desk/v1/shared/commission.proto";
+import "research-desk/v1/shared/entry.proto";
+import "research-desk/v1/shared/evidence.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/operator;operator_v1";
+
+// =============================================================================
+// OPERATOR DOMAIN — the operator's words, answers, verdicts and the courier
+// =============================================================================
+//
+// @stability beta
+//
+// Writes only the desk's allow-listed files: OPERATOR.md and VERDICTS.md
+// (append-only), the one Steering section of an older charter, and the
+// courier switches in the desk's state folder. Only the instance holding the
+// write lock writes; others answer FailedPrecondition. Grammar:
+// scenarios/research-desk/docs/reference/FILE-CONTRACT.md §4–§5; courier:
+// docs/concepts/SYSTEM.md §7.
+// =============================================================================
+
+service OperatorService {
+  // ListNeedsYou is the one feed of items that need the operator, merged by
+  // commission and ID, with what the courier would do for each (the dry run).
+  rpc ListNeedsYou(ListNeedsYouRequest) returns (ListNeedsYouResponse);
+  // Answer appends the operator's answer to the commission's OPERATOR.md.
+  rpc Answer(AnswerRequest) returns (AnswerResponse);
+  // AddEntry appends direction or a wind-down to the commission's OPERATOR.md.
+  rpc AddEntry(AddEntryRequest) returns (AddEntryResponse);
+  // AddStewardFinding appends a reviewed finding to the lower-priority STEWARD.md channel.
+  rpc AddStewardFinding(AddStewardFindingRequest) returns (AddStewardFindingResponse);
+  // SettleHistoricalState records a cited historical disposition without
+  // controlling or inferring current worker/session terminality.
+  rpc SettleHistoricalState(SettleHistoricalStateRequest) returns (SettleHistoricalStateResponse);
+  // EnableSteering appends the Steering section to a charter that lacks it,
+  // so the scheduler reads OPERATOR.md.
+  rpc EnableSteering(EnableSteeringRequest) returns (EnableSteeringResponse);
+  // ListReviews lists reviews/<id>/ folders with their files and verdicts.
+  rpc ListReviews(ListReviewsRequest) returns (ListReviewsResponse);
+  // AddVerdict appends the operator's verdict on one topic to VERDICTS.md.
+  rpc AddVerdict(AddVerdictRequest) returns (AddVerdictResponse);
+  // SetCourier turns the courier on or off for a commission or for global
+  // ATTENTION.md items.
+  rpc SetCourier(SetCourierRequest) returns (SetCourierResponse);
+  // TestCourier raises one delivery-test ask through Vrooli Events and waits
+  // for a device to receive it; the ask expires unanswered 15 minutes later.
+  rpc TestCourier(TestCourierRequest) returns (TestCourierResponse);
+  // MarkSeen records the operator's look at a commission or topic, or with
+  // all at every one ("caught up"), in the desk's state folder, so
+  // ActivityService.GetChanges reports from now.
+  rpc MarkSeen(MarkSeenRequest) returns (MarkSeenResponse);
+}
+
+message SettleHistoricalStateRequest {
+  string commission_id = 1;
+  // prepared, closed, closed_partial or continued_elsewhere.
+  string status = 2;
+  google.protobuf.Timestamp as_of = 3;
+  string reason = 4;
+  // Clean paths relative to ~/.vrooli/research; each must name a regular file.
+  repeated string evidence_paths = 5;
+  bool dry_run = 6;
+  google.protobuf.Timestamp activity_start = 7;
+  google.protobuf.Timestamp activity_end = 8;
+}
+
+message SettleHistoricalStateResponse {
+  string path = 1;
+  string text = 2;
+  bool written = 3;
+  vrooli.research_desk.v1.activity.HistoricalSettlement settlement = 4;
+}
+
+message Option {
+  string key = 1;
+  string label = 2;
+}
+
+// Delivery is how the courier would carry an item, before its switch.
+enum Delivery {
+  DELIVERY_UNSPECIFIED = 0;
+  // A Hub decision with the item's options.
+  DELIVERY_ASK = 1;
+  // A plain notice pointing at the item, without options (no Recommended:
+  // line, a Secret: item, or no commission to read an answer).
+  DELIVERY_NOTICE = 2;
+  // Not sent: answered, or already delivered by the desk or by its scheduler.
+  DELIVERY_NONE = 3;
+}
+
+// DeliveryReason is why an item is or is not carried to Notification Hub;
+// the plain sentence beside it says the same for a reader.
+enum DeliveryReason {
+  DELIVERY_REASON_UNSPECIFIED = 0;
+  // The scheduler delivered it itself (a Delivered: line that is not the
+  // desk's own).
+  DELIVERY_REASON_SCHEDULER_DELIVERED = 1;
+  // Answered in OPERATOR.md.
+  DELIVERY_REASON_ANSWERED = 2;
+  // A secret item: sent as a notice saying where the secret goes.
+  DELIVERY_REASON_SECRET = 3;
+  // No commission would read an answer: sent as a notice.
+  DELIVERY_REASON_NO_COMMISSION = 4;
+  // The charter does not tell its scheduler to read OPERATOR.md.
+  DELIVERY_REASON_NO_STEERING = 5;
+  // No readable Recommended: line: sent as a notice without options.
+  DELIVERY_REASON_NO_RECOMMENDATION = 6;
+  // Sent as a Hub decision with the item's options.
+  DELIVERY_REASON_ASK = 7;
+  // Its files cannot be read: nothing is sent or recorded meanwhile.
+  DELIVERY_REASON_UNREADABLE = 8;
+  // The ID belongs to an earlier item: not delivered, and the earlier
+  // answer is not shown as this item's.
+  DELIVERY_REASON_ID_REUSED = 9;
+  // The courier is off for this item's commission (or global items).
+  DELIVERY_REASON_SWITCH_OFF = 10;
+  // Its scheduler delivers it itself; the courier waits two hours first.
+  DELIVERY_REASON_SCHEDULER_GRACE = 11;
+  // Notification Hub was not read or refused: not sent.
+  DELIVERY_REASON_HUB_UNAVAILABLE = 12;
+  // A Hub ask or notice exists; its state says what follows.
+  DELIVERY_REASON_IN_HUB = 13;
+  // The desk delivered it through the Hub (its receipt is in OPERATOR.md,
+  // or the item's Delivered: line names the desk's route or receipt).
+  DELIVERY_REASON_HUB_DELIVERED = 14;
+  // Answered in Notification Hub; the answer is being recorded.
+  DELIVERY_REASON_HUB_ANSWERED = 15;
+  // An open ask whose item left the files or whose commission ended.
+  DELIVERY_REASON_ORPHANED = 16;
+  // Present when the courier was switched on: never sent.
+  DELIVERY_REASON_BASELINE = 17;
+  // Sent as a plain notice.
+  DELIVERY_REASON_NOTICE = 18;
+  // An older needs-you list, not in the item grammar: shown, never sent.
+  DELIVERY_REASON_OLDER_LIST = 19;
+  // A decision whose folder, work/<ID>/, lacks a brief a cold executor can
+  // run (a dated Checked: line, what each answer settles) or its page: never sent.
+  DELIVERY_REASON_PACKET_NOT_READY = 20;
+}
+
+// NeedsYouKind is what a feed row is.
+enum NeedsYouKind {
+  NEEDS_YOU_KIND_UNSPECIFIED = 0;
+  // A `### ID — title` item.
+  NEEDS_YOU_KIND_ITEM = 1;
+  // An older needs-you list (a numbered list in the section): one row with
+  // its text in body; never sent and never answerable here.
+  NEEDS_YOU_KIND_OLDER_LIST = 2;
+}
+
+// CourierStep is what the courier does next for one item or orphaned ask.
+message CourierStep {
+  // "none", "ask", "notice", "record-delivered" or "record-answer".
+  string action = 1;
+  // Why this action, or why nothing happens.
+  string why = 2;
+  // Whether the courier is on for the item's commission (or global items).
+  bool on = 3;
+  string switch_reason = 4;
+  // The desk's key: "research-desk/<commission>/<ID>" for an ask,
+  // "research-desk-notice/<commission or global>/<ID>" for a notice.
+  string key = 5;
+  // The Hub ask, when one exists.
+  string ask_id = 6;
+  // pending, escalated, answered, defaulted, expired, withdrawn or dismissed.
+  string ask_state = 7;
+  // Why, as a code; why is the same in words.
+  DeliveryReason reason = 8;
+}
+
+// Link is one markdown link in an item's text.
+message Link {
+  string label = 1;
+  // A relative target is resolved against the folder of the file the item
+  // was read from; links to the web stay as written.
+  string target = 2;
+}
+
+message NeedsYouItem {
+  string id = 1;
+  string title = 2;
+  // The item's text below its heading, verbatim.
+  string body = 3;
+  // The owning commission; empty for a global ATTENTION.md item.
+  string commission_id = 4;
+  // Every file holding the item.
+  repeated string sources = 5;
+  // Unset when there is no readable Recommended: line.
+  Option recommended = 6;
+  // Why a Recommended: line could not be read.
+  string recommended_problem = 7;
+  // The item's options, or accept/hold when it has no Options: line.
+  repeated Option options = 8;
+  string packet = 9;
+  // Where a secret goes; a secret item is never answered into a file.
+  string secret = 10;
+  // The item's own Delivered: line, whoever made the delivery; a scheduler
+  // may copy the desk's receipt into it. delivery_reason_code says whose it is.
+  string delivered_by_scheduler = 11;
+  bool answerable = 12;
+  string not_answerable_reason = 13;
+  // The newest answer in OPERATOR.md.
+  vrooli.research_desk.v1.shared.OperatorEntry answer = 14;
+  // Whether the supervisor has read the answer: STATE.md was rewritten after
+  // it (a unit has run since).
+  vrooli.research_desk.v1.shared.DerivedFlag read = 15;
+  // The desk's newest delivered entry.
+  vrooli.research_desk.v1.shared.OperatorEntry delivered = 16;
+  Delivery delivery = 17;
+  string delivery_reason = 18;
+  CourierStep courier = 19;
+  DeliveryReason delivery_reason_code = 20;
+  // For an item that is not answerable here: what the item says to do (its
+  // "Needs you:" text, or its first line) and its links.
+  string instruction = 21;
+  repeated Link links = 22;
+  NeedsYouKind kind = 23;
+}
+
+message CommissionSwitch {
+  string commission_id = 1;
+  bool on = 2;
+  string reason = 3;
+}
+
+message CourierStatus {
+  bool global_on = 1;
+  // Every commission that is not ended.
+  repeated CommissionSwitch commissions = 2;
+  // True when the Hub's asks and notices were read for this response. Items
+  // go out as events through Vrooli Events; the Hub's reads need no credential.
+  bool hub_read = 3;
+  // Why the Hub was not read: no switch is on, or the error met.
+  string hub_reason = 4;
+  // Open asks whose item left the files. The desk cannot withdraw an ask, so
+  // each stays open until its deadline; an answer to it is ignored.
+  repeated CourierStep orphans = 5;
+  // Whether this instance holds the write lock and so runs the courier.
+  bool writer = 6;
+  string writer_reason = 7;
+  // The switches file in the desk's state folder.
+  string switches_file = 8;
+}
+
+message ListNeedsYouRequest {}
+
+message ListNeedsYouResponse {
+  // Items first, then older lists; each older list is one row.
+  repeated NeedsYouItem items = 1;
+  CourierStatus courier = 3;
+  // STATE.md, OPERATOR.md or ATTENTION.md files that exist but cannot be
+  // read: their items and answers are unknown, not absent, and
+  // the courier sends and records nothing for them meanwhile.
+  repeated vrooli.research_desk.v1.shared.Evidence unreadable = 4;
+  // limits.json entry_chars_max: the most characters one entry may hold;
+  // 0 when limits.json cannot be read (a write then says why).
+  int32 entry_chars_max = 5;
+  // Items still waiting on the operator: no answer of their own in
+  // OPERATOR.md and no answered Hub ask. Answered items are listed but not
+  // counted.
+  int32 item_count = 6;
+  // Older-list rows; shown, never sent or answered.
+  int32 older_list_count = 7;
+  // When this needs-you feed and its unreadable coverage were observed.
+  google.protobuf.Timestamp observed_at = 8;
+}
+
+message AnswerRequest {
+  string commission_id = 1;
+  string item_id = 2;
+  // One of the item's option keys, or "other" with a note.
+  string option_key = 3;
+  string note = 4;
+  // Return the exact text without writing it.
+  bool dry_run = 5;
+}
+
+message AnswerResponse {
+  vrooli.research_desk.v1.shared.OperatorEntry entry = 1;
+  string path = 2;
+  // Set when the charter does not tell the scheduler to read OPERATOR.md.
+  string warning = 3;
+  // The exact text appended (or, for a dry run, that would be).
+  string text = 4;
+  bool written = 5;
+  // When the supervisor will read it.
+  vrooli.research_desk.v1.shared.EntryReading reading = 6;
+}
+
+enum EntryKind {
+  ENTRY_KIND_UNSPECIFIED = 0;
+  ENTRY_KIND_DIRECTION = 1;
+  // Finish the current unit, write the closeout, then end.
+  ENTRY_KIND_WIND_DOWN = 2;
+}
+
+message AddEntryRequest {
+  string commission_id = 1;
+  EntryKind kind = 2;
+  // The operator's words, verbatim. A wind-down without words uses the
+  // standard sentence.
+  string text = 3;
+  // Return the exact text without writing it.
+  bool dry_run = 4;
+}
+
+message AddEntryResponse {
+  vrooli.research_desk.v1.shared.OperatorEntry entry = 1;
+  string path = 2;
+  // Set when the charter does not tell the scheduler to read OPERATOR.md.
+  string warning = 3;
+  // The exact text appended (or, for a dry run, that would be).
+  string text = 4;
+  bool written = 5;
+  // When the supervisor will read it.
+  vrooli.research_desk.v1.shared.EntryReading reading = 6;
+}
+
+message AddStewardFindingRequest {
+  string commission_id = 1;
+  string text = 2;
+  bool dry_run = 3;
+}
+
+message AddStewardFindingResponse {
+  string path = 1;
+  string text = 2;
+  bool written = 3;
+  string agent_run_id = 4;
+}
+
+message EnableSteeringRequest {
+  string commission_id = 1;
+  // Return the exact text without writing it.
+  bool dry_run = 2;
+}
+
+message EnableSteeringResponse {
+  // The charter.
+  string path = 1;
+  // False when the charter already carried the Steering sentence, or for a
+  // dry run.
+  bool written = 2;
+  // The exact text appended (or, for a dry run, that would be); empty when
+  // the charter already carries the sentence.
+  string text = 3;
+}
+
+message ReviewFile {
+  vrooli.research_desk.v1.shared.FileFact file = 1;
+  // Path under the desk's /api/v1/home/ file route, for viewing and media.
+  string url = 2;
+}
+
+message Review {
+  string id = 1;
+  string folder = 2;
+  vrooli.research_desk.v1.shared.DerivedText title = 3;
+  // REVIEW.md; unset while the review agent has not written it.
+  ReviewFile review = 4;
+  // REVIEW.html with embedded media, when the review wrote one.
+  ReviewFile review_html = 5;
+  repeated ReviewFile proposals = 6;
+  // Existing topics REVIEW.md names: its ## <topic> headings, else its
+  // topics/<topic> links.
+  repeated string topics = 7;
+  // Where topics came from, or why they are unknown (not known: the review
+  // names no topic either way, or REVIEW.md is missing or unreadable). An
+  // empty topics list with unknown evidence is unknown, not none.
+  vrooli.research_desk.v1.shared.Evidence topics_evidence = 10;
+  repeated vrooli.research_desk.v1.shared.OperatorEntry verdicts = 8;
+  // REVIEW.md, VERDICTS.md or proposals/ when they exist but cannot be read
+  //; topics, verdicts or proposals are then unknown.
+  repeated vrooli.research_desk.v1.shared.Evidence unreadable = 9;
+  // `### ` lines in VERDICTS.md that do not match the entry grammar, with
+  // their line numbers; their verdicts are not shown.
+  repeated vrooli.research_desk.v1.shared.UnparsedHeading unparsed_headings = 11;
+}
+
+message ListReviewsRequest {}
+
+message ListReviewsResponse {
+  repeated Review reviews = 1;
+  // The reviews folder, when it exists but cannot be read.
+  repeated vrooli.research_desk.v1.shared.Evidence unreadable = 2;
+  // limits.json entry_chars_max: the most characters one entry may hold;
+  // 0 when limits.json cannot be read (a write then says why).
+  int32 entry_chars_max = 3;
+}
+
+message AddVerdictRequest {
+  string review_id = 1;
+  string topic = 2;
+  // The operator's words, verbatim.
+  string text = 3;
+  // Return the exact text without writing it.
+  bool dry_run = 4;
+}
+
+message AddVerdictResponse {
+  vrooli.research_desk.v1.shared.OperatorEntry entry = 1;
+  string path = 2;
+  // The exact text appended (or, for a dry run, that would be).
+  string text = 3;
+  bool written = 4;
+}
+
+message SetCourierRequest {
+  // Empty with global=true.
+  string commission_id = 1;
+  bool global = 2;
+  bool on = 3;
+}
+
+message SetCourierResponse {
+  bool on = 1;
+  string reason = 2;
+  string switches_file = 3;
+}
+
+message TestCourierRequest {}
+
+message TestCourierResponse {
+  string ask_id = 1;
+  string key = 2;
+  // When a device first received it; unset if none did within the wait.
+  google.protobuf.Timestamp first_delivered_at = 3;
+  int32 waited_seconds = 5;
+  // The test ask's deadline: nothing can withdraw it, so it expires unanswered.
+  google.protobuf.Timestamp expires_at = 6;
+}
+
+message MarkSeenRequest {
+  vrooli.research_desk.v1.activity.ChangeSubject subject = 1;
+  string id = 2;
+  // Every commission and every topic at once; subject and id must be unset.
+  bool all = 3;
+}
+
+message MarkSeenResponse {
+  // When the look was recorded.
+  google.protobuf.Timestamp at = 1;
+  // The look file in the desk state folder; empty with all.
+  string path = 2;
+  // How many looks were recorded: 1 and 0 (or 0 and 1) for one subject.
+  int32 commissions = 3;
+  int32 topics = 4;
+}

@@ -299,8 +299,8 @@ func TestPreflightReportGuidesMissingCatalogEvidence(t *testing.T) {
 	})
 	joined := strings.Join(report.Results, "\n")
 	require.Contains(t, joined, "i18n coverage=not-measured; selector coverage=not-measured")
-	require.Contains(t, joined, "catalog gates i18n --asset-id visualization.chart")
-	require.Contains(t, joined, "catalog gates selector-coverage --asset-id visualization.chart")
+	require.Contains(t, joined, "catalog record-gate i18n --asset-id visualization.chart")
+	require.Contains(t, joined, "catalog record-gate selector-coverage --asset-id visualization.chart")
 	require.Contains(t, joined, "adoptions preflight react-component-library:Chart system-monitor --version 1.0.12")
 	require.Contains(t, joined, "linking stays blocked until both measures pass")
 }
@@ -312,7 +312,7 @@ func TestPreflightReportDoesNotSuggestLatestGateForOlderPin(t *testing.T) {
 		CatalogAssetId: "visualization.chart", CatalogLatestVersion: "1.0.12", I18NVerdict: "not-measured", SelectorVerdict: "not-measured",
 	})
 	joined := strings.Join(report.Results, "\n")
-	require.NotContains(t, joined, "catalog gates i18n --asset-id visualization.chart")
+	require.NotContains(t, joined, "catalog record-gate i18n --asset-id visualization.chart")
 	require.Contains(t, joined, "Catalog gates measure current visualization.chart@1.0.12")
 	require.Contains(t, joined, "selected react-component-library:Chart@1.0.11 needs exact-version gate evidence")
 }

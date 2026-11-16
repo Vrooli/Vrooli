@@ -1,0 +1,122 @@
+{
+  "name": "@vrooli/file-viewer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared file viewer: one shell, controller and renderer set for Markdown, code, media, Office, 3D, fonts, databases, archives and folders, over a pluggable PreviewSource.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./selectors": {
+      "types": "./dist/selectors.d.ts",
+      "import": "./dist/selectors.js",
+      "default": "./dist/selectors.js"
+    },
+    "./paths": {
+      "types": "./dist/lib/paths.d.ts",
+      "import": "./dist/lib/paths.js",
+      "default": "./dist/lib/paths.js"
+    },
+    "./file-references": {
+      "types": "./dist/lib/fileReferences.d.ts",
+      "import": "./dist/lib/fileReferences.js",
+      "default": "./dist/lib/fileReferences.js"
+    },
+    "./spreadsheet": {
+      "types": "./dist/spreadsheet/engine.d.ts",
+      "import": "./dist/spreadsheet/engine.js",
+      "default": "./dist/spreadsheet/engine.js"
+    },
+    "./styles.css": "./styles/file-viewer.css",
+    "./tailwind-preset": {
+      "types": "./styles/tailwind-preset.d.ts",
+      "import": "./styles/tailwind-preset.js",
+      "default": "./styles/tailwind-preset.js"
+    },
+    "./vite": {
+      "types": "./vite/index.d.ts",
+      "import": "./vite/index.js",
+      "default": "./vite/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "styles",
+    "vite"
+  ],
+  "sideEffects": [
+    "./styles/*.css"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "clean": "node scripts/clean.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "type-check": "tsc --noEmit"
+  },
+  "packageManager": "pnpm@10.34.9+sha512.f49b5a8ea0fdedb44bb3c0c1d6575092a53c2950d95b7ad15df11f17974877a2de3a01c07e934e9b28ce716e51c09a94962c7306d09be2e1e4b18a8c8762fd32",
+  "peerDependencies": {
+    "@vrooli/react-component-library": ">=1.0.0",
+    "mermaid": ">=11.0.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0",
+    "vite": ">=5.0.0",
+    "xlsx": ">=0.20.0"
+  },
+  "peerDependenciesMeta": {
+    "mermaid": {
+      "optional": true
+    },
+    "vite": {
+      "optional": true
+    },
+    "xlsx": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@aiden0z/pptx-renderer": "1.4.0",
+    "@sqlite.org/sqlite-wasm": "3.53.4-build2",
+    "clsx": "2.1.1",
+    "dompurify": "3.4.17",
+    "fontkit": "2.0.4",
+    "jszip": "3.10.1",
+    "lucide-react": "0.424.0",
+    "mammoth": "1.13.0",
+    "music-metadata": "11.16.0",
+    "pdfjs-dist": "6.4.299",
+    "react-markdown": "9.1.0",
+    "remark-gfm": "4.0.1",
+    "shiki": "1.29.2",
+    "tailwind-merge": "2.6.1",
+    "three": "0.185.1",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "14.6.1",
+    "@types/node": "22.19.19",
+    "@types/react": "18.3.28",
+    "@types/react-dom": "18.3.7",
+    "@types/three": "0.185.4",
+    "@vrooli/react-component-library": "file:../react-component-library",
+    "jsdom": "27.4.0",
+    "mermaid": "11.16.1",
+    "postcss": "8.5.18",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tailwindcss": "3.4.17",
+    "typescript": "5.9.3",
+    "vite": "6.4.3",
+    "vitest": "3.2.4",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  }
+}

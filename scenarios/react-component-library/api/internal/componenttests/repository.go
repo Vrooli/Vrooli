@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"react-component-library/internal/sqliterows"
 )
 
 // reportPayloadCeiling is a workload-derived upper bound: it retains a
@@ -197,32 +199,30 @@ func (r *SQLiteRepository) query(ctx context.Context, where string, arg any, lim
 		}
 	}
 	args = append(args, limit)
-	rows, err := r.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := []Report{}
-	for rows.Next() {
+	out, err := sqliterows.Collect(ctx, r.db, query, args, false, func(row sqliterows.Scanner) (Report, error) {
 		var report Report
-		var created string
-		var sourceRevision string
-		var results string
-		if err := rows.Scan(&report.ID, &report.RootComponentID, &report.RootLibraryID, &report.RootVersion, &report.IncludeClosure, &sourceRevision, &created, &report.Verdict, &results); err != nil {
-			return nil, err
+		var created, sourceRevision, results string
+		if err := row.Scan(&report.ID, &report.RootComponentID, &report.RootLibraryID, &report.RootVersion, &report.IncludeClosure, &sourceRevision, &created, &report.Verdict, &results); err != nil {
+			return Report{}, err
 		}
 		report.SourceRevision = sourceRevision
 		if err := report.CreatedAt.UnmarshalText([]byte(created)); err != nil {
-			return nil, err
+			return Report{}, err
 		}
 		persisted, err := decodePersistedResults(results)
 		if err != nil {
-			return nil, err
+			return Report{}, err
 		}
 		report.Results, report.Artifacts = persisted.Results, persisted.Artifacts
-		out = append(out, report)
+		return report, nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	return out, rows.Err()
+	if out == nil {
+		out = []Report{}
+	}
+	return out, nil
 }
 
 // decodePersistedResults preserves execution evidence created before artifacts

@@ -157,7 +157,7 @@ class LifecycleFlowReference(_message.Message):
     def __init__(self, flow_id: _Optional[str] = ..., path: _Optional[str] = ..., status_type: _Optional[str] = ..., matched_states: _Optional[_Iterable[str]] = ..., candidate_state_count: _Optional[int] = ..., contract_state_count: _Optional[int] = ..., exact_lifecycle_match: _Optional[bool] = ...) -> None: ...
 
 class LifecycleCandidate(_message.Message):
-    __slots__ = ("id", "scenario_id", "package", "type_name", "field_name", "field_type", "declaration", "states", "related_flags", "time_fields", "write_sites", "guard_sites", "test_files", "hunt_records", "burden_score", "score_breakdown", "confidence", "explicit_flows", "explicitly_modeled", "transition_owners", "persistence_class", "persistence_reason", "persistence_evidence", "persistence_scope", "persistence_files_scanned", "persistence_scan_complete", "preselection_status")
+    __slots__ = ("id", "scenario_id", "package", "type_name", "field_name", "field_type", "declaration", "states", "related_flags", "time_fields", "write_sites", "guard_sites", "test_files", "hunt_records", "burden_score", "score_breakdown", "confidence", "explicit_flows", "explicitly_modeled", "transition_owners", "persistence_class", "persistence_reason", "persistence_evidence", "persistence_scope", "persistence_files_scanned", "persistence_scan_complete", "preselection_status", "transition_graph_verified", "invalid_transition_tested")
     ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_ID_FIELD_NUMBER: _ClassVar[int]
     PACKAGE_FIELD_NUMBER: _ClassVar[int]
@@ -185,6 +185,8 @@ class LifecycleCandidate(_message.Message):
     PERSISTENCE_FILES_SCANNED_FIELD_NUMBER: _ClassVar[int]
     PERSISTENCE_SCAN_COMPLETE_FIELD_NUMBER: _ClassVar[int]
     PRESELECTION_STATUS_FIELD_NUMBER: _ClassVar[int]
+    TRANSITION_GRAPH_VERIFIED_FIELD_NUMBER: _ClassVar[int]
+    INVALID_TRANSITION_TESTED_FIELD_NUMBER: _ClassVar[int]
     id: str
     scenario_id: str
     package: str
@@ -212,7 +214,9 @@ class LifecycleCandidate(_message.Message):
     persistence_files_scanned: int
     persistence_scan_complete: bool
     preselection_status: str
-    def __init__(self, id: _Optional[str] = ..., scenario_id: _Optional[str] = ..., package: _Optional[str] = ..., type_name: _Optional[str] = ..., field_name: _Optional[str] = ..., field_type: _Optional[str] = ..., declaration: _Optional[_Union[LifecycleEvidence, _Mapping]] = ..., states: _Optional[_Iterable[_Union[LifecycleStateEvidence, _Mapping]]] = ..., related_flags: _Optional[_Iterable[_Union[LifecycleEvidence, _Mapping]]] = ..., time_fields: _Optional[_Iterable[_Union[LifecycleEvidence, _Mapping]]] = ..., write_sites: _Optional[_Iterable[_Union[LifecycleEvidence, _Mapping]]] = ..., guard_sites: _Optional[_Iterable[_Union[LifecycleEvidence, _Mapping]]] = ..., test_files: _Optional[_Iterable[str]] = ..., hunt_records: _Optional[_Iterable[_Union[LifecycleHuntReference, _Mapping]]] = ..., burden_score: _Optional[int] = ..., score_breakdown: _Optional[_Iterable[str]] = ..., confidence: _Optional[str] = ..., explicit_flows: _Optional[_Iterable[_Union[LifecycleFlowReference, _Mapping]]] = ..., explicitly_modeled: _Optional[bool] = ..., transition_owners: _Optional[_Iterable[_Union[LifecycleEvidence, _Mapping]]] = ..., persistence_class: _Optional[str] = ..., persistence_reason: _Optional[str] = ..., persistence_evidence: _Optional[_Iterable[_Union[LifecycleEvidence, _Mapping]]] = ..., persistence_scope: _Optional[str] = ..., persistence_files_scanned: _Optional[int] = ..., persistence_scan_complete: _Optional[bool] = ..., preselection_status: _Optional[str] = ...) -> None: ...
+    transition_graph_verified: bool
+    invalid_transition_tested: bool
+    def __init__(self, id: _Optional[str] = ..., scenario_id: _Optional[str] = ..., package: _Optional[str] = ..., type_name: _Optional[str] = ..., field_name: _Optional[str] = ..., field_type: _Optional[str] = ..., declaration: _Optional[_Union[LifecycleEvidence, _Mapping]] = ..., states: _Optional[_Iterable[_Union[LifecycleStateEvidence, _Mapping]]] = ..., related_flags: _Optional[_Iterable[_Union[LifecycleEvidence, _Mapping]]] = ..., time_fields: _Optional[_Iterable[_Union[LifecycleEvidence, _Mapping]]] = ..., write_sites: _Optional[_Iterable[_Union[LifecycleEvidence, _Mapping]]] = ..., guard_sites: _Optional[_Iterable[_Union[LifecycleEvidence, _Mapping]]] = ..., test_files: _Optional[_Iterable[str]] = ..., hunt_records: _Optional[_Iterable[_Union[LifecycleHuntReference, _Mapping]]] = ..., burden_score: _Optional[int] = ..., score_breakdown: _Optional[_Iterable[str]] = ..., confidence: _Optional[str] = ..., explicit_flows: _Optional[_Iterable[_Union[LifecycleFlowReference, _Mapping]]] = ..., explicitly_modeled: _Optional[bool] = ..., transition_owners: _Optional[_Iterable[_Union[LifecycleEvidence, _Mapping]]] = ..., persistence_class: _Optional[str] = ..., persistence_reason: _Optional[str] = ..., persistence_evidence: _Optional[_Iterable[_Union[LifecycleEvidence, _Mapping]]] = ..., persistence_scope: _Optional[str] = ..., persistence_files_scanned: _Optional[int] = ..., persistence_scan_complete: _Optional[bool] = ..., preselection_status: _Optional[str] = ..., transition_graph_verified: _Optional[bool] = ..., invalid_transition_tested: _Optional[bool] = ...) -> None: ...
 
 class GenerateScenarioArtifactsRequest(_message.Message):
     __slots__ = ("scenario_id",)

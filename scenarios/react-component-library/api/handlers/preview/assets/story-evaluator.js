@@ -77,6 +77,14 @@ const expectationFailure = (document, queries, expectation, env) => {
     if (expectation.minHeight !== undefined && rect.height < Number(expectation.minHeight)) return "expected layout height minimum was not met";
     if (expectation.maxWidth !== undefined && rect.width > Number(expectation.maxWidth)) return "expected layout width maximum was not met";
     if (expectation.maxHeight !== undefined && rect.height > Number(expectation.maxHeight)) return "expected layout height maximum was not met";
+    if (expectation.sameRow) {
+      const children = Array.from(node.children).filter((child) => visible(child, document));
+      if (children.length < 2) return "same-row expectation requires at least two visible children";
+      const firstTop = children[0].getBoundingClientRect().top;
+      if (children.some((child) => Math.abs(child.getBoundingClientRect().top - firstTop) > 1)) {
+        return "expected visible children to remain on one row";
+      }
+    }
     if (expectation.noOverflow && node.scrollWidth > node.clientWidth + 1) return "expected layout target not to overflow horizontally";
     return "";
   }

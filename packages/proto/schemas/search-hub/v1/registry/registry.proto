@@ -391,6 +391,8 @@ message ExecuteEmbeddingMigrationRequest {
   string scope = 9;
   bool dry_run = 10;
   string job_id = 11;
+  string embedding_recipe_id = 12;
+  string embedding_recipe_canonical = 13;
 }
 
 message ExecuteEmbeddingMigrationResponse {

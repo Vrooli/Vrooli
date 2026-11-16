@@ -43,7 +43,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
-    "generator_digest": "sha256:cccdbaf9a556a5be923d2c17f31d7f3f1e8de7959b27263f9ddbb964a4b52cc9",
+    "generator_digest": "sha256:47bbfc74c5d2c0e0172be6ac47ec939b6b4678e8ca51fa8202f7056c8fc16447",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -175,7 +175,7 @@
     "gen/python/web_console/v1/workspace/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/web_console/v1/workspace/workspace_pb2.py": "sha256:a5a3028f381c69a0900fef775e93e325763ffbfdc2b13561bbfae697383bb956",
     "gen/python/web_console/v1/workspace/workspace_pb2.pyi": "sha256:297eb21cc5d9ad1069039ba931c9972e647f49778747547877bd2259e7fbbb9e",
-    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
+    "gen/typescript/package.json": "sha256:d7210c69e0b4e8eb72d65b1503ce8ea1eeb61aa893b5442e16d0ab4a9980e5d6",
     "gen/typescript/web-console/v1/ai/ai_pb.ts": "sha256:cbb82174c04d6b0ec1b4d6379c668d379ab4d57cfd107ab9703b9bf23c2c26d8",
     "gen/typescript/web-console/v1/audio_admin/audio_admin_pb.ts": "sha256:68f28dd9895835e9174cdb3a97a31c00095916c9197f6a7f8e1c7f350985b6e4",
     "gen/typescript/web-console/v1/audio_common/audio_common_pb.ts": "sha256:aa8196ada2f1af8f9946a04543c9739a56cf667baf48511a6ed326a669767045",

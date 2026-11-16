@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start stop test logs status clean fmt fmt-go fmt-ui lint lint-go lint-ui check setup
+.PHONY: help start stop test logs status clean fmt fmt-go fmt-ui lint lint-go lint-ui check setup endpoints
 
 .DEFAULT_GOAL := help
 
@@ -69,3 +69,6 @@ check: fmt lint test ## Run full quality gates
 
 setup: ## Run scenario setup lifecycle
 	@vrooli scenario setup "$(SCENARIO_NAME)"
+
+endpoints: ## Regenerate .vrooli/endpoints.json from API modules and cli/manifest.json
+	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json

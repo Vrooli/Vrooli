@@ -44,9 +44,10 @@ enum OperationState {
   OPERATION_STATE_BACKEND_ACKNOWLEDGED = 5;
 }
 
-// CachedModeReadback describes a later OpenRGB controller-data observation.
-// It is separate from the preceding command ACK and never means LEDs were
-// observed producing light.
+// CachedModeReadback describes only the active mode descriptor from a later
+// OpenRGB controller-data observation. It does not compare RGB channel values
+// and never means LEDs were observed producing light. Per-LED reported colors
+// are exposed separately on Controller.reported_led_colors.
 enum CachedModeReadback {
   CACHED_MODE_READBACK_UNSPECIFIED = 0;
   CACHED_MODE_READBACK_NOT_CHECKED = 1;
@@ -89,6 +90,22 @@ message Controller {
   repeated ZoneCapability zones = 7;
   google.protobuf.Timestamp last_seen_at = 8;
   string identity_source = 9;
+  // Colors returned in the most recent OpenRGB SDK controller-data packet.
+  // They describe OpenRGB's reported/cached state, not measured physical output.
+  repeated ReportedLEDColor reported_led_colors = 10;
+  string reported_color_source = 11;
+  google.protobuf.Timestamp reported_colors_observed_at = 12;
+  // Active controller mode from OpenRGB's controller-data packet. This is
+  // backend-reported state, not proof that the hardware emitted that mode.
+  string reported_active_mode = 13;
+  optional uint32 reported_active_mode_index = 14;
+  google.protobuf.Timestamp reported_active_mode_observed_at = 15;
+}
+
+message ReportedLEDColor {
+  optional uint32 index = 1;
+  string display_name = 2;
+  Color color = 3;
 }
 
 message Color {

@@ -41,10 +41,12 @@ type MetricsResponse struct {
 	// Honest state for each primary metric. The legacy scalar fields above are
 	// retained for wire compatibility while consumers migrate; new consumers
 	// must use these oneof-backed values and never infer absence from zero.
-	Cpu                *MetricValue         `protobuf:"bytes,6,opt,name=cpu,proto3" json:"cpu,omitempty"`
-	Memory             *MetricValue         `protobuf:"bytes,7,opt,name=memory,proto3" json:"memory,omitempty"`
-	Connections        *MetricValue         `protobuf:"bytes,8,opt,name=connections,proto3" json:"connections,omitempty"`
-	Gpu                *MetricValue         `protobuf:"bytes,9,opt,name=gpu,proto3" json:"gpu,omitempty"`
+	Cpu         *MetricValue `protobuf:"bytes,6,opt,name=cpu,proto3" json:"cpu,omitempty"`
+	Memory      *MetricValue `protobuf:"bytes,7,opt,name=memory,proto3" json:"memory,omitempty"`
+	Connections *MetricValue `protobuf:"bytes,8,opt,name=connections,proto3" json:"connections,omitempty"`
+	Gpu         *MetricValue `protobuf:"bytes,9,opt,name=gpu,proto3" json:"gpu,omitempty"`
+	// Complete, fresh per-process GPU inventory required to prove GPU absence.
+	GpuProcesses       *MetricValue         `protobuf:"bytes,15,opt,name=gpu_processes,json=gpuProcesses,proto3" json:"gpu_processes,omitempty"`
 	Disk               *MetricValue         `protobuf:"bytes,10,opt,name=disk,proto3" json:"disk,omitempty"`
 	SwapTraffic        *MetricValue         `protobuf:"bytes,12,opt,name=swap_traffic,json=swapTraffic,proto3" json:"swap_traffic,omitempty"`
 	MajorFaults        *MetricValue         `protobuf:"bytes,13,opt,name=major_faults,json=majorFaults,proto3" json:"major_faults,omitempty"`
@@ -150,6 +152,13 @@ func (x *MetricsResponse) GetConnections() *MetricValue {
 func (x *MetricsResponse) GetGpu() *MetricValue {
 	if x != nil {
 		return x.Gpu
+	}
+	return nil
+}
+
+func (x *MetricsResponse) GetGpuProcesses() *MetricValue {
+	if x != nil {
+		return x.GpuProcesses
 	}
 	return nil
 }
@@ -405,8 +414,16 @@ type MetricTimelineSample struct {
 	NetworkTimeWaitRate         *MetricValue         `protobuf:"bytes,27,opt,name=network_time_wait_rate,json=networkTimeWaitRate,proto3" json:"network_time_wait_rate,omitempty"`
 	NetworkCloseWaitRate        *MetricValue         `protobuf:"bytes,28,opt,name=network_close_wait_rate,json=networkCloseWaitRate,proto3" json:"network_close_wait_rate,omitempty"`
 	KernelMemory                *KernelMemoryMetrics `protobuf:"bytes,29,opt,name=kernel_memory,json=kernelMemory,proto3" json:"kernel_memory,omitempty"`
-	unknownFields               protoimpl.UnknownFields
-	sizeCache                   protoimpl.SizeCache
+	// Disk usage percentage from the disk collector. Its MetricValue state keeps
+	// failed or unavailable observations distinct from a measured zero.
+	DiskUsage *MetricValue `protobuf:"bytes,30,opt,name=disk_usage,json=diskUsage,proto3" json:"disk_usage,omitempty"`
+	// Persisted physical-disk throughput samples. Observation time and state are
+	// carried in MetricValue so unsupported, missed, and measured-zero samples
+	// stay distinguishable after a reload.
+	DiskReadRate  *MetricValue `protobuf:"bytes,31,opt,name=disk_read_rate,json=diskReadRate,proto3" json:"disk_read_rate,omitempty"`
+	DiskWriteRate *MetricValue `protobuf:"bytes,32,opt,name=disk_write_rate,json=diskWriteRate,proto3" json:"disk_write_rate,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MetricTimelineSample) Reset() {
@@ -638,6 +655,27 @@ func (x *MetricTimelineSample) GetNetworkCloseWaitRate() *MetricValue {
 func (x *MetricTimelineSample) GetKernelMemory() *KernelMemoryMetrics {
 	if x != nil {
 		return x.KernelMemory
+	}
+	return nil
+}
+
+func (x *MetricTimelineSample) GetDiskUsage() *MetricValue {
+	if x != nil {
+		return x.DiskUsage
+	}
+	return nil
+}
+
+func (x *MetricTimelineSample) GetDiskReadRate() *MetricValue {
+	if x != nil {
+		return x.DiskReadRate
+	}
+	return nil
+}
+
+func (x *MetricTimelineSample) GetDiskWriteRate() *MetricValue {
+	if x != nil {
+		return x.DiskWriteRate
 	}
 	return nil
 }
@@ -4098,9 +4136,16 @@ type ProcessTimelineEntry struct {
 	// from average CPU percentage and is the durable historical attribution rank.
 	CpuSeconds float64 `protobuf:"fixed64,10,opt,name=cpu_seconds,json=cpuSeconds,proto3" json:"cpu_seconds,omitempty"`
 	// Maximum instantaneous CPU percentage observed in the requested window.
-	MaxCpuPct     float64 `protobuf:"fixed64,11,opt,name=max_cpu_pct,json=maxCpuPct,proto3" json:"max_cpu_pct,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	MaxCpuPct float64 `protobuf:"fixed64,11,opt,name=max_cpu_pct,json=maxCpuPct,proto3" json:"max_cpu_pct,omitempty"`
+	// Mean swap use in KiB over measured samples only.
+	SwapKb int64 `protobuf:"varint,12,opt,name=swap_kb,json=swapKb,proto3" json:"swap_kb,omitempty"`
+	// Explicit distinction between measured zero and unavailable swap samples.
+	SwapMeasuredSamples int64                  `protobuf:"varint,13,opt,name=swap_measured_samples,json=swapMeasuredSamples,proto3" json:"swap_measured_samples,omitempty"`
+	SwapUnknownSamples  int64                  `protobuf:"varint,14,opt,name=swap_unknown_samples,json=swapUnknownSamples,proto3" json:"swap_unknown_samples,omitempty"`
+	SwapCoverageStart   *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=swap_coverage_start,json=swapCoverageStart,proto3" json:"swap_coverage_start,omitempty"`
+	SwapCoverageEnd     *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=swap_coverage_end,json=swapCoverageEnd,proto3" json:"swap_coverage_end,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ProcessTimelineEntry) Reset() {
@@ -4210,6 +4255,41 @@ func (x *ProcessTimelineEntry) GetMaxCpuPct() float64 {
 	return 0
 }
 
+func (x *ProcessTimelineEntry) GetSwapKb() int64 {
+	if x != nil {
+		return x.SwapKb
+	}
+	return 0
+}
+
+func (x *ProcessTimelineEntry) GetSwapMeasuredSamples() int64 {
+	if x != nil {
+		return x.SwapMeasuredSamples
+	}
+	return 0
+}
+
+func (x *ProcessTimelineEntry) GetSwapUnknownSamples() int64 {
+	if x != nil {
+		return x.SwapUnknownSamples
+	}
+	return 0
+}
+
+func (x *ProcessTimelineEntry) GetSwapCoverageStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SwapCoverageStart
+	}
+	return nil
+}
+
+func (x *ProcessTimelineEntry) GetSwapCoverageEnd() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SwapCoverageEnd
+	}
+	return nil
+}
+
 // ProcessTimelineResponse ranks process consumers over a time window.
 type ProcessTimelineResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -4224,8 +4304,10 @@ type ProcessTimelineResponse struct {
 	// Ranked process consumers.
 	Entries []*ProcessTimelineEntry `protobuf:"bytes,5,rep,name=entries,proto3" json:"entries,omitempty"`
 	// Actual covered range; empty when no samples were available.
-	CoveredStart  *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=covered_start,json=coveredStart,proto3" json:"covered_start,omitempty"`
-	CoveredEnd    *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=covered_end,json=coveredEnd,proto3" json:"covered_end,omitempty"`
+	CoveredStart *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=covered_start,json=coveredStart,proto3" json:"covered_start,omitempty"`
+	CoveredEnd   *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=covered_end,json=coveredEnd,proto3" json:"covered_end,omitempty"`
+	// Rank applied to entries (cpu, cpu_seconds, rss, swap, or gpu).
+	Rank          string `protobuf:"bytes,8,opt,name=rank,proto3" json:"rank,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4309,6 +4391,13 @@ func (x *ProcessTimelineResponse) GetCoveredEnd() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *ProcessTimelineResponse) GetRank() string {
+	if x != nil {
+		return x.Rank
+	}
+	return ""
+}
+
 // ProcessHealthInfo summarizes process health.
 type ProcessHealthInfo struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -4320,8 +4409,10 @@ type ProcessHealthInfo struct {
 	HighThreadCount []*ProcessInfo `protobuf:"bytes,3,rep,name=high_thread_count,json=highThreadCount,proto3" json:"high_thread_count,omitempty"`
 	// Processes suspected of leaking resources.
 	LeakCandidates []*ProcessInfo `protobuf:"bytes,4,rep,name=leak_candidates,json=leakCandidates,proto3" json:"leak_candidates,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Typed total so a missing process observation cannot appear as zero.
+	ZombieCount   *MetricValue `protobuf:"bytes,5,opt,name=zombie_count,json=zombieCount,proto3" json:"zombie_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ProcessHealthInfo) Reset() {
@@ -4378,6 +4469,13 @@ func (x *ProcessHealthInfo) GetHighThreadCount() []*ProcessInfo {
 func (x *ProcessHealthInfo) GetLeakCandidates() []*ProcessInfo {
 	if x != nil {
 		return x.LeakCandidates
+	}
+	return nil
+}
+
+func (x *ProcessHealthInfo) GetZombieCount() *MetricValue {
+	if x != nil {
+		return x.ZombieCount
 	}
 	return nil
 }
@@ -4641,10 +4739,13 @@ type StorageIOInfo struct {
 	ReadMbPerSec   float64                `protobuf:"fixed64,3,opt,name=read_mb_per_sec,json=readMbPerSec,proto3" json:"read_mb_per_sec,omitempty"`
 	WriteMbPerSec  float64                `protobuf:"fixed64,4,opt,name=write_mb_per_sec,json=writeMbPerSec,proto3" json:"write_mb_per_sec,omitempty"`
 	// Native measured rates; legacy scalars are compatibility projections.
-	ReadRate      *MetricValue `protobuf:"bytes,5,opt,name=read_rate,json=readRate,proto3" json:"read_rate,omitempty"`
-	WriteRate     *MetricValue `protobuf:"bytes,6,opt,name=write_rate,json=writeRate,proto3" json:"write_rate,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ReadRate  *MetricValue `protobuf:"bytes,5,opt,name=read_rate,json=readRate,proto3" json:"read_rate,omitempty"`
+	WriteRate *MetricValue `protobuf:"bytes,6,opt,name=write_rate,json=writeRate,proto3" json:"write_rate,omitempty"`
+	// Capability states for storage values that are not currently collected.
+	DiskQueueDepthState *MetricValue `protobuf:"bytes,7,opt,name=disk_queue_depth_state,json=diskQueueDepthState,proto3" json:"disk_queue_depth_state,omitempty"`
+	IoWaitState         *MetricValue `protobuf:"bytes,8,opt,name=io_wait_state,json=ioWaitState,proto3" json:"io_wait_state,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *StorageIOInfo) Reset() {
@@ -4715,6 +4816,20 @@ func (x *StorageIOInfo) GetReadRate() *MetricValue {
 func (x *StorageIOInfo) GetWriteRate() *MetricValue {
 	if x != nil {
 		return x.WriteRate
+	}
+	return nil
+}
+
+func (x *StorageIOInfo) GetDiskQueueDepthState() *MetricValue {
+	if x != nil {
+		return x.DiskQueueDepthState
+	}
+	return nil
+}
+
+func (x *StorageIOInfo) GetIoWaitState() *MetricValue {
+	if x != nil {
+		return x.IoWaitState
 	}
 	return nil
 }
@@ -5175,7 +5290,7 @@ type GetProcessTimelineRequest struct {
 	Owner string `protobuf:"bytes,2,opt,name=owner,proto3" json:"owner,omitempty"`
 	// Maximum ranked rows to return.
 	Top *int32 `protobuf:"varint,3,opt,name=top,proto3,oneof" json:"top,omitempty"`
-	// Ranking: cpu (default), cpu_seconds, rss, or gpu.
+	// Ranking: cpu (default), cpu_seconds, rss, swap, or gpu.
 	Rank          string `protobuf:"bytes,4,opt,name=rank,proto3" json:"rank,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5469,9 +5584,14 @@ func (x *GetMetricsTimelineResponse) GetTimeline() *MetricsTimelineResponse {
 	return nil
 }
 
-// GetDiskDetailRequest is empty - no parameters needed.
+// GetDiskDetailRequest scopes a bounded, read-only disk inspection to a
+// currently mounted path.
 type GetDiskDetailRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Mount         string                 `protobuf:"bytes,1,opt,name=mount,proto3" json:"mount,omitempty"`
+	Depth         int32                  `protobuf:"varint,2,opt,name=depth,proto3" json:"depth,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	IncludeFiles  bool                   `protobuf:"varint,4,opt,name=include_files,json=includeFiles,proto3" json:"include_files,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5504,6 +5624,34 @@ func (x *GetDiskDetailRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetDiskDetailRequest.ProtoReflect.Descriptor instead.
 func (*GetDiskDetailRequest) Descriptor() ([]byte, []int) {
 	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{62}
+}
+
+func (x *GetDiskDetailRequest) GetMount() string {
+	if x != nil {
+		return x.Mount
+	}
+	return ""
+}
+
+func (x *GetDiskDetailRequest) GetDepth() int32 {
+	if x != nil {
+		return x.Depth
+	}
+	return 0
+}
+
+func (x *GetDiskDetailRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *GetDiskDetailRequest) GetIncludeFiles() bool {
+	if x != nil {
+		return x.IncludeFiles
+	}
+	return false
 }
 
 // GetDiskDetailResponse returns disk usage details.
@@ -5556,7 +5704,7 @@ var File_system_monitor_v1_metrics_metrics_proto protoreflect.FileDescriptor
 
 const file_system_monitor_v1_metrics_metrics_proto_rawDesc = "" +
 	"\n" +
-	"'system-monitor/v1/metrics/metrics.proto\x12 vrooli.system_monitor.v1.metrics\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbc\a\n" +
+	"'system-monitor/v1/metrics/metrics.proto\x12 vrooli.system_monitor.v1.metrics\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x90\b\n" +
 	"\x0fMetricsResponse\x12\x19\n" +
 	"\bcycle_id\x18\v \x01(\tR\acycleId\x12\x1b\n" +
 	"\tcpu_usage\x18\x01 \x01(\x01R\bcpuUsage\x12!\n" +
@@ -5567,7 +5715,8 @@ const file_system_monitor_v1_metrics_metrics_proto_rawDesc = "" +
 	"\x03cpu\x18\x06 \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\x03cpu\x12E\n" +
 	"\x06memory\x18\a \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\x06memory\x12O\n" +
 	"\vconnections\x18\b \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\vconnections\x12?\n" +
-	"\x03gpu\x18\t \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\x03gpu\x12A\n" +
+	"\x03gpu\x18\t \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\x03gpu\x12R\n" +
+	"\rgpu_processes\x18\x0f \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\fgpuProcesses\x12A\n" +
 	"\x04disk\x18\n" +
 	" \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\x04disk\x12P\n" +
 	"\fswap_traffic\x18\f \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\vswapTraffic\x12P\n" +
@@ -5591,7 +5740,7 @@ const file_system_monitor_v1_metrics_metrics_proto_rawDesc = "" +
 	"\x11freshness_seconds\x18\a \x01(\x01R\x10freshnessSeconds\x12\x14\n" +
 	"\x05units\x18\n" +
 	" \x01(\tR\x05unitsB\a\n" +
-	"\x05state\"\xfc\x11\n" +
+	"\x05state\"\xf6\x13\n" +
 	"\x14MetricTimelineSample\x12\x19\n" +
 	"\bcycle_id\x18\n" +
 	" \x01(\tR\acycleId\x128\n" +
@@ -5623,7 +5772,11 @@ const file_system_monitor_v1_metrics_metrics_proto_rawDesc = "" +
 	"\x18network_established_rate\x18\x1a \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\x16networkEstablishedRate\x12b\n" +
 	"\x16network_time_wait_rate\x18\x1b \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\x13networkTimeWaitRate\x12d\n" +
 	"\x17network_close_wait_rate\x18\x1c \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\x14networkCloseWaitRate\x12Z\n" +
-	"\rkernel_memory\x18\x1d \x01(\v25.vrooli.system_monitor.v1.metrics.KernelMemoryMetricsR\fkernelMemoryB\f\n" +
+	"\rkernel_memory\x18\x1d \x01(\v25.vrooli.system_monitor.v1.metrics.KernelMemoryMetricsR\fkernelMemory\x12L\n" +
+	"\n" +
+	"disk_usage\x18\x1e \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\tdiskUsage\x12S\n" +
+	"\x0edisk_read_rate\x18\x1f \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\fdiskReadRate\x12U\n" +
+	"\x0fdisk_write_rate\x18  \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\rdiskWriteRateB\f\n" +
 	"\n" +
 	"_gpu_usageB\r\n" +
 	"\v_swap_usage\"\xc4\x02\n" +
@@ -5980,7 +6133,7 @@ const file_system_monitor_v1_metrics_metrics_proto_rawDesc = "" +
 	"\x12ProcessMonitorData\x12Z\n" +
 	"\x0eprocess_health\x18\x01 \x01(\v23.vrooli.system_monitor.v1.metrics.ProcessHealthInfoR\rprocessHealth\x12V\n" +
 	"\x0fresource_matrix\x18\x02 \x03(\v2-.vrooli.system_monitor.v1.metrics.ProcessInfoR\x0eresourceMatrix\x128\n" +
-	"\ttimestamp\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xfa\x02\n" +
+	"\ttimestamp\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\x8d\x05\n" +
 	"\x14ProcessTimelineEntry\x12\x14\n" +
 	"\x05owner\x18\x01 \x01(\tR\x05owner\x12\x12\n" +
 	"\x04comm\x18\x02 \x01(\tR\x04comm\x12\x10\n" +
@@ -5997,7 +6150,12 @@ const file_system_monitor_v1_metrics_metrics_proto_rawDesc = "" +
 	"\vcpu_seconds\x18\n" +
 	" \x01(\x01R\n" +
 	"cpuSeconds\x12\x1e\n" +
-	"\vmax_cpu_pct\x18\v \x01(\x01R\tmaxCpuPct\"\xce\x02\n" +
+	"\vmax_cpu_pct\x18\v \x01(\x01R\tmaxCpuPct\x12\x17\n" +
+	"\aswap_kb\x18\f \x01(\x03R\x06swapKb\x122\n" +
+	"\x15swap_measured_samples\x18\r \x01(\x03R\x13swapMeasuredSamples\x120\n" +
+	"\x14swap_unknown_samples\x18\x0e \x01(\x03R\x12swapUnknownSamples\x12J\n" +
+	"\x13swap_coverage_start\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\x11swapCoverageStart\x12F\n" +
+	"\x11swap_coverage_end\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\x0fswapCoverageEnd\"\xe2\x02\n" +
 	"\x17ProcessTimelineResponse\x12%\n" +
 	"\x0ewindow_seconds\x18\x01 \x01(\x05R\rwindowSeconds\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12\x10\n" +
@@ -6006,12 +6164,14 @@ const file_system_monitor_v1_metrics_metrics_proto_rawDesc = "" +
 	"\aentries\x18\x05 \x03(\v26.vrooli.system_monitor.v1.metrics.ProcessTimelineEntryR\aentries\x12?\n" +
 	"\rcovered_start\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\fcoveredStart\x12;\n" +
 	"\vcovered_end\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"coveredEnd\"\xc9\x02\n" +
+	"coveredEnd\x12\x12\n" +
+	"\x04rank\x18\b \x01(\tR\x04rank\"\x9b\x03\n" +
 	"\x11ProcessHealthInfo\x12'\n" +
 	"\x0ftotal_processes\x18\x01 \x01(\x05R\x0etotalProcesses\x12X\n" +
 	"\x10zombie_processes\x18\x02 \x03(\v2-.vrooli.system_monitor.v1.metrics.ProcessInfoR\x0fzombieProcesses\x12Y\n" +
 	"\x11high_thread_count\x18\x03 \x03(\v2-.vrooli.system_monitor.v1.metrics.ProcessInfoR\x0fhighThreadCount\x12V\n" +
-	"\x0fleak_candidates\x18\x04 \x03(\v2-.vrooli.system_monitor.v1.metrics.ProcessInfoR\x0eleakCandidates\"\xb7\x03\n" +
+	"\x0fleak_candidates\x18\x04 \x03(\v2-.vrooli.system_monitor.v1.metrics.ProcessInfoR\x0eleakCandidates\x12P\n" +
+	"\fzombie_count\x18\x05 \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\vzombieCount\"\xb7\x03\n" +
 	"\x19InfrastructureMonitorData\x12W\n" +
 	"\x0edatabase_pools\x18\x01 \x03(\v20.vrooli.system_monitor.v1.metrics.ConnectionPoolR\rdatabasePools\x12\\\n" +
 	"\x11http_client_pools\x18\x02 \x03(\v20.vrooli.system_monitor.v1.metrics.ConnectionPoolR\x0fhttpClientPools\x12Y\n" +
@@ -6028,7 +6188,7 @@ const file_system_monitor_v1_metrics_metrics_proto_rawDesc = "" +
 	"\x12BackgroundJobsInfo\x12\x18\n" +
 	"\apending\x18\x01 \x01(\x05R\apending\x12\x16\n" +
 	"\x06active\x18\x02 \x01(\x05R\x06active\x12\x16\n" +
-	"\x06failed\x18\x03 \x01(\x05R\x06failed\"\xcb\x02\n" +
+	"\x06failed\x18\x03 \x01(\x05R\x06failed\"\x82\x04\n" +
 	"\rStorageIOInfo\x12(\n" +
 	"\x10disk_queue_depth\x18\x01 \x01(\x01R\x0ediskQueueDepth\x12&\n" +
 	"\x0fio_wait_percent\x18\x02 \x01(\x01R\rioWaitPercent\x12%\n" +
@@ -6036,7 +6196,9 @@ const file_system_monitor_v1_metrics_metrics_proto_rawDesc = "" +
 	"\x10write_mb_per_sec\x18\x04 \x01(\x01R\rwriteMbPerSec\x12J\n" +
 	"\tread_rate\x18\x05 \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\breadRate\x12L\n" +
 	"\n" +
-	"write_rate\x18\x06 \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\twriteRate\"0\n" +
+	"write_rate\x18\x06 \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\twriteRate\x12b\n" +
+	"\x16disk_queue_depth_state\x18\a \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\x13diskQueueDepthState\x12Q\n" +
+	"\rio_wait_state\x18\b \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\vioWaitState\"0\n" +
 	"\x18GetCurrentMetricsRequest\x12\x14\n" +
 	"\x05fresh\x18\x01 \x01(\bR\x05fresh\"h\n" +
 	"\x19GetCurrentMetricsResponse\x12K\n" +
@@ -6079,8 +6241,12 @@ const file_system_monitor_v1_metrics_metrics_proto_rawDesc = "" +
 	"\x0f_window_secondsB\x1a\n" +
 	"\x18_sample_interval_seconds\"s\n" +
 	"\x1aGetMetricsTimelineResponse\x12U\n" +
-	"\btimeline\x18\x01 \x01(\v29.vrooli.system_monitor.v1.metrics.MetricsTimelineResponseR\btimeline\"\x16\n" +
-	"\x14GetDiskDetailRequest\"a\n" +
+	"\btimeline\x18\x01 \x01(\v29.vrooli.system_monitor.v1.metrics.MetricsTimelineResponseR\btimeline\"}\n" +
+	"\x14GetDiskDetailRequest\x12\x14\n" +
+	"\x05mount\x18\x01 \x01(\tR\x05mount\x12\x14\n" +
+	"\x05depth\x18\x02 \x01(\x05R\x05depth\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12#\n" +
+	"\rinclude_files\x18\x04 \x01(\bR\fincludeFiles\"a\n" +
 	"\x15GetDiskDetailResponse\x12H\n" +
 	"\x04data\x18\x01 \x01(\v24.vrooli.system_monitor.v1.metrics.DiskDetailResponseR\x04data2\xc9\v\n" +
 	"\x0eMetricsService\x12\xad\x01\n" +
@@ -6184,188 +6350,197 @@ var file_system_monitor_v1_metrics_metrics_proto_depIdxs = []int32{
 	1,   // 2: vrooli.system_monitor.v1.metrics.MetricsResponse.memory:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
 	1,   // 3: vrooli.system_monitor.v1.metrics.MetricsResponse.connections:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
 	1,   // 4: vrooli.system_monitor.v1.metrics.MetricsResponse.gpu:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 5: vrooli.system_monitor.v1.metrics.MetricsResponse.disk:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 6: vrooli.system_monitor.v1.metrics.MetricsResponse.swap_traffic:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 7: vrooli.system_monitor.v1.metrics.MetricsResponse.major_faults:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 8: vrooli.system_monitor.v1.metrics.MetricsResponse.fragmentation_index:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	7,   // 9: vrooli.system_monitor.v1.metrics.MetricsResponse.kernel_memory:type_name -> vrooli.system_monitor.v1.metrics.KernelMemoryMetrics
-	69,  // 10: vrooli.system_monitor.v1.metrics.MetricValue.observed_at:type_name -> google.protobuf.Timestamp
-	69,  // 11: vrooli.system_monitor.v1.metrics.MetricTimelineSample.timestamp:type_name -> google.protobuf.Timestamp
-	1,   // 12: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 13: vrooli.system_monitor.v1.metrics.MetricTimelineSample.memory:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 14: vrooli.system_monitor.v1.metrics.MetricTimelineSample.connections:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 15: vrooli.system_monitor.v1.metrics.MetricTimelineSample.gpu:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 16: vrooli.system_monitor.v1.metrics.MetricTimelineSample.swap:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 17: vrooli.system_monitor.v1.metrics.MetricTimelineSample.swap_traffic:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 18: vrooli.system_monitor.v1.metrics.MetricTimelineSample.major_faults:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 19: vrooli.system_monitor.v1.metrics.MetricTimelineSample.fragmentation_index:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 20: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_context_switches_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 21: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_interrupts_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 22: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_normalized_load_1:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 23: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_normalized_load_5:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 24: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_run_queue_depth:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 25: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_stall_some_avg10:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 26: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_stall_full_avg10:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 27: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_core_imbalance_index:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 28: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_mode_iowait:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 29: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_mode_steal:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 30: vrooli.system_monitor.v1.metrics.MetricTimelineSample.network_established_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 31: vrooli.system_monitor.v1.metrics.MetricTimelineSample.network_time_wait_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 32: vrooli.system_monitor.v1.metrics.MetricTimelineSample.network_close_wait_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	7,   // 33: vrooli.system_monitor.v1.metrics.MetricTimelineSample.kernel_memory:type_name -> vrooli.system_monitor.v1.metrics.KernelMemoryMetrics
-	2,   // 34: vrooli.system_monitor.v1.metrics.MetricsTimelineResponse.samples:type_name -> vrooli.system_monitor.v1.metrics.MetricTimelineSample
-	69,  // 35: vrooli.system_monitor.v1.metrics.MetricsTimelineResponse.window_start:type_name -> google.protobuf.Timestamp
-	69,  // 36: vrooli.system_monitor.v1.metrics.MetricsTimelineResponse.window_end:type_name -> google.protobuf.Timestamp
-	5,   // 37: vrooli.system_monitor.v1.metrics.DetailedMetrics.cpu_details:type_name -> vrooli.system_monitor.v1.metrics.CPUMetrics
-	6,   // 38: vrooli.system_monitor.v1.metrics.DetailedMetrics.memory_details:type_name -> vrooli.system_monitor.v1.metrics.MemoryMetrics
-	10,  // 39: vrooli.system_monitor.v1.metrics.DetailedMetrics.network_details:type_name -> vrooli.system_monitor.v1.metrics.NetworkMetrics
-	18,  // 40: vrooli.system_monitor.v1.metrics.DetailedMetrics.gpu_details:type_name -> vrooli.system_monitor.v1.metrics.GPUMetrics
-	17,  // 41: vrooli.system_monitor.v1.metrics.DetailedMetrics.system_details:type_name -> vrooli.system_monitor.v1.metrics.SystemHealth
-	69,  // 42: vrooli.system_monitor.v1.metrics.DetailedMetrics.timestamp:type_name -> google.protobuf.Timestamp
-	22,  // 43: vrooli.system_monitor.v1.metrics.CPUMetrics.top_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
-	1,   // 44: vrooli.system_monitor.v1.metrics.CPUMetrics.usage_state:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 45: vrooli.system_monitor.v1.metrics.CPUMetrics.context_switches_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 46: vrooli.system_monitor.v1.metrics.CPUMetrics.interrupts_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 47: vrooli.system_monitor.v1.metrics.CPUMetrics.load_average_state:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 48: vrooli.system_monitor.v1.metrics.CPUMetrics.normalized_load_1:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 49: vrooli.system_monitor.v1.metrics.CPUMetrics.normalized_load_5:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 50: vrooli.system_monitor.v1.metrics.CPUMetrics.run_queue_depth:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 51: vrooli.system_monitor.v1.metrics.CPUMetrics.cpu_psi_some_avg10:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 52: vrooli.system_monitor.v1.metrics.CPUMetrics.cpu_psi_full_avg10:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	64,  // 53: vrooli.system_monitor.v1.metrics.CPUMetrics.mode_breakdown:type_name -> vrooli.system_monitor.v1.metrics.CPUMetrics.ModeBreakdownEntry
-	65,  // 54: vrooli.system_monitor.v1.metrics.CPUMetrics.per_core_utilization:type_name -> vrooli.system_monitor.v1.metrics.CPUMetrics.PerCoreUtilizationEntry
-	1,   // 55: vrooli.system_monitor.v1.metrics.CPUMetrics.core_imbalance_index:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 56: vrooli.system_monitor.v1.metrics.CPUMetrics.quota_throttling:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 57: vrooli.system_monitor.v1.metrics.CPUMetrics.frequency_derate_ratio:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 58: vrooli.system_monitor.v1.metrics.CPUMetrics.thermal_throttle_evidence:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 59: vrooli.system_monitor.v1.metrics.CPUMetrics.fork_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 60: vrooli.system_monitor.v1.metrics.CPUMetrics.thermal_trip_point_celsius:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	22,  // 61: vrooli.system_monitor.v1.metrics.CPUMetrics.top_cpu_seconds_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
-	40,  // 62: vrooli.system_monitor.v1.metrics.CPUMetrics.historical_cpu_attribution:type_name -> vrooli.system_monitor.v1.metrics.ProcessTimelineResponse
-	22,  // 63: vrooli.system_monitor.v1.metrics.MemoryMetrics.top_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
-	30,  // 64: vrooli.system_monitor.v1.metrics.MemoryMetrics.swap_usage:type_name -> vrooli.system_monitor.v1.metrics.SwapInfo
-	31,  // 65: vrooli.system_monitor.v1.metrics.MemoryMetrics.disk_usage:type_name -> vrooli.system_monitor.v1.metrics.DiskInfo
-	23,  // 66: vrooli.system_monitor.v1.metrics.MemoryMetrics.paging:type_name -> vrooli.system_monitor.v1.metrics.PagingMetrics
-	24,  // 67: vrooli.system_monitor.v1.metrics.MemoryMetrics.fragmentation:type_name -> vrooli.system_monitor.v1.metrics.FragmentationMetrics
-	22,  // 68: vrooli.system_monitor.v1.metrics.MemoryMetrics.top_paging_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
-	8,   // 69: vrooli.system_monitor.v1.metrics.MemoryMetrics.memory_pressure:type_name -> vrooli.system_monitor.v1.metrics.MemoryPressureReading
-	7,   // 70: vrooli.system_monitor.v1.metrics.MemoryMetrics.kernel_memory:type_name -> vrooli.system_monitor.v1.metrics.KernelMemoryMetrics
-	1,   // 71: vrooli.system_monitor.v1.metrics.KernelMemoryMetrics.slab_bytes:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 72: vrooli.system_monitor.v1.metrics.KernelMemoryMetrics.reclaimable_bytes:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 73: vrooli.system_monitor.v1.metrics.KernelMemoryMetrics.unreclaimable_bytes:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 74: vrooli.system_monitor.v1.metrics.KernelMemoryMetrics.host_total_bytes:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	66,  // 75: vrooli.system_monitor.v1.metrics.MemoryPressureReading.signals:type_name -> vrooli.system_monitor.v1.metrics.MemoryPressureReading.SignalsEntry
-	9,   // 76: vrooli.system_monitor.v1.metrics.MemoryPressureReading.contributors:type_name -> vrooli.system_monitor.v1.metrics.MemoryPressureContributor
-	69,  // 77: vrooli.system_monitor.v1.metrics.MemoryPressureReading.observed_at:type_name -> google.protobuf.Timestamp
-	25,  // 78: vrooli.system_monitor.v1.metrics.NetworkMetrics.tcp_states:type_name -> vrooli.system_monitor.v1.metrics.TCPConnectionStates
-	35,  // 79: vrooli.system_monitor.v1.metrics.NetworkMetrics.port_usage:type_name -> vrooli.system_monitor.v1.metrics.PortUsageInfo
-	27,  // 80: vrooli.system_monitor.v1.metrics.NetworkMetrics.network_stats:type_name -> vrooli.system_monitor.v1.metrics.NetworkStatistics
-	26,  // 81: vrooli.system_monitor.v1.metrics.NetworkMetrics.connection_pools:type_name -> vrooli.system_monitor.v1.metrics.ConnectionPool
-	1,   // 82: vrooli.system_monitor.v1.metrics.NetworkMetrics.established_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 83: vrooli.system_monitor.v1.metrics.NetworkMetrics.time_wait_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 84: vrooli.system_monitor.v1.metrics.NetworkMetrics.close_wait_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 85: vrooli.system_monitor.v1.metrics.NetworkMetrics.connections_opened_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 86: vrooli.system_monitor.v1.metrics.NetworkMetrics.connections_closed_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	11,  // 87: vrooli.system_monitor.v1.metrics.NetworkMetrics.interfaces:type_name -> vrooli.system_monitor.v1.metrics.NetworkInterface
-	12,  // 88: vrooli.system_monitor.v1.metrics.NetworkMetrics.ownership:type_name -> vrooli.system_monitor.v1.metrics.NetworkOwnership
-	14,  // 89: vrooli.system_monitor.v1.metrics.NetworkMetrics.endpoints:type_name -> vrooli.system_monitor.v1.metrics.NetworkEndpoint
-	15,  // 90: vrooli.system_monitor.v1.metrics.NetworkMetrics.capabilities:type_name -> vrooli.system_monitor.v1.metrics.NetworkCapabilities
-	16,  // 91: vrooli.system_monitor.v1.metrics.NetworkMetrics.verdict:type_name -> vrooli.system_monitor.v1.metrics.NetworkVerdict
-	1,   // 92: vrooli.system_monitor.v1.metrics.NetworkInterface.received_bytes:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 93: vrooli.system_monitor.v1.metrics.NetworkInterface.transmitted_bytes:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 94: vrooli.system_monitor.v1.metrics.NetworkInterface.received_packets:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 95: vrooli.system_monitor.v1.metrics.NetworkInterface.transmitted_packets:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 96: vrooli.system_monitor.v1.metrics.NetworkInterface.receive_errors:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 97: vrooli.system_monitor.v1.metrics.NetworkInterface.transmit_errors:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 98: vrooli.system_monitor.v1.metrics.NetworkInterface.receive_drops:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 99: vrooli.system_monitor.v1.metrics.NetworkInterface.transmit_drops:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 100: vrooli.system_monitor.v1.metrics.NetworkInterface.receive_bytes_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 101: vrooli.system_monitor.v1.metrics.NetworkInterface.transmit_bytes_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	13,  // 102: vrooli.system_monitor.v1.metrics.NetworkOwnership.owners:type_name -> vrooli.system_monitor.v1.metrics.NetworkOwner
-	1,   // 103: vrooli.system_monitor.v1.metrics.NetworkEndpoint.age_seconds:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 104: vrooli.system_monitor.v1.metrics.NetworkCapabilities.tcp_states:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 105: vrooli.system_monitor.v1.metrics.NetworkCapabilities.interface_counters:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 106: vrooli.system_monitor.v1.metrics.NetworkCapabilities.transport_counters:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 107: vrooli.system_monitor.v1.metrics.NetworkCapabilities.ownership:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 108: vrooli.system_monitor.v1.metrics.NetworkCapabilities.endpoints:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	36,  // 109: vrooli.system_monitor.v1.metrics.SystemHealth.file_descriptors:type_name -> vrooli.system_monitor.v1.metrics.FileDescriptorInfo
-	28,  // 110: vrooli.system_monitor.v1.metrics.SystemHealth.service_dependencies:type_name -> vrooli.system_monitor.v1.metrics.ServiceHealth
-	29,  // 111: vrooli.system_monitor.v1.metrics.SystemHealth.certificates:type_name -> vrooli.system_monitor.v1.metrics.CertificateInfo
-	37,  // 112: vrooli.system_monitor.v1.metrics.SystemHealth.inotify_watchers:type_name -> vrooli.system_monitor.v1.metrics.InotifyWatcherInfo
-	19,  // 113: vrooli.system_monitor.v1.metrics.GPUMetrics.summary:type_name -> vrooli.system_monitor.v1.metrics.GPUSummary
-	20,  // 114: vrooli.system_monitor.v1.metrics.GPUMetrics.devices:type_name -> vrooli.system_monitor.v1.metrics.GPUDeviceMetrics
-	21,  // 115: vrooli.system_monitor.v1.metrics.GPUDeviceMetrics.processes:type_name -> vrooli.system_monitor.v1.metrics.GPUProcessInfo
-	1,   // 116: vrooli.system_monitor.v1.metrics.ProcessInfo.cpu_seconds_state:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 117: vrooli.system_monitor.v1.metrics.PagingMetrics.swap_in_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 118: vrooli.system_monitor.v1.metrics.PagingMetrics.swap_out_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 119: vrooli.system_monitor.v1.metrics.PagingMetrics.swap_traffic_pages_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 120: vrooli.system_monitor.v1.metrics.PagingMetrics.major_faults_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 121: vrooli.system_monitor.v1.metrics.PagingMetrics.page_faults_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 122: vrooli.system_monitor.v1.metrics.FragmentationMetrics.max_free_order:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 123: vrooli.system_monitor.v1.metrics.FragmentationMetrics.low_order_share:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 124: vrooli.system_monitor.v1.metrics.FragmentationMetrics.compaction_failure_ratio:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	67,  // 125: vrooli.system_monitor.v1.metrics.FragmentationMetrics.compaction_rates:type_name -> vrooli.system_monitor.v1.metrics.FragmentationMetrics.CompactionRatesEntry
-	68,  // 126: vrooli.system_monitor.v1.metrics.FragmentationMetrics.buddyinfo:type_name -> vrooli.system_monitor.v1.metrics.FragmentationMetrics.BuddyinfoEntry
-	69,  // 127: vrooli.system_monitor.v1.metrics.ServiceHealth.last_check:type_name -> google.protobuf.Timestamp
-	32,  // 128: vrooli.system_monitor.v1.metrics.DiskDetailResponse.partitions:type_name -> vrooli.system_monitor.v1.metrics.DiskPartitionInfo
-	33,  // 129: vrooli.system_monitor.v1.metrics.DiskDetailResponse.top_directories:type_name -> vrooli.system_monitor.v1.metrics.DiskUsageEntry
-	33,  // 130: vrooli.system_monitor.v1.metrics.DiskDetailResponse.largest_files:type_name -> vrooli.system_monitor.v1.metrics.DiskUsageEntry
-	69,  // 131: vrooli.system_monitor.v1.metrics.DiskDetailResponse.timestamp:type_name -> google.protobuf.Timestamp
-	41,  // 132: vrooli.system_monitor.v1.metrics.ProcessMonitorData.process_health:type_name -> vrooli.system_monitor.v1.metrics.ProcessHealthInfo
-	22,  // 133: vrooli.system_monitor.v1.metrics.ProcessMonitorData.resource_matrix:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
-	69,  // 134: vrooli.system_monitor.v1.metrics.ProcessMonitorData.timestamp:type_name -> google.protobuf.Timestamp
-	69,  // 135: vrooli.system_monitor.v1.metrics.ProcessTimelineEntry.first_seen:type_name -> google.protobuf.Timestamp
-	69,  // 136: vrooli.system_monitor.v1.metrics.ProcessTimelineEntry.last_seen:type_name -> google.protobuf.Timestamp
-	39,  // 137: vrooli.system_monitor.v1.metrics.ProcessTimelineResponse.entries:type_name -> vrooli.system_monitor.v1.metrics.ProcessTimelineEntry
-	69,  // 138: vrooli.system_monitor.v1.metrics.ProcessTimelineResponse.covered_start:type_name -> google.protobuf.Timestamp
-	69,  // 139: vrooli.system_monitor.v1.metrics.ProcessTimelineResponse.covered_end:type_name -> google.protobuf.Timestamp
-	22,  // 140: vrooli.system_monitor.v1.metrics.ProcessHealthInfo.zombie_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
-	22,  // 141: vrooli.system_monitor.v1.metrics.ProcessHealthInfo.high_thread_count:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
-	22,  // 142: vrooli.system_monitor.v1.metrics.ProcessHealthInfo.leak_candidates:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
-	26,  // 143: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.database_pools:type_name -> vrooli.system_monitor.v1.metrics.ConnectionPool
-	26,  // 144: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.http_client_pools:type_name -> vrooli.system_monitor.v1.metrics.ConnectionPool
-	43,  // 145: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.message_queues:type_name -> vrooli.system_monitor.v1.metrics.MessageQueueInfo
-	46,  // 146: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.storage_io:type_name -> vrooli.system_monitor.v1.metrics.StorageIOInfo
-	69,  // 147: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.timestamp:type_name -> google.protobuf.Timestamp
-	44,  // 148: vrooli.system_monitor.v1.metrics.MessageQueueInfo.redis_pubsub:type_name -> vrooli.system_monitor.v1.metrics.RedisPubSubInfo
-	45,  // 149: vrooli.system_monitor.v1.metrics.MessageQueueInfo.background_jobs:type_name -> vrooli.system_monitor.v1.metrics.BackgroundJobsInfo
-	1,   // 150: vrooli.system_monitor.v1.metrics.StorageIOInfo.read_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 151: vrooli.system_monitor.v1.metrics.StorageIOInfo.write_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	0,   // 152: vrooli.system_monitor.v1.metrics.GetCurrentMetricsResponse.metrics:type_name -> vrooli.system_monitor.v1.metrics.MetricsResponse
-	4,   // 153: vrooli.system_monitor.v1.metrics.GetDetailedMetricsResponse.metrics:type_name -> vrooli.system_monitor.v1.metrics.DetailedMetrics
-	53,  // 154: vrooli.system_monitor.v1.metrics.GetNetworkDiagnosticResponse.snapshot:type_name -> vrooli.system_monitor.v1.metrics.NetworkDiagnosticSnapshot
-	12,  // 155: vrooli.system_monitor.v1.metrics.NetworkDiagnosticSnapshot.ownership:type_name -> vrooli.system_monitor.v1.metrics.NetworkOwnership
-	14,  // 156: vrooli.system_monitor.v1.metrics.NetworkDiagnosticSnapshot.endpoints:type_name -> vrooli.system_monitor.v1.metrics.NetworkEndpoint
-	38,  // 157: vrooli.system_monitor.v1.metrics.GetProcessMonitorResponse.data:type_name -> vrooli.system_monitor.v1.metrics.ProcessMonitorData
-	40,  // 158: vrooli.system_monitor.v1.metrics.GetProcessTimelineResponse.timeline:type_name -> vrooli.system_monitor.v1.metrics.ProcessTimelineResponse
-	42,  // 159: vrooli.system_monitor.v1.metrics.GetInfrastructureMonitorResponse.data:type_name -> vrooli.system_monitor.v1.metrics.InfrastructureMonitorData
-	3,   // 160: vrooli.system_monitor.v1.metrics.GetMetricsTimelineResponse.timeline:type_name -> vrooli.system_monitor.v1.metrics.MetricsTimelineResponse
-	34,  // 161: vrooli.system_monitor.v1.metrics.GetDiskDetailResponse.data:type_name -> vrooli.system_monitor.v1.metrics.DiskDetailResponse
-	1,   // 162: vrooli.system_monitor.v1.metrics.CPUMetrics.ModeBreakdownEntry.value:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 163: vrooli.system_monitor.v1.metrics.CPUMetrics.PerCoreUtilizationEntry.value:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 164: vrooli.system_monitor.v1.metrics.MemoryPressureReading.SignalsEntry.value:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 165: vrooli.system_monitor.v1.metrics.FragmentationMetrics.CompactionRatesEntry.value:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	47,  // 166: vrooli.system_monitor.v1.metrics.MetricsService.GetCurrentMetrics:input_type -> vrooli.system_monitor.v1.metrics.GetCurrentMetricsRequest
-	49,  // 167: vrooli.system_monitor.v1.metrics.MetricsService.GetDetailedMetrics:input_type -> vrooli.system_monitor.v1.metrics.GetDetailedMetricsRequest
-	51,  // 168: vrooli.system_monitor.v1.metrics.MetricsService.GetNetworkDiagnostic:input_type -> vrooli.system_monitor.v1.metrics.GetNetworkDiagnosticRequest
-	54,  // 169: vrooli.system_monitor.v1.metrics.MetricsService.GetProcessMonitor:input_type -> vrooli.system_monitor.v1.metrics.GetProcessMonitorRequest
-	56,  // 170: vrooli.system_monitor.v1.metrics.MetricsService.GetProcessTimeline:input_type -> vrooli.system_monitor.v1.metrics.GetProcessTimelineRequest
-	58,  // 171: vrooli.system_monitor.v1.metrics.MetricsService.GetInfrastructureMonitor:input_type -> vrooli.system_monitor.v1.metrics.GetInfrastructureMonitorRequest
-	60,  // 172: vrooli.system_monitor.v1.metrics.MetricsService.GetMetricsTimeline:input_type -> vrooli.system_monitor.v1.metrics.GetMetricsTimelineRequest
-	62,  // 173: vrooli.system_monitor.v1.metrics.MetricsService.GetDiskDetail:input_type -> vrooli.system_monitor.v1.metrics.GetDiskDetailRequest
-	48,  // 174: vrooli.system_monitor.v1.metrics.MetricsService.GetCurrentMetrics:output_type -> vrooli.system_monitor.v1.metrics.GetCurrentMetricsResponse
-	50,  // 175: vrooli.system_monitor.v1.metrics.MetricsService.GetDetailedMetrics:output_type -> vrooli.system_monitor.v1.metrics.GetDetailedMetricsResponse
-	52,  // 176: vrooli.system_monitor.v1.metrics.MetricsService.GetNetworkDiagnostic:output_type -> vrooli.system_monitor.v1.metrics.GetNetworkDiagnosticResponse
-	55,  // 177: vrooli.system_monitor.v1.metrics.MetricsService.GetProcessMonitor:output_type -> vrooli.system_monitor.v1.metrics.GetProcessMonitorResponse
-	57,  // 178: vrooli.system_monitor.v1.metrics.MetricsService.GetProcessTimeline:output_type -> vrooli.system_monitor.v1.metrics.GetProcessTimelineResponse
-	59,  // 179: vrooli.system_monitor.v1.metrics.MetricsService.GetInfrastructureMonitor:output_type -> vrooli.system_monitor.v1.metrics.GetInfrastructureMonitorResponse
-	61,  // 180: vrooli.system_monitor.v1.metrics.MetricsService.GetMetricsTimeline:output_type -> vrooli.system_monitor.v1.metrics.GetMetricsTimelineResponse
-	63,  // 181: vrooli.system_monitor.v1.metrics.MetricsService.GetDiskDetail:output_type -> vrooli.system_monitor.v1.metrics.GetDiskDetailResponse
-	174, // [174:182] is the sub-list for method output_type
-	166, // [166:174] is the sub-list for method input_type
-	166, // [166:166] is the sub-list for extension type_name
-	166, // [166:166] is the sub-list for extension extendee
-	0,   // [0:166] is the sub-list for field type_name
+	1,   // 5: vrooli.system_monitor.v1.metrics.MetricsResponse.gpu_processes:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 6: vrooli.system_monitor.v1.metrics.MetricsResponse.disk:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 7: vrooli.system_monitor.v1.metrics.MetricsResponse.swap_traffic:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 8: vrooli.system_monitor.v1.metrics.MetricsResponse.major_faults:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 9: vrooli.system_monitor.v1.metrics.MetricsResponse.fragmentation_index:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	7,   // 10: vrooli.system_monitor.v1.metrics.MetricsResponse.kernel_memory:type_name -> vrooli.system_monitor.v1.metrics.KernelMemoryMetrics
+	69,  // 11: vrooli.system_monitor.v1.metrics.MetricValue.observed_at:type_name -> google.protobuf.Timestamp
+	69,  // 12: vrooli.system_monitor.v1.metrics.MetricTimelineSample.timestamp:type_name -> google.protobuf.Timestamp
+	1,   // 13: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 14: vrooli.system_monitor.v1.metrics.MetricTimelineSample.memory:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 15: vrooli.system_monitor.v1.metrics.MetricTimelineSample.connections:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 16: vrooli.system_monitor.v1.metrics.MetricTimelineSample.gpu:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 17: vrooli.system_monitor.v1.metrics.MetricTimelineSample.swap:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 18: vrooli.system_monitor.v1.metrics.MetricTimelineSample.swap_traffic:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 19: vrooli.system_monitor.v1.metrics.MetricTimelineSample.major_faults:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 20: vrooli.system_monitor.v1.metrics.MetricTimelineSample.fragmentation_index:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 21: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_context_switches_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 22: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_interrupts_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 23: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_normalized_load_1:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 24: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_normalized_load_5:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 25: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_run_queue_depth:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 26: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_stall_some_avg10:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 27: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_stall_full_avg10:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 28: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_core_imbalance_index:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 29: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_mode_iowait:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 30: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu_mode_steal:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 31: vrooli.system_monitor.v1.metrics.MetricTimelineSample.network_established_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 32: vrooli.system_monitor.v1.metrics.MetricTimelineSample.network_time_wait_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 33: vrooli.system_monitor.v1.metrics.MetricTimelineSample.network_close_wait_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	7,   // 34: vrooli.system_monitor.v1.metrics.MetricTimelineSample.kernel_memory:type_name -> vrooli.system_monitor.v1.metrics.KernelMemoryMetrics
+	1,   // 35: vrooli.system_monitor.v1.metrics.MetricTimelineSample.disk_usage:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 36: vrooli.system_monitor.v1.metrics.MetricTimelineSample.disk_read_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 37: vrooli.system_monitor.v1.metrics.MetricTimelineSample.disk_write_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	2,   // 38: vrooli.system_monitor.v1.metrics.MetricsTimelineResponse.samples:type_name -> vrooli.system_monitor.v1.metrics.MetricTimelineSample
+	69,  // 39: vrooli.system_monitor.v1.metrics.MetricsTimelineResponse.window_start:type_name -> google.protobuf.Timestamp
+	69,  // 40: vrooli.system_monitor.v1.metrics.MetricsTimelineResponse.window_end:type_name -> google.protobuf.Timestamp
+	5,   // 41: vrooli.system_monitor.v1.metrics.DetailedMetrics.cpu_details:type_name -> vrooli.system_monitor.v1.metrics.CPUMetrics
+	6,   // 42: vrooli.system_monitor.v1.metrics.DetailedMetrics.memory_details:type_name -> vrooli.system_monitor.v1.metrics.MemoryMetrics
+	10,  // 43: vrooli.system_monitor.v1.metrics.DetailedMetrics.network_details:type_name -> vrooli.system_monitor.v1.metrics.NetworkMetrics
+	18,  // 44: vrooli.system_monitor.v1.metrics.DetailedMetrics.gpu_details:type_name -> vrooli.system_monitor.v1.metrics.GPUMetrics
+	17,  // 45: vrooli.system_monitor.v1.metrics.DetailedMetrics.system_details:type_name -> vrooli.system_monitor.v1.metrics.SystemHealth
+	69,  // 46: vrooli.system_monitor.v1.metrics.DetailedMetrics.timestamp:type_name -> google.protobuf.Timestamp
+	22,  // 47: vrooli.system_monitor.v1.metrics.CPUMetrics.top_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
+	1,   // 48: vrooli.system_monitor.v1.metrics.CPUMetrics.usage_state:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 49: vrooli.system_monitor.v1.metrics.CPUMetrics.context_switches_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 50: vrooli.system_monitor.v1.metrics.CPUMetrics.interrupts_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 51: vrooli.system_monitor.v1.metrics.CPUMetrics.load_average_state:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 52: vrooli.system_monitor.v1.metrics.CPUMetrics.normalized_load_1:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 53: vrooli.system_monitor.v1.metrics.CPUMetrics.normalized_load_5:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 54: vrooli.system_monitor.v1.metrics.CPUMetrics.run_queue_depth:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 55: vrooli.system_monitor.v1.metrics.CPUMetrics.cpu_psi_some_avg10:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 56: vrooli.system_monitor.v1.metrics.CPUMetrics.cpu_psi_full_avg10:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	64,  // 57: vrooli.system_monitor.v1.metrics.CPUMetrics.mode_breakdown:type_name -> vrooli.system_monitor.v1.metrics.CPUMetrics.ModeBreakdownEntry
+	65,  // 58: vrooli.system_monitor.v1.metrics.CPUMetrics.per_core_utilization:type_name -> vrooli.system_monitor.v1.metrics.CPUMetrics.PerCoreUtilizationEntry
+	1,   // 59: vrooli.system_monitor.v1.metrics.CPUMetrics.core_imbalance_index:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 60: vrooli.system_monitor.v1.metrics.CPUMetrics.quota_throttling:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 61: vrooli.system_monitor.v1.metrics.CPUMetrics.frequency_derate_ratio:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 62: vrooli.system_monitor.v1.metrics.CPUMetrics.thermal_throttle_evidence:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 63: vrooli.system_monitor.v1.metrics.CPUMetrics.fork_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 64: vrooli.system_monitor.v1.metrics.CPUMetrics.thermal_trip_point_celsius:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	22,  // 65: vrooli.system_monitor.v1.metrics.CPUMetrics.top_cpu_seconds_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
+	40,  // 66: vrooli.system_monitor.v1.metrics.CPUMetrics.historical_cpu_attribution:type_name -> vrooli.system_monitor.v1.metrics.ProcessTimelineResponse
+	22,  // 67: vrooli.system_monitor.v1.metrics.MemoryMetrics.top_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
+	30,  // 68: vrooli.system_monitor.v1.metrics.MemoryMetrics.swap_usage:type_name -> vrooli.system_monitor.v1.metrics.SwapInfo
+	31,  // 69: vrooli.system_monitor.v1.metrics.MemoryMetrics.disk_usage:type_name -> vrooli.system_monitor.v1.metrics.DiskInfo
+	23,  // 70: vrooli.system_monitor.v1.metrics.MemoryMetrics.paging:type_name -> vrooli.system_monitor.v1.metrics.PagingMetrics
+	24,  // 71: vrooli.system_monitor.v1.metrics.MemoryMetrics.fragmentation:type_name -> vrooli.system_monitor.v1.metrics.FragmentationMetrics
+	22,  // 72: vrooli.system_monitor.v1.metrics.MemoryMetrics.top_paging_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
+	8,   // 73: vrooli.system_monitor.v1.metrics.MemoryMetrics.memory_pressure:type_name -> vrooli.system_monitor.v1.metrics.MemoryPressureReading
+	7,   // 74: vrooli.system_monitor.v1.metrics.MemoryMetrics.kernel_memory:type_name -> vrooli.system_monitor.v1.metrics.KernelMemoryMetrics
+	1,   // 75: vrooli.system_monitor.v1.metrics.KernelMemoryMetrics.slab_bytes:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 76: vrooli.system_monitor.v1.metrics.KernelMemoryMetrics.reclaimable_bytes:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 77: vrooli.system_monitor.v1.metrics.KernelMemoryMetrics.unreclaimable_bytes:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 78: vrooli.system_monitor.v1.metrics.KernelMemoryMetrics.host_total_bytes:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	66,  // 79: vrooli.system_monitor.v1.metrics.MemoryPressureReading.signals:type_name -> vrooli.system_monitor.v1.metrics.MemoryPressureReading.SignalsEntry
+	9,   // 80: vrooli.system_monitor.v1.metrics.MemoryPressureReading.contributors:type_name -> vrooli.system_monitor.v1.metrics.MemoryPressureContributor
+	69,  // 81: vrooli.system_monitor.v1.metrics.MemoryPressureReading.observed_at:type_name -> google.protobuf.Timestamp
+	25,  // 82: vrooli.system_monitor.v1.metrics.NetworkMetrics.tcp_states:type_name -> vrooli.system_monitor.v1.metrics.TCPConnectionStates
+	35,  // 83: vrooli.system_monitor.v1.metrics.NetworkMetrics.port_usage:type_name -> vrooli.system_monitor.v1.metrics.PortUsageInfo
+	27,  // 84: vrooli.system_monitor.v1.metrics.NetworkMetrics.network_stats:type_name -> vrooli.system_monitor.v1.metrics.NetworkStatistics
+	26,  // 85: vrooli.system_monitor.v1.metrics.NetworkMetrics.connection_pools:type_name -> vrooli.system_monitor.v1.metrics.ConnectionPool
+	1,   // 86: vrooli.system_monitor.v1.metrics.NetworkMetrics.established_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 87: vrooli.system_monitor.v1.metrics.NetworkMetrics.time_wait_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 88: vrooli.system_monitor.v1.metrics.NetworkMetrics.close_wait_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 89: vrooli.system_monitor.v1.metrics.NetworkMetrics.connections_opened_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 90: vrooli.system_monitor.v1.metrics.NetworkMetrics.connections_closed_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	11,  // 91: vrooli.system_monitor.v1.metrics.NetworkMetrics.interfaces:type_name -> vrooli.system_monitor.v1.metrics.NetworkInterface
+	12,  // 92: vrooli.system_monitor.v1.metrics.NetworkMetrics.ownership:type_name -> vrooli.system_monitor.v1.metrics.NetworkOwnership
+	14,  // 93: vrooli.system_monitor.v1.metrics.NetworkMetrics.endpoints:type_name -> vrooli.system_monitor.v1.metrics.NetworkEndpoint
+	15,  // 94: vrooli.system_monitor.v1.metrics.NetworkMetrics.capabilities:type_name -> vrooli.system_monitor.v1.metrics.NetworkCapabilities
+	16,  // 95: vrooli.system_monitor.v1.metrics.NetworkMetrics.verdict:type_name -> vrooli.system_monitor.v1.metrics.NetworkVerdict
+	1,   // 96: vrooli.system_monitor.v1.metrics.NetworkInterface.received_bytes:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 97: vrooli.system_monitor.v1.metrics.NetworkInterface.transmitted_bytes:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 98: vrooli.system_monitor.v1.metrics.NetworkInterface.received_packets:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 99: vrooli.system_monitor.v1.metrics.NetworkInterface.transmitted_packets:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 100: vrooli.system_monitor.v1.metrics.NetworkInterface.receive_errors:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 101: vrooli.system_monitor.v1.metrics.NetworkInterface.transmit_errors:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 102: vrooli.system_monitor.v1.metrics.NetworkInterface.receive_drops:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 103: vrooli.system_monitor.v1.metrics.NetworkInterface.transmit_drops:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 104: vrooli.system_monitor.v1.metrics.NetworkInterface.receive_bytes_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 105: vrooli.system_monitor.v1.metrics.NetworkInterface.transmit_bytes_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	13,  // 106: vrooli.system_monitor.v1.metrics.NetworkOwnership.owners:type_name -> vrooli.system_monitor.v1.metrics.NetworkOwner
+	1,   // 107: vrooli.system_monitor.v1.metrics.NetworkEndpoint.age_seconds:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 108: vrooli.system_monitor.v1.metrics.NetworkCapabilities.tcp_states:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 109: vrooli.system_monitor.v1.metrics.NetworkCapabilities.interface_counters:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 110: vrooli.system_monitor.v1.metrics.NetworkCapabilities.transport_counters:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 111: vrooli.system_monitor.v1.metrics.NetworkCapabilities.ownership:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 112: vrooli.system_monitor.v1.metrics.NetworkCapabilities.endpoints:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	36,  // 113: vrooli.system_monitor.v1.metrics.SystemHealth.file_descriptors:type_name -> vrooli.system_monitor.v1.metrics.FileDescriptorInfo
+	28,  // 114: vrooli.system_monitor.v1.metrics.SystemHealth.service_dependencies:type_name -> vrooli.system_monitor.v1.metrics.ServiceHealth
+	29,  // 115: vrooli.system_monitor.v1.metrics.SystemHealth.certificates:type_name -> vrooli.system_monitor.v1.metrics.CertificateInfo
+	37,  // 116: vrooli.system_monitor.v1.metrics.SystemHealth.inotify_watchers:type_name -> vrooli.system_monitor.v1.metrics.InotifyWatcherInfo
+	19,  // 117: vrooli.system_monitor.v1.metrics.GPUMetrics.summary:type_name -> vrooli.system_monitor.v1.metrics.GPUSummary
+	20,  // 118: vrooli.system_monitor.v1.metrics.GPUMetrics.devices:type_name -> vrooli.system_monitor.v1.metrics.GPUDeviceMetrics
+	21,  // 119: vrooli.system_monitor.v1.metrics.GPUDeviceMetrics.processes:type_name -> vrooli.system_monitor.v1.metrics.GPUProcessInfo
+	1,   // 120: vrooli.system_monitor.v1.metrics.ProcessInfo.cpu_seconds_state:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 121: vrooli.system_monitor.v1.metrics.PagingMetrics.swap_in_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 122: vrooli.system_monitor.v1.metrics.PagingMetrics.swap_out_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 123: vrooli.system_monitor.v1.metrics.PagingMetrics.swap_traffic_pages_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 124: vrooli.system_monitor.v1.metrics.PagingMetrics.major_faults_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 125: vrooli.system_monitor.v1.metrics.PagingMetrics.page_faults_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 126: vrooli.system_monitor.v1.metrics.FragmentationMetrics.max_free_order:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 127: vrooli.system_monitor.v1.metrics.FragmentationMetrics.low_order_share:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 128: vrooli.system_monitor.v1.metrics.FragmentationMetrics.compaction_failure_ratio:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	67,  // 129: vrooli.system_monitor.v1.metrics.FragmentationMetrics.compaction_rates:type_name -> vrooli.system_monitor.v1.metrics.FragmentationMetrics.CompactionRatesEntry
+	68,  // 130: vrooli.system_monitor.v1.metrics.FragmentationMetrics.buddyinfo:type_name -> vrooli.system_monitor.v1.metrics.FragmentationMetrics.BuddyinfoEntry
+	69,  // 131: vrooli.system_monitor.v1.metrics.ServiceHealth.last_check:type_name -> google.protobuf.Timestamp
+	32,  // 132: vrooli.system_monitor.v1.metrics.DiskDetailResponse.partitions:type_name -> vrooli.system_monitor.v1.metrics.DiskPartitionInfo
+	33,  // 133: vrooli.system_monitor.v1.metrics.DiskDetailResponse.top_directories:type_name -> vrooli.system_monitor.v1.metrics.DiskUsageEntry
+	33,  // 134: vrooli.system_monitor.v1.metrics.DiskDetailResponse.largest_files:type_name -> vrooli.system_monitor.v1.metrics.DiskUsageEntry
+	69,  // 135: vrooli.system_monitor.v1.metrics.DiskDetailResponse.timestamp:type_name -> google.protobuf.Timestamp
+	41,  // 136: vrooli.system_monitor.v1.metrics.ProcessMonitorData.process_health:type_name -> vrooli.system_monitor.v1.metrics.ProcessHealthInfo
+	22,  // 137: vrooli.system_monitor.v1.metrics.ProcessMonitorData.resource_matrix:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
+	69,  // 138: vrooli.system_monitor.v1.metrics.ProcessMonitorData.timestamp:type_name -> google.protobuf.Timestamp
+	69,  // 139: vrooli.system_monitor.v1.metrics.ProcessTimelineEntry.first_seen:type_name -> google.protobuf.Timestamp
+	69,  // 140: vrooli.system_monitor.v1.metrics.ProcessTimelineEntry.last_seen:type_name -> google.protobuf.Timestamp
+	69,  // 141: vrooli.system_monitor.v1.metrics.ProcessTimelineEntry.swap_coverage_start:type_name -> google.protobuf.Timestamp
+	69,  // 142: vrooli.system_monitor.v1.metrics.ProcessTimelineEntry.swap_coverage_end:type_name -> google.protobuf.Timestamp
+	39,  // 143: vrooli.system_monitor.v1.metrics.ProcessTimelineResponse.entries:type_name -> vrooli.system_monitor.v1.metrics.ProcessTimelineEntry
+	69,  // 144: vrooli.system_monitor.v1.metrics.ProcessTimelineResponse.covered_start:type_name -> google.protobuf.Timestamp
+	69,  // 145: vrooli.system_monitor.v1.metrics.ProcessTimelineResponse.covered_end:type_name -> google.protobuf.Timestamp
+	22,  // 146: vrooli.system_monitor.v1.metrics.ProcessHealthInfo.zombie_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
+	22,  // 147: vrooli.system_monitor.v1.metrics.ProcessHealthInfo.high_thread_count:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
+	22,  // 148: vrooli.system_monitor.v1.metrics.ProcessHealthInfo.leak_candidates:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
+	1,   // 149: vrooli.system_monitor.v1.metrics.ProcessHealthInfo.zombie_count:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	26,  // 150: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.database_pools:type_name -> vrooli.system_monitor.v1.metrics.ConnectionPool
+	26,  // 151: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.http_client_pools:type_name -> vrooli.system_monitor.v1.metrics.ConnectionPool
+	43,  // 152: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.message_queues:type_name -> vrooli.system_monitor.v1.metrics.MessageQueueInfo
+	46,  // 153: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.storage_io:type_name -> vrooli.system_monitor.v1.metrics.StorageIOInfo
+	69,  // 154: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.timestamp:type_name -> google.protobuf.Timestamp
+	44,  // 155: vrooli.system_monitor.v1.metrics.MessageQueueInfo.redis_pubsub:type_name -> vrooli.system_monitor.v1.metrics.RedisPubSubInfo
+	45,  // 156: vrooli.system_monitor.v1.metrics.MessageQueueInfo.background_jobs:type_name -> vrooli.system_monitor.v1.metrics.BackgroundJobsInfo
+	1,   // 157: vrooli.system_monitor.v1.metrics.StorageIOInfo.read_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 158: vrooli.system_monitor.v1.metrics.StorageIOInfo.write_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 159: vrooli.system_monitor.v1.metrics.StorageIOInfo.disk_queue_depth_state:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 160: vrooli.system_monitor.v1.metrics.StorageIOInfo.io_wait_state:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	0,   // 161: vrooli.system_monitor.v1.metrics.GetCurrentMetricsResponse.metrics:type_name -> vrooli.system_monitor.v1.metrics.MetricsResponse
+	4,   // 162: vrooli.system_monitor.v1.metrics.GetDetailedMetricsResponse.metrics:type_name -> vrooli.system_monitor.v1.metrics.DetailedMetrics
+	53,  // 163: vrooli.system_monitor.v1.metrics.GetNetworkDiagnosticResponse.snapshot:type_name -> vrooli.system_monitor.v1.metrics.NetworkDiagnosticSnapshot
+	12,  // 164: vrooli.system_monitor.v1.metrics.NetworkDiagnosticSnapshot.ownership:type_name -> vrooli.system_monitor.v1.metrics.NetworkOwnership
+	14,  // 165: vrooli.system_monitor.v1.metrics.NetworkDiagnosticSnapshot.endpoints:type_name -> vrooli.system_monitor.v1.metrics.NetworkEndpoint
+	38,  // 166: vrooli.system_monitor.v1.metrics.GetProcessMonitorResponse.data:type_name -> vrooli.system_monitor.v1.metrics.ProcessMonitorData
+	40,  // 167: vrooli.system_monitor.v1.metrics.GetProcessTimelineResponse.timeline:type_name -> vrooli.system_monitor.v1.metrics.ProcessTimelineResponse
+	42,  // 168: vrooli.system_monitor.v1.metrics.GetInfrastructureMonitorResponse.data:type_name -> vrooli.system_monitor.v1.metrics.InfrastructureMonitorData
+	3,   // 169: vrooli.system_monitor.v1.metrics.GetMetricsTimelineResponse.timeline:type_name -> vrooli.system_monitor.v1.metrics.MetricsTimelineResponse
+	34,  // 170: vrooli.system_monitor.v1.metrics.GetDiskDetailResponse.data:type_name -> vrooli.system_monitor.v1.metrics.DiskDetailResponse
+	1,   // 171: vrooli.system_monitor.v1.metrics.CPUMetrics.ModeBreakdownEntry.value:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 172: vrooli.system_monitor.v1.metrics.CPUMetrics.PerCoreUtilizationEntry.value:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 173: vrooli.system_monitor.v1.metrics.MemoryPressureReading.SignalsEntry.value:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 174: vrooli.system_monitor.v1.metrics.FragmentationMetrics.CompactionRatesEntry.value:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	47,  // 175: vrooli.system_monitor.v1.metrics.MetricsService.GetCurrentMetrics:input_type -> vrooli.system_monitor.v1.metrics.GetCurrentMetricsRequest
+	49,  // 176: vrooli.system_monitor.v1.metrics.MetricsService.GetDetailedMetrics:input_type -> vrooli.system_monitor.v1.metrics.GetDetailedMetricsRequest
+	51,  // 177: vrooli.system_monitor.v1.metrics.MetricsService.GetNetworkDiagnostic:input_type -> vrooli.system_monitor.v1.metrics.GetNetworkDiagnosticRequest
+	54,  // 178: vrooli.system_monitor.v1.metrics.MetricsService.GetProcessMonitor:input_type -> vrooli.system_monitor.v1.metrics.GetProcessMonitorRequest
+	56,  // 179: vrooli.system_monitor.v1.metrics.MetricsService.GetProcessTimeline:input_type -> vrooli.system_monitor.v1.metrics.GetProcessTimelineRequest
+	58,  // 180: vrooli.system_monitor.v1.metrics.MetricsService.GetInfrastructureMonitor:input_type -> vrooli.system_monitor.v1.metrics.GetInfrastructureMonitorRequest
+	60,  // 181: vrooli.system_monitor.v1.metrics.MetricsService.GetMetricsTimeline:input_type -> vrooli.system_monitor.v1.metrics.GetMetricsTimelineRequest
+	62,  // 182: vrooli.system_monitor.v1.metrics.MetricsService.GetDiskDetail:input_type -> vrooli.system_monitor.v1.metrics.GetDiskDetailRequest
+	48,  // 183: vrooli.system_monitor.v1.metrics.MetricsService.GetCurrentMetrics:output_type -> vrooli.system_monitor.v1.metrics.GetCurrentMetricsResponse
+	50,  // 184: vrooli.system_monitor.v1.metrics.MetricsService.GetDetailedMetrics:output_type -> vrooli.system_monitor.v1.metrics.GetDetailedMetricsResponse
+	52,  // 185: vrooli.system_monitor.v1.metrics.MetricsService.GetNetworkDiagnostic:output_type -> vrooli.system_monitor.v1.metrics.GetNetworkDiagnosticResponse
+	55,  // 186: vrooli.system_monitor.v1.metrics.MetricsService.GetProcessMonitor:output_type -> vrooli.system_monitor.v1.metrics.GetProcessMonitorResponse
+	57,  // 187: vrooli.system_monitor.v1.metrics.MetricsService.GetProcessTimeline:output_type -> vrooli.system_monitor.v1.metrics.GetProcessTimelineResponse
+	59,  // 188: vrooli.system_monitor.v1.metrics.MetricsService.GetInfrastructureMonitor:output_type -> vrooli.system_monitor.v1.metrics.GetInfrastructureMonitorResponse
+	61,  // 189: vrooli.system_monitor.v1.metrics.MetricsService.GetMetricsTimeline:output_type -> vrooli.system_monitor.v1.metrics.GetMetricsTimelineResponse
+	63,  // 190: vrooli.system_monitor.v1.metrics.MetricsService.GetDiskDetail:output_type -> vrooli.system_monitor.v1.metrics.GetDiskDetailResponse
+	183, // [183:191] is the sub-list for method output_type
+	175, // [175:183] is the sub-list for method input_type
+	175, // [175:175] is the sub-list for extension type_name
+	175, // [175:175] is the sub-list for extension extendee
+	0,   // [0:175] is the sub-list for field type_name
 }
 
 func init() { file_system_monitor_v1_metrics_metrics_proto_init() }

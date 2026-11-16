@@ -119,7 +119,7 @@ class ZoneCapability(_message.Message):
     def __init__(self, zone_id: _Optional[str] = ..., name: _Optional[str] = ..., led_count: _Optional[int] = ..., supports_static_color: _Optional[bool] = ..., supports_brightness: _Optional[bool] = ..., supported_effects: _Optional[_Iterable[str]] = ..., supports_led_count_configuration: _Optional[bool] = ..., min_led_count: _Optional[int] = ..., max_led_count: _Optional[int] = ..., configured_led_count: _Optional[int] = ..., setup_needed: _Optional[bool] = ...) -> None: ...
 
 class Controller(_message.Message):
-    __slots__ = ("backend_id", "controller_id", "name", "vendor", "description", "enrolled", "zones", "last_seen_at", "identity_source")
+    __slots__ = ("backend_id", "controller_id", "name", "vendor", "description", "enrolled", "zones", "last_seen_at", "identity_source", "reported_led_colors", "reported_color_source", "reported_colors_observed_at", "reported_active_mode", "reported_active_mode_index", "reported_active_mode_observed_at")
     BACKEND_ID_FIELD_NUMBER: _ClassVar[int]
     CONTROLLER_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -129,6 +129,12 @@ class Controller(_message.Message):
     ZONES_FIELD_NUMBER: _ClassVar[int]
     LAST_SEEN_AT_FIELD_NUMBER: _ClassVar[int]
     IDENTITY_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    REPORTED_LED_COLORS_FIELD_NUMBER: _ClassVar[int]
+    REPORTED_COLOR_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    REPORTED_COLORS_OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    REPORTED_ACTIVE_MODE_FIELD_NUMBER: _ClassVar[int]
+    REPORTED_ACTIVE_MODE_INDEX_FIELD_NUMBER: _ClassVar[int]
+    REPORTED_ACTIVE_MODE_OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
     backend_id: str
     controller_id: str
     name: str
@@ -138,7 +144,23 @@ class Controller(_message.Message):
     zones: _containers.RepeatedCompositeFieldContainer[ZoneCapability]
     last_seen_at: _timestamp_pb2.Timestamp
     identity_source: str
-    def __init__(self, backend_id: _Optional[str] = ..., controller_id: _Optional[str] = ..., name: _Optional[str] = ..., vendor: _Optional[str] = ..., description: _Optional[str] = ..., enrolled: _Optional[bool] = ..., zones: _Optional[_Iterable[_Union[ZoneCapability, _Mapping]]] = ..., last_seen_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., identity_source: _Optional[str] = ...) -> None: ...
+    reported_led_colors: _containers.RepeatedCompositeFieldContainer[ReportedLEDColor]
+    reported_color_source: str
+    reported_colors_observed_at: _timestamp_pb2.Timestamp
+    reported_active_mode: str
+    reported_active_mode_index: int
+    reported_active_mode_observed_at: _timestamp_pb2.Timestamp
+    def __init__(self, backend_id: _Optional[str] = ..., controller_id: _Optional[str] = ..., name: _Optional[str] = ..., vendor: _Optional[str] = ..., description: _Optional[str] = ..., enrolled: _Optional[bool] = ..., zones: _Optional[_Iterable[_Union[ZoneCapability, _Mapping]]] = ..., last_seen_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., identity_source: _Optional[str] = ..., reported_led_colors: _Optional[_Iterable[_Union[ReportedLEDColor, _Mapping]]] = ..., reported_color_source: _Optional[str] = ..., reported_colors_observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., reported_active_mode: _Optional[str] = ..., reported_active_mode_index: _Optional[int] = ..., reported_active_mode_observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class ReportedLEDColor(_message.Message):
+    __slots__ = ("index", "display_name", "color")
+    INDEX_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLOR_FIELD_NUMBER: _ClassVar[int]
+    index: int
+    display_name: str
+    color: Color
+    def __init__(self, index: _Optional[int] = ..., display_name: _Optional[str] = ..., color: _Optional[_Union[Color, _Mapping]] = ...) -> None: ...
 
 class Color(_message.Message):
     __slots__ = ("red", "green", "blue")

@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { forwardedDOMBindings } from "./dom-bindings.mjs";
 
 test("literal prop chains require a host attribute and respect overrides", async () => {
@@ -23,7 +24,7 @@ export function App() { return <><Browser surfaceId="results"/><Dropped surfaceI
 });
 
 test("catalog route reaches ExperienceSurface through its real source imports", async () => {
-  const root = resolve("scenarios/react-component-library/ui/src/App.tsx");
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../scenarios/react-component-library/ui/src/App.tsx");
   const found = (await forwardedDOMBindings([root])).get(root);
   const binding = found.find(item => item.attribute === "data-experience-surface" && item.value === "catalog-results");
   assert.ok(binding, JSON.stringify(found));

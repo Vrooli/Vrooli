@@ -1,8 +1,10 @@
 package page
 
 import (
-	"connectrpc.com/connect"
 	"context"
+
+	"connectrpc.com/connect"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	pagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/page"
@@ -20,11 +22,16 @@ func (h Handler) Inspect(ctx context.Context, req *connect.Request[pagev1.Inspec
 	}
 	return connect.NewResponse(result), nil
 }
+
+// Endpoints are the page domain's static descriptors; internal/modules lists
+// them for the endpoint inventory (`make endpoints`).
+var Endpoints = []module.EndpointDescriptor{
+	{ID: "page_inspect", Path: pageconnect.PageServiceInspectProcedure, Method: "POST", Summary: "Inspect a running page and resolve its stamped nodes to library source", Category: "page"},
+}
+
 func Module(repoRoot string) module.Module {
 	path, handler := pageconnect.NewPageServiceHandler(Handler{Service: pageinspect.Service{RepoRoot: repoRoot}})
 	return module.Module{Name: "page", Mount: func(router *mux.Router) {
 		connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: handler})
-	}, Endpoints: []module.EndpointDescriptor{
-		{ID: "page_inspect", Path: pageconnect.PageServiceInspectProcedure, Method: "POST", Summary: "Inspect a running page and resolve its stamped nodes to library source", Category: "page"},
-	}}
+	}, Endpoints: Endpoints}
 }

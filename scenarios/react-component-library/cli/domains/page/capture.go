@@ -8,6 +8,7 @@ package page
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -15,21 +16,26 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
 
 const captureSetSchema = "ux-capture-set.v1"
+
+const maxFileCaptureBytes = 2 * 1024 * 1024
 
 type view struct {
 	Name          string `json:"name"`
@@ -117,22 +123,54 @@ type basClient struct {
 }
 
 type basResponse struct {
-	BundleDir string `json:"bundle_dir"`
-	Manifest  struct {
+	Manifest struct {
 		SchemaVersion string `json:"schema_version"`
 		ID            string `json:"id"`
-		Lenses        lenses `json:"lenses"`
-		Artifacts     []struct {
-			Kind string `json:"kind"`
-			Path string `json:"path"`
+		Source        struct {
+			Kind     string `json:"kind"`
+			Scenario string `json:"scenario"`
+			Route    string `json:"route"`
+			URL      string `json:"url"`
+			Filename string `json:"filename"`
+		} `json:"source"`
+		Session struct {
+			ID string `json:"id"`
+		} `json:"session"`
+		Viewport struct {
+			Width  int `json:"width"`
+			Height int `json:"height"`
+		} `json:"viewport"`
+		Theme   string `json:"theme"`
+		Privacy struct {
+			RedactionStatus string `json:"redaction_status"`
+			External        bool   `json:"external"`
+			Ephemeral       bool   `json:"ephemeral"`
+		} `json:"privacy"`
+		Lenses    lenses `json:"lenses"`
+		Artifacts []struct {
+			Kind   string `json:"kind"`
+			Path   string `json:"path"`
+			Size   int64  `json:"size_bytes"`
+			SHA256 string `json:"sha256"`
 		} `json:"artifacts"`
 	} `json:"manifest"`
 }
 
-func (c basClient) capture(kind string, request map[string]any) (basResponse, error) {
+func (c basClient) capture(ctx context.Context, kind string, request map[string]any) (basResponse, error) {
 	var out basResponse
-	body, _ := json.Marshal(request)
-	resp, err := c.http.Post(c.base+"/api/v1/ux-capture/"+kind, "application/json", bytes.NewReader(body))
+	body, err := json.Marshal(request)
+	if err != nil {
+		return out, fmt.Errorf("encode BAS capture request: %w", err)
+	}
+	if kind != "scenario" && kind != "public" && kind != "file" {
+		return out, fmt.Errorf("unsupported BAS capture kind %q", kind)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.base+"/api/v1/ux-capture/"+kind, bytes.NewReader(body))
+	if err != nil {
+		return out, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.http.Do(req)
 	if err != nil {
 		return out, fmt.Errorf("BAS capture: %w", err)
 	}
@@ -141,33 +179,203 @@ func (c basClient) capture(kind string, request map[string]any) (basResponse, er
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return out, fmt.Errorf("BAS capture HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(raw)))
 	}
-	if err := json.Unmarshal(raw, &out); err != nil || out.Manifest.SchemaVersion != "ux-capture.v1" || out.Manifest.ID == "" {
-		return out, errors.New("BAS returned no ux-capture.v1 bundle")
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return out, fmt.Errorf("BAS returned invalid UX bundle JSON: %w", err)
+	}
+	if err := validateCaptureManifest(out, kind, request); err != nil {
+		return out, err
 	}
 	return out, nil
 }
 
-func (c basClient) artifact(bundle basResponse, kind string) ([]byte, error) {
-	for _, artifact := range bundle.Manifest.Artifacts {
-		if artifact.Kind != kind {
-			continue
-		}
-		resp, err := c.http.Get(c.base + "/api/v1/ux-capture/bundles/" + bundle.Manifest.ID + "/artifacts/" + artifact.Path)
-		if err != nil {
-			return nil, err
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("artifact %s: HTTP %d", kind, resp.StatusCode)
-		}
-		return io.ReadAll(io.LimitReader(resp.Body, 32<<20))
+func validateCaptureManifest(out basResponse, kind string, request map[string]any) error {
+	m := out.Manifest
+	if m.SchemaVersion != "ux-capture.v1" || !canonicalUUID(m.ID) || !canonicalUUID(m.Session.ID) {
+		return errors.New("BAS returned no identity-bound ux-capture.v1 bundle")
 	}
-	return nil, nil
+	if m.Privacy.RedactionStatus != "complete" || m.Privacy.External != (kind == "public") || m.Privacy.Ephemeral != (kind == "public") {
+		return errors.New("BAS returned a bundle with mismatched redaction or retention policy")
+	}
+	if m.Viewport.Width != requestDimension(request, "width") || m.Viewport.Height != requestDimension(request, "height") {
+		return errors.New("BAS returned a bundle for a different viewport")
+	}
+	theme, _ := request["theme"].(string)
+	if theme == "" || m.Theme != theme {
+		return errors.New("BAS returned a bundle for a different color theme")
+	}
+	for _, name := range []string{"L0", "L1", "L2", "L3", "L4", "L5", "L6"} {
+		lens, ok := m.Lenses[name]
+		if !ok || (lens.Status != "present" && lens.Status != "partial" && lens.Status != "absent") {
+			return fmt.Errorf("BAS bundle has invalid %s lens status", name)
+		}
+		if lens.Status != "present" && strings.TrimSpace(lens.Reason) == "" {
+			return fmt.Errorf("BAS bundle omits the %s lens reason", name)
+		}
+	}
+	switch kind {
+	case "scenario":
+		scenario, _ := request["scenario"].(string)
+		route, _ := request["route"].(string)
+		if route == "" {
+			route = "/"
+		}
+		if m.Source.Kind != "scenario" || m.Source.Scenario != scenario || m.Source.Route != redactRouteQuery(route) {
+			return errors.New("BAS returned a bundle for a different scenario route")
+		}
+	case "public":
+		rawURL, _ := request["url"].(string)
+		actualURL, actualOK := redactedCaptureURL(m.Source.URL)
+		expectedURL, expectedOK := redactedCaptureURL(rawURL)
+		if m.Source.Kind != "url" || !actualOK || !expectedOK || actualURL != expectedURL {
+			return errors.New("BAS returned a bundle for a different public URL")
+		}
+	case "file":
+		filename, _ := request["filename"].(string)
+		if m.Source.Kind != "file" || m.Source.Filename != filepath.Base(filename) {
+			return errors.New("BAS returned a bundle for a different file")
+		}
+	}
+	seen := make(map[string]struct{}, len(m.Artifacts))
+	for _, artifact := range m.Artifacts {
+		if !safeArtifactPath(artifact.Path) || artifact.Size < 0 || artifact.Size > 32<<20 || len(artifact.SHA256) != 64 {
+			return errors.New("BAS returned an invalid or unbounded artifact declaration")
+		}
+		if _, err := hex.DecodeString(artifact.SHA256); err != nil {
+			return errors.New("BAS returned an invalid artifact digest")
+		}
+		if _, exists := seen[artifact.Path]; exists {
+			return fmt.Errorf("BAS declared duplicate artifact path %q", artifact.Path)
+		}
+		seen[artifact.Path] = struct{}{}
+	}
+	return nil
+}
+
+func requestDimension(request map[string]any, key string) int {
+	value, ok := request[key].(int)
+	if !ok {
+		return 0
+	}
+	return value
+}
+
+func canonicalUUID(value string) bool {
+	if len(value) != 36 || strings.ToLower(value) != value {
+		return false
+	}
+	for i, r := range value {
+		if i == 8 || i == 13 || i == 18 || i == 23 {
+			if r != '-' {
+				return false
+			}
+		} else if !(r >= '0' && r <= '9' || r >= 'a' && r <= 'f') {
+			return false
+		}
+	}
+	return true
+}
+
+func safeArtifactPath(value string) bool {
+	if value == "" || strings.ContainsAny(value, "\\\x00") || strings.HasPrefix(value, "/") {
+		return false
+	}
+	for _, part := range strings.Split(value, "/") {
+		if part == "" || part == "." || part == ".." {
+			return false
+		}
+	}
+	return true
+}
+
+func redactRouteQuery(route string) string {
+	parsed, err := url.ParseRequestURI(route)
+	if err != nil || parsed.RawQuery == "" {
+		return route
+	}
+	query := parsed.Query()
+	for key := range query {
+		query.Set(key, "[REDACTED]")
+	}
+	parsed.RawQuery = query.Encode()
+	return parsed.Path + "?" + parsed.RawQuery
+}
+
+func redactedCaptureURL(raw string) (string, bool) {
+	parsed, err := url.Parse(raw)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.User != nil {
+		return "", false
+	}
+	query := parsed.Query()
+	for key := range query {
+		query.Set(key, "[REDACTED]")
+	}
+	parsed.RawQuery = query.Encode()
+	if parsed.Fragment != "" {
+		parsed.Fragment = "[REDACTED]"
+	}
+	parsed.User = nil
+	return parsed.String(), true
+}
+
+func (c basClient) artifact(ctx context.Context, bundle basResponse, kind string) ([]byte, error) {
+	var selected *struct {
+		Kind   string `json:"kind"`
+		Path   string `json:"path"`
+		Size   int64  `json:"size_bytes"`
+		SHA256 string `json:"sha256"`
+	}
+	for i := range bundle.Manifest.Artifacts {
+		artifact := &bundle.Manifest.Artifacts[i]
+		if artifact.Kind == kind {
+			selected = artifact
+			break
+		}
+	}
+	if selected == nil {
+		return nil, fmt.Errorf("BAS bundle has no %s artifact", kind)
+	}
+	if !safeArtifactPath(selected.Path) || selected.Size < 0 || selected.Size > 32<<20 {
+		return nil, fmt.Errorf("BAS %s artifact is unsafe or exceeds 32 MiB", kind)
+	}
+	parts := strings.Split(selected.Path, "/")
+	for i := range parts {
+		parts[i] = url.PathEscape(parts[i])
+	}
+	artifactURL := c.base + "/api/v1/ux-capture/bundles/" + url.PathEscape(bundle.Manifest.ID) + "/artifacts/" + strings.Join(parts, "/")
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, artifactURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("artifact %s: HTTP %d", kind, resp.StatusCode)
+	}
+	expectedMediaType := map[string]string{"pixels": "image/png", "frozen-page": "text/html", "outline": "application/json"}[kind]
+	mediaType, _, mediaErr := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	if expectedMediaType == "" || mediaErr != nil || mediaType != expectedMediaType {
+		return nil, fmt.Errorf("artifact %s has an unexpected media type", kind)
+	}
+	content, err := io.ReadAll(io.LimitReader(resp.Body, (32<<20)+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(content)) != selected.Size || len(content) > 32<<20 {
+		return nil, fmt.Errorf("artifact %s size does not match BAS manifest", kind)
+	}
+	digest := sha256.Sum256(content)
+	if hex.EncodeToString(digest[:]) != strings.ToLower(selected.SHA256) {
+		return nil, fmt.Errorf("artifact %s digest does not match BAS manifest", kind)
+	}
+	return content, nil
 }
 
 // scenarioPorts asks the control plane, which owns ports, where a scenario serves.
-var scenarioPorts = func(name string) (map[string]int, string, error) {
-	out, err := exec.Command("vrooli", "scenario", "status", name, "--json").Output() // #nosec G204 -- fixed control-plane verb
+var scenarioPorts = func(ctx context.Context, name string) (map[string]int, string, error) {
+	out, err := exec.CommandContext(ctx, "vrooli", "scenario", "status", name, "--json").Output() // #nosec G204 -- fixed control-plane verb
 	if err != nil {
 		return nil, "", fmt.Errorf("vrooli scenario status %s: %w", name, err)
 	}
@@ -184,10 +392,10 @@ var scenarioPorts = func(name string) (map[string]int, string, error) {
 	return status.Scenario.Ports, status.Scenario.StartedAt, nil
 }
 
-func newBASClient() (basClient, error) {
+func newBASClient(ctx context.Context) (basClient, error) {
 	base := strings.TrimRight(os.Getenv("RCL_BAS_API_BASE"), "/")
 	if base == "" {
-		ports, _, err := scenarioPorts("browser-automation-studio")
+		ports, _, err := scenarioPorts(ctx, "browser-automation-studio")
 		if err != nil {
 			return basClient{}, fmt.Errorf("BAS owns the browser for captures: %w", err)
 		}
@@ -224,7 +432,7 @@ func newCaptureID(subject string, now time.Time) string {
 
 // buildIdentity fingerprints what was served: the root document names its
 // content-hashed bundles, so its digest changes exactly when the build does.
-func buildIdentity(pageURL, startedAt string) map[string]string {
+func buildIdentity(ctx context.Context, pageURL, startedAt string) map[string]string {
 	build := map[string]string{}
 	if startedAt != "" {
 		build["served_since"] = startedAt
@@ -233,7 +441,11 @@ func buildIdentity(pageURL, startedAt string) map[string]string {
 		return build
 	}
 	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get(pageURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pageURL, nil)
+	if err != nil {
+		return build
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return build
 	}
@@ -253,6 +465,8 @@ func buildIdentity(pageURL, startedAt string) map[string]string {
 }
 
 func (h captureHandlers) capture(rc cliapp.RunContext) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	scenario, rawURL, file := strings.TrimSpace(rc.Flag("scenario")), strings.TrimSpace(rc.Flag("url")), strings.TrimSpace(rc.Flag("file"))
 	given := 0
 	for _, value := range []string{scenario, rawURL, file} {
@@ -271,7 +485,7 @@ func (h captureHandlers) capture(rc cliapp.RunContext) error {
 	if err != nil {
 		return err
 	}
-	bas, err := h.bas()
+	bas, err := h.bas(ctx)
 	if err != nil {
 		return err
 	}
@@ -282,14 +496,14 @@ func (h captureHandlers) capture(rc cliapp.RunContext) error {
 	var html []byte
 	switch {
 	case scenario != "":
-		ports, startedAt, err := scenarioPorts(scenario)
+		ports, startedAt, err := scenarioPorts(ctx, scenario)
 		if err != nil {
 			return err
 		}
 		kind = "scenario"
 		set.Source.Kind, set.Source.Scenario, set.Source.Route, set.Source.Steps = "scenario", scenario, route, rc.FlagValues("step")
 		set.Source.URL = "http://localhost:" + strconv.Itoa(ports["UI_PORT"]) + route
-		set.Build = buildIdentity(set.Source.URL, startedAt)
+		set.Build = buildIdentity(ctx, set.Source.URL, startedAt)
 		request = map[string]any{"scenario": scenario, "route": route, "steps": rc.FlagValues("step")}
 		if selector := strings.TrimSpace(rc.Flag("wait-selector")); selector != "" {
 			request["wait_selector"] = selector
@@ -297,18 +511,29 @@ func (h captureHandlers) capture(rc cliapp.RunContext) error {
 		set.ID = newCaptureID(scenario, now)
 	case rawURL != "":
 		parsed, err := url.Parse(rawURL)
-		if err != nil || parsed.Host == "" {
+		if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.User != nil {
 			return fmt.Errorf("--url must be an absolute http(s) URL")
 		}
 		kind = "public"
 		set.Source.Kind, set.Source.URL = "url", rawURL
-		set.Build = buildIdentity(rawURL, "")
+		set.Build = buildIdentity(ctx, rawURL, "")
 		request = map[string]any{"url": rawURL}
 		set.ID = newCaptureID(parsed.Hostname(), now)
 	default:
-		html, err = os.ReadFile(file)
+		input, openErr := os.Open(file)
+		if openErr != nil {
+			return openErr
+		}
+		html, err = io.ReadAll(io.LimitReader(input, maxFileCaptureBytes+1))
+		closeErr := input.Close()
+		if err == nil {
+			err = closeErr
+		}
 		if err != nil {
 			return err
+		}
+		if len(html) == 0 || len(html) > maxFileCaptureBytes {
+			return fmt.Errorf("HTML file must contain between 1 byte and 2 MiB")
 		}
 		kind = "file"
 		absolute, _ := filepath.Abs(file)
@@ -331,35 +556,53 @@ func (h captureHandlers) capture(rc cliapp.RunContext) error {
 			v.Theme = theme
 			v.Name = base.Name + "-" + theme
 			request["width"], request["height"], request["theme"] = v.Width, v.Height, theme
-			response, err := bas.capture(kind, request)
+			response, err := bas.capture(ctx, kind, request)
 			if err != nil {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
 				set.Failed = append(set.Failed, v.Name+": "+err.Error())
 				continue
 			}
 			v.BundleID, v.Lenses = response.Manifest.ID, response.Manifest.Lenses
-			if pixels, err := bas.artifact(response, "pixels"); err == nil && len(pixels) > 0 {
+			if pixels, err := bas.artifact(ctx, response, "pixels"); err == nil && len(pixels) > 0 {
 				v.Pixels = "pixels/" + v.Name + ".png"
 				sum := sha256.Sum256(pixels)
 				v.PixelsSHA256 = hex.EncodeToString(sum[:])
 				if err := os.WriteFile(filepath.Join(out, v.Pixels), pixels, 0o644); err != nil {
 					return err
 				}
+			} else {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				set.Failed = append(set.Failed, v.Name+": pixels: "+err.Error())
 			}
 			if v.Lenses["L0"].Status != "present" || v.Pixels == "" {
 				set.Failed = append(set.Failed, fmt.Sprintf("%s: no usable pixels (L0 %s: %s)", v.Name, v.Lenses["L0"].Status, v.Lenses["L0"].Reason))
 			}
-			if frozen, err := bas.artifact(response, "frozen-page"); err == nil && len(frozen) > 0 {
+			if frozen, err := bas.artifact(ctx, response, "frozen-page"); err == nil && len(frozen) > 0 {
 				v.Page = "page/" + v.Name + ".html"
 				if err := os.WriteFile(filepath.Join(out, v.Page), frozen, 0o644); err != nil {
 					return err
 				}
+			} else {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				set.Failed = append(set.Failed, v.Name+": frozen-page: "+err.Error())
 			}
-			if outline, err := bas.artifact(response, "outline"); err == nil && len(outline) > 0 {
+			if outline, err := bas.artifact(ctx, response, "outline"); err == nil && len(outline) > 0 {
 				_ = os.WriteFile(filepath.Join(out, "outline", v.Name+".json"), outline, 0o644)
 				if set.Outline == "" {
 					set.Outline = "outline.md"
 					_ = os.WriteFile(filepath.Join(out, set.Outline), []byte(renderOutline(outline, v)), 0o644)
 				}
+			} else {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				set.Failed = append(set.Failed, v.Name+": outline: "+err.Error())
 			}
 			// A page that ignores the system theme paints the same pixels for
 			// both; say so instead of presenting a "dark" view that is not one.
@@ -390,6 +633,8 @@ func (h captureHandlers) capture(rc cliapp.RunContext) error {
 }
 
 func (h captureHandlers) render(rc cliapp.RunContext) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	file := rc.Positional("file")
 	html, err := os.ReadFile(file)
 	if err != nil {
@@ -403,7 +648,7 @@ func (h captureHandlers) render(rc cliapp.RunContext) error {
 	if err != nil {
 		return err
 	}
-	bas, err := h.bas()
+	bas, err := h.bas(ctx)
 	if err != nil {
 		return err
 	}
@@ -411,13 +656,23 @@ func (h captureHandlers) render(rc cliapp.RunContext) error {
 	var failed []string
 	for _, v := range views {
 		for _, theme := range themes {
-			response, err := bas.capture("file", map[string]any{"filename": filepath.Base(file), "html": string(html), "width": v.Width, "height": v.Height, "theme": theme})
+			response, err := bas.capture(ctx, "file", map[string]any{"filename": filepath.Base(file), "html": string(html), "width": v.Width, "height": v.Height, "theme": theme})
 			if err != nil {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
 				failed = append(failed, err.Error())
 				continue
 			}
 			l0 := response.Manifest.Lenses["L0"]
-			pixels, _ := bas.artifact(response, "pixels")
+			pixels, err := bas.artifact(ctx, response, "pixels")
+			if err != nil {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				failed = append(failed, err.Error())
+				continue
+			}
 			if l0.Status != "present" || len(pixels) == 0 {
 				failed = append(failed, fmt.Sprintf("%s-%s: L0 %s: %s", v.Name, theme, l0.Status, l0.Reason))
 				continue
@@ -574,5 +829,5 @@ func defaultString(value, fallback string) string {
 }
 
 type captureHandlers struct {
-	bas func() (basClient, error)
+	bas func(context.Context) (basClient, error)
 }

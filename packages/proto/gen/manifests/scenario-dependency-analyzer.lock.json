@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "scenario-dependency-analyzer",
-  "input_digest": "sha256:abce4fd9d2e86beeed5211a0f9435eb65417a982ccbcacc309d5348420f6afab",
+  "input_digest": "sha256:0ebc43b09ca1bc097c7881e992cfb7e3a61d958f7146168014b75c4f841c1757",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/validation_target.proto",
@@ -16,7 +16,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
-    "generator_digest": "sha256:cccdbaf9a556a5be923d2c17f31d7f3f1e8de7959b27263f9ddbb964a4b52cc9",
+    "generator_digest": "sha256:47bbfc74c5d2c0e0172be6ac47ec939b6b4678e8ca51fa8202f7056c8fc16447",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -27,8 +27,8 @@
   "outputs": {
     "gen/go/scenario-dependency-analyzer/v1/analysis_operations/analysis_operations.pb.go": "sha256:cbca710b069c87fee1696badebb93355aa65d98f85f108c38adcb4228c81c443",
     "gen/go/scenario-dependency-analyzer/v1/analysis_operations/analysis_operations_v1connect/analysis_operations.connect.go": "sha256:0781e6f653b48217a505bbef790e32927ea3666c5ffe48147a0faaa8b7fc382d",
-    "gen/go/scenario-dependency-analyzer/v1/dependency_governance/dependency_governance.pb.go": "sha256:66cfb442ce2a0efe54e3467a23adf0806dae217b80d94c078210c5a8fbfb184c",
-    "gen/go/scenario-dependency-analyzer/v1/dependency_governance/dependency_governance_v1connect/dependency_governance.connect.go": "sha256:dcc04f05c4679850b70d4f25248d011156335f91911d5675a315f313426fefd3",
+    "gen/go/scenario-dependency-analyzer/v1/dependency_governance/dependency_governance.pb.go": "sha256:19afa107cb1d3288f87672460bc551dfb267028eeba773987e7c6f64283c3604",
+    "gen/go/scenario-dependency-analyzer/v1/dependency_governance/dependency_governance_v1connect/dependency_governance.connect.go": "sha256:2deba14e80d932c806305aed2c728c3f988618e1b776ebdf81c434391e578e62",
     "gen/go/scenario-dependency-analyzer/v1/dependency_health/dependency_health.pb.go": "sha256:4d77ad004e8b34d595a6a47d9e0f8960ef5211e78d91a17499a4e5ab75025d50",
     "gen/go/scenario-dependency-analyzer/v1/dependency_health/dependency_health_v1connect/dependency_health.connect.go": "sha256:d86eb2ffa87f162b68100516a7dbf2e9451b28341cdd06d96dc8246bea640503",
     "gen/go/scenario-dependency-analyzer/v1/graph/graph.pb.go": "sha256:c4846383555796876a59d8416469086336115b3bfb13718f39e13dea25360619",
@@ -42,8 +42,8 @@
     "gen/python/scenario_dependency_analyzer/v1/analysis_operations/analysis_operations_pb2.py": "sha256:56869025180570acf1979d71108b93b14ce90ad7b4f22c0a876dc8beb6ee718a",
     "gen/python/scenario_dependency_analyzer/v1/analysis_operations/analysis_operations_pb2.pyi": "sha256:29f55454ed3bc7870e47da45a27428777b7968d14dbd34180e81bc00eac0cb0b",
     "gen/python/scenario_dependency_analyzer/v1/analysis_operations/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/scenario_dependency_analyzer/v1/dependency_governance/dependency_governance_pb2.py": "sha256:3d72e35208e5fdf1c30f3599a61176fc9959252363e3c441b693652a1c9986d9",
-    "gen/python/scenario_dependency_analyzer/v1/dependency_governance/dependency_governance_pb2.pyi": "sha256:6f222abe3ea2eeb89d6c951b1987c3733427a3aca417f31ca18b1569f0c08fcc",
+    "gen/python/scenario_dependency_analyzer/v1/dependency_governance/dependency_governance_pb2.py": "sha256:9ffa67a0c668c17591bbbdbf4ee9f6e7e14f24d45c5f75bd61cf006929d13f22",
+    "gen/python/scenario_dependency_analyzer/v1/dependency_governance/dependency_governance_pb2.pyi": "sha256:3e861204e0d903406d771b93f5178cf0d006723b4c1211e593abc2ed325c6947",
     "gen/python/scenario_dependency_analyzer/v1/dependency_governance/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/scenario_dependency_analyzer/v1/dependency_health/dependency_health_pb2.py": "sha256:fb97f71f731462c415a0f2dc2fc80ef058ab4c845aa15c63a41bfa289693e5cb",
     "gen/python/scenario_dependency_analyzer/v1/dependency_health/dependency_health_pb2.pyi": "sha256:59f67df101da6507774168a567a7322e144bfc99e71d9a806e622fc240d6ab71",
@@ -61,9 +61,9 @@
     "gen/python/scenario_dependency_analyzer/v1/resource_usage/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/scenario_dependency_analyzer/v1/resource_usage/resource_usage_pb2.py": "sha256:69ea7c508f049e2ee51ed99bcadfcced0ddfd6c632dfad6fd6a3b99aa508743b",
     "gen/python/scenario_dependency_analyzer/v1/resource_usage/resource_usage_pb2.pyi": "sha256:042c0e00a2c5bb01cf8a27b72935b6fac84879abffa80262bdffec22f2d8e19e",
-    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
+    "gen/typescript/package.json": "sha256:d7210c69e0b4e8eb72d65b1503ce8ea1eeb61aa893b5442e16d0ab4a9980e5d6",
     "gen/typescript/scenario-dependency-analyzer/v1/analysis_operations/analysis_operations_pb.ts": "sha256:2614b790114d0a5bb05b403378982fa7c8b0e011ad9ef9bd1b78a38950e931a2",
-    "gen/typescript/scenario-dependency-analyzer/v1/dependency_governance/dependency_governance_pb.ts": "sha256:80b20be25b0d32f349931e23b70b009e18ef585c3e4ab97df358472d92026adf",
+    "gen/typescript/scenario-dependency-analyzer/v1/dependency_governance/dependency_governance_pb.ts": "sha256:f00fec6d980123de1da8892a628fbb6fa9e65f194f6ab66b4b7cc4ca7a1b5142",
     "gen/typescript/scenario-dependency-analyzer/v1/dependency_health/dependency_health_pb.ts": "sha256:64331d95f76d4bdd69a42d3498e4155b1369a643558e279ffb14c7f2f11febee",
     "gen/typescript/scenario-dependency-analyzer/v1/graph/graph_pb.ts": "sha256:46173e5f821a1720bb454bc7711be99b65b1820ba71382a532d9cef909d3bc6b",
     "gen/typescript/scenario-dependency-analyzer/v1/health/health_pb.ts": "sha256:c7374a37d40ae238f29dc26052a84d7bc2c18e48d95024d5b04cd5e0da57d654",

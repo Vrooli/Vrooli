@@ -103,6 +103,14 @@ message ScenarioStatusItem {
 
   // Authored build identity served by the managed runtime.
   string build_identity = 14;
+
+  // Exact immutable retained artifact currently serving this instance.
+  string runtime_release_id = 15;
+
+  // Selection operation that routed the instance to runtime_release_id.
+  string runtime_release_operation_id = 16;
+  // Exact start attempt that launched the serving instance.
+  string start_operation_id = 17;
 }
 
 // ScenarioStartOperation is the reader view of one durable start/restart
@@ -172,6 +180,10 @@ message ScenarioStartOperation {
   // the lock holder, so a reader can tie an in-flight operation to the
   // "already running (held by pid N)" error without inspecting the host.
   int32 initiator_pid = 19;
+
+  // Exact provider-owned fence operation linked to this lifecycle attempt.
+  // Empty when this attempt has not negotiated a provider fence.
+  string fence_operation_id = 20;
 }
 
 // ScenarioStartOperationStep is one recorded step of a start operation.
@@ -187,6 +199,10 @@ message ScenarioStartOperationStep {
 
   // Step end time as RFC3339Nano; empty while running.
   string ended_at = 4;
+
+  // Exact runtime artifact, process build and health provenance attached to
+  // the lifecycle operation. Empty for mutable-source runs.
+  map<string, string> evidence = 5;
 }
 
 // -----------------------------------------------------------------------------
@@ -207,6 +223,62 @@ message ScenarioStatusSingle {
 
   // Live runtime detail (processes, ports, etc.).
   ScenarioRuntimeData runtime = 4;
+
+  // Configured authentication mode, its source, and the mode each running
+  // process carries. Null for scenarios without an authentication profile.
+  ScenarioAuthenticationStatus authentication = 5;
+}
+
+// ScenarioAuthenticationStatus reports where a scenario's authentication mode
+// comes from. The mode is the manifest's authentication.default_mode; the
+// environment of whoever ran a start is never a source.
+message ScenarioAuthenticationStatus {
+  // Manifest authentication profile (e.g. hybrid, scenario_authenticator).
+  string profile = 1;
+
+  // Manifest authentication.supported_modes.
+  repeated string supported_modes = 2;
+
+  // Mode the next managed start applies.
+  string configured_mode = 3;
+
+  // Where configured_mode comes from: "manifest-default".
+  string configured_source = 4;
+
+  // Mode carried by each running process, read from its environment.
+  repeated ScenarioProcessAuthentication processes = 5;
+
+  // True when a running process does not carry the configured mode.
+  bool mismatch = 6;
+
+  // What the configured mode trusts, set when it is personal_local.
+  string risk = 7;
+
+  // Why the next managed start refuses the configured mode.
+  string refused = 8;
+}
+
+// ScenarioProcessAuthentication is the authentication setting one running
+// scenario process carries.
+message ScenarioProcessAuthentication {
+  // Lifecycle step that launched the process.
+  string step = 1;
+
+  // Process id.
+  int32 pid = 2;
+
+  // VROOLI_AUTH_MODE in the process environment.
+  string mode = 3;
+
+  // VROOLI_AUTH_MODE_SOURCE in the process environment; empty for processes
+  // started before the source was recorded.
+  string source = 4;
+
+  // VROOLI_AUTH_PROVIDERS in the process environment.
+  string providers = 5;
+
+  // Why the process environment could not be read.
+  string error = 6;
 }
 
 // ScenarioInfoResponse is the bare payload of `vrooli scenario info --json`
@@ -391,6 +463,14 @@ message ScenarioRuntimeData {
 
   // Authored build identity served by the managed runtime.
   string build_identity = 9;
+
+  // Exact immutable retained artifact currently serving this instance.
+  string runtime_release_id = 10;
+
+  // Selection operation that routed the instance to runtime_release_id.
+  string runtime_release_operation_id = 11;
+  // Exact start attempt that launched the serving instance.
+  string start_operation_id = 12;
 }
 
 // ScenarioProcessRecord mirrors a tracked OS process record (process.Record).

@@ -103,8 +103,21 @@ async function copyCandidate(candidateRoot, targetRoot) {
   }
 }
 
+function processIsAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === "EPERM";
+  }
+}
+
 export class ArtifactStore {
-  constructor(root) {
+  // `options.lockTimeoutMs` bounds how long publish, select and materialize wait
+  // for another build that holds the store lock.
+  constructor(root, options = {}) {
+    this.lockTimeoutMs = options.lockTimeoutMs ?? lockTimeoutMs;
     this.root = resolve(root);
     this.artifactsRoot = join(this.root, "artifacts");
     this.currentPath = join(this.root, pointerName);
@@ -121,7 +134,8 @@ export class ArtifactStore {
       try {
         handle = await open(this.lockPath, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY, 0o600);
       } catch (error) {
-        if (error.code !== "EEXIST" || Date.now() - started >= lockTimeoutMs) throw new Error("artifact store lock timeout: " + error.message);
+        if (error.code !== "EEXIST") throw error;
+        if (Date.now() - started >= this.lockTimeoutMs) throw await this.lockTimeoutError(started);
         await new Promise((resolveDelay) => setTimeout(resolveDelay, lockWaitMs));
       }
     }
@@ -132,6 +146,17 @@ export class ArtifactStore {
       await handle.close();
       await rm(this.lockPath, { force: true });
     }
+  }
+
+  // The error names the holder so a stuck build is attributable; a holder that
+  // is no longer running means the lock is stale and its file can be removed.
+  async lockTimeoutError(started) {
+    const holder = Number.parseInt(await readFile(this.lockPath, "utf8").catch(() => ""), 10);
+    const waited = Math.round((Date.now() - started) / 1000);
+    const who = Number.isInteger(holder)
+      ? "held by pid " + holder + (processIsAlive(holder) ? " (still running)" : " (not running: the lock is stale, remove " + this.lockPath + ")")
+      : "holder unknown";
+    return new Error("artifact store lock timeout after " + waited + "s: " + who);
   }
 
   artifactPath(id) {

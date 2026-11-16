@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "react-component-library",
   "generator": "v1.0.0",
-  "manifest_hash": "ca29955de4ea583267c4bf84ba57c73f5dbe6413de753c41ebbd2b1930b43287",
+  "manifest_hash": "80e07101be0ef92b68f236ef78bd6d1b78c7577c70f8fd10fbeaa0416b971403",
   "commands": [
     {
       "path": "adoptions link",
@@ -65,6 +65,12 @@
       "binding": "."
     },
     {
+      "path": "asset record-check",
+      "group": "asset",
+      "command": "record-check",
+      "binding": "."
+    },
+    {
       "path": "catalog build",
       "group": "catalog",
       "command": "build",
@@ -99,6 +105,14 @@
       "binding": "CatalogService.GetReadiness",
       "declared_primitive": "operational",
       "observed_primitive": "operational"
+    },
+    {
+      "path": "catalog record-gate",
+      "group": "catalog",
+      "command": "record-gate",
+      "binding": "CatalogService.RecordGate",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "components check",
@@ -409,7 +423,7 @@
       "path": "versions reconcile-presence",
       "group": "versions",
       "command": "reconcile-presence",
-      "binding": ".",
+      "binding": "VersionLifecycleService.ReconcilePresence",
       "declared_primitive": "action"
     },
     {

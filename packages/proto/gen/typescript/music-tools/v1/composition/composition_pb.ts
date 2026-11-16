@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file music-tools/v1/composition/composition.proto.
  */
 export const file_music_tools_v1_composition_composition: GenFile = /*@__PURE__*/
-  fileDesc("CixtdXNpYy10b29scy92MS9jb21wb3NpdGlvbi9jb21wb3NpdGlvbi5wcm90bxIhdnJvb2xpLm11c2ljX3Rvb2xzLnYxLmNvbXBvc2l0aW9uIo4BCgpQcm92ZW5hbmNlEhAKCG1vZGVsX2lkGAEgASgJEhQKDGxpY2Vuc2VfbGFuZRgCIAEoCRIUCgxhcHBsaWVkX3J1bmcYAyABKAkSDAoEc2VlZBgEIAEoAxIbChNjYXB0aW9uX2FzX2F1dGhvcmVkGAUgASgJEhcKD2NhcHRpb25fYXNfc2VudBgGIAEoCSKqAgoEVGFrZRIKCgJpZBgBIAEoCRIOCgZqb2JfaWQYAiABKAkSEAoIc3R5bGVfaWQYAyABKAkSEgoKcG9vbF9zdGF0ZRgEIAEoCRIQCghibG9iX3JlZhgFIAEoCRJBCgpwcm92ZW5hbmNlGAYgASgLMi0udnJvb2xpLm11c2ljX3Rvb2xzLnYxLmNvbXBvc2l0aW9uLlByb3ZlbmFuY2USFQoNdGltZXNfb2ZmZXJlZBgHIAEoBRITCgtyZXNlcnZlZF9ieRgIIAEoCRIuCgpjcmVhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgtyZXNlcnZlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAifAoNU3VibWl0UmVxdWVzdBIQCghzdHlsZV9pZBgBIAEoCRINCgV0YWtlcxgCIAEoBRIQCghkdXJhdGlvbhgDIAEoBRIRCgRzZWVkGAQgASgDSACIAQESEgoFc2hpZnQYBSABKAFIAYgBAUIHCgVfc2VlZEIICgZfc2hpZnQiIAoOU3VibWl0UmVzcG9uc2USDgoGam9iX2lkGAEgASgJIjQKEExpc3RUYWtlc1JlcXVlc3QSEAoIc3R5bGVfaWQYASABKAkSDgoGam9iX2lkGAIgASgJIksKEUxpc3RUYWtlc1Jlc3BvbnNlEjYKBXRha2VzGAEgAygLMicudnJvb2xpLm11c2ljX3Rvb2xzLnYxLmNvbXBvc2l0aW9uLlRha2Uy+wEKEkNvbXBvc2l0aW9uU2VydmljZRJtCgZTdWJtaXQSMC52cm9vbGkubXVzaWNfdG9vbHMudjEuY29tcG9zaXRpb24uU3VibWl0UmVxdWVzdBoxLnZyb29saS5tdXNpY190b29scy52MS5jb21wb3NpdGlvbi5TdWJtaXRSZXNwb25zZRJ2CglMaXN0VGFrZXMSMy52cm9vbGkubXVzaWNfdG9vbHMudjEuY29tcG9zaXRpb24uTGlzdFRha2VzUmVxdWVzdBo0LnZyb29saS5tdXNpY190b29scy52MS5jb21wb3NpdGlvbi5MaXN0VGFrZXNSZXNwb25zZUJaWlhnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL211c2ljLXRvb2xzL3YxL2NvbXBvc2l0aW9uO2NvbXBvc2l0aW9uX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("CixtdXNpYy10b29scy92MS9jb21wb3NpdGlvbi9jb21wb3NpdGlvbi5wcm90bxIhdnJvb2xpLm11c2ljX3Rvb2xzLnYxLmNvbXBvc2l0aW9uIo4BCgpQcm92ZW5hbmNlEhAKCG1vZGVsX2lkGAEgASgJEhQKDGxpY2Vuc2VfbGFuZRgCIAEoCRIUCgxhcHBsaWVkX3J1bmcYAyABKAkSDAoEc2VlZBgEIAEoAxIbChNjYXB0aW9uX2FzX2F1dGhvcmVkGAUgASgJEhcKD2NhcHRpb25fYXNfc2VudBgGIAEoCSKqAgoEVGFrZRIKCgJpZBgBIAEoCRIOCgZqb2JfaWQYAiABKAkSEAoIc3R5bGVfaWQYAyABKAkSEgoKcG9vbF9zdGF0ZRgEIAEoCRIQCghibG9iX3JlZhgFIAEoCRJBCgpwcm92ZW5hbmNlGAYgASgLMi0udnJvb2xpLm11c2ljX3Rvb2xzLnYxLmNvbXBvc2l0aW9uLlByb3ZlbmFuY2USFQoNdGltZXNfb2ZmZXJlZBgHIAEoBRITCgtyZXNlcnZlZF9ieRgIIAEoCRIuCgpjcmVhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgtyZXNlcnZlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAirAEKDVN1Ym1pdFJlcXVlc3QSEAoIc3R5bGVfaWQYASABKAkSDQoFdGFrZXMYAiABKAUSEAoIZHVyYXRpb24YAyABKAUSEQoEc2VlZBgEIAEoA0gAiAEBEhIKBXNoaWZ0GAUgASgBSAGIAQESGwoOdm9jYWxfbGFuZ3VhZ2UYBiABKAlIAogBAUIHCgVfc2VlZEIICgZfc2hpZnRCEQoPX3ZvY2FsX2xhbmd1YWdlIiAKDlN1Ym1pdFJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCSI0ChBMaXN0VGFrZXNSZXF1ZXN0EhAKCHN0eWxlX2lkGAEgASgJEg4KBmpvYl9pZBgCIAEoCSJLChFMaXN0VGFrZXNSZXNwb25zZRI2CgV0YWtlcxgBIAMoCzInLnZyb29saS5tdXNpY190b29scy52MS5jb21wb3NpdGlvbi5UYWtlIpoBChZDYW5kaWRhdGVSZWZpbGxSZXF1ZXN0EhIKCnJlcXVlc3RfaWQYASABKAkSFgoOcmVzZXJ2YXRpb25faWQYAiABKAkSDgoGc2hhMjU2GAMgASgJEg8KB3B1cnBvc2UYBCABKAkSDwoHcHJvamVjdBgFIAEoCRIQCghyZXZpc2lvbhgGIAEoCRIQCghzdHlsZV9pZBgHIAEoCSJeChdDYW5kaWRhdGVSZWZpbGxSZXNwb25zZRISCgpyZXF1ZXN0X2lkGAEgASgJEg0KBXN0YXRlGAIgASgJEhAKCHN0eWxlX2lkGAMgASgJEg4KBmpvYl9pZBgEIAEoCSIyChxDYW5jZWxDYW5kaWRhdGVSZWZpbGxSZXF1ZXN0EhIKCnJlcXVlc3RfaWQYASABKAky+wEKEkNvbXBvc2l0aW9uU2VydmljZRJtCgZTdWJtaXQSMC52cm9vbGkubXVzaWNfdG9vbHMudjEuY29tcG9zaXRpb24uU3VibWl0UmVxdWVzdBoxLnZyb29saS5tdXNpY190b29scy52MS5jb21wb3NpdGlvbi5TdWJtaXRSZXNwb25zZRJ2CglMaXN0VGFrZXMSMy52cm9vbGkubXVzaWNfdG9vbHMudjEuY29tcG9zaXRpb24uTGlzdFRha2VzUmVxdWVzdBo0LnZyb29saS5tdXNpY190b29scy52MS5jb21wb3NpdGlvbi5MaXN0VGFrZXNSZXNwb25zZTKyAgoZQ2FuZGlkYXRlSW52ZW50b3J5U2VydmljZRKGAQoNUmVxdWVzdFJlZmlsbBI5LnZyb29saS5tdXNpY190b29scy52MS5jb21wb3NpdGlvbi5DYW5kaWRhdGVSZWZpbGxSZXF1ZXN0GjoudnJvb2xpLm11c2ljX3Rvb2xzLnYxLmNvbXBvc2l0aW9uLkNhbmRpZGF0ZVJlZmlsbFJlc3BvbnNlEosBCgxDYW5jZWxSZWZpbGwSPy52cm9vbGkubXVzaWNfdG9vbHMudjEuY29tcG9zaXRpb24uQ2FuY2VsQ2FuZGlkYXRlUmVmaWxsUmVxdWVzdBo6LnZyb29saS5tdXNpY190b29scy52MS5jb21wb3NpdGlvbi5DYW5kaWRhdGVSZWZpbGxSZXNwb25zZUJaWlhnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL211c2ljLXRvb2xzL3YxL2NvbXBvc2l0aW9uO2NvbXBvc2l0aW9uX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.music_tools.v1.composition.Provenance
@@ -150,6 +150,13 @@ export type SubmitRequest = Message<"vrooli.music_tools.v1.composition.SubmitReq
    * @generated from field: optional double shift = 5;
    */
   shift?: number | undefined;
+
+  /**
+   * Optional model-declared sung vocal language. Omission preserves the model default.
+   *
+   * @generated from field: optional string vocal_language = 6;
+   */
+  vocalLanguage?: string | undefined;
 };
 
 /**
@@ -216,6 +223,102 @@ export const ListTakesResponseSchema: GenMessage<ListTakesResponse> = /*@__PURE_
   messageDesc(file_music_tools_v1_composition_composition, 5);
 
 /**
+ * @generated from message vrooli.music_tools.v1.composition.CandidateRefillRequest
+ */
+export type CandidateRefillRequest = Message<"vrooli.music_tools.v1.composition.CandidateRefillRequest"> & {
+  /**
+   * @generated from field: string request_id = 1;
+   */
+  requestId: string;
+
+  /**
+   * @generated from field: string reservation_id = 2;
+   */
+  reservationId: string;
+
+  /**
+   * @generated from field: string sha256 = 3;
+   */
+  sha256: string;
+
+  /**
+   * @generated from field: string purpose = 4;
+   */
+  purpose: string;
+
+  /**
+   * @generated from field: string project = 5;
+   */
+  project: string;
+
+  /**
+   * @generated from field: string revision = 6;
+   */
+  revision: string;
+
+  /**
+   * @generated from field: string style_id = 7;
+   */
+  styleId: string;
+};
+
+/**
+ * Describes the message vrooli.music_tools.v1.composition.CandidateRefillRequest.
+ * Use `create(CandidateRefillRequestSchema)` to create a new message.
+ */
+export const CandidateRefillRequestSchema: GenMessage<CandidateRefillRequest> = /*@__PURE__*/
+  messageDesc(file_music_tools_v1_composition_composition, 6);
+
+/**
+ * @generated from message vrooli.music_tools.v1.composition.CandidateRefillResponse
+ */
+export type CandidateRefillResponse = Message<"vrooli.music_tools.v1.composition.CandidateRefillResponse"> & {
+  /**
+   * @generated from field: string request_id = 1;
+   */
+  requestId: string;
+
+  /**
+   * @generated from field: string state = 2;
+   */
+  state: string;
+
+  /**
+   * @generated from field: string style_id = 3;
+   */
+  styleId: string;
+
+  /**
+   * @generated from field: string job_id = 4;
+   */
+  jobId: string;
+};
+
+/**
+ * Describes the message vrooli.music_tools.v1.composition.CandidateRefillResponse.
+ * Use `create(CandidateRefillResponseSchema)` to create a new message.
+ */
+export const CandidateRefillResponseSchema: GenMessage<CandidateRefillResponse> = /*@__PURE__*/
+  messageDesc(file_music_tools_v1_composition_composition, 7);
+
+/**
+ * @generated from message vrooli.music_tools.v1.composition.CancelCandidateRefillRequest
+ */
+export type CancelCandidateRefillRequest = Message<"vrooli.music_tools.v1.composition.CancelCandidateRefillRequest"> & {
+  /**
+   * @generated from field: string request_id = 1;
+   */
+  requestId: string;
+};
+
+/**
+ * Describes the message vrooli.music_tools.v1.composition.CancelCandidateRefillRequest.
+ * Use `create(CancelCandidateRefillRequestSchema)` to create a new message.
+ */
+export const CancelCandidateRefillRequestSchema: GenMessage<CancelCandidateRefillRequest> = /*@__PURE__*/
+  messageDesc(file_music_tools_v1_composition_composition, 8);
+
+/**
  * @generated from service vrooli.music_tools.v1.composition.CompositionService
  */
 export const CompositionService: GenService<{
@@ -237,4 +340,27 @@ export const CompositionService: GenService<{
   },
 }> = /*@__PURE__*/
   serviceDesc(file_music_tools_v1_composition_composition, 0);
+
+/**
+ * @generated from service vrooli.music_tools.v1.composition.CandidateInventoryService
+ */
+export const CandidateInventoryService: GenService<{
+  /**
+   * @generated from rpc vrooli.music_tools.v1.composition.CandidateInventoryService.RequestRefill
+   */
+  requestRefill: {
+    methodKind: "unary";
+    input: typeof CandidateRefillRequestSchema;
+    output: typeof CandidateRefillResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.music_tools.v1.composition.CandidateInventoryService.CancelRefill
+   */
+  cancelRefill: {
+    methodKind: "unary";
+    input: typeof CancelCandidateRefillRequestSchema;
+    output: typeof CandidateRefillResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_music_tools_v1_composition_composition, 1);
 

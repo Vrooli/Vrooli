@@ -89,6 +89,10 @@ message ReindexRequest {
   string embedding_role = 8;
   int32 embedding_dimensions = 9;
   string embedding_policy_schema_version = 10;
+  // Complete immutable embedding recipe identity used to validate and retain
+  // the exact model/runtime contract for a staged generation.
+  string embedding_recipe_id = 11;
+  string embedding_recipe_canonical = 12;
 }
 
 // ReindexResponse returns the assigned job_id plus the planned upsert/delete

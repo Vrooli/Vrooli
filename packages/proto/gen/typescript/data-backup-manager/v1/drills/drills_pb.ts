@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file data-backup-manager/v1/drills/drills.proto.
  */
 export const file_data_backup_manager_v1_drills_drills: GenFile = /*@__PURE__*/
-  fileDesc("CipkYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL2RyaWxscy9kcmlsbHMucHJvdG8SJHZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRyaWxscyKNAwoNUmVjb3ZlcnlEcmlsbBIKCgJpZBgBIAEoCRIPCgdwbGFuX2lkGAIgASgJEhEKCXRhcmdldF9pZBgDIAEoCRIWCg5kZXN0aW5hdGlvbl9pZBgEIAEoCRITCgtzbmFwc2hvdF9pZBgFIAEoCRISCgpyZXN0b3JlX2lkGAYgASgJEkEKBnN0YXR1cxgHIAEoDjIxLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRyaWxscy5EcmlsbFN0YXR1cxIRCglzY2hlZHVsZWQYCCABKAgSDQoFZXJyb3IYCSABKAkSEwoLbmV4dF9hY3Rpb24YCiABKAkSMAoMcmVxdWVzdGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpzdGFydGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgtmaW5pc2hlZF9hdBgNIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiWgoTUHJldmlld0RyaWxsUmVxdWVzdBIYCgdwbGFuX2lkGAEgASgJQge6SARyAhABEhEKCXRhcmdldF9pZBgCIAEoCRIWCg5kZXN0aW5hdGlvbl9pZBgDIAEoCSKbAQoUUHJldmlld0RyaWxsUmVzcG9uc2USEAoIZWxpZ2libGUYASABKAgSDwoHcGxhbl9pZBgCIAEoCRIRCgl0YXJnZXRfaWQYAyABKAkSFgoOZGVzdGluYXRpb25faWQYBCABKAkSEwoLc25hcHNob3RfaWQYBSABKAkSEAoId2FybmluZ3MYBiADKAkSDgoGcmVhc29uGAcgASgJIoIBCg9SdW5EcmlsbFJlcXVlc3QSGAoHcGxhbl9pZBgBIAEoCUIHukgEcgIQARIRCgl0YXJnZXRfaWQYAiABKAkSFgoOZGVzdGluYXRpb25faWQYAyABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GAQgASgJEhEKCXNjaGVkdWxlZBgFIAEoCCJWChBSdW5EcmlsbFJlc3BvbnNlEkIKBWRyaWxsGAEgASgLMjMudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZHJpbGxzLlJlY292ZXJ5RHJpbGwiJgoPR2V0RHJpbGxSZXF1ZXN0EhMKAmlkGAEgASgJQge6SARyAhABIlYKEEdldERyaWxsUmVzcG9uc2USQgoFZHJpbGwYASABKAsyMy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kcmlsbHMuUmVjb3ZlcnlEcmlsbCJnChFMaXN0RHJpbGxzUmVxdWVzdBIPCgdwbGFuX2lkGAEgASgJEhEKCXRhcmdldF9pZBgCIAEoCRIaCglwYWdlX3NpemUYAyABKAVCB7pIBBoCKAASEgoKcGFnZV90b2tlbhgEIAEoCSJyChJMaXN0RHJpbGxzUmVzcG9uc2USQwoGZHJpbGxzGAEgAygLMjMudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZHJpbGxzLlJlY292ZXJ5RHJpbGwSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJKpUBCgtEcmlsbFN0YXR1cxIcChhEUklMTF9TVEFUVVNfVU5TUEVDSUZJRUQQABIaChZEUklMTF9TVEFUVVNfUkVRVUVTVEVEEAESGAoURFJJTExfU1RBVFVTX1JVTk5JTkcQAhIZChVEUklMTF9TVEFUVVNfVkVSSUZJRUQQAxIXChNEUklMTF9TVEFUVVNfRkFJTEVEEAQylgQKFVJlY292ZXJ5RHJpbGxzU2VydmljZRKFAQoMUHJldmlld0RyaWxsEjkudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZHJpbGxzLlByZXZpZXdEcmlsbFJlcXVlc3QaOi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kcmlsbHMuUHJldmlld0RyaWxsUmVzcG9uc2USeQoIUnVuRHJpbGwSNS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kcmlsbHMuUnVuRHJpbGxSZXF1ZXN0GjYudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZHJpbGxzLlJ1bkRyaWxsUmVzcG9uc2USeQoIR2V0RHJpbGwSNS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kcmlsbHMuR2V0RHJpbGxSZXF1ZXN0GjYudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZHJpbGxzLkdldERyaWxsUmVzcG9uc2USfwoKTGlzdERyaWxscxI3LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRyaWxscy5MaXN0RHJpbGxzUmVxdWVzdBo4LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRyaWxscy5MaXN0RHJpbGxzUmVzcG9uc2VCWFpWZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9kYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL2RyaWxscztkcmlsbHNfdjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("CipkYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL2RyaWxscy9kcmlsbHMucHJvdG8SJHZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRyaWxscyKuBAoNUmVjb3ZlcnlEcmlsbBIKCgJpZBgBIAEoCRIPCgdwbGFuX2lkGAIgASgJEhEKCXRhcmdldF9pZBgDIAEoCRIWCg5kZXN0aW5hdGlvbl9pZBgEIAEoCRITCgtzbmFwc2hvdF9pZBgFIAEoCRISCgpyZXN0b3JlX2lkGAYgASgJEkEKBnN0YXR1cxgHIAEoDjIxLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRyaWxscy5EcmlsbFN0YXR1cxIRCglzY2hlZHVsZWQYCCABKAgSDQoFZXJyb3IYCSABKAkSEwoLbmV4dF9hY3Rpb24YCiABKAkSMAoMcmVxdWVzdGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpzdGFydGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgtmaW5pc2hlZF9hdBgNIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGgoSbm90aWZpY2F0aW9uX3N0YXRlGA4gASgJEjgKFG5vdGlmaWNhdGlvbl9zZW50X2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpyZXRpcmVkX2F0GBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIZChFyZXRpcmVtZW50X3JlYXNvbhgRIAEoCSJaChNQcmV2aWV3RHJpbGxSZXF1ZXN0EhgKB3BsYW5faWQYASABKAlCB7pIBHICEAESEQoJdGFyZ2V0X2lkGAIgASgJEhYKDmRlc3RpbmF0aW9uX2lkGAMgASgJIpsBChRQcmV2aWV3RHJpbGxSZXNwb25zZRIQCghlbGlnaWJsZRgBIAEoCBIPCgdwbGFuX2lkGAIgASgJEhEKCXRhcmdldF9pZBgDIAEoCRIWCg5kZXN0aW5hdGlvbl9pZBgEIAEoCRITCgtzbmFwc2hvdF9pZBgFIAEoCRIQCgh3YXJuaW5ncxgGIAMoCRIOCgZyZWFzb24YByABKAkiggEKD1J1bkRyaWxsUmVxdWVzdBIYCgdwbGFuX2lkGAEgASgJQge6SARyAhABEhEKCXRhcmdldF9pZBgCIAEoCRIWCg5kZXN0aW5hdGlvbl9pZBgDIAEoCRIXCg9pZGVtcG90ZW5jeV9rZXkYBCABKAkSEQoJc2NoZWR1bGVkGAUgASgIIlYKEFJ1bkRyaWxsUmVzcG9uc2USQgoFZHJpbGwYASABKAsyMy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kcmlsbHMuUmVjb3ZlcnlEcmlsbCImCg9HZXREcmlsbFJlcXVlc3QSEwoCaWQYASABKAlCB7pIBHICEAEiVgoQR2V0RHJpbGxSZXNwb25zZRJCCgVkcmlsbBgBIAEoCzIzLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRyaWxscy5SZWNvdmVyeURyaWxsImcKEUxpc3REcmlsbHNSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkSEQoJdGFyZ2V0X2lkGAIgASgJEhoKCXBhZ2Vfc2l6ZRgDIAEoBUIHukgEGgIoABISCgpwYWdlX3Rva2VuGAQgASgJInIKEkxpc3REcmlsbHNSZXNwb25zZRJDCgZkcmlsbHMYASADKAsyMy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kcmlsbHMuUmVjb3ZlcnlEcmlsbBIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiQgoSUmV0aXJlRHJpbGxSZXF1ZXN0EhMKAmlkGAEgASgJQge6SARyAhABEhcKBnJlYXNvbhgCIAEoCUIHukgEcgIQASJZChNSZXRpcmVEcmlsbFJlc3BvbnNlEkIKBWRyaWxsGAEgASgLMjMudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZHJpbGxzLlJlY292ZXJ5RHJpbGwqlQEKC0RyaWxsU3RhdHVzEhwKGERSSUxMX1NUQVRVU19VTlNQRUNJRklFRBAAEhoKFkRSSUxMX1NUQVRVU19SRVFVRVNURUQQARIYChREUklMTF9TVEFUVVNfUlVOTklORxACEhkKFURSSUxMX1NUQVRVU19WRVJJRklFRBADEhcKE0RSSUxMX1NUQVRVU19GQUlMRUQQBDKbBQoVUmVjb3ZlcnlEcmlsbHNTZXJ2aWNlEoUBCgxQcmV2aWV3RHJpbGwSOS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kcmlsbHMuUHJldmlld0RyaWxsUmVxdWVzdBo6LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRyaWxscy5QcmV2aWV3RHJpbGxSZXNwb25zZRJ5CghSdW5EcmlsbBI1LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRyaWxscy5SdW5EcmlsbFJlcXVlc3QaNi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kcmlsbHMuUnVuRHJpbGxSZXNwb25zZRJ5CghHZXREcmlsbBI1LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmRyaWxscy5HZXREcmlsbFJlcXVlc3QaNi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kcmlsbHMuR2V0RHJpbGxSZXNwb25zZRJ/CgpMaXN0RHJpbGxzEjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZHJpbGxzLkxpc3REcmlsbHNSZXF1ZXN0GjgudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZHJpbGxzLkxpc3REcmlsbHNSZXNwb25zZRKCAQoLUmV0aXJlRHJpbGwSOC52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5kcmlsbHMuUmV0aXJlRHJpbGxSZXF1ZXN0GjkudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuZHJpbGxzLlJldGlyZURyaWxsUmVzcG9uc2VCWFpWZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9kYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL2RyaWxscztkcmlsbHNfdjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.data_backup_manager.v1.drills.RecoveryDrill
@@ -83,6 +83,34 @@ export type RecoveryDrill = Message<"vrooli.data_backup_manager.v1.drills.Recove
    * @generated from field: google.protobuf.Timestamp finished_at = 13;
    */
   finishedAt?: Timestamp | undefined;
+
+  /**
+   * Durable delivery state for a failed-drill Notification Hub event. Empty
+   * means not applicable, not_replayed marks a legacy failure predating the
+   * durable outbox, pending means retrying, and sent means Vrooli Events
+   * accepted the deduplicated notification.
+   *
+   * @generated from field: string notification_state = 14;
+   */
+  notificationState: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp notification_sent_at = 15;
+   */
+  notificationSentAt?: Timestamp | undefined;
+
+  /**
+   * Retirement marks a completed drill as retired while preserving its status,
+   * restore link, and all original evidence fields. It remains in history lists.
+   *
+   * @generated from field: google.protobuf.Timestamp retired_at = 16;
+   */
+  retiredAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string retirement_reason = 17;
+   */
+  retirementReason: string;
 };
 
 /**
@@ -309,6 +337,45 @@ export const ListDrillsResponseSchema: GenMessage<ListDrillsResponse> = /*@__PUR
   messageDesc(file_data_backup_manager_v1_drills_drills, 8);
 
 /**
+ * @generated from message vrooli.data_backup_manager.v1.drills.RetireDrillRequest
+ */
+export type RetireDrillRequest = Message<"vrooli.data_backup_manager.v1.drills.RetireDrillRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.drills.RetireDrillRequest.
+ * Use `create(RetireDrillRequestSchema)` to create a new message.
+ */
+export const RetireDrillRequestSchema: GenMessage<RetireDrillRequest> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_drills_drills, 9);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.drills.RetireDrillResponse
+ */
+export type RetireDrillResponse = Message<"vrooli.data_backup_manager.v1.drills.RetireDrillResponse"> & {
+  /**
+   * @generated from field: vrooli.data_backup_manager.v1.drills.RecoveryDrill drill = 1;
+   */
+  drill?: RecoveryDrill | undefined;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.drills.RetireDrillResponse.
+ * Use `create(RetireDrillResponseSchema)` to create a new message.
+ */
+export const RetireDrillResponseSchema: GenMessage<RetireDrillResponse> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_drills_drills, 10);
+
+/**
  * @generated from enum vrooli.data_backup_manager.v1.drills.DrillStatus
  */
 export enum DrillStatus {
@@ -384,6 +451,14 @@ export const RecoveryDrillsService: GenService<{
     methodKind: "unary";
     input: typeof ListDrillsRequestSchema;
     output: typeof ListDrillsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.RetireDrill
+   */
+  retireDrill: {
+    methodKind: "unary";
+    input: typeof RetireDrillRequestSchema;
+    output: typeof RetireDrillResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_data_backup_manager_v1_drills_drills, 0);

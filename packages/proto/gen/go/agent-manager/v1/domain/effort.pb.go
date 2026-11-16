@@ -2919,7 +2919,15 @@ type EffortDecision struct {
 	// Mechanism, evidence, risks, limits and remaining uncertainty.
 	TechnicalDetails string `protobuf:"bytes,30,opt,name=technical_details,json=technicalDetails,proto3" json:"technical_details,omitempty"`
 	// Timestamp of the current terminal transition, including dismissal.
-	ResolvedAt    *timestamppb.Timestamp `protobuf:"bytes,31,opt,name=resolved_at,json=resolvedAt,proto3" json:"resolved_at,omitempty"`
+	ResolvedAt *timestamppb.Timestamp `protobuf:"bytes,31,opt,name=resolved_at,json=resolvedAt,proto3" json:"resolved_at,omitempty"`
+	// When a raise last changed this pending decision in place (new terms under
+	// the same subject key). Empty until the first revision; created_at keeps the
+	// original raise time.
+	RevisedAt *timestamppb.Timestamp `protobuf:"bytes,32,opt,name=revised_at,json=revisedAt,proto3" json:"revised_at,omitempty"`
+	// The decision's page: one self-contained HTML document the Hub shows above
+	// the answer buttons (Facts.Explainer). Empty means Agent Manager generates
+	// one from the texts above.
+	ExplainerHtml string `protobuf:"bytes,33,opt,name=explainer_html,json=explainerHtml,proto3" json:"explainer_html,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3171,6 +3179,20 @@ func (x *EffortDecision) GetResolvedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *EffortDecision) GetRevisedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RevisedAt
+	}
+	return nil
+}
+
+func (x *EffortDecision) GetExplainerHtml() string {
+	if x != nil {
+		return x.ExplainerHtml
+	}
+	return ""
+}
+
 type RaiseEffortDecisionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Decision      *EffortDecision        `protobuf:"bytes,1,opt,name=decision,proto3" json:"decision,omitempty"`
@@ -3221,7 +3243,10 @@ type RaiseEffortDecisionResponse struct {
 	// False when the same decision was already stored (idempotent re-raise).
 	Created bool `protobuf:"varint,2,opt,name=created,proto3" json:"created,omitempty"`
 	// True when this call published the event.
-	Published     bool `protobuf:"varint,3,opt,name=published,proto3" json:"published,omitempty"`
+	Published bool `protobuf:"varint,3,opt,name=published,proto3" json:"published,omitempty"`
+	// True when this call changed the terms of an already pending decision in
+	// place instead of storing a new one.
+	Revised       bool `protobuf:"varint,4,opt,name=revised,proto3" json:"revised,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3273,6 +3298,13 @@ func (x *RaiseEffortDecisionResponse) GetCreated() bool {
 func (x *RaiseEffortDecisionResponse) GetPublished() bool {
 	if x != nil {
 		return x.Published
+	}
+	return false
+}
+
+func (x *RaiseEffortDecisionResponse) GetRevised() bool {
+	if x != nil {
+		return x.Revised
 	}
 	return false
 }
@@ -3856,7 +3888,8 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"dedupe_key\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tdedupeKey\">\n" +
 	"\x14EffortDecisionOption\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05label\x18\x02 \x01(\tR\x05label\"\xc5\t\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\"\xa7\n" +
+	"\n" +
 	"\x0eEffortDecision\x12\x1d\n" +
 	"\n" +
 	"effort_ref\x18\x01 \x01(\tR\teffortRef\x12\x1b\n" +
@@ -3900,13 +3933,17 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"bigPicture\x12+\n" +
 	"\x11technical_details\x18\x1e \x01(\tR\x10technicalDetails\x12;\n" +
 	"\vresolved_at\x18\x1f \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"resolvedAt\"Z\n" +
+	"resolvedAt\x129\n" +
+	"\n" +
+	"revised_at\x18  \x01(\v2\x1a.google.protobuf.TimestampR\trevisedAt\x12%\n" +
+	"\x0eexplainer_html\x18! \x01(\tR\rexplainerHtml\"Z\n" +
 	"\x1aRaiseEffortDecisionRequest\x12<\n" +
-	"\bdecision\x18\x01 \x01(\v2 .agent_manager.v1.EffortDecisionR\bdecision\"\x93\x01\n" +
+	"\bdecision\x18\x01 \x01(\v2 .agent_manager.v1.EffortDecisionR\bdecision\"\xad\x01\n" +
 	"\x1bRaiseEffortDecisionResponse\x12<\n" +
 	"\bdecision\x18\x01 \x01(\v2 .agent_manager.v1.EffortDecisionR\bdecision\x12\x18\n" +
 	"\acreated\x18\x02 \x01(\bR\acreated\x12\x1c\n" +
-	"\tpublished\x18\x03 \x01(\bR\tpublished\"\xe0\x01\n" +
+	"\tpublished\x18\x03 \x01(\bR\tpublished\x12\x18\n" +
+	"\arevised\x18\x04 \x01(\bR\arevised\"\xe0\x01\n" +
 	"\x1aListEffortDecisionsRequest\x12%\n" +
 	"\tgoal_home\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80\bR\bgoalHome\x12'\n" +
 	"\n" +
@@ -4052,16 +4089,17 @@ var file_agent_manager_v1_domain_effort_proto_depIdxs = []int32{
 	37, // 50: agent_manager.v1.EffortDecision.published_at:type_name -> google.protobuf.Timestamp
 	37, // 51: agent_manager.v1.EffortDecision.recorded_at:type_name -> google.protobuf.Timestamp
 	37, // 52: agent_manager.v1.EffortDecision.resolved_at:type_name -> google.protobuf.Timestamp
-	30, // 53: agent_manager.v1.RaiseEffortDecisionRequest.decision:type_name -> agent_manager.v1.EffortDecision
-	30, // 54: agent_manager.v1.RaiseEffortDecisionResponse.decision:type_name -> agent_manager.v1.EffortDecision
-	30, // 55: agent_manager.v1.ListEffortDecisionsResponse.decisions:type_name -> agent_manager.v1.EffortDecision
-	37, // 56: agent_manager.v1.MarkEffortDecisionRecordedRequest.answered_at:type_name -> google.protobuf.Timestamp
-	37, // 57: agent_manager.v1.MarkEffortDecisionRecordedRequest.resolved_at:type_name -> google.protobuf.Timestamp
-	58, // [58:58] is the sub-list for method output_type
-	58, // [58:58] is the sub-list for method input_type
-	58, // [58:58] is the sub-list for extension type_name
-	58, // [58:58] is the sub-list for extension extendee
-	0,  // [0:58] is the sub-list for field type_name
+	37, // 53: agent_manager.v1.EffortDecision.revised_at:type_name -> google.protobuf.Timestamp
+	30, // 54: agent_manager.v1.RaiseEffortDecisionRequest.decision:type_name -> agent_manager.v1.EffortDecision
+	30, // 55: agent_manager.v1.RaiseEffortDecisionResponse.decision:type_name -> agent_manager.v1.EffortDecision
+	30, // 56: agent_manager.v1.ListEffortDecisionsResponse.decisions:type_name -> agent_manager.v1.EffortDecision
+	37, // 57: agent_manager.v1.MarkEffortDecisionRecordedRequest.answered_at:type_name -> google.protobuf.Timestamp
+	37, // 58: agent_manager.v1.MarkEffortDecisionRecordedRequest.resolved_at:type_name -> google.protobuf.Timestamp
+	59, // [59:59] is the sub-list for method output_type
+	59, // [59:59] is the sub-list for method input_type
+	59, // [59:59] is the sub-list for extension type_name
+	59, // [59:59] is the sub-list for extension extendee
+	0,  // [0:59] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_effort_proto_init() }

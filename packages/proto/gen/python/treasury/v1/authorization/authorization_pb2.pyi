@@ -1,15 +1,8 @@
 import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
-from treasury.v1.approval import approval_pb2 as _approval_pb2
-from treasury.v1.book import book_pb2 as _book_pb2
-from treasury.v1.budget import budget_pb2 as _budget_pb2
-from treasury.v1.instrument import instrument_pb2 as _instrument_pb2
-from treasury.v1.mandate import mandate_pb2 as _mandate_pb2
 from treasury.v1.settlement import settlement_pb2 as _settlement_pb2
-from treasury.v1.wallet import wallet_pb2 as _wallet_pb2
-from treasury.v1.funding import funding_pb2 as _funding_pb2
-from treasury.v1.funding import wallet_ops_pb2 as _wallet_ops_pb2
+from treasury.v1.shared import approval_pb2 as _approval_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -123,18 +116,86 @@ class GetBudgetHeadroomRequest(_message.Message):
 class GetBudgetHeadroomResponse(_message.Message):
     __slots__ = ("headroom",)
     HEADROOM_FIELD_NUMBER: _ClassVar[int]
-    headroom: _budget_pb2.Headroom
-    def __init__(self, headroom: _Optional[_Union[_budget_pb2.Headroom, _Mapping]] = ...) -> None: ...
+    headroom: AgentBudgetHeadroom
+    def __init__(self, headroom: _Optional[_Union[AgentBudgetHeadroom, _Mapping]] = ...) -> None: ...
 
-class ListMandatesRequest(_message.Message):
+class AgentBudgetHeadroom(_message.Message):
+    __slots__ = ("budget_id", "book_id", "currency", "total_cap_minor", "total_used_minor", "total_remaining_minor", "periodic_cap_minor", "period_used_minor", "period_remaining_minor", "per_transaction_cap_minor", "available_minor", "period_started_at", "computed_at", "funding_required", "funding_credited_minor", "funding_remaining_minor", "funding_atomic_amount", "funding_asset_id")
+    BUDGET_ID_FIELD_NUMBER: _ClassVar[int]
+    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
+    CURRENCY_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_CAP_MINOR_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_USED_MINOR_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_REMAINING_MINOR_FIELD_NUMBER: _ClassVar[int]
+    PERIODIC_CAP_MINOR_FIELD_NUMBER: _ClassVar[int]
+    PERIOD_USED_MINOR_FIELD_NUMBER: _ClassVar[int]
+    PERIOD_REMAINING_MINOR_FIELD_NUMBER: _ClassVar[int]
+    PER_TRANSACTION_CAP_MINOR_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_MINOR_FIELD_NUMBER: _ClassVar[int]
+    PERIOD_STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    COMPUTED_AT_FIELD_NUMBER: _ClassVar[int]
+    FUNDING_REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    FUNDING_CREDITED_MINOR_FIELD_NUMBER: _ClassVar[int]
+    FUNDING_REMAINING_MINOR_FIELD_NUMBER: _ClassVar[int]
+    FUNDING_ATOMIC_AMOUNT_FIELD_NUMBER: _ClassVar[int]
+    FUNDING_ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    budget_id: str
+    book_id: str
+    currency: str
+    total_cap_minor: int
+    total_used_minor: int
+    total_remaining_minor: int
+    periodic_cap_minor: int
+    period_used_minor: int
+    period_remaining_minor: int
+    per_transaction_cap_minor: int
+    available_minor: int
+    period_started_at: _timestamp_pb2.Timestamp
+    computed_at: _timestamp_pb2.Timestamp
+    funding_required: bool
+    funding_credited_minor: int
+    funding_remaining_minor: int
+    funding_atomic_amount: str
+    funding_asset_id: str
+    def __init__(self, budget_id: _Optional[str] = ..., book_id: _Optional[str] = ..., currency: _Optional[str] = ..., total_cap_minor: _Optional[int] = ..., total_used_minor: _Optional[int] = ..., total_remaining_minor: _Optional[int] = ..., periodic_cap_minor: _Optional[int] = ..., period_used_minor: _Optional[int] = ..., period_remaining_minor: _Optional[int] = ..., per_transaction_cap_minor: _Optional[int] = ..., available_minor: _Optional[int] = ..., period_started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., funding_required: _Optional[bool] = ..., funding_credited_minor: _Optional[int] = ..., funding_remaining_minor: _Optional[int] = ..., funding_atomic_amount: _Optional[str] = ..., funding_asset_id: _Optional[str] = ...) -> None: ...
+
+class AgentListMandatesRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
-class ListMandatesResponse(_message.Message):
+class AgentMandate(_message.Message):
+    __slots__ = ("id", "book_id", "budget_id", "cap_minor", "currency", "allowed_counterparties", "denied_counterparties", "expires_at", "status", "required_evidence", "recurrence_seconds", "next_charge_at")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
+    BUDGET_ID_FIELD_NUMBER: _ClassVar[int]
+    CAP_MINOR_FIELD_NUMBER: _ClassVar[int]
+    CURRENCY_FIELD_NUMBER: _ClassVar[int]
+    ALLOWED_COUNTERPARTIES_FIELD_NUMBER: _ClassVar[int]
+    DENIED_COUNTERPARTIES_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    RECURRENCE_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_CHARGE_AT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    book_id: str
+    budget_id: str
+    cap_minor: int
+    currency: str
+    allowed_counterparties: _containers.RepeatedScalarFieldContainer[str]
+    denied_counterparties: _containers.RepeatedScalarFieldContainer[str]
+    expires_at: _timestamp_pb2.Timestamp
+    status: str
+    required_evidence: _containers.RepeatedScalarFieldContainer[str]
+    recurrence_seconds: int
+    next_charge_at: _timestamp_pb2.Timestamp
+    def __init__(self, id: _Optional[str] = ..., book_id: _Optional[str] = ..., budget_id: _Optional[str] = ..., cap_minor: _Optional[int] = ..., currency: _Optional[str] = ..., allowed_counterparties: _Optional[_Iterable[str]] = ..., denied_counterparties: _Optional[_Iterable[str]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., status: _Optional[str] = ..., required_evidence: _Optional[_Iterable[str]] = ..., recurrence_seconds: _Optional[int] = ..., next_charge_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class AgentListMandatesResponse(_message.Message):
     __slots__ = ("mandates",)
     MANDATES_FIELD_NUMBER: _ClassVar[int]
-    mandates: _containers.RepeatedCompositeFieldContainer[_mandate_pb2.Mandate]
-    def __init__(self, mandates: _Optional[_Iterable[_Union[_mandate_pb2.Mandate, _Mapping]]] = ...) -> None: ...
+    mandates: _containers.RepeatedCompositeFieldContainer[AgentMandate]
+    def __init__(self, mandates: _Optional[_Iterable[_Union[AgentMandate, _Mapping]]] = ...) -> None: ...
 
 class ReportOutcomeRequest(_message.Message):
     __slots__ = ("authorization_id", "outcome", "rail_reference", "settlement_id", "instrument_id", "idempotency_key")
@@ -198,92 +259,6 @@ class ResolveUnknownSettlementResponse(_message.Message):
     settlement: _settlement_pb2.Charge
     def __init__(self, authorization: _Optional[_Union[AuthorizationRecord, _Mapping]] = ..., settlement: _Optional[_Union[_settlement_pb2.Charge, _Mapping]] = ...) -> None: ...
 
-class CreateBookRequest(_message.Message):
-    __slots__ = ("book",)
-    BOOK_FIELD_NUMBER: _ClassVar[int]
-    book: _book_pb2.Book
-    def __init__(self, book: _Optional[_Union[_book_pb2.Book, _Mapping]] = ...) -> None: ...
-
-class CreateBookResponse(_message.Message):
-    __slots__ = ("book",)
-    BOOK_FIELD_NUMBER: _ClassVar[int]
-    book: _book_pb2.Book
-    def __init__(self, book: _Optional[_Union[_book_pb2.Book, _Mapping]] = ...) -> None: ...
-
-class GetBookRequest(_message.Message):
-    __slots__ = ("book_id",)
-    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
-    book_id: str
-    def __init__(self, book_id: _Optional[str] = ...) -> None: ...
-
-class GetBookResponse(_message.Message):
-    __slots__ = ("book",)
-    BOOK_FIELD_NUMBER: _ClassVar[int]
-    book: _book_pb2.Book
-    def __init__(self, book: _Optional[_Union[_book_pb2.Book, _Mapping]] = ...) -> None: ...
-
-class CreateMandateRequest(_message.Message):
-    __slots__ = ("mandate",)
-    MANDATE_FIELD_NUMBER: _ClassVar[int]
-    mandate: _mandate_pb2.Mandate
-    def __init__(self, mandate: _Optional[_Union[_mandate_pb2.Mandate, _Mapping]] = ...) -> None: ...
-
-class CreateMandateResponse(_message.Message):
-    __slots__ = ("mandate",)
-    MANDATE_FIELD_NUMBER: _ClassVar[int]
-    mandate: _mandate_pb2.Mandate
-    def __init__(self, mandate: _Optional[_Union[_mandate_pb2.Mandate, _Mapping]] = ...) -> None: ...
-
-class RevokeMandateRequest(_message.Message):
-    __slots__ = ("mandate_id",)
-    MANDATE_ID_FIELD_NUMBER: _ClassVar[int]
-    mandate_id: str
-    def __init__(self, mandate_id: _Optional[str] = ...) -> None: ...
-
-class RevokeMandateResponse(_message.Message):
-    __slots__ = ("mandate",)
-    MANDATE_FIELD_NUMBER: _ClassVar[int]
-    mandate: _mandate_pb2.Mandate
-    def __init__(self, mandate: _Optional[_Union[_mandate_pb2.Mandate, _Mapping]] = ...) -> None: ...
-
-class CancelStandingMandateRequest(_message.Message):
-    __slots__ = ("mandate_id",)
-    MANDATE_ID_FIELD_NUMBER: _ClassVar[int]
-    mandate_id: str
-    def __init__(self, mandate_id: _Optional[str] = ...) -> None: ...
-
-class CancelStandingMandateResponse(_message.Message):
-    __slots__ = ("mandate",)
-    MANDATE_FIELD_NUMBER: _ClassVar[int]
-    mandate: _mandate_pb2.Mandate
-    def __init__(self, mandate: _Optional[_Union[_mandate_pb2.Mandate, _Mapping]] = ...) -> None: ...
-
-class SetBudgetCapsRequest(_message.Message):
-    __slots__ = ("budget",)
-    BUDGET_FIELD_NUMBER: _ClassVar[int]
-    budget: _budget_pb2.Budget
-    def __init__(self, budget: _Optional[_Union[_budget_pb2.Budget, _Mapping]] = ...) -> None: ...
-
-class SetBudgetCapsResponse(_message.Message):
-    __slots__ = ("budget",)
-    BUDGET_FIELD_NUMBER: _ClassVar[int]
-    budget: _budget_pb2.Budget
-    def __init__(self, budget: _Optional[_Union[_budget_pb2.Budget, _Mapping]] = ...) -> None: ...
-
-class SetGatingRequest(_message.Message):
-    __slots__ = ("budget_id", "requires_approval")
-    BUDGET_ID_FIELD_NUMBER: _ClassVar[int]
-    REQUIRES_APPROVAL_FIELD_NUMBER: _ClassVar[int]
-    budget_id: str
-    requires_approval: bool
-    def __init__(self, budget_id: _Optional[str] = ..., requires_approval: _Optional[bool] = ...) -> None: ...
-
-class SetGatingResponse(_message.Message):
-    __slots__ = ("budget",)
-    BUDGET_FIELD_NUMBER: _ClassVar[int]
-    budget: _budget_pb2.Budget
-    def __init__(self, budget: _Optional[_Union[_budget_pb2.Budget, _Mapping]] = ...) -> None: ...
-
 class ResolveApprovalRequest(_message.Message):
     __slots__ = ("approval_id", "resolution")
     APPROVAL_ID_FIELD_NUMBER: _ClassVar[int]
@@ -311,201 +286,3 @@ class ListApprovalsResponse(_message.Message):
     APPROVALS_FIELD_NUMBER: _ClassVar[int]
     approvals: _containers.RepeatedCompositeFieldContainer[_approval_pb2.ApprovalRequest]
     def __init__(self, approvals: _Optional[_Iterable[_Union[_approval_pb2.ApprovalRequest, _Mapping]]] = ...) -> None: ...
-
-class FreezeBudgetRequest(_message.Message):
-    __slots__ = ("budget_id",)
-    BUDGET_ID_FIELD_NUMBER: _ClassVar[int]
-    budget_id: str
-    def __init__(self, budget_id: _Optional[str] = ...) -> None: ...
-
-class FreezeBudgetResponse(_message.Message):
-    __slots__ = ("budget",)
-    BUDGET_FIELD_NUMBER: _ClassVar[int]
-    budget: _budget_pb2.Budget
-    def __init__(self, budget: _Optional[_Union[_budget_pb2.Budget, _Mapping]] = ...) -> None: ...
-
-class UnfreezeBudgetRequest(_message.Message):
-    __slots__ = ("budget_id",)
-    BUDGET_ID_FIELD_NUMBER: _ClassVar[int]
-    budget_id: str
-    def __init__(self, budget_id: _Optional[str] = ...) -> None: ...
-
-class UnfreezeBudgetResponse(_message.Message):
-    __slots__ = ("budget",)
-    BUDGET_FIELD_NUMBER: _ClassVar[int]
-    budget: _budget_pb2.Budget
-    def __init__(self, budget: _Optional[_Union[_budget_pb2.Budget, _Mapping]] = ...) -> None: ...
-
-class FreezeBookRequest(_message.Message):
-    __slots__ = ("book_id",)
-    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
-    book_id: str
-    def __init__(self, book_id: _Optional[str] = ...) -> None: ...
-
-class FreezeBookResponse(_message.Message):
-    __slots__ = ("book_id", "frozen", "updated_at")
-    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
-    FROZEN_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    book_id: str
-    frozen: bool
-    updated_at: _timestamp_pb2.Timestamp
-    def __init__(self, book_id: _Optional[str] = ..., frozen: _Optional[bool] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
-
-class UnfreezeBookRequest(_message.Message):
-    __slots__ = ("book_id",)
-    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
-    book_id: str
-    def __init__(self, book_id: _Optional[str] = ...) -> None: ...
-
-class UnfreezeBookResponse(_message.Message):
-    __slots__ = ("book_id", "frozen", "updated_at")
-    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
-    FROZEN_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    book_id: str
-    frozen: bool
-    updated_at: _timestamp_pb2.Timestamp
-    def __init__(self, book_id: _Optional[str] = ..., frozen: _Optional[bool] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
-
-class FreezeAllRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
-
-class GetFreezeStatusRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
-
-class GetFreezeStatusResponse(_message.Message):
-    __slots__ = ("frozen", "updated_at")
-    FROZEN_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    frozen: bool
-    updated_at: _timestamp_pb2.Timestamp
-    def __init__(self, frozen: _Optional[bool] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
-
-class FreezeAllResponse(_message.Message):
-    __slots__ = ("frozen", "updated_at")
-    FROZEN_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    frozen: bool
-    updated_at: _timestamp_pb2.Timestamp
-    def __init__(self, frozen: _Optional[bool] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
-
-class UnfreezeAllRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
-
-class UnfreezeAllResponse(_message.Message):
-    __slots__ = ("frozen", "updated_at")
-    FROZEN_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    frozen: bool
-    updated_at: _timestamp_pb2.Timestamp
-    def __init__(self, frozen: _Optional[bool] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
-
-class RegisterInstrumentRequest(_message.Message):
-    __slots__ = ("instrument",)
-    INSTRUMENT_FIELD_NUMBER: _ClassVar[int]
-    instrument: _instrument_pb2.Instrument
-    def __init__(self, instrument: _Optional[_Union[_instrument_pb2.Instrument, _Mapping]] = ...) -> None: ...
-
-class RegisterInstrumentResponse(_message.Message):
-    __slots__ = ("instrument",)
-    INSTRUMENT_FIELD_NUMBER: _ClassVar[int]
-    instrument: _instrument_pb2.Instrument
-    def __init__(self, instrument: _Optional[_Union[_instrument_pb2.Instrument, _Mapping]] = ...) -> None: ...
-
-class CreateResearchWalletRequest(_message.Message):
-    __slots__ = ("id", "book_id", "network")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
-    NETWORK_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    book_id: str
-    network: str
-    def __init__(self, id: _Optional[str] = ..., book_id: _Optional[str] = ..., network: _Optional[str] = ...) -> None: ...
-
-class ResearchWalletRequest(_message.Message):
-    __slots__ = ("id", "network")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    NETWORK_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    network: str
-    def __init__(self, id: _Optional[str] = ..., network: _Optional[str] = ...) -> None: ...
-
-class ResearchWalletResponse(_message.Message):
-    __slots__ = ("wallet",)
-    WALLET_FIELD_NUMBER: _ClassVar[int]
-    wallet: _wallet_pb2.Wallet
-    def __init__(self, wallet: _Optional[_Union[_wallet_pb2.Wallet, _Mapping]] = ...) -> None: ...
-
-class ProveResearchWalletRequest(_message.Message):
-    __slots__ = ("id", "network", "nonce")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    NETWORK_FIELD_NUMBER: _ClassVar[int]
-    NONCE_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    network: str
-    nonce: str
-    def __init__(self, id: _Optional[str] = ..., network: _Optional[str] = ..., nonce: _Optional[str] = ...) -> None: ...
-
-class ProveResearchWalletResponse(_message.Message):
-    __slots__ = ("proof",)
-    PROOF_FIELD_NUMBER: _ClassVar[int]
-    proof: _wallet_pb2.ControlProof
-    def __init__(self, proof: _Optional[_Union[_wallet_pb2.ControlProof, _Mapping]] = ...) -> None: ...
-
-class VerifyBaseUSDCReceiptRequest(_message.Message):
-    __slots__ = ("wallet_id", "transaction_hash")
-    WALLET_ID_FIELD_NUMBER: _ClassVar[int]
-    TRANSACTION_HASH_FIELD_NUMBER: _ClassVar[int]
-    wallet_id: str
-    transaction_hash: str
-    def __init__(self, wallet_id: _Optional[str] = ..., transaction_hash: _Optional[str] = ...) -> None: ...
-
-class VerifyBaseUSDCReceiptResponse(_message.Message):
-    __slots__ = ("transfers", "check_id", "check_outcome", "provider_id", "checked_at")
-    TRANSFERS_FIELD_NUMBER: _ClassVar[int]
-    CHECK_ID_FIELD_NUMBER: _ClassVar[int]
-    CHECK_OUTCOME_FIELD_NUMBER: _ClassVar[int]
-    PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
-    CHECKED_AT_FIELD_NUMBER: _ClassVar[int]
-    transfers: _containers.RepeatedCompositeFieldContainer[_wallet_pb2.BaseUSDCTransferObservation]
-    check_id: str
-    check_outcome: str
-    provider_id: str
-    checked_at: _timestamp_pb2.Timestamp
-    def __init__(self, transfers: _Optional[_Iterable[_Union[_wallet_pb2.BaseUSDCTransferObservation, _Mapping]]] = ..., check_id: _Optional[str] = ..., check_outcome: _Optional[str] = ..., provider_id: _Optional[str] = ..., checked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
-
-class RecheckBaseUSDCReceiptRequest(_message.Message):
-    __slots__ = ("wallet_id", "transaction_hash", "prior_check_id")
-    WALLET_ID_FIELD_NUMBER: _ClassVar[int]
-    TRANSACTION_HASH_FIELD_NUMBER: _ClassVar[int]
-    PRIOR_CHECK_ID_FIELD_NUMBER: _ClassVar[int]
-    wallet_id: str
-    transaction_hash: str
-    prior_check_id: str
-    def __init__(self, wallet_id: _Optional[str] = ..., transaction_hash: _Optional[str] = ..., prior_check_id: _Optional[str] = ...) -> None: ...
-
-class RecheckBaseUSDCReceiptResponse(_message.Message):
-    __slots__ = ("check",)
-    CHECK_FIELD_NUMBER: _ClassVar[int]
-    check: _wallet_pb2.BaseUSDCReceiptCheck
-    def __init__(self, check: _Optional[_Union[_wallet_pb2.BaseUSDCReceiptCheck, _Mapping]] = ...) -> None: ...
-
-class ListBaseUSDCReceiptChecksRequest(_message.Message):
-    __slots__ = ("wallet_id", "transaction_hash", "limit")
-    WALLET_ID_FIELD_NUMBER: _ClassVar[int]
-    TRANSACTION_HASH_FIELD_NUMBER: _ClassVar[int]
-    LIMIT_FIELD_NUMBER: _ClassVar[int]
-    wallet_id: str
-    transaction_hash: str
-    limit: int
-    def __init__(self, wallet_id: _Optional[str] = ..., transaction_hash: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
-
-class ListBaseUSDCReceiptChecksResponse(_message.Message):
-    __slots__ = ("checks",)
-    CHECKS_FIELD_NUMBER: _ClassVar[int]
-    checks: _containers.RepeatedCompositeFieldContainer[_wallet_pb2.BaseUSDCReceiptCheck]
-    def __init__(self, checks: _Optional[_Iterable[_Union[_wallet_pb2.BaseUSDCReceiptCheck, _Mapping]]] = ...) -> None: ...

@@ -234,7 +234,7 @@ class PreflightAdoptionRequest(_message.Message):
     def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ..., version: _Optional[str] = ...) -> None: ...
 
 class PreflightAdoptionResponse(_message.Message):
-    __slots__ = ("component_id", "scenario", "version", "required_tokens", "required_token_patterns", "defined_tokens", "unsatisfied_tokens", "dependency_verdict", "style_fit", "blocking", "version_status", "maturity_rung", "maturity_floor", "warnings", "i18n_verdict", "selector_verdict")
+    __slots__ = ("component_id", "scenario", "version", "required_tokens", "required_token_patterns", "defined_tokens", "unsatisfied_tokens", "dependency_verdict", "style_fit", "blocking", "version_status", "maturity_rung", "maturity_floor", "warnings", "i18n_verdict", "selector_verdict", "catalog_asset_id", "catalog_latest_version")
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -251,6 +251,8 @@ class PreflightAdoptionResponse(_message.Message):
     WARNINGS_FIELD_NUMBER: _ClassVar[int]
     I18N_VERDICT_FIELD_NUMBER: _ClassVar[int]
     SELECTOR_VERDICT_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_LATEST_VERSION_FIELD_NUMBER: _ClassVar[int]
     component_id: str
     scenario: str
     version: str
@@ -267,15 +269,21 @@ class PreflightAdoptionResponse(_message.Message):
     warnings: _containers.RepeatedScalarFieldContainer[str]
     i18n_verdict: str
     selector_verdict: str
-    def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ..., version: _Optional[str] = ..., required_tokens: _Optional[_Iterable[str]] = ..., required_token_patterns: _Optional[_Iterable[str]] = ..., defined_tokens: _Optional[_Iterable[str]] = ..., unsatisfied_tokens: _Optional[_Iterable[str]] = ..., dependency_verdict: _Optional[str] = ..., style_fit: _Optional[str] = ..., blocking: _Optional[bool] = ..., version_status: _Optional[str] = ..., maturity_rung: _Optional[str] = ..., maturity_floor: _Optional[str] = ..., warnings: _Optional[_Iterable[str]] = ..., i18n_verdict: _Optional[str] = ..., selector_verdict: _Optional[str] = ...) -> None: ...
+    catalog_asset_id: str
+    catalog_latest_version: str
+    def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ..., version: _Optional[str] = ..., required_tokens: _Optional[_Iterable[str]] = ..., required_token_patterns: _Optional[_Iterable[str]] = ..., defined_tokens: _Optional[_Iterable[str]] = ..., unsatisfied_tokens: _Optional[_Iterable[str]] = ..., dependency_verdict: _Optional[str] = ..., style_fit: _Optional[str] = ..., blocking: _Optional[bool] = ..., version_status: _Optional[str] = ..., maturity_rung: _Optional[str] = ..., maturity_floor: _Optional[str] = ..., warnings: _Optional[_Iterable[str]] = ..., i18n_verdict: _Optional[str] = ..., selector_verdict: _Optional[str] = ..., catalog_asset_id: _Optional[str] = ..., catalog_latest_version: _Optional[str] = ...) -> None: ...
 
 class SyncScenarioTokensRequest(_message.Message):
-    __slots__ = ("scenario", "dry_run")
+    __slots__ = ("scenario", "dry_run", "candidate_component_id", "candidate_version")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_VERSION_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     dry_run: bool
-    def __init__(self, scenario: _Optional[str] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+    candidate_component_id: str
+    candidate_version: str
+    def __init__(self, scenario: _Optional[str] = ..., dry_run: _Optional[bool] = ..., candidate_component_id: _Optional[str] = ..., candidate_version: _Optional[str] = ...) -> None: ...
 
 class SyncScenarioTokensResponse(_message.Message):
     __slots__ = ("scenario", "added", "collisions", "changed")

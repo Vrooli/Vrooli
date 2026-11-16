@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package vrooli.research_desk.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/shared;shared_v1";
+
+// =============================================================================
+// ERROR ENVELOPE — canonical REST-exception non-2xx body
+// =============================================================================
+//
+// @stability stable
+//
+// Connect-RPC methods use Connect's canonical error envelope and code set.
+// The REST exceptions (the /api/v1/home/ file route) return this shape for
+// non-2xx responses, written with protojson by api/handlers/operator/files.go;
+// UI clients decode it with fromJson and surface `code` and `message`.
+//
+// Codes are short snake_case strings: "invalid_request", "not_found",
+// "internal".
+//
+// `details` is reserved for structured field-violation reporting once a
+// validation framework lands; ship empty for now.
+// =============================================================================
+
+message ErrorEnvelope {
+  string code = 1;
+  string message = 2;
+  map<string, string> details = 3;
+}
+
+// CommandHint is a command-line next step attached to a Connect error as an
+// error detail. The error's message says what is wrong and what the operator
+// can choose without naming a command; the CLI prints the hint
+// and the UI ignores it.
+message CommandHint {
+  string command = 1;
+}

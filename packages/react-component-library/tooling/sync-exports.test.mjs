@@ -1,10 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
+import { authoredRoot } from "./catalog-source.mjs";
 import { resolveCatalogExports } from "./export-resolution.mjs";
 import { findBrokenVersionImports } from "./version-import-scan.mjs";
 
@@ -27,12 +28,41 @@ test("sync-exports check rejects no live imports and reports the inverse count",
   const report = JSON.parse(output.trim().split("\n").at(-1));
   assert.equal(report.checked, true);
   assert.equal(report.brokenVersionImports, 0);
-  const packageJSON = JSON.parse(readFileSync(join(scriptsRoot, "..", "package.json"), "utf8"));
   assert.equal(report.versionedExports > 0, true);
-  assert.equal(Boolean(packageJSON.exports["./Button"]), true);
-  assert.equal(Boolean(packageJSON.exports["./Button/2"]), true);
-  assert.equal(Boolean(packageJSON.exports["./Button/2.2.4"]), true);
-  assert.equal(Boolean(packageJSON.exports["./Button/2/2.2.4"]), false);
+});
+
+test("package exports are exactly the root entry plus every current catalog resolution", async () => {
+  const packageJSON = JSON.parse(readFileSync(join(scriptsRoot, "..", "package.json"), "utf8"));
+  const { assets, resolutions } = await resolveCatalogExports({ libraryRoot: authoredRoot, manifestRoot: authoredRoot });
+  assert.deepEqual(
+    Object.keys(packageJSON.exports).sort(),
+    [".", ...Object.keys(resolutions)].sort(),
+    "package.json exports drifted from the catalog; run sync-exports",
+  );
+  for (const asset of assets) {
+    const [major] = asset.latest.split(".");
+    assert.ok(packageJSON.exports[`./${asset.name}`], `${asset.name} has no bare export`);
+    assert.ok(packageJSON.exports[`./${asset.name}/${asset.latest}`], `${asset.name} latest ${asset.latest} has no exact export`);
+    assert.equal(resolutions[`./${asset.name}`].version, asset.latest);
+    assert.equal(Boolean(packageJSON.exports[`./${asset.name}/${major}/${asset.latest}`]), false, "an exact release is never nested under its major");
+  }
+});
+
+test("evicted releases are never advertised as package exports", async () => {
+  const packageJSON = JSON.parse(readFileSync(join(scriptsRoot, "..", "package.json"), "utf8"));
+  const retired = [];
+  for (const kind of readdirSync(authoredRoot, { withFileTypes: true })) {
+    if (!kind.isDirectory() || kind.name === ".retired") continue;
+    for (const asset of readdirSync(join(authoredRoot, kind.name), { withFileTypes: true })) {
+      const manifestPath = join(authoredRoot, kind.name, asset.name, "component.json");
+      if (!asset.isDirectory() || !existsSync(manifestPath)) continue;
+      const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+      for (const version of manifest.evictedVersions ?? []) retired.push(`./${asset.name}/${version}`);
+    }
+  }
+  for (const subpath of retired) {
+    assert.equal(subpath in packageJSON.exports, false, `${subpath} is evicted but still exported`);
+  }
 });
 
 test("retained scenario and template documentation is excluded from import scanning", async () => {

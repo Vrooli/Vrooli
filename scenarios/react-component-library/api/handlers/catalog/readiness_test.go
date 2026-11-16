@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
 	"react-component-library/internal/catalogcoverage"
 )
 
@@ -84,5 +86,24 @@ func TestReadinessTriageReportsOmittedRows(t *testing.T) {
 	rows, omitted := readinessTriageWithOmitted(report)
 	if len(rows) != 50 || omitted != 1 {
 		t.Fatalf("triage rows=%d omitted=%d, want 50 and 1", len(rows), omitted)
+	}
+}
+
+func TestReadinessNextStepsSeparateInspectionFromEvidenceWrite(t *testing.T) {
+	steps := readinessNextSteps([]*catalogv1.ReadinessTriageRow{{Gate: "utility-class"}})
+	if len(steps) != 3 {
+		t.Fatalf("next steps = %v, want inspect, persist, then recheck", steps)
+	}
+	for _, want := range []string{"catalog gates utility-class", "without writing", "catalog record-gate utility-class", "Persist a measurement", "catalog readiness"} {
+		found := false
+		for _, step := range steps {
+			if strings.Contains(step, want) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("next steps %v do not include %q", steps, want)
+		}
 	}
 }

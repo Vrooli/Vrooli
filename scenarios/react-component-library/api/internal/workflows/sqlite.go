@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"react-component-library/internal/sqliterows"
 	"time"
 
 	"github.com/google/uuid"
@@ -84,20 +86,13 @@ func (r *sqliteRepository) List(ctx context.Context, assetID, target string, act
 		clauses = append(clauses, "status IN ('queued','running','parked')")
 	}
 	args = append(args, limit)
-	rows, err := r.db.QueryContext(ctx, `SELECT id,kind,asset_id,source_scenario,target_scenario,source_path,requested_version,agent_manager_task_id,agent_manager_run_id,agent_manager_execution_id,idempotency_key,status,last_event_sequence,summary,error,created_at,updated_at,completed_at FROM assisted_workflows WHERE `+strings.Join(clauses, " AND ")+` ORDER BY updated_at DESC LIMIT ?`, args...)
+	out, err := sqliterows.Collect(ctx, r.db, `SELECT id,kind,asset_id,source_scenario,target_scenario,source_path,requested_version,agent_manager_task_id,agent_manager_run_id,agent_manager_execution_id,idempotency_key,status,last_event_sequence,summary,error,created_at,updated_at,completed_at FROM assisted_workflows WHERE `+strings.Join(clauses, " AND ")+` ORDER BY updated_at DESC LIMIT ?`, args, false, func(row sqliterows.Scanner) (Workflow, error) {
+		return scan(row)
+	}, sqliterows.ErrorContext{Query: "list workflows"})
 	if err != nil {
-		return nil, fmt.Errorf("list workflows: %w", err)
+		return nil, err
 	}
-	defer rows.Close()
-	var out []Workflow
-	for rows.Next() {
-		w, err := scan(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, w)
-	}
-	return out, rows.Err()
+	return out, nil
 }
 
 func (r *sqliteRepository) Update(ctx context.Context, w Workflow) (Workflow, error) {

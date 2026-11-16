@@ -1719,6 +1719,8 @@ type ExecuteEmbeddingMigrationRequest struct {
 	Scope                        string                 `protobuf:"bytes,9,opt,name=scope,proto3" json:"scope,omitempty"`
 	DryRun                       bool                   `protobuf:"varint,10,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	JobId                        string                 `protobuf:"bytes,11,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	EmbeddingRecipeId            string                 `protobuf:"bytes,12,opt,name=embedding_recipe_id,json=embeddingRecipeId,proto3" json:"embedding_recipe_id,omitempty"`
+	EmbeddingRecipeCanonical     string                 `protobuf:"bytes,13,opt,name=embedding_recipe_canonical,json=embeddingRecipeCanonical,proto3" json:"embedding_recipe_canonical,omitempty"`
 	unknownFields                protoimpl.UnknownFields
 	sizeCache                    protoimpl.SizeCache
 }
@@ -1826,6 +1828,20 @@ func (x *ExecuteEmbeddingMigrationRequest) GetDryRun() bool {
 func (x *ExecuteEmbeddingMigrationRequest) GetJobId() string {
 	if x != nil {
 		return x.JobId
+	}
+	return ""
+}
+
+func (x *ExecuteEmbeddingMigrationRequest) GetEmbeddingRecipeId() string {
+	if x != nil {
+		return x.EmbeddingRecipeId
+	}
+	return ""
+}
+
+func (x *ExecuteEmbeddingMigrationRequest) GetEmbeddingRecipeCanonical() string {
+	if x != nil {
+		return x.EmbeddingRecipeCanonical
 	}
 	return ""
 }
@@ -2303,7 +2319,7 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\tproviders\x18\x01 \x03(\v21.vrooli.search_hub.v1.registry.ProviderDescriptorR\tproviders\x12Q\n" +
 	"\n" +
 	"incubating\x18\x02 \x03(\v21.vrooli.search_hub.v1.registry.IncubatingProviderR\n" +
-	"incubating\"\xc9\x03\n" +
+	"incubating\"\xb7\x04\n" +
 	" ExecuteEmbeddingMigrationRequest\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12\x16\n" +
@@ -2317,7 +2333,9 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\x05scope\x18\t \x01(\tR\x05scope\x12\x17\n" +
 	"\adry_run\x18\n" +
 	" \x01(\bR\x06dryRun\x12\x15\n" +
-	"\x06job_id\x18\v \x01(\tR\x05jobId\"\xd7\x02\n" +
+	"\x06job_id\x18\v \x01(\tR\x05jobId\x12.\n" +
+	"\x13embedding_recipe_id\x18\f \x01(\tR\x11embeddingRecipeId\x12<\n" +
+	"\x1aembedding_recipe_canonical\x18\r \x01(\tR\x18embeddingRecipeCanonical\"\xd7\x02\n" +
 	"!ExecuteEmbeddingMigrationResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12'\n" +

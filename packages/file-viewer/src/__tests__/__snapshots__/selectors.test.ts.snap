@@ -1,0 +1,80 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`viewer selectors > keeps every test id stable 1`] = `
+{
+  "artifactPreview": {
+    "imageStage": "artifact-image-stage",
+    "pdfPages": "artifact-pdf-pages",
+    "tableGrid": "artifact-table-grid",
+    "tableRecord": "artifact-table-record",
+    "tableRecords": "artifact-table-records",
+    "videoPlay": "artifact-video-play",
+    "videoSeek": "artifact-video-seek",
+  },
+  "audioPreview": {
+    "play": "audio-preview-play",
+    "player": "audio-preview-player",
+    "repeat": "audio-preview-repeat",
+    "seek": "audio-preview-seek",
+    "tools": "audio-preview-tools",
+    "waveform": "audio-preview-waveform",
+  },
+  "databasePreview": {
+    "grid": "database-grid",
+    "navigation": "database-navigation",
+    "records": "database-records",
+    "root": "file-preview-database",
+    "schema": "database-schema",
+    "tables": "database-tables",
+  },
+  "documentPreview": {
+    "article": "document-preview-article",
+    "outline": "document-preview-outline",
+    "pane": "document-preview-pane",
+    "root": "file-preview-document",
+    "search": "document-preview-search",
+  },
+  "ebookPreview": {
+    "article": "ebook-preview-article",
+    "contents": "ebook-preview-contents",
+    "pane": "ebook-preview-pane",
+    "root": "file-preview-ebook",
+  },
+  "fontPreview": {
+    "characters": "font-preview-characters",
+    "navigation": "font-preview-navigation",
+    "root": "file-preview-font",
+    "sample": "font-preview-sample",
+    "specimen": "font-preview-specimen",
+  },
+  "inspectionPreview": {
+    "diffBody": "inspection-diff-body",
+    "navigation": "file-preview-navigation",
+    "sourceLines": "inspection-source-lines",
+    "sourceSearch": "inspection-source-search",
+    "sourceSearchToggle": "inspection-source-search-toggle",
+    "workbook": "inspection-workbook",
+    "workbookDetail": "inspection-workbook-detail",
+    "workbookGrid": "inspection-workbook-grid",
+    "workbookRows": "inspection-workbook-rows",
+  },
+  "modelPreview": {
+    "navigation": "model-preview-navigation",
+    "root": "file-preview-model",
+    "stage": "model-preview-stage",
+  },
+  "presentationPreview": {
+    "frame": "presentation-preview-frame",
+    "navigation": "presentation-preview-navigation",
+    "notes": "presentation-preview-notes",
+    "root": "file-preview-presentation",
+  },
+  "readerPreview": {
+    "outline": "reader-outline",
+    "readingPane": "reader-reading-pane",
+    "searchToggle": "reader-search-toggle",
+    "structureDetail": "reader-structure-detail",
+    "structureTree": "reader-structure-tree",
+  },
+}
+`;

@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n!treasury/v1/mandate/mandate.proto\x12\x1avrooli.treasury.v1.mandate\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb6\x06\n\x07Mandate\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n\x07\x62ook_id\x18\x02 \x01(\tR\x06\x62ookId\x12\x1b\n\tbudget_id\x18\x03 \x01(\tR\x08\x62udgetId\x12\x1e\n\nauthorizer\x18\x04 \x01(\tR\nauthorizer\x12\x1b\n\tcap_minor\x18\x05 \x01(\x03R\x08\x63\x61pMinor\x12\x1a\n\x08\x63urrency\x18\x06 \x01(\tR\x08\x63urrency\x12\x35\n\x16\x61llowed_counterparties\x18\x07 \x03(\tR\x15\x61llowedCounterparties\x12\x33\n\x15\x64\x65nied_counterparties\x18\x08 \x03(\tR\x14\x64\x65niedCounterparties\x12\x39\n\nexpires_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\texpiresAt\x12\x1c\n\tsignature\x18\n \x01(\x0cR\tsignature\x12\x37\n\tissued_at\x18\x0b \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x08issuedAt\x12\x41\n\x06status\x18\x0c \x01(\x0e\x32).vrooli.treasury.v1.mandate.MandateStatusR\x06status\x12\'\n\x0fidempotency_key\x18\r \x01(\tR\x0eidempotencyKey\x12+\n\x11required_evidence\x18\x0e \x03(\tR\x10requiredEvidence\x12-\n\x12recurrence_seconds\x18\x0f \x01(\x03R\x11recurrenceSeconds\x12@\n\x0enext_charge_at\x18\x10 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0cnextChargeAt\x12=\n\x0c\x63\x61ncelled_at\x18\x11 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0b\x63\x61ncelledAt\x12#\n\ragent_subject\x18\x12 \x01(\tR\x0c\x61gentSubject\x12 \n\x0c\x61gent_run_id\x18\x13 \x01(\tR\nagentRunId*\xb8\x01\n\rMandateStatus\x12\x1e\n\x1aMANDATE_STATUS_UNSPECIFIED\x10\x00\x12\x18\n\x14MANDATE_STATUS_DRAFT\x10\x01\x12\x17\n\x13MANDATE_STATUS_LIVE\x10\x02\x12\x1c\n\x18MANDATE_STATUS_EXHAUSTED\x10\x03\x12\x1a\n\x16MANDATE_STATUS_EXPIRED\x10\x04\x12\x1a\n\x16MANDATE_STATUS_REVOKED\x10\x05\x42OZMgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/mandate;mandate_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n!treasury/v1/mandate/mandate.proto\x12\x1avrooli.treasury.v1.mandate\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb6\x06\n\x07Mandate\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n\x07\x62ook_id\x18\x02 \x01(\tR\x06\x62ookId\x12\x1b\n\tbudget_id\x18\x03 \x01(\tR\x08\x62udgetId\x12\x1e\n\nauthorizer\x18\x04 \x01(\tR\nauthorizer\x12\x1b\n\tcap_minor\x18\x05 \x01(\x03R\x08\x63\x61pMinor\x12\x1a\n\x08\x63urrency\x18\x06 \x01(\tR\x08\x63urrency\x12\x35\n\x16\x61llowed_counterparties\x18\x07 \x03(\tR\x15\x61llowedCounterparties\x12\x33\n\x15\x64\x65nied_counterparties\x18\x08 \x03(\tR\x14\x64\x65niedCounterparties\x12\x39\n\nexpires_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\texpiresAt\x12\x1c\n\tsignature\x18\n \x01(\x0cR\tsignature\x12\x37\n\tissued_at\x18\x0b \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x08issuedAt\x12\x41\n\x06status\x18\x0c \x01(\x0e\x32).vrooli.treasury.v1.mandate.MandateStatusR\x06status\x12\'\n\x0fidempotency_key\x18\r \x01(\tR\x0eidempotencyKey\x12+\n\x11required_evidence\x18\x0e \x03(\tR\x10requiredEvidence\x12-\n\x12recurrence_seconds\x18\x0f \x01(\x03R\x11recurrenceSeconds\x12@\n\x0enext_charge_at\x18\x10 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0cnextChargeAt\x12=\n\x0c\x63\x61ncelled_at\x18\x11 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0b\x63\x61ncelledAt\x12#\n\ragent_subject\x18\x12 \x01(\tR\x0c\x61gentSubject\x12 \n\x0c\x61gent_run_id\x18\x13 \x01(\tR\nagentRunId\"U\n\x14\x43reateMandateRequest\x12=\n\x07mandate\x18\x01 \x01(\x0b\x32#.vrooli.treasury.v1.mandate.MandateR\x07mandate\"V\n\x15\x43reateMandateResponse\x12=\n\x07mandate\x18\x01 \x01(\x0b\x32#.vrooli.treasury.v1.mandate.MandateR\x07mandate\"5\n\x14RevokeMandateRequest\x12\x1d\n\nmandate_id\x18\x01 \x01(\tR\tmandateId\"V\n\x15RevokeMandateResponse\x12=\n\x07mandate\x18\x01 \x01(\x0b\x32#.vrooli.treasury.v1.mandate.MandateR\x07mandate\"<\n\x1bRevokeMandateSessionRequest\x12\x1d\n\nmandate_id\x18\x01 \x01(\tR\tmandateId\"8\n\x1cRevokeMandateSessionResponse\x12\x18\n\x07revoked\x18\x01 \x01(\x08R\x07revoked\"=\n\x1c\x43\x61ncelStandingMandateRequest\x12\x1d\n\nmandate_id\x18\x01 \x01(\tR\tmandateId\"^\n\x1d\x43\x61ncelStandingMandateResponse\x12=\n\x07mandate\x18\x01 \x01(\x0b\x32#.vrooli.treasury.v1.mandate.MandateR\x07mandate\"\x15\n\x13ListMandatesRequest\"W\n\x14ListMandatesResponse\x12?\n\x08mandates\x18\x01 \x03(\x0b\x32#.vrooli.treasury.v1.mandate.MandateR\x08mandates*\xb8\x01\n\rMandateStatus\x12\x1e\n\x1aMANDATE_STATUS_UNSPECIFIED\x10\x00\x12\x18\n\x14MANDATE_STATUS_DRAFT\x10\x01\x12\x17\n\x13MANDATE_STATUS_LIVE\x10\x02\x12\x1c\n\x18MANDATE_STATUS_EXHAUSTED\x10\x03\x12\x1a\n\x16MANDATE_STATUS_EXPIRED\x10\x04\x12\x1a\n\x16MANDATE_STATUS_REVOKED\x10\x05\x32\x8f\x05\n\x13MandateAdminService\x12t\n\rCreateMandate\x12\x30.vrooli.treasury.v1.mandate.CreateMandateRequest\x1a\x31.vrooli.treasury.v1.mandate.CreateMandateResponse\x12t\n\rRevokeMandate\x12\x30.vrooli.treasury.v1.mandate.RevokeMandateRequest\x1a\x31.vrooli.treasury.v1.mandate.RevokeMandateResponse\x12\x89\x01\n\x14RevokeMandateSession\x12\x37.vrooli.treasury.v1.mandate.RevokeMandateSessionRequest\x1a\x38.vrooli.treasury.v1.mandate.RevokeMandateSessionResponse\x12\x8c\x01\n\x15\x43\x61ncelStandingMandate\x12\x38.vrooli.treasury.v1.mandate.CancelStandingMandateRequest\x1a\x39.vrooli.treasury.v1.mandate.CancelStandingMandateResponse\x12q\n\x0cListMandates\x12/.vrooli.treasury.v1.mandate.ListMandatesRequest\x1a\x30.vrooli.treasury.v1.mandate.ListMandatesResponseBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/mandate;mandate_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,8 +33,30 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'treasury.v1.mandate.mandate
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZMgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/mandate;mandate_v1'
-  _globals['_MANDATESTATUS']._serialized_start=924
-  _globals['_MANDATESTATUS']._serialized_end=1108
+  _globals['_MANDATESTATUS']._serialized_start=1633
+  _globals['_MANDATESTATUS']._serialized_end=1817
   _globals['_MANDATE']._serialized_start=99
   _globals['_MANDATE']._serialized_end=921
+  _globals['_CREATEMANDATEREQUEST']._serialized_start=923
+  _globals['_CREATEMANDATEREQUEST']._serialized_end=1008
+  _globals['_CREATEMANDATERESPONSE']._serialized_start=1010
+  _globals['_CREATEMANDATERESPONSE']._serialized_end=1096
+  _globals['_REVOKEMANDATEREQUEST']._serialized_start=1098
+  _globals['_REVOKEMANDATEREQUEST']._serialized_end=1151
+  _globals['_REVOKEMANDATERESPONSE']._serialized_start=1153
+  _globals['_REVOKEMANDATERESPONSE']._serialized_end=1239
+  _globals['_REVOKEMANDATESESSIONREQUEST']._serialized_start=1241
+  _globals['_REVOKEMANDATESESSIONREQUEST']._serialized_end=1301
+  _globals['_REVOKEMANDATESESSIONRESPONSE']._serialized_start=1303
+  _globals['_REVOKEMANDATESESSIONRESPONSE']._serialized_end=1359
+  _globals['_CANCELSTANDINGMANDATEREQUEST']._serialized_start=1361
+  _globals['_CANCELSTANDINGMANDATEREQUEST']._serialized_end=1422
+  _globals['_CANCELSTANDINGMANDATERESPONSE']._serialized_start=1424
+  _globals['_CANCELSTANDINGMANDATERESPONSE']._serialized_end=1518
+  _globals['_LISTMANDATESREQUEST']._serialized_start=1520
+  _globals['_LISTMANDATESREQUEST']._serialized_end=1541
+  _globals['_LISTMANDATESRESPONSE']._serialized_start=1543
+  _globals['_LISTMANDATESRESPONSE']._serialized_end=1630
+  _globals['_MANDATEADMINSERVICE']._serialized_start=1820
+  _globals['_MANDATEADMINSERVICE']._serialized_end=2475
 # @@protoc_insertion_point(module_scope)

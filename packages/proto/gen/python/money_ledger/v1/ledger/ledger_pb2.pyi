@@ -359,12 +359,10 @@ class ListGoalsResponse(_message.Message):
     def __init__(self, goals: _Optional[_Iterable[_Union[GoalVerdict, _Mapping]]] = ...) -> None: ...
 
 class ArchiveBookRequest(_message.Message):
-    __slots__ = ("book_id", "actor")
+    __slots__ = ("book_id",)
     BOOK_ID_FIELD_NUMBER: _ClassVar[int]
-    ACTOR_FIELD_NUMBER: _ClassVar[int]
     book_id: str
-    actor: str
-    def __init__(self, book_id: _Optional[str] = ..., actor: _Optional[str] = ...) -> None: ...
+    def __init__(self, book_id: _Optional[str] = ...) -> None: ...
 
 class ArchiveBookResponse(_message.Message):
     __slots__ = ("book",)
@@ -373,12 +371,10 @@ class ArchiveBookResponse(_message.Message):
     def __init__(self, book: _Optional[_Union[Book, _Mapping]] = ...) -> None: ...
 
 class ArchiveGoalRequest(_message.Message):
-    __slots__ = ("goal_id", "actor")
+    __slots__ = ("goal_id",)
     GOAL_ID_FIELD_NUMBER: _ClassVar[int]
-    ACTOR_FIELD_NUMBER: _ClassVar[int]
     goal_id: str
-    actor: str
-    def __init__(self, goal_id: _Optional[str] = ..., actor: _Optional[str] = ...) -> None: ...
+    def __init__(self, goal_id: _Optional[str] = ...) -> None: ...
 
 class ArchiveGoalResponse(_message.Message):
     __slots__ = ("goal",)
@@ -387,14 +383,12 @@ class ArchiveGoalResponse(_message.Message):
     def __init__(self, goal: _Optional[_Union[Goal, _Mapping]] = ...) -> None: ...
 
 class ReparentGoalRequest(_message.Message):
-    __slots__ = ("goal_id", "book_id", "actor")
+    __slots__ = ("goal_id", "book_id")
     GOAL_ID_FIELD_NUMBER: _ClassVar[int]
     BOOK_ID_FIELD_NUMBER: _ClassVar[int]
-    ACTOR_FIELD_NUMBER: _ClassVar[int]
     goal_id: str
     book_id: str
-    actor: str
-    def __init__(self, goal_id: _Optional[str] = ..., book_id: _Optional[str] = ..., actor: _Optional[str] = ...) -> None: ...
+    def __init__(self, goal_id: _Optional[str] = ..., book_id: _Optional[str] = ...) -> None: ...
 
 class ReparentGoalResponse(_message.Message):
     __slots__ = ("goal",)

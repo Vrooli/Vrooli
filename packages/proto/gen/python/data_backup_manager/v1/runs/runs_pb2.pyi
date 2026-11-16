@@ -26,6 +26,7 @@ class TriggerSource(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRIGGER_SOURCE_UNSPECIFIED: _ClassVar[TriggerSource]
     TRIGGER_SOURCE_SCHEDULER: _ClassVar[TriggerSource]
     TRIGGER_SOURCE_MANUAL: _ClassVar[TriggerSource]
+    TRIGGER_SOURCE_RETRY: _ClassVar[TriggerSource]
 
 class TargetOutcomeStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -43,6 +44,7 @@ RUN_STATUS_FAILED: RunStatus
 TRIGGER_SOURCE_UNSPECIFIED: TriggerSource
 TRIGGER_SOURCE_SCHEDULER: TriggerSource
 TRIGGER_SOURCE_MANUAL: TriggerSource
+TRIGGER_SOURCE_RETRY: TriggerSource
 TARGET_OUTCOME_STATUS_UNSPECIFIED: TargetOutcomeStatus
 TARGET_OUTCOME_STATUS_SUCCEEDED: TargetOutcomeStatus
 TARGET_OUTCOME_STATUS_FAILED: TargetOutcomeStatus
@@ -259,7 +261,7 @@ class GetRunStatsRequest(_message.Message):
     def __init__(self, plan_id: _Optional[str] = ...) -> None: ...
 
 class RunStats(_message.Message):
-    __slots__ = ("total_runs", "completed", "partial_failed", "failed", "success_rate", "p50_duration_ms", "p95_duration_ms", "total_bytes", "avg_bytes_per_run", "avg_throughput_bytes_per_sec", "window", "total_physical_bytes", "dedup_ratio")
+    __slots__ = ("total_runs", "completed", "partial_failed", "failed", "success_rate", "p50_duration_ms", "p95_duration_ms", "total_bytes", "avg_bytes_per_run", "avg_throughput_bytes_per_sec", "window", "total_physical_bytes", "dedup_ratio", "retry_runs", "retry_completed", "retry_failed")
     TOTAL_RUNS_FIELD_NUMBER: _ClassVar[int]
     COMPLETED_FIELD_NUMBER: _ClassVar[int]
     PARTIAL_FAILED_FIELD_NUMBER: _ClassVar[int]
@@ -273,6 +275,9 @@ class RunStats(_message.Message):
     WINDOW_FIELD_NUMBER: _ClassVar[int]
     TOTAL_PHYSICAL_BYTES_FIELD_NUMBER: _ClassVar[int]
     DEDUP_RATIO_FIELD_NUMBER: _ClassVar[int]
+    RETRY_RUNS_FIELD_NUMBER: _ClassVar[int]
+    RETRY_COMPLETED_FIELD_NUMBER: _ClassVar[int]
+    RETRY_FAILED_FIELD_NUMBER: _ClassVar[int]
     total_runs: int
     completed: int
     partial_failed: int
@@ -286,7 +291,10 @@ class RunStats(_message.Message):
     window: int
     total_physical_bytes: int
     dedup_ratio: float
-    def __init__(self, total_runs: _Optional[int] = ..., completed: _Optional[int] = ..., partial_failed: _Optional[int] = ..., failed: _Optional[int] = ..., success_rate: _Optional[float] = ..., p50_duration_ms: _Optional[int] = ..., p95_duration_ms: _Optional[int] = ..., total_bytes: _Optional[int] = ..., avg_bytes_per_run: _Optional[int] = ..., avg_throughput_bytes_per_sec: _Optional[float] = ..., window: _Optional[int] = ..., total_physical_bytes: _Optional[int] = ..., dedup_ratio: _Optional[float] = ...) -> None: ...
+    retry_runs: int
+    retry_completed: int
+    retry_failed: int
+    def __init__(self, total_runs: _Optional[int] = ..., completed: _Optional[int] = ..., partial_failed: _Optional[int] = ..., failed: _Optional[int] = ..., success_rate: _Optional[float] = ..., p50_duration_ms: _Optional[int] = ..., p95_duration_ms: _Optional[int] = ..., total_bytes: _Optional[int] = ..., avg_bytes_per_run: _Optional[int] = ..., avg_throughput_bytes_per_sec: _Optional[float] = ..., window: _Optional[int] = ..., total_physical_bytes: _Optional[int] = ..., dedup_ratio: _Optional[float] = ..., retry_runs: _Optional[int] = ..., retry_completed: _Optional[int] = ..., retry_failed: _Optional[int] = ...) -> None: ...
 
 class GetRunStatsResponse(_message.Message):
     __slots__ = ("stats",)

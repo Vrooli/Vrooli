@@ -33,7 +33,7 @@
         {
           "name": "build",
           "run": ["pnpm", "build", "--runtime", "--scenario", "{scenario}"],
-          "outputs": ["dist/**"],
+          "outputs": ["dist/**", "package.json"],
           "artifact_selection": "@vrooli/react-component-library"
         }
       ]

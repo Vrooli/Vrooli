@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"react-component-library/internal/librarywalk"
+	"react-component-library/internal/sqliterows"
 )
 
 // sourceImportRE intentionally accepts static, dynamic, and export imports.
@@ -37,15 +38,30 @@ func (r *Repository) sourceReferencesDetailed(ctx context.Context) (map[string][
 	if r.db == nil {
 		return map[string][]VersionReference{}, nil, nil
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT c.library_id, v.version, v.status, v.presence, v.id, v.source_path FROM components c JOIN component_versions v ON v.component_id = c.id`)
-	legacyPresence := false
+	type sourceRow struct {
+		version    sourceVersion
+		sourcePath string
+	}
+	query := `SELECT c.library_id, v.version, v.status, v.presence, v.id, v.source_path FROM components c JOIN component_versions v ON v.component_id = c.id`
+	sourceRows, err := sqliterows.Collect(ctx, r.db, query, nil, true, func(row sqliterows.Scanner) (sourceRow, error) {
+		var item sourceRow
+		err := row.Scan(&item.version.libraryID, &item.version.version, &item.version.status, &item.version.presence, &item.version.id, &item.sourcePath)
+		return item, err
+	})
 	if err != nil {
 		// Lightweight lifecycle fixtures and pre-migration stores may not yet
 		// carry source_path. Their SQL reference checks remain valid; there is
 		// simply no source graph to inspect until the catalog is reindexed.
 		if strings.Contains(strings.ToLower(err.Error()), "no such column: v.presence") {
-			rows, err = r.db.QueryContext(ctx, `SELECT c.library_id, v.version, v.status, v.source_path FROM components c JOIN component_versions v ON v.component_id = c.id`)
-			legacyPresence = true
+			legacyQuery := `SELECT c.library_id, v.version, v.status, v.source_path FROM components c JOIN component_versions v ON v.component_id = c.id`
+			sourceRows, err = sqliterows.Collect(ctx, r.db, legacyQuery, nil, true, func(row sqliterows.Scanner) (sourceRow, error) {
+				var item sourceRow
+				if err := row.Scan(&item.version.libraryID, &item.version.version, &item.version.status, &item.sourcePath); err != nil {
+					return sourceRow{}, err
+				}
+				item.version.presence = "materialized"
+				return item, nil
+			})
 			if err != nil {
 				if strings.Contains(strings.ToLower(err.Error()), "no such column") {
 					return map[string][]VersionReference{}, nil, nil
@@ -58,31 +74,14 @@ func (r *Repository) sourceReferencesDetailed(ctx context.Context) (map[string][
 			return nil, nil, err
 		}
 	}
-	defer rows.Close()
 	var versions []sourceVersion
-	for rows.Next() {
-		var v sourceVersion
-		var sourcePath string
-		if legacyPresence {
-			if err := rows.Scan(&v.libraryID, &v.version, &v.status, &sourcePath); err != nil {
-				return nil, nil, err
-			}
-			v.presence = "materialized"
-		} else if err := rows.Scan(&v.libraryID, &v.version, &v.status, &v.presence, &v.id, &sourcePath); err != nil {
-			return nil, nil, err
-		}
-		if strings.TrimSpace(sourcePath) == "" {
+	for _, item := range sourceRows {
+		v := item.version
+		if strings.TrimSpace(item.sourcePath) == "" {
 			continue
 		}
-		v.directory = filepath.Clean(filepath.Join(r.sourceRoot, filepath.Dir(sourcePath)))
+		v.directory = filepath.Clean(filepath.Join(r.sourceRoot, filepath.Dir(item.sourcePath)))
 		versions = append(versions, v)
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, nil, err
-	}
-	if err := rows.Close(); err != nil {
-		return nil, nil, err
 	}
 
 	// Longest directory first prevents a nested version directory from being
@@ -99,23 +98,16 @@ func (r *Repository) sourceReferencesDetailed(ctx context.Context) (map[string][
 		}
 		var sourceFiles []sourceFile
 		if strings.EqualFold(owner.presence, "evicted") {
-			mirrorRows, err := r.db.QueryContext(ctx, `SELECT path, content FROM component_version_files WHERE version_id = ? ORDER BY path`, owner.id)
-			if err != nil {
-				return nil, nil, fmt.Errorf("read evicted source mirror for %s@%s: %w", owner.libraryID, owner.version, err)
-			}
-			for mirrorRows.Next() {
+			sourceFiles, err = sqliterows.Collect(ctx, r.db, `SELECT path, content FROM component_version_files WHERE version_id = ? ORDER BY path`, []any{owner.id}, false, func(row sqliterows.Scanner) (sourceFile, error) {
 				var path, content string
-				if err := mirrorRows.Scan(&path, &content); err != nil {
-					mirrorRows.Close()
-					return nil, nil, fmt.Errorf("scan evicted source mirror for %s@%s: %w", owner.libraryID, owner.version, err)
+				if err := row.Scan(&path, &content); err != nil {
+					return sourceFile{}, fmt.Errorf("scan evicted source mirror for %s@%s: %w", owner.libraryID, owner.version, err)
 				}
-				sourceFiles = append(sourceFiles, sourceFile{path: filepath.Join(owner.directory, path), body: []byte(content)})
-			}
-			if err := mirrorRows.Err(); err != nil {
-				mirrorRows.Close()
+				return sourceFile{path: filepath.Join(owner.directory, path), body: []byte(content)}, nil
+			}, sqliterows.ErrorContext{Query: fmt.Sprintf("read evicted source mirror for %s@%s", owner.libraryID, owner.version)})
+			if err != nil {
 				return nil, nil, err
 			}
-			mirrorRows.Close()
 			if len(sourceFiles) == 0 {
 				unreadable = append(unreadable, UnreadableVersion{LibraryID: owner.libraryID, Version: owner.version, Reason: "evicted version has no file mirror rows"})
 				continue
@@ -274,27 +266,19 @@ func collectStoryRefs(value any, refs *[]string) {
 // scenario. The adoption ledger is the authority for attribution; filesystem
 // layout is used only to resolve the importing file and its relative target.
 func (r *Repository) adoptedSourceReferences(ctx context.Context) (map[string][]VersionReference, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT f.adoption_id, a.scenario, f.adopted_path, f.source_library_id, f.source_version FROM adoption_files f JOIN adoption_records a ON a.id = f.adoption_id WHERE f.source_library_id <> '' AND f.source_version <> '' AND lower(COALESCE(a.mode, 'copied')) <> 'ejected'`)
+	files, err := sqliterows.Collect(ctx, r.db, `SELECT f.adoption_id, a.scenario, f.adopted_path, f.source_library_id, f.source_version FROM adoption_files f JOIN adoption_records a ON a.id = f.adoption_id WHERE f.source_library_id <> '' AND f.source_version <> '' AND lower(COALESCE(a.mode, 'copied')) <> 'ejected'`, nil, false, func(row sqliterows.Scanner) (adoptedSourceFile, error) {
+		var file adoptedSourceFile
+		if err := row.Scan(&file.adoptionID, &file.scenario, &file.adoptedPath, &file.sourceLibraryID, &file.sourceVersion); err != nil {
+			return adoptedSourceFile{}, err
+		}
+		return file, nil
+	}, sqliterows.ErrorContext{Query: "read adopted source provenance"})
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "no such table") || strings.Contains(strings.ToLower(err.Error()), "no such column") {
 			return map[string][]VersionReference{}, nil
 		}
-		return nil, fmt.Errorf("read adopted source provenance: %w", err)
-	}
-	var files []adoptedSourceFile
-	for rows.Next() {
-		var file adoptedSourceFile
-		if err := rows.Scan(&file.adoptionID, &file.scenario, &file.adoptedPath, &file.sourceLibraryID, &file.sourceVersion); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		files = append(files, file)
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
 		return nil, err
 	}
-	rows.Close()
 	// adoption_records.scenario is a scenario name, so adopted paths resolve
 	// against the scenarios directory that holds this one.
 	scenariosRoot := filepath.Dir(filepath.Dir(filepath.Clean(r.sourceRoot)))

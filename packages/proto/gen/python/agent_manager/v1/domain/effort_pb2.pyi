@@ -558,7 +558,7 @@ class EffortDecisionOption(_message.Message):
     def __init__(self, key: _Optional[str] = ..., label: _Optional[str] = ...) -> None: ...
 
 class EffortDecision(_message.Message):
-    __slots__ = ("effort_ref", "goal_home", "decision_id", "question", "options", "recommended", "recommendation_reason", "default_answer", "reversible", "urgency", "note", "context_url", "deadline", "state", "answer", "answer_label", "answer_note", "answered_via", "late", "answered_at", "resolution_reason", "event_id", "ask_id", "raised_by_run_id", "created_at", "published_at", "publish_error", "recorded_at", "big_picture", "technical_details", "resolved_at")
+    __slots__ = ("effort_ref", "goal_home", "decision_id", "question", "options", "recommended", "recommendation_reason", "default_answer", "reversible", "urgency", "note", "context_url", "deadline", "state", "answer", "answer_label", "answer_note", "answered_via", "late", "answered_at", "resolution_reason", "event_id", "ask_id", "raised_by_run_id", "created_at", "published_at", "publish_error", "recorded_at", "big_picture", "technical_details", "resolved_at", "revised_at", "explainer_html")
     EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
     GOAL_HOME_FIELD_NUMBER: _ClassVar[int]
     DECISION_ID_FIELD_NUMBER: _ClassVar[int]
@@ -590,6 +590,8 @@ class EffortDecision(_message.Message):
     BIG_PICTURE_FIELD_NUMBER: _ClassVar[int]
     TECHNICAL_DETAILS_FIELD_NUMBER: _ClassVar[int]
     RESOLVED_AT_FIELD_NUMBER: _ClassVar[int]
+    REVISED_AT_FIELD_NUMBER: _ClassVar[int]
+    EXPLAINER_HTML_FIELD_NUMBER: _ClassVar[int]
     effort_ref: str
     goal_home: str
     decision_id: str
@@ -621,7 +623,9 @@ class EffortDecision(_message.Message):
     big_picture: str
     technical_details: str
     resolved_at: _timestamp_pb2.Timestamp
-    def __init__(self, effort_ref: _Optional[str] = ..., goal_home: _Optional[str] = ..., decision_id: _Optional[str] = ..., question: _Optional[str] = ..., options: _Optional[_Iterable[_Union[EffortDecisionOption, _Mapping]]] = ..., recommended: _Optional[str] = ..., recommendation_reason: _Optional[str] = ..., default_answer: _Optional[str] = ..., reversible: _Optional[bool] = ..., urgency: _Optional[str] = ..., note: _Optional[str] = ..., context_url: _Optional[str] = ..., deadline: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., state: _Optional[str] = ..., answer: _Optional[str] = ..., answer_label: _Optional[str] = ..., answer_note: _Optional[str] = ..., answered_via: _Optional[str] = ..., late: _Optional[bool] = ..., answered_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., resolution_reason: _Optional[str] = ..., event_id: _Optional[str] = ..., ask_id: _Optional[str] = ..., raised_by_run_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., published_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., publish_error: _Optional[str] = ..., recorded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., big_picture: _Optional[str] = ..., technical_details: _Optional[str] = ..., resolved_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    revised_at: _timestamp_pb2.Timestamp
+    explainer_html: str
+    def __init__(self, effort_ref: _Optional[str] = ..., goal_home: _Optional[str] = ..., decision_id: _Optional[str] = ..., question: _Optional[str] = ..., options: _Optional[_Iterable[_Union[EffortDecisionOption, _Mapping]]] = ..., recommended: _Optional[str] = ..., recommendation_reason: _Optional[str] = ..., default_answer: _Optional[str] = ..., reversible: _Optional[bool] = ..., urgency: _Optional[str] = ..., note: _Optional[str] = ..., context_url: _Optional[str] = ..., deadline: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., state: _Optional[str] = ..., answer: _Optional[str] = ..., answer_label: _Optional[str] = ..., answer_note: _Optional[str] = ..., answered_via: _Optional[str] = ..., late: _Optional[bool] = ..., answered_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., resolution_reason: _Optional[str] = ..., event_id: _Optional[str] = ..., ask_id: _Optional[str] = ..., raised_by_run_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., published_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., publish_error: _Optional[str] = ..., recorded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., big_picture: _Optional[str] = ..., technical_details: _Optional[str] = ..., resolved_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., revised_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., explainer_html: _Optional[str] = ...) -> None: ...
 
 class RaiseEffortDecisionRequest(_message.Message):
     __slots__ = ("decision",)
@@ -630,14 +634,16 @@ class RaiseEffortDecisionRequest(_message.Message):
     def __init__(self, decision: _Optional[_Union[EffortDecision, _Mapping]] = ...) -> None: ...
 
 class RaiseEffortDecisionResponse(_message.Message):
-    __slots__ = ("decision", "created", "published")
+    __slots__ = ("decision", "created", "published", "revised")
     DECISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_FIELD_NUMBER: _ClassVar[int]
     PUBLISHED_FIELD_NUMBER: _ClassVar[int]
+    REVISED_FIELD_NUMBER: _ClassVar[int]
     decision: EffortDecision
     created: bool
     published: bool
-    def __init__(self, decision: _Optional[_Union[EffortDecision, _Mapping]] = ..., created: _Optional[bool] = ..., published: _Optional[bool] = ...) -> None: ...
+    revised: bool
+    def __init__(self, decision: _Optional[_Union[EffortDecision, _Mapping]] = ..., created: _Optional[bool] = ..., published: _Optional[bool] = ..., revised: _Optional[bool] = ...) -> None: ...
 
 class ListEffortDecisionsRequest(_message.Message):
     __slots__ = ("goal_home", "effort_ref", "unrecorded_only", "limit", "page_token")

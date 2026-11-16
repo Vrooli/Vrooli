@@ -44,7 +44,11 @@ type SubmitRequest struct {
 	// 1440x720, 390x844, 1024x500 and 1290x2796 — so a 9:19.5 App Store portrait
 	// backdrop was produced as a 1.6:1 landscape and cropped, and no store asset
 	// was ever generated at its real aspect.
-	SurfaceId     string `protobuf:"bytes,7,opt,name=surface_id,json=surfaceId,proto3" json:"surface_id,omitempty"`
+	SurfaceId string `protobuf:"bytes,7,opt,name=surface_id,json=surfaceId,proto3" json:"surface_id,omitempty"`
+	// Require an admitted local GPU for every model inference in this render.
+	// The normal path may use an admitted CPU fallback; a GPU showcase or other
+	// caller that needs device provenance sets this before any image is drawn.
+	RequireGpu    bool `protobuf:"varint,8,opt,name=require_gpu,json=requireGpu,proto3" json:"require_gpu,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -126,6 +130,13 @@ func (x *SubmitRequest) GetSurfaceId() string {
 		return x.SurfaceId
 	}
 	return ""
+}
+
+func (x *SubmitRequest) GetRequireGpu() bool {
+	if x != nil {
+		return x.RequireGpu
+	}
+	return false
 }
 
 type GetJobRequest struct {
@@ -614,7 +625,7 @@ var File_backdrop_studio_v1_render_render_proto protoreflect.FileDescriptor
 
 const file_backdrop_studio_v1_render_render_proto_rawDesc = "" +
 	"\n" +
-	"&backdrop-studio/v1/render/render.proto\x12 vrooli.backdrop_studio.v1.render\x1a&backdrop-studio/v1/shared/shared.proto\"\x88\x03\n" +
+	"&backdrop-studio/v1/render/render.proto\x12 vrooli.backdrop_studio.v1.render\x1a&backdrop-studio/v1/shared/shared.proto\"\xa9\x03\n" +
 	"\rSubmitRequest\x12=\n" +
 	"\x05style\x18\x01 \x01(\v2'.vrooli.backdrop_studio.v1.shared.StyleR\x05style\x12\x1c\n" +
 	"\tplacement\x18\x02 \x01(\tR\tplacement\x12\x12\n" +
@@ -623,7 +634,9 @@ const file_backdrop_studio_v1_render_render_proto_rawDesc = "" +
 	"\fbrand_tokens\x18\x05 \x03(\v2@.vrooli.backdrop_studio.v1.render.SubmitRequest.BrandTokensEntryR\vbrandTokens\x12\x19\n" +
 	"\bbrand_id\x18\x06 \x01(\tR\abrandId\x12\x1d\n" +
 	"\n" +
-	"surface_id\x18\a \x01(\tR\tsurfaceId\x1a>\n" +
+	"surface_id\x18\a \x01(\tR\tsurfaceId\x12\x1f\n" +
+	"\vrequire_gpu\x18\b \x01(\bR\n" +
+	"requireGpu\x1a>\n" +
 	"\x10BrandTokensEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"&\n" +

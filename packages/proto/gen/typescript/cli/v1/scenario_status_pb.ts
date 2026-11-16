@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cli/v1/scenario_status.proto.
  */
 export const file_cli_v1_scenario_status: GenFile = /*@__PURE__*/
-  fileDesc("ChxjbGkvdjEvc2NlbmFyaW9fc3RhdHVzLnByb3RvEg12cm9vbGkuY2xpLnYxItcBChpTY2VuYXJpb1N0YXR1c0xpc3RSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEjUKB3N1bW1hcnkYAiABKAsyJC52cm9vbGkuY2xpLnYxLlNjZW5hcmlvU3RhdHVzU3VtbWFyeRI0CglzY2VuYXJpb3MYAyADKAsyIS52cm9vbGkuY2xpLnYxLlNjZW5hcmlvU3RhdHVzSXRlbRI7ChJkaXNjb3ZlcnlfZmFpbHVyZXMYBCADKAsyHy52cm9vbGkuY2xpLnYxLkRpc2NvdmVyeUZhaWx1cmUiUgoVU2NlbmFyaW9TdGF0dXNTdW1tYXJ5EhcKD3RvdGFsX3NjZW5hcmlvcxgBIAEoBRIPCgdydW5uaW5nGAIgASgFEg8KB3N0b3BwZWQYAyABKAUi3wMKElNjZW5hcmlvU3RhdHVzSXRlbRIMCgRuYW1lGAEgASgJEhQKDGRpc3BsYXlfbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIMCgR0YWdzGAQgAygJEg4KBnN0YXR1cxgFIAEoCRIRCglwcm9jZXNzZXMYBiABKAUSDwoHcnVudGltZRgHIAEoCRISCgpzdGFydGVkX2F0GAggASgJEjsKBXBvcnRzGAkgAygLMiwudnJvb2xpLmNsaS52MS5TY2VuYXJpb1N0YXR1c0l0ZW0uUG9ydHNFbnRyeRIyCg1wb3J0X2JpbmRpbmdzGAogAygLMhsudnJvb2xpLmNsaS52MS5TY2VuYXJpb1BvcnQSLQoNaGVhbHRoX3N0YXR1cxgLIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRIUCgxoZWFsdGhfZXJyb3IYDCABKAkSPgoPc3RhcnRfb3BlcmF0aW9uGA0gASgLMiUudnJvb2xpLmNsaS52MS5TY2VuYXJpb1N0YXJ0T3BlcmF0aW9uEhYKDmJ1aWxkX2lkZW50aXR5GA4gASgJGiwKClBvcnRzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgFOgI4ASLdAwoWU2NlbmFyaW9TdGFydE9wZXJhdGlvbhIUCgxvcGVyYXRpb25faWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDwoHdmFyaWFudBgDIAEoCRIRCglvcGVyYXRpb24YBCABKAkSDgoGc3RhdHVzGAUgASgJEg8KB3ZlcmRpY3QYBiABKAkSDQoFZXJyb3IYByABKAkSFAoMY3VycmVudF9zdGVwGAggASgJEhoKEmRlcGVuZGVuY3lfY3VycmVudBgJIAEoCRIYChBkZXBlbmRlbmN5X2luZGV4GAogASgFEhgKEGRlcGVuZGVuY3lfdG90YWwYCyABKAUSEgoKc3RhcnRlZF9hdBgMIAEoCRITCgtmaW5pc2hlZF9hdBgNIAEoCRIXCg9lbGFwc2VkX3NlY29uZHMYDiABKAUSOAoFc3RlcHMYDyADKAsyKS52cm9vbGkuY2xpLnYxLlNjZW5hcmlvU3RhcnRPcGVyYXRpb25TdGVwEhEKCWV0YV9rbm93bhgQIAEoCBITCgtldGFfc2Vjb25kcxgRIAEoBRImCh5yZWNvbW1lbmRlZF9uZXh0X2NoZWNrX3NlY29uZHMYEiABKAUSFQoNaW5pdGlhdG9yX3BpZBgTIAEoBSJgChpTY2VuYXJpb1N0YXJ0T3BlcmF0aW9uU3RlcBIMCgRuYW1lGAEgASgJEg4KBnN0YXR1cxgCIAEoCRISCgpzdGFydGVkX2F0GAMgASgJEhAKCGVuZGVkX2F0GAQgASgJIsABChRTY2VuYXJpb1N0YXR1c1NpbmdsZRIPCgdzdWNjZXNzGAEgASgIEjMKCHNjZW5hcmlvGAIgASgLMiEudnJvb2xpLmNsaS52MS5TY2VuYXJpb1N0YXR1c0l0ZW0SLQoEaW5mbxgDIAEoCzIfLnZyb29saS5jbGkudjEuU2NlbmFyaW9JbmZvRGF0YRIzCgdydW50aW1lGAQgASgLMiIudnJvb2xpLmNsaS52MS5TY2VuYXJpb1J1bnRpbWVEYXRhIo8BChRTY2VuYXJpb0luZm9SZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEjEKCHNjZW5hcmlvGAIgASgLMh8udnJvb2xpLmNsaS52MS5TY2VuYXJpb0luZm9EYXRhEjMKB3J1bnRpbWUYAyABKAsyIi52cm9vbGkuY2xpLnYxLlNjZW5hcmlvUnVudGltZURhdGEi+QMKEFNjZW5hcmlvSW5mb0RhdGESDAoEbmFtZRgBIAEoCRIUCgxkaXNwbGF5X25hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSDwoHdmVyc2lvbhgEIAEoCRIMCgR0eXBlGAUgASgJEhAKCGNhdGVnb3J5GAYgASgJEgwKBHRhZ3MYByADKAkSDAoEcGF0aBgIIAEoCRIUCgxzZXJ2aWNlX3BhdGgYCSABKAkSGgoSc2FuZGJveF9yZWRpcmVjdGVkGAogASgIEhYKDmNvbmZpZ192ZXJzaW9uGAsgASgJEhkKEWxpZmVjeWNsZV92ZXJzaW9uGAwgASgJEjUKBXBvcnRzGA0gAygLMiYudnJvb2xpLmNsaS52MS5TY2VuYXJpb0luZm9Qb3J0U3VtbWFyeRI3CgZwaGFzZXMYDiADKAsyJy52cm9vbGkuY2xpLnYxLlNjZW5hcmlvSW5mb1BoYXNlU3VtbWFyeRI9CgpnZW5lcmF0aW9uGA8gASgLMikudnJvb2xpLmNsaS52MS5TY2VuYXJpb0dlbmVyYXRpb25NZXRhZGF0YRIYChB0ZW1wbGF0ZV9kcmlmdGVkGBAgASgIEjEKCGJyYW5kaW5nGBEgASgLMh8udnJvb2xpLmNsaS52MS5TY2VuYXJpb0JyYW5kaW5nIjIKEFNjZW5hcmlvQnJhbmRpbmcSDQoFYnJhbmQYASABKAkSDwoHdGFyZ2V0cxgCIAMoCSJwChdTY2VuYXJpb0luZm9Qb3J0U3VtbWFyeRIMCgRuYW1lGAEgASgJEg8KB2Vudl92YXIYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSDQoFcmFuZ2UYBCABKAkSEgoKZml4ZWRfcG9ydBgFIAEoBSJdChhTY2VuYXJpb0luZm9QaGFzZVN1bW1hcnkSDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRINCgVzdGVwcxgDIAEoBRIPCgdkZWZpbmVkGAQgASgIItMBChpTY2VuYXJpb0dlbmVyYXRpb25NZXRhZGF0YRI7Cgh0ZW1wbGF0ZRgBIAEoCzIpLnZyb29saS5jbGkudjEuU2NlbmFyaW9HZW5lcmF0aW9uVGVtcGxhdGUSFAoMZ2VuZXJhdGVkX2F0GAIgASgJEjcKBmRlc2lnbhgDIAEoCzInLnZyb29saS5jbGkudjEuU2NlbmFyaW9HZW5lcmF0aW9uRGVzaWduEhQKDG1hbmlmZXN0X3NoYRgEIAEoCRITCgtjb250ZW50X3NoYRgFIAEoCSI5ChpTY2VuYXJpb0dlbmVyYXRpb25UZW1wbGF0ZRIKCgJpZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgJIkgKGFNjZW5hcmlvR2VuZXJhdGlvbkRlc2lnbhIKCgJpZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgJEg8KB2FkYXB0ZXIYAyABKAki5wIKE1NjZW5hcmlvUnVudGltZURhdGESDgoGc3RhdHVzGAEgASgJEhEKCXByb2Nlc3NlcxgCIAEoBRIPCgdydW50aW1lGAMgASgJEhIKCnN0YXJ0ZWRfYXQYBCABKAkSPAoFcG9ydHMYBSADKAsyLS52cm9vbGkuY2xpLnYxLlNjZW5hcmlvUnVudGltZURhdGEuUG9ydHNFbnRyeRI9Cg9wcm9jZXNzX3JlY29yZHMYBiADKAsyJC52cm9vbGkuY2xpLnYxLlNjZW5hcmlvUHJvY2Vzc1JlY29yZBIvCgpsaXN0X3BvcnRzGAcgAygLMhsudnJvb2xpLmNsaS52MS5TY2VuYXJpb1BvcnQSFAoMaGVhbHRoX2Vycm9yGAggASgJEhYKDmJ1aWxkX2lkZW50aXR5GAkgASgJGiwKClBvcnRzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgFOgI4ASLfAQoVU2NlbmFyaW9Qcm9jZXNzUmVjb3JkEgsKA3BpZBgBIAEoBRIMCgRwZ2lkGAIgASgFEhIKCnByb2Nlc3NfaWQYAyABKAkSDQoFcGhhc2UYBCABKAkSEAoIc2NlbmFyaW8YBSABKAkSDAoEc3RlcBgGIAEoCRIPCgdjb21tYW5kGAcgASgJEhMKC3dvcmtpbmdfZGlyGAggASgJEhAKCGxvZ19maWxlGAkgASgJEgwKBHBvcnQYCiABKAUSEgoKc3RhcnRlZF9hdBgLIAEoCRIOCgZzdGF0dXMYDCABKAkidQoSU2NlbmFyaW9Qb3J0U2luZ2xlEg8KB3N1Y2Nlc3MYASABKAgSEAoIc2NlbmFyaW8YAiABKAkSEQoJcG9ydF9uYW1lGAMgASgJEgwKBHN0ZXAYBCABKAkSDAoEcG9ydBgFIAEoBRINCgVlcnJvchgGIAEoCSLiAQoQU2NlbmFyaW9Qb3J0TGlzdBIPCgdzdWNjZXNzGAEgASgIEhAKCHNjZW5hcmlvGAIgASgJEioKBXBvcnRzGAMgAygLMhsudnJvb2xpLmNsaS52MS5TY2VuYXJpb1BvcnQSPwoIbWV0YWRhdGEYBCADKAsyLS52cm9vbGkuY2xpLnYxLlNjZW5hcmlvUG9ydExpc3QuTWV0YWRhdGFFbnRyeRINCgVlcnJvchgFIAEoCRovCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEiigEKFVNjZW5hcmlvU2V0dXBSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEg0KBXBoYXNlGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIPCgdkZWZpbmVkGAQgASgIEjAKBXN0ZXBzGAUgASgLMiEudnJvb2xpLmNsaS52MS5TY2VuYXJpb1NldHVwU3RlcHMiNwoSU2NlbmFyaW9TZXR1cFN0ZXBzEhAKCGV4ZWN1dGVkGAEgASgFEg8KB3NraXBwZWQYAiABKAUiWwoUU2NlbmFyaW9Mb2dzUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIQCghzY2VuYXJpbxgCIAEoCRIMCgRsb2dzGAMgASgJEhIKCnRhaWxfbGluZXMYBCABKAUiWAoVU2NlbmFyaW9CYXRjaFJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSLgoEZGF0YRgCIAEoCzIgLnZyb29saS5jbGkudjEuU2NlbmFyaW9CYXRjaERhdGEikAEKEVNjZW5hcmlvQmF0Y2hEYXRhEjUKB3N0YXJ0ZWQYASADKAsyJC52cm9vbGkuY2xpLnYxLlNjZW5hcmlvTGlmZWN5Y2xlSXRlbRIPCgdzdG9wcGVkGAIgAygJEjMKBmZhaWxlZBgDIAMoCzIjLnZyb29saS5jbGkudjEuU2NlbmFyaW9CYXRjaEZhaWx1cmUiMwoUU2NlbmFyaW9CYXRjaEZhaWx1cmUSDAoEbmFtZRgBIAEoCRINCgVlcnJvchgCIAEoCSJlChlTY2VuYXJpb0xpZmVjeWNsZVJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSNwoJc2NlbmFyaW9zGAIgAygLMiQudnJvb2xpLmNsaS52MS5TY2VuYXJpb0xpZmVjeWNsZUl0ZW0i6QIKFVNjZW5hcmlvTGlmZWN5Y2xlSXRlbRIMCgRuYW1lGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIOCgZoZWFsdGgYAyABKAkSPgoFcG9ydHMYBCADKAsyLy52cm9vbGkuY2xpLnYxLlNjZW5hcmlvTGlmZWN5Y2xlSXRlbS5Qb3J0c0VudHJ5EjIKCWVuZHBvaW50cxgFIAMoCzIfLnZyb29saS5jbGkudjEuU2NlbmFyaW9FbmRwb2ludBIbChNmYWlsZWRfZGVwZW5kZW5jaWVzGAYgAygJEhgKEGZhaWxlZF9yZXNvdXJjZXMYByADKAkSDwoHdmVyZGljdBgIIAEoCRI4CglvcGVyYXRpb24YCSABKAsyJS52cm9vbGkuY2xpLnYxLlNjZW5hcmlvU3RhcnRPcGVyYXRpb24aLAoKUG9ydHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBIr8BChRTY2VuYXJpb1dhaXRSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEhAKCHNjZW5hcmlvGAIgASgJEg8KB3ZlcmRpY3QYAyABKAkSEQoJZXhpdF9jb2RlGAQgASgFEg4KBnNvdXJjZRgFIAEoCRIWCg53YWl0ZWRfc2Vjb25kcxgGIAEoBRI4CglvcGVyYXRpb24YByABKAsyJS52cm9vbGkuY2xpLnYxLlNjZW5hcmlvU3RhcnRPcGVyYXRpb24iXQoQU2NlbmFyaW9FbmRwb2ludBIMCgRuYW1lGAEgASgJEgsKA2tleRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIMCgRwb3J0GAQgASgFEgsKA3VybBgFIAEoCSJsCh1TY2VuYXJpb0VudlZhbGlkYXRpb25SZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEjoKBnJlcG9ydBgCIAEoCzIqLnZyb29saS5jbGkudjEuU2NlbmFyaW9FbnZWYWxpZGF0aW9uUmVwb3J0Iq8CChtTY2VuYXJpb0VudlZhbGlkYXRpb25SZXBvcnQSEAoIc2NlbmFyaW8YASABKAkSRgoGdmFsdWVzGAIgAygLMjYudnJvb2xpLmNsaS52MS5TY2VuYXJpb0VudlZhbGlkYXRpb25SZXBvcnQuVmFsdWVzRW50cnkSNgoGaXNzdWVzGAMgAygLMiYudnJvb2xpLmNsaS52MS5TY2VuYXJpb1ZhbGlkYXRpb25Jc3N1ZRI/ChByZXNvdXJjZV9yZXBvcnRzGAQgAygLMiUudnJvb2xpLmNsaS52MS5TY2VuYXJpb1Jlc291cmNlUmVwb3J0Eg4KBnBhc3NlZBgFIAEoCBotCgtWYWx1ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIjwKF1NjZW5hcmlvVmFsaWRhdGlvbklzc3VlEhAKCHNldmVyaXR5GAEgASgJEg8KB21lc3NhZ2UYAiABKAkiwQEKFlNjZW5hcmlvUmVzb3VyY2VSZXBvcnQSDAoEbmFtZRgBIAEoCRIVCg1tYW5pZmVzdF9wYXRoGAIgASgJEkEKBnZhbHVlcxgDIAMoCzIxLnZyb29saS5jbGkudjEuU2NlbmFyaW9SZXNvdXJjZVJlcG9ydC5WYWx1ZXNFbnRyeRIQCgh3YXJuaW5ncxgEIAMoCRotCgtWYWx1ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQj1aO2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY2xpL3YxO2NsaXYxYgZwcm90bzM", [file_cli_v1_common, file_cli_v1_scenario_list, file_google_protobuf_struct]);
+  fileDesc("ChxjbGkvdjEvc2NlbmFyaW9fc3RhdHVzLnByb3RvEg12cm9vbGkuY2xpLnYxItcBChpTY2VuYXJpb1N0YXR1c0xpc3RSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEjUKB3N1bW1hcnkYAiABKAsyJC52cm9vbGkuY2xpLnYxLlNjZW5hcmlvU3RhdHVzU3VtbWFyeRI0CglzY2VuYXJpb3MYAyADKAsyIS52cm9vbGkuY2xpLnYxLlNjZW5hcmlvU3RhdHVzSXRlbRI7ChJkaXNjb3ZlcnlfZmFpbHVyZXMYBCADKAsyHy52cm9vbGkuY2xpLnYxLkRpc2NvdmVyeUZhaWx1cmUiUgoVU2NlbmFyaW9TdGF0dXNTdW1tYXJ5EhcKD3RvdGFsX3NjZW5hcmlvcxgBIAEoBRIPCgdydW5uaW5nGAIgASgFEg8KB3N0b3BwZWQYAyABKAUivQQKElNjZW5hcmlvU3RhdHVzSXRlbRIMCgRuYW1lGAEgASgJEhQKDGRpc3BsYXlfbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIMCgR0YWdzGAQgAygJEg4KBnN0YXR1cxgFIAEoCRIRCglwcm9jZXNzZXMYBiABKAUSDwoHcnVudGltZRgHIAEoCRISCgpzdGFydGVkX2F0GAggASgJEjsKBXBvcnRzGAkgAygLMiwudnJvb2xpLmNsaS52MS5TY2VuYXJpb1N0YXR1c0l0ZW0uUG9ydHNFbnRyeRIyCg1wb3J0X2JpbmRpbmdzGAogAygLMhsudnJvb2xpLmNsaS52MS5TY2VuYXJpb1BvcnQSLQoNaGVhbHRoX3N0YXR1cxgLIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRIUCgxoZWFsdGhfZXJyb3IYDCABKAkSPgoPc3RhcnRfb3BlcmF0aW9uGA0gASgLMiUudnJvb2xpLmNsaS52MS5TY2VuYXJpb1N0YXJ0T3BlcmF0aW9uEhYKDmJ1aWxkX2lkZW50aXR5GA4gASgJEhoKEnJ1bnRpbWVfcmVsZWFzZV9pZBgPIAEoCRIkChxydW50aW1lX3JlbGVhc2Vfb3BlcmF0aW9uX2lkGBAgASgJEhoKEnN0YXJ0X29wZXJhdGlvbl9pZBgRIAEoCRosCgpQb3J0c0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEi+QMKFlNjZW5hcmlvU3RhcnRPcGVyYXRpb24SFAoMb3BlcmF0aW9uX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEg8KB3ZhcmlhbnQYAyABKAkSEQoJb3BlcmF0aW9uGAQgASgJEg4KBnN0YXR1cxgFIAEoCRIPCgd2ZXJkaWN0GAYgASgJEg0KBWVycm9yGAcgASgJEhQKDGN1cnJlbnRfc3RlcBgIIAEoCRIaChJkZXBlbmRlbmN5X2N1cnJlbnQYCSABKAkSGAoQZGVwZW5kZW5jeV9pbmRleBgKIAEoBRIYChBkZXBlbmRlbmN5X3RvdGFsGAsgASgFEhIKCnN0YXJ0ZWRfYXQYDCABKAkSEwoLZmluaXNoZWRfYXQYDSABKAkSFwoPZWxhcHNlZF9zZWNvbmRzGA4gASgFEjgKBXN0ZXBzGA8gAygLMikudnJvb2xpLmNsaS52MS5TY2VuYXJpb1N0YXJ0T3BlcmF0aW9uU3RlcBIRCglldGFfa25vd24YECABKAgSEwoLZXRhX3NlY29uZHMYESABKAUSJgoecmVjb21tZW5kZWRfbmV4dF9jaGVja19zZWNvbmRzGBIgASgFEhUKDWluaXRpYXRvcl9waWQYEyABKAUSGgoSZmVuY2Vfb3BlcmF0aW9uX2lkGBQgASgJItwBChpTY2VuYXJpb1N0YXJ0T3BlcmF0aW9uU3RlcBIMCgRuYW1lGAEgASgJEg4KBnN0YXR1cxgCIAEoCRISCgpzdGFydGVkX2F0GAMgASgJEhAKCGVuZGVkX2F0GAQgASgJEkkKCGV2aWRlbmNlGAUgAygLMjcudnJvb2xpLmNsaS52MS5TY2VuYXJpb1N0YXJ0T3BlcmF0aW9uU3RlcC5FdmlkZW5jZUVudHJ5Gi8KDUV2aWRlbmNlRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKFAgoUU2NlbmFyaW9TdGF0dXNTaW5nbGUSDwoHc3VjY2VzcxgBIAEoCBIzCghzY2VuYXJpbxgCIAEoCzIhLnZyb29saS5jbGkudjEuU2NlbmFyaW9TdGF0dXNJdGVtEi0KBGluZm8YAyABKAsyHy52cm9vbGkuY2xpLnYxLlNjZW5hcmlvSW5mb0RhdGESMwoHcnVudGltZRgEIAEoCzIiLnZyb29saS5jbGkudjEuU2NlbmFyaW9SdW50aW1lRGF0YRJDCg5hdXRoZW50aWNhdGlvbhgFIAEoCzIrLnZyb29saS5jbGkudjEuU2NlbmFyaW9BdXRoZW50aWNhdGlvblN0YXR1cyLuAQocU2NlbmFyaW9BdXRoZW50aWNhdGlvblN0YXR1cxIPCgdwcm9maWxlGAEgASgJEhcKD3N1cHBvcnRlZF9tb2RlcxgCIAMoCRIXCg9jb25maWd1cmVkX21vZGUYAyABKAkSGQoRY29uZmlndXJlZF9zb3VyY2UYBCABKAkSPwoJcHJvY2Vzc2VzGAUgAygLMiwudnJvb2xpLmNsaS52MS5TY2VuYXJpb1Byb2Nlc3NBdXRoZW50aWNhdGlvbhIQCghtaXNtYXRjaBgGIAEoCBIMCgRyaXNrGAcgASgJEg8KB3JlZnVzZWQYCCABKAkiegodU2NlbmFyaW9Qcm9jZXNzQXV0aGVudGljYXRpb24SDAoEc3RlcBgBIAEoCRILCgNwaWQYAiABKAUSDAoEbW9kZRgDIAEoCRIOCgZzb3VyY2UYBCABKAkSEQoJcHJvdmlkZXJzGAUgASgJEg0KBWVycm9yGAYgASgJIo8BChRTY2VuYXJpb0luZm9SZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEjEKCHNjZW5hcmlvGAIgASgLMh8udnJvb2xpLmNsaS52MS5TY2VuYXJpb0luZm9EYXRhEjMKB3J1bnRpbWUYAyABKAsyIi52cm9vbGkuY2xpLnYxLlNjZW5hcmlvUnVudGltZURhdGEi+QMKEFNjZW5hcmlvSW5mb0RhdGESDAoEbmFtZRgBIAEoCRIUCgxkaXNwbGF5X25hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSDwoHdmVyc2lvbhgEIAEoCRIMCgR0eXBlGAUgASgJEhAKCGNhdGVnb3J5GAYgASgJEgwKBHRhZ3MYByADKAkSDAoEcGF0aBgIIAEoCRIUCgxzZXJ2aWNlX3BhdGgYCSABKAkSGgoSc2FuZGJveF9yZWRpcmVjdGVkGAogASgIEhYKDmNvbmZpZ192ZXJzaW9uGAsgASgJEhkKEWxpZmVjeWNsZV92ZXJzaW9uGAwgASgJEjUKBXBvcnRzGA0gAygLMiYudnJvb2xpLmNsaS52MS5TY2VuYXJpb0luZm9Qb3J0U3VtbWFyeRI3CgZwaGFzZXMYDiADKAsyJy52cm9vbGkuY2xpLnYxLlNjZW5hcmlvSW5mb1BoYXNlU3VtbWFyeRI9CgpnZW5lcmF0aW9uGA8gASgLMikudnJvb2xpLmNsaS52MS5TY2VuYXJpb0dlbmVyYXRpb25NZXRhZGF0YRIYChB0ZW1wbGF0ZV9kcmlmdGVkGBAgASgIEjEKCGJyYW5kaW5nGBEgASgLMh8udnJvb2xpLmNsaS52MS5TY2VuYXJpb0JyYW5kaW5nIjIKEFNjZW5hcmlvQnJhbmRpbmcSDQoFYnJhbmQYASABKAkSDwoHdGFyZ2V0cxgCIAMoCSJwChdTY2VuYXJpb0luZm9Qb3J0U3VtbWFyeRIMCgRuYW1lGAEgASgJEg8KB2Vudl92YXIYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSDQoFcmFuZ2UYBCABKAkSEgoKZml4ZWRfcG9ydBgFIAEoBSJdChhTY2VuYXJpb0luZm9QaGFzZVN1bW1hcnkSDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRINCgVzdGVwcxgDIAEoBRIPCgdkZWZpbmVkGAQgASgIItMBChpTY2VuYXJpb0dlbmVyYXRpb25NZXRhZGF0YRI7Cgh0ZW1wbGF0ZRgBIAEoCzIpLnZyb29saS5jbGkudjEuU2NlbmFyaW9HZW5lcmF0aW9uVGVtcGxhdGUSFAoMZ2VuZXJhdGVkX2F0GAIgASgJEjcKBmRlc2lnbhgDIAEoCzInLnZyb29saS5jbGkudjEuU2NlbmFyaW9HZW5lcmF0aW9uRGVzaWduEhQKDG1hbmlmZXN0X3NoYRgEIAEoCRITCgtjb250ZW50X3NoYRgFIAEoCSI5ChpTY2VuYXJpb0dlbmVyYXRpb25UZW1wbGF0ZRIKCgJpZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgJIkgKGFNjZW5hcmlvR2VuZXJhdGlvbkRlc2lnbhIKCgJpZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgJEg8KB2FkYXB0ZXIYAyABKAkixQMKE1NjZW5hcmlvUnVudGltZURhdGESDgoGc3RhdHVzGAEgASgJEhEKCXByb2Nlc3NlcxgCIAEoBRIPCgdydW50aW1lGAMgASgJEhIKCnN0YXJ0ZWRfYXQYBCABKAkSPAoFcG9ydHMYBSADKAsyLS52cm9vbGkuY2xpLnYxLlNjZW5hcmlvUnVudGltZURhdGEuUG9ydHNFbnRyeRI9Cg9wcm9jZXNzX3JlY29yZHMYBiADKAsyJC52cm9vbGkuY2xpLnYxLlNjZW5hcmlvUHJvY2Vzc1JlY29yZBIvCgpsaXN0X3BvcnRzGAcgAygLMhsudnJvb2xpLmNsaS52MS5TY2VuYXJpb1BvcnQSFAoMaGVhbHRoX2Vycm9yGAggASgJEhYKDmJ1aWxkX2lkZW50aXR5GAkgASgJEhoKEnJ1bnRpbWVfcmVsZWFzZV9pZBgKIAEoCRIkChxydW50aW1lX3JlbGVhc2Vfb3BlcmF0aW9uX2lkGAsgASgJEhoKEnN0YXJ0X29wZXJhdGlvbl9pZBgMIAEoCRosCgpQb3J0c0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEi3wEKFVNjZW5hcmlvUHJvY2Vzc1JlY29yZBILCgNwaWQYASABKAUSDAoEcGdpZBgCIAEoBRISCgpwcm9jZXNzX2lkGAMgASgJEg0KBXBoYXNlGAQgASgJEhAKCHNjZW5hcmlvGAUgASgJEgwKBHN0ZXAYBiABKAkSDwoHY29tbWFuZBgHIAEoCRITCgt3b3JraW5nX2RpchgIIAEoCRIQCghsb2dfZmlsZRgJIAEoCRIMCgRwb3J0GAogASgFEhIKCnN0YXJ0ZWRfYXQYCyABKAkSDgoGc3RhdHVzGAwgASgJInUKElNjZW5hcmlvUG9ydFNpbmdsZRIPCgdzdWNjZXNzGAEgASgIEhAKCHNjZW5hcmlvGAIgASgJEhEKCXBvcnRfbmFtZRgDIAEoCRIMCgRzdGVwGAQgASgJEgwKBHBvcnQYBSABKAUSDQoFZXJyb3IYBiABKAki4gEKEFNjZW5hcmlvUG9ydExpc3QSDwoHc3VjY2VzcxgBIAEoCBIQCghzY2VuYXJpbxgCIAEoCRIqCgVwb3J0cxgDIAMoCzIbLnZyb29saS5jbGkudjEuU2NlbmFyaW9Qb3J0Ej8KCG1ldGFkYXRhGAQgAygLMi0udnJvb2xpLmNsaS52MS5TY2VuYXJpb1BvcnRMaXN0Lk1ldGFkYXRhRW50cnkSDQoFZXJyb3IYBSABKAkaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBIooBChVTY2VuYXJpb1NldHVwUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBINCgVwaGFzZRgCIAEoCRIOCgZzdGF0dXMYAyABKAkSDwoHZGVmaW5lZBgEIAEoCBIwCgVzdGVwcxgFIAEoCzIhLnZyb29saS5jbGkudjEuU2NlbmFyaW9TZXR1cFN0ZXBzIjcKElNjZW5hcmlvU2V0dXBTdGVwcxIQCghleGVjdXRlZBgBIAEoBRIPCgdza2lwcGVkGAIgASgFIlsKFFNjZW5hcmlvTG9nc1Jlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSEAoIc2NlbmFyaW8YAiABKAkSDAoEbG9ncxgDIAEoCRISCgp0YWlsX2xpbmVzGAQgASgFIlgKFVNjZW5hcmlvQmF0Y2hSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEi4KBGRhdGEYAiABKAsyIC52cm9vbGkuY2xpLnYxLlNjZW5hcmlvQmF0Y2hEYXRhIpABChFTY2VuYXJpb0JhdGNoRGF0YRI1CgdzdGFydGVkGAEgAygLMiQudnJvb2xpLmNsaS52MS5TY2VuYXJpb0xpZmVjeWNsZUl0ZW0SDwoHc3RvcHBlZBgCIAMoCRIzCgZmYWlsZWQYAyADKAsyIy52cm9vbGkuY2xpLnYxLlNjZW5hcmlvQmF0Y2hGYWlsdXJlIjMKFFNjZW5hcmlvQmF0Y2hGYWlsdXJlEgwKBG5hbWUYASABKAkSDQoFZXJyb3IYAiABKAkiZQoZU2NlbmFyaW9MaWZlY3ljbGVSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEjcKCXNjZW5hcmlvcxgCIAMoCzIkLnZyb29saS5jbGkudjEuU2NlbmFyaW9MaWZlY3ljbGVJdGVtIukCChVTY2VuYXJpb0xpZmVjeWNsZUl0ZW0SDAoEbmFtZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDgoGaGVhbHRoGAMgASgJEj4KBXBvcnRzGAQgAygLMi8udnJvb2xpLmNsaS52MS5TY2VuYXJpb0xpZmVjeWNsZUl0ZW0uUG9ydHNFbnRyeRIyCgllbmRwb2ludHMYBSADKAsyHy52cm9vbGkuY2xpLnYxLlNjZW5hcmlvRW5kcG9pbnQSGwoTZmFpbGVkX2RlcGVuZGVuY2llcxgGIAMoCRIYChBmYWlsZWRfcmVzb3VyY2VzGAcgAygJEg8KB3ZlcmRpY3QYCCABKAkSOAoJb3BlcmF0aW9uGAkgASgLMiUudnJvb2xpLmNsaS52MS5TY2VuYXJpb1N0YXJ0T3BlcmF0aW9uGiwKClBvcnRzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgFOgI4ASK/AQoUU2NlbmFyaW9XYWl0UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIQCghzY2VuYXJpbxgCIAEoCRIPCgd2ZXJkaWN0GAMgASgJEhEKCWV4aXRfY29kZRgEIAEoBRIOCgZzb3VyY2UYBSABKAkSFgoOd2FpdGVkX3NlY29uZHMYBiABKAUSOAoJb3BlcmF0aW9uGAcgASgLMiUudnJvb2xpLmNsaS52MS5TY2VuYXJpb1N0YXJ0T3BlcmF0aW9uIl0KEFNjZW5hcmlvRW5kcG9pbnQSDAoEbmFtZRgBIAEoCRILCgNrZXkYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSDAoEcG9ydBgEIAEoBRILCgN1cmwYBSABKAkibAodU2NlbmFyaW9FbnZWYWxpZGF0aW9uUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBI6CgZyZXBvcnQYAiABKAsyKi52cm9vbGkuY2xpLnYxLlNjZW5hcmlvRW52VmFsaWRhdGlvblJlcG9ydCKvAgobU2NlbmFyaW9FbnZWYWxpZGF0aW9uUmVwb3J0EhAKCHNjZW5hcmlvGAEgASgJEkYKBnZhbHVlcxgCIAMoCzI2LnZyb29saS5jbGkudjEuU2NlbmFyaW9FbnZWYWxpZGF0aW9uUmVwb3J0LlZhbHVlc0VudHJ5EjYKBmlzc3VlcxgDIAMoCzImLnZyb29saS5jbGkudjEuU2NlbmFyaW9WYWxpZGF0aW9uSXNzdWUSPwoQcmVzb3VyY2VfcmVwb3J0cxgEIAMoCzIlLnZyb29saS5jbGkudjEuU2NlbmFyaW9SZXNvdXJjZVJlcG9ydBIOCgZwYXNzZWQYBSABKAgaLQoLVmFsdWVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASI8ChdTY2VuYXJpb1ZhbGlkYXRpb25Jc3N1ZRIQCghzZXZlcml0eRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJIsEBChZTY2VuYXJpb1Jlc291cmNlUmVwb3J0EgwKBG5hbWUYASABKAkSFQoNbWFuaWZlc3RfcGF0aBgCIAEoCRJBCgZ2YWx1ZXMYAyADKAsyMS52cm9vbGkuY2xpLnYxLlNjZW5hcmlvUmVzb3VyY2VSZXBvcnQuVmFsdWVzRW50cnkSEAoId2FybmluZ3MYBCADKAkaLQoLVmFsdWVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUI9WjtnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NsaS92MTtjbGl2MWIGcHJvdG8z", [file_cli_v1_common, file_cli_v1_scenario_list, file_google_protobuf_struct]);
 
 /**
  * ScenarioStatusListResponse is the envelope of `vrooli scenario status --json`
@@ -203,6 +203,27 @@ export type ScenarioStatusItem = Message<"vrooli.cli.v1.ScenarioStatusItem"> & {
    * @generated from field: string build_identity = 14;
    */
   buildIdentity: string;
+
+  /**
+   * Exact immutable retained artifact currently serving this instance.
+   *
+   * @generated from field: string runtime_release_id = 15;
+   */
+  runtimeReleaseId: string;
+
+  /**
+   * Selection operation that routed the instance to runtime_release_id.
+   *
+   * @generated from field: string runtime_release_operation_id = 16;
+   */
+  runtimeReleaseOperationId: string;
+
+  /**
+   * Exact start attempt that launched the serving instance.
+   *
+   * @generated from field: string start_operation_id = 17;
+   */
+  startOperationId: string;
 };
 
 /**
@@ -359,6 +380,14 @@ export type ScenarioStartOperation = Message<"vrooli.cli.v1.ScenarioStartOperati
    * @generated from field: int32 initiator_pid = 19;
    */
   initiatorPid: number;
+
+  /**
+   * Exact provider-owned fence operation linked to this lifecycle attempt.
+   * Empty when this attempt has not negotiated a provider fence.
+   *
+   * @generated from field: string fence_operation_id = 20;
+   */
+  fenceOperationId: string;
 };
 
 /**
@@ -401,6 +430,14 @@ export type ScenarioStartOperationStep = Message<"vrooli.cli.v1.ScenarioStartOpe
    * @generated from field: string ended_at = 4;
    */
   endedAt: string;
+
+  /**
+   * Exact runtime artifact, process build and health provenance attached to
+   * the lifecycle operation. Empty for mutable-source runs.
+   *
+   * @generated from field: map<string, string> evidence = 5;
+   */
+  evidence: { [key: string]: string };
 };
 
 /**
@@ -444,6 +481,14 @@ export type ScenarioStatusSingle = Message<"vrooli.cli.v1.ScenarioStatusSingle">
    * @generated from field: vrooli.cli.v1.ScenarioRuntimeData runtime = 4;
    */
   runtime?: ScenarioRuntimeData | undefined;
+
+  /**
+   * Configured authentication mode, its source, and the mode each running
+   * process carries. Null for scenarios without an authentication profile.
+   *
+   * @generated from field: vrooli.cli.v1.ScenarioAuthenticationStatus authentication = 5;
+   */
+  authentication?: ScenarioAuthenticationStatus | undefined;
 };
 
 /**
@@ -452,6 +497,136 @@ export type ScenarioStatusSingle = Message<"vrooli.cli.v1.ScenarioStatusSingle">
  */
 export const ScenarioStatusSingleSchema: GenMessage<ScenarioStatusSingle> = /*@__PURE__*/
   messageDesc(file_cli_v1_scenario_status, 5);
+
+/**
+ * ScenarioAuthenticationStatus reports where a scenario's authentication mode
+ * comes from. The mode is the manifest's authentication.default_mode; the
+ * environment of whoever ran a start is never a source.
+ *
+ * @generated from message vrooli.cli.v1.ScenarioAuthenticationStatus
+ */
+export type ScenarioAuthenticationStatus = Message<"vrooli.cli.v1.ScenarioAuthenticationStatus"> & {
+  /**
+   * Manifest authentication profile (e.g. hybrid, scenario_authenticator).
+   *
+   * @generated from field: string profile = 1;
+   */
+  profile: string;
+
+  /**
+   * Manifest authentication.supported_modes.
+   *
+   * @generated from field: repeated string supported_modes = 2;
+   */
+  supportedModes: string[];
+
+  /**
+   * Mode the next managed start applies.
+   *
+   * @generated from field: string configured_mode = 3;
+   */
+  configuredMode: string;
+
+  /**
+   * Where configured_mode comes from: "manifest-default".
+   *
+   * @generated from field: string configured_source = 4;
+   */
+  configuredSource: string;
+
+  /**
+   * Mode carried by each running process, read from its environment.
+   *
+   * @generated from field: repeated vrooli.cli.v1.ScenarioProcessAuthentication processes = 5;
+   */
+  processes: ScenarioProcessAuthentication[];
+
+  /**
+   * True when a running process does not carry the configured mode.
+   *
+   * @generated from field: bool mismatch = 6;
+   */
+  mismatch: boolean;
+
+  /**
+   * What the configured mode trusts, set when it is personal_local.
+   *
+   * @generated from field: string risk = 7;
+   */
+  risk: string;
+
+  /**
+   * Why the next managed start refuses the configured mode.
+   *
+   * @generated from field: string refused = 8;
+   */
+  refused: string;
+};
+
+/**
+ * Describes the message vrooli.cli.v1.ScenarioAuthenticationStatus.
+ * Use `create(ScenarioAuthenticationStatusSchema)` to create a new message.
+ */
+export const ScenarioAuthenticationStatusSchema: GenMessage<ScenarioAuthenticationStatus> = /*@__PURE__*/
+  messageDesc(file_cli_v1_scenario_status, 6);
+
+/**
+ * ScenarioProcessAuthentication is the authentication setting one running
+ * scenario process carries.
+ *
+ * @generated from message vrooli.cli.v1.ScenarioProcessAuthentication
+ */
+export type ScenarioProcessAuthentication = Message<"vrooli.cli.v1.ScenarioProcessAuthentication"> & {
+  /**
+   * Lifecycle step that launched the process.
+   *
+   * @generated from field: string step = 1;
+   */
+  step: string;
+
+  /**
+   * Process id.
+   *
+   * @generated from field: int32 pid = 2;
+   */
+  pid: number;
+
+  /**
+   * VROOLI_AUTH_MODE in the process environment.
+   *
+   * @generated from field: string mode = 3;
+   */
+  mode: string;
+
+  /**
+   * VROOLI_AUTH_MODE_SOURCE in the process environment; empty for processes
+   * started before the source was recorded.
+   *
+   * @generated from field: string source = 4;
+   */
+  source: string;
+
+  /**
+   * VROOLI_AUTH_PROVIDERS in the process environment.
+   *
+   * @generated from field: string providers = 5;
+   */
+  providers: string;
+
+  /**
+   * Why the process environment could not be read.
+   *
+   * @generated from field: string error = 6;
+   */
+  error: string;
+};
+
+/**
+ * Describes the message vrooli.cli.v1.ScenarioProcessAuthentication.
+ * Use `create(ScenarioProcessAuthenticationSchema)` to create a new message.
+ */
+export const ScenarioProcessAuthenticationSchema: GenMessage<ScenarioProcessAuthentication> = /*@__PURE__*/
+  messageDesc(file_cli_v1_scenario_status, 7);
 
 /**
  * ScenarioInfoResponse is the bare payload of `vrooli scenario info --json`
@@ -487,7 +662,7 @@ export type ScenarioInfoResponse = Message<"vrooli.cli.v1.ScenarioInfoResponse">
  * Use `create(ScenarioInfoResponseSchema)` to create a new message.
  */
 export const ScenarioInfoResponseSchema: GenMessage<ScenarioInfoResponse> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 6);
+  messageDesc(file_cli_v1_scenario_status, 8);
 
 /**
  * ScenarioInfoData is the manifest-derived descriptor (InfoScenarioData).
@@ -620,7 +795,7 @@ export type ScenarioInfoData = Message<"vrooli.cli.v1.ScenarioInfoData"> & {
  * Use `create(ScenarioInfoDataSchema)` to create a new message.
  */
 export const ScenarioInfoDataSchema: GenMessage<ScenarioInfoData> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 7);
+  messageDesc(file_cli_v1_scenario_status, 9);
 
 /**
  * ScenarioBranding is the scenario's brand declaration, as written in its
@@ -649,7 +824,7 @@ export type ScenarioBranding = Message<"vrooli.cli.v1.ScenarioBranding"> & {
  * Use `create(ScenarioBrandingSchema)` to create a new message.
  */
 export const ScenarioBrandingSchema: GenMessage<ScenarioBranding> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 8);
+  messageDesc(file_cli_v1_scenario_status, 10);
 
 /**
  * ScenarioInfoPortSummary is one configured port from the manifest (PortSummary).
@@ -699,7 +874,7 @@ export type ScenarioInfoPortSummary = Message<"vrooli.cli.v1.ScenarioInfoPortSum
  * Use `create(ScenarioInfoPortSummarySchema)` to create a new message.
  */
 export const ScenarioInfoPortSummarySchema: GenMessage<ScenarioInfoPortSummary> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 9);
+  messageDesc(file_cli_v1_scenario_status, 11);
 
 /**
  * ScenarioInfoPhaseSummary is one lifecycle phase summary (PhaseSummary).
@@ -741,7 +916,7 @@ export type ScenarioInfoPhaseSummary = Message<"vrooli.cli.v1.ScenarioInfoPhaseS
  * Use `create(ScenarioInfoPhaseSummarySchema)` to create a new message.
  */
 export const ScenarioInfoPhaseSummarySchema: GenMessage<ScenarioInfoPhaseSummary> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 10);
+  messageDesc(file_cli_v1_scenario_status, 12);
 
 /**
  * ScenarioGenerationMetadata captures template/design provenance
@@ -792,7 +967,7 @@ export type ScenarioGenerationMetadata = Message<"vrooli.cli.v1.ScenarioGenerati
  * Use `create(ScenarioGenerationMetadataSchema)` to create a new message.
  */
 export const ScenarioGenerationMetadataSchema: GenMessage<ScenarioGenerationMetadata> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 11);
+  messageDesc(file_cli_v1_scenario_status, 13);
 
 /**
  * ScenarioGenerationTemplate is a template id/version reference
@@ -821,7 +996,7 @@ export type ScenarioGenerationTemplate = Message<"vrooli.cli.v1.ScenarioGenerati
  * Use `create(ScenarioGenerationTemplateSchema)` to create a new message.
  */
 export const ScenarioGenerationTemplateSchema: GenMessage<ScenarioGenerationTemplate> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 12);
+  messageDesc(file_cli_v1_scenario_status, 14);
 
 /**
  * ScenarioGenerationDesign is a design kit id/version/adapter reference
@@ -857,7 +1032,7 @@ export type ScenarioGenerationDesign = Message<"vrooli.cli.v1.ScenarioGeneration
  * Use `create(ScenarioGenerationDesignSchema)` to create a new message.
  */
 export const ScenarioGenerationDesignSchema: GenMessage<ScenarioGenerationDesign> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 13);
+  messageDesc(file_cli_v1_scenario_status, 15);
 
 /**
  * ScenarioRuntimeData is live runtime detail (InfoRuntimeData).
@@ -927,6 +1102,27 @@ export type ScenarioRuntimeData = Message<"vrooli.cli.v1.ScenarioRuntimeData"> &
    * @generated from field: string build_identity = 9;
    */
   buildIdentity: string;
+
+  /**
+   * Exact immutable retained artifact currently serving this instance.
+   *
+   * @generated from field: string runtime_release_id = 10;
+   */
+  runtimeReleaseId: string;
+
+  /**
+   * Selection operation that routed the instance to runtime_release_id.
+   *
+   * @generated from field: string runtime_release_operation_id = 11;
+   */
+  runtimeReleaseOperationId: string;
+
+  /**
+   * Exact start attempt that launched the serving instance.
+   *
+   * @generated from field: string start_operation_id = 12;
+   */
+  startOperationId: string;
 };
 
 /**
@@ -934,7 +1130,7 @@ export type ScenarioRuntimeData = Message<"vrooli.cli.v1.ScenarioRuntimeData"> &
  * Use `create(ScenarioRuntimeDataSchema)` to create a new message.
  */
 export const ScenarioRuntimeDataSchema: GenMessage<ScenarioRuntimeData> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 14);
+  messageDesc(file_cli_v1_scenario_status, 16);
 
 /**
  * ScenarioProcessRecord mirrors a tracked OS process record (process.Record).
@@ -1032,7 +1228,7 @@ export type ScenarioProcessRecord = Message<"vrooli.cli.v1.ScenarioProcessRecord
  * Use `create(ScenarioProcessRecordSchema)` to create a new message.
  */
 export const ScenarioProcessRecordSchema: GenMessage<ScenarioProcessRecord> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 15);
+  messageDesc(file_cli_v1_scenario_status, 17);
 
 /**
  * ScenarioPortSingle is the bare payload of `vrooli scenario port <name> <port>
@@ -1089,7 +1285,7 @@ export type ScenarioPortSingle = Message<"vrooli.cli.v1.ScenarioPortSingle"> & {
  * Use `create(ScenarioPortSingleSchema)` to create a new message.
  */
 export const ScenarioPortSingleSchema: GenMessage<ScenarioPortSingle> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 16);
+  messageDesc(file_cli_v1_scenario_status, 18);
 
 /**
  * ScenarioPortList is the bare payload of `vrooli scenario ports <name> --json`
@@ -1139,7 +1335,7 @@ export type ScenarioPortList = Message<"vrooli.cli.v1.ScenarioPortList"> & {
  * Use `create(ScenarioPortListSchema)` to create a new message.
  */
 export const ScenarioPortListSchema: GenMessage<ScenarioPortList> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 17);
+  messageDesc(file_cli_v1_scenario_status, 19);
 
 /**
  * ScenarioSetupResponse is the envelope of `vrooli scenario setup --json`
@@ -1189,7 +1385,7 @@ export type ScenarioSetupResponse = Message<"vrooli.cli.v1.ScenarioSetupResponse
  * Use `create(ScenarioSetupResponseSchema)` to create a new message.
  */
 export const ScenarioSetupResponseSchema: GenMessage<ScenarioSetupResponse> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 18);
+  messageDesc(file_cli_v1_scenario_status, 20);
 
 /**
  * ScenarioSetupSteps is the step-count rollup in the `steps` envelope key.
@@ -1217,7 +1413,7 @@ export type ScenarioSetupSteps = Message<"vrooli.cli.v1.ScenarioSetupSteps"> & {
  * Use `create(ScenarioSetupStepsSchema)` to create a new message.
  */
 export const ScenarioSetupStepsSchema: GenMessage<ScenarioSetupSteps> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 19);
+  messageDesc(file_cli_v1_scenario_status, 21);
 
 /**
  * ScenarioLogsResponse is the bounded tail returned by the control plane.
@@ -1252,7 +1448,7 @@ export type ScenarioLogsResponse = Message<"vrooli.cli.v1.ScenarioLogsResponse">
  * Use `create(ScenarioLogsResponseSchema)` to create a new message.
  */
 export const ScenarioLogsResponseSchema: GenMessage<ScenarioLogsResponse> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 20);
+  messageDesc(file_cli_v1_scenario_status, 22);
 
 /**
  * ScenarioBatchResponse is the envelope of the lifecycle batch report
@@ -1281,7 +1477,7 @@ export type ScenarioBatchResponse = Message<"vrooli.cli.v1.ScenarioBatchResponse
  * Use `create(ScenarioBatchResponseSchema)` to create a new message.
  */
 export const ScenarioBatchResponseSchema: GenMessage<ScenarioBatchResponse> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 21);
+  messageDesc(file_cli_v1_scenario_status, 23);
 
 /**
  * ScenarioBatchData is the payload under the "data" envelope key. In the legacy
@@ -1318,7 +1514,7 @@ export type ScenarioBatchData = Message<"vrooli.cli.v1.ScenarioBatchData"> & {
  * Use `create(ScenarioBatchDataSchema)` to create a new message.
  */
 export const ScenarioBatchDataSchema: GenMessage<ScenarioBatchData> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 22);
+  messageDesc(file_cli_v1_scenario_status, 24);
 
 /**
  * ScenarioBatchFailure is one failed scenario in a batch operation.
@@ -1346,7 +1542,7 @@ export type ScenarioBatchFailure = Message<"vrooli.cli.v1.ScenarioBatchFailure">
  * Use `create(ScenarioBatchFailureSchema)` to create a new message.
  */
 export const ScenarioBatchFailureSchema: GenMessage<ScenarioBatchFailure> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 23);
+  messageDesc(file_cli_v1_scenario_status, 25);
 
 /**
  * ScenarioLifecycleResponse is the envelope of the lifecycle items report
@@ -1375,7 +1571,7 @@ export type ScenarioLifecycleResponse = Message<"vrooli.cli.v1.ScenarioLifecycle
  * Use `create(ScenarioLifecycleResponseSchema)` to create a new message.
  */
 export const ScenarioLifecycleResponseSchema: GenMessage<ScenarioLifecycleResponse> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 24);
+  messageDesc(file_cli_v1_scenario_status, 26);
 
 /**
  * ScenarioLifecycleItem is one scenario's lifecycle result (LifecycleItemOutput).
@@ -1456,7 +1652,7 @@ export type ScenarioLifecycleItem = Message<"vrooli.cli.v1.ScenarioLifecycleItem
  * Use `create(ScenarioLifecycleItemSchema)` to create a new message.
  */
 export const ScenarioLifecycleItemSchema: GenMessage<ScenarioLifecycleItem> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 25);
+  messageDesc(file_cli_v1_scenario_status, 27);
 
 /**
  * ScenarioWaitResponse is the single JSON document of `vrooli scenario wait
@@ -1525,7 +1721,7 @@ export type ScenarioWaitResponse = Message<"vrooli.cli.v1.ScenarioWaitResponse">
  * Use `create(ScenarioWaitResponseSchema)` to create a new message.
  */
 export const ScenarioWaitResponseSchema: GenMessage<ScenarioWaitResponse> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 26);
+  messageDesc(file_cli_v1_scenario_status, 28);
 
 /**
  * ScenarioEndpoint is one reachable endpoint for a running scenario
@@ -1575,7 +1771,7 @@ export type ScenarioEndpoint = Message<"vrooli.cli.v1.ScenarioEndpoint"> & {
  * Use `create(ScenarioEndpointSchema)` to create a new message.
  */
 export const ScenarioEndpointSchema: GenMessage<ScenarioEndpoint> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 27);
+  messageDesc(file_cli_v1_scenario_status, 29);
 
 /**
  * ScenarioEnvValidationResponse is the envelope of `vrooli scenario
@@ -1605,7 +1801,7 @@ export type ScenarioEnvValidationResponse = Message<"vrooli.cli.v1.ScenarioEnvVa
  * Use `create(ScenarioEnvValidationResponseSchema)` to create a new message.
  */
 export const ScenarioEnvValidationResponseSchema: GenMessage<ScenarioEnvValidationResponse> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 28);
+  messageDesc(file_cli_v1_scenario_status, 30);
 
 /**
  * ScenarioEnvValidationReport is the env-validation result
@@ -1655,7 +1851,7 @@ export type ScenarioEnvValidationReport = Message<"vrooli.cli.v1.ScenarioEnvVali
  * Use `create(ScenarioEnvValidationReportSchema)` to create a new message.
  */
 export const ScenarioEnvValidationReportSchema: GenMessage<ScenarioEnvValidationReport> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 29);
+  messageDesc(file_cli_v1_scenario_status, 31);
 
 /**
  * ScenarioValidationIssue is one validation finding (resources.ValidationIssue).
@@ -1683,7 +1879,7 @@ export type ScenarioValidationIssue = Message<"vrooli.cli.v1.ScenarioValidationI
  * Use `create(ScenarioValidationIssueSchema)` to create a new message.
  */
 export const ScenarioValidationIssueSchema: GenMessage<ScenarioValidationIssue> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 30);
+  messageDesc(file_cli_v1_scenario_status, 32);
 
 /**
  * ScenarioResourceReport is one resource's env resolution report
@@ -1726,5 +1922,5 @@ export type ScenarioResourceReport = Message<"vrooli.cli.v1.ScenarioResourceRepo
  * Use `create(ScenarioResourceReportSchema)` to create a new message.
  */
 export const ScenarioResourceReportSchema: GenMessage<ScenarioResourceReport> = /*@__PURE__*/
-  messageDesc(file_cli_v1_scenario_status, 31);
+  messageDesc(file_cli_v1_scenario_status, 33);
 

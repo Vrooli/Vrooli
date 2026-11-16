@@ -89,6 +89,8 @@ func SourceToken(s architecturev1.FindingSource) string {
 		return "programs"
 	case architecturev1.FindingSource_FINDING_SOURCE_SKILLS:
 		return "skills"
+	case architecturev1.FindingSource_FINDING_SOURCE_MODEL_EVAL:
+		return "model-eval"
 	default:
 		return "unspecified"
 	}

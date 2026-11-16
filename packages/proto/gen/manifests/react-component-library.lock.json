@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "react-component-library",
-  "input_digest": "sha256:5fcebb90de9e7f8b9eb1a1cca7d6ad18ab0179009ebb14a4ade08937b2dcc1a6",
+  "input_digest": "sha256:3108512e562989912a493ed8ca39d9ce230d8076bb73effe8339f8cbb41cd044",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/validation_target.proto",
@@ -24,7 +24,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
-    "generator_digest": "sha256:cccdbaf9a556a5be923d2c17f31d7f3f1e8de7959b27263f9ddbb964a4b52cc9",
+    "generator_digest": "sha256:47bbfc74c5d2c0e0172be6ac47ec939b6b4678e8ca51fa8202f7056c8fc16447",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -33,10 +33,10 @@
     }
   },
   "outputs": {
-    "gen/go/react-component-library/v1/adoptions/adoptions.pb.go": "sha256:ca6b4b4fe9baa7ddeb4906d7ab4d2119a1289f73ded0bf5589b94451b2555b13",
+    "gen/go/react-component-library/v1/adoptions/adoptions.pb.go": "sha256:a24efc68fc143be3e00551f3cd187b8a9dd81615e58db46a088683b0e9d7d3bd",
     "gen/go/react-component-library/v1/adoptions/adoptions_v1connect/adoptions.connect.go": "sha256:8b3b4e8fc1b935d6d782abaa7aed16296985c2a11330f3e705c064c0a193a2a1",
-    "gen/go/react-component-library/v1/catalog/catalog.pb.go": "sha256:9d52e83c3f135b988848c5c2f221d5ed41f35945b0dd8652875a959010201b7d",
-    "gen/go/react-component-library/v1/catalog/catalog_v1connect/catalog.connect.go": "sha256:1c25d03faa20a555c4b9ac6c4d30d9bb30ff5356ce61511fa105802fdb661fd7",
+    "gen/go/react-component-library/v1/catalog/catalog.pb.go": "sha256:ff1da8c049d8dca79981a67edd67245312ee7ff959269659488459cf416ab7c4",
+    "gen/go/react-component-library/v1/catalog/catalog_v1connect/catalog.connect.go": "sha256:eb8d065fcf7417c5c015716d5016876787e9b3a89f8c3de4da0571986a275e28",
     "gen/go/react-component-library/v1/components/components.pb.go": "sha256:114f3bc75195479c9f443d247d1564d92126f352fe042a060ce30d64ea20342b",
     "gen/go/react-component-library/v1/components/components_v1connect/components.connect.go": "sha256:30918d28c35216ab702c11ad59237a0e1c8425ff6588d79d8b9ad3ed9dfee6f7",
     "gen/go/react-component-library/v1/componenttests/component_tests.pb.go": "sha256:1ad743587797fb8d956bec1efaf2e3435f9d4d5373623d2e8f016dbddf68104f",
@@ -60,10 +60,10 @@
     "gen/go/react-component-library/v1/workflows/workflows.pb.go": "sha256:5a05ce4727c1a48446de80e47f756957d51834d33521ac50be45bf34174b512c",
     "gen/go/react-component-library/v1/workflows/workflows_v1connect/workflows.connect.go": "sha256:5cd1c2bedb19919b96fdab1cf272ce58b1c7174490fa894a98ace9e5709e6314",
     "gen/python/react_component_library/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/react_component_library/v1/adoptions/adoptions_pb2.py": "sha256:1d0ef9492ea0f6282da7fdd8099c7c4694cb39bbf9d973a0c1c39ad1d1583b0b",
-    "gen/python/react_component_library/v1/adoptions/adoptions_pb2.pyi": "sha256:745576bd36559caaf6daee5a6475bc3a1206424f5d653afc40ca9f29fbf3d6d9",
+    "gen/python/react_component_library/v1/adoptions/adoptions_pb2.py": "sha256:9ed0acd86946b9a6f134e6b6f5ad165eda2eae47db5c6f2f3e27fc45e845cf80",
+    "gen/python/react_component_library/v1/adoptions/adoptions_pb2.pyi": "sha256:4be680e85fa22bdc0e9b6889d3f5e4ccaa74fa33b92cceb6cf3e867cae6f0153",
     "gen/python/react_component_library/v1/adoptions/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/react_component_library/v1/catalog/catalog_pb2.py": "sha256:e22c10baa0a810647f38d6c0b5586f7681a18cab63266465208c01e237da7d65",
+    "gen/python/react_component_library/v1/catalog/catalog_pb2.py": "sha256:d9407c24a0fc1b33b8dc637a2e40534ba5280bb94935e49b1222becccf757a79",
     "gen/python/react_component_library/v1/catalog/catalog_pb2.pyi": "sha256:6c330debd2346a19af0d44d049c7ee6b3cadeecddcdf5ea7aed69d9302d60037",
     "gen/python/react_component_library/v1/catalog/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/react_component_library/v1/components/components_pb2.py": "sha256:f1fc54ad9c3ff9d3e8aaf3d03f30c40e7675777210f2058bec38bd7d30ab6635",
@@ -102,9 +102,9 @@
     "gen/python/react_component_library/v1/workflows/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/react_component_library/v1/workflows/workflows_pb2.py": "sha256:37867de1ffd5191cfea23a076be74fd4ca9ef935db183968b52b1fdc45aeb750",
     "gen/python/react_component_library/v1/workflows/workflows_pb2.pyi": "sha256:fa8a56c3924c684041bf4261c99e1edb108e3f22b708e20fae48e15c8ed65d99",
-    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
-    "gen/typescript/react-component-library/v1/adoptions/adoptions_pb.ts": "sha256:404d5ef2cc6bd042124125926560edbcb860c1c0b7cae22a6d464a6c104cadd2",
-    "gen/typescript/react-component-library/v1/catalog/catalog_pb.ts": "sha256:4f52e73e1abc5e7e6ea8b62deafb9635468643122501dcaa522ea215d903c5b9",
+    "gen/typescript/package.json": "sha256:d7210c69e0b4e8eb72d65b1503ce8ea1eeb61aa893b5442e16d0ab4a9980e5d6",
+    "gen/typescript/react-component-library/v1/adoptions/adoptions_pb.ts": "sha256:f63cff637a8626c14e41b009e0a29a4fbf34bbdbe3d6d9d8f5a5b41b506c7d5a",
+    "gen/typescript/react-component-library/v1/catalog/catalog_pb.ts": "sha256:cd62551902e090cce0b35ceea05c83ea3117767e00c01d62f86ee389e5430ede",
     "gen/typescript/react-component-library/v1/components/components_pb.ts": "sha256:263d139e35aad46cbf23b9765420baf50a33dba14b90973c1065654a5fbe6c4c",
     "gen/typescript/react-component-library/v1/componenttests/component_tests_pb.ts": "sha256:ddbf38e7c910fa3488e934a323630519abdcd04784fe39f8faf0d9ffb60b0375",
     "gen/typescript/react-component-library/v1/deps/deps_pb.ts": "sha256:58e11ff9d3f54443a95e000c316b5f9e14a36e21546af001dbb94b19dacb4e3f",

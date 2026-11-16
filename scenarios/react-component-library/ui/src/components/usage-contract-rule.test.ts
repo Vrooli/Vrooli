@@ -1,7 +1,7 @@
 import { Linter } from "eslint";
 import parser from "@typescript-eslint/parser";
 import { describe, expect, it } from "vitest";
-import usageContractRule from "../../eslint-rules/usage-contracts.js";
+import usageContractRule, { hasInvalidOptionalEnumValue } from "../../eslint-rules/usage-contracts.js";
 
 function check(source: string) {
   const linter = new Linter({ configType: "flat" });
@@ -78,6 +78,42 @@ describe("RCL usage-contract ESLint rule", () => {
       const view = <Dialog actions={actions} />;
     `),
     ).toEqual([]);
+  });
+
+  it("recognizes conditional callbacks when every branch is function-valued", () => {
+    expect(
+      check(`
+      const actions = [
+        { id: "apply", label: "Apply", primary: true, onSelect: busy ? run : () => fallback() },
+      ];
+      const view = <OverlayActionBar actions={actions} />;
+    `),
+    ).toEqual([]);
+  });
+
+  it("recognizes React useCallback wrappers from named, aliased, namespace, and default imports", () => {
+    const fixtures = [
+      `import { useCallback } from "react"; const handle = useCallback(() => save(), []);`,
+      `import { useCallback as useStable } from "react"; const handle = useStable(() => save(), []);`,
+      `import * as React from "react"; const handle = React.useCallback(() => save(), []);`,
+      `import React from "react"; const handle = React.useCallback(() => save(), []);`,
+    ];
+    for (const fixture of fixtures) {
+      expect(
+        check(`
+          ${fixture}
+          const actions = [{ id: "save", label: "Save", primary: true, onSelect: handle }];
+          const view = <OverlayActionBar actions={actions} />;
+        `),
+      ).toEqual([]);
+    }
+  });
+
+  it("rejects optional enum values outside the asset contract", () => {
+    const allowed = ["default", "destructive"];
+    expect(hasInvalidOptionalEnumValue("destructive", allowed)).toBe(false);
+    expect(hasInvalidOptionalEnumValue(undefined, allowed)).toBe(false);
+    expect(hasInvalidOptionalEnumValue("danger", allowed)).toBe(true);
   });
 
   it("does not treat a dynamic template's interpolation fragments as an empty label", () => {

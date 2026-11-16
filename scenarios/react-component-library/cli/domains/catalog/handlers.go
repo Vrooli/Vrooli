@@ -117,8 +117,8 @@ func isScenarioRoot(path string) bool {
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	// Gate matrices are cancellable server jobs, not short metadata calls. The
-	// default scenario client deadline can cancel a valid matrix while it is
-	// persisting its final evidence row.
+	// default scenario client deadline can cancel a record-gate matrix while it
+	// is persisting its final evidence rows.
 	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 20*time.Minute)
 	return &handlers{
 		client: catalogconnect.NewCatalogServiceClient(httpClient, baseURL),
@@ -166,13 +166,34 @@ func readinessFloor(ctx cliapp.OperationContext) string {
 }
 
 func (h *handlers) gateCall(ctx cliapp.OperationContext) (*catalogv1.RunGateResponse, error) {
+	return h.callGate(ctx, false)
+}
+
+func (h *handlers) recordGateCall(ctx cliapp.OperationContext) (*catalogv1.RunGateResponse, error) {
+	return h.callGate(ctx, true)
+}
+
+func (h *handlers) callGate(ctx cliapp.OperationContext, persistEvidence bool) (*catalogv1.RunGateResponse, error) {
 	gate := ctx.Positional("gate")
 	if gate == "" && !ctx.BoolFlag("all") {
-		return nil, fmt.Errorf("catalog gates requires a gate name or --all; use --help to see valid gates")
+		command := "catalog gates"
+		if persistEvidence {
+			command = "catalog record-gate"
+		}
+		return nil, fmt.Errorf("%s requires a gate name or --all; use --help to see valid gates", command)
 	}
-	resp, err := h.client.RunGate(context.Background(), connect.NewRequest(&catalogv1.RunGateRequest{Gate: gate, All: ctx.BoolFlag("all"), AssetId: ctx.Flag("asset-id"), CalibrationOnly: ctx.BoolFlag("calibration-only"), IncludeAdvisory: ctx.BoolFlag("include-advisory")}))
+	request := connect.NewRequest(&catalogv1.RunGateRequest{Gate: gate, All: ctx.BoolFlag("all"), AssetId: ctx.Flag("asset-id"), CalibrationOnly: ctx.BoolFlag("calibration-only"), IncludeAdvisory: ctx.BoolFlag("include-advisory")})
+	var resp *connect.Response[catalogv1.RunGateResponse]
+	var err error
+	operation := "inspect catalog gate"
+	if persistEvidence {
+		operation = "record catalog gate"
+		resp, err = h.client.RecordGate(context.Background(), request)
+	} else {
+		resp, err = h.client.RunGate(context.Background(), request)
+	}
 	if err != nil {
-		return nil, cliapp.WrapAPIError("run catalog gate", err, nil)
+		return nil, cliapp.WrapAPIError(operation, err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
 		return nil, fmt.Errorf("server returned no catalog gate result")
@@ -259,6 +280,9 @@ func (h *handlers) gateReport(_ cliapp.OperationContext, msg *catalogv1.RunGateR
 		}
 	}
 	summary := fmt.Sprintf("Gate %s: inspected %d file(s), %d finding(s)", resp.Msg.Gate, resp.Msg.InspectedFiles, len(resp.Msg.Findings))
+	if resp.Msg.EvidenceRowsWritten > 0 {
+		summary += fmt.Sprintf("; persisted %d evidence row(s)", resp.Msg.EvidenceRowsWritten)
+	}
 	if len(resp.Msg.SurfaceVerdictCounts) > 0 {
 		verdicts := make([]string, 0, len(resp.Msg.SurfaceVerdictCounts))
 		for verdict, count := range resp.Msg.SurfaceVerdictCounts {

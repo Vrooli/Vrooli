@@ -47,14 +47,25 @@ message RunLighthouseResponse {
   common.v1.ExecutionMetrics metrics = 5;
 }
 
+// LighthouseAccessibilityStatus classifies Lighthouse accessibility evidence.
+enum LighthouseAccessibilityStatus {
+  LIGHTHOUSE_ACCESSIBILITY_STATUS_UNSPECIFIED = 0;
+  // Lighthouse reports a score as evidence; the unified experience phase owns
+  // accessibility pass/fail decisions.
+  LIGHTHOUSE_ACCESSIBILITY_STATUS_OBSERVED_NON_GATING = 1;
+}
+
 // PageScore is one Lighthouse run against one page.
 message PageScore {
   string url = 1;
   // 0..1 category scores (performance, accessibility, best-practices, seo).
   double performance = 2;
+  // Observed Lighthouse score; consult accessibility_status for its non-gating meaning.
   double accessibility = 3;
   double best_practices = 4;
   double seo = 5;
   // Threshold violations triggered for this page.
   repeated string violations = 6;
+  // Explicitly classifies the accessibility score as evidence, not a judge.
+  LighthouseAccessibilityStatus accessibility_status = 7;
 }

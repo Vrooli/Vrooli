@@ -331,10 +331,10 @@ func (h *handlers) preflightReport(_ cliapp.OperationContext, msg *adoptionsv1.P
 	rows = append(rows, fmt.Sprintf("i18n coverage=%s; selector coverage=%s", msg.I18NVerdict, msg.SelectorVerdict))
 	if msg.CatalogAssetId != "" && msg.Version == msg.CatalogLatestVersion {
 		if msg.I18NVerdict != "pass" {
-			rows = append(rows, fmt.Sprintf("Measure i18n coverage: react-component-library catalog gates i18n --asset-id %s", msg.CatalogAssetId))
+			rows = append(rows, fmt.Sprintf("Measure and record i18n coverage: react-component-library catalog record-gate i18n --asset-id %s", msg.CatalogAssetId))
 		}
 		if msg.SelectorVerdict != "pass" {
-			rows = append(rows, fmt.Sprintf("Measure selector coverage: react-component-library catalog gates selector-coverage --asset-id %s", msg.CatalogAssetId))
+			rows = append(rows, fmt.Sprintf("Measure and record selector coverage: react-component-library catalog record-gate selector-coverage --asset-id %s", msg.CatalogAssetId))
 		}
 	} else if msg.CatalogAssetId != "" && msg.Version != msg.CatalogLatestVersion && (msg.I18NVerdict != "pass" || msg.SelectorVerdict != "pass") {
 		rows = append(rows, fmt.Sprintf("Catalog gates measure current %s@%s; selected %s@%s needs exact-version gate evidence", msg.CatalogAssetId, msg.CatalogLatestVersion, msg.ComponentId, msg.Version))

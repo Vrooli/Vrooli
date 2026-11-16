@@ -34,6 +34,9 @@ const (
 	ValidationStatus_VALIDATION_STATUS_DEGRADED    ValidationStatus = 3
 	ValidationStatus_VALIDATION_STATUS_ERROR       ValidationStatus = 4
 	ValidationStatus_VALIDATION_STATUS_SKIPPED     ValidationStatus = 5
+	// The provider could not evaluate the requested target. This is distinct
+	// from PASSED and must never satisfy a gating phase.
+	ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED ValidationStatus = 6
 )
 
 // Enum value maps for ValidationStatus.
@@ -45,14 +48,16 @@ var (
 		3: "VALIDATION_STATUS_DEGRADED",
 		4: "VALIDATION_STATUS_ERROR",
 		5: "VALIDATION_STATUS_SKIPPED",
+		6: "VALIDATION_STATUS_NOT_EVALUATED",
 	}
 	ValidationStatus_value = map[string]int32{
-		"VALIDATION_STATUS_UNSPECIFIED": 0,
-		"VALIDATION_STATUS_PASSED":      1,
-		"VALIDATION_STATUS_FAILED":      2,
-		"VALIDATION_STATUS_DEGRADED":    3,
-		"VALIDATION_STATUS_ERROR":       4,
-		"VALIDATION_STATUS_SKIPPED":     5,
+		"VALIDATION_STATUS_UNSPECIFIED":   0,
+		"VALIDATION_STATUS_PASSED":        1,
+		"VALIDATION_STATUS_FAILED":        2,
+		"VALIDATION_STATUS_DEGRADED":      3,
+		"VALIDATION_STATUS_ERROR":         4,
+		"VALIDATION_STATUS_SKIPPED":       5,
+		"VALIDATION_STATUS_NOT_EVALUATED": 6,
 	}
 )
 
@@ -218,7 +223,11 @@ func (ValidationRunErrorCode) EnumDescriptor() ([]byte, []int) {
 // Do not add target-selection fields here — route those through
 // ValidateScenario instead.
 type DescribeProviderRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Requested Test Genie phase from the provider descriptor. A provider that
+	// serves several phases must attest the requested phase in its response and
+	// return that phase's maturity spec version.
+	Phase         string `protobuf:"bytes,1,opt,name=phase,proto3" json:"phase,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -251,6 +260,13 @@ func (x *DescribeProviderRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DescribeProviderRequest.ProtoReflect.Descriptor instead.
 func (*DescribeProviderRequest) Descriptor() ([]byte, []int) {
 	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *DescribeProviderRequest) GetPhase() string {
+	if x != nil {
+		return x.Phase
+	}
+	return ""
 }
 
 type DescribeProviderResponse struct {
@@ -624,8 +640,11 @@ type ValidateScenarioRequest struct {
 	// honor this field must skip work for capabilities not named here.
 	CapabilitySubset     []string               `protobuf:"bytes,4,rep,name=capability_subset,json=capabilitySubset,proto3" json:"capability_subset,omitempty"`
 	RetainedEvidenceSets []*RetainedEvidenceSet `protobuf:"bytes,5,rep,name=retained_evidence_sets,json=retainedEvidenceSets,proto3" json:"retained_evidence_sets,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Test Genie phase selected by the descriptor. Providers that serve several
+	// phases use this to select the corresponding assessment and execution.
+	Phase         string `protobuf:"bytes,6,opt,name=phase,proto3" json:"phase,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ValidateScenarioRequest) Reset() {
@@ -693,6 +712,13 @@ func (x *ValidateScenarioRequest) GetRetainedEvidenceSets() []*RetainedEvidenceS
 	return nil
 }
 
+func (x *ValidateScenarioRequest) GetPhase() string {
+	if x != nil {
+		return x.Phase
+	}
+	return ""
+}
+
 type ValidateTargetRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Target           *v1.ValidationTarget   `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
@@ -704,8 +730,10 @@ type ValidateTargetRequest struct {
 	// Repository-contract exclusions expressed as repo-relative globs.
 	Exclude              []string               `protobuf:"bytes,5,rep,name=exclude,proto3" json:"exclude,omitempty"`
 	RetainedEvidenceSets []*RetainedEvidenceSet `protobuf:"bytes,6,rep,name=retained_evidence_sets,json=retainedEvidenceSets,proto3" json:"retained_evidence_sets,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Test Genie phase selected by the descriptor for this target validation.
+	Phase         string `protobuf:"bytes,7,opt,name=phase,proto3" json:"phase,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ValidateTargetRequest) Reset() {
@@ -778,6 +806,13 @@ func (x *ValidateTargetRequest) GetRetainedEvidenceSets() []*RetainedEvidenceSet
 		return x.RetainedEvidenceSets
 	}
 	return nil
+}
+
+func (x *ValidateTargetRequest) GetPhase() string {
+	if x != nil {
+		return x.Phase
+	}
+	return ""
 }
 
 type ValidateTargetResponse struct {
@@ -1206,8 +1241,10 @@ type StartValidationRunRequest struct {
 	// Paths are normalized, registered BAS cases; flows are not selectable.
 	// Use StartSelectedValidationRun when this field is present.
 	BrowserCaseSelector *BrowserCaseSelector `protobuf:"bytes,7,opt,name=browser_case_selector,json=browserCaseSelector,proto3" json:"browser_case_selector,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Test Genie phase selected by the descriptor for this durable run.
+	Phase         string `protobuf:"bytes,8,opt,name=phase,proto3" json:"phase,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StartValidationRunRequest) Reset() {
@@ -1287,6 +1324,13 @@ func (x *StartValidationRunRequest) GetBrowserCaseSelector() *BrowserCaseSelecto
 		return x.BrowserCaseSelector
 	}
 	return nil
+}
+
+func (x *StartValidationRunRequest) GetPhase() string {
+	if x != nil {
+		return x.Phase
+	}
+	return ""
 }
 
 type BrowserCaseSelector struct {
@@ -2106,8 +2150,9 @@ var File_scenario_validation_v1_validation_proto protoreflect.FileDescriptor
 
 const file_scenario_validation_v1_validation_proto_rawDesc = "" +
 	"\n" +
-	"'scenario-validation/v1/validation.proto\x12\x1dvrooli.scenario_validation.v1\x1a\x18common/v1/maturity.proto\x1a\x17common/v1/metrics.proto\x1a\x18common/v1/evidence.proto\x1a!common/v1/validation_target.proto\x1a\x19google/protobuf/any.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x19\n" +
-	"\x17DescribeProviderRequest\"\xa8\x02\n" +
+	"'scenario-validation/v1/validation.proto\x12\x1dvrooli.scenario_validation.v1\x1a\x18common/v1/maturity.proto\x1a\x17common/v1/metrics.proto\x1a\x18common/v1/evidence.proto\x1a!common/v1/validation_target.proto\x1a\x19google/protobuf/any.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"/\n" +
+	"\x17DescribeProviderRequest\x12\x14\n" +
+	"\x05phase\x18\x01 \x01(\tR\x05phase\"\xa8\x02\n" +
 	"\x18DescribeProviderResponse\x12\x1a\n" +
 	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x14\n" +
 	"\x05phase\x18\x02 \x01(\tR\x05phase\x12!\n" +
@@ -2133,20 +2178,22 @@ const file_scenario_validation_v1_validation_proto_rawDesc = "" +
 	"\x06run_id\x18\x04 \x01(\tR\x05runId\x12-\n" +
 	"\x12candidate_identity\x18\x05 \x01(\tR\x11candidateIdentity\x12%\n" +
 	"\x0ecatalog_digest\x18\x06 \x01(\tR\rcatalogDigest\x124\n" +
-	"\tartifacts\x18\a \x03(\v2\x16.common.v1.EvidenceRefR\tartifacts\"\x8d\x02\n" +
+	"\tartifacts\x18\a \x03(\v2\x16.common.v1.EvidenceRefR\tartifacts\"\xa3\x02\n" +
 	"\x17ValidateScenarioRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12+\n" +
 	"\x11include_execution\x18\x03 \x01(\bR\x10includeExecution\x12+\n" +
 	"\x11capability_subset\x18\x04 \x03(\tR\x10capabilitySubset\x12h\n" +
-	"\x16retained_evidence_sets\x18\x05 \x03(\v22.vrooli.scenario_validation.v1.RetainedEvidenceSetR\x14retainedEvidenceSets\"\xbe\x02\n" +
+	"\x16retained_evidence_sets\x18\x05 \x03(\v22.vrooli.scenario_validation.v1.RetainedEvidenceSetR\x14retainedEvidenceSets\x12\x14\n" +
+	"\x05phase\x18\x06 \x01(\tR\x05phase\"\xd4\x02\n" +
 	"\x15ValidateTargetRequest\x123\n" +
 	"\x06target\x18\x01 \x01(\v2\x1b.common.v1.ValidationTargetR\x06target\x12+\n" +
 	"\x11include_execution\x18\x02 \x01(\bR\x10includeExecution\x12\x12\n" +
 	"\x04path\x18\x03 \x01(\tR\x04path\x12+\n" +
 	"\x11capability_subset\x18\x04 \x03(\tR\x10capabilitySubset\x12\x18\n" +
 	"\aexclude\x18\x05 \x03(\tR\aexclude\x12h\n" +
-	"\x16retained_evidence_sets\x18\x06 \x03(\v22.vrooli.scenario_validation.v1.RetainedEvidenceSetR\x14retainedEvidenceSets\"\xfe\x02\n" +
+	"\x16retained_evidence_sets\x18\x06 \x03(\v22.vrooli.scenario_validation.v1.RetainedEvidenceSetR\x14retainedEvidenceSets\x12\x14\n" +
+	"\x05phase\x18\a \x01(\tR\x05phase\"\xfe\x02\n" +
 	"\x16ValidateTargetResponse\x123\n" +
 	"\x06target\x18\x01 \x01(\v2\x1b.common.v1.ValidationTargetR\x06target\x12G\n" +
 	"\x06status\x18\x02 \x01(\x0e2/.vrooli.scenario_validation.v1.ValidationStatusR\x06status\x12=\n" +
@@ -2188,7 +2235,7 @@ const file_scenario_validation_v1_validation_proto_rawDesc = "" +
 	"\x05error\x18\r \x01(\v21.vrooli.scenario_validation.v1.ValidationRunErrorR\x05error\x12E\n" +
 	"\x13artifact_references\x18\x0e \x03(\v2\x14.google.protobuf.AnyR\x12artifactReferences\x125\n" +
 	"\x16cancellation_requested\x18\x0f \x01(\bR\x15cancellationRequested\x12f\n" +
-	"\x15browser_case_selector\x18\x10 \x01(\v22.vrooli.scenario_validation.v1.BrowserCaseSelectorR\x13browserCaseSelector\"\x8f\x03\n" +
+	"\x15browser_case_selector\x18\x10 \x01(\v22.vrooli.scenario_validation.v1.BrowserCaseSelectorR\x13browserCaseSelector\"\xa5\x03\n" +
 	"\x19StartValidationRunRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12'\n" +
@@ -2196,7 +2243,8 @@ const file_scenario_validation_v1_validation_proto_rawDesc = "" +
 	"\rparent_run_id\x18\x04 \x01(\tR\vparentRunId\x12`\n" +
 	"\x0fdesktop_binding\x18\x05 \x01(\v27.vrooli.scenario_validation.v1.DesktopValidationBindingR\x0edesktopBinding\x12+\n" +
 	"\x11capability_subset\x18\x06 \x03(\tR\x10capabilitySubset\x12f\n" +
-	"\x15browser_case_selector\x18\a \x01(\v22.vrooli.scenario_validation.v1.BrowserCaseSelectorR\x13browserCaseSelector\"4\n" +
+	"\x15browser_case_selector\x18\a \x01(\v22.vrooli.scenario_validation.v1.BrowserCaseSelectorR\x13browserCaseSelector\x12\x14\n" +
+	"\x05phase\x18\b \x01(\tR\x05phase\"4\n" +
 	"\x13BrowserCaseSelector\x12\x1d\n" +
 	"\n" +
 	"case_paths\x18\x01 \x03(\tR\tcasePaths\"\x9b\x06\n" +
@@ -2259,14 +2307,15 @@ const file_scenario_validation_v1_validation_proto_rawDesc = "" +
 	"\n" +
 	"candidates\x18\x03 \x03(\v2+.vrooli.scenario_validation.v1.FixCandidateR\n" +
 	"candidates\x12\x1a\n" +
-	"\bmessages\x18\x04 \x03(\tR\bmessages*\xcd\x01\n" +
+	"\bmessages\x18\x04 \x03(\tR\bmessages*\xf2\x01\n" +
 	"\x10ValidationStatus\x12!\n" +
 	"\x1dVALIDATION_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18VALIDATION_STATUS_PASSED\x10\x01\x12\x1c\n" +
 	"\x18VALIDATION_STATUS_FAILED\x10\x02\x12\x1e\n" +
 	"\x1aVALIDATION_STATUS_DEGRADED\x10\x03\x12\x1b\n" +
 	"\x17VALIDATION_STATUS_ERROR\x10\x04\x12\x1d\n" +
-	"\x19VALIDATION_STATUS_SKIPPED\x10\x05*\x8f\x02\n" +
+	"\x19VALIDATION_STATUS_SKIPPED\x10\x05\x12#\n" +
+	"\x1fVALIDATION_STATUS_NOT_EVALUATED\x10\x06*\x8f\x02\n" +
 	"\x12ValidationRunState\x12$\n" +
 	" VALIDATION_RUN_STATE_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bVALIDATION_RUN_STATE_QUEUED\x10\x01\x12 \n" +

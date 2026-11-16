@@ -24,6 +24,7 @@ class ValidationStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VALIDATION_STATUS_DEGRADED: _ClassVar[ValidationStatus]
     VALIDATION_STATUS_ERROR: _ClassVar[ValidationStatus]
     VALIDATION_STATUS_SKIPPED: _ClassVar[ValidationStatus]
+    VALIDATION_STATUS_NOT_EVALUATED: _ClassVar[ValidationStatus]
 
 class ValidationRunState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -51,6 +52,7 @@ VALIDATION_STATUS_FAILED: ValidationStatus
 VALIDATION_STATUS_DEGRADED: ValidationStatus
 VALIDATION_STATUS_ERROR: ValidationStatus
 VALIDATION_STATUS_SKIPPED: ValidationStatus
+VALIDATION_STATUS_NOT_EVALUATED: ValidationStatus
 VALIDATION_RUN_STATE_UNSPECIFIED: ValidationRunState
 VALIDATION_RUN_STATE_QUEUED: ValidationRunState
 VALIDATION_RUN_STATE_RUNNING: ValidationRunState
@@ -68,8 +70,10 @@ VALIDATION_RUN_ERROR_CODE_RECOVERY_FAILED: ValidationRunErrorCode
 VALIDATION_RUN_ERROR_CODE_WAIT_TIMEOUT: ValidationRunErrorCode
 
 class DescribeProviderRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("phase",)
+    PHASE_FIELD_NUMBER: _ClassVar[int]
+    phase: str
+    def __init__(self, phase: _Optional[str] = ...) -> None: ...
 
 class DescribeProviderResponse(_message.Message):
     __slots__ = ("provider", "phase", "spec_version", "contract", "build", "capabilities")
@@ -132,34 +136,38 @@ class RetainedEvidenceSet(_message.Message):
     def __init__(self, producer_receipt_id: _Optional[str] = ..., producer: _Optional[str] = ..., target: _Optional[str] = ..., run_id: _Optional[str] = ..., candidate_identity: _Optional[str] = ..., catalog_digest: _Optional[str] = ..., artifacts: _Optional[_Iterable[_Union[_evidence_pb2.EvidenceRef, _Mapping]]] = ...) -> None: ...
 
 class ValidateScenarioRequest(_message.Message):
-    __slots__ = ("scenario", "path", "include_execution", "capability_subset", "retained_evidence_sets")
+    __slots__ = ("scenario", "path", "include_execution", "capability_subset", "retained_evidence_sets", "phase")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_EXECUTION_FIELD_NUMBER: _ClassVar[int]
     CAPABILITY_SUBSET_FIELD_NUMBER: _ClassVar[int]
     RETAINED_EVIDENCE_SETS_FIELD_NUMBER: _ClassVar[int]
+    PHASE_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     path: str
     include_execution: bool
     capability_subset: _containers.RepeatedScalarFieldContainer[str]
     retained_evidence_sets: _containers.RepeatedCompositeFieldContainer[RetainedEvidenceSet]
-    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., include_execution: _Optional[bool] = ..., capability_subset: _Optional[_Iterable[str]] = ..., retained_evidence_sets: _Optional[_Iterable[_Union[RetainedEvidenceSet, _Mapping]]] = ...) -> None: ...
+    phase: str
+    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., include_execution: _Optional[bool] = ..., capability_subset: _Optional[_Iterable[str]] = ..., retained_evidence_sets: _Optional[_Iterable[_Union[RetainedEvidenceSet, _Mapping]]] = ..., phase: _Optional[str] = ...) -> None: ...
 
 class ValidateTargetRequest(_message.Message):
-    __slots__ = ("target", "include_execution", "path", "capability_subset", "exclude", "retained_evidence_sets")
+    __slots__ = ("target", "include_execution", "path", "capability_subset", "exclude", "retained_evidence_sets", "phase")
     TARGET_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_EXECUTION_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     CAPABILITY_SUBSET_FIELD_NUMBER: _ClassVar[int]
     EXCLUDE_FIELD_NUMBER: _ClassVar[int]
     RETAINED_EVIDENCE_SETS_FIELD_NUMBER: _ClassVar[int]
+    PHASE_FIELD_NUMBER: _ClassVar[int]
     target: _validation_target_pb2.ValidationTarget
     include_execution: bool
     path: str
     capability_subset: _containers.RepeatedScalarFieldContainer[str]
     exclude: _containers.RepeatedScalarFieldContainer[str]
     retained_evidence_sets: _containers.RepeatedCompositeFieldContainer[RetainedEvidenceSet]
-    def __init__(self, target: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ..., include_execution: _Optional[bool] = ..., path: _Optional[str] = ..., capability_subset: _Optional[_Iterable[str]] = ..., exclude: _Optional[_Iterable[str]] = ..., retained_evidence_sets: _Optional[_Iterable[_Union[RetainedEvidenceSet, _Mapping]]] = ...) -> None: ...
+    phase: str
+    def __init__(self, target: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ..., include_execution: _Optional[bool] = ..., path: _Optional[str] = ..., capability_subset: _Optional[_Iterable[str]] = ..., exclude: _Optional[_Iterable[str]] = ..., retained_evidence_sets: _Optional[_Iterable[_Union[RetainedEvidenceSet, _Mapping]]] = ..., phase: _Optional[str] = ...) -> None: ...
 
 class ValidateTargetResponse(_message.Message):
     __slots__ = ("target", "status", "assessment", "native_detail", "metrics", "failure_classification")
@@ -240,7 +248,7 @@ class ValidationRun(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., path: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., state: _Optional[_Union[ValidationRunState, str]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., estimated_remaining: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., preliminary_static_result: _Optional[_Union[ValidateScenarioResponse, _Mapping]] = ..., terminal_result: _Optional[_Union[ValidateScenarioResponse, _Mapping]] = ..., error: _Optional[_Union[ValidationRunError, _Mapping]] = ..., artifact_references: _Optional[_Iterable[_Union[_any_pb2.Any, _Mapping]]] = ..., cancellation_requested: _Optional[bool] = ..., browser_case_selector: _Optional[_Union[BrowserCaseSelector, _Mapping]] = ...) -> None: ...
 
 class StartValidationRunRequest(_message.Message):
-    __slots__ = ("scenario", "path", "idempotency_key", "parent_run_id", "desktop_binding", "capability_subset", "browser_case_selector")
+    __slots__ = ("scenario", "path", "idempotency_key", "parent_run_id", "desktop_binding", "capability_subset", "browser_case_selector", "phase")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
@@ -248,6 +256,7 @@ class StartValidationRunRequest(_message.Message):
     DESKTOP_BINDING_FIELD_NUMBER: _ClassVar[int]
     CAPABILITY_SUBSET_FIELD_NUMBER: _ClassVar[int]
     BROWSER_CASE_SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    PHASE_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     path: str
     idempotency_key: str
@@ -255,7 +264,8 @@ class StartValidationRunRequest(_message.Message):
     desktop_binding: DesktopValidationBinding
     capability_subset: _containers.RepeatedScalarFieldContainer[str]
     browser_case_selector: BrowserCaseSelector
-    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., desktop_binding: _Optional[_Union[DesktopValidationBinding, _Mapping]] = ..., capability_subset: _Optional[_Iterable[str]] = ..., browser_case_selector: _Optional[_Union[BrowserCaseSelector, _Mapping]] = ...) -> None: ...
+    phase: str
+    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., desktop_binding: _Optional[_Union[DesktopValidationBinding, _Mapping]] = ..., capability_subset: _Optional[_Iterable[str]] = ..., browser_case_selector: _Optional[_Union[BrowserCaseSelector, _Mapping]] = ..., phase: _Optional[str] = ...) -> None: ...
 
 class BrowserCaseSelector(_message.Message):
     __slots__ = ("case_paths",)

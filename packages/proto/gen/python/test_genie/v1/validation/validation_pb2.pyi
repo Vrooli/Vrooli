@@ -114,6 +114,21 @@ class ChildOperationState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CHILD_OPERATION_STATE_SUCCEEDED: _ClassVar[ChildOperationState]
     CHILD_OPERATION_STATE_FAILED: _ClassVar[ChildOperationState]
     CHILD_OPERATION_STATE_CANCELLED: _ClassVar[ChildOperationState]
+
+class WorkspaceSandboxSealRole(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    WORKSPACE_SANDBOX_SEAL_ROLE_UNSPECIFIED: _ClassVar[WorkspaceSandboxSealRole]
+    WORKSPACE_SANDBOX_SEAL_ROLE_SOURCE: _ClassVar[WorkspaceSandboxSealRole]
+    WORKSPACE_SANDBOX_SEAL_ROLE_CANDIDATE: _ClassVar[WorkspaceSandboxSealRole]
+    WORKSPACE_SANDBOX_SEAL_ROLE_REFERENCE: _ClassVar[WorkspaceSandboxSealRole]
+
+class FrozenReplayTestOutcome(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    FROZEN_REPLAY_TEST_OUTCOME_UNSPECIFIED: _ClassVar[FrozenReplayTestOutcome]
+    FROZEN_REPLAY_TEST_OUTCOME_PASSED: _ClassVar[FrozenReplayTestOutcome]
+    FROZEN_REPLAY_TEST_OUTCOME_ASSERTION_FAILED: _ClassVar[FrozenReplayTestOutcome]
+    FROZEN_REPLAY_TEST_OUTCOME_INFRASTRUCTURE_FAILED: _ClassVar[FrozenReplayTestOutcome]
+    FROZEN_REPLAY_TEST_OUTCOME_INTERRUPTED: _ClassVar[FrozenReplayTestOutcome]
 VALIDATION_PURPOSE_UNSPECIFIED: ValidationPurpose
 VALIDATION_PURPOSE_PHASE: ValidationPurpose
 VALIDATION_PURPOSE_REGRESSION_BEFORE: ValidationPurpose
@@ -186,6 +201,15 @@ CHILD_OPERATION_STATE_RUNNING: ChildOperationState
 CHILD_OPERATION_STATE_SUCCEEDED: ChildOperationState
 CHILD_OPERATION_STATE_FAILED: ChildOperationState
 CHILD_OPERATION_STATE_CANCELLED: ChildOperationState
+WORKSPACE_SANDBOX_SEAL_ROLE_UNSPECIFIED: WorkspaceSandboxSealRole
+WORKSPACE_SANDBOX_SEAL_ROLE_SOURCE: WorkspaceSandboxSealRole
+WORKSPACE_SANDBOX_SEAL_ROLE_CANDIDATE: WorkspaceSandboxSealRole
+WORKSPACE_SANDBOX_SEAL_ROLE_REFERENCE: WorkspaceSandboxSealRole
+FROZEN_REPLAY_TEST_OUTCOME_UNSPECIFIED: FrozenReplayTestOutcome
+FROZEN_REPLAY_TEST_OUTCOME_PASSED: FrozenReplayTestOutcome
+FROZEN_REPLAY_TEST_OUTCOME_ASSERTION_FAILED: FrozenReplayTestOutcome
+FROZEN_REPLAY_TEST_OUTCOME_INFRASTRUCTURE_FAILED: FrozenReplayTestOutcome
+FROZEN_REPLAY_TEST_OUTCOME_INTERRUPTED: FrozenReplayTestOutcome
 
 class ResolveSourceIdentityRequest(_message.Message):
     __slots__ = ("targets", "content_inputs")
@@ -301,20 +325,60 @@ class InputSelection(_message.Message):
     required: bool
     def __init__(self, glob: _Optional[str] = ..., required: _Optional[bool] = ...) -> None: ...
 
+class WorkspaceSandboxSealReference(_message.Message):
+    __slots__ = ("case_id", "role", "seal_digest")
+    CASE_ID_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    SEAL_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    case_id: str
+    role: WorkspaceSandboxSealRole
+    seal_digest: str
+    def __init__(self, case_id: _Optional[str] = ..., role: _Optional[_Union[WorkspaceSandboxSealRole, str]] = ..., seal_digest: _Optional[str] = ...) -> None: ...
+
+class FrozenEvaluatorBundleReference(_message.Message):
+    __slots__ = ("evaluator_bundle_id", "evaluator_digest", "entry_point")
+    EVALUATOR_BUNDLE_ID_FIELD_NUMBER: _ClassVar[int]
+    EVALUATOR_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    ENTRY_POINT_FIELD_NUMBER: _ClassVar[int]
+    evaluator_bundle_id: str
+    evaluator_digest: str
+    entry_point: str
+    def __init__(self, evaluator_bundle_id: _Optional[str] = ..., evaluator_digest: _Optional[str] = ..., entry_point: _Optional[str] = ...) -> None: ...
+
 class ContentInputRoot(_message.Message):
-    __slots__ = ("name", "root", "selections", "dependency")
+    __slots__ = ("name", "root", "selections", "dependency", "workspace_sandbox_seal", "frozen_evaluator_bundle")
     NAME_FIELD_NUMBER: _ClassVar[int]
     ROOT_FIELD_NUMBER: _ClassVar[int]
     SELECTIONS_FIELD_NUMBER: _ClassVar[int]
     DEPENDENCY_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACE_SANDBOX_SEAL_FIELD_NUMBER: _ClassVar[int]
+    FROZEN_EVALUATOR_BUNDLE_FIELD_NUMBER: _ClassVar[int]
     name: str
     root: str
     selections: _containers.RepeatedCompositeFieldContainer[InputSelection]
     dependency: bool
-    def __init__(self, name: _Optional[str] = ..., root: _Optional[str] = ..., selections: _Optional[_Iterable[_Union[InputSelection, _Mapping]]] = ..., dependency: _Optional[bool] = ...) -> None: ...
+    workspace_sandbox_seal: WorkspaceSandboxSealReference
+    frozen_evaluator_bundle: FrozenEvaluatorBundleReference
+    def __init__(self, name: _Optional[str] = ..., root: _Optional[str] = ..., selections: _Optional[_Iterable[_Union[InputSelection, _Mapping]]] = ..., dependency: _Optional[bool] = ..., workspace_sandbox_seal: _Optional[_Union[WorkspaceSandboxSealReference, _Mapping]] = ..., frozen_evaluator_bundle: _Optional[_Union[FrozenEvaluatorBundleReference, _Mapping]] = ...) -> None: ...
+
+class FrozenReplayExecution(_message.Message):
+    __slots__ = ("case_id", "role", "seal_digest", "evaluator_bundle_id", "evaluator_digest", "evaluator_entry_point")
+    CASE_ID_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    SEAL_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    EVALUATOR_BUNDLE_ID_FIELD_NUMBER: _ClassVar[int]
+    EVALUATOR_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    EVALUATOR_ENTRY_POINT_FIELD_NUMBER: _ClassVar[int]
+    case_id: str
+    role: WorkspaceSandboxSealRole
+    seal_digest: str
+    evaluator_bundle_id: str
+    evaluator_digest: str
+    evaluator_entry_point: str
+    def __init__(self, case_id: _Optional[str] = ..., role: _Optional[_Union[WorkspaceSandboxSealRole, str]] = ..., seal_digest: _Optional[str] = ..., evaluator_bundle_id: _Optional[str] = ..., evaluator_digest: _Optional[str] = ..., evaluator_entry_point: _Optional[str] = ...) -> None: ...
 
 class ValidationIntent(_message.Message):
-    __slots__ = ("schema_version", "intent_id", "idempotency_key", "caller_scenario", "caller_execution_id", "plan_id", "phase_id", "targets", "purpose", "required_strength", "reuse_policy", "concurrency_policy", "expected_identity", "evidence_policy", "deadline_policy", "caller_attributes", "content_inputs", "behavioral_prior", "phases", "pinned_evidence_producer", "retained_evidence_sets")
+    __slots__ = ("schema_version", "intent_id", "idempotency_key", "caller_scenario", "caller_execution_id", "plan_id", "phase_id", "targets", "purpose", "required_strength", "reuse_policy", "concurrency_policy", "expected_identity", "evidence_policy", "deadline_policy", "caller_attributes", "content_inputs", "behavioral_prior", "phases", "pinned_evidence_producer", "retained_evidence_sets", "frozen_replay_execution")
     class CallerAttributesEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -343,6 +407,7 @@ class ValidationIntent(_message.Message):
     PHASES_FIELD_NUMBER: _ClassVar[int]
     PINNED_EVIDENCE_PRODUCER_FIELD_NUMBER: _ClassVar[int]
     RETAINED_EVIDENCE_SETS_FIELD_NUMBER: _ClassVar[int]
+    FROZEN_REPLAY_EXECUTION_FIELD_NUMBER: _ClassVar[int]
     schema_version: int
     intent_id: str
     idempotency_key: str
@@ -364,7 +429,8 @@ class ValidationIntent(_message.Message):
     phases: _containers.RepeatedScalarFieldContainer[str]
     pinned_evidence_producer: PinnedEvidenceProducer
     retained_evidence_sets: _containers.RepeatedCompositeFieldContainer[_validation_pb2.RetainedEvidenceSet]
-    def __init__(self, schema_version: _Optional[int] = ..., intent_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., caller_scenario: _Optional[str] = ..., caller_execution_id: _Optional[str] = ..., plan_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., targets: _Optional[_Iterable[_Union[_validation_target_pb2.ValidationTarget, _Mapping]]] = ..., purpose: _Optional[_Union[ValidationPurpose, str]] = ..., required_strength: _Optional[_Union[ValidationStrength, str]] = ..., reuse_policy: _Optional[_Union[ReusePolicy, _Mapping]] = ..., concurrency_policy: _Optional[_Union[ConcurrencyPolicy, _Mapping]] = ..., expected_identity: _Optional[_Union[SourceIdentity, _Mapping]] = ..., evidence_policy: _Optional[_Union[EvidencePolicy, _Mapping]] = ..., deadline_policy: _Optional[_Union[DeadlinePolicy, _Mapping]] = ..., caller_attributes: _Optional[_Mapping[str, str]] = ..., content_inputs: _Optional[_Iterable[_Union[ContentInputRoot, _Mapping]]] = ..., behavioral_prior: _Optional[str] = ..., phases: _Optional[_Iterable[str]] = ..., pinned_evidence_producer: _Optional[_Union[PinnedEvidenceProducer, _Mapping]] = ..., retained_evidence_sets: _Optional[_Iterable[_Union[_validation_pb2.RetainedEvidenceSet, _Mapping]]] = ...) -> None: ...
+    frozen_replay_execution: FrozenReplayExecution
+    def __init__(self, schema_version: _Optional[int] = ..., intent_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., caller_scenario: _Optional[str] = ..., caller_execution_id: _Optional[str] = ..., plan_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., targets: _Optional[_Iterable[_Union[_validation_target_pb2.ValidationTarget, _Mapping]]] = ..., purpose: _Optional[_Union[ValidationPurpose, str]] = ..., required_strength: _Optional[_Union[ValidationStrength, str]] = ..., reuse_policy: _Optional[_Union[ReusePolicy, _Mapping]] = ..., concurrency_policy: _Optional[_Union[ConcurrencyPolicy, _Mapping]] = ..., expected_identity: _Optional[_Union[SourceIdentity, _Mapping]] = ..., evidence_policy: _Optional[_Union[EvidencePolicy, _Mapping]] = ..., deadline_policy: _Optional[_Union[DeadlinePolicy, _Mapping]] = ..., caller_attributes: _Optional[_Mapping[str, str]] = ..., content_inputs: _Optional[_Iterable[_Union[ContentInputRoot, _Mapping]]] = ..., behavioral_prior: _Optional[str] = ..., phases: _Optional[_Iterable[str]] = ..., pinned_evidence_producer: _Optional[_Union[PinnedEvidenceProducer, _Mapping]] = ..., retained_evidence_sets: _Optional[_Iterable[_Union[_validation_pb2.RetainedEvidenceSet, _Mapping]]] = ..., frozen_replay_execution: _Optional[_Union[FrozenReplayExecution, _Mapping]] = ...) -> None: ...
 
 class PinnedEvidenceProducer(_message.Message):
     __slots__ = ("provider", "producer", "argv", "working_directory", "output_root", "timeout_milliseconds", "maximum_output_bytes", "mutates_lifecycle", "descriptor_digest", "source_identity")
@@ -493,7 +559,7 @@ class Degradation(_message.Message):
     def __init__(self, authorized: _Optional[bool] = ..., authorized_by: _Optional[str] = ..., authorization_reason: _Optional[str] = ..., missing_evidence_kinds: _Optional[_Iterable[str]] = ..., reason_code: _Optional[_Union[ValidationReasonCode, str]] = ...) -> None: ...
 
 class ValidationReceipt(_message.Message):
-    __slots__ = ("schema_version", "receipt_id", "lineage_id", "intent_id", "state", "achieved_strength", "admitted_identity", "observed_identity", "evidence", "children", "compatibility", "retry", "degradation", "reason_code", "detail", "created_at", "updated_at", "terminal_at", "revision", "produced_evidence_set")
+    __slots__ = ("schema_version", "receipt_id", "lineage_id", "intent_id", "state", "achieved_strength", "admitted_identity", "observed_identity", "evidence", "children", "compatibility", "retry", "degradation", "reason_code", "detail", "created_at", "updated_at", "terminal_at", "revision", "produced_evidence_set", "frozen_replay_result", "frozen_replay_attempts")
     SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
     RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
     LINEAGE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -514,6 +580,8 @@ class ValidationReceipt(_message.Message):
     TERMINAL_AT_FIELD_NUMBER: _ClassVar[int]
     REVISION_FIELD_NUMBER: _ClassVar[int]
     PRODUCED_EVIDENCE_SET_FIELD_NUMBER: _ClassVar[int]
+    FROZEN_REPLAY_RESULT_FIELD_NUMBER: _ClassVar[int]
+    FROZEN_REPLAY_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
     schema_version: int
     receipt_id: str
     lineage_id: str
@@ -534,7 +602,41 @@ class ValidationReceipt(_message.Message):
     terminal_at: _timestamp_pb2.Timestamp
     revision: int
     produced_evidence_set: _validation_pb2.RetainedEvidenceSet
-    def __init__(self, schema_version: _Optional[int] = ..., receipt_id: _Optional[str] = ..., lineage_id: _Optional[str] = ..., intent_id: _Optional[str] = ..., state: _Optional[_Union[ReceiptState, str]] = ..., achieved_strength: _Optional[_Union[ValidationStrength, str]] = ..., admitted_identity: _Optional[_Union[SourceIdentity, _Mapping]] = ..., observed_identity: _Optional[_Union[SourceIdentity, _Mapping]] = ..., evidence: _Optional[_Iterable[_Union[EvidenceReference, _Mapping]]] = ..., children: _Optional[_Iterable[_Union[ChildOperation, _Mapping]]] = ..., compatibility: _Optional[_Union[CompatibilityDecision, _Mapping]] = ..., retry: _Optional[_Union[RetryDisposition, _Mapping]] = ..., degradation: _Optional[_Union[Degradation, _Mapping]] = ..., reason_code: _Optional[_Union[ValidationReasonCode, str]] = ..., detail: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., terminal_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., revision: _Optional[int] = ..., produced_evidence_set: _Optional[_Union[_validation_pb2.RetainedEvidenceSet, _Mapping]] = ...) -> None: ...
+    frozen_replay_result: FrozenReplayExecutionResult
+    frozen_replay_attempts: _containers.RepeatedCompositeFieldContainer[FrozenReplayExecutionResult]
+    def __init__(self, schema_version: _Optional[int] = ..., receipt_id: _Optional[str] = ..., lineage_id: _Optional[str] = ..., intent_id: _Optional[str] = ..., state: _Optional[_Union[ReceiptState, str]] = ..., achieved_strength: _Optional[_Union[ValidationStrength, str]] = ..., admitted_identity: _Optional[_Union[SourceIdentity, _Mapping]] = ..., observed_identity: _Optional[_Union[SourceIdentity, _Mapping]] = ..., evidence: _Optional[_Iterable[_Union[EvidenceReference, _Mapping]]] = ..., children: _Optional[_Iterable[_Union[ChildOperation, _Mapping]]] = ..., compatibility: _Optional[_Union[CompatibilityDecision, _Mapping]] = ..., retry: _Optional[_Union[RetryDisposition, _Mapping]] = ..., degradation: _Optional[_Union[Degradation, _Mapping]] = ..., reason_code: _Optional[_Union[ValidationReasonCode, str]] = ..., detail: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., terminal_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., revision: _Optional[int] = ..., produced_evidence_set: _Optional[_Union[_validation_pb2.RetainedEvidenceSet, _Mapping]] = ..., frozen_replay_result: _Optional[_Union[FrozenReplayExecutionResult, _Mapping]] = ..., frozen_replay_attempts: _Optional[_Iterable[_Union[FrozenReplayExecutionResult, _Mapping]]] = ...) -> None: ...
+
+class FrozenReplayExecutionResult(_message.Message):
+    __slots__ = ("run_id", "sandbox_operation_id", "outcome", "case_id", "role", "seal_digest", "source_identity", "evaluator_bundle_id", "evaluator_digest", "evaluator_entry_point", "result_digest", "seal_intact_before", "seal_intact_after", "detail")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    SANDBOX_OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    CASE_ID_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    SEAL_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    EVALUATOR_BUNDLE_ID_FIELD_NUMBER: _ClassVar[int]
+    EVALUATOR_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    EVALUATOR_ENTRY_POINT_FIELD_NUMBER: _ClassVar[int]
+    RESULT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    SEAL_INTACT_BEFORE_FIELD_NUMBER: _ClassVar[int]
+    SEAL_INTACT_AFTER_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    sandbox_operation_id: str
+    outcome: FrozenReplayTestOutcome
+    case_id: str
+    role: WorkspaceSandboxSealRole
+    seal_digest: str
+    source_identity: str
+    evaluator_bundle_id: str
+    evaluator_digest: str
+    evaluator_entry_point: str
+    result_digest: str
+    seal_intact_before: bool
+    seal_intact_after: bool
+    detail: str
+    def __init__(self, run_id: _Optional[str] = ..., sandbox_operation_id: _Optional[str] = ..., outcome: _Optional[_Union[FrozenReplayTestOutcome, str]] = ..., case_id: _Optional[str] = ..., role: _Optional[_Union[WorkspaceSandboxSealRole, str]] = ..., seal_digest: _Optional[str] = ..., source_identity: _Optional[str] = ..., evaluator_bundle_id: _Optional[str] = ..., evaluator_digest: _Optional[str] = ..., evaluator_entry_point: _Optional[str] = ..., result_digest: _Optional[str] = ..., seal_intact_before: _Optional[bool] = ..., seal_intact_after: _Optional[bool] = ..., detail: _Optional[str] = ...) -> None: ...
 
 class CreateValidationRequest(_message.Message):
     __slots__ = ("intent",)

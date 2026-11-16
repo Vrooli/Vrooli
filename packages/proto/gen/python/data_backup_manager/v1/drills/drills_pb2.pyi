@@ -25,7 +25,7 @@ DRILL_STATUS_VERIFIED: DrillStatus
 DRILL_STATUS_FAILED: DrillStatus
 
 class RecoveryDrill(_message.Message):
-    __slots__ = ("id", "plan_id", "target_id", "destination_id", "snapshot_id", "restore_id", "status", "scheduled", "error", "next_action", "requested_at", "started_at", "finished_at")
+    __slots__ = ("id", "plan_id", "target_id", "destination_id", "snapshot_id", "restore_id", "status", "scheduled", "error", "next_action", "requested_at", "started_at", "finished_at", "notification_state", "notification_sent_at", "retired_at", "retirement_reason")
     ID_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
@@ -39,6 +39,10 @@ class RecoveryDrill(_message.Message):
     REQUESTED_AT_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
     FINISHED_AT_FIELD_NUMBER: _ClassVar[int]
+    NOTIFICATION_STATE_FIELD_NUMBER: _ClassVar[int]
+    NOTIFICATION_SENT_AT_FIELD_NUMBER: _ClassVar[int]
+    RETIRED_AT_FIELD_NUMBER: _ClassVar[int]
+    RETIREMENT_REASON_FIELD_NUMBER: _ClassVar[int]
     id: str
     plan_id: str
     target_id: str
@@ -52,7 +56,11 @@ class RecoveryDrill(_message.Message):
     requested_at: _timestamp_pb2.Timestamp
     started_at: _timestamp_pb2.Timestamp
     finished_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., target_id: _Optional[str] = ..., destination_id: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., restore_id: _Optional[str] = ..., status: _Optional[_Union[DrillStatus, str]] = ..., scheduled: _Optional[bool] = ..., error: _Optional[str] = ..., next_action: _Optional[str] = ..., requested_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    notification_state: str
+    notification_sent_at: _timestamp_pb2.Timestamp
+    retired_at: _timestamp_pb2.Timestamp
+    retirement_reason: str
+    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., target_id: _Optional[str] = ..., destination_id: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., restore_id: _Optional[str] = ..., status: _Optional[_Union[DrillStatus, str]] = ..., scheduled: _Optional[bool] = ..., error: _Optional[str] = ..., next_action: _Optional[str] = ..., requested_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., notification_state: _Optional[str] = ..., notification_sent_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., retired_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., retirement_reason: _Optional[str] = ...) -> None: ...
 
 class PreviewDrillRequest(_message.Message):
     __slots__ = ("plan_id", "target_id", "destination_id")
@@ -133,3 +141,17 @@ class ListDrillsResponse(_message.Message):
     drills: _containers.RepeatedCompositeFieldContainer[RecoveryDrill]
     next_page_token: str
     def __init__(self, drills: _Optional[_Iterable[_Union[RecoveryDrill, _Mapping]]] = ..., next_page_token: _Optional[str] = ...) -> None: ...
+
+class RetireDrillRequest(_message.Message):
+    __slots__ = ("id", "reason")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    reason: str
+    def __init__(self, id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class RetireDrillResponse(_message.Message):
+    __slots__ = ("drill",)
+    DRILL_FIELD_NUMBER: _ClassVar[int]
+    drill: RecoveryDrill
+    def __init__(self, drill: _Optional[_Union[RecoveryDrill, _Mapping]] = ...) -> None: ...

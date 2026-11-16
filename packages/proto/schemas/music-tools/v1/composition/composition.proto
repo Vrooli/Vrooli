@@ -11,6 +11,11 @@ service CompositionService {
   rpc ListTakes(ListTakesRequest) returns (ListTakesResponse);
 }
 
+service CandidateInventoryService {
+  rpc RequestRefill(CandidateRefillRequest) returns (CandidateRefillResponse);
+  rpc CancelRefill(CancelCandidateRefillRequest) returns (CandidateRefillResponse);
+}
+
 message Provenance {
   string model_id = 1;
   string license_lane = 2;
@@ -41,8 +46,21 @@ message SubmitRequest {
   optional int64 seed = 4;
   // Optional ACE sampling shift; omission preserves the loaded profile default.
   optional double shift = 5;
+  // Optional model-declared sung vocal language. Omission preserves the model default.
+  optional string vocal_language = 6;
 }
 
 message SubmitResponse { string job_id = 1; }
 message ListTakesRequest { string style_id = 1; string job_id = 2; }
 message ListTakesResponse { repeated Take takes = 1; }
+message CandidateRefillRequest {
+  string request_id = 1;
+  string reservation_id = 2;
+  string sha256 = 3;
+  string purpose = 4;
+  string project = 5;
+  string revision = 6;
+  string style_id = 7;
+}
+message CandidateRefillResponse { string request_id = 1; string state = 2; string style_id = 3; string job_id = 4; }
+message CancelCandidateRefillRequest { string request_id = 1; }

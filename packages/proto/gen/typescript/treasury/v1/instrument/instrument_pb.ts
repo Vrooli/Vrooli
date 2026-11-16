@@ -2,8 +2,8 @@
 // @generated from file treasury/v1/instrument/instrument.proto (package vrooli.treasury.v1.instrument, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file treasury/v1/instrument/instrument.proto.
  */
 export const file_treasury_v1_instrument_instrument: GenFile = /*@__PURE__*/
-  fileDesc("Cid0cmVhc3VyeS92MS9pbnN0cnVtZW50L2luc3RydW1lbnQucHJvdG8SHXZyb29saS50cmVhc3VyeS52MS5pbnN0cnVtZW50ItQBCgpJbnN0cnVtZW50EgoKAmlkGAEgASgJEg8KB2Jvb2tfaWQYAiABKAkSEgoKbWFuZGF0ZV9pZBgDIAEoCRIMCgRyYWlsGAQgASgJEhwKFGNyZWRlbnRpYWxfcmVmZXJlbmNlGAUgASgJEhEKCWNhcF9taW5vchgGIAEoAxIQCghjdXJyZW5jeRgHIAEoCRIUCgxjb3VudGVycGFydHkYCCABKAkSLgoKZXhwaXJlc19hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCVVpTZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby90cmVhc3VyeS92MS9pbnN0cnVtZW50O2luc3RydW1lbnRfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("Cid0cmVhc3VyeS92MS9pbnN0cnVtZW50L2luc3RydW1lbnQucHJvdG8SHXZyb29saS50cmVhc3VyeS52MS5pbnN0cnVtZW50ItQBCgpJbnN0cnVtZW50EgoKAmlkGAEgASgJEg8KB2Jvb2tfaWQYAiABKAkSEgoKbWFuZGF0ZV9pZBgDIAEoCRIMCgRyYWlsGAQgASgJEhwKFGNyZWRlbnRpYWxfcmVmZXJlbmNlGAUgASgJEhEKCWNhcF9taW5vchgGIAEoAxIQCghjdXJyZW5jeRgHIAEoCRIUCgxjb3VudGVycGFydHkYCCABKAkSLgoKZXhwaXJlc19hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiWgoZUmVnaXN0ZXJJbnN0cnVtZW50UmVxdWVzdBI9CgppbnN0cnVtZW50GAEgASgLMikudnJvb2xpLnRyZWFzdXJ5LnYxLmluc3RydW1lbnQuSW5zdHJ1bWVudCJbChpSZWdpc3Rlckluc3RydW1lbnRSZXNwb25zZRI9CgppbnN0cnVtZW50GAEgASgLMikudnJvb2xpLnRyZWFzdXJ5LnYxLmluc3RydW1lbnQuSW5zdHJ1bWVudDKkAQoWSW5zdHJ1bWVudEFkbWluU2VydmljZRKJAQoSUmVnaXN0ZXJJbnN0cnVtZW50EjgudnJvb2xpLnRyZWFzdXJ5LnYxLmluc3RydW1lbnQuUmVnaXN0ZXJJbnN0cnVtZW50UmVxdWVzdBo5LnZyb29saS50cmVhc3VyeS52MS5pbnN0cnVtZW50LlJlZ2lzdGVySW5zdHJ1bWVudFJlc3BvbnNlQlVaU2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdHJlYXN1cnkvdjEvaW5zdHJ1bWVudDtpbnN0cnVtZW50X3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.treasury.v1.instrument.Instrument
@@ -70,4 +70,53 @@ export type Instrument = Message<"vrooli.treasury.v1.instrument.Instrument"> & {
  */
 export const InstrumentSchema: GenMessage<Instrument> = /*@__PURE__*/
   messageDesc(file_treasury_v1_instrument_instrument, 0);
+
+/**
+ * @generated from message vrooli.treasury.v1.instrument.RegisterInstrumentRequest
+ */
+export type RegisterInstrumentRequest = Message<"vrooli.treasury.v1.instrument.RegisterInstrumentRequest"> & {
+  /**
+   * @generated from field: vrooli.treasury.v1.instrument.Instrument instrument = 1;
+   */
+  instrument?: Instrument | undefined;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.instrument.RegisterInstrumentRequest.
+ * Use `create(RegisterInstrumentRequestSchema)` to create a new message.
+ */
+export const RegisterInstrumentRequestSchema: GenMessage<RegisterInstrumentRequest> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_instrument_instrument, 1);
+
+/**
+ * @generated from message vrooli.treasury.v1.instrument.RegisterInstrumentResponse
+ */
+export type RegisterInstrumentResponse = Message<"vrooli.treasury.v1.instrument.RegisterInstrumentResponse"> & {
+  /**
+   * @generated from field: vrooli.treasury.v1.instrument.Instrument instrument = 1;
+   */
+  instrument?: Instrument | undefined;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.instrument.RegisterInstrumentResponse.
+ * Use `create(RegisterInstrumentResponseSchema)` to create a new message.
+ */
+export const RegisterInstrumentResponseSchema: GenMessage<RegisterInstrumentResponse> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_instrument_instrument, 2);
+
+/**
+ * @generated from service vrooli.treasury.v1.instrument.InstrumentAdminService
+ */
+export const InstrumentAdminService: GenService<{
+  /**
+   * @generated from rpc vrooli.treasury.v1.instrument.InstrumentAdminService.RegisterInstrument
+   */
+  registerInstrument: {
+    methodKind: "unary";
+    input: typeof RegisterInstrumentRequestSchema;
+    output: typeof RegisterInstrumentResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_treasury_v1_instrument_instrument, 0);
 

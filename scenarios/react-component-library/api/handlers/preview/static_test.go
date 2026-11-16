@@ -345,7 +345,7 @@ func TestRenderHarnessHTMLSupportsScopedTemporaryPropsOverrides(t *testing.T) {
 	require.Contains(t, html, `rcl-preview-props-error`)
 	require.Contains(t, html, `rcl-story-result`)
 	require.Contains(t, html, `id="rcl-story-result"`)
-	require.Contains(t, html, `const reportStoryResult = (passed, failures, skipped = [], painted = measurePaintedContent()) =>`)
+	require.Contains(t, html, `const reportStoryResult = (passed, failures, skipped = [], painted = measurePaintedContent(), axeEvidence = null) =>`)
 	require.Contains(t, html, `export async function runStory(previewStory, modules, env = browserEnv)`)
 	require.Contains(t, html, `void runStory(previewStory, { document, window }`)
 	require.Contains(t, html, `const initialTarget = previewStory.interactions?.[0]?.target || previewStory.expect?.[0]`)

@@ -162,3 +162,57 @@ class ReconcileOperationsResponse(_message.Message):
     worker_id: str
     acquired: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, schema_version: _Optional[str] = ..., worker_id: _Optional[str] = ..., acquired: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class GetTargetReceiptRequest(_message.Message):
+    __slots__ = ("deployment_id", "operation_id", "step")
+    DEPLOYMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
+    deployment_id: str
+    operation_id: str
+    step: str
+    def __init__(self, deployment_id: _Optional[str] = ..., operation_id: _Optional[str] = ..., step: _Optional[str] = ...) -> None: ...
+
+class TargetReceiptTarget(_message.Message):
+    __slots__ = ("machine_id", "node_id", "enrollment_generation", "transport")
+    MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    ENROLLMENT_GENERATION_FIELD_NUMBER: _ClassVar[int]
+    TRANSPORT_FIELD_NUMBER: _ClassVar[int]
+    machine_id: str
+    node_id: str
+    enrollment_generation: int
+    transport: str
+    def __init__(self, machine_id: _Optional[str] = ..., node_id: _Optional[str] = ..., enrollment_generation: _Optional[int] = ..., transport: _Optional[str] = ...) -> None: ...
+
+class TargetOwnerReceipt(_message.Message):
+    __slots__ = ("found", "outcome", "fence", "detail", "error")
+    FOUND_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    FENCE_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    found: bool
+    outcome: str
+    fence: int
+    detail: str
+    error: str
+    def __init__(self, found: _Optional[bool] = ..., outcome: _Optional[str] = ..., fence: _Optional[int] = ..., detail: _Optional[str] = ..., error: _Optional[str] = ...) -> None: ...
+
+class TargetReceiptRead(_message.Message):
+    __slots__ = ("schema_version", "deployment_id", "operation_id", "plan_digest", "step", "target", "receipt")
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    DEPLOYMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    PLAN_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    RECEIPT_FIELD_NUMBER: _ClassVar[int]
+    schema_version: str
+    deployment_id: str
+    operation_id: str
+    plan_digest: str
+    step: str
+    target: TargetReceiptTarget
+    receipt: TargetOwnerReceipt
+    def __init__(self, schema_version: _Optional[str] = ..., deployment_id: _Optional[str] = ..., operation_id: _Optional[str] = ..., plan_digest: _Optional[str] = ..., step: _Optional[str] = ..., target: _Optional[_Union[TargetReceiptTarget, _Mapping]] = ..., receipt: _Optional[_Union[TargetOwnerReceipt, _Mapping]] = ...) -> None: ...

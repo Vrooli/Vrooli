@@ -36,11 +36,22 @@ const (
 	// LedgerServiceListEmissionsProcedure is the fully-qualified name of the LedgerService's
 	// ListEmissions RPC.
 	LedgerServiceListEmissionsProcedure = "/vrooli.treasury.v1.ledger.LedgerService/ListEmissions"
+	// LedgerServiceSetLedgerDestinationProcedure is the fully-qualified name of the LedgerService's
+	// SetLedgerDestination RPC.
+	LedgerServiceSetLedgerDestinationProcedure = "/vrooli.treasury.v1.ledger.LedgerService/SetLedgerDestination"
+	// LedgerServiceGetLedgerDestinationProcedure is the fully-qualified name of the LedgerService's
+	// GetLedgerDestination RPC.
+	LedgerServiceGetLedgerDestinationProcedure = "/vrooli.treasury.v1.ledger.LedgerService/GetLedgerDestination"
 )
 
 // LedgerServiceClient is a client for the vrooli.treasury.v1.ledger.LedgerService service.
 type LedgerServiceClient interface {
 	ListEmissions(context.Context, *connect.Request[ledger.ListEmissionsRequest]) (*connect.Response[ledger.ListEmissionsResponse], error)
+	// SetLedgerDestination validates the book and account against Money Ledger
+	// (book exists and is not archived, account belongs to it, currency is USD)
+	// and then records the choice. Operator realm only.
+	SetLedgerDestination(context.Context, *connect.Request[ledger.SetLedgerDestinationRequest]) (*connect.Response[ledger.SetLedgerDestinationResponse], error)
+	GetLedgerDestination(context.Context, *connect.Request[ledger.GetLedgerDestinationRequest]) (*connect.Response[ledger.GetLedgerDestinationResponse], error)
 }
 
 // NewLedgerServiceClient constructs a client for the vrooli.treasury.v1.ledger.LedgerService
@@ -60,12 +71,26 @@ func NewLedgerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(ledgerServiceMethods.ByName("ListEmissions")),
 			connect.WithClientOptions(opts...),
 		),
+		setLedgerDestination: connect.NewClient[ledger.SetLedgerDestinationRequest, ledger.SetLedgerDestinationResponse](
+			httpClient,
+			baseURL+LedgerServiceSetLedgerDestinationProcedure,
+			connect.WithSchema(ledgerServiceMethods.ByName("SetLedgerDestination")),
+			connect.WithClientOptions(opts...),
+		),
+		getLedgerDestination: connect.NewClient[ledger.GetLedgerDestinationRequest, ledger.GetLedgerDestinationResponse](
+			httpClient,
+			baseURL+LedgerServiceGetLedgerDestinationProcedure,
+			connect.WithSchema(ledgerServiceMethods.ByName("GetLedgerDestination")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // ledgerServiceClient implements LedgerServiceClient.
 type ledgerServiceClient struct {
-	listEmissions *connect.Client[ledger.ListEmissionsRequest, ledger.ListEmissionsResponse]
+	listEmissions        *connect.Client[ledger.ListEmissionsRequest, ledger.ListEmissionsResponse]
+	setLedgerDestination *connect.Client[ledger.SetLedgerDestinationRequest, ledger.SetLedgerDestinationResponse]
+	getLedgerDestination *connect.Client[ledger.GetLedgerDestinationRequest, ledger.GetLedgerDestinationResponse]
 }
 
 // ListEmissions calls vrooli.treasury.v1.ledger.LedgerService.ListEmissions.
@@ -73,9 +98,24 @@ func (c *ledgerServiceClient) ListEmissions(ctx context.Context, req *connect.Re
 	return c.listEmissions.CallUnary(ctx, req)
 }
 
+// SetLedgerDestination calls vrooli.treasury.v1.ledger.LedgerService.SetLedgerDestination.
+func (c *ledgerServiceClient) SetLedgerDestination(ctx context.Context, req *connect.Request[ledger.SetLedgerDestinationRequest]) (*connect.Response[ledger.SetLedgerDestinationResponse], error) {
+	return c.setLedgerDestination.CallUnary(ctx, req)
+}
+
+// GetLedgerDestination calls vrooli.treasury.v1.ledger.LedgerService.GetLedgerDestination.
+func (c *ledgerServiceClient) GetLedgerDestination(ctx context.Context, req *connect.Request[ledger.GetLedgerDestinationRequest]) (*connect.Response[ledger.GetLedgerDestinationResponse], error) {
+	return c.getLedgerDestination.CallUnary(ctx, req)
+}
+
 // LedgerServiceHandler is an implementation of the vrooli.treasury.v1.ledger.LedgerService service.
 type LedgerServiceHandler interface {
 	ListEmissions(context.Context, *connect.Request[ledger.ListEmissionsRequest]) (*connect.Response[ledger.ListEmissionsResponse], error)
+	// SetLedgerDestination validates the book and account against Money Ledger
+	// (book exists and is not archived, account belongs to it, currency is USD)
+	// and then records the choice. Operator realm only.
+	SetLedgerDestination(context.Context, *connect.Request[ledger.SetLedgerDestinationRequest]) (*connect.Response[ledger.SetLedgerDestinationResponse], error)
+	GetLedgerDestination(context.Context, *connect.Request[ledger.GetLedgerDestinationRequest]) (*connect.Response[ledger.GetLedgerDestinationResponse], error)
 }
 
 // NewLedgerServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -91,10 +131,26 @@ func NewLedgerServiceHandler(svc LedgerServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(ledgerServiceMethods.ByName("ListEmissions")),
 		connect.WithHandlerOptions(opts...),
 	)
+	ledgerServiceSetLedgerDestinationHandler := connect.NewUnaryHandler(
+		LedgerServiceSetLedgerDestinationProcedure,
+		svc.SetLedgerDestination,
+		connect.WithSchema(ledgerServiceMethods.ByName("SetLedgerDestination")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ledgerServiceGetLedgerDestinationHandler := connect.NewUnaryHandler(
+		LedgerServiceGetLedgerDestinationProcedure,
+		svc.GetLedgerDestination,
+		connect.WithSchema(ledgerServiceMethods.ByName("GetLedgerDestination")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.treasury.v1.ledger.LedgerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case LedgerServiceListEmissionsProcedure:
 			ledgerServiceListEmissionsHandler.ServeHTTP(w, r)
+		case LedgerServiceSetLedgerDestinationProcedure:
+			ledgerServiceSetLedgerDestinationHandler.ServeHTTP(w, r)
+		case LedgerServiceGetLedgerDestinationProcedure:
+			ledgerServiceGetLedgerDestinationHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -106,4 +162,12 @@ type UnimplementedLedgerServiceHandler struct{}
 
 func (UnimplementedLedgerServiceHandler) ListEmissions(context.Context, *connect.Request[ledger.ListEmissionsRequest]) (*connect.Response[ledger.ListEmissionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.ledger.LedgerService.ListEmissions is not implemented"))
+}
+
+func (UnimplementedLedgerServiceHandler) SetLedgerDestination(context.Context, *connect.Request[ledger.SetLedgerDestinationRequest]) (*connect.Response[ledger.SetLedgerDestinationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.ledger.LedgerService.SetLedgerDestination is not implemented"))
+}
+
+func (UnimplementedLedgerServiceHandler) GetLedgerDestination(context.Context, *connect.Request[ledger.GetLedgerDestinationRequest]) (*connect.Response[ledger.GetLedgerDestinationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.ledger.LedgerService.GetLedgerDestination is not implemented"))
 }

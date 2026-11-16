@@ -18,6 +18,12 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 			}
 			return nil
 		}),
+		"CatalogService.RecordGate": cliapp.ProtoListOutcome(h.recordGateCall, h.gateReport, func(resp *catalogv1.RunGateResponse) error {
+			if resp.NonDiscriminating {
+				return fmt.Errorf("catalog gate %s is non-discriminating", resp.Gate)
+			}
+			return nil
+		}),
 		"CatalogService.GetAssetRelationships": cliapp.ProtoList(h.graphCall, h.graphReport),
 		"CatalogService.GetReadiness":          cliapp.ProtoOperational(h.readinessCall, h.readinessReport),
 		"corpus-report":                        {Run: h.corpusReport},

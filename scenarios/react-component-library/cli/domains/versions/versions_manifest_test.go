@@ -82,8 +82,8 @@ func TestVersionsManifestPromotesOnlyNarrowRecoveryCommand(t *testing.T) {
 			continue
 		}
 		for _, command := range group.Commands {
-			if command.Name == "reconcile-presence" && command.Binding.Kind != "local" {
-				t.Fatalf("reconcile-presence must be a local, explicit-apply wrapper: %+v", command.Binding)
+			if command.Name == "reconcile-presence" && (command.Binding.Kind != "connect-rpc" || command.Binding.Service != "VersionLifecycleService" || command.Binding.Method != "ReconcilePresence") {
+				t.Fatalf("reconcile-presence must bind the API endpoint while retaining its explicit-apply wrapper: %+v", command.Binding)
 			}
 			if command.Name == "reachability" {
 				t.Fatal("duplicate filesystem reachability command must be retired")

@@ -13,16 +13,21 @@ const outputPath = path.join(
 const checkOnly = process.argv.includes("--check");
 
 const contracts = [];
+const activeContracts = [];
 for (const component of fs.readdirSync(componentsRoot).sort()) {
   const versionsRoot = path.join(componentsRoot, component, "versions");
   if (!fs.existsSync(versionsRoot)) continue;
+  const metadata = JSON.parse(
+    fs.readFileSync(path.join(componentsRoot, component, "component.json"), "utf8"),
+  );
+  const activeVersion = metadata.draft || metadata.latest;
   for (const version of fs.readdirSync(versionsRoot).sort()) {
     const contractPath = path.join(versionsRoot, version, "usage-contract.json");
     if (!fs.existsSync(contractPath)) continue;
     const contract = JSON.parse(fs.readFileSync(contractPath, "utf8"));
     const items = contract.items ?? {};
     const key = `react-component-library:${component}@${version}`;
-    contracts.push({
+    const entry = {
       key,
       maximumChildren: Number.isInteger(contract.children?.maximumCount)
         ? contract.children.maximumCount
@@ -44,6 +49,10 @@ for (const component of fs.readdirSync(componentsRoot).sort()) {
         items.requiredFieldTypes && typeof items.requiredFieldTypes === "object"
           ? items.requiredFieldTypes
           : {},
+      optionalFieldEnums:
+        items.optionalFieldEnums && typeof items.optionalFieldEnums === "object"
+          ? items.optionalFieldEnums
+          : {},
       stableIdField: typeof items.stableIdField === "string" ? items.stableIdField : null,
       collectionLimits: [
         ...(Array.isArray(contract.collections) ? contract.collections : []),
@@ -64,7 +73,9 @@ for (const component of fs.readdirSync(componentsRoot).sort()) {
           ]),
         ],
       })),
-    });
+    };
+    contracts.push(entry);
+    if (version === activeVersion) activeContracts.push(entry);
   }
 }
 
@@ -72,13 +83,14 @@ const duplicate = contracts.find(
   (contract, index) => contracts.findIndex((item) => item.key === contract.key) !== index,
 );
 if (duplicate) throw new Error(`duplicate usage-contract identity ${duplicate.key}`);
-const body = contracts
-  .map(
-    (contract) =>
-      `  ${JSON.stringify(contract.key)}: { maximumChildren: ${contract.maximumChildren ?? "null"}, maximumItems: ${contract.maximumItems ?? "null"}, maximumLabelCharacters: ${contract.maximumLabelCharacters ?? "null"}, primaryCount: ${contract.primaryCount ?? "null"}, itemsProperty: ${JSON.stringify(contract.itemsProperty)}, requiredFields: ${JSON.stringify(contract.requiredFields)}, requiredFieldTypes: ${JSON.stringify(contract.requiredFieldTypes)}, stableIdField: ${JSON.stringify(contract.stableIdField)}, collectionLimits: ${JSON.stringify(contract.collectionLimits)} }`,
-  )
+const contractRecord = (contract, key = contract.key) =>
+  `  ${JSON.stringify(key)}: { maximumChildren: ${contract.maximumChildren ?? "null"}, maximumItems: ${contract.maximumItems ?? "null"}, maximumLabelCharacters: ${contract.maximumLabelCharacters ?? "null"}, primaryCount: ${contract.primaryCount ?? "null"}, itemsProperty: ${JSON.stringify(contract.itemsProperty)}, requiredFields: ${JSON.stringify(contract.requiredFields)}, requiredFieldTypes: ${JSON.stringify(contract.requiredFieldTypes)}, optionalFieldEnums: ${JSON.stringify(contract.optionalFieldEnums)}, stableIdField: ${JSON.stringify(contract.stableIdField)}, collectionLimits: ${JSON.stringify(contract.collectionLimits)} }`;
+const body = contracts.map((contract) => contractRecord(contract)).join(",\n");
+const activeBody = activeContracts
+  .filter((contract) => Object.keys(contract.optionalFieldEnums).length > 0)
+  .map((contract) => contractRecord(contract, contract.key.replace(/@[^@]+$/, "")))
   .join(",\n");
-const generated = `// Generated from versioned usage-contract.json files. Run ui/scripts/generate-usage-contract-types.mjs to update.\nexport const usageContractLimits = {\n${body}\n} as const;\n\nexport type UsageContractId = keyof typeof usageContractLimits;\ntype ContractFor<Id extends UsageContractId> = (typeof usageContractLimits)[Id];\ntype RequiredContractFields<Id extends UsageContractId> = keyof ContractFor<Id>["requiredFieldTypes"] | ContractFor<Id>["requiredFields"][number];\ntype ContractFieldTypes<Id extends UsageContractId> = ContractFor<Id>["requiredFieldTypes"];\ntype RequireContractFields<Id extends UsageContractId, Item> = Item extends object\n  ? Item & { [Field in RequiredContractFields<Id>]: Field extends keyof ContractFieldTypes<Id> ? ContractFieldTypes<Id>[Field] extends "string" ? string : ContractFieldTypes<Id>[Field] extends "function" ? (...args: never[]) => unknown : unknown : unknown }\n  : never;\ntype TupleOfAtMost<Items extends readonly unknown[], Maximum extends number, Count extends unknown[] = []> = Items extends readonly [unknown, ...infer Rest]\n  ? Count["length"] extends Maximum ? never : readonly [Items[0], ...TupleOfAtMost<Rest, Maximum, [...Count, unknown]>]\n  : Items;\n/** Validates literal tuples while keeping dynamic arrays honest: runtime length is unknown. */\nexport type ContractItems<Id extends UsageContractId, Items extends readonly unknown[]> = ContractFor<Id>["maximumItems"] extends number\n  ? number extends Items["length"]\n    ? readonly RequireContractFields<Id, Items[number]>[]\n    : TupleOfAtMost<{ [Index in keyof Items]: RequireContractFields<Id, Items[Index]> }, ContractFor<Id>["maximumItems"]>\n  : readonly RequireContractFields<Id, Items[number]>[];
+const generated = `// Generated from versioned usage-contract.json files. Run ui/scripts/generate-usage-contract-types.mjs to update.\nexport const usageContractLimits = {\n${body}\n} as const;\n\n/** Active contract for each asset with optional enum fields. */\nexport const activeUsageContractLimits = {\n${activeBody}\n} as const;\n\nexport type UsageContractId = keyof typeof usageContractLimits;\ntype ContractFor<Id extends UsageContractId> = (typeof usageContractLimits)[Id];\ntype RequiredContractFields<Id extends UsageContractId> = keyof ContractFor<Id>["requiredFieldTypes"] | ContractFor<Id>["requiredFields"][number];\ntype ContractFieldTypes<Id extends UsageContractId> = ContractFor<Id>["requiredFieldTypes"];\ntype RequireContractFields<Id extends UsageContractId, Item> = Item extends object\n  ? Item & { [Field in RequiredContractFields<Id>]: Field extends keyof ContractFieldTypes<Id> ? ContractFieldTypes<Id>[Field] extends "string" ? string : ContractFieldTypes<Id>[Field] extends "function" ? (...args: never[]) => unknown : unknown : unknown }\n  : never;\ntype TupleOfAtMost<Items extends readonly unknown[], Maximum extends number, Count extends unknown[] = []> = Items extends readonly [unknown, ...infer Rest]\n  ? Count["length"] extends Maximum ? never : readonly [Items[0], ...TupleOfAtMost<Rest, Maximum, [...Count, unknown]>]\n  : Items;\n/** Validates literal tuples while keeping dynamic arrays honest: runtime length is unknown. */\nexport type ContractItems<Id extends UsageContractId, Items extends readonly unknown[]> = ContractFor<Id>["maximumItems"] extends number\n  ? number extends Items["length"]\n    ? readonly RequireContractFields<Id, Items[number]>[]\n    : TupleOfAtMost<{ [Index in keyof Items]: RequireContractFields<Id, Items[Index]> }, ContractFor<Id>["maximumItems"]>\n  : readonly RequireContractFields<Id, Items[number]>[];
 type ContractCollectionFor<Id extends UsageContractId, Property extends string> = Extract<ContractFor<Id>["collectionLimits"][number], { property: Property }>;
 type RequireCollectionFields<Id extends UsageContractId, Property extends string, Item> = Item extends object
   ? Item & { [Field in ContractCollectionFor<Id, Property>["requiredFields"][number]]: Field extends "label" ? string : unknown }

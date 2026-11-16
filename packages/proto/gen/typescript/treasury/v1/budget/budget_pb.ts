@@ -2,8 +2,8 @@
 // @generated from file treasury/v1/budget/budget.proto (package vrooli.treasury.v1.budget, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file treasury/v1/budget/budget.proto.
  */
 export const file_treasury_v1_budget_budget: GenFile = /*@__PURE__*/
-  fileDesc("Ch90cmVhc3VyeS92MS9idWRnZXQvYnVkZ2V0LnByb3RvEhl2cm9vbGkudHJlYXN1cnkudjEuYnVkZ2V0IpECCgZCdWRnZXQSCgoCaWQYASABKAkSDwoHYm9va19pZBgCIAEoCRIXCg90b3RhbF9jYXBfbWlub3IYAyABKAMSGgoScGVyaW9kaWNfY2FwX21pbm9yGAQgASgDEiEKGXBlcl90cmFuc2FjdGlvbl9jYXBfbWlub3IYBSABKAMSEAoIY3VycmVuY3kYBiABKAkSHgoWYWxsb3dlZF9jb3VudGVycGFydGllcxgHIAMoCRIdChVkZW5pZWRfY291bnRlcnBhcnRpZXMYCCADKAkSGQoRcmVxdWlyZXNfYXBwcm92YWwYCSABKAgSDgoGZnJvemVuGAogASgIEhYKDnBlcmlvZF9zZWNvbmRzGAsgASgDIqEECghIZWFkcm9vbRIRCglidWRnZXRfaWQYASABKAkSDwoHYm9va19pZBgCIAEoCRIQCghjdXJyZW5jeRgDIAEoCRIXCg90b3RhbF9jYXBfbWlub3IYBCABKAMSGAoQdG90YWxfdXNlZF9taW5vchgFIAEoAxIdChV0b3RhbF9yZW1haW5pbmdfbWlub3IYBiABKAMSGgoScGVyaW9kaWNfY2FwX21pbm9yGAcgASgDEhkKEXBlcmlvZF91c2VkX21pbm9yGAggASgDEh4KFnBlcmlvZF9yZW1haW5pbmdfbWlub3IYCSABKAMSIQoZcGVyX3RyYW5zYWN0aW9uX2NhcF9taW5vchgKIAEoAxIXCg9hdmFpbGFibGVfbWlub3IYCyABKAMSNQoRcGVyaW9kX3N0YXJ0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2NvbXB1dGVkX2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIYChBmdW5kaW5nX3JlcXVpcmVkGA4gASgIEh4KFmZ1bmRpbmdfY3JlZGl0ZWRfbWlub3IYDyABKAMSHwoXZnVuZGluZ19yZW1haW5pbmdfbWlub3IYECABKAMSHQoVZnVuZGluZ19hdG9taWNfYW1vdW50GBEgASgJEhgKEGZ1bmRpbmdfYXNzZXRfaWQYEiABKAlCTVpLZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby90cmVhc3VyeS92MS9idWRnZXQ7YnVkZ2V0X3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("Ch90cmVhc3VyeS92MS9idWRnZXQvYnVkZ2V0LnByb3RvEhl2cm9vbGkudHJlYXN1cnkudjEuYnVkZ2V0IpECCgZCdWRnZXQSCgoCaWQYASABKAkSDwoHYm9va19pZBgCIAEoCRIXCg90b3RhbF9jYXBfbWlub3IYAyABKAMSGgoScGVyaW9kaWNfY2FwX21pbm9yGAQgASgDEiEKGXBlcl90cmFuc2FjdGlvbl9jYXBfbWlub3IYBSABKAMSEAoIY3VycmVuY3kYBiABKAkSHgoWYWxsb3dlZF9jb3VudGVycGFydGllcxgHIAMoCRIdChVkZW5pZWRfY291bnRlcnBhcnRpZXMYCCADKAkSGQoRcmVxdWlyZXNfYXBwcm92YWwYCSABKAgSDgoGZnJvemVuGAogASgIEhYKDnBlcmlvZF9zZWNvbmRzGAsgASgDIkkKFFNldEJ1ZGdldENhcHNSZXF1ZXN0EjEKBmJ1ZGdldBgBIAEoCzIhLnZyb29saS50cmVhc3VyeS52MS5idWRnZXQuQnVkZ2V0IkoKFVNldEJ1ZGdldENhcHNSZXNwb25zZRIxCgZidWRnZXQYASABKAsyIS52cm9vbGkudHJlYXN1cnkudjEuYnVkZ2V0LkJ1ZGdldCJAChBTZXRHYXRpbmdSZXF1ZXN0EhEKCWJ1ZGdldF9pZBgBIAEoCRIZChFyZXF1aXJlc19hcHByb3ZhbBgCIAEoCCJGChFTZXRHYXRpbmdSZXNwb25zZRIxCgZidWRnZXQYASABKAsyIS52cm9vbGkudHJlYXN1cnkudjEuYnVkZ2V0LkJ1ZGdldCIoChNGcmVlemVCdWRnZXRSZXF1ZXN0EhEKCWJ1ZGdldF9pZBgBIAEoCSJJChRGcmVlemVCdWRnZXRSZXNwb25zZRIxCgZidWRnZXQYASABKAsyIS52cm9vbGkudHJlYXN1cnkudjEuYnVkZ2V0LkJ1ZGdldCIqChVVbmZyZWV6ZUJ1ZGdldFJlcXVlc3QSEQoJYnVkZ2V0X2lkGAEgASgJIksKFlVuZnJlZXplQnVkZ2V0UmVzcG9uc2USMQoGYnVkZ2V0GAEgASgLMiEudnJvb2xpLnRyZWFzdXJ5LnYxLmJ1ZGdldC5CdWRnZXQiJAoRRnJlZXplQm9va1JlcXVlc3QSDwoHYm9va19pZBgBIAEoCSJlChJGcmVlemVCb29rUmVzcG9uc2USDwoHYm9va19pZBgBIAEoCRIOCgZmcm96ZW4YAiABKAgSLgoKdXBkYXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiJgoTVW5mcmVlemVCb29rUmVxdWVzdBIPCgdib29rX2lkGAEgASgJImcKFFVuZnJlZXplQm9va1Jlc3BvbnNlEg8KB2Jvb2tfaWQYASABKAkSDgoGZnJvemVuGAIgASgIEi4KCnVwZGF0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIhIKEEZyZWV6ZUFsbFJlcXVlc3QiUwoRRnJlZXplQWxsUmVzcG9uc2USDgoGZnJvemVuGAEgASgIEi4KCnVwZGF0ZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIhgKFkdldEZyZWV6ZVN0YXR1c1JlcXVlc3QiWQoXR2V0RnJlZXplU3RhdHVzUmVzcG9uc2USDgoGZnJvemVuGAEgASgIEi4KCnVwZGF0ZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIhQKElVuZnJlZXplQWxsUmVxdWVzdCJVChNVbmZyZWV6ZUFsbFJlc3BvbnNlEg4KBmZyb3plbhgBIAEoCBIuCgp1cGRhdGVkX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcDKECAoSQnVkZ2V0QWRtaW5TZXJ2aWNlEnIKDVNldEJ1ZGdldENhcHMSLy52cm9vbGkudHJlYXN1cnkudjEuYnVkZ2V0LlNldEJ1ZGdldENhcHNSZXF1ZXN0GjAudnJvb2xpLnRyZWFzdXJ5LnYxLmJ1ZGdldC5TZXRCdWRnZXRDYXBzUmVzcG9uc2USZgoJU2V0R2F0aW5nEisudnJvb2xpLnRyZWFzdXJ5LnYxLmJ1ZGdldC5TZXRHYXRpbmdSZXF1ZXN0GiwudnJvb2xpLnRyZWFzdXJ5LnYxLmJ1ZGdldC5TZXRHYXRpbmdSZXNwb25zZRJvCgxGcmVlemVCdWRnZXQSLi52cm9vbGkudHJlYXN1cnkudjEuYnVkZ2V0LkZyZWV6ZUJ1ZGdldFJlcXVlc3QaLy52cm9vbGkudHJlYXN1cnkudjEuYnVkZ2V0LkZyZWV6ZUJ1ZGdldFJlc3BvbnNlEnUKDlVuZnJlZXplQnVkZ2V0EjAudnJvb2xpLnRyZWFzdXJ5LnYxLmJ1ZGdldC5VbmZyZWV6ZUJ1ZGdldFJlcXVlc3QaMS52cm9vbGkudHJlYXN1cnkudjEuYnVkZ2V0LlVuZnJlZXplQnVkZ2V0UmVzcG9uc2USaQoKRnJlZXplQm9vaxIsLnZyb29saS50cmVhc3VyeS52MS5idWRnZXQuRnJlZXplQm9va1JlcXVlc3QaLS52cm9vbGkudHJlYXN1cnkudjEuYnVkZ2V0LkZyZWV6ZUJvb2tSZXNwb25zZRJvCgxVbmZyZWV6ZUJvb2sSLi52cm9vbGkudHJlYXN1cnkudjEuYnVkZ2V0LlVuZnJlZXplQm9va1JlcXVlc3QaLy52cm9vbGkudHJlYXN1cnkudjEuYnVkZ2V0LlVuZnJlZXplQm9va1Jlc3BvbnNlEmYKCUZyZWV6ZUFsbBIrLnZyb29saS50cmVhc3VyeS52MS5idWRnZXQuRnJlZXplQWxsUmVxdWVzdBosLnZyb29saS50cmVhc3VyeS52MS5idWRnZXQuRnJlZXplQWxsUmVzcG9uc2USeAoPR2V0RnJlZXplU3RhdHVzEjEudnJvb2xpLnRyZWFzdXJ5LnYxLmJ1ZGdldC5HZXRGcmVlemVTdGF0dXNSZXF1ZXN0GjIudnJvb2xpLnRyZWFzdXJ5LnYxLmJ1ZGdldC5HZXRGcmVlemVTdGF0dXNSZXNwb25zZRJsCgtVbmZyZWV6ZUFsbBItLnZyb29saS50cmVhc3VyeS52MS5idWRnZXQuVW5mcmVlemVBbGxSZXF1ZXN0Gi4udnJvb2xpLnRyZWFzdXJ5LnYxLmJ1ZGdldC5VbmZyZWV6ZUFsbFJlc3BvbnNlQk1aS2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdHJlYXN1cnkvdjEvYnVkZ2V0O2J1ZGdldF92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.treasury.v1.budget.Budget
@@ -82,104 +82,415 @@ export const BudgetSchema: GenMessage<Budget> = /*@__PURE__*/
   messageDesc(file_treasury_v1_budget_budget, 0);
 
 /**
- * @generated from message vrooli.treasury.v1.budget.Headroom
+ * @generated from message vrooli.treasury.v1.budget.SetBudgetCapsRequest
  */
-export type Headroom = Message<"vrooli.treasury.v1.budget.Headroom"> & {
+export type SetBudgetCapsRequest = Message<"vrooli.treasury.v1.budget.SetBudgetCapsRequest"> & {
+  /**
+   * @generated from field: vrooli.treasury.v1.budget.Budget budget = 1;
+   */
+  budget?: Budget | undefined;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.budget.SetBudgetCapsRequest.
+ * Use `create(SetBudgetCapsRequestSchema)` to create a new message.
+ */
+export const SetBudgetCapsRequestSchema: GenMessage<SetBudgetCapsRequest> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_budget_budget, 1);
+
+/**
+ * @generated from message vrooli.treasury.v1.budget.SetBudgetCapsResponse
+ */
+export type SetBudgetCapsResponse = Message<"vrooli.treasury.v1.budget.SetBudgetCapsResponse"> & {
+  /**
+   * @generated from field: vrooli.treasury.v1.budget.Budget budget = 1;
+   */
+  budget?: Budget | undefined;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.budget.SetBudgetCapsResponse.
+ * Use `create(SetBudgetCapsResponseSchema)` to create a new message.
+ */
+export const SetBudgetCapsResponseSchema: GenMessage<SetBudgetCapsResponse> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_budget_budget, 2);
+
+/**
+ * @generated from message vrooli.treasury.v1.budget.SetGatingRequest
+ */
+export type SetGatingRequest = Message<"vrooli.treasury.v1.budget.SetGatingRequest"> & {
   /**
    * @generated from field: string budget_id = 1;
    */
   budgetId: string;
 
   /**
-   * @generated from field: string book_id = 2;
+   * @generated from field: bool requires_approval = 2;
+   */
+  requiresApproval: boolean;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.budget.SetGatingRequest.
+ * Use `create(SetGatingRequestSchema)` to create a new message.
+ */
+export const SetGatingRequestSchema: GenMessage<SetGatingRequest> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_budget_budget, 3);
+
+/**
+ * @generated from message vrooli.treasury.v1.budget.SetGatingResponse
+ */
+export type SetGatingResponse = Message<"vrooli.treasury.v1.budget.SetGatingResponse"> & {
+  /**
+   * @generated from field: vrooli.treasury.v1.budget.Budget budget = 1;
+   */
+  budget?: Budget | undefined;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.budget.SetGatingResponse.
+ * Use `create(SetGatingResponseSchema)` to create a new message.
+ */
+export const SetGatingResponseSchema: GenMessage<SetGatingResponse> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_budget_budget, 4);
+
+/**
+ * @generated from message vrooli.treasury.v1.budget.FreezeBudgetRequest
+ */
+export type FreezeBudgetRequest = Message<"vrooli.treasury.v1.budget.FreezeBudgetRequest"> & {
+  /**
+   * @generated from field: string budget_id = 1;
+   */
+  budgetId: string;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.budget.FreezeBudgetRequest.
+ * Use `create(FreezeBudgetRequestSchema)` to create a new message.
+ */
+export const FreezeBudgetRequestSchema: GenMessage<FreezeBudgetRequest> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_budget_budget, 5);
+
+/**
+ * @generated from message vrooli.treasury.v1.budget.FreezeBudgetResponse
+ */
+export type FreezeBudgetResponse = Message<"vrooli.treasury.v1.budget.FreezeBudgetResponse"> & {
+  /**
+   * @generated from field: vrooli.treasury.v1.budget.Budget budget = 1;
+   */
+  budget?: Budget | undefined;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.budget.FreezeBudgetResponse.
+ * Use `create(FreezeBudgetResponseSchema)` to create a new message.
+ */
+export const FreezeBudgetResponseSchema: GenMessage<FreezeBudgetResponse> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_budget_budget, 6);
+
+/**
+ * @generated from message vrooli.treasury.v1.budget.UnfreezeBudgetRequest
+ */
+export type UnfreezeBudgetRequest = Message<"vrooli.treasury.v1.budget.UnfreezeBudgetRequest"> & {
+  /**
+   * @generated from field: string budget_id = 1;
+   */
+  budgetId: string;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.budget.UnfreezeBudgetRequest.
+ * Use `create(UnfreezeBudgetRequestSchema)` to create a new message.
+ */
+export const UnfreezeBudgetRequestSchema: GenMessage<UnfreezeBudgetRequest> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_budget_budget, 7);
+
+/**
+ * @generated from message vrooli.treasury.v1.budget.UnfreezeBudgetResponse
+ */
+export type UnfreezeBudgetResponse = Message<"vrooli.treasury.v1.budget.UnfreezeBudgetResponse"> & {
+  /**
+   * @generated from field: vrooli.treasury.v1.budget.Budget budget = 1;
+   */
+  budget?: Budget | undefined;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.budget.UnfreezeBudgetResponse.
+ * Use `create(UnfreezeBudgetResponseSchema)` to create a new message.
+ */
+export const UnfreezeBudgetResponseSchema: GenMessage<UnfreezeBudgetResponse> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_budget_budget, 8);
+
+/**
+ * @generated from message vrooli.treasury.v1.budget.FreezeBookRequest
+ */
+export type FreezeBookRequest = Message<"vrooli.treasury.v1.budget.FreezeBookRequest"> & {
+  /**
+   * @generated from field: string book_id = 1;
+   */
+  bookId: string;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.budget.FreezeBookRequest.
+ * Use `create(FreezeBookRequestSchema)` to create a new message.
+ */
+export const FreezeBookRequestSchema: GenMessage<FreezeBookRequest> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_budget_budget, 9);
+
+/**
+ * @generated from message vrooli.treasury.v1.budget.FreezeBookResponse
+ */
+export type FreezeBookResponse = Message<"vrooli.treasury.v1.budget.FreezeBookResponse"> & {
+  /**
+   * @generated from field: string book_id = 1;
    */
   bookId: string;
 
   /**
-   * @generated from field: string currency = 3;
+   * @generated from field: bool frozen = 2;
    */
-  currency: string;
+  frozen: boolean;
 
   /**
-   * @generated from field: int64 total_cap_minor = 4;
+   * @generated from field: google.protobuf.Timestamp updated_at = 3;
    */
-  totalCapMinor: bigint;
-
-  /**
-   * @generated from field: int64 total_used_minor = 5;
-   */
-  totalUsedMinor: bigint;
-
-  /**
-   * @generated from field: int64 total_remaining_minor = 6;
-   */
-  totalRemainingMinor: bigint;
-
-  /**
-   * @generated from field: int64 periodic_cap_minor = 7;
-   */
-  periodicCapMinor: bigint;
-
-  /**
-   * @generated from field: int64 period_used_minor = 8;
-   */
-  periodUsedMinor: bigint;
-
-  /**
-   * @generated from field: int64 period_remaining_minor = 9;
-   */
-  periodRemainingMinor: bigint;
-
-  /**
-   * @generated from field: int64 per_transaction_cap_minor = 10;
-   */
-  perTransactionCapMinor: bigint;
-
-  /**
-   * @generated from field: int64 available_minor = 11;
-   */
-  availableMinor: bigint;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp period_started_at = 12;
-   */
-  periodStartedAt?: Timestamp | undefined;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp computed_at = 13;
-   */
-  computedAt?: Timestamp | undefined;
-
-  /**
-   * @generated from field: bool funding_required = 14;
-   */
-  fundingRequired: boolean;
-
-  /**
-   * @generated from field: int64 funding_credited_minor = 15;
-   */
-  fundingCreditedMinor: bigint;
-
-  /**
-   * @generated from field: int64 funding_remaining_minor = 16;
-   */
-  fundingRemainingMinor: bigint;
-
-  /**
-   * @generated from field: string funding_atomic_amount = 17;
-   */
-  fundingAtomicAmount: string;
-
-  /**
-   * @generated from field: string funding_asset_id = 18;
-   */
-  fundingAssetId: string;
+  updatedAt?: Timestamp | undefined;
 };
 
 /**
- * Describes the message vrooli.treasury.v1.budget.Headroom.
- * Use `create(HeadroomSchema)` to create a new message.
+ * Describes the message vrooli.treasury.v1.budget.FreezeBookResponse.
+ * Use `create(FreezeBookResponseSchema)` to create a new message.
  */
-export const HeadroomSchema: GenMessage<Headroom> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_budget_budget, 1);
+export const FreezeBookResponseSchema: GenMessage<FreezeBookResponse> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_budget_budget, 10);
+
+/**
+ * @generated from message vrooli.treasury.v1.budget.UnfreezeBookRequest
+ */
+export type UnfreezeBookRequest = Message<"vrooli.treasury.v1.budget.UnfreezeBookRequest"> & {
+  /**
+   * @generated from field: string book_id = 1;
+   */
+  bookId: string;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.budget.UnfreezeBookRequest.
+ * Use `create(UnfreezeBookRequestSchema)` to create a new message.
+ */
+export const UnfreezeBookRequestSchema: GenMessage<UnfreezeBookRequest> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_budget_budget, 11);
+
+/**
+ * @generated from message vrooli.treasury.v1.budget.UnfreezeBookResponse
+ */
+export type UnfreezeBookResponse = Message<"vrooli.treasury.v1.budget.UnfreezeBookResponse"> & {
+  /**
+   * @generated from field: string book_id = 1;
+   */
+  bookId: string;
+
+  /**
+   * @generated from field: bool frozen = 2;
+   */
+  frozen: boolean;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 3;
+   */
+  updatedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.budget.UnfreezeBookResponse.
+ * Use `create(UnfreezeBookResponseSchema)` to create a new message.
+ */
+export const UnfreezeBookResponseSchema: GenMessage<UnfreezeBookResponse> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_budget_budget, 12);
+
+/**
+ * @generated from message vrooli.treasury.v1.budget.FreezeAllRequest
+ */
+export type FreezeAllRequest = Message<"vrooli.treasury.v1.budget.FreezeAllRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.budget.FreezeAllRequest.
+ * Use `create(FreezeAllRequestSchema)` to create a new message.
+ */
+export const FreezeAllRequestSchema: GenMessage<FreezeAllRequest> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_budget_budget, 13);
+
+/**
+ * @generated from message vrooli.treasury.v1.budget.FreezeAllResponse
+ */
+export type FreezeAllResponse = Message<"vrooli.treasury.v1.budget.FreezeAllResponse"> & {
+  /**
+   * @generated from field: bool frozen = 1;
+   */
+  frozen: boolean;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 2;
+   */
+  updatedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.budget.FreezeAllResponse.
+ * Use `create(FreezeAllResponseSchema)` to create a new message.
+ */
+export const FreezeAllResponseSchema: GenMessage<FreezeAllResponse> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_budget_budget, 14);
+
+/**
+ * @generated from message vrooli.treasury.v1.budget.GetFreezeStatusRequest
+ */
+export type GetFreezeStatusRequest = Message<"vrooli.treasury.v1.budget.GetFreezeStatusRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.budget.GetFreezeStatusRequest.
+ * Use `create(GetFreezeStatusRequestSchema)` to create a new message.
+ */
+export const GetFreezeStatusRequestSchema: GenMessage<GetFreezeStatusRequest> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_budget_budget, 15);
+
+/**
+ * @generated from message vrooli.treasury.v1.budget.GetFreezeStatusResponse
+ */
+export type GetFreezeStatusResponse = Message<"vrooli.treasury.v1.budget.GetFreezeStatusResponse"> & {
+  /**
+   * @generated from field: bool frozen = 1;
+   */
+  frozen: boolean;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 2;
+   */
+  updatedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.budget.GetFreezeStatusResponse.
+ * Use `create(GetFreezeStatusResponseSchema)` to create a new message.
+ */
+export const GetFreezeStatusResponseSchema: GenMessage<GetFreezeStatusResponse> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_budget_budget, 16);
+
+/**
+ * @generated from message vrooli.treasury.v1.budget.UnfreezeAllRequest
+ */
+export type UnfreezeAllRequest = Message<"vrooli.treasury.v1.budget.UnfreezeAllRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.budget.UnfreezeAllRequest.
+ * Use `create(UnfreezeAllRequestSchema)` to create a new message.
+ */
+export const UnfreezeAllRequestSchema: GenMessage<UnfreezeAllRequest> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_budget_budget, 17);
+
+/**
+ * @generated from message vrooli.treasury.v1.budget.UnfreezeAllResponse
+ */
+export type UnfreezeAllResponse = Message<"vrooli.treasury.v1.budget.UnfreezeAllResponse"> & {
+  /**
+   * @generated from field: bool frozen = 1;
+   */
+  frozen: boolean;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 2;
+   */
+  updatedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.budget.UnfreezeAllResponse.
+ * Use `create(UnfreezeAllResponseSchema)` to create a new message.
+ */
+export const UnfreezeAllResponseSchema: GenMessage<UnfreezeAllResponse> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_budget_budget, 18);
+
+/**
+ * @generated from service vrooli.treasury.v1.budget.BudgetAdminService
+ */
+export const BudgetAdminService: GenService<{
+  /**
+   * @generated from rpc vrooli.treasury.v1.budget.BudgetAdminService.SetBudgetCaps
+   */
+  setBudgetCaps: {
+    methodKind: "unary";
+    input: typeof SetBudgetCapsRequestSchema;
+    output: typeof SetBudgetCapsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.budget.BudgetAdminService.SetGating
+   */
+  setGating: {
+    methodKind: "unary";
+    input: typeof SetGatingRequestSchema;
+    output: typeof SetGatingResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.budget.BudgetAdminService.FreezeBudget
+   */
+  freezeBudget: {
+    methodKind: "unary";
+    input: typeof FreezeBudgetRequestSchema;
+    output: typeof FreezeBudgetResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.budget.BudgetAdminService.UnfreezeBudget
+   */
+  unfreezeBudget: {
+    methodKind: "unary";
+    input: typeof UnfreezeBudgetRequestSchema;
+    output: typeof UnfreezeBudgetResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.budget.BudgetAdminService.FreezeBook
+   */
+  freezeBook: {
+    methodKind: "unary";
+    input: typeof FreezeBookRequestSchema;
+    output: typeof FreezeBookResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.budget.BudgetAdminService.UnfreezeBook
+   */
+  unfreezeBook: {
+    methodKind: "unary";
+    input: typeof UnfreezeBookRequestSchema;
+    output: typeof UnfreezeBookResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.budget.BudgetAdminService.FreezeAll
+   */
+  freezeAll: {
+    methodKind: "unary";
+    input: typeof FreezeAllRequestSchema;
+    output: typeof FreezeAllResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.budget.BudgetAdminService.GetFreezeStatus
+   */
+  getFreezeStatus: {
+    methodKind: "unary";
+    input: typeof GetFreezeStatusRequestSchema;
+    output: typeof GetFreezeStatusResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.budget.BudgetAdminService.UnfreezeAll
+   */
+  unfreezeAll: {
+    methodKind: "unary";
+    input: typeof UnfreezeAllRequestSchema;
+    output: typeof UnfreezeAllResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_treasury_v1_budget_budget, 0);
 

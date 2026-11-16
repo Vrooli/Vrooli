@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "architecture",
-  "input_digest": "sha256:d0c5881ef2f7b988a8c1fd322fadeb5abefc2fea73c8b8ee33df666607dd2ea6",
+  "input_digest": "sha256:6d647ee6db57ee8d6c9aea936d10d01c5c8f9e72e3f36e55d9c1dfe85f51189b",
   "input_files": [
     "schemas/architecture/v1/findings.proto",
     "schemas/common/v1/validation_target.proto"
@@ -9,7 +9,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
-    "generator_digest": "sha256:cccdbaf9a556a5be923d2c17f31d7f3f1e8de7959b27263f9ddbb964a4b52cc9",
+    "generator_digest": "sha256:47bbfc74c5d2c0e0172be6ac47ec939b6b4678e8ca51fa8202f7056c8fc16447",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -18,12 +18,12 @@
     }
   },
   "outputs": {
-    "gen/go/architecture/v1/findings.pb.go": "sha256:0cbe91725e5501c1a3e159a5f3cf81baaaf9ce3c90abbe7e94b7a7767ca3afbe",
+    "gen/go/architecture/v1/findings.pb.go": "sha256:071a5a97a394d3848581f54ea7a7052213b6d6eb6a4c7bdecbd644cba059c87d",
     "gen/python/architecture/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/architecture/v1/findings_pb2.py": "sha256:0e341bbb1bc92ffce08415b87f815dd6def961b886ca35903c9b583c23a3652a",
-    "gen/python/architecture/v1/findings_pb2.pyi": "sha256:baeb955f6566c61f1a4c47d516c3690ce217a223c8c9976b6c93a9d69a9f9218",
+    "gen/python/architecture/v1/findings_pb2.py": "sha256:cb18282fadfca718d013a8e895ff4dd22f465783b40f622b36ed211efcff9df0",
+    "gen/python/architecture/v1/findings_pb2.pyi": "sha256:f6c70f00f36795d065847729bd16e9e6b222ef36e18c8c55f212d80260f6e381",
     "gen/python/architecture/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/architecture/v1/findings_pb.ts": "sha256:4fff21322629891e2ea7e9b66c1b29c7397e0531058788e101db5de3499691b5",
-    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
+    "gen/typescript/architecture/v1/findings_pb.ts": "sha256:5fc94bb43bbbc7bee2277afa0d4d974fa8253a97e7f20dbc72eff09af3748f25",
+    "gen/typescript/package.json": "sha256:d7210c69e0b4e8eb72d65b1503ce8ea1eeb61aa893b5442e16d0ab4a9980e5d6"
   }
 }

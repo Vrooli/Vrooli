@@ -2033,7 +2033,6 @@ func (x *ListGoalsResponse) GetGoals() []*GoalVerdict {
 type ArchiveBookRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
-	Actor         string                 `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2071,13 +2070,6 @@ func (*ArchiveBookRequest) Descriptor() ([]byte, []int) {
 func (x *ArchiveBookRequest) GetBookId() string {
 	if x != nil {
 		return x.BookId
-	}
-	return ""
-}
-
-func (x *ArchiveBookRequest) GetActor() string {
-	if x != nil {
-		return x.Actor
 	}
 	return ""
 }
@@ -2129,7 +2121,6 @@ func (x *ArchiveBookResponse) GetBook() *Book {
 type ArchiveGoalRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	GoalId        string                 `protobuf:"bytes,1,opt,name=goal_id,json=goalId,proto3" json:"goal_id,omitempty"`
-	Actor         string                 `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2167,13 +2158,6 @@ func (*ArchiveGoalRequest) Descriptor() ([]byte, []int) {
 func (x *ArchiveGoalRequest) GetGoalId() string {
 	if x != nil {
 		return x.GoalId
-	}
-	return ""
-}
-
-func (x *ArchiveGoalRequest) GetActor() string {
-	if x != nil {
-		return x.Actor
 	}
 	return ""
 }
@@ -2226,7 +2210,6 @@ type ReparentGoalRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	GoalId        string                 `protobuf:"bytes,1,opt,name=goal_id,json=goalId,proto3" json:"goal_id,omitempty"`
 	BookId        string                 `protobuf:"bytes,2,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
-	Actor         string                 `protobuf:"bytes,3,opt,name=actor,proto3" json:"actor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2271,13 +2254,6 @@ func (x *ReparentGoalRequest) GetGoalId() string {
 func (x *ReparentGoalRequest) GetBookId() string {
 	if x != nil {
 		return x.BookId
-	}
-	return ""
-}
-
-func (x *ReparentGoalRequest) GetActor() string {
-	if x != nil {
-		return x.Actor
 	}
 	return ""
 }
@@ -2479,21 +2455,18 @@ const file_money_ledger_v1_ledger_ledger_proto_rawDesc = "" +
 	"\abook_id\x18\x01 \x01(\tR\x06bookId\x12)\n" +
 	"\x10include_archived\x18\x02 \x01(\bR\x0fincludeArchived\"U\n" +
 	"\x11ListGoalsResponse\x12@\n" +
-	"\x05goals\x18\x01 \x03(\v2*.vrooli.money_ledger.v1.ledger.GoalVerdictR\x05goals\"C\n" +
+	"\x05goals\x18\x01 \x03(\v2*.vrooli.money_ledger.v1.ledger.GoalVerdictR\x05goals\":\n" +
 	"\x12ArchiveBookRequest\x12\x17\n" +
-	"\abook_id\x18\x01 \x01(\tR\x06bookId\x12\x14\n" +
-	"\x05actor\x18\x02 \x01(\tR\x05actor\"N\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookIdJ\x04\b\x02\x10\x03R\x05actor\"N\n" +
 	"\x13ArchiveBookResponse\x127\n" +
-	"\x04book\x18\x01 \x01(\v2#.vrooli.money_ledger.v1.ledger.BookR\x04book\"C\n" +
+	"\x04book\x18\x01 \x01(\v2#.vrooli.money_ledger.v1.ledger.BookR\x04book\":\n" +
 	"\x12ArchiveGoalRequest\x12\x17\n" +
-	"\agoal_id\x18\x01 \x01(\tR\x06goalId\x12\x14\n" +
-	"\x05actor\x18\x02 \x01(\tR\x05actor\"N\n" +
+	"\agoal_id\x18\x01 \x01(\tR\x06goalIdJ\x04\b\x02\x10\x03R\x05actor\"N\n" +
 	"\x13ArchiveGoalResponse\x127\n" +
-	"\x04goal\x18\x01 \x01(\v2#.vrooli.money_ledger.v1.ledger.GoalR\x04goal\"]\n" +
+	"\x04goal\x18\x01 \x01(\v2#.vrooli.money_ledger.v1.ledger.GoalR\x04goal\"T\n" +
 	"\x13ReparentGoalRequest\x12\x17\n" +
 	"\agoal_id\x18\x01 \x01(\tR\x06goalId\x12\x17\n" +
-	"\abook_id\x18\x02 \x01(\tR\x06bookId\x12\x14\n" +
-	"\x05actor\x18\x03 \x01(\tR\x05actor\"O\n" +
+	"\abook_id\x18\x02 \x01(\tR\x06bookIdJ\x04\b\x03\x10\x04R\x05actor\"O\n" +
 	"\x14ReparentGoalResponse\x127\n" +
 	"\x04goal\x18\x01 \x01(\v2#.vrooli.money_ledger.v1.ledger.GoalR\x04goal*V\n" +
 	"\x11SustainPeriodUnit\x12#\n" +

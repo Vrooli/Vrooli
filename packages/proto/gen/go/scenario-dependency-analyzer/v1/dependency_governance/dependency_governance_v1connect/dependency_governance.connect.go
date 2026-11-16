@@ -85,6 +85,12 @@ const (
 	// DependencyGovernanceServiceInstallDependencyProcedure is the fully-qualified name of the
 	// DependencyGovernanceService's InstallDependency RPC.
 	DependencyGovernanceServiceInstallDependencyProcedure = "/vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService/InstallDependency"
+	// DependencyGovernanceServiceRemoveDependencyProcedure is the fully-qualified name of the
+	// DependencyGovernanceService's RemoveDependency RPC.
+	DependencyGovernanceServiceRemoveDependencyProcedure = "/vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService/RemoveDependency"
+	// DependencyGovernanceServiceUpdateLockedDependencyProcedure is the fully-qualified name of the
+	// DependencyGovernanceService's UpdateLockedDependency RPC.
+	DependencyGovernanceServiceUpdateLockedDependencyProcedure = "/vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService/UpdateLockedDependency"
 )
 
 // DependencyGovernanceServiceClient is a client for the
@@ -112,6 +118,20 @@ type DependencyGovernanceServiceClient interface {
 	// for vulnerabilities. It is the sanctioned alternative to a raw `pnpm add`/
 	// `go get`/`pip install`.
 	InstallDependency(context.Context, *connect.Request[dependency_governance.InstallDependencyRequest]) (*connect.Response[dependency_governance.InstallDependencyResponse], error)
+	// RemoveDependency is the governed counterpart for taking JavaScript
+	// dependencies off a surface: it resolves the removal in a staging copy,
+	// previews the lockfile change, and on apply publishes the manifest and
+	// lockfile and relinks node_modules from the lock, restoring the previous
+	// inputs when relinking fails. Dry-run by default.
+	RemoveDependency(context.Context, *connect.Request[dependency_governance.RemoveDependencyRequest]) (*connect.Response[dependency_governance.RemoveDependencyResponse], error)
+	// UpdateLockedDependency moves packages that are already in a surface's
+	// lockfile (direct or transitive) to the newest version their declared ranges
+	// allow, for example to take a security fix an in-range release already
+	// carries. It changes the lockfile only, never a manifest range, so it adds no
+	// dependency and needs no governance verdict. It resolves in a staging copy,
+	// previews the closure change, and on apply publishes the lockfile and relinks
+	// node_modules like RemoveDependency. Dry-run by default.
+	UpdateLockedDependency(context.Context, *connect.Request[dependency_governance.UpdateLockedDependencyRequest]) (*connect.Response[dependency_governance.UpdateLockedDependencyResponse], error)
 }
 
 // NewDependencyGovernanceServiceClient constructs a client for the
@@ -228,6 +248,18 @@ func NewDependencyGovernanceServiceClient(httpClient connect.HTTPClient, baseURL
 			connect.WithSchema(dependencyGovernanceServiceMethods.ByName("InstallDependency")),
 			connect.WithClientOptions(opts...),
 		),
+		removeDependency: connect.NewClient[dependency_governance.RemoveDependencyRequest, dependency_governance.RemoveDependencyResponse](
+			httpClient,
+			baseURL+DependencyGovernanceServiceRemoveDependencyProcedure,
+			connect.WithSchema(dependencyGovernanceServiceMethods.ByName("RemoveDependency")),
+			connect.WithClientOptions(opts...),
+		),
+		updateLockedDependency: connect.NewClient[dependency_governance.UpdateLockedDependencyRequest, dependency_governance.UpdateLockedDependencyResponse](
+			httpClient,
+			baseURL+DependencyGovernanceServiceUpdateLockedDependencyProcedure,
+			connect.WithSchema(dependencyGovernanceServiceMethods.ByName("UpdateLockedDependency")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -250,6 +282,8 @@ type dependencyGovernanceServiceClient struct {
 	previewVulnerabilityRemediation   *connect.Client[dependency_governance.PreviewVulnerabilityRemediationRequest, dependency_governance.VulnerabilityRemediationResponse]
 	denyVulnerableDependency          *connect.Client[dependency_governance.DenyVulnerableDependencyRequest, dependency_governance.VulnerabilityRemediationResponse]
 	installDependency                 *connect.Client[dependency_governance.InstallDependencyRequest, dependency_governance.InstallDependencyResponse]
+	removeDependency                  *connect.Client[dependency_governance.RemoveDependencyRequest, dependency_governance.RemoveDependencyResponse]
+	updateLockedDependency            *connect.Client[dependency_governance.UpdateLockedDependencyRequest, dependency_governance.UpdateLockedDependencyResponse]
 }
 
 // ListApprovedDependencies calls
@@ -354,6 +388,18 @@ func (c *dependencyGovernanceServiceClient) InstallDependency(ctx context.Contex
 	return c.installDependency.CallUnary(ctx, req)
 }
 
+// RemoveDependency calls
+// vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.RemoveDependency.
+func (c *dependencyGovernanceServiceClient) RemoveDependency(ctx context.Context, req *connect.Request[dependency_governance.RemoveDependencyRequest]) (*connect.Response[dependency_governance.RemoveDependencyResponse], error) {
+	return c.removeDependency.CallUnary(ctx, req)
+}
+
+// UpdateLockedDependency calls
+// vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.UpdateLockedDependency.
+func (c *dependencyGovernanceServiceClient) UpdateLockedDependency(ctx context.Context, req *connect.Request[dependency_governance.UpdateLockedDependencyRequest]) (*connect.Response[dependency_governance.UpdateLockedDependencyResponse], error) {
+	return c.updateLockedDependency.CallUnary(ctx, req)
+}
+
 // DependencyGovernanceServiceHandler is an implementation of the
 // vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService service.
 type DependencyGovernanceServiceHandler interface {
@@ -379,6 +425,20 @@ type DependencyGovernanceServiceHandler interface {
 	// for vulnerabilities. It is the sanctioned alternative to a raw `pnpm add`/
 	// `go get`/`pip install`.
 	InstallDependency(context.Context, *connect.Request[dependency_governance.InstallDependencyRequest]) (*connect.Response[dependency_governance.InstallDependencyResponse], error)
+	// RemoveDependency is the governed counterpart for taking JavaScript
+	// dependencies off a surface: it resolves the removal in a staging copy,
+	// previews the lockfile change, and on apply publishes the manifest and
+	// lockfile and relinks node_modules from the lock, restoring the previous
+	// inputs when relinking fails. Dry-run by default.
+	RemoveDependency(context.Context, *connect.Request[dependency_governance.RemoveDependencyRequest]) (*connect.Response[dependency_governance.RemoveDependencyResponse], error)
+	// UpdateLockedDependency moves packages that are already in a surface's
+	// lockfile (direct or transitive) to the newest version their declared ranges
+	// allow, for example to take a security fix an in-range release already
+	// carries. It changes the lockfile only, never a manifest range, so it adds no
+	// dependency and needs no governance verdict. It resolves in a staging copy,
+	// previews the closure change, and on apply publishes the lockfile and relinks
+	// node_modules like RemoveDependency. Dry-run by default.
+	UpdateLockedDependency(context.Context, *connect.Request[dependency_governance.UpdateLockedDependencyRequest]) (*connect.Response[dependency_governance.UpdateLockedDependencyResponse], error)
 }
 
 // NewDependencyGovernanceServiceHandler builds an HTTP handler from the service implementation. It
@@ -490,6 +550,18 @@ func NewDependencyGovernanceServiceHandler(svc DependencyGovernanceServiceHandle
 		connect.WithSchema(dependencyGovernanceServiceMethods.ByName("InstallDependency")),
 		connect.WithHandlerOptions(opts...),
 	)
+	dependencyGovernanceServiceRemoveDependencyHandler := connect.NewUnaryHandler(
+		DependencyGovernanceServiceRemoveDependencyProcedure,
+		svc.RemoveDependency,
+		connect.WithSchema(dependencyGovernanceServiceMethods.ByName("RemoveDependency")),
+		connect.WithHandlerOptions(opts...),
+	)
+	dependencyGovernanceServiceUpdateLockedDependencyHandler := connect.NewUnaryHandler(
+		DependencyGovernanceServiceUpdateLockedDependencyProcedure,
+		svc.UpdateLockedDependency,
+		connect.WithSchema(dependencyGovernanceServiceMethods.ByName("UpdateLockedDependency")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DependencyGovernanceServiceListApprovedDependenciesProcedure:
@@ -526,6 +598,10 @@ func NewDependencyGovernanceServiceHandler(svc DependencyGovernanceServiceHandle
 			dependencyGovernanceServiceDenyVulnerableDependencyHandler.ServeHTTP(w, r)
 		case DependencyGovernanceServiceInstallDependencyProcedure:
 			dependencyGovernanceServiceInstallDependencyHandler.ServeHTTP(w, r)
+		case DependencyGovernanceServiceRemoveDependencyProcedure:
+			dependencyGovernanceServiceRemoveDependencyHandler.ServeHTTP(w, r)
+		case DependencyGovernanceServiceUpdateLockedDependencyProcedure:
+			dependencyGovernanceServiceUpdateLockedDependencyHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -601,4 +677,12 @@ func (UnimplementedDependencyGovernanceServiceHandler) DenyVulnerableDependency(
 
 func (UnimplementedDependencyGovernanceServiceHandler) InstallDependency(context.Context, *connect.Request[dependency_governance.InstallDependencyRequest]) (*connect.Response[dependency_governance.InstallDependencyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.InstallDependency is not implemented"))
+}
+
+func (UnimplementedDependencyGovernanceServiceHandler) RemoveDependency(context.Context, *connect.Request[dependency_governance.RemoveDependencyRequest]) (*connect.Response[dependency_governance.RemoveDependencyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.RemoveDependency is not implemented"))
+}
+
+func (UnimplementedDependencyGovernanceServiceHandler) UpdateLockedDependency(context.Context, *connect.Request[dependency_governance.UpdateLockedDependencyRequest]) (*connect.Response[dependency_governance.UpdateLockedDependencyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.UpdateLockedDependency is not implemented"))
 }

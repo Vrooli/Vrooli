@@ -918,6 +918,10 @@ type LifecycleCandidate struct {
 	PersistenceFilesScanned int32                `protobuf:"varint,25,opt,name=persistence_files_scanned,json=persistenceFilesScanned,proto3" json:"persistence_files_scanned,omitempty"`
 	PersistenceScanComplete bool                 `protobuf:"varint,26,opt,name=persistence_scan_complete,json=persistenceScanComplete,proto3" json:"persistence_scan_complete,omitempty"`
 	PreselectionStatus      string               `protobuf:"bytes,27,opt,name=preselection_status,json=preselectionStatus,proto3" json:"preselection_status,omitempty"`
+	// True only when source evidence proves a transition table rejects invalid edges.
+	TransitionGraphVerified *bool `protobuf:"varint,28,opt,name=transition_graph_verified,json=transitionGraphVerified,proto3,oneof" json:"transition_graph_verified,omitempty"`
+	// True only when an owner test asserts rejection of an invalid transition.
+	InvalidTransitionTested *bool `protobuf:"varint,29,opt,name=invalid_transition_tested,json=invalidTransitionTested,proto3,oneof" json:"invalid_transition_tested,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -1139,6 +1143,20 @@ func (x *LifecycleCandidate) GetPreselectionStatus() string {
 		return x.PreselectionStatus
 	}
 	return ""
+}
+
+func (x *LifecycleCandidate) GetTransitionGraphVerified() bool {
+	if x != nil && x.TransitionGraphVerified != nil {
+		return *x.TransitionGraphVerified
+	}
+	return false
+}
+
+func (x *LifecycleCandidate) GetInvalidTransitionTested() bool {
+	if x != nil && x.InvalidTransitionTested != nil {
+		return *x.InvalidTransitionTested
+	}
+	return false
 }
 
 type GenerateScenarioArtifactsRequest struct {
@@ -1410,7 +1428,7 @@ const file_flow_verifier_v1_scenarios_scenarios_proto_rawDesc = "" +
 	"\x0ematched_states\x18\x04 \x03(\tR\rmatchedStates\x122\n" +
 	"\x15candidate_state_count\x18\x05 \x01(\x05R\x13candidateStateCount\x120\n" +
 	"\x14contract_state_count\x18\x06 \x01(\x05R\x12contractStateCount\x122\n" +
-	"\x15exact_lifecycle_match\x18\a \x01(\bR\x13exactLifecycleMatch\"\xbd\f\n" +
+	"\x15exact_lifecycle_match\x18\a \x01(\bR\x13exactLifecycleMatch\"\xfb\r\n" +
 	"\x12LifecycleCandidate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vscenario_id\x18\x02 \x01(\tR\n" +
@@ -1448,7 +1466,11 @@ const file_flow_verifier_v1_scenarios_scenarios_proto_rawDesc = "" +
 	"\x11persistence_scope\x18\x18 \x01(\tR\x10persistenceScope\x12:\n" +
 	"\x19persistence_files_scanned\x18\x19 \x01(\x05R\x17persistenceFilesScanned\x12:\n" +
 	"\x19persistence_scan_complete\x18\x1a \x01(\bR\x17persistenceScanComplete\x12/\n" +
-	"\x13preselection_status\x18\x1b \x01(\tR\x12preselectionStatus\"C\n" +
+	"\x13preselection_status\x18\x1b \x01(\tR\x12preselectionStatus\x12?\n" +
+	"\x19transition_graph_verified\x18\x1c \x01(\bH\x00R\x17transitionGraphVerified\x88\x01\x01\x12?\n" +
+	"\x19invalid_transition_tested\x18\x1d \x01(\bH\x01R\x17invalidTransitionTested\x88\x01\x01B\x1c\n" +
+	"\x1a_transition_graph_verifiedB\x1c\n" +
+	"\x1a_invalid_transition_tested\"C\n" +
 	" GenerateScenarioArtifactsRequest\x12\x1f\n" +
 	"\vscenario_id\x18\x01 \x01(\tR\n" +
 	"scenarioId\"\xac\x01\n" +
@@ -1548,6 +1570,7 @@ func file_flow_verifier_v1_scenarios_scenarios_proto_init() {
 	if File_flow_verifier_v1_scenarios_scenarios_proto != nil {
 		return
 	}
+	file_flow_verifier_v1_scenarios_scenarios_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

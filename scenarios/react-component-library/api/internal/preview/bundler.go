@@ -31,9 +31,10 @@ func NewEsbuilderWithRoot(root string) *Esbuilder {
 	return &Esbuilder{root: root}
 }
 
-// BuildBundle bundles TSX → ES module text. sourcePath is used as the
-// stdin Sourcefile and to derive ResolveDir, so diagnostics reference
-// the component file and relative imports resolve beside it.
+// BuildBundle bundles TSX → ES module text in memory. sourcePath is used only
+// as the stdin Sourcefile and to derive ResolveDir, so diagnostics reference
+// the component file and relative imports resolve beside it. Write stays false:
+// a generated-looking sourcePath never materializes source or bundle files.
 func (b Esbuilder) BuildBundle(_ context.Context, tsx string, sourcePath string) (string, []string, error) {
 	resolveDir, err := b.resolveDir(sourcePath)
 	if err != nil {

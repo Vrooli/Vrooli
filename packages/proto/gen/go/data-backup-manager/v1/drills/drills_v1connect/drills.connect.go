@@ -45,6 +45,9 @@ const (
 	// RecoveryDrillsServiceListDrillsProcedure is the fully-qualified name of the
 	// RecoveryDrillsService's ListDrills RPC.
 	RecoveryDrillsServiceListDrillsProcedure = "/vrooli.data_backup_manager.v1.drills.RecoveryDrillsService/ListDrills"
+	// RecoveryDrillsServiceRetireDrillProcedure is the fully-qualified name of the
+	// RecoveryDrillsService's RetireDrill RPC.
+	RecoveryDrillsServiceRetireDrillProcedure = "/vrooli.data_backup_manager.v1.drills.RecoveryDrillsService/RetireDrill"
 )
 
 // RecoveryDrillsServiceClient is a client for the
@@ -54,6 +57,7 @@ type RecoveryDrillsServiceClient interface {
 	RunDrill(context.Context, *connect.Request[drills.RunDrillRequest]) (*connect.Response[drills.RunDrillResponse], error)
 	GetDrill(context.Context, *connect.Request[drills.GetDrillRequest]) (*connect.Response[drills.GetDrillResponse], error)
 	ListDrills(context.Context, *connect.Request[drills.ListDrillsRequest]) (*connect.Response[drills.ListDrillsResponse], error)
+	RetireDrill(context.Context, *connect.Request[drills.RetireDrillRequest]) (*connect.Response[drills.RetireDrillResponse], error)
 }
 
 // NewRecoveryDrillsServiceClient constructs a client for the
@@ -92,6 +96,12 @@ func NewRecoveryDrillsServiceClient(httpClient connect.HTTPClient, baseURL strin
 			connect.WithSchema(recoveryDrillsServiceMethods.ByName("ListDrills")),
 			connect.WithClientOptions(opts...),
 		),
+		retireDrill: connect.NewClient[drills.RetireDrillRequest, drills.RetireDrillResponse](
+			httpClient,
+			baseURL+RecoveryDrillsServiceRetireDrillProcedure,
+			connect.WithSchema(recoveryDrillsServiceMethods.ByName("RetireDrill")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -101,6 +111,7 @@ type recoveryDrillsServiceClient struct {
 	runDrill     *connect.Client[drills.RunDrillRequest, drills.RunDrillResponse]
 	getDrill     *connect.Client[drills.GetDrillRequest, drills.GetDrillResponse]
 	listDrills   *connect.Client[drills.ListDrillsRequest, drills.ListDrillsResponse]
+	retireDrill  *connect.Client[drills.RetireDrillRequest, drills.RetireDrillResponse]
 }
 
 // PreviewDrill calls vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.PreviewDrill.
@@ -123,6 +134,11 @@ func (c *recoveryDrillsServiceClient) ListDrills(ctx context.Context, req *conne
 	return c.listDrills.CallUnary(ctx, req)
 }
 
+// RetireDrill calls vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.RetireDrill.
+func (c *recoveryDrillsServiceClient) RetireDrill(ctx context.Context, req *connect.Request[drills.RetireDrillRequest]) (*connect.Response[drills.RetireDrillResponse], error) {
+	return c.retireDrill.CallUnary(ctx, req)
+}
+
 // RecoveryDrillsServiceHandler is an implementation of the
 // vrooli.data_backup_manager.v1.drills.RecoveryDrillsService service.
 type RecoveryDrillsServiceHandler interface {
@@ -130,6 +146,7 @@ type RecoveryDrillsServiceHandler interface {
 	RunDrill(context.Context, *connect.Request[drills.RunDrillRequest]) (*connect.Response[drills.RunDrillResponse], error)
 	GetDrill(context.Context, *connect.Request[drills.GetDrillRequest]) (*connect.Response[drills.GetDrillResponse], error)
 	ListDrills(context.Context, *connect.Request[drills.ListDrillsRequest]) (*connect.Response[drills.ListDrillsResponse], error)
+	RetireDrill(context.Context, *connect.Request[drills.RetireDrillRequest]) (*connect.Response[drills.RetireDrillResponse], error)
 }
 
 // NewRecoveryDrillsServiceHandler builds an HTTP handler from the service implementation. It
@@ -163,6 +180,12 @@ func NewRecoveryDrillsServiceHandler(svc RecoveryDrillsServiceHandler, opts ...c
 		connect.WithSchema(recoveryDrillsServiceMethods.ByName("ListDrills")),
 		connect.WithHandlerOptions(opts...),
 	)
+	recoveryDrillsServiceRetireDrillHandler := connect.NewUnaryHandler(
+		RecoveryDrillsServiceRetireDrillProcedure,
+		svc.RetireDrill,
+		connect.WithSchema(recoveryDrillsServiceMethods.ByName("RetireDrill")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.data_backup_manager.v1.drills.RecoveryDrillsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RecoveryDrillsServicePreviewDrillProcedure:
@@ -173,6 +196,8 @@ func NewRecoveryDrillsServiceHandler(svc RecoveryDrillsServiceHandler, opts ...c
 			recoveryDrillsServiceGetDrillHandler.ServeHTTP(w, r)
 		case RecoveryDrillsServiceListDrillsProcedure:
 			recoveryDrillsServiceListDrillsHandler.ServeHTTP(w, r)
+		case RecoveryDrillsServiceRetireDrillProcedure:
+			recoveryDrillsServiceRetireDrillHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -196,4 +221,8 @@ func (UnimplementedRecoveryDrillsServiceHandler) GetDrill(context.Context, *conn
 
 func (UnimplementedRecoveryDrillsServiceHandler) ListDrills(context.Context, *connect.Request[drills.ListDrillsRequest]) (*connect.Response[drills.ListDrillsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.ListDrills is not implemented"))
+}
+
+func (UnimplementedRecoveryDrillsServiceHandler) RetireDrill(context.Context, *connect.Request[drills.RetireDrillRequest]) (*connect.Response[drills.RetireDrillResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.RetireDrill is not implemented"))
 }

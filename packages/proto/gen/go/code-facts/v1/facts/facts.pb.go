@@ -122,7 +122,10 @@ const (
 	// STACK describes declared component and resource stack facts, preserving
 	// unknown values with evidence instead of inferring unsupported claims.
 	FactFamily_FACT_FAMILY_STACK FactFamily = 12
-	FactFamily_FACT_FAMILY_ALL   FactFamily = 99
+	// FILE_METRICS reports catalog-backed lexical per-file size facts. It does
+	// not imply that a file is parseable by a language graph provider.
+	FactFamily_FACT_FAMILY_FILE_METRICS FactFamily = 13
+	FactFamily_FACT_FAMILY_ALL          FactFamily = 99
 )
 
 // Enum value maps for FactFamily.
@@ -141,6 +144,7 @@ var (
 		10: "FACT_FAMILY_UI_WIDGET_PROOFS",
 		11: "FACT_FAMILY_FILE_DOMAIN",
 		12: "FACT_FAMILY_STACK",
+		13: "FACT_FAMILY_FILE_METRICS",
 		99: "FACT_FAMILY_ALL",
 	}
 	FactFamily_value = map[string]int32{
@@ -157,6 +161,7 @@ var (
 		"FACT_FAMILY_UI_WIDGET_PROOFS": 10,
 		"FACT_FAMILY_FILE_DOMAIN":      11,
 		"FACT_FAMILY_STACK":            12,
+		"FACT_FAMILY_FILE_METRICS":     13,
 		"FACT_FAMILY_ALL":              99,
 	}
 )
@@ -4256,7 +4261,7 @@ const file_code_facts_v1_facts_facts_proto_rawDesc = "" +
 	"\x15TARGET_KIND_SAFEGUARD\x10\n" +
 	"\x12\x14\n" +
 	"\x10TARGET_KIND_DOCS\x10\v\x12\x14\n" +
-	"\x10TARGET_KIND_TEAM\x10\f*\x8d\x03\n" +
+	"\x10TARGET_KIND_TEAM\x10\f*\xab\x03\n" +
 	"\n" +
 	"FactFamily\x12\x1b\n" +
 	"\x17FACT_FAMILY_UNSPECIFIED\x10\x00\x12\x18\n" +
@@ -4272,7 +4277,8 @@ const file_code_facts_v1_facts_facts_proto_rawDesc = "" +
 	"\x1cFACT_FAMILY_UI_WIDGET_PROOFS\x10\n" +
 	"\x12\x1b\n" +
 	"\x17FACT_FAMILY_FILE_DOMAIN\x10\v\x12\x15\n" +
-	"\x11FACT_FAMILY_STACK\x10\f\x12\x13\n" +
+	"\x11FACT_FAMILY_STACK\x10\f\x12\x1c\n" +
+	"\x18FACT_FAMILY_FILE_METRICS\x10\r\x12\x13\n" +
 	"\x0fFACT_FAMILY_ALL\x10c*\xca\x01\n" +
 	"\x0eEvidenceStatus\x12\x1f\n" +
 	"\x1bEVIDENCE_STATUS_UNSPECIFIED\x10\x00\x12\x1a\n" +

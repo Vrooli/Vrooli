@@ -409,8 +409,10 @@ type EnhancedSystemReport struct {
 	AlertsCount int32 `protobuf:"varint,13,opt,name=alerts_count,json=alertsCount,proto3" json:"alerts_count,omitempty"`
 	// Total investigations during period.
 	InvestigationsCount int32 `protobuf:"varint,14,opt,name=investigations_count,json=investigationsCount,proto3" json:"investigations_count,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Per-owner CPU, memory, swap, and GPU residency observed during the report window.
+	OwnerResources *OwnerResourceReport `protobuf:"bytes,15,opt,name=owner_resources,json=ownerResources,proto3" json:"owner_resources,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *EnhancedSystemReport) Reset() {
@@ -541,6 +543,271 @@ func (x *EnhancedSystemReport) GetInvestigationsCount() int32 {
 	return 0
 }
 
+func (x *EnhancedSystemReport) GetOwnerResources() *OwnerResourceReport {
+	if x != nil {
+		return x.OwnerResources
+	}
+	return nil
+}
+
+// OwnerResourceReport is bounded process telemetry summarized by stable owner.
+type OwnerResourceReport struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The requested process timeline window; complete also checks sample coverage.
+	WindowStart *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=window_start,json=windowStart,proto3" json:"window_start,omitempty"`
+	WindowEnd   *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=window_end,json=windowEnd,proto3" json:"window_end,omitempty"`
+	// False when no samples, window-edge coverage gaps, or a saturated group cap were observed.
+	Complete bool `protobuf:"varint,3,opt,name=complete,proto3" json:"complete,omitempty"`
+	// False when at least one process group has no known owner.
+	AttributionComplete bool `protobuf:"varint,4,opt,name=attribution_complete,json=attributionComplete,proto3" json:"attribution_complete,omitempty"`
+	// Number of process groups returned by the bounded source query.
+	ReturnedProcessGroups int32 `protobuf:"varint,5,opt,name=returned_process_groups,json=returnedProcessGroups,proto3" json:"returned_process_groups,omitempty"`
+	// Per-owner totals and sample means.
+	Owners []*OwnerResourceSummary `protobuf:"bytes,6,rep,name=owners,proto3" json:"owners,omitempty"`
+	// Earliest and latest process samples that contributed to this report.
+	SampleCoverageStart *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=sample_coverage_start,json=sampleCoverageStart,proto3" json:"sample_coverage_start,omitempty"`
+	SampleCoverageEnd   *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=sample_coverage_end,json=sampleCoverageEnd,proto3" json:"sample_coverage_end,omitempty"`
+	// Swap reporting is complete only when every returned process sample had a measured swap value and both window edges are covered.
+	SwapCoverageComplete bool                   `protobuf:"varint,9,opt,name=swap_coverage_complete,json=swapCoverageComplete,proto3" json:"swap_coverage_complete,omitempty"`
+	SwapMeasuredSamples  int64                  `protobuf:"varint,10,opt,name=swap_measured_samples,json=swapMeasuredSamples,proto3" json:"swap_measured_samples,omitempty"`
+	SwapUnknownSamples   int64                  `protobuf:"varint,11,opt,name=swap_unknown_samples,json=swapUnknownSamples,proto3" json:"swap_unknown_samples,omitempty"`
+	SwapCoverageStart    *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=swap_coverage_start,json=swapCoverageStart,proto3" json:"swap_coverage_start,omitempty"`
+	SwapCoverageEnd      *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=swap_coverage_end,json=swapCoverageEnd,proto3" json:"swap_coverage_end,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *OwnerResourceReport) Reset() {
+	*x = OwnerResourceReport{}
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OwnerResourceReport) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OwnerResourceReport) ProtoMessage() {}
+
+func (x *OwnerResourceReport) ProtoReflect() protoreflect.Message {
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OwnerResourceReport.ProtoReflect.Descriptor instead.
+func (*OwnerResourceReport) Descriptor() ([]byte, []int) {
+	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *OwnerResourceReport) GetWindowStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.WindowStart
+	}
+	return nil
+}
+
+func (x *OwnerResourceReport) GetWindowEnd() *timestamppb.Timestamp {
+	if x != nil {
+		return x.WindowEnd
+	}
+	return nil
+}
+
+func (x *OwnerResourceReport) GetComplete() bool {
+	if x != nil {
+		return x.Complete
+	}
+	return false
+}
+
+func (x *OwnerResourceReport) GetAttributionComplete() bool {
+	if x != nil {
+		return x.AttributionComplete
+	}
+	return false
+}
+
+func (x *OwnerResourceReport) GetReturnedProcessGroups() int32 {
+	if x != nil {
+		return x.ReturnedProcessGroups
+	}
+	return 0
+}
+
+func (x *OwnerResourceReport) GetOwners() []*OwnerResourceSummary {
+	if x != nil {
+		return x.Owners
+	}
+	return nil
+}
+
+func (x *OwnerResourceReport) GetSampleCoverageStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SampleCoverageStart
+	}
+	return nil
+}
+
+func (x *OwnerResourceReport) GetSampleCoverageEnd() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SampleCoverageEnd
+	}
+	return nil
+}
+
+func (x *OwnerResourceReport) GetSwapCoverageComplete() bool {
+	if x != nil {
+		return x.SwapCoverageComplete
+	}
+	return false
+}
+
+func (x *OwnerResourceReport) GetSwapMeasuredSamples() int64 {
+	if x != nil {
+		return x.SwapMeasuredSamples
+	}
+	return 0
+}
+
+func (x *OwnerResourceReport) GetSwapUnknownSamples() int64 {
+	if x != nil {
+		return x.SwapUnknownSamples
+	}
+	return 0
+}
+
+func (x *OwnerResourceReport) GetSwapCoverageStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SwapCoverageStart
+	}
+	return nil
+}
+
+func (x *OwnerResourceReport) GetSwapCoverageEnd() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SwapCoverageEnd
+	}
+	return nil
+}
+
+// OwnerResourceSummary is a process-group aggregate. Memory values are sums of
+// per-process-group sample means, not a simultaneous host allocation snapshot.
+type OwnerResourceSummary struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	Owner                    string                 `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
+	ProcessGroups            int32                  `protobuf:"varint,2,opt,name=process_groups,json=processGroups,proto3" json:"process_groups,omitempty"`
+	Samples                  int64                  `protobuf:"varint,3,opt,name=samples,proto3" json:"samples,omitempty"`
+	CoreHours                float64                `protobuf:"fixed64,4,opt,name=core_hours,json=coreHours,proto3" json:"core_hours,omitempty"`
+	MeanRssGibProcessSum     float64                `protobuf:"fixed64,5,opt,name=mean_rss_gib_process_sum,json=meanRssGibProcessSum,proto3" json:"mean_rss_gib_process_sum,omitempty"`
+	MeanSwapGibProcessSum    float64                `protobuf:"fixed64,6,opt,name=mean_swap_gib_process_sum,json=meanSwapGibProcessSum,proto3" json:"mean_swap_gib_process_sum,omitempty"`
+	PeakSingleProcessVramGib float64                `protobuf:"fixed64,7,opt,name=peak_single_process_vram_gib,json=peakSingleProcessVramGib,proto3" json:"peak_single_process_vram_gib,omitempty"`
+	SwapMeasuredSamples      int64                  `protobuf:"varint,8,opt,name=swap_measured_samples,json=swapMeasuredSamples,proto3" json:"swap_measured_samples,omitempty"`
+	SwapUnknownSamples       int64                  `protobuf:"varint,9,opt,name=swap_unknown_samples,json=swapUnknownSamples,proto3" json:"swap_unknown_samples,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *OwnerResourceSummary) Reset() {
+	*x = OwnerResourceSummary{}
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OwnerResourceSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OwnerResourceSummary) ProtoMessage() {}
+
+func (x *OwnerResourceSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OwnerResourceSummary.ProtoReflect.Descriptor instead.
+func (*OwnerResourceSummary) Descriptor() ([]byte, []int) {
+	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *OwnerResourceSummary) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *OwnerResourceSummary) GetProcessGroups() int32 {
+	if x != nil {
+		return x.ProcessGroups
+	}
+	return 0
+}
+
+func (x *OwnerResourceSummary) GetSamples() int64 {
+	if x != nil {
+		return x.Samples
+	}
+	return 0
+}
+
+func (x *OwnerResourceSummary) GetCoreHours() float64 {
+	if x != nil {
+		return x.CoreHours
+	}
+	return 0
+}
+
+func (x *OwnerResourceSummary) GetMeanRssGibProcessSum() float64 {
+	if x != nil {
+		return x.MeanRssGibProcessSum
+	}
+	return 0
+}
+
+func (x *OwnerResourceSummary) GetMeanSwapGibProcessSum() float64 {
+	if x != nil {
+		return x.MeanSwapGibProcessSum
+	}
+	return 0
+}
+
+func (x *OwnerResourceSummary) GetPeakSingleProcessVramGib() float64 {
+	if x != nil {
+		return x.PeakSingleProcessVramGib
+	}
+	return 0
+}
+
+func (x *OwnerResourceSummary) GetSwapMeasuredSamples() int64 {
+	if x != nil {
+		return x.SwapMeasuredSamples
+	}
+	return 0
+}
+
+func (x *OwnerResourceSummary) GetSwapUnknownSamples() int64 {
+	if x != nil {
+		return x.SwapUnknownSamples
+	}
+	return 0
+}
+
 // ReportTimeRange defines start and end for a report period.
 type ReportTimeRange struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -554,7 +821,7 @@ type ReportTimeRange struct {
 
 func (x *ReportTimeRange) Reset() {
 	*x = ReportTimeRange{}
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[5]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -566,7 +833,7 @@ func (x *ReportTimeRange) String() string {
 func (*ReportTimeRange) ProtoMessage() {}
 
 func (x *ReportTimeRange) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[5]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -579,7 +846,7 @@ func (x *ReportTimeRange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportTimeRange.ProtoReflect.Descriptor instead.
 func (*ReportTimeRange) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{5}
+	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ReportTimeRange) GetStartTime() *timestamppb.Timestamp {
@@ -613,7 +880,7 @@ type EnhancedExecutiveSummary struct {
 
 func (x *EnhancedExecutiveSummary) Reset() {
 	*x = EnhancedExecutiveSummary{}
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[6]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -625,7 +892,7 @@ func (x *EnhancedExecutiveSummary) String() string {
 func (*EnhancedExecutiveSummary) ProtoMessage() {}
 
 func (x *EnhancedExecutiveSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[6]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -638,7 +905,7 @@ func (x *EnhancedExecutiveSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnhancedExecutiveSummary.ProtoReflect.Descriptor instead.
 func (*EnhancedExecutiveSummary) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{6}
+	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *EnhancedExecutiveSummary) GetOverallHealth() string {
@@ -684,7 +951,7 @@ type PerformanceAnalysis struct {
 
 func (x *PerformanceAnalysis) Reset() {
 	*x = PerformanceAnalysis{}
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[7]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -696,7 +963,7 @@ func (x *PerformanceAnalysis) String() string {
 func (*PerformanceAnalysis) ProtoMessage() {}
 
 func (x *PerformanceAnalysis) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[7]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -709,7 +976,7 @@ func (x *PerformanceAnalysis) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PerformanceAnalysis.ProtoReflect.Descriptor instead.
 func (*PerformanceAnalysis) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{7}
+	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *PerformanceAnalysis) GetCpu() *MetricStats {
@@ -756,7 +1023,7 @@ type MetricStats struct {
 
 func (x *MetricStats) Reset() {
 	*x = MetricStats{}
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[8]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -768,7 +1035,7 @@ func (x *MetricStats) String() string {
 func (*MetricStats) ProtoMessage() {}
 
 func (x *MetricStats) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[8]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -781,7 +1048,7 @@ func (x *MetricStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MetricStats.ProtoReflect.Descriptor instead.
 func (*MetricStats) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{8}
+	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *MetricStats) GetAverage() float64 {
@@ -850,7 +1117,7 @@ type Trend struct {
 
 func (x *Trend) Reset() {
 	*x = Trend{}
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[9]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -862,7 +1129,7 @@ func (x *Trend) String() string {
 func (*Trend) ProtoMessage() {}
 
 func (x *Trend) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[9]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -875,7 +1142,7 @@ func (x *Trend) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Trend.ProtoReflect.Descriptor instead.
 func (*Trend) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{9}
+	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Trend) GetName() string {
@@ -917,7 +1184,7 @@ type GenerateReportRequest struct {
 
 func (x *GenerateReportRequest) Reset() {
 	*x = GenerateReportRequest{}
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[10]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -929,7 +1196,7 @@ func (x *GenerateReportRequest) String() string {
 func (*GenerateReportRequest) ProtoMessage() {}
 
 func (x *GenerateReportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[10]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -942,7 +1209,7 @@ func (x *GenerateReportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateReportRequest.ProtoReflect.Descriptor instead.
 func (*GenerateReportRequest) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{10}
+	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GenerateReportRequest) GetType() string {
@@ -963,7 +1230,7 @@ type GenerateReportResponse struct {
 
 func (x *GenerateReportResponse) Reset() {
 	*x = GenerateReportResponse{}
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[11]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -975,7 +1242,7 @@ func (x *GenerateReportResponse) String() string {
 func (*GenerateReportResponse) ProtoMessage() {}
 
 func (x *GenerateReportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[11]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -988,7 +1255,7 @@ func (x *GenerateReportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateReportResponse.ProtoReflect.Descriptor instead.
 func (*GenerateReportResponse) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{11}
+	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GenerateReportResponse) GetReport() *EnhancedSystemReport {
@@ -1007,7 +1274,7 @@ type ListReportsRequest struct {
 
 func (x *ListReportsRequest) Reset() {
 	*x = ListReportsRequest{}
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[12]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1019,7 +1286,7 @@ func (x *ListReportsRequest) String() string {
 func (*ListReportsRequest) ProtoMessage() {}
 
 func (x *ListReportsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[12]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1032,7 +1299,7 @@ func (x *ListReportsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListReportsRequest.ProtoReflect.Descriptor instead.
 func (*ListReportsRequest) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{12}
+	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{14}
 }
 
 // ListReportsResponse returns available reports.
@@ -1048,7 +1315,7 @@ type ListReportsResponse struct {
 
 func (x *ListReportsResponse) Reset() {
 	*x = ListReportsResponse{}
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[13]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1060,7 +1327,7 @@ func (x *ListReportsResponse) String() string {
 func (*ListReportsResponse) ProtoMessage() {}
 
 func (x *ListReportsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[13]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1073,7 +1340,7 @@ func (x *ListReportsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListReportsResponse.ProtoReflect.Descriptor instead.
 func (*ListReportsResponse) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{13}
+	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListReportsResponse) GetReports() []*EnhancedSystemReport {
@@ -1101,7 +1368,7 @@ type GetReportRequest struct {
 
 func (x *GetReportRequest) Reset() {
 	*x = GetReportRequest{}
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[14]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1113,7 +1380,7 @@ func (x *GetReportRequest) String() string {
 func (*GetReportRequest) ProtoMessage() {}
 
 func (x *GetReportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[14]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1126,7 +1393,7 @@ func (x *GetReportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetReportRequest.ProtoReflect.Descriptor instead.
 func (*GetReportRequest) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{14}
+	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetReportRequest) GetId() string {
@@ -1147,7 +1414,7 @@ type GetReportResponse struct {
 
 func (x *GetReportResponse) Reset() {
 	*x = GetReportResponse{}
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[15]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1159,7 +1426,7 @@ func (x *GetReportResponse) String() string {
 func (*GetReportResponse) ProtoMessage() {}
 
 func (x *GetReportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[15]
+	mi := &file_system_monitor_v1_reports_reports_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1172,7 +1439,7 @@ func (x *GetReportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetReportResponse.ProtoReflect.Descriptor instead.
 func (*GetReportResponse) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{15}
+	return file_system_monitor_v1_reports_reports_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetReportResponse) GetReport() *EnhancedSystemReport {
@@ -1216,7 +1483,7 @@ const file_system_monitor_v1_reports_reports_proto_rawDesc = "" +
 	"\bseverity\x18\x02 \x01(\tR\bseverity\x12\x1a\n" +
 	"\bcategory\x18\x03 \x01(\tR\bcategory\x12\x18\n" +
 	"\amessage\x18\x04 \x01(\tR\amessage\x12\x1a\n" +
-	"\bresolved\x18\x05 \x01(\bR\bresolved\"\x84\x06\n" +
+	"\bresolved\x18\x05 \x01(\bR\bresolved\"\xe4\x06\n" +
 	"\x14EnhancedSystemReport\x12\x1b\n" +
 	"\treport_id\x18\x01 \x01(\tR\breportId\x12\x1f\n" +
 	"\vreport_type\x18\x02 \x01(\tR\n" +
@@ -1236,7 +1503,35 @@ const file_system_monitor_v1_reports_reports_proto_rawDesc = "" +
 	"highlights\x12#\n" +
 	"\rmetrics_count\x18\f \x01(\x05R\fmetricsCount\x12!\n" +
 	"\falerts_count\x18\r \x01(\x05R\valertsCount\x121\n" +
-	"\x14investigations_count\x18\x0e \x01(\x05R\x13investigationsCount\"\x83\x01\n" +
+	"\x14investigations_count\x18\x0e \x01(\x05R\x13investigationsCount\x12^\n" +
+	"\x0fowner_resources\x18\x0f \x01(\v25.vrooli.system_monitor.v1.reports.OwnerResourceReportR\x0eownerResources\"\xb2\x06\n" +
+	"\x13OwnerResourceReport\x12=\n" +
+	"\fwindow_start\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\vwindowStart\x129\n" +
+	"\n" +
+	"window_end\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\twindowEnd\x12\x1a\n" +
+	"\bcomplete\x18\x03 \x01(\bR\bcomplete\x121\n" +
+	"\x14attribution_complete\x18\x04 \x01(\bR\x13attributionComplete\x126\n" +
+	"\x17returned_process_groups\x18\x05 \x01(\x05R\x15returnedProcessGroups\x12N\n" +
+	"\x06owners\x18\x06 \x03(\v26.vrooli.system_monitor.v1.reports.OwnerResourceSummaryR\x06owners\x12N\n" +
+	"\x15sample_coverage_start\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x13sampleCoverageStart\x12J\n" +
+	"\x13sample_coverage_end\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\x11sampleCoverageEnd\x124\n" +
+	"\x16swap_coverage_complete\x18\t \x01(\bR\x14swapCoverageComplete\x122\n" +
+	"\x15swap_measured_samples\x18\n" +
+	" \x01(\x03R\x13swapMeasuredSamples\x120\n" +
+	"\x14swap_unknown_samples\x18\v \x01(\x03R\x12swapUnknownSamples\x12J\n" +
+	"\x13swap_coverage_start\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\x11swapCoverageStart\x12F\n" +
+	"\x11swap_coverage_end\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\x0fswapCoverageEnd\"\xa4\x03\n" +
+	"\x14OwnerResourceSummary\x12\x14\n" +
+	"\x05owner\x18\x01 \x01(\tR\x05owner\x12%\n" +
+	"\x0eprocess_groups\x18\x02 \x01(\x05R\rprocessGroups\x12\x18\n" +
+	"\asamples\x18\x03 \x01(\x03R\asamples\x12\x1d\n" +
+	"\n" +
+	"core_hours\x18\x04 \x01(\x01R\tcoreHours\x126\n" +
+	"\x18mean_rss_gib_process_sum\x18\x05 \x01(\x01R\x14meanRssGibProcessSum\x128\n" +
+	"\x19mean_swap_gib_process_sum\x18\x06 \x01(\x01R\x15meanSwapGibProcessSum\x12>\n" +
+	"\x1cpeak_single_process_vram_gib\x18\a \x01(\x01R\x18peakSingleProcessVramGib\x122\n" +
+	"\x15swap_measured_samples\x18\b \x01(\x03R\x13swapMeasuredSamples\x120\n" +
+	"\x14swap_unknown_samples\x18\t \x01(\x03R\x12swapUnknownSamples\"\x83\x01\n" +
 	"\x0fReportTimeRange\x129\n" +
 	"\n" +
 	"start_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
@@ -1294,59 +1589,69 @@ func file_system_monitor_v1_reports_reports_proto_rawDescGZIP() []byte {
 	return file_system_monitor_v1_reports_reports_proto_rawDescData
 }
 
-var file_system_monitor_v1_reports_reports_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_system_monitor_v1_reports_reports_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_system_monitor_v1_reports_reports_proto_goTypes = []any{
 	(*SystemReport)(nil),             // 0: vrooli.system_monitor.v1.reports.SystemReport
 	(*ReportSummary)(nil),            // 1: vrooli.system_monitor.v1.reports.ReportSummary
 	(*ReportMetrics)(nil),            // 2: vrooli.system_monitor.v1.reports.ReportMetrics
 	(*ReportAlert)(nil),              // 3: vrooli.system_monitor.v1.reports.ReportAlert
 	(*EnhancedSystemReport)(nil),     // 4: vrooli.system_monitor.v1.reports.EnhancedSystemReport
-	(*ReportTimeRange)(nil),          // 5: vrooli.system_monitor.v1.reports.ReportTimeRange
-	(*EnhancedExecutiveSummary)(nil), // 6: vrooli.system_monitor.v1.reports.EnhancedExecutiveSummary
-	(*PerformanceAnalysis)(nil),      // 7: vrooli.system_monitor.v1.reports.PerformanceAnalysis
-	(*MetricStats)(nil),              // 8: vrooli.system_monitor.v1.reports.MetricStats
-	(*Trend)(nil),                    // 9: vrooli.system_monitor.v1.reports.Trend
-	(*GenerateReportRequest)(nil),    // 10: vrooli.system_monitor.v1.reports.GenerateReportRequest
-	(*GenerateReportResponse)(nil),   // 11: vrooli.system_monitor.v1.reports.GenerateReportResponse
-	(*ListReportsRequest)(nil),       // 12: vrooli.system_monitor.v1.reports.ListReportsRequest
-	(*ListReportsResponse)(nil),      // 13: vrooli.system_monitor.v1.reports.ListReportsResponse
-	(*GetReportRequest)(nil),         // 14: vrooli.system_monitor.v1.reports.GetReportRequest
-	(*GetReportResponse)(nil),        // 15: vrooli.system_monitor.v1.reports.GetReportResponse
-	(*timestamppb.Timestamp)(nil),    // 16: google.protobuf.Timestamp
+	(*OwnerResourceReport)(nil),      // 5: vrooli.system_monitor.v1.reports.OwnerResourceReport
+	(*OwnerResourceSummary)(nil),     // 6: vrooli.system_monitor.v1.reports.OwnerResourceSummary
+	(*ReportTimeRange)(nil),          // 7: vrooli.system_monitor.v1.reports.ReportTimeRange
+	(*EnhancedExecutiveSummary)(nil), // 8: vrooli.system_monitor.v1.reports.EnhancedExecutiveSummary
+	(*PerformanceAnalysis)(nil),      // 9: vrooli.system_monitor.v1.reports.PerformanceAnalysis
+	(*MetricStats)(nil),              // 10: vrooli.system_monitor.v1.reports.MetricStats
+	(*Trend)(nil),                    // 11: vrooli.system_monitor.v1.reports.Trend
+	(*GenerateReportRequest)(nil),    // 12: vrooli.system_monitor.v1.reports.GenerateReportRequest
+	(*GenerateReportResponse)(nil),   // 13: vrooli.system_monitor.v1.reports.GenerateReportResponse
+	(*ListReportsRequest)(nil),       // 14: vrooli.system_monitor.v1.reports.ListReportsRequest
+	(*ListReportsResponse)(nil),      // 15: vrooli.system_monitor.v1.reports.ListReportsResponse
+	(*GetReportRequest)(nil),         // 16: vrooli.system_monitor.v1.reports.GetReportRequest
+	(*GetReportResponse)(nil),        // 17: vrooli.system_monitor.v1.reports.GetReportResponse
+	(*timestamppb.Timestamp)(nil),    // 18: google.protobuf.Timestamp
 }
 var file_system_monitor_v1_reports_reports_proto_depIdxs = []int32{
-	16, // 0: vrooli.system_monitor.v1.reports.SystemReport.generated_at:type_name -> google.protobuf.Timestamp
-	16, // 1: vrooli.system_monitor.v1.reports.SystemReport.period_start:type_name -> google.protobuf.Timestamp
-	16, // 2: vrooli.system_monitor.v1.reports.SystemReport.period_end:type_name -> google.protobuf.Timestamp
+	18, // 0: vrooli.system_monitor.v1.reports.SystemReport.generated_at:type_name -> google.protobuf.Timestamp
+	18, // 1: vrooli.system_monitor.v1.reports.SystemReport.period_start:type_name -> google.protobuf.Timestamp
+	18, // 2: vrooli.system_monitor.v1.reports.SystemReport.period_end:type_name -> google.protobuf.Timestamp
 	1,  // 3: vrooli.system_monitor.v1.reports.SystemReport.summary:type_name -> vrooli.system_monitor.v1.reports.ReportSummary
 	2,  // 4: vrooli.system_monitor.v1.reports.SystemReport.metrics:type_name -> vrooli.system_monitor.v1.reports.ReportMetrics
 	3,  // 5: vrooli.system_monitor.v1.reports.SystemReport.alerts:type_name -> vrooli.system_monitor.v1.reports.ReportAlert
-	16, // 6: vrooli.system_monitor.v1.reports.ReportAlert.timestamp:type_name -> google.protobuf.Timestamp
-	16, // 7: vrooli.system_monitor.v1.reports.EnhancedSystemReport.generated_at:type_name -> google.protobuf.Timestamp
-	5,  // 8: vrooli.system_monitor.v1.reports.EnhancedSystemReport.time_range:type_name -> vrooli.system_monitor.v1.reports.ReportTimeRange
-	6,  // 9: vrooli.system_monitor.v1.reports.EnhancedSystemReport.executive_summary:type_name -> vrooli.system_monitor.v1.reports.EnhancedExecutiveSummary
-	7,  // 10: vrooli.system_monitor.v1.reports.EnhancedSystemReport.performance:type_name -> vrooli.system_monitor.v1.reports.PerformanceAnalysis
-	9,  // 11: vrooli.system_monitor.v1.reports.EnhancedSystemReport.trends:type_name -> vrooli.system_monitor.v1.reports.Trend
-	16, // 12: vrooli.system_monitor.v1.reports.ReportTimeRange.start_time:type_name -> google.protobuf.Timestamp
-	16, // 13: vrooli.system_monitor.v1.reports.ReportTimeRange.end_time:type_name -> google.protobuf.Timestamp
-	8,  // 14: vrooli.system_monitor.v1.reports.PerformanceAnalysis.cpu:type_name -> vrooli.system_monitor.v1.reports.MetricStats
-	8,  // 15: vrooli.system_monitor.v1.reports.PerformanceAnalysis.memory:type_name -> vrooli.system_monitor.v1.reports.MetricStats
-	16, // 16: vrooli.system_monitor.v1.reports.MetricStats.peak_time:type_name -> google.protobuf.Timestamp
-	16, // 17: vrooli.system_monitor.v1.reports.MetricStats.min_time:type_name -> google.protobuf.Timestamp
-	4,  // 18: vrooli.system_monitor.v1.reports.GenerateReportResponse.report:type_name -> vrooli.system_monitor.v1.reports.EnhancedSystemReport
-	4,  // 19: vrooli.system_monitor.v1.reports.ListReportsResponse.reports:type_name -> vrooli.system_monitor.v1.reports.EnhancedSystemReport
-	4,  // 20: vrooli.system_monitor.v1.reports.GetReportResponse.report:type_name -> vrooli.system_monitor.v1.reports.EnhancedSystemReport
-	10, // 21: vrooli.system_monitor.v1.reports.ReportsService.GenerateReport:input_type -> vrooli.system_monitor.v1.reports.GenerateReportRequest
-	12, // 22: vrooli.system_monitor.v1.reports.ReportsService.ListReports:input_type -> vrooli.system_monitor.v1.reports.ListReportsRequest
-	14, // 23: vrooli.system_monitor.v1.reports.ReportsService.GetReport:input_type -> vrooli.system_monitor.v1.reports.GetReportRequest
-	11, // 24: vrooli.system_monitor.v1.reports.ReportsService.GenerateReport:output_type -> vrooli.system_monitor.v1.reports.GenerateReportResponse
-	13, // 25: vrooli.system_monitor.v1.reports.ReportsService.ListReports:output_type -> vrooli.system_monitor.v1.reports.ListReportsResponse
-	15, // 26: vrooli.system_monitor.v1.reports.ReportsService.GetReport:output_type -> vrooli.system_monitor.v1.reports.GetReportResponse
-	24, // [24:27] is the sub-list for method output_type
-	21, // [21:24] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	18, // 6: vrooli.system_monitor.v1.reports.ReportAlert.timestamp:type_name -> google.protobuf.Timestamp
+	18, // 7: vrooli.system_monitor.v1.reports.EnhancedSystemReport.generated_at:type_name -> google.protobuf.Timestamp
+	7,  // 8: vrooli.system_monitor.v1.reports.EnhancedSystemReport.time_range:type_name -> vrooli.system_monitor.v1.reports.ReportTimeRange
+	8,  // 9: vrooli.system_monitor.v1.reports.EnhancedSystemReport.executive_summary:type_name -> vrooli.system_monitor.v1.reports.EnhancedExecutiveSummary
+	9,  // 10: vrooli.system_monitor.v1.reports.EnhancedSystemReport.performance:type_name -> vrooli.system_monitor.v1.reports.PerformanceAnalysis
+	11, // 11: vrooli.system_monitor.v1.reports.EnhancedSystemReport.trends:type_name -> vrooli.system_monitor.v1.reports.Trend
+	5,  // 12: vrooli.system_monitor.v1.reports.EnhancedSystemReport.owner_resources:type_name -> vrooli.system_monitor.v1.reports.OwnerResourceReport
+	18, // 13: vrooli.system_monitor.v1.reports.OwnerResourceReport.window_start:type_name -> google.protobuf.Timestamp
+	18, // 14: vrooli.system_monitor.v1.reports.OwnerResourceReport.window_end:type_name -> google.protobuf.Timestamp
+	6,  // 15: vrooli.system_monitor.v1.reports.OwnerResourceReport.owners:type_name -> vrooli.system_monitor.v1.reports.OwnerResourceSummary
+	18, // 16: vrooli.system_monitor.v1.reports.OwnerResourceReport.sample_coverage_start:type_name -> google.protobuf.Timestamp
+	18, // 17: vrooli.system_monitor.v1.reports.OwnerResourceReport.sample_coverage_end:type_name -> google.protobuf.Timestamp
+	18, // 18: vrooli.system_monitor.v1.reports.OwnerResourceReport.swap_coverage_start:type_name -> google.protobuf.Timestamp
+	18, // 19: vrooli.system_monitor.v1.reports.OwnerResourceReport.swap_coverage_end:type_name -> google.protobuf.Timestamp
+	18, // 20: vrooli.system_monitor.v1.reports.ReportTimeRange.start_time:type_name -> google.protobuf.Timestamp
+	18, // 21: vrooli.system_monitor.v1.reports.ReportTimeRange.end_time:type_name -> google.protobuf.Timestamp
+	10, // 22: vrooli.system_monitor.v1.reports.PerformanceAnalysis.cpu:type_name -> vrooli.system_monitor.v1.reports.MetricStats
+	10, // 23: vrooli.system_monitor.v1.reports.PerformanceAnalysis.memory:type_name -> vrooli.system_monitor.v1.reports.MetricStats
+	18, // 24: vrooli.system_monitor.v1.reports.MetricStats.peak_time:type_name -> google.protobuf.Timestamp
+	18, // 25: vrooli.system_monitor.v1.reports.MetricStats.min_time:type_name -> google.protobuf.Timestamp
+	4,  // 26: vrooli.system_monitor.v1.reports.GenerateReportResponse.report:type_name -> vrooli.system_monitor.v1.reports.EnhancedSystemReport
+	4,  // 27: vrooli.system_monitor.v1.reports.ListReportsResponse.reports:type_name -> vrooli.system_monitor.v1.reports.EnhancedSystemReport
+	4,  // 28: vrooli.system_monitor.v1.reports.GetReportResponse.report:type_name -> vrooli.system_monitor.v1.reports.EnhancedSystemReport
+	12, // 29: vrooli.system_monitor.v1.reports.ReportsService.GenerateReport:input_type -> vrooli.system_monitor.v1.reports.GenerateReportRequest
+	14, // 30: vrooli.system_monitor.v1.reports.ReportsService.ListReports:input_type -> vrooli.system_monitor.v1.reports.ListReportsRequest
+	16, // 31: vrooli.system_monitor.v1.reports.ReportsService.GetReport:input_type -> vrooli.system_monitor.v1.reports.GetReportRequest
+	13, // 32: vrooli.system_monitor.v1.reports.ReportsService.GenerateReport:output_type -> vrooli.system_monitor.v1.reports.GenerateReportResponse
+	15, // 33: vrooli.system_monitor.v1.reports.ReportsService.ListReports:output_type -> vrooli.system_monitor.v1.reports.ListReportsResponse
+	17, // 34: vrooli.system_monitor.v1.reports.ReportsService.GetReport:output_type -> vrooli.system_monitor.v1.reports.GetReportResponse
+	32, // [32:35] is the sub-list for method output_type
+	29, // [29:32] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_system_monitor_v1_reports_reports_proto_init() }
@@ -1360,7 +1665,7 @@ func file_system_monitor_v1_reports_reports_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_system_monitor_v1_reports_reports_proto_rawDesc), len(file_system_monitor_v1_reports_reports_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

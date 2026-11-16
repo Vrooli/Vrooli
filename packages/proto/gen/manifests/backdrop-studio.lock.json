@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "backdrop-studio",
-  "input_digest": "sha256:a12a440e0287715aa6728ec8b179c60721deb7727903a4fa338171dedcdce7e3",
+  "input_digest": "sha256:de81907e87160bf1997017cff51bca194339cce743d6d4f060d12cd889970334",
   "input_files": [
     "schemas/backdrop-studio/v1/catalog/catalog.proto",
     "schemas/backdrop-studio/v1/compose/compose.proto",
@@ -18,7 +18,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
-    "generator_digest": "sha256:cccdbaf9a556a5be923d2c17f31d7f3f1e8de7959b27263f9ddbb964a4b52cc9",
+    "generator_digest": "sha256:47bbfc74c5d2c0e0172be6ac47ec939b6b4678e8ca51fa8202f7056c8fc16447",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -37,7 +37,7 @@
     "gen/go/backdrop-studio/v1/legibility/legibility_v1connect/legibility.connect.go": "sha256:f561cf2a323d7a4bb8657f46fc0271032455bc229e2d2dc826b31d6d494c6756",
     "gen/go/backdrop-studio/v1/release/release.pb.go": "sha256:2da3d1821c0a335dae978b57d7bd1503e8fdbaa6c9c04298ae7d1a6d71e09768",
     "gen/go/backdrop-studio/v1/release/release_v1connect/release.connect.go": "sha256:884ff94c0aa233aed199ee660fd4733317e93c31109cfa1daf27dd5b88dc1399",
-    "gen/go/backdrop-studio/v1/render/render.pb.go": "sha256:75384c48b66df707b79371495ca6cd244e4e586e19c008a3cdda541cc5dcc294",
+    "gen/go/backdrop-studio/v1/render/render.pb.go": "sha256:9528a59579d3e8b7ebf9dd8dc1ddedd46f5ca8a0a4e9e021dc4a71a111aaaf75",
     "gen/go/backdrop-studio/v1/render/render_v1connect/render.connect.go": "sha256:7c49ab0f1214ab66745e4736a738176657bd2ea9cfd45f4563f9b781ac23729d",
     "gen/go/backdrop-studio/v1/scaffold/scaffold.pb.go": "sha256:5fa24b80e3ec01bb2cbeb24c3dc88573437f3f4b1b844cef64a7c8e7644d4d10",
     "gen/go/backdrop-studio/v1/scaffold/scaffold_v1connect/scaffold.connect.go": "sha256:c62222d91643dd6d5206986199e47753432cdb2446deedd05fd636c994c0382c",
@@ -64,8 +64,8 @@
     "gen/python/backdrop_studio/v1/release/release_pb2.py": "sha256:b015900037ed2d61a13bf5f6b022b2ce024b8fd869e6886b3d00b41c6d16892b",
     "gen/python/backdrop_studio/v1/release/release_pb2.pyi": "sha256:37444c71e8afd6dd78bb4688f718e5a5040d1b4f94664897572706d42e4eb0ec",
     "gen/python/backdrop_studio/v1/render/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/backdrop_studio/v1/render/render_pb2.py": "sha256:1f88ce1ead157a2b2f6c1b3966223e9c06838900ea8ea85cade6800309de0e9f",
-    "gen/python/backdrop_studio/v1/render/render_pb2.pyi": "sha256:fd59bc591ad25e4774a17d4090dbf19c8d1252d186eef206a8c4f51cb1b28b99",
+    "gen/python/backdrop_studio/v1/render/render_pb2.py": "sha256:553e31471b81d837443a0f659502280f71f6a6fbfafda77ce3652eec6db600c1",
+    "gen/python/backdrop_studio/v1/render/render_pb2.pyi": "sha256:3b9d2b78e4051e69b2205018bb1fe22439c388074a4ad21a013d7df8f75ea406",
     "gen/python/backdrop_studio/v1/scaffold/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/backdrop_studio/v1/scaffold/scaffold_pb2.py": "sha256:2ba8e0718c92b42aa79e58f612b49b1c8ef32cb70bbe122df9282027b5173559",
     "gen/python/backdrop_studio/v1/scaffold/scaffold_pb2.pyi": "sha256:34588f0157a94754a6c35c845d6bcb96f8b585f648e38836e3a8de47a5afaa39",
@@ -84,12 +84,12 @@
     "gen/typescript/backdrop-studio/v1/generators/generators_pb.ts": "sha256:749b752bfef4211367e821f14088da4241cc8fcb9a75da41701aa5a78d927fcb",
     "gen/typescript/backdrop-studio/v1/legibility/legibility_pb.ts": "sha256:bc9df662421201c4ed0c485d8f63bf08f127ac7b6eeeacb2b63ffe4c611bc1f6",
     "gen/typescript/backdrop-studio/v1/release/release_pb.ts": "sha256:3ba3602fedcf9781bf1aabd34683791f527fcacc65368778e8a07ac467ab9b33",
-    "gen/typescript/backdrop-studio/v1/render/render_pb.ts": "sha256:c0bd7c01f64ec24b743226e855967f821872c3317da31d08ffadd6ecbd2af8da",
+    "gen/typescript/backdrop-studio/v1/render/render_pb.ts": "sha256:6dd0d9262217200a21f4ea49fd8a827cb3e60152f7191f437ea0c5acb3e19d60",
     "gen/typescript/backdrop-studio/v1/scaffold/scaffold_pb.ts": "sha256:838a307cab87b0481a5e7eade6999fca1e5da32bea1d3305aa1870701beef506",
     "gen/typescript/backdrop-studio/v1/shared/errors_pb.ts": "sha256:4c10691fdd052b6d9bb5a014683664f7e19883e05f95e6808e35c9b92e8cfded",
     "gen/typescript/backdrop-studio/v1/shared/health_pb.ts": "sha256:d75e2997c69c7cb5686e2618b7ec301af529dd13e87b9c3fcbf430220e77ee9a",
     "gen/typescript/backdrop-studio/v1/shared/shared_pb.ts": "sha256:4c2e100579773d87594f440bf045a0503f30b116c7d623517f7d245ac8ad62ea",
     "gen/typescript/backdrop-studio/v1/surfaces/surfaces_pb.ts": "sha256:a58b3577fcebfe52737be219ac1e7ac49946190156df5f9fd91f831948a67bfb",
-    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
+    "gen/typescript/package.json": "sha256:d7210c69e0b4e8eb72d65b1503ce8ea1eeb61aa893b5442e16d0ab4a9980e5d6"
   }
 }

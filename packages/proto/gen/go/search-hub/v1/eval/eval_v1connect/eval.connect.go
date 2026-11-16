@@ -48,6 +48,12 @@ const (
 	// EvalServiceGetLatestCorpusValidationProcedure is the fully-qualified name of the EvalService's
 	// GetLatestCorpusValidation RPC.
 	EvalServiceGetLatestCorpusValidationProcedure = "/vrooli.search_hub.v1.eval.EvalService/GetLatestCorpusValidation"
+	// EvalServiceFreezeFixedDenominatorProcedure is the fully-qualified name of the EvalService's
+	// FreezeFixedDenominator RPC.
+	EvalServiceFreezeFixedDenominatorProcedure = "/vrooli.search_hub.v1.eval.EvalService/FreezeFixedDenominator"
+	// EvalServiceGetFixedDenominatorProcedure is the fully-qualified name of the EvalService's
+	// GetFixedDenominator RPC.
+	EvalServiceGetFixedDenominatorProcedure = "/vrooli.search_hub.v1.eval.EvalService/GetFixedDenominator"
 	// EvalServiceListRunsProcedure is the fully-qualified name of the EvalService's ListRuns RPC.
 	EvalServiceListRunsProcedure = "/vrooli.search_hub.v1.eval.EvalService/ListRuns"
 	// EvalServiceGetRunProcedure is the fully-qualified name of the EvalService's GetRun RPC.
@@ -83,6 +89,11 @@ type EvalServiceClient interface {
 	// Read the newest durable corpus-validation receipt without exposing probed
 	// queries or provider error text.
 	GetLatestCorpusValidation(context.Context, *connect.Request[eval.GetLatestCorpusValidationRequest]) (*connect.Response[eval.GetLatestCorpusValidationResponse], error)
+	// Freeze a reviewed positive denominator with an independent human review
+	// reference. The snapshot is immutable until another explicit review is
+	// registered for the suite.
+	FreezeFixedDenominator(context.Context, *connect.Request[eval.FreezeFixedDenominatorRequest]) (*connect.Response[eval.FreezeFixedDenominatorResponse], error)
+	GetFixedDenominator(context.Context, *connect.Request[eval.GetFixedDenominatorRequest]) (*connect.Response[eval.GetFixedDenominatorResponse], error)
 	// History, optionally filtered by tag.
 	ListRuns(context.Context, *connect.Request[eval.ListRunsRequest]) (*connect.Response[eval.ListRunsResponse], error)
 	GetRun(context.Context, *connect.Request[eval.GetRunRequest]) (*connect.Response[eval.GetRunResponse], error)
@@ -159,6 +170,18 @@ func NewEvalServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(evalServiceMethods.ByName("GetLatestCorpusValidation")),
 			connect.WithClientOptions(opts...),
 		),
+		freezeFixedDenominator: connect.NewClient[eval.FreezeFixedDenominatorRequest, eval.FreezeFixedDenominatorResponse](
+			httpClient,
+			baseURL+EvalServiceFreezeFixedDenominatorProcedure,
+			connect.WithSchema(evalServiceMethods.ByName("FreezeFixedDenominator")),
+			connect.WithClientOptions(opts...),
+		),
+		getFixedDenominator: connect.NewClient[eval.GetFixedDenominatorRequest, eval.GetFixedDenominatorResponse](
+			httpClient,
+			baseURL+EvalServiceGetFixedDenominatorProcedure,
+			connect.WithSchema(evalServiceMethods.ByName("GetFixedDenominator")),
+			connect.WithClientOptions(opts...),
+		),
 		listRuns: connect.NewClient[eval.ListRunsRequest, eval.ListRunsResponse](
 			httpClient,
 			baseURL+EvalServiceListRunsProcedure,
@@ -218,6 +241,8 @@ type evalServiceClient struct {
 	runSuite                  *connect.Client[eval.RunSuiteRequest, eval.RunSuiteResponse]
 	validateCorpus            *connect.Client[eval.ValidateCorpusRequest, eval.ValidateCorpusResponse]
 	getLatestCorpusValidation *connect.Client[eval.GetLatestCorpusValidationRequest, eval.GetLatestCorpusValidationResponse]
+	freezeFixedDenominator    *connect.Client[eval.FreezeFixedDenominatorRequest, eval.FreezeFixedDenominatorResponse]
+	getFixedDenominator       *connect.Client[eval.GetFixedDenominatorRequest, eval.GetFixedDenominatorResponse]
 	listRuns                  *connect.Client[eval.ListRunsRequest, eval.ListRunsResponse]
 	getRun                    *connect.Client[eval.GetRunRequest, eval.GetRunResponse]
 	compareRuns               *connect.Client[eval.CompareRunsRequest, eval.CompareRunsResponse]
@@ -256,6 +281,16 @@ func (c *evalServiceClient) ValidateCorpus(ctx context.Context, req *connect.Req
 // GetLatestCorpusValidation calls vrooli.search_hub.v1.eval.EvalService.GetLatestCorpusValidation.
 func (c *evalServiceClient) GetLatestCorpusValidation(ctx context.Context, req *connect.Request[eval.GetLatestCorpusValidationRequest]) (*connect.Response[eval.GetLatestCorpusValidationResponse], error) {
 	return c.getLatestCorpusValidation.CallUnary(ctx, req)
+}
+
+// FreezeFixedDenominator calls vrooli.search_hub.v1.eval.EvalService.FreezeFixedDenominator.
+func (c *evalServiceClient) FreezeFixedDenominator(ctx context.Context, req *connect.Request[eval.FreezeFixedDenominatorRequest]) (*connect.Response[eval.FreezeFixedDenominatorResponse], error) {
+	return c.freezeFixedDenominator.CallUnary(ctx, req)
+}
+
+// GetFixedDenominator calls vrooli.search_hub.v1.eval.EvalService.GetFixedDenominator.
+func (c *evalServiceClient) GetFixedDenominator(ctx context.Context, req *connect.Request[eval.GetFixedDenominatorRequest]) (*connect.Response[eval.GetFixedDenominatorResponse], error) {
+	return c.getFixedDenominator.CallUnary(ctx, req)
 }
 
 // ListRuns calls vrooli.search_hub.v1.eval.EvalService.ListRuns.
@@ -312,6 +347,11 @@ type EvalServiceHandler interface {
 	// Read the newest durable corpus-validation receipt without exposing probed
 	// queries or provider error text.
 	GetLatestCorpusValidation(context.Context, *connect.Request[eval.GetLatestCorpusValidationRequest]) (*connect.Response[eval.GetLatestCorpusValidationResponse], error)
+	// Freeze a reviewed positive denominator with an independent human review
+	// reference. The snapshot is immutable until another explicit review is
+	// registered for the suite.
+	FreezeFixedDenominator(context.Context, *connect.Request[eval.FreezeFixedDenominatorRequest]) (*connect.Response[eval.FreezeFixedDenominatorResponse], error)
+	GetFixedDenominator(context.Context, *connect.Request[eval.GetFixedDenominatorRequest]) (*connect.Response[eval.GetFixedDenominatorResponse], error)
 	// History, optionally filtered by tag.
 	ListRuns(context.Context, *connect.Request[eval.ListRunsRequest]) (*connect.Response[eval.ListRunsResponse], error)
 	GetRun(context.Context, *connect.Request[eval.GetRunRequest]) (*connect.Response[eval.GetRunResponse], error)
@@ -384,6 +424,18 @@ func NewEvalServiceHandler(svc EvalServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(evalServiceMethods.ByName("GetLatestCorpusValidation")),
 		connect.WithHandlerOptions(opts...),
 	)
+	evalServiceFreezeFixedDenominatorHandler := connect.NewUnaryHandler(
+		EvalServiceFreezeFixedDenominatorProcedure,
+		svc.FreezeFixedDenominator,
+		connect.WithSchema(evalServiceMethods.ByName("FreezeFixedDenominator")),
+		connect.WithHandlerOptions(opts...),
+	)
+	evalServiceGetFixedDenominatorHandler := connect.NewUnaryHandler(
+		EvalServiceGetFixedDenominatorProcedure,
+		svc.GetFixedDenominator,
+		connect.WithSchema(evalServiceMethods.ByName("GetFixedDenominator")),
+		connect.WithHandlerOptions(opts...),
+	)
 	evalServiceListRunsHandler := connect.NewUnaryHandler(
 		EvalServiceListRunsProcedure,
 		svc.ListRuns,
@@ -446,6 +498,10 @@ func NewEvalServiceHandler(svc EvalServiceHandler, opts ...connect.HandlerOption
 			evalServiceValidateCorpusHandler.ServeHTTP(w, r)
 		case EvalServiceGetLatestCorpusValidationProcedure:
 			evalServiceGetLatestCorpusValidationHandler.ServeHTTP(w, r)
+		case EvalServiceFreezeFixedDenominatorProcedure:
+			evalServiceFreezeFixedDenominatorHandler.ServeHTTP(w, r)
+		case EvalServiceGetFixedDenominatorProcedure:
+			evalServiceGetFixedDenominatorHandler.ServeHTTP(w, r)
 		case EvalServiceListRunsProcedure:
 			evalServiceListRunsHandler.ServeHTTP(w, r)
 		case EvalServiceGetRunProcedure:
@@ -493,6 +549,14 @@ func (UnimplementedEvalServiceHandler) ValidateCorpus(context.Context, *connect.
 
 func (UnimplementedEvalServiceHandler) GetLatestCorpusValidation(context.Context, *connect.Request[eval.GetLatestCorpusValidationRequest]) (*connect.Response[eval.GetLatestCorpusValidationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.eval.EvalService.GetLatestCorpusValidation is not implemented"))
+}
+
+func (UnimplementedEvalServiceHandler) FreezeFixedDenominator(context.Context, *connect.Request[eval.FreezeFixedDenominatorRequest]) (*connect.Response[eval.FreezeFixedDenominatorResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.eval.EvalService.FreezeFixedDenominator is not implemented"))
+}
+
+func (UnimplementedEvalServiceHandler) GetFixedDenominator(context.Context, *connect.Request[eval.GetFixedDenominatorRequest]) (*connect.Response[eval.GetFixedDenominatorResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.eval.EvalService.GetFixedDenominator is not implemented"))
 }
 
 func (UnimplementedEvalServiceHandler) ListRuns(context.Context, *connect.Request[eval.ListRunsRequest]) (*connect.Response[eval.ListRunsResponse], error) {

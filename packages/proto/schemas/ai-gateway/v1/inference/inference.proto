@@ -163,6 +163,15 @@ message RunRequest {
   // privacy_class is the caller's sensitivity classification. The gateway
   // combines it with profile and resolved candidate locality before dispatch.
   vrooli.ai_gateway.v1.shared.PrivacyClass privacy_class = 13;
+  // privacy_provenance states the non-sensitive source or basis for the
+  // caller's privacy classification. It is evidence for review and must never
+  // override privacy_class or relax the locality contract.
+  string privacy_provenance = 14;
+  // allow_semantic_escalation is explicit caller consent for a declared
+  // semantic-escalation candidate after ordinary provider retry and the
+  // same-candidate schema-repair attempt fail. It does not authorize a remote
+  // provider or change profile, privacy_class, rights, or spend limits.
+  bool allow_semantic_escalation = 15;
 }
 
 message RunResponse {
@@ -198,6 +207,10 @@ message RunBatchRequest {
   // One routing contract applies to every item in the ordered batch.
   vrooli.ai_gateway.v1.shared.Profile profile = 5;
   vrooli.ai_gateway.v1.shared.PrivacyClass privacy_class = 6;
+  // privacy_provenance states the non-sensitive source or basis for the
+  // caller's privacy classification. It never changes privacy_class or
+  // relaxes the locality contract.
+  string privacy_provenance = 7;
 }
 
 message RunBatchResponse {
@@ -212,6 +225,13 @@ message EmbedRequest {
   string role = 2;
   // Embeddings are deterministic. Presence is rejected as an invalid request.
   vrooli.ai_gateway.v1.shared.SamplingControls sampling = 3;
+  // Embeddings currently require LOCAL_ONLY. An omitted legacy profile is
+  // interpreted as LOCAL_ONLY by the gateway; callers should send it explicitly.
+  vrooli.ai_gateway.v1.shared.Profile profile = 4;
+  // privacy_class and privacy_provenance attribute the caller's input. They
+  // never permit a remote embedding route or relax the local-only boundary.
+  vrooli.ai_gateway.v1.shared.PrivacyClass privacy_class = 5;
+  string privacy_provenance = 6;
 }
 
 message EmbedResponse {
@@ -281,6 +301,10 @@ message DecideRequest {
   vrooli.ai_gateway.v1.shared.Profile profile = 5;
   // privacy_class participates in the same eligibility policy as routing Run.
   vrooli.ai_gateway.v1.shared.PrivacyClass privacy_class = 6;
+  // privacy_provenance states the non-sensitive source or basis for the
+  // caller's privacy classification. It never changes privacy_class or
+  // relaxes the locality contract.
+  string privacy_provenance = 7;
 }
 
 message DecisionProbability {
@@ -382,6 +406,10 @@ message DecideBatchRequest {
   repeated DecideBatchItem items = 3;
   vrooli.ai_gateway.v1.shared.Profile profile = 4;
   vrooli.ai_gateway.v1.shared.PrivacyClass privacy_class = 5;
+  // privacy_provenance states the non-sensitive source or basis for the
+  // caller's privacy classification. It never changes privacy_class or
+  // relaxes the locality contract.
+  string privacy_provenance = 6;
 }
 
 message DecideBatchResponse {

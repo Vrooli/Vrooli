@@ -24,8 +24,14 @@ const requestingScenario = scenarioArgumentIndex >= 0 ? process.argv[scenarioArg
 const artifactStore = new ArtifactStore(defaultArtifactStoreRoot());
 const candidateRoot = join(packageRoot, `.rcl-candidate-${randomUUID()}`);
 const candidateIdentity = `candidate:${randomUUID()}`;
-const generatedConfigPath = join(packageRoot, ".build-tsconfig.json");
-const environmentDeclarationPath = join(packageRoot, ".build-environment.d.ts");
+// Every compiler input this build generates lives under its own candidate
+// directory. Fixed names in the package root were shared by concurrent builds
+// (a lifecycle start, a refresh and an agent's build can overlap), and each
+// one's cleanup deleted the files another's tsc was still reading: the
+// environment declaration vanished and `process` became undeclared.
+const scratchRoot = join(candidateRoot, ".scratch");
+const generatedConfigPath = join(scratchRoot, "tsconfig.json");
+const environmentDeclarationPath = join(scratchRoot, "environment.d.ts");
 
 function requestedConsumerExports(scenario) {
   if (!scenario || scenario.startsWith("-") || !/^[a-z0-9][a-z0-9-]*$/.test(scenario)) return [];
@@ -101,8 +107,6 @@ const fallbackOrExit = async (code, reason) => {
         compatibility: "verified",
       }));
       await rm(candidateRoot, { recursive: true, force: true });
-      await rm(generatedConfigPath, { force: true });
-      await rm(environmentDeclarationPath, { force: true });
       process.exit(0);
     } catch (fallbackError) {
       await artifactStore.writeStatus({
@@ -119,8 +123,6 @@ const fallbackOrExit = async (code, reason) => {
     }
   }
   await rm(candidateRoot, { recursive: true, force: true });
-  await rm(generatedConfigPath, { force: true });
-  await rm(environmentDeclarationPath, { force: true });
   await artifactStore.writeStatus({
     status: "failed",
     packageName: "@vrooli/react-component-library",
@@ -176,6 +178,9 @@ const selfPaths = Object.fromEntries(Object.entries(exportResolutions).map(([sub
 baseConfig.compilerOptions.rootDir = sourceRoot;
 baseConfig.compilerOptions.baseUrl = packageRoot;
 baseConfig.compilerOptions.types = [...packageBuildTypes];
+// The generated config sits below the candidate directory; resolve ambient
+// types from the package, not from wherever the config happens to live.
+baseConfig.compilerOptions.typeRoots = [join(packageNodeModules, "@types")];
 baseConfig.compilerOptions.paths = { ...packageDependencyPaths, ...selfPaths };
 baseConfig.include = [join(sourceRoot, "**/*.ts"), join(sourceRoot, "**/*.tsx"), environmentDeclarationPath];
 baseConfig.exclude = [
@@ -266,6 +271,7 @@ if (draftTypecheck) {
   process.exit(draftExitCode);
 }
 
+await mkdir(scratchRoot, { recursive: true });
 await writeFile(environmentDeclarationPath, packageBuildEnvironmentDeclarations);
 await writeFile(generatedConfigPath, `${JSON.stringify(baseConfig, null, 2)}\n`);
 
@@ -275,8 +281,7 @@ if (checkOnly) {
     process.exit(1);
   }
   const result = spawnSync(tsc, ["-p", generatedConfigPath, "--noEmit"], { cwd: packageRoot, stdio: "inherit" });
-  await rm(generatedConfigPath, { force: true });
-  await rm(environmentDeclarationPath, { force: true });
+  await rm(candidateRoot, { recursive: true, force: true });
   if (result.status !== 0) process.exit(result.status ?? 1);
   console.log("Checked @vrooli/react-component-library sources.");
   process.exit(0);
@@ -289,14 +294,12 @@ if (checkOnly) {
 // did not exist. Staging narrows that window to a single rename, and a failed
 // build now leaves the previous artifact in place instead of no artifact.
 const stagingRoot = join(candidateRoot, "dist");
-await rm(candidateRoot, { recursive: true, force: true });
+// candidateRoot is unique to this build and already holds its scratch inputs.
 await mkdir(stagingRoot, { recursive: true });
 await maybeInjectFailure("candidate");
 
 const abandonStaging = async (code) => {
   await rm(candidateRoot, { recursive: true, force: true });
-  await rm(generatedConfigPath, { force: true });
-  await rm(environmentDeclarationPath, { force: true });
   process.exit(code ?? 1);
 };
 const sync = spawnSync(process.execPath, [join(packageRoot, "tooling", "sync-exports.mjs"), "--output-package", join(candidateRoot, "package.json")], { cwd: packageRoot, stdio: "inherit" });
@@ -357,7 +360,8 @@ const inlineStyles = async (root, base = root) => {
   }
 };
 await inlineStyles(stagingRoot);
-await rm(environmentDeclarationPath, { force: true });
+// The artifact publishes the whole candidate directory; compiler inputs are not part of it.
+await rm(scratchRoot, { recursive: true, force: true });
 
 // TypeScript's bundler resolution intentionally leaves relative imports
 // extensionless. The published package is native ESM, however, so Node's
@@ -512,7 +516,6 @@ await artifactStore.writeStatus({
   compatibility: "verified",
   updatedAt: new Date().toISOString(),
 });
-await rm(generatedConfigPath, { force: true });
 await rm(candidateRoot, { recursive: true, force: true });
 
 console.log(JSON.stringify({

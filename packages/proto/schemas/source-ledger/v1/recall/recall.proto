@@ -2,6 +2,8 @@ syntax = "proto3";
 package vrooli.source_ledger.v1.recall;
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall;recall_v1";
+
+import "source-ledger/v1/shared/degradation.proto";
 service RecallService {
   rpc Recall(RecallRequest) returns (RecallResponse);
   rpc Wake(WakeRequest) returns (WakeResponse);
@@ -25,6 +27,8 @@ message RecallRequest {
 }
 message RecallResponse {
   repeated RecallHit hits = 1;
+  // Set when semantic scoring was unavailable and hits are lexical.
+  repeated vrooli.source_ledger.v1.shared.Degradation degradations = 2;
 }
 message WakeRequest {
   // Counts rendered text lines selected for the ambient view, not tokens.

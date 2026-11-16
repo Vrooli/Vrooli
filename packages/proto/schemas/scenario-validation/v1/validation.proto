@@ -85,7 +85,12 @@ service SelectedValidationRunService {
 // contract facts are properties of the provider process, never of a target.
 // Do not add target-selection fields here — route those through
 // ValidateScenario instead.
-message DescribeProviderRequest {}
+message DescribeProviderRequest {
+  // Requested Test Genie phase from the provider descriptor. A provider that
+  // serves several phases must attest the requested phase in its response and
+  // return that phase's maturity spec version.
+  string phase = 1;
+}
 
 message DescribeProviderResponse {
   // Provider scenario slug this process serves, e.g. "security-health".
@@ -171,6 +176,9 @@ message ValidateScenarioRequest {
   // honor this field must skip work for capabilities not named here.
   repeated string capability_subset = 4;
   repeated RetainedEvidenceSet retained_evidence_sets = 5;
+  // Test Genie phase selected by the descriptor. Providers that serve several
+  // phases use this to select the corresponding assessment and execution.
+  string phase = 6;
 }
 
 message ValidateTargetRequest {
@@ -183,6 +191,8 @@ message ValidateTargetRequest {
   // Repository-contract exclusions expressed as repo-relative globs.
   repeated string exclude = 5;
   repeated RetainedEvidenceSet retained_evidence_sets = 6;
+  // Test Genie phase selected by the descriptor for this target validation.
+  string phase = 7;
 }
 
 message ValidateTargetResponse {
@@ -204,6 +214,9 @@ enum ValidationStatus {
   VALIDATION_STATUS_DEGRADED = 3;
   VALIDATION_STATUS_ERROR = 4;
   VALIDATION_STATUS_SKIPPED = 5;
+  // The provider could not evaluate the requested target. This is distinct
+  // from PASSED and must never satisfy a gating phase.
+  VALIDATION_STATUS_NOT_EVALUATED = 6;
 }
 
 message ValidateScenarioResponse {
@@ -296,6 +309,8 @@ message StartValidationRunRequest {
   // Paths are normalized, registered BAS cases; flows are not selectable.
   // Use StartSelectedValidationRun when this field is present.
   BrowserCaseSelector browser_case_selector = 7;
+  // Test Genie phase selected by the descriptor for this durable run.
+  string phase = 8;
 }
 
 message BrowserCaseSelector {

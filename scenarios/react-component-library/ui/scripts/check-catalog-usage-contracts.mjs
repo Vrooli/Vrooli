@@ -56,12 +56,34 @@ function propShapes(sourceFile) {
     ts.forEachChild(node, visit);
   };
   visit(source);
-  const isCollection = (type, seen = new Set()) => {
+  const arrayConstrainedParameters = new Set();
+  const isArrayConstraint = (type, seen = new Set()) => {
     if (ts.isArrayTypeNode(type) || ts.isTupleTypeNode(type)) return true;
-    if (ts.isTypeOperatorNode(type)) return isCollection(type.type, seen);
+    if (ts.isTypeOperatorNode(type)) return isArrayConstraint(type.type, seen);
+    if (ts.isIntersectionTypeNode(type)) return type.types.some((member) => isArrayConstraint(member, seen));
     if (ts.isTypeReferenceNode(type)) {
       const name = type.typeName.getText(source);
       if (/^(ReadonlyArray|Array)$/.test(name)) return true;
+      if (seen.has(name) || !aliases.has(name)) return false;
+      seen.add(name);
+      return isArrayConstraint(aliases.get(name), seen);
+    }
+    return false;
+  };
+  for (const declaration of declarations) {
+    for (const parameter of declaration.typeParameters ?? []) {
+      if (parameter.constraint && isArrayConstraint(parameter.constraint))
+        arrayConstrainedParameters.add(parameter.name.text);
+    }
+  }
+  const isCollection = (type, seen = new Set()) => {
+    if (ts.isArrayTypeNode(type) || ts.isTupleTypeNode(type)) return true;
+    if (ts.isTypeOperatorNode(type)) return isCollection(type.type, seen);
+    if (ts.isIntersectionTypeNode(type)) return type.types.some((member) => isCollection(member, seen));
+    if (ts.isTypeReferenceNode(type)) {
+      const name = type.typeName.getText(source);
+      if (/^(ReadonlyArray|Array)$/.test(name)) return true;
+      if (arrayConstrainedParameters.has(name)) return true;
       if (seen.has(name) || !aliases.has(name)) return false;
       seen.add(name);
       return isCollection(aliases.get(name), seen);

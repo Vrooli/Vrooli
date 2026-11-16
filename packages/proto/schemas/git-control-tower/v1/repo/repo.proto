@@ -64,6 +64,9 @@ service RepoService {
   rpc GetPrecommitConfig(GetPrecommitConfigRequest) returns (PrecommitConfigResponse);
   rpc SavePrecommitConfig(SavePrecommitConfigRequest) returns (PrecommitConfigResponse);
   rpc RunPrecommit(RunPrecommitRequest) returns (PrecommitRunResponse);
+  rpc StartPrecommitCandidateCheck(StartPrecommitCandidateCheckRequest) returns (PrecommitCandidateCheckResponse);
+  rpc GetPrecommitCandidateCheck(GetPrecommitCandidateCheckRequest) returns (PrecommitCandidateCheckResponse);
+  rpc CancelPrecommitCandidateCheck(CancelPrecommitCandidateCheckRequest) returns (PrecommitCandidateCheckResponse);
   rpc StageFiles(StageFilesRequest) returns (StageFilesResponse);
   rpc UnstageFiles(UnstageFilesRequest) returns (UnstageFilesResponse);
   rpc CreateCommit(CreateCommitRequest) returns (CreateCommitResponse);
@@ -852,6 +855,7 @@ message PrecommitConfigResponse {
   bool allow_override = 6;
   PrecommitRunResult last_result = 7;
   PrecommitHookState hook = 8;
+  repeated string declared_inputs = 9;
 }
 
 message SavePrecommitConfigRequest {
@@ -863,6 +867,7 @@ message SavePrecommitConfigRequest {
   int32 timeout_seconds = 6;
   bool run_before_commit = 7;
   bool allow_override = 8;
+  repeated string declared_inputs = 9;
 }
 
 message RunPrecommitRequest {
@@ -875,6 +880,29 @@ message RunPrecommitRequest {
 message PrecommitRunResponse {
   bool success = 1;
   PrecommitRunResult result = 2;
+}
+
+message StartPrecommitCandidateCheckRequest {
+  string repository_id = 1;
+  bool retry_terminal = 2;
+}
+
+message GetPrecommitCandidateCheckRequest {
+  string repository_id = 1;
+  string job_id = 2;
+}
+
+message CancelPrecommitCandidateCheckRequest {
+  string repository_id = 1;
+  string job_id = 2;
+}
+
+message PrecommitCandidateCheckResponse {
+  string job_id = 1;
+  string state = 2;
+  string candidate_digest = 3;
+  string config_digest = 4;
+  PrecommitRunResult result = 5;
 }
 
 message StageFilesRequest {

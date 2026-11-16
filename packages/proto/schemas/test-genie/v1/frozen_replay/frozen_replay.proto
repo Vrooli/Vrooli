@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package vrooli.test_genie.v1.frozen_replay;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/frozen_replay;frozen_replay_v1";
+
+// FrozenReplayService is Test Genie's owner boundary for immutable three-way
+// bounty replay adjudications.
+service FrozenReplayService {
+  rpc CreateFrozenReplayReceipt(CreateFrozenReplayReceiptRequest) returns (CreateFrozenReplayReceiptResponse);
+  rpc GetFrozenReplayReceipt(GetFrozenReplayReceiptRequest) returns (GetFrozenReplayReceiptResponse);
+}
+
+enum FrozenReplayVariant {
+  FROZEN_REPLAY_VARIANT_UNSPECIFIED = 0;
+  FROZEN_REPLAY_VARIANT_PREIMAGE = 1;
+  FROZEN_REPLAY_VARIANT_CANDIDATE = 2;
+  FROZEN_REPLAY_VARIANT_REFERENCE = 3;
+}
+
+enum FrozenReplayTestStatus {
+  FROZEN_REPLAY_TEST_STATUS_UNSPECIFIED = 0;
+  FROZEN_REPLAY_TEST_STATUS_PASSED = 1;
+  FROZEN_REPLAY_TEST_STATUS_FAILED = 2;
+}
+
+enum FrozenReplayDisposition {
+  FROZEN_REPLAY_DISPOSITION_UNSPECIFIED = 0;
+  FROZEN_REPLAY_DISPOSITION_QUALIFIED = 1;
+  FROZEN_REPLAY_DISPOSITION_NOT_QUALIFIED = 2;
+}
+
+message FrozenReplayRunEvidence {
+  FrozenReplayVariant variant = 1;
+  string run_id = 2;
+  string producer_receipt_id = 3;
+  string source_identity = 4;
+  string evaluator_digest = 5;
+  FrozenReplayTestStatus status = 6;
+  // Optional on create; Test Genie derives it from the immutable owner receipt.
+  // On read, it is always populated with that owner-derived digest.
+  string artifact_digest = 7;
+}
+
+message FrozenReplayAdjudication {
+  string case_id = 1;
+  string project_id = 2;
+  string frozen_evaluator_digest = 3;
+  string preimage_identity = 4;
+  string candidate_seal_digest = 5;
+  string reference_identity = 6;
+  repeated FrozenReplayRunEvidence evidence = 7;
+}
+
+message FrozenReplayReceipt {
+  string receipt_id = 1;
+  FrozenReplayAdjudication adjudication = 2;
+  FrozenReplayDisposition disposition = 3;
+  string receipt_digest = 4;
+}
+
+message CreateFrozenReplayReceiptRequest {
+  string idempotency_key = 1;
+  FrozenReplayAdjudication adjudication = 2;
+}
+
+message CreateFrozenReplayReceiptResponse {
+  FrozenReplayReceipt receipt = 1;
+  bool replayed = 2;
+}
+
+message GetFrozenReplayReceiptRequest {
+  string receipt_id = 1;
+}
+
+message GetFrozenReplayReceiptResponse {
+  FrozenReplayReceipt receipt = 1;
+}

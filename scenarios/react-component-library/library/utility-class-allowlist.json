@@ -1,5 +1,16 @@
 {
   "schemaVersion": 1,
-  "expires": "2026-09-30",
-  "entries": []
+  "expires": "2026-12-15",
+  "entries": [
+    {
+      "path": "library/components/OverlayActionBar/versions/1.0.0",
+      "reason": "Published immutable release; keep its authored bytes intact for exact-version consumers while newer versions remove the class usage.",
+      "closedBy": "EX7 OverlayActionBar utility-class retirement"
+    },
+    {
+      "path": "library/components/OverlayActionBar/versions/1.0.1",
+      "reason": "Published immutable release; keep its authored bytes intact for exact-version consumers while newer versions remove the class usage.",
+      "closedBy": "EX7 OverlayActionBar utility-class retirement"
+    }
+  ]
 }

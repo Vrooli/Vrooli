@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package vrooli.research_desk.v1.shared;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/shared;shared_v1";
+
+// =============================================================================
+// OPERATOR ENTRY — one entry of OPERATOR.md or VERDICTS.md
+// =============================================================================
+//
+// @stability beta
+//
+// Grammar: scenarios/research-desk/docs/reference/FILE-CONTRACT.md §4.
+// =============================================================================
+
+message OperatorEntry {
+  google.protobuf.Timestamp at = 1;
+  // "direction", "wind-down", "answer", "delivered" or "verdict".
+  string kind = 2;
+  // The item ID of an answer or delivery, or the topic of a verdict.
+  string subject = 3;
+  // "desk", "hub" or "hand".
+  string via = 4;
+  // The operator's words, verbatim.
+  string body = 5;
+}
+
+// UnparsedHeading is a `### ` line of an operator file that does not follow
+// the entry grammar: reported with its line so nothing is silently dropped.
+message UnparsedHeading {
+  // 1-based line number.
+  int32 line = 1;
+  string text = 2;
+}

@@ -23,6 +23,780 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type RequestSensitiveReviewRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestSensitiveReviewRequest) Reset() {
+	*x = RequestSensitiveReviewRequest{}
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestSensitiveReviewRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestSensitiveReviewRequest) ProtoMessage() {}
+
+func (x *RequestSensitiveReviewRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestSensitiveReviewRequest.ProtoReflect.Descriptor instead.
+func (*RequestSensitiveReviewRequest) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{0}
+}
+
+type RequestSensitiveReviewResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Empty when a standing rule already covers the candidates and nothing needed asking.
+	AskId string `protobuf:"bytes,1,opt,name=ask_id,json=askId,proto3" json:"ask_id,omitempty"`
+	// With a pending ask: the places it asks about. With the standing rule: the places it just added.
+	CandidateCount int32 `protobuf:"varint,2,opt,name=candidate_count,json=candidateCount,proto3" json:"candidate_count,omitempty"`
+	Pending        bool  `protobuf:"varint,3,opt,name=pending,proto3" json:"pending,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *RequestSensitiveReviewResponse) Reset() {
+	*x = RequestSensitiveReviewResponse{}
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestSensitiveReviewResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestSensitiveReviewResponse) ProtoMessage() {}
+
+func (x *RequestSensitiveReviewResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestSensitiveReviewResponse.ProtoReflect.Descriptor instead.
+func (*RequestSensitiveReviewResponse) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RequestSensitiveReviewResponse) GetAskId() string {
+	if x != nil {
+		return x.AskId
+	}
+	return ""
+}
+
+func (x *RequestSensitiveReviewResponse) GetCandidateCount() int32 {
+	if x != nil {
+		return x.CandidateCount
+	}
+	return 0
+}
+
+func (x *RequestSensitiveReviewResponse) GetPending() bool {
+	if x != nil {
+		return x.Pending
+	}
+	return false
+}
+
+// SensitivePolicyAddition is one place the standing rule backed up on its own.
+type SensitivePolicyAddition struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Owner         string                 `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Group         string                 `protobuf:"bytes,3,opt,name=group,proto3" json:"group,omitempty"`
+	ApproxBytes   int64                  `protobuf:"varint,4,opt,name=approx_bytes,json=approxBytes,proto3" json:"approx_bytes,omitempty"`
+	AddedAt       *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=added_at,json=addedAt,proto3" json:"added_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SensitivePolicyAddition) Reset() {
+	*x = SensitivePolicyAddition{}
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SensitivePolicyAddition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SensitivePolicyAddition) ProtoMessage() {}
+
+func (x *SensitivePolicyAddition) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SensitivePolicyAddition.ProtoReflect.Descriptor instead.
+func (*SensitivePolicyAddition) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SensitivePolicyAddition) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *SensitivePolicyAddition) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SensitivePolicyAddition) GetGroup() string {
+	if x != nil {
+		return x.Group
+	}
+	return ""
+}
+
+func (x *SensitivePolicyAddition) GetApproxBytes() int64 {
+	if x != nil {
+		return x.ApproxBytes
+	}
+	return 0
+}
+
+func (x *SensitivePolicyAddition) GetAddedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AddedAt
+	}
+	return nil
+}
+
+// SensitivePolicyExclusion is one item kept out of the standing rule.
+type SensitivePolicyExclusion struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Owner         string                 `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	ExcludedBy    string                 `protobuf:"bytes,4,opt,name=excluded_by,json=excludedBy,proto3" json:"excluded_by,omitempty"`
+	ExcludedAt    *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=excluded_at,json=excludedAt,proto3" json:"excluded_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SensitivePolicyExclusion) Reset() {
+	*x = SensitivePolicyExclusion{}
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SensitivePolicyExclusion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SensitivePolicyExclusion) ProtoMessage() {}
+
+func (x *SensitivePolicyExclusion) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SensitivePolicyExclusion.ProtoReflect.Descriptor instead.
+func (*SensitivePolicyExclusion) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SensitivePolicyExclusion) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *SensitivePolicyExclusion) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SensitivePolicyExclusion) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *SensitivePolicyExclusion) GetExcludedBy() string {
+	if x != nil {
+		return x.ExcludedBy
+	}
+	return ""
+}
+
+func (x *SensitivePolicyExclusion) GetExcludedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExcludedAt
+	}
+	return nil
+}
+
+// SensitivePolicyEvent is one entry of the rule's history.
+type SensitivePolicyEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	At    *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=at,proto3" json:"at,omitempty"`
+	// granted, revoked, excluded, added or noted.
+	Kind          string `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	By            string `protobuf:"bytes,3,opt,name=by,proto3" json:"by,omitempty"`
+	Detail        string `protobuf:"bytes,4,opt,name=detail,proto3" json:"detail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SensitivePolicyEvent) Reset() {
+	*x = SensitivePolicyEvent{}
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SensitivePolicyEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SensitivePolicyEvent) ProtoMessage() {}
+
+func (x *SensitivePolicyEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SensitivePolicyEvent.ProtoReflect.Descriptor instead.
+func (*SensitivePolicyEvent) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SensitivePolicyEvent) GetAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.At
+	}
+	return nil
+}
+
+func (x *SensitivePolicyEvent) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *SensitivePolicyEvent) GetBy() string {
+	if x != nil {
+		return x.By
+	}
+	return ""
+}
+
+func (x *SensitivePolicyEvent) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+// SensitivePolicy is the standing rule: the operator's recorded consent to back
+// up anything that holds secrets from now on.
+type SensitivePolicy struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Active bool                   `protobuf:"varint,1,opt,name=active,proto3" json:"active,omitempty"`
+	// The Hub decision whose verified answer is the consent.
+	GrantAskId              string                      `protobuf:"bytes,2,opt,name=grant_ask_id,json=grantAskId,proto3" json:"grant_ask_id,omitempty"`
+	GrantedBy               string                      `protobuf:"bytes,3,opt,name=granted_by,json=grantedBy,proto3" json:"granted_by,omitempty"`
+	GrantedByIdentityKind   string                      `protobuf:"bytes,4,opt,name=granted_by_identity_kind,json=grantedByIdentityKind,proto3" json:"granted_by_identity_kind,omitempty"`
+	GrantedByIdentitySource string                      `protobuf:"bytes,5,opt,name=granted_by_identity_source,json=grantedByIdentitySource,proto3" json:"granted_by_identity_source,omitempty"`
+	GrantedAt               *timestamppb.Timestamp      `protobuf:"bytes,6,opt,name=granted_at,json=grantedAt,proto3" json:"granted_at,omitempty"`
+	RevokedBy               string                      `protobuf:"bytes,7,opt,name=revoked_by,json=revokedBy,proto3" json:"revoked_by,omitempty"`
+	RevokedAt               *timestamppb.Timestamp      `protobuf:"bytes,8,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"`
+	Excluded                []*SensitivePolicyExclusion `protobuf:"bytes,9,rep,name=excluded,proto3" json:"excluded,omitempty"`
+	// Added since the last weekly note.
+	Unreported  []*SensitivePolicyAddition `protobuf:"bytes,10,rep,name=unreported,proto3" json:"unreported,omitempty"`
+	AddedTotal  int32                      `protobuf:"varint,11,opt,name=added_total,json=addedTotal,proto3" json:"added_total,omitempty"`
+	LastNoteAt  *timestamppb.Timestamp     `protobuf:"bytes,12,opt,name=last_note_at,json=lastNoteAt,proto3" json:"last_note_at,omitempty"`
+	LastSweepAt *timestamppb.Timestamp     `protobuf:"bytes,13,opt,name=last_sweep_at,json=lastSweepAt,proto3" json:"last_sweep_at,omitempty"`
+	History     []*SensitivePolicyEvent    `protobuf:"bytes,14,rep,name=history,proto3" json:"history,omitempty"`
+	// "option" for a button answer that offered the rule; "free_text" for the
+	// operator's own words taken as the instruction.
+	GrantBasis string `protobuf:"bytes,15,opt,name=grant_basis,json=grantBasis,proto3" json:"grant_basis,omitempty"`
+	// The operator's words, verbatim, when grant_basis is free_text.
+	GrantText     string `protobuf:"bytes,16,opt,name=grant_text,json=grantText,proto3" json:"grant_text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SensitivePolicy) Reset() {
+	*x = SensitivePolicy{}
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SensitivePolicy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SensitivePolicy) ProtoMessage() {}
+
+func (x *SensitivePolicy) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SensitivePolicy.ProtoReflect.Descriptor instead.
+func (*SensitivePolicy) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *SensitivePolicy) GetActive() bool {
+	if x != nil {
+		return x.Active
+	}
+	return false
+}
+
+func (x *SensitivePolicy) GetGrantAskId() string {
+	if x != nil {
+		return x.GrantAskId
+	}
+	return ""
+}
+
+func (x *SensitivePolicy) GetGrantedBy() string {
+	if x != nil {
+		return x.GrantedBy
+	}
+	return ""
+}
+
+func (x *SensitivePolicy) GetGrantedByIdentityKind() string {
+	if x != nil {
+		return x.GrantedByIdentityKind
+	}
+	return ""
+}
+
+func (x *SensitivePolicy) GetGrantedByIdentitySource() string {
+	if x != nil {
+		return x.GrantedByIdentitySource
+	}
+	return ""
+}
+
+func (x *SensitivePolicy) GetGrantedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.GrantedAt
+	}
+	return nil
+}
+
+func (x *SensitivePolicy) GetRevokedBy() string {
+	if x != nil {
+		return x.RevokedBy
+	}
+	return ""
+}
+
+func (x *SensitivePolicy) GetRevokedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RevokedAt
+	}
+	return nil
+}
+
+func (x *SensitivePolicy) GetExcluded() []*SensitivePolicyExclusion {
+	if x != nil {
+		return x.Excluded
+	}
+	return nil
+}
+
+func (x *SensitivePolicy) GetUnreported() []*SensitivePolicyAddition {
+	if x != nil {
+		return x.Unreported
+	}
+	return nil
+}
+
+func (x *SensitivePolicy) GetAddedTotal() int32 {
+	if x != nil {
+		return x.AddedTotal
+	}
+	return 0
+}
+
+func (x *SensitivePolicy) GetLastNoteAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastNoteAt
+	}
+	return nil
+}
+
+func (x *SensitivePolicy) GetLastSweepAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastSweepAt
+	}
+	return nil
+}
+
+func (x *SensitivePolicy) GetHistory() []*SensitivePolicyEvent {
+	if x != nil {
+		return x.History
+	}
+	return nil
+}
+
+func (x *SensitivePolicy) GetGrantBasis() string {
+	if x != nil {
+		return x.GrantBasis
+	}
+	return ""
+}
+
+func (x *SensitivePolicy) GetGrantText() string {
+	if x != nil {
+		return x.GrantText
+	}
+	return ""
+}
+
+type GetSensitivePolicyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSensitivePolicyRequest) Reset() {
+	*x = GetSensitivePolicyRequest{}
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSensitivePolicyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSensitivePolicyRequest) ProtoMessage() {}
+
+func (x *GetSensitivePolicyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSensitivePolicyRequest.ProtoReflect.Descriptor instead.
+func (*GetSensitivePolicyRequest) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{6}
+}
+
+type GetSensitivePolicyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Policy        *SensitivePolicy       `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSensitivePolicyResponse) Reset() {
+	*x = GetSensitivePolicyResponse{}
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSensitivePolicyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSensitivePolicyResponse) ProtoMessage() {}
+
+func (x *GetSensitivePolicyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSensitivePolicyResponse.ProtoReflect.Descriptor instead.
+func (*GetSensitivePolicyResponse) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetSensitivePolicyResponse) GetPolicy() *SensitivePolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return nil
+}
+
+type RevokeSensitivePolicyRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Who is turning the rule off, for the record. Defaults to the local API caller.
+	RevokedBy     string `protobuf:"bytes,1,opt,name=revoked_by,json=revokedBy,proto3" json:"revoked_by,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeSensitivePolicyRequest) Reset() {
+	*x = RevokeSensitivePolicyRequest{}
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeSensitivePolicyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeSensitivePolicyRequest) ProtoMessage() {}
+
+func (x *RevokeSensitivePolicyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeSensitivePolicyRequest.ProtoReflect.Descriptor instead.
+func (*RevokeSensitivePolicyRequest) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *RevokeSensitivePolicyRequest) GetRevokedBy() string {
+	if x != nil {
+		return x.RevokedBy
+	}
+	return ""
+}
+
+type RevokeSensitivePolicyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Policy        *SensitivePolicy       `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeSensitivePolicyResponse) Reset() {
+	*x = RevokeSensitivePolicyResponse{}
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeSensitivePolicyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeSensitivePolicyResponse) ProtoMessage() {}
+
+func (x *RevokeSensitivePolicyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeSensitivePolicyResponse.ProtoReflect.Descriptor instead.
+func (*RevokeSensitivePolicyResponse) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *RevokeSensitivePolicyResponse) GetPolicy() *SensitivePolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return nil
+}
+
+type ExcludeSensitiveTargetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Owner         string                 `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	ExcludedBy    string                 `protobuf:"bytes,4,opt,name=excluded_by,json=excludedBy,proto3" json:"excluded_by,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExcludeSensitiveTargetRequest) Reset() {
+	*x = ExcludeSensitiveTargetRequest{}
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExcludeSensitiveTargetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExcludeSensitiveTargetRequest) ProtoMessage() {}
+
+func (x *ExcludeSensitiveTargetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExcludeSensitiveTargetRequest.ProtoReflect.Descriptor instead.
+func (*ExcludeSensitiveTargetRequest) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ExcludeSensitiveTargetRequest) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *ExcludeSensitiveTargetRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ExcludeSensitiveTargetRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *ExcludeSensitiveTargetRequest) GetExcludedBy() string {
+	if x != nil {
+		return x.ExcludedBy
+	}
+	return ""
+}
+
+type ExcludeSensitiveTargetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Policy        *SensitivePolicy       `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExcludeSensitiveTargetResponse) Reset() {
+	*x = ExcludeSensitiveTargetResponse{}
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExcludeSensitiveTargetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExcludeSensitiveTargetResponse) ProtoMessage() {}
+
+func (x *ExcludeSensitiveTargetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExcludeSensitiveTargetResponse.ProtoReflect.Descriptor instead.
+func (*ExcludeSensitiveTargetResponse) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ExcludeSensitiveTargetResponse) GetPolicy() *SensitivePolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return nil
+}
+
 // RegisteredTarget is a target already in the catalog, annotated with the
 // coverage states an operator needs to judge whether it is actually protected.
 type RegisteredTarget struct {
@@ -34,19 +808,35 @@ type RegisteredTarget struct {
 	Locator    string                 `protobuf:"bytes,5,opt,name=locator,proto3" json:"locator,omitempty"`
 	// True when this target is bound to at least one plan (so a run can cover it).
 	Planned bool `protobuf:"varint,6,opt,name=planned,proto3" json:"planned,omitempty"`
-	// Last successful backup of this target, if any (zero/absent = never).
+	// Oldest successful backup among the currently enabled destination copies.
+	// Absent when no enabled copies exist or any configured copy has never run.
 	LastSuccessAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=last_success_at,json=lastSuccessAt,proto3" json:"last_success_at,omitempty"`
-	// Last verified restore of this target, if any (zero/absent = never verified).
+	// Oldest successful scratch restore among currently enabled destination
+	// copies. Absent when no enabled copies exist or any copy is unverified.
 	LastVerifiedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=last_verified_at,json=lastVerifiedAt,proto3" json:"last_verified_at,omitempty"`
 	// True when this target is approved for critical-only protection tiers.
-	Critical      bool `protobuf:"varint,9,opt,name=critical,proto3" json:"critical,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Critical bool `protobuf:"varint,9,opt,name=critical,proto3" json:"critical,omitempty"`
+	// Owner declares this registered source can be reconstructed; informational
+	// only until an explicit target decision changes its protection plan.
+	Reacquirable               bool                       `protobuf:"varint,10,opt,name=reacquirable,proto3" json:"reacquirable,omitempty"`
+	ReacquisitionCommand       string                     `protobuf:"bytes,11,opt,name=reacquisition_command,json=reacquisitionCommand,proto3" json:"reacquisition_command,omitempty"`
+	ReacquisitionEvidence      string                     `protobuf:"bytes,12,opt,name=reacquisition_evidence,json=reacquisitionEvidence,proto3" json:"reacquisition_evidence,omitempty"`
+	ReacquisitionNeedsOperator bool                       `protobuf:"varint,13,opt,name=reacquisition_needs_operator,json=reacquisitionNeedsOperator,proto3" json:"reacquisition_needs_operator,omitempty"`
+	ReacquisitionAuthReason    string                     `protobuf:"bytes,14,opt,name=reacquisition_auth_reason,json=reacquisitionAuthReason,proto3" json:"reacquisition_auth_reason,omitempty"`
+	Destinations               []*TargetDestinationStatus `protobuf:"bytes,15,rep,name=destinations,proto3" json:"destinations,omitempty"`
+	AllDestinationsBackedUp    bool                       `protobuf:"varint,16,opt,name=all_destinations_backed_up,json=allDestinationsBackedUp,proto3" json:"all_destinations_backed_up,omitempty"`
+	AllDestinationsVerified    bool                       `protobuf:"varint,17,opt,name=all_destinations_verified,json=allDestinationsVerified,proto3" json:"all_destinations_verified,omitempty"`
+	// True only when observed host/device topology proves these destinations
+	// are independent failure domains.
+	PhysicalIndependenceProven bool     `protobuf:"varint,18,opt,name=physical_independence_proven,json=physicalIndependenceProven,proto3" json:"physical_independence_proven,omitempty"`
+	IndependenceWarnings       []string `protobuf:"bytes,19,rep,name=independence_warnings,json=independenceWarnings,proto3" json:"independence_warnings,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *RegisteredTarget) Reset() {
 	*x = RegisteredTarget{}
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[0]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -58,7 +848,7 @@ func (x *RegisteredTarget) String() string {
 func (*RegisteredTarget) ProtoMessage() {}
 
 func (x *RegisteredTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[0]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -71,7 +861,7 @@ func (x *RegisteredTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisteredTarget.ProtoReflect.Descriptor instead.
 func (*RegisteredTarget) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{0}
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RegisteredTarget) GetId() string {
@@ -137,6 +927,136 @@ func (x *RegisteredTarget) GetCritical() bool {
 	return false
 }
 
+func (x *RegisteredTarget) GetReacquirable() bool {
+	if x != nil {
+		return x.Reacquirable
+	}
+	return false
+}
+
+func (x *RegisteredTarget) GetReacquisitionCommand() string {
+	if x != nil {
+		return x.ReacquisitionCommand
+	}
+	return ""
+}
+
+func (x *RegisteredTarget) GetReacquisitionEvidence() string {
+	if x != nil {
+		return x.ReacquisitionEvidence
+	}
+	return ""
+}
+
+func (x *RegisteredTarget) GetReacquisitionNeedsOperator() bool {
+	if x != nil {
+		return x.ReacquisitionNeedsOperator
+	}
+	return false
+}
+
+func (x *RegisteredTarget) GetReacquisitionAuthReason() string {
+	if x != nil {
+		return x.ReacquisitionAuthReason
+	}
+	return ""
+}
+
+func (x *RegisteredTarget) GetDestinations() []*TargetDestinationStatus {
+	if x != nil {
+		return x.Destinations
+	}
+	return nil
+}
+
+func (x *RegisteredTarget) GetAllDestinationsBackedUp() bool {
+	if x != nil {
+		return x.AllDestinationsBackedUp
+	}
+	return false
+}
+
+func (x *RegisteredTarget) GetAllDestinationsVerified() bool {
+	if x != nil {
+		return x.AllDestinationsVerified
+	}
+	return false
+}
+
+func (x *RegisteredTarget) GetPhysicalIndependenceProven() bool {
+	if x != nil {
+		return x.PhysicalIndependenceProven
+	}
+	return false
+}
+
+func (x *RegisteredTarget) GetIndependenceWarnings() []string {
+	if x != nil {
+		return x.IndependenceWarnings
+	}
+	return nil
+}
+
+type TargetDestinationStatus struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	DestinationId  string                 `protobuf:"bytes,1,opt,name=destination_id,json=destinationId,proto3" json:"destination_id,omitempty"`
+	LastSuccessAt  *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=last_success_at,json=lastSuccessAt,proto3" json:"last_success_at,omitempty"`
+	LastVerifiedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=last_verified_at,json=lastVerifiedAt,proto3" json:"last_verified_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *TargetDestinationStatus) Reset() {
+	*x = TargetDestinationStatus{}
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TargetDestinationStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TargetDestinationStatus) ProtoMessage() {}
+
+func (x *TargetDestinationStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TargetDestinationStatus.ProtoReflect.Descriptor instead.
+func (*TargetDestinationStatus) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *TargetDestinationStatus) GetDestinationId() string {
+	if x != nil {
+		return x.DestinationId
+	}
+	return ""
+}
+
+func (x *TargetDestinationStatus) GetLastSuccessAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastSuccessAt
+	}
+	return nil
+}
+
+func (x *TargetDestinationStatus) GetLastVerifiedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastVerifiedAt
+	}
+	return nil
+}
+
 // SuggestedTarget is a discovered durable source not yet registered. Mirrors a
 // discovery TargetSuggestion: non-sensitive ones are default recommendations;
 // sensitive ones (credentials/tokens) are review-only and never auto-accepted.
@@ -157,14 +1077,28 @@ type SuggestedTarget struct {
 	// Operator-facing warning for sensitive suggestions; empty otherwise.
 	Warning string `protobuf:"bytes,9,opt,name=warning,proto3" json:"warning,omitempty"`
 	// True when this source is part of the minimal critical recovery inventory.
-	Critical      bool `protobuf:"varint,10,opt,name=critical,proto3" json:"critical,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Critical bool `protobuf:"varint,10,opt,name=critical,proto3" json:"critical,omitempty"`
+	// Owner declaration that this data can be regenerated; informational only.
+	// Reacquirable targets are never included in the default acceptance set.
+	Reacquirable   bool   `protobuf:"varint,11,opt,name=reacquirable,proto3" json:"reacquirable,omitempty"`
+	BudgetMaxBytes string `protobuf:"bytes,12,opt,name=budget_max_bytes,json=budgetMaxBytes,proto3" json:"budget_max_bytes,omitempty"`
+	BudgetMaxAge   string `protobuf:"bytes,13,opt,name=budget_max_age,json=budgetMaxAge,proto3" json:"budget_max_age,omitempty"`
+	Retention      string `protobuf:"bytes,14,opt,name=retention,proto3" json:"retention,omitempty"`
+	// Owner-declared command for reacquisition; informational, not authority.
+	ReacquisitionCommand string `protobuf:"bytes,15,opt,name=reacquisition_command,json=reacquisitionCommand,proto3" json:"reacquisition_command,omitempty"`
+	// Owner-declared evidence source for reacquisition; informational.
+	ReacquisitionEvidence string `protobuf:"bytes,16,opt,name=reacquisition_evidence,json=reacquisitionEvidence,proto3" json:"reacquisition_evidence,omitempty"`
+	// True when the owner says reacquisition still needs operator authorization.
+	ReacquisitionNeedsOperator bool `protobuf:"varint,17,opt,name=reacquisition_needs_operator,json=reacquisitionNeedsOperator,proto3" json:"reacquisition_needs_operator,omitempty"`
+	// Owner-provided reason for the additional authorization gate.
+	ReacquisitionAuthReason string `protobuf:"bytes,18,opt,name=reacquisition_auth_reason,json=reacquisitionAuthReason,proto3" json:"reacquisition_auth_reason,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *SuggestedTarget) Reset() {
 	*x = SuggestedTarget{}
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[1]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -176,7 +1110,7 @@ func (x *SuggestedTarget) String() string {
 func (*SuggestedTarget) ProtoMessage() {}
 
 func (x *SuggestedTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[1]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -189,7 +1123,7 @@ func (x *SuggestedTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SuggestedTarget.ProtoReflect.Descriptor instead.
 func (*SuggestedTarget) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{1}
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SuggestedTarget) GetId() string {
@@ -262,6 +1196,62 @@ func (x *SuggestedTarget) GetCritical() bool {
 	return false
 }
 
+func (x *SuggestedTarget) GetReacquirable() bool {
+	if x != nil {
+		return x.Reacquirable
+	}
+	return false
+}
+
+func (x *SuggestedTarget) GetBudgetMaxBytes() string {
+	if x != nil {
+		return x.BudgetMaxBytes
+	}
+	return ""
+}
+
+func (x *SuggestedTarget) GetBudgetMaxAge() string {
+	if x != nil {
+		return x.BudgetMaxAge
+	}
+	return ""
+}
+
+func (x *SuggestedTarget) GetRetention() string {
+	if x != nil {
+		return x.Retention
+	}
+	return ""
+}
+
+func (x *SuggestedTarget) GetReacquisitionCommand() string {
+	if x != nil {
+		return x.ReacquisitionCommand
+	}
+	return ""
+}
+
+func (x *SuggestedTarget) GetReacquisitionEvidence() string {
+	if x != nil {
+		return x.ReacquisitionEvidence
+	}
+	return ""
+}
+
+func (x *SuggestedTarget) GetReacquisitionNeedsOperator() bool {
+	if x != nil {
+		return x.ReacquisitionNeedsOperator
+	}
+	return false
+}
+
+func (x *SuggestedTarget) GetReacquisitionAuthReason() string {
+	if x != nil {
+		return x.ReacquisitionAuthReason
+	}
+	return ""
+}
+
 // CoverageSummary is the at-a-glance scorecard the report leads with.
 type CoverageSummary struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
@@ -272,9 +1262,9 @@ type CoverageSummary struct {
 	SensitiveCount int32 `protobuf:"varint,3,opt,name=sensitive_count,json=sensitiveCount,proto3" json:"sensitive_count,omitempty"`
 	// Registered targets bound to at least one plan.
 	PlannedCount int32 `protobuf:"varint,4,opt,name=planned_count,json=plannedCount,proto3" json:"planned_count,omitempty"`
-	// Registered targets with at least one successful backup.
+	// Registered targets with a successful backup at every enabled destination.
 	BackedUpCount int32 `protobuf:"varint,5,opt,name=backed_up_count,json=backedUpCount,proto3" json:"backed_up_count,omitempty"`
-	// Registered targets with at least one verified restore.
+	// Registered targets with a verified scratch restore at every enabled destination.
 	VerifiedCount int32 `protobuf:"varint,6,opt,name=verified_count,json=verifiedCount,proto3" json:"verified_count,omitempty"`
 	// True when no non-sensitive recommendation remains unregistered.
 	DefaultCoverageComplete bool `protobuf:"varint,7,opt,name=default_coverage_complete,json=defaultCoverageComplete,proto3" json:"default_coverage_complete,omitempty"`
@@ -284,13 +1274,25 @@ type CoverageSummary struct {
 	HasUnplannedRegisteredTargets bool `protobuf:"varint,9,opt,name=has_unplanned_registered_targets,json=hasUnplannedRegisteredTargets,proto3" json:"has_unplanned_registered_targets,omitempty"`
 	// True when a registered target has never been verified.
 	HasUnverifiedTargets bool `protobuf:"varint,10,opt,name=has_unverified_targets,json=hasUnverifiedTargets,proto3" json:"has_unverified_targets,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Number of configured target × destination copies with a successful backup.
+	DestinationCopyCount int32 `protobuf:"varint,11,opt,name=destination_copy_count,json=destinationCopyCount,proto3" json:"destination_copy_count,omitempty"`
+	// Targets with every configured destination backed up successfully.
+	AllDestinationBackedUpCount int32 `protobuf:"varint,12,opt,name=all_destination_backed_up_count,json=allDestinationBackedUpCount,proto3" json:"all_destination_backed_up_count,omitempty"`
+	// Targets with every configured destination verified by a scratch restore.
+	AllDestinationVerifiedCount int32 `protobuf:"varint,13,opt,name=all_destination_verified_count,json=allDestinationVerifiedCount,proto3" json:"all_destination_verified_count,omitempty"`
+	// Targets bound to two or more currently enabled destinations; this count
+	// does not imply physical independence, which requires topology evidence.
+	MultiDestinationTargetCount int32 `protobuf:"varint,14,opt,name=multi_destination_target_count,json=multiDestinationTargetCount,proto3" json:"multi_destination_target_count,omitempty"`
+	// Targets with two or more currently enabled destinations whose observed
+	// topology proves physical independence.
+	PhysicallyIndependentTargetCount int32 `protobuf:"varint,15,opt,name=physically_independent_target_count,json=physicallyIndependentTargetCount,proto3" json:"physically_independent_target_count,omitempty"`
+	unknownFields                    protoimpl.UnknownFields
+	sizeCache                        protoimpl.SizeCache
 }
 
 func (x *CoverageSummary) Reset() {
 	*x = CoverageSummary{}
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[2]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -302,7 +1304,7 @@ func (x *CoverageSummary) String() string {
 func (*CoverageSummary) ProtoMessage() {}
 
 func (x *CoverageSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[2]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -315,7 +1317,7 @@ func (x *CoverageSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CoverageSummary.ProtoReflect.Descriptor instead.
 func (*CoverageSummary) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{2}
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CoverageSummary) GetRegisteredCount() int32 {
@@ -388,6 +1390,41 @@ func (x *CoverageSummary) GetHasUnverifiedTargets() bool {
 	return false
 }
 
+func (x *CoverageSummary) GetDestinationCopyCount() int32 {
+	if x != nil {
+		return x.DestinationCopyCount
+	}
+	return 0
+}
+
+func (x *CoverageSummary) GetAllDestinationBackedUpCount() int32 {
+	if x != nil {
+		return x.AllDestinationBackedUpCount
+	}
+	return 0
+}
+
+func (x *CoverageSummary) GetAllDestinationVerifiedCount() int32 {
+	if x != nil {
+		return x.AllDestinationVerifiedCount
+	}
+	return 0
+}
+
+func (x *CoverageSummary) GetMultiDestinationTargetCount() int32 {
+	if x != nil {
+		return x.MultiDestinationTargetCount
+	}
+	return 0
+}
+
+func (x *CoverageSummary) GetPhysicallyIndependentTargetCount() int32 {
+	if x != nil {
+		return x.PhysicallyIndependentTargetCount
+	}
+	return 0
+}
+
 // CoverageReport is the full first-backup-readiness picture, derived live.
 type CoverageReport struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
@@ -398,13 +1435,15 @@ type CoverageReport struct {
 	RecommendedTargets []*SuggestedTarget `protobuf:"bytes,3,rep,name=recommended_targets,json=recommendedTargets,proto3" json:"recommended_targets,omitempty"`
 	// Sensitive suggestions — review-only; require include_sensitive to accept.
 	SensitiveTargets []*SuggestedTarget `protobuf:"bytes,4,rep,name=sensitive_targets,json=sensitiveTargets,proto3" json:"sensitive_targets,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Existing owner-declared regenerable data, surfaced for capacity planning.
+	ReacquirableTargets []*SuggestedTarget `protobuf:"bytes,5,rep,name=reacquirable_targets,json=reacquirableTargets,proto3" json:"reacquirable_targets,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *CoverageReport) Reset() {
 	*x = CoverageReport{}
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[3]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -416,7 +1455,7 @@ func (x *CoverageReport) String() string {
 func (*CoverageReport) ProtoMessage() {}
 
 func (x *CoverageReport) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[3]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -429,7 +1468,7 @@ func (x *CoverageReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CoverageReport.ProtoReflect.Descriptor instead.
 func (*CoverageReport) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{3}
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CoverageReport) GetSummary() *CoverageSummary {
@@ -460,6 +1499,13 @@ func (x *CoverageReport) GetSensitiveTargets() []*SuggestedTarget {
 	return nil
 }
 
+func (x *CoverageReport) GetReacquirableTargets() []*SuggestedTarget {
+	if x != nil {
+		return x.ReacquirableTargets
+	}
+	return nil
+}
+
 type GetCoverageReportRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -468,7 +1514,7 @@ type GetCoverageReportRequest struct {
 
 func (x *GetCoverageReportRequest) Reset() {
 	*x = GetCoverageReportRequest{}
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[4]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -480,7 +1526,7 @@ func (x *GetCoverageReportRequest) String() string {
 func (*GetCoverageReportRequest) ProtoMessage() {}
 
 func (x *GetCoverageReportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[4]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -493,7 +1539,7 @@ func (x *GetCoverageReportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCoverageReportRequest.ProtoReflect.Descriptor instead.
 func (*GetCoverageReportRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{4}
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{17}
 }
 
 type GetCoverageReportResponse struct {
@@ -505,7 +1551,7 @@ type GetCoverageReportResponse struct {
 
 func (x *GetCoverageReportResponse) Reset() {
 	*x = GetCoverageReportResponse{}
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[5]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -517,7 +1563,7 @@ func (x *GetCoverageReportResponse) String() string {
 func (*GetCoverageReportResponse) ProtoMessage() {}
 
 func (x *GetCoverageReportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[5]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -530,7 +1576,7 @@ func (x *GetCoverageReportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCoverageReportResponse.ProtoReflect.Descriptor instead.
 func (*GetCoverageReportResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{5}
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetCoverageReportResponse) GetReport() *CoverageReport {
@@ -558,7 +1604,7 @@ type AcceptedTarget struct {
 
 func (x *AcceptedTarget) Reset() {
 	*x = AcceptedTarget{}
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[6]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -570,7 +1616,7 @@ func (x *AcceptedTarget) String() string {
 func (*AcceptedTarget) ProtoMessage() {}
 
 func (x *AcceptedTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[6]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -583,7 +1629,7 @@ func (x *AcceptedTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcceptedTarget.ProtoReflect.Descriptor instead.
 func (*AcceptedTarget) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{6}
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *AcceptedTarget) GetTargetId() string {
@@ -656,7 +1702,7 @@ type AcceptError struct {
 
 func (x *AcceptError) Reset() {
 	*x = AcceptError{}
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[7]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -668,7 +1714,7 @@ func (x *AcceptError) String() string {
 func (*AcceptError) ProtoMessage() {}
 
 func (x *AcceptError) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[7]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -681,7 +1727,7 @@ func (x *AcceptError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcceptError.ProtoReflect.Descriptor instead.
 func (*AcceptError) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{7}
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *AcceptError) GetSuggestionId() string {
@@ -714,8 +1760,8 @@ func (x *AcceptError) GetMessage() string {
 
 type AcceptDefaultTargetsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// When true, sensitive credential/token suggestions are also registered.
-	// Default false: sensitive suggestions are skipped and reported.
+	// Legacy field. True is rejected; sensitive targets require a verified
+	// Notification Hub decision callback.
 	IncludeSensitive bool `protobuf:"varint,1,opt,name=include_sensitive,json=includeSensitive,proto3" json:"include_sensitive,omitempty"`
 	// When true, register nothing — only report what would be registered.
 	DryRun        bool `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
@@ -725,7 +1771,7 @@ type AcceptDefaultTargetsRequest struct {
 
 func (x *AcceptDefaultTargetsRequest) Reset() {
 	*x = AcceptDefaultTargetsRequest{}
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[8]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -737,7 +1783,7 @@ func (x *AcceptDefaultTargetsRequest) String() string {
 func (*AcceptDefaultTargetsRequest) ProtoMessage() {}
 
 func (x *AcceptDefaultTargetsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[8]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -750,7 +1796,7 @@ func (x *AcceptDefaultTargetsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcceptDefaultTargetsRequest.ProtoReflect.Descriptor instead.
 func (*AcceptDefaultTargetsRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{8}
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *AcceptDefaultTargetsRequest) GetIncludeSensitive() bool {
@@ -783,7 +1829,7 @@ type AcceptDefaultTargetsResponse struct {
 
 func (x *AcceptDefaultTargetsResponse) Reset() {
 	*x = AcceptDefaultTargetsResponse{}
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[9]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -795,7 +1841,7 @@ func (x *AcceptDefaultTargetsResponse) String() string {
 func (*AcceptDefaultTargetsResponse) ProtoMessage() {}
 
 func (x *AcceptDefaultTargetsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[9]
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -808,7 +1854,7 @@ func (x *AcceptDefaultTargetsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcceptDefaultTargetsResponse.ProtoReflect.Descriptor instead.
 func (*AcceptDefaultTargetsResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{9}
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *AcceptDefaultTargetsResponse) GetAccepted() []*AcceptedTarget {
@@ -839,11 +1885,187 @@ func (x *AcceptDefaultTargetsResponse) GetDryRun() bool {
 	return false
 }
 
+type AdoptSensitiveConsentRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The Hub ask whose answer is the consent.
+	HubAskId      string `protobuf:"bytes,1,opt,name=hub_ask_id,json=hubAskId,proto3" json:"hub_ask_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdoptSensitiveConsentRequest) Reset() {
+	*x = AdoptSensitiveConsentRequest{}
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdoptSensitiveConsentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdoptSensitiveConsentRequest) ProtoMessage() {}
+
+func (x *AdoptSensitiveConsentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdoptSensitiveConsentRequest.ProtoReflect.Descriptor instead.
+func (*AdoptSensitiveConsentRequest) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *AdoptSensitiveConsentRequest) GetHubAskId() string {
+	if x != nil {
+		return x.HubAskId
+	}
+	return ""
+}
+
+type AdoptSensitiveConsentResponse struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Policy *SensitivePolicy       `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
+	// Places the rule registered when it was applied.
+	RegisteredCount int32 `protobuf:"varint,2,opt,name=registered_count,json=registeredCount,proto3" json:"registered_count,omitempty"`
+	// Places it could not register; the next sweep retries them.
+	FailedCount   int32 `protobuf:"varint,3,opt,name=failed_count,json=failedCount,proto3" json:"failed_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdoptSensitiveConsentResponse) Reset() {
+	*x = AdoptSensitiveConsentResponse{}
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdoptSensitiveConsentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdoptSensitiveConsentResponse) ProtoMessage() {}
+
+func (x *AdoptSensitiveConsentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_coverage_coverage_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdoptSensitiveConsentResponse.ProtoReflect.Descriptor instead.
+func (*AdoptSensitiveConsentResponse) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *AdoptSensitiveConsentResponse) GetPolicy() *SensitivePolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return nil
+}
+
+func (x *AdoptSensitiveConsentResponse) GetRegisteredCount() int32 {
+	if x != nil {
+		return x.RegisteredCount
+	}
+	return 0
+}
+
+func (x *AdoptSensitiveConsentResponse) GetFailedCount() int32 {
+	if x != nil {
+		return x.FailedCount
+	}
+	return 0
+}
+
 var File_data_backup_manager_v1_coverage_coverage_proto protoreflect.FileDescriptor
 
 const file_data_backup_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\n" +
-	".data-backup-manager/v1/coverage/coverage.proto\x12&vrooli.data_backup_manager.v1.coverage\x1a,data-backup-manager/v1/sources/sources.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfa\x02\n" +
+	".data-backup-manager/v1/coverage/coverage.proto\x12&vrooli.data_backup_manager.v1.coverage\x1a,data-backup-manager/v1/sources/sources.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x1f\n" +
+	"\x1dRequestSensitiveReviewRequest\"z\n" +
+	"\x1eRequestSensitiveReviewResponse\x12\x15\n" +
+	"\x06ask_id\x18\x01 \x01(\tR\x05askId\x12'\n" +
+	"\x0fcandidate_count\x18\x02 \x01(\x05R\x0ecandidateCount\x12\x18\n" +
+	"\apending\x18\x03 \x01(\bR\apending\"\xb3\x01\n" +
+	"\x17SensitivePolicyAddition\x12\x14\n" +
+	"\x05owner\x18\x01 \x01(\tR\x05owner\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
+	"\x05group\x18\x03 \x01(\tR\x05group\x12!\n" +
+	"\fapprox_bytes\x18\x04 \x01(\x03R\vapproxBytes\x125\n" +
+	"\badded_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\aaddedAt\"\xba\x01\n" +
+	"\x18SensitivePolicyExclusion\x12\x14\n" +
+	"\x05owner\x18\x01 \x01(\tR\x05owner\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\x12\x1f\n" +
+	"\vexcluded_by\x18\x04 \x01(\tR\n" +
+	"excludedBy\x12;\n" +
+	"\vexcluded_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"excludedAt\"~\n" +
+	"\x14SensitivePolicyEvent\x12*\n" +
+	"\x02at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x0e\n" +
+	"\x02by\x18\x03 \x01(\tR\x02by\x12\x16\n" +
+	"\x06detail\x18\x04 \x01(\tR\x06detail\"\xeb\x06\n" +
+	"\x0fSensitivePolicy\x12\x16\n" +
+	"\x06active\x18\x01 \x01(\bR\x06active\x12 \n" +
+	"\fgrant_ask_id\x18\x02 \x01(\tR\n" +
+	"grantAskId\x12\x1d\n" +
+	"\n" +
+	"granted_by\x18\x03 \x01(\tR\tgrantedBy\x127\n" +
+	"\x18granted_by_identity_kind\x18\x04 \x01(\tR\x15grantedByIdentityKind\x12;\n" +
+	"\x1agranted_by_identity_source\x18\x05 \x01(\tR\x17grantedByIdentitySource\x129\n" +
+	"\n" +
+	"granted_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tgrantedAt\x12\x1d\n" +
+	"\n" +
+	"revoked_by\x18\a \x01(\tR\trevokedBy\x129\n" +
+	"\n" +
+	"revoked_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\trevokedAt\x12\\\n" +
+	"\bexcluded\x18\t \x03(\v2@.vrooli.data_backup_manager.v1.coverage.SensitivePolicyExclusionR\bexcluded\x12_\n" +
+	"\n" +
+	"unreported\x18\n" +
+	" \x03(\v2?.vrooli.data_backup_manager.v1.coverage.SensitivePolicyAdditionR\n" +
+	"unreported\x12\x1f\n" +
+	"\vadded_total\x18\v \x01(\x05R\n" +
+	"addedTotal\x12<\n" +
+	"\flast_note_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"lastNoteAt\x12>\n" +
+	"\rlast_sweep_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\vlastSweepAt\x12V\n" +
+	"\ahistory\x18\x0e \x03(\v2<.vrooli.data_backup_manager.v1.coverage.SensitivePolicyEventR\ahistory\x12\x1f\n" +
+	"\vgrant_basis\x18\x0f \x01(\tR\n" +
+	"grantBasis\x12\x1d\n" +
+	"\n" +
+	"grant_text\x18\x10 \x01(\tR\tgrantText\"\x1b\n" +
+	"\x19GetSensitivePolicyRequest\"m\n" +
+	"\x1aGetSensitivePolicyResponse\x12O\n" +
+	"\x06policy\x18\x01 \x01(\v27.vrooli.data_backup_manager.v1.coverage.SensitivePolicyR\x06policy\"=\n" +
+	"\x1cRevokeSensitivePolicyRequest\x12\x1d\n" +
+	"\n" +
+	"revoked_by\x18\x01 \x01(\tR\trevokedBy\"p\n" +
+	"\x1dRevokeSensitivePolicyResponse\x12O\n" +
+	"\x06policy\x18\x01 \x01(\v27.vrooli.data_backup_manager.v1.coverage.SensitivePolicyR\x06policy\"\x82\x01\n" +
+	"\x1dExcludeSensitiveTargetRequest\x12\x14\n" +
+	"\x05owner\x18\x01 \x01(\tR\x05owner\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\x12\x1f\n" +
+	"\vexcluded_by\x18\x04 \x01(\tR\n" +
+	"excludedBy\"q\n" +
+	"\x1eExcludeSensitiveTargetResponse\x12O\n" +
+	"\x06policy\x18\x01 \x01(\v27.vrooli.data_backup_manager.v1.coverage.SensitivePolicyR\x06policy\"\xdd\a\n" +
 	"\x10RegisteredTarget\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12\x12\n" +
@@ -854,7 +2076,22 @@ const file_data_backup_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\aplanned\x18\x06 \x01(\bR\aplanned\x12B\n" +
 	"\x0flast_success_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\rlastSuccessAt\x12D\n" +
 	"\x10last_verified_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\x0elastVerifiedAt\x12\x1a\n" +
-	"\bcritical\x18\t \x01(\bR\bcritical\"\xce\x02\n" +
+	"\bcritical\x18\t \x01(\bR\bcritical\x12\"\n" +
+	"\freacquirable\x18\n" +
+	" \x01(\bR\freacquirable\x123\n" +
+	"\x15reacquisition_command\x18\v \x01(\tR\x14reacquisitionCommand\x125\n" +
+	"\x16reacquisition_evidence\x18\f \x01(\tR\x15reacquisitionEvidence\x12@\n" +
+	"\x1creacquisition_needs_operator\x18\r \x01(\bR\x1areacquisitionNeedsOperator\x12:\n" +
+	"\x19reacquisition_auth_reason\x18\x0e \x01(\tR\x17reacquisitionAuthReason\x12c\n" +
+	"\fdestinations\x18\x0f \x03(\v2?.vrooli.data_backup_manager.v1.coverage.TargetDestinationStatusR\fdestinations\x12;\n" +
+	"\x1aall_destinations_backed_up\x18\x10 \x01(\bR\x17allDestinationsBackedUp\x12:\n" +
+	"\x19all_destinations_verified\x18\x11 \x01(\bR\x17allDestinationsVerified\x12@\n" +
+	"\x1cphysical_independence_proven\x18\x12 \x01(\bR\x1aphysicalIndependenceProven\x123\n" +
+	"\x15independence_warnings\x18\x13 \x03(\tR\x14independenceWarnings\"\xca\x01\n" +
+	"\x17TargetDestinationStatus\x12%\n" +
+	"\x0edestination_id\x18\x01 \x01(\tR\rdestinationId\x12B\n" +
+	"\x0flast_success_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\rlastSuccessAt\x12D\n" +
+	"\x10last_verified_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x0elastVerifiedAt\"\xca\x05\n" +
 	"\x0fSuggestedTarget\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12\x12\n" +
@@ -867,7 +2104,15 @@ const file_data_backup_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\tsensitive\x18\b \x01(\bR\tsensitive\x12\x18\n" +
 	"\awarning\x18\t \x01(\tR\awarning\x12\x1a\n" +
 	"\bcritical\x18\n" +
-	" \x01(\bR\bcritical\"\xfb\x03\n" +
+	" \x01(\bR\bcritical\x12\"\n" +
+	"\freacquirable\x18\v \x01(\bR\freacquirable\x12(\n" +
+	"\x10budget_max_bytes\x18\f \x01(\tR\x0ebudgetMaxBytes\x12$\n" +
+	"\x0ebudget_max_age\x18\r \x01(\tR\fbudgetMaxAge\x12\x1c\n" +
+	"\tretention\x18\x0e \x01(\tR\tretention\x123\n" +
+	"\x15reacquisition_command\x18\x0f \x01(\tR\x14reacquisitionCommand\x125\n" +
+	"\x16reacquisition_evidence\x18\x10 \x01(\tR\x15reacquisitionEvidence\x12@\n" +
+	"\x1creacquisition_needs_operator\x18\x11 \x01(\bR\x1areacquisitionNeedsOperator\x12:\n" +
+	"\x19reacquisition_auth_reason\x18\x12 \x01(\tR\x17reacquisitionAuthReason\"\xd0\x06\n" +
 	"\x0fCoverageSummary\x12)\n" +
 	"\x10registered_count\x18\x01 \x01(\x05R\x0fregisteredCount\x12+\n" +
 	"\x11recommended_count\x18\x02 \x01(\x05R\x10recommendedCount\x12'\n" +
@@ -879,12 +2124,18 @@ const file_data_backup_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\x18has_sensitive_unreviewed\x18\b \x01(\bR\x16hasSensitiveUnreviewed\x12G\n" +
 	" has_unplanned_registered_targets\x18\t \x01(\bR\x1dhasUnplannedRegisteredTargets\x124\n" +
 	"\x16has_unverified_targets\x18\n" +
-	" \x01(\bR\x14hasUnverifiedTargets\"\x9c\x03\n" +
+	" \x01(\bR\x14hasUnverifiedTargets\x124\n" +
+	"\x16destination_copy_count\x18\v \x01(\x05R\x14destinationCopyCount\x12D\n" +
+	"\x1fall_destination_backed_up_count\x18\f \x01(\x05R\x1ballDestinationBackedUpCount\x12C\n" +
+	"\x1eall_destination_verified_count\x18\r \x01(\x05R\x1ballDestinationVerifiedCount\x12C\n" +
+	"\x1emulti_destination_target_count\x18\x0e \x01(\x05R\x1bmultiDestinationTargetCount\x12M\n" +
+	"#physically_independent_target_count\x18\x0f \x01(\x05R physicallyIndependentTargetCount\"\x88\x04\n" +
 	"\x0eCoverageReport\x12Q\n" +
 	"\asummary\x18\x01 \x01(\v27.vrooli.data_backup_manager.v1.coverage.CoverageSummaryR\asummary\x12g\n" +
 	"\x12registered_targets\x18\x02 \x03(\v28.vrooli.data_backup_manager.v1.coverage.RegisteredTargetR\x11registeredTargets\x12h\n" +
 	"\x13recommended_targets\x18\x03 \x03(\v27.vrooli.data_backup_manager.v1.coverage.SuggestedTargetR\x12recommendedTargets\x12d\n" +
-	"\x11sensitive_targets\x18\x04 \x03(\v27.vrooli.data_backup_manager.v1.coverage.SuggestedTargetR\x10sensitiveTargets\"\x1a\n" +
+	"\x11sensitive_targets\x18\x04 \x03(\v27.vrooli.data_backup_manager.v1.coverage.SuggestedTargetR\x10sensitiveTargets\x12j\n" +
+	"\x14reacquirable_targets\x18\x05 \x03(\v27.vrooli.data_backup_manager.v1.coverage.SuggestedTargetR\x13reacquirableTargets\"\x1a\n" +
 	"\x18GetCoverageReportRequest\"k\n" +
 	"\x19GetCoverageReportResponse\x12N\n" +
 	"\x06report\x18\x01 \x01(\v26.vrooli.data_backup_manager.v1.coverage.CoverageReportR\x06report\"\xa4\x02\n" +
@@ -910,10 +2161,22 @@ const file_data_backup_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\baccepted\x18\x01 \x03(\v26.vrooli.data_backup_manager.v1.coverage.AcceptedTargetR\baccepted\x12d\n" +
 	"\x11skipped_sensitive\x18\x02 \x03(\v27.vrooli.data_backup_manager.v1.coverage.SuggestedTargetR\x10skippedSensitive\x12K\n" +
 	"\x06failed\x18\x03 \x03(\v23.vrooli.data_backup_manager.v1.coverage.AcceptErrorR\x06failed\x12\x17\n" +
-	"\adry_run\x18\x04 \x01(\bR\x06dryRun2\xd0\x02\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"<\n" +
+	"\x1cAdoptSensitiveConsentRequest\x12\x1c\n" +
+	"\n" +
+	"hub_ask_id\x18\x01 \x01(\tR\bhubAskId\"\xbe\x01\n" +
+	"\x1dAdoptSensitiveConsentResponse\x12O\n" +
+	"\x06policy\x18\x01 \x01(\v27.vrooli.data_backup_manager.v1.coverage.SensitivePolicyR\x06policy\x12)\n" +
+	"\x10registered_count\x18\x02 \x01(\x05R\x0fregisteredCount\x12!\n" +
+	"\ffailed_count\x18\x03 \x01(\x05R\vfailedCount2\x90\t\n" +
 	"\x0fCoverageService\x12\x98\x01\n" +
 	"\x11GetCoverageReport\x12@.vrooli.data_backup_manager.v1.coverage.GetCoverageReportRequest\x1aA.vrooli.data_backup_manager.v1.coverage.GetCoverageReportResponse\x12\xa1\x01\n" +
-	"\x14AcceptDefaultTargets\x12C.vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsRequest\x1aD.vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/coverage;coverage_v1b\x06proto3"
+	"\x14AcceptDefaultTargets\x12C.vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsRequest\x1aD.vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsResponse\x12\xa7\x01\n" +
+	"\x16RequestSensitiveReview\x12E.vrooli.data_backup_manager.v1.coverage.RequestSensitiveReviewRequest\x1aF.vrooli.data_backup_manager.v1.coverage.RequestSensitiveReviewResponse\x12\x9b\x01\n" +
+	"\x12GetSensitivePolicy\x12A.vrooli.data_backup_manager.v1.coverage.GetSensitivePolicyRequest\x1aB.vrooli.data_backup_manager.v1.coverage.GetSensitivePolicyResponse\x12\xa4\x01\n" +
+	"\x15RevokeSensitivePolicy\x12D.vrooli.data_backup_manager.v1.coverage.RevokeSensitivePolicyRequest\x1aE.vrooli.data_backup_manager.v1.coverage.RevokeSensitivePolicyResponse\x12\xa7\x01\n" +
+	"\x16ExcludeSensitiveTarget\x12E.vrooli.data_backup_manager.v1.coverage.ExcludeSensitiveTargetRequest\x1aF.vrooli.data_backup_manager.v1.coverage.ExcludeSensitiveTargetResponse\x12\xa4\x01\n" +
+	"\x15AdoptSensitiveConsent\x12D.vrooli.data_backup_manager.v1.coverage.AdoptSensitiveConsentRequest\x1aE.vrooli.data_backup_manager.v1.coverage.AdoptSensitiveConsentResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/coverage;coverage_v1b\x06proto3"
 
 var (
 	file_data_backup_manager_v1_coverage_coverage_proto_rawDescOnce sync.Once
@@ -927,44 +2190,87 @@ func file_data_backup_manager_v1_coverage_coverage_proto_rawDescGZIP() []byte {
 	return file_data_backup_manager_v1_coverage_coverage_proto_rawDescData
 }
 
-var file_data_backup_manager_v1_coverage_coverage_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_data_backup_manager_v1_coverage_coverage_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_data_backup_manager_v1_coverage_coverage_proto_goTypes = []any{
-	(*RegisteredTarget)(nil),             // 0: vrooli.data_backup_manager.v1.coverage.RegisteredTarget
-	(*SuggestedTarget)(nil),              // 1: vrooli.data_backup_manager.v1.coverage.SuggestedTarget
-	(*CoverageSummary)(nil),              // 2: vrooli.data_backup_manager.v1.coverage.CoverageSummary
-	(*CoverageReport)(nil),               // 3: vrooli.data_backup_manager.v1.coverage.CoverageReport
-	(*GetCoverageReportRequest)(nil),     // 4: vrooli.data_backup_manager.v1.coverage.GetCoverageReportRequest
-	(*GetCoverageReportResponse)(nil),    // 5: vrooli.data_backup_manager.v1.coverage.GetCoverageReportResponse
-	(*AcceptedTarget)(nil),               // 6: vrooli.data_backup_manager.v1.coverage.AcceptedTarget
-	(*AcceptError)(nil),                  // 7: vrooli.data_backup_manager.v1.coverage.AcceptError
-	(*AcceptDefaultTargetsRequest)(nil),  // 8: vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsRequest
-	(*AcceptDefaultTargetsResponse)(nil), // 9: vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsResponse
-	(sources.SourceKind)(0),              // 10: vrooli.data_backup_manager.v1.sources.SourceKind
-	(*timestamppb.Timestamp)(nil),        // 11: google.protobuf.Timestamp
+	(*RequestSensitiveReviewRequest)(nil),  // 0: vrooli.data_backup_manager.v1.coverage.RequestSensitiveReviewRequest
+	(*RequestSensitiveReviewResponse)(nil), // 1: vrooli.data_backup_manager.v1.coverage.RequestSensitiveReviewResponse
+	(*SensitivePolicyAddition)(nil),        // 2: vrooli.data_backup_manager.v1.coverage.SensitivePolicyAddition
+	(*SensitivePolicyExclusion)(nil),       // 3: vrooli.data_backup_manager.v1.coverage.SensitivePolicyExclusion
+	(*SensitivePolicyEvent)(nil),           // 4: vrooli.data_backup_manager.v1.coverage.SensitivePolicyEvent
+	(*SensitivePolicy)(nil),                // 5: vrooli.data_backup_manager.v1.coverage.SensitivePolicy
+	(*GetSensitivePolicyRequest)(nil),      // 6: vrooli.data_backup_manager.v1.coverage.GetSensitivePolicyRequest
+	(*GetSensitivePolicyResponse)(nil),     // 7: vrooli.data_backup_manager.v1.coverage.GetSensitivePolicyResponse
+	(*RevokeSensitivePolicyRequest)(nil),   // 8: vrooli.data_backup_manager.v1.coverage.RevokeSensitivePolicyRequest
+	(*RevokeSensitivePolicyResponse)(nil),  // 9: vrooli.data_backup_manager.v1.coverage.RevokeSensitivePolicyResponse
+	(*ExcludeSensitiveTargetRequest)(nil),  // 10: vrooli.data_backup_manager.v1.coverage.ExcludeSensitiveTargetRequest
+	(*ExcludeSensitiveTargetResponse)(nil), // 11: vrooli.data_backup_manager.v1.coverage.ExcludeSensitiveTargetResponse
+	(*RegisteredTarget)(nil),               // 12: vrooli.data_backup_manager.v1.coverage.RegisteredTarget
+	(*TargetDestinationStatus)(nil),        // 13: vrooli.data_backup_manager.v1.coverage.TargetDestinationStatus
+	(*SuggestedTarget)(nil),                // 14: vrooli.data_backup_manager.v1.coverage.SuggestedTarget
+	(*CoverageSummary)(nil),                // 15: vrooli.data_backup_manager.v1.coverage.CoverageSummary
+	(*CoverageReport)(nil),                 // 16: vrooli.data_backup_manager.v1.coverage.CoverageReport
+	(*GetCoverageReportRequest)(nil),       // 17: vrooli.data_backup_manager.v1.coverage.GetCoverageReportRequest
+	(*GetCoverageReportResponse)(nil),      // 18: vrooli.data_backup_manager.v1.coverage.GetCoverageReportResponse
+	(*AcceptedTarget)(nil),                 // 19: vrooli.data_backup_manager.v1.coverage.AcceptedTarget
+	(*AcceptError)(nil),                    // 20: vrooli.data_backup_manager.v1.coverage.AcceptError
+	(*AcceptDefaultTargetsRequest)(nil),    // 21: vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsRequest
+	(*AcceptDefaultTargetsResponse)(nil),   // 22: vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsResponse
+	(*AdoptSensitiveConsentRequest)(nil),   // 23: vrooli.data_backup_manager.v1.coverage.AdoptSensitiveConsentRequest
+	(*AdoptSensitiveConsentResponse)(nil),  // 24: vrooli.data_backup_manager.v1.coverage.AdoptSensitiveConsentResponse
+	(*timestamppb.Timestamp)(nil),          // 25: google.protobuf.Timestamp
+	(sources.SourceKind)(0),                // 26: vrooli.data_backup_manager.v1.sources.SourceKind
 }
 var file_data_backup_manager_v1_coverage_coverage_proto_depIdxs = []int32{
-	10, // 0: vrooli.data_backup_manager.v1.coverage.RegisteredTarget.source_kind:type_name -> vrooli.data_backup_manager.v1.sources.SourceKind
-	11, // 1: vrooli.data_backup_manager.v1.coverage.RegisteredTarget.last_success_at:type_name -> google.protobuf.Timestamp
-	11, // 2: vrooli.data_backup_manager.v1.coverage.RegisteredTarget.last_verified_at:type_name -> google.protobuf.Timestamp
-	10, // 3: vrooli.data_backup_manager.v1.coverage.SuggestedTarget.source_kind:type_name -> vrooli.data_backup_manager.v1.sources.SourceKind
-	2,  // 4: vrooli.data_backup_manager.v1.coverage.CoverageReport.summary:type_name -> vrooli.data_backup_manager.v1.coverage.CoverageSummary
-	0,  // 5: vrooli.data_backup_manager.v1.coverage.CoverageReport.registered_targets:type_name -> vrooli.data_backup_manager.v1.coverage.RegisteredTarget
-	1,  // 6: vrooli.data_backup_manager.v1.coverage.CoverageReport.recommended_targets:type_name -> vrooli.data_backup_manager.v1.coverage.SuggestedTarget
-	1,  // 7: vrooli.data_backup_manager.v1.coverage.CoverageReport.sensitive_targets:type_name -> vrooli.data_backup_manager.v1.coverage.SuggestedTarget
-	3,  // 8: vrooli.data_backup_manager.v1.coverage.GetCoverageReportResponse.report:type_name -> vrooli.data_backup_manager.v1.coverage.CoverageReport
-	10, // 9: vrooli.data_backup_manager.v1.coverage.AcceptedTarget.source_kind:type_name -> vrooli.data_backup_manager.v1.sources.SourceKind
-	6,  // 10: vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsResponse.accepted:type_name -> vrooli.data_backup_manager.v1.coverage.AcceptedTarget
-	1,  // 11: vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsResponse.skipped_sensitive:type_name -> vrooli.data_backup_manager.v1.coverage.SuggestedTarget
-	7,  // 12: vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsResponse.failed:type_name -> vrooli.data_backup_manager.v1.coverage.AcceptError
-	4,  // 13: vrooli.data_backup_manager.v1.coverage.CoverageService.GetCoverageReport:input_type -> vrooli.data_backup_manager.v1.coverage.GetCoverageReportRequest
-	8,  // 14: vrooli.data_backup_manager.v1.coverage.CoverageService.AcceptDefaultTargets:input_type -> vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsRequest
-	5,  // 15: vrooli.data_backup_manager.v1.coverage.CoverageService.GetCoverageReport:output_type -> vrooli.data_backup_manager.v1.coverage.GetCoverageReportResponse
-	9,  // 16: vrooli.data_backup_manager.v1.coverage.CoverageService.AcceptDefaultTargets:output_type -> vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsResponse
-	15, // [15:17] is the sub-list for method output_type
-	13, // [13:15] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	25, // 0: vrooli.data_backup_manager.v1.coverage.SensitivePolicyAddition.added_at:type_name -> google.protobuf.Timestamp
+	25, // 1: vrooli.data_backup_manager.v1.coverage.SensitivePolicyExclusion.excluded_at:type_name -> google.protobuf.Timestamp
+	25, // 2: vrooli.data_backup_manager.v1.coverage.SensitivePolicyEvent.at:type_name -> google.protobuf.Timestamp
+	25, // 3: vrooli.data_backup_manager.v1.coverage.SensitivePolicy.granted_at:type_name -> google.protobuf.Timestamp
+	25, // 4: vrooli.data_backup_manager.v1.coverage.SensitivePolicy.revoked_at:type_name -> google.protobuf.Timestamp
+	3,  // 5: vrooli.data_backup_manager.v1.coverage.SensitivePolicy.excluded:type_name -> vrooli.data_backup_manager.v1.coverage.SensitivePolicyExclusion
+	2,  // 6: vrooli.data_backup_manager.v1.coverage.SensitivePolicy.unreported:type_name -> vrooli.data_backup_manager.v1.coverage.SensitivePolicyAddition
+	25, // 7: vrooli.data_backup_manager.v1.coverage.SensitivePolicy.last_note_at:type_name -> google.protobuf.Timestamp
+	25, // 8: vrooli.data_backup_manager.v1.coverage.SensitivePolicy.last_sweep_at:type_name -> google.protobuf.Timestamp
+	4,  // 9: vrooli.data_backup_manager.v1.coverage.SensitivePolicy.history:type_name -> vrooli.data_backup_manager.v1.coverage.SensitivePolicyEvent
+	5,  // 10: vrooli.data_backup_manager.v1.coverage.GetSensitivePolicyResponse.policy:type_name -> vrooli.data_backup_manager.v1.coverage.SensitivePolicy
+	5,  // 11: vrooli.data_backup_manager.v1.coverage.RevokeSensitivePolicyResponse.policy:type_name -> vrooli.data_backup_manager.v1.coverage.SensitivePolicy
+	5,  // 12: vrooli.data_backup_manager.v1.coverage.ExcludeSensitiveTargetResponse.policy:type_name -> vrooli.data_backup_manager.v1.coverage.SensitivePolicy
+	26, // 13: vrooli.data_backup_manager.v1.coverage.RegisteredTarget.source_kind:type_name -> vrooli.data_backup_manager.v1.sources.SourceKind
+	25, // 14: vrooli.data_backup_manager.v1.coverage.RegisteredTarget.last_success_at:type_name -> google.protobuf.Timestamp
+	25, // 15: vrooli.data_backup_manager.v1.coverage.RegisteredTarget.last_verified_at:type_name -> google.protobuf.Timestamp
+	13, // 16: vrooli.data_backup_manager.v1.coverage.RegisteredTarget.destinations:type_name -> vrooli.data_backup_manager.v1.coverage.TargetDestinationStatus
+	25, // 17: vrooli.data_backup_manager.v1.coverage.TargetDestinationStatus.last_success_at:type_name -> google.protobuf.Timestamp
+	25, // 18: vrooli.data_backup_manager.v1.coverage.TargetDestinationStatus.last_verified_at:type_name -> google.protobuf.Timestamp
+	26, // 19: vrooli.data_backup_manager.v1.coverage.SuggestedTarget.source_kind:type_name -> vrooli.data_backup_manager.v1.sources.SourceKind
+	15, // 20: vrooli.data_backup_manager.v1.coverage.CoverageReport.summary:type_name -> vrooli.data_backup_manager.v1.coverage.CoverageSummary
+	12, // 21: vrooli.data_backup_manager.v1.coverage.CoverageReport.registered_targets:type_name -> vrooli.data_backup_manager.v1.coverage.RegisteredTarget
+	14, // 22: vrooli.data_backup_manager.v1.coverage.CoverageReport.recommended_targets:type_name -> vrooli.data_backup_manager.v1.coverage.SuggestedTarget
+	14, // 23: vrooli.data_backup_manager.v1.coverage.CoverageReport.sensitive_targets:type_name -> vrooli.data_backup_manager.v1.coverage.SuggestedTarget
+	14, // 24: vrooli.data_backup_manager.v1.coverage.CoverageReport.reacquirable_targets:type_name -> vrooli.data_backup_manager.v1.coverage.SuggestedTarget
+	16, // 25: vrooli.data_backup_manager.v1.coverage.GetCoverageReportResponse.report:type_name -> vrooli.data_backup_manager.v1.coverage.CoverageReport
+	26, // 26: vrooli.data_backup_manager.v1.coverage.AcceptedTarget.source_kind:type_name -> vrooli.data_backup_manager.v1.sources.SourceKind
+	19, // 27: vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsResponse.accepted:type_name -> vrooli.data_backup_manager.v1.coverage.AcceptedTarget
+	14, // 28: vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsResponse.skipped_sensitive:type_name -> vrooli.data_backup_manager.v1.coverage.SuggestedTarget
+	20, // 29: vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsResponse.failed:type_name -> vrooli.data_backup_manager.v1.coverage.AcceptError
+	5,  // 30: vrooli.data_backup_manager.v1.coverage.AdoptSensitiveConsentResponse.policy:type_name -> vrooli.data_backup_manager.v1.coverage.SensitivePolicy
+	17, // 31: vrooli.data_backup_manager.v1.coverage.CoverageService.GetCoverageReport:input_type -> vrooli.data_backup_manager.v1.coverage.GetCoverageReportRequest
+	21, // 32: vrooli.data_backup_manager.v1.coverage.CoverageService.AcceptDefaultTargets:input_type -> vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsRequest
+	0,  // 33: vrooli.data_backup_manager.v1.coverage.CoverageService.RequestSensitiveReview:input_type -> vrooli.data_backup_manager.v1.coverage.RequestSensitiveReviewRequest
+	6,  // 34: vrooli.data_backup_manager.v1.coverage.CoverageService.GetSensitivePolicy:input_type -> vrooli.data_backup_manager.v1.coverage.GetSensitivePolicyRequest
+	8,  // 35: vrooli.data_backup_manager.v1.coverage.CoverageService.RevokeSensitivePolicy:input_type -> vrooli.data_backup_manager.v1.coverage.RevokeSensitivePolicyRequest
+	10, // 36: vrooli.data_backup_manager.v1.coverage.CoverageService.ExcludeSensitiveTarget:input_type -> vrooli.data_backup_manager.v1.coverage.ExcludeSensitiveTargetRequest
+	23, // 37: vrooli.data_backup_manager.v1.coverage.CoverageService.AdoptSensitiveConsent:input_type -> vrooli.data_backup_manager.v1.coverage.AdoptSensitiveConsentRequest
+	18, // 38: vrooli.data_backup_manager.v1.coverage.CoverageService.GetCoverageReport:output_type -> vrooli.data_backup_manager.v1.coverage.GetCoverageReportResponse
+	22, // 39: vrooli.data_backup_manager.v1.coverage.CoverageService.AcceptDefaultTargets:output_type -> vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsResponse
+	1,  // 40: vrooli.data_backup_manager.v1.coverage.CoverageService.RequestSensitiveReview:output_type -> vrooli.data_backup_manager.v1.coverage.RequestSensitiveReviewResponse
+	7,  // 41: vrooli.data_backup_manager.v1.coverage.CoverageService.GetSensitivePolicy:output_type -> vrooli.data_backup_manager.v1.coverage.GetSensitivePolicyResponse
+	9,  // 42: vrooli.data_backup_manager.v1.coverage.CoverageService.RevokeSensitivePolicy:output_type -> vrooli.data_backup_manager.v1.coverage.RevokeSensitivePolicyResponse
+	11, // 43: vrooli.data_backup_manager.v1.coverage.CoverageService.ExcludeSensitiveTarget:output_type -> vrooli.data_backup_manager.v1.coverage.ExcludeSensitiveTargetResponse
+	24, // 44: vrooli.data_backup_manager.v1.coverage.CoverageService.AdoptSensitiveConsent:output_type -> vrooli.data_backup_manager.v1.coverage.AdoptSensitiveConsentResponse
+	38, // [38:45] is the sub-list for method output_type
+	31, // [31:38] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_data_backup_manager_v1_coverage_coverage_proto_init() }
@@ -978,7 +2284,7 @@ func file_data_backup_manager_v1_coverage_coverage_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_data_backup_manager_v1_coverage_coverage_proto_rawDesc), len(file_data_backup_manager_v1_coverage_coverage_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

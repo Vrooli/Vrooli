@@ -7079,6 +7079,7 @@ type PrecommitConfigResponse struct {
 	AllowOverride    bool                   `protobuf:"varint,6,opt,name=allow_override,json=allowOverride,proto3" json:"allow_override,omitempty"`
 	LastResult       *PrecommitRunResult    `protobuf:"bytes,7,opt,name=last_result,json=lastResult,proto3" json:"last_result,omitempty"`
 	Hook             *PrecommitHookState    `protobuf:"bytes,8,opt,name=hook,proto3" json:"hook,omitempty"`
+	DeclaredInputs   []string               `protobuf:"bytes,9,rep,name=declared_inputs,json=declaredInputs,proto3" json:"declared_inputs,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -7169,6 +7170,13 @@ func (x *PrecommitConfigResponse) GetHook() *PrecommitHookState {
 	return nil
 }
 
+func (x *PrecommitConfigResponse) GetDeclaredInputs() []string {
+	if x != nil {
+		return x.DeclaredInputs
+	}
+	return nil
+}
+
 type SavePrecommitConfigRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	RepositoryId     string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
@@ -7179,6 +7187,7 @@ type SavePrecommitConfigRequest struct {
 	TimeoutSeconds   int32                  `protobuf:"varint,6,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
 	RunBeforeCommit  bool                   `protobuf:"varint,7,opt,name=run_before_commit,json=runBeforeCommit,proto3" json:"run_before_commit,omitempty"`
 	AllowOverride    bool                   `protobuf:"varint,8,opt,name=allow_override,json=allowOverride,proto3" json:"allow_override,omitempty"`
+	DeclaredInputs   []string               `protobuf:"bytes,9,rep,name=declared_inputs,json=declaredInputs,proto3" json:"declared_inputs,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -7267,6 +7276,13 @@ func (x *SavePrecommitConfigRequest) GetAllowOverride() bool {
 		return x.AllowOverride
 	}
 	return false
+}
+
+func (x *SavePrecommitConfigRequest) GetDeclaredInputs() []string {
+	if x != nil {
+		return x.DeclaredInputs
+	}
+	return nil
 }
 
 type RunPrecommitRequest struct {
@@ -7389,6 +7405,238 @@ func (x *PrecommitRunResponse) GetResult() *PrecommitRunResult {
 	return nil
 }
 
+type StartPrecommitCandidateCheckRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	RetryTerminal bool                   `protobuf:"varint,2,opt,name=retry_terminal,json=retryTerminal,proto3" json:"retry_terminal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartPrecommitCandidateCheckRequest) Reset() {
+	*x = StartPrecommitCandidateCheckRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[97]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartPrecommitCandidateCheckRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartPrecommitCandidateCheckRequest) ProtoMessage() {}
+
+func (x *StartPrecommitCandidateCheckRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[97]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartPrecommitCandidateCheckRequest.ProtoReflect.Descriptor instead.
+func (*StartPrecommitCandidateCheckRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{97}
+}
+
+func (x *StartPrecommitCandidateCheckRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *StartPrecommitCandidateCheckRequest) GetRetryTerminal() bool {
+	if x != nil {
+		return x.RetryTerminal
+	}
+	return false
+}
+
+type GetPrecommitCandidateCheckRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	JobId         string                 `protobuf:"bytes,2,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPrecommitCandidateCheckRequest) Reset() {
+	*x = GetPrecommitCandidateCheckRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[98]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPrecommitCandidateCheckRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPrecommitCandidateCheckRequest) ProtoMessage() {}
+
+func (x *GetPrecommitCandidateCheckRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[98]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPrecommitCandidateCheckRequest.ProtoReflect.Descriptor instead.
+func (*GetPrecommitCandidateCheckRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{98}
+}
+
+func (x *GetPrecommitCandidateCheckRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *GetPrecommitCandidateCheckRequest) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+type CancelPrecommitCandidateCheckRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	JobId         string                 `protobuf:"bytes,2,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelPrecommitCandidateCheckRequest) Reset() {
+	*x = CancelPrecommitCandidateCheckRequest{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[99]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelPrecommitCandidateCheckRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelPrecommitCandidateCheckRequest) ProtoMessage() {}
+
+func (x *CancelPrecommitCandidateCheckRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[99]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelPrecommitCandidateCheckRequest.ProtoReflect.Descriptor instead.
+func (*CancelPrecommitCandidateCheckRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{99}
+}
+
+func (x *CancelPrecommitCandidateCheckRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *CancelPrecommitCandidateCheckRequest) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+type PrecommitCandidateCheckResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	JobId           string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	State           string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	CandidateDigest string                 `protobuf:"bytes,3,opt,name=candidate_digest,json=candidateDigest,proto3" json:"candidate_digest,omitempty"`
+	ConfigDigest    string                 `protobuf:"bytes,4,opt,name=config_digest,json=configDigest,proto3" json:"config_digest,omitempty"`
+	Result          *PrecommitRunResult    `protobuf:"bytes,5,opt,name=result,proto3" json:"result,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *PrecommitCandidateCheckResponse) Reset() {
+	*x = PrecommitCandidateCheckResponse{}
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[100]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PrecommitCandidateCheckResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PrecommitCandidateCheckResponse) ProtoMessage() {}
+
+func (x *PrecommitCandidateCheckResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[100]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PrecommitCandidateCheckResponse.ProtoReflect.Descriptor instead.
+func (*PrecommitCandidateCheckResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{100}
+}
+
+func (x *PrecommitCandidateCheckResponse) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+func (x *PrecommitCandidateCheckResponse) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *PrecommitCandidateCheckResponse) GetCandidateDigest() string {
+	if x != nil {
+		return x.CandidateDigest
+	}
+	return ""
+}
+
+func (x *PrecommitCandidateCheckResponse) GetConfigDigest() string {
+	if x != nil {
+		return x.ConfigDigest
+	}
+	return ""
+}
+
+func (x *PrecommitCandidateCheckResponse) GetResult() *PrecommitRunResult {
+	if x != nil {
+		return x.Result
+	}
+	return nil
+}
+
 type StageFilesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
@@ -7401,7 +7649,7 @@ type StageFilesRequest struct {
 
 func (x *StageFilesRequest) Reset() {
 	*x = StageFilesRequest{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[97]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[101]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7413,7 +7661,7 @@ func (x *StageFilesRequest) String() string {
 func (*StageFilesRequest) ProtoMessage() {}
 
 func (x *StageFilesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[97]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[101]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7426,7 +7674,7 @@ func (x *StageFilesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StageFilesRequest.ProtoReflect.Descriptor instead.
 func (*StageFilesRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{97}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *StageFilesRequest) GetRepositoryId() string {
@@ -7472,7 +7720,7 @@ type StageFilesResponse struct {
 
 func (x *StageFilesResponse) Reset() {
 	*x = StageFilesResponse{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[98]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[102]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7484,7 +7732,7 @@ func (x *StageFilesResponse) String() string {
 func (*StageFilesResponse) ProtoMessage() {}
 
 func (x *StageFilesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[98]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[102]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7497,7 +7745,7 @@ func (x *StageFilesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StageFilesResponse.ProtoReflect.Descriptor instead.
 func (*StageFilesResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{98}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{102}
 }
 
 func (x *StageFilesResponse) GetSuccess() bool {
@@ -7561,7 +7809,7 @@ type UnstageFilesRequest struct {
 
 func (x *UnstageFilesRequest) Reset() {
 	*x = UnstageFilesRequest{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[99]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[103]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7573,7 +7821,7 @@ func (x *UnstageFilesRequest) String() string {
 func (*UnstageFilesRequest) ProtoMessage() {}
 
 func (x *UnstageFilesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[99]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[103]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7586,7 +7834,7 @@ func (x *UnstageFilesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnstageFilesRequest.ProtoReflect.Descriptor instead.
 func (*UnstageFilesRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{99}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{103}
 }
 
 func (x *UnstageFilesRequest) GetRepositoryId() string {
@@ -7630,7 +7878,7 @@ type UnstageFilesResponse struct {
 
 func (x *UnstageFilesResponse) Reset() {
 	*x = UnstageFilesResponse{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[100]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[104]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7642,7 +7890,7 @@ func (x *UnstageFilesResponse) String() string {
 func (*UnstageFilesResponse) ProtoMessage() {}
 
 func (x *UnstageFilesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[100]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[104]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7655,7 +7903,7 @@ func (x *UnstageFilesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnstageFilesResponse.ProtoReflect.Descriptor instead.
 func (*UnstageFilesResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{100}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{104}
 }
 
 func (x *UnstageFilesResponse) GetSuccess() bool {
@@ -7709,7 +7957,7 @@ type CreateCommitRequest struct {
 
 func (x *CreateCommitRequest) Reset() {
 	*x = CreateCommitRequest{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[101]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[105]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7721,7 +7969,7 @@ func (x *CreateCommitRequest) String() string {
 func (*CreateCommitRequest) ProtoMessage() {}
 
 func (x *CreateCommitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[101]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[105]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7734,7 +7982,7 @@ func (x *CreateCommitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateCommitRequest.ProtoReflect.Descriptor instead.
 func (*CreateCommitRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{101}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{105}
 }
 
 func (x *CreateCommitRequest) GetRepositoryId() string {
@@ -7810,7 +8058,7 @@ type PrecommitRunResult struct {
 
 func (x *PrecommitRunResult) Reset() {
 	*x = PrecommitRunResult{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[102]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[106]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7822,7 +8070,7 @@ func (x *PrecommitRunResult) String() string {
 func (*PrecommitRunResult) ProtoMessage() {}
 
 func (x *PrecommitRunResult) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[102]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[106]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7835,7 +8083,7 @@ func (x *PrecommitRunResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PrecommitRunResult.ProtoReflect.Descriptor instead.
 func (*PrecommitRunResult) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{102}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{106}
 }
 
 func (x *PrecommitRunResult) GetStatus() string {
@@ -7917,7 +8165,7 @@ type CreateCommitResponse struct {
 
 func (x *CreateCommitResponse) Reset() {
 	*x = CreateCommitResponse{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[103]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[107]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7929,7 +8177,7 @@ func (x *CreateCommitResponse) String() string {
 func (*CreateCommitResponse) ProtoMessage() {}
 
 func (x *CreateCommitResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[103]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[107]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7942,7 +8190,7 @@ func (x *CreateCommitResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateCommitResponse.ProtoReflect.Descriptor instead.
 func (*CreateCommitResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{103}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{107}
 }
 
 func (x *CreateCommitResponse) GetSuccess() bool {
@@ -8019,7 +8267,7 @@ type Credential struct {
 
 func (x *Credential) Reset() {
 	*x = Credential{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[104]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[108]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8031,7 +8279,7 @@ func (x *Credential) String() string {
 func (*Credential) ProtoMessage() {}
 
 func (x *Credential) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[104]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[108]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8044,7 +8292,7 @@ func (x *Credential) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Credential.ProtoReflect.Descriptor instead.
 func (*Credential) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{104}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{108}
 }
 
 func (x *Credential) GetId() string {
@@ -8126,7 +8374,7 @@ type ListCredentialsRequest struct {
 
 func (x *ListCredentialsRequest) Reset() {
 	*x = ListCredentialsRequest{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[105]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[109]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8138,7 +8386,7 @@ func (x *ListCredentialsRequest) String() string {
 func (*ListCredentialsRequest) ProtoMessage() {}
 
 func (x *ListCredentialsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[105]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[109]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8151,7 +8399,7 @@ func (x *ListCredentialsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCredentialsRequest.ProtoReflect.Descriptor instead.
 func (*ListCredentialsRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{105}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{109}
 }
 
 func (x *ListCredentialsRequest) GetRepositoryId() string {
@@ -8171,7 +8419,7 @@ type CredentialsListResponse struct {
 
 func (x *CredentialsListResponse) Reset() {
 	*x = CredentialsListResponse{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[106]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[110]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8183,7 +8431,7 @@ func (x *CredentialsListResponse) String() string {
 func (*CredentialsListResponse) ProtoMessage() {}
 
 func (x *CredentialsListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[106]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[110]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8196,7 +8444,7 @@ func (x *CredentialsListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CredentialsListResponse.ProtoReflect.Descriptor instead.
 func (*CredentialsListResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{106}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{110}
 }
 
 func (x *CredentialsListResponse) GetCredentials() []*Credential {
@@ -8228,7 +8476,7 @@ type SaveCredentialRequest struct {
 
 func (x *SaveCredentialRequest) Reset() {
 	*x = SaveCredentialRequest{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[107]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[111]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8240,7 +8488,7 @@ func (x *SaveCredentialRequest) String() string {
 func (*SaveCredentialRequest) ProtoMessage() {}
 
 func (x *SaveCredentialRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[107]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[111]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8253,7 +8501,7 @@ func (x *SaveCredentialRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveCredentialRequest.ProtoReflect.Descriptor instead.
 func (*SaveCredentialRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{107}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{111}
 }
 
 func (x *SaveCredentialRequest) GetRepositoryId() string {
@@ -8317,7 +8565,7 @@ type CredentialSaveResponse struct {
 
 func (x *CredentialSaveResponse) Reset() {
 	*x = CredentialSaveResponse{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[108]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[112]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8329,7 +8577,7 @@ func (x *CredentialSaveResponse) String() string {
 func (*CredentialSaveResponse) ProtoMessage() {}
 
 func (x *CredentialSaveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[108]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[112]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8342,7 +8590,7 @@ func (x *CredentialSaveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CredentialSaveResponse.ProtoReflect.Descriptor instead.
 func (*CredentialSaveResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{108}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{112}
 }
 
 func (x *CredentialSaveResponse) GetSuccess() bool {
@@ -8384,7 +8632,7 @@ type DeleteCredentialRequest struct {
 
 func (x *DeleteCredentialRequest) Reset() {
 	*x = DeleteCredentialRequest{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[109]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[113]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8396,7 +8644,7 @@ func (x *DeleteCredentialRequest) String() string {
 func (*DeleteCredentialRequest) ProtoMessage() {}
 
 func (x *DeleteCredentialRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[109]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[113]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8409,7 +8657,7 @@ func (x *DeleteCredentialRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCredentialRequest.ProtoReflect.Descriptor instead.
 func (*DeleteCredentialRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{109}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{113}
 }
 
 func (x *DeleteCredentialRequest) GetRepositoryId() string {
@@ -8444,7 +8692,7 @@ type CredentialDeleteResponse struct {
 
 func (x *CredentialDeleteResponse) Reset() {
 	*x = CredentialDeleteResponse{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[110]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[114]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8456,7 +8704,7 @@ func (x *CredentialDeleteResponse) String() string {
 func (*CredentialDeleteResponse) ProtoMessage() {}
 
 func (x *CredentialDeleteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[110]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[114]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8469,7 +8717,7 @@ func (x *CredentialDeleteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CredentialDeleteResponse.ProtoReflect.Descriptor instead.
 func (*CredentialDeleteResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{110}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{114}
 }
 
 func (x *CredentialDeleteResponse) GetSuccess() bool {
@@ -8504,7 +8752,7 @@ type TestCredentialRequest struct {
 
 func (x *TestCredentialRequest) Reset() {
 	*x = TestCredentialRequest{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[111]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[115]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8516,7 +8764,7 @@ func (x *TestCredentialRequest) String() string {
 func (*TestCredentialRequest) ProtoMessage() {}
 
 func (x *TestCredentialRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[111]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[115]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8529,7 +8777,7 @@ func (x *TestCredentialRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestCredentialRequest.ProtoReflect.Descriptor instead.
 func (*TestCredentialRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{111}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{115}
 }
 
 func (x *TestCredentialRequest) GetRepositoryId() string {
@@ -8566,7 +8814,7 @@ type CredentialTestResponse struct {
 
 func (x *CredentialTestResponse) Reset() {
 	*x = CredentialTestResponse{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[112]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[116]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8578,7 +8826,7 @@ func (x *CredentialTestResponse) String() string {
 func (*CredentialTestResponse) ProtoMessage() {}
 
 func (x *CredentialTestResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[112]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[116]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8591,7 +8839,7 @@ func (x *CredentialTestResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CredentialTestResponse.ProtoReflect.Descriptor instead.
 func (*CredentialTestResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{112}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{116}
 }
 
 func (x *CredentialTestResponse) GetSuccess() bool {
@@ -8641,7 +8889,7 @@ type UpdateRemoteURLRequest struct {
 
 func (x *UpdateRemoteURLRequest) Reset() {
 	*x = UpdateRemoteURLRequest{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[113]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[117]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8653,7 +8901,7 @@ func (x *UpdateRemoteURLRequest) String() string {
 func (*UpdateRemoteURLRequest) ProtoMessage() {}
 
 func (x *UpdateRemoteURLRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[113]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[117]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8666,7 +8914,7 @@ func (x *UpdateRemoteURLRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateRemoteURLRequest.ProtoReflect.Descriptor instead.
 func (*UpdateRemoteURLRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{113}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{117}
 }
 
 func (x *UpdateRemoteURLRequest) GetRepositoryId() string {
@@ -8710,7 +8958,7 @@ type RemoteURLUpdateResponse struct {
 
 func (x *RemoteURLUpdateResponse) Reset() {
 	*x = RemoteURLUpdateResponse{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[114]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[118]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8722,7 +8970,7 @@ func (x *RemoteURLUpdateResponse) String() string {
 func (*RemoteURLUpdateResponse) ProtoMessage() {}
 
 func (x *RemoteURLUpdateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[114]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[118]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8735,7 +8983,7 @@ func (x *RemoteURLUpdateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoteURLUpdateResponse.ProtoReflect.Descriptor instead.
 func (*RemoteURLUpdateResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{114}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{118}
 }
 
 func (x *RemoteURLUpdateResponse) GetSuccess() bool {
@@ -8789,7 +9037,7 @@ type SSHKeyInfo struct {
 
 func (x *SSHKeyInfo) Reset() {
 	*x = SSHKeyInfo{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[115]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[119]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8801,7 +9049,7 @@ func (x *SSHKeyInfo) String() string {
 func (*SSHKeyInfo) ProtoMessage() {}
 
 func (x *SSHKeyInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[115]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[119]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8814,7 +9062,7 @@ func (x *SSHKeyInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SSHKeyInfo.ProtoReflect.Descriptor instead.
 func (*SSHKeyInfo) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{115}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{119}
 }
 
 func (x *SSHKeyInfo) GetPath() string {
@@ -8881,7 +9129,7 @@ type ListSSHKeysRequest struct {
 
 func (x *ListSSHKeysRequest) Reset() {
 	*x = ListSSHKeysRequest{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[116]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[120]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8893,7 +9141,7 @@ func (x *ListSSHKeysRequest) String() string {
 func (*ListSSHKeysRequest) ProtoMessage() {}
 
 func (x *ListSSHKeysRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[116]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[120]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8906,7 +9154,7 @@ func (x *ListSSHKeysRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSSHKeysRequest.ProtoReflect.Descriptor instead.
 func (*ListSSHKeysRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{116}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{120}
 }
 
 type SSHListKeysResponse struct {
@@ -8920,7 +9168,7 @@ type SSHListKeysResponse struct {
 
 func (x *SSHListKeysResponse) Reset() {
 	*x = SSHListKeysResponse{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[117]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[121]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8932,7 +9180,7 @@ func (x *SSHListKeysResponse) String() string {
 func (*SSHListKeysResponse) ProtoMessage() {}
 
 func (x *SSHListKeysResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[117]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[121]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8945,7 +9193,7 @@ func (x *SSHListKeysResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SSHListKeysResponse.ProtoReflect.Descriptor instead.
 func (*SSHListKeysResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{117}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{121}
 }
 
 func (x *SSHListKeysResponse) GetKeys() []*SSHKeyInfo {
@@ -8983,7 +9231,7 @@ type GenerateSSHKeyRequest struct {
 
 func (x *GenerateSSHKeyRequest) Reset() {
 	*x = GenerateSSHKeyRequest{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[118]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[122]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8995,7 +9243,7 @@ func (x *GenerateSSHKeyRequest) String() string {
 func (*GenerateSSHKeyRequest) ProtoMessage() {}
 
 func (x *GenerateSSHKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[118]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[122]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9008,7 +9256,7 @@ func (x *GenerateSSHKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateSSHKeyRequest.ProtoReflect.Descriptor instead.
 func (*GenerateSSHKeyRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{118}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{122}
 }
 
 func (x *GenerateSSHKeyRequest) GetRepositoryId() string {
@@ -9066,7 +9314,7 @@ type SSHGenerateKeyResponse struct {
 
 func (x *SSHGenerateKeyResponse) Reset() {
 	*x = SSHGenerateKeyResponse{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[119]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[123]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9078,7 +9326,7 @@ func (x *SSHGenerateKeyResponse) String() string {
 func (*SSHGenerateKeyResponse) ProtoMessage() {}
 
 func (x *SSHGenerateKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[119]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[123]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9091,7 +9339,7 @@ func (x *SSHGenerateKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SSHGenerateKeyResponse.ProtoReflect.Descriptor instead.
 func (*SSHGenerateKeyResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{119}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{123}
 }
 
 func (x *SSHGenerateKeyResponse) GetSuccess() bool {
@@ -9138,7 +9386,7 @@ type GetSSHPublicKeyRequest struct {
 
 func (x *GetSSHPublicKeyRequest) Reset() {
 	*x = GetSSHPublicKeyRequest{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[120]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[124]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9150,7 +9398,7 @@ func (x *GetSSHPublicKeyRequest) String() string {
 func (*GetSSHPublicKeyRequest) ProtoMessage() {}
 
 func (x *GetSSHPublicKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[120]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[124]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9163,7 +9411,7 @@ func (x *GetSSHPublicKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSSHPublicKeyRequest.ProtoReflect.Descriptor instead.
 func (*GetSSHPublicKeyRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{120}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{124}
 }
 
 func (x *GetSSHPublicKeyRequest) GetKeyPath() string {
@@ -9186,7 +9434,7 @@ type SSHGetPublicKeyResponse struct {
 
 func (x *SSHGetPublicKeyResponse) Reset() {
 	*x = SSHGetPublicKeyResponse{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[121]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[125]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9198,7 +9446,7 @@ func (x *SSHGetPublicKeyResponse) String() string {
 func (*SSHGetPublicKeyResponse) ProtoMessage() {}
 
 func (x *SSHGetPublicKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[121]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[125]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9211,7 +9459,7 @@ func (x *SSHGetPublicKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SSHGetPublicKeyResponse.ProtoReflect.Descriptor instead.
 func (*SSHGetPublicKeyResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{121}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{125}
 }
 
 func (x *SSHGetPublicKeyResponse) GetSuccess() bool {
@@ -9258,7 +9506,7 @@ type TestSSHConnectionRequest struct {
 
 func (x *TestSSHConnectionRequest) Reset() {
 	*x = TestSSHConnectionRequest{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[122]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[126]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9270,7 +9518,7 @@ func (x *TestSSHConnectionRequest) String() string {
 func (*TestSSHConnectionRequest) ProtoMessage() {}
 
 func (x *TestSSHConnectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[122]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[126]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9283,7 +9531,7 @@ func (x *TestSSHConnectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestSSHConnectionRequest.ProtoReflect.Descriptor instead.
 func (*TestSSHConnectionRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{122}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{126}
 }
 
 func (x *TestSSHConnectionRequest) GetKeyPath() string {
@@ -9309,7 +9557,7 @@ type SSHTestConnectionResponse struct {
 
 func (x *SSHTestConnectionResponse) Reset() {
 	*x = SSHTestConnectionResponse{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[123]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[127]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9321,7 +9569,7 @@ func (x *SSHTestConnectionResponse) String() string {
 func (*SSHTestConnectionResponse) ProtoMessage() {}
 
 func (x *SSHTestConnectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[123]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[127]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9334,7 +9582,7 @@ func (x *SSHTestConnectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SSHTestConnectionResponse.ProtoReflect.Descriptor instead.
 func (*SSHTestConnectionResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{123}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{127}
 }
 
 func (x *SSHTestConnectionResponse) GetSuccess() bool {
@@ -9404,7 +9652,7 @@ type DeleteSSHKeyRequest struct {
 
 func (x *DeleteSSHKeyRequest) Reset() {
 	*x = DeleteSSHKeyRequest{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[124]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[128]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9416,7 +9664,7 @@ func (x *DeleteSSHKeyRequest) String() string {
 func (*DeleteSSHKeyRequest) ProtoMessage() {}
 
 func (x *DeleteSSHKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[124]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[128]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9429,7 +9677,7 @@ func (x *DeleteSSHKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteSSHKeyRequest.ProtoReflect.Descriptor instead.
 func (*DeleteSSHKeyRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{124}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{128}
 }
 
 func (x *DeleteSSHKeyRequest) GetRepositoryId() string {
@@ -9467,7 +9715,7 @@ type SSHDeleteKeyResponse struct {
 
 func (x *SSHDeleteKeyResponse) Reset() {
 	*x = SSHDeleteKeyResponse{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[125]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[129]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9479,7 +9727,7 @@ func (x *SSHDeleteKeyResponse) String() string {
 func (*SSHDeleteKeyResponse) ProtoMessage() {}
 
 func (x *SSHDeleteKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[125]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[129]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9492,7 +9740,7 @@ func (x *SSHDeleteKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SSHDeleteKeyResponse.ProtoReflect.Descriptor instead.
 func (*SSHDeleteKeyResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{125}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{129}
 }
 
 func (x *SSHDeleteKeyResponse) GetSuccess() bool {
@@ -9549,7 +9797,7 @@ type InspectPushSafetyRequest struct {
 
 func (x *InspectPushSafetyRequest) Reset() {
 	*x = InspectPushSafetyRequest{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[126]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[130]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9561,7 +9809,7 @@ func (x *InspectPushSafetyRequest) String() string {
 func (*InspectPushSafetyRequest) ProtoMessage() {}
 
 func (x *InspectPushSafetyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[126]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[130]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9574,7 +9822,7 @@ func (x *InspectPushSafetyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InspectPushSafetyRequest.ProtoReflect.Descriptor instead.
 func (*InspectPushSafetyRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{126}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{130}
 }
 
 func (x *InspectPushSafetyRequest) GetRepositoryId() string {
@@ -9611,7 +9859,7 @@ type PushSafetyFile struct {
 
 func (x *PushSafetyFile) Reset() {
 	*x = PushSafetyFile{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[127]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[131]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9623,7 +9871,7 @@ func (x *PushSafetyFile) String() string {
 func (*PushSafetyFile) ProtoMessage() {}
 
 func (x *PushSafetyFile) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[127]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[131]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9636,7 +9884,7 @@ func (x *PushSafetyFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PushSafetyFile.ProtoReflect.Descriptor instead.
 func (*PushSafetyFile) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{127}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{131}
 }
 
 func (x *PushSafetyFile) GetOid() string {
@@ -9704,7 +9952,7 @@ type PushSafetyReport struct {
 
 func (x *PushSafetyReport) Reset() {
 	*x = PushSafetyReport{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[128]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[132]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9716,7 +9964,7 @@ func (x *PushSafetyReport) String() string {
 func (*PushSafetyReport) ProtoMessage() {}
 
 func (x *PushSafetyReport) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[128]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[132]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9729,7 +9977,7 @@ func (x *PushSafetyReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PushSafetyReport.ProtoReflect.Descriptor instead.
 func (*PushSafetyReport) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{128}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{132}
 }
 
 func (x *PushSafetyReport) GetComplete() bool {
@@ -9872,7 +10120,7 @@ type PreparePushRecoveryRequest struct {
 
 func (x *PreparePushRecoveryRequest) Reset() {
 	*x = PreparePushRecoveryRequest{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[129]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[133]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9884,7 +10132,7 @@ func (x *PreparePushRecoveryRequest) String() string {
 func (*PreparePushRecoveryRequest) ProtoMessage() {}
 
 func (x *PreparePushRecoveryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[129]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[133]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9897,7 +10145,7 @@ func (x *PreparePushRecoveryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreparePushRecoveryRequest.ProtoReflect.Descriptor instead.
 func (*PreparePushRecoveryRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{129}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{133}
 }
 
 func (x *PreparePushRecoveryRequest) GetRepositoryId() string {
@@ -9945,7 +10193,7 @@ type RecoveryCommitMapping struct {
 
 func (x *RecoveryCommitMapping) Reset() {
 	*x = RecoveryCommitMapping{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[130]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[134]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9957,7 +10205,7 @@ func (x *RecoveryCommitMapping) String() string {
 func (*RecoveryCommitMapping) ProtoMessage() {}
 
 func (x *RecoveryCommitMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[130]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[134]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9970,7 +10218,7 @@ func (x *RecoveryCommitMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoveryCommitMapping.ProtoReflect.Descriptor instead.
 func (*RecoveryCommitMapping) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{130}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{134}
 }
 
 func (x *RecoveryCommitMapping) GetOriginal() string {
@@ -10006,7 +10254,7 @@ type PushRecoveryArtifact struct {
 
 func (x *PushRecoveryArtifact) Reset() {
 	*x = PushRecoveryArtifact{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[131]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[135]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10018,7 +10266,7 @@ func (x *PushRecoveryArtifact) String() string {
 func (*PushRecoveryArtifact) ProtoMessage() {}
 
 func (x *PushRecoveryArtifact) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[131]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[135]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10031,7 +10279,7 @@ func (x *PushRecoveryArtifact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PushRecoveryArtifact.ProtoReflect.Descriptor instead.
 func (*PushRecoveryArtifact) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{131}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{135}
 }
 
 func (x *PushRecoveryArtifact) GetState() string {
@@ -10121,7 +10369,7 @@ type GetPushRecoveryRequest struct {
 
 func (x *GetPushRecoveryRequest) Reset() {
 	*x = GetPushRecoveryRequest{}
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[132]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[136]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10133,7 +10381,7 @@ func (x *GetPushRecoveryRequest) String() string {
 func (*GetPushRecoveryRequest) ProtoMessage() {}
 
 func (x *GetPushRecoveryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[132]
+	mi := &file_git_control_tower_v1_repo_repo_proto_msgTypes[136]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10146,7 +10394,7 @@ func (x *GetPushRecoveryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPushRecoveryRequest.ProtoReflect.Descriptor instead.
 func (*GetPushRecoveryRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{132}
+	return file_git_control_tower_v1_repo_repo_proto_rawDescGZIP(), []int{136}
 }
 
 func (x *GetPushRecoveryRequest) GetRepositoryId() string {
@@ -10789,7 +11037,7 @@ const file_git_control_tower_v1_repo_repo_proto_rawDesc = "" +
 	"\x04path\x18\x05 \x01(\tR\x04path\x12\x1d\n" +
 	"\n" +
 	"hooks_path\x18\x06 \x01(\tR\thooksPath\x12!\n" +
-	"\finstalled_at\x18\a \x01(\tR\vinstalledAt\"\x97\x03\n" +
+	"\finstalled_at\x18\a \x01(\tR\vinstalledAt\"\xc0\x03\n" +
 	"\x17PrecommitConfigResponse\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x18\n" +
 	"\acommand\x18\x02 \x01(\tR\acommand\x12+\n" +
@@ -10799,7 +11047,8 @@ const file_git_control_tower_v1_repo_repo_proto_rawDesc = "" +
 	"\x0eallow_override\x18\x06 \x01(\bR\rallowOverride\x12U\n" +
 	"\vlast_result\x18\a \x01(\v24.vrooli.git_control_tower.v1.repo.PrecommitRunResultR\n" +
 	"lastResult\x12H\n" +
-	"\x04hook\x18\b \x01(\v24.vrooli.git_control_tower.v1.repo.PrecommitHookStateR\x04hook\"\xbb\x02\n" +
+	"\x04hook\x18\b \x01(\v24.vrooli.git_control_tower.v1.repo.PrecommitHookStateR\x04hook\x12'\n" +
+	"\x0fdeclared_inputs\x18\t \x03(\tR\x0edeclaredInputs\"\xe4\x02\n" +
 	"\x1aSavePrecommitConfigRequest\x12#\n" +
 	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
 	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x18\n" +
@@ -10808,7 +11057,8 @@ const file_git_control_tower_v1_repo_repo_proto_rawDesc = "" +
 	"\x11working_directory\x18\x05 \x01(\tR\x10workingDirectory\x12'\n" +
 	"\x0ftimeout_seconds\x18\x06 \x01(\x05R\x0etimeoutSeconds\x12*\n" +
 	"\x11run_before_commit\x18\a \x01(\bR\x0frunBeforeCommit\x12%\n" +
-	"\x0eallow_override\x18\b \x01(\bR\rallowOverride\"\xaa\x01\n" +
+	"\x0eallow_override\x18\b \x01(\bR\rallowOverride\x12'\n" +
+	"\x0fdeclared_inputs\x18\t \x03(\tR\x0edeclaredInputs\"\xaa\x01\n" +
 	"\x13RunPrecommitRequest\x12#\n" +
 	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x18\n" +
 	"\acommand\x18\x02 \x01(\tR\acommand\x12+\n" +
@@ -10816,7 +11066,22 @@ const file_git_control_tower_v1_repo_repo_proto_rawDesc = "" +
 	"\x0ftimeout_seconds\x18\x04 \x01(\x05R\x0etimeoutSeconds\"~\n" +
 	"\x14PrecommitRunResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12L\n" +
-	"\x06result\x18\x02 \x01(\v24.vrooli.git_control_tower.v1.repo.PrecommitRunResultR\x06result\"\x81\x01\n" +
+	"\x06result\x18\x02 \x01(\v24.vrooli.git_control_tower.v1.repo.PrecommitRunResultR\x06result\"q\n" +
+	"#StartPrecommitCandidateCheckRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12%\n" +
+	"\x0eretry_terminal\x18\x02 \x01(\bR\rretryTerminal\"_\n" +
+	"!GetPrecommitCandidateCheckRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x15\n" +
+	"\x06job_id\x18\x02 \x01(\tR\x05jobId\"b\n" +
+	"$CancelPrecommitCandidateCheckRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x15\n" +
+	"\x06job_id\x18\x02 \x01(\tR\x05jobId\"\xec\x01\n" +
+	"\x1fPrecommitCandidateCheckResponse\x12\x15\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x14\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\x12)\n" +
+	"\x10candidate_digest\x18\x03 \x01(\tR\x0fcandidateDigest\x12#\n" +
+	"\rconfig_digest\x18\x04 \x01(\tR\fconfigDigest\x12L\n" +
+	"\x06result\x18\x05 \x01(\v24.vrooli.git_control_tower.v1.repo.PrecommitRunResultR\x06result\"\x81\x01\n" +
 	"\x11StageFilesRequest\x12#\n" +
 	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
 	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x14\n" +
@@ -11059,7 +11324,7 @@ const file_git_control_tower_v1_repo_repo_proto_rawDesc = "" +
 	"\x12signatures_removed\x18\v \x01(\bR\x11signaturesRemoved\"_\n" +
 	"\x16GetPushRecoveryRequest\x12#\n" +
 	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12 \n" +
-	"\vfingerprint\x18\x02 \x01(\tR\vfingerprint2\xd05\n" +
+	"\vfingerprint\x18\x02 \x01(\tR\vfingerprint2\xcf9\n" +
 	"\vRepoService\x12\x89\x01\n" +
 	"\x10ListRepositories\x129.vrooli.git_control_tower.v1.repo.ListRepositoriesRequest\x1a:.vrooli.git_control_tower.v1.repo.ListRepositoriesResponse\x12\x92\x01\n" +
 	"\x13GetActiveRepository\x12<.vrooli.git_control_tower.v1.repo.GetActiveRepositoryRequest\x1a=.vrooli.git_control_tower.v1.repo.GetActiveRepositoryResponse\x12\x8b\x01\n" +
@@ -11100,7 +11365,10 @@ const file_git_control_tower_v1_repo_repo_proto_rawDesc = "" +
 	"\rUntrackBinary\x126.vrooli.git_control_tower.v1.repo.UntrackBinaryRequest\x1a7.vrooli.git_control_tower.v1.repo.UntrackBinaryResponse\x12\x8c\x01\n" +
 	"\x12GetPrecommitConfig\x12;.vrooli.git_control_tower.v1.repo.GetPrecommitConfigRequest\x1a9.vrooli.git_control_tower.v1.repo.PrecommitConfigResponse\x12\x8e\x01\n" +
 	"\x13SavePrecommitConfig\x12<.vrooli.git_control_tower.v1.repo.SavePrecommitConfigRequest\x1a9.vrooli.git_control_tower.v1.repo.PrecommitConfigResponse\x12}\n" +
-	"\fRunPrecommit\x125.vrooli.git_control_tower.v1.repo.RunPrecommitRequest\x1a6.vrooli.git_control_tower.v1.repo.PrecommitRunResponse\x12w\n" +
+	"\fRunPrecommit\x125.vrooli.git_control_tower.v1.repo.RunPrecommitRequest\x1a6.vrooli.git_control_tower.v1.repo.PrecommitRunResponse\x12\xa8\x01\n" +
+	"\x1cStartPrecommitCandidateCheck\x12E.vrooli.git_control_tower.v1.repo.StartPrecommitCandidateCheckRequest\x1aA.vrooli.git_control_tower.v1.repo.PrecommitCandidateCheckResponse\x12\xa4\x01\n" +
+	"\x1aGetPrecommitCandidateCheck\x12C.vrooli.git_control_tower.v1.repo.GetPrecommitCandidateCheckRequest\x1aA.vrooli.git_control_tower.v1.repo.PrecommitCandidateCheckResponse\x12\xaa\x01\n" +
+	"\x1dCancelPrecommitCandidateCheck\x12F.vrooli.git_control_tower.v1.repo.CancelPrecommitCandidateCheckRequest\x1aA.vrooli.git_control_tower.v1.repo.PrecommitCandidateCheckResponse\x12w\n" +
 	"\n" +
 	"StageFiles\x123.vrooli.git_control_tower.v1.repo.StageFilesRequest\x1a4.vrooli.git_control_tower.v1.repo.StageFilesResponse\x12}\n" +
 	"\fUnstageFiles\x125.vrooli.git_control_tower.v1.repo.UnstageFilesRequest\x1a6.vrooli.git_control_tower.v1.repo.UnstageFilesResponse\x12}\n" +
@@ -11128,155 +11396,159 @@ func file_git_control_tower_v1_repo_repo_proto_rawDescGZIP() []byte {
 	return file_git_control_tower_v1_repo_repo_proto_rawDescData
 }
 
-var file_git_control_tower_v1_repo_repo_proto_msgTypes = make([]protoimpl.MessageInfo, 140)
+var file_git_control_tower_v1_repo_repo_proto_msgTypes = make([]protoimpl.MessageInfo, 144)
 var file_git_control_tower_v1_repo_repo_proto_goTypes = []any{
-	(*RepoRecord)(nil),                   // 0: vrooli.git_control_tower.v1.repo.RepoRecord
-	(*ListRepositoriesRequest)(nil),      // 1: vrooli.git_control_tower.v1.repo.ListRepositoriesRequest
-	(*ListRepositoriesResponse)(nil),     // 2: vrooli.git_control_tower.v1.repo.ListRepositoriesResponse
-	(*GetActiveRepositoryRequest)(nil),   // 3: vrooli.git_control_tower.v1.repo.GetActiveRepositoryRequest
-	(*GetActiveRepositoryResponse)(nil),  // 4: vrooli.git_control_tower.v1.repo.GetActiveRepositoryResponse
-	(*GetRepoHistoryRequest)(nil),        // 5: vrooli.git_control_tower.v1.repo.GetRepoHistoryRequest
-	(*CommitCheckRun)(nil),               // 6: vrooli.git_control_tower.v1.repo.CommitCheckRun
-	(*RepoHistoryEntry)(nil),             // 7: vrooli.git_control_tower.v1.repo.RepoHistoryEntry
-	(*GetRepoHistoryResponse)(nil),       // 8: vrooli.git_control_tower.v1.repo.GetRepoHistoryResponse
-	(*GetApprovedChangesRequest)(nil),    // 9: vrooli.git_control_tower.v1.repo.GetApprovedChangesRequest
-	(*ApprovedChangeFile)(nil),           // 10: vrooli.git_control_tower.v1.repo.ApprovedChangeFile
-	(*GetApprovedChangesResponse)(nil),   // 11: vrooli.git_control_tower.v1.repo.GetApprovedChangesResponse
-	(*GetProvenanceRequest)(nil),         // 12: vrooli.git_control_tower.v1.repo.GetProvenanceRequest
-	(*ProvenanceFile)(nil),               // 13: vrooli.git_control_tower.v1.repo.ProvenanceFile
-	(*ProvenanceRunGroup)(nil),           // 14: vrooli.git_control_tower.v1.repo.ProvenanceRunGroup
-	(*GetProvenanceResponse)(nil),        // 15: vrooli.git_control_tower.v1.repo.GetProvenanceResponse
-	(*GetBlameRequest)(nil),              // 16: vrooli.git_control_tower.v1.repo.GetBlameRequest
-	(*BlameLine)(nil),                    // 17: vrooli.git_control_tower.v1.repo.BlameLine
-	(*ProvenanceWorkReference)(nil),      // 18: vrooli.git_control_tower.v1.repo.ProvenanceWorkReference
-	(*BlameEvidence)(nil),                // 19: vrooli.git_control_tower.v1.repo.BlameEvidence
-	(*BlameFile)(nil),                    // 20: vrooli.git_control_tower.v1.repo.BlameFile
-	(*ProvenanceChangeBundle)(nil),       // 21: vrooli.git_control_tower.v1.repo.ProvenanceChangeBundle
-	(*GetBlameResponse)(nil),             // 22: vrooli.git_control_tower.v1.repo.GetBlameResponse
-	(*SearchProvenanceRequest)(nil),      // 23: vrooli.git_control_tower.v1.repo.SearchProvenanceRequest
-	(*ProvenanceSearchHit)(nil),          // 24: vrooli.git_control_tower.v1.repo.ProvenanceSearchHit
-	(*SearchProvenanceResponse)(nil),     // 25: vrooli.git_control_tower.v1.repo.SearchProvenanceResponse
-	(*SetActiveRepositoryRequest)(nil),   // 26: vrooli.git_control_tower.v1.repo.SetActiveRepositoryRequest
-	(*OpenRepositoryRequest)(nil),        // 27: vrooli.git_control_tower.v1.repo.OpenRepositoryRequest
-	(*CloneRepositoryRequest)(nil),       // 28: vrooli.git_control_tower.v1.repo.CloneRepositoryRequest
-	(*RepoMutationResponse)(nil),         // 29: vrooli.git_control_tower.v1.repo.RepoMutationResponse
-	(*RemoveRepositoryRequest)(nil),      // 30: vrooli.git_control_tower.v1.repo.RemoveRepositoryRequest
-	(*RemoveRepositoryResponse)(nil),     // 31: vrooli.git_control_tower.v1.repo.RemoveRepositoryResponse
-	(*GetRepoStatusRequest)(nil),         // 32: vrooli.git_control_tower.v1.repo.GetRepoStatusRequest
-	(*WorktreeIdentity)(nil),             // 33: vrooli.git_control_tower.v1.repo.WorktreeIdentity
-	(*GetRepoStatusResponse)(nil),        // 34: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse
-	(*BranchStatus)(nil),                 // 35: vrooli.git_control_tower.v1.repo.BranchStatus
-	(*FilesStatus)(nil),                  // 36: vrooli.git_control_tower.v1.repo.FilesStatus
-	(*FileStats)(nil),                    // 37: vrooli.git_control_tower.v1.repo.FileStats
-	(*DiffStats)(nil),                    // 38: vrooli.git_control_tower.v1.repo.DiffStats
-	(*StringList)(nil),                   // 39: vrooli.git_control_tower.v1.repo.StringList
-	(*StatusSummary)(nil),                // 40: vrooli.git_control_tower.v1.repo.StatusSummary
-	(*AuthorStatus)(nil),                 // 41: vrooli.git_control_tower.v1.repo.AuthorStatus
-	(*GetRepoDiffRequest)(nil),           // 42: vrooli.git_control_tower.v1.repo.GetRepoDiffRequest
-	(*GetRepoDiffResponse)(nil),          // 43: vrooli.git_control_tower.v1.repo.GetRepoDiffResponse
-	(*DiffHunk)(nil),                     // 44: vrooli.git_control_tower.v1.repo.DiffHunk
-	(*AnnotatedLine)(nil),                // 45: vrooli.git_control_tower.v1.repo.AnnotatedLine
-	(*GetRepoGroupsRequest)(nil),         // 46: vrooli.git_control_tower.v1.repo.GetRepoGroupsRequest
-	(*GetRepoGroupsResponse)(nil),        // 47: vrooli.git_control_tower.v1.repo.GetRepoGroupsResponse
-	(*ChangeGroup)(nil),                  // 48: vrooli.git_control_tower.v1.repo.ChangeGroup
-	(*GetSyncStatusRequest)(nil),         // 49: vrooli.git_control_tower.v1.repo.GetSyncStatusRequest
-	(*GetSyncStatusResponse)(nil),        // 50: vrooli.git_control_tower.v1.repo.GetSyncStatusResponse
-	(*GetFilesRequest)(nil),              // 51: vrooli.git_control_tower.v1.repo.GetFilesRequest
-	(*RepoFileInfo)(nil),                 // 52: vrooli.git_control_tower.v1.repo.RepoFileInfo
-	(*GetFilesResponse)(nil),             // 53: vrooli.git_control_tower.v1.repo.GetFilesResponse
-	(*GetDirectoryContentsRequest)(nil),  // 54: vrooli.git_control_tower.v1.repo.GetDirectoryContentsRequest
-	(*DirectoryEntry)(nil),               // 55: vrooli.git_control_tower.v1.repo.DirectoryEntry
-	(*GetDirectoryContentsResponse)(nil), // 56: vrooli.git_control_tower.v1.repo.GetDirectoryContentsResponse
-	(*GetRelatedFilesRequest)(nil),       // 57: vrooli.git_control_tower.v1.repo.GetRelatedFilesRequest
-	(*RelatedFile)(nil),                  // 58: vrooli.git_control_tower.v1.repo.RelatedFile
-	(*GetRelatedFilesResponse)(nil),      // 59: vrooli.git_control_tower.v1.repo.GetRelatedFilesResponse
-	(*SearchContentRequest)(nil),         // 60: vrooli.git_control_tower.v1.repo.SearchContentRequest
-	(*ContentMatch)(nil),                 // 61: vrooli.git_control_tower.v1.repo.ContentMatch
-	(*SearchContentResponse)(nil),        // 62: vrooli.git_control_tower.v1.repo.SearchContentResponse
-	(*DeletePathRequest)(nil),            // 63: vrooli.git_control_tower.v1.repo.DeletePathRequest
-	(*DeletePathResponse)(nil),           // 64: vrooli.git_control_tower.v1.repo.DeletePathResponse
-	(*SaveFileContentRequest)(nil),       // 65: vrooli.git_control_tower.v1.repo.SaveFileContentRequest
-	(*SaveFileContentResponse)(nil),      // 66: vrooli.git_control_tower.v1.repo.SaveFileContentResponse
-	(*DiscardFilesRequest)(nil),          // 67: vrooli.git_control_tower.v1.repo.DiscardFilesRequest
-	(*DiscardFilesResponse)(nil),         // 68: vrooli.git_control_tower.v1.repo.DiscardFilesResponse
-	(*IgnorePathRequest)(nil),            // 69: vrooli.git_control_tower.v1.repo.IgnorePathRequest
-	(*IgnorePathResponse)(nil),           // 70: vrooli.git_control_tower.v1.repo.IgnorePathResponse
-	(*PushToRemoteRequest)(nil),          // 71: vrooli.git_control_tower.v1.repo.PushToRemoteRequest
-	(*PushToRemoteResponse)(nil),         // 72: vrooli.git_control_tower.v1.repo.PushToRemoteResponse
-	(*PullFromRemoteRequest)(nil),        // 73: vrooli.git_control_tower.v1.repo.PullFromRemoteRequest
-	(*PullFromRemoteResponse)(nil),       // 74: vrooli.git_control_tower.v1.repo.PullFromRemoteResponse
-	(*RunUpstreamActionRequest)(nil),     // 75: vrooli.git_control_tower.v1.repo.RunUpstreamActionRequest
-	(*RunUpstreamActionResponse)(nil),    // 76: vrooli.git_control_tower.v1.repo.RunUpstreamActionResponse
-	(*GetGroupingRulesRequest)(nil),      // 77: vrooli.git_control_tower.v1.repo.GetGroupingRulesRequest
-	(*GroupingRule)(nil),                 // 78: vrooli.git_control_tower.v1.repo.GroupingRule
-	(*GroupingRulesResponse)(nil),        // 79: vrooli.git_control_tower.v1.repo.GroupingRulesResponse
-	(*SaveGroupingRulesRequest)(nil),     // 80: vrooli.git_control_tower.v1.repo.SaveGroupingRulesRequest
-	(*GetGitignoreHealthRequest)(nil),    // 81: vrooli.git_control_tower.v1.repo.GetGitignoreHealthRequest
-	(*GitignoreSuggestion)(nil),          // 82: vrooli.git_control_tower.v1.repo.GitignoreSuggestion
-	(*GitignoreHealthResponse)(nil),      // 83: vrooli.git_control_tower.v1.repo.GitignoreHealthResponse
-	(*MoveGitignoreEntryRequest)(nil),    // 84: vrooli.git_control_tower.v1.repo.MoveGitignoreEntryRequest
-	(*MoveGitignoreEntryResponse)(nil),   // 85: vrooli.git_control_tower.v1.repo.MoveGitignoreEntryResponse
-	(*GetTrackedBinariesRequest)(nil),    // 86: vrooli.git_control_tower.v1.repo.GetTrackedBinariesRequest
-	(*TrackedBinary)(nil),                // 87: vrooli.git_control_tower.v1.repo.TrackedBinary
-	(*TrackedBinariesResponse)(nil),      // 88: vrooli.git_control_tower.v1.repo.TrackedBinariesResponse
-	(*UntrackBinaryRequest)(nil),         // 89: vrooli.git_control_tower.v1.repo.UntrackBinaryRequest
-	(*UntrackBinaryResponse)(nil),        // 90: vrooli.git_control_tower.v1.repo.UntrackBinaryResponse
-	(*GetPrecommitConfigRequest)(nil),    // 91: vrooli.git_control_tower.v1.repo.GetPrecommitConfigRequest
-	(*PrecommitHookState)(nil),           // 92: vrooli.git_control_tower.v1.repo.PrecommitHookState
-	(*PrecommitConfigResponse)(nil),      // 93: vrooli.git_control_tower.v1.repo.PrecommitConfigResponse
-	(*SavePrecommitConfigRequest)(nil),   // 94: vrooli.git_control_tower.v1.repo.SavePrecommitConfigRequest
-	(*RunPrecommitRequest)(nil),          // 95: vrooli.git_control_tower.v1.repo.RunPrecommitRequest
-	(*PrecommitRunResponse)(nil),         // 96: vrooli.git_control_tower.v1.repo.PrecommitRunResponse
-	(*StageFilesRequest)(nil),            // 97: vrooli.git_control_tower.v1.repo.StageFilesRequest
-	(*StageFilesResponse)(nil),           // 98: vrooli.git_control_tower.v1.repo.StageFilesResponse
-	(*UnstageFilesRequest)(nil),          // 99: vrooli.git_control_tower.v1.repo.UnstageFilesRequest
-	(*UnstageFilesResponse)(nil),         // 100: vrooli.git_control_tower.v1.repo.UnstageFilesResponse
-	(*CreateCommitRequest)(nil),          // 101: vrooli.git_control_tower.v1.repo.CreateCommitRequest
-	(*PrecommitRunResult)(nil),           // 102: vrooli.git_control_tower.v1.repo.PrecommitRunResult
-	(*CreateCommitResponse)(nil),         // 103: vrooli.git_control_tower.v1.repo.CreateCommitResponse
-	(*Credential)(nil),                   // 104: vrooli.git_control_tower.v1.repo.Credential
-	(*ListCredentialsRequest)(nil),       // 105: vrooli.git_control_tower.v1.repo.ListCredentialsRequest
-	(*CredentialsListResponse)(nil),      // 106: vrooli.git_control_tower.v1.repo.CredentialsListResponse
-	(*SaveCredentialRequest)(nil),        // 107: vrooli.git_control_tower.v1.repo.SaveCredentialRequest
-	(*CredentialSaveResponse)(nil),       // 108: vrooli.git_control_tower.v1.repo.CredentialSaveResponse
-	(*DeleteCredentialRequest)(nil),      // 109: vrooli.git_control_tower.v1.repo.DeleteCredentialRequest
-	(*CredentialDeleteResponse)(nil),     // 110: vrooli.git_control_tower.v1.repo.CredentialDeleteResponse
-	(*TestCredentialRequest)(nil),        // 111: vrooli.git_control_tower.v1.repo.TestCredentialRequest
-	(*CredentialTestResponse)(nil),       // 112: vrooli.git_control_tower.v1.repo.CredentialTestResponse
-	(*UpdateRemoteURLRequest)(nil),       // 113: vrooli.git_control_tower.v1.repo.UpdateRemoteURLRequest
-	(*RemoteURLUpdateResponse)(nil),      // 114: vrooli.git_control_tower.v1.repo.RemoteURLUpdateResponse
-	(*SSHKeyInfo)(nil),                   // 115: vrooli.git_control_tower.v1.repo.SSHKeyInfo
-	(*ListSSHKeysRequest)(nil),           // 116: vrooli.git_control_tower.v1.repo.ListSSHKeysRequest
-	(*SSHListKeysResponse)(nil),          // 117: vrooli.git_control_tower.v1.repo.SSHListKeysResponse
-	(*GenerateSSHKeyRequest)(nil),        // 118: vrooli.git_control_tower.v1.repo.GenerateSSHKeyRequest
-	(*SSHGenerateKeyResponse)(nil),       // 119: vrooli.git_control_tower.v1.repo.SSHGenerateKeyResponse
-	(*GetSSHPublicKeyRequest)(nil),       // 120: vrooli.git_control_tower.v1.repo.GetSSHPublicKeyRequest
-	(*SSHGetPublicKeyResponse)(nil),      // 121: vrooli.git_control_tower.v1.repo.SSHGetPublicKeyResponse
-	(*TestSSHConnectionRequest)(nil),     // 122: vrooli.git_control_tower.v1.repo.TestSSHConnectionRequest
-	(*SSHTestConnectionResponse)(nil),    // 123: vrooli.git_control_tower.v1.repo.SSHTestConnectionResponse
-	(*DeleteSSHKeyRequest)(nil),          // 124: vrooli.git_control_tower.v1.repo.DeleteSSHKeyRequest
-	(*SSHDeleteKeyResponse)(nil),         // 125: vrooli.git_control_tower.v1.repo.SSHDeleteKeyResponse
-	(*InspectPushSafetyRequest)(nil),     // 126: vrooli.git_control_tower.v1.repo.InspectPushSafetyRequest
-	(*PushSafetyFile)(nil),               // 127: vrooli.git_control_tower.v1.repo.PushSafetyFile
-	(*PushSafetyReport)(nil),             // 128: vrooli.git_control_tower.v1.repo.PushSafetyReport
-	(*PreparePushRecoveryRequest)(nil),   // 129: vrooli.git_control_tower.v1.repo.PreparePushRecoveryRequest
-	(*RecoveryCommitMapping)(nil),        // 130: vrooli.git_control_tower.v1.repo.RecoveryCommitMapping
-	(*PushRecoveryArtifact)(nil),         // 131: vrooli.git_control_tower.v1.repo.PushRecoveryArtifact
-	(*GetPushRecoveryRequest)(nil),       // 132: vrooli.git_control_tower.v1.repo.GetPushRecoveryRequest
-	nil,                                  // 133: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.FileHotspotsEntry
-	nil,                                  // 134: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.ScopesEntry
-	nil,                                  // 135: vrooli.git_control_tower.v1.repo.FilesStatus.StatusesEntry
-	nil,                                  // 136: vrooli.git_control_tower.v1.repo.FilesStatus.RenamesEntry
-	nil,                                  // 137: vrooli.git_control_tower.v1.repo.FileStats.StagedEntry
-	nil,                                  // 138: vrooli.git_control_tower.v1.repo.FileStats.UnstagedEntry
-	nil,                                  // 139: vrooli.git_control_tower.v1.repo.FileStats.UntrackedEntry
-	(*proposals.ProposalTrailer)(nil),    // 140: vrooli.git_control_tower.v1.proposals.ProposalTrailer
+	(*RepoRecord)(nil),                           // 0: vrooli.git_control_tower.v1.repo.RepoRecord
+	(*ListRepositoriesRequest)(nil),              // 1: vrooli.git_control_tower.v1.repo.ListRepositoriesRequest
+	(*ListRepositoriesResponse)(nil),             // 2: vrooli.git_control_tower.v1.repo.ListRepositoriesResponse
+	(*GetActiveRepositoryRequest)(nil),           // 3: vrooli.git_control_tower.v1.repo.GetActiveRepositoryRequest
+	(*GetActiveRepositoryResponse)(nil),          // 4: vrooli.git_control_tower.v1.repo.GetActiveRepositoryResponse
+	(*GetRepoHistoryRequest)(nil),                // 5: vrooli.git_control_tower.v1.repo.GetRepoHistoryRequest
+	(*CommitCheckRun)(nil),                       // 6: vrooli.git_control_tower.v1.repo.CommitCheckRun
+	(*RepoHistoryEntry)(nil),                     // 7: vrooli.git_control_tower.v1.repo.RepoHistoryEntry
+	(*GetRepoHistoryResponse)(nil),               // 8: vrooli.git_control_tower.v1.repo.GetRepoHistoryResponse
+	(*GetApprovedChangesRequest)(nil),            // 9: vrooli.git_control_tower.v1.repo.GetApprovedChangesRequest
+	(*ApprovedChangeFile)(nil),                   // 10: vrooli.git_control_tower.v1.repo.ApprovedChangeFile
+	(*GetApprovedChangesResponse)(nil),           // 11: vrooli.git_control_tower.v1.repo.GetApprovedChangesResponse
+	(*GetProvenanceRequest)(nil),                 // 12: vrooli.git_control_tower.v1.repo.GetProvenanceRequest
+	(*ProvenanceFile)(nil),                       // 13: vrooli.git_control_tower.v1.repo.ProvenanceFile
+	(*ProvenanceRunGroup)(nil),                   // 14: vrooli.git_control_tower.v1.repo.ProvenanceRunGroup
+	(*GetProvenanceResponse)(nil),                // 15: vrooli.git_control_tower.v1.repo.GetProvenanceResponse
+	(*GetBlameRequest)(nil),                      // 16: vrooli.git_control_tower.v1.repo.GetBlameRequest
+	(*BlameLine)(nil),                            // 17: vrooli.git_control_tower.v1.repo.BlameLine
+	(*ProvenanceWorkReference)(nil),              // 18: vrooli.git_control_tower.v1.repo.ProvenanceWorkReference
+	(*BlameEvidence)(nil),                        // 19: vrooli.git_control_tower.v1.repo.BlameEvidence
+	(*BlameFile)(nil),                            // 20: vrooli.git_control_tower.v1.repo.BlameFile
+	(*ProvenanceChangeBundle)(nil),               // 21: vrooli.git_control_tower.v1.repo.ProvenanceChangeBundle
+	(*GetBlameResponse)(nil),                     // 22: vrooli.git_control_tower.v1.repo.GetBlameResponse
+	(*SearchProvenanceRequest)(nil),              // 23: vrooli.git_control_tower.v1.repo.SearchProvenanceRequest
+	(*ProvenanceSearchHit)(nil),                  // 24: vrooli.git_control_tower.v1.repo.ProvenanceSearchHit
+	(*SearchProvenanceResponse)(nil),             // 25: vrooli.git_control_tower.v1.repo.SearchProvenanceResponse
+	(*SetActiveRepositoryRequest)(nil),           // 26: vrooli.git_control_tower.v1.repo.SetActiveRepositoryRequest
+	(*OpenRepositoryRequest)(nil),                // 27: vrooli.git_control_tower.v1.repo.OpenRepositoryRequest
+	(*CloneRepositoryRequest)(nil),               // 28: vrooli.git_control_tower.v1.repo.CloneRepositoryRequest
+	(*RepoMutationResponse)(nil),                 // 29: vrooli.git_control_tower.v1.repo.RepoMutationResponse
+	(*RemoveRepositoryRequest)(nil),              // 30: vrooli.git_control_tower.v1.repo.RemoveRepositoryRequest
+	(*RemoveRepositoryResponse)(nil),             // 31: vrooli.git_control_tower.v1.repo.RemoveRepositoryResponse
+	(*GetRepoStatusRequest)(nil),                 // 32: vrooli.git_control_tower.v1.repo.GetRepoStatusRequest
+	(*WorktreeIdentity)(nil),                     // 33: vrooli.git_control_tower.v1.repo.WorktreeIdentity
+	(*GetRepoStatusResponse)(nil),                // 34: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse
+	(*BranchStatus)(nil),                         // 35: vrooli.git_control_tower.v1.repo.BranchStatus
+	(*FilesStatus)(nil),                          // 36: vrooli.git_control_tower.v1.repo.FilesStatus
+	(*FileStats)(nil),                            // 37: vrooli.git_control_tower.v1.repo.FileStats
+	(*DiffStats)(nil),                            // 38: vrooli.git_control_tower.v1.repo.DiffStats
+	(*StringList)(nil),                           // 39: vrooli.git_control_tower.v1.repo.StringList
+	(*StatusSummary)(nil),                        // 40: vrooli.git_control_tower.v1.repo.StatusSummary
+	(*AuthorStatus)(nil),                         // 41: vrooli.git_control_tower.v1.repo.AuthorStatus
+	(*GetRepoDiffRequest)(nil),                   // 42: vrooli.git_control_tower.v1.repo.GetRepoDiffRequest
+	(*GetRepoDiffResponse)(nil),                  // 43: vrooli.git_control_tower.v1.repo.GetRepoDiffResponse
+	(*DiffHunk)(nil),                             // 44: vrooli.git_control_tower.v1.repo.DiffHunk
+	(*AnnotatedLine)(nil),                        // 45: vrooli.git_control_tower.v1.repo.AnnotatedLine
+	(*GetRepoGroupsRequest)(nil),                 // 46: vrooli.git_control_tower.v1.repo.GetRepoGroupsRequest
+	(*GetRepoGroupsResponse)(nil),                // 47: vrooli.git_control_tower.v1.repo.GetRepoGroupsResponse
+	(*ChangeGroup)(nil),                          // 48: vrooli.git_control_tower.v1.repo.ChangeGroup
+	(*GetSyncStatusRequest)(nil),                 // 49: vrooli.git_control_tower.v1.repo.GetSyncStatusRequest
+	(*GetSyncStatusResponse)(nil),                // 50: vrooli.git_control_tower.v1.repo.GetSyncStatusResponse
+	(*GetFilesRequest)(nil),                      // 51: vrooli.git_control_tower.v1.repo.GetFilesRequest
+	(*RepoFileInfo)(nil),                         // 52: vrooli.git_control_tower.v1.repo.RepoFileInfo
+	(*GetFilesResponse)(nil),                     // 53: vrooli.git_control_tower.v1.repo.GetFilesResponse
+	(*GetDirectoryContentsRequest)(nil),          // 54: vrooli.git_control_tower.v1.repo.GetDirectoryContentsRequest
+	(*DirectoryEntry)(nil),                       // 55: vrooli.git_control_tower.v1.repo.DirectoryEntry
+	(*GetDirectoryContentsResponse)(nil),         // 56: vrooli.git_control_tower.v1.repo.GetDirectoryContentsResponse
+	(*GetRelatedFilesRequest)(nil),               // 57: vrooli.git_control_tower.v1.repo.GetRelatedFilesRequest
+	(*RelatedFile)(nil),                          // 58: vrooli.git_control_tower.v1.repo.RelatedFile
+	(*GetRelatedFilesResponse)(nil),              // 59: vrooli.git_control_tower.v1.repo.GetRelatedFilesResponse
+	(*SearchContentRequest)(nil),                 // 60: vrooli.git_control_tower.v1.repo.SearchContentRequest
+	(*ContentMatch)(nil),                         // 61: vrooli.git_control_tower.v1.repo.ContentMatch
+	(*SearchContentResponse)(nil),                // 62: vrooli.git_control_tower.v1.repo.SearchContentResponse
+	(*DeletePathRequest)(nil),                    // 63: vrooli.git_control_tower.v1.repo.DeletePathRequest
+	(*DeletePathResponse)(nil),                   // 64: vrooli.git_control_tower.v1.repo.DeletePathResponse
+	(*SaveFileContentRequest)(nil),               // 65: vrooli.git_control_tower.v1.repo.SaveFileContentRequest
+	(*SaveFileContentResponse)(nil),              // 66: vrooli.git_control_tower.v1.repo.SaveFileContentResponse
+	(*DiscardFilesRequest)(nil),                  // 67: vrooli.git_control_tower.v1.repo.DiscardFilesRequest
+	(*DiscardFilesResponse)(nil),                 // 68: vrooli.git_control_tower.v1.repo.DiscardFilesResponse
+	(*IgnorePathRequest)(nil),                    // 69: vrooli.git_control_tower.v1.repo.IgnorePathRequest
+	(*IgnorePathResponse)(nil),                   // 70: vrooli.git_control_tower.v1.repo.IgnorePathResponse
+	(*PushToRemoteRequest)(nil),                  // 71: vrooli.git_control_tower.v1.repo.PushToRemoteRequest
+	(*PushToRemoteResponse)(nil),                 // 72: vrooli.git_control_tower.v1.repo.PushToRemoteResponse
+	(*PullFromRemoteRequest)(nil),                // 73: vrooli.git_control_tower.v1.repo.PullFromRemoteRequest
+	(*PullFromRemoteResponse)(nil),               // 74: vrooli.git_control_tower.v1.repo.PullFromRemoteResponse
+	(*RunUpstreamActionRequest)(nil),             // 75: vrooli.git_control_tower.v1.repo.RunUpstreamActionRequest
+	(*RunUpstreamActionResponse)(nil),            // 76: vrooli.git_control_tower.v1.repo.RunUpstreamActionResponse
+	(*GetGroupingRulesRequest)(nil),              // 77: vrooli.git_control_tower.v1.repo.GetGroupingRulesRequest
+	(*GroupingRule)(nil),                         // 78: vrooli.git_control_tower.v1.repo.GroupingRule
+	(*GroupingRulesResponse)(nil),                // 79: vrooli.git_control_tower.v1.repo.GroupingRulesResponse
+	(*SaveGroupingRulesRequest)(nil),             // 80: vrooli.git_control_tower.v1.repo.SaveGroupingRulesRequest
+	(*GetGitignoreHealthRequest)(nil),            // 81: vrooli.git_control_tower.v1.repo.GetGitignoreHealthRequest
+	(*GitignoreSuggestion)(nil),                  // 82: vrooli.git_control_tower.v1.repo.GitignoreSuggestion
+	(*GitignoreHealthResponse)(nil),              // 83: vrooli.git_control_tower.v1.repo.GitignoreHealthResponse
+	(*MoveGitignoreEntryRequest)(nil),            // 84: vrooli.git_control_tower.v1.repo.MoveGitignoreEntryRequest
+	(*MoveGitignoreEntryResponse)(nil),           // 85: vrooli.git_control_tower.v1.repo.MoveGitignoreEntryResponse
+	(*GetTrackedBinariesRequest)(nil),            // 86: vrooli.git_control_tower.v1.repo.GetTrackedBinariesRequest
+	(*TrackedBinary)(nil),                        // 87: vrooli.git_control_tower.v1.repo.TrackedBinary
+	(*TrackedBinariesResponse)(nil),              // 88: vrooli.git_control_tower.v1.repo.TrackedBinariesResponse
+	(*UntrackBinaryRequest)(nil),                 // 89: vrooli.git_control_tower.v1.repo.UntrackBinaryRequest
+	(*UntrackBinaryResponse)(nil),                // 90: vrooli.git_control_tower.v1.repo.UntrackBinaryResponse
+	(*GetPrecommitConfigRequest)(nil),            // 91: vrooli.git_control_tower.v1.repo.GetPrecommitConfigRequest
+	(*PrecommitHookState)(nil),                   // 92: vrooli.git_control_tower.v1.repo.PrecommitHookState
+	(*PrecommitConfigResponse)(nil),              // 93: vrooli.git_control_tower.v1.repo.PrecommitConfigResponse
+	(*SavePrecommitConfigRequest)(nil),           // 94: vrooli.git_control_tower.v1.repo.SavePrecommitConfigRequest
+	(*RunPrecommitRequest)(nil),                  // 95: vrooli.git_control_tower.v1.repo.RunPrecommitRequest
+	(*PrecommitRunResponse)(nil),                 // 96: vrooli.git_control_tower.v1.repo.PrecommitRunResponse
+	(*StartPrecommitCandidateCheckRequest)(nil),  // 97: vrooli.git_control_tower.v1.repo.StartPrecommitCandidateCheckRequest
+	(*GetPrecommitCandidateCheckRequest)(nil),    // 98: vrooli.git_control_tower.v1.repo.GetPrecommitCandidateCheckRequest
+	(*CancelPrecommitCandidateCheckRequest)(nil), // 99: vrooli.git_control_tower.v1.repo.CancelPrecommitCandidateCheckRequest
+	(*PrecommitCandidateCheckResponse)(nil),      // 100: vrooli.git_control_tower.v1.repo.PrecommitCandidateCheckResponse
+	(*StageFilesRequest)(nil),                    // 101: vrooli.git_control_tower.v1.repo.StageFilesRequest
+	(*StageFilesResponse)(nil),                   // 102: vrooli.git_control_tower.v1.repo.StageFilesResponse
+	(*UnstageFilesRequest)(nil),                  // 103: vrooli.git_control_tower.v1.repo.UnstageFilesRequest
+	(*UnstageFilesResponse)(nil),                 // 104: vrooli.git_control_tower.v1.repo.UnstageFilesResponse
+	(*CreateCommitRequest)(nil),                  // 105: vrooli.git_control_tower.v1.repo.CreateCommitRequest
+	(*PrecommitRunResult)(nil),                   // 106: vrooli.git_control_tower.v1.repo.PrecommitRunResult
+	(*CreateCommitResponse)(nil),                 // 107: vrooli.git_control_tower.v1.repo.CreateCommitResponse
+	(*Credential)(nil),                           // 108: vrooli.git_control_tower.v1.repo.Credential
+	(*ListCredentialsRequest)(nil),               // 109: vrooli.git_control_tower.v1.repo.ListCredentialsRequest
+	(*CredentialsListResponse)(nil),              // 110: vrooli.git_control_tower.v1.repo.CredentialsListResponse
+	(*SaveCredentialRequest)(nil),                // 111: vrooli.git_control_tower.v1.repo.SaveCredentialRequest
+	(*CredentialSaveResponse)(nil),               // 112: vrooli.git_control_tower.v1.repo.CredentialSaveResponse
+	(*DeleteCredentialRequest)(nil),              // 113: vrooli.git_control_tower.v1.repo.DeleteCredentialRequest
+	(*CredentialDeleteResponse)(nil),             // 114: vrooli.git_control_tower.v1.repo.CredentialDeleteResponse
+	(*TestCredentialRequest)(nil),                // 115: vrooli.git_control_tower.v1.repo.TestCredentialRequest
+	(*CredentialTestResponse)(nil),               // 116: vrooli.git_control_tower.v1.repo.CredentialTestResponse
+	(*UpdateRemoteURLRequest)(nil),               // 117: vrooli.git_control_tower.v1.repo.UpdateRemoteURLRequest
+	(*RemoteURLUpdateResponse)(nil),              // 118: vrooli.git_control_tower.v1.repo.RemoteURLUpdateResponse
+	(*SSHKeyInfo)(nil),                           // 119: vrooli.git_control_tower.v1.repo.SSHKeyInfo
+	(*ListSSHKeysRequest)(nil),                   // 120: vrooli.git_control_tower.v1.repo.ListSSHKeysRequest
+	(*SSHListKeysResponse)(nil),                  // 121: vrooli.git_control_tower.v1.repo.SSHListKeysResponse
+	(*GenerateSSHKeyRequest)(nil),                // 122: vrooli.git_control_tower.v1.repo.GenerateSSHKeyRequest
+	(*SSHGenerateKeyResponse)(nil),               // 123: vrooli.git_control_tower.v1.repo.SSHGenerateKeyResponse
+	(*GetSSHPublicKeyRequest)(nil),               // 124: vrooli.git_control_tower.v1.repo.GetSSHPublicKeyRequest
+	(*SSHGetPublicKeyResponse)(nil),              // 125: vrooli.git_control_tower.v1.repo.SSHGetPublicKeyResponse
+	(*TestSSHConnectionRequest)(nil),             // 126: vrooli.git_control_tower.v1.repo.TestSSHConnectionRequest
+	(*SSHTestConnectionResponse)(nil),            // 127: vrooli.git_control_tower.v1.repo.SSHTestConnectionResponse
+	(*DeleteSSHKeyRequest)(nil),                  // 128: vrooli.git_control_tower.v1.repo.DeleteSSHKeyRequest
+	(*SSHDeleteKeyResponse)(nil),                 // 129: vrooli.git_control_tower.v1.repo.SSHDeleteKeyResponse
+	(*InspectPushSafetyRequest)(nil),             // 130: vrooli.git_control_tower.v1.repo.InspectPushSafetyRequest
+	(*PushSafetyFile)(nil),                       // 131: vrooli.git_control_tower.v1.repo.PushSafetyFile
+	(*PushSafetyReport)(nil),                     // 132: vrooli.git_control_tower.v1.repo.PushSafetyReport
+	(*PreparePushRecoveryRequest)(nil),           // 133: vrooli.git_control_tower.v1.repo.PreparePushRecoveryRequest
+	(*RecoveryCommitMapping)(nil),                // 134: vrooli.git_control_tower.v1.repo.RecoveryCommitMapping
+	(*PushRecoveryArtifact)(nil),                 // 135: vrooli.git_control_tower.v1.repo.PushRecoveryArtifact
+	(*GetPushRecoveryRequest)(nil),               // 136: vrooli.git_control_tower.v1.repo.GetPushRecoveryRequest
+	nil,                                          // 137: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.FileHotspotsEntry
+	nil,                                          // 138: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.ScopesEntry
+	nil,                                          // 139: vrooli.git_control_tower.v1.repo.FilesStatus.StatusesEntry
+	nil,                                          // 140: vrooli.git_control_tower.v1.repo.FilesStatus.RenamesEntry
+	nil,                                          // 141: vrooli.git_control_tower.v1.repo.FileStats.StagedEntry
+	nil,                                          // 142: vrooli.git_control_tower.v1.repo.FileStats.UnstagedEntry
+	nil,                                          // 143: vrooli.git_control_tower.v1.repo.FileStats.UntrackedEntry
+	(*proposals.ProposalTrailer)(nil),            // 144: vrooli.git_control_tower.v1.proposals.ProposalTrailer
 }
 var file_git_control_tower_v1_repo_repo_proto_depIdxs = []int32{
 	0,   // 0: vrooli.git_control_tower.v1.repo.ListRepositoriesResponse.repos:type_name -> vrooli.git_control_tower.v1.repo.RepoRecord
 	0,   // 1: vrooli.git_control_tower.v1.repo.GetActiveRepositoryResponse.repo:type_name -> vrooli.git_control_tower.v1.repo.RepoRecord
 	6,   // 2: vrooli.git_control_tower.v1.repo.RepoHistoryEntry.checks:type_name -> vrooli.git_control_tower.v1.repo.CommitCheckRun
-	140, // 3: vrooli.git_control_tower.v1.repo.RepoHistoryEntry.trailers:type_name -> vrooli.git_control_tower.v1.proposals.ProposalTrailer
+	144, // 3: vrooli.git_control_tower.v1.repo.RepoHistoryEntry.trailers:type_name -> vrooli.git_control_tower.v1.proposals.ProposalTrailer
 	7,   // 4: vrooli.git_control_tower.v1.repo.GetRepoHistoryResponse.entries:type_name -> vrooli.git_control_tower.v1.repo.RepoHistoryEntry
 	10,  // 5: vrooli.git_control_tower.v1.repo.GetApprovedChangesResponse.files:type_name -> vrooli.git_control_tower.v1.repo.ApprovedChangeFile
 	13,  // 6: vrooli.git_control_tower.v1.repo.ProvenanceRunGroup.files:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceFile
@@ -11293,15 +11565,15 @@ var file_git_control_tower_v1_repo_repo_proto_depIdxs = []int32{
 	35,  // 17: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.branch_status:type_name -> vrooli.git_control_tower.v1.repo.BranchStatus
 	36,  // 18: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.files:type_name -> vrooli.git_control_tower.v1.repo.FilesStatus
 	37,  // 19: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.file_stats:type_name -> vrooli.git_control_tower.v1.repo.FileStats
-	133, // 20: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.file_hotspots:type_name -> vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.FileHotspotsEntry
-	134, // 21: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.scopes:type_name -> vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.ScopesEntry
+	137, // 20: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.file_hotspots:type_name -> vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.FileHotspotsEntry
+	138, // 21: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.scopes:type_name -> vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.ScopesEntry
 	40,  // 22: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.summary:type_name -> vrooli.git_control_tower.v1.repo.StatusSummary
 	41,  // 23: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.author:type_name -> vrooli.git_control_tower.v1.repo.AuthorStatus
-	135, // 24: vrooli.git_control_tower.v1.repo.FilesStatus.statuses:type_name -> vrooli.git_control_tower.v1.repo.FilesStatus.StatusesEntry
-	136, // 25: vrooli.git_control_tower.v1.repo.FilesStatus.renames:type_name -> vrooli.git_control_tower.v1.repo.FilesStatus.RenamesEntry
-	137, // 26: vrooli.git_control_tower.v1.repo.FileStats.staged:type_name -> vrooli.git_control_tower.v1.repo.FileStats.StagedEntry
-	138, // 27: vrooli.git_control_tower.v1.repo.FileStats.unstaged:type_name -> vrooli.git_control_tower.v1.repo.FileStats.UnstagedEntry
-	139, // 28: vrooli.git_control_tower.v1.repo.FileStats.untracked:type_name -> vrooli.git_control_tower.v1.repo.FileStats.UntrackedEntry
+	139, // 24: vrooli.git_control_tower.v1.repo.FilesStatus.statuses:type_name -> vrooli.git_control_tower.v1.repo.FilesStatus.StatusesEntry
+	140, // 25: vrooli.git_control_tower.v1.repo.FilesStatus.renames:type_name -> vrooli.git_control_tower.v1.repo.FilesStatus.RenamesEntry
+	141, // 26: vrooli.git_control_tower.v1.repo.FileStats.staged:type_name -> vrooli.git_control_tower.v1.repo.FileStats.StagedEntry
+	142, // 27: vrooli.git_control_tower.v1.repo.FileStats.unstaged:type_name -> vrooli.git_control_tower.v1.repo.FileStats.UnstagedEntry
+	143, // 28: vrooli.git_control_tower.v1.repo.FileStats.untracked:type_name -> vrooli.git_control_tower.v1.repo.FileStats.UntrackedEntry
 	44,  // 29: vrooli.git_control_tower.v1.repo.GetRepoDiffResponse.hunks:type_name -> vrooli.git_control_tower.v1.repo.DiffHunk
 	38,  // 30: vrooli.git_control_tower.v1.repo.GetRepoDiffResponse.stats:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
 	45,  // 31: vrooli.git_control_tower.v1.repo.GetRepoDiffResponse.annotated_lines:type_name -> vrooli.git_control_tower.v1.repo.AnnotatedLine
@@ -11314,128 +11586,135 @@ var file_git_control_tower_v1_repo_repo_proto_depIdxs = []int32{
 	78,  // 38: vrooli.git_control_tower.v1.repo.SaveGroupingRulesRequest.rules:type_name -> vrooli.git_control_tower.v1.repo.GroupingRule
 	82,  // 39: vrooli.git_control_tower.v1.repo.GitignoreHealthResponse.suggestions:type_name -> vrooli.git_control_tower.v1.repo.GitignoreSuggestion
 	87,  // 40: vrooli.git_control_tower.v1.repo.TrackedBinariesResponse.binaries:type_name -> vrooli.git_control_tower.v1.repo.TrackedBinary
-	102, // 41: vrooli.git_control_tower.v1.repo.PrecommitConfigResponse.last_result:type_name -> vrooli.git_control_tower.v1.repo.PrecommitRunResult
+	106, // 41: vrooli.git_control_tower.v1.repo.PrecommitConfigResponse.last_result:type_name -> vrooli.git_control_tower.v1.repo.PrecommitRunResult
 	92,  // 42: vrooli.git_control_tower.v1.repo.PrecommitConfigResponse.hook:type_name -> vrooli.git_control_tower.v1.repo.PrecommitHookState
-	102, // 43: vrooli.git_control_tower.v1.repo.PrecommitRunResponse.result:type_name -> vrooli.git_control_tower.v1.repo.PrecommitRunResult
-	102, // 44: vrooli.git_control_tower.v1.repo.CreateCommitResponse.precommit:type_name -> vrooli.git_control_tower.v1.repo.PrecommitRunResult
-	104, // 45: vrooli.git_control_tower.v1.repo.CredentialsListResponse.credentials:type_name -> vrooli.git_control_tower.v1.repo.Credential
-	104, // 46: vrooli.git_control_tower.v1.repo.CredentialSaveResponse.credential:type_name -> vrooli.git_control_tower.v1.repo.Credential
-	115, // 47: vrooli.git_control_tower.v1.repo.SSHListKeysResponse.keys:type_name -> vrooli.git_control_tower.v1.repo.SSHKeyInfo
-	115, // 48: vrooli.git_control_tower.v1.repo.SSHGenerateKeyResponse.key:type_name -> vrooli.git_control_tower.v1.repo.SSHKeyInfo
-	127, // 49: vrooli.git_control_tower.v1.repo.PushSafetyReport.files:type_name -> vrooli.git_control_tower.v1.repo.PushSafetyFile
-	127, // 50: vrooli.git_control_tower.v1.repo.PushSafetyReport.staged_files:type_name -> vrooli.git_control_tower.v1.repo.PushSafetyFile
-	130, // 51: vrooli.git_control_tower.v1.repo.PushRecoveryArtifact.mappings:type_name -> vrooli.git_control_tower.v1.repo.RecoveryCommitMapping
-	39,  // 52: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.ScopesEntry.value:type_name -> vrooli.git_control_tower.v1.repo.StringList
-	38,  // 53: vrooli.git_control_tower.v1.repo.FileStats.StagedEntry.value:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
-	38,  // 54: vrooli.git_control_tower.v1.repo.FileStats.UnstagedEntry.value:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
-	38,  // 55: vrooli.git_control_tower.v1.repo.FileStats.UntrackedEntry.value:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
-	1,   // 56: vrooli.git_control_tower.v1.repo.RepoService.ListRepositories:input_type -> vrooli.git_control_tower.v1.repo.ListRepositoriesRequest
-	3,   // 57: vrooli.git_control_tower.v1.repo.RepoService.GetActiveRepository:input_type -> vrooli.git_control_tower.v1.repo.GetActiveRepositoryRequest
-	26,  // 58: vrooli.git_control_tower.v1.repo.RepoService.SetActiveRepository:input_type -> vrooli.git_control_tower.v1.repo.SetActiveRepositoryRequest
-	27,  // 59: vrooli.git_control_tower.v1.repo.RepoService.OpenRepository:input_type -> vrooli.git_control_tower.v1.repo.OpenRepositoryRequest
-	28,  // 60: vrooli.git_control_tower.v1.repo.RepoService.CloneRepository:input_type -> vrooli.git_control_tower.v1.repo.CloneRepositoryRequest
-	30,  // 61: vrooli.git_control_tower.v1.repo.RepoService.RemoveRepository:input_type -> vrooli.git_control_tower.v1.repo.RemoveRepositoryRequest
-	32,  // 62: vrooli.git_control_tower.v1.repo.RepoService.GetRepoStatus:input_type -> vrooli.git_control_tower.v1.repo.GetRepoStatusRequest
-	42,  // 63: vrooli.git_control_tower.v1.repo.RepoService.GetRepoDiff:input_type -> vrooli.git_control_tower.v1.repo.GetRepoDiffRequest
-	46,  // 64: vrooli.git_control_tower.v1.repo.RepoService.GetRepoGroups:input_type -> vrooli.git_control_tower.v1.repo.GetRepoGroupsRequest
-	49,  // 65: vrooli.git_control_tower.v1.repo.RepoService.GetSyncStatus:input_type -> vrooli.git_control_tower.v1.repo.GetSyncStatusRequest
-	5,   // 66: vrooli.git_control_tower.v1.repo.RepoService.GetRepoHistory:input_type -> vrooli.git_control_tower.v1.repo.GetRepoHistoryRequest
-	9,   // 67: vrooli.git_control_tower.v1.repo.RepoService.GetApprovedChanges:input_type -> vrooli.git_control_tower.v1.repo.GetApprovedChangesRequest
-	12,  // 68: vrooli.git_control_tower.v1.repo.RepoService.GetProvenance:input_type -> vrooli.git_control_tower.v1.repo.GetProvenanceRequest
-	16,  // 69: vrooli.git_control_tower.v1.repo.RepoService.GetBlame:input_type -> vrooli.git_control_tower.v1.repo.GetBlameRequest
-	23,  // 70: vrooli.git_control_tower.v1.repo.RepoService.SearchProvenance:input_type -> vrooli.git_control_tower.v1.repo.SearchProvenanceRequest
-	51,  // 71: vrooli.git_control_tower.v1.repo.RepoService.GetFiles:input_type -> vrooli.git_control_tower.v1.repo.GetFilesRequest
-	54,  // 72: vrooli.git_control_tower.v1.repo.RepoService.GetDirectoryContents:input_type -> vrooli.git_control_tower.v1.repo.GetDirectoryContentsRequest
-	57,  // 73: vrooli.git_control_tower.v1.repo.RepoService.GetRelatedFiles:input_type -> vrooli.git_control_tower.v1.repo.GetRelatedFilesRequest
-	60,  // 74: vrooli.git_control_tower.v1.repo.RepoService.SearchContent:input_type -> vrooli.git_control_tower.v1.repo.SearchContentRequest
-	63,  // 75: vrooli.git_control_tower.v1.repo.RepoService.DeletePath:input_type -> vrooli.git_control_tower.v1.repo.DeletePathRequest
-	65,  // 76: vrooli.git_control_tower.v1.repo.RepoService.SaveFileContent:input_type -> vrooli.git_control_tower.v1.repo.SaveFileContentRequest
-	67,  // 77: vrooli.git_control_tower.v1.repo.RepoService.DiscardFiles:input_type -> vrooli.git_control_tower.v1.repo.DiscardFilesRequest
-	69,  // 78: vrooli.git_control_tower.v1.repo.RepoService.IgnorePath:input_type -> vrooli.git_control_tower.v1.repo.IgnorePathRequest
-	126, // 79: vrooli.git_control_tower.v1.repo.RepoService.InspectPushSafety:input_type -> vrooli.git_control_tower.v1.repo.InspectPushSafetyRequest
-	132, // 80: vrooli.git_control_tower.v1.repo.RepoService.GetPushRecovery:input_type -> vrooli.git_control_tower.v1.repo.GetPushRecoveryRequest
-	129, // 81: vrooli.git_control_tower.v1.repo.RepoService.PreparePushRecovery:input_type -> vrooli.git_control_tower.v1.repo.PreparePushRecoveryRequest
-	71,  // 82: vrooli.git_control_tower.v1.repo.RepoService.PushToRemote:input_type -> vrooli.git_control_tower.v1.repo.PushToRemoteRequest
-	73,  // 83: vrooli.git_control_tower.v1.repo.RepoService.PullFromRemote:input_type -> vrooli.git_control_tower.v1.repo.PullFromRemoteRequest
-	75,  // 84: vrooli.git_control_tower.v1.repo.RepoService.RunUpstreamAction:input_type -> vrooli.git_control_tower.v1.repo.RunUpstreamActionRequest
-	77,  // 85: vrooli.git_control_tower.v1.repo.RepoService.GetGroupingRules:input_type -> vrooli.git_control_tower.v1.repo.GetGroupingRulesRequest
-	80,  // 86: vrooli.git_control_tower.v1.repo.RepoService.SaveGroupingRules:input_type -> vrooli.git_control_tower.v1.repo.SaveGroupingRulesRequest
-	81,  // 87: vrooli.git_control_tower.v1.repo.RepoService.GetGitignoreHealth:input_type -> vrooli.git_control_tower.v1.repo.GetGitignoreHealthRequest
-	84,  // 88: vrooli.git_control_tower.v1.repo.RepoService.MoveGitignoreEntry:input_type -> vrooli.git_control_tower.v1.repo.MoveGitignoreEntryRequest
-	86,  // 89: vrooli.git_control_tower.v1.repo.RepoService.GetTrackedBinaries:input_type -> vrooli.git_control_tower.v1.repo.GetTrackedBinariesRequest
-	89,  // 90: vrooli.git_control_tower.v1.repo.RepoService.UntrackBinary:input_type -> vrooli.git_control_tower.v1.repo.UntrackBinaryRequest
-	91,  // 91: vrooli.git_control_tower.v1.repo.RepoService.GetPrecommitConfig:input_type -> vrooli.git_control_tower.v1.repo.GetPrecommitConfigRequest
-	94,  // 92: vrooli.git_control_tower.v1.repo.RepoService.SavePrecommitConfig:input_type -> vrooli.git_control_tower.v1.repo.SavePrecommitConfigRequest
-	95,  // 93: vrooli.git_control_tower.v1.repo.RepoService.RunPrecommit:input_type -> vrooli.git_control_tower.v1.repo.RunPrecommitRequest
-	97,  // 94: vrooli.git_control_tower.v1.repo.RepoService.StageFiles:input_type -> vrooli.git_control_tower.v1.repo.StageFilesRequest
-	99,  // 95: vrooli.git_control_tower.v1.repo.RepoService.UnstageFiles:input_type -> vrooli.git_control_tower.v1.repo.UnstageFilesRequest
-	101, // 96: vrooli.git_control_tower.v1.repo.RepoService.CreateCommit:input_type -> vrooli.git_control_tower.v1.repo.CreateCommitRequest
-	105, // 97: vrooli.git_control_tower.v1.repo.RepoService.ListCredentials:input_type -> vrooli.git_control_tower.v1.repo.ListCredentialsRequest
-	107, // 98: vrooli.git_control_tower.v1.repo.RepoService.SaveCredential:input_type -> vrooli.git_control_tower.v1.repo.SaveCredentialRequest
-	109, // 99: vrooli.git_control_tower.v1.repo.RepoService.DeleteCredential:input_type -> vrooli.git_control_tower.v1.repo.DeleteCredentialRequest
-	111, // 100: vrooli.git_control_tower.v1.repo.RepoService.TestCredential:input_type -> vrooli.git_control_tower.v1.repo.TestCredentialRequest
-	113, // 101: vrooli.git_control_tower.v1.repo.RepoService.UpdateRemoteURL:input_type -> vrooli.git_control_tower.v1.repo.UpdateRemoteURLRequest
-	116, // 102: vrooli.git_control_tower.v1.repo.RepoService.ListSSHKeys:input_type -> vrooli.git_control_tower.v1.repo.ListSSHKeysRequest
-	118, // 103: vrooli.git_control_tower.v1.repo.RepoService.GenerateSSHKey:input_type -> vrooli.git_control_tower.v1.repo.GenerateSSHKeyRequest
-	120, // 104: vrooli.git_control_tower.v1.repo.RepoService.GetSSHPublicKey:input_type -> vrooli.git_control_tower.v1.repo.GetSSHPublicKeyRequest
-	122, // 105: vrooli.git_control_tower.v1.repo.RepoService.TestSSHConnection:input_type -> vrooli.git_control_tower.v1.repo.TestSSHConnectionRequest
-	124, // 106: vrooli.git_control_tower.v1.repo.RepoService.DeleteSSHKey:input_type -> vrooli.git_control_tower.v1.repo.DeleteSSHKeyRequest
-	2,   // 107: vrooli.git_control_tower.v1.repo.RepoService.ListRepositories:output_type -> vrooli.git_control_tower.v1.repo.ListRepositoriesResponse
-	4,   // 108: vrooli.git_control_tower.v1.repo.RepoService.GetActiveRepository:output_type -> vrooli.git_control_tower.v1.repo.GetActiveRepositoryResponse
-	29,  // 109: vrooli.git_control_tower.v1.repo.RepoService.SetActiveRepository:output_type -> vrooli.git_control_tower.v1.repo.RepoMutationResponse
-	29,  // 110: vrooli.git_control_tower.v1.repo.RepoService.OpenRepository:output_type -> vrooli.git_control_tower.v1.repo.RepoMutationResponse
-	29,  // 111: vrooli.git_control_tower.v1.repo.RepoService.CloneRepository:output_type -> vrooli.git_control_tower.v1.repo.RepoMutationResponse
-	31,  // 112: vrooli.git_control_tower.v1.repo.RepoService.RemoveRepository:output_type -> vrooli.git_control_tower.v1.repo.RemoveRepositoryResponse
-	34,  // 113: vrooli.git_control_tower.v1.repo.RepoService.GetRepoStatus:output_type -> vrooli.git_control_tower.v1.repo.GetRepoStatusResponse
-	43,  // 114: vrooli.git_control_tower.v1.repo.RepoService.GetRepoDiff:output_type -> vrooli.git_control_tower.v1.repo.GetRepoDiffResponse
-	47,  // 115: vrooli.git_control_tower.v1.repo.RepoService.GetRepoGroups:output_type -> vrooli.git_control_tower.v1.repo.GetRepoGroupsResponse
-	50,  // 116: vrooli.git_control_tower.v1.repo.RepoService.GetSyncStatus:output_type -> vrooli.git_control_tower.v1.repo.GetSyncStatusResponse
-	8,   // 117: vrooli.git_control_tower.v1.repo.RepoService.GetRepoHistory:output_type -> vrooli.git_control_tower.v1.repo.GetRepoHistoryResponse
-	11,  // 118: vrooli.git_control_tower.v1.repo.RepoService.GetApprovedChanges:output_type -> vrooli.git_control_tower.v1.repo.GetApprovedChangesResponse
-	15,  // 119: vrooli.git_control_tower.v1.repo.RepoService.GetProvenance:output_type -> vrooli.git_control_tower.v1.repo.GetProvenanceResponse
-	22,  // 120: vrooli.git_control_tower.v1.repo.RepoService.GetBlame:output_type -> vrooli.git_control_tower.v1.repo.GetBlameResponse
-	25,  // 121: vrooli.git_control_tower.v1.repo.RepoService.SearchProvenance:output_type -> vrooli.git_control_tower.v1.repo.SearchProvenanceResponse
-	53,  // 122: vrooli.git_control_tower.v1.repo.RepoService.GetFiles:output_type -> vrooli.git_control_tower.v1.repo.GetFilesResponse
-	56,  // 123: vrooli.git_control_tower.v1.repo.RepoService.GetDirectoryContents:output_type -> vrooli.git_control_tower.v1.repo.GetDirectoryContentsResponse
-	59,  // 124: vrooli.git_control_tower.v1.repo.RepoService.GetRelatedFiles:output_type -> vrooli.git_control_tower.v1.repo.GetRelatedFilesResponse
-	62,  // 125: vrooli.git_control_tower.v1.repo.RepoService.SearchContent:output_type -> vrooli.git_control_tower.v1.repo.SearchContentResponse
-	64,  // 126: vrooli.git_control_tower.v1.repo.RepoService.DeletePath:output_type -> vrooli.git_control_tower.v1.repo.DeletePathResponse
-	66,  // 127: vrooli.git_control_tower.v1.repo.RepoService.SaveFileContent:output_type -> vrooli.git_control_tower.v1.repo.SaveFileContentResponse
-	68,  // 128: vrooli.git_control_tower.v1.repo.RepoService.DiscardFiles:output_type -> vrooli.git_control_tower.v1.repo.DiscardFilesResponse
-	70,  // 129: vrooli.git_control_tower.v1.repo.RepoService.IgnorePath:output_type -> vrooli.git_control_tower.v1.repo.IgnorePathResponse
-	128, // 130: vrooli.git_control_tower.v1.repo.RepoService.InspectPushSafety:output_type -> vrooli.git_control_tower.v1.repo.PushSafetyReport
-	131, // 131: vrooli.git_control_tower.v1.repo.RepoService.GetPushRecovery:output_type -> vrooli.git_control_tower.v1.repo.PushRecoveryArtifact
-	131, // 132: vrooli.git_control_tower.v1.repo.RepoService.PreparePushRecovery:output_type -> vrooli.git_control_tower.v1.repo.PushRecoveryArtifact
-	72,  // 133: vrooli.git_control_tower.v1.repo.RepoService.PushToRemote:output_type -> vrooli.git_control_tower.v1.repo.PushToRemoteResponse
-	74,  // 134: vrooli.git_control_tower.v1.repo.RepoService.PullFromRemote:output_type -> vrooli.git_control_tower.v1.repo.PullFromRemoteResponse
-	76,  // 135: vrooli.git_control_tower.v1.repo.RepoService.RunUpstreamAction:output_type -> vrooli.git_control_tower.v1.repo.RunUpstreamActionResponse
-	79,  // 136: vrooli.git_control_tower.v1.repo.RepoService.GetGroupingRules:output_type -> vrooli.git_control_tower.v1.repo.GroupingRulesResponse
-	79,  // 137: vrooli.git_control_tower.v1.repo.RepoService.SaveGroupingRules:output_type -> vrooli.git_control_tower.v1.repo.GroupingRulesResponse
-	83,  // 138: vrooli.git_control_tower.v1.repo.RepoService.GetGitignoreHealth:output_type -> vrooli.git_control_tower.v1.repo.GitignoreHealthResponse
-	85,  // 139: vrooli.git_control_tower.v1.repo.RepoService.MoveGitignoreEntry:output_type -> vrooli.git_control_tower.v1.repo.MoveGitignoreEntryResponse
-	88,  // 140: vrooli.git_control_tower.v1.repo.RepoService.GetTrackedBinaries:output_type -> vrooli.git_control_tower.v1.repo.TrackedBinariesResponse
-	90,  // 141: vrooli.git_control_tower.v1.repo.RepoService.UntrackBinary:output_type -> vrooli.git_control_tower.v1.repo.UntrackBinaryResponse
-	93,  // 142: vrooli.git_control_tower.v1.repo.RepoService.GetPrecommitConfig:output_type -> vrooli.git_control_tower.v1.repo.PrecommitConfigResponse
-	93,  // 143: vrooli.git_control_tower.v1.repo.RepoService.SavePrecommitConfig:output_type -> vrooli.git_control_tower.v1.repo.PrecommitConfigResponse
-	96,  // 144: vrooli.git_control_tower.v1.repo.RepoService.RunPrecommit:output_type -> vrooli.git_control_tower.v1.repo.PrecommitRunResponse
-	98,  // 145: vrooli.git_control_tower.v1.repo.RepoService.StageFiles:output_type -> vrooli.git_control_tower.v1.repo.StageFilesResponse
-	100, // 146: vrooli.git_control_tower.v1.repo.RepoService.UnstageFiles:output_type -> vrooli.git_control_tower.v1.repo.UnstageFilesResponse
-	103, // 147: vrooli.git_control_tower.v1.repo.RepoService.CreateCommit:output_type -> vrooli.git_control_tower.v1.repo.CreateCommitResponse
-	106, // 148: vrooli.git_control_tower.v1.repo.RepoService.ListCredentials:output_type -> vrooli.git_control_tower.v1.repo.CredentialsListResponse
-	108, // 149: vrooli.git_control_tower.v1.repo.RepoService.SaveCredential:output_type -> vrooli.git_control_tower.v1.repo.CredentialSaveResponse
-	110, // 150: vrooli.git_control_tower.v1.repo.RepoService.DeleteCredential:output_type -> vrooli.git_control_tower.v1.repo.CredentialDeleteResponse
-	112, // 151: vrooli.git_control_tower.v1.repo.RepoService.TestCredential:output_type -> vrooli.git_control_tower.v1.repo.CredentialTestResponse
-	114, // 152: vrooli.git_control_tower.v1.repo.RepoService.UpdateRemoteURL:output_type -> vrooli.git_control_tower.v1.repo.RemoteURLUpdateResponse
-	117, // 153: vrooli.git_control_tower.v1.repo.RepoService.ListSSHKeys:output_type -> vrooli.git_control_tower.v1.repo.SSHListKeysResponse
-	119, // 154: vrooli.git_control_tower.v1.repo.RepoService.GenerateSSHKey:output_type -> vrooli.git_control_tower.v1.repo.SSHGenerateKeyResponse
-	121, // 155: vrooli.git_control_tower.v1.repo.RepoService.GetSSHPublicKey:output_type -> vrooli.git_control_tower.v1.repo.SSHGetPublicKeyResponse
-	123, // 156: vrooli.git_control_tower.v1.repo.RepoService.TestSSHConnection:output_type -> vrooli.git_control_tower.v1.repo.SSHTestConnectionResponse
-	125, // 157: vrooli.git_control_tower.v1.repo.RepoService.DeleteSSHKey:output_type -> vrooli.git_control_tower.v1.repo.SSHDeleteKeyResponse
-	107, // [107:158] is the sub-list for method output_type
-	56,  // [56:107] is the sub-list for method input_type
-	56,  // [56:56] is the sub-list for extension type_name
-	56,  // [56:56] is the sub-list for extension extendee
-	0,   // [0:56] is the sub-list for field type_name
+	106, // 43: vrooli.git_control_tower.v1.repo.PrecommitRunResponse.result:type_name -> vrooli.git_control_tower.v1.repo.PrecommitRunResult
+	106, // 44: vrooli.git_control_tower.v1.repo.PrecommitCandidateCheckResponse.result:type_name -> vrooli.git_control_tower.v1.repo.PrecommitRunResult
+	106, // 45: vrooli.git_control_tower.v1.repo.CreateCommitResponse.precommit:type_name -> vrooli.git_control_tower.v1.repo.PrecommitRunResult
+	108, // 46: vrooli.git_control_tower.v1.repo.CredentialsListResponse.credentials:type_name -> vrooli.git_control_tower.v1.repo.Credential
+	108, // 47: vrooli.git_control_tower.v1.repo.CredentialSaveResponse.credential:type_name -> vrooli.git_control_tower.v1.repo.Credential
+	119, // 48: vrooli.git_control_tower.v1.repo.SSHListKeysResponse.keys:type_name -> vrooli.git_control_tower.v1.repo.SSHKeyInfo
+	119, // 49: vrooli.git_control_tower.v1.repo.SSHGenerateKeyResponse.key:type_name -> vrooli.git_control_tower.v1.repo.SSHKeyInfo
+	131, // 50: vrooli.git_control_tower.v1.repo.PushSafetyReport.files:type_name -> vrooli.git_control_tower.v1.repo.PushSafetyFile
+	131, // 51: vrooli.git_control_tower.v1.repo.PushSafetyReport.staged_files:type_name -> vrooli.git_control_tower.v1.repo.PushSafetyFile
+	134, // 52: vrooli.git_control_tower.v1.repo.PushRecoveryArtifact.mappings:type_name -> vrooli.git_control_tower.v1.repo.RecoveryCommitMapping
+	39,  // 53: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.ScopesEntry.value:type_name -> vrooli.git_control_tower.v1.repo.StringList
+	38,  // 54: vrooli.git_control_tower.v1.repo.FileStats.StagedEntry.value:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
+	38,  // 55: vrooli.git_control_tower.v1.repo.FileStats.UnstagedEntry.value:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
+	38,  // 56: vrooli.git_control_tower.v1.repo.FileStats.UntrackedEntry.value:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
+	1,   // 57: vrooli.git_control_tower.v1.repo.RepoService.ListRepositories:input_type -> vrooli.git_control_tower.v1.repo.ListRepositoriesRequest
+	3,   // 58: vrooli.git_control_tower.v1.repo.RepoService.GetActiveRepository:input_type -> vrooli.git_control_tower.v1.repo.GetActiveRepositoryRequest
+	26,  // 59: vrooli.git_control_tower.v1.repo.RepoService.SetActiveRepository:input_type -> vrooli.git_control_tower.v1.repo.SetActiveRepositoryRequest
+	27,  // 60: vrooli.git_control_tower.v1.repo.RepoService.OpenRepository:input_type -> vrooli.git_control_tower.v1.repo.OpenRepositoryRequest
+	28,  // 61: vrooli.git_control_tower.v1.repo.RepoService.CloneRepository:input_type -> vrooli.git_control_tower.v1.repo.CloneRepositoryRequest
+	30,  // 62: vrooli.git_control_tower.v1.repo.RepoService.RemoveRepository:input_type -> vrooli.git_control_tower.v1.repo.RemoveRepositoryRequest
+	32,  // 63: vrooli.git_control_tower.v1.repo.RepoService.GetRepoStatus:input_type -> vrooli.git_control_tower.v1.repo.GetRepoStatusRequest
+	42,  // 64: vrooli.git_control_tower.v1.repo.RepoService.GetRepoDiff:input_type -> vrooli.git_control_tower.v1.repo.GetRepoDiffRequest
+	46,  // 65: vrooli.git_control_tower.v1.repo.RepoService.GetRepoGroups:input_type -> vrooli.git_control_tower.v1.repo.GetRepoGroupsRequest
+	49,  // 66: vrooli.git_control_tower.v1.repo.RepoService.GetSyncStatus:input_type -> vrooli.git_control_tower.v1.repo.GetSyncStatusRequest
+	5,   // 67: vrooli.git_control_tower.v1.repo.RepoService.GetRepoHistory:input_type -> vrooli.git_control_tower.v1.repo.GetRepoHistoryRequest
+	9,   // 68: vrooli.git_control_tower.v1.repo.RepoService.GetApprovedChanges:input_type -> vrooli.git_control_tower.v1.repo.GetApprovedChangesRequest
+	12,  // 69: vrooli.git_control_tower.v1.repo.RepoService.GetProvenance:input_type -> vrooli.git_control_tower.v1.repo.GetProvenanceRequest
+	16,  // 70: vrooli.git_control_tower.v1.repo.RepoService.GetBlame:input_type -> vrooli.git_control_tower.v1.repo.GetBlameRequest
+	23,  // 71: vrooli.git_control_tower.v1.repo.RepoService.SearchProvenance:input_type -> vrooli.git_control_tower.v1.repo.SearchProvenanceRequest
+	51,  // 72: vrooli.git_control_tower.v1.repo.RepoService.GetFiles:input_type -> vrooli.git_control_tower.v1.repo.GetFilesRequest
+	54,  // 73: vrooli.git_control_tower.v1.repo.RepoService.GetDirectoryContents:input_type -> vrooli.git_control_tower.v1.repo.GetDirectoryContentsRequest
+	57,  // 74: vrooli.git_control_tower.v1.repo.RepoService.GetRelatedFiles:input_type -> vrooli.git_control_tower.v1.repo.GetRelatedFilesRequest
+	60,  // 75: vrooli.git_control_tower.v1.repo.RepoService.SearchContent:input_type -> vrooli.git_control_tower.v1.repo.SearchContentRequest
+	63,  // 76: vrooli.git_control_tower.v1.repo.RepoService.DeletePath:input_type -> vrooli.git_control_tower.v1.repo.DeletePathRequest
+	65,  // 77: vrooli.git_control_tower.v1.repo.RepoService.SaveFileContent:input_type -> vrooli.git_control_tower.v1.repo.SaveFileContentRequest
+	67,  // 78: vrooli.git_control_tower.v1.repo.RepoService.DiscardFiles:input_type -> vrooli.git_control_tower.v1.repo.DiscardFilesRequest
+	69,  // 79: vrooli.git_control_tower.v1.repo.RepoService.IgnorePath:input_type -> vrooli.git_control_tower.v1.repo.IgnorePathRequest
+	130, // 80: vrooli.git_control_tower.v1.repo.RepoService.InspectPushSafety:input_type -> vrooli.git_control_tower.v1.repo.InspectPushSafetyRequest
+	136, // 81: vrooli.git_control_tower.v1.repo.RepoService.GetPushRecovery:input_type -> vrooli.git_control_tower.v1.repo.GetPushRecoveryRequest
+	133, // 82: vrooli.git_control_tower.v1.repo.RepoService.PreparePushRecovery:input_type -> vrooli.git_control_tower.v1.repo.PreparePushRecoveryRequest
+	71,  // 83: vrooli.git_control_tower.v1.repo.RepoService.PushToRemote:input_type -> vrooli.git_control_tower.v1.repo.PushToRemoteRequest
+	73,  // 84: vrooli.git_control_tower.v1.repo.RepoService.PullFromRemote:input_type -> vrooli.git_control_tower.v1.repo.PullFromRemoteRequest
+	75,  // 85: vrooli.git_control_tower.v1.repo.RepoService.RunUpstreamAction:input_type -> vrooli.git_control_tower.v1.repo.RunUpstreamActionRequest
+	77,  // 86: vrooli.git_control_tower.v1.repo.RepoService.GetGroupingRules:input_type -> vrooli.git_control_tower.v1.repo.GetGroupingRulesRequest
+	80,  // 87: vrooli.git_control_tower.v1.repo.RepoService.SaveGroupingRules:input_type -> vrooli.git_control_tower.v1.repo.SaveGroupingRulesRequest
+	81,  // 88: vrooli.git_control_tower.v1.repo.RepoService.GetGitignoreHealth:input_type -> vrooli.git_control_tower.v1.repo.GetGitignoreHealthRequest
+	84,  // 89: vrooli.git_control_tower.v1.repo.RepoService.MoveGitignoreEntry:input_type -> vrooli.git_control_tower.v1.repo.MoveGitignoreEntryRequest
+	86,  // 90: vrooli.git_control_tower.v1.repo.RepoService.GetTrackedBinaries:input_type -> vrooli.git_control_tower.v1.repo.GetTrackedBinariesRequest
+	89,  // 91: vrooli.git_control_tower.v1.repo.RepoService.UntrackBinary:input_type -> vrooli.git_control_tower.v1.repo.UntrackBinaryRequest
+	91,  // 92: vrooli.git_control_tower.v1.repo.RepoService.GetPrecommitConfig:input_type -> vrooli.git_control_tower.v1.repo.GetPrecommitConfigRequest
+	94,  // 93: vrooli.git_control_tower.v1.repo.RepoService.SavePrecommitConfig:input_type -> vrooli.git_control_tower.v1.repo.SavePrecommitConfigRequest
+	95,  // 94: vrooli.git_control_tower.v1.repo.RepoService.RunPrecommit:input_type -> vrooli.git_control_tower.v1.repo.RunPrecommitRequest
+	97,  // 95: vrooli.git_control_tower.v1.repo.RepoService.StartPrecommitCandidateCheck:input_type -> vrooli.git_control_tower.v1.repo.StartPrecommitCandidateCheckRequest
+	98,  // 96: vrooli.git_control_tower.v1.repo.RepoService.GetPrecommitCandidateCheck:input_type -> vrooli.git_control_tower.v1.repo.GetPrecommitCandidateCheckRequest
+	99,  // 97: vrooli.git_control_tower.v1.repo.RepoService.CancelPrecommitCandidateCheck:input_type -> vrooli.git_control_tower.v1.repo.CancelPrecommitCandidateCheckRequest
+	101, // 98: vrooli.git_control_tower.v1.repo.RepoService.StageFiles:input_type -> vrooli.git_control_tower.v1.repo.StageFilesRequest
+	103, // 99: vrooli.git_control_tower.v1.repo.RepoService.UnstageFiles:input_type -> vrooli.git_control_tower.v1.repo.UnstageFilesRequest
+	105, // 100: vrooli.git_control_tower.v1.repo.RepoService.CreateCommit:input_type -> vrooli.git_control_tower.v1.repo.CreateCommitRequest
+	109, // 101: vrooli.git_control_tower.v1.repo.RepoService.ListCredentials:input_type -> vrooli.git_control_tower.v1.repo.ListCredentialsRequest
+	111, // 102: vrooli.git_control_tower.v1.repo.RepoService.SaveCredential:input_type -> vrooli.git_control_tower.v1.repo.SaveCredentialRequest
+	113, // 103: vrooli.git_control_tower.v1.repo.RepoService.DeleteCredential:input_type -> vrooli.git_control_tower.v1.repo.DeleteCredentialRequest
+	115, // 104: vrooli.git_control_tower.v1.repo.RepoService.TestCredential:input_type -> vrooli.git_control_tower.v1.repo.TestCredentialRequest
+	117, // 105: vrooli.git_control_tower.v1.repo.RepoService.UpdateRemoteURL:input_type -> vrooli.git_control_tower.v1.repo.UpdateRemoteURLRequest
+	120, // 106: vrooli.git_control_tower.v1.repo.RepoService.ListSSHKeys:input_type -> vrooli.git_control_tower.v1.repo.ListSSHKeysRequest
+	122, // 107: vrooli.git_control_tower.v1.repo.RepoService.GenerateSSHKey:input_type -> vrooli.git_control_tower.v1.repo.GenerateSSHKeyRequest
+	124, // 108: vrooli.git_control_tower.v1.repo.RepoService.GetSSHPublicKey:input_type -> vrooli.git_control_tower.v1.repo.GetSSHPublicKeyRequest
+	126, // 109: vrooli.git_control_tower.v1.repo.RepoService.TestSSHConnection:input_type -> vrooli.git_control_tower.v1.repo.TestSSHConnectionRequest
+	128, // 110: vrooli.git_control_tower.v1.repo.RepoService.DeleteSSHKey:input_type -> vrooli.git_control_tower.v1.repo.DeleteSSHKeyRequest
+	2,   // 111: vrooli.git_control_tower.v1.repo.RepoService.ListRepositories:output_type -> vrooli.git_control_tower.v1.repo.ListRepositoriesResponse
+	4,   // 112: vrooli.git_control_tower.v1.repo.RepoService.GetActiveRepository:output_type -> vrooli.git_control_tower.v1.repo.GetActiveRepositoryResponse
+	29,  // 113: vrooli.git_control_tower.v1.repo.RepoService.SetActiveRepository:output_type -> vrooli.git_control_tower.v1.repo.RepoMutationResponse
+	29,  // 114: vrooli.git_control_tower.v1.repo.RepoService.OpenRepository:output_type -> vrooli.git_control_tower.v1.repo.RepoMutationResponse
+	29,  // 115: vrooli.git_control_tower.v1.repo.RepoService.CloneRepository:output_type -> vrooli.git_control_tower.v1.repo.RepoMutationResponse
+	31,  // 116: vrooli.git_control_tower.v1.repo.RepoService.RemoveRepository:output_type -> vrooli.git_control_tower.v1.repo.RemoveRepositoryResponse
+	34,  // 117: vrooli.git_control_tower.v1.repo.RepoService.GetRepoStatus:output_type -> vrooli.git_control_tower.v1.repo.GetRepoStatusResponse
+	43,  // 118: vrooli.git_control_tower.v1.repo.RepoService.GetRepoDiff:output_type -> vrooli.git_control_tower.v1.repo.GetRepoDiffResponse
+	47,  // 119: vrooli.git_control_tower.v1.repo.RepoService.GetRepoGroups:output_type -> vrooli.git_control_tower.v1.repo.GetRepoGroupsResponse
+	50,  // 120: vrooli.git_control_tower.v1.repo.RepoService.GetSyncStatus:output_type -> vrooli.git_control_tower.v1.repo.GetSyncStatusResponse
+	8,   // 121: vrooli.git_control_tower.v1.repo.RepoService.GetRepoHistory:output_type -> vrooli.git_control_tower.v1.repo.GetRepoHistoryResponse
+	11,  // 122: vrooli.git_control_tower.v1.repo.RepoService.GetApprovedChanges:output_type -> vrooli.git_control_tower.v1.repo.GetApprovedChangesResponse
+	15,  // 123: vrooli.git_control_tower.v1.repo.RepoService.GetProvenance:output_type -> vrooli.git_control_tower.v1.repo.GetProvenanceResponse
+	22,  // 124: vrooli.git_control_tower.v1.repo.RepoService.GetBlame:output_type -> vrooli.git_control_tower.v1.repo.GetBlameResponse
+	25,  // 125: vrooli.git_control_tower.v1.repo.RepoService.SearchProvenance:output_type -> vrooli.git_control_tower.v1.repo.SearchProvenanceResponse
+	53,  // 126: vrooli.git_control_tower.v1.repo.RepoService.GetFiles:output_type -> vrooli.git_control_tower.v1.repo.GetFilesResponse
+	56,  // 127: vrooli.git_control_tower.v1.repo.RepoService.GetDirectoryContents:output_type -> vrooli.git_control_tower.v1.repo.GetDirectoryContentsResponse
+	59,  // 128: vrooli.git_control_tower.v1.repo.RepoService.GetRelatedFiles:output_type -> vrooli.git_control_tower.v1.repo.GetRelatedFilesResponse
+	62,  // 129: vrooli.git_control_tower.v1.repo.RepoService.SearchContent:output_type -> vrooli.git_control_tower.v1.repo.SearchContentResponse
+	64,  // 130: vrooli.git_control_tower.v1.repo.RepoService.DeletePath:output_type -> vrooli.git_control_tower.v1.repo.DeletePathResponse
+	66,  // 131: vrooli.git_control_tower.v1.repo.RepoService.SaveFileContent:output_type -> vrooli.git_control_tower.v1.repo.SaveFileContentResponse
+	68,  // 132: vrooli.git_control_tower.v1.repo.RepoService.DiscardFiles:output_type -> vrooli.git_control_tower.v1.repo.DiscardFilesResponse
+	70,  // 133: vrooli.git_control_tower.v1.repo.RepoService.IgnorePath:output_type -> vrooli.git_control_tower.v1.repo.IgnorePathResponse
+	132, // 134: vrooli.git_control_tower.v1.repo.RepoService.InspectPushSafety:output_type -> vrooli.git_control_tower.v1.repo.PushSafetyReport
+	135, // 135: vrooli.git_control_tower.v1.repo.RepoService.GetPushRecovery:output_type -> vrooli.git_control_tower.v1.repo.PushRecoveryArtifact
+	135, // 136: vrooli.git_control_tower.v1.repo.RepoService.PreparePushRecovery:output_type -> vrooli.git_control_tower.v1.repo.PushRecoveryArtifact
+	72,  // 137: vrooli.git_control_tower.v1.repo.RepoService.PushToRemote:output_type -> vrooli.git_control_tower.v1.repo.PushToRemoteResponse
+	74,  // 138: vrooli.git_control_tower.v1.repo.RepoService.PullFromRemote:output_type -> vrooli.git_control_tower.v1.repo.PullFromRemoteResponse
+	76,  // 139: vrooli.git_control_tower.v1.repo.RepoService.RunUpstreamAction:output_type -> vrooli.git_control_tower.v1.repo.RunUpstreamActionResponse
+	79,  // 140: vrooli.git_control_tower.v1.repo.RepoService.GetGroupingRules:output_type -> vrooli.git_control_tower.v1.repo.GroupingRulesResponse
+	79,  // 141: vrooli.git_control_tower.v1.repo.RepoService.SaveGroupingRules:output_type -> vrooli.git_control_tower.v1.repo.GroupingRulesResponse
+	83,  // 142: vrooli.git_control_tower.v1.repo.RepoService.GetGitignoreHealth:output_type -> vrooli.git_control_tower.v1.repo.GitignoreHealthResponse
+	85,  // 143: vrooli.git_control_tower.v1.repo.RepoService.MoveGitignoreEntry:output_type -> vrooli.git_control_tower.v1.repo.MoveGitignoreEntryResponse
+	88,  // 144: vrooli.git_control_tower.v1.repo.RepoService.GetTrackedBinaries:output_type -> vrooli.git_control_tower.v1.repo.TrackedBinariesResponse
+	90,  // 145: vrooli.git_control_tower.v1.repo.RepoService.UntrackBinary:output_type -> vrooli.git_control_tower.v1.repo.UntrackBinaryResponse
+	93,  // 146: vrooli.git_control_tower.v1.repo.RepoService.GetPrecommitConfig:output_type -> vrooli.git_control_tower.v1.repo.PrecommitConfigResponse
+	93,  // 147: vrooli.git_control_tower.v1.repo.RepoService.SavePrecommitConfig:output_type -> vrooli.git_control_tower.v1.repo.PrecommitConfigResponse
+	96,  // 148: vrooli.git_control_tower.v1.repo.RepoService.RunPrecommit:output_type -> vrooli.git_control_tower.v1.repo.PrecommitRunResponse
+	100, // 149: vrooli.git_control_tower.v1.repo.RepoService.StartPrecommitCandidateCheck:output_type -> vrooli.git_control_tower.v1.repo.PrecommitCandidateCheckResponse
+	100, // 150: vrooli.git_control_tower.v1.repo.RepoService.GetPrecommitCandidateCheck:output_type -> vrooli.git_control_tower.v1.repo.PrecommitCandidateCheckResponse
+	100, // 151: vrooli.git_control_tower.v1.repo.RepoService.CancelPrecommitCandidateCheck:output_type -> vrooli.git_control_tower.v1.repo.PrecommitCandidateCheckResponse
+	102, // 152: vrooli.git_control_tower.v1.repo.RepoService.StageFiles:output_type -> vrooli.git_control_tower.v1.repo.StageFilesResponse
+	104, // 153: vrooli.git_control_tower.v1.repo.RepoService.UnstageFiles:output_type -> vrooli.git_control_tower.v1.repo.UnstageFilesResponse
+	107, // 154: vrooli.git_control_tower.v1.repo.RepoService.CreateCommit:output_type -> vrooli.git_control_tower.v1.repo.CreateCommitResponse
+	110, // 155: vrooli.git_control_tower.v1.repo.RepoService.ListCredentials:output_type -> vrooli.git_control_tower.v1.repo.CredentialsListResponse
+	112, // 156: vrooli.git_control_tower.v1.repo.RepoService.SaveCredential:output_type -> vrooli.git_control_tower.v1.repo.CredentialSaveResponse
+	114, // 157: vrooli.git_control_tower.v1.repo.RepoService.DeleteCredential:output_type -> vrooli.git_control_tower.v1.repo.CredentialDeleteResponse
+	116, // 158: vrooli.git_control_tower.v1.repo.RepoService.TestCredential:output_type -> vrooli.git_control_tower.v1.repo.CredentialTestResponse
+	118, // 159: vrooli.git_control_tower.v1.repo.RepoService.UpdateRemoteURL:output_type -> vrooli.git_control_tower.v1.repo.RemoteURLUpdateResponse
+	121, // 160: vrooli.git_control_tower.v1.repo.RepoService.ListSSHKeys:output_type -> vrooli.git_control_tower.v1.repo.SSHListKeysResponse
+	123, // 161: vrooli.git_control_tower.v1.repo.RepoService.GenerateSSHKey:output_type -> vrooli.git_control_tower.v1.repo.SSHGenerateKeyResponse
+	125, // 162: vrooli.git_control_tower.v1.repo.RepoService.GetSSHPublicKey:output_type -> vrooli.git_control_tower.v1.repo.SSHGetPublicKeyResponse
+	127, // 163: vrooli.git_control_tower.v1.repo.RepoService.TestSSHConnection:output_type -> vrooli.git_control_tower.v1.repo.SSHTestConnectionResponse
+	129, // 164: vrooli.git_control_tower.v1.repo.RepoService.DeleteSSHKey:output_type -> vrooli.git_control_tower.v1.repo.SSHDeleteKeyResponse
+	111, // [111:165] is the sub-list for method output_type
+	57,  // [57:111] is the sub-list for method input_type
+	57,  // [57:57] is the sub-list for extension type_name
+	57,  // [57:57] is the sub-list for extension extendee
+	0,   // [0:57] is the sub-list for field type_name
 }
 
 func init() { file_git_control_tower_v1_repo_repo_proto_init() }
@@ -11449,7 +11728,7 @@ func file_git_control_tower_v1_repo_repo_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_git_control_tower_v1_repo_repo_proto_rawDesc), len(file_git_control_tower_v1_repo_repo_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   140,
+			NumMessages:   144,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

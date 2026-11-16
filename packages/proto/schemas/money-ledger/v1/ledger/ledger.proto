@@ -46,11 +46,27 @@ message DeclareGoalRequest { Goal goal = 1 [(buf.validate.field).required = true
 message DeclareGoalResponse { Goal goal = 1; }
 message ListGoalsRequest { string book_id = 1; bool include_archived = 2; }
 message ListGoalsResponse { repeated GoalVerdict goals = 1; }
-message ArchiveBookRequest { string book_id = 1; string actor = 2; }
+message ArchiveBookRequest {
+  string book_id = 1;
+  // The actor is the verified caller, never a request field.
+  reserved 2;
+  reserved "actor";
+}
 message ArchiveBookResponse { Book book = 1; }
-message ArchiveGoalRequest { string goal_id = 1; string actor = 2; }
+message ArchiveGoalRequest {
+  string goal_id = 1;
+  // The actor is the verified caller, never a request field.
+  reserved 2;
+  reserved "actor";
+}
 message ArchiveGoalResponse { Goal goal = 1; }
-message ReparentGoalRequest { string goal_id = 1; string book_id = 2; string actor = 3; }
+message ReparentGoalRequest {
+  string goal_id = 1;
+  string book_id = 2;
+  // The actor is the verified caller, never a request field.
+  reserved 3;
+  reserved "actor";
+}
 message ReparentGoalResponse { Goal goal = 1; }
 
 service BooksService {

@@ -14,10 +14,17 @@ class LighthouseOutcome(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     LIGHTHOUSE_OUTCOME_SCORED: _ClassVar[LighthouseOutcome]
     LIGHTHOUSE_OUTCOME_SKIPPED: _ClassVar[LighthouseOutcome]
     LIGHTHOUSE_OUTCOME_FAILED: _ClassVar[LighthouseOutcome]
+
+class LighthouseAccessibilityStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    LIGHTHOUSE_ACCESSIBILITY_STATUS_UNSPECIFIED: _ClassVar[LighthouseAccessibilityStatus]
+    LIGHTHOUSE_ACCESSIBILITY_STATUS_OBSERVED_NON_GATING: _ClassVar[LighthouseAccessibilityStatus]
 LIGHTHOUSE_OUTCOME_UNSPECIFIED: LighthouseOutcome
 LIGHTHOUSE_OUTCOME_SCORED: LighthouseOutcome
 LIGHTHOUSE_OUTCOME_SKIPPED: LighthouseOutcome
 LIGHTHOUSE_OUTCOME_FAILED: LighthouseOutcome
+LIGHTHOUSE_ACCESSIBILITY_STATUS_UNSPECIFIED: LighthouseAccessibilityStatus
+LIGHTHOUSE_ACCESSIBILITY_STATUS_OBSERVED_NON_GATING: LighthouseAccessibilityStatus
 
 class RunLighthouseRequest(_message.Message):
     __slots__ = ("scenario", "path")
@@ -42,17 +49,19 @@ class RunLighthouseResponse(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., outcome: _Optional[_Union[LighthouseOutcome, str]] = ..., pages: _Optional[_Iterable[_Union[PageScore, _Mapping]]] = ..., reason: _Optional[str] = ..., metrics: _Optional[_Union[_metrics_pb2.ExecutionMetrics, _Mapping]] = ...) -> None: ...
 
 class PageScore(_message.Message):
-    __slots__ = ("url", "performance", "accessibility", "best_practices", "seo", "violations")
+    __slots__ = ("url", "performance", "accessibility", "best_practices", "seo", "violations", "accessibility_status")
     URL_FIELD_NUMBER: _ClassVar[int]
     PERFORMANCE_FIELD_NUMBER: _ClassVar[int]
     ACCESSIBILITY_FIELD_NUMBER: _ClassVar[int]
     BEST_PRACTICES_FIELD_NUMBER: _ClassVar[int]
     SEO_FIELD_NUMBER: _ClassVar[int]
     VIOLATIONS_FIELD_NUMBER: _ClassVar[int]
+    ACCESSIBILITY_STATUS_FIELD_NUMBER: _ClassVar[int]
     url: str
     performance: float
     accessibility: float
     best_practices: float
     seo: float
     violations: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, url: _Optional[str] = ..., performance: _Optional[float] = ..., accessibility: _Optional[float] = ..., best_practices: _Optional[float] = ..., seo: _Optional[float] = ..., violations: _Optional[_Iterable[str]] = ...) -> None: ...
+    accessibility_status: LighthouseAccessibilityStatus
+    def __init__(self, url: _Optional[str] = ..., performance: _Optional[float] = ..., accessibility: _Optional[float] = ..., best_practices: _Optional[float] = ..., seo: _Optional[float] = ..., violations: _Optional[_Iterable[str]] = ..., accessibility_status: _Optional[_Union[LighthouseAccessibilityStatus, str]] = ...) -> None: ...

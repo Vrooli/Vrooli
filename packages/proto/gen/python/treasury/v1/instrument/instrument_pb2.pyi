@@ -29,3 +29,15 @@ class Instrument(_message.Message):
     counterparty: str
     expires_at: _timestamp_pb2.Timestamp
     def __init__(self, id: _Optional[str] = ..., book_id: _Optional[str] = ..., mandate_id: _Optional[str] = ..., rail: _Optional[str] = ..., credential_reference: _Optional[str] = ..., cap_minor: _Optional[int] = ..., currency: _Optional[str] = ..., counterparty: _Optional[str] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class RegisterInstrumentRequest(_message.Message):
+    __slots__ = ("instrument",)
+    INSTRUMENT_FIELD_NUMBER: _ClassVar[int]
+    instrument: Instrument
+    def __init__(self, instrument: _Optional[_Union[Instrument, _Mapping]] = ...) -> None: ...
+
+class RegisterInstrumentResponse(_message.Message):
+    __slots__ = ("instrument",)
+    INSTRUMENT_FIELD_NUMBER: _ClassVar[int]
+    instrument: Instrument
+    def __init__(self, instrument: _Optional[_Union[Instrument, _Mapping]] = ...) -> None: ...

@@ -21,6 +21,269 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type WorktreeSelectionSource int32
+
+const (
+	WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_UNSPECIFIED       WorktreeSelectionSource = 0
+	WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_INDEX_TO_WORKTREE WorktreeSelectionSource = 1
+	WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_HEAD_TO_INDEX     WorktreeSelectionSource = 2
+)
+
+// Enum value maps for WorktreeSelectionSource.
+var (
+	WorktreeSelectionSource_name = map[int32]string{
+		0: "WORKTREE_SELECTION_SOURCE_UNSPECIFIED",
+		1: "WORKTREE_SELECTION_SOURCE_INDEX_TO_WORKTREE",
+		2: "WORKTREE_SELECTION_SOURCE_HEAD_TO_INDEX",
+	}
+	WorktreeSelectionSource_value = map[string]int32{
+		"WORKTREE_SELECTION_SOURCE_UNSPECIFIED":       0,
+		"WORKTREE_SELECTION_SOURCE_INDEX_TO_WORKTREE": 1,
+		"WORKTREE_SELECTION_SOURCE_HEAD_TO_INDEX":     2,
+	}
+)
+
+func (x WorktreeSelectionSource) Enum() *WorktreeSelectionSource {
+	p := new(WorktreeSelectionSource)
+	*p = x
+	return p
+}
+
+func (x WorktreeSelectionSource) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (WorktreeSelectionSource) Descriptor() protoreflect.EnumDescriptor {
+	return file_git_control_tower_v1_advisory_advisory_proto_enumTypes[0].Descriptor()
+}
+
+func (WorktreeSelectionSource) Type() protoreflect.EnumType {
+	return &file_git_control_tower_v1_advisory_advisory_proto_enumTypes[0]
+}
+
+func (x WorktreeSelectionSource) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use WorktreeSelectionSource.Descriptor instead.
+func (WorktreeSelectionSource) EnumDescriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{0}
+}
+
+type QueuedWorktreeSelectionState int32
+
+const (
+	QueuedWorktreeSelectionState_QUEUED_WORKTREE_SELECTION_STATE_UNSPECIFIED      QueuedWorktreeSelectionState = 0
+	QueuedWorktreeSelectionState_QUEUED_WORKTREE_SELECTION_STATE_QUEUED           QueuedWorktreeSelectionState = 1
+	QueuedWorktreeSelectionState_QUEUED_WORKTREE_SELECTION_STATE_AWAITING_UNSTAGE QueuedWorktreeSelectionState = 2
+	QueuedWorktreeSelectionState_QUEUED_WORKTREE_SELECTION_STATE_FAILED           QueuedWorktreeSelectionState = 3
+	QueuedWorktreeSelectionState_QUEUED_WORKTREE_SELECTION_STATE_STALE            QueuedWorktreeSelectionState = 4
+)
+
+// Enum value maps for QueuedWorktreeSelectionState.
+var (
+	QueuedWorktreeSelectionState_name = map[int32]string{
+		0: "QUEUED_WORKTREE_SELECTION_STATE_UNSPECIFIED",
+		1: "QUEUED_WORKTREE_SELECTION_STATE_QUEUED",
+		2: "QUEUED_WORKTREE_SELECTION_STATE_AWAITING_UNSTAGE",
+		3: "QUEUED_WORKTREE_SELECTION_STATE_FAILED",
+		4: "QUEUED_WORKTREE_SELECTION_STATE_STALE",
+	}
+	QueuedWorktreeSelectionState_value = map[string]int32{
+		"QUEUED_WORKTREE_SELECTION_STATE_UNSPECIFIED":      0,
+		"QUEUED_WORKTREE_SELECTION_STATE_QUEUED":           1,
+		"QUEUED_WORKTREE_SELECTION_STATE_AWAITING_UNSTAGE": 2,
+		"QUEUED_WORKTREE_SELECTION_STATE_FAILED":           3,
+		"QUEUED_WORKTREE_SELECTION_STATE_STALE":            4,
+	}
+)
+
+func (x QueuedWorktreeSelectionState) Enum() *QueuedWorktreeSelectionState {
+	p := new(QueuedWorktreeSelectionState)
+	*p = x
+	return p
+}
+
+func (x QueuedWorktreeSelectionState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (QueuedWorktreeSelectionState) Descriptor() protoreflect.EnumDescriptor {
+	return file_git_control_tower_v1_advisory_advisory_proto_enumTypes[1].Descriptor()
+}
+
+func (QueuedWorktreeSelectionState) Type() protoreflect.EnumType {
+	return &file_git_control_tower_v1_advisory_advisory_proto_enumTypes[1]
+}
+
+func (x QueuedWorktreeSelectionState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use QueuedWorktreeSelectionState.Descriptor instead.
+func (QueuedWorktreeSelectionState) EnumDescriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{1}
+}
+
+type StagedMessageMode int32
+
+const (
+	StagedMessageMode_STAGED_MESSAGE_MODE_UNSPECIFIED StagedMessageMode = 0
+	StagedMessageMode_STAGED_MESSAGE_MODE_QUICK       StagedMessageMode = 1
+	StagedMessageMode_STAGED_MESSAGE_MODE_DEEP        StagedMessageMode = 2
+)
+
+// Enum value maps for StagedMessageMode.
+var (
+	StagedMessageMode_name = map[int32]string{
+		0: "STAGED_MESSAGE_MODE_UNSPECIFIED",
+		1: "STAGED_MESSAGE_MODE_QUICK",
+		2: "STAGED_MESSAGE_MODE_DEEP",
+	}
+	StagedMessageMode_value = map[string]int32{
+		"STAGED_MESSAGE_MODE_UNSPECIFIED": 0,
+		"STAGED_MESSAGE_MODE_QUICK":       1,
+		"STAGED_MESSAGE_MODE_DEEP":        2,
+	}
+)
+
+func (x StagedMessageMode) Enum() *StagedMessageMode {
+	p := new(StagedMessageMode)
+	*p = x
+	return p
+}
+
+func (x StagedMessageMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (StagedMessageMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_git_control_tower_v1_advisory_advisory_proto_enumTypes[2].Descriptor()
+}
+
+func (StagedMessageMode) Type() protoreflect.EnumType {
+	return &file_git_control_tower_v1_advisory_advisory_proto_enumTypes[2]
+}
+
+func (x StagedMessageMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use StagedMessageMode.Descriptor instead.
+func (StagedMessageMode) EnumDescriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{2}
+}
+
+type WorktreeSuggestionQueueState int32
+
+const (
+	WorktreeSuggestionQueueState_WORKTREE_SUGGESTION_QUEUE_STATE_UNSPECIFIED      WorktreeSuggestionQueueState = 0
+	WorktreeSuggestionQueueState_WORKTREE_SUGGESTION_QUEUE_STATE_QUEUED           WorktreeSuggestionQueueState = 1
+	WorktreeSuggestionQueueState_WORKTREE_SUGGESTION_QUEUE_STATE_STAGED           WorktreeSuggestionQueueState = 2
+	WorktreeSuggestionQueueState_WORKTREE_SUGGESTION_QUEUE_STATE_FAILED           WorktreeSuggestionQueueState = 3
+	WorktreeSuggestionQueueState_WORKTREE_SUGGESTION_QUEUE_STATE_STALE            WorktreeSuggestionQueueState = 4
+	WorktreeSuggestionQueueState_WORKTREE_SUGGESTION_QUEUE_STATE_COMMIT_PENDING   WorktreeSuggestionQueueState = 5
+	WorktreeSuggestionQueueState_WORKTREE_SUGGESTION_QUEUE_STATE_AWAITING_UNSTAGE WorktreeSuggestionQueueState = 6
+)
+
+// Enum value maps for WorktreeSuggestionQueueState.
+var (
+	WorktreeSuggestionQueueState_name = map[int32]string{
+		0: "WORKTREE_SUGGESTION_QUEUE_STATE_UNSPECIFIED",
+		1: "WORKTREE_SUGGESTION_QUEUE_STATE_QUEUED",
+		2: "WORKTREE_SUGGESTION_QUEUE_STATE_STAGED",
+		3: "WORKTREE_SUGGESTION_QUEUE_STATE_FAILED",
+		4: "WORKTREE_SUGGESTION_QUEUE_STATE_STALE",
+		5: "WORKTREE_SUGGESTION_QUEUE_STATE_COMMIT_PENDING",
+		6: "WORKTREE_SUGGESTION_QUEUE_STATE_AWAITING_UNSTAGE",
+	}
+	WorktreeSuggestionQueueState_value = map[string]int32{
+		"WORKTREE_SUGGESTION_QUEUE_STATE_UNSPECIFIED":      0,
+		"WORKTREE_SUGGESTION_QUEUE_STATE_QUEUED":           1,
+		"WORKTREE_SUGGESTION_QUEUE_STATE_STAGED":           2,
+		"WORKTREE_SUGGESTION_QUEUE_STATE_FAILED":           3,
+		"WORKTREE_SUGGESTION_QUEUE_STATE_STALE":            4,
+		"WORKTREE_SUGGESTION_QUEUE_STATE_COMMIT_PENDING":   5,
+		"WORKTREE_SUGGESTION_QUEUE_STATE_AWAITING_UNSTAGE": 6,
+	}
+)
+
+func (x WorktreeSuggestionQueueState) Enum() *WorktreeSuggestionQueueState {
+	p := new(WorktreeSuggestionQueueState)
+	*p = x
+	return p
+}
+
+func (x WorktreeSuggestionQueueState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (WorktreeSuggestionQueueState) Descriptor() protoreflect.EnumDescriptor {
+	return file_git_control_tower_v1_advisory_advisory_proto_enumTypes[3].Descriptor()
+}
+
+func (WorktreeSuggestionQueueState) Type() protoreflect.EnumType {
+	return &file_git_control_tower_v1_advisory_advisory_proto_enumTypes[3]
+}
+
+func (x WorktreeSuggestionQueueState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use WorktreeSuggestionQueueState.Descriptor instead.
+func (WorktreeSuggestionQueueState) EnumDescriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{3}
+}
+
+type WorktreeSuggestionQueueDisposition int32
+
+const (
+	WorktreeSuggestionQueueDisposition_WORKTREE_SUGGESTION_QUEUE_DISPOSITION_UNSPECIFIED WorktreeSuggestionQueueDisposition = 0
+	WorktreeSuggestionQueueDisposition_WORKTREE_SUGGESTION_QUEUE_DISPOSITION_COMMITTED   WorktreeSuggestionQueueDisposition = 1
+	WorktreeSuggestionQueueDisposition_WORKTREE_SUGGESTION_QUEUE_DISPOSITION_REMOVED     WorktreeSuggestionQueueDisposition = 2
+)
+
+// Enum value maps for WorktreeSuggestionQueueDisposition.
+var (
+	WorktreeSuggestionQueueDisposition_name = map[int32]string{
+		0: "WORKTREE_SUGGESTION_QUEUE_DISPOSITION_UNSPECIFIED",
+		1: "WORKTREE_SUGGESTION_QUEUE_DISPOSITION_COMMITTED",
+		2: "WORKTREE_SUGGESTION_QUEUE_DISPOSITION_REMOVED",
+	}
+	WorktreeSuggestionQueueDisposition_value = map[string]int32{
+		"WORKTREE_SUGGESTION_QUEUE_DISPOSITION_UNSPECIFIED": 0,
+		"WORKTREE_SUGGESTION_QUEUE_DISPOSITION_COMMITTED":   1,
+		"WORKTREE_SUGGESTION_QUEUE_DISPOSITION_REMOVED":     2,
+	}
+)
+
+func (x WorktreeSuggestionQueueDisposition) Enum() *WorktreeSuggestionQueueDisposition {
+	p := new(WorktreeSuggestionQueueDisposition)
+	*p = x
+	return p
+}
+
+func (x WorktreeSuggestionQueueDisposition) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (WorktreeSuggestionQueueDisposition) Descriptor() protoreflect.EnumDescriptor {
+	return file_git_control_tower_v1_advisory_advisory_proto_enumTypes[4].Descriptor()
+}
+
+func (WorktreeSuggestionQueueDisposition) Type() protoreflect.EnumType {
+	return &file_git_control_tower_v1_advisory_advisory_proto_enumTypes[4]
+}
+
+func (x WorktreeSuggestionQueueDisposition) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use WorktreeSuggestionQueueDisposition.Descriptor instead.
+func (WorktreeSuggestionQueueDisposition) EnumDescriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{4}
+}
+
 type StagedMessageScope int32
 
 const (
@@ -54,11 +317,11 @@ func (x StagedMessageScope) String() string {
 }
 
 func (StagedMessageScope) Descriptor() protoreflect.EnumDescriptor {
-	return file_git_control_tower_v1_advisory_advisory_proto_enumTypes[0].Descriptor()
+	return file_git_control_tower_v1_advisory_advisory_proto_enumTypes[5].Descriptor()
 }
 
 func (StagedMessageScope) Type() protoreflect.EnumType {
-	return &file_git_control_tower_v1_advisory_advisory_proto_enumTypes[0]
+	return &file_git_control_tower_v1_advisory_advisory_proto_enumTypes[5]
 }
 
 func (x StagedMessageScope) Number() protoreflect.EnumNumber {
@@ -67,7 +330,311 @@ func (x StagedMessageScope) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use StagedMessageScope.Descriptor instead.
 func (StagedMessageScope) EnumDescriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{5}
+}
+
+type QueueWorktreeSelectionRequest struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	RepositoryId  string                  `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	SelectionId   string                  `protobuf:"bytes,2,opt,name=selection_id,json=selectionId,proto3" json:"selection_id,omitempty"`
+	Source        WorktreeSelectionSource `protobuf:"varint,3,opt,name=source,proto3,enum=vrooli.git_control_tower.v1.advisory.WorktreeSelectionSource" json:"source,omitempty"`
+	Paths         []string                `protobuf:"bytes,4,rep,name=paths,proto3" json:"paths,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueueWorktreeSelectionRequest) Reset() {
+	*x = QueueWorktreeSelectionRequest{}
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueueWorktreeSelectionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueueWorktreeSelectionRequest) ProtoMessage() {}
+
+func (x *QueueWorktreeSelectionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueueWorktreeSelectionRequest.ProtoReflect.Descriptor instead.
+func (*QueueWorktreeSelectionRequest) Descriptor() ([]byte, []int) {
 	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *QueueWorktreeSelectionRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *QueueWorktreeSelectionRequest) GetSelectionId() string {
+	if x != nil {
+		return x.SelectionId
+	}
+	return ""
+}
+
+func (x *QueueWorktreeSelectionRequest) GetSource() WorktreeSelectionSource {
+	if x != nil {
+		return x.Source
+	}
+	return WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_UNSPECIFIED
+}
+
+func (x *QueueWorktreeSelectionRequest) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+type FinalizeQueuedSelectionRequest struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId           string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	SelectionId            string                 `protobuf:"bytes,2,opt,name=selection_id,json=selectionId,proto3" json:"selection_id,omitempty"`
+	ExpectedSnapshotDigest string                 `protobuf:"bytes,3,opt,name=expected_snapshot_digest,json=expectedSnapshotDigest,proto3" json:"expected_snapshot_digest,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *FinalizeQueuedSelectionRequest) Reset() {
+	*x = FinalizeQueuedSelectionRequest{}
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FinalizeQueuedSelectionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FinalizeQueuedSelectionRequest) ProtoMessage() {}
+
+func (x *FinalizeQueuedSelectionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FinalizeQueuedSelectionRequest.ProtoReflect.Descriptor instead.
+func (*FinalizeQueuedSelectionRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *FinalizeQueuedSelectionRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *FinalizeQueuedSelectionRequest) GetSelectionId() string {
+	if x != nil {
+		return x.SelectionId
+	}
+	return ""
+}
+
+func (x *FinalizeQueuedSelectionRequest) GetExpectedSnapshotDigest() string {
+	if x != nil {
+		return x.ExpectedSnapshotDigest
+	}
+	return ""
+}
+
+type StartQueuedSelectionRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId   string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	SelectionId    string                 `protobuf:"bytes,2,opt,name=selection_id,json=selectionId,proto3" json:"selection_id,omitempty"`
+	SnapshotDigest string                 `protobuf:"bytes,3,opt,name=snapshot_digest,json=snapshotDigest,proto3" json:"snapshot_digest,omitempty"`
+	RequestKey     string                 `protobuf:"bytes,4,opt,name=request_key,json=requestKey,proto3" json:"request_key,omitempty"`
+	Mode           StagedMessageMode      `protobuf:"varint,5,opt,name=mode,proto3,enum=vrooli.git_control_tower.v1.advisory.StagedMessageMode" json:"mode,omitempty"`
+	OperatorNote   string                 `protobuf:"bytes,6,opt,name=operator_note,json=operatorNote,proto3" json:"operator_note,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *StartQueuedSelectionRequest) Reset() {
+	*x = StartQueuedSelectionRequest{}
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartQueuedSelectionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartQueuedSelectionRequest) ProtoMessage() {}
+
+func (x *StartQueuedSelectionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartQueuedSelectionRequest.ProtoReflect.Descriptor instead.
+func (*StartQueuedSelectionRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *StartQueuedSelectionRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *StartQueuedSelectionRequest) GetSelectionId() string {
+	if x != nil {
+		return x.SelectionId
+	}
+	return ""
+}
+
+func (x *StartQueuedSelectionRequest) GetSnapshotDigest() string {
+	if x != nil {
+		return x.SnapshotDigest
+	}
+	return ""
+}
+
+func (x *StartQueuedSelectionRequest) GetRequestKey() string {
+	if x != nil {
+		return x.RequestKey
+	}
+	return ""
+}
+
+func (x *StartQueuedSelectionRequest) GetMode() StagedMessageMode {
+	if x != nil {
+		return x.Mode
+	}
+	return StagedMessageMode_STAGED_MESSAGE_MODE_UNSPECIFIED
+}
+
+func (x *StartQueuedSelectionRequest) GetOperatorNote() string {
+	if x != nil {
+		return x.OperatorNote
+	}
+	return ""
+}
+
+type QueuedWorktreeSelection struct {
+	state          protoimpl.MessageState       `protogen:"open.v1"`
+	SelectionId    string                       `protobuf:"bytes,1,opt,name=selection_id,json=selectionId,proto3" json:"selection_id,omitempty"`
+	RepositoryId   string                       `protobuf:"bytes,2,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	Source         WorktreeSelectionSource      `protobuf:"varint,3,opt,name=source,proto3,enum=vrooli.git_control_tower.v1.advisory.WorktreeSelectionSource" json:"source,omitempty"`
+	Paths          []string                     `protobuf:"bytes,4,rep,name=paths,proto3" json:"paths,omitempty"`
+	SnapshotDigest string                       `protobuf:"bytes,5,opt,name=snapshot_digest,json=snapshotDigest,proto3" json:"snapshot_digest,omitempty"`
+	State          QueuedWorktreeSelectionState `protobuf:"varint,6,opt,name=state,proto3,enum=vrooli.git_control_tower.v1.advisory.QueuedWorktreeSelectionState" json:"state,omitempty"`
+	FailureReason  string                       `protobuf:"bytes,7,opt,name=failure_reason,json=failureReason,proto3" json:"failure_reason,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *QueuedWorktreeSelection) Reset() {
+	*x = QueuedWorktreeSelection{}
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueuedWorktreeSelection) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueuedWorktreeSelection) ProtoMessage() {}
+
+func (x *QueuedWorktreeSelection) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueuedWorktreeSelection.ProtoReflect.Descriptor instead.
+func (*QueuedWorktreeSelection) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *QueuedWorktreeSelection) GetSelectionId() string {
+	if x != nil {
+		return x.SelectionId
+	}
+	return ""
+}
+
+func (x *QueuedWorktreeSelection) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *QueuedWorktreeSelection) GetSource() WorktreeSelectionSource {
+	if x != nil {
+		return x.Source
+	}
+	return WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_UNSPECIFIED
+}
+
+func (x *QueuedWorktreeSelection) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+func (x *QueuedWorktreeSelection) GetSnapshotDigest() string {
+	if x != nil {
+		return x.SnapshotDigest
+	}
+	return ""
+}
+
+func (x *QueuedWorktreeSelection) GetState() QueuedWorktreeSelectionState {
+	if x != nil {
+		return x.State
+	}
+	return QueuedWorktreeSelectionState_QUEUED_WORKTREE_SELECTION_STATE_UNSPECIFIED
+}
+
+func (x *QueuedWorktreeSelection) GetFailureReason() string {
+	if x != nil {
+		return x.FailureReason
+	}
+	return ""
 }
 
 type DraftRequest struct {
@@ -81,7 +648,7 @@ type DraftRequest struct {
 
 func (x *DraftRequest) Reset() {
 	*x = DraftRequest{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[0]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -93,7 +660,7 @@ func (x *DraftRequest) String() string {
 func (*DraftRequest) ProtoMessage() {}
 
 func (x *DraftRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[0]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -106,7 +673,7 @@ func (x *DraftRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DraftRequest.ProtoReflect.Descriptor instead.
 func (*DraftRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{0}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *DraftRequest) GetKind() string {
@@ -146,7 +713,7 @@ type ChangeSubject struct {
 
 func (x *ChangeSubject) Reset() {
 	*x = ChangeSubject{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[1]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -158,7 +725,7 @@ func (x *ChangeSubject) String() string {
 func (*ChangeSubject) ProtoMessage() {}
 
 func (x *ChangeSubject) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[1]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -171,7 +738,7 @@ func (x *ChangeSubject) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangeSubject.ProtoReflect.Descriptor instead.
 func (*ChangeSubject) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{1}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ChangeSubject) GetRepositoryId() string {
@@ -242,7 +809,7 @@ type HostSubject struct {
 
 func (x *HostSubject) Reset() {
 	*x = HostSubject{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[2]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -254,7 +821,7 @@ func (x *HostSubject) String() string {
 func (*HostSubject) ProtoMessage() {}
 
 func (x *HostSubject) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[2]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -267,7 +834,7 @@ func (x *HostSubject) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostSubject.ProtoReflect.Descriptor instead.
 func (*HostSubject) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{2}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *HostSubject) GetProvider() string {
@@ -308,7 +875,7 @@ type SubjectScope struct {
 
 func (x *SubjectScope) Reset() {
 	*x = SubjectScope{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[3]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -320,7 +887,7 @@ func (x *SubjectScope) String() string {
 func (*SubjectScope) ProtoMessage() {}
 
 func (x *SubjectScope) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[3]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -333,7 +900,7 @@ func (x *SubjectScope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubjectScope.ProtoReflect.Descriptor instead.
 func (*SubjectScope) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{3}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *SubjectScope) GetPaths() []string {
@@ -366,7 +933,7 @@ type EvidenceBundle struct {
 
 func (x *EvidenceBundle) Reset() {
 	*x = EvidenceBundle{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[4]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -378,7 +945,7 @@ func (x *EvidenceBundle) String() string {
 func (*EvidenceBundle) ProtoMessage() {}
 
 func (x *EvidenceBundle) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[4]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -391,7 +958,7 @@ func (x *EvidenceBundle) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvidenceBundle.ProtoReflect.Descriptor instead.
 func (*EvidenceBundle) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{4}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *EvidenceBundle) GetOperationId() string {
@@ -460,7 +1027,7 @@ type Claim struct {
 
 func (x *Claim) Reset() {
 	*x = Claim{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[5]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -472,7 +1039,7 @@ func (x *Claim) String() string {
 func (*Claim) ProtoMessage() {}
 
 func (x *Claim) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[5]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -485,7 +1052,7 @@ func (x *Claim) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Claim.ProtoReflect.Descriptor instead.
 func (*Claim) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{5}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Claim) GetText() string {
@@ -513,7 +1080,7 @@ type Coverage struct {
 
 func (x *Coverage) Reset() {
 	*x = Coverage{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[6]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -525,7 +1092,7 @@ func (x *Coverage) String() string {
 func (*Coverage) ProtoMessage() {}
 
 func (x *Coverage) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[6]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -538,7 +1105,7 @@ func (x *Coverage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Coverage.ProtoReflect.Descriptor instead.
 func (*Coverage) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{6}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Coverage) GetIncludedFiles() int32 {
@@ -572,7 +1139,7 @@ type Omission struct {
 
 func (x *Omission) Reset() {
 	*x = Omission{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[7]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -584,7 +1151,7 @@ func (x *Omission) String() string {
 func (*Omission) ProtoMessage() {}
 
 func (x *Omission) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[7]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -597,7 +1164,7 @@ func (x *Omission) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Omission.ProtoReflect.Descriptor instead.
 func (*Omission) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{7}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Omission) GetPath() string {
@@ -625,7 +1192,7 @@ type ValidationRef struct {
 
 func (x *ValidationRef) Reset() {
 	*x = ValidationRef{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[8]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -637,7 +1204,7 @@ func (x *ValidationRef) String() string {
 func (*ValidationRef) ProtoMessage() {}
 
 func (x *ValidationRef) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[8]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -650,7 +1217,7 @@ func (x *ValidationRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidationRef.ProtoReflect.Descriptor instead.
 func (*ValidationRef) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{8}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ValidationRef) GetExecutionId() string {
@@ -690,7 +1257,7 @@ type DraftResponse struct {
 
 func (x *DraftResponse) Reset() {
 	*x = DraftResponse{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[9]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -702,7 +1269,7 @@ func (x *DraftResponse) String() string {
 func (*DraftResponse) ProtoMessage() {}
 
 func (x *DraftResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[9]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -715,7 +1282,7 @@ func (x *DraftResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DraftResponse.ProtoReflect.Descriptor instead.
 func (*DraftResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{9}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *DraftResponse) GetStatus() string {
@@ -784,7 +1351,7 @@ type CollectStagedMessageRequest struct {
 
 func (x *CollectStagedMessageRequest) Reset() {
 	*x = CollectStagedMessageRequest{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[10]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -796,7 +1363,7 @@ func (x *CollectStagedMessageRequest) String() string {
 func (*CollectStagedMessageRequest) ProtoMessage() {}
 
 func (x *CollectStagedMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[10]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -809,7 +1376,7 @@ func (x *CollectStagedMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CollectStagedMessageRequest.ProtoReflect.Descriptor instead.
 func (*CollectStagedMessageRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{10}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CollectStagedMessageRequest) GetRepositoryId() string {
@@ -827,16 +1394,19 @@ type StartStagedMessageRequest struct {
 	SelectedContextIds []string               `protobuf:"bytes,4,rep,name=selected_context_ids,json=selectedContextIds,proto3" json:"selected_context_ids,omitempty"`
 	RequestKey         string                 `protobuf:"bytes,5,opt,name=request_key,json=requestKey,proto3" json:"request_key,omitempty"`
 	OperatorNote       string                 `protobuf:"bytes,6,opt,name=operator_note,json=operatorNote,proto3" json:"operator_note,omitempty"`
-	// Explicit deeper investigation of this successful partial draft; uses its
-	// original immutable subject and a new request key, never recollects staging.
+	// Optional successful partial parent for a deeper continuation. If absent,
+	// mode=DEEP starts from this collection's immutable subject.
 	ContinuationOfJobId string `protobuf:"bytes,7,opt,name=continuation_of_job_id,json=continuationOfJobId,proto3" json:"continuation_of_job_id,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// QUICK is the compatible default. DEEP starts bounded inventory and
+	// targeted immutable evidence investigation directly from this collection.
+	Mode          StagedMessageMode `protobuf:"varint,8,opt,name=mode,proto3,enum=vrooli.git_control_tower.v1.advisory.StagedMessageMode" json:"mode,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StartStagedMessageRequest) Reset() {
 	*x = StartStagedMessageRequest{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[11]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -848,7 +1418,7 @@ func (x *StartStagedMessageRequest) String() string {
 func (*StartStagedMessageRequest) ProtoMessage() {}
 
 func (x *StartStagedMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[11]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -861,7 +1431,7 @@ func (x *StartStagedMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartStagedMessageRequest.ProtoReflect.Descriptor instead.
 func (*StartStagedMessageRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{11}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *StartStagedMessageRequest) GetRepositoryId() string {
@@ -913,6 +1483,945 @@ func (x *StartStagedMessageRequest) GetContinuationOfJobId() string {
 	return ""
 }
 
+func (x *StartStagedMessageRequest) GetMode() StagedMessageMode {
+	if x != nil {
+		return x.Mode
+	}
+	return StagedMessageMode_STAGED_MESSAGE_MODE_UNSPECIFIED
+}
+
+// Retries a terminal draft from its saved immutable input, including for
+// clients that no longer retain the original browser admission envelope.
+type RetryStagedMessageRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId   string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	JobId          string                 `protobuf:"bytes,2,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	SnapshotDigest string                 `protobuf:"bytes,3,opt,name=snapshot_digest,json=snapshotDigest,proto3" json:"snapshot_digest,omitempty"`
+	RequestKey     string                 `protobuf:"bytes,4,opt,name=request_key,json=requestKey,proto3" json:"request_key,omitempty"`
+	Mode           StagedMessageMode      `protobuf:"varint,5,opt,name=mode,proto3,enum=vrooli.git_control_tower.v1.advisory.StagedMessageMode" json:"mode,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *RetryStagedMessageRequest) Reset() {
+	*x = RetryStagedMessageRequest{}
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetryStagedMessageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetryStagedMessageRequest) ProtoMessage() {}
+
+func (x *RetryStagedMessageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetryStagedMessageRequest.ProtoReflect.Descriptor instead.
+func (*RetryStagedMessageRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *RetryStagedMessageRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *RetryStagedMessageRequest) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+func (x *RetryStagedMessageRequest) GetSnapshotDigest() string {
+	if x != nil {
+		return x.SnapshotDigest
+	}
+	return ""
+}
+
+func (x *RetryStagedMessageRequest) GetRequestKey() string {
+	if x != nil {
+		return x.RequestKey
+	}
+	return ""
+}
+
+func (x *RetryStagedMessageRequest) GetMode() StagedMessageMode {
+	if x != nil {
+		return x.Mode
+	}
+	return StagedMessageMode_STAGED_MESSAGE_MODE_UNSPECIFIED
+}
+
+type StagedMessageProviderReadinessRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StagedMessageProviderReadinessRequest) Reset() {
+	*x = StagedMessageProviderReadinessRequest{}
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StagedMessageProviderReadinessRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StagedMessageProviderReadinessRequest) ProtoMessage() {}
+
+func (x *StagedMessageProviderReadinessRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StagedMessageProviderReadinessRequest.ProtoReflect.Descriptor instead.
+func (*StagedMessageProviderReadinessRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{17}
+}
+
+type StagedMessageProviderReadiness struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Provider      string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	State         string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	Known         bool                   `protobuf:"varint,3,opt,name=known,proto3" json:"known,omitempty"`
+	ObservedAt    string                 `protobuf:"bytes,4,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	Message       string                 `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StagedMessageProviderReadiness) Reset() {
+	*x = StagedMessageProviderReadiness{}
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StagedMessageProviderReadiness) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StagedMessageProviderReadiness) ProtoMessage() {}
+
+func (x *StagedMessageProviderReadiness) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StagedMessageProviderReadiness.ProtoReflect.Descriptor instead.
+func (*StagedMessageProviderReadiness) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *StagedMessageProviderReadiness) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *StagedMessageProviderReadiness) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *StagedMessageProviderReadiness) GetKnown() bool {
+	if x != nil {
+		return x.Known
+	}
+	return false
+}
+
+func (x *StagedMessageProviderReadiness) GetObservedAt() string {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return ""
+}
+
+func (x *StagedMessageProviderReadiness) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+// Captures selected index-to-worktree changes and admits them as one immutable job.
+type StartWorktreeStagedMessageRequest struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId           string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	Paths                  []string               `protobuf:"bytes,2,rep,name=paths,proto3" json:"paths,omitempty"`
+	RequestKey             string                 `protobuf:"bytes,3,opt,name=request_key,json=requestKey,proto3" json:"request_key,omitempty"`
+	OperatorNote           string                 `protobuf:"bytes,4,opt,name=operator_note,json=operatorNote,proto3" json:"operator_note,omitempty"`
+	Mode                   StagedMessageMode      `protobuf:"varint,5,opt,name=mode,proto3,enum=vrooli.git_control_tower.v1.advisory.StagedMessageMode" json:"mode,omitempty"`
+	ReplaceQueueEntryId    string                 `protobuf:"bytes,6,opt,name=replace_queue_entry_id,json=replaceQueueEntryId,proto3" json:"replace_queue_entry_id,omitempty"`
+	ExpectedQueueRevision  uint64                 `protobuf:"varint,7,opt,name=expected_queue_revision,json=expectedQueueRevision,proto3" json:"expected_queue_revision,omitempty"`
+	ExpectedSnapshotDigest string                 `protobuf:"bytes,8,opt,name=expected_snapshot_digest,json=expectedSnapshotDigest,proto3" json:"expected_snapshot_digest,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *StartWorktreeStagedMessageRequest) Reset() {
+	*x = StartWorktreeStagedMessageRequest{}
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartWorktreeStagedMessageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartWorktreeStagedMessageRequest) ProtoMessage() {}
+
+func (x *StartWorktreeStagedMessageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartWorktreeStagedMessageRequest.ProtoReflect.Descriptor instead.
+func (*StartWorktreeStagedMessageRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *StartWorktreeStagedMessageRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *StartWorktreeStagedMessageRequest) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+func (x *StartWorktreeStagedMessageRequest) GetRequestKey() string {
+	if x != nil {
+		return x.RequestKey
+	}
+	return ""
+}
+
+func (x *StartWorktreeStagedMessageRequest) GetOperatorNote() string {
+	if x != nil {
+		return x.OperatorNote
+	}
+	return ""
+}
+
+func (x *StartWorktreeStagedMessageRequest) GetMode() StagedMessageMode {
+	if x != nil {
+		return x.Mode
+	}
+	return StagedMessageMode_STAGED_MESSAGE_MODE_UNSPECIFIED
+}
+
+func (x *StartWorktreeStagedMessageRequest) GetReplaceQueueEntryId() string {
+	if x != nil {
+		return x.ReplaceQueueEntryId
+	}
+	return ""
+}
+
+func (x *StartWorktreeStagedMessageRequest) GetExpectedQueueRevision() uint64 {
+	if x != nil {
+		return x.ExpectedQueueRevision
+	}
+	return 0
+}
+
+func (x *StartWorktreeStagedMessageRequest) GetExpectedSnapshotDigest() string {
+	if x != nil {
+		return x.ExpectedSnapshotDigest
+	}
+	return ""
+}
+
+type ListWorktreeSuggestionQueueRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWorktreeSuggestionQueueRequest) Reset() {
+	*x = ListWorktreeSuggestionQueueRequest{}
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorktreeSuggestionQueueRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorktreeSuggestionQueueRequest) ProtoMessage() {}
+
+func (x *ListWorktreeSuggestionQueueRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorktreeSuggestionQueueRequest.ProtoReflect.Descriptor instead.
+func (*ListWorktreeSuggestionQueueRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ListWorktreeSuggestionQueueRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+type WorktreeSuggestionQueueEntry struct {
+	state           protoimpl.MessageState       `protogen:"open.v1"`
+	Id              string                       `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	RepositoryId    string                       `protobuf:"bytes,2,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	JobId           string                       `protobuf:"bytes,3,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	SnapshotDigest  string                       `protobuf:"bytes,4,opt,name=snapshot_digest,json=snapshotDigest,proto3" json:"snapshot_digest,omitempty"`
+	Paths           []string                     `protobuf:"bytes,5,rep,name=paths,proto3" json:"paths,omitempty"`
+	Mode            StagedMessageMode            `protobuf:"varint,6,opt,name=mode,proto3,enum=vrooli.git_control_tower.v1.advisory.StagedMessageMode" json:"mode,omitempty"`
+	RequestKey      string                       `protobuf:"bytes,7,opt,name=request_key,json=requestKey,proto3" json:"request_key,omitempty"`
+	Sequence        uint64                       `protobuf:"varint,8,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	State           WorktreeSuggestionQueueState `protobuf:"varint,9,opt,name=state,proto3,enum=vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueState" json:"state,omitempty"`
+	FailureReason   string                       `protobuf:"bytes,10,opt,name=failure_reason,json=failureReason,proto3" json:"failure_reason,omitempty"`
+	CreatedAt       string                       `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt       string                       `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	SelectionSource WorktreeSelectionSource      `protobuf:"varint,13,opt,name=selection_source,json=selectionSource,proto3,enum=vrooli.git_control_tower.v1.advisory.WorktreeSelectionSource" json:"selection_source,omitempty"`
+	// Present for queue-only captures; immutable bytes and manifest are owned by the queue entry.
+	SelectionId   string `protobuf:"bytes,14,opt,name=selection_id,json=selectionId,proto3" json:"selection_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorktreeSuggestionQueueEntry) Reset() {
+	*x = WorktreeSuggestionQueueEntry{}
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorktreeSuggestionQueueEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorktreeSuggestionQueueEntry) ProtoMessage() {}
+
+func (x *WorktreeSuggestionQueueEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorktreeSuggestionQueueEntry.ProtoReflect.Descriptor instead.
+func (*WorktreeSuggestionQueueEntry) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *WorktreeSuggestionQueueEntry) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *WorktreeSuggestionQueueEntry) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *WorktreeSuggestionQueueEntry) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+func (x *WorktreeSuggestionQueueEntry) GetSnapshotDigest() string {
+	if x != nil {
+		return x.SnapshotDigest
+	}
+	return ""
+}
+
+func (x *WorktreeSuggestionQueueEntry) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+func (x *WorktreeSuggestionQueueEntry) GetMode() StagedMessageMode {
+	if x != nil {
+		return x.Mode
+	}
+	return StagedMessageMode_STAGED_MESSAGE_MODE_UNSPECIFIED
+}
+
+func (x *WorktreeSuggestionQueueEntry) GetRequestKey() string {
+	if x != nil {
+		return x.RequestKey
+	}
+	return ""
+}
+
+func (x *WorktreeSuggestionQueueEntry) GetSequence() uint64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *WorktreeSuggestionQueueEntry) GetState() WorktreeSuggestionQueueState {
+	if x != nil {
+		return x.State
+	}
+	return WorktreeSuggestionQueueState_WORKTREE_SUGGESTION_QUEUE_STATE_UNSPECIFIED
+}
+
+func (x *WorktreeSuggestionQueueEntry) GetFailureReason() string {
+	if x != nil {
+		return x.FailureReason
+	}
+	return ""
+}
+
+func (x *WorktreeSuggestionQueueEntry) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *WorktreeSuggestionQueueEntry) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+func (x *WorktreeSuggestionQueueEntry) GetSelectionSource() WorktreeSelectionSource {
+	if x != nil {
+		return x.SelectionSource
+	}
+	return WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_UNSPECIFIED
+}
+
+func (x *WorktreeSuggestionQueueEntry) GetSelectionId() string {
+	if x != nil {
+		return x.SelectionId
+	}
+	return ""
+}
+
+type WorktreeSuggestionQueue struct {
+	state         protoimpl.MessageState          `protogen:"open.v1"`
+	RepositoryId  string                          `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	Revision      uint64                          `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Entries       []*WorktreeSuggestionQueueEntry `protobuf:"bytes,3,rep,name=entries,proto3" json:"entries,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorktreeSuggestionQueue) Reset() {
+	*x = WorktreeSuggestionQueue{}
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorktreeSuggestionQueue) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorktreeSuggestionQueue) ProtoMessage() {}
+
+func (x *WorktreeSuggestionQueue) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorktreeSuggestionQueue.ProtoReflect.Descriptor instead.
+func (*WorktreeSuggestionQueue) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *WorktreeSuggestionQueue) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *WorktreeSuggestionQueue) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *WorktreeSuggestionQueue) GetEntries() []*WorktreeSuggestionQueueEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+type EnqueueWorktreeSuggestionRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId   string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	JobId          string                 `protobuf:"bytes,2,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	SnapshotDigest string                 `protobuf:"bytes,3,opt,name=snapshot_digest,json=snapshotDigest,proto3" json:"snapshot_digest,omitempty"`
+	Paths          []string               `protobuf:"bytes,4,rep,name=paths,proto3" json:"paths,omitempty"`
+	Mode           StagedMessageMode      `protobuf:"varint,5,opt,name=mode,proto3,enum=vrooli.git_control_tower.v1.advisory.StagedMessageMode" json:"mode,omitempty"`
+	RequestKey     string                 `protobuf:"bytes,6,opt,name=request_key,json=requestKey,proto3" json:"request_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *EnqueueWorktreeSuggestionRequest) Reset() {
+	*x = EnqueueWorktreeSuggestionRequest{}
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnqueueWorktreeSuggestionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnqueueWorktreeSuggestionRequest) ProtoMessage() {}
+
+func (x *EnqueueWorktreeSuggestionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnqueueWorktreeSuggestionRequest.ProtoReflect.Descriptor instead.
+func (*EnqueueWorktreeSuggestionRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *EnqueueWorktreeSuggestionRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *EnqueueWorktreeSuggestionRequest) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+func (x *EnqueueWorktreeSuggestionRequest) GetSnapshotDigest() string {
+	if x != nil {
+		return x.SnapshotDigest
+	}
+	return ""
+}
+
+func (x *EnqueueWorktreeSuggestionRequest) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+func (x *EnqueueWorktreeSuggestionRequest) GetMode() StagedMessageMode {
+	if x != nil {
+		return x.Mode
+	}
+	return StagedMessageMode_STAGED_MESSAGE_MODE_UNSPECIFIED
+}
+
+func (x *EnqueueWorktreeSuggestionRequest) GetRequestKey() string {
+	if x != nil {
+		return x.RequestKey
+	}
+	return ""
+}
+
+type UpdateWorktreeSuggestionQueueEntryRequest struct {
+	state                     protoimpl.MessageState       `protogen:"open.v1"`
+	RepositoryId              string                       `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	EntryId                   string                       `protobuf:"bytes,2,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	ExpectedHeadEntryId       string                       `protobuf:"bytes,3,opt,name=expected_head_entry_id,json=expectedHeadEntryId,proto3" json:"expected_head_entry_id,omitempty"`
+	ExpectedRevision          uint64                       `protobuf:"varint,4,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	State                     WorktreeSuggestionQueueState `protobuf:"varint,5,opt,name=state,proto3,enum=vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueState" json:"state,omitempty"`
+	FailureReason             string                       `protobuf:"bytes,6,opt,name=failure_reason,json=failureReason,proto3" json:"failure_reason,omitempty"`
+	ReplacementJobId          string                       `protobuf:"bytes,7,opt,name=replacement_job_id,json=replacementJobId,proto3" json:"replacement_job_id,omitempty"`
+	ReplacementSnapshotDigest string                       `protobuf:"bytes,8,opt,name=replacement_snapshot_digest,json=replacementSnapshotDigest,proto3" json:"replacement_snapshot_digest,omitempty"`
+	ReplacementPaths          []string                     `protobuf:"bytes,9,rep,name=replacement_paths,json=replacementPaths,proto3" json:"replacement_paths,omitempty"`
+	ReplacementMode           StagedMessageMode            `protobuf:"varint,10,opt,name=replacement_mode,json=replacementMode,proto3,enum=vrooli.git_control_tower.v1.advisory.StagedMessageMode" json:"replacement_mode,omitempty"`
+	ReplacementRequestKey     string                       `protobuf:"bytes,11,opt,name=replacement_request_key,json=replacementRequestKey,proto3" json:"replacement_request_key,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *UpdateWorktreeSuggestionQueueEntryRequest) Reset() {
+	*x = UpdateWorktreeSuggestionQueueEntryRequest{}
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateWorktreeSuggestionQueueEntryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateWorktreeSuggestionQueueEntryRequest) ProtoMessage() {}
+
+func (x *UpdateWorktreeSuggestionQueueEntryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateWorktreeSuggestionQueueEntryRequest.ProtoReflect.Descriptor instead.
+func (*UpdateWorktreeSuggestionQueueEntryRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *UpdateWorktreeSuggestionQueueEntryRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *UpdateWorktreeSuggestionQueueEntryRequest) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
+	}
+	return ""
+}
+
+func (x *UpdateWorktreeSuggestionQueueEntryRequest) GetExpectedHeadEntryId() string {
+	if x != nil {
+		return x.ExpectedHeadEntryId
+	}
+	return ""
+}
+
+func (x *UpdateWorktreeSuggestionQueueEntryRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+func (x *UpdateWorktreeSuggestionQueueEntryRequest) GetState() WorktreeSuggestionQueueState {
+	if x != nil {
+		return x.State
+	}
+	return WorktreeSuggestionQueueState_WORKTREE_SUGGESTION_QUEUE_STATE_UNSPECIFIED
+}
+
+func (x *UpdateWorktreeSuggestionQueueEntryRequest) GetFailureReason() string {
+	if x != nil {
+		return x.FailureReason
+	}
+	return ""
+}
+
+func (x *UpdateWorktreeSuggestionQueueEntryRequest) GetReplacementJobId() string {
+	if x != nil {
+		return x.ReplacementJobId
+	}
+	return ""
+}
+
+func (x *UpdateWorktreeSuggestionQueueEntryRequest) GetReplacementSnapshotDigest() string {
+	if x != nil {
+		return x.ReplacementSnapshotDigest
+	}
+	return ""
+}
+
+func (x *UpdateWorktreeSuggestionQueueEntryRequest) GetReplacementPaths() []string {
+	if x != nil {
+		return x.ReplacementPaths
+	}
+	return nil
+}
+
+func (x *UpdateWorktreeSuggestionQueueEntryRequest) GetReplacementMode() StagedMessageMode {
+	if x != nil {
+		return x.ReplacementMode
+	}
+	return StagedMessageMode_STAGED_MESSAGE_MODE_UNSPECIFIED
+}
+
+func (x *UpdateWorktreeSuggestionQueueEntryRequest) GetReplacementRequestKey() string {
+	if x != nil {
+		return x.ReplacementRequestKey
+	}
+	return ""
+}
+
+type RetireWorktreeSuggestionQueueHeadRequest struct {
+	state               protoimpl.MessageState             `protogen:"open.v1"`
+	RepositoryId        string                             `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	ExpectedHeadEntryId string                             `protobuf:"bytes,2,opt,name=expected_head_entry_id,json=expectedHeadEntryId,proto3" json:"expected_head_entry_id,omitempty"`
+	ExpectedRevision    uint64                             `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	Disposition         WorktreeSuggestionQueueDisposition `protobuf:"varint,4,opt,name=disposition,proto3,enum=vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueDisposition" json:"disposition,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *RetireWorktreeSuggestionQueueHeadRequest) Reset() {
+	*x = RetireWorktreeSuggestionQueueHeadRequest{}
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetireWorktreeSuggestionQueueHeadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetireWorktreeSuggestionQueueHeadRequest) ProtoMessage() {}
+
+func (x *RetireWorktreeSuggestionQueueHeadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetireWorktreeSuggestionQueueHeadRequest.ProtoReflect.Descriptor instead.
+func (*RetireWorktreeSuggestionQueueHeadRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *RetireWorktreeSuggestionQueueHeadRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *RetireWorktreeSuggestionQueueHeadRequest) GetExpectedHeadEntryId() string {
+	if x != nil {
+		return x.ExpectedHeadEntryId
+	}
+	return ""
+}
+
+func (x *RetireWorktreeSuggestionQueueHeadRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+func (x *RetireWorktreeSuggestionQueueHeadRequest) GetDisposition() WorktreeSuggestionQueueDisposition {
+	if x != nil {
+		return x.Disposition
+	}
+	return WorktreeSuggestionQueueDisposition_WORKTREE_SUGGESTION_QUEUE_DISPOSITION_UNSPECIFIED
+}
+
+type RemoveWorktreeSuggestionQueueEntryRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId     string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	EntryId          string                 `protobuf:"bytes,2,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	ExpectedRevision uint64                 `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *RemoveWorktreeSuggestionQueueEntryRequest) Reset() {
+	*x = RemoveWorktreeSuggestionQueueEntryRequest{}
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveWorktreeSuggestionQueueEntryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveWorktreeSuggestionQueueEntryRequest) ProtoMessage() {}
+
+func (x *RemoveWorktreeSuggestionQueueEntryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveWorktreeSuggestionQueueEntryRequest.ProtoReflect.Descriptor instead.
+func (*RemoveWorktreeSuggestionQueueEntryRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *RemoveWorktreeSuggestionQueueEntryRequest) GetRepositoryId() string {
+	if x != nil {
+		return x.RepositoryId
+	}
+	return ""
+}
+
+func (x *RemoveWorktreeSuggestionQueueEntryRequest) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
+	}
+	return ""
+}
+
+func (x *RemoveWorktreeSuggestionQueueEntryRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type WorktreeSuggestionQueueMutationResponse struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Queue         *WorktreeSuggestionQueue      `protobuf:"bytes,1,opt,name=queue,proto3" json:"queue,omitempty"`
+	ChangedEntry  *WorktreeSuggestionQueueEntry `protobuf:"bytes,2,opt,name=changed_entry,json=changedEntry,proto3" json:"changed_entry,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorktreeSuggestionQueueMutationResponse) Reset() {
+	*x = WorktreeSuggestionQueueMutationResponse{}
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorktreeSuggestionQueueMutationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorktreeSuggestionQueueMutationResponse) ProtoMessage() {}
+
+func (x *WorktreeSuggestionQueueMutationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorktreeSuggestionQueueMutationResponse.ProtoReflect.Descriptor instead.
+func (*WorktreeSuggestionQueueMutationResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *WorktreeSuggestionQueueMutationResponse) GetQueue() *WorktreeSuggestionQueue {
+	if x != nil {
+		return x.Queue
+	}
+	return nil
+}
+
+func (x *WorktreeSuggestionQueueMutationResponse) GetChangedEntry() *WorktreeSuggestionQueueEntry {
+	if x != nil {
+		return x.ChangedEntry
+	}
+	return nil
+}
+
 type StagedMessageJobRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	RepositoryId   string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
@@ -925,7 +2434,7 @@ type StagedMessageJobRequest struct {
 
 func (x *StagedMessageJobRequest) Reset() {
 	*x = StagedMessageJobRequest{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[12]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -937,7 +2446,7 @@ func (x *StagedMessageJobRequest) String() string {
 func (*StagedMessageJobRequest) ProtoMessage() {}
 
 func (x *StagedMessageJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[12]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -950,7 +2459,7 @@ func (x *StagedMessageJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StagedMessageJobRequest.ProtoReflect.Descriptor instead.
 func (*StagedMessageJobRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{12}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *StagedMessageJobRequest) GetRepositoryId() string {
@@ -991,7 +2500,7 @@ type StagedMessageTrailer struct {
 
 func (x *StagedMessageTrailer) Reset() {
 	*x = StagedMessageTrailer{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[13]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1003,7 +2512,7 @@ func (x *StagedMessageTrailer) String() string {
 func (*StagedMessageTrailer) ProtoMessage() {}
 
 func (x *StagedMessageTrailer) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[13]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1016,7 +2525,7 @@ func (x *StagedMessageTrailer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StagedMessageTrailer.ProtoReflect.Descriptor instead.
 func (*StagedMessageTrailer) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{13}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *StagedMessageTrailer) GetKey() string {
@@ -1045,7 +2554,7 @@ type StagedMessageTimingHint struct {
 
 func (x *StagedMessageTimingHint) Reset() {
 	*x = StagedMessageTimingHint{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[14]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1057,7 +2566,7 @@ func (x *StagedMessageTimingHint) String() string {
 func (*StagedMessageTimingHint) ProtoMessage() {}
 
 func (x *StagedMessageTimingHint) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[14]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1070,7 +2579,7 @@ func (x *StagedMessageTimingHint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StagedMessageTimingHint.ProtoReflect.Descriptor instead.
 func (*StagedMessageTimingHint) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{14}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *StagedMessageTimingHint) GetSource() string {
@@ -1121,7 +2630,7 @@ type StagedMessageFile struct {
 
 func (x *StagedMessageFile) Reset() {
 	*x = StagedMessageFile{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[15]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1133,7 +2642,7 @@ func (x *StagedMessageFile) String() string {
 func (*StagedMessageFile) ProtoMessage() {}
 
 func (x *StagedMessageFile) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[15]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1146,7 +2655,7 @@ func (x *StagedMessageFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StagedMessageFile.ProtoReflect.Descriptor instead.
 func (*StagedMessageFile) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{15}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *StagedMessageFile) GetPath() string {
@@ -1246,7 +2755,7 @@ type StagedMessageSnapshot struct {
 
 func (x *StagedMessageSnapshot) Reset() {
 	*x = StagedMessageSnapshot{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[16]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1258,7 +2767,7 @@ func (x *StagedMessageSnapshot) String() string {
 func (*StagedMessageSnapshot) ProtoMessage() {}
 
 func (x *StagedMessageSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[16]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1271,7 +2780,7 @@ func (x *StagedMessageSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StagedMessageSnapshot.ProtoReflect.Descriptor instead.
 func (*StagedMessageSnapshot) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{16}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *StagedMessageSnapshot) GetDigest() string {
@@ -1323,7 +2832,7 @@ type StagedMessageCoverage struct {
 
 func (x *StagedMessageCoverage) Reset() {
 	*x = StagedMessageCoverage{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[17]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1335,7 +2844,7 @@ func (x *StagedMessageCoverage) String() string {
 func (*StagedMessageCoverage) ProtoMessage() {}
 
 func (x *StagedMessageCoverage) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[17]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1348,7 +2857,7 @@ func (x *StagedMessageCoverage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StagedMessageCoverage.ProtoReflect.Descriptor instead.
 func (*StagedMessageCoverage) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{17}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *StagedMessageCoverage) GetCoveredPaths() []string {
@@ -1415,7 +2924,7 @@ type StagedMessageContext struct {
 
 func (x *StagedMessageContext) Reset() {
 	*x = StagedMessageContext{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[18]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1427,7 +2936,7 @@ func (x *StagedMessageContext) String() string {
 func (*StagedMessageContext) ProtoMessage() {}
 
 func (x *StagedMessageContext) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[18]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1440,7 +2949,7 @@ func (x *StagedMessageContext) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StagedMessageContext.ProtoReflect.Descriptor instead.
 func (*StagedMessageContext) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{18}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *StagedMessageContext) GetId() string {
@@ -1559,7 +3068,7 @@ type StagedMessageSuggestion struct {
 
 func (x *StagedMessageSuggestion) Reset() {
 	*x = StagedMessageSuggestion{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[19]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1571,7 +3080,7 @@ func (x *StagedMessageSuggestion) String() string {
 func (*StagedMessageSuggestion) ProtoMessage() {}
 
 func (x *StagedMessageSuggestion) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[19]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1584,7 +3093,7 @@ func (x *StagedMessageSuggestion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StagedMessageSuggestion.ProtoReflect.Descriptor instead.
 func (*StagedMessageSuggestion) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{19}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *StagedMessageSuggestion) GetId() string {
@@ -1670,7 +3179,7 @@ type StagedMessageContinuation struct {
 
 func (x *StagedMessageContinuation) Reset() {
 	*x = StagedMessageContinuation{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[20]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1682,7 +3191,7 @@ func (x *StagedMessageContinuation) String() string {
 func (*StagedMessageContinuation) ProtoMessage() {}
 
 func (x *StagedMessageContinuation) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[20]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1695,7 +3204,7 @@ func (x *StagedMessageContinuation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StagedMessageContinuation.ProtoReflect.Descriptor instead.
 func (*StagedMessageContinuation) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{20}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *StagedMessageContinuation) GetCommit() string {
@@ -1757,7 +3266,7 @@ type StagedMessageCollection struct {
 
 func (x *StagedMessageCollection) Reset() {
 	*x = StagedMessageCollection{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[21]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1769,7 +3278,7 @@ func (x *StagedMessageCollection) String() string {
 func (*StagedMessageCollection) ProtoMessage() {}
 
 func (x *StagedMessageCollection) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[21]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1782,7 +3291,7 @@ func (x *StagedMessageCollection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StagedMessageCollection.ProtoReflect.Descriptor instead.
 func (*StagedMessageCollection) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{21}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *StagedMessageCollection) GetId() string {
@@ -1861,14 +3370,25 @@ type StagedMessageJob struct {
 	EvidenceFilesRead   uint32                   `protobuf:"varint,16,opt,name=evidence_files_read,json=evidenceFilesRead,proto3" json:"evidence_files_read,omitempty"`
 	EvidenceFilesTotal  uint32                   `protobuf:"varint,17,opt,name=evidence_files_total,json=evidenceFilesTotal,proto3" json:"evidence_files_total,omitempty"`
 	// Projected for succeeded jobs against the current history.
-	Continuations []*StagedMessageContinuation `protobuf:"bytes,18,rep,name=continuations,proto3" json:"continuations,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Continuations         []*StagedMessageContinuation `protobuf:"bytes,18,rep,name=continuations,proto3" json:"continuations,omitempty"`
+	ErrorCode             string                       `protobuf:"bytes,19,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
+	Retryable             bool                         `protobuf:"varint,20,opt,name=retryable,proto3" json:"retryable,omitempty"`
+	ExecutionStarted      bool                         `protobuf:"varint,21,opt,name=execution_started,json=executionStarted,proto3" json:"execution_started,omitempty"`
+	TokensUsed            int64                        `protobuf:"varint,22,opt,name=tokens_used,json=tokensUsed,proto3" json:"tokens_used,omitempty"`
+	TokensKnown           bool                         `protobuf:"varint,23,opt,name=tokens_known,json=tokensKnown,proto3" json:"tokens_known,omitempty"`
+	Omissions             []*Omission                  `protobuf:"bytes,24,rep,name=omissions,proto3" json:"omissions,omitempty"`
+	ExecutionStartedKnown bool                         `protobuf:"varint,25,opt,name=execution_started_known,json=executionStartedKnown,proto3" json:"execution_started_known,omitempty"`
+	// Marginal workflow charge in micro-USD; token counts are not a charge proxy.
+	// False means the owner has not supplied measured billing evidence.
+	ChargeMicroUsd int64 `protobuf:"varint,26,opt,name=charge_micro_usd,json=chargeMicroUsd,proto3" json:"charge_micro_usd,omitempty"`
+	ChargeKnown    bool  `protobuf:"varint,27,opt,name=charge_known,json=chargeKnown,proto3" json:"charge_known,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *StagedMessageJob) Reset() {
 	*x = StagedMessageJob{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[22]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1880,7 +3400,7 @@ func (x *StagedMessageJob) String() string {
 func (*StagedMessageJob) ProtoMessage() {}
 
 func (x *StagedMessageJob) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[22]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1893,7 +3413,7 @@ func (x *StagedMessageJob) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StagedMessageJob.ProtoReflect.Descriptor instead.
 func (*StagedMessageJob) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{22}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *StagedMessageJob) GetId() string {
@@ -2022,6 +3542,69 @@ func (x *StagedMessageJob) GetContinuations() []*StagedMessageContinuation {
 	return nil
 }
 
+func (x *StagedMessageJob) GetErrorCode() string {
+	if x != nil {
+		return x.ErrorCode
+	}
+	return ""
+}
+
+func (x *StagedMessageJob) GetRetryable() bool {
+	if x != nil {
+		return x.Retryable
+	}
+	return false
+}
+
+func (x *StagedMessageJob) GetExecutionStarted() bool {
+	if x != nil {
+		return x.ExecutionStarted
+	}
+	return false
+}
+
+func (x *StagedMessageJob) GetTokensUsed() int64 {
+	if x != nil {
+		return x.TokensUsed
+	}
+	return 0
+}
+
+func (x *StagedMessageJob) GetTokensKnown() bool {
+	if x != nil {
+		return x.TokensKnown
+	}
+	return false
+}
+
+func (x *StagedMessageJob) GetOmissions() []*Omission {
+	if x != nil {
+		return x.Omissions
+	}
+	return nil
+}
+
+func (x *StagedMessageJob) GetExecutionStartedKnown() bool {
+	if x != nil {
+		return x.ExecutionStartedKnown
+	}
+	return false
+}
+
+func (x *StagedMessageJob) GetChargeMicroUsd() int64 {
+	if x != nil {
+		return x.ChargeMicroUsd
+	}
+	return 0
+}
+
+func (x *StagedMessageJob) GetChargeKnown() bool {
+	if x != nil {
+		return x.ChargeKnown
+	}
+	return false
+}
+
 type ReadStagedMessageEvidenceRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	RepositoryId   string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
@@ -2040,7 +3623,7 @@ type ReadStagedMessageEvidenceRequest struct {
 
 func (x *ReadStagedMessageEvidenceRequest) Reset() {
 	*x = ReadStagedMessageEvidenceRequest{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[23]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2052,7 +3635,7 @@ func (x *ReadStagedMessageEvidenceRequest) String() string {
 func (*ReadStagedMessageEvidenceRequest) ProtoMessage() {}
 
 func (x *ReadStagedMessageEvidenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[23]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2065,7 +3648,7 @@ func (x *ReadStagedMessageEvidenceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadStagedMessageEvidenceRequest.ProtoReflect.Descriptor instead.
 func (*ReadStagedMessageEvidenceRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{23}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ReadStagedMessageEvidenceRequest) GetRepositoryId() string {
@@ -2138,7 +3721,7 @@ type StagedMessageEvidenceFile struct {
 
 func (x *StagedMessageEvidenceFile) Reset() {
 	*x = StagedMessageEvidenceFile{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[24]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2150,7 +3733,7 @@ func (x *StagedMessageEvidenceFile) String() string {
 func (*StagedMessageEvidenceFile) ProtoMessage() {}
 
 func (x *StagedMessageEvidenceFile) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[24]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2163,7 +3746,7 @@ func (x *StagedMessageEvidenceFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StagedMessageEvidenceFile.ProtoReflect.Descriptor instead.
 func (*StagedMessageEvidenceFile) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{24}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *StagedMessageEvidenceFile) GetFileId() uint32 {
@@ -2267,7 +3850,7 @@ type ReadStagedMessageEvidenceResponse struct {
 
 func (x *ReadStagedMessageEvidenceResponse) Reset() {
 	*x = ReadStagedMessageEvidenceResponse{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[25]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2279,7 +3862,7 @@ func (x *ReadStagedMessageEvidenceResponse) String() string {
 func (*ReadStagedMessageEvidenceResponse) ProtoMessage() {}
 
 func (x *ReadStagedMessageEvidenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[25]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2292,7 +3875,7 @@ func (x *ReadStagedMessageEvidenceResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ReadStagedMessageEvidenceResponse.ProtoReflect.Descriptor instead.
 func (*ReadStagedMessageEvidenceResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{25}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *ReadStagedMessageEvidenceResponse) GetSnapshotDigest() string {
@@ -2347,7 +3930,7 @@ type CheckStagedMessageRequest struct {
 
 func (x *CheckStagedMessageRequest) Reset() {
 	*x = CheckStagedMessageRequest{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[26]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2359,7 +3942,7 @@ func (x *CheckStagedMessageRequest) String() string {
 func (*CheckStagedMessageRequest) ProtoMessage() {}
 
 func (x *CheckStagedMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[26]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2372,7 +3955,7 @@ func (x *CheckStagedMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckStagedMessageRequest.ProtoReflect.Descriptor instead.
 func (*CheckStagedMessageRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{26}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *CheckStagedMessageRequest) GetRepositoryId() string {
@@ -2400,7 +3983,7 @@ type CheckStagedMessageResponse struct {
 
 func (x *CheckStagedMessageResponse) Reset() {
 	*x = CheckStagedMessageResponse{}
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[27]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2412,7 +3995,7 @@ func (x *CheckStagedMessageResponse) String() string {
 func (*CheckStagedMessageResponse) ProtoMessage() {}
 
 func (x *CheckStagedMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[27]
+	mi := &file_git_control_tower_v1_advisory_advisory_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2425,7 +4008,7 @@ func (x *CheckStagedMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckStagedMessageResponse.ProtoReflect.Descriptor instead.
 func (*CheckStagedMessageResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{27}
+	return file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *CheckStagedMessageResponse) GetApplicable() bool {
@@ -2453,7 +4036,32 @@ var File_git_control_tower_v1_advisory_advisory_proto protoreflect.FileDescripto
 
 const file_git_control_tower_v1_advisory_advisory_proto_rawDesc = "" +
 	"\n" +
-	",git-control-tower/v1/advisory/advisory.proto\x12$vrooli.git_control_tower.v1.advisory\"\xc3\x01\n" +
+	",git-control-tower/v1/advisory/advisory.proto\x12$vrooli.git_control_tower.v1.advisory\"\xd4\x01\n" +
+	"\x1dQueueWorktreeSelectionRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12!\n" +
+	"\fselection_id\x18\x02 \x01(\tR\vselectionId\x12U\n" +
+	"\x06source\x18\x03 \x01(\x0e2=.vrooli.git_control_tower.v1.advisory.WorktreeSelectionSourceR\x06source\x12\x14\n" +
+	"\x05paths\x18\x04 \x03(\tR\x05paths\"\xa2\x01\n" +
+	"\x1eFinalizeQueuedSelectionRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12!\n" +
+	"\fselection_id\x18\x02 \x01(\tR\vselectionId\x128\n" +
+	"\x18expected_snapshot_digest\x18\x03 \x01(\tR\x16expectedSnapshotDigest\"\xa1\x02\n" +
+	"\x1bStartQueuedSelectionRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12!\n" +
+	"\fselection_id\x18\x02 \x01(\tR\vselectionId\x12'\n" +
+	"\x0fsnapshot_digest\x18\x03 \x01(\tR\x0esnapshotDigest\x12\x1f\n" +
+	"\vrequest_key\x18\x04 \x01(\tR\n" +
+	"requestKey\x12K\n" +
+	"\x04mode\x18\x05 \x01(\x0e27.vrooli.git_control_tower.v1.advisory.StagedMessageModeR\x04mode\x12#\n" +
+	"\roperator_note\x18\x06 \x01(\tR\foperatorNote\"\xf8\x02\n" +
+	"\x17QueuedWorktreeSelection\x12!\n" +
+	"\fselection_id\x18\x01 \x01(\tR\vselectionId\x12#\n" +
+	"\rrepository_id\x18\x02 \x01(\tR\frepositoryId\x12U\n" +
+	"\x06source\x18\x03 \x01(\x0e2=.vrooli.git_control_tower.v1.advisory.WorktreeSelectionSourceR\x06source\x12\x14\n" +
+	"\x05paths\x18\x04 \x03(\tR\x05paths\x12'\n" +
+	"\x0fsnapshot_digest\x18\x05 \x01(\tR\x0esnapshotDigest\x12X\n" +
+	"\x05state\x18\x06 \x01(\x0e2B.vrooli.git_control_tower.v1.advisory.QueuedWorktreeSelectionStateR\x05state\x12%\n" +
+	"\x0efailure_reason\x18\a \x01(\tR\rfailureReason\"\xc3\x01\n" +
 	"\fDraftRequest\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12M\n" +
 	"\asubject\x18\x02 \x01(\v23.vrooli.git_control_tower.v1.advisory.ChangeSubjectR\asubject\x12P\n" +
@@ -2514,7 +4122,7 @@ const file_git_control_tower_v1_advisory_advisory_proto_rawDesc = "" +
 	"\bcoverage\x18\a \x01(\v2..vrooli.git_control_tower.v1.advisory.CoverageR\bcoverage\x12#\n" +
 	"\revidence_refs\x18\b \x03(\tR\fevidenceRefs\"B\n" +
 	"\x1bCollectStagedMessageRequest\x12#\n" +
-	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\"\xbb\x02\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\"\x88\x03\n" +
 	"\x19StartStagedMessageRequest\x12#\n" +
 	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12#\n" +
 	"\rcollection_id\x18\x02 \x01(\tR\fcollectionId\x12'\n" +
@@ -2523,7 +4131,91 @@ const file_git_control_tower_v1_advisory_advisory_proto_rawDesc = "" +
 	"\vrequest_key\x18\x05 \x01(\tR\n" +
 	"requestKey\x12#\n" +
 	"\roperator_note\x18\x06 \x01(\tR\foperatorNote\x123\n" +
-	"\x16continuation_of_job_id\x18\a \x01(\tR\x13continuationOfJobId\"\x9f\x01\n" +
+	"\x16continuation_of_job_id\x18\a \x01(\tR\x13continuationOfJobId\x12K\n" +
+	"\x04mode\x18\b \x01(\x0e27.vrooli.git_control_tower.v1.advisory.StagedMessageModeR\x04mode\"\xee\x01\n" +
+	"\x19RetryStagedMessageRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x15\n" +
+	"\x06job_id\x18\x02 \x01(\tR\x05jobId\x12'\n" +
+	"\x0fsnapshot_digest\x18\x03 \x01(\tR\x0esnapshotDigest\x12\x1f\n" +
+	"\vrequest_key\x18\x04 \x01(\tR\n" +
+	"requestKey\x12K\n" +
+	"\x04mode\x18\x05 \x01(\x0e27.vrooli.git_control_tower.v1.advisory.StagedMessageModeR\x04mode\"'\n" +
+	"%StagedMessageProviderReadinessRequest\"\xa3\x01\n" +
+	"\x1eStagedMessageProviderReadiness\x12\x1a\n" +
+	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x14\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\x12\x14\n" +
+	"\x05known\x18\x03 \x01(\bR\x05known\x12\x1f\n" +
+	"\vobserved_at\x18\x04 \x01(\tR\n" +
+	"observedAt\x12\x18\n" +
+	"\amessage\x18\x05 \x01(\tR\amessage\"\x98\x03\n" +
+	"!StartWorktreeStagedMessageRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x14\n" +
+	"\x05paths\x18\x02 \x03(\tR\x05paths\x12\x1f\n" +
+	"\vrequest_key\x18\x03 \x01(\tR\n" +
+	"requestKey\x12#\n" +
+	"\roperator_note\x18\x04 \x01(\tR\foperatorNote\x12K\n" +
+	"\x04mode\x18\x05 \x01(\x0e27.vrooli.git_control_tower.v1.advisory.StagedMessageModeR\x04mode\x123\n" +
+	"\x16replace_queue_entry_id\x18\x06 \x01(\tR\x13replaceQueueEntryId\x126\n" +
+	"\x17expected_queue_revision\x18\a \x01(\x04R\x15expectedQueueRevision\x128\n" +
+	"\x18expected_snapshot_digest\x18\b \x01(\tR\x16expectedSnapshotDigest\"I\n" +
+	"\"ListWorktreeSuggestionQueueRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\"\xff\x04\n" +
+	"\x1cWorktreeSuggestionQueueEntry\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12#\n" +
+	"\rrepository_id\x18\x02 \x01(\tR\frepositoryId\x12\x15\n" +
+	"\x06job_id\x18\x03 \x01(\tR\x05jobId\x12'\n" +
+	"\x0fsnapshot_digest\x18\x04 \x01(\tR\x0esnapshotDigest\x12\x14\n" +
+	"\x05paths\x18\x05 \x03(\tR\x05paths\x12K\n" +
+	"\x04mode\x18\x06 \x01(\x0e27.vrooli.git_control_tower.v1.advisory.StagedMessageModeR\x04mode\x12\x1f\n" +
+	"\vrequest_key\x18\a \x01(\tR\n" +
+	"requestKey\x12\x1a\n" +
+	"\bsequence\x18\b \x01(\x04R\bsequence\x12X\n" +
+	"\x05state\x18\t \x01(\x0e2B.vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueStateR\x05state\x12%\n" +
+	"\x0efailure_reason\x18\n" +
+	" \x01(\tR\rfailureReason\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\v \x01(\tR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\f \x01(\tR\tupdatedAt\x12h\n" +
+	"\x10selection_source\x18\r \x01(\x0e2=.vrooli.git_control_tower.v1.advisory.WorktreeSelectionSourceR\x0fselectionSource\x12!\n" +
+	"\fselection_id\x18\x0e \x01(\tR\vselectionId\"\xb8\x01\n" +
+	"\x17WorktreeSuggestionQueue\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\x04R\brevision\x12\\\n" +
+	"\aentries\x18\x03 \x03(\v2B.vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueEntryR\aentries\"\x8b\x02\n" +
+	" EnqueueWorktreeSuggestionRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x15\n" +
+	"\x06job_id\x18\x02 \x01(\tR\x05jobId\x12'\n" +
+	"\x0fsnapshot_digest\x18\x03 \x01(\tR\x0esnapshotDigest\x12\x14\n" +
+	"\x05paths\x18\x04 \x03(\tR\x05paths\x12K\n" +
+	"\x04mode\x18\x05 \x01(\x0e27.vrooli.git_control_tower.v1.advisory.StagedMessageModeR\x04mode\x12\x1f\n" +
+	"\vrequest_key\x18\x06 \x01(\tR\n" +
+	"requestKey\"\x85\x05\n" +
+	")UpdateWorktreeSuggestionQueueEntryRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x19\n" +
+	"\bentry_id\x18\x02 \x01(\tR\aentryId\x123\n" +
+	"\x16expected_head_entry_id\x18\x03 \x01(\tR\x13expectedHeadEntryId\x12+\n" +
+	"\x11expected_revision\x18\x04 \x01(\x04R\x10expectedRevision\x12X\n" +
+	"\x05state\x18\x05 \x01(\x0e2B.vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueStateR\x05state\x12%\n" +
+	"\x0efailure_reason\x18\x06 \x01(\tR\rfailureReason\x12,\n" +
+	"\x12replacement_job_id\x18\a \x01(\tR\x10replacementJobId\x12>\n" +
+	"\x1breplacement_snapshot_digest\x18\b \x01(\tR\x19replacementSnapshotDigest\x12+\n" +
+	"\x11replacement_paths\x18\t \x03(\tR\x10replacementPaths\x12b\n" +
+	"\x10replacement_mode\x18\n" +
+	" \x01(\x0e27.vrooli.git_control_tower.v1.advisory.StagedMessageModeR\x0freplacementMode\x126\n" +
+	"\x17replacement_request_key\x18\v \x01(\tR\x15replacementRequestKey\"\x9d\x02\n" +
+	"(RetireWorktreeSuggestionQueueHeadRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x123\n" +
+	"\x16expected_head_entry_id\x18\x02 \x01(\tR\x13expectedHeadEntryId\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x04R\x10expectedRevision\x12j\n" +
+	"\vdisposition\x18\x04 \x01(\x0e2H.vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueDispositionR\vdisposition\"\x98\x01\n" +
+	")RemoveWorktreeSuggestionQueueEntryRequest\x12#\n" +
+	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x19\n" +
+	"\bentry_id\x18\x02 \x01(\tR\aentryId\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x04R\x10expectedRevision\"\xe7\x01\n" +
+	"'WorktreeSuggestionQueueMutationResponse\x12S\n" +
+	"\x05queue\x18\x01 \x01(\v2=.vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueR\x05queue\x12g\n" +
+	"\rchanged_entry\x18\x02 \x01(\v2B.vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueEntryR\fchangedEntry\"\x9f\x01\n" +
 	"\x17StagedMessageJobRequest\x12#\n" +
 	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x15\n" +
 	"\x06job_id\x18\x02 \x01(\tR\x05jobId\x12'\n" +
@@ -2613,7 +4305,7 @@ const file_git_control_tower_v1_advisory_advisory_proto_rawDesc = "" +
 	"\tomissions\x18\x05 \x03(\v2..vrooli.git_control_tower.v1.advisory.OmissionR\tomissions\x12\x16\n" +
 	"\x06status\x18\x06 \x01(\tR\x06status\x12!\n" +
 	"\fcollected_at\x18\a \x01(\tR\vcollectedAt\x12e\n" +
-	"\rcontinuations\x18\b \x03(\v2?.vrooli.git_control_tower.v1.advisory.StagedMessageContinuationR\rcontinuations\"\xc1\x06\n" +
+	"\rcontinuations\x18\b \x03(\v2?.vrooli.git_control_tower.v1.advisory.StagedMessageContinuationR\rcontinuations\"\xc2\t\n" +
 	"\x10StagedMessageJob\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12#\n" +
 	"\rrepository_id\x18\x02 \x01(\tR\frepositoryId\x12'\n" +
@@ -2637,7 +4329,18 @@ const file_git_control_tower_v1_advisory_advisory_proto_rawDesc = "" +
 	"\x16continuation_of_job_id\x18\x0f \x01(\tR\x13continuationOfJobId\x12.\n" +
 	"\x13evidence_files_read\x18\x10 \x01(\rR\x11evidenceFilesRead\x120\n" +
 	"\x14evidence_files_total\x18\x11 \x01(\rR\x12evidenceFilesTotal\x12e\n" +
-	"\rcontinuations\x18\x12 \x03(\v2?.vrooli.git_control_tower.v1.advisory.StagedMessageContinuationR\rcontinuations\"\xfe\x01\n" +
+	"\rcontinuations\x18\x12 \x03(\v2?.vrooli.git_control_tower.v1.advisory.StagedMessageContinuationR\rcontinuations\x12\x1d\n" +
+	"\n" +
+	"error_code\x18\x13 \x01(\tR\terrorCode\x12\x1c\n" +
+	"\tretryable\x18\x14 \x01(\bR\tretryable\x12+\n" +
+	"\x11execution_started\x18\x15 \x01(\bR\x10executionStarted\x12\x1f\n" +
+	"\vtokens_used\x18\x16 \x01(\x03R\n" +
+	"tokensUsed\x12!\n" +
+	"\ftokens_known\x18\x17 \x01(\bR\vtokensKnown\x12L\n" +
+	"\tomissions\x18\x18 \x03(\v2..vrooli.git_control_tower.v1.advisory.OmissionR\tomissions\x126\n" +
+	"\x17execution_started_known\x18\x19 \x01(\bR\x15executionStartedKnown\x12(\n" +
+	"\x10charge_micro_usd\x18\x1a \x01(\x03R\x0echargeMicroUsd\x12!\n" +
+	"\fcharge_known\x18\x1b \x01(\bR\vchargeKnown\"\xfe\x01\n" +
 	" ReadStagedMessageEvidenceRequest\x12#\n" +
 	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x15\n" +
 	"\x06job_id\x18\x02 \x01(\tR\x05jobId\x12'\n" +
@@ -2678,20 +4381,57 @@ const file_git_control_tower_v1_advisory_advisory_proto_rawDesc = "" +
 	"applicable\x18\x01 \x01(\bR\n" +
 	"applicable\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\x126\n" +
-	"\x17current_snapshot_digest\x18\x03 \x01(\tR\x15currentSnapshotDigest*\x86\x01\n" +
+	"\x17current_snapshot_digest\x18\x03 \x01(\tR\x15currentSnapshotDigest*\xa2\x01\n" +
+	"\x17WorktreeSelectionSource\x12)\n" +
+	"%WORKTREE_SELECTION_SOURCE_UNSPECIFIED\x10\x00\x12/\n" +
+	"+WORKTREE_SELECTION_SOURCE_INDEX_TO_WORKTREE\x10\x01\x12+\n" +
+	"'WORKTREE_SELECTION_SOURCE_HEAD_TO_INDEX\x10\x02*\x88\x02\n" +
+	"\x1cQueuedWorktreeSelectionState\x12/\n" +
+	"+QUEUED_WORKTREE_SELECTION_STATE_UNSPECIFIED\x10\x00\x12*\n" +
+	"&QUEUED_WORKTREE_SELECTION_STATE_QUEUED\x10\x01\x124\n" +
+	"0QUEUED_WORKTREE_SELECTION_STATE_AWAITING_UNSTAGE\x10\x02\x12*\n" +
+	"&QUEUED_WORKTREE_SELECTION_STATE_FAILED\x10\x03\x12)\n" +
+	"%QUEUED_WORKTREE_SELECTION_STATE_STALE\x10\x04*u\n" +
+	"\x11StagedMessageMode\x12#\n" +
+	"\x1fSTAGED_MESSAGE_MODE_UNSPECIFIED\x10\x00\x12\x1d\n" +
+	"\x19STAGED_MESSAGE_MODE_QUICK\x10\x01\x12\x1c\n" +
+	"\x18STAGED_MESSAGE_MODE_DEEP\x10\x02*\xe8\x02\n" +
+	"\x1cWorktreeSuggestionQueueState\x12/\n" +
+	"+WORKTREE_SUGGESTION_QUEUE_STATE_UNSPECIFIED\x10\x00\x12*\n" +
+	"&WORKTREE_SUGGESTION_QUEUE_STATE_QUEUED\x10\x01\x12*\n" +
+	"&WORKTREE_SUGGESTION_QUEUE_STATE_STAGED\x10\x02\x12*\n" +
+	"&WORKTREE_SUGGESTION_QUEUE_STATE_FAILED\x10\x03\x12)\n" +
+	"%WORKTREE_SUGGESTION_QUEUE_STATE_STALE\x10\x04\x122\n" +
+	".WORKTREE_SUGGESTION_QUEUE_STATE_COMMIT_PENDING\x10\x05\x124\n" +
+	"0WORKTREE_SUGGESTION_QUEUE_STATE_AWAITING_UNSTAGE\x10\x06*\xc3\x01\n" +
+	"\"WorktreeSuggestionQueueDisposition\x125\n" +
+	"1WORKTREE_SUGGESTION_QUEUE_DISPOSITION_UNSPECIFIED\x10\x00\x123\n" +
+	"/WORKTREE_SUGGESTION_QUEUE_DISPOSITION_COMMITTED\x10\x01\x121\n" +
+	"-WORKTREE_SUGGESTION_QUEUE_DISPOSITION_REMOVED\x10\x02*\x86\x01\n" +
 	"\x12StagedMessageScope\x12$\n" +
 	" STAGED_MESSAGE_SCOPE_UNSPECIFIED\x10\x00\x12(\n" +
 	"$STAGED_MESSAGE_SCOPE_WHOLE_SELECTION\x10\x01\x12 \n" +
-	"\x1cSTAGED_MESSAGE_SCOPE_LIMITED\x10\x022\xa8\t\n" +
+	"\x1cSTAGED_MESSAGE_SCOPE_LIMITED\x10\x022\x8b\x18\n" +
 	"\x0fAdvisoryService\x12p\n" +
 	"\x05Draft\x122.vrooli.git_control_tower.v1.advisory.DraftRequest\x1a3.vrooli.git_control_tower.v1.advisory.DraftResponse\x12\x97\x01\n" +
 	"\x12CheckStagedMessage\x12?.vrooli.git_control_tower.v1.advisory.CheckStagedMessageRequest\x1a@.vrooli.git_control_tower.v1.advisory.CheckStagedMessageResponse\x12\x98\x01\n" +
 	"\x14CollectStagedMessage\x12A.vrooli.git_control_tower.v1.advisory.CollectStagedMessageRequest\x1a=.vrooli.git_control_tower.v1.advisory.StagedMessageCollection\x12\x8d\x01\n" +
-	"\x12StartStagedMessage\x12?.vrooli.git_control_tower.v1.advisory.StartStagedMessageRequest\x1a6.vrooli.git_control_tower.v1.advisory.StagedMessageJob\x12\x8c\x01\n" +
+	"\x12StartStagedMessage\x12?.vrooli.git_control_tower.v1.advisory.StartStagedMessageRequest\x1a6.vrooli.git_control_tower.v1.advisory.StagedMessageJob\x12\x8d\x01\n" +
+	"\x12RetryStagedMessage\x12?.vrooli.git_control_tower.v1.advisory.RetryStagedMessageRequest\x1a6.vrooli.git_control_tower.v1.advisory.StagedMessageJob\x12\xb6\x01\n" +
+	"!GetStagedMessageProviderReadiness\x12K.vrooli.git_control_tower.v1.advisory.StagedMessageProviderReadinessRequest\x1aD.vrooli.git_control_tower.v1.advisory.StagedMessageProviderReadiness\x12\x9d\x01\n" +
+	"\x1aStartWorktreeStagedMessage\x12G.vrooli.git_control_tower.v1.advisory.StartWorktreeStagedMessageRequest\x1a6.vrooli.git_control_tower.v1.advisory.StagedMessageJob\x12\x9c\x01\n" +
+	"\x16QueueWorktreeSelection\x12C.vrooli.git_control_tower.v1.advisory.QueueWorktreeSelectionRequest\x1a=.vrooli.git_control_tower.v1.advisory.QueuedWorktreeSelection\x12\x9e\x01\n" +
+	"\x17FinalizeQueuedSelection\x12D.vrooli.git_control_tower.v1.advisory.FinalizeQueuedSelectionRequest\x1a=.vrooli.git_control_tower.v1.advisory.QueuedWorktreeSelection\x12\x91\x01\n" +
+	"\x14StartQueuedSelection\x12A.vrooli.git_control_tower.v1.advisory.StartQueuedSelectionRequest\x1a6.vrooli.git_control_tower.v1.advisory.StagedMessageJob\x12\x8c\x01\n" +
 	"\x13GetStagedMessageJob\x12=.vrooli.git_control_tower.v1.advisory.StagedMessageJobRequest\x1a6.vrooli.git_control_tower.v1.advisory.StagedMessageJob\x12\x8d\x01\n" +
 	"\x14WaitStagedMessageJob\x12=.vrooli.git_control_tower.v1.advisory.StagedMessageJobRequest\x1a6.vrooli.git_control_tower.v1.advisory.StagedMessageJob\x12\x8f\x01\n" +
 	"\x16CancelStagedMessageJob\x12=.vrooli.git_control_tower.v1.advisory.StagedMessageJobRequest\x1a6.vrooli.git_control_tower.v1.advisory.StagedMessageJob\x12\xac\x01\n" +
-	"\x19ReadStagedMessageEvidence\x12F.vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceRequest\x1aG.vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceResponseBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/advisory;advisory_v1b\x06proto3"
+	"\x19ReadStagedMessageEvidence\x12F.vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceRequest\x1aG.vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceResponse\x12\xa6\x01\n" +
+	"\x1bListWorktreeSuggestionQueue\x12H.vrooli.git_control_tower.v1.advisory.ListWorktreeSuggestionQueueRequest\x1a=.vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueue\x12\xa7\x01\n" +
+	"\x19EnqueueWorktreeSuggestion\x12F.vrooli.git_control_tower.v1.advisory.EnqueueWorktreeSuggestionRequest\x1aB.vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueEntry\x12\xc4\x01\n" +
+	"\"UpdateWorktreeSuggestionQueueEntry\x12O.vrooli.git_control_tower.v1.advisory.UpdateWorktreeSuggestionQueueEntryRequest\x1aM.vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueMutationResponse\x12\xc2\x01\n" +
+	"!RetireWorktreeSuggestionQueueHead\x12N.vrooli.git_control_tower.v1.advisory.RetireWorktreeSuggestionQueueHeadRequest\x1aM.vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueMutationResponse\x12\xc4\x01\n" +
+	"\"RemoveWorktreeSuggestionQueueEntry\x12O.vrooli.git_control_tower.v1.advisory.RemoveWorktreeSuggestionQueueEntryRequest\x1aM.vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueMutationResponseBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/advisory;advisory_v1b\x06proto3"
 
 var (
 	file_git_control_tower_v1_advisory_advisory_proto_rawDescOnce sync.Once
@@ -2705,88 +4445,149 @@ func file_git_control_tower_v1_advisory_advisory_proto_rawDescGZIP() []byte {
 	return file_git_control_tower_v1_advisory_advisory_proto_rawDescData
 }
 
-var file_git_control_tower_v1_advisory_advisory_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_git_control_tower_v1_advisory_advisory_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_git_control_tower_v1_advisory_advisory_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
+var file_git_control_tower_v1_advisory_advisory_proto_msgTypes = make([]protoimpl.MessageInfo, 45)
 var file_git_control_tower_v1_advisory_advisory_proto_goTypes = []any{
-	(StagedMessageScope)(0),                   // 0: vrooli.git_control_tower.v1.advisory.StagedMessageScope
-	(*DraftRequest)(nil),                      // 1: vrooli.git_control_tower.v1.advisory.DraftRequest
-	(*ChangeSubject)(nil),                     // 2: vrooli.git_control_tower.v1.advisory.ChangeSubject
-	(*HostSubject)(nil),                       // 3: vrooli.git_control_tower.v1.advisory.HostSubject
-	(*SubjectScope)(nil),                      // 4: vrooli.git_control_tower.v1.advisory.SubjectScope
-	(*EvidenceBundle)(nil),                    // 5: vrooli.git_control_tower.v1.advisory.EvidenceBundle
-	(*Claim)(nil),                             // 6: vrooli.git_control_tower.v1.advisory.Claim
-	(*Coverage)(nil),                          // 7: vrooli.git_control_tower.v1.advisory.Coverage
-	(*Omission)(nil),                          // 8: vrooli.git_control_tower.v1.advisory.Omission
-	(*ValidationRef)(nil),                     // 9: vrooli.git_control_tower.v1.advisory.ValidationRef
-	(*DraftResponse)(nil),                     // 10: vrooli.git_control_tower.v1.advisory.DraftResponse
-	(*CollectStagedMessageRequest)(nil),       // 11: vrooli.git_control_tower.v1.advisory.CollectStagedMessageRequest
-	(*StartStagedMessageRequest)(nil),         // 12: vrooli.git_control_tower.v1.advisory.StartStagedMessageRequest
-	(*StagedMessageJobRequest)(nil),           // 13: vrooli.git_control_tower.v1.advisory.StagedMessageJobRequest
-	(*StagedMessageTrailer)(nil),              // 14: vrooli.git_control_tower.v1.advisory.StagedMessageTrailer
-	(*StagedMessageTimingHint)(nil),           // 15: vrooli.git_control_tower.v1.advisory.StagedMessageTimingHint
-	(*StagedMessageFile)(nil),                 // 16: vrooli.git_control_tower.v1.advisory.StagedMessageFile
-	(*StagedMessageSnapshot)(nil),             // 17: vrooli.git_control_tower.v1.advisory.StagedMessageSnapshot
-	(*StagedMessageCoverage)(nil),             // 18: vrooli.git_control_tower.v1.advisory.StagedMessageCoverage
-	(*StagedMessageContext)(nil),              // 19: vrooli.git_control_tower.v1.advisory.StagedMessageContext
-	(*StagedMessageSuggestion)(nil),           // 20: vrooli.git_control_tower.v1.advisory.StagedMessageSuggestion
-	(*StagedMessageContinuation)(nil),         // 21: vrooli.git_control_tower.v1.advisory.StagedMessageContinuation
-	(*StagedMessageCollection)(nil),           // 22: vrooli.git_control_tower.v1.advisory.StagedMessageCollection
-	(*StagedMessageJob)(nil),                  // 23: vrooli.git_control_tower.v1.advisory.StagedMessageJob
-	(*ReadStagedMessageEvidenceRequest)(nil),  // 24: vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceRequest
-	(*StagedMessageEvidenceFile)(nil),         // 25: vrooli.git_control_tower.v1.advisory.StagedMessageEvidenceFile
-	(*ReadStagedMessageEvidenceResponse)(nil), // 26: vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceResponse
-	(*CheckStagedMessageRequest)(nil),         // 27: vrooli.git_control_tower.v1.advisory.CheckStagedMessageRequest
-	(*CheckStagedMessageResponse)(nil),        // 28: vrooli.git_control_tower.v1.advisory.CheckStagedMessageResponse
-	nil,                                       // 29: vrooli.git_control_tower.v1.advisory.EvidenceBundle.VersionsEntry
+	(WorktreeSelectionSource)(0),                      // 0: vrooli.git_control_tower.v1.advisory.WorktreeSelectionSource
+	(QueuedWorktreeSelectionState)(0),                 // 1: vrooli.git_control_tower.v1.advisory.QueuedWorktreeSelectionState
+	(StagedMessageMode)(0),                            // 2: vrooli.git_control_tower.v1.advisory.StagedMessageMode
+	(WorktreeSuggestionQueueState)(0),                 // 3: vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueState
+	(WorktreeSuggestionQueueDisposition)(0),           // 4: vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueDisposition
+	(StagedMessageScope)(0),                           // 5: vrooli.git_control_tower.v1.advisory.StagedMessageScope
+	(*QueueWorktreeSelectionRequest)(nil),             // 6: vrooli.git_control_tower.v1.advisory.QueueWorktreeSelectionRequest
+	(*FinalizeQueuedSelectionRequest)(nil),            // 7: vrooli.git_control_tower.v1.advisory.FinalizeQueuedSelectionRequest
+	(*StartQueuedSelectionRequest)(nil),               // 8: vrooli.git_control_tower.v1.advisory.StartQueuedSelectionRequest
+	(*QueuedWorktreeSelection)(nil),                   // 9: vrooli.git_control_tower.v1.advisory.QueuedWorktreeSelection
+	(*DraftRequest)(nil),                              // 10: vrooli.git_control_tower.v1.advisory.DraftRequest
+	(*ChangeSubject)(nil),                             // 11: vrooli.git_control_tower.v1.advisory.ChangeSubject
+	(*HostSubject)(nil),                               // 12: vrooli.git_control_tower.v1.advisory.HostSubject
+	(*SubjectScope)(nil),                              // 13: vrooli.git_control_tower.v1.advisory.SubjectScope
+	(*EvidenceBundle)(nil),                            // 14: vrooli.git_control_tower.v1.advisory.EvidenceBundle
+	(*Claim)(nil),                                     // 15: vrooli.git_control_tower.v1.advisory.Claim
+	(*Coverage)(nil),                                  // 16: vrooli.git_control_tower.v1.advisory.Coverage
+	(*Omission)(nil),                                  // 17: vrooli.git_control_tower.v1.advisory.Omission
+	(*ValidationRef)(nil),                             // 18: vrooli.git_control_tower.v1.advisory.ValidationRef
+	(*DraftResponse)(nil),                             // 19: vrooli.git_control_tower.v1.advisory.DraftResponse
+	(*CollectStagedMessageRequest)(nil),               // 20: vrooli.git_control_tower.v1.advisory.CollectStagedMessageRequest
+	(*StartStagedMessageRequest)(nil),                 // 21: vrooli.git_control_tower.v1.advisory.StartStagedMessageRequest
+	(*RetryStagedMessageRequest)(nil),                 // 22: vrooli.git_control_tower.v1.advisory.RetryStagedMessageRequest
+	(*StagedMessageProviderReadinessRequest)(nil),     // 23: vrooli.git_control_tower.v1.advisory.StagedMessageProviderReadinessRequest
+	(*StagedMessageProviderReadiness)(nil),            // 24: vrooli.git_control_tower.v1.advisory.StagedMessageProviderReadiness
+	(*StartWorktreeStagedMessageRequest)(nil),         // 25: vrooli.git_control_tower.v1.advisory.StartWorktreeStagedMessageRequest
+	(*ListWorktreeSuggestionQueueRequest)(nil),        // 26: vrooli.git_control_tower.v1.advisory.ListWorktreeSuggestionQueueRequest
+	(*WorktreeSuggestionQueueEntry)(nil),              // 27: vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueEntry
+	(*WorktreeSuggestionQueue)(nil),                   // 28: vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueue
+	(*EnqueueWorktreeSuggestionRequest)(nil),          // 29: vrooli.git_control_tower.v1.advisory.EnqueueWorktreeSuggestionRequest
+	(*UpdateWorktreeSuggestionQueueEntryRequest)(nil), // 30: vrooli.git_control_tower.v1.advisory.UpdateWorktreeSuggestionQueueEntryRequest
+	(*RetireWorktreeSuggestionQueueHeadRequest)(nil),  // 31: vrooli.git_control_tower.v1.advisory.RetireWorktreeSuggestionQueueHeadRequest
+	(*RemoveWorktreeSuggestionQueueEntryRequest)(nil), // 32: vrooli.git_control_tower.v1.advisory.RemoveWorktreeSuggestionQueueEntryRequest
+	(*WorktreeSuggestionQueueMutationResponse)(nil),   // 33: vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueMutationResponse
+	(*StagedMessageJobRequest)(nil),                   // 34: vrooli.git_control_tower.v1.advisory.StagedMessageJobRequest
+	(*StagedMessageTrailer)(nil),                      // 35: vrooli.git_control_tower.v1.advisory.StagedMessageTrailer
+	(*StagedMessageTimingHint)(nil),                   // 36: vrooli.git_control_tower.v1.advisory.StagedMessageTimingHint
+	(*StagedMessageFile)(nil),                         // 37: vrooli.git_control_tower.v1.advisory.StagedMessageFile
+	(*StagedMessageSnapshot)(nil),                     // 38: vrooli.git_control_tower.v1.advisory.StagedMessageSnapshot
+	(*StagedMessageCoverage)(nil),                     // 39: vrooli.git_control_tower.v1.advisory.StagedMessageCoverage
+	(*StagedMessageContext)(nil),                      // 40: vrooli.git_control_tower.v1.advisory.StagedMessageContext
+	(*StagedMessageSuggestion)(nil),                   // 41: vrooli.git_control_tower.v1.advisory.StagedMessageSuggestion
+	(*StagedMessageContinuation)(nil),                 // 42: vrooli.git_control_tower.v1.advisory.StagedMessageContinuation
+	(*StagedMessageCollection)(nil),                   // 43: vrooli.git_control_tower.v1.advisory.StagedMessageCollection
+	(*StagedMessageJob)(nil),                          // 44: vrooli.git_control_tower.v1.advisory.StagedMessageJob
+	(*ReadStagedMessageEvidenceRequest)(nil),          // 45: vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceRequest
+	(*StagedMessageEvidenceFile)(nil),                 // 46: vrooli.git_control_tower.v1.advisory.StagedMessageEvidenceFile
+	(*ReadStagedMessageEvidenceResponse)(nil),         // 47: vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceResponse
+	(*CheckStagedMessageRequest)(nil),                 // 48: vrooli.git_control_tower.v1.advisory.CheckStagedMessageRequest
+	(*CheckStagedMessageResponse)(nil),                // 49: vrooli.git_control_tower.v1.advisory.CheckStagedMessageResponse
+	nil,                                               // 50: vrooli.git_control_tower.v1.advisory.EvidenceBundle.VersionsEntry
 }
 var file_git_control_tower_v1_advisory_advisory_proto_depIdxs = []int32{
-	2,  // 0: vrooli.git_control_tower.v1.advisory.DraftRequest.subject:type_name -> vrooli.git_control_tower.v1.advisory.ChangeSubject
-	5,  // 1: vrooli.git_control_tower.v1.advisory.DraftRequest.evidence:type_name -> vrooli.git_control_tower.v1.advisory.EvidenceBundle
-	3,  // 2: vrooli.git_control_tower.v1.advisory.ChangeSubject.host:type_name -> vrooli.git_control_tower.v1.advisory.HostSubject
-	4,  // 3: vrooli.git_control_tower.v1.advisory.ChangeSubject.scope:type_name -> vrooli.git_control_tower.v1.advisory.SubjectScope
-	6,  // 4: vrooli.git_control_tower.v1.advisory.EvidenceBundle.claims:type_name -> vrooli.git_control_tower.v1.advisory.Claim
-	7,  // 5: vrooli.git_control_tower.v1.advisory.EvidenceBundle.coverage:type_name -> vrooli.git_control_tower.v1.advisory.Coverage
-	9,  // 6: vrooli.git_control_tower.v1.advisory.EvidenceBundle.validation:type_name -> vrooli.git_control_tower.v1.advisory.ValidationRef
-	29, // 7: vrooli.git_control_tower.v1.advisory.EvidenceBundle.versions:type_name -> vrooli.git_control_tower.v1.advisory.EvidenceBundle.VersionsEntry
-	8,  // 8: vrooli.git_control_tower.v1.advisory.Coverage.omissions:type_name -> vrooli.git_control_tower.v1.advisory.Omission
-	7,  // 9: vrooli.git_control_tower.v1.advisory.DraftResponse.coverage:type_name -> vrooli.git_control_tower.v1.advisory.Coverage
-	15, // 10: vrooli.git_control_tower.v1.advisory.StagedMessageFile.timing_hints:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageTimingHint
-	16, // 11: vrooli.git_control_tower.v1.advisory.StagedMessageSnapshot.files:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageFile
-	8,  // 12: vrooli.git_control_tower.v1.advisory.StagedMessageCoverage.omissions:type_name -> vrooli.git_control_tower.v1.advisory.Omission
-	14, // 13: vrooli.git_control_tower.v1.advisory.StagedMessageSuggestion.trailers:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageTrailer
-	18, // 14: vrooli.git_control_tower.v1.advisory.StagedMessageSuggestion.coverage:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageCoverage
-	0,  // 15: vrooli.git_control_tower.v1.advisory.StagedMessageSuggestion.message_scope:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageScope
-	14, // 16: vrooli.git_control_tower.v1.advisory.StagedMessageContinuation.trailers:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageTrailer
-	17, // 17: vrooli.git_control_tower.v1.advisory.StagedMessageCollection.snapshot:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageSnapshot
-	20, // 18: vrooli.git_control_tower.v1.advisory.StagedMessageCollection.suggestions:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageSuggestion
-	19, // 19: vrooli.git_control_tower.v1.advisory.StagedMessageCollection.contexts:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageContext
-	8,  // 20: vrooli.git_control_tower.v1.advisory.StagedMessageCollection.omissions:type_name -> vrooli.git_control_tower.v1.advisory.Omission
-	21, // 21: vrooli.git_control_tower.v1.advisory.StagedMessageCollection.continuations:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageContinuation
-	20, // 22: vrooli.git_control_tower.v1.advisory.StagedMessageJob.result:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageSuggestion
-	17, // 23: vrooli.git_control_tower.v1.advisory.StagedMessageJob.snapshot:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageSnapshot
-	21, // 24: vrooli.git_control_tower.v1.advisory.StagedMessageJob.continuations:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageContinuation
-	25, // 25: vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceResponse.files:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageEvidenceFile
-	1,  // 26: vrooli.git_control_tower.v1.advisory.AdvisoryService.Draft:input_type -> vrooli.git_control_tower.v1.advisory.DraftRequest
-	27, // 27: vrooli.git_control_tower.v1.advisory.AdvisoryService.CheckStagedMessage:input_type -> vrooli.git_control_tower.v1.advisory.CheckStagedMessageRequest
-	11, // 28: vrooli.git_control_tower.v1.advisory.AdvisoryService.CollectStagedMessage:input_type -> vrooli.git_control_tower.v1.advisory.CollectStagedMessageRequest
-	12, // 29: vrooli.git_control_tower.v1.advisory.AdvisoryService.StartStagedMessage:input_type -> vrooli.git_control_tower.v1.advisory.StartStagedMessageRequest
-	13, // 30: vrooli.git_control_tower.v1.advisory.AdvisoryService.GetStagedMessageJob:input_type -> vrooli.git_control_tower.v1.advisory.StagedMessageJobRequest
-	13, // 31: vrooli.git_control_tower.v1.advisory.AdvisoryService.WaitStagedMessageJob:input_type -> vrooli.git_control_tower.v1.advisory.StagedMessageJobRequest
-	13, // 32: vrooli.git_control_tower.v1.advisory.AdvisoryService.CancelStagedMessageJob:input_type -> vrooli.git_control_tower.v1.advisory.StagedMessageJobRequest
-	24, // 33: vrooli.git_control_tower.v1.advisory.AdvisoryService.ReadStagedMessageEvidence:input_type -> vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceRequest
-	10, // 34: vrooli.git_control_tower.v1.advisory.AdvisoryService.Draft:output_type -> vrooli.git_control_tower.v1.advisory.DraftResponse
-	28, // 35: vrooli.git_control_tower.v1.advisory.AdvisoryService.CheckStagedMessage:output_type -> vrooli.git_control_tower.v1.advisory.CheckStagedMessageResponse
-	22, // 36: vrooli.git_control_tower.v1.advisory.AdvisoryService.CollectStagedMessage:output_type -> vrooli.git_control_tower.v1.advisory.StagedMessageCollection
-	23, // 37: vrooli.git_control_tower.v1.advisory.AdvisoryService.StartStagedMessage:output_type -> vrooli.git_control_tower.v1.advisory.StagedMessageJob
-	23, // 38: vrooli.git_control_tower.v1.advisory.AdvisoryService.GetStagedMessageJob:output_type -> vrooli.git_control_tower.v1.advisory.StagedMessageJob
-	23, // 39: vrooli.git_control_tower.v1.advisory.AdvisoryService.WaitStagedMessageJob:output_type -> vrooli.git_control_tower.v1.advisory.StagedMessageJob
-	23, // 40: vrooli.git_control_tower.v1.advisory.AdvisoryService.CancelStagedMessageJob:output_type -> vrooli.git_control_tower.v1.advisory.StagedMessageJob
-	26, // 41: vrooli.git_control_tower.v1.advisory.AdvisoryService.ReadStagedMessageEvidence:output_type -> vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceResponse
-	34, // [34:42] is the sub-list for method output_type
-	26, // [26:34] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	0,  // 0: vrooli.git_control_tower.v1.advisory.QueueWorktreeSelectionRequest.source:type_name -> vrooli.git_control_tower.v1.advisory.WorktreeSelectionSource
+	2,  // 1: vrooli.git_control_tower.v1.advisory.StartQueuedSelectionRequest.mode:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageMode
+	0,  // 2: vrooli.git_control_tower.v1.advisory.QueuedWorktreeSelection.source:type_name -> vrooli.git_control_tower.v1.advisory.WorktreeSelectionSource
+	1,  // 3: vrooli.git_control_tower.v1.advisory.QueuedWorktreeSelection.state:type_name -> vrooli.git_control_tower.v1.advisory.QueuedWorktreeSelectionState
+	11, // 4: vrooli.git_control_tower.v1.advisory.DraftRequest.subject:type_name -> vrooli.git_control_tower.v1.advisory.ChangeSubject
+	14, // 5: vrooli.git_control_tower.v1.advisory.DraftRequest.evidence:type_name -> vrooli.git_control_tower.v1.advisory.EvidenceBundle
+	12, // 6: vrooli.git_control_tower.v1.advisory.ChangeSubject.host:type_name -> vrooli.git_control_tower.v1.advisory.HostSubject
+	13, // 7: vrooli.git_control_tower.v1.advisory.ChangeSubject.scope:type_name -> vrooli.git_control_tower.v1.advisory.SubjectScope
+	15, // 8: vrooli.git_control_tower.v1.advisory.EvidenceBundle.claims:type_name -> vrooli.git_control_tower.v1.advisory.Claim
+	16, // 9: vrooli.git_control_tower.v1.advisory.EvidenceBundle.coverage:type_name -> vrooli.git_control_tower.v1.advisory.Coverage
+	18, // 10: vrooli.git_control_tower.v1.advisory.EvidenceBundle.validation:type_name -> vrooli.git_control_tower.v1.advisory.ValidationRef
+	50, // 11: vrooli.git_control_tower.v1.advisory.EvidenceBundle.versions:type_name -> vrooli.git_control_tower.v1.advisory.EvidenceBundle.VersionsEntry
+	17, // 12: vrooli.git_control_tower.v1.advisory.Coverage.omissions:type_name -> vrooli.git_control_tower.v1.advisory.Omission
+	16, // 13: vrooli.git_control_tower.v1.advisory.DraftResponse.coverage:type_name -> vrooli.git_control_tower.v1.advisory.Coverage
+	2,  // 14: vrooli.git_control_tower.v1.advisory.StartStagedMessageRequest.mode:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageMode
+	2,  // 15: vrooli.git_control_tower.v1.advisory.RetryStagedMessageRequest.mode:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageMode
+	2,  // 16: vrooli.git_control_tower.v1.advisory.StartWorktreeStagedMessageRequest.mode:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageMode
+	2,  // 17: vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueEntry.mode:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageMode
+	3,  // 18: vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueEntry.state:type_name -> vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueState
+	0,  // 19: vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueEntry.selection_source:type_name -> vrooli.git_control_tower.v1.advisory.WorktreeSelectionSource
+	27, // 20: vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueue.entries:type_name -> vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueEntry
+	2,  // 21: vrooli.git_control_tower.v1.advisory.EnqueueWorktreeSuggestionRequest.mode:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageMode
+	3,  // 22: vrooli.git_control_tower.v1.advisory.UpdateWorktreeSuggestionQueueEntryRequest.state:type_name -> vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueState
+	2,  // 23: vrooli.git_control_tower.v1.advisory.UpdateWorktreeSuggestionQueueEntryRequest.replacement_mode:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageMode
+	4,  // 24: vrooli.git_control_tower.v1.advisory.RetireWorktreeSuggestionQueueHeadRequest.disposition:type_name -> vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueDisposition
+	28, // 25: vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueMutationResponse.queue:type_name -> vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueue
+	27, // 26: vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueMutationResponse.changed_entry:type_name -> vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueEntry
+	36, // 27: vrooli.git_control_tower.v1.advisory.StagedMessageFile.timing_hints:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageTimingHint
+	37, // 28: vrooli.git_control_tower.v1.advisory.StagedMessageSnapshot.files:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageFile
+	17, // 29: vrooli.git_control_tower.v1.advisory.StagedMessageCoverage.omissions:type_name -> vrooli.git_control_tower.v1.advisory.Omission
+	35, // 30: vrooli.git_control_tower.v1.advisory.StagedMessageSuggestion.trailers:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageTrailer
+	39, // 31: vrooli.git_control_tower.v1.advisory.StagedMessageSuggestion.coverage:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageCoverage
+	5,  // 32: vrooli.git_control_tower.v1.advisory.StagedMessageSuggestion.message_scope:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageScope
+	35, // 33: vrooli.git_control_tower.v1.advisory.StagedMessageContinuation.trailers:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageTrailer
+	38, // 34: vrooli.git_control_tower.v1.advisory.StagedMessageCollection.snapshot:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageSnapshot
+	41, // 35: vrooli.git_control_tower.v1.advisory.StagedMessageCollection.suggestions:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageSuggestion
+	40, // 36: vrooli.git_control_tower.v1.advisory.StagedMessageCollection.contexts:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageContext
+	17, // 37: vrooli.git_control_tower.v1.advisory.StagedMessageCollection.omissions:type_name -> vrooli.git_control_tower.v1.advisory.Omission
+	42, // 38: vrooli.git_control_tower.v1.advisory.StagedMessageCollection.continuations:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageContinuation
+	41, // 39: vrooli.git_control_tower.v1.advisory.StagedMessageJob.result:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageSuggestion
+	38, // 40: vrooli.git_control_tower.v1.advisory.StagedMessageJob.snapshot:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageSnapshot
+	42, // 41: vrooli.git_control_tower.v1.advisory.StagedMessageJob.continuations:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageContinuation
+	17, // 42: vrooli.git_control_tower.v1.advisory.StagedMessageJob.omissions:type_name -> vrooli.git_control_tower.v1.advisory.Omission
+	46, // 43: vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceResponse.files:type_name -> vrooli.git_control_tower.v1.advisory.StagedMessageEvidenceFile
+	10, // 44: vrooli.git_control_tower.v1.advisory.AdvisoryService.Draft:input_type -> vrooli.git_control_tower.v1.advisory.DraftRequest
+	48, // 45: vrooli.git_control_tower.v1.advisory.AdvisoryService.CheckStagedMessage:input_type -> vrooli.git_control_tower.v1.advisory.CheckStagedMessageRequest
+	20, // 46: vrooli.git_control_tower.v1.advisory.AdvisoryService.CollectStagedMessage:input_type -> vrooli.git_control_tower.v1.advisory.CollectStagedMessageRequest
+	21, // 47: vrooli.git_control_tower.v1.advisory.AdvisoryService.StartStagedMessage:input_type -> vrooli.git_control_tower.v1.advisory.StartStagedMessageRequest
+	22, // 48: vrooli.git_control_tower.v1.advisory.AdvisoryService.RetryStagedMessage:input_type -> vrooli.git_control_tower.v1.advisory.RetryStagedMessageRequest
+	23, // 49: vrooli.git_control_tower.v1.advisory.AdvisoryService.GetStagedMessageProviderReadiness:input_type -> vrooli.git_control_tower.v1.advisory.StagedMessageProviderReadinessRequest
+	25, // 50: vrooli.git_control_tower.v1.advisory.AdvisoryService.StartWorktreeStagedMessage:input_type -> vrooli.git_control_tower.v1.advisory.StartWorktreeStagedMessageRequest
+	6,  // 51: vrooli.git_control_tower.v1.advisory.AdvisoryService.QueueWorktreeSelection:input_type -> vrooli.git_control_tower.v1.advisory.QueueWorktreeSelectionRequest
+	7,  // 52: vrooli.git_control_tower.v1.advisory.AdvisoryService.FinalizeQueuedSelection:input_type -> vrooli.git_control_tower.v1.advisory.FinalizeQueuedSelectionRequest
+	8,  // 53: vrooli.git_control_tower.v1.advisory.AdvisoryService.StartQueuedSelection:input_type -> vrooli.git_control_tower.v1.advisory.StartQueuedSelectionRequest
+	34, // 54: vrooli.git_control_tower.v1.advisory.AdvisoryService.GetStagedMessageJob:input_type -> vrooli.git_control_tower.v1.advisory.StagedMessageJobRequest
+	34, // 55: vrooli.git_control_tower.v1.advisory.AdvisoryService.WaitStagedMessageJob:input_type -> vrooli.git_control_tower.v1.advisory.StagedMessageJobRequest
+	34, // 56: vrooli.git_control_tower.v1.advisory.AdvisoryService.CancelStagedMessageJob:input_type -> vrooli.git_control_tower.v1.advisory.StagedMessageJobRequest
+	45, // 57: vrooli.git_control_tower.v1.advisory.AdvisoryService.ReadStagedMessageEvidence:input_type -> vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceRequest
+	26, // 58: vrooli.git_control_tower.v1.advisory.AdvisoryService.ListWorktreeSuggestionQueue:input_type -> vrooli.git_control_tower.v1.advisory.ListWorktreeSuggestionQueueRequest
+	29, // 59: vrooli.git_control_tower.v1.advisory.AdvisoryService.EnqueueWorktreeSuggestion:input_type -> vrooli.git_control_tower.v1.advisory.EnqueueWorktreeSuggestionRequest
+	30, // 60: vrooli.git_control_tower.v1.advisory.AdvisoryService.UpdateWorktreeSuggestionQueueEntry:input_type -> vrooli.git_control_tower.v1.advisory.UpdateWorktreeSuggestionQueueEntryRequest
+	31, // 61: vrooli.git_control_tower.v1.advisory.AdvisoryService.RetireWorktreeSuggestionQueueHead:input_type -> vrooli.git_control_tower.v1.advisory.RetireWorktreeSuggestionQueueHeadRequest
+	32, // 62: vrooli.git_control_tower.v1.advisory.AdvisoryService.RemoveWorktreeSuggestionQueueEntry:input_type -> vrooli.git_control_tower.v1.advisory.RemoveWorktreeSuggestionQueueEntryRequest
+	19, // 63: vrooli.git_control_tower.v1.advisory.AdvisoryService.Draft:output_type -> vrooli.git_control_tower.v1.advisory.DraftResponse
+	49, // 64: vrooli.git_control_tower.v1.advisory.AdvisoryService.CheckStagedMessage:output_type -> vrooli.git_control_tower.v1.advisory.CheckStagedMessageResponse
+	43, // 65: vrooli.git_control_tower.v1.advisory.AdvisoryService.CollectStagedMessage:output_type -> vrooli.git_control_tower.v1.advisory.StagedMessageCollection
+	44, // 66: vrooli.git_control_tower.v1.advisory.AdvisoryService.StartStagedMessage:output_type -> vrooli.git_control_tower.v1.advisory.StagedMessageJob
+	44, // 67: vrooli.git_control_tower.v1.advisory.AdvisoryService.RetryStagedMessage:output_type -> vrooli.git_control_tower.v1.advisory.StagedMessageJob
+	24, // 68: vrooli.git_control_tower.v1.advisory.AdvisoryService.GetStagedMessageProviderReadiness:output_type -> vrooli.git_control_tower.v1.advisory.StagedMessageProviderReadiness
+	44, // 69: vrooli.git_control_tower.v1.advisory.AdvisoryService.StartWorktreeStagedMessage:output_type -> vrooli.git_control_tower.v1.advisory.StagedMessageJob
+	9,  // 70: vrooli.git_control_tower.v1.advisory.AdvisoryService.QueueWorktreeSelection:output_type -> vrooli.git_control_tower.v1.advisory.QueuedWorktreeSelection
+	9,  // 71: vrooli.git_control_tower.v1.advisory.AdvisoryService.FinalizeQueuedSelection:output_type -> vrooli.git_control_tower.v1.advisory.QueuedWorktreeSelection
+	44, // 72: vrooli.git_control_tower.v1.advisory.AdvisoryService.StartQueuedSelection:output_type -> vrooli.git_control_tower.v1.advisory.StagedMessageJob
+	44, // 73: vrooli.git_control_tower.v1.advisory.AdvisoryService.GetStagedMessageJob:output_type -> vrooli.git_control_tower.v1.advisory.StagedMessageJob
+	44, // 74: vrooli.git_control_tower.v1.advisory.AdvisoryService.WaitStagedMessageJob:output_type -> vrooli.git_control_tower.v1.advisory.StagedMessageJob
+	44, // 75: vrooli.git_control_tower.v1.advisory.AdvisoryService.CancelStagedMessageJob:output_type -> vrooli.git_control_tower.v1.advisory.StagedMessageJob
+	47, // 76: vrooli.git_control_tower.v1.advisory.AdvisoryService.ReadStagedMessageEvidence:output_type -> vrooli.git_control_tower.v1.advisory.ReadStagedMessageEvidenceResponse
+	28, // 77: vrooli.git_control_tower.v1.advisory.AdvisoryService.ListWorktreeSuggestionQueue:output_type -> vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueue
+	27, // 78: vrooli.git_control_tower.v1.advisory.AdvisoryService.EnqueueWorktreeSuggestion:output_type -> vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueEntry
+	33, // 79: vrooli.git_control_tower.v1.advisory.AdvisoryService.UpdateWorktreeSuggestionQueueEntry:output_type -> vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueMutationResponse
+	33, // 80: vrooli.git_control_tower.v1.advisory.AdvisoryService.RetireWorktreeSuggestionQueueHead:output_type -> vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueMutationResponse
+	33, // 81: vrooli.git_control_tower.v1.advisory.AdvisoryService.RemoveWorktreeSuggestionQueueEntry:output_type -> vrooli.git_control_tower.v1.advisory.WorktreeSuggestionQueueMutationResponse
+	63, // [63:82] is the sub-list for method output_type
+	44, // [44:63] is the sub-list for method input_type
+	44, // [44:44] is the sub-list for extension type_name
+	44, // [44:44] is the sub-list for extension extendee
+	0,  // [0:44] is the sub-list for field type_name
 }
 
 func init() { file_git_control_tower_v1_advisory_advisory_proto_init() }
@@ -2799,8 +4600,8 @@ func file_git_control_tower_v1_advisory_advisory_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_git_control_tower_v1_advisory_advisory_proto_rawDesc), len(file_git_control_tower_v1_advisory_advisory_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   29,
+			NumEnums:      6,
+			NumMessages:   45,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

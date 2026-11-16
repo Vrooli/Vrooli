@@ -20,23 +20,36 @@ message Budget {
   int64 period_seconds = 11;
 }
 
-message Headroom {
+message SetBudgetCapsRequest { Budget budget = 1; }
+message SetBudgetCapsResponse { Budget budget = 1; }
+message SetGatingRequest {
   string budget_id = 1;
-  string book_id = 2;
-  string currency = 3;
-  int64 total_cap_minor = 4;
-  int64 total_used_minor = 5;
-  int64 total_remaining_minor = 6;
-  int64 periodic_cap_minor = 7;
-  int64 period_used_minor = 8;
-  int64 period_remaining_minor = 9;
-  int64 per_transaction_cap_minor = 10;
-  int64 available_minor = 11;
-  google.protobuf.Timestamp period_started_at = 12;
-  google.protobuf.Timestamp computed_at = 13;
-  bool funding_required = 14;
-  int64 funding_credited_minor = 15;
-  int64 funding_remaining_minor = 16;
-  string funding_atomic_amount = 17;
-  string funding_asset_id = 18;
+  bool requires_approval = 2;
+}
+message SetGatingResponse { Budget budget = 1; }
+message FreezeBudgetRequest { string budget_id = 1; }
+message FreezeBudgetResponse { Budget budget = 1; }
+message UnfreezeBudgetRequest { string budget_id = 1; }
+message UnfreezeBudgetResponse { Budget budget = 1; }
+message FreezeBookRequest { string book_id = 1; }
+message FreezeBookResponse { string book_id = 1; bool frozen = 2; google.protobuf.Timestamp updated_at = 3; }
+message UnfreezeBookRequest { string book_id = 1; }
+message UnfreezeBookResponse { string book_id = 1; bool frozen = 2; google.protobuf.Timestamp updated_at = 3; }
+message FreezeAllRequest {}
+message FreezeAllResponse { bool frozen = 1; google.protobuf.Timestamp updated_at = 2; }
+message GetFreezeStatusRequest {}
+message GetFreezeStatusResponse { bool frozen = 1; google.protobuf.Timestamp updated_at = 2; }
+message UnfreezeAllRequest {}
+message UnfreezeAllResponse { bool frozen = 1; google.protobuf.Timestamp updated_at = 2; }
+
+service BudgetAdminService {
+  rpc SetBudgetCaps(SetBudgetCapsRequest) returns (SetBudgetCapsResponse);
+  rpc SetGating(SetGatingRequest) returns (SetGatingResponse);
+  rpc FreezeBudget(FreezeBudgetRequest) returns (FreezeBudgetResponse);
+  rpc UnfreezeBudget(UnfreezeBudgetRequest) returns (UnfreezeBudgetResponse);
+  rpc FreezeBook(FreezeBookRequest) returns (FreezeBookResponse);
+  rpc UnfreezeBook(UnfreezeBookRequest) returns (UnfreezeBookResponse);
+  rpc FreezeAll(FreezeAllRequest) returns (FreezeAllResponse);
+  rpc GetFreezeStatus(GetFreezeStatusRequest) returns (GetFreezeStatusResponse);
+  rpc UnfreezeAll(UnfreezeAllRequest) returns (UnfreezeAllResponse);
 }

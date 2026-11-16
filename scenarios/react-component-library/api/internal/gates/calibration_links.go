@@ -106,7 +106,11 @@ func copyUIOverlay(source, dest string) error {
 		src := filepath.Join(source, entry.Name())
 		dst := filepath.Join(dest, entry.Name())
 		if !entry.IsDir() {
-			if err := os.WriteFile(dst, nil, 0o644); err != nil {
+			if entry.Name() == "package.json" {
+				if err := copyFile(src, dst); err != nil {
+					return err
+				}
+			} else if err := os.WriteFile(dst, nil, 0o644); err != nil {
 				return err
 			}
 			continue

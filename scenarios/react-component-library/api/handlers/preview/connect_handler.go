@@ -63,6 +63,10 @@ func toConnectError(err error) error {
 	if errors.As(err, &bundleErr) {
 		return connect.NewError(connect.CodeInvalidArgument, bundleErr)
 	}
+	var evicted preview.ErrEvictedDependency
+	if errors.As(err, &evicted) {
+		return connect.NewError(connect.CodeFailedPrecondition, evicted)
+	}
 	// Anything else is a components-domain pass-through (NotFound,
 	// PathEscape, …) — delegate to the canonical mapper.
 	return components.ToConnectError(err)

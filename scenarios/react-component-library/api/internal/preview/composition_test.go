@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -55,6 +56,60 @@ func compositionFixture(t *testing.T) (*service, Composition) {
 	svc := &service{components: catalog, bundler: NewEsbuilder(), repoRoot: root}
 	input := Composition{Revision: "revision-a", Template: CompositionAsset{CatalogID: "test.frame", Version: "1.0.0", Export: "Frame"}, Regions: []CompositionRegion{{ID: "inspector", Slot: []string{"data", "inspector"}, Required: true, Asset: &CompositionAsset{CatalogID: "test.card", Version: "1.0.0", Export: "Card"}}}}
 	return svc, input
+}
+
+func compositionSourceHashes(t *testing.T, root string) map[string]string {
+	t.Helper()
+	library := filepath.Join(root, "scenarios", "react-component-library", "library")
+	hashes := map[string]string{}
+	err := filepath.WalkDir(library, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		body, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(library, path)
+		if err != nil {
+			return err
+		}
+		hashes[filepath.ToSlash(rel)] = digest(string(body))
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("hash composition source tree: %v", err)
+	}
+	return hashes
+}
+
+func TestCompositionRenderColdAndWarmKeepsSourceTreeReadOnly(t *testing.T) {
+	svc, input := compositionFixture(t)
+	library := filepath.Join(svc.repoRoot, "scenarios", "react-component-library", "library")
+	before := compositionSourceHashes(t, svc.repoRoot)
+
+	cold, err := svc.GetCompositionBundle(context.Background(), input)
+	if err != nil {
+		t.Fatalf("cold render: %v", err)
+	}
+	warm, err := svc.GetCompositionBundle(context.Background(), input)
+	if err != nil {
+		t.Fatalf("warm render: %v", err)
+	}
+	if cold.SHA256 == "" || cold.SHA256 != warm.SHA256 || cold.JS == "" || cold.JS != warm.JS {
+		t.Fatalf("repeat render changed output identity or bytes: cold=%s warm=%s", cold.SHA256, warm.SHA256)
+	}
+	if after := compositionSourceHashes(t, svc.repoRoot); !reflect.DeepEqual(before, after) {
+		t.Fatalf("candidate rendering changed library sources: before=%v after=%v", before, after)
+	}
+	for _, generated := range []string{"Composition.generated.tsx", "CompositionExport.generated.tsx"} {
+		if _, err := os.Stat(filepath.Join(library, generated)); !os.IsNotExist(err) {
+			t.Fatalf("read-only render materialized %s: %v", generated, err)
+		}
+	}
 }
 
 func TestCompositionUsesOnePinnedLayoutAndRevisionIdentity(t *testing.T) {

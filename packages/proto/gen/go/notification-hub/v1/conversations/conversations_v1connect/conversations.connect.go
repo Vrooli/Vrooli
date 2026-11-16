@@ -36,9 +36,15 @@ const (
 	// ConversationsServiceAskProcedure is the fully-qualified name of the ConversationsService's Ask
 	// RPC.
 	ConversationsServiceAskProcedure = "/vrooli.notification_hub.v1.conversations.ConversationsService/Ask"
+	// ConversationsServiceCheckAskProcedure is the fully-qualified name of the ConversationsService's
+	// CheckAsk RPC.
+	ConversationsServiceCheckAskProcedure = "/vrooli.notification_hub.v1.conversations.ConversationsService/CheckAsk"
 	// ConversationsServiceAnswerProcedure is the fully-qualified name of the ConversationsService's
 	// Answer RPC.
 	ConversationsServiceAnswerProcedure = "/vrooli.notification_hub.v1.conversations.ConversationsService/Answer"
+	// ConversationsServiceMarkReadProcedure is the fully-qualified name of the ConversationsService's
+	// MarkRead RPC.
+	ConversationsServiceMarkReadProcedure = "/vrooli.notification_hub.v1.conversations.ConversationsService/MarkRead"
 	// ConversationsServiceWaitProcedure is the fully-qualified name of the ConversationsService's Wait
 	// RPC.
 	ConversationsServiceWaitProcedure = "/vrooli.notification_hub.v1.conversations.ConversationsService/Wait"
@@ -57,13 +63,27 @@ const (
 	// ConversationsServiceListNativeConsentsProcedure is the fully-qualified name of the
 	// ConversationsService's ListNativeConsents RPC.
 	ConversationsServiceListNativeConsentsProcedure = "/vrooli.notification_hub.v1.conversations.ConversationsService/ListNativeConsents"
+	// ConversationsServiceRequestContextProcedure is the fully-qualified name of the
+	// ConversationsService's RequestContext RPC.
+	ConversationsServiceRequestContextProcedure = "/vrooli.notification_hub.v1.conversations.ConversationsService/RequestContext"
+	// ConversationsServiceStatAttachmentBlobsProcedure is the fully-qualified name of the
+	// ConversationsService's StatAttachmentBlobs RPC.
+	ConversationsServiceStatAttachmentBlobsProcedure = "/vrooli.notification_hub.v1.conversations.ConversationsService/StatAttachmentBlobs"
+	// ConversationsServicePutAttachmentBlobProcedure is the fully-qualified name of the
+	// ConversationsService's PutAttachmentBlob RPC.
+	ConversationsServicePutAttachmentBlobProcedure = "/vrooli.notification_hub.v1.conversations.ConversationsService/PutAttachmentBlob"
 )
 
 // ConversationsServiceClient is a client for the
 // vrooli.notification_hub.v1.conversations.ConversationsService service.
 type ConversationsServiceClient interface {
 	Ask(context.Context, *connect.Request[conversations.AskRequest]) (*connect.Response[conversations.AskResponse], error)
+	// Run the packet check and render the push an Ask would send, storing
+	// nothing. Same authentication as Ask.
+	CheckAsk(context.Context, *connect.Request[conversations.CheckAskRequest]) (*connect.Response[conversations.CheckAskResponse], error)
 	Answer(context.Context, *connect.Request[conversations.AnswerRequest]) (*connect.Response[conversations.AnswerResponse], error)
+	// MarkRead closes a status update without recording a decision answer.
+	MarkRead(context.Context, *connect.Request[conversations.MarkReadRequest]) (*connect.Response[conversations.MarkReadResponse], error)
 	Wait(context.Context, *connect.Request[conversations.WaitRequest]) (*connect.Response[conversations.WaitResponse], error)
 	// Dismiss closes an ask without recording an answer. It is recipient-only.
 	Dismiss(context.Context, *connect.Request[conversations.DismissRequest]) (*connect.Response[conversations.DismissResponse], error)
@@ -72,11 +92,24 @@ type ConversationsServiceClient interface {
 	Withdraw(context.Context, *connect.Request[conversations.WithdrawRequest]) (*connect.Response[conversations.WithdrawResponse], error)
 	// GetAsk reads one ask for the answer page.
 	GetAsk(context.Context, *connect.Request[conversations.GetAskRequest]) (*connect.Response[conversations.GetAskResponse], error)
-	// ListAsks reads asks newest first; open_only limits it to asks that still
-	// wait for an answer.
+	// ListAsks reads asks in the requested order (newest first by default),
+	// filtered by state, urgency, sender and text; open_only limits it to asks
+	// that still wait for an answer.
 	ListAsks(context.Context, *connect.Request[conversations.ListAsksRequest]) (*connect.Response[conversations.ListAsksResponse], error)
 	// Read-only projection of native human consent. It never creates a Hub ask.
 	ListNativeConsents(context.Context, *connect.Request[conversations.ListNativeConsentsRequest]) (*connect.Response[conversations.ListNativeConsentsResponse], error)
+	// RequestContext records the recipient's question about an open ask. The ask
+	// stays open; the requester sees the question through Wait (with
+	// return_on_context_request), GetAsk, and the context-requested event, and
+	// answers it by revising the ask in place. Recipient-only.
+	RequestContext(context.Context, *connect.Request[conversations.RequestContextRequest]) (*connect.Response[conversations.RequestContextResponse], error)
+	// StatAttachmentBlobs reports which content hashes the Hub does not hold
+	// yet, so a sender uploads each file at most once. Producer-only.
+	StatAttachmentBlobs(context.Context, *connect.Request[conversations.StatAttachmentBlobsRequest]) (*connect.Response[conversations.StatAttachmentBlobsResponse], error)
+	// PutAttachmentBlob stores one file's bytes under their SHA-256. The Hub
+	// recomputes the hash and refuses a mismatch. A blob no ask references is
+	// removed after a grace period. Producer-only.
+	PutAttachmentBlob(context.Context, *connect.Request[conversations.PutAttachmentBlobRequest]) (*connect.Response[conversations.PutAttachmentBlobResponse], error)
 }
 
 // NewConversationsServiceClient constructs a client for the
@@ -97,10 +130,22 @@ func NewConversationsServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithSchema(conversationsServiceMethods.ByName("Ask")),
 			connect.WithClientOptions(opts...),
 		),
+		checkAsk: connect.NewClient[conversations.CheckAskRequest, conversations.CheckAskResponse](
+			httpClient,
+			baseURL+ConversationsServiceCheckAskProcedure,
+			connect.WithSchema(conversationsServiceMethods.ByName("CheckAsk")),
+			connect.WithClientOptions(opts...),
+		),
 		answer: connect.NewClient[conversations.AnswerRequest, conversations.AnswerResponse](
 			httpClient,
 			baseURL+ConversationsServiceAnswerProcedure,
 			connect.WithSchema(conversationsServiceMethods.ByName("Answer")),
+			connect.WithClientOptions(opts...),
+		),
+		markRead: connect.NewClient[conversations.MarkReadRequest, conversations.MarkReadResponse](
+			httpClient,
+			baseURL+ConversationsServiceMarkReadProcedure,
+			connect.WithSchema(conversationsServiceMethods.ByName("MarkRead")),
 			connect.WithClientOptions(opts...),
 		),
 		wait: connect.NewClient[conversations.WaitRequest, conversations.WaitResponse](
@@ -139,19 +184,42 @@ func NewConversationsServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithSchema(conversationsServiceMethods.ByName("ListNativeConsents")),
 			connect.WithClientOptions(opts...),
 		),
+		requestContext: connect.NewClient[conversations.RequestContextRequest, conversations.RequestContextResponse](
+			httpClient,
+			baseURL+ConversationsServiceRequestContextProcedure,
+			connect.WithSchema(conversationsServiceMethods.ByName("RequestContext")),
+			connect.WithClientOptions(opts...),
+		),
+		statAttachmentBlobs: connect.NewClient[conversations.StatAttachmentBlobsRequest, conversations.StatAttachmentBlobsResponse](
+			httpClient,
+			baseURL+ConversationsServiceStatAttachmentBlobsProcedure,
+			connect.WithSchema(conversationsServiceMethods.ByName("StatAttachmentBlobs")),
+			connect.WithClientOptions(opts...),
+		),
+		putAttachmentBlob: connect.NewClient[conversations.PutAttachmentBlobRequest, conversations.PutAttachmentBlobResponse](
+			httpClient,
+			baseURL+ConversationsServicePutAttachmentBlobProcedure,
+			connect.WithSchema(conversationsServiceMethods.ByName("PutAttachmentBlob")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // conversationsServiceClient implements ConversationsServiceClient.
 type conversationsServiceClient struct {
-	ask                *connect.Client[conversations.AskRequest, conversations.AskResponse]
-	answer             *connect.Client[conversations.AnswerRequest, conversations.AnswerResponse]
-	wait               *connect.Client[conversations.WaitRequest, conversations.WaitResponse]
-	dismiss            *connect.Client[conversations.DismissRequest, conversations.DismissResponse]
-	withdraw           *connect.Client[conversations.WithdrawRequest, conversations.WithdrawResponse]
-	getAsk             *connect.Client[conversations.GetAskRequest, conversations.GetAskResponse]
-	listAsks           *connect.Client[conversations.ListAsksRequest, conversations.ListAsksResponse]
-	listNativeConsents *connect.Client[conversations.ListNativeConsentsRequest, conversations.ListNativeConsentsResponse]
+	ask                 *connect.Client[conversations.AskRequest, conversations.AskResponse]
+	checkAsk            *connect.Client[conversations.CheckAskRequest, conversations.CheckAskResponse]
+	answer              *connect.Client[conversations.AnswerRequest, conversations.AnswerResponse]
+	markRead            *connect.Client[conversations.MarkReadRequest, conversations.MarkReadResponse]
+	wait                *connect.Client[conversations.WaitRequest, conversations.WaitResponse]
+	dismiss             *connect.Client[conversations.DismissRequest, conversations.DismissResponse]
+	withdraw            *connect.Client[conversations.WithdrawRequest, conversations.WithdrawResponse]
+	getAsk              *connect.Client[conversations.GetAskRequest, conversations.GetAskResponse]
+	listAsks            *connect.Client[conversations.ListAsksRequest, conversations.ListAsksResponse]
+	listNativeConsents  *connect.Client[conversations.ListNativeConsentsRequest, conversations.ListNativeConsentsResponse]
+	requestContext      *connect.Client[conversations.RequestContextRequest, conversations.RequestContextResponse]
+	statAttachmentBlobs *connect.Client[conversations.StatAttachmentBlobsRequest, conversations.StatAttachmentBlobsResponse]
+	putAttachmentBlob   *connect.Client[conversations.PutAttachmentBlobRequest, conversations.PutAttachmentBlobResponse]
 }
 
 // Ask calls vrooli.notification_hub.v1.conversations.ConversationsService.Ask.
@@ -159,9 +227,19 @@ func (c *conversationsServiceClient) Ask(ctx context.Context, req *connect.Reque
 	return c.ask.CallUnary(ctx, req)
 }
 
+// CheckAsk calls vrooli.notification_hub.v1.conversations.ConversationsService.CheckAsk.
+func (c *conversationsServiceClient) CheckAsk(ctx context.Context, req *connect.Request[conversations.CheckAskRequest]) (*connect.Response[conversations.CheckAskResponse], error) {
+	return c.checkAsk.CallUnary(ctx, req)
+}
+
 // Answer calls vrooli.notification_hub.v1.conversations.ConversationsService.Answer.
 func (c *conversationsServiceClient) Answer(ctx context.Context, req *connect.Request[conversations.AnswerRequest]) (*connect.Response[conversations.AnswerResponse], error) {
 	return c.answer.CallUnary(ctx, req)
+}
+
+// MarkRead calls vrooli.notification_hub.v1.conversations.ConversationsService.MarkRead.
+func (c *conversationsServiceClient) MarkRead(ctx context.Context, req *connect.Request[conversations.MarkReadRequest]) (*connect.Response[conversations.MarkReadResponse], error) {
+	return c.markRead.CallUnary(ctx, req)
 }
 
 // Wait calls vrooli.notification_hub.v1.conversations.ConversationsService.Wait.
@@ -195,11 +273,34 @@ func (c *conversationsServiceClient) ListNativeConsents(ctx context.Context, req
 	return c.listNativeConsents.CallUnary(ctx, req)
 }
 
+// RequestContext calls
+// vrooli.notification_hub.v1.conversations.ConversationsService.RequestContext.
+func (c *conversationsServiceClient) RequestContext(ctx context.Context, req *connect.Request[conversations.RequestContextRequest]) (*connect.Response[conversations.RequestContextResponse], error) {
+	return c.requestContext.CallUnary(ctx, req)
+}
+
+// StatAttachmentBlobs calls
+// vrooli.notification_hub.v1.conversations.ConversationsService.StatAttachmentBlobs.
+func (c *conversationsServiceClient) StatAttachmentBlobs(ctx context.Context, req *connect.Request[conversations.StatAttachmentBlobsRequest]) (*connect.Response[conversations.StatAttachmentBlobsResponse], error) {
+	return c.statAttachmentBlobs.CallUnary(ctx, req)
+}
+
+// PutAttachmentBlob calls
+// vrooli.notification_hub.v1.conversations.ConversationsService.PutAttachmentBlob.
+func (c *conversationsServiceClient) PutAttachmentBlob(ctx context.Context, req *connect.Request[conversations.PutAttachmentBlobRequest]) (*connect.Response[conversations.PutAttachmentBlobResponse], error) {
+	return c.putAttachmentBlob.CallUnary(ctx, req)
+}
+
 // ConversationsServiceHandler is an implementation of the
 // vrooli.notification_hub.v1.conversations.ConversationsService service.
 type ConversationsServiceHandler interface {
 	Ask(context.Context, *connect.Request[conversations.AskRequest]) (*connect.Response[conversations.AskResponse], error)
+	// Run the packet check and render the push an Ask would send, storing
+	// nothing. Same authentication as Ask.
+	CheckAsk(context.Context, *connect.Request[conversations.CheckAskRequest]) (*connect.Response[conversations.CheckAskResponse], error)
 	Answer(context.Context, *connect.Request[conversations.AnswerRequest]) (*connect.Response[conversations.AnswerResponse], error)
+	// MarkRead closes a status update without recording a decision answer.
+	MarkRead(context.Context, *connect.Request[conversations.MarkReadRequest]) (*connect.Response[conversations.MarkReadResponse], error)
 	Wait(context.Context, *connect.Request[conversations.WaitRequest]) (*connect.Response[conversations.WaitResponse], error)
 	// Dismiss closes an ask without recording an answer. It is recipient-only.
 	Dismiss(context.Context, *connect.Request[conversations.DismissRequest]) (*connect.Response[conversations.DismissResponse], error)
@@ -208,11 +309,24 @@ type ConversationsServiceHandler interface {
 	Withdraw(context.Context, *connect.Request[conversations.WithdrawRequest]) (*connect.Response[conversations.WithdrawResponse], error)
 	// GetAsk reads one ask for the answer page.
 	GetAsk(context.Context, *connect.Request[conversations.GetAskRequest]) (*connect.Response[conversations.GetAskResponse], error)
-	// ListAsks reads asks newest first; open_only limits it to asks that still
-	// wait for an answer.
+	// ListAsks reads asks in the requested order (newest first by default),
+	// filtered by state, urgency, sender and text; open_only limits it to asks
+	// that still wait for an answer.
 	ListAsks(context.Context, *connect.Request[conversations.ListAsksRequest]) (*connect.Response[conversations.ListAsksResponse], error)
 	// Read-only projection of native human consent. It never creates a Hub ask.
 	ListNativeConsents(context.Context, *connect.Request[conversations.ListNativeConsentsRequest]) (*connect.Response[conversations.ListNativeConsentsResponse], error)
+	// RequestContext records the recipient's question about an open ask. The ask
+	// stays open; the requester sees the question through Wait (with
+	// return_on_context_request), GetAsk, and the context-requested event, and
+	// answers it by revising the ask in place. Recipient-only.
+	RequestContext(context.Context, *connect.Request[conversations.RequestContextRequest]) (*connect.Response[conversations.RequestContextResponse], error)
+	// StatAttachmentBlobs reports which content hashes the Hub does not hold
+	// yet, so a sender uploads each file at most once. Producer-only.
+	StatAttachmentBlobs(context.Context, *connect.Request[conversations.StatAttachmentBlobsRequest]) (*connect.Response[conversations.StatAttachmentBlobsResponse], error)
+	// PutAttachmentBlob stores one file's bytes under their SHA-256. The Hub
+	// recomputes the hash and refuses a mismatch. A blob no ask references is
+	// removed after a grace period. Producer-only.
+	PutAttachmentBlob(context.Context, *connect.Request[conversations.PutAttachmentBlobRequest]) (*connect.Response[conversations.PutAttachmentBlobResponse], error)
 }
 
 // NewConversationsServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -228,10 +342,22 @@ func NewConversationsServiceHandler(svc ConversationsServiceHandler, opts ...con
 		connect.WithSchema(conversationsServiceMethods.ByName("Ask")),
 		connect.WithHandlerOptions(opts...),
 	)
+	conversationsServiceCheckAskHandler := connect.NewUnaryHandler(
+		ConversationsServiceCheckAskProcedure,
+		svc.CheckAsk,
+		connect.WithSchema(conversationsServiceMethods.ByName("CheckAsk")),
+		connect.WithHandlerOptions(opts...),
+	)
 	conversationsServiceAnswerHandler := connect.NewUnaryHandler(
 		ConversationsServiceAnswerProcedure,
 		svc.Answer,
 		connect.WithSchema(conversationsServiceMethods.ByName("Answer")),
+		connect.WithHandlerOptions(opts...),
+	)
+	conversationsServiceMarkReadHandler := connect.NewUnaryHandler(
+		ConversationsServiceMarkReadProcedure,
+		svc.MarkRead,
+		connect.WithSchema(conversationsServiceMethods.ByName("MarkRead")),
 		connect.WithHandlerOptions(opts...),
 	)
 	conversationsServiceWaitHandler := connect.NewUnaryHandler(
@@ -270,12 +396,34 @@ func NewConversationsServiceHandler(svc ConversationsServiceHandler, opts ...con
 		connect.WithSchema(conversationsServiceMethods.ByName("ListNativeConsents")),
 		connect.WithHandlerOptions(opts...),
 	)
+	conversationsServiceRequestContextHandler := connect.NewUnaryHandler(
+		ConversationsServiceRequestContextProcedure,
+		svc.RequestContext,
+		connect.WithSchema(conversationsServiceMethods.ByName("RequestContext")),
+		connect.WithHandlerOptions(opts...),
+	)
+	conversationsServiceStatAttachmentBlobsHandler := connect.NewUnaryHandler(
+		ConversationsServiceStatAttachmentBlobsProcedure,
+		svc.StatAttachmentBlobs,
+		connect.WithSchema(conversationsServiceMethods.ByName("StatAttachmentBlobs")),
+		connect.WithHandlerOptions(opts...),
+	)
+	conversationsServicePutAttachmentBlobHandler := connect.NewUnaryHandler(
+		ConversationsServicePutAttachmentBlobProcedure,
+		svc.PutAttachmentBlob,
+		connect.WithSchema(conversationsServiceMethods.ByName("PutAttachmentBlob")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.notification_hub.v1.conversations.ConversationsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ConversationsServiceAskProcedure:
 			conversationsServiceAskHandler.ServeHTTP(w, r)
+		case ConversationsServiceCheckAskProcedure:
+			conversationsServiceCheckAskHandler.ServeHTTP(w, r)
 		case ConversationsServiceAnswerProcedure:
 			conversationsServiceAnswerHandler.ServeHTTP(w, r)
+		case ConversationsServiceMarkReadProcedure:
+			conversationsServiceMarkReadHandler.ServeHTTP(w, r)
 		case ConversationsServiceWaitProcedure:
 			conversationsServiceWaitHandler.ServeHTTP(w, r)
 		case ConversationsServiceDismissProcedure:
@@ -288,6 +436,12 @@ func NewConversationsServiceHandler(svc ConversationsServiceHandler, opts ...con
 			conversationsServiceListAsksHandler.ServeHTTP(w, r)
 		case ConversationsServiceListNativeConsentsProcedure:
 			conversationsServiceListNativeConsentsHandler.ServeHTTP(w, r)
+		case ConversationsServiceRequestContextProcedure:
+			conversationsServiceRequestContextHandler.ServeHTTP(w, r)
+		case ConversationsServiceStatAttachmentBlobsProcedure:
+			conversationsServiceStatAttachmentBlobsHandler.ServeHTTP(w, r)
+		case ConversationsServicePutAttachmentBlobProcedure:
+			conversationsServicePutAttachmentBlobHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -301,8 +455,16 @@ func (UnimplementedConversationsServiceHandler) Ask(context.Context, *connect.Re
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.conversations.ConversationsService.Ask is not implemented"))
 }
 
+func (UnimplementedConversationsServiceHandler) CheckAsk(context.Context, *connect.Request[conversations.CheckAskRequest]) (*connect.Response[conversations.CheckAskResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.conversations.ConversationsService.CheckAsk is not implemented"))
+}
+
 func (UnimplementedConversationsServiceHandler) Answer(context.Context, *connect.Request[conversations.AnswerRequest]) (*connect.Response[conversations.AnswerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.conversations.ConversationsService.Answer is not implemented"))
+}
+
+func (UnimplementedConversationsServiceHandler) MarkRead(context.Context, *connect.Request[conversations.MarkReadRequest]) (*connect.Response[conversations.MarkReadResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.conversations.ConversationsService.MarkRead is not implemented"))
 }
 
 func (UnimplementedConversationsServiceHandler) Wait(context.Context, *connect.Request[conversations.WaitRequest]) (*connect.Response[conversations.WaitResponse], error) {
@@ -327,4 +489,16 @@ func (UnimplementedConversationsServiceHandler) ListAsks(context.Context, *conne
 
 func (UnimplementedConversationsServiceHandler) ListNativeConsents(context.Context, *connect.Request[conversations.ListNativeConsentsRequest]) (*connect.Response[conversations.ListNativeConsentsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.conversations.ConversationsService.ListNativeConsents is not implemented"))
+}
+
+func (UnimplementedConversationsServiceHandler) RequestContext(context.Context, *connect.Request[conversations.RequestContextRequest]) (*connect.Response[conversations.RequestContextResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.conversations.ConversationsService.RequestContext is not implemented"))
+}
+
+func (UnimplementedConversationsServiceHandler) StatAttachmentBlobs(context.Context, *connect.Request[conversations.StatAttachmentBlobsRequest]) (*connect.Response[conversations.StatAttachmentBlobsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.conversations.ConversationsService.StatAttachmentBlobs is not implemented"))
+}
+
+func (UnimplementedConversationsServiceHandler) PutAttachmentBlob(context.Context, *connect.Request[conversations.PutAttachmentBlobRequest]) (*connect.Response[conversations.PutAttachmentBlobResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.conversations.ConversationsService.PutAttachmentBlob is not implemented"))
 }

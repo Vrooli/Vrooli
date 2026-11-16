@@ -2,8 +2,8 @@
 // @generated from file treasury/v1/mandate/mandate.proto (package vrooli.treasury.v1.mandate, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file treasury/v1/mandate/mandate.proto.
  */
 export const file_treasury_v1_mandate_mandate: GenFile = /*@__PURE__*/
-  fileDesc("CiF0cmVhc3VyeS92MS9tYW5kYXRlL21hbmRhdGUucHJvdG8SGnZyb29saS50cmVhc3VyeS52MS5tYW5kYXRlIsEECgdNYW5kYXRlEgoKAmlkGAEgASgJEg8KB2Jvb2tfaWQYAiABKAkSEQoJYnVkZ2V0X2lkGAMgASgJEhIKCmF1dGhvcml6ZXIYBCABKAkSEQoJY2FwX21pbm9yGAUgASgDEhAKCGN1cnJlbmN5GAYgASgJEh4KFmFsbG93ZWRfY291bnRlcnBhcnRpZXMYByADKAkSHQoVZGVuaWVkX2NvdW50ZXJwYXJ0aWVzGAggAygJEi4KCmV4cGlyZXNfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCXNpZ25hdHVyZRgKIAEoDBItCglpc3N1ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjkKBnN0YXR1cxgMIAEoDjIpLnZyb29saS50cmVhc3VyeS52MS5tYW5kYXRlLk1hbmRhdGVTdGF0dXMSFwoPaWRlbXBvdGVuY3lfa2V5GA0gASgJEhkKEXJlcXVpcmVkX2V2aWRlbmNlGA4gAygJEhoKEnJlY3VycmVuY2Vfc2Vjb25kcxgPIAEoAxIyCg5uZXh0X2NoYXJnZV9hdBgQIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMY2FuY2VsbGVkX2F0GBEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIVCg1hZ2VudF9zdWJqZWN0GBIgASgJEhQKDGFnZW50X3J1bl9pZBgTIAEoCSq4AQoNTWFuZGF0ZVN0YXR1cxIeChpNQU5EQVRFX1NUQVRVU19VTlNQRUNJRklFRBAAEhgKFE1BTkRBVEVfU1RBVFVTX0RSQUZUEAESFwoTTUFOREFURV9TVEFUVVNfTElWRRACEhwKGE1BTkRBVEVfU1RBVFVTX0VYSEFVU1RFRBADEhoKFk1BTkRBVEVfU1RBVFVTX0VYUElSRUQQBBIaChZNQU5EQVRFX1NUQVRVU19SRVZPS0VEEAVCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby90cmVhc3VyeS92MS9tYW5kYXRlO21hbmRhdGVfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("CiF0cmVhc3VyeS92MS9tYW5kYXRlL21hbmRhdGUucHJvdG8SGnZyb29saS50cmVhc3VyeS52MS5tYW5kYXRlIsEECgdNYW5kYXRlEgoKAmlkGAEgASgJEg8KB2Jvb2tfaWQYAiABKAkSEQoJYnVkZ2V0X2lkGAMgASgJEhIKCmF1dGhvcml6ZXIYBCABKAkSEQoJY2FwX21pbm9yGAUgASgDEhAKCGN1cnJlbmN5GAYgASgJEh4KFmFsbG93ZWRfY291bnRlcnBhcnRpZXMYByADKAkSHQoVZGVuaWVkX2NvdW50ZXJwYXJ0aWVzGAggAygJEi4KCmV4cGlyZXNfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCXNpZ25hdHVyZRgKIAEoDBItCglpc3N1ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjkKBnN0YXR1cxgMIAEoDjIpLnZyb29saS50cmVhc3VyeS52MS5tYW5kYXRlLk1hbmRhdGVTdGF0dXMSFwoPaWRlbXBvdGVuY3lfa2V5GA0gASgJEhkKEXJlcXVpcmVkX2V2aWRlbmNlGA4gAygJEhoKEnJlY3VycmVuY2Vfc2Vjb25kcxgPIAEoAxIyCg5uZXh0X2NoYXJnZV9hdBgQIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMY2FuY2VsbGVkX2F0GBEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIVCg1hZ2VudF9zdWJqZWN0GBIgASgJEhQKDGFnZW50X3J1bl9pZBgTIAEoCSJMChRDcmVhdGVNYW5kYXRlUmVxdWVzdBI0CgdtYW5kYXRlGAEgASgLMiMudnJvb2xpLnRyZWFzdXJ5LnYxLm1hbmRhdGUuTWFuZGF0ZSJNChVDcmVhdGVNYW5kYXRlUmVzcG9uc2USNAoHbWFuZGF0ZRgBIAEoCzIjLnZyb29saS50cmVhc3VyeS52MS5tYW5kYXRlLk1hbmRhdGUiKgoUUmV2b2tlTWFuZGF0ZVJlcXVlc3QSEgoKbWFuZGF0ZV9pZBgBIAEoCSJNChVSZXZva2VNYW5kYXRlUmVzcG9uc2USNAoHbWFuZGF0ZRgBIAEoCzIjLnZyb29saS50cmVhc3VyeS52MS5tYW5kYXRlLk1hbmRhdGUiMQobUmV2b2tlTWFuZGF0ZVNlc3Npb25SZXF1ZXN0EhIKCm1hbmRhdGVfaWQYASABKAkiLwocUmV2b2tlTWFuZGF0ZVNlc3Npb25SZXNwb25zZRIPCgdyZXZva2VkGAEgASgIIjIKHENhbmNlbFN0YW5kaW5nTWFuZGF0ZVJlcXVlc3QSEgoKbWFuZGF0ZV9pZBgBIAEoCSJVCh1DYW5jZWxTdGFuZGluZ01hbmRhdGVSZXNwb25zZRI0CgdtYW5kYXRlGAEgASgLMiMudnJvb2xpLnRyZWFzdXJ5LnYxLm1hbmRhdGUuTWFuZGF0ZSIVChNMaXN0TWFuZGF0ZXNSZXF1ZXN0Ik0KFExpc3RNYW5kYXRlc1Jlc3BvbnNlEjUKCG1hbmRhdGVzGAEgAygLMiMudnJvb2xpLnRyZWFzdXJ5LnYxLm1hbmRhdGUuTWFuZGF0ZSq4AQoNTWFuZGF0ZVN0YXR1cxIeChpNQU5EQVRFX1NUQVRVU19VTlNQRUNJRklFRBAAEhgKFE1BTkRBVEVfU1RBVFVTX0RSQUZUEAESFwoTTUFOREFURV9TVEFUVVNfTElWRRACEhwKGE1BTkRBVEVfU1RBVFVTX0VYSEFVU1RFRBADEhoKFk1BTkRBVEVfU1RBVFVTX0VYUElSRUQQBBIaChZNQU5EQVRFX1NUQVRVU19SRVZPS0VEEAUyjwUKE01hbmRhdGVBZG1pblNlcnZpY2USdAoNQ3JlYXRlTWFuZGF0ZRIwLnZyb29saS50cmVhc3VyeS52MS5tYW5kYXRlLkNyZWF0ZU1hbmRhdGVSZXF1ZXN0GjEudnJvb2xpLnRyZWFzdXJ5LnYxLm1hbmRhdGUuQ3JlYXRlTWFuZGF0ZVJlc3BvbnNlEnQKDVJldm9rZU1hbmRhdGUSMC52cm9vbGkudHJlYXN1cnkudjEubWFuZGF0ZS5SZXZva2VNYW5kYXRlUmVxdWVzdBoxLnZyb29saS50cmVhc3VyeS52MS5tYW5kYXRlLlJldm9rZU1hbmRhdGVSZXNwb25zZRKJAQoUUmV2b2tlTWFuZGF0ZVNlc3Npb24SNy52cm9vbGkudHJlYXN1cnkudjEubWFuZGF0ZS5SZXZva2VNYW5kYXRlU2Vzc2lvblJlcXVlc3QaOC52cm9vbGkudHJlYXN1cnkudjEubWFuZGF0ZS5SZXZva2VNYW5kYXRlU2Vzc2lvblJlc3BvbnNlEowBChVDYW5jZWxTdGFuZGluZ01hbmRhdGUSOC52cm9vbGkudHJlYXN1cnkudjEubWFuZGF0ZS5DYW5jZWxTdGFuZGluZ01hbmRhdGVSZXF1ZXN0GjkudnJvb2xpLnRyZWFzdXJ5LnYxLm1hbmRhdGUuQ2FuY2VsU3RhbmRpbmdNYW5kYXRlUmVzcG9uc2UScQoMTGlzdE1hbmRhdGVzEi8udnJvb2xpLnRyZWFzdXJ5LnYxLm1hbmRhdGUuTGlzdE1hbmRhdGVzUmVxdWVzdBowLnZyb29saS50cmVhc3VyeS52MS5tYW5kYXRlLkxpc3RNYW5kYXRlc1Jlc3BvbnNlQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdHJlYXN1cnkvdjEvbWFuZGF0ZTttYW5kYXRlX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.treasury.v1.mandate.Mandate
@@ -124,6 +124,172 @@ export const MandateSchema: GenMessage<Mandate> = /*@__PURE__*/
   messageDesc(file_treasury_v1_mandate_mandate, 0);
 
 /**
+ * @generated from message vrooli.treasury.v1.mandate.CreateMandateRequest
+ */
+export type CreateMandateRequest = Message<"vrooli.treasury.v1.mandate.CreateMandateRequest"> & {
+  /**
+   * @generated from field: vrooli.treasury.v1.mandate.Mandate mandate = 1;
+   */
+  mandate?: Mandate | undefined;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.mandate.CreateMandateRequest.
+ * Use `create(CreateMandateRequestSchema)` to create a new message.
+ */
+export const CreateMandateRequestSchema: GenMessage<CreateMandateRequest> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_mandate_mandate, 1);
+
+/**
+ * @generated from message vrooli.treasury.v1.mandate.CreateMandateResponse
+ */
+export type CreateMandateResponse = Message<"vrooli.treasury.v1.mandate.CreateMandateResponse"> & {
+  /**
+   * @generated from field: vrooli.treasury.v1.mandate.Mandate mandate = 1;
+   */
+  mandate?: Mandate | undefined;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.mandate.CreateMandateResponse.
+ * Use `create(CreateMandateResponseSchema)` to create a new message.
+ */
+export const CreateMandateResponseSchema: GenMessage<CreateMandateResponse> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_mandate_mandate, 2);
+
+/**
+ * @generated from message vrooli.treasury.v1.mandate.RevokeMandateRequest
+ */
+export type RevokeMandateRequest = Message<"vrooli.treasury.v1.mandate.RevokeMandateRequest"> & {
+  /**
+   * @generated from field: string mandate_id = 1;
+   */
+  mandateId: string;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.mandate.RevokeMandateRequest.
+ * Use `create(RevokeMandateRequestSchema)` to create a new message.
+ */
+export const RevokeMandateRequestSchema: GenMessage<RevokeMandateRequest> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_mandate_mandate, 3);
+
+/**
+ * @generated from message vrooli.treasury.v1.mandate.RevokeMandateResponse
+ */
+export type RevokeMandateResponse = Message<"vrooli.treasury.v1.mandate.RevokeMandateResponse"> & {
+  /**
+   * @generated from field: vrooli.treasury.v1.mandate.Mandate mandate = 1;
+   */
+  mandate?: Mandate | undefined;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.mandate.RevokeMandateResponse.
+ * Use `create(RevokeMandateResponseSchema)` to create a new message.
+ */
+export const RevokeMandateResponseSchema: GenMessage<RevokeMandateResponse> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_mandate_mandate, 4);
+
+/**
+ * @generated from message vrooli.treasury.v1.mandate.RevokeMandateSessionRequest
+ */
+export type RevokeMandateSessionRequest = Message<"vrooli.treasury.v1.mandate.RevokeMandateSessionRequest"> & {
+  /**
+   * @generated from field: string mandate_id = 1;
+   */
+  mandateId: string;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.mandate.RevokeMandateSessionRequest.
+ * Use `create(RevokeMandateSessionRequestSchema)` to create a new message.
+ */
+export const RevokeMandateSessionRequestSchema: GenMessage<RevokeMandateSessionRequest> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_mandate_mandate, 5);
+
+/**
+ * @generated from message vrooli.treasury.v1.mandate.RevokeMandateSessionResponse
+ */
+export type RevokeMandateSessionResponse = Message<"vrooli.treasury.v1.mandate.RevokeMandateSessionResponse"> & {
+  /**
+   * @generated from field: bool revoked = 1;
+   */
+  revoked: boolean;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.mandate.RevokeMandateSessionResponse.
+ * Use `create(RevokeMandateSessionResponseSchema)` to create a new message.
+ */
+export const RevokeMandateSessionResponseSchema: GenMessage<RevokeMandateSessionResponse> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_mandate_mandate, 6);
+
+/**
+ * @generated from message vrooli.treasury.v1.mandate.CancelStandingMandateRequest
+ */
+export type CancelStandingMandateRequest = Message<"vrooli.treasury.v1.mandate.CancelStandingMandateRequest"> & {
+  /**
+   * @generated from field: string mandate_id = 1;
+   */
+  mandateId: string;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.mandate.CancelStandingMandateRequest.
+ * Use `create(CancelStandingMandateRequestSchema)` to create a new message.
+ */
+export const CancelStandingMandateRequestSchema: GenMessage<CancelStandingMandateRequest> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_mandate_mandate, 7);
+
+/**
+ * @generated from message vrooli.treasury.v1.mandate.CancelStandingMandateResponse
+ */
+export type CancelStandingMandateResponse = Message<"vrooli.treasury.v1.mandate.CancelStandingMandateResponse"> & {
+  /**
+   * @generated from field: vrooli.treasury.v1.mandate.Mandate mandate = 1;
+   */
+  mandate?: Mandate | undefined;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.mandate.CancelStandingMandateResponse.
+ * Use `create(CancelStandingMandateResponseSchema)` to create a new message.
+ */
+export const CancelStandingMandateResponseSchema: GenMessage<CancelStandingMandateResponse> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_mandate_mandate, 8);
+
+/**
+ * @generated from message vrooli.treasury.v1.mandate.ListMandatesRequest
+ */
+export type ListMandatesRequest = Message<"vrooli.treasury.v1.mandate.ListMandatesRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.mandate.ListMandatesRequest.
+ * Use `create(ListMandatesRequestSchema)` to create a new message.
+ */
+export const ListMandatesRequestSchema: GenMessage<ListMandatesRequest> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_mandate_mandate, 9);
+
+/**
+ * @generated from message vrooli.treasury.v1.mandate.ListMandatesResponse
+ */
+export type ListMandatesResponse = Message<"vrooli.treasury.v1.mandate.ListMandatesResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.treasury.v1.mandate.Mandate mandates = 1;
+   */
+  mandates: Mandate[];
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.mandate.ListMandatesResponse.
+ * Use `create(ListMandatesResponseSchema)` to create a new message.
+ */
+export const ListMandatesResponseSchema: GenMessage<ListMandatesResponse> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_mandate_mandate, 10);
+
+/**
  * @generated from enum vrooli.treasury.v1.mandate.MandateStatus
  */
 export enum MandateStatus {
@@ -163,4 +329,51 @@ export enum MandateStatus {
  */
 export const MandateStatusSchema: GenEnum<MandateStatus> = /*@__PURE__*/
   enumDesc(file_treasury_v1_mandate_mandate, 0);
+
+/**
+ * @generated from service vrooli.treasury.v1.mandate.MandateAdminService
+ */
+export const MandateAdminService: GenService<{
+  /**
+   * @generated from rpc vrooli.treasury.v1.mandate.MandateAdminService.CreateMandate
+   */
+  createMandate: {
+    methodKind: "unary";
+    input: typeof CreateMandateRequestSchema;
+    output: typeof CreateMandateResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.mandate.MandateAdminService.RevokeMandate
+   */
+  revokeMandate: {
+    methodKind: "unary";
+    input: typeof RevokeMandateRequestSchema;
+    output: typeof RevokeMandateResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.mandate.MandateAdminService.RevokeMandateSession
+   */
+  revokeMandateSession: {
+    methodKind: "unary";
+    input: typeof RevokeMandateSessionRequestSchema;
+    output: typeof RevokeMandateSessionResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.mandate.MandateAdminService.CancelStandingMandate
+   */
+  cancelStandingMandate: {
+    methodKind: "unary";
+    input: typeof CancelStandingMandateRequestSchema;
+    output: typeof CancelStandingMandateResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.mandate.MandateAdminService.ListMandates
+   */
+  listMandates: {
+    methodKind: "unary";
+    input: typeof ListMandatesRequestSchema;
+    output: typeof ListMandatesResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_treasury_v1_mandate_mandate, 0);
 

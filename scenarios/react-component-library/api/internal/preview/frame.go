@@ -224,7 +224,7 @@ func (s *service) bundleFrame(ctx context.Context, frame *components.StoryFrame)
 	if err != nil {
 		return "", "", "", nil, err
 	}
-	js, _, err := s.bundler.BuildBundle(ctx, stampPreviewSource(content.Body, content.SourcePath, frame.Asset, version), content.SourcePath)
+	js, _, err := s.bundler.BuildBundle(ctx, stampPreviewSource(content.Body, content.SourcePath, frame.Asset, version, ""), content.SourcePath)
 	if err != nil {
 		return "", "", "", nil, err
 	}

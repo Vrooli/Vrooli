@@ -215,9 +215,10 @@ func (OperationState) EnumDescriptor() ([]byte, []int) {
 	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{2}
 }
 
-// CachedModeReadback describes a later OpenRGB controller-data observation.
-// It is separate from the preceding command ACK and never means LEDs were
-// observed producing light.
+// CachedModeReadback describes only the active mode descriptor from a later
+// OpenRGB controller-data observation. It does not compare RGB channel values
+// and never means LEDs were observed producing light. Per-LED reported colors
+// are exposed separately on Controller.reported_led_colors.
 type CachedModeReadback int32
 
 const (
@@ -491,8 +492,18 @@ type Controller struct {
 	Zones          []*ZoneCapability      `protobuf:"bytes,7,rep,name=zones,proto3" json:"zones,omitempty"`
 	LastSeenAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=last_seen_at,json=lastSeenAt,proto3" json:"last_seen_at,omitempty"`
 	IdentitySource string                 `protobuf:"bytes,9,opt,name=identity_source,json=identitySource,proto3" json:"identity_source,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Colors returned in the most recent OpenRGB SDK controller-data packet.
+	// They describe OpenRGB's reported/cached state, not measured physical output.
+	ReportedLedColors        []*ReportedLEDColor    `protobuf:"bytes,10,rep,name=reported_led_colors,json=reportedLedColors,proto3" json:"reported_led_colors,omitempty"`
+	ReportedColorSource      string                 `protobuf:"bytes,11,opt,name=reported_color_source,json=reportedColorSource,proto3" json:"reported_color_source,omitempty"`
+	ReportedColorsObservedAt *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=reported_colors_observed_at,json=reportedColorsObservedAt,proto3" json:"reported_colors_observed_at,omitempty"`
+	// Active controller mode from OpenRGB's controller-data packet. This is
+	// backend-reported state, not proof that the hardware emitted that mode.
+	ReportedActiveMode           string                 `protobuf:"bytes,13,opt,name=reported_active_mode,json=reportedActiveMode,proto3" json:"reported_active_mode,omitempty"`
+	ReportedActiveModeIndex      *uint32                `protobuf:"varint,14,opt,name=reported_active_mode_index,json=reportedActiveModeIndex,proto3,oneof" json:"reported_active_mode_index,omitempty"`
+	ReportedActiveModeObservedAt *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=reported_active_mode_observed_at,json=reportedActiveModeObservedAt,proto3" json:"reported_active_mode_observed_at,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *Controller) Reset() {
@@ -588,6 +599,108 @@ func (x *Controller) GetIdentitySource() string {
 	return ""
 }
 
+func (x *Controller) GetReportedLedColors() []*ReportedLEDColor {
+	if x != nil {
+		return x.ReportedLedColors
+	}
+	return nil
+}
+
+func (x *Controller) GetReportedColorSource() string {
+	if x != nil {
+		return x.ReportedColorSource
+	}
+	return ""
+}
+
+func (x *Controller) GetReportedColorsObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ReportedColorsObservedAt
+	}
+	return nil
+}
+
+func (x *Controller) GetReportedActiveMode() string {
+	if x != nil {
+		return x.ReportedActiveMode
+	}
+	return ""
+}
+
+func (x *Controller) GetReportedActiveModeIndex() uint32 {
+	if x != nil && x.ReportedActiveModeIndex != nil {
+		return *x.ReportedActiveModeIndex
+	}
+	return 0
+}
+
+func (x *Controller) GetReportedActiveModeObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ReportedActiveModeObservedAt
+	}
+	return nil
+}
+
+type ReportedLEDColor struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Index         *uint32                `protobuf:"varint,1,opt,name=index,proto3,oneof" json:"index,omitempty"`
+	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Color         *Color                 `protobuf:"bytes,3,opt,name=color,proto3" json:"color,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportedLEDColor) Reset() {
+	*x = ReportedLEDColor{}
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportedLEDColor) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportedLEDColor) ProtoMessage() {}
+
+func (x *ReportedLEDColor) ProtoReflect() protoreflect.Message {
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportedLEDColor.ProtoReflect.Descriptor instead.
+func (*ReportedLEDColor) Descriptor() ([]byte, []int) {
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ReportedLEDColor) GetIndex() uint32 {
+	if x != nil && x.Index != nil {
+		return *x.Index
+	}
+	return 0
+}
+
+func (x *ReportedLEDColor) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *ReportedLEDColor) GetColor() *Color {
+	if x != nil {
+		return x.Color
+	}
+	return nil
+}
+
 type Color struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Red           uint32                 `protobuf:"varint,1,opt,name=red,proto3" json:"red,omitempty"`
@@ -599,7 +712,7 @@ type Color struct {
 
 func (x *Color) Reset() {
 	*x = Color{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[3]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -611,7 +724,7 @@ func (x *Color) String() string {
 func (*Color) ProtoMessage() {}
 
 func (x *Color) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[3]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -624,7 +737,7 @@ func (x *Color) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Color.ProtoReflect.Descriptor instead.
 func (*Color) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{3}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Color) GetRed() uint32 {
@@ -664,7 +777,7 @@ type ZoneState struct {
 
 func (x *ZoneState) Reset() {
 	*x = ZoneState{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[4]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -676,7 +789,7 @@ func (x *ZoneState) String() string {
 func (*ZoneState) ProtoMessage() {}
 
 func (x *ZoneState) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[4]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -689,7 +802,7 @@ func (x *ZoneState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ZoneState.ProtoReflect.Descriptor instead.
 func (*ZoneState) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{4}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ZoneState) GetControllerId() string {
@@ -772,7 +885,7 @@ type StaticZoneState struct {
 
 func (x *StaticZoneState) Reset() {
 	*x = StaticZoneState{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[5]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -784,7 +897,7 @@ func (x *StaticZoneState) String() string {
 func (*StaticZoneState) ProtoMessage() {}
 
 func (x *StaticZoneState) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[5]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -797,7 +910,7 @@ func (x *StaticZoneState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StaticZoneState.ProtoReflect.Descriptor instead.
 func (*StaticZoneState) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{5}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *StaticZoneState) GetColor() *Color {
@@ -825,7 +938,7 @@ type EffectZoneState struct {
 
 func (x *EffectZoneState) Reset() {
 	*x = EffectZoneState{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[6]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -837,7 +950,7 @@ func (x *EffectZoneState) String() string {
 func (*EffectZoneState) ProtoMessage() {}
 
 func (x *EffectZoneState) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[6]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -850,7 +963,7 @@ func (x *EffectZoneState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffectZoneState.ProtoReflect.Descriptor instead.
 func (*EffectZoneState) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{6}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *EffectZoneState) GetEffectId() string {
@@ -891,7 +1004,7 @@ type ZoneApplyResult struct {
 
 func (x *ZoneApplyResult) Reset() {
 	*x = ZoneApplyResult{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[7]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -903,7 +1016,7 @@ func (x *ZoneApplyResult) String() string {
 func (*ZoneApplyResult) ProtoMessage() {}
 
 func (x *ZoneApplyResult) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[7]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -916,7 +1029,7 @@ func (x *ZoneApplyResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ZoneApplyResult.ProtoReflect.Descriptor instead.
 func (*ZoneApplyResult) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{7}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ZoneApplyResult) GetDesired() *ZoneState {
@@ -987,7 +1100,7 @@ type OutputObservation struct {
 
 func (x *OutputObservation) Reset() {
 	*x = OutputObservation{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[8]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -999,7 +1112,7 @@ func (x *OutputObservation) String() string {
 func (*OutputObservation) ProtoMessage() {}
 
 func (x *OutputObservation) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[8]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1012,7 +1125,7 @@ func (x *OutputObservation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OutputObservation.ProtoReflect.Descriptor instead.
 func (*OutputObservation) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{8}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *OutputObservation) GetState() *ZoneState {
@@ -1054,7 +1167,7 @@ type ZoneStatus struct {
 
 func (x *ZoneStatus) Reset() {
 	*x = ZoneStatus{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[9]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1066,7 +1179,7 @@ func (x *ZoneStatus) String() string {
 func (*ZoneStatus) ProtoMessage() {}
 
 func (x *ZoneStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[9]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1079,7 +1192,7 @@ func (x *ZoneStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ZoneStatus.ProtoReflect.Descriptor instead.
 func (*ZoneStatus) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{9}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ZoneStatus) GetDesired() *ZoneState {
@@ -1116,7 +1229,7 @@ type ManualOverride struct {
 
 func (x *ManualOverride) Reset() {
 	*x = ManualOverride{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[10]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1128,7 +1241,7 @@ func (x *ManualOverride) String() string {
 func (*ManualOverride) ProtoMessage() {}
 
 func (x *ManualOverride) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[10]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1141,7 +1254,7 @@ func (x *ManualOverride) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManualOverride.ProtoReflect.Descriptor instead.
 func (*ManualOverride) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{10}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ManualOverride) GetActive() bool {
@@ -1187,7 +1300,7 @@ type GetBackendStatusRequest struct {
 
 func (x *GetBackendStatusRequest) Reset() {
 	*x = GetBackendStatusRequest{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[11]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1199,7 +1312,7 @@ func (x *GetBackendStatusRequest) String() string {
 func (*GetBackendStatusRequest) ProtoMessage() {}
 
 func (x *GetBackendStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[11]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1212,7 +1325,7 @@ func (x *GetBackendStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBackendStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetBackendStatusRequest) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{11}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{12}
 }
 
 type GetBackendStatusResponse struct {
@@ -1224,7 +1337,7 @@ type GetBackendStatusResponse struct {
 
 func (x *GetBackendStatusResponse) Reset() {
 	*x = GetBackendStatusResponse{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[12]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1236,7 +1349,7 @@ func (x *GetBackendStatusResponse) String() string {
 func (*GetBackendStatusResponse) ProtoMessage() {}
 
 func (x *GetBackendStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[12]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1249,7 +1362,7 @@ func (x *GetBackendStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBackendStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetBackendStatusResponse) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{12}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetBackendStatusResponse) GetBackend() *BackendStatus {
@@ -1268,7 +1381,7 @@ type ListControllersRequest struct {
 
 func (x *ListControllersRequest) Reset() {
 	*x = ListControllersRequest{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[13]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1280,7 +1393,7 @@ func (x *ListControllersRequest) String() string {
 func (*ListControllersRequest) ProtoMessage() {}
 
 func (x *ListControllersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[13]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1293,7 +1406,7 @@ func (x *ListControllersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListControllersRequest.ProtoReflect.Descriptor instead.
 func (*ListControllersRequest) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{13}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListControllersRequest) GetIncludeUnavailable() bool {
@@ -1313,7 +1426,7 @@ type ListControllersResponse struct {
 
 func (x *ListControllersResponse) Reset() {
 	*x = ListControllersResponse{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[14]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1325,7 +1438,7 @@ func (x *ListControllersResponse) String() string {
 func (*ListControllersResponse) ProtoMessage() {}
 
 func (x *ListControllersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[14]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1338,7 +1451,7 @@ func (x *ListControllersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListControllersResponse.ProtoReflect.Descriptor instead.
 func (*ListControllersResponse) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{14}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListControllersResponse) GetBackend() *BackendStatus {
@@ -1365,7 +1478,7 @@ type EnrollControllerRequest struct {
 
 func (x *EnrollControllerRequest) Reset() {
 	*x = EnrollControllerRequest{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[15]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1377,7 +1490,7 @@ func (x *EnrollControllerRequest) String() string {
 func (*EnrollControllerRequest) ProtoMessage() {}
 
 func (x *EnrollControllerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[15]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1390,7 +1503,7 @@ func (x *EnrollControllerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnrollControllerRequest.ProtoReflect.Descriptor instead.
 func (*EnrollControllerRequest) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{15}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *EnrollControllerRequest) GetControllerId() string {
@@ -1416,7 +1529,7 @@ type EnrollControllerResponse struct {
 
 func (x *EnrollControllerResponse) Reset() {
 	*x = EnrollControllerResponse{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[16]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1428,7 +1541,7 @@ func (x *EnrollControllerResponse) String() string {
 func (*EnrollControllerResponse) ProtoMessage() {}
 
 func (x *EnrollControllerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[16]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1441,7 +1554,7 @@ func (x *EnrollControllerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnrollControllerResponse.ProtoReflect.Descriptor instead.
 func (*EnrollControllerResponse) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{16}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *EnrollControllerResponse) GetController() *Controller {
@@ -1462,7 +1575,7 @@ type ConfigureZoneRequest struct {
 
 func (x *ConfigureZoneRequest) Reset() {
 	*x = ConfigureZoneRequest{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[17]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1474,7 +1587,7 @@ func (x *ConfigureZoneRequest) String() string {
 func (*ConfigureZoneRequest) ProtoMessage() {}
 
 func (x *ConfigureZoneRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[17]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1487,7 +1600,7 @@ func (x *ConfigureZoneRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigureZoneRequest.ProtoReflect.Descriptor instead.
 func (*ConfigureZoneRequest) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{17}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ConfigureZoneRequest) GetControllerId() string {
@@ -1522,7 +1635,7 @@ type ConfigureZoneResponse struct {
 
 func (x *ConfigureZoneResponse) Reset() {
 	*x = ConfigureZoneResponse{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[18]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1534,7 +1647,7 @@ func (x *ConfigureZoneResponse) String() string {
 func (*ConfigureZoneResponse) ProtoMessage() {}
 
 func (x *ConfigureZoneResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[18]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1547,7 +1660,7 @@ func (x *ConfigureZoneResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigureZoneResponse.ProtoReflect.Descriptor instead.
 func (*ConfigureZoneResponse) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{18}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ConfigureZoneResponse) GetZone() *ZoneCapability {
@@ -1573,7 +1686,7 @@ type SetZoneStateRequest struct {
 
 func (x *SetZoneStateRequest) Reset() {
 	*x = SetZoneStateRequest{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[19]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1585,7 +1698,7 @@ func (x *SetZoneStateRequest) String() string {
 func (*SetZoneStateRequest) ProtoMessage() {}
 
 func (x *SetZoneStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[19]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1598,7 +1711,7 @@ func (x *SetZoneStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetZoneStateRequest.ProtoReflect.Descriptor instead.
 func (*SetZoneStateRequest) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{19}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *SetZoneStateRequest) GetDesired() *ZoneState {
@@ -1617,7 +1730,7 @@ type SetZoneStateResponse struct {
 
 func (x *SetZoneStateResponse) Reset() {
 	*x = SetZoneStateResponse{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[20]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1629,7 +1742,7 @@ func (x *SetZoneStateResponse) String() string {
 func (*SetZoneStateResponse) ProtoMessage() {}
 
 func (x *SetZoneStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[20]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1642,7 +1755,7 @@ func (x *SetZoneStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetZoneStateResponse.ProtoReflect.Descriptor instead.
 func (*SetZoneStateResponse) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{20}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *SetZoneStateResponse) GetResult() *ZoneApplyResult {
@@ -1664,7 +1777,7 @@ type SetManualOffRequest struct {
 
 func (x *SetManualOffRequest) Reset() {
 	*x = SetManualOffRequest{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[21]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1676,7 +1789,7 @@ func (x *SetManualOffRequest) String() string {
 func (*SetManualOffRequest) ProtoMessage() {}
 
 func (x *SetManualOffRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[21]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1689,7 +1802,7 @@ func (x *SetManualOffRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetManualOffRequest.ProtoReflect.Descriptor instead.
 func (*SetManualOffRequest) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{21}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *SetManualOffRequest) GetAllEnrolled() bool {
@@ -1723,7 +1836,7 @@ type SetManualOffResponse struct {
 
 func (x *SetManualOffResponse) Reset() {
 	*x = SetManualOffResponse{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[22]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1735,7 +1848,7 @@ func (x *SetManualOffResponse) String() string {
 func (*SetManualOffResponse) ProtoMessage() {}
 
 func (x *SetManualOffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[22]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1748,7 +1861,7 @@ func (x *SetManualOffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetManualOffResponse.ProtoReflect.Descriptor instead.
 func (*SetManualOffResponse) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{22}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *SetManualOffResponse) GetOverride() *ManualOverride {
@@ -1773,7 +1886,7 @@ type GetDesiredStateRequest struct {
 
 func (x *GetDesiredStateRequest) Reset() {
 	*x = GetDesiredStateRequest{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[23]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1785,7 +1898,7 @@ func (x *GetDesiredStateRequest) String() string {
 func (*GetDesiredStateRequest) ProtoMessage() {}
 
 func (x *GetDesiredStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[23]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1798,7 +1911,7 @@ func (x *GetDesiredStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDesiredStateRequest.ProtoReflect.Descriptor instead.
 func (*GetDesiredStateRequest) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{23}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{24}
 }
 
 type GetDesiredStateResponse struct {
@@ -1811,7 +1924,7 @@ type GetDesiredStateResponse struct {
 
 func (x *GetDesiredStateResponse) Reset() {
 	*x = GetDesiredStateResponse{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[24]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1823,7 +1936,7 @@ func (x *GetDesiredStateResponse) String() string {
 func (*GetDesiredStateResponse) ProtoMessage() {}
 
 func (x *GetDesiredStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[24]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1836,7 +1949,7 @@ func (x *GetDesiredStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDesiredStateResponse.ProtoReflect.Descriptor instead.
 func (*GetDesiredStateResponse) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{24}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetDesiredStateResponse) GetZones() []*ZoneStatus {
@@ -1861,7 +1974,7 @@ type ClearManualOverrideRequest struct {
 
 func (x *ClearManualOverrideRequest) Reset() {
 	*x = ClearManualOverrideRequest{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[25]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1873,7 +1986,7 @@ func (x *ClearManualOverrideRequest) String() string {
 func (*ClearManualOverrideRequest) ProtoMessage() {}
 
 func (x *ClearManualOverrideRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[25]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1886,7 +1999,7 @@ func (x *ClearManualOverrideRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearManualOverrideRequest.ProtoReflect.Descriptor instead.
 func (*ClearManualOverrideRequest) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{25}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{26}
 }
 
 type ClearManualOverrideResponse struct {
@@ -1898,7 +2011,7 @@ type ClearManualOverrideResponse struct {
 
 func (x *ClearManualOverrideResponse) Reset() {
 	*x = ClearManualOverrideResponse{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[26]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1910,7 +2023,7 @@ func (x *ClearManualOverrideResponse) String() string {
 func (*ClearManualOverrideResponse) ProtoMessage() {}
 
 func (x *ClearManualOverrideResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[26]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1923,7 +2036,7 @@ func (x *ClearManualOverrideResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearManualOverrideResponse.ProtoReflect.Descriptor instead.
 func (*ClearManualOverrideResponse) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{26}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ClearManualOverrideResponse) GetCleared() bool {
@@ -1944,7 +2057,7 @@ type ReconcileZoneResult struct {
 
 func (x *ReconcileZoneResult) Reset() {
 	*x = ReconcileZoneResult{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[27]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1956,7 +2069,7 @@ func (x *ReconcileZoneResult) String() string {
 func (*ReconcileZoneResult) ProtoMessage() {}
 
 func (x *ReconcileZoneResult) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[27]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1969,7 +2082,7 @@ func (x *ReconcileZoneResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcileZoneResult.ProtoReflect.Descriptor instead.
 func (*ReconcileZoneResult) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{27}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ReconcileZoneResult) GetControllerId() string {
@@ -2002,7 +2115,7 @@ type ReconcileRequest struct {
 
 func (x *ReconcileRequest) Reset() {
 	*x = ReconcileRequest{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[28]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2014,7 +2127,7 @@ func (x *ReconcileRequest) String() string {
 func (*ReconcileRequest) ProtoMessage() {}
 
 func (x *ReconcileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[28]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2027,7 +2140,7 @@ func (x *ReconcileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcileRequest.ProtoReflect.Descriptor instead.
 func (*ReconcileRequest) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{28}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ReconcileRequest) GetTrigger() string {
@@ -2047,7 +2160,7 @@ type ReconcileResponse struct {
 
 func (x *ReconcileResponse) Reset() {
 	*x = ReconcileResponse{}
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[29]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2059,7 +2172,7 @@ func (x *ReconcileResponse) String() string {
 func (*ReconcileResponse) ProtoMessage() {}
 
 func (x *ReconcileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_control_control_proto_msgTypes[29]
+	mi := &file_lighting_control_v1_control_control_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2072,7 +2185,7 @@ func (x *ReconcileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcileResponse.ProtoReflect.Descriptor instead.
 func (*ReconcileResponse) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{29}
+	return file_lighting_control_v1_control_control_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ReconcileResponse) GetZones() []*ReconcileZoneResult {
@@ -2114,7 +2227,7 @@ const file_lighting_control_v1_control_control_proto_rawDesc = "" +
 	"\rmax_led_count\x18\t \x01(\rR\vmaxLedCount\x120\n" +
 	"\x14configured_led_count\x18\n" +
 	" \x01(\rR\x12configuredLedCount\x12!\n" +
-	"\fsetup_needed\x18\v \x01(\bR\vsetupNeeded\"\xfd\x02\n" +
+	"\fsetup_needed\x18\v \x01(\bR\vsetupNeeded\"\xe9\x06\n" +
 	"\n" +
 	"Controller\x12&\n" +
 	"\n" +
@@ -2127,7 +2240,20 @@ const file_lighting_control_v1_control_control_proto_rawDesc = "" +
 	"\x05zones\x18\a \x03(\v22.vrooli.lighting_control.v1.control.ZoneCapabilityR\x05zones\x12<\n" +
 	"\flast_seen_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"lastSeenAt\x12'\n" +
-	"\x0fidentity_source\x18\t \x01(\tR\x0eidentitySource\"a\n" +
+	"\x0fidentity_source\x18\t \x01(\tR\x0eidentitySource\x12d\n" +
+	"\x13reported_led_colors\x18\n" +
+	" \x03(\v24.vrooli.lighting_control.v1.control.ReportedLEDColorR\x11reportedLedColors\x122\n" +
+	"\x15reported_color_source\x18\v \x01(\tR\x13reportedColorSource\x12Y\n" +
+	"\x1breported_colors_observed_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\x18reportedColorsObservedAt\x120\n" +
+	"\x14reported_active_mode\x18\r \x01(\tR\x12reportedActiveMode\x12@\n" +
+	"\x1areported_active_mode_index\x18\x0e \x01(\rH\x00R\x17reportedActiveModeIndex\x88\x01\x01\x12b\n" +
+	" reported_active_mode_observed_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\x1creportedActiveModeObservedAtB\x1d\n" +
+	"\x1b_reported_active_mode_index\"\x9b\x01\n" +
+	"\x10ReportedLEDColor\x12\x19\n" +
+	"\x05index\x18\x01 \x01(\rH\x00R\x05index\x88\x01\x01\x12!\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12?\n" +
+	"\x05color\x18\x03 \x01(\v2).vrooli.lighting_control.v1.control.ColorR\x05colorB\b\n" +
+	"\x06_index\"a\n" +
 	"\x05Color\x12\x1a\n" +
 	"\x03red\x18\x01 \x01(\rB\b\xbaH\x05*\x03\x18\xff\x01R\x03red\x12\x1e\n" +
 	"\x05green\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xff\x01R\x05green\x12\x1c\n" +
@@ -2279,7 +2405,7 @@ func file_lighting_control_v1_control_control_proto_rawDescGZIP() []byte {
 }
 
 var file_lighting_control_v1_control_control_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_lighting_control_v1_control_control_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
+var file_lighting_control_v1_control_control_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_lighting_control_v1_control_control_proto_goTypes = []any{
 	(BackendState)(0),                   // 0: vrooli.lighting_control.v1.control.BackendState
 	(BackendReason)(0),                  // 1: vrooli.lighting_control.v1.control.BackendReason
@@ -2288,96 +2414,101 @@ var file_lighting_control_v1_control_control_proto_goTypes = []any{
 	(*BackendStatus)(nil),               // 4: vrooli.lighting_control.v1.control.BackendStatus
 	(*ZoneCapability)(nil),              // 5: vrooli.lighting_control.v1.control.ZoneCapability
 	(*Controller)(nil),                  // 6: vrooli.lighting_control.v1.control.Controller
-	(*Color)(nil),                       // 7: vrooli.lighting_control.v1.control.Color
-	(*ZoneState)(nil),                   // 8: vrooli.lighting_control.v1.control.ZoneState
-	(*StaticZoneState)(nil),             // 9: vrooli.lighting_control.v1.control.StaticZoneState
-	(*EffectZoneState)(nil),             // 10: vrooli.lighting_control.v1.control.EffectZoneState
-	(*ZoneApplyResult)(nil),             // 11: vrooli.lighting_control.v1.control.ZoneApplyResult
-	(*OutputObservation)(nil),           // 12: vrooli.lighting_control.v1.control.OutputObservation
-	(*ZoneStatus)(nil),                  // 13: vrooli.lighting_control.v1.control.ZoneStatus
-	(*ManualOverride)(nil),              // 14: vrooli.lighting_control.v1.control.ManualOverride
-	(*GetBackendStatusRequest)(nil),     // 15: vrooli.lighting_control.v1.control.GetBackendStatusRequest
-	(*GetBackendStatusResponse)(nil),    // 16: vrooli.lighting_control.v1.control.GetBackendStatusResponse
-	(*ListControllersRequest)(nil),      // 17: vrooli.lighting_control.v1.control.ListControllersRequest
-	(*ListControllersResponse)(nil),     // 18: vrooli.lighting_control.v1.control.ListControllersResponse
-	(*EnrollControllerRequest)(nil),     // 19: vrooli.lighting_control.v1.control.EnrollControllerRequest
-	(*EnrollControllerResponse)(nil),    // 20: vrooli.lighting_control.v1.control.EnrollControllerResponse
-	(*ConfigureZoneRequest)(nil),        // 21: vrooli.lighting_control.v1.control.ConfigureZoneRequest
-	(*ConfigureZoneResponse)(nil),       // 22: vrooli.lighting_control.v1.control.ConfigureZoneResponse
-	(*SetZoneStateRequest)(nil),         // 23: vrooli.lighting_control.v1.control.SetZoneStateRequest
-	(*SetZoneStateResponse)(nil),        // 24: vrooli.lighting_control.v1.control.SetZoneStateResponse
-	(*SetManualOffRequest)(nil),         // 25: vrooli.lighting_control.v1.control.SetManualOffRequest
-	(*SetManualOffResponse)(nil),        // 26: vrooli.lighting_control.v1.control.SetManualOffResponse
-	(*GetDesiredStateRequest)(nil),      // 27: vrooli.lighting_control.v1.control.GetDesiredStateRequest
-	(*GetDesiredStateResponse)(nil),     // 28: vrooli.lighting_control.v1.control.GetDesiredStateResponse
-	(*ClearManualOverrideRequest)(nil),  // 29: vrooli.lighting_control.v1.control.ClearManualOverrideRequest
-	(*ClearManualOverrideResponse)(nil), // 30: vrooli.lighting_control.v1.control.ClearManualOverrideResponse
-	(*ReconcileZoneResult)(nil),         // 31: vrooli.lighting_control.v1.control.ReconcileZoneResult
-	(*ReconcileRequest)(nil),            // 32: vrooli.lighting_control.v1.control.ReconcileRequest
-	(*ReconcileResponse)(nil),           // 33: vrooli.lighting_control.v1.control.ReconcileResponse
-	(*timestamppb.Timestamp)(nil),       // 34: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),               // 35: google.protobuf.Empty
+	(*ReportedLEDColor)(nil),            // 7: vrooli.lighting_control.v1.control.ReportedLEDColor
+	(*Color)(nil),                       // 8: vrooli.lighting_control.v1.control.Color
+	(*ZoneState)(nil),                   // 9: vrooli.lighting_control.v1.control.ZoneState
+	(*StaticZoneState)(nil),             // 10: vrooli.lighting_control.v1.control.StaticZoneState
+	(*EffectZoneState)(nil),             // 11: vrooli.lighting_control.v1.control.EffectZoneState
+	(*ZoneApplyResult)(nil),             // 12: vrooli.lighting_control.v1.control.ZoneApplyResult
+	(*OutputObservation)(nil),           // 13: vrooli.lighting_control.v1.control.OutputObservation
+	(*ZoneStatus)(nil),                  // 14: vrooli.lighting_control.v1.control.ZoneStatus
+	(*ManualOverride)(nil),              // 15: vrooli.lighting_control.v1.control.ManualOverride
+	(*GetBackendStatusRequest)(nil),     // 16: vrooli.lighting_control.v1.control.GetBackendStatusRequest
+	(*GetBackendStatusResponse)(nil),    // 17: vrooli.lighting_control.v1.control.GetBackendStatusResponse
+	(*ListControllersRequest)(nil),      // 18: vrooli.lighting_control.v1.control.ListControllersRequest
+	(*ListControllersResponse)(nil),     // 19: vrooli.lighting_control.v1.control.ListControllersResponse
+	(*EnrollControllerRequest)(nil),     // 20: vrooli.lighting_control.v1.control.EnrollControllerRequest
+	(*EnrollControllerResponse)(nil),    // 21: vrooli.lighting_control.v1.control.EnrollControllerResponse
+	(*ConfigureZoneRequest)(nil),        // 22: vrooli.lighting_control.v1.control.ConfigureZoneRequest
+	(*ConfigureZoneResponse)(nil),       // 23: vrooli.lighting_control.v1.control.ConfigureZoneResponse
+	(*SetZoneStateRequest)(nil),         // 24: vrooli.lighting_control.v1.control.SetZoneStateRequest
+	(*SetZoneStateResponse)(nil),        // 25: vrooli.lighting_control.v1.control.SetZoneStateResponse
+	(*SetManualOffRequest)(nil),         // 26: vrooli.lighting_control.v1.control.SetManualOffRequest
+	(*SetManualOffResponse)(nil),        // 27: vrooli.lighting_control.v1.control.SetManualOffResponse
+	(*GetDesiredStateRequest)(nil),      // 28: vrooli.lighting_control.v1.control.GetDesiredStateRequest
+	(*GetDesiredStateResponse)(nil),     // 29: vrooli.lighting_control.v1.control.GetDesiredStateResponse
+	(*ClearManualOverrideRequest)(nil),  // 30: vrooli.lighting_control.v1.control.ClearManualOverrideRequest
+	(*ClearManualOverrideResponse)(nil), // 31: vrooli.lighting_control.v1.control.ClearManualOverrideResponse
+	(*ReconcileZoneResult)(nil),         // 32: vrooli.lighting_control.v1.control.ReconcileZoneResult
+	(*ReconcileRequest)(nil),            // 33: vrooli.lighting_control.v1.control.ReconcileRequest
+	(*ReconcileResponse)(nil),           // 34: vrooli.lighting_control.v1.control.ReconcileResponse
+	(*timestamppb.Timestamp)(nil),       // 35: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),               // 36: google.protobuf.Empty
 }
 var file_lighting_control_v1_control_control_proto_depIdxs = []int32{
 	0,  // 0: vrooli.lighting_control.v1.control.BackendStatus.state:type_name -> vrooli.lighting_control.v1.control.BackendState
 	1,  // 1: vrooli.lighting_control.v1.control.BackendStatus.reason:type_name -> vrooli.lighting_control.v1.control.BackendReason
 	5,  // 2: vrooli.lighting_control.v1.control.Controller.zones:type_name -> vrooli.lighting_control.v1.control.ZoneCapability
-	34, // 3: vrooli.lighting_control.v1.control.Controller.last_seen_at:type_name -> google.protobuf.Timestamp
-	35, // 4: vrooli.lighting_control.v1.control.ZoneState.off:type_name -> google.protobuf.Empty
-	9,  // 5: vrooli.lighting_control.v1.control.ZoneState.static_color:type_name -> vrooli.lighting_control.v1.control.StaticZoneState
-	10, // 6: vrooli.lighting_control.v1.control.ZoneState.effect:type_name -> vrooli.lighting_control.v1.control.EffectZoneState
-	7,  // 7: vrooli.lighting_control.v1.control.StaticZoneState.color:type_name -> vrooli.lighting_control.v1.control.Color
-	7,  // 8: vrooli.lighting_control.v1.control.EffectZoneState.color:type_name -> vrooli.lighting_control.v1.control.Color
-	8,  // 9: vrooli.lighting_control.v1.control.ZoneApplyResult.desired:type_name -> vrooli.lighting_control.v1.control.ZoneState
-	2,  // 10: vrooli.lighting_control.v1.control.ZoneApplyResult.operation:type_name -> vrooli.lighting_control.v1.control.OperationState
-	34, // 11: vrooli.lighting_control.v1.control.ZoneApplyResult.completed_at:type_name -> google.protobuf.Timestamp
-	3,  // 12: vrooli.lighting_control.v1.control.ZoneApplyResult.cached_mode_readback:type_name -> vrooli.lighting_control.v1.control.CachedModeReadback
-	8,  // 13: vrooli.lighting_control.v1.control.OutputObservation.state:type_name -> vrooli.lighting_control.v1.control.ZoneState
-	34, // 14: vrooli.lighting_control.v1.control.OutputObservation.observed_at:type_name -> google.protobuf.Timestamp
-	8,  // 15: vrooli.lighting_control.v1.control.ZoneStatus.desired:type_name -> vrooli.lighting_control.v1.control.ZoneState
-	11, // 16: vrooli.lighting_control.v1.control.ZoneStatus.last_apply:type_name -> vrooli.lighting_control.v1.control.ZoneApplyResult
-	12, // 17: vrooli.lighting_control.v1.control.ZoneStatus.observation:type_name -> vrooli.lighting_control.v1.control.OutputObservation
-	34, // 18: vrooli.lighting_control.v1.control.ManualOverride.created_at:type_name -> google.protobuf.Timestamp
-	34, // 19: vrooli.lighting_control.v1.control.ManualOverride.expires_at:type_name -> google.protobuf.Timestamp
-	4,  // 20: vrooli.lighting_control.v1.control.GetBackendStatusResponse.backend:type_name -> vrooli.lighting_control.v1.control.BackendStatus
-	4,  // 21: vrooli.lighting_control.v1.control.ListControllersResponse.backend:type_name -> vrooli.lighting_control.v1.control.BackendStatus
-	6,  // 22: vrooli.lighting_control.v1.control.ListControllersResponse.controllers:type_name -> vrooli.lighting_control.v1.control.Controller
-	6,  // 23: vrooli.lighting_control.v1.control.EnrollControllerResponse.controller:type_name -> vrooli.lighting_control.v1.control.Controller
-	5,  // 24: vrooli.lighting_control.v1.control.ConfigureZoneResponse.zone:type_name -> vrooli.lighting_control.v1.control.ZoneCapability
-	31, // 25: vrooli.lighting_control.v1.control.ConfigureZoneResponse.results:type_name -> vrooli.lighting_control.v1.control.ReconcileZoneResult
-	8,  // 26: vrooli.lighting_control.v1.control.SetZoneStateRequest.desired:type_name -> vrooli.lighting_control.v1.control.ZoneState
-	11, // 27: vrooli.lighting_control.v1.control.SetZoneStateResponse.result:type_name -> vrooli.lighting_control.v1.control.ZoneApplyResult
-	34, // 28: vrooli.lighting_control.v1.control.SetManualOffRequest.expires_at:type_name -> google.protobuf.Timestamp
-	14, // 29: vrooli.lighting_control.v1.control.SetManualOffResponse.override:type_name -> vrooli.lighting_control.v1.control.ManualOverride
-	11, // 30: vrooli.lighting_control.v1.control.SetManualOffResponse.results:type_name -> vrooli.lighting_control.v1.control.ZoneApplyResult
-	13, // 31: vrooli.lighting_control.v1.control.GetDesiredStateResponse.zones:type_name -> vrooli.lighting_control.v1.control.ZoneStatus
-	14, // 32: vrooli.lighting_control.v1.control.GetDesiredStateResponse.manual_override:type_name -> vrooli.lighting_control.v1.control.ManualOverride
-	11, // 33: vrooli.lighting_control.v1.control.ReconcileZoneResult.result:type_name -> vrooli.lighting_control.v1.control.ZoneApplyResult
-	31, // 34: vrooli.lighting_control.v1.control.ReconcileResponse.zones:type_name -> vrooli.lighting_control.v1.control.ReconcileZoneResult
-	34, // 35: vrooli.lighting_control.v1.control.ReconcileResponse.completed_at:type_name -> google.protobuf.Timestamp
-	15, // 36: vrooli.lighting_control.v1.control.ControlService.GetBackendStatus:input_type -> vrooli.lighting_control.v1.control.GetBackendStatusRequest
-	17, // 37: vrooli.lighting_control.v1.control.ControlService.ListControllers:input_type -> vrooli.lighting_control.v1.control.ListControllersRequest
-	19, // 38: vrooli.lighting_control.v1.control.ControlService.EnrollController:input_type -> vrooli.lighting_control.v1.control.EnrollControllerRequest
-	21, // 39: vrooli.lighting_control.v1.control.ControlService.ConfigureZone:input_type -> vrooli.lighting_control.v1.control.ConfigureZoneRequest
-	23, // 40: vrooli.lighting_control.v1.control.ControlService.SetZoneState:input_type -> vrooli.lighting_control.v1.control.SetZoneStateRequest
-	25, // 41: vrooli.lighting_control.v1.control.ControlService.SetManualOff:input_type -> vrooli.lighting_control.v1.control.SetManualOffRequest
-	27, // 42: vrooli.lighting_control.v1.control.ControlService.GetDesiredState:input_type -> vrooli.lighting_control.v1.control.GetDesiredStateRequest
-	29, // 43: vrooli.lighting_control.v1.control.ControlService.ClearManualOverride:input_type -> vrooli.lighting_control.v1.control.ClearManualOverrideRequest
-	32, // 44: vrooli.lighting_control.v1.control.ControlService.Reconcile:input_type -> vrooli.lighting_control.v1.control.ReconcileRequest
-	16, // 45: vrooli.lighting_control.v1.control.ControlService.GetBackendStatus:output_type -> vrooli.lighting_control.v1.control.GetBackendStatusResponse
-	18, // 46: vrooli.lighting_control.v1.control.ControlService.ListControllers:output_type -> vrooli.lighting_control.v1.control.ListControllersResponse
-	20, // 47: vrooli.lighting_control.v1.control.ControlService.EnrollController:output_type -> vrooli.lighting_control.v1.control.EnrollControllerResponse
-	22, // 48: vrooli.lighting_control.v1.control.ControlService.ConfigureZone:output_type -> vrooli.lighting_control.v1.control.ConfigureZoneResponse
-	24, // 49: vrooli.lighting_control.v1.control.ControlService.SetZoneState:output_type -> vrooli.lighting_control.v1.control.SetZoneStateResponse
-	26, // 50: vrooli.lighting_control.v1.control.ControlService.SetManualOff:output_type -> vrooli.lighting_control.v1.control.SetManualOffResponse
-	28, // 51: vrooli.lighting_control.v1.control.ControlService.GetDesiredState:output_type -> vrooli.lighting_control.v1.control.GetDesiredStateResponse
-	30, // 52: vrooli.lighting_control.v1.control.ControlService.ClearManualOverride:output_type -> vrooli.lighting_control.v1.control.ClearManualOverrideResponse
-	33, // 53: vrooli.lighting_control.v1.control.ControlService.Reconcile:output_type -> vrooli.lighting_control.v1.control.ReconcileResponse
-	45, // [45:54] is the sub-list for method output_type
-	36, // [36:45] is the sub-list for method input_type
-	36, // [36:36] is the sub-list for extension type_name
-	36, // [36:36] is the sub-list for extension extendee
-	0,  // [0:36] is the sub-list for field type_name
+	35, // 3: vrooli.lighting_control.v1.control.Controller.last_seen_at:type_name -> google.protobuf.Timestamp
+	7,  // 4: vrooli.lighting_control.v1.control.Controller.reported_led_colors:type_name -> vrooli.lighting_control.v1.control.ReportedLEDColor
+	35, // 5: vrooli.lighting_control.v1.control.Controller.reported_colors_observed_at:type_name -> google.protobuf.Timestamp
+	35, // 6: vrooli.lighting_control.v1.control.Controller.reported_active_mode_observed_at:type_name -> google.protobuf.Timestamp
+	8,  // 7: vrooli.lighting_control.v1.control.ReportedLEDColor.color:type_name -> vrooli.lighting_control.v1.control.Color
+	36, // 8: vrooli.lighting_control.v1.control.ZoneState.off:type_name -> google.protobuf.Empty
+	10, // 9: vrooli.lighting_control.v1.control.ZoneState.static_color:type_name -> vrooli.lighting_control.v1.control.StaticZoneState
+	11, // 10: vrooli.lighting_control.v1.control.ZoneState.effect:type_name -> vrooli.lighting_control.v1.control.EffectZoneState
+	8,  // 11: vrooli.lighting_control.v1.control.StaticZoneState.color:type_name -> vrooli.lighting_control.v1.control.Color
+	8,  // 12: vrooli.lighting_control.v1.control.EffectZoneState.color:type_name -> vrooli.lighting_control.v1.control.Color
+	9,  // 13: vrooli.lighting_control.v1.control.ZoneApplyResult.desired:type_name -> vrooli.lighting_control.v1.control.ZoneState
+	2,  // 14: vrooli.lighting_control.v1.control.ZoneApplyResult.operation:type_name -> vrooli.lighting_control.v1.control.OperationState
+	35, // 15: vrooli.lighting_control.v1.control.ZoneApplyResult.completed_at:type_name -> google.protobuf.Timestamp
+	3,  // 16: vrooli.lighting_control.v1.control.ZoneApplyResult.cached_mode_readback:type_name -> vrooli.lighting_control.v1.control.CachedModeReadback
+	9,  // 17: vrooli.lighting_control.v1.control.OutputObservation.state:type_name -> vrooli.lighting_control.v1.control.ZoneState
+	35, // 18: vrooli.lighting_control.v1.control.OutputObservation.observed_at:type_name -> google.protobuf.Timestamp
+	9,  // 19: vrooli.lighting_control.v1.control.ZoneStatus.desired:type_name -> vrooli.lighting_control.v1.control.ZoneState
+	12, // 20: vrooli.lighting_control.v1.control.ZoneStatus.last_apply:type_name -> vrooli.lighting_control.v1.control.ZoneApplyResult
+	13, // 21: vrooli.lighting_control.v1.control.ZoneStatus.observation:type_name -> vrooli.lighting_control.v1.control.OutputObservation
+	35, // 22: vrooli.lighting_control.v1.control.ManualOverride.created_at:type_name -> google.protobuf.Timestamp
+	35, // 23: vrooli.lighting_control.v1.control.ManualOverride.expires_at:type_name -> google.protobuf.Timestamp
+	4,  // 24: vrooli.lighting_control.v1.control.GetBackendStatusResponse.backend:type_name -> vrooli.lighting_control.v1.control.BackendStatus
+	4,  // 25: vrooli.lighting_control.v1.control.ListControllersResponse.backend:type_name -> vrooli.lighting_control.v1.control.BackendStatus
+	6,  // 26: vrooli.lighting_control.v1.control.ListControllersResponse.controllers:type_name -> vrooli.lighting_control.v1.control.Controller
+	6,  // 27: vrooli.lighting_control.v1.control.EnrollControllerResponse.controller:type_name -> vrooli.lighting_control.v1.control.Controller
+	5,  // 28: vrooli.lighting_control.v1.control.ConfigureZoneResponse.zone:type_name -> vrooli.lighting_control.v1.control.ZoneCapability
+	32, // 29: vrooli.lighting_control.v1.control.ConfigureZoneResponse.results:type_name -> vrooli.lighting_control.v1.control.ReconcileZoneResult
+	9,  // 30: vrooli.lighting_control.v1.control.SetZoneStateRequest.desired:type_name -> vrooli.lighting_control.v1.control.ZoneState
+	12, // 31: vrooli.lighting_control.v1.control.SetZoneStateResponse.result:type_name -> vrooli.lighting_control.v1.control.ZoneApplyResult
+	35, // 32: vrooli.lighting_control.v1.control.SetManualOffRequest.expires_at:type_name -> google.protobuf.Timestamp
+	15, // 33: vrooli.lighting_control.v1.control.SetManualOffResponse.override:type_name -> vrooli.lighting_control.v1.control.ManualOverride
+	12, // 34: vrooli.lighting_control.v1.control.SetManualOffResponse.results:type_name -> vrooli.lighting_control.v1.control.ZoneApplyResult
+	14, // 35: vrooli.lighting_control.v1.control.GetDesiredStateResponse.zones:type_name -> vrooli.lighting_control.v1.control.ZoneStatus
+	15, // 36: vrooli.lighting_control.v1.control.GetDesiredStateResponse.manual_override:type_name -> vrooli.lighting_control.v1.control.ManualOverride
+	12, // 37: vrooli.lighting_control.v1.control.ReconcileZoneResult.result:type_name -> vrooli.lighting_control.v1.control.ZoneApplyResult
+	32, // 38: vrooli.lighting_control.v1.control.ReconcileResponse.zones:type_name -> vrooli.lighting_control.v1.control.ReconcileZoneResult
+	35, // 39: vrooli.lighting_control.v1.control.ReconcileResponse.completed_at:type_name -> google.protobuf.Timestamp
+	16, // 40: vrooli.lighting_control.v1.control.ControlService.GetBackendStatus:input_type -> vrooli.lighting_control.v1.control.GetBackendStatusRequest
+	18, // 41: vrooli.lighting_control.v1.control.ControlService.ListControllers:input_type -> vrooli.lighting_control.v1.control.ListControllersRequest
+	20, // 42: vrooli.lighting_control.v1.control.ControlService.EnrollController:input_type -> vrooli.lighting_control.v1.control.EnrollControllerRequest
+	22, // 43: vrooli.lighting_control.v1.control.ControlService.ConfigureZone:input_type -> vrooli.lighting_control.v1.control.ConfigureZoneRequest
+	24, // 44: vrooli.lighting_control.v1.control.ControlService.SetZoneState:input_type -> vrooli.lighting_control.v1.control.SetZoneStateRequest
+	26, // 45: vrooli.lighting_control.v1.control.ControlService.SetManualOff:input_type -> vrooli.lighting_control.v1.control.SetManualOffRequest
+	28, // 46: vrooli.lighting_control.v1.control.ControlService.GetDesiredState:input_type -> vrooli.lighting_control.v1.control.GetDesiredStateRequest
+	30, // 47: vrooli.lighting_control.v1.control.ControlService.ClearManualOverride:input_type -> vrooli.lighting_control.v1.control.ClearManualOverrideRequest
+	33, // 48: vrooli.lighting_control.v1.control.ControlService.Reconcile:input_type -> vrooli.lighting_control.v1.control.ReconcileRequest
+	17, // 49: vrooli.lighting_control.v1.control.ControlService.GetBackendStatus:output_type -> vrooli.lighting_control.v1.control.GetBackendStatusResponse
+	19, // 50: vrooli.lighting_control.v1.control.ControlService.ListControllers:output_type -> vrooli.lighting_control.v1.control.ListControllersResponse
+	21, // 51: vrooli.lighting_control.v1.control.ControlService.EnrollController:output_type -> vrooli.lighting_control.v1.control.EnrollControllerResponse
+	23, // 52: vrooli.lighting_control.v1.control.ControlService.ConfigureZone:output_type -> vrooli.lighting_control.v1.control.ConfigureZoneResponse
+	25, // 53: vrooli.lighting_control.v1.control.ControlService.SetZoneState:output_type -> vrooli.lighting_control.v1.control.SetZoneStateResponse
+	27, // 54: vrooli.lighting_control.v1.control.ControlService.SetManualOff:output_type -> vrooli.lighting_control.v1.control.SetManualOffResponse
+	29, // 55: vrooli.lighting_control.v1.control.ControlService.GetDesiredState:output_type -> vrooli.lighting_control.v1.control.GetDesiredStateResponse
+	31, // 56: vrooli.lighting_control.v1.control.ControlService.ClearManualOverride:output_type -> vrooli.lighting_control.v1.control.ClearManualOverrideResponse
+	34, // 57: vrooli.lighting_control.v1.control.ControlService.Reconcile:output_type -> vrooli.lighting_control.v1.control.ReconcileResponse
+	49, // [49:58] is the sub-list for method output_type
+	40, // [40:49] is the sub-list for method input_type
+	40, // [40:40] is the sub-list for extension type_name
+	40, // [40:40] is the sub-list for extension extendee
+	0,  // [0:40] is the sub-list for field type_name
 }
 
 func init() { file_lighting_control_v1_control_control_proto_init() }
@@ -2385,7 +2516,9 @@ func file_lighting_control_v1_control_control_proto_init() {
 	if File_lighting_control_v1_control_control_proto != nil {
 		return
 	}
-	file_lighting_control_v1_control_control_proto_msgTypes[4].OneofWrappers = []any{
+	file_lighting_control_v1_control_control_proto_msgTypes[2].OneofWrappers = []any{}
+	file_lighting_control_v1_control_control_proto_msgTypes[3].OneofWrappers = []any{}
+	file_lighting_control_v1_control_control_proto_msgTypes[5].OneofWrappers = []any{
 		(*ZoneState_Off)(nil),
 		(*ZoneState_StaticColor)(nil),
 		(*ZoneState_Effect)(nil),
@@ -2396,7 +2529,7 @@ func file_lighting_control_v1_control_control_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_lighting_control_v1_control_control_proto_rawDesc), len(file_lighting_control_v1_control_control_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   30,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

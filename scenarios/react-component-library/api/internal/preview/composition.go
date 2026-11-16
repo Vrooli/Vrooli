@@ -158,6 +158,9 @@ func (s *service) GetCompositionBundle(ctx context.Context, c Composition) (Comp
 			}
 		}
 		selector := fmt.Sprintf("import { %s as Selected } from %s; export const selected = Selected;", ref.Export, jsonString("@vrooli/react-component-library/"+asset.Slug+"/"+ref.Version))
+		// The generated name supplies esbuild's virtual stdin filename and
+		// ResolveDir only. BuildBundle uses Write:false, so this read path does
+		// not create CompositionExport.generated.tsx in the library.
 		if _, _, err := s.bundler.BuildBundle(ctx, selector, filepath.Join(s.repoRoot, "scenarios", "react-component-library", "library", "CompositionExport.generated.tsx")); err != nil {
 			return fmt.Errorf("selected export is unavailable: %w", err)
 		}
@@ -202,7 +205,8 @@ func (s *service) GetCompositionBundle(ctx context.Context, c Composition) (Comp
 	}
 	source += "\nexport const compositionProvenance = " + string(provenance) + " as const;\n"
 	// Existing Preview bundling owns module resolution, dependency imports, and
-	// export validation. The source is also the production layout artifact.
+	// export validation. This generated path is a virtual esbuild Sourcefile,
+	// not a request to materialize source in the library tree.
 	sourcePath := filepath.Join(s.repoRoot, "scenarios", "react-component-library", "library", "Composition.generated.tsx")
 	js, warnings, err := s.bundler.BuildBundle(ctx, source, sourcePath)
 	if err != nil {

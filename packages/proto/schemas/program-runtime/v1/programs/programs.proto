@@ -296,6 +296,18 @@ message AuthoringCaseResult {
   // Bounded runtime, authoring, or oracle evidence used by the signature
   // resolver. This makes an unattributed result diagnosable rather than opaque.
   string failure_detail = 8;
+  string task_sha256 = 9;
+  string source_sha256 = 10;
+  int64 generation_elapsed_ms = 11;
+  int64 execution_elapsed_ms = 12;
+  int64 oracle_elapsed_ms = 13;
+  optional int64 elapsed_to_first_working_ms = 14;
+  int64 case_start_offset_ms = 15;
+  string case_status = 16;
+  int32 attempt_count = 17;
+  int32 retry_count = 18;
+  map<string, int32> fixture_calls = 19;
+  string author_provider = 20;
 }
 
 message AuthoringRuleMiss {
@@ -326,6 +338,17 @@ message RunAuthoringEvalResponse {
   repeated AuthoringRuleMiss rule_misses = 13;
   // False when a complete measured run is below the corpus floor.
   bool floor_met = 14;
+  string receipt_version = 15;
+  string corpus_sha256 = 16;
+  string instruction_sha256 = 17;
+  string runtime_revision = 18;
+  string author_role = 19;
+  string author_schema_sha256 = 20;
+  string route_policy_revision = 21;
+  string started_at = 22;
+  int64 elapsed_ms = 23;
+  int64 total_budget_ms = 24;
+  int64 per_case_reserve_ms = 25;
 }
 
 message RunDiscoveryEvalRequest {

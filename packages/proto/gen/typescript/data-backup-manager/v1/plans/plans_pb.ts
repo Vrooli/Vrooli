@@ -13,23 +13,46 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file data-backup-manager/v1/plans/plans.proto.
  */
 export const file_data_backup_manager_v1_plans_plans: GenFile = /*@__PURE__*/
-  fileDesc("CihkYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL3BsYW5zL3BsYW5zLnByb3RvEiN2cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5wbGFucyIvCg9SZXRlbnRpb25Qb2xpY3kSHAoLa2VlcF9sYXRlc3QYASABKAVCB7pIBBoCKAAi0wMKBFBsYW4SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgp0YXJnZXRfaWRzGAMgAygJEhcKD2Rlc3RpbmF0aW9uX2lkcxgEIAMoCRIQCghzY2hlZHVsZRgFIAEoCRJHCglyZXRlbnRpb24YBiABKAsyNC52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5wbGFucy5SZXRlbnRpb25Qb2xpY3kSDwoHZW5hYmxlZBgHIAEoCBIuCgpjcmVhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJMCg9wcm90ZWN0aW9uX3RpZXIYCiABKA4yMy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5wbGFucy5Qcm90ZWN0aW9uVGllchIfChdyZWNvdmVyeV9kcmlsbF9zY2hlZHVsZRgLIAEoCRIrCiNkZXN0aW5hdGlvbnNfcGh5c2ljYWxseV9pbmRlcGVuZGVudBgMIAEoCBIcChRzaGFyZWRfcmlza193YXJuaW5ncxgNIAMoCSLpAgoRQ3JlYXRlUGxhblJlcXVlc3QSFQoEbmFtZRgBIAEoCUIHukgEcgIQARIcCgp0YXJnZXRfaWRzGAIgAygJQgi6SAWSAQIIARIhCg9kZXN0aW5hdGlvbl9pZHMYAyADKAlCCLpIBZIBAggBEhAKCHNjaGVkdWxlGAQgASgJEkcKCXJldGVudGlvbhgFIAEoCzI0LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnBsYW5zLlJldGVudGlvblBvbGljeRIPCgdlbmFibGVkGAYgASgIEiEKGWFsbG93X2luY29tcGxldGVfY292ZXJhZ2UYByABKAgSTAoPcHJvdGVjdGlvbl90aWVyGAggASgOMjMudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucGxhbnMuUHJvdGVjdGlvblRpZXISHwoXcmVjb3ZlcnlfZHJpbGxfc2NoZWR1bGUYCSABKAkiTQoSQ3JlYXRlUGxhblJlc3BvbnNlEjcKBHBsYW4YASABKAsyKS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5wbGFucy5QbGFuIiUKDkdldFBsYW5SZXF1ZXN0EhMKAmlkGAEgASgJQge6SARyAhABIkoKD0dldFBsYW5SZXNwb25zZRI3CgRwbGFuGAEgASgLMikudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucGxhbnMuUGxhbiJCChBMaXN0UGxhbnNSZXF1ZXN0EhoKCXBhZ2Vfc2l6ZRgBIAEoBUIHukgEGgIoABISCgpwYWdlX3Rva2VuGAIgASgJImYKEUxpc3RQbGFuc1Jlc3BvbnNlEjgKBXBsYW5zGAEgAygLMikudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucGxhbnMuUGxhbhIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAki4QIKEVVwZGF0ZVBsYW5SZXF1ZXN0EhMKAmlkGAEgASgJQge6SARyAhABEgwKBG5hbWUYAiABKAkSEgoKdGFyZ2V0X2lkcxgDIAMoCRIXCg9kZXN0aW5hdGlvbl9pZHMYBCADKAkSEAoIc2NoZWR1bGUYBSABKAkSRwoJcmV0ZW50aW9uGAYgASgLMjQudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucGxhbnMuUmV0ZW50aW9uUG9saWN5Eg8KB2VuYWJsZWQYByABKAgSIQoZYWxsb3dfaW5jb21wbGV0ZV9jb3ZlcmFnZRgIIAEoCBJMCg9wcm90ZWN0aW9uX3RpZXIYCSABKA4yMy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5wbGFucy5Qcm90ZWN0aW9uVGllchIfChdyZWNvdmVyeV9kcmlsbF9zY2hlZHVsZRgKIAEoCSJNChJVcGRhdGVQbGFuUmVzcG9uc2USNwoEcGxhbhgBIAEoCzIpLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnBsYW5zLlBsYW4iKAoRRGVsZXRlUGxhblJlcXVlc3QSEwoCaWQYASABKAlCB7pIBHICEAEiJQoSRGVsZXRlUGxhblJlc3BvbnNlEg8KB3JlbW92ZWQYASABKAgqoQEKDlByb3RlY3Rpb25UaWVyEh8KG1BST1RFQ1RJT05fVElFUl9VTlNQRUNJRklFRBAAEiAKHFBST1RFQ1RJT05fVElFUl9GVUxMX1BSSU1BUlkQARIkCiBQUk9URUNUSU9OX1RJRVJfQ1JJVElDQUxfUFJJTUFSWRACEiYKIlBST1RFQ1RJT05fVElFUl9DUklUSUNBTF9TRUNPTkRBUlkQAzL9BAoMUGxhbnNTZXJ2aWNlEn0KCkNyZWF0ZVBsYW4SNi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5wbGFucy5DcmVhdGVQbGFuUmVxdWVzdBo3LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnBsYW5zLkNyZWF0ZVBsYW5SZXNwb25zZRJ0CgdHZXRQbGFuEjMudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucGxhbnMuR2V0UGxhblJlcXVlc3QaNC52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5wbGFucy5HZXRQbGFuUmVzcG9uc2USegoJTGlzdFBsYW5zEjUudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucGxhbnMuTGlzdFBsYW5zUmVxdWVzdBo2LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnBsYW5zLkxpc3RQbGFuc1Jlc3BvbnNlEn0KClVwZGF0ZVBsYW4SNi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5wbGFucy5VcGRhdGVQbGFuUmVxdWVzdBo3LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnBsYW5zLlVwZGF0ZVBsYW5SZXNwb25zZRJ9CgpEZWxldGVQbGFuEjYudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucGxhbnMuRGVsZXRlUGxhblJlcXVlc3QaNy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5wbGFucy5EZWxldGVQbGFuUmVzcG9uc2VCVlpUZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9kYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL3BsYW5zO3BsYW5zX3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("CihkYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL3BsYW5zL3BsYW5zLnByb3RvEiN2cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5wbGFucyLFAQoPUmV0ZW50aW9uUG9saWN5EhwKC2tlZXBfbGF0ZXN0GAEgASgFQge6SAQaAigAEhwKC2tlZXBfaG91cmx5GAIgASgFQge6SAQaAigAEhsKCmtlZXBfZGFpbHkYAyABKAVCB7pIBBoCKAASHAoLa2VlcF93ZWVrbHkYBCABKAVCB7pIBBoCKAASHQoMa2VlcF9tb250aGx5GAUgASgFQge6SAQaAigAEhwKC2tlZXBfYW5udWFsGAYgASgFQge6SAQaAigAIokECgRQbGFuEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEgoKdGFyZ2V0X2lkcxgDIAMoCRIXCg9kZXN0aW5hdGlvbl9pZHMYBCADKAkSEAoIc2NoZWR1bGUYBSABKAkSRwoJcmV0ZW50aW9uGAYgASgLMjQudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucGxhbnMuUmV0ZW50aW9uUG9saWN5Eg8KB2VuYWJsZWQYByABKAgSLgoKY3JlYXRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASTAoPcHJvdGVjdGlvbl90aWVyGAogASgOMjMudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucGxhbnMuUHJvdGVjdGlvblRpZXISHwoXcmVjb3ZlcnlfZHJpbGxfc2NoZWR1bGUYCyABKAkSKwojZGVzdGluYXRpb25zX3BoeXNpY2FsbHlfaW5kZXBlbmRlbnQYDCABKAgSHAoUc2hhcmVkX3Jpc2tfd2FybmluZ3MYDSADKAkSFwoPdGFyZ2V0X3NlbGVjdG9yGA4gASgJEhsKE2V4Y2x1ZGVkX3RhcmdldF9pZHMYDyADKAkilQMKEUNyZWF0ZVBsYW5SZXF1ZXN0EhUKBG5hbWUYASABKAlCB7pIBHICEAESEgoKdGFyZ2V0X2lkcxgCIAMoCRIhCg9kZXN0aW5hdGlvbl9pZHMYAyADKAlCCLpIBZIBAggBEhAKCHNjaGVkdWxlGAQgASgJEkcKCXJldGVudGlvbhgFIAEoCzI0LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnBsYW5zLlJldGVudGlvblBvbGljeRIPCgdlbmFibGVkGAYgASgIEiEKGWFsbG93X2luY29tcGxldGVfY292ZXJhZ2UYByABKAgSTAoPcHJvdGVjdGlvbl90aWVyGAggASgOMjMudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucGxhbnMuUHJvdGVjdGlvblRpZXISHwoXcmVjb3ZlcnlfZHJpbGxfc2NoZWR1bGUYCSABKAkSFwoPdGFyZ2V0X3NlbGVjdG9yGAogASgJEhsKE2V4Y2x1ZGVkX3RhcmdldF9pZHMYCyADKAkiTQoSQ3JlYXRlUGxhblJlc3BvbnNlEjcKBHBsYW4YASABKAsyKS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5wbGFucy5QbGFuIiUKDkdldFBsYW5SZXF1ZXN0EhMKAmlkGAEgASgJQge6SARyAhABIkoKD0dldFBsYW5SZXNwb25zZRI3CgRwbGFuGAEgASgLMikudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucGxhbnMuUGxhbiJCChBMaXN0UGxhbnNSZXF1ZXN0EhoKCXBhZ2Vfc2l6ZRgBIAEoBUIHukgEGgIoABISCgpwYWdlX3Rva2VuGAIgASgJImYKEUxpc3RQbGFuc1Jlc3BvbnNlEjgKBXBsYW5zGAEgAygLMikudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucGxhbnMuUGxhbhIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkilwMKEVVwZGF0ZVBsYW5SZXF1ZXN0EhMKAmlkGAEgASgJQge6SARyAhABEgwKBG5hbWUYAiABKAkSEgoKdGFyZ2V0X2lkcxgDIAMoCRIXCg9kZXN0aW5hdGlvbl9pZHMYBCADKAkSEAoIc2NoZWR1bGUYBSABKAkSRwoJcmV0ZW50aW9uGAYgASgLMjQudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucGxhbnMuUmV0ZW50aW9uUG9saWN5Eg8KB2VuYWJsZWQYByABKAgSIQoZYWxsb3dfaW5jb21wbGV0ZV9jb3ZlcmFnZRgIIAEoCBJMCg9wcm90ZWN0aW9uX3RpZXIYCSABKA4yMy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5wbGFucy5Qcm90ZWN0aW9uVGllchIfChdyZWNvdmVyeV9kcmlsbF9zY2hlZHVsZRgKIAEoCRIXCg90YXJnZXRfc2VsZWN0b3IYCyABKAkSGwoTZXhjbHVkZWRfdGFyZ2V0X2lkcxgMIAMoCSJNChJVcGRhdGVQbGFuUmVzcG9uc2USNwoEcGxhbhgBIAEoCzIpLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnBsYW5zLlBsYW4iKAoRRGVsZXRlUGxhblJlcXVlc3QSEwoCaWQYASABKAlCB7pIBHICEAEiJQoSRGVsZXRlUGxhblJlc3BvbnNlEg8KB3JlbW92ZWQYASABKAgqoQEKDlByb3RlY3Rpb25UaWVyEh8KG1BST1RFQ1RJT05fVElFUl9VTlNQRUNJRklFRBAAEiAKHFBST1RFQ1RJT05fVElFUl9GVUxMX1BSSU1BUlkQARIkCiBQUk9URUNUSU9OX1RJRVJfQ1JJVElDQUxfUFJJTUFSWRACEiYKIlBST1RFQ1RJT05fVElFUl9DUklUSUNBTF9TRUNPTkRBUlkQAzL9BAoMUGxhbnNTZXJ2aWNlEn0KCkNyZWF0ZVBsYW4SNi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5wbGFucy5DcmVhdGVQbGFuUmVxdWVzdBo3LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnBsYW5zLkNyZWF0ZVBsYW5SZXNwb25zZRJ0CgdHZXRQbGFuEjMudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucGxhbnMuR2V0UGxhblJlcXVlc3QaNC52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5wbGFucy5HZXRQbGFuUmVzcG9uc2USegoJTGlzdFBsYW5zEjUudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucGxhbnMuTGlzdFBsYW5zUmVxdWVzdBo2LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnBsYW5zLkxpc3RQbGFuc1Jlc3BvbnNlEn0KClVwZGF0ZVBsYW4SNi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5wbGFucy5VcGRhdGVQbGFuUmVxdWVzdBo3LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnBsYW5zLlVwZGF0ZVBsYW5SZXNwb25zZRJ9CgpEZWxldGVQbGFuEjYudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucGxhbnMuRGVsZXRlUGxhblJlcXVlc3QaNy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5wbGFucy5EZWxldGVQbGFuUmVzcG9uc2VCVlpUZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9kYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL3BsYW5zO3BsYW5zX3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * RetentionPolicy is the per-plan snapshot retention, applied by kopia policy.
- * v1 supports a simple keep-last count; GFS fields (OT-P1-002) extend this
- * additively later.
+ * Recent snapshots retained by count. Zero disables this tier.
  *
  * @generated from message vrooli.data_backup_manager.v1.plans.RetentionPolicy
  */
 export type RetentionPolicy = Message<"vrooli.data_backup_manager.v1.plans.RetentionPolicy"> & {
   /**
-   * Keep at most this many latest snapshots per target in the destination.
-   * Zero means "keep all" (no retention pruning by count).
+   * Keep this many latest snapshots, in addition to time-bucketed copies.
    *
    * @generated from field: int32 keep_latest = 1;
    */
   keepLatest: number;
+
+  /**
+   * @generated from field: int32 keep_hourly = 2;
+   */
+  keepHourly: number;
+
+  /**
+   * @generated from field: int32 keep_daily = 3;
+   */
+  keepDaily: number;
+
+  /**
+   * @generated from field: int32 keep_weekly = 4;
+   */
+  keepWeekly: number;
+
+  /**
+   * @generated from field: int32 keep_monthly = 5;
+   */
+  keepMonthly: number;
+
+  /**
+   * @generated from field: int32 keep_annual = 6;
+   */
+  keepAnnual: number;
 };
 
 /**
@@ -120,6 +143,21 @@ export type Plan = Message<"vrooli.data_backup_manager.v1.plans.Plan"> & {
    * @generated from field: repeated string shared_risk_warnings = 13;
    */
   sharedRiskWarnings: string[];
+
+  /**
+   * When set, membership is a rule evaluated on every read instead of a list:
+   * "registered" means every registered target except excluded_target_ids, so a
+   * target registered later is in the plan without anyone editing it. target_ids
+   * then carries the targets the rule names right now.
+   *
+   * @generated from field: string target_selector = 14;
+   */
+  targetSelector: string;
+
+  /**
+   * @generated from field: repeated string excluded_target_ids = 15;
+   */
+  excludedTargetIds: string[];
 };
 
 /**
@@ -139,6 +177,8 @@ export type CreatePlanRequest = Message<"vrooli.data_backup_manager.v1.plans.Cre
   name: string;
 
   /**
+   * At least one target, or a target_selector; with a selector this is ignored.
+   *
    * @generated from field: repeated string target_ids = 2;
    */
   targetIds: string[];
@@ -184,6 +224,18 @@ export type CreatePlanRequest = Message<"vrooli.data_backup_manager.v1.plans.Cre
    * @generated from field: string recovery_drill_schedule = 9;
    */
   recoveryDrillSchedule: string;
+
+  /**
+   * See Plan.target_selector. Only valid for the full_primary tier.
+   *
+   * @generated from field: string target_selector = 10;
+   */
+  targetSelector: string;
+
+  /**
+   * @generated from field: repeated string excluded_target_ids = 11;
+   */
+  excludedTargetIds: string[];
 };
 
 /**
@@ -343,6 +395,18 @@ export type UpdatePlanRequest = Message<"vrooli.data_backup_manager.v1.plans.Upd
    * @generated from field: string recovery_drill_schedule = 10;
    */
   recoveryDrillSchedule: string;
+
+  /**
+   * See Plan.target_selector.
+   *
+   * @generated from field: string target_selector = 11;
+   */
+  targetSelector: string;
+
+  /**
+   * @generated from field: repeated string excluded_target_ids = 12;
+   */
+  excludedTargetIds: string[];
 };
 
 /**

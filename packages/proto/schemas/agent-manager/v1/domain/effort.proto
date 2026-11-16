@@ -442,6 +442,14 @@ message EffortDecision {
   string technical_details = 30;
   // Timestamp of the current terminal transition, including dismissal.
   google.protobuf.Timestamp resolved_at = 31;
+  // When a raise last changed this pending decision in place (new terms under
+  // the same subject key). Empty until the first revision; created_at keeps the
+  // original raise time.
+  google.protobuf.Timestamp revised_at = 32;
+  // The decision's page: one self-contained HTML document the Hub shows above
+  // the answer buttons (Facts.Explainer). Empty means Agent Manager generates
+  // one from the texts above.
+  string explainer_html = 33;
 }
 
 message RaiseEffortDecisionRequest {
@@ -454,6 +462,9 @@ message RaiseEffortDecisionResponse {
   bool created = 2;
   // True when this call published the event.
   bool published = 3;
+  // True when this call changed the terms of an already pending decision in
+  // place instead of storing a new one.
+  bool revised = 4;
 }
 
 message ListEffortDecisionsRequest {

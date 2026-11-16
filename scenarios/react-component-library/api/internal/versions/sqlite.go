@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"react-component-library/internal/sqliterows"
 	"react-component-library/internal/textutil"
 )
 
@@ -68,25 +69,19 @@ func (s *sqliteRepository) List(ctx context.Context, q ListQuery) ([]Version, er
 	if limit <= 0 {
 		return nil, nil
 	}
-	rows, err := s.db.QueryContext(ctx, `
+	out, err := sqliterows.Collect(ctx, s.db, `
 SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at, presence
 FROM component_versions
 WHERE (component_id = ? OR library_id = ?)
-`, q.ComponentID, q.ComponentID)
-	if err != nil {
-		return nil, fmt.Errorf("list versions: %w", err)
-	}
-	defer rows.Close()
-	var out []Version
-	for rows.Next() {
-		v, err := scanVersion(rows)
+`, []any{q.ComponentID, q.ComponentID}, false, func(row sqliterows.Scanner) (Version, error) {
+		version, err := scanVersion(row)
 		if err != nil {
-			return nil, fmt.Errorf("scan version: %w", err)
+			return Version{}, fmt.Errorf("scan version: %w", err)
 		}
-		out = append(out, v)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate versions: %w", err)
+		return version, nil
+	}, sqliterows.ErrorContext{Query: "list versions", Iterate: "iterate versions"})
+	if err != nil {
+		return nil, err
 	}
 	for i := range out {
 		out[i].RequiredTokens, err = s.requiredTokens(ctx, out[i].ID)
@@ -132,37 +127,25 @@ LIMIT 1
 }
 
 func (s *sqliteRepository) requiredTokens(ctx context.Context, versionID string) ([]string, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT property FROM component_version_required_tokens WHERE version_id = ? ORDER BY property`, versionID)
-	if err != nil {
-		return nil, fmt.Errorf("list version required tokens: %w", err)
-	}
-	defer rows.Close()
-	var properties []string
-	for rows.Next() {
+	properties, err := sqliterows.Collect(ctx, s.db, `SELECT property FROM component_version_required_tokens WHERE version_id = ? ORDER BY property`, []any{versionID}, false, func(row sqliterows.Scanner) (string, error) {
 		var property string
-		if err := rows.Scan(&property); err != nil {
-			return nil, err
-		}
-		properties = append(properties, property)
+		return property, row.Scan(&property)
+	}, sqliterows.ErrorContext{Query: "list version required tokens"})
+	if err != nil {
+		return nil, err
 	}
-	return properties, rows.Err()
+	return properties, nil
 }
 
 func (s *sqliteRepository) requiredTokenPatterns(ctx context.Context, versionID string) ([]string, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT pattern FROM component_version_required_token_patterns WHERE version_id = ? ORDER BY pattern`, versionID)
-	if err != nil {
-		return nil, fmt.Errorf("list version required token patterns: %w", err)
-	}
-	defer rows.Close()
-	var patterns []string
-	for rows.Next() {
+	patterns, err := sqliterows.Collect(ctx, s.db, `SELECT pattern FROM component_version_required_token_patterns WHERE version_id = ? ORDER BY pattern`, []any{versionID}, false, func(row sqliterows.Scanner) (string, error) {
 		var pattern string
-		if err := rows.Scan(&pattern); err != nil {
-			return nil, err
-		}
-		patterns = append(patterns, pattern)
+		return pattern, row.Scan(&pattern)
+	}, sqliterows.ErrorContext{Query: "list version required token patterns"})
+	if err != nil {
+		return nil, err
 	}
-	return patterns, rows.Err()
+	return patterns, nil
 }
 
 type rowScanner interface {

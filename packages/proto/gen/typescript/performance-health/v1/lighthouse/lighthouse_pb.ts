@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file performance-health/v1/lighthouse/lighthouse.proto.
  */
 export const file_performance_health_v1_lighthouse_lighthouse: GenFile = /*@__PURE__*/
-  fileDesc("CjFwZXJmb3JtYW5jZS1oZWFsdGgvdjEvbGlnaHRob3VzZS9saWdodGhvdXNlLnByb3RvEid2cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmxpZ2h0aG91c2UiNgoUUnVuTGlnaHRob3VzZVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEcGF0aBgCIAEoCSL3AQoVUnVuTGlnaHRob3VzZVJlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEksKB291dGNvbWUYAiABKA4yOi52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmxpZ2h0aG91c2UuTGlnaHRob3VzZU91dGNvbWUSQQoFcGFnZXMYAyADKAsyMi52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmxpZ2h0aG91c2UuUGFnZVNjb3JlEg4KBnJlYXNvbhgEIAEoCRIsCgdtZXRyaWNzGAUgASgLMhsuY29tbW9uLnYxLkV4ZWN1dGlvbk1ldHJpY3MifQoJUGFnZVNjb3JlEgsKA3VybBgBIAEoCRITCgtwZXJmb3JtYW5jZRgCIAEoARIVCg1hY2Nlc3NpYmlsaXR5GAMgASgBEhYKDmJlc3RfcHJhY3RpY2VzGAQgASgBEgsKA3NlbxgFIAEoARISCgp2aW9sYXRpb25zGAYgAygJKpUBChFMaWdodGhvdXNlT3V0Y29tZRIiCh5MSUdIVEhPVVNFX09VVENPTUVfVU5TUEVDSUZJRUQQABIdChlMSUdIVEhPVVNFX09VVENPTUVfU0NPUkVEEAESHgoaTElHSFRIT1VTRV9PVVRDT01FX1NLSVBQRUQQAhIdChlMSUdIVEhPVVNFX09VVENPTUVfRkFJTEVEEAMypAEKEUxpZ2h0aG91c2VTZXJ2aWNlEo4BCg1SdW5MaWdodGhvdXNlEj0udnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5saWdodGhvdXNlLlJ1bkxpZ2h0aG91c2VSZXF1ZXN0Gj4udnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5saWdodGhvdXNlLlJ1bkxpZ2h0aG91c2VSZXNwb25zZUJfWl1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3BlcmZvcm1hbmNlLWhlYWx0aC92MS9saWdodGhvdXNlO2xpZ2h0aG91c2VfdjFiBnByb3RvMw", [file_common_v1_metrics]);
+  fileDesc("CjFwZXJmb3JtYW5jZS1oZWFsdGgvdjEvbGlnaHRob3VzZS9saWdodGhvdXNlLnByb3RvEid2cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmxpZ2h0aG91c2UiNgoUUnVuTGlnaHRob3VzZVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEcGF0aBgCIAEoCSL3AQoVUnVuTGlnaHRob3VzZVJlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEksKB291dGNvbWUYAiABKA4yOi52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmxpZ2h0aG91c2UuTGlnaHRob3VzZU91dGNvbWUSQQoFcGFnZXMYAyADKAsyMi52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmxpZ2h0aG91c2UuUGFnZVNjb3JlEg4KBnJlYXNvbhgEIAEoCRIsCgdtZXRyaWNzGAUgASgLMhsuY29tbW9uLnYxLkV4ZWN1dGlvbk1ldHJpY3Mi4wEKCVBhZ2VTY29yZRILCgN1cmwYASABKAkSEwoLcGVyZm9ybWFuY2UYAiABKAESFQoNYWNjZXNzaWJpbGl0eRgDIAEoARIWCg5iZXN0X3ByYWN0aWNlcxgEIAEoARILCgNzZW8YBSABKAESEgoKdmlvbGF0aW9ucxgGIAMoCRJkChRhY2Nlc3NpYmlsaXR5X3N0YXR1cxgHIAEoDjJGLnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEubGlnaHRob3VzZS5MaWdodGhvdXNlQWNjZXNzaWJpbGl0eVN0YXR1cyqVAQoRTGlnaHRob3VzZU91dGNvbWUSIgoeTElHSFRIT1VTRV9PVVRDT01FX1VOU1BFQ0lGSUVEEAASHQoZTElHSFRIT1VTRV9PVVRDT01FX1NDT1JFRBABEh4KGkxJR0hUSE9VU0VfT1VUQ09NRV9TS0lQUEVEEAISHQoZTElHSFRIT1VTRV9PVVRDT01FX0ZBSUxFRBADKokBCh1MaWdodGhvdXNlQWNjZXNzaWJpbGl0eVN0YXR1cxIvCitMSUdIVEhPVVNFX0FDQ0VTU0lCSUxJVFlfU1RBVFVTX1VOU1BFQ0lGSUVEEAASNwozTElHSFRIT1VTRV9BQ0NFU1NJQklMSVRZX1NUQVRVU19PQlNFUlZFRF9OT05fR0FUSU5HEAEypAEKEUxpZ2h0aG91c2VTZXJ2aWNlEo4BCg1SdW5MaWdodGhvdXNlEj0udnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5saWdodGhvdXNlLlJ1bkxpZ2h0aG91c2VSZXF1ZXN0Gj4udnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5saWdodGhvdXNlLlJ1bkxpZ2h0aG91c2VSZXNwb25zZUJfWl1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3BlcmZvcm1hbmNlLWhlYWx0aC92MS9saWdodGhvdXNlO2xpZ2h0aG91c2VfdjFiBnByb3RvMw", [file_common_v1_metrics]);
 
 /**
  * @generated from message vrooli.performance_health.v1.lighthouse.RunLighthouseRequest
@@ -94,6 +94,8 @@ export type PageScore = Message<"vrooli.performance_health.v1.lighthouse.PageSco
   performance: number;
 
   /**
+   * Observed Lighthouse score; consult accessibility_status for its non-gating meaning.
+   *
    * @generated from field: double accessibility = 3;
    */
   accessibility: number;
@@ -114,6 +116,13 @@ export type PageScore = Message<"vrooli.performance_health.v1.lighthouse.PageSco
    * @generated from field: repeated string violations = 6;
    */
   violations: string[];
+
+  /**
+   * Explicitly classifies the accessibility score as evidence, not a judge.
+   *
+   * @generated from field: vrooli.performance_health.v1.lighthouse.LighthouseAccessibilityStatus accessibility_status = 7;
+   */
+  accessibilityStatus: LighthouseAccessibilityStatus;
 };
 
 /**
@@ -153,6 +162,32 @@ export enum LighthouseOutcome {
  */
 export const LighthouseOutcomeSchema: GenEnum<LighthouseOutcome> = /*@__PURE__*/
   enumDesc(file_performance_health_v1_lighthouse_lighthouse, 0);
+
+/**
+ * LighthouseAccessibilityStatus classifies Lighthouse accessibility evidence.
+ *
+ * @generated from enum vrooli.performance_health.v1.lighthouse.LighthouseAccessibilityStatus
+ */
+export enum LighthouseAccessibilityStatus {
+  /**
+   * @generated from enum value: LIGHTHOUSE_ACCESSIBILITY_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Lighthouse reports a score as evidence; the unified experience phase owns
+   * accessibility pass/fail decisions.
+   *
+   * @generated from enum value: LIGHTHOUSE_ACCESSIBILITY_STATUS_OBSERVED_NON_GATING = 1;
+   */
+  OBSERVED_NON_GATING = 1,
+}
+
+/**
+ * Describes the enum vrooli.performance_health.v1.lighthouse.LighthouseAccessibilityStatus.
+ */
+export const LighthouseAccessibilityStatusSchema: GenEnum<LighthouseAccessibilityStatus> = /*@__PURE__*/
+  enumDesc(file_performance_health_v1_lighthouse_lighthouse, 1);
 
 /**
  * @generated from service vrooli.performance_health.v1.lighthouse.LighthouseService

@@ -292,5 +292,10 @@ func readinessNextSteps(rows []*catalogv1.ReadinessTriageRow) []string {
 	if len(rows) == 0 {
 		return []string{"react-component-library catalog readiness --json"}
 	}
-	return []string{"react-component-library catalog gates " + rows[0].Gate + " --json", "react-component-library catalog readiness --json"}
+	gate := rows[0].Gate
+	return []string{
+		"Inspect findings without writing: react-component-library catalog gates " + gate + " --json",
+		"Persist a measurement when intended: react-component-library catalog record-gate " + gate + " --json",
+		"Recheck readiness: react-component-library catalog readiness --json",
+	}
 }

@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class InstallDependencyRequest(_message.Message):
-    __slots__ = ("scenario", "surface", "ecosystem", "package_name", "version", "apply", "exact_version", "development", "refresh_lock", "workspace_path")
+    __slots__ = ("scenario", "surface", "ecosystem", "package_name", "version", "apply", "exact_version", "development", "refresh_lock", "workspace_path", "lock_only", "override_selector")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     SURFACE_FIELD_NUMBER: _ClassVar[int]
     ECOSYSTEM_FIELD_NUMBER: _ClassVar[int]
@@ -18,6 +18,8 @@ class InstallDependencyRequest(_message.Message):
     DEVELOPMENT_FIELD_NUMBER: _ClassVar[int]
     REFRESH_LOCK_FIELD_NUMBER: _ClassVar[int]
     WORKSPACE_PATH_FIELD_NUMBER: _ClassVar[int]
+    LOCK_ONLY_FIELD_NUMBER: _ClassVar[int]
+    OVERRIDE_SELECTOR_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     surface: str
     ecosystem: str
@@ -28,7 +30,9 @@ class InstallDependencyRequest(_message.Message):
     development: bool
     refresh_lock: bool
     workspace_path: str
-    def __init__(self, scenario: _Optional[str] = ..., surface: _Optional[str] = ..., ecosystem: _Optional[str] = ..., package_name: _Optional[str] = ..., version: _Optional[str] = ..., apply: _Optional[bool] = ..., exact_version: _Optional[bool] = ..., development: _Optional[bool] = ..., refresh_lock: _Optional[bool] = ..., workspace_path: _Optional[str] = ...) -> None: ...
+    lock_only: bool
+    override_selector: str
+    def __init__(self, scenario: _Optional[str] = ..., surface: _Optional[str] = ..., ecosystem: _Optional[str] = ..., package_name: _Optional[str] = ..., version: _Optional[str] = ..., apply: _Optional[bool] = ..., exact_version: _Optional[bool] = ..., development: _Optional[bool] = ..., refresh_lock: _Optional[bool] = ..., workspace_path: _Optional[str] = ..., lock_only: _Optional[bool] = ..., override_selector: _Optional[str] = ...) -> None: ...
 
 class InstallDependencyResponse(_message.Message):
     __slots__ = ("installed", "dry_run", "verdict", "blocked", "command", "package_manager", "manifest_path", "message", "next_steps", "security_notes", "guidance", "source_updated")
@@ -57,6 +61,90 @@ class InstallDependencyResponse(_message.Message):
     guidance: str
     source_updated: bool
     def __init__(self, installed: _Optional[bool] = ..., dry_run: _Optional[bool] = ..., verdict: _Optional[str] = ..., blocked: _Optional[bool] = ..., command: _Optional[str] = ..., package_manager: _Optional[str] = ..., manifest_path: _Optional[str] = ..., message: _Optional[str] = ..., next_steps: _Optional[_Iterable[str]] = ..., security_notes: _Optional[_Iterable[str]] = ..., guidance: _Optional[str] = ..., source_updated: _Optional[bool] = ...) -> None: ...
+
+class RemoveDependencyRequest(_message.Message):
+    __slots__ = ("scenario", "surface", "ecosystem", "package_names", "apply")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    SURFACE_FIELD_NUMBER: _ClassVar[int]
+    ECOSYSTEM_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_NAMES_FIELD_NUMBER: _ClassVar[int]
+    APPLY_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    surface: str
+    ecosystem: str
+    package_names: _containers.RepeatedScalarFieldContainer[str]
+    apply: bool
+    def __init__(self, scenario: _Optional[str] = ..., surface: _Optional[str] = ..., ecosystem: _Optional[str] = ..., package_names: _Optional[_Iterable[str]] = ..., apply: _Optional[bool] = ...) -> None: ...
+
+class RemoveDependencyResponse(_message.Message):
+    __slots__ = ("removed", "dry_run", "source_updated", "blocked", "verdict", "command", "package_manager", "manifest_path", "message", "next_steps", "notes")
+    REMOVED_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_UPDATED_FIELD_NUMBER: _ClassVar[int]
+    BLOCKED_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_MANAGER_FIELD_NUMBER: _ClassVar[int]
+    MANIFEST_PATH_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    NEXT_STEPS_FIELD_NUMBER: _ClassVar[int]
+    NOTES_FIELD_NUMBER: _ClassVar[int]
+    removed: bool
+    dry_run: bool
+    source_updated: bool
+    blocked: bool
+    verdict: str
+    command: str
+    package_manager: str
+    manifest_path: str
+    message: str
+    next_steps: _containers.RepeatedScalarFieldContainer[str]
+    notes: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, removed: _Optional[bool] = ..., dry_run: _Optional[bool] = ..., source_updated: _Optional[bool] = ..., blocked: _Optional[bool] = ..., verdict: _Optional[str] = ..., command: _Optional[str] = ..., package_manager: _Optional[str] = ..., manifest_path: _Optional[str] = ..., message: _Optional[str] = ..., next_steps: _Optional[_Iterable[str]] = ..., notes: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class UpdateLockedDependencyRequest(_message.Message):
+    __slots__ = ("scenario", "surface", "ecosystem", "package_names", "apply", "advisory", "lock_only")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    SURFACE_FIELD_NUMBER: _ClassVar[int]
+    ECOSYSTEM_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_NAMES_FIELD_NUMBER: _ClassVar[int]
+    APPLY_FIELD_NUMBER: _ClassVar[int]
+    ADVISORY_FIELD_NUMBER: _ClassVar[int]
+    LOCK_ONLY_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    surface: str
+    ecosystem: str
+    package_names: _containers.RepeatedScalarFieldContainer[str]
+    apply: bool
+    advisory: str
+    lock_only: bool
+    def __init__(self, scenario: _Optional[str] = ..., surface: _Optional[str] = ..., ecosystem: _Optional[str] = ..., package_names: _Optional[_Iterable[str]] = ..., apply: _Optional[bool] = ..., advisory: _Optional[str] = ..., lock_only: _Optional[bool] = ...) -> None: ...
+
+class UpdateLockedDependencyResponse(_message.Message):
+    __slots__ = ("updated", "dry_run", "source_updated", "blocked", "verdict", "command", "package_manager", "manifest_path", "message", "next_steps", "notes")
+    UPDATED_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_UPDATED_FIELD_NUMBER: _ClassVar[int]
+    BLOCKED_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_MANAGER_FIELD_NUMBER: _ClassVar[int]
+    MANIFEST_PATH_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    NEXT_STEPS_FIELD_NUMBER: _ClassVar[int]
+    NOTES_FIELD_NUMBER: _ClassVar[int]
+    updated: bool
+    dry_run: bool
+    source_updated: bool
+    blocked: bool
+    verdict: str
+    command: str
+    package_manager: str
+    manifest_path: str
+    message: str
+    next_steps: _containers.RepeatedScalarFieldContainer[str]
+    notes: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, updated: _Optional[bool] = ..., dry_run: _Optional[bool] = ..., source_updated: _Optional[bool] = ..., blocked: _Optional[bool] = ..., verdict: _Optional[str] = ..., command: _Optional[str] = ..., package_manager: _Optional[str] = ..., manifest_path: _Optional[str] = ..., message: _Optional[str] = ..., next_steps: _Optional[_Iterable[str]] = ..., notes: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ListApprovedDependenciesRequest(_message.Message):
     __slots__ = ("ecosystem", "state", "surface", "use_case")

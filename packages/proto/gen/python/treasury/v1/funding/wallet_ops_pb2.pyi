@@ -1,6 +1,7 @@
 import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from treasury.v1.funding import funding_pb2 as _funding_pb2
 from money_ledger.v1.ingest import ingest_pb2 as _ingest_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
@@ -33,20 +34,22 @@ class BudgetWallet(_message.Message):
     def __init__(self, budget_id: _Optional[str] = ..., wallet_id: _Optional[str] = ..., network: _Optional[str] = ..., address: _Optional[str] = ..., agent_subject: _Optional[str] = ..., agent_run_id: _Optional[str] = ..., mandate_id: _Optional[str] = ..., session_generation: _Optional[int] = ..., session_expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class ProvisionBudgetWalletRequest(_message.Message):
-    __slots__ = ("budget_id", "network", "agent_subject", "agent_run_id", "mandate_id", "rotate_session")
+    __slots__ = ("budget_id", "network", "agent_subject", "agent_run_id", "mandate_id", "rotate_session", "rotation_idempotency_key")
     BUDGET_ID_FIELD_NUMBER: _ClassVar[int]
     NETWORK_FIELD_NUMBER: _ClassVar[int]
     AGENT_SUBJECT_FIELD_NUMBER: _ClassVar[int]
     AGENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
     MANDATE_ID_FIELD_NUMBER: _ClassVar[int]
     ROTATE_SESSION_FIELD_NUMBER: _ClassVar[int]
+    ROTATION_IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
     budget_id: str
     network: str
     agent_subject: str
     agent_run_id: str
     mandate_id: str
     rotate_session: bool
-    def __init__(self, budget_id: _Optional[str] = ..., network: _Optional[str] = ..., agent_subject: _Optional[str] = ..., agent_run_id: _Optional[str] = ..., mandate_id: _Optional[str] = ..., rotate_session: _Optional[bool] = ...) -> None: ...
+    rotation_idempotency_key: str
+    def __init__(self, budget_id: _Optional[str] = ..., network: _Optional[str] = ..., agent_subject: _Optional[str] = ..., agent_run_id: _Optional[str] = ..., mandate_id: _Optional[str] = ..., rotate_session: _Optional[bool] = ..., rotation_idempotency_key: _Optional[str] = ...) -> None: ...
 
 class GetBudgetWalletRequest(_message.Message):
     __slots__ = ("budget_id", "mandate_id")
@@ -62,20 +65,8 @@ class BudgetWalletResponse(_message.Message):
     wallet: BudgetWallet
     def __init__(self, wallet: _Optional[_Union[BudgetWallet, _Mapping]] = ...) -> None: ...
 
-class RevokeMandateSessionRequest(_message.Message):
-    __slots__ = ("mandate_id",)
-    MANDATE_ID_FIELD_NUMBER: _ClassVar[int]
-    mandate_id: str
-    def __init__(self, mandate_id: _Optional[str] = ...) -> None: ...
-
-class RevokeMandateSessionResponse(_message.Message):
-    __slots__ = ("revoked",)
-    REVOKED_FIELD_NUMBER: _ClassVar[int]
-    revoked: bool
-    def __init__(self, revoked: _Optional[bool] = ...) -> None: ...
-
 class FundingIntent(_message.Message):
-    __slots__ = ("id", "budget_id", "wallet", "atomic_amount", "payment_uri", "state", "transaction_hash", "receipt_delivery_id", "created_at", "updated_at", "notification_state", "last_error")
+    __slots__ = ("id", "budget_id", "wallet", "atomic_amount", "payment_uri", "state", "transaction_hash", "receipt_delivery_id", "created_at", "updated_at", "notification_state", "last_error", "funding_mode", "payment_value_minor", "payment_currency")
     ID_FIELD_NUMBER: _ClassVar[int]
     BUDGET_ID_FIELD_NUMBER: _ClassVar[int]
     WALLET_FIELD_NUMBER: _ClassVar[int]
@@ -88,6 +79,9 @@ class FundingIntent(_message.Message):
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     NOTIFICATION_STATE_FIELD_NUMBER: _ClassVar[int]
     LAST_ERROR_FIELD_NUMBER: _ClassVar[int]
+    FUNDING_MODE_FIELD_NUMBER: _ClassVar[int]
+    PAYMENT_VALUE_MINOR_FIELD_NUMBER: _ClassVar[int]
+    PAYMENT_CURRENCY_FIELD_NUMBER: _ClassVar[int]
     id: str
     budget_id: str
     wallet: BudgetWallet
@@ -100,7 +94,10 @@ class FundingIntent(_message.Message):
     updated_at: _timestamp_pb2.Timestamp
     notification_state: str
     last_error: str
-    def __init__(self, id: _Optional[str] = ..., budget_id: _Optional[str] = ..., wallet: _Optional[_Union[BudgetWallet, _Mapping]] = ..., atomic_amount: _Optional[str] = ..., payment_uri: _Optional[str] = ..., state: _Optional[str] = ..., transaction_hash: _Optional[str] = ..., receipt_delivery_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., notification_state: _Optional[str] = ..., last_error: _Optional[str] = ...) -> None: ...
+    funding_mode: str
+    payment_value_minor: int
+    payment_currency: str
+    def __init__(self, id: _Optional[str] = ..., budget_id: _Optional[str] = ..., wallet: _Optional[_Union[BudgetWallet, _Mapping]] = ..., atomic_amount: _Optional[str] = ..., payment_uri: _Optional[str] = ..., state: _Optional[str] = ..., transaction_hash: _Optional[str] = ..., receipt_delivery_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., notification_state: _Optional[str] = ..., last_error: _Optional[str] = ..., funding_mode: _Optional[str] = ..., payment_value_minor: _Optional[int] = ..., payment_currency: _Optional[str] = ...) -> None: ...
 
 class CreateFundingIntentRequest(_message.Message):
     __slots__ = ("id", "budget_id", "atomic_amount", "valuation", "ledger_book_id", "ledger_account_id", "attribution")

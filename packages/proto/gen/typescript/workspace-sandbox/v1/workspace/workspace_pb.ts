@@ -2,15 +2,487 @@
 // @generated from file workspace-sandbox/v1/workspace/workspace.proto (package workspace_sandbox.v1.workspace, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file workspace-sandbox/v1/workspace/workspace.proto.
  */
 export const file_workspace_sandbox_v1_workspace_workspace: GenFile = /*@__PURE__*/
-  fileDesc("Ci53b3Jrc3BhY2Utc2FuZGJveC92MS93b3Jrc3BhY2Uvd29ya3NwYWNlLnByb3RvEh53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UiLQoXUmVzb2x2ZVdvcmtzcGFjZVJlcXVlc3QSEgoKc2FuZGJveF9pZBgBIAEoCSJvChhSZXNvbHZlV29ya3NwYWNlUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBISCgpzYW5kYm94X2lkGAIgASgJEhYKDndvcmtzcGFjZV9yb290GAMgASgJEhYKDmlzb2xhdGlvbl9tb2RlGAQgASgJIo4BChRDcmVhdGVTYW5kYm94UmVxdWVzdBIMCgRuYW1lGAEgASgJEhIKCnNjb3BlX3BhdGgYAiABKAkSFAoMcHJvamVjdF9yb290GAMgASgJEg0KBW93bmVyGAQgASgJEhYKDnJlc2VydmVkX3BhdGhzGAUgAygJEhcKD2lkZW1wb3RlbmN5X2tleRgGIAEoCSKOAQoOU2FuZGJveFN1bW1hcnkSEgoKc2FuZGJveF9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSFgoOd29ya3NwYWNlX3Jvb3QYAyABKAkSFgoOaXNvbGF0aW9uX21vZGUYBCABKAkSEgoKc2NvcGVfcGF0aBgFIAEoCRIUCgxwcm9qZWN0X3Jvb3QYBiABKAkiaQoVQ3JlYXRlU2FuZGJveFJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSPwoHc2FuZGJveBgCIAEoCzIuLndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5TYW5kYm94U3VtbWFyeSIrChVHZXRTYW5kYm94RGlmZlJlcXVlc3QSEgoKc2FuZGJveF9pZBgBIAEoCSJUCghEaWZmRmlsZRIMCgRwYXRoGAEgASgJEhMKC2NoYW5nZV90eXBlGAIgASgJEgwKBHNpemUYAyABKAMSFwoPYXBwcm92YWxfc3RhdHVzGAQgASgJIqcBCglEaWZmU3RhdHMSFQoNZmlsZXNfY2hhbmdlZBgBIAEoBRITCgtmaWxlc19hZGRlZBgCIAEoBRIWCg5maWxlc19tb2RpZmllZBgDIAEoBRIVCg1maWxlc19kZWxldGVkGAQgASgFEhMKC2xpbmVzX2FkZGVkGAUgASgFEhUKDWxpbmVzX3JlbW92ZWQYBiABKAUSEwoLdG90YWxfYnl0ZXMYByABKAMi8wEKFkdldFNhbmRib3hEaWZmUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBISCgpzYW5kYm94X2lkGAIgASgJEjcKBWZpbGVzGAMgAygLMigud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLkRpZmZGaWxlEhQKDHVuaWZpZWRfZGlmZhgEIAEoCRI4CgVzdGF0cxgFIAEoCzIpLndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5EaWZmU3RhdHMSFQoNYXJjaGl2ZV9zdGF0ZRgGIAEoCRIUCgxwYXRjaF9zaGEyNTYYByABKAkiigIKFVByb21vdGVTYW5kYm94UmVxdWVzdBISCgpzYW5kYm94X2lkGAEgASgJEgwKBG1vZGUYAiABKAkSDQoFYWN0b3IYAyABKAkSFgoOY29tbWl0X21lc3NhZ2UYBCABKAkSFQoNY3JlYXRlX2NvbW1pdBgFIAEoCBINCgVmb3JjZRgGIAEoCBIbChNvdmVycmlkZV9hY2NlcHRhbmNlGAcgASgIEg8KB2NvbmZpcm0YCCABKAgSHQoVZXhwZWN0ZWRfcGF0Y2hfc2hhMjU2GAkgASgJSgQIChALSgQICxAMUhFyZXZpZXdfcmVxdWVzdF9pZFIWZXhwZWN0ZWRfcmV2aWV3X3NoYTI1NiLaAQoWUHJvbW90ZVNhbmRib3hSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEhIKCnNhbmRib3hfaWQYAiABKAkSDwoHYXBwbGllZBgDIAEoBRIOCgZmYWlsZWQYBCABKAUSEQoJcmVtYWluaW5nGAUgASgFEhIKCmlzX3BhcnRpYWwYBiABKAgSEwoLY29tbWl0X2hhc2gYByABKAkSDQoFZXJyb3IYCCABKAkSEQoJZGlmZl9wYXRoGAkgASgJEhwKFGFwcGxpZWRfcGF0Y2hfc2hhMjU2GAogASgJMqEEChdXb3Jrc3BhY2VTYW5kYm94U2VydmljZRKFAQoQUmVzb2x2ZVdvcmtzcGFjZRI3LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5SZXNvbHZlV29ya3NwYWNlUmVxdWVzdBo4LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5SZXNvbHZlV29ya3NwYWNlUmVzcG9uc2USfAoNQ3JlYXRlU2FuZGJveBI0LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5DcmVhdGVTYW5kYm94UmVxdWVzdBo1LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5DcmVhdGVTYW5kYm94UmVzcG9uc2USfwoOR2V0U2FuZGJveERpZmYSNS53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuR2V0U2FuZGJveERpZmZSZXF1ZXN0GjYud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLkdldFNhbmRib3hEaWZmUmVzcG9uc2USfwoOUHJvbW90ZVNhbmRib3gSNS53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuUHJvbW90ZVNhbmRib3hSZXF1ZXN0GjYud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLlByb21vdGVTYW5kYm94UmVzcG9uc2VCWVpXZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby93b3Jrc3BhY2Utc2FuZGJveC92MS93b3Jrc3BhY2U7d29ya3NwYWNlYgZwcm90bzM");
+  fileDesc("Ci53b3Jrc3BhY2Utc2FuZGJveC92MS93b3Jrc3BhY2Uvd29ya3NwYWNlLnByb3RvEh53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UiSAoOUmVwbGF5VGVzdEZpbGUSFQoNcmVsYXRpdmVfcGF0aBgBIAEoCRIPCgdjb250ZW50GAIgASgMEg4KBnNoYTI1NhgDIAEoCSLKAgoWU3RhcnRSZXBsYXlUZXN0UmVxdWVzdBIhChlvcGVyYXRpb25faWRlbXBvdGVuY3lfa2V5GAEgASgJEg8KB2Nhc2VfaWQYAiABKAkSPAoEcm9sZRgDIAEoDjIuLndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5SZXBsYXlTZWFsUm9sZRITCgtzZWFsX2RpZ2VzdBgEIAEoCRIbChNldmFsdWF0b3JfYnVuZGxlX2lkGAUgASgJEh8KF2V2YWx1YXRvcl9idW5kbGVfZGlnZXN0GAYgASgJEj0KBWZpbGVzGAcgAygLMi4ud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLlJlcGxheVRlc3RGaWxlEhMKC2VudHJ5X3BvaW50GAggASgJEhcKD3RpbWVvdXRfc2Vjb25kcxgJIAEoDSKZAwoXU3RhcnRSZXBsYXlUZXN0UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIUCgxvcGVyYXRpb25faWQYAiABKAkSDwoHY2FzZV9pZBgDIAEoCRI8CgRyb2xlGAQgASgOMi4ud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLlJlcGxheVNlYWxSb2xlEhMKC3NlYWxfZGlnZXN0GAUgASgJEhsKE2V2YWx1YXRvcl9idW5kbGVfaWQYBiABKAkSHwoXZXZhbHVhdG9yX2J1bmRsZV9kaWdlc3QYByABKAkSEwoLZW50cnlfcG9pbnQYCCABKAkSQgoHb3V0Y29tZRgJIAEoDjIxLndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5SZXBsYXlUZXN0T3V0Y29tZRIVCg1yZXN1bHRfZGlnZXN0GAogASgJEhoKEnNlYWxfaW50YWN0X2JlZm9yZRgLIAEoCBIZChFzZWFsX2ludGFjdF9hZnRlchgMIAEoCBIOCgZkZXRhaWwYDSABKAkiaQoVV2FpdFJlcGxheVRlc3RSZXF1ZXN0EhQKDG9wZXJhdGlvbl9pZBgBIAEoCRIPCgdjYXNlX2lkGAIgASgJEhMKC3NlYWxfZGlnZXN0GAMgASgJEhQKDHdhaXRfc2Vjb25kcxgEIAEoDSKYAwoWV2FpdFJlcGxheVRlc3RSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEhQKDG9wZXJhdGlvbl9pZBgCIAEoCRIPCgdjYXNlX2lkGAMgASgJEjwKBHJvbGUYBCABKA4yLi53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuUmVwbGF5U2VhbFJvbGUSEwoLc2VhbF9kaWdlc3QYBSABKAkSGwoTZXZhbHVhdG9yX2J1bmRsZV9pZBgGIAEoCRIfChdldmFsdWF0b3JfYnVuZGxlX2RpZ2VzdBgHIAEoCRITCgtlbnRyeV9wb2ludBgIIAEoCRJCCgdvdXRjb21lGAkgASgOMjEud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLlJlcGxheVRlc3RPdXRjb21lEhUKDXJlc3VsdF9kaWdlc3QYCiABKAkSGgoSc2VhbF9pbnRhY3RfYmVmb3JlGAsgASgIEhkKEXNlYWxfaW50YWN0X2FmdGVyGAwgASgIEg4KBmRldGFpbBgNIAEoCSJ8ChdDcmVhdGVSZXBsYXlTZWFsUmVxdWVzdBISCgpzYW5kYm94X2lkGAEgASgJEg8KB2Nhc2VfaWQYAiABKAkSPAoEcm9sZRgDIAEoDjIuLndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5SZXBsYXlTZWFsUm9sZSK4AQoYQ3JlYXRlUmVwbGF5U2VhbFJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSDwoHY2FzZV9pZBgCIAEoCRI8CgRyb2xlGAMgASgOMi4ud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLlJlcGxheVNlYWxSb2xlEhMKC3NlYWxfZGlnZXN0GAQgASgJEhIKCmZpbGVfY291bnQYBSABKAQSEwoLdG90YWxfYnl0ZXMYBiABKAQifgoYUmVzb2x2ZVJlcGxheVNlYWxSZXF1ZXN0Eg8KB2Nhc2VfaWQYASABKAkSPAoEcm9sZRgCIAEoDjIuLndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5SZXBsYXlTZWFsUm9sZRITCgtzZWFsX2RpZ2VzdBgDIAEoCSKoAQoZUmVzb2x2ZVJlcGxheVNlYWxSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEg8KB2Nhc2VfaWQYAiABKAkSPAoEcm9sZRgDIAEoDjIuLndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5SZXBsYXlTZWFsUm9sZRITCgtzZWFsX2RpZ2VzdBgEIAEoCRIWCg53b3Jrc3BhY2Vfcm9vdBgFIAEoCSJ9ChdWZXJpZnlSZXBsYXlTZWFsUmVxdWVzdBIPCgdjYXNlX2lkGAEgASgJEjwKBHJvbGUYAiABKA4yLi53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuUmVwbGF5U2VhbFJvbGUSEwoLc2VhbF9kaWdlc3QYAyABKAkiuAEKGFZlcmlmeVJlcGxheVNlYWxSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEg4KBmludGFjdBgCIAEoCBIXCg90YW1wZXJfZGV0ZWN0ZWQYAyABKAgSDwoHY2FzZV9pZBgEIAEoCRI8CgRyb2xlGAUgASgOMi4ud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLlJlcGxheVNlYWxSb2xlEhMKC3NlYWxfZGlnZXN0GAYgASgJIi0KF1Jlc29sdmVXb3Jrc3BhY2VSZXF1ZXN0EhIKCnNhbmRib3hfaWQYASABKAkibwoYUmVzb2x2ZVdvcmtzcGFjZVJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSEgoKc2FuZGJveF9pZBgCIAEoCRIWCg53b3Jrc3BhY2Vfcm9vdBgDIAEoCRIWCg5pc29sYXRpb25fbW9kZRgEIAEoCSKOAQoUQ3JlYXRlU2FuZGJveFJlcXVlc3QSDAoEbmFtZRgBIAEoCRISCgpzY29wZV9wYXRoGAIgASgJEhQKDHByb2plY3Rfcm9vdBgDIAEoCRINCgVvd25lchgEIAEoCRIWCg5yZXNlcnZlZF9wYXRocxgFIAMoCRIXCg9pZGVtcG90ZW5jeV9rZXkYBiABKAkijgEKDlNhbmRib3hTdW1tYXJ5EhIKCnNhbmRib3hfaWQYASABKAkSDgoGc3RhdHVzGAIgASgJEhYKDndvcmtzcGFjZV9yb290GAMgASgJEhYKDmlzb2xhdGlvbl9tb2RlGAQgASgJEhIKCnNjb3BlX3BhdGgYBSABKAkSFAoMcHJvamVjdF9yb290GAYgASgJImkKFUNyZWF0ZVNhbmRib3hSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEj8KB3NhbmRib3gYAiABKAsyLi53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuU2FuZGJveFN1bW1hcnkiKwoVR2V0U2FuZGJveERpZmZSZXF1ZXN0EhIKCnNhbmRib3hfaWQYASABKAkiVAoIRGlmZkZpbGUSDAoEcGF0aBgBIAEoCRITCgtjaGFuZ2VfdHlwZRgCIAEoCRIMCgRzaXplGAMgASgDEhcKD2FwcHJvdmFsX3N0YXR1cxgEIAEoCSKnAQoJRGlmZlN0YXRzEhUKDWZpbGVzX2NoYW5nZWQYASABKAUSEwoLZmlsZXNfYWRkZWQYAiABKAUSFgoOZmlsZXNfbW9kaWZpZWQYAyABKAUSFQoNZmlsZXNfZGVsZXRlZBgEIAEoBRITCgtsaW5lc19hZGRlZBgFIAEoBRIVCg1saW5lc19yZW1vdmVkGAYgASgFEhMKC3RvdGFsX2J5dGVzGAcgASgDIvMBChZHZXRTYW5kYm94RGlmZlJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSEgoKc2FuZGJveF9pZBgCIAEoCRI3CgVmaWxlcxgDIAMoCzIoLndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5EaWZmRmlsZRIUCgx1bmlmaWVkX2RpZmYYBCABKAkSOAoFc3RhdHMYBSABKAsyKS53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuRGlmZlN0YXRzEhUKDWFyY2hpdmVfc3RhdGUYBiABKAkSFAoMcGF0Y2hfc2hhMjU2GAcgASgJIooCChVQcm9tb3RlU2FuZGJveFJlcXVlc3QSEgoKc2FuZGJveF9pZBgBIAEoCRIMCgRtb2RlGAIgASgJEg0KBWFjdG9yGAMgASgJEhYKDmNvbW1pdF9tZXNzYWdlGAQgASgJEhUKDWNyZWF0ZV9jb21taXQYBSABKAgSDQoFZm9yY2UYBiABKAgSGwoTb3ZlcnJpZGVfYWNjZXB0YW5jZRgHIAEoCBIPCgdjb25maXJtGAggASgIEh0KFWV4cGVjdGVkX3BhdGNoX3NoYTI1NhgJIAEoCUoECAoQC0oECAsQDFIRcmV2aWV3X3JlcXVlc3RfaWRSFmV4cGVjdGVkX3Jldmlld19zaGEyNTYi2gEKFlByb21vdGVTYW5kYm94UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBISCgpzYW5kYm94X2lkGAIgASgJEg8KB2FwcGxpZWQYAyABKAUSDgoGZmFpbGVkGAQgASgFEhEKCXJlbWFpbmluZxgFIAEoBRISCgppc19wYXJ0aWFsGAYgASgIEhMKC2NvbW1pdF9oYXNoGAcgASgJEg0KBWVycm9yGAggASgJEhEKCWRpZmZfcGF0aBgJIAEoCRIcChRhcHBsaWVkX3BhdGNoX3NoYTI1NhgKIAEoCSr3AQoRUmVwbGF5VGVzdE91dGNvbWUSIwofUkVQTEFZX1RFU1RfT1VUQ09NRV9VTlNQRUNJRklFRBAAEh8KG1JFUExBWV9URVNUX09VVENPTUVfUlVOTklORxABEh4KGlJFUExBWV9URVNUX09VVENPTUVfUEFTU0VEEAISKAokUkVQTEFZX1RFU1RfT1VUQ09NRV9BU1NFUlRJT05fRkFJTEVEEAMSLQopUkVQTEFZX1RFU1RfT1VUQ09NRV9JTkZSQVNUUlVDVFVSRV9GQUlMRUQQBBIjCh9SRVBMQVlfVEVTVF9PVVRDT01FX0lOVEVSUlVQVEVEEAUqjwEKDlJlcGxheVNlYWxSb2xlEiAKHFJFUExBWV9TRUFMX1JPTEVfVU5TUEVDSUZJRUQQABIbChdSRVBMQVlfU0VBTF9ST0xFX1NPVVJDRRABEh4KGlJFUExBWV9TRUFMX1JPTEVfQ0FORElEQVRFEAISHgoaUkVQTEFZX1NFQUxfUk9MRV9SRUZFUkVOQ0UQAzLCCQoXV29ya3NwYWNlU2FuZGJveFNlcnZpY2UShQEKEFJlc29sdmVXb3Jrc3BhY2USNy53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuUmVzb2x2ZVdvcmtzcGFjZVJlcXVlc3QaOC53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuUmVzb2x2ZVdvcmtzcGFjZVJlc3BvbnNlEnwKDUNyZWF0ZVNhbmRib3gSNC53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuQ3JlYXRlU2FuZGJveFJlcXVlc3QaNS53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuQ3JlYXRlU2FuZGJveFJlc3BvbnNlEn8KDkdldFNhbmRib3hEaWZmEjUud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLkdldFNhbmRib3hEaWZmUmVxdWVzdBo2LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5HZXRTYW5kYm94RGlmZlJlc3BvbnNlEn8KDlByb21vdGVTYW5kYm94EjUud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLlByb21vdGVTYW5kYm94UmVxdWVzdBo2LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5Qcm9tb3RlU2FuZGJveFJlc3BvbnNlEoUBChBDcmVhdGVSZXBsYXlTZWFsEjcud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLkNyZWF0ZVJlcGxheVNlYWxSZXF1ZXN0Gjgud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLkNyZWF0ZVJlcGxheVNlYWxSZXNwb25zZRKIAQoRUmVzb2x2ZVJlcGxheVNlYWwSOC53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuUmVzb2x2ZVJlcGxheVNlYWxSZXF1ZXN0Gjkud29ya3NwYWNlX3NhbmRib3gudjEud29ya3NwYWNlLlJlc29sdmVSZXBsYXlTZWFsUmVzcG9uc2UShQEKEFZlcmlmeVJlcGxheVNlYWwSNy53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuVmVyaWZ5UmVwbGF5U2VhbFJlcXVlc3QaOC53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuVmVyaWZ5UmVwbGF5U2VhbFJlc3BvbnNlEoIBCg9TdGFydFJlcGxheVRlc3QSNi53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuU3RhcnRSZXBsYXlUZXN0UmVxdWVzdBo3LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5TdGFydFJlcGxheVRlc3RSZXNwb25zZRJ/Cg5XYWl0UmVwbGF5VGVzdBI1LndvcmtzcGFjZV9zYW5kYm94LnYxLndvcmtzcGFjZS5XYWl0UmVwbGF5VGVzdFJlcXVlc3QaNi53b3Jrc3BhY2Vfc2FuZGJveC52MS53b3Jrc3BhY2UuV2FpdFJlcGxheVRlc3RSZXNwb25zZUJZWldnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dvcmtzcGFjZS1zYW5kYm94L3YxL3dvcmtzcGFjZTt3b3Jrc3BhY2ViBnByb3RvMw");
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.ReplayTestFile
+ */
+export type ReplayTestFile = Message<"workspace_sandbox.v1.workspace.ReplayTestFile"> & {
+  /**
+   * @generated from field: string relative_path = 1;
+   */
+  relativePath: string;
+
+  /**
+   * @generated from field: bytes content = 2;
+   */
+  content: Uint8Array;
+
+  /**
+   * @generated from field: string sha256 = 3;
+   */
+  sha256: string;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.ReplayTestFile.
+ * Use `create(ReplayTestFileSchema)` to create a new message.
+ */
+export const ReplayTestFileSchema: GenMessage<ReplayTestFile> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 0);
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.StartReplayTestRequest
+ */
+export type StartReplayTestRequest = Message<"workspace_sandbox.v1.workspace.StartReplayTestRequest"> & {
+  /**
+   * @generated from field: string operation_idempotency_key = 1;
+   */
+  operationIdempotencyKey: string;
+
+  /**
+   * @generated from field: string case_id = 2;
+   */
+  caseId: string;
+
+  /**
+   * @generated from field: workspace_sandbox.v1.workspace.ReplaySealRole role = 3;
+   */
+  role: ReplaySealRole;
+
+  /**
+   * @generated from field: string seal_digest = 4;
+   */
+  sealDigest: string;
+
+  /**
+   * @generated from field: string evaluator_bundle_id = 5;
+   */
+  evaluatorBundleId: string;
+
+  /**
+   * @generated from field: string evaluator_bundle_digest = 6;
+   */
+  evaluatorBundleDigest: string;
+
+  /**
+   * @generated from field: repeated workspace_sandbox.v1.workspace.ReplayTestFile files = 7;
+   */
+  files: ReplayTestFile[];
+
+  /**
+   * @generated from field: string entry_point = 8;
+   */
+  entryPoint: string;
+
+  /**
+   * @generated from field: uint32 timeout_seconds = 9;
+   */
+  timeoutSeconds: number;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.StartReplayTestRequest.
+ * Use `create(StartReplayTestRequestSchema)` to create a new message.
+ */
+export const StartReplayTestRequestSchema: GenMessage<StartReplayTestRequest> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 1);
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.StartReplayTestResponse
+ */
+export type StartReplayTestResponse = Message<"workspace_sandbox.v1.workspace.StartReplayTestResponse"> & {
+  /**
+   * @generated from field: bool success = 1;
+   */
+  success: boolean;
+
+  /**
+   * @generated from field: string operation_id = 2;
+   */
+  operationId: string;
+
+  /**
+   * @generated from field: string case_id = 3;
+   */
+  caseId: string;
+
+  /**
+   * @generated from field: workspace_sandbox.v1.workspace.ReplaySealRole role = 4;
+   */
+  role: ReplaySealRole;
+
+  /**
+   * @generated from field: string seal_digest = 5;
+   */
+  sealDigest: string;
+
+  /**
+   * @generated from field: string evaluator_bundle_id = 6;
+   */
+  evaluatorBundleId: string;
+
+  /**
+   * @generated from field: string evaluator_bundle_digest = 7;
+   */
+  evaluatorBundleDigest: string;
+
+  /**
+   * @generated from field: string entry_point = 8;
+   */
+  entryPoint: string;
+
+  /**
+   * @generated from field: workspace_sandbox.v1.workspace.ReplayTestOutcome outcome = 9;
+   */
+  outcome: ReplayTestOutcome;
+
+  /**
+   * @generated from field: string result_digest = 10;
+   */
+  resultDigest: string;
+
+  /**
+   * @generated from field: bool seal_intact_before = 11;
+   */
+  sealIntactBefore: boolean;
+
+  /**
+   * @generated from field: bool seal_intact_after = 12;
+   */
+  sealIntactAfter: boolean;
+
+  /**
+   * @generated from field: string detail = 13;
+   */
+  detail: string;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.StartReplayTestResponse.
+ * Use `create(StartReplayTestResponseSchema)` to create a new message.
+ */
+export const StartReplayTestResponseSchema: GenMessage<StartReplayTestResponse> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 2);
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.WaitReplayTestRequest
+ */
+export type WaitReplayTestRequest = Message<"workspace_sandbox.v1.workspace.WaitReplayTestRequest"> & {
+  /**
+   * @generated from field: string operation_id = 1;
+   */
+  operationId: string;
+
+  /**
+   * @generated from field: string case_id = 2;
+   */
+  caseId: string;
+
+  /**
+   * @generated from field: string seal_digest = 3;
+   */
+  sealDigest: string;
+
+  /**
+   * @generated from field: uint32 wait_seconds = 4;
+   */
+  waitSeconds: number;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.WaitReplayTestRequest.
+ * Use `create(WaitReplayTestRequestSchema)` to create a new message.
+ */
+export const WaitReplayTestRequestSchema: GenMessage<WaitReplayTestRequest> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 3);
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.WaitReplayTestResponse
+ */
+export type WaitReplayTestResponse = Message<"workspace_sandbox.v1.workspace.WaitReplayTestResponse"> & {
+  /**
+   * @generated from field: bool success = 1;
+   */
+  success: boolean;
+
+  /**
+   * @generated from field: string operation_id = 2;
+   */
+  operationId: string;
+
+  /**
+   * @generated from field: string case_id = 3;
+   */
+  caseId: string;
+
+  /**
+   * @generated from field: workspace_sandbox.v1.workspace.ReplaySealRole role = 4;
+   */
+  role: ReplaySealRole;
+
+  /**
+   * @generated from field: string seal_digest = 5;
+   */
+  sealDigest: string;
+
+  /**
+   * @generated from field: string evaluator_bundle_id = 6;
+   */
+  evaluatorBundleId: string;
+
+  /**
+   * @generated from field: string evaluator_bundle_digest = 7;
+   */
+  evaluatorBundleDigest: string;
+
+  /**
+   * @generated from field: string entry_point = 8;
+   */
+  entryPoint: string;
+
+  /**
+   * @generated from field: workspace_sandbox.v1.workspace.ReplayTestOutcome outcome = 9;
+   */
+  outcome: ReplayTestOutcome;
+
+  /**
+   * @generated from field: string result_digest = 10;
+   */
+  resultDigest: string;
+
+  /**
+   * @generated from field: bool seal_intact_before = 11;
+   */
+  sealIntactBefore: boolean;
+
+  /**
+   * @generated from field: bool seal_intact_after = 12;
+   */
+  sealIntactAfter: boolean;
+
+  /**
+   * @generated from field: string detail = 13;
+   */
+  detail: string;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.WaitReplayTestResponse.
+ * Use `create(WaitReplayTestResponseSchema)` to create a new message.
+ */
+export const WaitReplayTestResponseSchema: GenMessage<WaitReplayTestResponse> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 4);
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.CreateReplaySealRequest
+ */
+export type CreateReplaySealRequest = Message<"workspace_sandbox.v1.workspace.CreateReplaySealRequest"> & {
+  /**
+   * @generated from field: string sandbox_id = 1;
+   */
+  sandboxId: string;
+
+  /**
+   * @generated from field: string case_id = 2;
+   */
+  caseId: string;
+
+  /**
+   * @generated from field: workspace_sandbox.v1.workspace.ReplaySealRole role = 3;
+   */
+  role: ReplaySealRole;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.CreateReplaySealRequest.
+ * Use `create(CreateReplaySealRequestSchema)` to create a new message.
+ */
+export const CreateReplaySealRequestSchema: GenMessage<CreateReplaySealRequest> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 5);
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.CreateReplaySealResponse
+ */
+export type CreateReplaySealResponse = Message<"workspace_sandbox.v1.workspace.CreateReplaySealResponse"> & {
+  /**
+   * @generated from field: bool success = 1;
+   */
+  success: boolean;
+
+  /**
+   * @generated from field: string case_id = 2;
+   */
+  caseId: string;
+
+  /**
+   * @generated from field: workspace_sandbox.v1.workspace.ReplaySealRole role = 3;
+   */
+  role: ReplaySealRole;
+
+  /**
+   * @generated from field: string seal_digest = 4;
+   */
+  sealDigest: string;
+
+  /**
+   * @generated from field: uint64 file_count = 5;
+   */
+  fileCount: bigint;
+
+  /**
+   * @generated from field: uint64 total_bytes = 6;
+   */
+  totalBytes: bigint;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.CreateReplaySealResponse.
+ * Use `create(CreateReplaySealResponseSchema)` to create a new message.
+ */
+export const CreateReplaySealResponseSchema: GenMessage<CreateReplaySealResponse> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 6);
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.ResolveReplaySealRequest
+ */
+export type ResolveReplaySealRequest = Message<"workspace_sandbox.v1.workspace.ResolveReplaySealRequest"> & {
+  /**
+   * @generated from field: string case_id = 1;
+   */
+  caseId: string;
+
+  /**
+   * @generated from field: workspace_sandbox.v1.workspace.ReplaySealRole role = 2;
+   */
+  role: ReplaySealRole;
+
+  /**
+   * @generated from field: string seal_digest = 3;
+   */
+  sealDigest: string;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.ResolveReplaySealRequest.
+ * Use `create(ResolveReplaySealRequestSchema)` to create a new message.
+ */
+export const ResolveReplaySealRequestSchema: GenMessage<ResolveReplaySealRequest> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 7);
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.ResolveReplaySealResponse
+ */
+export type ResolveReplaySealResponse = Message<"workspace_sandbox.v1.workspace.ResolveReplaySealResponse"> & {
+  /**
+   * @generated from field: bool success = 1;
+   */
+  success: boolean;
+
+  /**
+   * @generated from field: string case_id = 2;
+   */
+  caseId: string;
+
+  /**
+   * @generated from field: workspace_sandbox.v1.workspace.ReplaySealRole role = 3;
+   */
+  role: ReplaySealRole;
+
+  /**
+   * @generated from field: string seal_digest = 4;
+   */
+  sealDigest: string;
+
+  /**
+   * @generated from field: string workspace_root = 5;
+   */
+  workspaceRoot: string;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.ResolveReplaySealResponse.
+ * Use `create(ResolveReplaySealResponseSchema)` to create a new message.
+ */
+export const ResolveReplaySealResponseSchema: GenMessage<ResolveReplaySealResponse> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 8);
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.VerifyReplaySealRequest
+ */
+export type VerifyReplaySealRequest = Message<"workspace_sandbox.v1.workspace.VerifyReplaySealRequest"> & {
+  /**
+   * @generated from field: string case_id = 1;
+   */
+  caseId: string;
+
+  /**
+   * @generated from field: workspace_sandbox.v1.workspace.ReplaySealRole role = 2;
+   */
+  role: ReplaySealRole;
+
+  /**
+   * @generated from field: string seal_digest = 3;
+   */
+  sealDigest: string;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.VerifyReplaySealRequest.
+ * Use `create(VerifyReplaySealRequestSchema)` to create a new message.
+ */
+export const VerifyReplaySealRequestSchema: GenMessage<VerifyReplaySealRequest> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 9);
+
+/**
+ * @generated from message workspace_sandbox.v1.workspace.VerifyReplaySealResponse
+ */
+export type VerifyReplaySealResponse = Message<"workspace_sandbox.v1.workspace.VerifyReplaySealResponse"> & {
+  /**
+   * @generated from field: bool success = 1;
+   */
+  success: boolean;
+
+  /**
+   * @generated from field: bool intact = 2;
+   */
+  intact: boolean;
+
+  /**
+   * @generated from field: bool tamper_detected = 3;
+   */
+  tamperDetected: boolean;
+
+  /**
+   * @generated from field: string case_id = 4;
+   */
+  caseId: string;
+
+  /**
+   * @generated from field: workspace_sandbox.v1.workspace.ReplaySealRole role = 5;
+   */
+  role: ReplaySealRole;
+
+  /**
+   * @generated from field: string seal_digest = 6;
+   */
+  sealDigest: string;
+};
+
+/**
+ * Describes the message workspace_sandbox.v1.workspace.VerifyReplaySealResponse.
+ * Use `create(VerifyReplaySealResponseSchema)` to create a new message.
+ */
+export const VerifyReplaySealResponseSchema: GenMessage<VerifyReplaySealResponse> = /*@__PURE__*/
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 10);
 
 /**
  * @generated from message workspace_sandbox.v1.workspace.ResolveWorkspaceRequest
@@ -27,7 +499,7 @@ export type ResolveWorkspaceRequest = Message<"workspace_sandbox.v1.workspace.Re
  * Use `create(ResolveWorkspaceRequestSchema)` to create a new message.
  */
 export const ResolveWorkspaceRequestSchema: GenMessage<ResolveWorkspaceRequest> = /*@__PURE__*/
-  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 0);
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 11);
 
 /**
  * @generated from message workspace_sandbox.v1.workspace.ResolveWorkspaceResponse
@@ -59,7 +531,7 @@ export type ResolveWorkspaceResponse = Message<"workspace_sandbox.v1.workspace.R
  * Use `create(ResolveWorkspaceResponseSchema)` to create a new message.
  */
 export const ResolveWorkspaceResponseSchema: GenMessage<ResolveWorkspaceResponse> = /*@__PURE__*/
-  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 1);
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 12);
 
 /**
  * @generated from message workspace_sandbox.v1.workspace.CreateSandboxRequest
@@ -101,7 +573,7 @@ export type CreateSandboxRequest = Message<"workspace_sandbox.v1.workspace.Creat
  * Use `create(CreateSandboxRequestSchema)` to create a new message.
  */
 export const CreateSandboxRequestSchema: GenMessage<CreateSandboxRequest> = /*@__PURE__*/
-  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 2);
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 13);
 
 /**
  * @generated from message workspace_sandbox.v1.workspace.SandboxSummary
@@ -143,7 +615,7 @@ export type SandboxSummary = Message<"workspace_sandbox.v1.workspace.SandboxSumm
  * Use `create(SandboxSummarySchema)` to create a new message.
  */
 export const SandboxSummarySchema: GenMessage<SandboxSummary> = /*@__PURE__*/
-  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 3);
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 14);
 
 /**
  * @generated from message workspace_sandbox.v1.workspace.CreateSandboxResponse
@@ -165,7 +637,7 @@ export type CreateSandboxResponse = Message<"workspace_sandbox.v1.workspace.Crea
  * Use `create(CreateSandboxResponseSchema)` to create a new message.
  */
 export const CreateSandboxResponseSchema: GenMessage<CreateSandboxResponse> = /*@__PURE__*/
-  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 4);
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 15);
 
 /**
  * @generated from message workspace_sandbox.v1.workspace.GetSandboxDiffRequest
@@ -182,7 +654,7 @@ export type GetSandboxDiffRequest = Message<"workspace_sandbox.v1.workspace.GetS
  * Use `create(GetSandboxDiffRequestSchema)` to create a new message.
  */
 export const GetSandboxDiffRequestSchema: GenMessage<GetSandboxDiffRequest> = /*@__PURE__*/
-  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 5);
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 16);
 
 /**
  * @generated from message workspace_sandbox.v1.workspace.DiffFile
@@ -214,7 +686,7 @@ export type DiffFile = Message<"workspace_sandbox.v1.workspace.DiffFile"> & {
  * Use `create(DiffFileSchema)` to create a new message.
  */
 export const DiffFileSchema: GenMessage<DiffFile> = /*@__PURE__*/
-  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 6);
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 17);
 
 /**
  * @generated from message workspace_sandbox.v1.workspace.DiffStats
@@ -261,7 +733,7 @@ export type DiffStats = Message<"workspace_sandbox.v1.workspace.DiffStats"> & {
  * Use `create(DiffStatsSchema)` to create a new message.
  */
 export const DiffStatsSchema: GenMessage<DiffStats> = /*@__PURE__*/
-  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 7);
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 18);
 
 /**
  * @generated from message workspace_sandbox.v1.workspace.GetSandboxDiffResponse
@@ -310,7 +782,7 @@ export type GetSandboxDiffResponse = Message<"workspace_sandbox.v1.workspace.Get
  * Use `create(GetSandboxDiffResponseSchema)` to create a new message.
  */
 export const GetSandboxDiffResponseSchema: GenMessage<GetSandboxDiffResponse> = /*@__PURE__*/
-  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 8);
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 19);
 
 /**
  * @generated from message workspace_sandbox.v1.workspace.PromoteSandboxRequest
@@ -369,7 +841,7 @@ export type PromoteSandboxRequest = Message<"workspace_sandbox.v1.workspace.Prom
  * Use `create(PromoteSandboxRequestSchema)` to create a new message.
  */
 export const PromoteSandboxRequestSchema: GenMessage<PromoteSandboxRequest> = /*@__PURE__*/
-  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 9);
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 20);
 
 /**
  * @generated from message workspace_sandbox.v1.workspace.PromoteSandboxResponse
@@ -431,7 +903,79 @@ export type PromoteSandboxResponse = Message<"workspace_sandbox.v1.workspace.Pro
  * Use `create(PromoteSandboxResponseSchema)` to create a new message.
  */
 export const PromoteSandboxResponseSchema: GenMessage<PromoteSandboxResponse> = /*@__PURE__*/
-  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 10);
+  messageDesc(file_workspace_sandbox_v1_workspace_workspace, 21);
+
+/**
+ * @generated from enum workspace_sandbox.v1.workspace.ReplayTestOutcome
+ */
+export enum ReplayTestOutcome {
+  /**
+   * @generated from enum value: REPLAY_TEST_OUTCOME_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: REPLAY_TEST_OUTCOME_RUNNING = 1;
+   */
+  RUNNING = 1,
+
+  /**
+   * @generated from enum value: REPLAY_TEST_OUTCOME_PASSED = 2;
+   */
+  PASSED = 2,
+
+  /**
+   * @generated from enum value: REPLAY_TEST_OUTCOME_ASSERTION_FAILED = 3;
+   */
+  ASSERTION_FAILED = 3,
+
+  /**
+   * @generated from enum value: REPLAY_TEST_OUTCOME_INFRASTRUCTURE_FAILED = 4;
+   */
+  INFRASTRUCTURE_FAILED = 4,
+
+  /**
+   * @generated from enum value: REPLAY_TEST_OUTCOME_INTERRUPTED = 5;
+   */
+  INTERRUPTED = 5,
+}
+
+/**
+ * Describes the enum workspace_sandbox.v1.workspace.ReplayTestOutcome.
+ */
+export const ReplayTestOutcomeSchema: GenEnum<ReplayTestOutcome> = /*@__PURE__*/
+  enumDesc(file_workspace_sandbox_v1_workspace_workspace, 0);
+
+/**
+ * @generated from enum workspace_sandbox.v1.workspace.ReplaySealRole
+ */
+export enum ReplaySealRole {
+  /**
+   * @generated from enum value: REPLAY_SEAL_ROLE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: REPLAY_SEAL_ROLE_SOURCE = 1;
+   */
+  SOURCE = 1,
+
+  /**
+   * @generated from enum value: REPLAY_SEAL_ROLE_CANDIDATE = 2;
+   */
+  CANDIDATE = 2,
+
+  /**
+   * @generated from enum value: REPLAY_SEAL_ROLE_REFERENCE = 3;
+   */
+  REFERENCE = 3,
+}
+
+/**
+ * Describes the enum workspace_sandbox.v1.workspace.ReplaySealRole.
+ */
+export const ReplaySealRoleSchema: GenEnum<ReplaySealRole> = /*@__PURE__*/
+  enumDesc(file_workspace_sandbox_v1_workspace_workspace, 1);
 
 /**
  * WorkspaceSandboxService is the typed, governed change-path contract for
@@ -480,6 +1024,53 @@ export const WorkspaceSandboxService: GenService<{
     methodKind: "unary";
     input: typeof PromoteSandboxRequestSchema;
     output: typeof PromoteSandboxResponseSchema;
+  },
+  /**
+   * Replay seals keep a candidate/reference snapshot manifest behind the
+   * Workspace Sandbox owner. Create never returns the filesystem path.
+   *
+   * @generated from rpc workspace_sandbox.v1.workspace.WorkspaceSandboxService.CreateReplaySeal
+   */
+  createReplaySeal: {
+    methodKind: "unary";
+    input: typeof CreateReplaySealRequestSchema;
+    output: typeof CreateReplaySealResponseSchema;
+  },
+  /**
+   * @generated from rpc workspace_sandbox.v1.workspace.WorkspaceSandboxService.ResolveReplaySeal
+   */
+  resolveReplaySeal: {
+    methodKind: "unary";
+    input: typeof ResolveReplaySealRequestSchema;
+    output: typeof ResolveReplaySealResponseSchema;
+  },
+  /**
+   * @generated from rpc workspace_sandbox.v1.workspace.WorkspaceSandboxService.VerifyReplaySeal
+   */
+  verifyReplaySeal: {
+    methodKind: "unary";
+    input: typeof VerifyReplaySealRequestSchema;
+    output: typeof VerifyReplaySealResponseSchema;
+  },
+  /**
+   * Start/Wait run a frozen evaluator against an owner-resolved source, candidate, or reference seal.
+   * The request contains evaluator bytes but never a host filesystem path or
+   * shell command; Workspace Sandbox owns containment and execution identity.
+   *
+   * @generated from rpc workspace_sandbox.v1.workspace.WorkspaceSandboxService.StartReplayTest
+   */
+  startReplayTest: {
+    methodKind: "unary";
+    input: typeof StartReplayTestRequestSchema;
+    output: typeof StartReplayTestResponseSchema;
+  },
+  /**
+   * @generated from rpc workspace_sandbox.v1.workspace.WorkspaceSandboxService.WaitReplayTest
+   */
+  waitReplayTest: {
+    methodKind: "unary";
+    input: typeof WaitReplayTestRequestSchema;
+    output: typeof WaitReplayTestResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_workspace_sandbox_v1_workspace_workspace, 0);

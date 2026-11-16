@@ -8,6 +8,7 @@ service CatalogService {
 	rpc GetCoverage(GetCoverageRequest) returns (GetCoverageResponse);
 	rpc ListNextWork(ListNextWorkRequest) returns (ListNextWorkResponse);
 	rpc RunGate(RunGateRequest) returns (RunGateResponse);
+	rpc RecordGate(RunGateRequest) returns (RunGateResponse);
 	rpc CheckAsset(CheckAssetRequest) returns (CheckAssetResponse);
 	rpc GetAssetRelationships(GetAssetRelationshipsRequest) returns (GetAssetRelationshipsResponse);
 	rpc GetCatalogStructure(GetCatalogStructureRequest) returns (GetCatalogStructureResponse);

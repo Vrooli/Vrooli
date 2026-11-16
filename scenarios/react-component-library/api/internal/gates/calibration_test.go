@@ -39,6 +39,7 @@ func TestBlockingStaticCalibrationFixturesDiscriminate(t *testing.T) {
 		"style-injection":             ValidateStyleInjection,
 		"foreign-token-classes":       ValidateForeignTokenClasses,
 		"utility-class":               ValidateNoUtilityClasses,
+		"usage-contract":              ValidateUsageContracts,
 		"consumer-pin":                ValidateConsumerPins,
 		"deprecated-import":           ValidateDeprecatedImports,
 		"provenance-stamp":            ValidateProvenanceStamp,

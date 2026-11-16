@@ -1041,10 +1041,7 @@ func normalizeSourceFileName(raw string) (string, error) {
 }
 
 func (s *FSContentStore) UpdateManifest(_ context.Context, c Component, in UpdateComponentManifestInput) error {
-	manifestPath := c.ManifestPath
-	if manifestPath == "" {
-		manifestPath = filepath.ToSlash(filepath.Join("components", c.Slug, "component.json"))
-	}
+	manifestPath := componentManifestPath(c)
 	abs, err := s.resolveCreatable(manifestPath)
 	if err != nil {
 		return err
@@ -1056,10 +1053,9 @@ func (s *FSContentStore) UpdateManifest(_ context.Context, c Component, in Updat
 	// future field — is preserved verbatim in its original position. A prior
 	// struct round-trip silently dropped unknown fields, so designStyles
 	// affinities had to be hand-restored after every version cut (bug c71f56c0).
-	raw, _ := os.ReadFile(abs)
-	manifest, order, err := decodeOrderedObject(raw)
+	manifest, order, err := readManifestObject(manifestPath, abs, true)
 	if err != nil {
-		return ErrInvalidHeader{SourcePath: manifestPath, Field: "component.json", Reason: fmt.Sprintf("not a JSON object: %v", err)}
+		return err
 	}
 
 	setManifestField(manifest, &order, "libraryId", c.LibraryID)
@@ -1149,17 +1145,7 @@ func (s *FSContentStore) UpdateManifest(_ context.Context, c Component, in Updat
 		}})
 	}
 
-	encoded, err := marshalOrderedObject(manifest, order)
-	if err != nil {
-		return fmt.Errorf("encode component manifest: %w", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
-		return fmt.Errorf("create component manifest dir: %w", err)
-	}
-	if err := os.WriteFile(abs, encoded, 0o600); err != nil {
-		return fmt.Errorf("write component manifest: %w", err)
-	}
-	return nil
+	return writeManifestObject(abs, manifest, order)
 }
 
 // ClearMaterializedEvictedMarker drops version from evictedVersions once its
@@ -1170,10 +1156,7 @@ func (s *FSContentStore) UpdateManifest(_ context.Context, c Component, in Updat
 // while deliberately unexported (VoiceInputButton 4.3.1 pins a ControlBase
 // release that no longer exists anywhere).
 func (s *FSContentStore) ClearMaterializedEvictedMarker(c Component, version string) error {
-	manifestPath := c.ManifestPath
-	if manifestPath == "" {
-		manifestPath = filepath.ToSlash(filepath.Join("components", c.Slug, "component.json"))
-	}
+	manifestPath := componentManifestPath(c)
 	abs, err := s.resolveCreatable(manifestPath)
 	if err != nil {
 		return err
@@ -1181,13 +1164,9 @@ func (s *FSContentStore) ClearMaterializedEvictedMarker(c Component, version str
 	if info, statErr := os.Stat(filepath.Join(filepath.Dir(abs), "versions", version)); statErr != nil || !info.IsDir() {
 		return nil
 	}
-	raw, err := os.ReadFile(abs)
+	manifest, order, err := readManifestObject(manifestPath, abs, false)
 	if err != nil {
-		return fmt.Errorf("read component manifest: %w", err)
-	}
-	manifest, order, err := decodeOrderedObject(raw)
-	if err != nil {
-		return ErrInvalidHeader{SourcePath: manifestPath, Field: "component.json", Reason: fmt.Sprintf("not a JSON object: %v", err)}
+		return err
 	}
 	rawEvicted, ok := manifest["evictedVersions"]
 	if !ok {
@@ -1207,11 +1186,43 @@ func (s *FSContentStore) ClearMaterializedEvictedMarker(c Component, version str
 		return nil
 	}
 	setManifestField(manifest, &order, "evictedVersions", cleanTags(retained))
+	return writeManifestObject(abs, manifest, order)
+}
+
+func componentManifestPath(c Component) string {
+	if c.ManifestPath != "" {
+		return c.ManifestPath
+	}
+	return filepath.ToSlash(filepath.Join("components", c.Slug, "component.json"))
+}
+
+// readManifestObject is the shared read path for manifest mutations. Missing
+// files are accepted only when the caller is creating the initial manifest;
+// an existing manifest that cannot be read must never be replaced by defaults.
+func readManifestObject(sourcePath, absolutePath string, allowMissing bool) (map[string]json.RawMessage, []string, error) {
+	raw, err := os.ReadFile(absolutePath)
+	if err != nil {
+		if !allowMissing || !errors.Is(err, os.ErrNotExist) {
+			return nil, nil, fmt.Errorf("read component manifest: %w", err)
+		}
+		raw = nil
+	}
+	manifest, order, err := decodeOrderedObject(raw)
+	if err != nil {
+		return nil, nil, ErrInvalidHeader{SourcePath: sourcePath, Field: "component.json", Reason: fmt.Sprintf("not a JSON object: %v", err)}
+	}
+	return manifest, order, nil
+}
+
+func writeManifestObject(absolutePath string, manifest map[string]json.RawMessage, order []string) error {
 	encoded, err := marshalOrderedObject(manifest, order)
 	if err != nil {
 		return fmt.Errorf("encode component manifest: %w", err)
 	}
-	if err := os.WriteFile(abs, encoded, 0o600); err != nil {
+	if err := os.MkdirAll(filepath.Dir(absolutePath), 0o755); err != nil {
+		return fmt.Errorf("create component manifest dir: %w", err)
+	}
+	if err := os.WriteFile(absolutePath, encoded, 0o600); err != nil {
 		return fmt.Errorf("write component manifest: %w", err)
 	}
 	return nil

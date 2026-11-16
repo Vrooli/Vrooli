@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class SubmitRequest(_message.Message):
-    __slots__ = ("style", "placement", "seed", "candidate_count", "brand_tokens", "brand_id", "surface_id")
+    __slots__ = ("style", "placement", "seed", "candidate_count", "brand_tokens", "brand_id", "surface_id", "require_gpu")
     class BrandTokensEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -23,6 +23,7 @@ class SubmitRequest(_message.Message):
     BRAND_TOKENS_FIELD_NUMBER: _ClassVar[int]
     BRAND_ID_FIELD_NUMBER: _ClassVar[int]
     SURFACE_ID_FIELD_NUMBER: _ClassVar[int]
+    REQUIRE_GPU_FIELD_NUMBER: _ClassVar[int]
     style: _shared_pb2.Style
     placement: str
     seed: int
@@ -30,7 +31,8 @@ class SubmitRequest(_message.Message):
     brand_tokens: _containers.ScalarMap[str, str]
     brand_id: str
     surface_id: str
-    def __init__(self, style: _Optional[_Union[_shared_pb2.Style, _Mapping]] = ..., placement: _Optional[str] = ..., seed: _Optional[int] = ..., candidate_count: _Optional[int] = ..., brand_tokens: _Optional[_Mapping[str, str]] = ..., brand_id: _Optional[str] = ..., surface_id: _Optional[str] = ...) -> None: ...
+    require_gpu: bool
+    def __init__(self, style: _Optional[_Union[_shared_pb2.Style, _Mapping]] = ..., placement: _Optional[str] = ..., seed: _Optional[int] = ..., candidate_count: _Optional[int] = ..., brand_tokens: _Optional[_Mapping[str, str]] = ..., brand_id: _Optional[str] = ..., surface_id: _Optional[str] = ..., require_gpu: _Optional[bool] = ...) -> None: ...
 
 class GetJobRequest(_message.Message):
     __slots__ = ("job_id",)

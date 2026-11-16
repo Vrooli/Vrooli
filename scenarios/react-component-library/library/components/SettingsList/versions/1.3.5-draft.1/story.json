@@ -1,0 +1,254 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Width320",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "selector": "[data-testid='settings-list-measurement']",
+          "value": "width=320; border=1px; min-height=48px"
+        }
+      ],
+      "id": "width-320",
+      "mode": "live",
+      "name": "320px container",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Width390",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "selector": "[data-testid='settings-list-measurement']",
+          "value": "width=390; border=1px; min-height=48px"
+        },
+        {
+          "attribute": "data-measured-trailing",
+          "kind": "attribute",
+          "selector": "[data-rcl-settings-row-control]",
+          "value": "true"
+        }
+      ],
+      "id": "width-390",
+      "mode": "live",
+      "name": "390px compact control",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Width700",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "selector": "[data-testid='settings-list-measurement']",
+          "value": "width=700; border=1px; min-height=48px"
+        }
+      ],
+      "id": "width-700",
+      "mode": "live",
+      "name": "700px card",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Width1100",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "selector": "[data-testid='settings-list-measurement']",
+          "value": "width=1100; border=1px; min-height=48px"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='settings-list-arbitrary-child']"
+        }
+      ],
+      "id": "width-1100",
+      "mode": "live",
+      "name": "1100px description column",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "count",
+          "selector": "[data-rcl-settings-row]",
+          "value": "0"
+        },
+        {
+          "kind": "role",
+          "name": "Voice input",
+          "role": "heading"
+        }
+      ],
+      "id": "empty",
+      "mode": "live",
+      "name": "Empty settings",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Overflow",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "layout",
+          "noOverflow": true,
+          "selector": "[data-rcl-settings-list]"
+        },
+        {
+          "kind": "role",
+          "name": "Change",
+          "role": "button"
+        }
+      ],
+      "id": "overflow",
+      "mode": "live",
+      "name": "Long setting labels",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Navigable390",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "selector": "[data-testid='settings-list-measurement']",
+          "value": "selectable=2; leading=3; chevrons=2; action-on-top=true"
+        }
+      ],
+      "id": "navigable-390",
+      "mode": "live",
+      "name": "390px rows with icons that open a detail view",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Navigable1100",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "selector": "[data-testid='settings-list-measurement']",
+          "value": "selectable=2; leading=3; chevrons=2; action-on-top=true"
+        }
+      ],
+      "id": "navigable-1100",
+      "mode": "live",
+      "name": "1100px rows with icons that open a detail view",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "AlignedNarrow",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "selector": "[data-testid=\"aligned-measurement\"]",
+          "value": "label-hint-aligned=true; control-below=true"
+        }
+      ],
+      "id": "aligned-narrow",
+      "mode": "live",
+      "name": "aligned-narrow",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "AlignedWide",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "selector": "[data-testid=\"aligned-measurement\"]",
+          "value": "label-hint-aligned=true; control-below=false"
+        }
+      ],
+      "id": "aligned-wide",
+      "mode": "live",
+      "name": "aligned-wide",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "AlignedBlock",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "selector": "[data-testid=\"aligned-measurement\"]",
+          "value": "label-hint-aligned=true; control-below=true"
+        }
+      ],
+      "id": "aligned-block",
+      "mode": "live",
+      "name": "Full-width complex control",
+      "role": "boundary"
+    }
+  ],
+  "title": "Settings List"
+}

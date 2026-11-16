@@ -12,10 +12,62 @@ service AdvisoryService {
   rpc CheckStagedMessage(CheckStagedMessageRequest) returns (CheckStagedMessageResponse);
   rpc CollectStagedMessage(CollectStagedMessageRequest) returns (StagedMessageCollection);
   rpc StartStagedMessage(StartStagedMessageRequest) returns (StagedMessageJob);
+  rpc RetryStagedMessage(RetryStagedMessageRequest) returns (StagedMessageJob);
+  rpc GetStagedMessageProviderReadiness(StagedMessageProviderReadinessRequest) returns (StagedMessageProviderReadiness);
+  rpc StartWorktreeStagedMessage(StartWorktreeStagedMessageRequest) returns (StagedMessageJob);
+  rpc QueueWorktreeSelection(QueueWorktreeSelectionRequest) returns (QueuedWorktreeSelection);
+  rpc FinalizeQueuedSelection(FinalizeQueuedSelectionRequest) returns (QueuedWorktreeSelection);
+  rpc StartQueuedSelection(StartQueuedSelectionRequest) returns (StagedMessageJob);
   rpc GetStagedMessageJob(StagedMessageJobRequest) returns (StagedMessageJob);
   rpc WaitStagedMessageJob(StagedMessageJobRequest) returns (StagedMessageJob);
   rpc CancelStagedMessageJob(StagedMessageJobRequest) returns (StagedMessageJob);
   rpc ReadStagedMessageEvidence(ReadStagedMessageEvidenceRequest) returns (ReadStagedMessageEvidenceResponse);
+  rpc ListWorktreeSuggestionQueue(ListWorktreeSuggestionQueueRequest) returns (WorktreeSuggestionQueue);
+  rpc EnqueueWorktreeSuggestion(EnqueueWorktreeSuggestionRequest) returns (WorktreeSuggestionQueueEntry);
+  rpc UpdateWorktreeSuggestionQueueEntry(UpdateWorktreeSuggestionQueueEntryRequest) returns (WorktreeSuggestionQueueMutationResponse);
+  rpc RetireWorktreeSuggestionQueueHead(RetireWorktreeSuggestionQueueHeadRequest) returns (WorktreeSuggestionQueueMutationResponse);
+  rpc RemoveWorktreeSuggestionQueueEntry(RemoveWorktreeSuggestionQueueEntryRequest) returns (WorktreeSuggestionQueueMutationResponse);
+}
+
+enum WorktreeSelectionSource {
+  WORKTREE_SELECTION_SOURCE_UNSPECIFIED = 0;
+  WORKTREE_SELECTION_SOURCE_INDEX_TO_WORKTREE = 1;
+  WORKTREE_SELECTION_SOURCE_HEAD_TO_INDEX = 2;
+}
+enum QueuedWorktreeSelectionState {
+  QUEUED_WORKTREE_SELECTION_STATE_UNSPECIFIED = 0;
+  QUEUED_WORKTREE_SELECTION_STATE_QUEUED = 1;
+  QUEUED_WORKTREE_SELECTION_STATE_AWAITING_UNSTAGE = 2;
+  QUEUED_WORKTREE_SELECTION_STATE_FAILED = 3;
+  QUEUED_WORKTREE_SELECTION_STATE_STALE = 4;
+}
+message QueueWorktreeSelectionRequest {
+  string repository_id = 1;
+  string selection_id = 2;
+  WorktreeSelectionSource source = 3;
+  repeated string paths = 4;
+}
+message FinalizeQueuedSelectionRequest {
+  string repository_id = 1;
+  string selection_id = 2;
+  string expected_snapshot_digest = 3;
+}
+message StartQueuedSelectionRequest {
+  string repository_id = 1;
+  string selection_id = 2;
+  string snapshot_digest = 3;
+  string request_key = 4;
+  StagedMessageMode mode = 5;
+  string operator_note = 6;
+}
+message QueuedWorktreeSelection {
+  string selection_id = 1;
+  string repository_id = 2;
+  WorktreeSelectionSource source = 3;
+  repeated string paths = 4;
+  string snapshot_digest = 5;
+  QueuedWorktreeSelectionState state = 6;
+  string failure_reason = 7;
 }
 
 message DraftRequest {
@@ -100,10 +152,114 @@ message StartStagedMessageRequest {
   repeated string selected_context_ids = 4;
   string request_key = 5;
   string operator_note = 6;
-  // Explicit deeper investigation of this successful partial draft; uses its
-  // original immutable subject and a new request key, never recollects staging.
+  // Optional successful partial parent for a deeper continuation. If absent,
+  // mode=DEEP starts from this collection's immutable subject.
   string continuation_of_job_id = 7;
+  // QUICK is the compatible default. DEEP starts bounded inventory and
+  // targeted immutable evidence investigation directly from this collection.
+  StagedMessageMode mode = 8;
 }
+// Retries a terminal draft from its saved immutable input, including for
+// clients that no longer retain the original browser admission envelope.
+message RetryStagedMessageRequest {
+  string repository_id = 1;
+  string job_id = 2;
+  string snapshot_digest = 3;
+  string request_key = 4;
+  StagedMessageMode mode = 5;
+}
+
+message StagedMessageProviderReadinessRequest {}
+
+message StagedMessageProviderReadiness {
+  string provider = 1;
+  string state = 2;
+  bool known = 3;
+  string observed_at = 4;
+  string message = 5;
+}
+// Captures selected index-to-worktree changes and admits them as one immutable job.
+message StartWorktreeStagedMessageRequest {
+  string repository_id = 1;
+  repeated string paths = 2;
+  string request_key = 3;
+  string operator_note = 4;
+  StagedMessageMode mode = 5;
+  string replace_queue_entry_id = 6;
+  uint64 expected_queue_revision = 7;
+  string expected_snapshot_digest = 8;
+}
+enum StagedMessageMode {
+	STAGED_MESSAGE_MODE_UNSPECIFIED = 0;
+	STAGED_MESSAGE_MODE_QUICK = 1;
+	STAGED_MESSAGE_MODE_DEEP = 2;
+}
+enum WorktreeSuggestionQueueState {
+  WORKTREE_SUGGESTION_QUEUE_STATE_UNSPECIFIED = 0;
+  WORKTREE_SUGGESTION_QUEUE_STATE_QUEUED = 1;
+  WORKTREE_SUGGESTION_QUEUE_STATE_STAGED = 2;
+  WORKTREE_SUGGESTION_QUEUE_STATE_FAILED = 3;
+  WORKTREE_SUGGESTION_QUEUE_STATE_STALE = 4;
+  WORKTREE_SUGGESTION_QUEUE_STATE_COMMIT_PENDING = 5;
+  WORKTREE_SUGGESTION_QUEUE_STATE_AWAITING_UNSTAGE = 6;
+}
+enum WorktreeSuggestionQueueDisposition {
+  WORKTREE_SUGGESTION_QUEUE_DISPOSITION_UNSPECIFIED = 0;
+  WORKTREE_SUGGESTION_QUEUE_DISPOSITION_COMMITTED = 1;
+  WORKTREE_SUGGESTION_QUEUE_DISPOSITION_REMOVED = 2;
+}
+message ListWorktreeSuggestionQueueRequest { string repository_id = 1; }
+message WorktreeSuggestionQueueEntry {
+  string id = 1;
+  string repository_id = 2;
+  string job_id = 3;
+  string snapshot_digest = 4;
+  repeated string paths = 5;
+  StagedMessageMode mode = 6;
+  string request_key = 7;
+  uint64 sequence = 8;
+  WorktreeSuggestionQueueState state = 9;
+  string failure_reason = 10;
+  string created_at = 11;
+  string updated_at = 12;
+  WorktreeSelectionSource selection_source = 13;
+  // Present for queue-only captures; immutable bytes and manifest are owned by the queue entry.
+  string selection_id = 14;
+}
+message WorktreeSuggestionQueue { string repository_id = 1; uint64 revision = 2; repeated WorktreeSuggestionQueueEntry entries = 3; }
+message EnqueueWorktreeSuggestionRequest {
+  string repository_id = 1;
+  string job_id = 2;
+  string snapshot_digest = 3;
+  repeated string paths = 4;
+  StagedMessageMode mode = 5;
+  string request_key = 6;
+}
+message UpdateWorktreeSuggestionQueueEntryRequest {
+  string repository_id = 1;
+  string entry_id = 2;
+  string expected_head_entry_id = 3;
+  uint64 expected_revision = 4;
+  WorktreeSuggestionQueueState state = 5;
+  string failure_reason = 6;
+  string replacement_job_id = 7;
+  string replacement_snapshot_digest = 8;
+  repeated string replacement_paths = 9;
+  StagedMessageMode replacement_mode = 10;
+  string replacement_request_key = 11;
+}
+message RetireWorktreeSuggestionQueueHeadRequest {
+  string repository_id = 1;
+  string expected_head_entry_id = 2;
+  uint64 expected_revision = 3;
+  WorktreeSuggestionQueueDisposition disposition = 4;
+}
+message RemoveWorktreeSuggestionQueueEntryRequest {
+  string repository_id = 1;
+  string entry_id = 2;
+  uint64 expected_revision = 3;
+}
+message WorktreeSuggestionQueueMutationResponse { WorktreeSuggestionQueue queue = 1; WorktreeSuggestionQueueEntry changed_entry = 2; }
 message StagedMessageJobRequest {
   string repository_id = 1;
   string job_id = 2;
@@ -224,6 +380,17 @@ message StagedMessageJob {
   uint32 evidence_files_total = 17;
   // Projected for succeeded jobs against the current history.
   repeated StagedMessageContinuation continuations = 18;
+  string error_code = 19;
+  bool retryable = 20;
+  bool execution_started = 21;
+  int64 tokens_used = 22;
+  bool tokens_known = 23;
+  repeated Omission omissions = 24;
+  bool execution_started_known = 25;
+  // Marginal workflow charge in micro-USD; token counts are not a charge proxy.
+  // False means the owner has not supplied measured billing evidence.
+  int64 charge_micro_usd = 26;
+  bool charge_known = 27;
 }
 
 message ReadStagedMessageEvidenceRequest {

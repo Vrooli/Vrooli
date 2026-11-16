@@ -1,0 +1,24 @@
+{
+  "libraryId": "react-component-library:region-correction-provider",
+  "displayName": "Region Correction Provider",
+  "description": "Root-mounted evidence-bound UX correction overlay usable with or without AppShell.",
+  "kind": "control",
+  "tags": [
+    "accessibility",
+    "experience-feedback",
+    "overlay"
+  ],
+  "slot": "ui-pattern",
+  "category": "uncategorized",
+  "entry": "RegionCorrectionProvider.tsx",
+  "latest": "",
+  "draft": "0.1.0-draft.1",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
+}

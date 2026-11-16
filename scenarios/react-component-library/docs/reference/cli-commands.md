@@ -103,6 +103,13 @@ that mutable draft. The Git-tracked library is the canonical source; SQLite
 is the indexed registry and adoption ledger. See the checked edit loop in
 [asset-update-flow.md](../guides/asset-update-flow.md).
 
+`asset check <catalog-id>` verifies generated catalog projections, runs scoped
+gates, and reuses existing component-test evidence. It is read-only, including
+when generated output or test evidence is stale; the result names the required
+write action. `asset record-check <catalog-id>` refreshes generated catalog
+files and records scoped gate evidence. Its appearance gates may start BAS
+capture, so use it only when that exact capture route is cleared.
+
 ## Scenario commands — `versions`
 
 Version cleanup is deliberately plan-first. Released versions are eligible
@@ -144,8 +151,8 @@ required arguments. Before first adoption, prepare the token ramp with
 Preflight is read-only and blocks until the selected release's dependency,
 style, token, i18n and selector checks pass. If i18n or selector evidence is
 missing for the current catalog release, the report prints the exact `catalog
-gates` command for its asset ID; run it and repeat the exact-version preflight
-before linking. Older pins need exact-version gate evidence. The former `apply`
+record-gate` command for its asset ID; run it to persist the measurement, then
+repeat the exact-version preflight before linking. Older pins need exact-version gate evidence. The former `apply`
 and `suggest` command paths are retired.
 
 ## Output contracts
@@ -153,8 +160,17 @@ and `suggest` command paths are retired.
 ### Scoped catalog gates
 
 `react-component-library catalog gates <gate> --asset-id <catalog-id>` runs one
-registered gate against one catalog asset. Omit `--asset-id` for the full
-corpus; do not combine it with `--all`.
+registered gate against one catalog asset without writing catalog evidence or
+starting BAS capture. It can reuse a current stored component-test report for
+appearance gates; when that report is absent or stale, the result is explicitly
+unmeasured. Omit `--asset-id` for the full corpus; do not combine it with
+`--all`.
+
+Use `react-component-library catalog record-gate <gate>` when the gate result
+should become durable evidence. This is a separate write operation and its
+appearance gates can start BAS story capture; clear the exact capture route
+before using it. `catalog record-gate --all` runs and records the declared gate
+matrix. `--json` includes the evidence row count written by this operation.
 
 Every scenario command should render through one of three human
 contracts. Proto-backed commands should use `cliapp.RenderProtoList`
@@ -253,7 +269,11 @@ react-component-library page inspect react-component-library /
 `page inspect <scenario> <route>` consumes the shared GCT `ux-capture.v1`
 bundle from one BAS browser session. The response includes the bundle id,
 outline counts, source attribution, and any available screenshot or component
-identity artifact. Use `--wait-selector` to wait for a visible page state;
+identity artifact. RCL fetches declared artifacts through BAS's bundle artifact
+endpoint and verifies size and SHA-256 against the manifest; `screenshot_url`
+is the portable BAS artifact URL, while `screenshot_path` is empty because BAS's
+private filesystem path is not accessible to RCL. Use
+`--wait-selector` to wait for a visible page state;
 without it the capture proceeds after BAS navigation readiness. Each outline
 node retains its selected observation fields; `source` reports `resolved`,
 `unresolved` with a reason, or `unstamped`. Unstamped nodes are never attributed

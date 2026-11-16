@@ -6,13 +6,14 @@ import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobu
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Notification } from "../shared/types_pb";
 import { file_notification_hub_v1_shared_types } from "../shared/types_pb";
-import type { Message } from "@bufbuild/protobuf";
+import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
+import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file notification-hub/v1/conversations/conversations.proto.
  */
 export const file_notification_hub_v1_conversations_conversations: GenFile = /*@__PURE__*/
-  fileDesc("CjVub3RpZmljYXRpb24taHViL3YxL2NvbnZlcnNhdGlvbnMvY29udmVyc2F0aW9ucy5wcm90bxIodnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucyInCglBc2tPcHRpb24SCwoDa2V5GAEgASgJEg0KBWxhYmVsGAIgASgJIoACChdQcm92aWRlckRlY2lzaW9uQ29udGV4dBIWCg5zY2hlbWFfdmVyc2lvbhgBIAEoDRIeChZjYW5vbmljYWxfdGVybXNfc2hhMjU2GAIgASgJElYKBXNjb3BlGAMgASgOMkcudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Qcm92aWRlckRlY2lzaW9uQ29udGV4dC5TY29wZSJVCgVTY29wZRIVChFTQ09QRV9VTlNQRUNJRklFRBAAEhcKE1NDT1BFX1BST1ZJREVSX1JVTEUQARIcChhTQ09QRV9QUk9WSURFUl9BR1JFRU1FTlQQAiLfAwoKQXNrUmVxdWVzdBIQCghxdWVzdGlvbhgBIAEoCRIXCg9hbGxvd2VkX2Fuc3dlcnMYAiADKAkSEAoIZGVhZGxpbmUYAyABKAkSGQoRc2Vuc2l0aXZpdHlfbGFiZWwYBCABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GAUgASgJEkQKB29wdGlvbnMYBiADKAsyMy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFza09wdGlvbhITCgtyZWNvbW1lbmRlZBgHIAEoCRIdChVyZWNvbW1lbmRhdGlvbl9yZWFzb24YCCABKAkSFgoOZGVmYXVsdF9hbnN3ZXIYCSABKAkSEgoKcmV2ZXJzaWJsZRgKIAEoCBIPCgd1cmdlbmN5GAsgASgJEhMKC2NvbnRleHRfdXJsGAwgASgJEhMKC2JpZ19waWN0dXJlGB0gASgJEhkKEXRlY2huaWNhbF9kZXRhaWxzGB4gASgJEmQKGXByb3ZpZGVyX2RlY2lzaW9uX2NvbnRleHQYHyABKAsyQS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLlByb3ZpZGVyRGVjaXNpb25Db250ZXh0ImQKC0Fza1Jlc3BvbnNlEg4KBmFza19pZBgBIAEoCRJFCgxub3RpZmljYXRpb24YAiABKAsyLy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5zaGFyZWQuTm90aWZpY2F0aW9uIj0KDUFuc3dlclJlcXVlc3QSDgoGYXNrX2lkGAEgASgJEg4KBmFuc3dlchgCIAEoCRIMCgRub3RlGAMgASgJIlMKDkFuc3dlclJlc3BvbnNlEg4KBmFza19pZBgBIAEoCRIOCgZhbnN3ZXIYAiABKAkSEwoLYW5zd2VyZWRfYXQYAyABKAkSDAoEbGF0ZRgEIAEoCCIuCg5EaXNtaXNzUmVxdWVzdBIOCgZhc2tfaWQYASABKAkSDAoEbm90ZRgCIAEoCSIwCg9EaXNtaXNzUmVzcG9uc2USDgoGYXNrX2lkGAEgASgJEg0KBXN0YXRlGAIgASgJIjEKD1dpdGhkcmF3UmVxdWVzdBIOCgZhc2tfaWQYASABKAkSDgoGcmVhc29uGAIgASgJIjEKEFdpdGhkcmF3UmVzcG9uc2USDgoGYXNrX2lkGAEgASgJEg0KBXN0YXRlGAIgASgJIi8KC1dhaXRSZXF1ZXN0Eg4KBmFza19pZBgBIAEoCRIQCghkZWFkbGluZRgCIAEoCSJNCgxXYWl0UmVzcG9uc2USDgoGYXNrX2lkGAEgASgJEg0KBXN0YXRlGAIgASgJEg4KBmFuc3dlchgDIAEoCRIOCgZyZWFzb24YBCABKAki5gYKA0FzaxIKCgJpZBgBIAEoCRIXCg9ub3RpZmljYXRpb25faWQYAiABKAkSEAoIcXVlc3Rpb24YAyABKAkSRAoHb3B0aW9ucxgEIAMoCzIzLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuQXNrT3B0aW9uEhMKC3JlY29tbWVuZGVkGAUgASgJEh0KFXJlY29tbWVuZGF0aW9uX3JlYXNvbhgGIAEoCRIWCg5kZWZhdWx0X2Fuc3dlchgHIAEoCRISCgpyZXZlcnNpYmxlGAggASgIEg8KB3VyZ2VuY3kYCSABKAkSEwoLY29udGV4dF91cmwYCiABKAkSEAoIZGVhZGxpbmUYCyABKAkSDQoFc3RhdGUYDCABKAkSDgoGcmVhc29uGA0gASgJEg4KBmFuc3dlchgOIAEoCRIUCgxhbnN3ZXJfbGFiZWwYDyABKAkSDAoEbm90ZRgQIAEoCRITCgthbnN3ZXJlZF9ieRgRIAEoCRITCgthbnN3ZXJlZF9hdBgSIAEoCRIMCgRsYXRlGBMgASgIEhoKEmRlZmF1bHRfYXBwbGllZF9hdBgUIAEoCRIaChJmaXJzdF9kZWxpdmVyZWRfYXQYFSABKAkSGwoTZGVmYXVsdF9lbGlnaWJsZV9hdBgWIAEoCRIOCgZzb3VyY2UYFyABKAkSGQoRc291cmNlX2V2ZW50X3R5cGUYGCABKAkSFQoNcmVxdWVzdGVyX3JlZhgZIAEoCRITCgtyZXNvbHZlZF9hdBgaIAEoCRISCgpjcmVhdGVkX2F0GBsgASgJEhIKCnVwZGF0ZWRfYXQYHCABKAkSEwoLYmlnX3BpY3R1cmUYHSABKAkSGQoRdGVjaG5pY2FsX2RldGFpbHMYHiABKAkSDQoFdGl0bGUYHyABKAkSZAoZcHJvdmlkZXJfZGVjaXNpb25fY29udGV4dBggIAEoCzJBLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuUHJvdmlkZXJEZWNpc2lvbkNvbnRleHQSIQoZYW5zd2VyZWRfYnlfaWRlbnRpdHlfa2luZBghIAEoCRIjChthbnN3ZXJlZF9ieV9pZGVudGl0eV9zb3VyY2UYIiABKAkiHwoNR2V0QXNrUmVxdWVzdBIOCgZhc2tfaWQYASABKAkiTAoOR2V0QXNrUmVzcG9uc2USOgoDYXNrGAEgASgLMi0udnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2siaAoPTGlzdEFza3NSZXF1ZXN0EhEKCW9wZW5fb25seRgBIAEoCBINCgVsaW1pdBgCIAEoBRIOCgZjdXJzb3IYAyABKAkSDQoFcXVlcnkYBCABKAkSFAoMc3RhdGVfZmlsdGVyGAUgASgJImQKEExpc3RBc2tzUmVzcG9uc2USOwoEYXNrcxgBIAMoCzItLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuQXNrEhMKC25leHRfY3Vyc29yGAIgASgJItYBCg1OYXRpdmVDb25zZW50EhgKEGF1dGhvcml6YXRpb25faWQYASABKAkSFwoPbm90aWZpY2F0aW9uX2lkGAIgASgJEg4KBnNvdXJjZRgDIAEoCRINCgV0aXRsZRgEIAEoCRIMCgRib2R5GAUgASgJEhIKCnJldmlld191cmwYBiABKAkSDQoFc3RhdGUYByABKAkSGQoRcmV2aWV3X2V4cGlyZXNfYXQYCCABKAkSEwoLb2JzZXJ2ZWRfYXQYCSABKAkSEgoKY3JlYXRlZF9hdBgKIAEoCSJJChlMaXN0TmF0aXZlQ29uc2VudHNSZXF1ZXN0Eg0KBWxpbWl0GAEgASgNEg4KBmN1cnNvchgCIAEoCRINCgVxdWVyeRgDIAEoCSJ8ChpMaXN0TmF0aXZlQ29uc2VudHNSZXNwb25zZRJJCghjb25zZW50cxgBIAMoCzI3LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuTmF0aXZlQ29uc2VudBITCgtuZXh0X2N1cnNvchgCIAEoCTKlCAoUQ29udmVyc2F0aW9uc1NlcnZpY2UScgoDQXNrEjQudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2tSZXF1ZXN0GjUudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2tSZXNwb25zZRJ7CgZBbnN3ZXISNy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFuc3dlclJlcXVlc3QaOC52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFuc3dlclJlc3BvbnNlEnUKBFdhaXQSNS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLldhaXRSZXF1ZXN0GjYudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5XYWl0UmVzcG9uc2USfgoHRGlzbWlzcxI4LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuRGlzbWlzc1JlcXVlc3QaOS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkRpc21pc3NSZXNwb25zZRKBAQoIV2l0aGRyYXcSOS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLldpdGhkcmF3UmVxdWVzdBo6LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuV2l0aGRyYXdSZXNwb25zZRJ7CgZHZXRBc2sSNy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkdldEFza1JlcXVlc3QaOC52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkdldEFza1Jlc3BvbnNlEoEBCghMaXN0QXNrcxI5LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuTGlzdEFza3NSZXF1ZXN0GjoudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5MaXN0QXNrc1Jlc3BvbnNlEp8BChJMaXN0TmF0aXZlQ29uc2VudHMSQy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkxpc3ROYXRpdmVDb25zZW50c1JlcXVlc3QaRC52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkxpc3ROYXRpdmVDb25zZW50c1Jlc3BvbnNlQmNaYWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbm90aWZpY2F0aW9uLWh1Yi92MS9jb252ZXJzYXRpb25zO2NvbnZlcnNhdGlvbnNfdjFiBnByb3RvMw", [file_notification_hub_v1_shared_types]);
+  fileDesc("CjVub3RpZmljYXRpb24taHViL3YxL2NvbnZlcnNhdGlvbnMvY29udmVyc2F0aW9ucy5wcm90bxIodnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucyInCglBc2tPcHRpb24SCwoDa2V5GAEgASgJEg0KBWxhYmVsGAIgASgJIoACChdQcm92aWRlckRlY2lzaW9uQ29udGV4dBIWCg5zY2hlbWFfdmVyc2lvbhgBIAEoDRIeChZjYW5vbmljYWxfdGVybXNfc2hhMjU2GAIgASgJElYKBXNjb3BlGAMgASgOMkcudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Qcm92aWRlckRlY2lzaW9uQ29udGV4dC5TY29wZSJVCgVTY29wZRIVChFTQ09QRV9VTlNQRUNJRklFRBAAEhcKE1NDT1BFX1BST1ZJREVSX1JVTEUQARIcChhTQ09QRV9QUk9WSURFUl9BR1JFRU1FTlQQAiKoCgoKQXNrUmVxdWVzdBIQCghxdWVzdGlvbhgBIAEoCRIXCg9hbGxvd2VkX2Fuc3dlcnMYAiADKAkSEAoIZGVhZGxpbmUYAyABKAkSGQoRc2Vuc2l0aXZpdHlfbGFiZWwYBCABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GAUgASgJEkQKB29wdGlvbnMYBiADKAsyMy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFza09wdGlvbhIYCgtyZWNvbW1lbmRlZBgHIAEoCUgAiAEBEiIKFXJlY29tbWVuZGF0aW9uX3JlYXNvbhgIIAEoCUgBiAEBEhsKDmRlZmF1bHRfYW5zd2VyGAkgASgJSAKIAQESFwoKcmV2ZXJzaWJsZRgKIAEoCEgDiAEBEhQKB3VyZ2VuY3kYCyABKAlIBIgBARIYCgtjb250ZXh0X3VybBgMIAEoCUgFiAEBEhgKC2JpZ19waWN0dXJlGB0gASgJSAaIAQESHgoRdGVjaG5pY2FsX2RldGFpbHMYHiABKAlIB4gBARJkChlwcm92aWRlcl9kZWNpc2lvbl9jb250ZXh0GB8gASgLMkEudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Qcm92aWRlckRlY2lzaW9uQ29udGV4dBITCgtzdWJqZWN0X2tleRggIAEoCRIkChdyZWFzc2VydF93aXRoaW5fc2Vjb25kcxghIAEoBUgIiAEBEkwKC2F0dGFjaG1lbnRzGCIgAygLMjcudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2tBdHRhY2htZW50EkgKCXF1ZXN0aW9ucxgjIAMoCzI1LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuQXNrUXVlc3Rpb24SJQoYYWNjZXB0c19jb250ZXh0X3JlcXVlc3RzGCQgASgISAmIAQESGQoRY2xlYXJfYXR0YWNobWVudHMYJSABKAgSFwoPY2xlYXJfcXVlc3Rpb25zGCYgASgIEhoKEnJlbW92ZV9hdHRhY2htZW50cxgnIAMoCRIYChByZW1vdmVfcXVlc3Rpb25zGCggAygJEhgKEGNvbnRleHRfcmVzcG9uc2UYKSABKAkSEwoGc2VuZGVyGCogASgJSAqIAQESGwoOZGVmYXVsdF9zZW5kZXIYKyABKAlIC4gBARITCgZwYWNrZXQYLCABKAlIDIgBARIVCg10ZW1wbGF0ZV9uYW1lGC0gASgJEi4KDXRlbXBsYXRlX2RhdGEYLiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EgwKBGtpbmQYLyABKAkSFQoNYWxsb3dfcmVsYXRlZBgwIAEoCEIOCgxfcmVjb21tZW5kZWRCGAoWX3JlY29tbWVuZGF0aW9uX3JlYXNvbkIRCg9fZGVmYXVsdF9hbnN3ZXJCDQoLX3JldmVyc2libGVCCgoIX3VyZ2VuY3lCDgoMX2NvbnRleHRfdXJsQg4KDF9iaWdfcGljdHVyZUIUChJfdGVjaG5pY2FsX2RldGFpbHNCGgoYX3JlYXNzZXJ0X3dpdGhpbl9zZWNvbmRzQhsKGV9hY2NlcHRzX2NvbnRleHRfcmVxdWVzdHNCCQoHX3NlbmRlckIRCg9fZGVmYXVsdF9zZW5kZXJCCQoHX3BhY2tldCLdAQoLQXNrUmVzcG9uc2USDgoGYXNrX2lkGAEgASgJEkUKDG5vdGlmaWNhdGlvbhgCIAEoCzIvLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnNoYXJlZC5Ob3RpZmljYXRpb24SDwoHb3V0Y29tZRgDIAEoCRJJCgh3YXJuaW5ncxgEIAMoCzI3LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuUGFja2V0V2FybmluZxINCgVzdGF0ZRgFIAEoCRIMCgRraW5kGAYgASgJIu0BCg9DaGVja0Fza1JlcXVlc3QSQQoDYXNrGAEgASgLMjQudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2tSZXF1ZXN0EmIKDWZpbGVfY29udGVudHMYAiADKAsySy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkNoZWNrQXNrUmVxdWVzdC5GaWxlQ29udGVudHNFbnRyeRozChFGaWxlQ29udGVudHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAw6AjgBIsMBChBDaGVja0Fza1Jlc3BvbnNlEkkKCHdhcm5pbmdzGAEgAygLMjcudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5QYWNrZXRXYXJuaW5nEhIKCnB1c2hfdGl0bGUYAiABKAkSEQoJcHVzaF9ib2R5GAMgASgJEhYKDnJldmlzZXNfYXNrX2lkGAQgASgJEg4KBnNlbmRlchgFIAEoCRIVCg1zZW5kZXJfc291cmNlGAYgASgJImUKDVBhY2tldFdhcm5pbmcSDAoEY29kZRgBIAEoCRINCgVmaWVsZBgCIAEoCRIPCgdtZXNzYWdlGAMgASgJEhAKCHNldmVyaXR5GAQgASgJEhQKDGNhcnJpZWRfb3ZlchgFIAEoCCLTBAoNQXNrQXR0YWNobWVudBIMCgRuYW1lGAEgASgJEg0KBWxhYmVsGAIgASgJEkoKBGtpbmQYAyABKA4yPC52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFza0F0dGFjaG1lbnQuS2luZBJKCgRyb2xlGAQgASgOMjwudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2tBdHRhY2htZW50LlJvbGUSEwoLc291cmNlX3BhdGgYBSABKAkSEwoLc291cmNlX2hvc3QYBiABKAkSDgoGc2hhMjU2GAcgASgJEhIKCnNpemVfYnl0ZXMYCCABKAMSEgoKbWVkaWFfdHlwZRgJIAEoCRJNCgdlbnRyaWVzGAogAygLMjwudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2tBdHRhY2htZW50RW50cnkSFAoMcHJldmlld19raW5kGAsgASgJEhUKDXNvdXJjZV9zdGF0dXMYDCABKAkSGQoRc291cmNlX2NoZWNrZWRfYXQYDSABKAkSEQoJdHJ1bmNhdGVkGA4gASgIIjwKBEtpbmQSFAoQS0lORF9VTlNQRUNJRklFRBAAEg0KCUtJTkRfRklMRRABEg8KC0tJTkRfRk9MREVSEAIiQwoEUm9sZRIUChBST0xFX1VOU1BFQ0lGSUVEEAASEQoNUk9MRV9FVklERU5DRRABEhIKDlJPTEVfRVhQTEFJTkVSEAIicAoSQXNrQXR0YWNobWVudEVudHJ5EgwKBHBhdGgYASABKAkSDgoGc2hhMjU2GAIgASgJEhIKCnNpemVfYnl0ZXMYAyABKAMSEgoKbWVkaWFfdHlwZRgEIAEoCRIUCgxwcmV2aWV3X2tpbmQYBSABKAkimwMKC0Fza1F1ZXN0aW9uEgoKAmlkGAEgASgJEgwKBHR5cGUYAiABKAkSDgoGcHJvbXB0GAMgASgJEgwKBGhlbHAYBCABKAkSEAoIcmVxdWlyZWQYBSABKAgSTAoHY2hvaWNlcxgGIAMoCzI7LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuQXNrUXVlc3Rpb25DaG9pY2USTgoIc2VjdGlvbnMYByADKAsyPC52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFza1F1ZXN0aW9uU2VjdGlvbhJSCgtyZWNvbW1lbmRlZBgIIAEoCzI9LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuQXNrUXVlc3Rpb25SZXNwb25zZRIdChVyZWNvbW1lbmRhdGlvbl9yZWFzb24YCSABKAkSGgoSdW5hbnN3ZXJlZF92ZXJkaWN0GAogASgJEhUKDXNlY3Rpb25zX2Zyb20YCyABKAkiUwoRQXNrUXVlc3Rpb25DaG9pY2USCwoDa2V5GAEgASgJEg0KBWxhYmVsGAIgASgJEg4KBmRldGFpbBgDIAEoCRISCgphdHRhY2htZW50GAQgASgJImUKEkFza1F1ZXN0aW9uU2VjdGlvbhILCgNrZXkYASABKAkSDQoFdGl0bGUYAiABKAkSDwoHc3VtbWFyeRgDIAEoCRISCgphdHRhY2htZW50GAQgASgJEg4KBmFuY2hvchgFIAEoCSKZAQoTQXNrUXVlc3Rpb25SZXNwb25zZRITCgtxdWVzdGlvbl9pZBgBIAEoCRIQCghzZWxlY3RlZBgCIAMoCRIMCgR0ZXh0GAMgASgJEk0KCHNlY3Rpb25zGAQgAygLMjsudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2tTZWN0aW9uVmVyZGljdCJDChFBc2tBdHRhY2htZW50Tm90ZRISCgphdHRhY2htZW50GAEgASgJEgwKBHBhdGgYAiABKAkSDAoEbm90ZRgDIAEoCSJHChFBc2tTZWN0aW9uVmVyZGljdBITCgtzZWN0aW9uX2tleRgBIAEoCRIPCgd2ZXJkaWN0GAIgASgJEgwKBG5vdGUYAyABKAkioQEKEUFza0NvbnRleHRSZXF1ZXN0EgoKAmlkGAEgASgJEhAKCHF1ZXN0aW9uGAIgASgJEhQKDHJlcXVlc3RlZF9ieRgDIAEoCRIUCgxyZXF1ZXN0ZWRfYXQYBCABKAkSFAoMYWRkcmVzc2VkX2F0GAUgASgJEhoKEmFkZHJlc3NlZF9yZXZpc2lvbhgGIAEoBRIQCghyZXNwb25zZRgHIAEoCSI5ChVSZXF1ZXN0Q29udGV4dFJlcXVlc3QSDgoGYXNrX2lkGAEgASgJEhAKCHF1ZXN0aW9uGAIgASgJInYKFlJlcXVlc3RDb250ZXh0UmVzcG9uc2USDgoGYXNrX2lkGAEgASgJEkwKB3JlcXVlc3QYAiABKAsyOy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFza0NvbnRleHRSZXF1ZXN0IiwKGlN0YXRBdHRhY2htZW50QmxvYnNSZXF1ZXN0Eg4KBnNoYTI1NhgBIAMoCSIuChtTdGF0QXR0YWNobWVudEJsb2JzUmVzcG9uc2USDwoHbWlzc2luZxgBIAMoCSJPChhQdXRBdHRhY2htZW50QmxvYlJlcXVlc3QSDgoGc2hhMjU2GAEgASgJEhIKCm1lZGlhX3R5cGUYAiABKAkSDwoHY29udGVudBgDIAEoDCJQChlQdXRBdHRhY2htZW50QmxvYlJlc3BvbnNlEg4KBnNoYTI1NhgBIAEoCRISCgpzaXplX2J5dGVzGAIgASgDEg8KB2V4aXN0ZWQYAyABKAgi1wIKDUFuc3dlclJlcXVlc3QSDgoGYXNrX2lkGAEgASgJEg4KBmFuc3dlchgCIAEoCRIMCgRub3RlGAMgASgJElAKCXJlc3BvbnNlcxgEIAMoCzI9LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuQXNrUXVlc3Rpb25SZXNwb25zZRJVChBhdHRhY2htZW50X25vdGVzGAUgAygLMjsudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2tBdHRhY2htZW50Tm90ZRIoCgdjaGFuZ2VzGAYgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBJFCgZpbWFnZXMYByADKAsyNS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFuc3dlckltYWdlIsQBCg5BbnN3ZXJSZXNwb25zZRIOCgZhc2tfaWQYASABKAkSDgoGYW5zd2VyGAIgASgJEhMKC2Fuc3dlcmVkX2F0GAMgASgJEgwKBGxhdGUYBCABKAgSKAoHY2hhbmdlcxgFIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSRQoGaW1hZ2VzGAYgAygLMjUudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5BbnN3ZXJJbWFnZSJTCgtBbnN3ZXJJbWFnZRIMCgRuYW1lGAEgASgJEg4KBnNoYTI1NhgCIAEoCRISCgptZWRpYV90eXBlGAMgASgJEhIKCnNpemVfYnl0ZXMYBCABKAMiIQoPTWFya1JlYWRSZXF1ZXN0Eg4KBmFza19pZBgBIAEoCSIxChBNYXJrUmVhZFJlc3BvbnNlEg4KBmFza19pZBgBIAEoCRINCgVzdGF0ZRgCIAEoCSIuCg5EaXNtaXNzUmVxdWVzdBIOCgZhc2tfaWQYASABKAkSDAoEbm90ZRgCIAEoCSIwCg9EaXNtaXNzUmVzcG9uc2USDgoGYXNrX2lkGAEgASgJEg0KBXN0YXRlGAIgASgJIkYKD1dpdGhkcmF3UmVxdWVzdBIOCgZhc2tfaWQYASABKAkSDgoGcmVhc29uGAIgASgJEhMKC3N1YmplY3Rfa2V5GAMgASgJIjEKEFdpdGhkcmF3UmVzcG9uc2USDgoGYXNrX2lkGAEgASgJEg0KBXN0YXRlGAIgASgJImcKC1dhaXRSZXF1ZXN0Eg4KBmFza19pZBgBIAEoCRIQCghkZWFkbGluZRgCIAEoCRIhChlyZXR1cm5fb25fY29udGV4dF9yZXF1ZXN0GAMgASgIEhMKC3N1YmplY3Rfa2V5GAQgASgJIvMDCgxXYWl0UmVzcG9uc2USDgoGYXNrX2lkGAEgASgJEg0KBXN0YXRlGAIgASgJEg4KBmFuc3dlchgDIAEoCRIOCgZyZWFzb24YBCABKAkSDAoEbm90ZRgFIAEoCRJQCglyZXNwb25zZXMYBiADKAsyPS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFza1F1ZXN0aW9uUmVzcG9uc2USFgoOYW5zd2VyX3N1bW1hcnkYByABKAkSVAoPY29udGV4dF9yZXF1ZXN0GAggASgLMjsudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2tDb250ZXh0UmVxdWVzdBJVChBhdHRhY2htZW50X25vdGVzGAkgAygLMjsudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2tBdHRhY2htZW50Tm90ZRIOCgZwYWNrZXQYCiABKAkSKAoHY2hhbmdlcxgLIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSRQoGaW1hZ2VzGAwgAygLMjUudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5BbnN3ZXJJbWFnZSLTEAoDQXNrEgoKAmlkGAEgASgJEhcKD25vdGlmaWNhdGlvbl9pZBgCIAEoCRIQCghxdWVzdGlvbhgDIAEoCRJECgdvcHRpb25zGAQgAygLMjMudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2tPcHRpb24SEwoLcmVjb21tZW5kZWQYBSABKAkSHQoVcmVjb21tZW5kYXRpb25fcmVhc29uGAYgASgJEhYKDmRlZmF1bHRfYW5zd2VyGAcgASgJEhIKCnJldmVyc2libGUYCCABKAgSDwoHdXJnZW5jeRgJIAEoCRITCgtjb250ZXh0X3VybBgKIAEoCRIQCghkZWFkbGluZRgLIAEoCRINCgVzdGF0ZRgMIAEoCRIOCgZyZWFzb24YDSABKAkSDgoGYW5zd2VyGA4gASgJEhQKDGFuc3dlcl9sYWJlbBgPIAEoCRIMCgRub3RlGBAgASgJEhMKC2Fuc3dlcmVkX2J5GBEgASgJEhMKC2Fuc3dlcmVkX2F0GBIgASgJEgwKBGxhdGUYEyABKAgSGgoSZGVmYXVsdF9hcHBsaWVkX2F0GBQgASgJEhoKEmZpcnN0X2RlbGl2ZXJlZF9hdBgVIAEoCRIbChNkZWZhdWx0X2VsaWdpYmxlX2F0GBYgASgJEg4KBnNvdXJjZRgXIAEoCRIZChFzb3VyY2VfZXZlbnRfdHlwZRgYIAEoCRIVCg1yZXF1ZXN0ZXJfcmVmGBkgASgJEhMKC3Jlc29sdmVkX2F0GBogASgJEhIKCmNyZWF0ZWRfYXQYGyABKAkSEgoKdXBkYXRlZF9hdBgcIAEoCRITCgtiaWdfcGljdHVyZRgdIAEoCRIZChF0ZWNobmljYWxfZGV0YWlscxgeIAEoCRINCgV0aXRsZRgfIAEoCRJkChlwcm92aWRlcl9kZWNpc2lvbl9jb250ZXh0GCAgASgLMkEudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Qcm92aWRlckRlY2lzaW9uQ29udGV4dBIhChlhbnN3ZXJlZF9ieV9pZGVudGl0eV9raW5kGCEgASgJEiMKG2Fuc3dlcmVkX2J5X2lkZW50aXR5X3NvdXJjZRgiIAEoCRITCgtzdWJqZWN0X2tleRgjIAEoCRIYChBsYXN0X2Fzc2VydGVkX2F0GCQgASgJEh8KF3JlYXNzZXJ0X3dpdGhpbl9zZWNvbmRzGCUgASgFEhYKDnJldmlzaW9uX2NvdW50GCYgASgFEhwKFHN1cGVyc2VkZWRfYnlfYXNrX2lkGCcgASgJEkgKCXJldmlzaW9ucxgoIAMoCzI1LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuQXNrUmV2aXNpb24STAoLYXR0YWNobWVudHMYKSADKAsyNy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFza0F0dGFjaG1lbnQSSAoJcXVlc3Rpb25zGCogAygLMjUudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2tRdWVzdGlvbhJQCglyZXNwb25zZXMYKyADKAsyPS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFza1F1ZXN0aW9uUmVzcG9uc2USVQoQY29udGV4dF9yZXF1ZXN0cxgsIAMoCzI7LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuQXNrQ29udGV4dFJlcXVlc3QSFgoOYW5zd2VyX3N1bW1hcnkYLSABKAkSGAoQYXR0YWNobWVudF9jb3VudBguIAEoBRIWCg5xdWVzdGlvbl9jb3VudBgvIAEoBRIiChpvcGVuX2NvbnRleHRfcmVxdWVzdF9jb3VudBgwIAEoBRJVChBhdHRhY2htZW50X25vdGVzGDEgAygLMjsudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2tBdHRhY2htZW50Tm90ZRIbChNjYW5fcmVxdWVzdF9jb250ZXh0GDIgASgIElMKC2NvcnJlbGF0aW9uGDMgAygLMj4udnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2suQ29ycmVsYXRpb25FbnRyeRIOCgZzZW5kZXIYNCABKAkSFAoMY2xvc2luZ19zb29uGDUgASgIEg4KBnBhY2tldBg2IAEoCRIUCgxhcHByb3ZhbF91cmwYNyABKAkSDAoEa2luZBg4IAEoCRIvCg5hbnN3ZXJfY2hhbmdlcxg5IAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSTAoNYW5zd2VyX2ltYWdlcxg6IAMoCzI1LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuQW5zd2VySW1hZ2USTwoKcmVjdXJyZW5jZRg7IAEoCzI7LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuU3ViamVjdFJlY3VycmVuY2USFQoNdGVtcGxhdGVfbmFtZRg8IAEoCRIuCg10ZW1wbGF0ZV9kYXRhGD0gASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBoyChBDb3JyZWxhdGlvbkVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEibwoQSGlzdG9yaWNhbEFuc3dlchIOCgZhbnN3ZXIYASABKAkSDAoEbm90ZRgCIAEoCRITCgthbnN3ZXJlZF9hdBgDIAEoCRIoCgdjaGFuZ2VzGAQgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCKHAQoRU3ViamVjdFJlY3VycmVuY2USDQoFY291bnQYASABKAUSDQoFZGF0ZXMYAiADKAkSVAoQcHJldmlvdXNfYW5zd2VycxgDIAMoCzI6LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuSGlzdG9yaWNhbEFuc3dlciKQAgoLQXNrUmV2aXNpb24SEAoIcmV2aXNpb24YASABKAUSDQoFdGl0bGUYAiABKAkSEAoIcXVlc3Rpb24YAyABKAkSHQoVcmVjb21tZW5kYXRpb25fcmVhc29uGAQgASgJEhMKC2NvbnRleHRfdXJsGAUgASgJEhMKC2JpZ19waWN0dXJlGAYgASgJEhkKEXRlY2huaWNhbF9kZXRhaWxzGAcgASgJEkQKB29wdGlvbnMYCCADKAsyMy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFza09wdGlvbhIQCghkZWFkbGluZRgJIAEoCRISCgpyZXZpc2VkX2F0GAogASgJIjQKDUdldEFza1JlcXVlc3QSDgoGYXNrX2lkGAEgASgJEhMKC3N1YmplY3Rfa2V5GAIgASgJIkwKDkdldEFza1Jlc3BvbnNlEjoKA2FzaxgBIAEoCzItLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuQXNrIsQCCg9MaXN0QXNrc1JlcXVlc3QSEQoJb3Blbl9vbmx5GAEgASgIEg0KBWxpbWl0GAIgASgFEg4KBmN1cnNvchgDIAEoCRINCgVxdWVyeRgEIAEoCRIUCgxzdGF0ZV9maWx0ZXIYBSABKAkSTgoFb3JkZXIYBiABKA4yPy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkxpc3RBc2tzUmVxdWVzdC5PcmRlchIRCgl1cmdlbmNpZXMYByADKAkSDwoHc2VuZGVycxgIIAMoCSJmCgVPcmRlchIVChFPUkRFUl9VTlNQRUNJRklFRBAAEhAKDE9SREVSX05FV0VTVBABEhMKD09SREVSX0FUVEVOVElPThACEg0KCU9SREVSX0RVRRADEhAKDE9SREVSX09MREVTVBAEIuEBChBMaXN0QXNrc1Jlc3BvbnNlEjsKBGFza3MYASADKAsyLS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFzaxITCgtuZXh0X2N1cnNvchgCIAEoCRIWCg50b3RhbF9hd2FpdGluZxgDIAEoBRJDCgZmYWNldHMYBCABKAsyMy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFza0ZhY2V0cxIeChZjbG9zaW5nX3dpbmRvd19zZWNvbmRzGAUgASgFIqEBCglBc2tGYWNldHMSSgoJdXJnZW5jaWVzGAEgAygLMjcudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2tGYWNldENvdW50EkgKB3NlbmRlcnMYAiADKAsyNy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFza0ZhY2V0Q291bnQiLQoNQXNrRmFjZXRDb3VudBINCgV2YWx1ZRgBIAEoCRINCgVjb3VudBgCIAEoBSLWAQoNTmF0aXZlQ29uc2VudBIYChBhdXRob3JpemF0aW9uX2lkGAEgASgJEhcKD25vdGlmaWNhdGlvbl9pZBgCIAEoCRIOCgZzb3VyY2UYAyABKAkSDQoFdGl0bGUYBCABKAkSDAoEYm9keRgFIAEoCRISCgpyZXZpZXdfdXJsGAYgASgJEg0KBXN0YXRlGAcgASgJEhkKEXJldmlld19leHBpcmVzX2F0GAggASgJEhMKC29ic2VydmVkX2F0GAkgASgJEhIKCmNyZWF0ZWRfYXQYCiABKAkiSQoZTGlzdE5hdGl2ZUNvbnNlbnRzUmVxdWVzdBINCgVsaW1pdBgBIAEoDRIOCgZjdXJzb3IYAiABKAkSDQoFcXVlcnkYAyABKAkifAoaTGlzdE5hdGl2ZUNvbnNlbnRzUmVzcG9uc2USSQoIY29uc2VudHMYASADKAsyNy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLk5hdGl2ZUNvbnNlbnQSEwoLbmV4dF9jdXJzb3IYAiABKAkyhw4KFENvbnZlcnNhdGlvbnNTZXJ2aWNlEnIKA0FzaxI0LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuQXNrUmVxdWVzdBo1LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuQXNrUmVzcG9uc2USgQEKCENoZWNrQXNrEjkudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5DaGVja0Fza1JlcXVlc3QaOi52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkNoZWNrQXNrUmVzcG9uc2USewoGQW5zd2VyEjcudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5BbnN3ZXJSZXF1ZXN0GjgudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5BbnN3ZXJSZXNwb25zZRKBAQoITWFya1JlYWQSOS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLk1hcmtSZWFkUmVxdWVzdBo6LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuTWFya1JlYWRSZXNwb25zZRJ1CgRXYWl0EjUudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5XYWl0UmVxdWVzdBo2LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuV2FpdFJlc3BvbnNlEn4KB0Rpc21pc3MSOC52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkRpc21pc3NSZXF1ZXN0GjkudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5EaXNtaXNzUmVzcG9uc2USgQEKCFdpdGhkcmF3EjkudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5XaXRoZHJhd1JlcXVlc3QaOi52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLldpdGhkcmF3UmVzcG9uc2USewoGR2V0QXNrEjcudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5HZXRBc2tSZXF1ZXN0GjgudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5HZXRBc2tSZXNwb25zZRKBAQoITGlzdEFza3MSOS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkxpc3RBc2tzUmVxdWVzdBo6LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuTGlzdEFza3NSZXNwb25zZRKfAQoSTGlzdE5hdGl2ZUNvbnNlbnRzEkMudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5MaXN0TmF0aXZlQ29uc2VudHNSZXF1ZXN0GkQudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5MaXN0TmF0aXZlQ29uc2VudHNSZXNwb25zZRKTAQoOUmVxdWVzdENvbnRleHQSPy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLlJlcXVlc3RDb250ZXh0UmVxdWVzdBpALnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuUmVxdWVzdENvbnRleHRSZXNwb25zZRKiAQoTU3RhdEF0dGFjaG1lbnRCbG9icxJELnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuU3RhdEF0dGFjaG1lbnRCbG9ic1JlcXVlc3QaRS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLlN0YXRBdHRhY2htZW50QmxvYnNSZXNwb25zZRKcAQoRUHV0QXR0YWNobWVudEJsb2ISQi52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLlB1dEF0dGFjaG1lbnRCbG9iUmVxdWVzdBpDLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuUHV0QXR0YWNobWVudEJsb2JSZXNwb25zZUJjWmFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL25vdGlmaWNhdGlvbi1odWIvdjEvY29udmVyc2F0aW9ucztjb252ZXJzYXRpb25zX3YxYgZwcm90bzM", [file_notification_hub_v1_shared_types, file_google_protobuf_struct]);
 
 /**
  * AskOption is one structured answer. key is what the requester receives;
@@ -99,6 +100,16 @@ export const ProviderDecisionContext_ScopeSchema: GenEnum<ProviderDecisionContex
   enumDesc(file_notification_hub_v1_conversations_conversations, 1, 0);
 
 /**
+ * AskRequest opens an ask, or revises the open ask of its subject_key.
+ *
+ * A revision says only what changes. For every field below a revision that
+ * does not say it keeps the open ask's value: question and options when empty,
+ * the fields marked optional when unset (an explicit empty value clears them),
+ * and the attachments and questions as described on those fields. A request
+ * with no open ask to revise takes each unset field's default, and one without
+ * a question or options is refused. recommended and default_answer name answers
+ * of the menu, so they are kept only when the menu is.
+ *
  * @generated from message vrooli.notification_hub.v1.conversations.AskRequest
  */
 export type AskRequest = Message<"vrooli.notification_hub.v1.conversations.AskRequest"> & {
@@ -139,53 +150,53 @@ export type AskRequest = Message<"vrooli.notification_hub.v1.conversations.AskRe
   /**
    * One option key.
    *
-   * @generated from field: string recommended = 7;
+   * @generated from field: optional string recommended = 7;
    */
-  recommended: string;
+  recommended?: string | undefined;
 
   /**
-   * @generated from field: string recommendation_reason = 8;
+   * @generated from field: optional string recommendation_reason = 8;
    */
-  recommendationReason: string;
+  recommendationReason?: string | undefined;
 
   /**
    * One option key; requires reversible. Applied only after the deadline and
    * at least the hub floor (12 h) after the first delivered receipt.
    *
-   * @generated from field: string default_answer = 9;
+   * @generated from field: optional string default_answer = 9;
    */
-  defaultAnswer: string;
+  defaultAnswer?: string | undefined;
 
   /**
-   * @generated from field: bool reversible = 10;
+   * @generated from field: optional bool reversible = 10;
    */
-  reversible: boolean;
+  reversible?: boolean | undefined;
 
   /**
-   * low, normal, high (default), or critical.
+   * low, normal (default), high, or critical.
    *
-   * @generated from field: string urgency = 11;
+   * @generated from field: optional string urgency = 11;
    */
-  urgency: string;
+  urgency?: string | undefined;
 
   /**
-   * @generated from field: string context_url = 12;
+   * @generated from field: optional string context_url = 12;
    */
-  contextUrl: string;
+  contextUrl?: string | undefined;
 
   /**
    * Optional plain-text purpose and impact explanation for a cold reader.
    *
-   * @generated from field: string big_picture = 29;
+   * @generated from field: optional string big_picture = 29;
    */
-  bigPicture: string;
+  bigPicture?: string | undefined;
 
   /**
    * Optional plain-text mechanism, evidence, risks, and limitations.
    *
-   * @generated from field: string technical_details = 30;
+   * @generated from field: optional string technical_details = 30;
    */
-  technicalDetails: string;
+  technicalDetails?: string | undefined;
 
   /**
    * Optional typed binding for provider-rule/agreement decisions. The Hub
@@ -194,6 +205,169 @@ export type AskRequest = Message<"vrooli.notification_hub.v1.conversations.AskRe
    * @generated from field: vrooli.notification_hub.v1.conversations.ProviderDecisionContext provider_decision_context = 31;
    */
   providerDecisionContext?: ProviderDecisionContext | undefined;
+
+  /**
+   * Optional situation key (1-128 of A-Z a-z 0-9 . _ : / @ -, first a letter or
+   * digit). With it the hub keeps at most one open ask per (requester, key): an
+   * identical repeat changes nothing, a text change updates the open ask in
+   * place without a new push, a changed answer menu replaces it, and an ask the
+   * operator dismissed is not re-opened by an identical repeat.
+   *
+   * @generated from field: string subject_key = 32;
+   */
+  subjectKey: string;
+
+  /**
+   * Optional, 60 s to 30 days, needs subject_key: the hub closes the open ask
+   * when the requester has not re-sent it for this long.
+   *
+   * @generated from field: optional int32 reassert_within_seconds = 33;
+   */
+  reassertWithinSeconds?: number | undefined;
+
+  /**
+   * Files and folders the operator can open inside the Hub. Every referenced
+   * blob must already be stored (PutAttachmentBlob). An attachment the Hub
+   * cannot accept is left out and reported in AskResponse.warnings; it never
+   * fails the ask.
+   *
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskAttachment attachments = 34;
+   */
+  attachments: AskAttachment[];
+
+  /**
+   * Extra typed questions shown under the main answer. A question the Hub
+   * cannot accept is left out and reported in AskResponse.warnings.
+   *
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskQuestion questions = 35;
+   */
+  questions: AskQuestion[];
+
+  /**
+   * The asker will answer "I need more context" by revising this ask in place
+   * under the same subject_key. Requires subject_key; without one the Hub
+   * drops the declaration and reports a warning. Undeclared asks never offer
+   * the operator a context request they would wait on in silence.
+   *
+   * @generated from field: optional bool accepts_context_requests = 36;
+   */
+  acceptsContextRequests?: boolean | undefined;
+
+  /**
+   * On a revision (a subject_key with an open ask), attachments sent replace
+   * the current attachment of the same name (an explainer replaces the
+   * explainer) and every other current attachment stays; send none to keep
+   * them all. A revision never loses a part by omission. clear_attachments
+   * drops every current attachment before applying the ones sent.
+   *
+   * @generated from field: bool clear_attachments = 37;
+   */
+  clearAttachments: boolean;
+
+  /**
+   * Same as clear_attachments, for questions matched by question id.
+   *
+   * @generated from field: bool clear_questions = 38;
+   */
+  clearQuestions: boolean;
+
+  /**
+   * On a revision, names of current attachments to drop (the explainer
+   * included, by its name); every other current attachment stays. Applied after
+   * clear_attachments and before the attachments sent, so a name listed here
+   * and sent again is replaced, not removed. A name the ask has no attachment
+   * of is reported in the warnings and changes nothing.
+   *
+   * @generated from field: repeated string remove_attachments = 39;
+   */
+  removeAttachments: string[];
+
+  /**
+   * On a revision, ids of current questions to drop; every other question
+   * stays. Applied after clear_questions and before the questions sent, so an
+   * id listed here and sent again is replaced, not removed. An id the ask has
+   * no question of is reported in the warnings and changes nothing.
+   *
+   * @generated from field: repeated string remove_questions = 40;
+   */
+  removeQuestions: string[];
+
+  /**
+   * The requester's written answer to the operator's open "I need more context"
+   * question(s), 1-4000 characters. It is not part of the ask's terms: it is
+   * stored with each question it answers (the question stays in the history),
+   * marks them answered, and is shown to the operator under the question.
+   * Applying it also counts as a revision for those questions, even when no
+   * other field changes. When the ask has no open context question the text is
+   * dropped and a warning says so.
+   *
+   * @generated from field: string context_response = 41;
+   */
+  contextResponse: string;
+
+  /**
+   * Who is asking, as the operator should read it: a team, an agent role or a
+   * service ("Research Desk", "Treasury steward"), 1-60 characters. The Hub does
+   * not verify it and never uses it for access; it is shown on the ask and is
+   * the value of the sender filter. Unset on a revision keeps the open ask's
+   * sender. Unset on a new ask, the Hub names the sender from its verified
+   * source (a service's name), and otherwise from the kind of caller ("Agent
+   * run"); name it so the operator can tell the asks of several senders apart.
+   *
+   * @generated from field: optional string sender = 42;
+   */
+  sender?: string | undefined;
+
+  /**
+   * A name the caller's tooling suggests for the sender, such as the label of
+   * the session the request came from. The Hub uses it only when it creates an
+   * ask that has no `sender`, so it outranks the Hub's own naming but never a
+   * declared sender. A revision never renames from it, and a replacement keeps
+   * the name of the ask it replaces. The text is repaired, not refused: blanks
+   * collapse, control characters drop and it is cut to 60 characters.
+   *
+   * @generated from field: optional string default_sender = 43;
+   */
+  defaultSender?: string | undefined;
+
+  /**
+   * Absolute path of the decision's ready-to-run packet: the brief (for
+   * example work/<ID>/BRIEF.md) that says what executes on each answer, so the
+   * agent that receives the answer starts a worker from it. Shown to the asker
+   * on the ask and in the resolution; never shown to the operator. Unset on a
+   * revision keeps the open ask's packet.
+   *
+   * @generated from field: optional string packet = 44;
+   */
+  packet?: string | undefined;
+
+  /**
+   * Stable kit template name. When set, template_data must be an object; the
+   * Hub resolves and seals the installed template instead of accepting HTML.
+   *
+   * @generated from field: string template_name = 45;
+   */
+  templateName: string;
+
+  /**
+   * @generated from field: google.protobuf.Struct template_data = 46;
+   */
+  templateData?: JsonObject | undefined;
+
+  /**
+   * decision (default) or status. A status has no required answer and no expiry.
+   *
+   * @generated from field: string kind = 47;
+   */
+  kind: string;
+
+  /**
+   * The sender has reviewed the related-decision collision and determined
+   * this is a distinct decision. Does not grant access to the other ask.
+   *
+   * @generated from field: bool allow_related = 48;
+   */
+  allowRelated: boolean;
 };
 
 /**
@@ -216,6 +390,36 @@ export type AskResponse = Message<"vrooli.notification_hub.v1.conversations.AskR
    * @generated from field: vrooli.notification_hub.v1.shared.Notification notification = 2;
    */
   notification?: Notification | undefined;
+
+  /**
+   * For an ask with a subject_key: created, reasserted, updated, replaced,
+   * suppressed (the operator dismissed these exact terms) or returned (just
+   * answered). Empty for an ask without one.
+   *
+   * @generated from field: string outcome = 3;
+   */
+  outcome: string;
+
+  /**
+   * Packet check results: advice about how the ask reads to a cold reader and
+   * about parts the Hub left out. Warnings never block an ask.
+   *
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.PacketWarning warnings = 4;
+   */
+  warnings: PacketWarning[];
+
+  /**
+   * The ask's state after this call (pending, answered, dismissed, ...), so a
+   * caller needs no second read.
+   *
+   * @generated from field: string state = 5;
+   */
+  state: string;
+
+  /**
+   * @generated from field: string kind = 6;
+   */
+  kind: string;
 };
 
 /**
@@ -224,6 +428,817 @@ export type AskResponse = Message<"vrooli.notification_hub.v1.conversations.AskR
  */
 export const AskResponseSchema: GenMessage<AskResponse> = /*@__PURE__*/
   messageDesc(file_notification_hub_v1_conversations_conversations, 3);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.conversations.CheckAskRequest
+ */
+export type CheckAskRequest = Message<"vrooli.notification_hub.v1.conversations.CheckAskRequest"> & {
+  /**
+   * @generated from field: vrooli.notification_hub.v1.conversations.AskRequest ask = 1;
+   */
+  ask?: AskRequest | undefined;
+
+  /**
+   * Content of the files the check reads, by SHA-256: the explainer page, and the
+   * Markdown file a review question follows. A dry run uploads nothing: the Hub
+   * takes the attachments of ask as stored, at the sha256 and size they state,
+   * reads these in place of stored copies, and keeps none of them.
+   *
+   * @generated from field: map<string, bytes> file_contents = 2;
+   */
+  fileContents: { [key: string]: Uint8Array };
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.CheckAskRequest.
+ * Use `create(CheckAskRequestSchema)` to create a new message.
+ */
+export const CheckAskRequestSchema: GenMessage<CheckAskRequest> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 4);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.conversations.CheckAskResponse
+ */
+export type CheckAskResponse = Message<"vrooli.notification_hub.v1.conversations.CheckAskResponse"> & {
+  /**
+   * Exactly the warnings Ask would return for this request.
+   *
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.PacketWarning warnings = 1;
+   */
+  warnings: PacketWarning[];
+
+  /**
+   * The notification the operator would receive.
+   *
+   * @generated from field: string push_title = 2;
+   */
+  pushTitle: string;
+
+  /**
+   * @generated from field: string push_body = 3;
+   */
+  pushBody: string;
+
+  /**
+   * The open ask a keyed request would revise; empty when it would create.
+   *
+   * @generated from field: string revises_ask_id = 4;
+   */
+  revisesAskId: string;
+
+  /**
+   * The name the operator would see on the ask, worked out by the rule a real
+   * send uses: the request's sender, else the name an open ask keeps, else the
+   * request's default_sender, else the Hub's own naming. Never empty.
+   *
+   * @generated from field: string sender = 5;
+   */
+  sender: string;
+
+  /**
+   * Where that name came from: "declared" (the request's sender), "default"
+   * (its default_sender), "kept" (the open ask's name, on a revision or
+   * replacement), "service" (a verified service's name), "agent_run" (a
+   * verified run that named nothing) or "unnamed".
+   *
+   * @generated from field: string sender_source = 6;
+   */
+  senderSource: string;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.CheckAskResponse.
+ * Use `create(CheckAskResponseSchema)` to create a new message.
+ */
+export const CheckAskResponseSchema: GenMessage<CheckAskResponse> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 5);
+
+/**
+ * PacketWarning is one packet check finding.
+ *
+ * @generated from message vrooli.notification_hub.v1.conversations.PacketWarning
+ */
+export type PacketWarning = Message<"vrooli.notification_hub.v1.conversations.PacketWarning"> & {
+  /**
+   * Stable machine code, for example internal_id_in_question or
+   * attachment_blob_missing.
+   *
+   * @generated from field: string code = 1;
+   */
+  code: string;
+
+  /**
+   * The request field it is about: question, big_picture, attachments[2], ...
+   *
+   * @generated from field: string field = 2;
+   */
+  field: string;
+
+  /**
+   * One plain sentence saying what to change.
+   *
+   * @generated from field: string message = 3;
+   */
+  message: string;
+
+  /**
+   * advice (the ask is complete but reads poorly) or dropped (the Hub left
+   * the named part out).
+   *
+   * @generated from field: string severity = 4;
+   */
+  severity: string;
+
+  /**
+   * True when this request revised an open ask that already had exactly this
+   * finding, and the request did not touch the part it is about. A caller can
+   * fold such findings into a count; they are not news.
+   *
+   * @generated from field: bool carried_over = 5;
+   */
+  carriedOver: boolean;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.PacketWarning.
+ * Use `create(PacketWarningSchema)` to create a new message.
+ */
+export const PacketWarningSchema: GenMessage<PacketWarning> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 6);
+
+/**
+ * AskAttachment is one file or folder in a decision packet. The Hub keeps its
+ * own copy of the bytes from the moment the ask was sent, so the operator
+ * judges exactly what the requester saw, and it serves only these copies,
+ * never a path on the host.
+ *
+ * @generated from message vrooli.notification_hub.v1.conversations.AskAttachment
+ */
+export type AskAttachment = Message<"vrooli.notification_hub.v1.conversations.AskAttachment"> & {
+  /**
+   * Unique within the ask, 1-96 of A-Z a-z 0-9 . _ - (first a letter or digit).
+   * Explainer pages and variant choices refer to attachments by this name.
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * Operator-facing caption; defaults to the name.
+   *
+   * @generated from field: string label = 2;
+   */
+  label: string;
+
+  /**
+   * @generated from field: vrooli.notification_hub.v1.conversations.AskAttachment.Kind kind = 3;
+   */
+  kind: AskAttachment_Kind;
+
+  /**
+   * @generated from field: vrooli.notification_hub.v1.conversations.AskAttachment.Role role = 4;
+   */
+  role: AskAttachment_Role;
+
+  /**
+   * Absolute path on the sender's host when the ask was sent. Shown to the
+   * operator and used only for the drift check; the Hub never serves it.
+   *
+   * @generated from field: string source_path = 5;
+   */
+  sourcePath: string;
+
+  /**
+   * Host name the sender ran on; the drift check runs only on the same host.
+   *
+   * @generated from field: string source_host = 6;
+   */
+  sourceHost: string;
+
+  /**
+   * FILE: the content hash, size, and media type of the stored copy.
+   *
+   * @generated from field: string sha256 = 7;
+   */
+  sha256: string;
+
+  /**
+   * @generated from field: int64 size_bytes = 8;
+   */
+  sizeBytes: bigint;
+
+  /**
+   * @generated from field: string media_type = 9;
+   */
+  mediaType: string;
+
+  /**
+   * FOLDER: its files, relative paths with "/" separators.
+   *
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskAttachmentEntry entries = 10;
+   */
+  entries: AskAttachmentEntry[];
+
+  /**
+   * Read model: how the Hub previews it (markdown, image, video, model3d,
+   * directory, ...). Set by the Hub; ignored on AskRequest.
+   *
+   * @generated from field: string preview_kind = 11;
+   */
+  previewKind: string;
+
+  /**
+   * Read model: fresh (the source still matches the copy), changed, missing,
+   * or unknown (another host, or not checked).
+   *
+   * @generated from field: string source_status = 12;
+   */
+  sourceStatus: string;
+
+  /**
+   * @generated from field: string source_checked_at = 13;
+   */
+  sourceCheckedAt: string;
+
+  /**
+   * Read model: the sender's folder had more files than the Hub keeps.
+   *
+   * @generated from field: bool truncated = 14;
+   */
+  truncated: boolean;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.AskAttachment.
+ * Use `create(AskAttachmentSchema)` to create a new message.
+ */
+export const AskAttachmentSchema: GenMessage<AskAttachment> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 7);
+
+/**
+ * @generated from enum vrooli.notification_hub.v1.conversations.AskAttachment.Kind
+ */
+export enum AskAttachment_Kind {
+  /**
+   * @generated from enum value: KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: KIND_FILE = 1;
+   */
+  FILE = 1,
+
+  /**
+   * @generated from enum value: KIND_FOLDER = 2;
+   */
+  FOLDER = 2,
+}
+
+/**
+ * Describes the enum vrooli.notification_hub.v1.conversations.AskAttachment.Kind.
+ */
+export const AskAttachment_KindSchema: GenEnum<AskAttachment_Kind> = /*@__PURE__*/
+  enumDesc(file_notification_hub_v1_conversations_conversations, 7, 0);
+
+/**
+ * @generated from enum vrooli.notification_hub.v1.conversations.AskAttachment.Role
+ */
+export enum AskAttachment_Role {
+  /**
+   * @generated from enum value: ROLE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Supporting material listed under the decision (the default).
+   *
+   * @generated from enum value: ROLE_EVIDENCE = 1;
+   */
+  EVIDENCE = 1,
+
+  /**
+   * A self-contained HTML page the Hub shows sealed at the top of the
+   * decision. At most one per ask.
+   *
+   * @generated from enum value: ROLE_EXPLAINER = 2;
+   */
+  EXPLAINER = 2,
+}
+
+/**
+ * Describes the enum vrooli.notification_hub.v1.conversations.AskAttachment.Role.
+ */
+export const AskAttachment_RoleSchema: GenEnum<AskAttachment_Role> = /*@__PURE__*/
+  enumDesc(file_notification_hub_v1_conversations_conversations, 7, 1);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.conversations.AskAttachmentEntry
+ */
+export type AskAttachmentEntry = Message<"vrooli.notification_hub.v1.conversations.AskAttachmentEntry"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string sha256 = 2;
+   */
+  sha256: string;
+
+  /**
+   * @generated from field: int64 size_bytes = 3;
+   */
+  sizeBytes: bigint;
+
+  /**
+   * @generated from field: string media_type = 4;
+   */
+  mediaType: string;
+
+  /**
+   * Read model, as AskAttachment.preview_kind.
+   *
+   * @generated from field: string preview_kind = 5;
+   */
+  previewKind: string;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.AskAttachmentEntry.
+ * Use `create(AskAttachmentEntrySchema)` to create a new message.
+ */
+export const AskAttachmentEntrySchema: GenMessage<AskAttachmentEntry> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 8);
+
+/**
+ * AskQuestion is one field of the answer form. type is a string so a newer
+ * sender never breaks an older reader: a reader that does not know the type
+ * shows the prompt with a free-text box.
+ *
+ * @generated from message vrooli.notification_hub.v1.conversations.AskQuestion
+ */
+export type AskQuestion = Message<"vrooli.notification_hub.v1.conversations.AskQuestion"> & {
+  /**
+   * Unique within the ask; same rule as an option key.
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * single_choice, multi_choice, variant (choices shown as attached images or
+   * files side by side), section_review (approve, change, or drop each
+   * section, with a note), or text.
+   *
+   * @generated from field: string type = 2;
+   */
+  type: string;
+
+  /**
+   * @generated from field: string prompt = 3;
+   */
+  prompt: string;
+
+  /**
+   * Optional plain-text help under the prompt.
+   *
+   * @generated from field: string help = 4;
+   */
+  help: string;
+
+  /**
+   * A required question must be answered unless the operator answers the
+   * decision as a whole with "Other".
+   *
+   * @generated from field: bool required = 5;
+   */
+  required: boolean;
+
+  /**
+   * single_choice, multi_choice, variant.
+   *
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskQuestionChoice choices = 6;
+   */
+  choices: AskQuestionChoice[];
+
+  /**
+   * section_review.
+   *
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskQuestionSection sections = 7;
+   */
+  sections: AskQuestionSection[];
+
+  /**
+   * What the requester recommends, in answer shape. "Accept recommendations"
+   * copies it into the form.
+   *
+   * @generated from field: vrooli.notification_hub.v1.conversations.AskQuestionResponse recommended = 8;
+   */
+  recommended?: AskQuestionResponse | undefined;
+
+  /**
+   * @generated from field: string recommendation_reason = 9;
+   */
+  recommendationReason: string;
+
+  /**
+   * section_review: the verdict for a section the operator leaves alone:
+   * approve (the default when empty), change, or drop.
+   *
+   * @generated from field: string unanswered_verdict = 10;
+   */
+  unansweredVerdict: string;
+
+  /**
+   * section_review: the attachment the sections follow, as its name or, for a
+   * file inside a folder attachment, "name/path". The Hub reads the Markdown
+   * headings (## and ###) of that file into sections, and reads them again
+   * whenever a revision replaces the file, so the review always matches the
+   * document the operator opens. Sections sent with it are ignored.
+   *
+   * @generated from field: string sections_from = 11;
+   */
+  sectionsFrom: string;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.AskQuestion.
+ * Use `create(AskQuestionSchema)` to create a new message.
+ */
+export const AskQuestionSchema: GenMessage<AskQuestion> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 9);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.conversations.AskQuestionChoice
+ */
+export type AskQuestionChoice = Message<"vrooli.notification_hub.v1.conversations.AskQuestionChoice"> & {
+  /**
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+
+  /**
+   * Optional one-line detail under the label.
+   *
+   * @generated from field: string detail = 3;
+   */
+  detail: string;
+
+  /**
+   * Optional attachment name to show with the choice (an image for variant).
+   *
+   * @generated from field: string attachment = 4;
+   */
+  attachment: string;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.AskQuestionChoice.
+ * Use `create(AskQuestionChoiceSchema)` to create a new message.
+ */
+export const AskQuestionChoiceSchema: GenMessage<AskQuestionChoice> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 10);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.conversations.AskQuestionSection
+ */
+export type AskQuestionSection = Message<"vrooli.notification_hub.v1.conversations.AskQuestionSection"> & {
+  /**
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * @generated from field: string title = 2;
+   */
+  title: string;
+
+  /**
+   * Optional one-line summary of the section.
+   *
+   * @generated from field: string summary = 3;
+   */
+  summary: string;
+
+  /**
+   * Optional attachment the section lives in, and a heading anchor in it.
+   *
+   * @generated from field: string attachment = 4;
+   */
+  attachment: string;
+
+  /**
+   * @generated from field: string anchor = 5;
+   */
+  anchor: string;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.AskQuestionSection.
+ * Use `create(AskQuestionSectionSchema)` to create a new message.
+ */
+export const AskQuestionSectionSchema: GenMessage<AskQuestionSection> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 11);
+
+/**
+ * AskQuestionResponse is the operator's answer to one question.
+ *
+ * @generated from message vrooli.notification_hub.v1.conversations.AskQuestionResponse
+ */
+export type AskQuestionResponse = Message<"vrooli.notification_hub.v1.conversations.AskQuestionResponse"> & {
+  /**
+   * @generated from field: string question_id = 1;
+   */
+  questionId: string;
+
+  /**
+   * Choice keys: one for single_choice and variant, any number for
+   * multi_choice.
+   *
+   * @generated from field: repeated string selected = 2;
+   */
+  selected: string[];
+
+  /**
+   * text answers, and a free note on any other type.
+   *
+   * @generated from field: string text = 3;
+   */
+  text: string;
+
+  /**
+   * section_review verdicts.
+   *
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskSectionVerdict sections = 4;
+   */
+  sections: AskSectionVerdict[];
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.AskQuestionResponse.
+ * Use `create(AskQuestionResponseSchema)` to create a new message.
+ */
+export const AskQuestionResponseSchema: GenMessage<AskQuestionResponse> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 12);
+
+/**
+ * AskAttachmentNote is an operator note pinned to one attachment (and, for a
+ * folder, one file in it).
+ *
+ * @generated from message vrooli.notification_hub.v1.conversations.AskAttachmentNote
+ */
+export type AskAttachmentNote = Message<"vrooli.notification_hub.v1.conversations.AskAttachmentNote"> & {
+  /**
+   * @generated from field: string attachment = 1;
+   */
+  attachment: string;
+
+  /**
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string note = 3;
+   */
+  note: string;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.AskAttachmentNote.
+ * Use `create(AskAttachmentNoteSchema)` to create a new message.
+ */
+export const AskAttachmentNoteSchema: GenMessage<AskAttachmentNote> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 13);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.conversations.AskSectionVerdict
+ */
+export type AskSectionVerdict = Message<"vrooli.notification_hub.v1.conversations.AskSectionVerdict"> & {
+  /**
+   * @generated from field: string section_key = 1;
+   */
+  sectionKey: string;
+
+  /**
+   * approve, change, or drop.
+   *
+   * @generated from field: string verdict = 2;
+   */
+  verdict: string;
+
+  /**
+   * @generated from field: string note = 3;
+   */
+  note: string;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.AskSectionVerdict.
+ * Use `create(AskSectionVerdictSchema)` to create a new message.
+ */
+export const AskSectionVerdictSchema: GenMessage<AskSectionVerdict> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 14);
+
+/**
+ * AskContextRequest is a question the recipient asked about an open ask.
+ *
+ * @generated from message vrooli.notification_hub.v1.conversations.AskContextRequest
+ */
+export type AskContextRequest = Message<"vrooli.notification_hub.v1.conversations.AskContextRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string question = 2;
+   */
+  question: string;
+
+  /**
+   * @generated from field: string requested_by = 3;
+   */
+  requestedBy: string;
+
+  /**
+   * @generated from field: string requested_at = 4;
+   */
+  requestedAt: string;
+
+  /**
+   * Set when the requester revised the ask after this request.
+   *
+   * @generated from field: string addressed_at = 5;
+   */
+  addressedAt: string;
+
+  /**
+   * @generated from field: int32 addressed_revision = 6;
+   */
+  addressedRevision: number;
+
+  /**
+   * The requester's written answer (AskRequest.context_response), empty when the
+   * requester revised the ask without one.
+   *
+   * @generated from field: string response = 7;
+   */
+  response: string;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.AskContextRequest.
+ * Use `create(AskContextRequestSchema)` to create a new message.
+ */
+export const AskContextRequestSchema: GenMessage<AskContextRequest> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 15);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.conversations.RequestContextRequest
+ */
+export type RequestContextRequest = Message<"vrooli.notification_hub.v1.conversations.RequestContextRequest"> & {
+  /**
+   * @generated from field: string ask_id = 1;
+   */
+  askId: string;
+
+  /**
+   * What the recipient needs to know, 1-2000 characters.
+   *
+   * @generated from field: string question = 2;
+   */
+  question: string;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.RequestContextRequest.
+ * Use `create(RequestContextRequestSchema)` to create a new message.
+ */
+export const RequestContextRequestSchema: GenMessage<RequestContextRequest> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 16);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.conversations.RequestContextResponse
+ */
+export type RequestContextResponse = Message<"vrooli.notification_hub.v1.conversations.RequestContextResponse"> & {
+  /**
+   * @generated from field: string ask_id = 1;
+   */
+  askId: string;
+
+  /**
+   * @generated from field: vrooli.notification_hub.v1.conversations.AskContextRequest request = 2;
+   */
+  request?: AskContextRequest | undefined;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.RequestContextResponse.
+ * Use `create(RequestContextResponseSchema)` to create a new message.
+ */
+export const RequestContextResponseSchema: GenMessage<RequestContextResponse> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 17);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.conversations.StatAttachmentBlobsRequest
+ */
+export type StatAttachmentBlobsRequest = Message<"vrooli.notification_hub.v1.conversations.StatAttachmentBlobsRequest"> & {
+  /**
+   * @generated from field: repeated string sha256 = 1;
+   */
+  sha256: string[];
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.StatAttachmentBlobsRequest.
+ * Use `create(StatAttachmentBlobsRequestSchema)` to create a new message.
+ */
+export const StatAttachmentBlobsRequestSchema: GenMessage<StatAttachmentBlobsRequest> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 18);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.conversations.StatAttachmentBlobsResponse
+ */
+export type StatAttachmentBlobsResponse = Message<"vrooli.notification_hub.v1.conversations.StatAttachmentBlobsResponse"> & {
+  /**
+   * The hashes from the request that the Hub does not hold.
+   *
+   * @generated from field: repeated string missing = 1;
+   */
+  missing: string[];
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.StatAttachmentBlobsResponse.
+ * Use `create(StatAttachmentBlobsResponseSchema)` to create a new message.
+ */
+export const StatAttachmentBlobsResponseSchema: GenMessage<StatAttachmentBlobsResponse> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 19);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.conversations.PutAttachmentBlobRequest
+ */
+export type PutAttachmentBlobRequest = Message<"vrooli.notification_hub.v1.conversations.PutAttachmentBlobRequest"> & {
+  /**
+   * Lowercase hex SHA-256 of content.
+   *
+   * @generated from field: string sha256 = 1;
+   */
+  sha256: string;
+
+  /**
+   * @generated from field: string media_type = 2;
+   */
+  mediaType: string;
+
+  /**
+   * @generated from field: bytes content = 3;
+   */
+  content: Uint8Array;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.PutAttachmentBlobRequest.
+ * Use `create(PutAttachmentBlobRequestSchema)` to create a new message.
+ */
+export const PutAttachmentBlobRequestSchema: GenMessage<PutAttachmentBlobRequest> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 20);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.conversations.PutAttachmentBlobResponse
+ */
+export type PutAttachmentBlobResponse = Message<"vrooli.notification_hub.v1.conversations.PutAttachmentBlobResponse"> & {
+  /**
+   * @generated from field: string sha256 = 1;
+   */
+  sha256: string;
+
+  /**
+   * @generated from field: int64 size_bytes = 2;
+   */
+  sizeBytes: bigint;
+
+  /**
+   * True when the Hub already held these bytes.
+   *
+   * @generated from field: bool existed = 3;
+   */
+  existed: boolean;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.PutAttachmentBlobResponse.
+ * Use `create(PutAttachmentBlobResponseSchema)` to create a new message.
+ */
+export const PutAttachmentBlobResponseSchema: GenMessage<PutAttachmentBlobResponse> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 21);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.AnswerRequest
@@ -245,6 +1260,34 @@ export type AnswerRequest = Message<"vrooli.notification_hub.v1.conversations.An
    * @generated from field: string note = 3;
    */
   note: string;
+
+  /**
+   * Answers to the ask's questions. Unknown question ids are refused.
+   *
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskQuestionResponse responses = 4;
+   */
+  responses: AskQuestionResponse[];
+
+  /**
+   * Notes pinned to attachments. Unknown attachment names are refused.
+   *
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskAttachmentNote attachment_notes = 5;
+   */
+  attachmentNotes: AskAttachmentNote[];
+
+  /**
+   * Arbitrary answer state collected by a sealed Hub page.
+   *
+   * @generated from field: google.protobuf.Struct changes = 6;
+   */
+  changes?: JsonObject | undefined;
+
+  /**
+   * Images uploaded to the Hub's content addressed blob store before Send.
+   *
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AnswerImage images = 7;
+   */
+  images: AnswerImage[];
 };
 
 /**
@@ -252,7 +1295,7 @@ export type AnswerRequest = Message<"vrooli.notification_hub.v1.conversations.An
  * Use `create(AnswerRequestSchema)` to create a new message.
  */
 export const AnswerRequestSchema: GenMessage<AnswerRequest> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 4);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 22);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.AnswerResponse
@@ -279,6 +1322,16 @@ export type AnswerResponse = Message<"vrooli.notification_hub.v1.conversations.A
    * @generated from field: bool late = 4;
    */
   late: boolean;
+
+  /**
+   * @generated from field: google.protobuf.Struct changes = 5;
+   */
+  changes?: JsonObject | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AnswerImage images = 6;
+   */
+  images: AnswerImage[];
 };
 
 /**
@@ -286,7 +1339,78 @@ export type AnswerResponse = Message<"vrooli.notification_hub.v1.conversations.A
  * Use `create(AnswerResponseSchema)` to create a new message.
  */
 export const AnswerResponseSchema: GenMessage<AnswerResponse> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 5);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 23);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.conversations.AnswerImage
+ */
+export type AnswerImage = Message<"vrooli.notification_hub.v1.conversations.AnswerImage"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string sha256 = 2;
+   */
+  sha256: string;
+
+  /**
+   * @generated from field: string media_type = 3;
+   */
+  mediaType: string;
+
+  /**
+   * @generated from field: int64 size_bytes = 4;
+   */
+  sizeBytes: bigint;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.AnswerImage.
+ * Use `create(AnswerImageSchema)` to create a new message.
+ */
+export const AnswerImageSchema: GenMessage<AnswerImage> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 24);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.conversations.MarkReadRequest
+ */
+export type MarkReadRequest = Message<"vrooli.notification_hub.v1.conversations.MarkReadRequest"> & {
+  /**
+   * @generated from field: string ask_id = 1;
+   */
+  askId: string;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.MarkReadRequest.
+ * Use `create(MarkReadRequestSchema)` to create a new message.
+ */
+export const MarkReadRequestSchema: GenMessage<MarkReadRequest> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 25);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.conversations.MarkReadResponse
+ */
+export type MarkReadResponse = Message<"vrooli.notification_hub.v1.conversations.MarkReadResponse"> & {
+  /**
+   * @generated from field: string ask_id = 1;
+   */
+  askId: string;
+
+  /**
+   * @generated from field: string state = 2;
+   */
+  state: string;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.MarkReadResponse.
+ * Use `create(MarkReadResponseSchema)` to create a new message.
+ */
+export const MarkReadResponseSchema: GenMessage<MarkReadResponse> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 26);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.DismissRequest
@@ -310,7 +1434,7 @@ export type DismissRequest = Message<"vrooli.notification_hub.v1.conversations.D
  * Use `create(DismissRequestSchema)` to create a new message.
  */
 export const DismissRequestSchema: GenMessage<DismissRequest> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 6);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 27);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.DismissResponse
@@ -332,13 +1456,15 @@ export type DismissResponse = Message<"vrooli.notification_hub.v1.conversations.
  * Use `create(DismissResponseSchema)` to create a new message.
  */
 export const DismissResponseSchema: GenMessage<DismissResponse> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 7);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 28);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.WithdrawRequest
  */
 export type WithdrawRequest = Message<"vrooli.notification_hub.v1.conversations.WithdrawRequest"> & {
   /**
+   * The ask to close. Give ask_id or subject_key, not both.
+   *
    * @generated from field: string ask_id = 1;
    */
   askId: string;
@@ -349,6 +1475,13 @@ export type WithdrawRequest = Message<"vrooli.notification_hub.v1.conversations.
    * @generated from field: string reason = 2;
    */
   reason: string;
+
+  /**
+   * Closes this requester's open ask for the subject key instead of naming its id.
+   *
+   * @generated from field: string subject_key = 3;
+   */
+  subjectKey: string;
 };
 
 /**
@@ -356,7 +1489,7 @@ export type WithdrawRequest = Message<"vrooli.notification_hub.v1.conversations.
  * Use `create(WithdrawRequestSchema)` to create a new message.
  */
 export const WithdrawRequestSchema: GenMessage<WithdrawRequest> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 8);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 29);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.WithdrawResponse
@@ -378,7 +1511,7 @@ export type WithdrawResponse = Message<"vrooli.notification_hub.v1.conversations
  * Use `create(WithdrawResponseSchema)` to create a new message.
  */
 export const WithdrawResponseSchema: GenMessage<WithdrawResponse> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 9);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 30);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.WaitRequest
@@ -393,6 +1526,23 @@ export type WaitRequest = Message<"vrooli.notification_hub.v1.conversations.Wait
    * @generated from field: string deadline = 2;
    */
   deadline: string;
+
+  /**
+   * Also return while the ask is open when the recipient asked for more
+   * context and the requester has not revised the ask since.
+   *
+   * @generated from field: bool return_on_context_request = 3;
+   */
+  returnOnContextRequest: boolean;
+
+  /**
+   * Wait on the open ask with this subject key instead of ask_id. Exactly one
+   * of ask_id and subject_key. A same-owner run that names the key may wait
+   * on it; that is how a restarted agent resumes.
+   *
+   * @generated from field: string subject_key = 4;
+   */
+  subjectKey: string;
 };
 
 /**
@@ -400,7 +1550,7 @@ export type WaitRequest = Message<"vrooli.notification_hub.v1.conversations.Wait
  * Use `create(WaitRequestSchema)` to create a new message.
  */
 export const WaitRequestSchema: GenMessage<WaitRequest> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 10);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 31);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.WaitResponse
@@ -425,6 +1575,53 @@ export type WaitResponse = Message<"vrooli.notification_hub.v1.conversations.Wai
    * @generated from field: string reason = 4;
    */
   reason: string;
+
+  /**
+   * @generated from field: string note = 5;
+   */
+  note: string;
+
+  /**
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskQuestionResponse responses = 6;
+   */
+  responses: AskQuestionResponse[];
+
+  /**
+   * Plain-text rendering of the whole answer: option, note, and responses.
+   *
+   * @generated from field: string answer_summary = 7;
+   */
+  answerSummary: string;
+
+  /**
+   * The oldest unaddressed context request, when Wait returned for one.
+   *
+   * @generated from field: vrooli.notification_hub.v1.conversations.AskContextRequest context_request = 8;
+   */
+  contextRequest?: AskContextRequest | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskAttachmentNote attachment_notes = 9;
+   */
+  attachmentNotes: AskAttachmentNote[];
+
+  /**
+   * The decision's ready-to-run packet (AskRequest.packet); empty for none.
+   * On an answer, the executing agent starts from it.
+   *
+   * @generated from field: string packet = 10;
+   */
+  packet: string;
+
+  /**
+   * @generated from field: google.protobuf.Struct changes = 11;
+   */
+  changes?: JsonObject | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AnswerImage images = 12;
+   */
+  images: AnswerImage[];
 };
 
 /**
@@ -432,7 +1629,7 @@ export type WaitResponse = Message<"vrooli.notification_hub.v1.conversations.Wai
  * Use `create(WaitResponseSchema)` to create a new message.
  */
 export const WaitResponseSchema: GenMessage<WaitResponse> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 11);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 32);
 
 /**
  * Ask is the read model of one ask.
@@ -628,6 +1825,185 @@ export type Ask = Message<"vrooli.notification_hub.v1.conversations.Ask"> & {
    * @generated from field: string answered_by_identity_source = 34;
    */
   answeredByIdentitySource: string;
+
+  /**
+   * The situation key the ask is about; empty for a one-off ask.
+   *
+   * @generated from field: string subject_key = 35;
+   */
+  subjectKey: string;
+
+  /**
+   * When the requester last confirmed the ask was still needed.
+   *
+   * @generated from field: string last_asserted_at = 36;
+   */
+  lastAssertedAt: string;
+
+  /**
+   * The requester's re-send bound in seconds; 0 means the ask never lapses.
+   *
+   * @generated from field: int32 reassert_within_seconds = 37;
+   */
+  reassertWithinSeconds: number;
+
+  /**
+   * How many times the ask was updated in place.
+   *
+   * @generated from field: int32 revision_count = 38;
+   */
+  revisionCount: number;
+
+  /**
+   * The decision that replaced this one, when state is withdrawn because of it.
+   *
+   * @generated from field: string superseded_by_ask_id = 39;
+   */
+  supersededByAskId: string;
+
+  /**
+   * Earlier versions, newest first. Filled by GetAsk only.
+   *
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskRevision revisions = 40;
+   */
+  revisions: AskRevision[];
+
+  /**
+   * The decision packet. Filled by GetAsk only.
+   *
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskAttachment attachments = 41;
+   */
+  attachments: AskAttachment[];
+
+  /**
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskQuestion questions = 42;
+   */
+  questions: AskQuestion[];
+
+  /**
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskQuestionResponse responses = 43;
+   */
+  responses: AskQuestionResponse[];
+
+  /**
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskContextRequest context_requests = 44;
+   */
+  contextRequests: AskContextRequest[];
+
+  /**
+   * Plain-text rendering of the whole answer; empty until answered.
+   *
+   * @generated from field: string answer_summary = 45;
+   */
+  answerSummary: string;
+
+  /**
+   * Counts for list rows, filled by GetAsk and ListAsks.
+   *
+   * @generated from field: int32 attachment_count = 46;
+   */
+  attachmentCount: number;
+
+  /**
+   * @generated from field: int32 question_count = 47;
+   */
+  questionCount: number;
+
+  /**
+   * Unaddressed context requests.
+   *
+   * @generated from field: int32 open_context_request_count = 48;
+   */
+  openContextRequestCount: number;
+
+  /**
+   * Notes the operator pinned to attachments in the answer.
+   *
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskAttachmentNote attachment_notes = 49;
+   */
+  attachmentNotes: AskAttachmentNote[];
+
+  /**
+   * The ask is open and its asker declared it accepts context requests.
+   *
+   * @generated from field: bool can_request_context = 50;
+   */
+  canRequestContext: boolean;
+
+  /**
+   * The producer's correlation map, exactly as it raised the ask. A consumer that
+   * applies an answer takes it from here, not from an event body, so a forged body
+   * cannot point a genuine answer at another record.
+   *
+   * @generated from field: map<string, string> correlation = 51;
+   */
+  correlation: { [key: string]: string };
+
+  /**
+   * Who is asking, as the operator reads it: the sender the requester declared,
+   * else the verified service's name, else "Agent run" for a run that declared
+   * none, else "Unnamed sender". Never empty. The value of the sender filter.
+   *
+   * @generated from field: string sender = 52;
+   */
+  sender: string;
+
+  /**
+   * Set by ListAsks: the ask is open and its deadline is within the response's
+   * closing_window_seconds of the page's reference time. False on every other
+   * read.
+   *
+   * @generated from field: bool closing_soon = 53;
+   */
+  closingSoon: boolean;
+
+  /**
+   * The decision's ready-to-run packet (AskRequest.packet); empty for none.
+   *
+   * @generated from field: string packet = 54;
+   */
+  packet: string;
+
+  /**
+   * Set when only the source's own page can take the approve answer (an Agent
+   * Manager permission request needs the operator's sign-in there): the
+   * "approve" option opens this page, and AnswerAsk refuses "approve".
+   *
+   * @generated from field: string approval_url = 55;
+   */
+  approvalUrl: string;
+
+  /**
+   * decision or status. Legacy records are decisions.
+   *
+   * @generated from field: string kind = 56;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: google.protobuf.Struct answer_changes = 57;
+   */
+  answerChanges?: JsonObject | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AnswerImage answer_images = 58;
+   */
+  answerImages: AnswerImage[];
+
+  /**
+   * @generated from field: vrooli.notification_hub.v1.conversations.SubjectRecurrence recurrence = 59;
+   */
+  recurrence?: SubjectRecurrence | undefined;
+
+  /**
+   * @generated from field: string template_name = 60;
+   */
+  templateName: string;
+
+  /**
+   * @generated from field: google.protobuf.Struct template_data = 61;
+   */
+  templateData?: JsonObject | undefined;
 };
 
 /**
@@ -635,7 +2011,130 @@ export type Ask = Message<"vrooli.notification_hub.v1.conversations.Ask"> & {
  * Use `create(AskSchema)` to create a new message.
  */
 export const AskSchema: GenMessage<Ask> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 12);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 33);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.conversations.HistoricalAnswer
+ */
+export type HistoricalAnswer = Message<"vrooli.notification_hub.v1.conversations.HistoricalAnswer"> & {
+  /**
+   * @generated from field: string answer = 1;
+   */
+  answer: string;
+
+  /**
+   * @generated from field: string note = 2;
+   */
+  note: string;
+
+  /**
+   * @generated from field: string answered_at = 3;
+   */
+  answeredAt: string;
+
+  /**
+   * @generated from field: google.protobuf.Struct changes = 4;
+   */
+  changes?: JsonObject | undefined;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.HistoricalAnswer.
+ * Use `create(HistoricalAnswerSchema)` to create a new message.
+ */
+export const HistoricalAnswerSchema: GenMessage<HistoricalAnswer> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 34);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.conversations.SubjectRecurrence
+ */
+export type SubjectRecurrence = Message<"vrooli.notification_hub.v1.conversations.SubjectRecurrence"> & {
+  /**
+   * @generated from field: int32 count = 1;
+   */
+  count: number;
+
+  /**
+   * @generated from field: repeated string dates = 2;
+   */
+  dates: string[];
+
+  /**
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.HistoricalAnswer previous_answers = 3;
+   */
+  previousAnswers: HistoricalAnswer[];
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.SubjectRecurrence.
+ * Use `create(SubjectRecurrenceSchema)` to create a new message.
+ */
+export const SubjectRecurrenceSchema: GenMessage<SubjectRecurrence> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 35);
+
+/**
+ * AskRevision is what an updated ask said before an update.
+ *
+ * @generated from message vrooli.notification_hub.v1.conversations.AskRevision
+ */
+export type AskRevision = Message<"vrooli.notification_hub.v1.conversations.AskRevision"> & {
+  /**
+   * @generated from field: int32 revision = 1;
+   */
+  revision: number;
+
+  /**
+   * @generated from field: string title = 2;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string question = 3;
+   */
+  question: string;
+
+  /**
+   * @generated from field: string recommendation_reason = 4;
+   */
+  recommendationReason: string;
+
+  /**
+   * @generated from field: string context_url = 5;
+   */
+  contextUrl: string;
+
+  /**
+   * @generated from field: string big_picture = 6;
+   */
+  bigPicture: string;
+
+  /**
+   * @generated from field: string technical_details = 7;
+   */
+  technicalDetails: string;
+
+  /**
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskOption options = 8;
+   */
+  options: AskOption[];
+
+  /**
+   * @generated from field: string deadline = 9;
+   */
+  deadline: string;
+
+  /**
+   * @generated from field: string revised_at = 10;
+   */
+  revisedAt: string;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.AskRevision.
+ * Use `create(AskRevisionSchema)` to create a new message.
+ */
+export const AskRevisionSchema: GenMessage<AskRevision> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 36);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.GetAskRequest
@@ -645,6 +2144,15 @@ export type GetAskRequest = Message<"vrooli.notification_hub.v1.conversations.Ge
    * @generated from field: string ask_id = 1;
    */
   askId: string;
+
+  /**
+   * Read the ask with this subject key instead of ask_id. Exactly one of
+   * ask_id and subject_key. Naming the exact key is a read capability for a
+   * run of the same owner; keys are never enumerated.
+   *
+   * @generated from field: string subject_key = 2;
+   */
+  subjectKey: string;
 };
 
 /**
@@ -652,7 +2160,7 @@ export type GetAskRequest = Message<"vrooli.notification_hub.v1.conversations.Ge
  * Use `create(GetAskRequestSchema)` to create a new message.
  */
 export const GetAskRequestSchema: GenMessage<GetAskRequest> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 13);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 37);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.GetAskResponse
@@ -669,7 +2177,7 @@ export type GetAskResponse = Message<"vrooli.notification_hub.v1.conversations.G
  * Use `create(GetAskResponseSchema)` to create a new message.
  */
 export const GetAskResponseSchema: GenMessage<GetAskResponse> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 14);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 38);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.ListAsksRequest
@@ -711,6 +2219,27 @@ export type ListAsksRequest = Message<"vrooli.notification_hub.v1.conversations.
    * @generated from field: string state_filter = 5;
    */
   stateFilter: string;
+
+  /**
+   * @generated from field: vrooli.notification_hub.v1.conversations.ListAsksRequest.Order order = 6;
+   */
+  order: ListAsksRequest_Order;
+
+  /**
+   * Only asks of these urgencies (low, normal, high, critical); empty is every
+   * urgency. Values of one filter combine with OR, filters with AND.
+   *
+   * @generated from field: repeated string urgencies = 7;
+   */
+  urgencies: string[];
+
+  /**
+   * Only asks from these senders (the Ask.sender text, matched exactly); empty
+   * is every sender.
+   *
+   * @generated from field: repeated string senders = 8;
+   */
+  senders: string[];
 };
 
 /**
@@ -718,7 +2247,61 @@ export type ListAsksRequest = Message<"vrooli.notification_hub.v1.conversations.
  * Use `create(ListAsksRequestSchema)` to create a new message.
  */
 export const ListAsksRequestSchema: GenMessage<ListAsksRequest> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 15);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 39);
+
+/**
+ * How the page is ordered. UNSPECIFIED is NEWEST. Every order accepts every
+ * state filter, and every order ends with id so a page boundary is exact.
+ *
+ * @generated from enum vrooli.notification_hub.v1.conversations.ListAsksRequest.Order
+ */
+export enum ListAsksRequest_Order {
+  /**
+   * @generated from enum value: ORDER_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * created_at DESC, id DESC. The default.
+   *
+   * @generated from enum value: ORDER_NEWEST = 1;
+   */
+  NEWEST = 1,
+
+  /**
+   * What needs the operator first: escalated asks, then pending asks
+   * closing within closing_window_seconds (the nearest close first; an
+   * expired deadline not yet processed counts), then urgency (critical, high,
+   * normal, low), then the earliest deadline (an ask with none last), then
+   * newest. The window is measured at the time the first page was read; the
+   * cursor carries that time, so later pages do not move. Only open asks are
+   * escalated or closing, so for a closed ask it is urgency, deadline, newest.
+   *
+   * @generated from enum value: ORDER_ATTENTION = 2;
+   */
+  ATTENTION = 2,
+
+  /**
+   * The earliest deadline first (an ask with none last), then urgency, then
+   * newest.
+   *
+   * @generated from enum value: ORDER_DUE = 3;
+   */
+  DUE = 3,
+
+  /**
+   * created_at ASC, id ASC.
+   *
+   * @generated from enum value: ORDER_OLDEST = 4;
+   */
+  OLDEST = 4,
+}
+
+/**
+ * Describes the enum vrooli.notification_hub.v1.conversations.ListAsksRequest.Order.
+ */
+export const ListAsksRequest_OrderSchema: GenEnum<ListAsksRequest_Order> = /*@__PURE__*/
+  enumDesc(file_notification_hub_v1_conversations_conversations, 39, 0);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.ListAsksResponse
@@ -730,11 +2313,40 @@ export type ListAsksResponse = Message<"vrooli.notification_hub.v1.conversations
   asks: Ask[];
 
   /**
-   * Empty at the end. Live keyset order is created_at DESC, id DESC.
+   * Empty at the end. Keyset order follows ListAsksRequest.order.
    *
    * @generated from field: string next_cursor = 2;
    */
   nextCursor: string;
+
+  /**
+   * Exact count of pending + escalated asks this reader may see. It ignores
+   * the request's query, state_filter and cursor, and is set on every page.
+   * Native permission requests are not counted.
+   *
+   * @generated from field: int32 total_awaiting = 3;
+   */
+  totalAwaiting: number;
+
+  /**
+   * How many asks each urgency and sender holds under the request's query and
+   * state_filter, set on every page. A facet's counts apply every other filter
+   * but its own, so choosing "high" leaves the sender counts those of high asks
+   * and the urgency counts unchanged. A value the request selected is listed
+   * even at zero.
+   *
+   * @generated from field: vrooli.notification_hub.v1.conversations.AskFacets facets = 4;
+   */
+  facets?: AskFacets | undefined;
+
+  /**
+   * How close to its deadline an open ask must be to count as closing soon
+   * (Ask.closing_soon, and the first band of ORDER_ATTENTION). Set on every
+   * page; a client names the window from this and keeps no copy of its own.
+   *
+   * @generated from field: int32 closing_window_seconds = 5;
+   */
+  closingWindowSeconds: number;
 };
 
 /**
@@ -742,7 +2354,61 @@ export type ListAsksResponse = Message<"vrooli.notification_hub.v1.conversations
  * Use `create(ListAsksResponseSchema)` to create a new message.
  */
 export const ListAsksResponseSchema: GenMessage<ListAsksResponse> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 16);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 40);
+
+/**
+ * AskFacets are the filter choices a list offers, with the number of asks each
+ * would show.
+ *
+ * @generated from message vrooli.notification_hub.v1.conversations.AskFacets
+ */
+export type AskFacets = Message<"vrooli.notification_hub.v1.conversations.AskFacets"> & {
+  /**
+   * In the order critical, high, normal, low; only urgencies that hold asks or
+   * were selected.
+   *
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskFacetCount urgencies = 1;
+   */
+  urgencies: AskFacetCount[];
+
+  /**
+   * Most asks first, then by name; at most 20 senders, selected ones included.
+   *
+   * @generated from field: repeated vrooli.notification_hub.v1.conversations.AskFacetCount senders = 2;
+   */
+  senders: AskFacetCount[];
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.AskFacets.
+ * Use `create(AskFacetsSchema)` to create a new message.
+ */
+export const AskFacetsSchema: GenMessage<AskFacets> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 41);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.conversations.AskFacetCount
+ */
+export type AskFacetCount = Message<"vrooli.notification_hub.v1.conversations.AskFacetCount"> & {
+  /**
+   * The text the filter takes: an urgency, or an Ask.sender.
+   *
+   * @generated from field: string value = 1;
+   */
+  value: string;
+
+  /**
+   * @generated from field: int32 count = 2;
+   */
+  count: number;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.AskFacetCount.
+ * Use `create(AskFacetCountSchema)` to create a new message.
+ */
+export const AskFacetCountSchema: GenMessage<AskFacetCount> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 42);
 
 /**
  * Native consent stays owned and actionable only in the source service.
@@ -808,7 +2474,7 @@ export type NativeConsent = Message<"vrooli.notification_hub.v1.conversations.Na
  * Use `create(NativeConsentSchema)` to create a new message.
  */
 export const NativeConsentSchema: GenMessage<NativeConsent> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 17);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 43);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.ListNativeConsentsRequest
@@ -835,7 +2501,7 @@ export type ListNativeConsentsRequest = Message<"vrooli.notification_hub.v1.conv
  * Use `create(ListNativeConsentsRequestSchema)` to create a new message.
  */
 export const ListNativeConsentsRequestSchema: GenMessage<ListNativeConsentsRequest> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 18);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 44);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.ListNativeConsentsResponse
@@ -859,7 +2525,7 @@ export type ListNativeConsentsResponse = Message<"vrooli.notification_hub.v1.con
  * Use `create(ListNativeConsentsResponseSchema)` to create a new message.
  */
 export const ListNativeConsentsResponseSchema: GenMessage<ListNativeConsentsResponse> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 19);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 45);
 
 /**
  * Asks are durable operator decisions. Reads (GetAsk, ListAsks, Wait) never
@@ -877,12 +2543,33 @@ export const ConversationsService: GenService<{
     output: typeof AskResponseSchema;
   },
   /**
+   * Run the packet check and render the push an Ask would send, storing
+   * nothing. Same authentication as Ask.
+   *
+   * @generated from rpc vrooli.notification_hub.v1.conversations.ConversationsService.CheckAsk
+   */
+  checkAsk: {
+    methodKind: "unary";
+    input: typeof CheckAskRequestSchema;
+    output: typeof CheckAskResponseSchema;
+  },
+  /**
    * @generated from rpc vrooli.notification_hub.v1.conversations.ConversationsService.Answer
    */
   answer: {
     methodKind: "unary";
     input: typeof AnswerRequestSchema;
     output: typeof AnswerResponseSchema;
+  },
+  /**
+   * MarkRead closes a status update without recording a decision answer.
+   *
+   * @generated from rpc vrooli.notification_hub.v1.conversations.ConversationsService.MarkRead
+   */
+  markRead: {
+    methodKind: "unary";
+    input: typeof MarkReadRequestSchema;
+    output: typeof MarkReadResponseSchema;
   },
   /**
    * @generated from rpc vrooli.notification_hub.v1.conversations.ConversationsService.Wait
@@ -924,8 +2611,9 @@ export const ConversationsService: GenService<{
     output: typeof GetAskResponseSchema;
   },
   /**
-   * ListAsks reads asks newest first; open_only limits it to asks that still
-   * wait for an answer.
+   * ListAsks reads asks in the requested order (newest first by default),
+   * filtered by state, urgency, sender and text; open_only limits it to asks
+   * that still wait for an answer.
    *
    * @generated from rpc vrooli.notification_hub.v1.conversations.ConversationsService.ListAsks
    */
@@ -943,6 +2631,42 @@ export const ConversationsService: GenService<{
     methodKind: "unary";
     input: typeof ListNativeConsentsRequestSchema;
     output: typeof ListNativeConsentsResponseSchema;
+  },
+  /**
+   * RequestContext records the recipient's question about an open ask. The ask
+   * stays open; the requester sees the question through Wait (with
+   * return_on_context_request), GetAsk, and the context-requested event, and
+   * answers it by revising the ask in place. Recipient-only.
+   *
+   * @generated from rpc vrooli.notification_hub.v1.conversations.ConversationsService.RequestContext
+   */
+  requestContext: {
+    methodKind: "unary";
+    input: typeof RequestContextRequestSchema;
+    output: typeof RequestContextResponseSchema;
+  },
+  /**
+   * StatAttachmentBlobs reports which content hashes the Hub does not hold
+   * yet, so a sender uploads each file at most once. Producer-only.
+   *
+   * @generated from rpc vrooli.notification_hub.v1.conversations.ConversationsService.StatAttachmentBlobs
+   */
+  statAttachmentBlobs: {
+    methodKind: "unary";
+    input: typeof StatAttachmentBlobsRequestSchema;
+    output: typeof StatAttachmentBlobsResponseSchema;
+  },
+  /**
+   * PutAttachmentBlob stores one file's bytes under their SHA-256. The Hub
+   * recomputes the hash and refuses a mismatch. A blob no ask references is
+   * removed after a grace period. Producer-only.
+   *
+   * @generated from rpc vrooli.notification_hub.v1.conversations.ConversationsService.PutAttachmentBlob
+   */
+  putAttachmentBlob: {
+    methodKind: "unary";
+    input: typeof PutAttachmentBlobRequestSchema;
+    output: typeof PutAttachmentBlobResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_notification_hub_v1_conversations_conversations, 0);

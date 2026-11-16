@@ -86,7 +86,7 @@ func TestMergedEvidenceTreatsStalePersistedRowsAsAbsent(t *testing.T) {
 	require.NoError(t, os.MkdirAll(assetDir, 0o755))
 	require.NoError(t, os.MkdirAll(versionDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(assetDir, "button.json"), []byte(`{"kind":"catalog-asset","asset":{"id":"controls.button","name":"Button","kind":"component","targets":["react-vite"],"target":{"maturity":"verified"}},"api":{"variants":{}}}`), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"), []byte(`{"gates":[{"id":"api","rung":"implemented","blocking":true,"appliesTo":["component"]}]}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"), []byte(`{"gateTiers":[{"id":"release-integrity"},{"id":"asset-quality"},{"id":"consumer-use"}],"gates":[{"id":"api","tier":"release-integrity","rung":"implemented","blocking":true,"appliesTo":["component"]}]}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(`{"catalogId":"controls.button","latest":"1.0.0"}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(versionDir, "Button.tsx"), []byte(`export const Button = () => null;`), 0o644))
 	database := db.NewSQLite(t)
@@ -302,7 +302,7 @@ func TestRecomputeEvidenceDoesNotFabricateTypesPass(t *testing.T) {
 	require.NoError(t, os.MkdirAll(assetDir, 0o755))
 	require.NoError(t, os.MkdirAll(versionDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(assetDir, "button.json"), []byte(`{"kind":"catalog-asset","asset":{"id":"controls.button","name":"Button","kind":"component","targets":["react-vite"]},"api":{}}`), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"), []byte(`{"gates":[{"id":"types","rung":"scaffolded","blocking":true,"appliesTo":["component"]}]}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"), []byte(`{"gateTiers":[{"id":"release-integrity"},{"id":"asset-quality"},{"id":"consumer-use"}],"gates":[{"id":"types","tier":"release-integrity","rung":"scaffolded","blocking":true,"appliesTo":["component"]}]}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(`{"catalogId":"controls.button","latest":"1.0.0"}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(versionDir, "Button.tsx"), []byte(`export const Button = () => null;`), 0o644))
 
@@ -375,7 +375,7 @@ func TestWarmPassProducesIdenticalEvidenceToColdPass(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(scenarioRoot, "catalog", "assets", "controls", "ghost.json"),
 		[]byte(`{"kind":"catalog-asset","asset":{"id":"controls.ghost","kind":"component"}}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(scenarioRoot, "catalog", "config.json"),
-		[]byte(`{"gates":[{"id":"rtl","rung":"verified","blocking":true,"attribution":"attributable","appliesTo":["component"]}]}`), 0o644))
+		[]byte(`{"gateTiers":[{"id":"release-integrity"},{"id":"asset-quality"},{"id":"consumer-use"}],"gates":[{"id":"rtl","tier":"asset-quality","rung":"verified","blocking":true,"attribution":"attributable","appliesTo":["component"]}]}`), 0o644))
 
 	key := func(rows []GateEvidence) map[string]string {
 		out := map[string]string{}

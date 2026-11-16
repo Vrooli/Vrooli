@@ -17,3 +17,10 @@ message Instrument {
   string counterparty = 8;
   google.protobuf.Timestamp expires_at = 9;
 }
+
+message RegisterInstrumentRequest { Instrument instrument = 1; }
+message RegisterInstrumentResponse { Instrument instrument = 1; }
+
+service InstrumentAdminService {
+  rpc RegisterInstrument(RegisterInstrumentRequest) returns (RegisterInstrumentResponse);
+}

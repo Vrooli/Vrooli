@@ -142,6 +142,15 @@ const (
 	// RepoServiceRunPrecommitProcedure is the fully-qualified name of the RepoService's RunPrecommit
 	// RPC.
 	RepoServiceRunPrecommitProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/RunPrecommit"
+	// RepoServiceStartPrecommitCandidateCheckProcedure is the fully-qualified name of the RepoService's
+	// StartPrecommitCandidateCheck RPC.
+	RepoServiceStartPrecommitCandidateCheckProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/StartPrecommitCandidateCheck"
+	// RepoServiceGetPrecommitCandidateCheckProcedure is the fully-qualified name of the RepoService's
+	// GetPrecommitCandidateCheck RPC.
+	RepoServiceGetPrecommitCandidateCheckProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/GetPrecommitCandidateCheck"
+	// RepoServiceCancelPrecommitCandidateCheckProcedure is the fully-qualified name of the
+	// RepoService's CancelPrecommitCandidateCheck RPC.
+	RepoServiceCancelPrecommitCandidateCheckProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/CancelPrecommitCandidateCheck"
 	// RepoServiceStageFilesProcedure is the fully-qualified name of the RepoService's StageFiles RPC.
 	RepoServiceStageFilesProcedure = "/vrooli.git_control_tower.v1.repo.RepoService/StageFiles"
 	// RepoServiceUnstageFilesProcedure is the fully-qualified name of the RepoService's UnstageFiles
@@ -223,6 +232,9 @@ type RepoServiceClient interface {
 	GetPrecommitConfig(context.Context, *connect.Request[repo.GetPrecommitConfigRequest]) (*connect.Response[repo.PrecommitConfigResponse], error)
 	SavePrecommitConfig(context.Context, *connect.Request[repo.SavePrecommitConfigRequest]) (*connect.Response[repo.PrecommitConfigResponse], error)
 	RunPrecommit(context.Context, *connect.Request[repo.RunPrecommitRequest]) (*connect.Response[repo.PrecommitRunResponse], error)
+	StartPrecommitCandidateCheck(context.Context, *connect.Request[repo.StartPrecommitCandidateCheckRequest]) (*connect.Response[repo.PrecommitCandidateCheckResponse], error)
+	GetPrecommitCandidateCheck(context.Context, *connect.Request[repo.GetPrecommitCandidateCheckRequest]) (*connect.Response[repo.PrecommitCandidateCheckResponse], error)
+	CancelPrecommitCandidateCheck(context.Context, *connect.Request[repo.CancelPrecommitCandidateCheckRequest]) (*connect.Response[repo.PrecommitCandidateCheckResponse], error)
 	StageFiles(context.Context, *connect.Request[repo.StageFilesRequest]) (*connect.Response[repo.StageFilesResponse], error)
 	UnstageFiles(context.Context, *connect.Request[repo.UnstageFilesRequest]) (*connect.Response[repo.UnstageFilesResponse], error)
 	CreateCommit(context.Context, *connect.Request[repo.CreateCommitRequest]) (*connect.Response[repo.CreateCommitResponse], error)
@@ -477,6 +489,24 @@ func NewRepoServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(repoServiceMethods.ByName("RunPrecommit")),
 			connect.WithClientOptions(opts...),
 		),
+		startPrecommitCandidateCheck: connect.NewClient[repo.StartPrecommitCandidateCheckRequest, repo.PrecommitCandidateCheckResponse](
+			httpClient,
+			baseURL+RepoServiceStartPrecommitCandidateCheckProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("StartPrecommitCandidateCheck")),
+			connect.WithClientOptions(opts...),
+		),
+		getPrecommitCandidateCheck: connect.NewClient[repo.GetPrecommitCandidateCheckRequest, repo.PrecommitCandidateCheckResponse](
+			httpClient,
+			baseURL+RepoServiceGetPrecommitCandidateCheckProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("GetPrecommitCandidateCheck")),
+			connect.WithClientOptions(opts...),
+		),
+		cancelPrecommitCandidateCheck: connect.NewClient[repo.CancelPrecommitCandidateCheckRequest, repo.PrecommitCandidateCheckResponse](
+			httpClient,
+			baseURL+RepoServiceCancelPrecommitCandidateCheckProcedure,
+			connect.WithSchema(repoServiceMethods.ByName("CancelPrecommitCandidateCheck")),
+			connect.WithClientOptions(opts...),
+		),
 		stageFiles: connect.NewClient[repo.StageFilesRequest, repo.StageFilesResponse](
 			httpClient,
 			baseURL+RepoServiceStageFilesProcedure,
@@ -560,57 +590,60 @@ func NewRepoServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // repoServiceClient implements RepoServiceClient.
 type repoServiceClient struct {
-	listRepositories     *connect.Client[repo.ListRepositoriesRequest, repo.ListRepositoriesResponse]
-	getActiveRepository  *connect.Client[repo.GetActiveRepositoryRequest, repo.GetActiveRepositoryResponse]
-	setActiveRepository  *connect.Client[repo.SetActiveRepositoryRequest, repo.RepoMutationResponse]
-	openRepository       *connect.Client[repo.OpenRepositoryRequest, repo.RepoMutationResponse]
-	cloneRepository      *connect.Client[repo.CloneRepositoryRequest, repo.RepoMutationResponse]
-	removeRepository     *connect.Client[repo.RemoveRepositoryRequest, repo.RemoveRepositoryResponse]
-	getRepoStatus        *connect.Client[repo.GetRepoStatusRequest, repo.GetRepoStatusResponse]
-	getRepoDiff          *connect.Client[repo.GetRepoDiffRequest, repo.GetRepoDiffResponse]
-	getRepoGroups        *connect.Client[repo.GetRepoGroupsRequest, repo.GetRepoGroupsResponse]
-	getSyncStatus        *connect.Client[repo.GetSyncStatusRequest, repo.GetSyncStatusResponse]
-	getRepoHistory       *connect.Client[repo.GetRepoHistoryRequest, repo.GetRepoHistoryResponse]
-	getApprovedChanges   *connect.Client[repo.GetApprovedChangesRequest, repo.GetApprovedChangesResponse]
-	getProvenance        *connect.Client[repo.GetProvenanceRequest, repo.GetProvenanceResponse]
-	getBlame             *connect.Client[repo.GetBlameRequest, repo.GetBlameResponse]
-	searchProvenance     *connect.Client[repo.SearchProvenanceRequest, repo.SearchProvenanceResponse]
-	getFiles             *connect.Client[repo.GetFilesRequest, repo.GetFilesResponse]
-	getDirectoryContents *connect.Client[repo.GetDirectoryContentsRequest, repo.GetDirectoryContentsResponse]
-	getRelatedFiles      *connect.Client[repo.GetRelatedFilesRequest, repo.GetRelatedFilesResponse]
-	searchContent        *connect.Client[repo.SearchContentRequest, repo.SearchContentResponse]
-	deletePath           *connect.Client[repo.DeletePathRequest, repo.DeletePathResponse]
-	saveFileContent      *connect.Client[repo.SaveFileContentRequest, repo.SaveFileContentResponse]
-	discardFiles         *connect.Client[repo.DiscardFilesRequest, repo.DiscardFilesResponse]
-	ignorePath           *connect.Client[repo.IgnorePathRequest, repo.IgnorePathResponse]
-	inspectPushSafety    *connect.Client[repo.InspectPushSafetyRequest, repo.PushSafetyReport]
-	getPushRecovery      *connect.Client[repo.GetPushRecoveryRequest, repo.PushRecoveryArtifact]
-	preparePushRecovery  *connect.Client[repo.PreparePushRecoveryRequest, repo.PushRecoveryArtifact]
-	pushToRemote         *connect.Client[repo.PushToRemoteRequest, repo.PushToRemoteResponse]
-	pullFromRemote       *connect.Client[repo.PullFromRemoteRequest, repo.PullFromRemoteResponse]
-	runUpstreamAction    *connect.Client[repo.RunUpstreamActionRequest, repo.RunUpstreamActionResponse]
-	getGroupingRules     *connect.Client[repo.GetGroupingRulesRequest, repo.GroupingRulesResponse]
-	saveGroupingRules    *connect.Client[repo.SaveGroupingRulesRequest, repo.GroupingRulesResponse]
-	getGitignoreHealth   *connect.Client[repo.GetGitignoreHealthRequest, repo.GitignoreHealthResponse]
-	moveGitignoreEntry   *connect.Client[repo.MoveGitignoreEntryRequest, repo.MoveGitignoreEntryResponse]
-	getTrackedBinaries   *connect.Client[repo.GetTrackedBinariesRequest, repo.TrackedBinariesResponse]
-	untrackBinary        *connect.Client[repo.UntrackBinaryRequest, repo.UntrackBinaryResponse]
-	getPrecommitConfig   *connect.Client[repo.GetPrecommitConfigRequest, repo.PrecommitConfigResponse]
-	savePrecommitConfig  *connect.Client[repo.SavePrecommitConfigRequest, repo.PrecommitConfigResponse]
-	runPrecommit         *connect.Client[repo.RunPrecommitRequest, repo.PrecommitRunResponse]
-	stageFiles           *connect.Client[repo.StageFilesRequest, repo.StageFilesResponse]
-	unstageFiles         *connect.Client[repo.UnstageFilesRequest, repo.UnstageFilesResponse]
-	createCommit         *connect.Client[repo.CreateCommitRequest, repo.CreateCommitResponse]
-	listCredentials      *connect.Client[repo.ListCredentialsRequest, repo.CredentialsListResponse]
-	saveCredential       *connect.Client[repo.SaveCredentialRequest, repo.CredentialSaveResponse]
-	deleteCredential     *connect.Client[repo.DeleteCredentialRequest, repo.CredentialDeleteResponse]
-	testCredential       *connect.Client[repo.TestCredentialRequest, repo.CredentialTestResponse]
-	updateRemoteURL      *connect.Client[repo.UpdateRemoteURLRequest, repo.RemoteURLUpdateResponse]
-	listSSHKeys          *connect.Client[repo.ListSSHKeysRequest, repo.SSHListKeysResponse]
-	generateSSHKey       *connect.Client[repo.GenerateSSHKeyRequest, repo.SSHGenerateKeyResponse]
-	getSSHPublicKey      *connect.Client[repo.GetSSHPublicKeyRequest, repo.SSHGetPublicKeyResponse]
-	testSSHConnection    *connect.Client[repo.TestSSHConnectionRequest, repo.SSHTestConnectionResponse]
-	deleteSSHKey         *connect.Client[repo.DeleteSSHKeyRequest, repo.SSHDeleteKeyResponse]
+	listRepositories              *connect.Client[repo.ListRepositoriesRequest, repo.ListRepositoriesResponse]
+	getActiveRepository           *connect.Client[repo.GetActiveRepositoryRequest, repo.GetActiveRepositoryResponse]
+	setActiveRepository           *connect.Client[repo.SetActiveRepositoryRequest, repo.RepoMutationResponse]
+	openRepository                *connect.Client[repo.OpenRepositoryRequest, repo.RepoMutationResponse]
+	cloneRepository               *connect.Client[repo.CloneRepositoryRequest, repo.RepoMutationResponse]
+	removeRepository              *connect.Client[repo.RemoveRepositoryRequest, repo.RemoveRepositoryResponse]
+	getRepoStatus                 *connect.Client[repo.GetRepoStatusRequest, repo.GetRepoStatusResponse]
+	getRepoDiff                   *connect.Client[repo.GetRepoDiffRequest, repo.GetRepoDiffResponse]
+	getRepoGroups                 *connect.Client[repo.GetRepoGroupsRequest, repo.GetRepoGroupsResponse]
+	getSyncStatus                 *connect.Client[repo.GetSyncStatusRequest, repo.GetSyncStatusResponse]
+	getRepoHistory                *connect.Client[repo.GetRepoHistoryRequest, repo.GetRepoHistoryResponse]
+	getApprovedChanges            *connect.Client[repo.GetApprovedChangesRequest, repo.GetApprovedChangesResponse]
+	getProvenance                 *connect.Client[repo.GetProvenanceRequest, repo.GetProvenanceResponse]
+	getBlame                      *connect.Client[repo.GetBlameRequest, repo.GetBlameResponse]
+	searchProvenance              *connect.Client[repo.SearchProvenanceRequest, repo.SearchProvenanceResponse]
+	getFiles                      *connect.Client[repo.GetFilesRequest, repo.GetFilesResponse]
+	getDirectoryContents          *connect.Client[repo.GetDirectoryContentsRequest, repo.GetDirectoryContentsResponse]
+	getRelatedFiles               *connect.Client[repo.GetRelatedFilesRequest, repo.GetRelatedFilesResponse]
+	searchContent                 *connect.Client[repo.SearchContentRequest, repo.SearchContentResponse]
+	deletePath                    *connect.Client[repo.DeletePathRequest, repo.DeletePathResponse]
+	saveFileContent               *connect.Client[repo.SaveFileContentRequest, repo.SaveFileContentResponse]
+	discardFiles                  *connect.Client[repo.DiscardFilesRequest, repo.DiscardFilesResponse]
+	ignorePath                    *connect.Client[repo.IgnorePathRequest, repo.IgnorePathResponse]
+	inspectPushSafety             *connect.Client[repo.InspectPushSafetyRequest, repo.PushSafetyReport]
+	getPushRecovery               *connect.Client[repo.GetPushRecoveryRequest, repo.PushRecoveryArtifact]
+	preparePushRecovery           *connect.Client[repo.PreparePushRecoveryRequest, repo.PushRecoveryArtifact]
+	pushToRemote                  *connect.Client[repo.PushToRemoteRequest, repo.PushToRemoteResponse]
+	pullFromRemote                *connect.Client[repo.PullFromRemoteRequest, repo.PullFromRemoteResponse]
+	runUpstreamAction             *connect.Client[repo.RunUpstreamActionRequest, repo.RunUpstreamActionResponse]
+	getGroupingRules              *connect.Client[repo.GetGroupingRulesRequest, repo.GroupingRulesResponse]
+	saveGroupingRules             *connect.Client[repo.SaveGroupingRulesRequest, repo.GroupingRulesResponse]
+	getGitignoreHealth            *connect.Client[repo.GetGitignoreHealthRequest, repo.GitignoreHealthResponse]
+	moveGitignoreEntry            *connect.Client[repo.MoveGitignoreEntryRequest, repo.MoveGitignoreEntryResponse]
+	getTrackedBinaries            *connect.Client[repo.GetTrackedBinariesRequest, repo.TrackedBinariesResponse]
+	untrackBinary                 *connect.Client[repo.UntrackBinaryRequest, repo.UntrackBinaryResponse]
+	getPrecommitConfig            *connect.Client[repo.GetPrecommitConfigRequest, repo.PrecommitConfigResponse]
+	savePrecommitConfig           *connect.Client[repo.SavePrecommitConfigRequest, repo.PrecommitConfigResponse]
+	runPrecommit                  *connect.Client[repo.RunPrecommitRequest, repo.PrecommitRunResponse]
+	startPrecommitCandidateCheck  *connect.Client[repo.StartPrecommitCandidateCheckRequest, repo.PrecommitCandidateCheckResponse]
+	getPrecommitCandidateCheck    *connect.Client[repo.GetPrecommitCandidateCheckRequest, repo.PrecommitCandidateCheckResponse]
+	cancelPrecommitCandidateCheck *connect.Client[repo.CancelPrecommitCandidateCheckRequest, repo.PrecommitCandidateCheckResponse]
+	stageFiles                    *connect.Client[repo.StageFilesRequest, repo.StageFilesResponse]
+	unstageFiles                  *connect.Client[repo.UnstageFilesRequest, repo.UnstageFilesResponse]
+	createCommit                  *connect.Client[repo.CreateCommitRequest, repo.CreateCommitResponse]
+	listCredentials               *connect.Client[repo.ListCredentialsRequest, repo.CredentialsListResponse]
+	saveCredential                *connect.Client[repo.SaveCredentialRequest, repo.CredentialSaveResponse]
+	deleteCredential              *connect.Client[repo.DeleteCredentialRequest, repo.CredentialDeleteResponse]
+	testCredential                *connect.Client[repo.TestCredentialRequest, repo.CredentialTestResponse]
+	updateRemoteURL               *connect.Client[repo.UpdateRemoteURLRequest, repo.RemoteURLUpdateResponse]
+	listSSHKeys                   *connect.Client[repo.ListSSHKeysRequest, repo.SSHListKeysResponse]
+	generateSSHKey                *connect.Client[repo.GenerateSSHKeyRequest, repo.SSHGenerateKeyResponse]
+	getSSHPublicKey               *connect.Client[repo.GetSSHPublicKeyRequest, repo.SSHGetPublicKeyResponse]
+	testSSHConnection             *connect.Client[repo.TestSSHConnectionRequest, repo.SSHTestConnectionResponse]
+	deleteSSHKey                  *connect.Client[repo.DeleteSSHKeyRequest, repo.SSHDeleteKeyResponse]
 }
 
 // ListRepositories calls vrooli.git_control_tower.v1.repo.RepoService.ListRepositories.
@@ -803,6 +836,24 @@ func (c *repoServiceClient) RunPrecommit(ctx context.Context, req *connect.Reque
 	return c.runPrecommit.CallUnary(ctx, req)
 }
 
+// StartPrecommitCandidateCheck calls
+// vrooli.git_control_tower.v1.repo.RepoService.StartPrecommitCandidateCheck.
+func (c *repoServiceClient) StartPrecommitCandidateCheck(ctx context.Context, req *connect.Request[repo.StartPrecommitCandidateCheckRequest]) (*connect.Response[repo.PrecommitCandidateCheckResponse], error) {
+	return c.startPrecommitCandidateCheck.CallUnary(ctx, req)
+}
+
+// GetPrecommitCandidateCheck calls
+// vrooli.git_control_tower.v1.repo.RepoService.GetPrecommitCandidateCheck.
+func (c *repoServiceClient) GetPrecommitCandidateCheck(ctx context.Context, req *connect.Request[repo.GetPrecommitCandidateCheckRequest]) (*connect.Response[repo.PrecommitCandidateCheckResponse], error) {
+	return c.getPrecommitCandidateCheck.CallUnary(ctx, req)
+}
+
+// CancelPrecommitCandidateCheck calls
+// vrooli.git_control_tower.v1.repo.RepoService.CancelPrecommitCandidateCheck.
+func (c *repoServiceClient) CancelPrecommitCandidateCheck(ctx context.Context, req *connect.Request[repo.CancelPrecommitCandidateCheckRequest]) (*connect.Response[repo.PrecommitCandidateCheckResponse], error) {
+	return c.cancelPrecommitCandidateCheck.CallUnary(ctx, req)
+}
+
 // StageFiles calls vrooli.git_control_tower.v1.repo.RepoService.StageFiles.
 func (c *repoServiceClient) StageFiles(ctx context.Context, req *connect.Request[repo.StageFilesRequest]) (*connect.Response[repo.StageFilesResponse], error) {
 	return c.stageFiles.CallUnary(ctx, req)
@@ -911,6 +962,9 @@ type RepoServiceHandler interface {
 	GetPrecommitConfig(context.Context, *connect.Request[repo.GetPrecommitConfigRequest]) (*connect.Response[repo.PrecommitConfigResponse], error)
 	SavePrecommitConfig(context.Context, *connect.Request[repo.SavePrecommitConfigRequest]) (*connect.Response[repo.PrecommitConfigResponse], error)
 	RunPrecommit(context.Context, *connect.Request[repo.RunPrecommitRequest]) (*connect.Response[repo.PrecommitRunResponse], error)
+	StartPrecommitCandidateCheck(context.Context, *connect.Request[repo.StartPrecommitCandidateCheckRequest]) (*connect.Response[repo.PrecommitCandidateCheckResponse], error)
+	GetPrecommitCandidateCheck(context.Context, *connect.Request[repo.GetPrecommitCandidateCheckRequest]) (*connect.Response[repo.PrecommitCandidateCheckResponse], error)
+	CancelPrecommitCandidateCheck(context.Context, *connect.Request[repo.CancelPrecommitCandidateCheckRequest]) (*connect.Response[repo.PrecommitCandidateCheckResponse], error)
 	StageFiles(context.Context, *connect.Request[repo.StageFilesRequest]) (*connect.Response[repo.StageFilesResponse], error)
 	UnstageFiles(context.Context, *connect.Request[repo.UnstageFilesRequest]) (*connect.Response[repo.UnstageFilesResponse], error)
 	CreateCommit(context.Context, *connect.Request[repo.CreateCommitRequest]) (*connect.Response[repo.CreateCommitResponse], error)
@@ -1161,6 +1215,24 @@ func NewRepoServiceHandler(svc RepoServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(repoServiceMethods.ByName("RunPrecommit")),
 		connect.WithHandlerOptions(opts...),
 	)
+	repoServiceStartPrecommitCandidateCheckHandler := connect.NewUnaryHandler(
+		RepoServiceStartPrecommitCandidateCheckProcedure,
+		svc.StartPrecommitCandidateCheck,
+		connect.WithSchema(repoServiceMethods.ByName("StartPrecommitCandidateCheck")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceGetPrecommitCandidateCheckHandler := connect.NewUnaryHandler(
+		RepoServiceGetPrecommitCandidateCheckProcedure,
+		svc.GetPrecommitCandidateCheck,
+		connect.WithSchema(repoServiceMethods.ByName("GetPrecommitCandidateCheck")),
+		connect.WithHandlerOptions(opts...),
+	)
+	repoServiceCancelPrecommitCandidateCheckHandler := connect.NewUnaryHandler(
+		RepoServiceCancelPrecommitCandidateCheckProcedure,
+		svc.CancelPrecommitCandidateCheck,
+		connect.WithSchema(repoServiceMethods.ByName("CancelPrecommitCandidateCheck")),
+		connect.WithHandlerOptions(opts...),
+	)
 	repoServiceStageFilesHandler := connect.NewUnaryHandler(
 		RepoServiceStageFilesProcedure,
 		svc.StageFiles,
@@ -1317,6 +1389,12 @@ func NewRepoServiceHandler(svc RepoServiceHandler, opts ...connect.HandlerOption
 			repoServiceSavePrecommitConfigHandler.ServeHTTP(w, r)
 		case RepoServiceRunPrecommitProcedure:
 			repoServiceRunPrecommitHandler.ServeHTTP(w, r)
+		case RepoServiceStartPrecommitCandidateCheckProcedure:
+			repoServiceStartPrecommitCandidateCheckHandler.ServeHTTP(w, r)
+		case RepoServiceGetPrecommitCandidateCheckProcedure:
+			repoServiceGetPrecommitCandidateCheckHandler.ServeHTTP(w, r)
+		case RepoServiceCancelPrecommitCandidateCheckProcedure:
+			repoServiceCancelPrecommitCandidateCheckHandler.ServeHTTP(w, r)
 		case RepoServiceStageFilesProcedure:
 			repoServiceStageFilesHandler.ServeHTTP(w, r)
 		case RepoServiceUnstageFilesProcedure:
@@ -1502,6 +1580,18 @@ func (UnimplementedRepoServiceHandler) SavePrecommitConfig(context.Context, *con
 
 func (UnimplementedRepoServiceHandler) RunPrecommit(context.Context, *connect.Request[repo.RunPrecommitRequest]) (*connect.Response[repo.PrecommitRunResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.RunPrecommit is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) StartPrecommitCandidateCheck(context.Context, *connect.Request[repo.StartPrecommitCandidateCheckRequest]) (*connect.Response[repo.PrecommitCandidateCheckResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.StartPrecommitCandidateCheck is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) GetPrecommitCandidateCheck(context.Context, *connect.Request[repo.GetPrecommitCandidateCheckRequest]) (*connect.Response[repo.PrecommitCandidateCheckResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.GetPrecommitCandidateCheck is not implemented"))
+}
+
+func (UnimplementedRepoServiceHandler) CancelPrecommitCandidateCheck(context.Context, *connect.Request[repo.CancelPrecommitCandidateCheckRequest]) (*connect.Response[repo.PrecommitCandidateCheckResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.repo.RepoService.CancelPrecommitCandidateCheck is not implemented"))
 }
 
 func (UnimplementedRepoServiceHandler) StageFiles(context.Context, *connect.Request[repo.StageFilesRequest]) (*connect.Response[repo.StageFilesResponse], error) {

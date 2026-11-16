@@ -76,11 +76,21 @@ type Service interface {
 }
 
 type service struct {
-	components   components.Service
-	materializer components.Materializer
-	bundler      Bundler
-	deps         deps.Service
-	repoRoot     string
+	components components.Service
+	bundler    Bundler
+	deps       deps.Service
+	repoRoot   string
+}
+
+// ErrEvictedDependency reports a cold immutable version that must be restored
+// explicitly before the read-only preview can compile it.
+type ErrEvictedDependency struct {
+	LibraryID string
+	Version   string
+}
+
+func (e ErrEvictedDependency) Error() string {
+	return fmt.Sprintf("preview dependency %s@%s is evicted; restore it with `react-component-library versions materialize \"%s\" %s`, then retry the preview", e.LibraryID, e.Version, e.LibraryID, e.Version)
 }
 
 // sourceLedgerReader keeps preview closure validation aligned with the
@@ -179,20 +189,15 @@ func sourceVersionDirectory(repoRoot, sourcePath, version string) string {
 // NewService wires the components service (for resolution + content)
 // and the bundler. Both are required — there is no degraded mode.
 func NewService(comp components.Service, bundler Bundler) Service {
-	return &service{components: comp, materializer: materializerFor(comp), bundler: bundler}
+	return &service{components: comp, bundler: bundler}
 }
 
 func NewServiceWithDeps(comp components.Service, bundler Bundler, depsSvc deps.Service) Service {
-	return &service{components: comp, materializer: materializerFor(comp), bundler: bundler, deps: depsSvc}
+	return &service{components: comp, bundler: bundler, deps: depsSvc}
 }
 
 func NewServiceWithDepsAtRoot(comp components.Service, bundler Bundler, depsSvc deps.Service, repoRoot string) Service {
-	return &service{components: comp, materializer: materializerFor(comp), bundler: bundler, deps: depsSvc, repoRoot: strings.TrimSpace(repoRoot)}
-}
-
-func materializerFor(comp components.Service) components.Materializer {
-	materializer, _ := comp.(components.Materializer)
-	return materializer
+	return &service{components: comp, bundler: bundler, deps: depsSvc, repoRoot: strings.TrimSpace(repoRoot)}
 }
 
 func (s *service) GetBundle(ctx context.Context, id string) (Bundle, error) {
@@ -347,17 +352,12 @@ func appendUniqueDeclarations(base, extra []deps.Declaration) []deps.Declaration
 	return base
 }
 
-func (s *service) materializeEvictedClosure(ctx context.Context, closure []components.ResolvedAsset) error {
+func validateMaterializedClosure(closure []components.ResolvedAsset) error {
 	for _, resolved := range closure { // dependency-first order from ResolveDependencyClosure
 		if !strings.EqualFold(strings.TrimSpace(resolved.Version.Presence), "evicted") {
 			continue
 		}
-		if s.materializer == nil {
-			return fmt.Errorf("cannot preview pinned asset %s@%s: version is evicted and materializer is not configured", resolved.Asset.LibraryID, resolved.Version.Version)
-		}
-		if _, err := s.materializer.EnsureMaterialized(ctx, resolved.Asset.ID, resolved.Version.Version, ""); err != nil {
-			return fmt.Errorf("materialize pinned preview asset %s@%s: %w", resolved.Asset.LibraryID, resolved.Version.Version, err)
-		}
+		return ErrEvictedDependency{LibraryID: resolved.Asset.LibraryID, Version: resolved.Version.Version}
 	}
 	return nil
 }
@@ -382,7 +382,7 @@ func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bun
 		if closureErr != nil {
 			return Bundle{}, closureErr
 		}
-		if err := s.materializeEvictedClosure(ctx, closure); err != nil {
+		if err := validateMaterializedClosure(closure); err != nil {
 			return Bundle{}, err
 		}
 	}

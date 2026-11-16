@@ -1,12 +1,16 @@
 import { existsSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { isBuiltin, createRequire } from "node:module";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+import { authoredRoot, packageRoot } from "./catalog-source.mjs";
 
 const packagePrefix = "@vrooli/react-component-library/";
 const releasePattern = /^\d+\.\d+\.\d+$/;
 const draftPattern = /^\d+\.\d+\.\d+-draft\.\d+$/;
 const majorPattern = /^\d+$/;
 const compareVersions = (left, right) => left.localeCompare(right, undefined, { numeric: true });
+const packageRequire = createRequire(join(packageRoot, "package.json"));
 
 function assertSourceRoot(libraryRoot) {
   const normalized = resolve(libraryRoot).replaceAll("\\", "/");
@@ -137,15 +141,72 @@ export function majorSpecifier(name, version) {
   return `${packagePrefix}${name}/${String(version).split(".")[0]}`;
 }
 
-export function sourceLibraryResolver({ libraryRoot, draftOverrides = {} }) {
+export function sourceLibraryResolver({
+  libraryRoot = authoredRoot,
+  draftOverrides = {},
+  devOnly = false,
+  usageContractsInTests = false,
+} = {}) {
   const root = resolve(libraryRoot);
   assertSourceRoot(root);
+  const wrappers = new Map();
+  let nextWrapperId = 0;
+  let serving = false;
+  let contractWarningsEnabled = false;
+  let consumerRoot = "";
   return {
     name: "react-component-library-source-resolver",
     enforce: "pre",
-    async resolveId(id) {
+    ...(devOnly ? { apply: "serve" } : {}),
+    configResolved(config) {
+      serving = config.command === "serve";
+      contractWarningsEnabled = serving && (config.mode !== "test" || usageContractsInTests);
+      consumerRoot = config.root;
+    },
+    async resolveId(id, importer) {
+      if (serving && this?.resolve && consumerRoot && !id.startsWith(packagePrefix)) {
+        const cleanImporter = String(importer ?? "").split("?")[0];
+        const importerPath = resolve(cleanImporter || ".");
+        const relativeImporter = relative(root, importerPath);
+        const importerIsRclSource =
+          (relativeImporter === "" || (!relativeImporter.startsWith(`..${sep}`) && relativeImporter !== ".." && !isAbsolute(relativeImporter)));
+        const isBarePackage = !id.startsWith(".") && !id.startsWith("/") && !id.startsWith("#") && !isBuiltin(id);
+        if (importerIsRclSource && isBarePackage) {
+          const consumerImporter = join(consumerRoot, "__rcl-usage-contract-dependency__.mjs");
+          const fromConsumer = await this.resolve(id, consumerImporter, { skipSelf: true });
+          if (fromConsumer) return fromConsumer.id;
+          try {
+            return packageRequire.resolve(id);
+          } catch {
+            return null;
+          }
+        }
+      }
       if (!id.startsWith(packagePrefix)) return null;
-      return (await resolveLibrarySpecifier(id, { libraryRoot: root, draftOverrides })).sourcePath;
+      const resolved = await resolveLibrarySpecifier(id, { libraryRoot: root, draftOverrides });
+      if (!contractWarningsEnabled) return resolved.sourcePath;
+      const contractPath = join(root, resolved.kind, resolved.name, "versions", resolved.version, "usage-contract.json");
+      if (!existsSync(contractPath)) return resolved.sourcePath;
+      const expectedId = `${resolved.libraryId}`;
+      const declared = JSON.parse(await readFile(contractPath, "utf8"));
+      if (declared.componentId && declared.componentId !== expectedId) {
+        throw new Error(`${id}: usage contract component identity mismatch; expected ${expectedId}, received ${declared.componentId}`);
+      }
+      // The versioned release directory is the identity source. Older files
+      // can carry stale copied version metadata without naming the wrong asset.
+      const contract = { ...declared, componentId: expectedId, version: resolved.version };
+      const wrapperId = `\0rcl-usage-contract:${nextWrapperId++}`;
+      wrappers.set(wrapperId, { ...resolved, contractPath, contract });
+      return wrapperId;
+    },
+    load(id) {
+      const entry = wrappers.get(id);
+      if (!entry) return null;
+      this?.addWatchFile?.(entry.contractPath);
+      const original = `${entry.sourcePath}?__rcl_usage_contract_original`;
+      const component = entry.name;
+      const runtime = fileURLToPath(new URL("./usage-contract-runtime.mjs", import.meta.url));
+      return `import * as __rclOriginal from ${JSON.stringify(original)};\nimport { wrapUsageContract } from ${JSON.stringify(runtime)};\nexport * from ${JSON.stringify(original)};\nconst __rclComponent = __rclOriginal[${JSON.stringify(component)}] ?? __rclOriginal.default;\nconst __rclWrapped = wrapUsageContract(__rclComponent, ${JSON.stringify(entry.contract)});\nexport { __rclWrapped as ${component} };\nexport default __rclOriginal.default === __rclOriginal[${JSON.stringify(component)}] || !__rclOriginal.default ? __rclWrapped : __rclOriginal.default;\n`;
     },
   };
 }

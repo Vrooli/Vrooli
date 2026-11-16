@@ -53,6 +53,26 @@ message EvalSuite {
   // fields must survive store/write-back round-trips with the case corpus.
   EvalMinimum minimum = 9;
   EvalCoverageConfig coverage = 10;
+  // Explicit provider-owner approval for reranker quality evaluation. The
+  // digest binds the reviewed suite, denominator and immutable pre-rerank
+  // candidate bytes; an absent or mismatched receipt blocks comparison.
+  RerankCorpusOwnerReceipt rerank_corpus_owner_receipt = 11;
+}
+
+// Provider-owned receipt for a frozen reranker evaluation corpus. This is
+// authored with the suite by its data owner; it is a content receipt, not a
+// cryptographic signature. The suite provider id, exact suite bytes, fixed
+// denominator and candidate snapshots must all agree with this record.
+message RerankCorpusOwnerReceipt {
+  string owner_provider_id = 1;
+  string approval_ref = 2;
+  string source_revision = 3;
+  string approved_by = 4;
+  string approved_at = 5;
+  string corpus_sha256 = 6;
+  string denominator_sha256 = 7;
+  string candidate_snapshots_sha256 = 8;
+  string receipt_sha256 = 9;
 }
 
 // EvalMinimum is the provider-declared minimum evidence required for an active
@@ -111,6 +131,19 @@ message EvalCase {
   // represented by expect_ids (for example "run_id"). Arbitrary *_id metadata
   // must never satisfy a label because fields such as tenant_id are unrelated.
   string expected_identity_field = 14;
+  // Immutable ranked candidates captured before the reranker. They are owner
+  // approved experiment input; ordinary eval runs must not synthesize them.
+  repeated vrooli.search_hub.v1.routing.SearchHit pre_rerank_candidates = 15;
+}
+
+// Canonical digest input for one case's exact pre-rerank candidate bytes.
+message RerankCandidateSet {
+  string case_id = 1;
+  repeated vrooli.search_hub.v1.routing.SearchHit candidates = 2;
+}
+
+message RerankCandidateSetList {
+  repeated RerankCandidateSet sets = 1;
 }
 
 // An immutable execution of a suite. The TAG is the experimentation lever.
@@ -169,7 +202,11 @@ message EvaluationIdentity {
   // this exact suite and fixed denominator. Missing receipts remain empty.
   string provider_validation_sha256 = 18;
   string provider_validation_at = 19;
-  reserved 20;
+  // Exact fixed pre-rerank candidate bytes and the provider owner's approval
+  // receipt. Both must match across arms before comparing reranker quality.
+  string candidate_snapshots_sha256 = 20;
+  string candidate_owner_receipt_sha256 = 21;
+  bool reranker_comparison = 22;
 }
 
 // Captured from the provider's status probe at run time so a historical
@@ -277,6 +314,12 @@ message EvalAggregate {
   // Federated-only: expected-id-within-top-k cases / owning-provider-routed
   // gradeable cases. Optional for the same not-measured versus zero distinction.
   optional double retrieval_recall = 11;
+  // Fixed-denominator acceptance metrics from the independently reviewed
+  // snapshot. Unlike retrieval_recall, this denominator includes owner-routing
+  // misses; a missing target remains a miss even when the route missed too.
+  int32 retrieval_denominator = 12;
+  int32 retrieval_hits = 13;
+  optional double fixed_denominator_recall = 14;
 }
 
 service EvalService {
@@ -292,6 +335,11 @@ service EvalService {
   // Read the newest durable corpus-validation receipt without exposing probed
   // queries or provider error text.
   rpc GetLatestCorpusValidation(GetLatestCorpusValidationRequest) returns (GetLatestCorpusValidationResponse);
+  // Freeze a reviewed positive denominator with an independent human review
+  // reference. The snapshot is immutable until another explicit review is
+  // registered for the suite.
+  rpc FreezeFixedDenominator(FreezeFixedDenominatorRequest) returns (FreezeFixedDenominatorResponse);
+  rpc GetFixedDenominator(GetFixedDenominatorRequest) returns (GetFixedDenominatorResponse);
   // History, optionally filtered by tag.
   rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
   rpc GetRun(GetRunRequest) returns (GetRunResponse);
@@ -351,6 +399,21 @@ message GetSuiteResponse {
   // negatives, duplicate queries, thin difficulty spread). The coverage-vs-index
   // findings need a live sample and surface on Generate instead.
   repeated AdequacyWarning adequacy = 2;
+  // Reranker held-out readiness is separate from ordinary retrieval adequacy.
+  // A false result preserves the exact refusal reason and does not call a
+  // provider or reranker.
+  RerankCorpusQualification rerank_qualification = 3;
+}
+
+message RerankCorpusQualification {
+  bool qualified = 1;
+  string refusal_reason = 2;
+  string corpus_sha256 = 3;
+  string denominator_sha256 = 4;
+  string candidate_snapshots_sha256 = 5;
+  string owner_receipt_sha256 = 6;
+  int32 reviewed_positive = 7;
+  int32 heldout_positive = 8;
 }
 
 message RunSuiteRequest {
@@ -475,6 +538,42 @@ message GetLatestCorpusValidationResponse {
   string created_at = 8;
   // SHA-256 of the exact deterministic persisted ValidateCorpusResponse.
   string receipt_sha256 = 9;
+}
+
+message FreezeFixedDenominatorRequest {
+  string suite_id = 1;
+  string reviewer_id = 2;
+  // Link to the independent case/expected-document review. This is provenance,
+  // not a cryptographic signature.
+  string review_evidence_uri = 3;
+}
+
+message FreezeFixedDenominatorResponse {
+  FixedDenominatorSnapshot snapshot = 1;
+}
+
+message GetFixedDenominatorRequest {
+  string suite_id = 1;
+}
+
+message GetFixedDenominatorResponse {
+  bool found = 1;
+  FixedDenominatorSnapshot snapshot = 2;
+}
+
+// Durable exact query/label snapshot used by every run until an explicit new
+// review is registered. Case omissions from the live suite remain in this
+// snapshot and are still graded.
+message FixedDenominatorSnapshot {
+  string suite_id = 1;
+  string provider_id = 2;
+  string corpus_sha256 = 3;
+  string reviewer_id = 4;
+  string review_evidence_uri = 5;
+  string reviewed_at = 6;
+  repeated string case_ids = 7;
+  repeated EvalCase cases = 8;
+  string denominator_sha256 = 9;
 }
 
 message ListRunsRequest {

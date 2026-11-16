@@ -164,3 +164,24 @@ test("materialization leaves the file dependency facade coherent", async () => {
   assert.ok(Object.hasOwn(packageInfo.exports, "./Button/1.0.0"));
   assert.equal(await readFile(join(target, "dist", "exports", "Button", "1.0.0.js"), "utf8"), "export const Button = () => null;\n");
 });
+
+test("a build waiting on a held store lock fails with a clear, attributable error", async () => {
+  const root = await mkdtemp(join(tmpdir(), "rcl-artifacts-lock-"));
+  const store = new ArtifactStore(root, { lockTimeoutMs: 150 });
+  await mkdir(root, { recursive: true });
+
+  // A live holder: this very process.
+  await writeFile(join(root, ".lock"), `${process.pid}\n`);
+  await assert.rejects(store.withLock(async () => "never"), (error) => {
+    assert.match(error.message, new RegExp(`artifact store lock timeout after \\d+s: held by pid ${process.pid} \\(still running\\)`));
+    return true;
+  });
+
+  // A holder that died without releasing the lock.
+  await writeFile(join(root, ".lock"), "2147483646\n");
+  await assert.rejects(store.withLock(async () => "never"), /held by pid 2147483646 \(not running: the lock is stale, remove .*\.lock\)/);
+
+  // Released: the next build proceeds.
+  await rm(join(root, ".lock"));
+  assert.equal(await store.withLock(async () => "ran"), "ran");
+});

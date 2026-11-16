@@ -32,6 +32,8 @@ const (
 	BackendKind_BACKEND_KIND_FILESYSTEM BackendKind = 1
 	// S3-compatible object storage (S3/MinIO).
 	BackendKind_BACKEND_KIND_S3 BackendKind = 2
+	// SSH File Transfer Protocol repository on an operator-authorized host.
+	BackendKind_BACKEND_KIND_SFTP BackendKind = 3
 )
 
 // Enum value maps for BackendKind.
@@ -40,11 +42,13 @@ var (
 		0: "BACKEND_KIND_UNSPECIFIED",
 		1: "BACKEND_KIND_FILESYSTEM",
 		2: "BACKEND_KIND_S3",
+		3: "BACKEND_KIND_SFTP",
 	}
 	BackendKind_value = map[string]int32{
 		"BACKEND_KIND_UNSPECIFIED": 0,
 		"BACKEND_KIND_FILESYSTEM":  1,
 		"BACKEND_KIND_S3":          2,
+		"BACKEND_KIND_SFTP":        3,
 	}
 )
 
@@ -615,6 +619,108 @@ func (x *CreateDestinationResponse) GetDestination() *Destination {
 	return nil
 }
 
+type ImportExistingDestinationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DestinationId string                 `protobuf:"bytes,1,opt,name=destination_id,json=destinationId,proto3" json:"destination_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	BackendKind   BackendKind            `protobuf:"varint,3,opt,name=backend_kind,json=backendKind,proto3,enum=vrooli.data_backup_manager.v1.destinations.BackendKind" json:"backend_kind,omitempty"`
+	Location      string                 `protobuf:"bytes,4,opt,name=location,proto3" json:"location,omitempty"`
+	CapBytes      int64                  `protobuf:"varint,5,opt,name=cap_bytes,json=capBytes,proto3" json:"cap_bytes,omitempty"`
+	CapPolicy     CapPolicy              `protobuf:"varint,6,opt,name=cap_policy,json=capPolicy,proto3,enum=vrooli.data_backup_manager.v1.destinations.CapPolicy" json:"cap_policy,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Optional exact IDs to prove presence. When empty, import still requires
+	// the repository to contain at least one readable snapshot.
+	ExpectedSnapshotIds []string `protobuf:"bytes,8,rep,name=expected_snapshot_ids,json=expectedSnapshotIds,proto3" json:"expected_snapshot_ids,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *ImportExistingDestinationRequest) Reset() {
+	*x = ImportExistingDestinationRequest{}
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportExistingDestinationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportExistingDestinationRequest) ProtoMessage() {}
+
+func (x *ImportExistingDestinationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportExistingDestinationRequest.ProtoReflect.Descriptor instead.
+func (*ImportExistingDestinationRequest) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ImportExistingDestinationRequest) GetDestinationId() string {
+	if x != nil {
+		return x.DestinationId
+	}
+	return ""
+}
+
+func (x *ImportExistingDestinationRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ImportExistingDestinationRequest) GetBackendKind() BackendKind {
+	if x != nil {
+		return x.BackendKind
+	}
+	return BackendKind_BACKEND_KIND_UNSPECIFIED
+}
+
+func (x *ImportExistingDestinationRequest) GetLocation() string {
+	if x != nil {
+		return x.Location
+	}
+	return ""
+}
+
+func (x *ImportExistingDestinationRequest) GetCapBytes() int64 {
+	if x != nil {
+		return x.CapBytes
+	}
+	return 0
+}
+
+func (x *ImportExistingDestinationRequest) GetCapPolicy() CapPolicy {
+	if x != nil {
+		return x.CapPolicy
+	}
+	return CapPolicy_CAP_POLICY_UNSPECIFIED
+}
+
+func (x *ImportExistingDestinationRequest) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *ImportExistingDestinationRequest) GetExpectedSnapshotIds() []string {
+	if x != nil {
+		return x.ExpectedSnapshotIds
+	}
+	return nil
+}
+
 type GetDestinationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -624,7 +730,7 @@ type GetDestinationRequest struct {
 
 func (x *GetDestinationRequest) Reset() {
 	*x = GetDestinationRequest{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[3]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -636,7 +742,7 @@ func (x *GetDestinationRequest) String() string {
 func (*GetDestinationRequest) ProtoMessage() {}
 
 func (x *GetDestinationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[3]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -649,7 +755,7 @@ func (x *GetDestinationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDestinationRequest.ProtoReflect.Descriptor instead.
 func (*GetDestinationRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{3}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetDestinationRequest) GetId() string {
@@ -668,7 +774,7 @@ type GetDestinationResponse struct {
 
 func (x *GetDestinationResponse) Reset() {
 	*x = GetDestinationResponse{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[4]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -680,7 +786,7 @@ func (x *GetDestinationResponse) String() string {
 func (*GetDestinationResponse) ProtoMessage() {}
 
 func (x *GetDestinationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[4]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -693,7 +799,7 @@ func (x *GetDestinationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDestinationResponse.ProtoReflect.Descriptor instead.
 func (*GetDestinationResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{4}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetDestinationResponse) GetDestination() *Destination {
@@ -713,7 +819,7 @@ type ListDestinationsRequest struct {
 
 func (x *ListDestinationsRequest) Reset() {
 	*x = ListDestinationsRequest{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[5]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -725,7 +831,7 @@ func (x *ListDestinationsRequest) String() string {
 func (*ListDestinationsRequest) ProtoMessage() {}
 
 func (x *ListDestinationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[5]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -738,7 +844,7 @@ func (x *ListDestinationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDestinationsRequest.ProtoReflect.Descriptor instead.
 func (*ListDestinationsRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{5}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListDestinationsRequest) GetPageSize() int32 {
@@ -765,7 +871,7 @@ type ListDestinationsResponse struct {
 
 func (x *ListDestinationsResponse) Reset() {
 	*x = ListDestinationsResponse{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[6]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -777,7 +883,7 @@ func (x *ListDestinationsResponse) String() string {
 func (*ListDestinationsResponse) ProtoMessage() {}
 
 func (x *ListDestinationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[6]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -790,7 +896,7 @@ func (x *ListDestinationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDestinationsResponse.ProtoReflect.Descriptor instead.
 func (*ListDestinationsResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{6}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListDestinationsResponse) GetDestinations() []*Destination {
@@ -807,6 +913,170 @@ func (x *ListDestinationsResponse) GetNextPageToken() string {
 	return ""
 }
 
+type ListTargetSnapshotsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DestinationId string                 `protobuf:"bytes,1,opt,name=destination_id,json=destinationId,proto3" json:"destination_id,omitempty"`
+	Owner         string                 `protobuf:"bytes,2,opt,name=owner,proto3" json:"owner,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListTargetSnapshotsRequest) Reset() {
+	*x = ListTargetSnapshotsRequest{}
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListTargetSnapshotsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListTargetSnapshotsRequest) ProtoMessage() {}
+
+func (x *ListTargetSnapshotsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListTargetSnapshotsRequest.ProtoReflect.Descriptor instead.
+func (*ListTargetSnapshotsRequest) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ListTargetSnapshotsRequest) GetDestinationId() string {
+	if x != nil {
+		return x.DestinationId
+	}
+	return ""
+}
+
+func (x *ListTargetSnapshotsRequest) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *ListTargetSnapshotsRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type TargetSnapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	Source        string                 `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TargetSnapshot) Reset() {
+	*x = TargetSnapshot{}
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TargetSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TargetSnapshot) ProtoMessage() {}
+
+func (x *TargetSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TargetSnapshot.ProtoReflect.Descriptor instead.
+func (*TargetSnapshot) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *TargetSnapshot) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *TargetSnapshot) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *TargetSnapshot) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+type ListTargetSnapshotsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Snapshots     []*TargetSnapshot      `protobuf:"bytes,1,rep,name=snapshots,proto3" json:"snapshots,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListTargetSnapshotsResponse) Reset() {
+	*x = ListTargetSnapshotsResponse{}
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListTargetSnapshotsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListTargetSnapshotsResponse) ProtoMessage() {}
+
+func (x *ListTargetSnapshotsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListTargetSnapshotsResponse.ProtoReflect.Descriptor instead.
+func (*ListTargetSnapshotsResponse) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ListTargetSnapshotsResponse) GetSnapshots() []*TargetSnapshot {
+	if x != nil {
+		return x.Snapshots
+	}
+	return nil
+}
+
 type UpdateDestinationRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -820,7 +1090,7 @@ type UpdateDestinationRequest struct {
 
 func (x *UpdateDestinationRequest) Reset() {
 	*x = UpdateDestinationRequest{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[7]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -832,7 +1102,7 @@ func (x *UpdateDestinationRequest) String() string {
 func (*UpdateDestinationRequest) ProtoMessage() {}
 
 func (x *UpdateDestinationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[7]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -845,7 +1115,7 @@ func (x *UpdateDestinationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateDestinationRequest.ProtoReflect.Descriptor instead.
 func (*UpdateDestinationRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{7}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *UpdateDestinationRequest) GetId() string {
@@ -878,7 +1148,7 @@ type UpdateDestinationResponse struct {
 
 func (x *UpdateDestinationResponse) Reset() {
 	*x = UpdateDestinationResponse{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[8]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -890,7 +1160,7 @@ func (x *UpdateDestinationResponse) String() string {
 func (*UpdateDestinationResponse) ProtoMessage() {}
 
 func (x *UpdateDestinationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[8]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -903,7 +1173,7 @@ func (x *UpdateDestinationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateDestinationResponse.ProtoReflect.Descriptor instead.
 func (*UpdateDestinationResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{8}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *UpdateDestinationResponse) GetDestination() *Destination {
@@ -925,7 +1195,7 @@ type BindDestinationRecoveryIdentityRequest struct {
 
 func (x *BindDestinationRecoveryIdentityRequest) Reset() {
 	*x = BindDestinationRecoveryIdentityRequest{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[9]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -937,7 +1207,7 @@ func (x *BindDestinationRecoveryIdentityRequest) String() string {
 func (*BindDestinationRecoveryIdentityRequest) ProtoMessage() {}
 
 func (x *BindDestinationRecoveryIdentityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[9]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -950,7 +1220,7 @@ func (x *BindDestinationRecoveryIdentityRequest) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use BindDestinationRecoveryIdentityRequest.ProtoReflect.Descriptor instead.
 func (*BindDestinationRecoveryIdentityRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{9}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *BindDestinationRecoveryIdentityRequest) GetId() string {
@@ -976,7 +1246,7 @@ type BindDestinationRecoveryIdentityResponse struct {
 
 func (x *BindDestinationRecoveryIdentityResponse) Reset() {
 	*x = BindDestinationRecoveryIdentityResponse{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[10]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -988,7 +1258,7 @@ func (x *BindDestinationRecoveryIdentityResponse) String() string {
 func (*BindDestinationRecoveryIdentityResponse) ProtoMessage() {}
 
 func (x *BindDestinationRecoveryIdentityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[10]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1001,7 +1271,7 @@ func (x *BindDestinationRecoveryIdentityResponse) ProtoReflect() protoreflect.Me
 
 // Deprecated: Use BindDestinationRecoveryIdentityResponse.ProtoReflect.Descriptor instead.
 func (*BindDestinationRecoveryIdentityResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{10}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *BindDestinationRecoveryIdentityResponse) GetDestination() *Destination {
@@ -1023,7 +1293,7 @@ type DeleteDestinationRequest struct {
 
 func (x *DeleteDestinationRequest) Reset() {
 	*x = DeleteDestinationRequest{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[11]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1035,7 +1305,7 @@ func (x *DeleteDestinationRequest) String() string {
 func (*DeleteDestinationRequest) ProtoMessage() {}
 
 func (x *DeleteDestinationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[11]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1048,7 +1318,7 @@ func (x *DeleteDestinationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteDestinationRequest.ProtoReflect.Descriptor instead.
 func (*DeleteDestinationRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{11}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *DeleteDestinationRequest) GetId() string {
@@ -1074,7 +1344,7 @@ type DeleteDestinationResponse struct {
 
 func (x *DeleteDestinationResponse) Reset() {
 	*x = DeleteDestinationResponse{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[12]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1086,7 +1356,7 @@ func (x *DeleteDestinationResponse) String() string {
 func (*DeleteDestinationResponse) ProtoMessage() {}
 
 func (x *DeleteDestinationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[12]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1099,7 +1369,7 @@ func (x *DeleteDestinationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteDestinationResponse.ProtoReflect.Descriptor instead.
 func (*DeleteDestinationResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{12}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *DeleteDestinationResponse) GetRemoved() bool {
@@ -1118,7 +1388,7 @@ type GetDestinationUsageRequest struct {
 
 func (x *GetDestinationUsageRequest) Reset() {
 	*x = GetDestinationUsageRequest{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[13]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1130,7 +1400,7 @@ func (x *GetDestinationUsageRequest) String() string {
 func (*GetDestinationUsageRequest) ProtoMessage() {}
 
 func (x *GetDestinationUsageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[13]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1143,7 +1413,7 @@ func (x *GetDestinationUsageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDestinationUsageRequest.ProtoReflect.Descriptor instead.
 func (*GetDestinationUsageRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{13}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetDestinationUsageRequest) GetId() string {
@@ -1165,7 +1435,7 @@ type GetDestinationUsageResponse struct {
 
 func (x *GetDestinationUsageResponse) Reset() {
 	*x = GetDestinationUsageResponse{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[14]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1177,7 +1447,7 @@ func (x *GetDestinationUsageResponse) String() string {
 func (*GetDestinationUsageResponse) ProtoMessage() {}
 
 func (x *GetDestinationUsageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[14]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1190,7 +1460,7 @@ func (x *GetDestinationUsageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDestinationUsageResponse.ProtoReflect.Descriptor instead.
 func (*GetDestinationUsageResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{14}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetDestinationUsageResponse) GetUsageBytes() int64 {
@@ -1238,7 +1508,7 @@ type DestinationDeviceIdentity struct {
 
 func (x *DestinationDeviceIdentity) Reset() {
 	*x = DestinationDeviceIdentity{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[15]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1250,7 +1520,7 @@ func (x *DestinationDeviceIdentity) String() string {
 func (*DestinationDeviceIdentity) ProtoMessage() {}
 
 func (x *DestinationDeviceIdentity) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[15]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1263,7 +1533,7 @@ func (x *DestinationDeviceIdentity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DestinationDeviceIdentity.ProtoReflect.Descriptor instead.
 func (*DestinationDeviceIdentity) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{15}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DestinationDeviceIdentity) GetDevicePath() string {
@@ -1334,7 +1604,7 @@ type DestinationReadinessCheck struct {
 
 func (x *DestinationReadinessCheck) Reset() {
 	*x = DestinationReadinessCheck{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[16]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1346,7 +1616,7 @@ func (x *DestinationReadinessCheck) String() string {
 func (*DestinationReadinessCheck) ProtoMessage() {}
 
 func (x *DestinationReadinessCheck) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[16]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1359,7 +1629,7 @@ func (x *DestinationReadinessCheck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DestinationReadinessCheck.ProtoReflect.Descriptor instead.
 func (*DestinationReadinessCheck) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{16}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *DestinationReadinessCheck) GetCode() string {
@@ -1403,13 +1673,14 @@ type DestinationReadinessReport struct {
 	EvidenceSource                 string                       `protobuf:"bytes,9,opt,name=evidence_source,json=evidenceSource,proto3" json:"evidence_source,omitempty"`
 	ObservedAt                     *timestamppb.Timestamp       `protobuf:"bytes,10,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
 	RepairSteps                    []string                     `protobuf:"bytes,11,rep,name=repair_steps,json=repairSteps,proto3" json:"repair_steps,omitempty"`
+	OfflineCheckVerified           bool                         `protobuf:"varint,12,opt,name=offline_check_verified,json=offlineCheckVerified,proto3" json:"offline_check_verified,omitempty"`
 	unknownFields                  protoimpl.UnknownFields
 	sizeCache                      protoimpl.SizeCache
 }
 
 func (x *DestinationReadinessReport) Reset() {
 	*x = DestinationReadinessReport{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[17]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1421,7 +1692,7 @@ func (x *DestinationReadinessReport) String() string {
 func (*DestinationReadinessReport) ProtoMessage() {}
 
 func (x *DestinationReadinessReport) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[17]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1434,7 +1705,7 @@ func (x *DestinationReadinessReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DestinationReadinessReport.ProtoReflect.Descriptor instead.
 func (*DestinationReadinessReport) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{17}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *DestinationReadinessReport) GetLocation() string {
@@ -1514,6 +1785,13 @@ func (x *DestinationReadinessReport) GetRepairSteps() []string {
 	return nil
 }
 
+func (x *DestinationReadinessReport) GetOfflineCheckVerified() bool {
+	if x != nil {
+		return x.OfflineCheckVerified
+	}
+	return false
+}
+
 type AnalyzeDestinationRequest struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
 	Location              string                 `protobuf:"bytes,1,opt,name=location,proto3" json:"location,omitempty"`
@@ -1527,7 +1805,7 @@ type AnalyzeDestinationRequest struct {
 
 func (x *AnalyzeDestinationRequest) Reset() {
 	*x = AnalyzeDestinationRequest{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[18]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1539,7 +1817,7 @@ func (x *AnalyzeDestinationRequest) String() string {
 func (*AnalyzeDestinationRequest) ProtoMessage() {}
 
 func (x *AnalyzeDestinationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[18]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1552,7 +1830,7 @@ func (x *AnalyzeDestinationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalyzeDestinationRequest.ProtoReflect.Descriptor instead.
 func (*AnalyzeDestinationRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{18}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *AnalyzeDestinationRequest) GetLocation() string {
@@ -1599,7 +1877,7 @@ type AnalyzeDestinationResponse struct {
 
 func (x *AnalyzeDestinationResponse) Reset() {
 	*x = AnalyzeDestinationResponse{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[19]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1611,7 +1889,7 @@ func (x *AnalyzeDestinationResponse) String() string {
 func (*AnalyzeDestinationResponse) ProtoMessage() {}
 
 func (x *AnalyzeDestinationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[19]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1624,7 +1902,7 @@ func (x *AnalyzeDestinationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalyzeDestinationResponse.ProtoReflect.Descriptor instead.
 func (*AnalyzeDestinationResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{19}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *AnalyzeDestinationResponse) GetReport() *DestinationReadinessReport {
@@ -1655,7 +1933,7 @@ type DestinationPreparationPlan struct {
 
 func (x *DestinationPreparationPlan) Reset() {
 	*x = DestinationPreparationPlan{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[20]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1667,7 +1945,7 @@ func (x *DestinationPreparationPlan) String() string {
 func (*DestinationPreparationPlan) ProtoMessage() {}
 
 func (x *DestinationPreparationPlan) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[20]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1680,7 +1958,7 @@ func (x *DestinationPreparationPlan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DestinationPreparationPlan.ProtoReflect.Descriptor instead.
 func (*DestinationPreparationPlan) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{20}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *DestinationPreparationPlan) GetId() string {
@@ -1788,7 +2066,7 @@ type PlanDestinationPreparationRequest struct {
 
 func (x *PlanDestinationPreparationRequest) Reset() {
 	*x = PlanDestinationPreparationRequest{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[21]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1800,7 +2078,7 @@ func (x *PlanDestinationPreparationRequest) String() string {
 func (*PlanDestinationPreparationRequest) ProtoMessage() {}
 
 func (x *PlanDestinationPreparationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[21]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1813,7 +2091,7 @@ func (x *PlanDestinationPreparationRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use PlanDestinationPreparationRequest.ProtoReflect.Descriptor instead.
 func (*PlanDestinationPreparationRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{21}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *PlanDestinationPreparationRequest) GetLocation() string {
@@ -1867,7 +2145,7 @@ type PlanDestinationPreparationResponse struct {
 
 func (x *PlanDestinationPreparationResponse) Reset() {
 	*x = PlanDestinationPreparationResponse{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[22]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1879,7 +2157,7 @@ func (x *PlanDestinationPreparationResponse) String() string {
 func (*PlanDestinationPreparationResponse) ProtoMessage() {}
 
 func (x *PlanDestinationPreparationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[22]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1892,7 +2170,7 @@ func (x *PlanDestinationPreparationResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use PlanDestinationPreparationResponse.ProtoReflect.Descriptor instead.
 func (*PlanDestinationPreparationResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{22}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *PlanDestinationPreparationResponse) GetPlan() *DestinationPreparationPlan {
@@ -1916,7 +2194,7 @@ type ExecuteDestinationPreparationRequest struct {
 
 func (x *ExecuteDestinationPreparationRequest) Reset() {
 	*x = ExecuteDestinationPreparationRequest{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[23]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1928,7 +2206,7 @@ func (x *ExecuteDestinationPreparationRequest) String() string {
 func (*ExecuteDestinationPreparationRequest) ProtoMessage() {}
 
 func (x *ExecuteDestinationPreparationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[23]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1941,7 +2219,7 @@ func (x *ExecuteDestinationPreparationRequest) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use ExecuteDestinationPreparationRequest.ProtoReflect.Descriptor instead.
 func (*ExecuteDestinationPreparationRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{23}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ExecuteDestinationPreparationRequest) GetPlan() *DestinationPreparationPlan {
@@ -2005,7 +2283,7 @@ type ExecuteDestinationPreparationResponse struct {
 
 func (x *ExecuteDestinationPreparationResponse) Reset() {
 	*x = ExecuteDestinationPreparationResponse{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[24]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2017,7 +2295,7 @@ func (x *ExecuteDestinationPreparationResponse) String() string {
 func (*ExecuteDestinationPreparationResponse) ProtoMessage() {}
 
 func (x *ExecuteDestinationPreparationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[24]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2030,7 +2308,7 @@ func (x *ExecuteDestinationPreparationResponse) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use ExecuteDestinationPreparationResponse.ProtoReflect.Descriptor instead.
 func (*ExecuteDestinationPreparationResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{24}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ExecuteDestinationPreparationResponse) GetDryRun() bool {
@@ -2131,7 +2409,7 @@ type StartVolumeRecoveryRequest struct {
 
 func (x *StartVolumeRecoveryRequest) Reset() {
 	*x = StartVolumeRecoveryRequest{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[25]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2143,7 +2421,7 @@ func (x *StartVolumeRecoveryRequest) String() string {
 func (*StartVolumeRecoveryRequest) ProtoMessage() {}
 
 func (x *StartVolumeRecoveryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[25]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2156,7 +2434,7 @@ func (x *StartVolumeRecoveryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartVolumeRecoveryRequest.ProtoReflect.Descriptor instead.
 func (*StartVolumeRecoveryRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{25}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *StartVolumeRecoveryRequest) GetLocation() string {
@@ -2189,7 +2467,7 @@ type StartVolumeRecoveryResponse struct {
 
 func (x *StartVolumeRecoveryResponse) Reset() {
 	*x = StartVolumeRecoveryResponse{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[26]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2201,7 +2479,7 @@ func (x *StartVolumeRecoveryResponse) String() string {
 func (*StartVolumeRecoveryResponse) ProtoMessage() {}
 
 func (x *StartVolumeRecoveryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[26]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2214,7 +2492,7 @@ func (x *StartVolumeRecoveryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartVolumeRecoveryResponse.ProtoReflect.Descriptor instead.
 func (*StartVolumeRecoveryResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{26}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *StartVolumeRecoveryResponse) GetJournal() *VolumeRecoveryJournal {
@@ -2233,7 +2511,7 @@ type GetVolumeRecoveryRequest struct {
 
 func (x *GetVolumeRecoveryRequest) Reset() {
 	*x = GetVolumeRecoveryRequest{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[27]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2245,7 +2523,7 @@ func (x *GetVolumeRecoveryRequest) String() string {
 func (*GetVolumeRecoveryRequest) ProtoMessage() {}
 
 func (x *GetVolumeRecoveryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[27]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2258,7 +2536,7 @@ func (x *GetVolumeRecoveryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVolumeRecoveryRequest.ProtoReflect.Descriptor instead.
 func (*GetVolumeRecoveryRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{27}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GetVolumeRecoveryRequest) GetId() string {
@@ -2277,7 +2555,7 @@ type GetVolumeRecoveryResponse struct {
 
 func (x *GetVolumeRecoveryResponse) Reset() {
 	*x = GetVolumeRecoveryResponse{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[28]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2289,7 +2567,7 @@ func (x *GetVolumeRecoveryResponse) String() string {
 func (*GetVolumeRecoveryResponse) ProtoMessage() {}
 
 func (x *GetVolumeRecoveryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[28]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2302,7 +2580,7 @@ func (x *GetVolumeRecoveryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVolumeRecoveryResponse.ProtoReflect.Descriptor instead.
 func (*GetVolumeRecoveryResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{28}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *GetVolumeRecoveryResponse) GetJournal() *VolumeRecoveryJournal {
@@ -2324,7 +2602,7 @@ type ResumeVolumeRecoveryRequest struct {
 
 func (x *ResumeVolumeRecoveryRequest) Reset() {
 	*x = ResumeVolumeRecoveryRequest{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[29]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2336,7 +2614,7 @@ func (x *ResumeVolumeRecoveryRequest) String() string {
 func (*ResumeVolumeRecoveryRequest) ProtoMessage() {}
 
 func (x *ResumeVolumeRecoveryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[29]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2349,7 +2627,7 @@ func (x *ResumeVolumeRecoveryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeVolumeRecoveryRequest.ProtoReflect.Descriptor instead.
 func (*ResumeVolumeRecoveryRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{29}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ResumeVolumeRecoveryRequest) GetId() string {
@@ -2389,7 +2667,7 @@ type ResumeVolumeRecoveryResponse struct {
 
 func (x *ResumeVolumeRecoveryResponse) Reset() {
 	*x = ResumeVolumeRecoveryResponse{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[30]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2401,7 +2679,7 @@ func (x *ResumeVolumeRecoveryResponse) String() string {
 func (*ResumeVolumeRecoveryResponse) ProtoMessage() {}
 
 func (x *ResumeVolumeRecoveryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[30]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2414,7 +2692,7 @@ func (x *ResumeVolumeRecoveryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeVolumeRecoveryResponse.ProtoReflect.Descriptor instead.
 func (*ResumeVolumeRecoveryResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{30}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *ResumeVolumeRecoveryResponse) GetJournal() *VolumeRecoveryJournal {
@@ -2436,7 +2714,7 @@ type VolumeRecoveryStep struct {
 
 func (x *VolumeRecoveryStep) Reset() {
 	*x = VolumeRecoveryStep{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[31]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2448,7 +2726,7 @@ func (x *VolumeRecoveryStep) String() string {
 func (*VolumeRecoveryStep) ProtoMessage() {}
 
 func (x *VolumeRecoveryStep) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[31]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2461,7 +2739,7 @@ func (x *VolumeRecoveryStep) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VolumeRecoveryStep.ProtoReflect.Descriptor instead.
 func (*VolumeRecoveryStep) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{31}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *VolumeRecoveryStep) GetPlan() *DestinationPreparationPlan {
@@ -2510,7 +2788,7 @@ type VolumeRecoveryJournal struct {
 
 func (x *VolumeRecoveryJournal) Reset() {
 	*x = VolumeRecoveryJournal{}
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[32]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2522,7 +2800,7 @@ func (x *VolumeRecoveryJournal) String() string {
 func (*VolumeRecoveryJournal) ProtoMessage() {}
 
 func (x *VolumeRecoveryJournal) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[32]
+	mi := &file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2535,7 +2813,7 @@ func (x *VolumeRecoveryJournal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VolumeRecoveryJournal.ProtoReflect.Descriptor instead.
 func (*VolumeRecoveryJournal) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{32}
+	return file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *VolumeRecoveryJournal) GetVersion() string {
@@ -2645,7 +2923,19 @@ const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"\n" +
 	"cap_policy\x18\x05 \x01(\x0e25.vrooli.data_backup_manager.v1.destinations.CapPolicyR\tcapPolicy\"v\n" +
 	"\x19CreateDestinationResponse\x12Y\n" +
-	"\vdestination\x18\x01 \x01(\v27.vrooli.data_backup_manager.v1.destinations.DestinationR\vdestination\"0\n" +
+	"\vdestination\x18\x01 \x01(\v27.vrooli.data_backup_manager.v1.destinations.DestinationR\vdestination\"\xd4\x03\n" +
+	" ImportExistingDestinationRequest\x12.\n" +
+	"\x0edestination_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\rdestinationId\x12\x1b\n" +
+	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12f\n" +
+	"\fbackend_kind\x18\x03 \x01(\x0e27.vrooli.data_backup_manager.v1.destinations.BackendKindB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\vbackendKind\x12#\n" +
+	"\blocation\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\blocation\x12$\n" +
+	"\tcap_bytes\x18\x05 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\bcapBytes\x12T\n" +
+	"\n" +
+	"cap_policy\x18\x06 \x01(\x0e25.vrooli.data_backup_manager.v1.destinations.CapPolicyR\tcapPolicy\x12&\n" +
+	"\n" +
+	"created_at\x18\a \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tcreatedAt\x122\n" +
+	"\x15expected_snapshot_ids\x18\b \x03(\tR\x13expectedSnapshotIds\"0\n" +
 	"\x15GetDestinationRequest\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\"s\n" +
 	"\x16GetDestinationResponse\x12Y\n" +
@@ -2656,7 +2946,18 @@ const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"page_token\x18\x02 \x01(\tR\tpageToken\"\x9f\x01\n" +
 	"\x18ListDestinationsResponse\x12[\n" +
 	"\fdestinations\x18\x01 \x03(\v27.vrooli.data_backup_manager.v1.destinations.DestinationR\fdestinations\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xaf\x01\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x88\x01\n" +
+	"\x1aListTargetSnapshotsRequest\x12.\n" +
+	"\x0edestination_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\rdestinationId\x12\x1d\n" +
+	"\x05owner\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05owner\x12\x1b\n" +
+	"\x04name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"s\n" +
+	"\x0eTargetSnapshot\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
+	"\n" +
+	"started_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12\x16\n" +
+	"\x06source\x18\x03 \x01(\tR\x06source\"w\n" +
+	"\x1bListTargetSnapshotsResponse\x12X\n" +
+	"\tsnapshots\x18\x01 \x03(\v2:.vrooli.data_backup_manager.v1.destinations.TargetSnapshotR\tsnapshots\"\xaf\x01\n" +
 	"\x18UpdateDestinationRequest\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12$\n" +
 	"\tcap_bytes\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\bcapBytes\x12T\n" +
@@ -2704,7 +3005,7 @@ const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"\bseverity\x18\x02 \x01(\x0e2=.vrooli.data_backup_manager.v1.destinations.ReadinessSeverityR\bseverity\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12\x1f\n" +
 	"\vnext_action\x18\x04 \x01(\tR\n" +
-	"nextAction\"\xa2\x05\n" +
+	"nextAction\"\xd8\x05\n" +
 	"\x1aDestinationReadinessReport\x12\x1a\n" +
 	"\blocation\x18\x01 \x01(\tR\blocation\x12h\n" +
 	"\x10overall_severity\x18\x02 \x01(\x0e2=.vrooli.data_backup_manager.v1.destinations.ReadinessSeverityR\x0foverallSeverity\x12a\n" +
@@ -2720,7 +3021,8 @@ const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"\vobserved_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"observedAt\x12!\n" +
-	"\frepair_steps\x18\v \x03(\tR\vrepairSteps\"\x92\x02\n" +
+	"\frepair_steps\x18\v \x03(\tR\vrepairSteps\x124\n" +
+	"\x16offline_check_verified\x18\f \x01(\bR\x14offlineCheckVerified\"\x92\x02\n" +
 	"\x19AnalyzeDestinationRequest\x12#\n" +
 	"\blocation\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\blocation\x12'\n" +
 	"\x0fproposed_subdir\x18\x02 \x01(\tR\x0eproposedSubdir\x12;\n" +
@@ -2818,11 +3120,12 @@ const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12#\n" +
 	"\rrelative_path\x18\n" +
-	" \x01(\tR\frelativePath*]\n" +
+	" \x01(\tR\frelativePath*t\n" +
 	"\vBackendKind\x12\x1c\n" +
 	"\x18BACKEND_KIND_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17BACKEND_KIND_FILESYSTEM\x10\x01\x12\x13\n" +
-	"\x0fBACKEND_KIND_S3\x10\x02*^\n" +
+	"\x0fBACKEND_KIND_S3\x10\x02\x12\x15\n" +
+	"\x11BACKEND_KIND_SFTP\x10\x03*^\n" +
 	"\tCapPolicy\x12\x1a\n" +
 	"\x16CAP_POLICY_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16CAP_POLICY_ALERT_BLOCK\x10\x01\x12\x19\n" +
@@ -2848,11 +3151,13 @@ const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"\x1aPREPARATION_ACTION_UNMOUNT\x10\x05\x12'\n" +
 	"#PREPARATION_ACTION_CHECK_FILESYSTEM\x10\x06\x12(\n" +
 	"$PREPARATION_ACTION_REPAIR_FILESYSTEM\x10\a\x12'\n" +
-	"#PREPARATION_ACTION_MOUNT_READ_WRITE\x10\b2\xd1\x11\n" +
+	"#PREPARATION_ACTION_MOUNT_READ_WRITE\x10\b2\xad\x14\n" +
 	"\x13DestinationsService\x12\xa0\x01\n" +
-	"\x11CreateDestination\x12D.vrooli.data_backup_manager.v1.destinations.CreateDestinationRequest\x1aE.vrooli.data_backup_manager.v1.destinations.CreateDestinationResponse\x12\x97\x01\n" +
+	"\x11CreateDestination\x12D.vrooli.data_backup_manager.v1.destinations.CreateDestinationRequest\x1aE.vrooli.data_backup_manager.v1.destinations.CreateDestinationResponse\x12\xb0\x01\n" +
+	"\x19ImportExistingDestination\x12L.vrooli.data_backup_manager.v1.destinations.ImportExistingDestinationRequest\x1aE.vrooli.data_backup_manager.v1.destinations.CreateDestinationResponse\x12\x97\x01\n" +
 	"\x0eGetDestination\x12A.vrooli.data_backup_manager.v1.destinations.GetDestinationRequest\x1aB.vrooli.data_backup_manager.v1.destinations.GetDestinationResponse\x12\x9d\x01\n" +
-	"\x10ListDestinations\x12C.vrooli.data_backup_manager.v1.destinations.ListDestinationsRequest\x1aD.vrooli.data_backup_manager.v1.destinations.ListDestinationsResponse\x12\xa0\x01\n" +
+	"\x10ListDestinations\x12C.vrooli.data_backup_manager.v1.destinations.ListDestinationsRequest\x1aD.vrooli.data_backup_manager.v1.destinations.ListDestinationsResponse\x12\xa6\x01\n" +
+	"\x13ListTargetSnapshots\x12F.vrooli.data_backup_manager.v1.destinations.ListTargetSnapshotsRequest\x1aG.vrooli.data_backup_manager.v1.destinations.ListTargetSnapshotsResponse\x12\xa0\x01\n" +
 	"\x11UpdateDestination\x12D.vrooli.data_backup_manager.v1.destinations.UpdateDestinationRequest\x1aE.vrooli.data_backup_manager.v1.destinations.UpdateDestinationResponse\x12\xca\x01\n" +
 	"\x1fBindDestinationRecoveryIdentity\x12R.vrooli.data_backup_manager.v1.destinations.BindDestinationRecoveryIdentityRequest\x1aS.vrooli.data_backup_manager.v1.destinations.BindDestinationRecoveryIdentityResponse\x12\xa0\x01\n" +
 	"\x11DeleteDestination\x12D.vrooli.data_backup_manager.v1.destinations.DeleteDestinationRequest\x1aE.vrooli.data_backup_manager.v1.destinations.DeleteDestinationResponse\x12\xa6\x01\n" +
@@ -2877,7 +3182,7 @@ func file_data_backup_manager_v1_destinations_destinations_proto_rawDescGZIP() [
 }
 
 var file_data_backup_manager_v1_destinations_destinations_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_data_backup_manager_v1_destinations_destinations_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
+var file_data_backup_manager_v1_destinations_destinations_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
 var file_data_backup_manager_v1_destinations_destinations_proto_goTypes = []any{
 	(BackendKind)(0),                                // 0: vrooli.data_backup_manager.v1.destinations.BackendKind
 	(CapPolicy)(0),                                  // 1: vrooli.data_backup_manager.v1.destinations.CapPolicy
@@ -2887,112 +3192,124 @@ var file_data_backup_manager_v1_destinations_destinations_proto_goTypes = []any{
 	(*Destination)(nil),                             // 5: vrooli.data_backup_manager.v1.destinations.Destination
 	(*CreateDestinationRequest)(nil),                // 6: vrooli.data_backup_manager.v1.destinations.CreateDestinationRequest
 	(*CreateDestinationResponse)(nil),               // 7: vrooli.data_backup_manager.v1.destinations.CreateDestinationResponse
-	(*GetDestinationRequest)(nil),                   // 8: vrooli.data_backup_manager.v1.destinations.GetDestinationRequest
-	(*GetDestinationResponse)(nil),                  // 9: vrooli.data_backup_manager.v1.destinations.GetDestinationResponse
-	(*ListDestinationsRequest)(nil),                 // 10: vrooli.data_backup_manager.v1.destinations.ListDestinationsRequest
-	(*ListDestinationsResponse)(nil),                // 11: vrooli.data_backup_manager.v1.destinations.ListDestinationsResponse
-	(*UpdateDestinationRequest)(nil),                // 12: vrooli.data_backup_manager.v1.destinations.UpdateDestinationRequest
-	(*UpdateDestinationResponse)(nil),               // 13: vrooli.data_backup_manager.v1.destinations.UpdateDestinationResponse
-	(*BindDestinationRecoveryIdentityRequest)(nil),  // 14: vrooli.data_backup_manager.v1.destinations.BindDestinationRecoveryIdentityRequest
-	(*BindDestinationRecoveryIdentityResponse)(nil), // 15: vrooli.data_backup_manager.v1.destinations.BindDestinationRecoveryIdentityResponse
-	(*DeleteDestinationRequest)(nil),                // 16: vrooli.data_backup_manager.v1.destinations.DeleteDestinationRequest
-	(*DeleteDestinationResponse)(nil),               // 17: vrooli.data_backup_manager.v1.destinations.DeleteDestinationResponse
-	(*GetDestinationUsageRequest)(nil),              // 18: vrooli.data_backup_manager.v1.destinations.GetDestinationUsageRequest
-	(*GetDestinationUsageResponse)(nil),             // 19: vrooli.data_backup_manager.v1.destinations.GetDestinationUsageResponse
-	(*DestinationDeviceIdentity)(nil),               // 20: vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
-	(*DestinationReadinessCheck)(nil),               // 21: vrooli.data_backup_manager.v1.destinations.DestinationReadinessCheck
-	(*DestinationReadinessReport)(nil),              // 22: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport
-	(*AnalyzeDestinationRequest)(nil),               // 23: vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationRequest
-	(*AnalyzeDestinationResponse)(nil),              // 24: vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationResponse
-	(*DestinationPreparationPlan)(nil),              // 25: vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
-	(*PlanDestinationPreparationRequest)(nil),       // 26: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest
-	(*PlanDestinationPreparationResponse)(nil),      // 27: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse
-	(*ExecuteDestinationPreparationRequest)(nil),    // 28: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest
-	(*ExecuteDestinationPreparationResponse)(nil),   // 29: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse
-	(*StartVolumeRecoveryRequest)(nil),              // 30: vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryRequest
-	(*StartVolumeRecoveryResponse)(nil),             // 31: vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryResponse
-	(*GetVolumeRecoveryRequest)(nil),                // 32: vrooli.data_backup_manager.v1.destinations.GetVolumeRecoveryRequest
-	(*GetVolumeRecoveryResponse)(nil),               // 33: vrooli.data_backup_manager.v1.destinations.GetVolumeRecoveryResponse
-	(*ResumeVolumeRecoveryRequest)(nil),             // 34: vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryRequest
-	(*ResumeVolumeRecoveryResponse)(nil),            // 35: vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryResponse
-	(*VolumeRecoveryStep)(nil),                      // 36: vrooli.data_backup_manager.v1.destinations.VolumeRecoveryStep
-	(*VolumeRecoveryJournal)(nil),                   // 37: vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal
-	nil,                                             // 38: vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryRequest.ConfirmationsEntry
-	(*timestamppb.Timestamp)(nil),                   // 39: google.protobuf.Timestamp
+	(*ImportExistingDestinationRequest)(nil),        // 8: vrooli.data_backup_manager.v1.destinations.ImportExistingDestinationRequest
+	(*GetDestinationRequest)(nil),                   // 9: vrooli.data_backup_manager.v1.destinations.GetDestinationRequest
+	(*GetDestinationResponse)(nil),                  // 10: vrooli.data_backup_manager.v1.destinations.GetDestinationResponse
+	(*ListDestinationsRequest)(nil),                 // 11: vrooli.data_backup_manager.v1.destinations.ListDestinationsRequest
+	(*ListDestinationsResponse)(nil),                // 12: vrooli.data_backup_manager.v1.destinations.ListDestinationsResponse
+	(*ListTargetSnapshotsRequest)(nil),              // 13: vrooli.data_backup_manager.v1.destinations.ListTargetSnapshotsRequest
+	(*TargetSnapshot)(nil),                          // 14: vrooli.data_backup_manager.v1.destinations.TargetSnapshot
+	(*ListTargetSnapshotsResponse)(nil),             // 15: vrooli.data_backup_manager.v1.destinations.ListTargetSnapshotsResponse
+	(*UpdateDestinationRequest)(nil),                // 16: vrooli.data_backup_manager.v1.destinations.UpdateDestinationRequest
+	(*UpdateDestinationResponse)(nil),               // 17: vrooli.data_backup_manager.v1.destinations.UpdateDestinationResponse
+	(*BindDestinationRecoveryIdentityRequest)(nil),  // 18: vrooli.data_backup_manager.v1.destinations.BindDestinationRecoveryIdentityRequest
+	(*BindDestinationRecoveryIdentityResponse)(nil), // 19: vrooli.data_backup_manager.v1.destinations.BindDestinationRecoveryIdentityResponse
+	(*DeleteDestinationRequest)(nil),                // 20: vrooli.data_backup_manager.v1.destinations.DeleteDestinationRequest
+	(*DeleteDestinationResponse)(nil),               // 21: vrooli.data_backup_manager.v1.destinations.DeleteDestinationResponse
+	(*GetDestinationUsageRequest)(nil),              // 22: vrooli.data_backup_manager.v1.destinations.GetDestinationUsageRequest
+	(*GetDestinationUsageResponse)(nil),             // 23: vrooli.data_backup_manager.v1.destinations.GetDestinationUsageResponse
+	(*DestinationDeviceIdentity)(nil),               // 24: vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
+	(*DestinationReadinessCheck)(nil),               // 25: vrooli.data_backup_manager.v1.destinations.DestinationReadinessCheck
+	(*DestinationReadinessReport)(nil),              // 26: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport
+	(*AnalyzeDestinationRequest)(nil),               // 27: vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationRequest
+	(*AnalyzeDestinationResponse)(nil),              // 28: vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationResponse
+	(*DestinationPreparationPlan)(nil),              // 29: vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
+	(*PlanDestinationPreparationRequest)(nil),       // 30: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest
+	(*PlanDestinationPreparationResponse)(nil),      // 31: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse
+	(*ExecuteDestinationPreparationRequest)(nil),    // 32: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest
+	(*ExecuteDestinationPreparationResponse)(nil),   // 33: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse
+	(*StartVolumeRecoveryRequest)(nil),              // 34: vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryRequest
+	(*StartVolumeRecoveryResponse)(nil),             // 35: vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryResponse
+	(*GetVolumeRecoveryRequest)(nil),                // 36: vrooli.data_backup_manager.v1.destinations.GetVolumeRecoveryRequest
+	(*GetVolumeRecoveryResponse)(nil),               // 37: vrooli.data_backup_manager.v1.destinations.GetVolumeRecoveryResponse
+	(*ResumeVolumeRecoveryRequest)(nil),             // 38: vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryRequest
+	(*ResumeVolumeRecoveryResponse)(nil),            // 39: vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryResponse
+	(*VolumeRecoveryStep)(nil),                      // 40: vrooli.data_backup_manager.v1.destinations.VolumeRecoveryStep
+	(*VolumeRecoveryJournal)(nil),                   // 41: vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal
+	nil,                                             // 42: vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryRequest.ConfirmationsEntry
+	(*timestamppb.Timestamp)(nil),                   // 43: google.protobuf.Timestamp
 }
 var file_data_backup_manager_v1_destinations_destinations_proto_depIdxs = []int32{
 	0,  // 0: vrooli.data_backup_manager.v1.destinations.Destination.backend_kind:type_name -> vrooli.data_backup_manager.v1.destinations.BackendKind
 	1,  // 1: vrooli.data_backup_manager.v1.destinations.Destination.cap_policy:type_name -> vrooli.data_backup_manager.v1.destinations.CapPolicy
 	2,  // 2: vrooli.data_backup_manager.v1.destinations.Destination.usage_state:type_name -> vrooli.data_backup_manager.v1.destinations.UsageState
-	39, // 3: vrooli.data_backup_manager.v1.destinations.Destination.created_at:type_name -> google.protobuf.Timestamp
-	39, // 4: vrooli.data_backup_manager.v1.destinations.Destination.updated_at:type_name -> google.protobuf.Timestamp
-	20, // 5: vrooli.data_backup_manager.v1.destinations.Destination.device_identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
+	43, // 3: vrooli.data_backup_manager.v1.destinations.Destination.created_at:type_name -> google.protobuf.Timestamp
+	43, // 4: vrooli.data_backup_manager.v1.destinations.Destination.updated_at:type_name -> google.protobuf.Timestamp
+	24, // 5: vrooli.data_backup_manager.v1.destinations.Destination.device_identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
 	0,  // 6: vrooli.data_backup_manager.v1.destinations.CreateDestinationRequest.backend_kind:type_name -> vrooli.data_backup_manager.v1.destinations.BackendKind
 	1,  // 7: vrooli.data_backup_manager.v1.destinations.CreateDestinationRequest.cap_policy:type_name -> vrooli.data_backup_manager.v1.destinations.CapPolicy
 	5,  // 8: vrooli.data_backup_manager.v1.destinations.CreateDestinationResponse.destination:type_name -> vrooli.data_backup_manager.v1.destinations.Destination
-	5,  // 9: vrooli.data_backup_manager.v1.destinations.GetDestinationResponse.destination:type_name -> vrooli.data_backup_manager.v1.destinations.Destination
-	5,  // 10: vrooli.data_backup_manager.v1.destinations.ListDestinationsResponse.destinations:type_name -> vrooli.data_backup_manager.v1.destinations.Destination
-	1,  // 11: vrooli.data_backup_manager.v1.destinations.UpdateDestinationRequest.cap_policy:type_name -> vrooli.data_backup_manager.v1.destinations.CapPolicy
-	5,  // 12: vrooli.data_backup_manager.v1.destinations.UpdateDestinationResponse.destination:type_name -> vrooli.data_backup_manager.v1.destinations.Destination
-	20, // 13: vrooli.data_backup_manager.v1.destinations.BindDestinationRecoveryIdentityRequest.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
-	5,  // 14: vrooli.data_backup_manager.v1.destinations.BindDestinationRecoveryIdentityResponse.destination:type_name -> vrooli.data_backup_manager.v1.destinations.Destination
-	2,  // 15: vrooli.data_backup_manager.v1.destinations.GetDestinationUsageResponse.usage_state:type_name -> vrooli.data_backup_manager.v1.destinations.UsageState
-	1,  // 16: vrooli.data_backup_manager.v1.destinations.GetDestinationUsageResponse.cap_policy:type_name -> vrooli.data_backup_manager.v1.destinations.CapPolicy
-	3,  // 17: vrooli.data_backup_manager.v1.destinations.DestinationReadinessCheck.severity:type_name -> vrooli.data_backup_manager.v1.destinations.ReadinessSeverity
-	3,  // 18: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.overall_severity:type_name -> vrooli.data_backup_manager.v1.destinations.ReadinessSeverity
-	20, // 19: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
-	21, // 20: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.checks:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationReadinessCheck
-	39, // 21: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.observed_at:type_name -> google.protobuf.Timestamp
-	22, // 22: vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationResponse.report:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport
-	4,  // 23: vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan.action:type_name -> vrooli.data_backup_manager.v1.destinations.PreparationAction
-	20, // 24: vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
-	4,  // 25: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest.action:type_name -> vrooli.data_backup_manager.v1.destinations.PreparationAction
-	20, // 26: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest.expected_identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
-	25, // 27: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse.plan:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
-	25, // 28: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest.plan:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
-	4,  // 29: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse.action:type_name -> vrooli.data_backup_manager.v1.destinations.PreparationAction
-	22, // 30: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse.post_action_report:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport
-	20, // 31: vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryRequest.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
-	25, // 32: vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryRequest.plans:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
-	37, // 33: vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryResponse.journal:type_name -> vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal
-	37, // 34: vrooli.data_backup_manager.v1.destinations.GetVolumeRecoveryResponse.journal:type_name -> vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal
-	38, // 35: vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryRequest.confirmations:type_name -> vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryRequest.ConfirmationsEntry
-	37, // 36: vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryResponse.journal:type_name -> vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal
-	25, // 37: vrooli.data_backup_manager.v1.destinations.VolumeRecoveryStep.plan:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
-	20, // 38: vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
-	36, // 39: vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal.steps:type_name -> vrooli.data_backup_manager.v1.destinations.VolumeRecoveryStep
-	39, // 40: vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal.updated_at:type_name -> google.protobuf.Timestamp
-	6,  // 41: vrooli.data_backup_manager.v1.destinations.DestinationsService.CreateDestination:input_type -> vrooli.data_backup_manager.v1.destinations.CreateDestinationRequest
-	8,  // 42: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestination:input_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationRequest
-	10, // 43: vrooli.data_backup_manager.v1.destinations.DestinationsService.ListDestinations:input_type -> vrooli.data_backup_manager.v1.destinations.ListDestinationsRequest
-	12, // 44: vrooli.data_backup_manager.v1.destinations.DestinationsService.UpdateDestination:input_type -> vrooli.data_backup_manager.v1.destinations.UpdateDestinationRequest
-	14, // 45: vrooli.data_backup_manager.v1.destinations.DestinationsService.BindDestinationRecoveryIdentity:input_type -> vrooli.data_backup_manager.v1.destinations.BindDestinationRecoveryIdentityRequest
-	16, // 46: vrooli.data_backup_manager.v1.destinations.DestinationsService.DeleteDestination:input_type -> vrooli.data_backup_manager.v1.destinations.DeleteDestinationRequest
-	18, // 47: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestinationUsage:input_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationUsageRequest
-	23, // 48: vrooli.data_backup_manager.v1.destinations.DestinationsService.AnalyzeDestination:input_type -> vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationRequest
-	26, // 49: vrooli.data_backup_manager.v1.destinations.DestinationsService.PlanDestinationPreparation:input_type -> vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest
-	28, // 50: vrooli.data_backup_manager.v1.destinations.DestinationsService.ExecuteDestinationPreparation:input_type -> vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest
-	30, // 51: vrooli.data_backup_manager.v1.destinations.DestinationsService.StartVolumeRecovery:input_type -> vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryRequest
-	32, // 52: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetVolumeRecovery:input_type -> vrooli.data_backup_manager.v1.destinations.GetVolumeRecoveryRequest
-	34, // 53: vrooli.data_backup_manager.v1.destinations.DestinationsService.ResumeVolumeRecovery:input_type -> vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryRequest
-	7,  // 54: vrooli.data_backup_manager.v1.destinations.DestinationsService.CreateDestination:output_type -> vrooli.data_backup_manager.v1.destinations.CreateDestinationResponse
-	9,  // 55: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestination:output_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationResponse
-	11, // 56: vrooli.data_backup_manager.v1.destinations.DestinationsService.ListDestinations:output_type -> vrooli.data_backup_manager.v1.destinations.ListDestinationsResponse
-	13, // 57: vrooli.data_backup_manager.v1.destinations.DestinationsService.UpdateDestination:output_type -> vrooli.data_backup_manager.v1.destinations.UpdateDestinationResponse
-	15, // 58: vrooli.data_backup_manager.v1.destinations.DestinationsService.BindDestinationRecoveryIdentity:output_type -> vrooli.data_backup_manager.v1.destinations.BindDestinationRecoveryIdentityResponse
-	17, // 59: vrooli.data_backup_manager.v1.destinations.DestinationsService.DeleteDestination:output_type -> vrooli.data_backup_manager.v1.destinations.DeleteDestinationResponse
-	19, // 60: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestinationUsage:output_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationUsageResponse
-	24, // 61: vrooli.data_backup_manager.v1.destinations.DestinationsService.AnalyzeDestination:output_type -> vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationResponse
-	27, // 62: vrooli.data_backup_manager.v1.destinations.DestinationsService.PlanDestinationPreparation:output_type -> vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse
-	29, // 63: vrooli.data_backup_manager.v1.destinations.DestinationsService.ExecuteDestinationPreparation:output_type -> vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse
-	31, // 64: vrooli.data_backup_manager.v1.destinations.DestinationsService.StartVolumeRecovery:output_type -> vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryResponse
-	33, // 65: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetVolumeRecovery:output_type -> vrooli.data_backup_manager.v1.destinations.GetVolumeRecoveryResponse
-	35, // 66: vrooli.data_backup_manager.v1.destinations.DestinationsService.ResumeVolumeRecovery:output_type -> vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryResponse
-	54, // [54:67] is the sub-list for method output_type
-	41, // [41:54] is the sub-list for method input_type
-	41, // [41:41] is the sub-list for extension type_name
-	41, // [41:41] is the sub-list for extension extendee
-	0,  // [0:41] is the sub-list for field type_name
+	0,  // 9: vrooli.data_backup_manager.v1.destinations.ImportExistingDestinationRequest.backend_kind:type_name -> vrooli.data_backup_manager.v1.destinations.BackendKind
+	1,  // 10: vrooli.data_backup_manager.v1.destinations.ImportExistingDestinationRequest.cap_policy:type_name -> vrooli.data_backup_manager.v1.destinations.CapPolicy
+	5,  // 11: vrooli.data_backup_manager.v1.destinations.GetDestinationResponse.destination:type_name -> vrooli.data_backup_manager.v1.destinations.Destination
+	5,  // 12: vrooli.data_backup_manager.v1.destinations.ListDestinationsResponse.destinations:type_name -> vrooli.data_backup_manager.v1.destinations.Destination
+	43, // 13: vrooli.data_backup_manager.v1.destinations.TargetSnapshot.started_at:type_name -> google.protobuf.Timestamp
+	14, // 14: vrooli.data_backup_manager.v1.destinations.ListTargetSnapshotsResponse.snapshots:type_name -> vrooli.data_backup_manager.v1.destinations.TargetSnapshot
+	1,  // 15: vrooli.data_backup_manager.v1.destinations.UpdateDestinationRequest.cap_policy:type_name -> vrooli.data_backup_manager.v1.destinations.CapPolicy
+	5,  // 16: vrooli.data_backup_manager.v1.destinations.UpdateDestinationResponse.destination:type_name -> vrooli.data_backup_manager.v1.destinations.Destination
+	24, // 17: vrooli.data_backup_manager.v1.destinations.BindDestinationRecoveryIdentityRequest.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
+	5,  // 18: vrooli.data_backup_manager.v1.destinations.BindDestinationRecoveryIdentityResponse.destination:type_name -> vrooli.data_backup_manager.v1.destinations.Destination
+	2,  // 19: vrooli.data_backup_manager.v1.destinations.GetDestinationUsageResponse.usage_state:type_name -> vrooli.data_backup_manager.v1.destinations.UsageState
+	1,  // 20: vrooli.data_backup_manager.v1.destinations.GetDestinationUsageResponse.cap_policy:type_name -> vrooli.data_backup_manager.v1.destinations.CapPolicy
+	3,  // 21: vrooli.data_backup_manager.v1.destinations.DestinationReadinessCheck.severity:type_name -> vrooli.data_backup_manager.v1.destinations.ReadinessSeverity
+	3,  // 22: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.overall_severity:type_name -> vrooli.data_backup_manager.v1.destinations.ReadinessSeverity
+	24, // 23: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
+	25, // 24: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.checks:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationReadinessCheck
+	43, // 25: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.observed_at:type_name -> google.protobuf.Timestamp
+	26, // 26: vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationResponse.report:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport
+	4,  // 27: vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan.action:type_name -> vrooli.data_backup_manager.v1.destinations.PreparationAction
+	24, // 28: vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
+	4,  // 29: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest.action:type_name -> vrooli.data_backup_manager.v1.destinations.PreparationAction
+	24, // 30: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest.expected_identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
+	29, // 31: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse.plan:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
+	29, // 32: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest.plan:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
+	4,  // 33: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse.action:type_name -> vrooli.data_backup_manager.v1.destinations.PreparationAction
+	26, // 34: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse.post_action_report:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport
+	24, // 35: vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryRequest.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
+	29, // 36: vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryRequest.plans:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
+	41, // 37: vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryResponse.journal:type_name -> vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal
+	41, // 38: vrooli.data_backup_manager.v1.destinations.GetVolumeRecoveryResponse.journal:type_name -> vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal
+	42, // 39: vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryRequest.confirmations:type_name -> vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryRequest.ConfirmationsEntry
+	41, // 40: vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryResponse.journal:type_name -> vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal
+	29, // 41: vrooli.data_backup_manager.v1.destinations.VolumeRecoveryStep.plan:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
+	24, // 42: vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
+	40, // 43: vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal.steps:type_name -> vrooli.data_backup_manager.v1.destinations.VolumeRecoveryStep
+	43, // 44: vrooli.data_backup_manager.v1.destinations.VolumeRecoveryJournal.updated_at:type_name -> google.protobuf.Timestamp
+	6,  // 45: vrooli.data_backup_manager.v1.destinations.DestinationsService.CreateDestination:input_type -> vrooli.data_backup_manager.v1.destinations.CreateDestinationRequest
+	8,  // 46: vrooli.data_backup_manager.v1.destinations.DestinationsService.ImportExistingDestination:input_type -> vrooli.data_backup_manager.v1.destinations.ImportExistingDestinationRequest
+	9,  // 47: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestination:input_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationRequest
+	11, // 48: vrooli.data_backup_manager.v1.destinations.DestinationsService.ListDestinations:input_type -> vrooli.data_backup_manager.v1.destinations.ListDestinationsRequest
+	13, // 49: vrooli.data_backup_manager.v1.destinations.DestinationsService.ListTargetSnapshots:input_type -> vrooli.data_backup_manager.v1.destinations.ListTargetSnapshotsRequest
+	16, // 50: vrooli.data_backup_manager.v1.destinations.DestinationsService.UpdateDestination:input_type -> vrooli.data_backup_manager.v1.destinations.UpdateDestinationRequest
+	18, // 51: vrooli.data_backup_manager.v1.destinations.DestinationsService.BindDestinationRecoveryIdentity:input_type -> vrooli.data_backup_manager.v1.destinations.BindDestinationRecoveryIdentityRequest
+	20, // 52: vrooli.data_backup_manager.v1.destinations.DestinationsService.DeleteDestination:input_type -> vrooli.data_backup_manager.v1.destinations.DeleteDestinationRequest
+	22, // 53: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestinationUsage:input_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationUsageRequest
+	27, // 54: vrooli.data_backup_manager.v1.destinations.DestinationsService.AnalyzeDestination:input_type -> vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationRequest
+	30, // 55: vrooli.data_backup_manager.v1.destinations.DestinationsService.PlanDestinationPreparation:input_type -> vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest
+	32, // 56: vrooli.data_backup_manager.v1.destinations.DestinationsService.ExecuteDestinationPreparation:input_type -> vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest
+	34, // 57: vrooli.data_backup_manager.v1.destinations.DestinationsService.StartVolumeRecovery:input_type -> vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryRequest
+	36, // 58: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetVolumeRecovery:input_type -> vrooli.data_backup_manager.v1.destinations.GetVolumeRecoveryRequest
+	38, // 59: vrooli.data_backup_manager.v1.destinations.DestinationsService.ResumeVolumeRecovery:input_type -> vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryRequest
+	7,  // 60: vrooli.data_backup_manager.v1.destinations.DestinationsService.CreateDestination:output_type -> vrooli.data_backup_manager.v1.destinations.CreateDestinationResponse
+	7,  // 61: vrooli.data_backup_manager.v1.destinations.DestinationsService.ImportExistingDestination:output_type -> vrooli.data_backup_manager.v1.destinations.CreateDestinationResponse
+	10, // 62: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestination:output_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationResponse
+	12, // 63: vrooli.data_backup_manager.v1.destinations.DestinationsService.ListDestinations:output_type -> vrooli.data_backup_manager.v1.destinations.ListDestinationsResponse
+	15, // 64: vrooli.data_backup_manager.v1.destinations.DestinationsService.ListTargetSnapshots:output_type -> vrooli.data_backup_manager.v1.destinations.ListTargetSnapshotsResponse
+	17, // 65: vrooli.data_backup_manager.v1.destinations.DestinationsService.UpdateDestination:output_type -> vrooli.data_backup_manager.v1.destinations.UpdateDestinationResponse
+	19, // 66: vrooli.data_backup_manager.v1.destinations.DestinationsService.BindDestinationRecoveryIdentity:output_type -> vrooli.data_backup_manager.v1.destinations.BindDestinationRecoveryIdentityResponse
+	21, // 67: vrooli.data_backup_manager.v1.destinations.DestinationsService.DeleteDestination:output_type -> vrooli.data_backup_manager.v1.destinations.DeleteDestinationResponse
+	23, // 68: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestinationUsage:output_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationUsageResponse
+	28, // 69: vrooli.data_backup_manager.v1.destinations.DestinationsService.AnalyzeDestination:output_type -> vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationResponse
+	31, // 70: vrooli.data_backup_manager.v1.destinations.DestinationsService.PlanDestinationPreparation:output_type -> vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse
+	33, // 71: vrooli.data_backup_manager.v1.destinations.DestinationsService.ExecuteDestinationPreparation:output_type -> vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse
+	35, // 72: vrooli.data_backup_manager.v1.destinations.DestinationsService.StartVolumeRecovery:output_type -> vrooli.data_backup_manager.v1.destinations.StartVolumeRecoveryResponse
+	37, // 73: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetVolumeRecovery:output_type -> vrooli.data_backup_manager.v1.destinations.GetVolumeRecoveryResponse
+	39, // 74: vrooli.data_backup_manager.v1.destinations.DestinationsService.ResumeVolumeRecovery:output_type -> vrooli.data_backup_manager.v1.destinations.ResumeVolumeRecoveryResponse
+	60, // [60:75] is the sub-list for method output_type
+	45, // [45:60] is the sub-list for method input_type
+	45, // [45:45] is the sub-list for extension type_name
+	45, // [45:45] is the sub-list for extension extendee
+	0,  // [0:45] is the sub-list for field type_name
 }
 
 func init() { file_data_backup_manager_v1_destinations_destinations_proto_init() }
@@ -3000,15 +3317,15 @@ func file_data_backup_manager_v1_destinations_destinations_proto_init() {
 	if File_data_backup_manager_v1_destinations_destinations_proto != nil {
 		return
 	}
-	file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[23].OneofWrappers = []any{}
-	file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[29].OneofWrappers = []any{}
+	file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[27].OneofWrappers = []any{}
+	file_data_backup_manager_v1_destinations_destinations_proto_msgTypes[33].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_data_backup_manager_v1_destinations_destinations_proto_rawDesc), len(file_data_backup_manager_v1_destinations_destinations_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   34,
+			NumMessages:   38,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -7,14 +7,127 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class WorktreeSelectionSource(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    WORKTREE_SELECTION_SOURCE_UNSPECIFIED: _ClassVar[WorktreeSelectionSource]
+    WORKTREE_SELECTION_SOURCE_INDEX_TO_WORKTREE: _ClassVar[WorktreeSelectionSource]
+    WORKTREE_SELECTION_SOURCE_HEAD_TO_INDEX: _ClassVar[WorktreeSelectionSource]
+
+class QueuedWorktreeSelectionState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    QUEUED_WORKTREE_SELECTION_STATE_UNSPECIFIED: _ClassVar[QueuedWorktreeSelectionState]
+    QUEUED_WORKTREE_SELECTION_STATE_QUEUED: _ClassVar[QueuedWorktreeSelectionState]
+    QUEUED_WORKTREE_SELECTION_STATE_AWAITING_UNSTAGE: _ClassVar[QueuedWorktreeSelectionState]
+    QUEUED_WORKTREE_SELECTION_STATE_FAILED: _ClassVar[QueuedWorktreeSelectionState]
+    QUEUED_WORKTREE_SELECTION_STATE_STALE: _ClassVar[QueuedWorktreeSelectionState]
+
+class StagedMessageMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    STAGED_MESSAGE_MODE_UNSPECIFIED: _ClassVar[StagedMessageMode]
+    STAGED_MESSAGE_MODE_QUICK: _ClassVar[StagedMessageMode]
+    STAGED_MESSAGE_MODE_DEEP: _ClassVar[StagedMessageMode]
+
+class WorktreeSuggestionQueueState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    WORKTREE_SUGGESTION_QUEUE_STATE_UNSPECIFIED: _ClassVar[WorktreeSuggestionQueueState]
+    WORKTREE_SUGGESTION_QUEUE_STATE_QUEUED: _ClassVar[WorktreeSuggestionQueueState]
+    WORKTREE_SUGGESTION_QUEUE_STATE_STAGED: _ClassVar[WorktreeSuggestionQueueState]
+    WORKTREE_SUGGESTION_QUEUE_STATE_FAILED: _ClassVar[WorktreeSuggestionQueueState]
+    WORKTREE_SUGGESTION_QUEUE_STATE_STALE: _ClassVar[WorktreeSuggestionQueueState]
+    WORKTREE_SUGGESTION_QUEUE_STATE_COMMIT_PENDING: _ClassVar[WorktreeSuggestionQueueState]
+    WORKTREE_SUGGESTION_QUEUE_STATE_AWAITING_UNSTAGE: _ClassVar[WorktreeSuggestionQueueState]
+
+class WorktreeSuggestionQueueDisposition(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    WORKTREE_SUGGESTION_QUEUE_DISPOSITION_UNSPECIFIED: _ClassVar[WorktreeSuggestionQueueDisposition]
+    WORKTREE_SUGGESTION_QUEUE_DISPOSITION_COMMITTED: _ClassVar[WorktreeSuggestionQueueDisposition]
+    WORKTREE_SUGGESTION_QUEUE_DISPOSITION_REMOVED: _ClassVar[WorktreeSuggestionQueueDisposition]
+
 class StagedMessageScope(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     STAGED_MESSAGE_SCOPE_UNSPECIFIED: _ClassVar[StagedMessageScope]
     STAGED_MESSAGE_SCOPE_WHOLE_SELECTION: _ClassVar[StagedMessageScope]
     STAGED_MESSAGE_SCOPE_LIMITED: _ClassVar[StagedMessageScope]
+WORKTREE_SELECTION_SOURCE_UNSPECIFIED: WorktreeSelectionSource
+WORKTREE_SELECTION_SOURCE_INDEX_TO_WORKTREE: WorktreeSelectionSource
+WORKTREE_SELECTION_SOURCE_HEAD_TO_INDEX: WorktreeSelectionSource
+QUEUED_WORKTREE_SELECTION_STATE_UNSPECIFIED: QueuedWorktreeSelectionState
+QUEUED_WORKTREE_SELECTION_STATE_QUEUED: QueuedWorktreeSelectionState
+QUEUED_WORKTREE_SELECTION_STATE_AWAITING_UNSTAGE: QueuedWorktreeSelectionState
+QUEUED_WORKTREE_SELECTION_STATE_FAILED: QueuedWorktreeSelectionState
+QUEUED_WORKTREE_SELECTION_STATE_STALE: QueuedWorktreeSelectionState
+STAGED_MESSAGE_MODE_UNSPECIFIED: StagedMessageMode
+STAGED_MESSAGE_MODE_QUICK: StagedMessageMode
+STAGED_MESSAGE_MODE_DEEP: StagedMessageMode
+WORKTREE_SUGGESTION_QUEUE_STATE_UNSPECIFIED: WorktreeSuggestionQueueState
+WORKTREE_SUGGESTION_QUEUE_STATE_QUEUED: WorktreeSuggestionQueueState
+WORKTREE_SUGGESTION_QUEUE_STATE_STAGED: WorktreeSuggestionQueueState
+WORKTREE_SUGGESTION_QUEUE_STATE_FAILED: WorktreeSuggestionQueueState
+WORKTREE_SUGGESTION_QUEUE_STATE_STALE: WorktreeSuggestionQueueState
+WORKTREE_SUGGESTION_QUEUE_STATE_COMMIT_PENDING: WorktreeSuggestionQueueState
+WORKTREE_SUGGESTION_QUEUE_STATE_AWAITING_UNSTAGE: WorktreeSuggestionQueueState
+WORKTREE_SUGGESTION_QUEUE_DISPOSITION_UNSPECIFIED: WorktreeSuggestionQueueDisposition
+WORKTREE_SUGGESTION_QUEUE_DISPOSITION_COMMITTED: WorktreeSuggestionQueueDisposition
+WORKTREE_SUGGESTION_QUEUE_DISPOSITION_REMOVED: WorktreeSuggestionQueueDisposition
 STAGED_MESSAGE_SCOPE_UNSPECIFIED: StagedMessageScope
 STAGED_MESSAGE_SCOPE_WHOLE_SELECTION: StagedMessageScope
 STAGED_MESSAGE_SCOPE_LIMITED: StagedMessageScope
+
+class QueueWorktreeSelectionRequest(_message.Message):
+    __slots__ = ("repository_id", "selection_id", "source", "paths")
+    REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    PATHS_FIELD_NUMBER: _ClassVar[int]
+    repository_id: str
+    selection_id: str
+    source: WorktreeSelectionSource
+    paths: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, repository_id: _Optional[str] = ..., selection_id: _Optional[str] = ..., source: _Optional[_Union[WorktreeSelectionSource, str]] = ..., paths: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class FinalizeQueuedSelectionRequest(_message.Message):
+    __slots__ = ("repository_id", "selection_id", "expected_snapshot_digest")
+    REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_SNAPSHOT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    repository_id: str
+    selection_id: str
+    expected_snapshot_digest: str
+    def __init__(self, repository_id: _Optional[str] = ..., selection_id: _Optional[str] = ..., expected_snapshot_digest: _Optional[str] = ...) -> None: ...
+
+class StartQueuedSelectionRequest(_message.Message):
+    __slots__ = ("repository_id", "selection_id", "snapshot_digest", "request_key", "mode", "operator_note")
+    REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_ID_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_KEY_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    OPERATOR_NOTE_FIELD_NUMBER: _ClassVar[int]
+    repository_id: str
+    selection_id: str
+    snapshot_digest: str
+    request_key: str
+    mode: StagedMessageMode
+    operator_note: str
+    def __init__(self, repository_id: _Optional[str] = ..., selection_id: _Optional[str] = ..., snapshot_digest: _Optional[str] = ..., request_key: _Optional[str] = ..., mode: _Optional[_Union[StagedMessageMode, str]] = ..., operator_note: _Optional[str] = ...) -> None: ...
+
+class QueuedWorktreeSelection(_message.Message):
+    __slots__ = ("selection_id", "repository_id", "source", "paths", "snapshot_digest", "state", "failure_reason")
+    SELECTION_ID_FIELD_NUMBER: _ClassVar[int]
+    REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    PATHS_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_REASON_FIELD_NUMBER: _ClassVar[int]
+    selection_id: str
+    repository_id: str
+    source: WorktreeSelectionSource
+    paths: _containers.RepeatedScalarFieldContainer[str]
+    snapshot_digest: str
+    state: QueuedWorktreeSelectionState
+    failure_reason: str
+    def __init__(self, selection_id: _Optional[str] = ..., repository_id: _Optional[str] = ..., source: _Optional[_Union[WorktreeSelectionSource, str]] = ..., paths: _Optional[_Iterable[str]] = ..., snapshot_digest: _Optional[str] = ..., state: _Optional[_Union[QueuedWorktreeSelectionState, str]] = ..., failure_reason: _Optional[str] = ...) -> None: ...
 
 class DraftRequest(_message.Message):
     __slots__ = ("kind", "subject", "evidence")
@@ -156,7 +269,7 @@ class CollectStagedMessageRequest(_message.Message):
     def __init__(self, repository_id: _Optional[str] = ...) -> None: ...
 
 class StartStagedMessageRequest(_message.Message):
-    __slots__ = ("repository_id", "collection_id", "snapshot_digest", "selected_context_ids", "request_key", "operator_note", "continuation_of_job_id")
+    __slots__ = ("repository_id", "collection_id", "snapshot_digest", "selected_context_ids", "request_key", "operator_note", "continuation_of_job_id", "mode")
     REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_ID_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_DIGEST_FIELD_NUMBER: _ClassVar[int]
@@ -164,6 +277,7 @@ class StartStagedMessageRequest(_message.Message):
     REQUEST_KEY_FIELD_NUMBER: _ClassVar[int]
     OPERATOR_NOTE_FIELD_NUMBER: _ClassVar[int]
     CONTINUATION_OF_JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
     repository_id: str
     collection_id: str
     snapshot_digest: str
@@ -171,7 +285,180 @@ class StartStagedMessageRequest(_message.Message):
     request_key: str
     operator_note: str
     continuation_of_job_id: str
-    def __init__(self, repository_id: _Optional[str] = ..., collection_id: _Optional[str] = ..., snapshot_digest: _Optional[str] = ..., selected_context_ids: _Optional[_Iterable[str]] = ..., request_key: _Optional[str] = ..., operator_note: _Optional[str] = ..., continuation_of_job_id: _Optional[str] = ...) -> None: ...
+    mode: StagedMessageMode
+    def __init__(self, repository_id: _Optional[str] = ..., collection_id: _Optional[str] = ..., snapshot_digest: _Optional[str] = ..., selected_context_ids: _Optional[_Iterable[str]] = ..., request_key: _Optional[str] = ..., operator_note: _Optional[str] = ..., continuation_of_job_id: _Optional[str] = ..., mode: _Optional[_Union[StagedMessageMode, str]] = ...) -> None: ...
+
+class RetryStagedMessageRequest(_message.Message):
+    __slots__ = ("repository_id", "job_id", "snapshot_digest", "request_key", "mode")
+    REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_KEY_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    repository_id: str
+    job_id: str
+    snapshot_digest: str
+    request_key: str
+    mode: StagedMessageMode
+    def __init__(self, repository_id: _Optional[str] = ..., job_id: _Optional[str] = ..., snapshot_digest: _Optional[str] = ..., request_key: _Optional[str] = ..., mode: _Optional[_Union[StagedMessageMode, str]] = ...) -> None: ...
+
+class StagedMessageProviderReadinessRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class StagedMessageProviderReadiness(_message.Message):
+    __slots__ = ("provider", "state", "known", "observed_at", "message")
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    KNOWN_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    provider: str
+    state: str
+    known: bool
+    observed_at: str
+    message: str
+    def __init__(self, provider: _Optional[str] = ..., state: _Optional[str] = ..., known: _Optional[bool] = ..., observed_at: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
+class StartWorktreeStagedMessageRequest(_message.Message):
+    __slots__ = ("repository_id", "paths", "request_key", "operator_note", "mode", "replace_queue_entry_id", "expected_queue_revision", "expected_snapshot_digest")
+    REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
+    PATHS_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_KEY_FIELD_NUMBER: _ClassVar[int]
+    OPERATOR_NOTE_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    REPLACE_QUEUE_ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_QUEUE_REVISION_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_SNAPSHOT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    repository_id: str
+    paths: _containers.RepeatedScalarFieldContainer[str]
+    request_key: str
+    operator_note: str
+    mode: StagedMessageMode
+    replace_queue_entry_id: str
+    expected_queue_revision: int
+    expected_snapshot_digest: str
+    def __init__(self, repository_id: _Optional[str] = ..., paths: _Optional[_Iterable[str]] = ..., request_key: _Optional[str] = ..., operator_note: _Optional[str] = ..., mode: _Optional[_Union[StagedMessageMode, str]] = ..., replace_queue_entry_id: _Optional[str] = ..., expected_queue_revision: _Optional[int] = ..., expected_snapshot_digest: _Optional[str] = ...) -> None: ...
+
+class ListWorktreeSuggestionQueueRequest(_message.Message):
+    __slots__ = ("repository_id",)
+    REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
+    repository_id: str
+    def __init__(self, repository_id: _Optional[str] = ...) -> None: ...
+
+class WorktreeSuggestionQueueEntry(_message.Message):
+    __slots__ = ("id", "repository_id", "job_id", "snapshot_digest", "paths", "mode", "request_key", "sequence", "state", "failure_reason", "created_at", "updated_at", "selection_source", "selection_id")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    PATHS_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_KEY_FIELD_NUMBER: _ClassVar[int]
+    SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_REASON_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    repository_id: str
+    job_id: str
+    snapshot_digest: str
+    paths: _containers.RepeatedScalarFieldContainer[str]
+    mode: StagedMessageMode
+    request_key: str
+    sequence: int
+    state: WorktreeSuggestionQueueState
+    failure_reason: str
+    created_at: str
+    updated_at: str
+    selection_source: WorktreeSelectionSource
+    selection_id: str
+    def __init__(self, id: _Optional[str] = ..., repository_id: _Optional[str] = ..., job_id: _Optional[str] = ..., snapshot_digest: _Optional[str] = ..., paths: _Optional[_Iterable[str]] = ..., mode: _Optional[_Union[StagedMessageMode, str]] = ..., request_key: _Optional[str] = ..., sequence: _Optional[int] = ..., state: _Optional[_Union[WorktreeSuggestionQueueState, str]] = ..., failure_reason: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., selection_source: _Optional[_Union[WorktreeSelectionSource, str]] = ..., selection_id: _Optional[str] = ...) -> None: ...
+
+class WorktreeSuggestionQueue(_message.Message):
+    __slots__ = ("repository_id", "revision", "entries")
+    REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    ENTRIES_FIELD_NUMBER: _ClassVar[int]
+    repository_id: str
+    revision: int
+    entries: _containers.RepeatedCompositeFieldContainer[WorktreeSuggestionQueueEntry]
+    def __init__(self, repository_id: _Optional[str] = ..., revision: _Optional[int] = ..., entries: _Optional[_Iterable[_Union[WorktreeSuggestionQueueEntry, _Mapping]]] = ...) -> None: ...
+
+class EnqueueWorktreeSuggestionRequest(_message.Message):
+    __slots__ = ("repository_id", "job_id", "snapshot_digest", "paths", "mode", "request_key")
+    REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    PATHS_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_KEY_FIELD_NUMBER: _ClassVar[int]
+    repository_id: str
+    job_id: str
+    snapshot_digest: str
+    paths: _containers.RepeatedScalarFieldContainer[str]
+    mode: StagedMessageMode
+    request_key: str
+    def __init__(self, repository_id: _Optional[str] = ..., job_id: _Optional[str] = ..., snapshot_digest: _Optional[str] = ..., paths: _Optional[_Iterable[str]] = ..., mode: _Optional[_Union[StagedMessageMode, str]] = ..., request_key: _Optional[str] = ...) -> None: ...
+
+class UpdateWorktreeSuggestionQueueEntryRequest(_message.Message):
+    __slots__ = ("repository_id", "entry_id", "expected_head_entry_id", "expected_revision", "state", "failure_reason", "replacement_job_id", "replacement_snapshot_digest", "replacement_paths", "replacement_mode", "replacement_request_key")
+    REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
+    ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_HEAD_ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_REVISION_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_REASON_FIELD_NUMBER: _ClassVar[int]
+    REPLACEMENT_JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    REPLACEMENT_SNAPSHOT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    REPLACEMENT_PATHS_FIELD_NUMBER: _ClassVar[int]
+    REPLACEMENT_MODE_FIELD_NUMBER: _ClassVar[int]
+    REPLACEMENT_REQUEST_KEY_FIELD_NUMBER: _ClassVar[int]
+    repository_id: str
+    entry_id: str
+    expected_head_entry_id: str
+    expected_revision: int
+    state: WorktreeSuggestionQueueState
+    failure_reason: str
+    replacement_job_id: str
+    replacement_snapshot_digest: str
+    replacement_paths: _containers.RepeatedScalarFieldContainer[str]
+    replacement_mode: StagedMessageMode
+    replacement_request_key: str
+    def __init__(self, repository_id: _Optional[str] = ..., entry_id: _Optional[str] = ..., expected_head_entry_id: _Optional[str] = ..., expected_revision: _Optional[int] = ..., state: _Optional[_Union[WorktreeSuggestionQueueState, str]] = ..., failure_reason: _Optional[str] = ..., replacement_job_id: _Optional[str] = ..., replacement_snapshot_digest: _Optional[str] = ..., replacement_paths: _Optional[_Iterable[str]] = ..., replacement_mode: _Optional[_Union[StagedMessageMode, str]] = ..., replacement_request_key: _Optional[str] = ...) -> None: ...
+
+class RetireWorktreeSuggestionQueueHeadRequest(_message.Message):
+    __slots__ = ("repository_id", "expected_head_entry_id", "expected_revision", "disposition")
+    REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_HEAD_ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_REVISION_FIELD_NUMBER: _ClassVar[int]
+    DISPOSITION_FIELD_NUMBER: _ClassVar[int]
+    repository_id: str
+    expected_head_entry_id: str
+    expected_revision: int
+    disposition: WorktreeSuggestionQueueDisposition
+    def __init__(self, repository_id: _Optional[str] = ..., expected_head_entry_id: _Optional[str] = ..., expected_revision: _Optional[int] = ..., disposition: _Optional[_Union[WorktreeSuggestionQueueDisposition, str]] = ...) -> None: ...
+
+class RemoveWorktreeSuggestionQueueEntryRequest(_message.Message):
+    __slots__ = ("repository_id", "entry_id", "expected_revision")
+    REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
+    ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_REVISION_FIELD_NUMBER: _ClassVar[int]
+    repository_id: str
+    entry_id: str
+    expected_revision: int
+    def __init__(self, repository_id: _Optional[str] = ..., entry_id: _Optional[str] = ..., expected_revision: _Optional[int] = ...) -> None: ...
+
+class WorktreeSuggestionQueueMutationResponse(_message.Message):
+    __slots__ = ("queue", "changed_entry")
+    QUEUE_FIELD_NUMBER: _ClassVar[int]
+    CHANGED_ENTRY_FIELD_NUMBER: _ClassVar[int]
+    queue: WorktreeSuggestionQueue
+    changed_entry: WorktreeSuggestionQueueEntry
+    def __init__(self, queue: _Optional[_Union[WorktreeSuggestionQueue, _Mapping]] = ..., changed_entry: _Optional[_Union[WorktreeSuggestionQueueEntry, _Mapping]] = ...) -> None: ...
 
 class StagedMessageJobRequest(_message.Message):
     __slots__ = ("repository_id", "job_id", "timeout_seconds", "request_key")
@@ -354,7 +641,7 @@ class StagedMessageCollection(_message.Message):
     def __init__(self, id: _Optional[str] = ..., snapshot: _Optional[_Union[StagedMessageSnapshot, _Mapping]] = ..., suggestions: _Optional[_Iterable[_Union[StagedMessageSuggestion, _Mapping]]] = ..., contexts: _Optional[_Iterable[_Union[StagedMessageContext, _Mapping]]] = ..., omissions: _Optional[_Iterable[_Union[Omission, _Mapping]]] = ..., status: _Optional[str] = ..., collected_at: _Optional[str] = ..., continuations: _Optional[_Iterable[_Union[StagedMessageContinuation, _Mapping]]] = ...) -> None: ...
 
 class StagedMessageJob(_message.Message):
-    __slots__ = ("id", "repository_id", "snapshot_digest", "status", "created_at", "updated_at", "execution_id", "cancel_requested", "result", "error", "applicable", "applicability_reason", "snapshot", "phase", "continuation_of_job_id", "evidence_files_read", "evidence_files_total", "continuations")
+    __slots__ = ("id", "repository_id", "snapshot_digest", "status", "created_at", "updated_at", "execution_id", "cancel_requested", "result", "error", "applicable", "applicability_reason", "snapshot", "phase", "continuation_of_job_id", "evidence_files_read", "evidence_files_total", "continuations", "error_code", "retryable", "execution_started", "tokens_used", "tokens_known", "omissions", "execution_started_known", "charge_micro_usd", "charge_known")
     ID_FIELD_NUMBER: _ClassVar[int]
     REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_DIGEST_FIELD_NUMBER: _ClassVar[int]
@@ -373,6 +660,15 @@ class StagedMessageJob(_message.Message):
     EVIDENCE_FILES_READ_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FILES_TOTAL_FIELD_NUMBER: _ClassVar[int]
     CONTINUATIONS_FIELD_NUMBER: _ClassVar[int]
+    ERROR_CODE_FIELD_NUMBER: _ClassVar[int]
+    RETRYABLE_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_STARTED_FIELD_NUMBER: _ClassVar[int]
+    TOKENS_USED_FIELD_NUMBER: _ClassVar[int]
+    TOKENS_KNOWN_FIELD_NUMBER: _ClassVar[int]
+    OMISSIONS_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_STARTED_KNOWN_FIELD_NUMBER: _ClassVar[int]
+    CHARGE_MICRO_USD_FIELD_NUMBER: _ClassVar[int]
+    CHARGE_KNOWN_FIELD_NUMBER: _ClassVar[int]
     id: str
     repository_id: str
     snapshot_digest: str
@@ -391,7 +687,16 @@ class StagedMessageJob(_message.Message):
     evidence_files_read: int
     evidence_files_total: int
     continuations: _containers.RepeatedCompositeFieldContainer[StagedMessageContinuation]
-    def __init__(self, id: _Optional[str] = ..., repository_id: _Optional[str] = ..., snapshot_digest: _Optional[str] = ..., status: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., execution_id: _Optional[str] = ..., cancel_requested: _Optional[bool] = ..., result: _Optional[_Union[StagedMessageSuggestion, _Mapping]] = ..., error: _Optional[str] = ..., applicable: _Optional[bool] = ..., applicability_reason: _Optional[str] = ..., snapshot: _Optional[_Union[StagedMessageSnapshot, _Mapping]] = ..., phase: _Optional[str] = ..., continuation_of_job_id: _Optional[str] = ..., evidence_files_read: _Optional[int] = ..., evidence_files_total: _Optional[int] = ..., continuations: _Optional[_Iterable[_Union[StagedMessageContinuation, _Mapping]]] = ...) -> None: ...
+    error_code: str
+    retryable: bool
+    execution_started: bool
+    tokens_used: int
+    tokens_known: bool
+    omissions: _containers.RepeatedCompositeFieldContainer[Omission]
+    execution_started_known: bool
+    charge_micro_usd: int
+    charge_known: bool
+    def __init__(self, id: _Optional[str] = ..., repository_id: _Optional[str] = ..., snapshot_digest: _Optional[str] = ..., status: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., execution_id: _Optional[str] = ..., cancel_requested: _Optional[bool] = ..., result: _Optional[_Union[StagedMessageSuggestion, _Mapping]] = ..., error: _Optional[str] = ..., applicable: _Optional[bool] = ..., applicability_reason: _Optional[str] = ..., snapshot: _Optional[_Union[StagedMessageSnapshot, _Mapping]] = ..., phase: _Optional[str] = ..., continuation_of_job_id: _Optional[str] = ..., evidence_files_read: _Optional[int] = ..., evidence_files_total: _Optional[int] = ..., continuations: _Optional[_Iterable[_Union[StagedMessageContinuation, _Mapping]]] = ..., error_code: _Optional[str] = ..., retryable: _Optional[bool] = ..., execution_started: _Optional[bool] = ..., tokens_used: _Optional[int] = ..., tokens_known: _Optional[bool] = ..., omissions: _Optional[_Iterable[_Union[Omission, _Mapping]]] = ..., execution_started_known: _Optional[bool] = ..., charge_micro_usd: _Optional[int] = ..., charge_known: _Optional[bool] = ...) -> None: ...
 
 class ReadStagedMessageEvidenceRequest(_message.Message):
     __slots__ = ("repository_id", "job_id", "snapshot_digest", "cursor", "max_bytes", "inventory_only", "file_ids")

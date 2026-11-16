@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/capture/capture.proto.
  */
 export const file_browser_automation_studio_v1_capture_capture: GenFile = /*@__PURE__*/
-  fileDesc("CjJicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2NhcHR1cmUvY2FwdHVyZS5wcm90bxIkYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5jYXB0dXJlIv0BCgpEaW1lbnNpb25zEkYKBnByZXNldBgBIAEoDjI2LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuY2FwdHVyZS5EaW1lbnNpb25zUHJlc2V0Eh4KBXdpZHRoGAIgASgFQgq6SAcaBRigHyhkSACIAQESHwoGaGVpZ2h0GAMgASgFQgq6SAcaBRigHyhkSAGIAQESOQoTZGV2aWNlX3NjYWxlX2ZhY3RvchgEIAEoAUIXukgUEhIZAAAAAAAAEEApAAAAAAAA4D9IAogBAUIICgZfd2lkdGhCCQoHX2hlaWdodEIWChRfZGV2aWNlX3NjYWxlX2ZhY3RvciJSCgdXYWl0Rm9yEhIKCHNlbGVjdG9yGAEgASgJSAASFQoLbmV0d29ya2lkbGUYAiABKAhIABIUCgp0aW1lb3V0X21zGAMgASgFSABCBgoEc3BlYyKtBAoOQ2FwdHVyZVJlcXVlc3QSFAoDdXJsGAEgASgJQge6SARyAhABEkMKCGNhcHR1cmVzGAIgAygOMjEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5jYXB0dXJlLkNhcHR1cmVUeXBlEkQKCmRpbWVuc2lvbnMYAyABKAsyMC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmNhcHR1cmUuRGltZW5zaW9ucxI/Cgh3YWl0X2ZvchgEIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuY2FwdHVyZS5XYWl0Rm9yEg8KB291dF9kaXIYBSABKAkSDQoFbGFiZWwYBiABKAkSEgoKaW5saW5lX2RvbRgHIAEoCBIdChVpbnRlcmFjdGlvbl9mbG93X2pzb24YCCABKAkSHAoUaW5saW5lX2FjY2Vzc2liaWxpdHkYCSABKAgSHQoVaW5saW5lX2NvbXB1dGVkX3N0eWxlGAogASgIEkUKD2Jyb3dzZXJfcHJvZmlsZRgLIAEoCzIsLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQnJvd3NlclByb2ZpbGUSGQoRaW50ZXJhY3Rpb25fc3RhdGUYDCABKAkSGwoTc2NyZWVuc2hvdF9zZWxlY3RvchgNIAEoCRIXCg9pbmxpbmVfZG9tX3RyZWUYDiABKAgSEQoJZGlyZWN0aW9uGA8gASgJIqACCg9DYXB0dXJlQXJ0aWZhY3QSPwoEdHlwZRgBIAEoDjIxLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuY2FwdHVyZS5DYXB0dXJlVHlwZRIMCgRwYXRoGAIgASgJEhIKCnNpemVfYnl0ZXMYAyABKAMSVQoIbWV0YWRhdGEYBCADKAsyQy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmNhcHR1cmUuQ2FwdHVyZUFydGlmYWN0Lk1ldGFkYXRhRW50cnkSDwoHcHJpbWFyeRgFIAEoCBIRCglyZWZlcmVuY2UYBiABKAkaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIsMCCg9DYXB0dXJlUmVzcG9uc2USFAoMZXhlY3V0aW9uX2lkGAEgASgJEg8KB291dF9kaXIYAiABKAkSSAoJYXJ0aWZhY3RzGAMgAygLMjUuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5jYXB0dXJlLkNhcHR1cmVBcnRpZmFjdBITCgtkdXJhdGlvbl9tcxgEIAEoAxIPCgdkcnlfcnVuGAUgASgIEhAKCGRvbV9odG1sGAYgASgJEhoKEmFjY2Vzc2liaWxpdHlfanNvbhgHIAEoCRIVCg1kb21fdHJlZV9qc29uGAkgASgJElQKCXJlYWRpbmVzcxgIIAEoCzJBLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuY2FwdHVyZS5DYXB0dXJlUmVhZGluZXNzRGlhZ25vc3RpY3MinQIKG0NhcHR1cmVSZWFkaW5lc3NEaWFnbm9zdGljcxIaChJyZXF1ZXN0ZWRfc3RyYXRlZ3kYASABKAkSGQoRc2VsZWN0ZWRfc3RyYXRlZ3kYAiABKAkSDwoHb3V0Y29tZRgDIAEoCRITCgtkdXJhdGlvbl9tcxgEIAEoAxIXCg9mYWxsYmFja19yZWFzb24YBSABKAkSFwoPcHJvZmlsZV92ZXJzaW9uGAYgASgJEg0KBXJvdXRlGAcgASgJEhwKFHJlcXVpcmVkX3N1cmZhY2VfaWRzGAggAygJEh4KFm5hdmlnYXRpb25fZHVyYXRpb25fbXMYCSABKAMSIgoacmVhZGluZXNzX3dhaXRfZHVyYXRpb25fbXMYCiABKAMqiAIKC0NhcHR1cmVUeXBlEhwKGENBUFRVUkVfVFlQRV9VTlNQRUNJRklFRBAAEhsKF0NBUFRVUkVfVFlQRV9TQ1JFRU5TSE9UEAESHQoZQ0FQVFVSRV9UWVBFX0NPTlNPTEVfTE9HUxACEhgKFENBUFRVUkVfVFlQRV9ORVRXT1JLEAMSFgoSQ0FQVFVSRV9UWVBFX1ZJREVPEAQSFAoQQ0FQVFVSRV9UWVBFX0RPTRAFEhwKGENBUFRVUkVfVFlQRV9QRVJGT1JNQU5DRRAGEh4KGkNBUFRVUkVfVFlQRV9BQ0NFU1NJQklMSVRZEAcSGQoVQ0FQVFVSRV9UWVBFX0RPTV9UUkVFEAgqkAEKEERpbWVuc2lvbnNQcmVzZXQSIQodRElNRU5TSU9OU19QUkVTRVRfVU5TUEVDSUZJRUQQABIcChhESU1FTlNJT05TX1BSRVNFVF9NT0JJTEUQARIcChhESU1FTlNJT05TX1BSRVNFVF9UQUJMRVQQAhIdChlESU1FTlNJT05TX1BSRVNFVF9ERVNLVE9QEAMyiAEKDkNhcHR1cmVTZXJ2aWNlEnYKB0NhcHR1cmUSNC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmNhcHR1cmUuQ2FwdHVyZVJlcXVlc3QaNS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmNhcHR1cmUuQ2FwdHVyZVJlc3BvbnNlQl1aW2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MS9jYXB0dXJlO2NhcHR1cmViBnByb3RvMw", [file_browser_automation_studio_v1_base_browser_profile, file_buf_validate_validate]);
+  fileDesc("CjJicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2NhcHR1cmUvY2FwdHVyZS5wcm90bxIkYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5jYXB0dXJlIv0BCgpEaW1lbnNpb25zEkYKBnByZXNldBgBIAEoDjI2LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuY2FwdHVyZS5EaW1lbnNpb25zUHJlc2V0Eh4KBXdpZHRoGAIgASgFQgq6SAcaBRigHyhkSACIAQESHwoGaGVpZ2h0GAMgASgFQgq6SAcaBRigHyhkSAGIAQESOQoTZGV2aWNlX3NjYWxlX2ZhY3RvchgEIAEoAUIXukgUEhIZAAAAAAAAEEApAAAAAAAA4D9IAogBAUIICgZfd2lkdGhCCQoHX2hlaWdodEIWChRfZGV2aWNlX3NjYWxlX2ZhY3RvciJSCgdXYWl0Rm9yEhIKCHNlbGVjdG9yGAEgASgJSAASFQoLbmV0d29ya2lkbGUYAiABKAhIABIUCgp0aW1lb3V0X21zGAMgASgFSABCBgoEc3BlYyKpBAoOQ2FwdHVyZVJlcXVlc3QSFAoDdXJsGAEgASgJQge6SARyAhABEkMKCGNhcHR1cmVzGAIgAygOMjEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5jYXB0dXJlLkNhcHR1cmVUeXBlEkQKCmRpbWVuc2lvbnMYAyABKAsyMC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmNhcHR1cmUuRGltZW5zaW9ucxI/Cgh3YWl0X2ZvchgEIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuY2FwdHVyZS5XYWl0Rm9yEg8KB291dF9kaXIYBSABKAkSDQoFbGFiZWwYBiABKAkSHQoVaW50ZXJhY3Rpb25fZmxvd19qc29uGAggASgJEhwKFGlubGluZV9hY2Nlc3NpYmlsaXR5GAkgASgIEh0KFWlubGluZV9jb21wdXRlZF9zdHlsZRgKIAEoCBJFCg9icm93c2VyX3Byb2ZpbGUYCyABKAsyLC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkJyb3dzZXJQcm9maWxlEhkKEWludGVyYWN0aW9uX3N0YXRlGAwgASgJEhsKE3NjcmVlbnNob3Rfc2VsZWN0b3IYDSABKAkSEQoJZGlyZWN0aW9uGA8gASgJSgQIBxAISgQIDhAPUgppbmxpbmVfZG9tUg9pbmxpbmVfZG9tX3RyZWUioAIKD0NhcHR1cmVBcnRpZmFjdBI/CgR0eXBlGAEgASgOMjEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5jYXB0dXJlLkNhcHR1cmVUeXBlEgwKBHBhdGgYAiABKAkSEgoKc2l6ZV9ieXRlcxgDIAEoAxJVCghtZXRhZGF0YRgEIAMoCzJDLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuY2FwdHVyZS5DYXB0dXJlQXJ0aWZhY3QuTWV0YWRhdGFFbnRyeRIPCgdwcmltYXJ5GAUgASgIEhEKCXJlZmVyZW5jZRgGIAEoCRovCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEivwIKD0NhcHR1cmVSZXNwb25zZRIUCgxleGVjdXRpb25faWQYASABKAkSDwoHb3V0X2RpchgCIAEoCRJICglhcnRpZmFjdHMYAyADKAsyNS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmNhcHR1cmUuQ2FwdHVyZUFydGlmYWN0EhMKC2R1cmF0aW9uX21zGAQgASgDEg8KB2RyeV9ydW4YBSABKAgSGgoSYWNjZXNzaWJpbGl0eV9qc29uGAcgASgJElQKCXJlYWRpbmVzcxgIIAEoCzJBLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuY2FwdHVyZS5DYXB0dXJlUmVhZGluZXNzRGlhZ25vc3RpY3NKBAgGEAdKBAgJEApSCGRvbV9odG1sUg1kb21fdHJlZV9qc29uIp0CChtDYXB0dXJlUmVhZGluZXNzRGlhZ25vc3RpY3MSGgoScmVxdWVzdGVkX3N0cmF0ZWd5GAEgASgJEhkKEXNlbGVjdGVkX3N0cmF0ZWd5GAIgASgJEg8KB291dGNvbWUYAyABKAkSEwoLZHVyYXRpb25fbXMYBCABKAMSFwoPZmFsbGJhY2tfcmVhc29uGAUgASgJEhcKD3Byb2ZpbGVfdmVyc2lvbhgGIAEoCRINCgVyb3V0ZRgHIAEoCRIcChRyZXF1aXJlZF9zdXJmYWNlX2lkcxgIIAMoCRIeChZuYXZpZ2F0aW9uX2R1cmF0aW9uX21zGAkgASgDEiIKGnJlYWRpbmVzc193YWl0X2R1cmF0aW9uX21zGAogASgDKowCCgtDYXB0dXJlVHlwZRIcChhDQVBUVVJFX1RZUEVfVU5TUEVDSUZJRUQQABIbChdDQVBUVVJFX1RZUEVfU0NSRUVOU0hPVBABEh0KGUNBUFRVUkVfVFlQRV9DT05TT0xFX0xPR1MQAhIYChRDQVBUVVJFX1RZUEVfTkVUV09SSxADEhYKEkNBUFRVUkVfVFlQRV9WSURFTxAEEhwKGENBUFRVUkVfVFlQRV9QRVJGT1JNQU5DRRAGEh4KGkNBUFRVUkVfVFlQRV9BQ0NFU1NJQklMSVRZEAciBAgFEAUiBAgIEAgqEENBUFRVUkVfVFlQRV9ET00qFUNBUFRVUkVfVFlQRV9ET01fVFJFRSqQAQoQRGltZW5zaW9uc1ByZXNldBIhCh1ESU1FTlNJT05TX1BSRVNFVF9VTlNQRUNJRklFRBAAEhwKGERJTUVOU0lPTlNfUFJFU0VUX01PQklMRRABEhwKGERJTUVOU0lPTlNfUFJFU0VUX1RBQkxFVBACEh0KGURJTUVOU0lPTlNfUFJFU0VUX0RFU0tUT1AQAzKIAQoOQ2FwdHVyZVNlcnZpY2USdgoHQ2FwdHVyZRI0LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuY2FwdHVyZS5DYXB0dXJlUmVxdWVzdBo1LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuY2FwdHVyZS5DYXB0dXJlUmVzcG9uc2VCXVpbZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2NhcHR1cmU7Y2FwdHVyZWIGcHJvdG8z", [file_browser_automation_studio_v1_base_browser_profile, file_buf_validate_validate]);
 
 /**
  * Dimensions specifies the browser viewport. A caller picks a preset OR
@@ -147,18 +147,6 @@ export type CaptureRequest = Message<"browser_automation_studio.v1.capture.Captu
   label: string;
 
   /**
-   * When true, the rendered page's outerHTML (post-wait_for) is returned
-   * inline in CaptureResponse.dom_html. This is the remote-friendly way to
-   * consume rendered HTML: artifact paths in CaptureArtifact are
-   * server-filesystem paths, useless to callers on another host. Independent
-   * of the `captures` list. The server caps the inline payload (currently
-   * 2 MiB) and truncates beyond it.
-   *
-   * @generated from field: bool inline_dom = 7;
-   */
-  inlineDom: boolean;
-
-  /**
    * Optional raw `bas/flows`-shape JSON (a WorkflowDefinitionV2 protojson
    * body) describing a specific interaction to drive *after* the navigate,
    * inside the same perf-trace window. Empty = the default navigate+settle
@@ -178,8 +166,8 @@ export type CaptureRequest = Message<"browser_automation_studio.v1.capture.Captu
    * (bas-accessibility-snapshot/v1) is returned inline in
    * CaptureResponse.accessibility_json. This is the remote-friendly way to
    * consume the snapshot: artifact paths in CaptureArtifact are
-   * server-filesystem paths, useless to callers on another host. Mirrors
-   * inline_dom: it independently drives the AX capture (a caller need not
+   * server-filesystem paths, useless to callers on another host. It
+   * independently drives the AX capture (a caller need not
    * also list CAPTURE_TYPE_ACCESSIBILITY), and the server caps the inline
    * payload (currently 2 MiB) and truncates beyond it.
    *
@@ -219,15 +207,6 @@ export type CaptureRequest = Message<"browser_automation_studio.v1.capture.Captu
    * @generated from field: string screenshot_selector = 13;
    */
   screenshotSelector: string;
-
-  /**
-   * When true, the DOM artifact is a normalized computed-style tree rather
-   * than raw outerHTML. It is captured after the same readiness condition and
-   * navigation as the screenshot.
-   *
-   * @generated from field: bool inline_dom_tree = 14;
-   */
-  inlineDomTree: boolean;
 
   /**
    * Document direction applied after navigation and before artifacts.
@@ -338,17 +317,6 @@ export type CaptureResponse = Message<"browser_automation_studio.v1.capture.Capt
   dryRun: boolean;
 
   /**
-   * Rendered page outerHTML, populated only when CaptureRequest.inline_dom
-   * was set. Empty on dry-run or when the in-page DOM read failed (the
-   * capture itself still succeeds — callers needing the DOM must treat
-   * empty as a failed fetch). Size-capped server-side (2 MiB); truncation
-   * is silent, which readable-text extractors tolerate by design.
-   *
-   * @generated from field: string dom_html = 6;
-   */
-  domHtml: string;
-
-  /**
    * Normalized accessibility-tree snapshot JSON
    * (bas-accessibility-snapshot/v1), populated only when
    * CaptureRequest.inline_accessibility was set. Empty on dry-run or when
@@ -359,14 +327,6 @@ export type CaptureResponse = Message<"browser_automation_studio.v1.capture.Capt
    * @generated from field: string accessibility_json = 7;
    */
   accessibilityJson: string;
-
-  /**
-   * Normalized computed DOM-tree JSON, populated when inline_dom_tree is set.
-   * The same tree is also written as the durable DOM_TREE artifact.
-   *
-   * @generated from field: string dom_tree_json = 9;
-   */
-  domTreeJson: string;
 
   /**
    * Readiness decision and outcome for this capture. This makes it explicit
@@ -488,11 +448,6 @@ export enum CaptureType {
   VIDEO = 4,
 
   /**
-   * @generated from enum value: CAPTURE_TYPE_DOM = 5;
-   */
-  DOM = 5,
-
-  /**
    * @generated from enum value: CAPTURE_TYPE_PERFORMANCE = 6;
    */
   PERFORMANCE = 6,
@@ -508,13 +463,6 @@ export enum CaptureType {
    * @generated from enum value: CAPTURE_TYPE_ACCESSIBILITY = 7;
    */
   ACCESSIBILITY = 7,
-
-  /**
-   * Normalized computed DOM-tree JSON snapshot captured in the same session.
-   *
-   * @generated from enum value: CAPTURE_TYPE_DOM_TREE = 8;
-   */
-  DOM_TREE = 8,
 }
 
 /**

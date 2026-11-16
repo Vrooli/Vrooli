@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file treasury/v1/ledger/ledger.proto.
  */
 export const file_treasury_v1_ledger_ledger: GenFile = /*@__PURE__*/
-  fileDesc("Ch90cmVhc3VyeS92MS9sZWRnZXIvbGVkZ2VyLnByb3RvEhl2cm9vbGkudHJlYXN1cnkudjEubGVkZ2VyIsMDCg5MZWRnZXJFbWlzc2lvbhIKCgJpZBgBIAEoCRIRCgljaGFyZ2VfaWQYAiABKAkSEwoLZXh0ZXJuYWxfaWQYAyABKAkSEgoKYWRhcHRlcl9pZBgEIAEoCRIUCgxhbW91bnRfbWlub3IYBSABKAMSEAoIY3VycmVuY3kYBiABKAkSDQoFYmFzaXMYByABKAkSLgoKZmV0Y2hlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLYWNjZXB0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBnN0YXR1cxgKIAEoCRIQCghhdHRlbXB0cxgLIAEoBRISCgpsYXN0X2Vycm9yGAwgASgJEhUKDXNldHRsZW1lbnRfaWQYDSABKAkSEgoKYWNjb3VudF9pZBgOIAEoCRIPCgdib29rX2lkGA8gASgJEi8KC29jY3VycmVkX2F0GBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpjcmVhdGVkX2F0GBEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJKChRMaXN0RW1pc3Npb25zUmVxdWVzdBITCgtleHRlcm5hbF9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDQoFbGltaXQYAyABKAUiVQoVTGlzdEVtaXNzaW9uc1Jlc3BvbnNlEjwKCWVtaXNzaW9ucxgBIAMoCzIpLnZyb29saS50cmVhc3VyeS52MS5sZWRnZXIuTGVkZ2VyRW1pc3Npb24ygwEKDUxlZGdlclNlcnZpY2UScgoNTGlzdEVtaXNzaW9ucxIvLnZyb29saS50cmVhc3VyeS52MS5sZWRnZXIuTGlzdEVtaXNzaW9uc1JlcXVlc3QaMC52cm9vbGkudHJlYXN1cnkudjEubGVkZ2VyLkxpc3RFbWlzc2lvbnNSZXNwb25zZUJNWktnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3RyZWFzdXJ5L3YxL2xlZGdlcjtsZWRnZXJfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("Ch90cmVhc3VyeS92MS9sZWRnZXIvbGVkZ2VyLnByb3RvEhl2cm9vbGkudHJlYXN1cnkudjEubGVkZ2VyIsMDCg5MZWRnZXJFbWlzc2lvbhIKCgJpZBgBIAEoCRIRCgljaGFyZ2VfaWQYAiABKAkSEwoLZXh0ZXJuYWxfaWQYAyABKAkSEgoKYWRhcHRlcl9pZBgEIAEoCRIUCgxhbW91bnRfbWlub3IYBSABKAMSEAoIY3VycmVuY3kYBiABKAkSDQoFYmFzaXMYByABKAkSLgoKZmV0Y2hlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLYWNjZXB0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBnN0YXR1cxgKIAEoCRIQCghhdHRlbXB0cxgLIAEoBRISCgpsYXN0X2Vycm9yGAwgASgJEhUKDXNldHRsZW1lbnRfaWQYDSABKAkSEgoKYWNjb3VudF9pZBgOIAEoCRIPCgdib29rX2lkGA8gASgJEi8KC29jY3VycmVkX2F0GBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpjcmVhdGVkX2F0GBEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJKChRMaXN0RW1pc3Npb25zUmVxdWVzdBITCgtleHRlcm5hbF9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDQoFbGltaXQYAyABKAUirgEKFUxpc3RFbWlzc2lvbnNSZXNwb25zZRI8CgllbWlzc2lvbnMYASADKAsyKS52cm9vbGkudHJlYXN1cnkudjEubGVkZ2VyLkxlZGdlckVtaXNzaW9uEkEKC2Rlc3RpbmF0aW9uGAIgASgLMiwudnJvb2xpLnRyZWFzdXJ5LnYxLmxlZGdlci5MZWRnZXJEZXN0aW5hdGlvbhIUCgxxdWV1ZWRfdG90YWwYAyABKAUi4AEKEUxlZGdlckRlc3RpbmF0aW9uEhIKCmNvbmZpZ3VyZWQYASABKAgSDwoHYm9va19pZBgCIAEoCRISCgphY2NvdW50X2lkGAMgASgJEhEKCWJvb2tfbmFtZRgEIAEoCRIUCgxhY2NvdW50X25hbWUYBSABKAkSEAoIY3VycmVuY3kYBiABKAkSDgoGc291cmNlGAcgASgJEioKBnNldF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGwoTdW5jb25maWd1cmVkX3JlYXNvbhgJIAEoCSJCChtTZXRMZWRnZXJEZXN0aW5hdGlvblJlcXVlc3QSDwoHYm9va19pZBgBIAEoCRISCgphY2NvdW50X2lkGAIgASgJImEKHFNldExlZGdlckRlc3RpbmF0aW9uUmVzcG9uc2USQQoLZGVzdGluYXRpb24YASABKAsyLC52cm9vbGkudHJlYXN1cnkudjEubGVkZ2VyLkxlZGdlckRlc3RpbmF0aW9uIh0KG0dldExlZGdlckRlc3RpbmF0aW9uUmVxdWVzdCJ3ChxHZXRMZWRnZXJEZXN0aW5hdGlvblJlc3BvbnNlEkEKC2Rlc3RpbmF0aW9uGAEgASgLMiwudnJvb2xpLnRyZWFzdXJ5LnYxLmxlZGdlci5MZWRnZXJEZXN0aW5hdGlvbhIUCgxxdWV1ZWRfdG90YWwYAiABKAUylwMKDUxlZGdlclNlcnZpY2UScgoNTGlzdEVtaXNzaW9ucxIvLnZyb29saS50cmVhc3VyeS52MS5sZWRnZXIuTGlzdEVtaXNzaW9uc1JlcXVlc3QaMC52cm9vbGkudHJlYXN1cnkudjEubGVkZ2VyLkxpc3RFbWlzc2lvbnNSZXNwb25zZRKHAQoUU2V0TGVkZ2VyRGVzdGluYXRpb24SNi52cm9vbGkudHJlYXN1cnkudjEubGVkZ2VyLlNldExlZGdlckRlc3RpbmF0aW9uUmVxdWVzdBo3LnZyb29saS50cmVhc3VyeS52MS5sZWRnZXIuU2V0TGVkZ2VyRGVzdGluYXRpb25SZXNwb25zZRKHAQoUR2V0TGVkZ2VyRGVzdGluYXRpb24SNi52cm9vbGkudHJlYXN1cnkudjEubGVkZ2VyLkdldExlZGdlckRlc3RpbmF0aW9uUmVxdWVzdBo3LnZyb29saS50cmVhc3VyeS52MS5sZWRnZXIuR2V0TGVkZ2VyRGVzdGluYXRpb25SZXNwb25zZUJNWktnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3RyZWFzdXJ5L3YxL2xlZGdlcjtsZWRnZXJfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.treasury.v1.ledger.LedgerEmission
@@ -150,6 +150,21 @@ export type ListEmissionsResponse = Message<"vrooli.treasury.v1.ledger.ListEmiss
    * @generated from field: repeated vrooli.treasury.v1.ledger.LedgerEmission emissions = 1;
    */
   emissions: LedgerEmission[];
+
+  /**
+   * Where settlements are delivered, so an empty or stuck queue is never the
+   * only signal that nothing can be delivered.
+   *
+   * @generated from field: vrooli.treasury.v1.ledger.LedgerDestination destination = 2;
+   */
+  destination?: LedgerDestination | undefined;
+
+  /**
+   * Every settlement still waiting for delivery, whatever the filter above.
+   *
+   * @generated from field: int32 queued_total = 3;
+   */
+  queuedTotal: number;
 };
 
 /**
@@ -158,6 +173,151 @@ export type ListEmissionsResponse = Message<"vrooli.treasury.v1.ledger.ListEmiss
  */
 export const ListEmissionsResponseSchema: GenMessage<ListEmissionsResponse> = /*@__PURE__*/
   messageDesc(file_treasury_v1_ledger_ledger, 2);
+
+/**
+ * LedgerDestination is the one Money Ledger book and account that Treasury
+ * settlements post to. The operator chooses it; Treasury never guesses or
+ * creates it.
+ *
+ * @generated from message vrooli.treasury.v1.ledger.LedgerDestination
+ */
+export type LedgerDestination = Message<"vrooli.treasury.v1.ledger.LedgerDestination"> & {
+  /**
+   * False until a destination is chosen. Settlements stay durably queued.
+   *
+   * @generated from field: bool configured = 1;
+   */
+  configured: boolean;
+
+  /**
+   * @generated from field: string book_id = 2;
+   */
+  bookId: string;
+
+  /**
+   * @generated from field: string account_id = 3;
+   */
+  accountId: string;
+
+  /**
+   * Names as Money Ledger had them when the destination was chosen.
+   *
+   * @generated from field: string book_name = 4;
+   */
+  bookName: string;
+
+  /**
+   * @generated from field: string account_name = 5;
+   */
+  accountName: string;
+
+  /**
+   * @generated from field: string currency = 6;
+   */
+  currency: string;
+
+  /**
+   * "operator" when chosen with SetLedgerDestination; "environment" when it
+   * comes from the rehearsal seed (TREASURY_LEDGER_BOOK_ID and
+   * TREASURY_LEDGER_ACCOUNT_ID). Empty when not configured.
+   *
+   * @generated from field: string source = 7;
+   */
+  source: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp set_at = 8;
+   */
+  setAt?: Timestamp | undefined;
+
+  /**
+   * Why settlements cannot be delivered. Empty when configured.
+   *
+   * @generated from field: string unconfigured_reason = 9;
+   */
+  unconfiguredReason: string;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.ledger.LedgerDestination.
+ * Use `create(LedgerDestinationSchema)` to create a new message.
+ */
+export const LedgerDestinationSchema: GenMessage<LedgerDestination> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_ledger_ledger, 3);
+
+/**
+ * @generated from message vrooli.treasury.v1.ledger.SetLedgerDestinationRequest
+ */
+export type SetLedgerDestinationRequest = Message<"vrooli.treasury.v1.ledger.SetLedgerDestinationRequest"> & {
+  /**
+   * @generated from field: string book_id = 1;
+   */
+  bookId: string;
+
+  /**
+   * @generated from field: string account_id = 2;
+   */
+  accountId: string;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.ledger.SetLedgerDestinationRequest.
+ * Use `create(SetLedgerDestinationRequestSchema)` to create a new message.
+ */
+export const SetLedgerDestinationRequestSchema: GenMessage<SetLedgerDestinationRequest> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_ledger_ledger, 4);
+
+/**
+ * @generated from message vrooli.treasury.v1.ledger.SetLedgerDestinationResponse
+ */
+export type SetLedgerDestinationResponse = Message<"vrooli.treasury.v1.ledger.SetLedgerDestinationResponse"> & {
+  /**
+   * @generated from field: vrooli.treasury.v1.ledger.LedgerDestination destination = 1;
+   */
+  destination?: LedgerDestination | undefined;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.ledger.SetLedgerDestinationResponse.
+ * Use `create(SetLedgerDestinationResponseSchema)` to create a new message.
+ */
+export const SetLedgerDestinationResponseSchema: GenMessage<SetLedgerDestinationResponse> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_ledger_ledger, 5);
+
+/**
+ * @generated from message vrooli.treasury.v1.ledger.GetLedgerDestinationRequest
+ */
+export type GetLedgerDestinationRequest = Message<"vrooli.treasury.v1.ledger.GetLedgerDestinationRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.ledger.GetLedgerDestinationRequest.
+ * Use `create(GetLedgerDestinationRequestSchema)` to create a new message.
+ */
+export const GetLedgerDestinationRequestSchema: GenMessage<GetLedgerDestinationRequest> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_ledger_ledger, 6);
+
+/**
+ * @generated from message vrooli.treasury.v1.ledger.GetLedgerDestinationResponse
+ */
+export type GetLedgerDestinationResponse = Message<"vrooli.treasury.v1.ledger.GetLedgerDestinationResponse"> & {
+  /**
+   * @generated from field: vrooli.treasury.v1.ledger.LedgerDestination destination = 1;
+   */
+  destination?: LedgerDestination | undefined;
+
+  /**
+   * @generated from field: int32 queued_total = 2;
+   */
+  queuedTotal: number;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.ledger.GetLedgerDestinationResponse.
+ * Use `create(GetLedgerDestinationResponseSchema)` to create a new message.
+ */
+export const GetLedgerDestinationResponseSchema: GenMessage<GetLedgerDestinationResponse> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_ledger_ledger, 7);
 
 /**
  * @generated from service vrooli.treasury.v1.ledger.LedgerService
@@ -170,6 +330,26 @@ export const LedgerService: GenService<{
     methodKind: "unary";
     input: typeof ListEmissionsRequestSchema;
     output: typeof ListEmissionsResponseSchema;
+  },
+  /**
+   * SetLedgerDestination validates the book and account against Money Ledger
+   * (book exists and is not archived, account belongs to it, currency is USD)
+   * and then records the choice. Operator realm only.
+   *
+   * @generated from rpc vrooli.treasury.v1.ledger.LedgerService.SetLedgerDestination
+   */
+  setLedgerDestination: {
+    methodKind: "unary";
+    input: typeof SetLedgerDestinationRequestSchema;
+    output: typeof SetLedgerDestinationResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.ledger.LedgerService.GetLedgerDestination
+   */
+  getLedgerDestination: {
+    methodKind: "unary";
+    input: typeof GetLedgerDestinationRequestSchema;
+    output: typeof GetLedgerDestinationResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_treasury_v1_ledger_ledger, 0);

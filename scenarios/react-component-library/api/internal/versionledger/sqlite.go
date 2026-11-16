@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"react-component-library/internal/librarywalk"
+	"react-component-library/internal/sqliterows"
 )
 
 type Repository struct {
@@ -45,24 +46,21 @@ func (r *Repository) ListWindow(ctx context.Context, libraryID, window string) (
 		query += " WHERE " + strings.Join(filters, " AND ")
 	}
 	query += " ORDER BY library_id, version"
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	out, err := sqliterows.Collect(ctx, r.db, query, args, false, func(row sqliterows.Scanner) (VersionLedger, error) {
+		var version VersionLedger
+		var created, released, retired string
+		if err := row.Scan(&version.LibraryID, &version.Version, &created, &released, &retired, &version.LifecycleState, &version.GatePassCount, &version.GateFailCount, &version.TestRuns, &version.TestPassRate, &version.AdoptionCurrent, &version.AdoptionPeak, &version.FileCount, &version.LinesOfCode, &version.DependencyCount, &version.Presence); err != nil {
+			return VersionLedger{}, err
+		}
+		version.CreatedAt = parseTime(created)
+		version.ReleasedAt = parseTime(released)
+		version.RetiredAt = parseTime(retired)
+		return version, nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var out []VersionLedger
-	for rows.Next() {
-		var v VersionLedger
-		var created, released, retired string
-		if err := rows.Scan(&v.LibraryID, &v.Version, &created, &released, &retired, &v.LifecycleState, &v.GatePassCount, &v.GateFailCount, &v.TestRuns, &v.TestPassRate, &v.AdoptionCurrent, &v.AdoptionPeak, &v.FileCount, &v.LinesOfCode, &v.DependencyCount, &v.Presence); err != nil {
-			return nil, err
-		}
-		v.CreatedAt = parseTime(created)
-		v.ReleasedAt = parseTime(released)
-		v.RetiredAt = parseTime(retired)
-		out = append(out, v)
-	}
-	return out, rows.Err()
+	return out, nil
 }
 
 func windowSince(window string) time.Time {
@@ -141,6 +139,10 @@ func (r *Repository) PlanCleanup(ctx context.Context, scope CleanupScope) ([]Cle
 	if scope.ComponentID != "" && scope.LibraryID != "" {
 		return nil, "", fmt.Errorf("cleanup scope cannot contain both component_id and library_id")
 	}
+	type cleanupRaw struct {
+		candidate                        Candidate
+		latest, draft, created, released string
+	}
 	query := `SELECT c.id, c.library_id, v.version, v.status, c.latest_version, c.draft_version, v.created_at, v.released_at
 		FROM components c JOIN component_versions v ON v.component_id = c.id`
 	args := []any{}
@@ -157,31 +159,16 @@ func (r *Repository) PlanCleanup(ctx context.Context, scope CleanupScope) ([]Cle
 		query += " WHERE " + strings.Join(filters, " AND ")
 	}
 	query += " ORDER BY c.library_id, v.version"
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	rawRows, err := sqliterows.Collect(ctx, r.db, query, args, true, func(row sqliterows.Scanner) (cleanupRaw, error) {
+		var raw cleanupRaw
+		if err := row.Scan(&raw.candidate.ComponentID, &raw.candidate.LibraryID, &raw.candidate.Version, &raw.candidate.Status, &raw.latest, &raw.draft, &raw.created, &raw.released); err != nil {
+			return cleanupRaw{}, err
+		}
+		return raw, nil
+	})
 	if err != nil {
 		return nil, "", err
 	}
-	type cleanupRaw struct {
-		candidate                        Candidate
-		latest, draft, created, released string
-	}
-	var rawRows []cleanupRaw
-	for rows.Next() {
-		var raw cleanupRaw
-		if err := rows.Scan(&raw.candidate.ComponentID, &raw.candidate.LibraryID, &raw.candidate.Version, &raw.candidate.Status, &raw.latest, &raw.draft, &raw.created, &raw.released); err != nil {
-			rows.Close()
-			return nil, "", err
-		}
-		rawRows = append(rawRows, raw)
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, "", err
-	}
-	if err := rows.Close(); err != nil {
-		return nil, "", err
-	}
-	rows.Close()
 	graph, err := r.BuildReachability(ctx)
 	if err != nil {
 		return nil, "", err
@@ -359,23 +346,24 @@ func (r *Repository) RetireCandidates(ctx context.Context, componentID string) (
 		args = append(args, componentID)
 	}
 	query += " ORDER BY c.library_id, v.version"
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	rows, err := sqliterows.Collect(ctx, r.db, query, args, false, func(row sqliterows.Scanner) (Candidate, error) {
+		var candidate Candidate
+		if err := row.Scan(&candidate.ComponentID, &candidate.LibraryID, &candidate.Version, &candidate.Status); err != nil {
+			return Candidate{}, err
+		}
+		return candidate, nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	var out []Candidate
-	for rows.Next() {
-		var c Candidate
-		if err := rows.Scan(&c.ComponentID, &c.LibraryID, &c.Version, &c.Status); err != nil {
-			return nil, err
-		}
-		if graph.IsReachable(c.LibraryID, c.Version) || hasUnreadableVersion(graph.Unreadable, c.LibraryID, c.Version) {
+	for _, candidate := range rows {
+		if graph.IsReachable(candidate.LibraryID, candidate.Version) || hasUnreadableVersion(graph.Unreadable, candidate.LibraryID, candidate.Version) {
 			continue
 		}
-		out = append(out, c)
+		out = append(out, candidate)
 	}
-	return out, rows.Err()
+	return out, nil
 }
 
 func (r *Repository) Transition(ctx context.Context, componentID, version, state string, confirm bool, planHashes ...string) (Candidate, error) {
@@ -660,21 +648,13 @@ func (r *Repository) reclaimRetiredMaterialization(ctx context.Context, c Candid
 }
 
 func (r *Repository) verifyVersionDirectory(ctx context.Context, c Candidate, versionDir string) error {
-	rows, err := r.db.QueryContext(ctx, `SELECT path, content_sha256 FROM component_version_files WHERE version_id=(SELECT id FROM component_versions WHERE component_id=? AND version=?) ORDER BY path`, c.ComponentID, c.Version)
+	files, err := r.mirroredFileDigests(ctx, c.ComponentID, c.Version, "read retirement mirror")
 	if err != nil {
-		return fmt.Errorf("read retirement mirror: %w", err)
-	}
-	defer rows.Close()
-	expected := map[string]string{}
-	for rows.Next() {
-		var path, digest string
-		if err := rows.Scan(&path, &digest); err != nil {
-			return err
-		}
-		expected[filepath.Clean(filepath.FromSlash(path))] = digest
-	}
-	if err := rows.Err(); err != nil {
 		return err
+	}
+	expected := map[string]string{}
+	for _, file := range files {
+		expected[filepath.Clean(filepath.FromSlash(file.path))] = file.digest
 	}
 	if len(expected) == 0 {
 		return fmt.Errorf("cannot retire %s@%s: file mirror is empty", c.LibraryID, c.Version)
@@ -808,29 +788,21 @@ func (r *Repository) evictVersion(ctx context.Context, c Candidate, version, man
 	if !strings.HasPrefix(versionDir, root) {
 		return fmt.Errorf("refusing to archive path outside library root")
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT path, content_sha256 FROM component_version_files WHERE version_id=(SELECT id FROM component_versions WHERE component_id=? AND version=?) ORDER BY path`, c.ComponentID, version)
+	files, err := r.mirroredFileDigests(ctx, c.ComponentID, version, "read archive mirror")
 	if err != nil {
-		return fmt.Errorf("read archive mirror: %w", err)
+		return err
 	}
-	defer rows.Close()
 	checked := 0
-	for rows.Next() {
-		var path, expected string
-		if err := rows.Scan(&path, &expected); err != nil {
-			return err
-		}
-		actualBytes, readErr := os.ReadFile(filepath.Join(versionDir, filepath.FromSlash(path)))
+	for _, file := range files {
+		actualBytes, readErr := os.ReadFile(filepath.Join(versionDir, filepath.FromSlash(file.path)))
 		if readErr != nil {
-			return ErrEvictionMirrorMismatch{LibraryID: c.LibraryID, Version: version, Path: path, Expected: expected, Actual: "missing"}
+			return ErrEvictionMirrorMismatch{LibraryID: c.LibraryID, Version: version, Path: file.path, Expected: file.digest, Actual: "missing"}
 		}
 		actual := fmt.Sprintf("%x", sha256.Sum256(actualBytes))
-		if actual != expected {
-			return ErrEvictionMirrorMismatch{LibraryID: c.LibraryID, Version: version, Path: path, Expected: expected, Actual: actual}
+		if actual != file.digest {
+			return ErrEvictionMirrorMismatch{LibraryID: c.LibraryID, Version: version, Path: file.path, Expected: file.digest, Actual: actual}
 		}
 		checked++
-	}
-	if err := rows.Err(); err != nil {
-		return err
 	}
 	if checked == 0 {
 		return fmt.Errorf("cannot archive %s@%s: file mirror is empty", c.LibraryID, version)
@@ -849,6 +821,18 @@ func (r *Repository) evictVersion(ctx context.Context, c Candidate, version, man
 		return err
 	}
 	return r.removeReleaseLedgerEntries(sourcePath)
+}
+
+type mirroredFileDigest struct{ path, digest string }
+
+func (r *Repository) mirroredFileDigests(ctx context.Context, componentID, version, queryContext string) ([]mirroredFileDigest, error) {
+	return sqliterows.Collect(ctx, r.db, `SELECT path, content_sha256 FROM component_version_files WHERE version_id=(SELECT id FROM component_versions WHERE component_id=? AND version=?) ORDER BY path`, []any{componentID, version}, false, func(row sqliterows.Scanner) (mirroredFileDigest, error) {
+		var file mirroredFileDigest
+		if err := row.Scan(&file.path, &file.digest); err != nil {
+			return mirroredFileDigest{}, err
+		}
+		return file, nil
+	}, sqliterows.ErrorContext{Query: queryContext})
 }
 
 func (r *Repository) retiredSourcePath(libraryID, version string) string {

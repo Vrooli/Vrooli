@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"react-component-library/internal/gates"
+	"react-component-library/internal/sqliterows"
 )
 
 // Schema owns the durable browser-backed gate evidence table. Evidence is
@@ -99,32 +100,22 @@ func (s *EvidenceStore) ensureMeasurementColumn(ctx context.Context) error {
 	if s.err != nil {
 		return s.err
 	}
-	rows, err := s.db.QueryContext(ctx, `PRAGMA table_info(catalog_gate_evidence)`)
+	columnNames, err := sqliterows.Collect(ctx, s.db, `PRAGMA table_info(catalog_gate_evidence)`, nil, true, func(row sqliterows.Scanner) (string, error) {
+		var cid, notNull, pk int
+		var name, typ string
+		var defaultValue any
+		if err := row.Scan(&cid, &name, &typ, &notNull, &defaultValue, &pk); err != nil {
+			return "", err
+		}
+		return name, nil
+	}, sqliterows.ErrorContext{})
 	if err != nil {
 		s.rememberSchemaError(err)
 		return err
 	}
-	defer rows.Close()
-	columns := map[string]bool{}
-	for rows.Next() {
-		var cid, notNull, pk int
-		var name, typ string
-		var defaultValue any
-		if scanErr := rows.Scan(&cid, &name, &typ, &notNull, &defaultValue, &pk); scanErr != nil {
-			_ = rows.Close()
-			s.rememberSchemaError(scanErr)
-			return scanErr
-		}
+	columns := make(map[string]bool, len(columnNames))
+	for _, name := range columnNames {
 		columns[name] = true
-	}
-	if err := rows.Err(); err != nil {
-		_ = rows.Close()
-		s.rememberSchemaError(err)
-		return err
-	}
-	if err := rows.Close(); err != nil {
-		s.rememberSchemaError(err)
-		return err
 	}
 	if !columns["measurement_json"] {
 		if _, err := s.db.ExecContext(ctx, `ALTER TABLE catalog_gate_evidence ADD COLUMN measurement_json TEXT NOT NULL DEFAULT ''`); err != nil {
@@ -177,39 +168,35 @@ func EvidenceFromResult(ctx context.Context, root string, gate GateDefinition, r
 	if err != nil {
 		return nil, err
 	}
-	ids := map[string]bool{}
-	for _, id := range inspectedAssets {
-		if id != "" {
-			for _, asset := range assets {
-				if asset.ID == id {
-					ids[id] = true
-					break
-				}
+	assetsByID := make(map[string]Asset, len(assets))
+	for _, asset := range assets {
+		assetsByID[asset.ID] = asset
+	}
+	ids := make(map[string]bool, len(inspectedAssets)+len(result.InspectedAssets))
+	addInspected := func(values []string) {
+		for _, id := range values {
+			if id == "" {
+				continue
+			}
+			if _, exists := assetsByID[id]; exists {
+				ids[id] = true
 			}
 		}
 	}
-	for _, id := range result.InspectedAssets {
-		if id != "" {
-			for _, asset := range assets {
-				if asset.ID == id {
-					ids[id] = true
-					break
-				}
-			}
-		}
-	}
+	addInspected(inspectedAssets)
+	addInspected(result.InspectedAssets)
 	// Older runners only returned a count. Their declared appliesTo is still a
 	// trustworthy inspection boundary, so derive the built asset set here.
 	if len(ids) == 0 {
-		built := map[string]bool{}
+		built := make(map[string]bool, len(impls))
 		for _, impl := range impls {
 			if impl.CatalogID != "" {
 				built[impl.CatalogID] = true
 			}
 		}
-		for _, asset := range assets {
-			if built[asset.ID] && contains(gate.AppliesTo, asset.Kind) {
-				ids[asset.ID] = true
+		for id, asset := range assetsByID {
+			if built[id] && contains(gate.AppliesTo, asset.Kind) {
+				ids[id] = true
 			}
 		}
 	}
@@ -219,15 +206,7 @@ func EvidenceFromResult(ctx context.Context, root string, gate GateDefinition, r
 			fail[finding.AssetID] = true
 		}
 	}
-	versions := map[string]string{}
-	targets := map[string]string{}
-	for _, asset := range assets {
-		target := "react-vite"
-		if len(asset.Targets) > 0 && asset.Targets[0] != "" {
-			target = asset.Targets[0]
-		}
-		targets[asset.ID] = target
-	}
+	versions := make(map[string]string, len(impls))
 	for _, impl := range impls {
 		if impl.CatalogID != "" {
 			versions[impl.CatalogID] = impl.Latest
@@ -259,7 +238,12 @@ func EvidenceFromResult(ctx context.Context, root string, gate GateDefinition, r
 		if gate.ID == "composition" {
 			measurement = gates.CompositionScoreMetadataJSON(result, id)
 		}
-		out = append(out, GateEvidence{AssetID: id, Target: targets[id], Gate: gate.ID, Version: versions[id], Result: resultValue, MeasurementJSON: measurement, SourceRevision: revision})
+		asset := assetsByID[id]
+		target := "react-vite"
+		if len(asset.Targets) > 0 && asset.Targets[0] != "" {
+			target = asset.Targets[0]
+		}
+		out = append(out, GateEvidence{AssetID: id, Target: target, Gate: gate.ID, Version: versions[id], Result: resultValue, MeasurementJSON: measurement, SourceRevision: revision})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].AssetID < out[j].AssetID })
 	return out, nil
@@ -324,20 +308,13 @@ func (s *EvidenceStore) List(ctx context.Context) ([]GateEvidence, error) {
 	if err := s.ensureMeasurementColumn(ctx); err != nil {
 		return nil, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT asset_id, target, gate, version, result, measurement_json, source_revision, rule_set_digest, recorded_at FROM catalog_gate_evidence ORDER BY asset_id, target, gate, recorded_at DESC`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []GateEvidence
-	for rows.Next() {
+	return sqliterows.Collect(ctx, s.db, `SELECT asset_id, target, gate, version, result, measurement_json, source_revision, rule_set_digest, recorded_at FROM catalog_gate_evidence ORDER BY asset_id, target, gate, recorded_at DESC`, nil, false, func(row sqliterows.Scanner) (GateEvidence, error) {
 		var item GateEvidence
-		if err := rows.Scan(&item.AssetID, &item.Target, &item.Gate, &item.Version, &item.Result, &item.MeasurementJSON, &item.SourceRevision, &item.RuleSetDigest, &item.RecordedAt); err != nil {
-			return nil, err
+		if err := row.Scan(&item.AssetID, &item.Target, &item.Gate, &item.Version, &item.Result, &item.MeasurementJSON, &item.SourceRevision, &item.RuleSetDigest, &item.RecordedAt); err != nil {
+			return GateEvidence{}, err
 		}
-		out = append(out, item)
-	}
-	return out, rows.Err()
+		return item, nil
+	})
 }
 
 // ScoreHistory is the durable trend projection. Each day carries forward the

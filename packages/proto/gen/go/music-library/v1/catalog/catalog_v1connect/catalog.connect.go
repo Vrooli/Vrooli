@@ -41,6 +41,18 @@ const (
 	// CatalogServiceRecordUseProcedure is the fully-qualified name of the CatalogService's RecordUse
 	// RPC.
 	CatalogServiceRecordUseProcedure = "/vrooli.music_library.v1.catalog.CatalogService/RecordUse"
+	// CatalogServiceReserveTrackProcedure is the fully-qualified name of the CatalogService's
+	// ReserveTrack RPC.
+	CatalogServiceReserveTrackProcedure = "/vrooli.music_library.v1.catalog.CatalogService/ReserveTrack"
+	// CatalogServiceReleaseReservationProcedure is the fully-qualified name of the CatalogService's
+	// ReleaseReservation RPC.
+	CatalogServiceReleaseReservationProcedure = "/vrooli.music_library.v1.catalog.CatalogService/ReleaseReservation"
+	// CatalogServiceCommitReservationProcedure is the fully-qualified name of the CatalogService's
+	// CommitReservation RPC.
+	CatalogServiceCommitReservationProcedure = "/vrooli.music_library.v1.catalog.CatalogService/CommitReservation"
+	// CatalogServiceRollbackReservationProcedure is the fully-qualified name of the CatalogService's
+	// RollbackReservation RPC.
+	CatalogServiceRollbackReservationProcedure = "/vrooli.music_library.v1.catalog.CatalogService/RollbackReservation"
 )
 
 // CatalogServiceClient is a client for the vrooli.music_library.v1.catalog.CatalogService service.
@@ -48,6 +60,10 @@ type CatalogServiceClient interface {
 	PutTrack(context.Context, *connect.Request[catalog.PutTrackRequest]) (*connect.Response[catalog.PutTrackResponse], error)
 	ListTracks(context.Context, *connect.Request[catalog.ListTracksRequest]) (*connect.Response[catalog.ListTracksResponse], error)
 	RecordUse(context.Context, *connect.Request[catalog.RecordUseRequest]) (*connect.Response[catalog.RecordUseResponse], error)
+	ReserveTrack(context.Context, *connect.Request[catalog.ReserveTrackRequest]) (*connect.Response[catalog.ReserveTrackResponse], error)
+	ReleaseReservation(context.Context, *connect.Request[catalog.ReleaseReservationRequest]) (*connect.Response[catalog.ReleaseReservationResponse], error)
+	CommitReservation(context.Context, *connect.Request[catalog.CommitReservationRequest]) (*connect.Response[catalog.CommitReservationResponse], error)
+	RollbackReservation(context.Context, *connect.Request[catalog.RollbackReservationRequest]) (*connect.Response[catalog.RollbackReservationResponse], error)
 }
 
 // NewCatalogServiceClient constructs a client for the
@@ -80,14 +96,42 @@ func NewCatalogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(catalogServiceMethods.ByName("RecordUse")),
 			connect.WithClientOptions(opts...),
 		),
+		reserveTrack: connect.NewClient[catalog.ReserveTrackRequest, catalog.ReserveTrackResponse](
+			httpClient,
+			baseURL+CatalogServiceReserveTrackProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("ReserveTrack")),
+			connect.WithClientOptions(opts...),
+		),
+		releaseReservation: connect.NewClient[catalog.ReleaseReservationRequest, catalog.ReleaseReservationResponse](
+			httpClient,
+			baseURL+CatalogServiceReleaseReservationProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("ReleaseReservation")),
+			connect.WithClientOptions(opts...),
+		),
+		commitReservation: connect.NewClient[catalog.CommitReservationRequest, catalog.CommitReservationResponse](
+			httpClient,
+			baseURL+CatalogServiceCommitReservationProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("CommitReservation")),
+			connect.WithClientOptions(opts...),
+		),
+		rollbackReservation: connect.NewClient[catalog.RollbackReservationRequest, catalog.RollbackReservationResponse](
+			httpClient,
+			baseURL+CatalogServiceRollbackReservationProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("RollbackReservation")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // catalogServiceClient implements CatalogServiceClient.
 type catalogServiceClient struct {
-	putTrack   *connect.Client[catalog.PutTrackRequest, catalog.PutTrackResponse]
-	listTracks *connect.Client[catalog.ListTracksRequest, catalog.ListTracksResponse]
-	recordUse  *connect.Client[catalog.RecordUseRequest, catalog.RecordUseResponse]
+	putTrack            *connect.Client[catalog.PutTrackRequest, catalog.PutTrackResponse]
+	listTracks          *connect.Client[catalog.ListTracksRequest, catalog.ListTracksResponse]
+	recordUse           *connect.Client[catalog.RecordUseRequest, catalog.RecordUseResponse]
+	reserveTrack        *connect.Client[catalog.ReserveTrackRequest, catalog.ReserveTrackResponse]
+	releaseReservation  *connect.Client[catalog.ReleaseReservationRequest, catalog.ReleaseReservationResponse]
+	commitReservation   *connect.Client[catalog.CommitReservationRequest, catalog.CommitReservationResponse]
+	rollbackReservation *connect.Client[catalog.RollbackReservationRequest, catalog.RollbackReservationResponse]
 }
 
 // PutTrack calls vrooli.music_library.v1.catalog.CatalogService.PutTrack.
@@ -105,12 +149,36 @@ func (c *catalogServiceClient) RecordUse(ctx context.Context, req *connect.Reque
 	return c.recordUse.CallUnary(ctx, req)
 }
 
+// ReserveTrack calls vrooli.music_library.v1.catalog.CatalogService.ReserveTrack.
+func (c *catalogServiceClient) ReserveTrack(ctx context.Context, req *connect.Request[catalog.ReserveTrackRequest]) (*connect.Response[catalog.ReserveTrackResponse], error) {
+	return c.reserveTrack.CallUnary(ctx, req)
+}
+
+// ReleaseReservation calls vrooli.music_library.v1.catalog.CatalogService.ReleaseReservation.
+func (c *catalogServiceClient) ReleaseReservation(ctx context.Context, req *connect.Request[catalog.ReleaseReservationRequest]) (*connect.Response[catalog.ReleaseReservationResponse], error) {
+	return c.releaseReservation.CallUnary(ctx, req)
+}
+
+// CommitReservation calls vrooli.music_library.v1.catalog.CatalogService.CommitReservation.
+func (c *catalogServiceClient) CommitReservation(ctx context.Context, req *connect.Request[catalog.CommitReservationRequest]) (*connect.Response[catalog.CommitReservationResponse], error) {
+	return c.commitReservation.CallUnary(ctx, req)
+}
+
+// RollbackReservation calls vrooli.music_library.v1.catalog.CatalogService.RollbackReservation.
+func (c *catalogServiceClient) RollbackReservation(ctx context.Context, req *connect.Request[catalog.RollbackReservationRequest]) (*connect.Response[catalog.RollbackReservationResponse], error) {
+	return c.rollbackReservation.CallUnary(ctx, req)
+}
+
 // CatalogServiceHandler is an implementation of the vrooli.music_library.v1.catalog.CatalogService
 // service.
 type CatalogServiceHandler interface {
 	PutTrack(context.Context, *connect.Request[catalog.PutTrackRequest]) (*connect.Response[catalog.PutTrackResponse], error)
 	ListTracks(context.Context, *connect.Request[catalog.ListTracksRequest]) (*connect.Response[catalog.ListTracksResponse], error)
 	RecordUse(context.Context, *connect.Request[catalog.RecordUseRequest]) (*connect.Response[catalog.RecordUseResponse], error)
+	ReserveTrack(context.Context, *connect.Request[catalog.ReserveTrackRequest]) (*connect.Response[catalog.ReserveTrackResponse], error)
+	ReleaseReservation(context.Context, *connect.Request[catalog.ReleaseReservationRequest]) (*connect.Response[catalog.ReleaseReservationResponse], error)
+	CommitReservation(context.Context, *connect.Request[catalog.CommitReservationRequest]) (*connect.Response[catalog.CommitReservationResponse], error)
+	RollbackReservation(context.Context, *connect.Request[catalog.RollbackReservationRequest]) (*connect.Response[catalog.RollbackReservationResponse], error)
 }
 
 // NewCatalogServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -138,6 +206,30 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 		connect.WithSchema(catalogServiceMethods.ByName("RecordUse")),
 		connect.WithHandlerOptions(opts...),
 	)
+	catalogServiceReserveTrackHandler := connect.NewUnaryHandler(
+		CatalogServiceReserveTrackProcedure,
+		svc.ReserveTrack,
+		connect.WithSchema(catalogServiceMethods.ByName("ReserveTrack")),
+		connect.WithHandlerOptions(opts...),
+	)
+	catalogServiceReleaseReservationHandler := connect.NewUnaryHandler(
+		CatalogServiceReleaseReservationProcedure,
+		svc.ReleaseReservation,
+		connect.WithSchema(catalogServiceMethods.ByName("ReleaseReservation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	catalogServiceCommitReservationHandler := connect.NewUnaryHandler(
+		CatalogServiceCommitReservationProcedure,
+		svc.CommitReservation,
+		connect.WithSchema(catalogServiceMethods.ByName("CommitReservation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	catalogServiceRollbackReservationHandler := connect.NewUnaryHandler(
+		CatalogServiceRollbackReservationProcedure,
+		svc.RollbackReservation,
+		connect.WithSchema(catalogServiceMethods.ByName("RollbackReservation")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.music_library.v1.catalog.CatalogService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CatalogServicePutTrackProcedure:
@@ -146,6 +238,14 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 			catalogServiceListTracksHandler.ServeHTTP(w, r)
 		case CatalogServiceRecordUseProcedure:
 			catalogServiceRecordUseHandler.ServeHTTP(w, r)
+		case CatalogServiceReserveTrackProcedure:
+			catalogServiceReserveTrackHandler.ServeHTTP(w, r)
+		case CatalogServiceReleaseReservationProcedure:
+			catalogServiceReleaseReservationHandler.ServeHTTP(w, r)
+		case CatalogServiceCommitReservationProcedure:
+			catalogServiceCommitReservationHandler.ServeHTTP(w, r)
+		case CatalogServiceRollbackReservationProcedure:
+			catalogServiceRollbackReservationHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -165,4 +265,20 @@ func (UnimplementedCatalogServiceHandler) ListTracks(context.Context, *connect.R
 
 func (UnimplementedCatalogServiceHandler) RecordUse(context.Context, *connect.Request[catalog.RecordUseRequest]) (*connect.Response[catalog.RecordUseResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.music_library.v1.catalog.CatalogService.RecordUse is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) ReserveTrack(context.Context, *connect.Request[catalog.ReserveTrackRequest]) (*connect.Response[catalog.ReserveTrackResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.music_library.v1.catalog.CatalogService.ReserveTrack is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) ReleaseReservation(context.Context, *connect.Request[catalog.ReleaseReservationRequest]) (*connect.Response[catalog.ReleaseReservationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.music_library.v1.catalog.CatalogService.ReleaseReservation is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) CommitReservation(context.Context, *connect.Request[catalog.CommitReservationRequest]) (*connect.Response[catalog.CommitReservationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.music_library.v1.catalog.CatalogService.CommitReservation is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) RollbackReservation(context.Context, *connect.Request[catalog.RollbackReservationRequest]) (*connect.Response[catalog.RollbackReservationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.music_library.v1.catalog.CatalogService.RollbackReservation is not implemented"))
 }

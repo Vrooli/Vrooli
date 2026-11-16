@@ -111,12 +111,12 @@ func readCandidate(root *os.Root, designID, hash string) (Candidate, error) {
 }
 
 func (s *Store) ReadCandidate(scenario, designID, hash string) (Candidate, error) {
-	root, err := s.openExperienceData(scenario)
-	if err != nil {
-		return Candidate{}, err
+	root, err := s.openExistingExperienceData(scenario)
+	var candidate Candidate
+	if err == nil {
+		candidate, err = readCandidate(root, designID, hash)
+		root.Close()
 	}
-	candidate, err := readCandidate(root, designID, hash)
-	root.Close()
 	if !errors.Is(err, os.ErrNotExist) {
 		return candidate, err
 	}

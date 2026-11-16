@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +22,7 @@ import (
 	"react-component-library/internal/components"
 	"react-component-library/internal/deps"
 	"react-component-library/internal/themes"
+	"react-component-library/internal/versions"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -2271,7 +2271,7 @@ func libraryStatusFor(row Adoption, cmp components.Component, adoptedStatus comp
 	if row.AdoptedVersion == latest {
 		return LibraryVersionStatusCurrent, "", false
 	}
-	cmpResult, ok := compareVersionStrings(row.AdoptedVersion, latest)
+	cmpResult, ok := versions.CompareVersionCoreLabels(row.AdoptedVersion, latest)
 	if ok && cmpResult >= 0 {
 		return LibraryVersionStatusCurrent, "", false
 	}
@@ -2285,67 +2285,6 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
-}
-
-type semver struct {
-	major int
-	minor int
-	patch int
-}
-
-func parseSemver(raw string) (semver, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return semver{}, fmt.Errorf("empty version")
-	}
-	if i := strings.IndexAny(raw, "-+"); i >= 0 {
-		raw = raw[:i]
-	}
-	parts := strings.SplitN(raw, ".", 3)
-	out := semver{}
-	dst := []*int{&out.major, &out.minor, &out.patch}
-	for i, part := range parts {
-		part = strings.TrimSpace(part)
-		if part == "" || part == "x" || part == "X" || part == "*" {
-			continue
-		}
-		value, err := strconv.Atoi(part)
-		if err != nil {
-			return semver{}, err
-		}
-		*dst[i] = value
-	}
-	return out, nil
-}
-
-func compareVersionStrings(a, b string) (int, bool) {
-	av, err := parseSemver(a)
-	if err != nil {
-		return 0, false
-	}
-	bv, err := parseSemver(b)
-	if err != nil {
-		return 0, false
-	}
-	switch {
-	case av.major != bv.major:
-		if av.major < bv.major {
-			return -1, true
-		}
-		return 1, true
-	case av.minor != bv.minor:
-		if av.minor < bv.minor {
-			return -1, true
-		}
-		return 1, true
-	case av.patch != bv.patch:
-		if av.patch < bv.patch {
-			return -1, true
-		}
-		return 1, true
-	default:
-		return 0, true
-	}
 }
 
 func formatProvenance(v components.ComponentVersion, adoptionID string, appliedAt time.Time, driftHash, translationNote string) string {

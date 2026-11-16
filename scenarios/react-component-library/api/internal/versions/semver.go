@@ -6,6 +6,51 @@ import (
 	"strings"
 )
 
+// CompareVersionCoreLabels preserves the legacy ordering used by adoption
+// status: compare numeric major/minor/patch parts and ignore suffixes.
+func CompareVersionCoreLabels(a, b string) (int, bool) {
+	left, ok := parseVersionCore(a)
+	if !ok {
+		return 0, false
+	}
+	right, ok := parseVersionCore(b)
+	if !ok {
+		return 0, false
+	}
+	for i := range left {
+		if left[i] < right[i] {
+			return -1, true
+		}
+		if left[i] > right[i] {
+			return 1, true
+		}
+	}
+	return 0, true
+}
+
+func parseVersionCore(raw string) ([3]int, bool) {
+	var values [3]int
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return values, false
+	}
+	if i := strings.IndexAny(raw, "-+"); i >= 0 {
+		raw = raw[:i]
+	}
+	for i, part := range strings.SplitN(raw, ".", 3) {
+		part = strings.TrimSpace(part)
+		if part == "" || part == "x" || part == "X" || part == "*" {
+			continue
+		}
+		value, err := strconv.Atoi(part)
+		if err != nil {
+			return values, false
+		}
+		values[i] = value
+	}
+	return values, true
+}
+
 type semanticVersion struct {
 	major, minor, patch int
 	pre                 []string

@@ -38,12 +38,15 @@ enum ProtectionTier {
 }
 
 // RetentionPolicy is the per-plan snapshot retention, applied by kopia policy.
-// v1 supports a simple keep-last count; GFS fields (OT-P1-002) extend this
-// additively later.
+  // Recent snapshots retained by count. Zero disables this tier.
 message RetentionPolicy {
-  // Keep at most this many latest snapshots per target in the destination.
-  // Zero means "keep all" (no retention pruning by count).
+  // Keep this many latest snapshots, in addition to time-bucketed copies.
   int32 keep_latest = 1 [(buf.validate.field).int32.gte = 0];
+  int32 keep_hourly = 2 [(buf.validate.field).int32.gte = 0];
+  int32 keep_daily = 3 [(buf.validate.field).int32.gte = 0];
+  int32 keep_weekly = 4 [(buf.validate.field).int32.gte = 0];
+  int32 keep_monthly = 5 [(buf.validate.field).int32.gte = 0];
+  int32 keep_annual = 6 [(buf.validate.field).int32.gte = 0];
 }
 
 // Plan is the canonical wire shape for a backup plan.
@@ -67,11 +70,18 @@ message Plan {
   // Derived read-only assessment of the selected destination topology.
   bool destinations_physically_independent = 12;
   repeated string shared_risk_warnings = 13;
+  // When set, membership is a rule evaluated on every read instead of a list:
+  // "registered" means every registered target except excluded_target_ids, so a
+  // target registered later is in the plan without anyone editing it. target_ids
+  // then carries the targets the rule names right now.
+  string target_selector = 14;
+  repeated string excluded_target_ids = 15;
 }
 
 message CreatePlanRequest {
   string name = 1 [(buf.validate.field).string.min_len = 1];
-  repeated string target_ids = 2 [(buf.validate.field).repeated.min_items = 1];
+  // At least one target, or a target_selector; with a selector this is ignored.
+  repeated string target_ids = 2;
   repeated string destination_ids = 3 [(buf.validate.field).repeated.min_items = 1];
   string schedule = 4;
   RetentionPolicy retention = 5;
@@ -84,6 +94,9 @@ message CreatePlanRequest {
   bool allow_incomplete_coverage = 7;
   ProtectionTier protection_tier = 8;
   string recovery_drill_schedule = 9;
+  // See Plan.target_selector. Only valid for the full_primary tier.
+  string target_selector = 10;
+  repeated string excluded_target_ids = 11;
 }
 
 message CreatePlanResponse {
@@ -120,6 +133,9 @@ message UpdatePlanRequest {
   bool allow_incomplete_coverage = 8;
   ProtectionTier protection_tier = 9;
   string recovery_drill_schedule = 10;
+  // See Plan.target_selector.
+  string target_selector = 11;
+  repeated string excluded_target_ids = 12;
 }
 
 message UpdatePlanResponse {

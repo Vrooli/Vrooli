@@ -4,13 +4,14 @@ package pageinspect
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	_ "embed"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -28,6 +29,7 @@ import (
 var resolverScript string
 
 var scenarioName = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+var captureBundleID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 func redactRouteQuery(route string) string {
 	parsed, err := url.ParseRequestURI(route)
@@ -49,8 +51,7 @@ type Service struct {
 }
 
 type captureResponse struct {
-	BundleDir string `json:"bundle_dir"`
-	Manifest  struct {
+	Manifest struct {
 		SchemaVersion string `json:"schema_version"`
 		ID            string `json:"id"`
 		Source        struct {
@@ -63,8 +64,10 @@ type captureResponse struct {
 			Reason string `json:"reason"`
 		} `json:"lenses"`
 		Artifacts []struct {
-			Kind string `json:"kind"`
-			Path string `json:"path"`
+			Kind      string `json:"kind"`
+			Path      string `json:"path"`
+			SizeBytes int64  `json:"size_bytes"`
+			SHA256    string `json:"sha256"`
 		} `json:"artifacts"`
 	} `json:"manifest"`
 }
@@ -152,20 +155,58 @@ func (s Service) Inspect(ctx context.Context, req *pagev1.InspectRequest) (*page
 	if err := json.NewDecoder(io.LimitReader(response.Body, 2<<20)).Decode(&captured); err != nil {
 		return nil, fmt.Errorf("decode BAS UX capture response: %w", err)
 	}
-	if captured.Manifest.SchemaVersion != "ux-capture.v1" || captured.Manifest.ID == "" || captured.Manifest.Source.Kind != "scenario" || captured.Manifest.Source.Scenario != req.Scenario || captured.Manifest.Source.Route != redactRouteQuery(req.Route) {
+	if captured.Manifest.SchemaVersion != "ux-capture.v1" || !captureBundleID.MatchString(captured.Manifest.ID) || captured.Manifest.Source.Kind != "scenario" || captured.Manifest.Source.Scenario != req.Scenario || captured.Manifest.Source.Route != redactRouteQuery(req.Route) {
 		return nil, fmt.Errorf("BAS returned a mismatched or invalid ux-capture.v1 bundle")
 	}
-	artifacts := map[string]string{}
+	artifacts := map[string]struct {
+		Path      string
+		SizeBytes int64
+		SHA256    string
+	}{}
 	for _, artifact := range captured.Manifest.Artifacts {
-		artifacts[artifact.Kind] = artifact.Path
+		artifacts[artifact.Kind] = struct {
+			Path      string
+			SizeBytes int64
+			SHA256    string
+		}{artifact.Path, artifact.SizeBytes, artifact.SHA256}
 	}
 	readArtifact := func(kind string) ([]byte, error) {
-		rel := filepath.Clean(filepath.FromSlash(artifacts[kind]))
-		if artifacts[kind] == "" || filepath.IsAbs(rel) || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		artifact := artifacts[kind]
+		rel := filepath.Clean(filepath.FromSlash(artifact.Path))
+		if artifact.Path == "" || strings.ContainsAny(artifact.Path, "\\\x00") || filepath.IsAbs(rel) || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.ToSlash(rel) != artifact.Path || artifact.SizeBytes < 0 {
 			return nil, fmt.Errorf("BAS bundle has no safe %s artifact", kind)
 		}
-		path := filepath.Join(captured.BundleDir, rel)
-		return osReadFile(path)
+		if artifact.SizeBytes > 5<<20 {
+			return nil, fmt.Errorf("BAS %s artifact exceeds the 5 MiB limit", kind)
+		}
+		endpoint, err := captureArtifactURL(bas, captured.Manifest.ID, artifact.Path)
+		if err != nil {
+			return nil, err
+		}
+		artifactRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+		if err != nil {
+			return nil, err
+		}
+		artifactResponse, err := client.Do(artifactRequest)
+		if err != nil {
+			return nil, fmt.Errorf("fetch BAS %s artifact: %w", kind, err)
+		}
+		defer artifactResponse.Body.Close()
+		if artifactResponse.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("BAS %s artifact returned HTTP %d", kind, artifactResponse.StatusCode)
+		}
+		data, err := io.ReadAll(io.LimitReader(artifactResponse.Body, (5<<20)+1))
+		if err != nil {
+			return nil, fmt.Errorf("read BAS %s artifact: %w", kind, err)
+		}
+		if len(data) > 5<<20 || int64(len(data)) != artifact.SizeBytes {
+			return nil, fmt.Errorf("BAS %s artifact size does not match its manifest", kind)
+		}
+		digest := sha256.Sum256(data)
+		if !strings.EqualFold(hex.EncodeToString(digest[:]), artifact.SHA256) {
+			return nil, fmt.Errorf("BAS %s artifact digest does not match its manifest", kind)
+		}
+		return data, nil
 	}
 	outlineBytes, err := readArtifact("outline")
 	if err != nil {
@@ -176,7 +217,7 @@ func (s Service) Inspect(ctx context.Context, req *pagev1.InspectRequest) (*page
 		return nil, fmt.Errorf("BAS outline artifact is invalid")
 	}
 	var identities identityArtifact
-	if identityPath := artifacts["component-identity"]; identityPath != "" {
+	if identityPath := artifacts["component-identity"]; identityPath.Path != "" {
 		identityBytes, err := readArtifact("component-identity")
 		if err != nil {
 			return nil, err
@@ -199,8 +240,11 @@ func (s Service) Inspect(ctx context.Context, req *pagev1.InspectRequest) (*page
 	}
 	safeTarget := strings.TrimRight(ui, "/") + redactRouteQuery(req.Route)
 	result := &pagev1.InspectResponse{Scenario: req.Scenario, Route: redactRouteQuery(req.Route), Url: safeTarget, ExecutionId: captured.Manifest.ID}
-	if path := artifacts["pixels"]; path != "" {
-		result.ScreenshotPath = filepath.Join(captured.BundleDir, filepath.FromSlash(path))
+	if artifact := artifacts["pixels"]; artifact.Path != "" {
+		result.ScreenshotUrl, err = captureArtifactURL(bas, captured.Manifest.ID, artifact.Path)
+		if err != nil {
+			return nil, err
+		}
 	}
 	identityBySelector := map[string]componentIdentity{}
 	for _, identity := range identities.Components {
@@ -247,8 +291,20 @@ func (s Service) Inspect(ctx context.Context, req *pagev1.InspectRequest) (*page
 	return result, nil
 }
 
-// Injectable for focused tests without changing the bundle's persisted path contract.
-var osReadFile = func(path string) ([]byte, error) { return os.ReadFile(path) }
+func captureArtifactURL(base, bundleID, artifactPath string) (string, error) {
+	if !captureBundleID.MatchString(bundleID) {
+		return "", fmt.Errorf("BAS returned an invalid UX bundle identity")
+	}
+	rel := filepath.Clean(filepath.FromSlash(artifactPath))
+	if artifactPath == "" || strings.ContainsAny(artifactPath, "\\\x00") || filepath.IsAbs(rel) || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.ToSlash(rel) != artifactPath {
+		return "", fmt.Errorf("BAS returned an unsafe UX artifact path")
+	}
+	segments := strings.Split(filepath.ToSlash(rel), "/")
+	for i := range segments {
+		segments[i] = url.PathEscape(segments[i])
+	}
+	return strings.TrimRight(base, "/") + "/api/v1/ux-capture/bundles/" + url.PathEscape(bundleID) + "/artifacts/" + strings.Join(segments, "/"), nil
+}
 
 func (s Service) resolveSources(ctx context.Context, requests map[string]map[string]string) (map[string]*pagev1.AssetSource, error) {
 	result := map[string]*pagev1.AssetSource{}

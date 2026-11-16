@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file music-library/v1/catalog/catalog.proto.
  */
 export const file_music_library_v1_catalog_catalog: GenFile = /*@__PURE__*/
-  fileDesc("CiZtdXNpYy1saWJyYXJ5L3YxL2NhdGFsb2cvY2F0YWxvZy5wcm90bxIfdnJvb2xpLm11c2ljX2xpYnJhcnkudjEuY2F0YWxvZyLNAQoFVHJhY2sSDgoGc2hhMjU2GAEgASgJEg0KBXRpdGxlGAIgASgJEhMKC3NvdXJjZV9wYXRoGAMgASgJEg8KB3Rha2VfaWQYBCABKAkSFAoMcmVjZWlwdF9wYXRoGAUgASgJEgwKBHRhZ3MYBiADKAkSEAoIYXBwcm92YWwYByABKAkSEAoIZmVlZGJhY2sYCCABKAkSNwoEdXNlcxgJIAMoCzIpLnZyb29saS5tdXNpY19saWJyYXJ5LnYxLmNhdGFsb2cuVHJhY2tVc2UiPQoIVHJhY2tVc2USDwoHcHJvamVjdBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoCRIOCgZzdGF0dXMYAyABKAkiSAoPUHV0VHJhY2tSZXF1ZXN0EjUKBXRyYWNrGAEgASgLMiYudnJvb2xpLm11c2ljX2xpYnJhcnkudjEuY2F0YWxvZy5UcmFjayJJChBQdXRUcmFja1Jlc3BvbnNlEjUKBXRyYWNrGAEgASgLMiYudnJvb2xpLm11c2ljX2xpYnJhcnkudjEuY2F0YWxvZy5UcmFjayJGChFMaXN0VHJhY2tzUmVxdWVzdBILCgN0YWcYASABKAkSEwoLdW51c2VkX29ubHkYAiABKAgSDwoHcHJvamVjdBgDIAEoCSJMChJMaXN0VHJhY2tzUmVzcG9uc2USNgoGdHJhY2tzGAEgAygLMiYudnJvb2xpLm11c2ljX2xpYnJhcnkudjEuY2F0YWxvZy5UcmFjayJaChBSZWNvcmRVc2VSZXF1ZXN0Eg4KBnNoYTI1NhgBIAEoCRI2CgN1c2UYAiABKAsyKS52cm9vbGkubXVzaWNfbGlicmFyeS52MS5jYXRhbG9nLlRyYWNrVXNlIkoKEVJlY29yZFVzZVJlc3BvbnNlEjUKBXRyYWNrGAEgASgLMiYudnJvb2xpLm11c2ljX2xpYnJhcnkudjEuY2F0YWxvZy5UcmFjazLsAgoOQ2F0YWxvZ1NlcnZpY2USbwoIUHV0VHJhY2sSMC52cm9vbGkubXVzaWNfbGlicmFyeS52MS5jYXRhbG9nLlB1dFRyYWNrUmVxdWVzdBoxLnZyb29saS5tdXNpY19saWJyYXJ5LnYxLmNhdGFsb2cuUHV0VHJhY2tSZXNwb25zZRJ1CgpMaXN0VHJhY2tzEjIudnJvb2xpLm11c2ljX2xpYnJhcnkudjEuY2F0YWxvZy5MaXN0VHJhY2tzUmVxdWVzdBozLnZyb29saS5tdXNpY19saWJyYXJ5LnYxLmNhdGFsb2cuTGlzdFRyYWNrc1Jlc3BvbnNlEnIKCVJlY29yZFVzZRIxLnZyb29saS5tdXNpY19saWJyYXJ5LnYxLmNhdGFsb2cuUmVjb3JkVXNlUmVxdWVzdBoyLnZyb29saS5tdXNpY19saWJyYXJ5LnYxLmNhdGFsb2cuUmVjb3JkVXNlUmVzcG9uc2VCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9tdXNpYy1saWJyYXJ5L3YxL2NhdGFsb2c7Y2F0YWxvZ192MWIGcHJvdG8z");
+  fileDesc("CiZtdXNpYy1saWJyYXJ5L3YxL2NhdGFsb2cvY2F0YWxvZy5wcm90bxIfdnJvb2xpLm11c2ljX2xpYnJhcnkudjEuY2F0YWxvZyKKAgoFVHJhY2sSDgoGc2hhMjU2GAEgASgJEg0KBXRpdGxlGAIgASgJEhMKC3NvdXJjZV9wYXRoGAMgASgJEg8KB3Rha2VfaWQYBCABKAkSFAoMcmVjZWlwdF9wYXRoGAUgASgJEgwKBHRhZ3MYBiADKAkSEAoIYXBwcm92YWwYByABKAkSEAoIZmVlZGJhY2sYCCABKAkSNwoEdXNlcxgJIAMoCzIpLnZyb29saS5tdXNpY19saWJyYXJ5LnYxLmNhdGFsb2cuVHJhY2tVc2USEAoIcHVycG9zZXMYCiADKAkSEgoKYmFua19zdGF0ZRgLIAEoCRIVCg1iYW5rX3ByaW9yaXR5GAwgASgFIk4KCFRyYWNrVXNlEg8KB3Byb2plY3QYASABKAkSEAoIcmV2aXNpb24YAiABKAkSDgoGc3RhdHVzGAMgASgJEg8KB3B1cnBvc2UYBCABKAkiSAoPUHV0VHJhY2tSZXF1ZXN0EjUKBXRyYWNrGAEgASgLMiYudnJvb2xpLm11c2ljX2xpYnJhcnkudjEuY2F0YWxvZy5UcmFjayJJChBQdXRUcmFja1Jlc3BvbnNlEjUKBXRyYWNrGAEgASgLMiYudnJvb2xpLm11c2ljX2xpYnJhcnkudjEuY2F0YWxvZy5UcmFjayJXChFMaXN0VHJhY2tzUmVxdWVzdBILCgN0YWcYASABKAkSEwoLdW51c2VkX29ubHkYAiABKAgSDwoHcHJvamVjdBgDIAEoCRIPCgdwdXJwb3NlGAQgASgJIkwKEkxpc3RUcmFja3NSZXNwb25zZRI2CgZ0cmFja3MYASADKAsyJi52cm9vbGkubXVzaWNfbGlicmFyeS52MS5jYXRhbG9nLlRyYWNrIloKEFJlY29yZFVzZVJlcXVlc3QSDgoGc2hhMjU2GAEgASgJEjYKA3VzZRgCIAEoCzIpLnZyb29saS5tdXNpY19saWJyYXJ5LnYxLmNhdGFsb2cuVHJhY2tVc2UiSgoRUmVjb3JkVXNlUmVzcG9uc2USNQoFdHJhY2sYASABKAsyJi52cm9vbGkubXVzaWNfbGlicmFyeS52MS5jYXRhbG9nLlRyYWNrIoIBChNSZXNlcnZlVHJhY2tSZXF1ZXN0Eg8KB3B1cnBvc2UYASABKAkSDwoHcHJvamVjdBgCIAEoCRIQCghyZXZpc2lvbhgDIAEoCRIQCghjb25zdW1lchgEIAEoCRIVCg1sZWFzZV9zZWNvbmRzGAUgASgFEg4KBnNoYTI1NhgGIAEoCSJ5ChRSZXNlcnZlVHJhY2tSZXNwb25zZRI1CgV0cmFjaxgBIAEoCzImLnZyb29saS5tdXNpY19saWJyYXJ5LnYxLmNhdGFsb2cuVHJhY2sSFgoOcmVzZXJ2YXRpb25faWQYAiABKAkSEgoKZXhwaXJlc19hdBgDIAEoCSJFChlSZWxlYXNlUmVzZXJ2YXRpb25SZXF1ZXN0EhYKDnJlc2VydmF0aW9uX2lkGAEgASgJEhAKCGNvbnN1bWVyGAIgASgJIlMKGlJlbGVhc2VSZXNlcnZhdGlvblJlc3BvbnNlEjUKBXRyYWNrGAEgASgLMiYudnJvb2xpLm11c2ljX2xpYnJhcnkudjEuY2F0YWxvZy5UcmFjayJUChhDb21taXRSZXNlcnZhdGlvblJlcXVlc3QSFgoOcmVzZXJ2YXRpb25faWQYASABKAkSEAoIY29uc3VtZXIYAiABKAkSDgoGc3RhdHVzGAMgASgJIooBChlDb21taXRSZXNlcnZhdGlvblJlc3BvbnNlEjUKBXRyYWNrGAEgASgLMiYudnJvb2xpLm11c2ljX2xpYnJhcnkudjEuY2F0YWxvZy5UcmFjaxI2CgN1c2UYAiABKAsyKS52cm9vbGkubXVzaWNfbGlicmFyeS52MS5jYXRhbG9nLlRyYWNrVXNlIkYKGlJvbGxiYWNrUmVzZXJ2YXRpb25SZXF1ZXN0EhYKDnJlc2VydmF0aW9uX2lkGAEgASgJEhAKCGNvbnN1bWVyGAIgASgJIlQKG1JvbGxiYWNrUmVzZXJ2YXRpb25SZXNwb25zZRI1CgV0cmFjaxgBIAEoCzImLnZyb29saS5tdXNpY19saWJyYXJ5LnYxLmNhdGFsb2cuVHJhY2symQcKDkNhdGFsb2dTZXJ2aWNlEm8KCFB1dFRyYWNrEjAudnJvb2xpLm11c2ljX2xpYnJhcnkudjEuY2F0YWxvZy5QdXRUcmFja1JlcXVlc3QaMS52cm9vbGkubXVzaWNfbGlicmFyeS52MS5jYXRhbG9nLlB1dFRyYWNrUmVzcG9uc2USdQoKTGlzdFRyYWNrcxIyLnZyb29saS5tdXNpY19saWJyYXJ5LnYxLmNhdGFsb2cuTGlzdFRyYWNrc1JlcXVlc3QaMy52cm9vbGkubXVzaWNfbGlicmFyeS52MS5jYXRhbG9nLkxpc3RUcmFja3NSZXNwb25zZRJyCglSZWNvcmRVc2USMS52cm9vbGkubXVzaWNfbGlicmFyeS52MS5jYXRhbG9nLlJlY29yZFVzZVJlcXVlc3QaMi52cm9vbGkubXVzaWNfbGlicmFyeS52MS5jYXRhbG9nLlJlY29yZFVzZVJlc3BvbnNlEnsKDFJlc2VydmVUcmFjaxI0LnZyb29saS5tdXNpY19saWJyYXJ5LnYxLmNhdGFsb2cuUmVzZXJ2ZVRyYWNrUmVxdWVzdBo1LnZyb29saS5tdXNpY19saWJyYXJ5LnYxLmNhdGFsb2cuUmVzZXJ2ZVRyYWNrUmVzcG9uc2USjQEKElJlbGVhc2VSZXNlcnZhdGlvbhI6LnZyb29saS5tdXNpY19saWJyYXJ5LnYxLmNhdGFsb2cuUmVsZWFzZVJlc2VydmF0aW9uUmVxdWVzdBo7LnZyb29saS5tdXNpY19saWJyYXJ5LnYxLmNhdGFsb2cuUmVsZWFzZVJlc2VydmF0aW9uUmVzcG9uc2USigEKEUNvbW1pdFJlc2VydmF0aW9uEjkudnJvb2xpLm11c2ljX2xpYnJhcnkudjEuY2F0YWxvZy5Db21taXRSZXNlcnZhdGlvblJlcXVlc3QaOi52cm9vbGkubXVzaWNfbGlicmFyeS52MS5jYXRhbG9nLkNvbW1pdFJlc2VydmF0aW9uUmVzcG9uc2USkAEKE1JvbGxiYWNrUmVzZXJ2YXRpb24SOy52cm9vbGkubXVzaWNfbGlicmFyeS52MS5jYXRhbG9nLlJvbGxiYWNrUmVzZXJ2YXRpb25SZXF1ZXN0GjwudnJvb2xpLm11c2ljX2xpYnJhcnkudjEuY2F0YWxvZy5Sb2xsYmFja1Jlc2VydmF0aW9uUmVzcG9uc2VCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9tdXNpYy1saWJyYXJ5L3YxL2NhdGFsb2c7Y2F0YWxvZ192MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.music_library.v1.catalog.Track
@@ -60,6 +60,21 @@ export type Track = Message<"vrooli.music_library.v1.catalog.Track"> & {
    * @generated from field: repeated vrooli.music_library.v1.catalog.TrackUse uses = 9;
    */
   uses: TrackUse[];
+
+  /**
+   * @generated from field: repeated string purposes = 10;
+   */
+  purposes: string[];
+
+  /**
+   * @generated from field: string bank_state = 11;
+   */
+  bankState: string;
+
+  /**
+   * @generated from field: int32 bank_priority = 12;
+   */
+  bankPriority: number;
 };
 
 /**
@@ -87,6 +102,11 @@ export type TrackUse = Message<"vrooli.music_library.v1.catalog.TrackUse"> & {
    * @generated from field: string status = 3;
    */
   status: string;
+
+  /**
+   * @generated from field: string purpose = 4;
+   */
+  purpose: string;
 };
 
 /**
@@ -148,6 +168,11 @@ export type ListTracksRequest = Message<"vrooli.music_library.v1.catalog.ListTra
    * @generated from field: string project = 3;
    */
   project: string;
+
+  /**
+   * @generated from field: string purpose = 4;
+   */
+  purpose: string;
 };
 
 /**
@@ -214,6 +239,202 @@ export const RecordUseResponseSchema: GenMessage<RecordUseResponse> = /*@__PURE_
   messageDesc(file_music_library_v1_catalog_catalog, 7);
 
 /**
+ * @generated from message vrooli.music_library.v1.catalog.ReserveTrackRequest
+ */
+export type ReserveTrackRequest = Message<"vrooli.music_library.v1.catalog.ReserveTrackRequest"> & {
+  /**
+   * @generated from field: string purpose = 1;
+   */
+  purpose: string;
+
+  /**
+   * @generated from field: string project = 2;
+   */
+  project: string;
+
+  /**
+   * @generated from field: string revision = 3;
+   */
+  revision: string;
+
+  /**
+   * @generated from field: string consumer = 4;
+   */
+  consumer: string;
+
+  /**
+   * @generated from field: int32 lease_seconds = 5;
+   */
+  leaseSeconds: number;
+
+  /**
+   * @generated from field: string sha256 = 6;
+   */
+  sha256: string;
+};
+
+/**
+ * Describes the message vrooli.music_library.v1.catalog.ReserveTrackRequest.
+ * Use `create(ReserveTrackRequestSchema)` to create a new message.
+ */
+export const ReserveTrackRequestSchema: GenMessage<ReserveTrackRequest> = /*@__PURE__*/
+  messageDesc(file_music_library_v1_catalog_catalog, 8);
+
+/**
+ * @generated from message vrooli.music_library.v1.catalog.ReserveTrackResponse
+ */
+export type ReserveTrackResponse = Message<"vrooli.music_library.v1.catalog.ReserveTrackResponse"> & {
+  /**
+   * @generated from field: vrooli.music_library.v1.catalog.Track track = 1;
+   */
+  track?: Track | undefined;
+
+  /**
+   * @generated from field: string reservation_id = 2;
+   */
+  reservationId: string;
+
+  /**
+   * @generated from field: string expires_at = 3;
+   */
+  expiresAt: string;
+};
+
+/**
+ * Describes the message vrooli.music_library.v1.catalog.ReserveTrackResponse.
+ * Use `create(ReserveTrackResponseSchema)` to create a new message.
+ */
+export const ReserveTrackResponseSchema: GenMessage<ReserveTrackResponse> = /*@__PURE__*/
+  messageDesc(file_music_library_v1_catalog_catalog, 9);
+
+/**
+ * @generated from message vrooli.music_library.v1.catalog.ReleaseReservationRequest
+ */
+export type ReleaseReservationRequest = Message<"vrooli.music_library.v1.catalog.ReleaseReservationRequest"> & {
+  /**
+   * @generated from field: string reservation_id = 1;
+   */
+  reservationId: string;
+
+  /**
+   * @generated from field: string consumer = 2;
+   */
+  consumer: string;
+};
+
+/**
+ * Describes the message vrooli.music_library.v1.catalog.ReleaseReservationRequest.
+ * Use `create(ReleaseReservationRequestSchema)` to create a new message.
+ */
+export const ReleaseReservationRequestSchema: GenMessage<ReleaseReservationRequest> = /*@__PURE__*/
+  messageDesc(file_music_library_v1_catalog_catalog, 10);
+
+/**
+ * @generated from message vrooli.music_library.v1.catalog.ReleaseReservationResponse
+ */
+export type ReleaseReservationResponse = Message<"vrooli.music_library.v1.catalog.ReleaseReservationResponse"> & {
+  /**
+   * @generated from field: vrooli.music_library.v1.catalog.Track track = 1;
+   */
+  track?: Track | undefined;
+};
+
+/**
+ * Describes the message vrooli.music_library.v1.catalog.ReleaseReservationResponse.
+ * Use `create(ReleaseReservationResponseSchema)` to create a new message.
+ */
+export const ReleaseReservationResponseSchema: GenMessage<ReleaseReservationResponse> = /*@__PURE__*/
+  messageDesc(file_music_library_v1_catalog_catalog, 11);
+
+/**
+ * @generated from message vrooli.music_library.v1.catalog.CommitReservationRequest
+ */
+export type CommitReservationRequest = Message<"vrooli.music_library.v1.catalog.CommitReservationRequest"> & {
+  /**
+   * @generated from field: string reservation_id = 1;
+   */
+  reservationId: string;
+
+  /**
+   * @generated from field: string consumer = 2;
+   */
+  consumer: string;
+
+  /**
+   * @generated from field: string status = 3;
+   */
+  status: string;
+};
+
+/**
+ * Describes the message vrooli.music_library.v1.catalog.CommitReservationRequest.
+ * Use `create(CommitReservationRequestSchema)` to create a new message.
+ */
+export const CommitReservationRequestSchema: GenMessage<CommitReservationRequest> = /*@__PURE__*/
+  messageDesc(file_music_library_v1_catalog_catalog, 12);
+
+/**
+ * @generated from message vrooli.music_library.v1.catalog.CommitReservationResponse
+ */
+export type CommitReservationResponse = Message<"vrooli.music_library.v1.catalog.CommitReservationResponse"> & {
+  /**
+   * @generated from field: vrooli.music_library.v1.catalog.Track track = 1;
+   */
+  track?: Track | undefined;
+
+  /**
+   * @generated from field: vrooli.music_library.v1.catalog.TrackUse use = 2;
+   */
+  use?: TrackUse | undefined;
+};
+
+/**
+ * Describes the message vrooli.music_library.v1.catalog.CommitReservationResponse.
+ * Use `create(CommitReservationResponseSchema)` to create a new message.
+ */
+export const CommitReservationResponseSchema: GenMessage<CommitReservationResponse> = /*@__PURE__*/
+  messageDesc(file_music_library_v1_catalog_catalog, 13);
+
+/**
+ * @generated from message vrooli.music_library.v1.catalog.RollbackReservationRequest
+ */
+export type RollbackReservationRequest = Message<"vrooli.music_library.v1.catalog.RollbackReservationRequest"> & {
+  /**
+   * @generated from field: string reservation_id = 1;
+   */
+  reservationId: string;
+
+  /**
+   * @generated from field: string consumer = 2;
+   */
+  consumer: string;
+};
+
+/**
+ * Describes the message vrooli.music_library.v1.catalog.RollbackReservationRequest.
+ * Use `create(RollbackReservationRequestSchema)` to create a new message.
+ */
+export const RollbackReservationRequestSchema: GenMessage<RollbackReservationRequest> = /*@__PURE__*/
+  messageDesc(file_music_library_v1_catalog_catalog, 14);
+
+/**
+ * @generated from message vrooli.music_library.v1.catalog.RollbackReservationResponse
+ */
+export type RollbackReservationResponse = Message<"vrooli.music_library.v1.catalog.RollbackReservationResponse"> & {
+  /**
+   * @generated from field: vrooli.music_library.v1.catalog.Track track = 1;
+   */
+  track?: Track | undefined;
+};
+
+/**
+ * Describes the message vrooli.music_library.v1.catalog.RollbackReservationResponse.
+ * Use `create(RollbackReservationResponseSchema)` to create a new message.
+ */
+export const RollbackReservationResponseSchema: GenMessage<RollbackReservationResponse> = /*@__PURE__*/
+  messageDesc(file_music_library_v1_catalog_catalog, 15);
+
+/**
  * @generated from service vrooli.music_library.v1.catalog.CatalogService
  */
 export const CatalogService: GenService<{
@@ -240,6 +461,38 @@ export const CatalogService: GenService<{
     methodKind: "unary";
     input: typeof RecordUseRequestSchema;
     output: typeof RecordUseResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.music_library.v1.catalog.CatalogService.ReserveTrack
+   */
+  reserveTrack: {
+    methodKind: "unary";
+    input: typeof ReserveTrackRequestSchema;
+    output: typeof ReserveTrackResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.music_library.v1.catalog.CatalogService.ReleaseReservation
+   */
+  releaseReservation: {
+    methodKind: "unary";
+    input: typeof ReleaseReservationRequestSchema;
+    output: typeof ReleaseReservationResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.music_library.v1.catalog.CatalogService.CommitReservation
+   */
+  commitReservation: {
+    methodKind: "unary";
+    input: typeof CommitReservationRequestSchema;
+    output: typeof CommitReservationResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.music_library.v1.catalog.CatalogService.RollbackReservation
+   */
+  rollbackReservation: {
+    methodKind: "unary";
+    input: typeof RollbackReservationRequestSchema;
+    output: typeof RollbackReservationResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_music_library_v1_catalog_catalog, 0);

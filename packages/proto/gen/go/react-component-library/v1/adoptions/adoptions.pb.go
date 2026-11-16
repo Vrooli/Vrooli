@@ -1233,8 +1233,12 @@ type PreflightAdoptionResponse struct {
 	I18NVerdict string `protobuf:"bytes,15,opt,name=i18n_verdict,json=i18nVerdict,proto3" json:"i18n_verdict,omitempty"`
 	// Derived selector coverage is explicitly reported once its catalog gate is enabled.
 	SelectorVerdict string `protobuf:"bytes,16,opt,name=selector_verdict,json=selectorVerdict,proto3" json:"selector_verdict,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Stable catalog identifier used to run the missing version-specific gates.
+	CatalogAssetId string `protobuf:"bytes,17,opt,name=catalog_asset_id,json=catalogAssetId,proto3" json:"catalog_asset_id,omitempty"`
+	// Current catalog implementation version measured by catalog gates.
+	CatalogLatestVersion string `protobuf:"bytes,18,opt,name=catalog_latest_version,json=catalogLatestVersion,proto3" json:"catalog_latest_version,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *PreflightAdoptionResponse) Reset() {
@@ -1379,12 +1383,30 @@ func (x *PreflightAdoptionResponse) GetSelectorVerdict() string {
 	return ""
 }
 
+func (x *PreflightAdoptionResponse) GetCatalogAssetId() string {
+	if x != nil {
+		return x.CatalogAssetId
+	}
+	return ""
+}
+
+func (x *PreflightAdoptionResponse) GetCatalogLatestVersion() string {
+	if x != nil {
+		return x.CatalogLatestVersion
+	}
+	return ""
+}
+
 type SyncScenarioTokensRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	DryRun        bool                   `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	DryRun   bool                   `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	// Optional first-adoption candidate. Its closure is included in the token
+	// ramp before the scenario has a recorded adoption or package import.
+	CandidateComponentId string `protobuf:"bytes,3,opt,name=candidate_component_id,json=candidateComponentId,proto3" json:"candidate_component_id,omitempty"`
+	CandidateVersion     string `protobuf:"bytes,4,opt,name=candidate_version,json=candidateVersion,proto3" json:"candidate_version,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *SyncScenarioTokensRequest) Reset() {
@@ -1429,6 +1451,20 @@ func (x *SyncScenarioTokensRequest) GetDryRun() bool {
 		return x.DryRun
 	}
 	return false
+}
+
+func (x *SyncScenarioTokensRequest) GetCandidateComponentId() string {
+	if x != nil {
+		return x.CandidateComponentId
+	}
+	return ""
+}
+
+func (x *SyncScenarioTokensRequest) GetCandidateVersion() string {
+	if x != nil {
+		return x.CandidateVersion
+	}
+	return ""
 }
 
 type SyncScenarioTokensResponse struct {
@@ -4379,7 +4415,7 @@ const file_react_component_library_v1_adoptions_adoptions_proto_rawDesc = "" +
 	"\x18PreflightAdoptionRequest\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x18\n" +
-	"\aversion\x18\x03 \x01(\tR\aversion\"\xf0\x04\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\"\xd0\x05\n" +
 	"\x19PreflightAdoptionResponse\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x18\n" +
@@ -4397,10 +4433,14 @@ const file_react_component_library_v1_adoptions_adoptions_proto_rawDesc = "" +
 	"\x0ematurity_floor\x18\r \x01(\tR\rmaturityFloor\x12\x1a\n" +
 	"\bwarnings\x18\x0e \x03(\tR\bwarnings\x12!\n" +
 	"\fi18n_verdict\x18\x0f \x01(\tR\vi18nVerdict\x12)\n" +
-	"\x10selector_verdict\x18\x10 \x01(\tR\x0fselectorVerdict\"P\n" +
+	"\x10selector_verdict\x18\x10 \x01(\tR\x0fselectorVerdict\x12(\n" +
+	"\x10catalog_asset_id\x18\x11 \x01(\tR\x0ecatalogAssetId\x124\n" +
+	"\x16catalog_latest_version\x18\x12 \x01(\tR\x14catalogLatestVersion\"\xb3\x01\n" +
 	"\x19SyncScenarioTokensRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x17\n" +
-	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"\x88\x01\n" +
+	"\adry_run\x18\x02 \x01(\bR\x06dryRun\x124\n" +
+	"\x16candidate_component_id\x18\x03 \x01(\tR\x14candidateComponentId\x12+\n" +
+	"\x11candidate_version\x18\x04 \x01(\tR\x10candidateVersion\"\x88\x01\n" +
 	"\x1aSyncScenarioTokensResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x14\n" +
 	"\x05added\x18\x02 \x03(\tR\x05added\x12\x1e\n" +

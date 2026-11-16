@@ -100,6 +100,9 @@ const (
 	FindingSource_FINDING_SOURCE_PROGRAMS FindingSource = 17
 	// SKILLS: prompt-manager scenario skill-set validation phase.
 	FindingSource_FINDING_SOURCE_SKILLS FindingSource = 18
+	// MODEL_EVAL: model-eval validation reports that measure provider readiness,
+	// real-caller coverage, and retrieval evaluation evidence.
+	FindingSource_FINDING_SOURCE_MODEL_EVAL FindingSource = 19
 )
 
 // Enum value maps for FindingSource.
@@ -124,6 +127,7 @@ var (
 		16: "FINDING_SOURCE_WORKFLOW",
 		17: "FINDING_SOURCE_PROGRAMS",
 		18: "FINDING_SOURCE_SKILLS",
+		19: "FINDING_SOURCE_MODEL_EVAL",
 	}
 	FindingSource_value = map[string]int32{
 		"FINDING_SOURCE_UNSPECIFIED":  0,
@@ -145,6 +149,7 @@ var (
 		"FINDING_SOURCE_WORKFLOW":     16,
 		"FINDING_SOURCE_PROGRAMS":     17,
 		"FINDING_SOURCE_SKILLS":       18,
+		"FINDING_SOURCE_MODEL_EVAL":   19,
 	}
 )
 
@@ -734,7 +739,7 @@ const file_architecture_v1_findings_proto_rawDesc = "" +
 	"\x0fsuggested_fixes\x18\v \x03(\v2$.vrooli.architecture.v1.SuggestedFixR\x0esuggestedFixes\x12:\n" +
 	"\x06effort\x18\f \x01(\x0e2\".vrooli.architecture.v1.EffortHintR\x06effort\x12I\n" +
 	"\rfinding_class\x18\r \x01(\x0e2$.vrooli.architecture.v1.FindingClassR\ffindingClass\x125\n" +
-	"\asubject\x18\x0e \x01(\v2\x1b.common.v1.ValidationTargetR\asubject*\xac\x04\n" +
+	"\asubject\x18\x0e \x01(\v2\x1b.common.v1.ValidationTargetR\asubject*\xcb\x04\n" +
 	"\rFindingSource\x12\x1e\n" +
 	"\x1aFINDING_SOURCE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18FINDING_SOURCE_STRUCTURE\x10\x01\x12\x16\n" +
@@ -755,7 +760,8 @@ const file_architecture_v1_findings_proto_rawDesc = "" +
 	"\x17FINDING_SOURCE_BRANDING\x10\x0f\x12\x1b\n" +
 	"\x17FINDING_SOURCE_WORKFLOW\x10\x10\x12\x1b\n" +
 	"\x17FINDING_SOURCE_PROGRAMS\x10\x11\x12\x19\n" +
-	"\x15FINDING_SOURCE_SKILLS\x10\x12*\xa6\x01\n" +
+	"\x15FINDING_SOURCE_SKILLS\x10\x12\x12\x1d\n" +
+	"\x19FINDING_SOURCE_MODEL_EVAL\x10\x13*\xa6\x01\n" +
 	"\x0fFindingSeverity\x12 \n" +
 	"\x1cFINDING_SEVERITY_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15FINDING_SEVERITY_INFO\x10\x01\x12\x1c\n" +

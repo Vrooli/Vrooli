@@ -45,6 +45,21 @@ const (
 	// WorkspaceSandboxServicePromoteSandboxProcedure is the fully-qualified name of the
 	// WorkspaceSandboxService's PromoteSandbox RPC.
 	WorkspaceSandboxServicePromoteSandboxProcedure = "/workspace_sandbox.v1.workspace.WorkspaceSandboxService/PromoteSandbox"
+	// WorkspaceSandboxServiceCreateReplaySealProcedure is the fully-qualified name of the
+	// WorkspaceSandboxService's CreateReplaySeal RPC.
+	WorkspaceSandboxServiceCreateReplaySealProcedure = "/workspace_sandbox.v1.workspace.WorkspaceSandboxService/CreateReplaySeal"
+	// WorkspaceSandboxServiceResolveReplaySealProcedure is the fully-qualified name of the
+	// WorkspaceSandboxService's ResolveReplaySeal RPC.
+	WorkspaceSandboxServiceResolveReplaySealProcedure = "/workspace_sandbox.v1.workspace.WorkspaceSandboxService/ResolveReplaySeal"
+	// WorkspaceSandboxServiceVerifyReplaySealProcedure is the fully-qualified name of the
+	// WorkspaceSandboxService's VerifyReplaySeal RPC.
+	WorkspaceSandboxServiceVerifyReplaySealProcedure = "/workspace_sandbox.v1.workspace.WorkspaceSandboxService/VerifyReplaySeal"
+	// WorkspaceSandboxServiceStartReplayTestProcedure is the fully-qualified name of the
+	// WorkspaceSandboxService's StartReplayTest RPC.
+	WorkspaceSandboxServiceStartReplayTestProcedure = "/workspace_sandbox.v1.workspace.WorkspaceSandboxService/StartReplayTest"
+	// WorkspaceSandboxServiceWaitReplayTestProcedure is the fully-qualified name of the
+	// WorkspaceSandboxService's WaitReplayTest RPC.
+	WorkspaceSandboxServiceWaitReplayTestProcedure = "/workspace_sandbox.v1.workspace.WorkspaceSandboxService/WaitReplayTest"
 )
 
 // WorkspaceSandboxServiceClient is a client for the
@@ -58,6 +73,16 @@ type WorkspaceSandboxServiceClient interface {
 	GetSandboxDiff(context.Context, *connect.Request[workspace.GetSandboxDiffRequest]) (*connect.Response[workspace.GetSandboxDiffResponse], error)
 	// PromoteSandbox applies an explicitly confirmed approved change set.
 	PromoteSandbox(context.Context, *connect.Request[workspace.PromoteSandboxRequest]) (*connect.Response[workspace.PromoteSandboxResponse], error)
+	// Replay seals keep a candidate/reference snapshot manifest behind the
+	// Workspace Sandbox owner. Create never returns the filesystem path.
+	CreateReplaySeal(context.Context, *connect.Request[workspace.CreateReplaySealRequest]) (*connect.Response[workspace.CreateReplaySealResponse], error)
+	ResolveReplaySeal(context.Context, *connect.Request[workspace.ResolveReplaySealRequest]) (*connect.Response[workspace.ResolveReplaySealResponse], error)
+	VerifyReplaySeal(context.Context, *connect.Request[workspace.VerifyReplaySealRequest]) (*connect.Response[workspace.VerifyReplaySealResponse], error)
+	// Start/Wait run a frozen evaluator against an owner-resolved source, candidate, or reference seal.
+	// The request contains evaluator bytes but never a host filesystem path or
+	// shell command; Workspace Sandbox owns containment and execution identity.
+	StartReplayTest(context.Context, *connect.Request[workspace.StartReplayTestRequest]) (*connect.Response[workspace.StartReplayTestResponse], error)
+	WaitReplayTest(context.Context, *connect.Request[workspace.WaitReplayTestRequest]) (*connect.Response[workspace.WaitReplayTestResponse], error)
 }
 
 // NewWorkspaceSandboxServiceClient constructs a client for the
@@ -96,15 +121,50 @@ func NewWorkspaceSandboxServiceClient(httpClient connect.HTTPClient, baseURL str
 			connect.WithSchema(workspaceSandboxServiceMethods.ByName("PromoteSandbox")),
 			connect.WithClientOptions(opts...),
 		),
+		createReplaySeal: connect.NewClient[workspace.CreateReplaySealRequest, workspace.CreateReplaySealResponse](
+			httpClient,
+			baseURL+WorkspaceSandboxServiceCreateReplaySealProcedure,
+			connect.WithSchema(workspaceSandboxServiceMethods.ByName("CreateReplaySeal")),
+			connect.WithClientOptions(opts...),
+		),
+		resolveReplaySeal: connect.NewClient[workspace.ResolveReplaySealRequest, workspace.ResolveReplaySealResponse](
+			httpClient,
+			baseURL+WorkspaceSandboxServiceResolveReplaySealProcedure,
+			connect.WithSchema(workspaceSandboxServiceMethods.ByName("ResolveReplaySeal")),
+			connect.WithClientOptions(opts...),
+		),
+		verifyReplaySeal: connect.NewClient[workspace.VerifyReplaySealRequest, workspace.VerifyReplaySealResponse](
+			httpClient,
+			baseURL+WorkspaceSandboxServiceVerifyReplaySealProcedure,
+			connect.WithSchema(workspaceSandboxServiceMethods.ByName("VerifyReplaySeal")),
+			connect.WithClientOptions(opts...),
+		),
+		startReplayTest: connect.NewClient[workspace.StartReplayTestRequest, workspace.StartReplayTestResponse](
+			httpClient,
+			baseURL+WorkspaceSandboxServiceStartReplayTestProcedure,
+			connect.WithSchema(workspaceSandboxServiceMethods.ByName("StartReplayTest")),
+			connect.WithClientOptions(opts...),
+		),
+		waitReplayTest: connect.NewClient[workspace.WaitReplayTestRequest, workspace.WaitReplayTestResponse](
+			httpClient,
+			baseURL+WorkspaceSandboxServiceWaitReplayTestProcedure,
+			connect.WithSchema(workspaceSandboxServiceMethods.ByName("WaitReplayTest")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // workspaceSandboxServiceClient implements WorkspaceSandboxServiceClient.
 type workspaceSandboxServiceClient struct {
-	resolveWorkspace *connect.Client[workspace.ResolveWorkspaceRequest, workspace.ResolveWorkspaceResponse]
-	createSandbox    *connect.Client[workspace.CreateSandboxRequest, workspace.CreateSandboxResponse]
-	getSandboxDiff   *connect.Client[workspace.GetSandboxDiffRequest, workspace.GetSandboxDiffResponse]
-	promoteSandbox   *connect.Client[workspace.PromoteSandboxRequest, workspace.PromoteSandboxResponse]
+	resolveWorkspace  *connect.Client[workspace.ResolveWorkspaceRequest, workspace.ResolveWorkspaceResponse]
+	createSandbox     *connect.Client[workspace.CreateSandboxRequest, workspace.CreateSandboxResponse]
+	getSandboxDiff    *connect.Client[workspace.GetSandboxDiffRequest, workspace.GetSandboxDiffResponse]
+	promoteSandbox    *connect.Client[workspace.PromoteSandboxRequest, workspace.PromoteSandboxResponse]
+	createReplaySeal  *connect.Client[workspace.CreateReplaySealRequest, workspace.CreateReplaySealResponse]
+	resolveReplaySeal *connect.Client[workspace.ResolveReplaySealRequest, workspace.ResolveReplaySealResponse]
+	verifyReplaySeal  *connect.Client[workspace.VerifyReplaySealRequest, workspace.VerifyReplaySealResponse]
+	startReplayTest   *connect.Client[workspace.StartReplayTestRequest, workspace.StartReplayTestResponse]
+	waitReplayTest    *connect.Client[workspace.WaitReplayTestRequest, workspace.WaitReplayTestResponse]
 }
 
 // ResolveWorkspace calls workspace_sandbox.v1.workspace.WorkspaceSandboxService.ResolveWorkspace.
@@ -127,6 +187,31 @@ func (c *workspaceSandboxServiceClient) PromoteSandbox(ctx context.Context, req 
 	return c.promoteSandbox.CallUnary(ctx, req)
 }
 
+// CreateReplaySeal calls workspace_sandbox.v1.workspace.WorkspaceSandboxService.CreateReplaySeal.
+func (c *workspaceSandboxServiceClient) CreateReplaySeal(ctx context.Context, req *connect.Request[workspace.CreateReplaySealRequest]) (*connect.Response[workspace.CreateReplaySealResponse], error) {
+	return c.createReplaySeal.CallUnary(ctx, req)
+}
+
+// ResolveReplaySeal calls workspace_sandbox.v1.workspace.WorkspaceSandboxService.ResolveReplaySeal.
+func (c *workspaceSandboxServiceClient) ResolveReplaySeal(ctx context.Context, req *connect.Request[workspace.ResolveReplaySealRequest]) (*connect.Response[workspace.ResolveReplaySealResponse], error) {
+	return c.resolveReplaySeal.CallUnary(ctx, req)
+}
+
+// VerifyReplaySeal calls workspace_sandbox.v1.workspace.WorkspaceSandboxService.VerifyReplaySeal.
+func (c *workspaceSandboxServiceClient) VerifyReplaySeal(ctx context.Context, req *connect.Request[workspace.VerifyReplaySealRequest]) (*connect.Response[workspace.VerifyReplaySealResponse], error) {
+	return c.verifyReplaySeal.CallUnary(ctx, req)
+}
+
+// StartReplayTest calls workspace_sandbox.v1.workspace.WorkspaceSandboxService.StartReplayTest.
+func (c *workspaceSandboxServiceClient) StartReplayTest(ctx context.Context, req *connect.Request[workspace.StartReplayTestRequest]) (*connect.Response[workspace.StartReplayTestResponse], error) {
+	return c.startReplayTest.CallUnary(ctx, req)
+}
+
+// WaitReplayTest calls workspace_sandbox.v1.workspace.WorkspaceSandboxService.WaitReplayTest.
+func (c *workspaceSandboxServiceClient) WaitReplayTest(ctx context.Context, req *connect.Request[workspace.WaitReplayTestRequest]) (*connect.Response[workspace.WaitReplayTestResponse], error) {
+	return c.waitReplayTest.CallUnary(ctx, req)
+}
+
 // WorkspaceSandboxServiceHandler is an implementation of the
 // workspace_sandbox.v1.workspace.WorkspaceSandboxService service.
 type WorkspaceSandboxServiceHandler interface {
@@ -138,6 +223,16 @@ type WorkspaceSandboxServiceHandler interface {
 	GetSandboxDiff(context.Context, *connect.Request[workspace.GetSandboxDiffRequest]) (*connect.Response[workspace.GetSandboxDiffResponse], error)
 	// PromoteSandbox applies an explicitly confirmed approved change set.
 	PromoteSandbox(context.Context, *connect.Request[workspace.PromoteSandboxRequest]) (*connect.Response[workspace.PromoteSandboxResponse], error)
+	// Replay seals keep a candidate/reference snapshot manifest behind the
+	// Workspace Sandbox owner. Create never returns the filesystem path.
+	CreateReplaySeal(context.Context, *connect.Request[workspace.CreateReplaySealRequest]) (*connect.Response[workspace.CreateReplaySealResponse], error)
+	ResolveReplaySeal(context.Context, *connect.Request[workspace.ResolveReplaySealRequest]) (*connect.Response[workspace.ResolveReplaySealResponse], error)
+	VerifyReplaySeal(context.Context, *connect.Request[workspace.VerifyReplaySealRequest]) (*connect.Response[workspace.VerifyReplaySealResponse], error)
+	// Start/Wait run a frozen evaluator against an owner-resolved source, candidate, or reference seal.
+	// The request contains evaluator bytes but never a host filesystem path or
+	// shell command; Workspace Sandbox owns containment and execution identity.
+	StartReplayTest(context.Context, *connect.Request[workspace.StartReplayTestRequest]) (*connect.Response[workspace.StartReplayTestResponse], error)
+	WaitReplayTest(context.Context, *connect.Request[workspace.WaitReplayTestRequest]) (*connect.Response[workspace.WaitReplayTestResponse], error)
 }
 
 // NewWorkspaceSandboxServiceHandler builds an HTTP handler from the service implementation. It
@@ -171,6 +266,36 @@ func NewWorkspaceSandboxServiceHandler(svc WorkspaceSandboxServiceHandler, opts 
 		connect.WithSchema(workspaceSandboxServiceMethods.ByName("PromoteSandbox")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workspaceSandboxServiceCreateReplaySealHandler := connect.NewUnaryHandler(
+		WorkspaceSandboxServiceCreateReplaySealProcedure,
+		svc.CreateReplaySeal,
+		connect.WithSchema(workspaceSandboxServiceMethods.ByName("CreateReplaySeal")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceSandboxServiceResolveReplaySealHandler := connect.NewUnaryHandler(
+		WorkspaceSandboxServiceResolveReplaySealProcedure,
+		svc.ResolveReplaySeal,
+		connect.WithSchema(workspaceSandboxServiceMethods.ByName("ResolveReplaySeal")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceSandboxServiceVerifyReplaySealHandler := connect.NewUnaryHandler(
+		WorkspaceSandboxServiceVerifyReplaySealProcedure,
+		svc.VerifyReplaySeal,
+		connect.WithSchema(workspaceSandboxServiceMethods.ByName("VerifyReplaySeal")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceSandboxServiceStartReplayTestHandler := connect.NewUnaryHandler(
+		WorkspaceSandboxServiceStartReplayTestProcedure,
+		svc.StartReplayTest,
+		connect.WithSchema(workspaceSandboxServiceMethods.ByName("StartReplayTest")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceSandboxServiceWaitReplayTestHandler := connect.NewUnaryHandler(
+		WorkspaceSandboxServiceWaitReplayTestProcedure,
+		svc.WaitReplayTest,
+		connect.WithSchema(workspaceSandboxServiceMethods.ByName("WaitReplayTest")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/workspace_sandbox.v1.workspace.WorkspaceSandboxService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case WorkspaceSandboxServiceResolveWorkspaceProcedure:
@@ -181,6 +306,16 @@ func NewWorkspaceSandboxServiceHandler(svc WorkspaceSandboxServiceHandler, opts 
 			workspaceSandboxServiceGetSandboxDiffHandler.ServeHTTP(w, r)
 		case WorkspaceSandboxServicePromoteSandboxProcedure:
 			workspaceSandboxServicePromoteSandboxHandler.ServeHTTP(w, r)
+		case WorkspaceSandboxServiceCreateReplaySealProcedure:
+			workspaceSandboxServiceCreateReplaySealHandler.ServeHTTP(w, r)
+		case WorkspaceSandboxServiceResolveReplaySealProcedure:
+			workspaceSandboxServiceResolveReplaySealHandler.ServeHTTP(w, r)
+		case WorkspaceSandboxServiceVerifyReplaySealProcedure:
+			workspaceSandboxServiceVerifyReplaySealHandler.ServeHTTP(w, r)
+		case WorkspaceSandboxServiceStartReplayTestProcedure:
+			workspaceSandboxServiceStartReplayTestHandler.ServeHTTP(w, r)
+		case WorkspaceSandboxServiceWaitReplayTestProcedure:
+			workspaceSandboxServiceWaitReplayTestHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -204,4 +339,24 @@ func (UnimplementedWorkspaceSandboxServiceHandler) GetSandboxDiff(context.Contex
 
 func (UnimplementedWorkspaceSandboxServiceHandler) PromoteSandbox(context.Context, *connect.Request[workspace.PromoteSandboxRequest]) (*connect.Response[workspace.PromoteSandboxResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("workspace_sandbox.v1.workspace.WorkspaceSandboxService.PromoteSandbox is not implemented"))
+}
+
+func (UnimplementedWorkspaceSandboxServiceHandler) CreateReplaySeal(context.Context, *connect.Request[workspace.CreateReplaySealRequest]) (*connect.Response[workspace.CreateReplaySealResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("workspace_sandbox.v1.workspace.WorkspaceSandboxService.CreateReplaySeal is not implemented"))
+}
+
+func (UnimplementedWorkspaceSandboxServiceHandler) ResolveReplaySeal(context.Context, *connect.Request[workspace.ResolveReplaySealRequest]) (*connect.Response[workspace.ResolveReplaySealResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("workspace_sandbox.v1.workspace.WorkspaceSandboxService.ResolveReplaySeal is not implemented"))
+}
+
+func (UnimplementedWorkspaceSandboxServiceHandler) VerifyReplaySeal(context.Context, *connect.Request[workspace.VerifyReplaySealRequest]) (*connect.Response[workspace.VerifyReplaySealResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("workspace_sandbox.v1.workspace.WorkspaceSandboxService.VerifyReplaySeal is not implemented"))
+}
+
+func (UnimplementedWorkspaceSandboxServiceHandler) StartReplayTest(context.Context, *connect.Request[workspace.StartReplayTestRequest]) (*connect.Response[workspace.StartReplayTestResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("workspace_sandbox.v1.workspace.WorkspaceSandboxService.StartReplayTest is not implemented"))
+}
+
+func (UnimplementedWorkspaceSandboxServiceHandler) WaitReplayTest(context.Context, *connect.Request[workspace.WaitReplayTestRequest]) (*connect.Response[workspace.WaitReplayTestResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("workspace_sandbox.v1.workspace.WorkspaceSandboxService.WaitReplayTest is not implemented"))
 }

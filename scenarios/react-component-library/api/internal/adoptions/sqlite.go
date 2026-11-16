@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
+	"react-component-library/internal/sqliterows"
 )
 
 // sqliteRepository is the production Repository impl. Unexported so
@@ -280,33 +281,25 @@ func (s *sqliteRepository) List(ctx context.Context, q ListQuery) ([]Adoption, e
 		where = "WHERE " + strings.Join(clauses, " AND ")
 	}
 	args = append(args, limit)
-	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`
+	query := fmt.Sprintf(`
 SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref, suggested_dependencies, fork_status, fork_reason, extension_points, mode
 FROM adoption_records
 %s
 ORDER BY created_at DESC, id ASC
 LIMIT ?
-`, where), args...)
-	if err != nil {
-		return nil, fmt.Errorf("list adoptions: %w", err)
-	}
-	defer rows.Close()
-	var out []Adoption
-	for rows.Next() {
-		a, err := scanAdoption(rows)
+	`, where)
+	out, err := sqliterows.Collect(ctx, s.db, query, args, true, func(row sqliterows.Scanner) (Adoption, error) {
+		adoption, err := scanAdoption(row)
 		if err != nil {
-			return nil, fmt.Errorf("scan adoption: %w", err)
+			return Adoption{}, fmt.Errorf("scan adoption: %w", err)
 		}
-		out = append(out, a)
+		return adoption, nil
+	}, sqliterows.ErrorContext{Query: "list adoptions", Iterate: "iterate adoptions", Close: "close adoptions rows"})
+	if err != nil {
+		return nil, err
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate adoptions: %w", err)
-	}
-	// Close the parent cursor before child lookups. SQLite's single-connection
-	// in-memory test database cannot service a nested query while rows is open.
-	if err := rows.Close(); err != nil {
-		return nil, fmt.Errorf("close adoptions rows: %w", err)
-	}
+	// Collect closes the parent cursor before child lookups. SQLite's
+	// single-connection in-memory test database cannot service nested queries.
 	for i := range out {
 		files, err := s.listFiles(ctx, out[i].ID)
 		if err != nil {
@@ -318,44 +311,39 @@ LIMIT ?
 }
 
 func (s *sqliteRepository) ListEffective(ctx context.Context, componentID string, limit int) ([]EffectiveAdoption, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	out, err := sqliterows.Collect(ctx, s.db, `
 SELECT a.id, a.component_id, a.library_id, a.scenario, a.adopted_path, a.adopted_version, a.source_sha256, a.adopted_snapshot_sha256, a.library_version_status, a.local_status, a.status_detail, a.created_at, a.refreshed_at, a.applied_at, a.drift_backlog_ref,
        COALESCE(f.source_asset_id, a.component_id), COALESCE(f.source_library_id, a.library_id), COALESCE(f.source_version, a.adopted_version)
 FROM adoption_records a LEFT JOIN adoption_files f ON a.id = f.adoption_id
 WHERE a.component_id = ? OR f.source_asset_id = ?
 ORDER BY a.created_at DESC, a.id ASC, f.adopted_path ASC
-LIMIT ?`, componentID, componentID, limit)
-	if err != nil {
-		return nil, fmt.Errorf("list effective adoptions: %w", err)
-	}
-	defer rows.Close()
-	out := make([]EffectiveAdoption, 0)
-	for rows.Next() {
+LIMIT ?`, []any{componentID, componentID, limit}, false, func(row sqliterows.Scanner) (EffectiveAdoption, error) {
 		var effective EffectiveAdoption
-		if err := rows.Scan(&effective.ParentAdoption.ID, &effective.ParentAdoption.ComponentID, &effective.ParentAdoption.LibraryID, &effective.ParentAdoption.Scenario, &effective.ParentAdoption.AdoptedPath, &effective.ParentAdoption.AdoptedVersion, &effective.ParentAdoption.SourceSHA256, &effective.ParentAdoption.AdoptedSnapshotSHA256, new(string), new(string), &effective.ParentAdoption.StatusDetail, new(string), new(string), new(string), &effective.ParentAdoption.DriftBacklogRef, &effective.SourceAssetID, &effective.SourceLibraryID, &effective.SourceVersion); err != nil {
-			return nil, fmt.Errorf("scan effective adoption: %w", err)
+		if err := row.Scan(&effective.ParentAdoption.ID, &effective.ParentAdoption.ComponentID, &effective.ParentAdoption.LibraryID, &effective.ParentAdoption.Scenario, &effective.ParentAdoption.AdoptedPath, &effective.ParentAdoption.AdoptedVersion, &effective.ParentAdoption.SourceSHA256, &effective.ParentAdoption.AdoptedSnapshotSHA256, new(string), new(string), &effective.ParentAdoption.StatusDetail, new(string), new(string), new(string), &effective.ParentAdoption.DriftBacklogRef, &effective.SourceAssetID, &effective.SourceLibraryID, &effective.SourceVersion); err != nil {
+			return EffectiveAdoption{}, fmt.Errorf("scan effective adoption: %w", err)
 		}
 		effective.Mediated = effective.ParentAdoption.ComponentID != effective.SourceAssetID
-		out = append(out, effective)
+		return effective, nil
+	}, sqliterows.ErrorContext{Query: "list effective adoptions"})
+	if err != nil {
+		return nil, err
 	}
-	return out, rows.Err()
+	if out == nil {
+		out = make([]EffectiveAdoption, 0)
+	}
+	return out, nil
 }
 
 func (s *sqliteRepository) listFiles(ctx context.Context, adoptionID string) ([]AdoptionFile, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT library_path, adopted_path, source_sha256, adopted_snapshot_sha256, source_asset_id, source_library_id, source_version FROM adoption_files WHERE adoption_id = ? ORDER BY library_path`, adoptionID)
-	if err != nil {
-		return nil, fmt.Errorf("list adoption files: %w", err)
-	}
-	defer rows.Close()
-	var files []AdoptionFile
-	for rows.Next() {
+	files, err := sqliterows.Collect(ctx, s.db, `SELECT library_path, adopted_path, source_sha256, adopted_snapshot_sha256, source_asset_id, source_library_id, source_version FROM adoption_files WHERE adoption_id = ? ORDER BY library_path`, []any{adoptionID}, false, func(row sqliterows.Scanner) (AdoptionFile, error) {
 		var file AdoptionFile
-		if err := rows.Scan(&file.LibraryPath, &file.AdoptedPath, &file.SourceSHA256, &file.AdoptedSnapshotSHA256, &file.SourceAssetID, &file.SourceLibraryID, &file.SourceVersion); err != nil {
-			return nil, err
-		}
-		files = append(files, file)
+		err := row.Scan(&file.LibraryPath, &file.AdoptedPath, &file.SourceSHA256, &file.AdoptedSnapshotSHA256, &file.SourceAssetID, &file.SourceLibraryID, &file.SourceVersion)
+		return file, err
+	}, sqliterows.ErrorContext{Query: "list adoption files"})
+	if err != nil {
+		return nil, err
 	}
-	return files, rows.Err()
+	return files, nil
 }
 
 func (s *sqliteRepository) Delete(ctx context.Context, id string) error {

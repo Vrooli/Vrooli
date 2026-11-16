@@ -20,6 +20,126 @@ service WorkspaceSandboxService {
 
   // PromoteSandbox applies an explicitly confirmed approved change set.
   rpc PromoteSandbox(PromoteSandboxRequest) returns (PromoteSandboxResponse);
+
+  // Replay seals keep a candidate/reference snapshot manifest behind the
+  // Workspace Sandbox owner. Create never returns the filesystem path.
+  rpc CreateReplaySeal(CreateReplaySealRequest) returns (CreateReplaySealResponse);
+  rpc ResolveReplaySeal(ResolveReplaySealRequest) returns (ResolveReplaySealResponse);
+  rpc VerifyReplaySeal(VerifyReplaySealRequest) returns (VerifyReplaySealResponse);
+
+  // Start/Wait run a frozen evaluator against an owner-resolved source, candidate, or reference seal.
+  // The request contains evaluator bytes but never a host filesystem path or
+  // shell command; Workspace Sandbox owns containment and execution identity.
+  rpc StartReplayTest(StartReplayTestRequest) returns (StartReplayTestResponse);
+  rpc WaitReplayTest(WaitReplayTestRequest) returns (WaitReplayTestResponse);
+}
+
+enum ReplayTestOutcome {
+  REPLAY_TEST_OUTCOME_UNSPECIFIED = 0;
+  REPLAY_TEST_OUTCOME_RUNNING = 1;
+  REPLAY_TEST_OUTCOME_PASSED = 2;
+  REPLAY_TEST_OUTCOME_ASSERTION_FAILED = 3;
+  REPLAY_TEST_OUTCOME_INFRASTRUCTURE_FAILED = 4;
+  REPLAY_TEST_OUTCOME_INTERRUPTED = 5;
+}
+
+message ReplayTestFile {
+  string relative_path = 1;
+  bytes content = 2;
+  string sha256 = 3;
+}
+message StartReplayTestRequest {
+  string operation_idempotency_key = 1;
+  string case_id = 2;
+  ReplaySealRole role = 3;
+  string seal_digest = 4;
+  string evaluator_bundle_id = 5;
+  string evaluator_bundle_digest = 6;
+  repeated ReplayTestFile files = 7;
+  string entry_point = 8;
+  uint32 timeout_seconds = 9;
+}
+message StartReplayTestResponse {
+  bool success = 1;
+  string operation_id = 2;
+  string case_id = 3;
+  ReplaySealRole role = 4;
+  string seal_digest = 5;
+  string evaluator_bundle_id = 6;
+  string evaluator_bundle_digest = 7;
+  string entry_point = 8;
+  ReplayTestOutcome outcome = 9;
+  string result_digest = 10;
+  bool seal_intact_before = 11;
+  bool seal_intact_after = 12;
+  string detail = 13;
+}
+message WaitReplayTestRequest {
+  string operation_id = 1;
+  string case_id = 2;
+  string seal_digest = 3;
+  uint32 wait_seconds = 4;
+}
+message WaitReplayTestResponse {
+  bool success = 1;
+  string operation_id = 2;
+  string case_id = 3;
+  ReplaySealRole role = 4;
+  string seal_digest = 5;
+  string evaluator_bundle_id = 6;
+  string evaluator_bundle_digest = 7;
+  string entry_point = 8;
+  ReplayTestOutcome outcome = 9;
+  string result_digest = 10;
+  bool seal_intact_before = 11;
+  bool seal_intact_after = 12;
+  string detail = 13;
+}
+
+enum ReplaySealRole {
+  REPLAY_SEAL_ROLE_UNSPECIFIED = 0;
+  REPLAY_SEAL_ROLE_SOURCE = 1;
+  REPLAY_SEAL_ROLE_CANDIDATE = 2;
+  REPLAY_SEAL_ROLE_REFERENCE = 3;
+}
+
+message CreateReplaySealRequest {
+  string sandbox_id = 1;
+  string case_id = 2;
+  ReplaySealRole role = 3;
+}
+message CreateReplaySealResponse {
+  bool success = 1;
+  string case_id = 2;
+  ReplaySealRole role = 3;
+  string seal_digest = 4;
+  uint64 file_count = 5;
+  uint64 total_bytes = 6;
+}
+message ResolveReplaySealRequest {
+  string case_id = 1;
+  ReplaySealRole role = 2;
+  string seal_digest = 3;
+}
+message ResolveReplaySealResponse {
+  bool success = 1;
+  string case_id = 2;
+  ReplaySealRole role = 3;
+  string seal_digest = 4;
+  string workspace_root = 5;
+}
+message VerifyReplaySealRequest {
+  string case_id = 1;
+  ReplaySealRole role = 2;
+  string seal_digest = 3;
+}
+message VerifyReplaySealResponse {
+  bool success = 1;
+  bool intact = 2;
+  bool tamper_detected = 3;
+  string case_id = 4;
+  ReplaySealRole role = 5;
+  string seal_digest = 6;
 }
 
 message ResolveWorkspaceRequest {

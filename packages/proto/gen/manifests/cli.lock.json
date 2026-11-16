@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "cli",
-  "input_digest": "sha256:64ce9e057207548b5e6adb33181329746ddcb448451a47b63bd960abf072d5ca",
+  "input_digest": "sha256:d6de2635ef11042a71bf71c1a4d21cd6b857e5cba1673b6ee09941e1047b02d9",
   "input_files": [
     "schemas/cli/v1/auth.proto",
     "schemas/cli/v1/common.proto",
@@ -9,6 +9,7 @@
     "schemas/cli/v1/credentials.proto",
     "schemas/cli/v1/host_inventory.proto",
     "schemas/cli/v1/hygiene.proto",
+    "schemas/cli/v1/ollama_optimization.proto",
     "schemas/cli/v1/package.proto",
     "schemas/cli/v1/plans.proto",
     "schemas/cli/v1/project.proto",
@@ -32,7 +33,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
-    "generator_digest": "sha256:cccdbaf9a556a5be923d2c17f31d7f3f1e8de7959b27263f9ddbb964a4b52cc9",
+    "generator_digest": "sha256:47bbfc74c5d2c0e0172be6ac47ec939b6b4678e8ca51fa8202f7056c8fc16447",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -42,12 +43,14 @@
   },
   "outputs": {
     "gen/go/cli/v1/auth.pb.go": "sha256:0e72cbeae671685d185e26e812ab7c38c6e14cc1b34a2a6dc2c59964931be8c9",
+    "gen/go/cli/v1/cliv1connect/ollama_optimization.connect.go": "sha256:186788a47117caa9279e182ede687c856eadcc47a1c024b4a8a6ca1cbd600b3c",
     "gen/go/cli/v1/cliv1connect/scenario_control.connect.go": "sha256:b9369a520d4d169982597821c679c2415751b3d587d416836d5aed8a9cb600b6",
     "gen/go/cli/v1/common.pb.go": "sha256:a060b1430d29035728bd76178661ff7b908f45842aa5ba149276026c2d36a2f0",
     "gen/go/cli/v1/contract.pb.go": "sha256:cb23d0845adaa0d3c674633980e59c787d83c7c8403a66768bfaa12a87427809",
     "gen/go/cli/v1/credentials.pb.go": "sha256:84a759451d346c5af245632297b420cdca3c26a1c3cf3b969c13733fbe323239",
     "gen/go/cli/v1/host_inventory.pb.go": "sha256:3c27389abf96119db6158abe1769d11cd7c4c484d74b0eb4a036bc0259bbbe43",
     "gen/go/cli/v1/hygiene.pb.go": "sha256:07428632a549185599aec71b33234bcaa0089534f9df121e2b7cb8f4455f4964",
+    "gen/go/cli/v1/ollama_optimization.pb.go": "sha256:3781c13e7412c7b6036048e7ae631a7add2c5e0c99a23658bc5942bab8edbb3f",
     "gen/go/cli/v1/package.pb.go": "sha256:7d1b22581b07ca3262b408cdd1f2dd0aeb290e89fe62fd2f9e17423816b69bc0",
     "gen/go/cli/v1/plans.pb.go": "sha256:bb65230c9328aade1cf111e688ce1fe7bca58d71bdade99eb1196d4f30d7460f",
     "gen/go/cli/v1/project.pb.go": "sha256:3c6b23a61f67e482387c748c2c170356526e56c6150cd85d11063921072d19f9",
@@ -62,7 +65,7 @@
     "gen/go/cli/v1/scenario_control.pb.go": "sha256:91b9593ae172e5e1ffd658bdd8f2ab2d96582f20c78f2aeee79d31b3d0ddc794",
     "gen/go/cli/v1/scenario_freshness.pb.go": "sha256:88ab58d38d74b67200d852bc9e6e8129dcaba8a21cd74692e4adcce5ecc9ee75",
     "gen/go/cli/v1/scenario_list.pb.go": "sha256:d8a7e9d3e4b9050879c82e5a98eae797429bbbc6e31a1e375a4140b9bf7dbf5b",
-    "gen/go/cli/v1/scenario_status.pb.go": "sha256:656b9cd67ed749c25761758b8ae058fc9b983edc16c299ec9ffa7e0d20185620",
+    "gen/go/cli/v1/scenario_status.pb.go": "sha256:bd4c1bc867acb6f6c6300a0cc1b9a403a3ff4d133b5612c6019e68d99792ed82",
     "gen/go/cli/v1/shared_drift.pb.go": "sha256:ea3d0628e5ee3acbaaeeac20894db06161758086bbde1e9363ac7b3ad20b5ecf",
     "gen/go/cli/v1/status.pb.go": "sha256:71799e37d0a122afb97a91f5ab381372591f99c1d302eecccf798575e6cbb3f9",
     "gen/go/cli/v1/supervision.pb.go": "sha256:b6e7ba635391b6fb1255dc5a0c0ae807bf62ad177b5765b1e0d3c223d6464d07",
@@ -80,6 +83,8 @@
     "gen/python/cli/v1/host_inventory_pb2.pyi": "sha256:f934f82329d7bb2f2c51331e2916884dc01c4821e93d17329c3fcce20877fe41",
     "gen/python/cli/v1/hygiene_pb2.py": "sha256:9f224030fb0f1a8e26c364ba0ac510efb351d368436d42fa4c3b29d8b1230796",
     "gen/python/cli/v1/hygiene_pb2.pyi": "sha256:8eaa1d15c7975f3f56c61002a7733d3013bea494ff195f7d0868e34c21f115ca",
+    "gen/python/cli/v1/ollama_optimization_pb2.py": "sha256:63a3835e1040fd662cd1bcf4858f5384246a95ad558a76ac19537c49a96e037e",
+    "gen/python/cli/v1/ollama_optimization_pb2.pyi": "sha256:d55f834ad2027597b41e83f23ab536b98696c6f48b8f34669e9df6913368ad1e",
     "gen/python/cli/v1/package_pb2.py": "sha256:cf322379544cd998d2612e240213c04914ce605e9c41b44491c30024c9d83139",
     "gen/python/cli/v1/package_pb2.pyi": "sha256:ce64c4f9450517adfe9d17b7552b95c24dedf7ffa0fc790a41428f9c6dde2ddb",
     "gen/python/cli/v1/plans_pb2.py": "sha256:740e33c6533ac8d3a6010fb2cb5f61cf9442ed0776ed163ab5b8d7f9d6979312",
@@ -109,8 +114,8 @@
     "gen/python/cli/v1/scenario_freshness_pb2.pyi": "sha256:d09862f4bdccef09fc68fa3674bd89532159968dd0aeb9f62a480f54a270295d",
     "gen/python/cli/v1/scenario_list_pb2.py": "sha256:b4d2754b747a126dd2538284f96f50efea4fcf426f3927cb5e2faf87626f4c98",
     "gen/python/cli/v1/scenario_list_pb2.pyi": "sha256:589713b8d35137323424dd64876a9276df55b028b4fb1df256057e0927b3ef7b",
-    "gen/python/cli/v1/scenario_status_pb2.py": "sha256:323fd9f78ce98c04903370887f3bc7a0f1e834ced25230206a464d601601dea3",
-    "gen/python/cli/v1/scenario_status_pb2.pyi": "sha256:88916d59e5951736a09efb232b612df7d7b212360005fb6851c6ae5bdcce37f9",
+    "gen/python/cli/v1/scenario_status_pb2.py": "sha256:b032086cd801494e5f8bc550eae44c40b6c79c6e53b16f3229845c980495bdf4",
+    "gen/python/cli/v1/scenario_status_pb2.pyi": "sha256:5f7157ce09030b0ff9b74bec3017fac7281687675b7e1c8c55e36266bfe909b8",
     "gen/python/cli/v1/shared_drift_pb2.py": "sha256:da48fd9a23f30c8c60511668bdb15bdce0c32e1d7c8569979ce54f60e680ea58",
     "gen/python/cli/v1/shared_drift_pb2.pyi": "sha256:b58f3657fbc3d898a246ebf3e217199bfc4edbbc35513ba1ab6e2cca3d5947a1",
     "gen/python/cli/v1/status_pb2.py": "sha256:ada7260dd747276b9d8904ccd43b3c64cad3ca05ec3c06736002330e7f30d241",
@@ -125,6 +130,7 @@
     "gen/typescript/cli/v1/credentials_pb.ts": "sha256:88b2d92615b7824a05e8c32eb1196a608113f3be7007f40119406f293a9243c5",
     "gen/typescript/cli/v1/host_inventory_pb.ts": "sha256:e0c6c8997097101e01c73d731f82fe1e4acd6a7d058b4e6e2d8b79f99a376a4d",
     "gen/typescript/cli/v1/hygiene_pb.ts": "sha256:ec1c41ab22aaedff145c07a75a02de085dee377c10c73f35a37d9de1f0e9f7c1",
+    "gen/typescript/cli/v1/ollama_optimization_pb.ts": "sha256:8d0d1f33a094f49be53fd8cad73415d93fe093a0a9b0a2a74f5b797b696297c0",
     "gen/typescript/cli/v1/package_pb.ts": "sha256:f799dad140c2a41979ad35860e8b5df35cc08f8f8f9efca35319776368e6806d",
     "gen/typescript/cli/v1/plans_pb.ts": "sha256:32dd725b536c2fec0359ea9e6460076c9bc52ab156b0d08d5f6e9099c459d863",
     "gen/typescript/cli/v1/project_pb.ts": "sha256:84374b22bd3d7f53e211450c2b0e16be602b0f23f9016a842f4013758044f625",
@@ -139,11 +145,11 @@
     "gen/typescript/cli/v1/scenario_control_pb.ts": "sha256:1e24583f0a4ab6a509f48bd4a1da95432b1bdb4c58a63e184a7245f0388cc0e3",
     "gen/typescript/cli/v1/scenario_freshness_pb.ts": "sha256:aca94eda314cb42700619f7f26626113898b0f0cd0ef1225989271e3cf1da17d",
     "gen/typescript/cli/v1/scenario_list_pb.ts": "sha256:d23936342a3c8c08827900ca82bc15a232d8c30d3bae0beaf5edacf947595cce",
-    "gen/typescript/cli/v1/scenario_status_pb.ts": "sha256:4f682d51d1d2d4e1e94e9e638862054073bf42f0b681a82bec34f57370eed468",
+    "gen/typescript/cli/v1/scenario_status_pb.ts": "sha256:e6592c6213f8b1a823a4133b537b60b2c544801c4216edeac4130183a309878d",
     "gen/typescript/cli/v1/shared_drift_pb.ts": "sha256:ee764b4291184a2f66956fb4d12b1f503d51f65a932e2522bfc22aaa81f68507",
     "gen/typescript/cli/v1/status_pb.ts": "sha256:0f6ed2f200d6d31e8b14a505562d637e366d66efb27d6e163161a89606aee45f",
     "gen/typescript/cli/v1/supervision_pb.ts": "sha256:ed0ec7195902e01c4e9ec18fa3ae95dc5094f292986e8bd3e049e85524ce98cc",
     "gen/typescript/cli/v1/volume_remediation_pb.ts": "sha256:cbf9135b3d52d03ca1f66104c7334d67827d7e48e834ba2053116f01b9b17d04",
-    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
+    "gen/typescript/package.json": "sha256:d7210c69e0b4e8eb72d65b1503ce8ea1eeb61aa893b5442e16d0ab4a9980e5d6"
   }
 }

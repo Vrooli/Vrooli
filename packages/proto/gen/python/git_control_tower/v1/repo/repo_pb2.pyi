@@ -1350,7 +1350,7 @@ class PrecommitHookState(_message.Message):
     def __init__(self, status: _Optional[str] = ..., reason: _Optional[str] = ..., existing_kind: _Optional[str] = ..., existing_hook_preview: _Optional[str] = ..., path: _Optional[str] = ..., hooks_path: _Optional[str] = ..., installed_at: _Optional[str] = ...) -> None: ...
 
 class PrecommitConfigResponse(_message.Message):
-    __slots__ = ("enabled", "command", "working_directory", "timeout_seconds", "run_before_commit", "allow_override", "last_result", "hook")
+    __slots__ = ("enabled", "command", "working_directory", "timeout_seconds", "run_before_commit", "allow_override", "last_result", "hook", "declared_inputs")
     ENABLED_FIELD_NUMBER: _ClassVar[int]
     COMMAND_FIELD_NUMBER: _ClassVar[int]
     WORKING_DIRECTORY_FIELD_NUMBER: _ClassVar[int]
@@ -1359,6 +1359,7 @@ class PrecommitConfigResponse(_message.Message):
     ALLOW_OVERRIDE_FIELD_NUMBER: _ClassVar[int]
     LAST_RESULT_FIELD_NUMBER: _ClassVar[int]
     HOOK_FIELD_NUMBER: _ClassVar[int]
+    DECLARED_INPUTS_FIELD_NUMBER: _ClassVar[int]
     enabled: bool
     command: str
     working_directory: str
@@ -1367,10 +1368,11 @@ class PrecommitConfigResponse(_message.Message):
     allow_override: bool
     last_result: PrecommitRunResult
     hook: PrecommitHookState
-    def __init__(self, enabled: _Optional[bool] = ..., command: _Optional[str] = ..., working_directory: _Optional[str] = ..., timeout_seconds: _Optional[int] = ..., run_before_commit: _Optional[bool] = ..., allow_override: _Optional[bool] = ..., last_result: _Optional[_Union[PrecommitRunResult, _Mapping]] = ..., hook: _Optional[_Union[PrecommitHookState, _Mapping]] = ...) -> None: ...
+    declared_inputs: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, enabled: _Optional[bool] = ..., command: _Optional[str] = ..., working_directory: _Optional[str] = ..., timeout_seconds: _Optional[int] = ..., run_before_commit: _Optional[bool] = ..., allow_override: _Optional[bool] = ..., last_result: _Optional[_Union[PrecommitRunResult, _Mapping]] = ..., hook: _Optional[_Union[PrecommitHookState, _Mapping]] = ..., declared_inputs: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SavePrecommitConfigRequest(_message.Message):
-    __slots__ = ("repository_id", "intent_id", "enabled", "command", "working_directory", "timeout_seconds", "run_before_commit", "allow_override")
+    __slots__ = ("repository_id", "intent_id", "enabled", "command", "working_directory", "timeout_seconds", "run_before_commit", "allow_override", "declared_inputs")
     REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
     INTENT_ID_FIELD_NUMBER: _ClassVar[int]
     ENABLED_FIELD_NUMBER: _ClassVar[int]
@@ -1379,6 +1381,7 @@ class SavePrecommitConfigRequest(_message.Message):
     TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
     RUN_BEFORE_COMMIT_FIELD_NUMBER: _ClassVar[int]
     ALLOW_OVERRIDE_FIELD_NUMBER: _ClassVar[int]
+    DECLARED_INPUTS_FIELD_NUMBER: _ClassVar[int]
     repository_id: str
     intent_id: str
     enabled: bool
@@ -1387,7 +1390,8 @@ class SavePrecommitConfigRequest(_message.Message):
     timeout_seconds: int
     run_before_commit: bool
     allow_override: bool
-    def __init__(self, repository_id: _Optional[str] = ..., intent_id: _Optional[str] = ..., enabled: _Optional[bool] = ..., command: _Optional[str] = ..., working_directory: _Optional[str] = ..., timeout_seconds: _Optional[int] = ..., run_before_commit: _Optional[bool] = ..., allow_override: _Optional[bool] = ...) -> None: ...
+    declared_inputs: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, repository_id: _Optional[str] = ..., intent_id: _Optional[str] = ..., enabled: _Optional[bool] = ..., command: _Optional[str] = ..., working_directory: _Optional[str] = ..., timeout_seconds: _Optional[int] = ..., run_before_commit: _Optional[bool] = ..., allow_override: _Optional[bool] = ..., declared_inputs: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class RunPrecommitRequest(_message.Message):
     __slots__ = ("repository_id", "command", "working_directory", "timeout_seconds")
@@ -1408,6 +1412,44 @@ class PrecommitRunResponse(_message.Message):
     success: bool
     result: PrecommitRunResult
     def __init__(self, success: _Optional[bool] = ..., result: _Optional[_Union[PrecommitRunResult, _Mapping]] = ...) -> None: ...
+
+class StartPrecommitCandidateCheckRequest(_message.Message):
+    __slots__ = ("repository_id", "retry_terminal")
+    REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
+    RETRY_TERMINAL_FIELD_NUMBER: _ClassVar[int]
+    repository_id: str
+    retry_terminal: bool
+    def __init__(self, repository_id: _Optional[str] = ..., retry_terminal: _Optional[bool] = ...) -> None: ...
+
+class GetPrecommitCandidateCheckRequest(_message.Message):
+    __slots__ = ("repository_id", "job_id")
+    REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    repository_id: str
+    job_id: str
+    def __init__(self, repository_id: _Optional[str] = ..., job_id: _Optional[str] = ...) -> None: ...
+
+class CancelPrecommitCandidateCheckRequest(_message.Message):
+    __slots__ = ("repository_id", "job_id")
+    REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    repository_id: str
+    job_id: str
+    def __init__(self, repository_id: _Optional[str] = ..., job_id: _Optional[str] = ...) -> None: ...
+
+class PrecommitCandidateCheckResponse(_message.Message):
+    __slots__ = ("job_id", "state", "candidate_digest", "config_digest", "result")
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    CONFIG_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    job_id: str
+    state: str
+    candidate_digest: str
+    config_digest: str
+    result: PrecommitRunResult
+    def __init__(self, job_id: _Optional[str] = ..., state: _Optional[str] = ..., candidate_digest: _Optional[str] = ..., config_digest: _Optional[str] = ..., result: _Optional[_Union[PrecommitRunResult, _Mapping]] = ...) -> None: ...
 
 class StageFilesRequest(_message.Message):
     __slots__ = ("repository_id", "intent_id", "paths", "scope")

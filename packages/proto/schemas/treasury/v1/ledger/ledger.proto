@@ -36,8 +36,55 @@ message ListEmissionsRequest {
 
 message ListEmissionsResponse {
   repeated LedgerEmission emissions = 1;
+  // Where settlements are delivered, so an empty or stuck queue is never the
+  // only signal that nothing can be delivered.
+  LedgerDestination destination = 2;
+  // Every settlement still waiting for delivery, whatever the filter above.
+  int32 queued_total = 3;
+}
+
+// LedgerDestination is the one Money Ledger book and account that Treasury
+// settlements post to. The operator chooses it; Treasury never guesses or
+// creates it.
+message LedgerDestination {
+  // False until a destination is chosen. Settlements stay durably queued.
+  bool configured = 1;
+  string book_id = 2;
+  string account_id = 3;
+  // Names as Money Ledger had them when the destination was chosen.
+  string book_name = 4;
+  string account_name = 5;
+  string currency = 6;
+  // "operator" when chosen with SetLedgerDestination; "environment" when it
+  // comes from the rehearsal seed (TREASURY_LEDGER_BOOK_ID and
+  // TREASURY_LEDGER_ACCOUNT_ID). Empty when not configured.
+  string source = 7;
+  google.protobuf.Timestamp set_at = 8;
+  // Why settlements cannot be delivered. Empty when configured.
+  string unconfigured_reason = 9;
+}
+
+message SetLedgerDestinationRequest {
+  string book_id = 1;
+  string account_id = 2;
+}
+
+message SetLedgerDestinationResponse {
+  LedgerDestination destination = 1;
+}
+
+message GetLedgerDestinationRequest {}
+
+message GetLedgerDestinationResponse {
+  LedgerDestination destination = 1;
+  int32 queued_total = 2;
 }
 
 service LedgerService {
   rpc ListEmissions(ListEmissionsRequest) returns (ListEmissionsResponse);
+  // SetLedgerDestination validates the book and account against Money Ledger
+  // (book exists and is not archived, account belongs to it, currency is USD)
+  // and then records the choice. Operator realm only.
+  rpc SetLedgerDestination(SetLedgerDestinationRequest) returns (SetLedgerDestinationResponse);
+  rpc GetLedgerDestination(GetLedgerDestinationRequest) returns (GetLedgerDestinationResponse);
 }

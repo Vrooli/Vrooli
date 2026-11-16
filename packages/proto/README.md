@@ -197,30 +197,11 @@ Follow the layer hierarchy (see [STYLE_GUIDE.md](./STYLE_GUIDE.md) for details):
 
 Each file should include a header with `@layer`, `@domain`, `@imports`, and `@stability` annotations.
 
-### 3. Regenerate code
+### 3. Generate and verify
 
-```bash
-cd packages/proto && make generate SCENARIO=<scenario>
-```
-
-This stages and regenerates all language outputs (Go, TypeScript, Python),
-creates `py.typed` markers, rebuilds the descriptor image, and writes
-per-scenario generation manifests under `gen/manifests/` before publishing only
-changed outputs. Use `go run -mod=mod ./cmd/protogen generate --changed` for
-the routine dependency-aware scoped run, or `--scenario` for an explicit scope.
-
-### 4. Verify your changes
-
-```bash
-# Lint your proto files
-make lint
-
-# Check for breaking changes (against master)
-make breaking SCENARIO=<scenario>
-
-# Ensure committed generated code, descriptors, and manifests are in sync
-make verify-committed-gen
-```
+Follow the canonical [proto pipeline](../../docs/development/proto.md#adding-a-new-proto)
+for scoped generation, reverse-dependency handling, lint, breaking checks, and
+committed-artifact verification. It owns the staging and publication details.
 
 ### 5. Import in your scenario
 
@@ -261,30 +242,9 @@ message CreatePlanRequest {
 
 ## Troubleshooting
 
-### Code generation fails
-
-1. **Check proto syntax**: Run `make lint` to validate your proto files
-2. **Check imports**: Ensure all imports exist and paths are correct
-3. **Check buf.yaml**: Verify your scenario is included in the `inputs` section
-
-### Breaking change detected
-
-`make breaking SCENARIO=<scenario>` asks proto-health to inspect the selected
-scenario's compatibility impact. If you intentionally made a breaking change:
-
-1. Document the change in your PR
-2. Ensure downstream consumers are updated
-3. Consider using field deprecation instead of removal when possible
-
-### Generated code not updating
-
-```bash
-# Regenerate the affected scenario through the staged pipeline
-make generate SCENARIO=<scenario>
-
-# Verify generated code is committed
-make verify-committed-gen
-```
+For syntax/import failures, compatibility findings, and stale generated output,
+follow [Proto Codegen Pipeline troubleshooting](../../docs/development/proto.md#troubleshooting).
+That page is the authority for the staged generation and verification workflow.
 
 ### TypeScript import issues
 

@@ -39,6 +39,21 @@ const (
 	// CoverageServiceAcceptDefaultTargetsProcedure is the fully-qualified name of the CoverageService's
 	// AcceptDefaultTargets RPC.
 	CoverageServiceAcceptDefaultTargetsProcedure = "/vrooli.data_backup_manager.v1.coverage.CoverageService/AcceptDefaultTargets"
+	// CoverageServiceRequestSensitiveReviewProcedure is the fully-qualified name of the
+	// CoverageService's RequestSensitiveReview RPC.
+	CoverageServiceRequestSensitiveReviewProcedure = "/vrooli.data_backup_manager.v1.coverage.CoverageService/RequestSensitiveReview"
+	// CoverageServiceGetSensitivePolicyProcedure is the fully-qualified name of the CoverageService's
+	// GetSensitivePolicy RPC.
+	CoverageServiceGetSensitivePolicyProcedure = "/vrooli.data_backup_manager.v1.coverage.CoverageService/GetSensitivePolicy"
+	// CoverageServiceRevokeSensitivePolicyProcedure is the fully-qualified name of the
+	// CoverageService's RevokeSensitivePolicy RPC.
+	CoverageServiceRevokeSensitivePolicyProcedure = "/vrooli.data_backup_manager.v1.coverage.CoverageService/RevokeSensitivePolicy"
+	// CoverageServiceExcludeSensitiveTargetProcedure is the fully-qualified name of the
+	// CoverageService's ExcludeSensitiveTarget RPC.
+	CoverageServiceExcludeSensitiveTargetProcedure = "/vrooli.data_backup_manager.v1.coverage.CoverageService/ExcludeSensitiveTarget"
+	// CoverageServiceAdoptSensitiveConsentProcedure is the fully-qualified name of the
+	// CoverageService's AdoptSensitiveConsent RPC.
+	CoverageServiceAdoptSensitiveConsentProcedure = "/vrooli.data_backup_manager.v1.coverage.CoverageService/AdoptSensitiveConsent"
 )
 
 // CoverageServiceClient is a client for the vrooli.data_backup_manager.v1.coverage.CoverageService
@@ -46,6 +61,21 @@ const (
 type CoverageServiceClient interface {
 	GetCoverageReport(context.Context, *connect.Request[coverage.GetCoverageReportRequest]) (*connect.Response[coverage.GetCoverageReportResponse], error)
 	AcceptDefaultTargets(context.Context, *connect.Request[coverage.AcceptDefaultTargetsRequest]) (*connect.Response[coverage.AcceptDefaultTargetsResponse], error)
+	// Raise one verified-human review for the current sensitive suggestions.
+	RequestSensitiveReview(context.Context, *connect.Request[coverage.RequestSensitiveReviewRequest]) (*connect.Response[coverage.RequestSensitiveReviewResponse], error)
+	// Show the standing rule for places that hold secrets: whether it is on, who
+	// consented and when, what it added, and what it keeps out.
+	GetSensitivePolicy(context.Context, *connect.Request[coverage.GetSensitivePolicyRequest]) (*connect.Response[coverage.GetSensitivePolicyResponse], error)
+	// Turn the standing rule off. Items it already added stay backed up; new
+	// places that hold secrets wait for a decision again.
+	RevokeSensitivePolicy(context.Context, *connect.Request[coverage.RevokeSensitivePolicyRequest]) (*connect.Response[coverage.RevokeSensitivePolicyResponse], error)
+	// Keep one item out of the standing rule.
+	ExcludeSensitiveTarget(context.Context, *connect.Request[coverage.ExcludeSensitiveTargetRequest]) (*connect.Response[coverage.ExcludeSensitiveTargetResponse], error)
+	// Record the operator's free-text answer on a sensitive coverage decision as
+	// the standing consent, and apply it. The answer is confirmed with the Hub: it
+	// must be this scenario's decision, answered by a verified human in their own
+	// words. Nothing is raised at the Hub.
+	AdoptSensitiveConsent(context.Context, *connect.Request[coverage.AdoptSensitiveConsentRequest]) (*connect.Response[coverage.AdoptSensitiveConsentResponse], error)
 }
 
 // NewCoverageServiceClient constructs a client for the
@@ -72,13 +102,48 @@ func NewCoverageServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(coverageServiceMethods.ByName("AcceptDefaultTargets")),
 			connect.WithClientOptions(opts...),
 		),
+		requestSensitiveReview: connect.NewClient[coverage.RequestSensitiveReviewRequest, coverage.RequestSensitiveReviewResponse](
+			httpClient,
+			baseURL+CoverageServiceRequestSensitiveReviewProcedure,
+			connect.WithSchema(coverageServiceMethods.ByName("RequestSensitiveReview")),
+			connect.WithClientOptions(opts...),
+		),
+		getSensitivePolicy: connect.NewClient[coverage.GetSensitivePolicyRequest, coverage.GetSensitivePolicyResponse](
+			httpClient,
+			baseURL+CoverageServiceGetSensitivePolicyProcedure,
+			connect.WithSchema(coverageServiceMethods.ByName("GetSensitivePolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		revokeSensitivePolicy: connect.NewClient[coverage.RevokeSensitivePolicyRequest, coverage.RevokeSensitivePolicyResponse](
+			httpClient,
+			baseURL+CoverageServiceRevokeSensitivePolicyProcedure,
+			connect.WithSchema(coverageServiceMethods.ByName("RevokeSensitivePolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		excludeSensitiveTarget: connect.NewClient[coverage.ExcludeSensitiveTargetRequest, coverage.ExcludeSensitiveTargetResponse](
+			httpClient,
+			baseURL+CoverageServiceExcludeSensitiveTargetProcedure,
+			connect.WithSchema(coverageServiceMethods.ByName("ExcludeSensitiveTarget")),
+			connect.WithClientOptions(opts...),
+		),
+		adoptSensitiveConsent: connect.NewClient[coverage.AdoptSensitiveConsentRequest, coverage.AdoptSensitiveConsentResponse](
+			httpClient,
+			baseURL+CoverageServiceAdoptSensitiveConsentProcedure,
+			connect.WithSchema(coverageServiceMethods.ByName("AdoptSensitiveConsent")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // coverageServiceClient implements CoverageServiceClient.
 type coverageServiceClient struct {
-	getCoverageReport    *connect.Client[coverage.GetCoverageReportRequest, coverage.GetCoverageReportResponse]
-	acceptDefaultTargets *connect.Client[coverage.AcceptDefaultTargetsRequest, coverage.AcceptDefaultTargetsResponse]
+	getCoverageReport      *connect.Client[coverage.GetCoverageReportRequest, coverage.GetCoverageReportResponse]
+	acceptDefaultTargets   *connect.Client[coverage.AcceptDefaultTargetsRequest, coverage.AcceptDefaultTargetsResponse]
+	requestSensitiveReview *connect.Client[coverage.RequestSensitiveReviewRequest, coverage.RequestSensitiveReviewResponse]
+	getSensitivePolicy     *connect.Client[coverage.GetSensitivePolicyRequest, coverage.GetSensitivePolicyResponse]
+	revokeSensitivePolicy  *connect.Client[coverage.RevokeSensitivePolicyRequest, coverage.RevokeSensitivePolicyResponse]
+	excludeSensitiveTarget *connect.Client[coverage.ExcludeSensitiveTargetRequest, coverage.ExcludeSensitiveTargetResponse]
+	adoptSensitiveConsent  *connect.Client[coverage.AdoptSensitiveConsentRequest, coverage.AdoptSensitiveConsentResponse]
 }
 
 // GetCoverageReport calls vrooli.data_backup_manager.v1.coverage.CoverageService.GetCoverageReport.
@@ -92,11 +157,56 @@ func (c *coverageServiceClient) AcceptDefaultTargets(ctx context.Context, req *c
 	return c.acceptDefaultTargets.CallUnary(ctx, req)
 }
 
+// RequestSensitiveReview calls
+// vrooli.data_backup_manager.v1.coverage.CoverageService.RequestSensitiveReview.
+func (c *coverageServiceClient) RequestSensitiveReview(ctx context.Context, req *connect.Request[coverage.RequestSensitiveReviewRequest]) (*connect.Response[coverage.RequestSensitiveReviewResponse], error) {
+	return c.requestSensitiveReview.CallUnary(ctx, req)
+}
+
+// GetSensitivePolicy calls
+// vrooli.data_backup_manager.v1.coverage.CoverageService.GetSensitivePolicy.
+func (c *coverageServiceClient) GetSensitivePolicy(ctx context.Context, req *connect.Request[coverage.GetSensitivePolicyRequest]) (*connect.Response[coverage.GetSensitivePolicyResponse], error) {
+	return c.getSensitivePolicy.CallUnary(ctx, req)
+}
+
+// RevokeSensitivePolicy calls
+// vrooli.data_backup_manager.v1.coverage.CoverageService.RevokeSensitivePolicy.
+func (c *coverageServiceClient) RevokeSensitivePolicy(ctx context.Context, req *connect.Request[coverage.RevokeSensitivePolicyRequest]) (*connect.Response[coverage.RevokeSensitivePolicyResponse], error) {
+	return c.revokeSensitivePolicy.CallUnary(ctx, req)
+}
+
+// ExcludeSensitiveTarget calls
+// vrooli.data_backup_manager.v1.coverage.CoverageService.ExcludeSensitiveTarget.
+func (c *coverageServiceClient) ExcludeSensitiveTarget(ctx context.Context, req *connect.Request[coverage.ExcludeSensitiveTargetRequest]) (*connect.Response[coverage.ExcludeSensitiveTargetResponse], error) {
+	return c.excludeSensitiveTarget.CallUnary(ctx, req)
+}
+
+// AdoptSensitiveConsent calls
+// vrooli.data_backup_manager.v1.coverage.CoverageService.AdoptSensitiveConsent.
+func (c *coverageServiceClient) AdoptSensitiveConsent(ctx context.Context, req *connect.Request[coverage.AdoptSensitiveConsentRequest]) (*connect.Response[coverage.AdoptSensitiveConsentResponse], error) {
+	return c.adoptSensitiveConsent.CallUnary(ctx, req)
+}
+
 // CoverageServiceHandler is an implementation of the
 // vrooli.data_backup_manager.v1.coverage.CoverageService service.
 type CoverageServiceHandler interface {
 	GetCoverageReport(context.Context, *connect.Request[coverage.GetCoverageReportRequest]) (*connect.Response[coverage.GetCoverageReportResponse], error)
 	AcceptDefaultTargets(context.Context, *connect.Request[coverage.AcceptDefaultTargetsRequest]) (*connect.Response[coverage.AcceptDefaultTargetsResponse], error)
+	// Raise one verified-human review for the current sensitive suggestions.
+	RequestSensitiveReview(context.Context, *connect.Request[coverage.RequestSensitiveReviewRequest]) (*connect.Response[coverage.RequestSensitiveReviewResponse], error)
+	// Show the standing rule for places that hold secrets: whether it is on, who
+	// consented and when, what it added, and what it keeps out.
+	GetSensitivePolicy(context.Context, *connect.Request[coverage.GetSensitivePolicyRequest]) (*connect.Response[coverage.GetSensitivePolicyResponse], error)
+	// Turn the standing rule off. Items it already added stay backed up; new
+	// places that hold secrets wait for a decision again.
+	RevokeSensitivePolicy(context.Context, *connect.Request[coverage.RevokeSensitivePolicyRequest]) (*connect.Response[coverage.RevokeSensitivePolicyResponse], error)
+	// Keep one item out of the standing rule.
+	ExcludeSensitiveTarget(context.Context, *connect.Request[coverage.ExcludeSensitiveTargetRequest]) (*connect.Response[coverage.ExcludeSensitiveTargetResponse], error)
+	// Record the operator's free-text answer on a sensitive coverage decision as
+	// the standing consent, and apply it. The answer is confirmed with the Hub: it
+	// must be this scenario's decision, answered by a verified human in their own
+	// words. Nothing is raised at the Hub.
+	AdoptSensitiveConsent(context.Context, *connect.Request[coverage.AdoptSensitiveConsentRequest]) (*connect.Response[coverage.AdoptSensitiveConsentResponse], error)
 }
 
 // NewCoverageServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -118,12 +228,52 @@ func NewCoverageServiceHandler(svc CoverageServiceHandler, opts ...connect.Handl
 		connect.WithSchema(coverageServiceMethods.ByName("AcceptDefaultTargets")),
 		connect.WithHandlerOptions(opts...),
 	)
+	coverageServiceRequestSensitiveReviewHandler := connect.NewUnaryHandler(
+		CoverageServiceRequestSensitiveReviewProcedure,
+		svc.RequestSensitiveReview,
+		connect.WithSchema(coverageServiceMethods.ByName("RequestSensitiveReview")),
+		connect.WithHandlerOptions(opts...),
+	)
+	coverageServiceGetSensitivePolicyHandler := connect.NewUnaryHandler(
+		CoverageServiceGetSensitivePolicyProcedure,
+		svc.GetSensitivePolicy,
+		connect.WithSchema(coverageServiceMethods.ByName("GetSensitivePolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	coverageServiceRevokeSensitivePolicyHandler := connect.NewUnaryHandler(
+		CoverageServiceRevokeSensitivePolicyProcedure,
+		svc.RevokeSensitivePolicy,
+		connect.WithSchema(coverageServiceMethods.ByName("RevokeSensitivePolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	coverageServiceExcludeSensitiveTargetHandler := connect.NewUnaryHandler(
+		CoverageServiceExcludeSensitiveTargetProcedure,
+		svc.ExcludeSensitiveTarget,
+		connect.WithSchema(coverageServiceMethods.ByName("ExcludeSensitiveTarget")),
+		connect.WithHandlerOptions(opts...),
+	)
+	coverageServiceAdoptSensitiveConsentHandler := connect.NewUnaryHandler(
+		CoverageServiceAdoptSensitiveConsentProcedure,
+		svc.AdoptSensitiveConsent,
+		connect.WithSchema(coverageServiceMethods.ByName("AdoptSensitiveConsent")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.data_backup_manager.v1.coverage.CoverageService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CoverageServiceGetCoverageReportProcedure:
 			coverageServiceGetCoverageReportHandler.ServeHTTP(w, r)
 		case CoverageServiceAcceptDefaultTargetsProcedure:
 			coverageServiceAcceptDefaultTargetsHandler.ServeHTTP(w, r)
+		case CoverageServiceRequestSensitiveReviewProcedure:
+			coverageServiceRequestSensitiveReviewHandler.ServeHTTP(w, r)
+		case CoverageServiceGetSensitivePolicyProcedure:
+			coverageServiceGetSensitivePolicyHandler.ServeHTTP(w, r)
+		case CoverageServiceRevokeSensitivePolicyProcedure:
+			coverageServiceRevokeSensitivePolicyHandler.ServeHTTP(w, r)
+		case CoverageServiceExcludeSensitiveTargetProcedure:
+			coverageServiceExcludeSensitiveTargetHandler.ServeHTTP(w, r)
+		case CoverageServiceAdoptSensitiveConsentProcedure:
+			coverageServiceAdoptSensitiveConsentHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -139,4 +289,24 @@ func (UnimplementedCoverageServiceHandler) GetCoverageReport(context.Context, *c
 
 func (UnimplementedCoverageServiceHandler) AcceptDefaultTargets(context.Context, *connect.Request[coverage.AcceptDefaultTargetsRequest]) (*connect.Response[coverage.AcceptDefaultTargetsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.coverage.CoverageService.AcceptDefaultTargets is not implemented"))
+}
+
+func (UnimplementedCoverageServiceHandler) RequestSensitiveReview(context.Context, *connect.Request[coverage.RequestSensitiveReviewRequest]) (*connect.Response[coverage.RequestSensitiveReviewResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.coverage.CoverageService.RequestSensitiveReview is not implemented"))
+}
+
+func (UnimplementedCoverageServiceHandler) GetSensitivePolicy(context.Context, *connect.Request[coverage.GetSensitivePolicyRequest]) (*connect.Response[coverage.GetSensitivePolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.coverage.CoverageService.GetSensitivePolicy is not implemented"))
+}
+
+func (UnimplementedCoverageServiceHandler) RevokeSensitivePolicy(context.Context, *connect.Request[coverage.RevokeSensitivePolicyRequest]) (*connect.Response[coverage.RevokeSensitivePolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.coverage.CoverageService.RevokeSensitivePolicy is not implemented"))
+}
+
+func (UnimplementedCoverageServiceHandler) ExcludeSensitiveTarget(context.Context, *connect.Request[coverage.ExcludeSensitiveTargetRequest]) (*connect.Response[coverage.ExcludeSensitiveTargetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.coverage.CoverageService.ExcludeSensitiveTarget is not implemented"))
+}
+
+func (UnimplementedCoverageServiceHandler) AdoptSensitiveConsent(context.Context, *connect.Request[coverage.AdoptSensitiveConsentRequest]) (*connect.Response[coverage.AdoptSensitiveConsentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.coverage.CoverageService.AdoptSensitiveConsent is not implemented"))
 }

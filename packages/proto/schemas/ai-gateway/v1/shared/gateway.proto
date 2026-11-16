@@ -180,6 +180,13 @@ message GatewayRequest {
   // no-reclaim capacity admission; absent means capacity is not evaluated.
   // The Gateway does not infer this estimate from a concrete model name.
   optional int64 required_vram_bytes = 14 [(buf.validate.field).int64.gt = 0];
+  // privacy_provenance is a non-sensitive caller statement naming the source
+  // and basis used to assign privacy_class. It does not override the class or
+  // authorize a less restrictive route.
+  string privacy_provenance = 15;
+  // task_role identifies the caller's task contract independently of any
+  // resource policy role selected by routing.
+  string task_role = 16;
 }
 
 message ValidationIssue {

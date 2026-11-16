@@ -9,6 +9,7 @@ package rehearsals_v1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -393,7 +394,13 @@ type CreateAndRunRehearsalRequest struct {
 	RequiredOutputPaths []string `protobuf:"bytes,7,rep,name=required_output_paths,json=requiredOutputPaths,proto3" json:"required_output_paths,omitempty"`
 	// Link a changed workflow revision to the failed run whose required outputs
 	// it repairs. The simulator source and exact failed paths must match.
-	RepairOfId    string `protobuf:"bytes,8,opt,name=repair_of_id,json=repairOfId,proto3" json:"repair_of_id,omitempty"`
+	RepairOfId string `protobuf:"bytes,8,opt,name=repair_of_id,json=repairOfId,proto3" json:"repair_of_id,omitempty"`
+	// Run this rehearsal with a server-owned Workspace Sandbox task scope and
+	// route native service calls through its synthetic companion aliases.
+	TaskScoped bool `protobuf:"varint,9,opt,name=task_scoped,json=taskScoped,proto3" json:"task_scoped,omitempty"`
+	// Optional synthetic JSON object delivered to the selected trigger for this
+	// run only. The server bounds and sanitizes it; it is not persisted or returned.
+	TriggerInput  *structpb.Struct `protobuf:"bytes,10,opt,name=trigger_input,json=triggerInput,proto3" json:"trigger_input,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -482,6 +489,20 @@ func (x *CreateAndRunRehearsalRequest) GetRepairOfId() string {
 		return x.RepairOfId
 	}
 	return ""
+}
+
+func (x *CreateAndRunRehearsalRequest) GetTaskScoped() bool {
+	if x != nil {
+		return x.TaskScoped
+	}
+	return false
+}
+
+func (x *CreateAndRunRehearsalRequest) GetTriggerInput() *structpb.Struct {
+	if x != nil {
+		return x.TriggerInput
+	}
+	return nil
 }
 
 type CreateAndRunRehearsalResponse struct {
@@ -812,7 +833,7 @@ var File_client_rehearsal_v1_rehearsals_rehearsals_proto protoreflect.FileDescri
 
 const file_client_rehearsal_v1_rehearsals_rehearsals_proto_rawDesc = "" +
 	"\n" +
-	"/client-rehearsal/v1/rehearsals/rehearsals.proto\x12%vrooli.client_rehearsal.v1.rehearsals\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9f\x06\n" +
+	"/client-rehearsal/v1/rehearsals/rehearsals.proto\x12%vrooli.client_rehearsal.v1.rehearsals\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\"\x9f\x06\n" +
 	"\tRehearsal\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12#\n" +
@@ -842,7 +863,7 @@ const file_client_rehearsal_v1_rehearsals_rehearsals_proto_rawDesc = "" +
 	"\x10response_summary\x18\x04 \x01(\tR\x0fresponseSummary\x12\x16\n" +
 	"\x06status\x18\x05 \x01(\tR\x06status\x12;\n" +
 	"\voccurred_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"occurredAt\"\xe8\x02\n" +
+	"occurredAt\"\xc7\x03\n" +
 	"\x1cCreateAndRunRehearsalRequest\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12#\n" +
 	"\rworkflow_json\x18\x02 \x01(\tR\fworkflowJson\x12+\n" +
@@ -852,7 +873,11 @@ const file_client_rehearsal_v1_rehearsals_rehearsals_proto_rawDesc = "" +
 	"\x0ftrigger_node_id\x18\x06 \x01(\tR\rtriggerNodeId\x122\n" +
 	"\x15required_output_paths\x18\a \x03(\tR\x13requiredOutputPaths\x12 \n" +
 	"\frepair_of_id\x18\b \x01(\tR\n" +
-	"repairOfId\"o\n" +
+	"repairOfId\x12\x1f\n" +
+	"\vtask_scoped\x18\t \x01(\bR\n" +
+	"taskScoped\x12<\n" +
+	"\rtrigger_input\x18\n" +
+	" \x01(\v2\x17.google.protobuf.StructR\ftriggerInput\"o\n" +
 	"\x1dCreateAndRunRehearsalResponse\x12N\n" +
 	"\trehearsal\x18\x01 \x01(\v20.vrooli.client_rehearsal.v1.rehearsals.RehearsalR\trehearsal\"-\n" +
 	"\x15ListRehearsalsRequest\x12\x14\n" +
@@ -915,6 +940,7 @@ var file_client_rehearsal_v1_rehearsals_rehearsals_proto_goTypes = []any{
 	(*RecordReviewRequest)(nil),           // 10: vrooli.client_rehearsal.v1.rehearsals.RecordReviewRequest
 	(*RecordReviewResponse)(nil),          // 11: vrooli.client_rehearsal.v1.rehearsals.RecordReviewResponse
 	(*timestamppb.Timestamp)(nil),         // 12: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),               // 13: google.protobuf.Struct
 }
 var file_client_rehearsal_v1_rehearsals_rehearsals_proto_depIdxs = []int32{
 	0,  // 0: vrooli.client_rehearsal.v1.rehearsals.Rehearsal.state:type_name -> vrooli.client_rehearsal.v1.rehearsals.RehearsalState
@@ -923,24 +949,25 @@ var file_client_rehearsal_v1_rehearsals_rehearsals_proto_depIdxs = []int32{
 	12, // 3: vrooli.client_rehearsal.v1.rehearsals.Rehearsal.created_at:type_name -> google.protobuf.Timestamp
 	12, // 4: vrooli.client_rehearsal.v1.rehearsals.Rehearsal.reviewed_at:type_name -> google.protobuf.Timestamp
 	12, // 5: vrooli.client_rehearsal.v1.rehearsals.TraceEvent.occurred_at:type_name -> google.protobuf.Timestamp
-	2,  // 6: vrooli.client_rehearsal.v1.rehearsals.CreateAndRunRehearsalResponse.rehearsal:type_name -> vrooli.client_rehearsal.v1.rehearsals.Rehearsal
-	2,  // 7: vrooli.client_rehearsal.v1.rehearsals.ListRehearsalsResponse.rehearsals:type_name -> vrooli.client_rehearsal.v1.rehearsals.Rehearsal
-	2,  // 8: vrooli.client_rehearsal.v1.rehearsals.GetRehearsalResponse.rehearsal:type_name -> vrooli.client_rehearsal.v1.rehearsals.Rehearsal
-	1,  // 9: vrooli.client_rehearsal.v1.rehearsals.RecordReviewRequest.decision:type_name -> vrooli.client_rehearsal.v1.rehearsals.ReviewDecision
-	2,  // 10: vrooli.client_rehearsal.v1.rehearsals.RecordReviewResponse.rehearsal:type_name -> vrooli.client_rehearsal.v1.rehearsals.Rehearsal
-	4,  // 11: vrooli.client_rehearsal.v1.rehearsals.RehearsalService.CreateAndRunRehearsal:input_type -> vrooli.client_rehearsal.v1.rehearsals.CreateAndRunRehearsalRequest
-	6,  // 12: vrooli.client_rehearsal.v1.rehearsals.RehearsalService.ListRehearsals:input_type -> vrooli.client_rehearsal.v1.rehearsals.ListRehearsalsRequest
-	8,  // 13: vrooli.client_rehearsal.v1.rehearsals.RehearsalService.GetRehearsal:input_type -> vrooli.client_rehearsal.v1.rehearsals.GetRehearsalRequest
-	10, // 14: vrooli.client_rehearsal.v1.rehearsals.RehearsalService.RecordReview:input_type -> vrooli.client_rehearsal.v1.rehearsals.RecordReviewRequest
-	5,  // 15: vrooli.client_rehearsal.v1.rehearsals.RehearsalService.CreateAndRunRehearsal:output_type -> vrooli.client_rehearsal.v1.rehearsals.CreateAndRunRehearsalResponse
-	7,  // 16: vrooli.client_rehearsal.v1.rehearsals.RehearsalService.ListRehearsals:output_type -> vrooli.client_rehearsal.v1.rehearsals.ListRehearsalsResponse
-	9,  // 17: vrooli.client_rehearsal.v1.rehearsals.RehearsalService.GetRehearsal:output_type -> vrooli.client_rehearsal.v1.rehearsals.GetRehearsalResponse
-	11, // 18: vrooli.client_rehearsal.v1.rehearsals.RehearsalService.RecordReview:output_type -> vrooli.client_rehearsal.v1.rehearsals.RecordReviewResponse
-	15, // [15:19] is the sub-list for method output_type
-	11, // [11:15] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	13, // 6: vrooli.client_rehearsal.v1.rehearsals.CreateAndRunRehearsalRequest.trigger_input:type_name -> google.protobuf.Struct
+	2,  // 7: vrooli.client_rehearsal.v1.rehearsals.CreateAndRunRehearsalResponse.rehearsal:type_name -> vrooli.client_rehearsal.v1.rehearsals.Rehearsal
+	2,  // 8: vrooli.client_rehearsal.v1.rehearsals.ListRehearsalsResponse.rehearsals:type_name -> vrooli.client_rehearsal.v1.rehearsals.Rehearsal
+	2,  // 9: vrooli.client_rehearsal.v1.rehearsals.GetRehearsalResponse.rehearsal:type_name -> vrooli.client_rehearsal.v1.rehearsals.Rehearsal
+	1,  // 10: vrooli.client_rehearsal.v1.rehearsals.RecordReviewRequest.decision:type_name -> vrooli.client_rehearsal.v1.rehearsals.ReviewDecision
+	2,  // 11: vrooli.client_rehearsal.v1.rehearsals.RecordReviewResponse.rehearsal:type_name -> vrooli.client_rehearsal.v1.rehearsals.Rehearsal
+	4,  // 12: vrooli.client_rehearsal.v1.rehearsals.RehearsalService.CreateAndRunRehearsal:input_type -> vrooli.client_rehearsal.v1.rehearsals.CreateAndRunRehearsalRequest
+	6,  // 13: vrooli.client_rehearsal.v1.rehearsals.RehearsalService.ListRehearsals:input_type -> vrooli.client_rehearsal.v1.rehearsals.ListRehearsalsRequest
+	8,  // 14: vrooli.client_rehearsal.v1.rehearsals.RehearsalService.GetRehearsal:input_type -> vrooli.client_rehearsal.v1.rehearsals.GetRehearsalRequest
+	10, // 15: vrooli.client_rehearsal.v1.rehearsals.RehearsalService.RecordReview:input_type -> vrooli.client_rehearsal.v1.rehearsals.RecordReviewRequest
+	5,  // 16: vrooli.client_rehearsal.v1.rehearsals.RehearsalService.CreateAndRunRehearsal:output_type -> vrooli.client_rehearsal.v1.rehearsals.CreateAndRunRehearsalResponse
+	7,  // 17: vrooli.client_rehearsal.v1.rehearsals.RehearsalService.ListRehearsals:output_type -> vrooli.client_rehearsal.v1.rehearsals.ListRehearsalsResponse
+	9,  // 18: vrooli.client_rehearsal.v1.rehearsals.RehearsalService.GetRehearsal:output_type -> vrooli.client_rehearsal.v1.rehearsals.GetRehearsalResponse
+	11, // 19: vrooli.client_rehearsal.v1.rehearsals.RehearsalService.RecordReview:output_type -> vrooli.client_rehearsal.v1.rehearsals.RecordReviewResponse
+	16, // [16:20] is the sub-list for method output_type
+	12, // [12:16] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_client_rehearsal_v1_rehearsals_rehearsals_proto_init() }

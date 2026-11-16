@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"react-component-library/internal/sqliterows"
 	"sort"
 	"strings"
 )
@@ -102,24 +104,21 @@ func (s *sqliteRepository) GetBuiltin(ctx context.Context, id string) (Theme, er
 }
 
 func (s *sqliteRepository) ListBuiltins(ctx context.Context) ([]Theme, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, name, tokens_json FROM builtin_themes ORDER BY id`)
-	if err != nil {
-		return nil, fmt.Errorf("query builtins: %w", err)
-	}
-	defer rows.Close()
-	var out []Theme
-	for rows.Next() {
+	out, err := sqliterows.Collect(ctx, s.db, `SELECT id, name, tokens_json FROM builtin_themes ORDER BY id`, nil, false, func(row sqliterows.Scanner) (Theme, error) {
 		var id, name, tokensJSON string
-		if err := rows.Scan(&id, &name, &tokensJSON); err != nil {
-			return nil, fmt.Errorf("scan: %w", err)
+		if err := row.Scan(&id, &name, &tokensJSON); err != nil {
+			return Theme{}, fmt.Errorf("scan: %w", err)
 		}
 		tokens, err := decodeTokens(tokensJSON)
 		if err != nil {
-			return nil, fmt.Errorf("decode tokens %s: %w", id, err)
+			return Theme{}, fmt.Errorf("decode tokens %s: %w", id, err)
 		}
-		out = append(out, Theme{ID: id, Name: name, Tokens: tokens, Source: "builtin"})
+		return Theme{ID: id, Name: name, Tokens: tokens, Source: "builtin"}, nil
+	}, sqliterows.ErrorContext{Query: "query builtins"})
+	if err != nil {
+		return nil, err
 	}
-	return out, rows.Err()
+	return out, nil
 }
 
 func (s *sqliteRepository) CountBuiltins(ctx context.Context) (int, error) {

@@ -34,7 +34,8 @@ func TestConcurrentDispatchIsDurableAndReplayDoesNotChargeAgain(t *testing.T) {
 		calls.Add(1)
 		require.Equal(t, "extract.structured", r.Msg.Role)
 		require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, r.Msg.GetProfile())
-		require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED, r.Msg.GetPrivacyClass(), "the design request has no sourced privacy classification")
+		require.Equal(t, designPrivacyClass, r.Msg.GetPrivacyClass(), "design source and context are confidential")
+		require.Equal(t, designPrivacySource, r.Msg.GetPrivacyProvenance())
 		require.Equal(t, int32(4096), r.Msg.MaxOutputTokens)
 		close(entered)
 		<-release

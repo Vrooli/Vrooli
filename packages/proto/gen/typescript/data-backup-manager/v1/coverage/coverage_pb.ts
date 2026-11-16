@@ -14,7 +14,384 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file data-backup-manager/v1/coverage/coverage.proto.
  */
 export const file_data_backup_manager_v1_coverage_coverage: GenFile = /*@__PURE__*/
-  fileDesc("Ci5kYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL2NvdmVyYWdlL2NvdmVyYWdlLnByb3RvEiZ2cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5jb3ZlcmFnZSKiAgoQUmVnaXN0ZXJlZFRhcmdldBIKCgJpZBgBIAEoCRINCgVvd25lchgCIAEoCRIMCgRuYW1lGAMgASgJEkYKC3NvdXJjZV9raW5kGAQgASgOMjEudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuc291cmNlcy5Tb3VyY2VLaW5kEg8KB2xvY2F0b3IYBSABKAkSDwoHcGxhbm5lZBgGIAEoCBIzCg9sYXN0X3N1Y2Nlc3NfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjQKEGxhc3RfdmVyaWZpZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCGNyaXRpY2FsGAkgASgIIvIBCg9TdWdnZXN0ZWRUYXJnZXQSCgoCaWQYASABKAkSDQoFb3duZXIYAiABKAkSDAoEbmFtZRgDIAEoCRJGCgtzb3VyY2Vfa2luZBgEIAEoDjIxLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnNvdXJjZXMuU291cmNlS2luZBIPCgdsb2NhdG9yGAUgASgJEhEKCXJhdGlvbmFsZRgGIAEoCRIUCgxhcHByb3hfYnl0ZXMYByABKAMSEQoJc2Vuc2l0aXZlGAggASgIEg8KB3dhcm5pbmcYCSABKAkSEAoIY3JpdGljYWwYCiABKAgitgIKD0NvdmVyYWdlU3VtbWFyeRIYChByZWdpc3RlcmVkX2NvdW50GAEgASgFEhkKEXJlY29tbWVuZGVkX2NvdW50GAIgASgFEhcKD3NlbnNpdGl2ZV9jb3VudBgDIAEoBRIVCg1wbGFubmVkX2NvdW50GAQgASgFEhcKD2JhY2tlZF91cF9jb3VudBgFIAEoBRIWCg52ZXJpZmllZF9jb3VudBgGIAEoBRIhChlkZWZhdWx0X2NvdmVyYWdlX2NvbXBsZXRlGAcgASgIEiAKGGhhc19zZW5zaXRpdmVfdW5yZXZpZXdlZBgIIAEoCBIoCiBoYXNfdW5wbGFubmVkX3JlZ2lzdGVyZWRfdGFyZ2V0cxgJIAEoCBIeChZoYXNfdW52ZXJpZmllZF90YXJnZXRzGAogASgIItoCCg5Db3ZlcmFnZVJlcG9ydBJICgdzdW1tYXJ5GAEgASgLMjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuY292ZXJhZ2UuQ292ZXJhZ2VTdW1tYXJ5ElQKEnJlZ2lzdGVyZWRfdGFyZ2V0cxgCIAMoCzI4LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLlJlZ2lzdGVyZWRUYXJnZXQSVAoTcmVjb21tZW5kZWRfdGFyZ2V0cxgDIAMoCzI3LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLlN1Z2dlc3RlZFRhcmdldBJSChFzZW5zaXRpdmVfdGFyZ2V0cxgEIAMoCzI3LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLlN1Z2dlc3RlZFRhcmdldCIaChhHZXRDb3ZlcmFnZVJlcG9ydFJlcXVlc3QiYwoZR2V0Q292ZXJhZ2VSZXBvcnRSZXNwb25zZRJGCgZyZXBvcnQYASABKAsyNi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5jb3ZlcmFnZS5Db3ZlcmFnZVJlcG9ydCLVAQoOQWNjZXB0ZWRUYXJnZXQSEQoJdGFyZ2V0X2lkGAEgASgJEhUKDXN1Z2dlc3Rpb25faWQYAiABKAkSDQoFb3duZXIYAyABKAkSDAoEbmFtZRgEIAEoCRJGCgtzb3VyY2Vfa2luZBgFIAEoDjIxLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnNvdXJjZXMuU291cmNlS2luZBIPCgdsb2NhdG9yGAYgASgJEhEKCXNlbnNpdGl2ZRgHIAEoCBIQCghjcml0aWNhbBgIIAEoCCJSCgtBY2NlcHRFcnJvchIVCg1zdWdnZXN0aW9uX2lkGAEgASgJEg0KBW93bmVyGAIgASgJEgwKBG5hbWUYAyABKAkSDwoHbWVzc2FnZRgEIAEoCSJJChtBY2NlcHREZWZhdWx0VGFyZ2V0c1JlcXVlc3QSGQoRaW5jbHVkZV9zZW5zaXRpdmUYASABKAgSDwoHZHJ5X3J1bhgCIAEoCCKSAgocQWNjZXB0RGVmYXVsdFRhcmdldHNSZXNwb25zZRJICghhY2NlcHRlZBgBIAMoCzI2LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLkFjY2VwdGVkVGFyZ2V0ElIKEXNraXBwZWRfc2Vuc2l0aXZlGAIgAygLMjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuY292ZXJhZ2UuU3VnZ2VzdGVkVGFyZ2V0EkMKBmZhaWxlZBgDIAMoCzIzLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLkFjY2VwdEVycm9yEg8KB2RyeV9ydW4YBCABKAgy0AIKD0NvdmVyYWdlU2VydmljZRKYAQoRR2V0Q292ZXJhZ2VSZXBvcnQSQC52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5jb3ZlcmFnZS5HZXRDb3ZlcmFnZVJlcG9ydFJlcXVlc3QaQS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5jb3ZlcmFnZS5HZXRDb3ZlcmFnZVJlcG9ydFJlc3BvbnNlEqEBChRBY2NlcHREZWZhdWx0VGFyZ2V0cxJDLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLkFjY2VwdERlZmF1bHRUYXJnZXRzUmVxdWVzdBpELnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLkFjY2VwdERlZmF1bHRUYXJnZXRzUmVzcG9uc2VCXFpaZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9kYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL2NvdmVyYWdlO2NvdmVyYWdlX3YxYgZwcm90bzM", [file_data_backup_manager_v1_sources_sources, file_google_protobuf_timestamp]);
+  fileDesc("Ci5kYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL2NvdmVyYWdlL2NvdmVyYWdlLnByb3RvEiZ2cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5jb3ZlcmFnZSIfCh1SZXF1ZXN0U2Vuc2l0aXZlUmV2aWV3UmVxdWVzdCJaCh5SZXF1ZXN0U2Vuc2l0aXZlUmV2aWV3UmVzcG9uc2USDgoGYXNrX2lkGAEgASgJEhcKD2NhbmRpZGF0ZV9jb3VudBgCIAEoBRIPCgdwZW5kaW5nGAMgASgIIokBChdTZW5zaXRpdmVQb2xpY3lBZGRpdGlvbhINCgVvd25lchgBIAEoCRIMCgRuYW1lGAIgASgJEg0KBWdyb3VwGAMgASgJEhQKDGFwcHJveF9ieXRlcxgEIAEoAxIsCghhZGRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAijQEKGFNlbnNpdGl2ZVBvbGljeUV4Y2x1c2lvbhINCgVvd25lchgBIAEoCRIMCgRuYW1lGAIgASgJEg4KBnJlYXNvbhgDIAEoCRITCgtleGNsdWRlZF9ieRgEIAEoCRIvCgtleGNsdWRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiaAoUU2Vuc2l0aXZlUG9saWN5RXZlbnQSJgoCYXQYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBGtpbmQYAiABKAkSCgoCYnkYAyABKAkSDgoGZGV0YWlsGAQgASgJIqAFCg9TZW5zaXRpdmVQb2xpY3kSDgoGYWN0aXZlGAEgASgIEhQKDGdyYW50X2Fza19pZBgCIAEoCRISCgpncmFudGVkX2J5GAMgASgJEiAKGGdyYW50ZWRfYnlfaWRlbnRpdHlfa2luZBgEIAEoCRIiChpncmFudGVkX2J5X2lkZW50aXR5X3NvdXJjZRgFIAEoCRIuCgpncmFudGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBISCgpyZXZva2VkX2J5GAcgASgJEi4KCnJldm9rZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wElIKCGV4Y2x1ZGVkGAkgAygLMkAudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuY292ZXJhZ2UuU2Vuc2l0aXZlUG9saWN5RXhjbHVzaW9uElMKCnVucmVwb3J0ZWQYCiADKAsyPy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5jb3ZlcmFnZS5TZW5zaXRpdmVQb2xpY3lBZGRpdGlvbhITCgthZGRlZF90b3RhbBgLIAEoBRIwCgxsYXN0X25vdGVfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjEKDWxhc3Rfc3dlZXBfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEk0KB2hpc3RvcnkYDiADKAsyPC52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5jb3ZlcmFnZS5TZW5zaXRpdmVQb2xpY3lFdmVudBITCgtncmFudF9iYXNpcxgPIAEoCRISCgpncmFudF90ZXh0GBAgASgJIhsKGUdldFNlbnNpdGl2ZVBvbGljeVJlcXVlc3QiZQoaR2V0U2Vuc2l0aXZlUG9saWN5UmVzcG9uc2USRwoGcG9saWN5GAEgASgLMjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuY292ZXJhZ2UuU2Vuc2l0aXZlUG9saWN5IjIKHFJldm9rZVNlbnNpdGl2ZVBvbGljeVJlcXVlc3QSEgoKcmV2b2tlZF9ieRgBIAEoCSJoCh1SZXZva2VTZW5zaXRpdmVQb2xpY3lSZXNwb25zZRJHCgZwb2xpY3kYASABKAsyNy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5jb3ZlcmFnZS5TZW5zaXRpdmVQb2xpY3kiYQodRXhjbHVkZVNlbnNpdGl2ZVRhcmdldFJlcXVlc3QSDQoFb3duZXIYASABKAkSDAoEbmFtZRgCIAEoCRIOCgZyZWFzb24YAyABKAkSEwoLZXhjbHVkZWRfYnkYBCABKAkiaQoeRXhjbHVkZVNlbnNpdGl2ZVRhcmdldFJlc3BvbnNlEkcKBnBvbGljeRgBIAEoCzI3LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLlNlbnNpdGl2ZVBvbGljeSKjBQoQUmVnaXN0ZXJlZFRhcmdldBIKCgJpZBgBIAEoCRINCgVvd25lchgCIAEoCRIMCgRuYW1lGAMgASgJEkYKC3NvdXJjZV9raW5kGAQgASgOMjEudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuc291cmNlcy5Tb3VyY2VLaW5kEg8KB2xvY2F0b3IYBSABKAkSDwoHcGxhbm5lZBgGIAEoCBIzCg9sYXN0X3N1Y2Nlc3NfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjQKEGxhc3RfdmVyaWZpZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCGNyaXRpY2FsGAkgASgIEhQKDHJlYWNxdWlyYWJsZRgKIAEoCBIdChVyZWFjcXVpc2l0aW9uX2NvbW1hbmQYCyABKAkSHgoWcmVhY3F1aXNpdGlvbl9ldmlkZW5jZRgMIAEoCRIkChxyZWFjcXVpc2l0aW9uX25lZWRzX29wZXJhdG9yGA0gASgIEiEKGXJlYWNxdWlzaXRpb25fYXV0aF9yZWFzb24YDiABKAkSVQoMZGVzdGluYXRpb25zGA8gAygLMj8udnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuY292ZXJhZ2UuVGFyZ2V0RGVzdGluYXRpb25TdGF0dXMSIgoaYWxsX2Rlc3RpbmF0aW9uc19iYWNrZWRfdXAYECABKAgSIQoZYWxsX2Rlc3RpbmF0aW9uc192ZXJpZmllZBgRIAEoCBIkChxwaHlzaWNhbF9pbmRlcGVuZGVuY2VfcHJvdmVuGBIgASgIEh0KFWluZGVwZW5kZW5jZV93YXJuaW5ncxgTIAMoCSKcAQoXVGFyZ2V0RGVzdGluYXRpb25TdGF0dXMSFgoOZGVzdGluYXRpb25faWQYASABKAkSMwoPbGFzdF9zdWNjZXNzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI0ChBsYXN0X3ZlcmlmaWVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLVAwoPU3VnZ2VzdGVkVGFyZ2V0EgoKAmlkGAEgASgJEg0KBW93bmVyGAIgASgJEgwKBG5hbWUYAyABKAkSRgoLc291cmNlX2tpbmQYBCABKA4yMS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5zb3VyY2VzLlNvdXJjZUtpbmQSDwoHbG9jYXRvchgFIAEoCRIRCglyYXRpb25hbGUYBiABKAkSFAoMYXBwcm94X2J5dGVzGAcgASgDEhEKCXNlbnNpdGl2ZRgIIAEoCBIPCgd3YXJuaW5nGAkgASgJEhAKCGNyaXRpY2FsGAogASgIEhQKDHJlYWNxdWlyYWJsZRgLIAEoCBIYChBidWRnZXRfbWF4X2J5dGVzGAwgASgJEhYKDmJ1ZGdldF9tYXhfYWdlGA0gASgJEhEKCXJldGVudGlvbhgOIAEoCRIdChVyZWFjcXVpc2l0aW9uX2NvbW1hbmQYDyABKAkSHgoWcmVhY3F1aXNpdGlvbl9ldmlkZW5jZRgQIAEoCRIkChxyZWFjcXVpc2l0aW9uX25lZWRzX29wZXJhdG9yGBEgASgIEiEKGXJlYWNxdWlzaXRpb25fYXV0aF9yZWFzb24YEiABKAki/AMKD0NvdmVyYWdlU3VtbWFyeRIYChByZWdpc3RlcmVkX2NvdW50GAEgASgFEhkKEXJlY29tbWVuZGVkX2NvdW50GAIgASgFEhcKD3NlbnNpdGl2ZV9jb3VudBgDIAEoBRIVCg1wbGFubmVkX2NvdW50GAQgASgFEhcKD2JhY2tlZF91cF9jb3VudBgFIAEoBRIWCg52ZXJpZmllZF9jb3VudBgGIAEoBRIhChlkZWZhdWx0X2NvdmVyYWdlX2NvbXBsZXRlGAcgASgIEiAKGGhhc19zZW5zaXRpdmVfdW5yZXZpZXdlZBgIIAEoCBIoCiBoYXNfdW5wbGFubmVkX3JlZ2lzdGVyZWRfdGFyZ2V0cxgJIAEoCBIeChZoYXNfdW52ZXJpZmllZF90YXJnZXRzGAogASgIEh4KFmRlc3RpbmF0aW9uX2NvcHlfY291bnQYCyABKAUSJwofYWxsX2Rlc3RpbmF0aW9uX2JhY2tlZF91cF9jb3VudBgMIAEoBRImCh5hbGxfZGVzdGluYXRpb25fdmVyaWZpZWRfY291bnQYDSABKAUSJgoebXVsdGlfZGVzdGluYXRpb25fdGFyZ2V0X2NvdW50GA4gASgFEisKI3BoeXNpY2FsbHlfaW5kZXBlbmRlbnRfdGFyZ2V0X2NvdW50GA8gASgFIrEDCg5Db3ZlcmFnZVJlcG9ydBJICgdzdW1tYXJ5GAEgASgLMjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuY292ZXJhZ2UuQ292ZXJhZ2VTdW1tYXJ5ElQKEnJlZ2lzdGVyZWRfdGFyZ2V0cxgCIAMoCzI4LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLlJlZ2lzdGVyZWRUYXJnZXQSVAoTcmVjb21tZW5kZWRfdGFyZ2V0cxgDIAMoCzI3LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLlN1Z2dlc3RlZFRhcmdldBJSChFzZW5zaXRpdmVfdGFyZ2V0cxgEIAMoCzI3LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLlN1Z2dlc3RlZFRhcmdldBJVChRyZWFjcXVpcmFibGVfdGFyZ2V0cxgFIAMoCzI3LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLlN1Z2dlc3RlZFRhcmdldCIaChhHZXRDb3ZlcmFnZVJlcG9ydFJlcXVlc3QiYwoZR2V0Q292ZXJhZ2VSZXBvcnRSZXNwb25zZRJGCgZyZXBvcnQYASABKAsyNi52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5jb3ZlcmFnZS5Db3ZlcmFnZVJlcG9ydCLVAQoOQWNjZXB0ZWRUYXJnZXQSEQoJdGFyZ2V0X2lkGAEgASgJEhUKDXN1Z2dlc3Rpb25faWQYAiABKAkSDQoFb3duZXIYAyABKAkSDAoEbmFtZRgEIAEoCRJGCgtzb3VyY2Vfa2luZBgFIAEoDjIxLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnNvdXJjZXMuU291cmNlS2luZBIPCgdsb2NhdG9yGAYgASgJEhEKCXNlbnNpdGl2ZRgHIAEoCBIQCghjcml0aWNhbBgIIAEoCCJSCgtBY2NlcHRFcnJvchIVCg1zdWdnZXN0aW9uX2lkGAEgASgJEg0KBW93bmVyGAIgASgJEgwKBG5hbWUYAyABKAkSDwoHbWVzc2FnZRgEIAEoCSJJChtBY2NlcHREZWZhdWx0VGFyZ2V0c1JlcXVlc3QSGQoRaW5jbHVkZV9zZW5zaXRpdmUYASABKAgSDwoHZHJ5X3J1bhgCIAEoCCKSAgocQWNjZXB0RGVmYXVsdFRhcmdldHNSZXNwb25zZRJICghhY2NlcHRlZBgBIAMoCzI2LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLkFjY2VwdGVkVGFyZ2V0ElIKEXNraXBwZWRfc2Vuc2l0aXZlGAIgAygLMjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuY292ZXJhZ2UuU3VnZ2VzdGVkVGFyZ2V0EkMKBmZhaWxlZBgDIAMoCzIzLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLkFjY2VwdEVycm9yEg8KB2RyeV9ydW4YBCABKAgiMgocQWRvcHRTZW5zaXRpdmVDb25zZW50UmVxdWVzdBISCgpodWJfYXNrX2lkGAEgASgJIpgBCh1BZG9wdFNlbnNpdGl2ZUNvbnNlbnRSZXNwb25zZRJHCgZwb2xpY3kYASABKAsyNy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5jb3ZlcmFnZS5TZW5zaXRpdmVQb2xpY3kSGAoQcmVnaXN0ZXJlZF9jb3VudBgCIAEoBRIUCgxmYWlsZWRfY291bnQYAyABKAUykAkKD0NvdmVyYWdlU2VydmljZRKYAQoRR2V0Q292ZXJhZ2VSZXBvcnQSQC52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5jb3ZlcmFnZS5HZXRDb3ZlcmFnZVJlcG9ydFJlcXVlc3QaQS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5jb3ZlcmFnZS5HZXRDb3ZlcmFnZVJlcG9ydFJlc3BvbnNlEqEBChRBY2NlcHREZWZhdWx0VGFyZ2V0cxJDLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLkFjY2VwdERlZmF1bHRUYXJnZXRzUmVxdWVzdBpELnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLkFjY2VwdERlZmF1bHRUYXJnZXRzUmVzcG9uc2USpwEKFlJlcXVlc3RTZW5zaXRpdmVSZXZpZXcSRS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5jb3ZlcmFnZS5SZXF1ZXN0U2Vuc2l0aXZlUmV2aWV3UmVxdWVzdBpGLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLlJlcXVlc3RTZW5zaXRpdmVSZXZpZXdSZXNwb25zZRKbAQoSR2V0U2Vuc2l0aXZlUG9saWN5EkEudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuY292ZXJhZ2UuR2V0U2Vuc2l0aXZlUG9saWN5UmVxdWVzdBpCLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLkdldFNlbnNpdGl2ZVBvbGljeVJlc3BvbnNlEqQBChVSZXZva2VTZW5zaXRpdmVQb2xpY3kSRC52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5jb3ZlcmFnZS5SZXZva2VTZW5zaXRpdmVQb2xpY3lSZXF1ZXN0GkUudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuY292ZXJhZ2UuUmV2b2tlU2Vuc2l0aXZlUG9saWN5UmVzcG9uc2USpwEKFkV4Y2x1ZGVTZW5zaXRpdmVUYXJnZXQSRS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5jb3ZlcmFnZS5FeGNsdWRlU2Vuc2l0aXZlVGFyZ2V0UmVxdWVzdBpGLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLkV4Y2x1ZGVTZW5zaXRpdmVUYXJnZXRSZXNwb25zZRKkAQoVQWRvcHRTZW5zaXRpdmVDb25zZW50EkQudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEuY292ZXJhZ2UuQWRvcHRTZW5zaXRpdmVDb25zZW50UmVxdWVzdBpFLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLmNvdmVyYWdlLkFkb3B0U2Vuc2l0aXZlQ29uc2VudFJlc3BvbnNlQlxaWmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vZGF0YS1iYWNrdXAtbWFuYWdlci92MS9jb3ZlcmFnZTtjb3ZlcmFnZV92MWIGcHJvdG8z", [file_data_backup_manager_v1_sources_sources, file_google_protobuf_timestamp]);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.coverage.RequestSensitiveReviewRequest
+ */
+export type RequestSensitiveReviewRequest = Message<"vrooli.data_backup_manager.v1.coverage.RequestSensitiveReviewRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.coverage.RequestSensitiveReviewRequest.
+ * Use `create(RequestSensitiveReviewRequestSchema)` to create a new message.
+ */
+export const RequestSensitiveReviewRequestSchema: GenMessage<RequestSensitiveReviewRequest> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 0);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.coverage.RequestSensitiveReviewResponse
+ */
+export type RequestSensitiveReviewResponse = Message<"vrooli.data_backup_manager.v1.coverage.RequestSensitiveReviewResponse"> & {
+  /**
+   * Empty when a standing rule already covers the candidates and nothing needed asking.
+   *
+   * @generated from field: string ask_id = 1;
+   */
+  askId: string;
+
+  /**
+   * With a pending ask: the places it asks about. With the standing rule: the places it just added.
+   *
+   * @generated from field: int32 candidate_count = 2;
+   */
+  candidateCount: number;
+
+  /**
+   * @generated from field: bool pending = 3;
+   */
+  pending: boolean;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.coverage.RequestSensitiveReviewResponse.
+ * Use `create(RequestSensitiveReviewResponseSchema)` to create a new message.
+ */
+export const RequestSensitiveReviewResponseSchema: GenMessage<RequestSensitiveReviewResponse> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 1);
+
+/**
+ * SensitivePolicyAddition is one place the standing rule backed up on its own.
+ *
+ * @generated from message vrooli.data_backup_manager.v1.coverage.SensitivePolicyAddition
+ */
+export type SensitivePolicyAddition = Message<"vrooli.data_backup_manager.v1.coverage.SensitivePolicyAddition"> & {
+  /**
+   * @generated from field: string owner = 1;
+   */
+  owner: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string group = 3;
+   */
+  group: string;
+
+  /**
+   * @generated from field: int64 approx_bytes = 4;
+   */
+  approxBytes: bigint;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp added_at = 5;
+   */
+  addedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.coverage.SensitivePolicyAddition.
+ * Use `create(SensitivePolicyAdditionSchema)` to create a new message.
+ */
+export const SensitivePolicyAdditionSchema: GenMessage<SensitivePolicyAddition> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 2);
+
+/**
+ * SensitivePolicyExclusion is one item kept out of the standing rule.
+ *
+ * @generated from message vrooli.data_backup_manager.v1.coverage.SensitivePolicyExclusion
+ */
+export type SensitivePolicyExclusion = Message<"vrooli.data_backup_manager.v1.coverage.SensitivePolicyExclusion"> & {
+  /**
+   * @generated from field: string owner = 1;
+   */
+  owner: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string reason = 3;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: string excluded_by = 4;
+   */
+  excludedBy: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp excluded_at = 5;
+   */
+  excludedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.coverage.SensitivePolicyExclusion.
+ * Use `create(SensitivePolicyExclusionSchema)` to create a new message.
+ */
+export const SensitivePolicyExclusionSchema: GenMessage<SensitivePolicyExclusion> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 3);
+
+/**
+ * SensitivePolicyEvent is one entry of the rule's history.
+ *
+ * @generated from message vrooli.data_backup_manager.v1.coverage.SensitivePolicyEvent
+ */
+export type SensitivePolicyEvent = Message<"vrooli.data_backup_manager.v1.coverage.SensitivePolicyEvent"> & {
+  /**
+   * @generated from field: google.protobuf.Timestamp at = 1;
+   */
+  at?: Timestamp | undefined;
+
+  /**
+   * granted, revoked, excluded, added or noted.
+   *
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string by = 3;
+   */
+  by: string;
+
+  /**
+   * @generated from field: string detail = 4;
+   */
+  detail: string;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.coverage.SensitivePolicyEvent.
+ * Use `create(SensitivePolicyEventSchema)` to create a new message.
+ */
+export const SensitivePolicyEventSchema: GenMessage<SensitivePolicyEvent> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 4);
+
+/**
+ * SensitivePolicy is the standing rule: the operator's recorded consent to back
+ * up anything that holds secrets from now on.
+ *
+ * @generated from message vrooli.data_backup_manager.v1.coverage.SensitivePolicy
+ */
+export type SensitivePolicy = Message<"vrooli.data_backup_manager.v1.coverage.SensitivePolicy"> & {
+  /**
+   * @generated from field: bool active = 1;
+   */
+  active: boolean;
+
+  /**
+   * The Hub decision whose verified answer is the consent.
+   *
+   * @generated from field: string grant_ask_id = 2;
+   */
+  grantAskId: string;
+
+  /**
+   * @generated from field: string granted_by = 3;
+   */
+  grantedBy: string;
+
+  /**
+   * @generated from field: string granted_by_identity_kind = 4;
+   */
+  grantedByIdentityKind: string;
+
+  /**
+   * @generated from field: string granted_by_identity_source = 5;
+   */
+  grantedByIdentitySource: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp granted_at = 6;
+   */
+  grantedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string revoked_by = 7;
+   */
+  revokedBy: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp revoked_at = 8;
+   */
+  revokedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.data_backup_manager.v1.coverage.SensitivePolicyExclusion excluded = 9;
+   */
+  excluded: SensitivePolicyExclusion[];
+
+  /**
+   * Added since the last weekly note.
+   *
+   * @generated from field: repeated vrooli.data_backup_manager.v1.coverage.SensitivePolicyAddition unreported = 10;
+   */
+  unreported: SensitivePolicyAddition[];
+
+  /**
+   * @generated from field: int32 added_total = 11;
+   */
+  addedTotal: number;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp last_note_at = 12;
+   */
+  lastNoteAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp last_sweep_at = 13;
+   */
+  lastSweepAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.data_backup_manager.v1.coverage.SensitivePolicyEvent history = 14;
+   */
+  history: SensitivePolicyEvent[];
+
+  /**
+   * "option" for a button answer that offered the rule; "free_text" for the
+   * operator's own words taken as the instruction.
+   *
+   * @generated from field: string grant_basis = 15;
+   */
+  grantBasis: string;
+
+  /**
+   * The operator's words, verbatim, when grant_basis is free_text.
+   *
+   * @generated from field: string grant_text = 16;
+   */
+  grantText: string;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.coverage.SensitivePolicy.
+ * Use `create(SensitivePolicySchema)` to create a new message.
+ */
+export const SensitivePolicySchema: GenMessage<SensitivePolicy> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 5);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.coverage.GetSensitivePolicyRequest
+ */
+export type GetSensitivePolicyRequest = Message<"vrooli.data_backup_manager.v1.coverage.GetSensitivePolicyRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.coverage.GetSensitivePolicyRequest.
+ * Use `create(GetSensitivePolicyRequestSchema)` to create a new message.
+ */
+export const GetSensitivePolicyRequestSchema: GenMessage<GetSensitivePolicyRequest> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 6);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.coverage.GetSensitivePolicyResponse
+ */
+export type GetSensitivePolicyResponse = Message<"vrooli.data_backup_manager.v1.coverage.GetSensitivePolicyResponse"> & {
+  /**
+   * @generated from field: vrooli.data_backup_manager.v1.coverage.SensitivePolicy policy = 1;
+   */
+  policy?: SensitivePolicy | undefined;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.coverage.GetSensitivePolicyResponse.
+ * Use `create(GetSensitivePolicyResponseSchema)` to create a new message.
+ */
+export const GetSensitivePolicyResponseSchema: GenMessage<GetSensitivePolicyResponse> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 7);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.coverage.RevokeSensitivePolicyRequest
+ */
+export type RevokeSensitivePolicyRequest = Message<"vrooli.data_backup_manager.v1.coverage.RevokeSensitivePolicyRequest"> & {
+  /**
+   * Who is turning the rule off, for the record. Defaults to the local API caller.
+   *
+   * @generated from field: string revoked_by = 1;
+   */
+  revokedBy: string;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.coverage.RevokeSensitivePolicyRequest.
+ * Use `create(RevokeSensitivePolicyRequestSchema)` to create a new message.
+ */
+export const RevokeSensitivePolicyRequestSchema: GenMessage<RevokeSensitivePolicyRequest> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 8);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.coverage.RevokeSensitivePolicyResponse
+ */
+export type RevokeSensitivePolicyResponse = Message<"vrooli.data_backup_manager.v1.coverage.RevokeSensitivePolicyResponse"> & {
+  /**
+   * @generated from field: vrooli.data_backup_manager.v1.coverage.SensitivePolicy policy = 1;
+   */
+  policy?: SensitivePolicy | undefined;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.coverage.RevokeSensitivePolicyResponse.
+ * Use `create(RevokeSensitivePolicyResponseSchema)` to create a new message.
+ */
+export const RevokeSensitivePolicyResponseSchema: GenMessage<RevokeSensitivePolicyResponse> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 9);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.coverage.ExcludeSensitiveTargetRequest
+ */
+export type ExcludeSensitiveTargetRequest = Message<"vrooli.data_backup_manager.v1.coverage.ExcludeSensitiveTargetRequest"> & {
+  /**
+   * @generated from field: string owner = 1;
+   */
+  owner: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string reason = 3;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: string excluded_by = 4;
+   */
+  excludedBy: string;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.coverage.ExcludeSensitiveTargetRequest.
+ * Use `create(ExcludeSensitiveTargetRequestSchema)` to create a new message.
+ */
+export const ExcludeSensitiveTargetRequestSchema: GenMessage<ExcludeSensitiveTargetRequest> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 10);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.coverage.ExcludeSensitiveTargetResponse
+ */
+export type ExcludeSensitiveTargetResponse = Message<"vrooli.data_backup_manager.v1.coverage.ExcludeSensitiveTargetResponse"> & {
+  /**
+   * @generated from field: vrooli.data_backup_manager.v1.coverage.SensitivePolicy policy = 1;
+   */
+  policy?: SensitivePolicy | undefined;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.coverage.ExcludeSensitiveTargetResponse.
+ * Use `create(ExcludeSensitiveTargetResponseSchema)` to create a new message.
+ */
+export const ExcludeSensitiveTargetResponseSchema: GenMessage<ExcludeSensitiveTargetResponse> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 11);
 
 /**
  * RegisteredTarget is a target already in the catalog, annotated with the
@@ -56,14 +433,16 @@ export type RegisteredTarget = Message<"vrooli.data_backup_manager.v1.coverage.R
   planned: boolean;
 
   /**
-   * Last successful backup of this target, if any (zero/absent = never).
+   * Oldest successful backup among the currently enabled destination copies.
+   * Absent when no enabled copies exist or any configured copy has never run.
    *
    * @generated from field: google.protobuf.Timestamp last_success_at = 7;
    */
   lastSuccessAt?: Timestamp | undefined;
 
   /**
-   * Last verified restore of this target, if any (zero/absent = never verified).
+   * Oldest successful scratch restore among currently enabled destination
+   * copies. Absent when no enabled copies exist or any copy is unverified.
    *
    * @generated from field: google.protobuf.Timestamp last_verified_at = 8;
    */
@@ -75,6 +454,62 @@ export type RegisteredTarget = Message<"vrooli.data_backup_manager.v1.coverage.R
    * @generated from field: bool critical = 9;
    */
   critical: boolean;
+
+  /**
+   * Owner declares this registered source can be reconstructed; informational
+   * only until an explicit target decision changes its protection plan.
+   *
+   * @generated from field: bool reacquirable = 10;
+   */
+  reacquirable: boolean;
+
+  /**
+   * @generated from field: string reacquisition_command = 11;
+   */
+  reacquisitionCommand: string;
+
+  /**
+   * @generated from field: string reacquisition_evidence = 12;
+   */
+  reacquisitionEvidence: string;
+
+  /**
+   * @generated from field: bool reacquisition_needs_operator = 13;
+   */
+  reacquisitionNeedsOperator: boolean;
+
+  /**
+   * @generated from field: string reacquisition_auth_reason = 14;
+   */
+  reacquisitionAuthReason: string;
+
+  /**
+   * @generated from field: repeated vrooli.data_backup_manager.v1.coverage.TargetDestinationStatus destinations = 15;
+   */
+  destinations: TargetDestinationStatus[];
+
+  /**
+   * @generated from field: bool all_destinations_backed_up = 16;
+   */
+  allDestinationsBackedUp: boolean;
+
+  /**
+   * @generated from field: bool all_destinations_verified = 17;
+   */
+  allDestinationsVerified: boolean;
+
+  /**
+   * True only when observed host/device topology proves these destinations
+   * are independent failure domains.
+   *
+   * @generated from field: bool physical_independence_proven = 18;
+   */
+  physicalIndependenceProven: boolean;
+
+  /**
+   * @generated from field: repeated string independence_warnings = 19;
+   */
+  independenceWarnings: string[];
 };
 
 /**
@@ -82,7 +517,34 @@ export type RegisteredTarget = Message<"vrooli.data_backup_manager.v1.coverage.R
  * Use `create(RegisteredTargetSchema)` to create a new message.
  */
 export const RegisteredTargetSchema: GenMessage<RegisteredTarget> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_coverage_coverage, 0);
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 12);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.coverage.TargetDestinationStatus
+ */
+export type TargetDestinationStatus = Message<"vrooli.data_backup_manager.v1.coverage.TargetDestinationStatus"> & {
+  /**
+   * @generated from field: string destination_id = 1;
+   */
+  destinationId: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp last_success_at = 2;
+   */
+  lastSuccessAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp last_verified_at = 3;
+   */
+  lastVerifiedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.coverage.TargetDestinationStatus.
+ * Use `create(TargetDestinationStatusSchema)` to create a new message.
+ */
+export const TargetDestinationStatusSchema: GenMessage<TargetDestinationStatus> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 13);
 
 /**
  * SuggestedTarget is a discovered durable source not yet registered. Mirrors a
@@ -153,6 +615,57 @@ export type SuggestedTarget = Message<"vrooli.data_backup_manager.v1.coverage.Su
    * @generated from field: bool critical = 10;
    */
   critical: boolean;
+
+  /**
+   * Owner declaration that this data can be regenerated; informational only.
+   * Reacquirable targets are never included in the default acceptance set.
+   *
+   * @generated from field: bool reacquirable = 11;
+   */
+  reacquirable: boolean;
+
+  /**
+   * @generated from field: string budget_max_bytes = 12;
+   */
+  budgetMaxBytes: string;
+
+  /**
+   * @generated from field: string budget_max_age = 13;
+   */
+  budgetMaxAge: string;
+
+  /**
+   * @generated from field: string retention = 14;
+   */
+  retention: string;
+
+  /**
+   * Owner-declared command for reacquisition; informational, not authority.
+   *
+   * @generated from field: string reacquisition_command = 15;
+   */
+  reacquisitionCommand: string;
+
+  /**
+   * Owner-declared evidence source for reacquisition; informational.
+   *
+   * @generated from field: string reacquisition_evidence = 16;
+   */
+  reacquisitionEvidence: string;
+
+  /**
+   * True when the owner says reacquisition still needs operator authorization.
+   *
+   * @generated from field: bool reacquisition_needs_operator = 17;
+   */
+  reacquisitionNeedsOperator: boolean;
+
+  /**
+   * Owner-provided reason for the additional authorization gate.
+   *
+   * @generated from field: string reacquisition_auth_reason = 18;
+   */
+  reacquisitionAuthReason: string;
 };
 
 /**
@@ -160,7 +673,7 @@ export type SuggestedTarget = Message<"vrooli.data_backup_manager.v1.coverage.Su
  * Use `create(SuggestedTargetSchema)` to create a new message.
  */
 export const SuggestedTargetSchema: GenMessage<SuggestedTarget> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_coverage_coverage, 1);
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 14);
 
 /**
  * CoverageSummary is the at-a-glance scorecard the report leads with.
@@ -195,14 +708,14 @@ export type CoverageSummary = Message<"vrooli.data_backup_manager.v1.coverage.Co
   plannedCount: number;
 
   /**
-   * Registered targets with at least one successful backup.
+   * Registered targets with a successful backup at every enabled destination.
    *
    * @generated from field: int32 backed_up_count = 5;
    */
   backedUpCount: number;
 
   /**
-   * Registered targets with at least one verified restore.
+   * Registered targets with a verified scratch restore at every enabled destination.
    *
    * @generated from field: int32 verified_count = 6;
    */
@@ -235,6 +748,43 @@ export type CoverageSummary = Message<"vrooli.data_backup_manager.v1.coverage.Co
    * @generated from field: bool has_unverified_targets = 10;
    */
   hasUnverifiedTargets: boolean;
+
+  /**
+   * Number of configured target × destination copies with a successful backup.
+   *
+   * @generated from field: int32 destination_copy_count = 11;
+   */
+  destinationCopyCount: number;
+
+  /**
+   * Targets with every configured destination backed up successfully.
+   *
+   * @generated from field: int32 all_destination_backed_up_count = 12;
+   */
+  allDestinationBackedUpCount: number;
+
+  /**
+   * Targets with every configured destination verified by a scratch restore.
+   *
+   * @generated from field: int32 all_destination_verified_count = 13;
+   */
+  allDestinationVerifiedCount: number;
+
+  /**
+   * Targets bound to two or more currently enabled destinations; this count
+   * does not imply physical independence, which requires topology evidence.
+   *
+   * @generated from field: int32 multi_destination_target_count = 14;
+   */
+  multiDestinationTargetCount: number;
+
+  /**
+   * Targets with two or more currently enabled destinations whose observed
+   * topology proves physical independence.
+   *
+   * @generated from field: int32 physically_independent_target_count = 15;
+   */
+  physicallyIndependentTargetCount: number;
 };
 
 /**
@@ -242,7 +792,7 @@ export type CoverageSummary = Message<"vrooli.data_backup_manager.v1.coverage.Co
  * Use `create(CoverageSummarySchema)` to create a new message.
  */
 export const CoverageSummarySchema: GenMessage<CoverageSummary> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_coverage_coverage, 2);
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 15);
 
 /**
  * CoverageReport is the full first-backup-readiness picture, derived live.
@@ -274,6 +824,13 @@ export type CoverageReport = Message<"vrooli.data_backup_manager.v1.coverage.Cov
    * @generated from field: repeated vrooli.data_backup_manager.v1.coverage.SuggestedTarget sensitive_targets = 4;
    */
   sensitiveTargets: SuggestedTarget[];
+
+  /**
+   * Existing owner-declared regenerable data, surfaced for capacity planning.
+   *
+   * @generated from field: repeated vrooli.data_backup_manager.v1.coverage.SuggestedTarget reacquirable_targets = 5;
+   */
+  reacquirableTargets: SuggestedTarget[];
 };
 
 /**
@@ -281,7 +838,7 @@ export type CoverageReport = Message<"vrooli.data_backup_manager.v1.coverage.Cov
  * Use `create(CoverageReportSchema)` to create a new message.
  */
 export const CoverageReportSchema: GenMessage<CoverageReport> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_coverage_coverage, 3);
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 16);
 
 /**
  * @generated from message vrooli.data_backup_manager.v1.coverage.GetCoverageReportRequest
@@ -294,7 +851,7 @@ export type GetCoverageReportRequest = Message<"vrooli.data_backup_manager.v1.co
  * Use `create(GetCoverageReportRequestSchema)` to create a new message.
  */
 export const GetCoverageReportRequestSchema: GenMessage<GetCoverageReportRequest> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_coverage_coverage, 4);
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 17);
 
 /**
  * @generated from message vrooli.data_backup_manager.v1.coverage.GetCoverageReportResponse
@@ -311,7 +868,7 @@ export type GetCoverageReportResponse = Message<"vrooli.data_backup_manager.v1.c
  * Use `create(GetCoverageReportResponseSchema)` to create a new message.
  */
 export const GetCoverageReportResponseSchema: GenMessage<GetCoverageReportResponse> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_coverage_coverage, 5);
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 18);
 
 /**
  * AcceptedTarget is one suggestion the bulk accept registered (or, under
@@ -366,7 +923,7 @@ export type AcceptedTarget = Message<"vrooli.data_backup_manager.v1.coverage.Acc
  * Use `create(AcceptedTargetSchema)` to create a new message.
  */
 export const AcceptedTargetSchema: GenMessage<AcceptedTarget> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_coverage_coverage, 6);
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 19);
 
 /**
  * AcceptError reports a per-item registration failure so partial failures are
@@ -401,15 +958,15 @@ export type AcceptError = Message<"vrooli.data_backup_manager.v1.coverage.Accept
  * Use `create(AcceptErrorSchema)` to create a new message.
  */
 export const AcceptErrorSchema: GenMessage<AcceptError> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_coverage_coverage, 7);
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 20);
 
 /**
  * @generated from message vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsRequest
  */
 export type AcceptDefaultTargetsRequest = Message<"vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsRequest"> & {
   /**
-   * When true, sensitive credential/token suggestions are also registered.
-   * Default false: sensitive suggestions are skipped and reported.
+   * Legacy field. True is rejected; sensitive targets require a verified
+   * Notification Hub decision callback.
    *
    * @generated from field: bool include_sensitive = 1;
    */
@@ -428,7 +985,7 @@ export type AcceptDefaultTargetsRequest = Message<"vrooli.data_backup_manager.v1
  * Use `create(AcceptDefaultTargetsRequestSchema)` to create a new message.
  */
 export const AcceptDefaultTargetsRequestSchema: GenMessage<AcceptDefaultTargetsRequest> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_coverage_coverage, 8);
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 21);
 
 /**
  * @generated from message vrooli.data_backup_manager.v1.coverage.AcceptDefaultTargetsResponse
@@ -468,7 +1025,57 @@ export type AcceptDefaultTargetsResponse = Message<"vrooli.data_backup_manager.v
  * Use `create(AcceptDefaultTargetsResponseSchema)` to create a new message.
  */
 export const AcceptDefaultTargetsResponseSchema: GenMessage<AcceptDefaultTargetsResponse> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_coverage_coverage, 9);
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 22);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.coverage.AdoptSensitiveConsentRequest
+ */
+export type AdoptSensitiveConsentRequest = Message<"vrooli.data_backup_manager.v1.coverage.AdoptSensitiveConsentRequest"> & {
+  /**
+   * The Hub ask whose answer is the consent.
+   *
+   * @generated from field: string hub_ask_id = 1;
+   */
+  hubAskId: string;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.coverage.AdoptSensitiveConsentRequest.
+ * Use `create(AdoptSensitiveConsentRequestSchema)` to create a new message.
+ */
+export const AdoptSensitiveConsentRequestSchema: GenMessage<AdoptSensitiveConsentRequest> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 23);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.coverage.AdoptSensitiveConsentResponse
+ */
+export type AdoptSensitiveConsentResponse = Message<"vrooli.data_backup_manager.v1.coverage.AdoptSensitiveConsentResponse"> & {
+  /**
+   * @generated from field: vrooli.data_backup_manager.v1.coverage.SensitivePolicy policy = 1;
+   */
+  policy?: SensitivePolicy | undefined;
+
+  /**
+   * Places the rule registered when it was applied.
+   *
+   * @generated from field: int32 registered_count = 2;
+   */
+  registeredCount: number;
+
+  /**
+   * Places it could not register; the next sweep retries them.
+   *
+   * @generated from field: int32 failed_count = 3;
+   */
+  failedCount: number;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.coverage.AdoptSensitiveConsentResponse.
+ * Use `create(AdoptSensitiveConsentResponseSchema)` to create a new message.
+ */
+export const AdoptSensitiveConsentResponseSchema: GenMessage<AdoptSensitiveConsentResponse> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_coverage_coverage, 24);
 
 /**
  * @generated from service vrooli.data_backup_manager.v1.coverage.CoverageService
@@ -489,6 +1096,61 @@ export const CoverageService: GenService<{
     methodKind: "unary";
     input: typeof AcceptDefaultTargetsRequestSchema;
     output: typeof AcceptDefaultTargetsResponseSchema;
+  },
+  /**
+   * Raise one verified-human review for the current sensitive suggestions.
+   *
+   * @generated from rpc vrooli.data_backup_manager.v1.coverage.CoverageService.RequestSensitiveReview
+   */
+  requestSensitiveReview: {
+    methodKind: "unary";
+    input: typeof RequestSensitiveReviewRequestSchema;
+    output: typeof RequestSensitiveReviewResponseSchema;
+  },
+  /**
+   * Show the standing rule for places that hold secrets: whether it is on, who
+   * consented and when, what it added, and what it keeps out.
+   *
+   * @generated from rpc vrooli.data_backup_manager.v1.coverage.CoverageService.GetSensitivePolicy
+   */
+  getSensitivePolicy: {
+    methodKind: "unary";
+    input: typeof GetSensitivePolicyRequestSchema;
+    output: typeof GetSensitivePolicyResponseSchema;
+  },
+  /**
+   * Turn the standing rule off. Items it already added stay backed up; new
+   * places that hold secrets wait for a decision again.
+   *
+   * @generated from rpc vrooli.data_backup_manager.v1.coverage.CoverageService.RevokeSensitivePolicy
+   */
+  revokeSensitivePolicy: {
+    methodKind: "unary";
+    input: typeof RevokeSensitivePolicyRequestSchema;
+    output: typeof RevokeSensitivePolicyResponseSchema;
+  },
+  /**
+   * Keep one item out of the standing rule.
+   *
+   * @generated from rpc vrooli.data_backup_manager.v1.coverage.CoverageService.ExcludeSensitiveTarget
+   */
+  excludeSensitiveTarget: {
+    methodKind: "unary";
+    input: typeof ExcludeSensitiveTargetRequestSchema;
+    output: typeof ExcludeSensitiveTargetResponseSchema;
+  },
+  /**
+   * Record the operator's free-text answer on a sensitive coverage decision as
+   * the standing consent, and apply it. The answer is confirmed with the Hub: it
+   * must be this scenario's decision, answered by a verified human in their own
+   * words. Nothing is raised at the Hub.
+   *
+   * @generated from rpc vrooli.data_backup_manager.v1.coverage.CoverageService.AdoptSensitiveConsent
+   */
+  adoptSensitiveConsent: {
+    methodKind: "unary";
+    input: typeof AdoptSensitiveConsentRequestSchema;
+    output: typeof AdoptSensitiveConsentResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_data_backup_manager_v1_coverage_coverage, 0);

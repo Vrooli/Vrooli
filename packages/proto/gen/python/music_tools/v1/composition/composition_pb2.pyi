@@ -50,18 +50,20 @@ class Take(_message.Message):
     def __init__(self, id: _Optional[str] = ..., job_id: _Optional[str] = ..., style_id: _Optional[str] = ..., pool_state: _Optional[str] = ..., blob_ref: _Optional[str] = ..., provenance: _Optional[_Union[Provenance, _Mapping]] = ..., times_offered: _Optional[int] = ..., reserved_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., reserved_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class SubmitRequest(_message.Message):
-    __slots__ = ("style_id", "takes", "duration", "seed", "shift")
+    __slots__ = ("style_id", "takes", "duration", "seed", "shift", "vocal_language")
     STYLE_ID_FIELD_NUMBER: _ClassVar[int]
     TAKES_FIELD_NUMBER: _ClassVar[int]
     DURATION_FIELD_NUMBER: _ClassVar[int]
     SEED_FIELD_NUMBER: _ClassVar[int]
     SHIFT_FIELD_NUMBER: _ClassVar[int]
+    VOCAL_LANGUAGE_FIELD_NUMBER: _ClassVar[int]
     style_id: str
     takes: int
     duration: int
     seed: int
     shift: float
-    def __init__(self, style_id: _Optional[str] = ..., takes: _Optional[int] = ..., duration: _Optional[int] = ..., seed: _Optional[int] = ..., shift: _Optional[float] = ...) -> None: ...
+    vocal_language: str
+    def __init__(self, style_id: _Optional[str] = ..., takes: _Optional[int] = ..., duration: _Optional[int] = ..., seed: _Optional[int] = ..., shift: _Optional[float] = ..., vocal_language: _Optional[str] = ...) -> None: ...
 
 class SubmitResponse(_message.Message):
     __slots__ = ("job_id",)
@@ -82,3 +84,39 @@ class ListTakesResponse(_message.Message):
     TAKES_FIELD_NUMBER: _ClassVar[int]
     takes: _containers.RepeatedCompositeFieldContainer[Take]
     def __init__(self, takes: _Optional[_Iterable[_Union[Take, _Mapping]]] = ...) -> None: ...
+
+class CandidateRefillRequest(_message.Message):
+    __slots__ = ("request_id", "reservation_id", "sha256", "purpose", "project", "revision", "style_id")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    RESERVATION_ID_FIELD_NUMBER: _ClassVar[int]
+    SHA256_FIELD_NUMBER: _ClassVar[int]
+    PURPOSE_FIELD_NUMBER: _ClassVar[int]
+    PROJECT_FIELD_NUMBER: _ClassVar[int]
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    STYLE_ID_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    reservation_id: str
+    sha256: str
+    purpose: str
+    project: str
+    revision: str
+    style_id: str
+    def __init__(self, request_id: _Optional[str] = ..., reservation_id: _Optional[str] = ..., sha256: _Optional[str] = ..., purpose: _Optional[str] = ..., project: _Optional[str] = ..., revision: _Optional[str] = ..., style_id: _Optional[str] = ...) -> None: ...
+
+class CandidateRefillResponse(_message.Message):
+    __slots__ = ("request_id", "state", "style_id", "job_id")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    STYLE_ID_FIELD_NUMBER: _ClassVar[int]
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    state: str
+    style_id: str
+    job_id: str
+    def __init__(self, request_id: _Optional[str] = ..., state: _Optional[str] = ..., style_id: _Optional[str] = ..., job_id: _Optional[str] = ...) -> None: ...
+
+class CancelCandidateRefillRequest(_message.Message):
+    __slots__ = ("request_id",)
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    def __init__(self, request_id: _Optional[str] = ...) -> None: ...

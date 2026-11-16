@@ -5197,11 +5197,13 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\x1cFINDING_SEVERITY_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19FINDING_SEVERITY_BLOCKING\x10\x01\x12\x1c\n" +
 	"\x18FINDING_SEVERITY_WARNING\x10\x02\x12\x19\n" +
-	"\x15FINDING_SEVERITY_INFO\x10\x032\xf8\x11\n" +
+	"\x15FINDING_SEVERITY_INFO\x10\x032\xfe\x12\n" +
 	"\x0eCatalogService\x12\x8c\x01\n" +
 	"\vGetCoverage\x12=.vrooli.react_component_library.v1.catalog.GetCoverageRequest\x1a>.vrooli.react_component_library.v1.catalog.GetCoverageResponse\x12\x8f\x01\n" +
 	"\fListNextWork\x12>.vrooli.react_component_library.v1.catalog.ListNextWorkRequest\x1a?.vrooli.react_component_library.v1.catalog.ListNextWorkResponse\x12\x80\x01\n" +
-	"\aRunGate\x129.vrooli.react_component_library.v1.catalog.RunGateRequest\x1a:.vrooli.react_component_library.v1.catalog.RunGateResponse\x12\x89\x01\n" +
+	"\aRunGate\x129.vrooli.react_component_library.v1.catalog.RunGateRequest\x1a:.vrooli.react_component_library.v1.catalog.RunGateResponse\x12\x83\x01\n" +
+	"\n" +
+	"RecordGate\x129.vrooli.react_component_library.v1.catalog.RunGateRequest\x1a:.vrooli.react_component_library.v1.catalog.RunGateResponse\x12\x89\x01\n" +
 	"\n" +
 	"CheckAsset\x12<.vrooli.react_component_library.v1.catalog.CheckAssetRequest\x1a=.vrooli.react_component_library.v1.catalog.CheckAssetResponse\x12\xaa\x01\n" +
 	"\x15GetAssetRelationships\x12G.vrooli.react_component_library.v1.catalog.GetAssetRelationshipsRequest\x1aH.vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse\x12\xa4\x01\n" +
@@ -5372,35 +5374,37 @@ var file_react_component_library_v1_catalog_catalog_proto_depIdxs = []int32{
 	28, // 66: vrooli.react_component_library.v1.catalog.CatalogService.GetCoverage:input_type -> vrooli.react_component_library.v1.catalog.GetCoverageRequest
 	38, // 67: vrooli.react_component_library.v1.catalog.CatalogService.ListNextWork:input_type -> vrooli.react_component_library.v1.catalog.ListNextWorkRequest
 	40, // 68: vrooli.react_component_library.v1.catalog.CatalogService.RunGate:input_type -> vrooli.react_component_library.v1.catalog.RunGateRequest
-	44, // 69: vrooli.react_component_library.v1.catalog.CatalogService.CheckAsset:input_type -> vrooli.react_component_library.v1.catalog.CheckAssetRequest
-	12, // 70: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetRelationships:input_type -> vrooli.react_component_library.v1.catalog.GetAssetRelationshipsRequest
-	14, // 71: vrooli.react_component_library.v1.catalog.CatalogService.GetCatalogStructure:input_type -> vrooli.react_component_library.v1.catalog.GetCatalogStructureRequest
-	20, // 72: vrooli.react_component_library.v1.catalog.CatalogService.ReconcileGraph:input_type -> vrooli.react_component_library.v1.catalog.ReconcileGraphRequest
-	24, // 73: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetPortContract:input_type -> vrooli.react_component_library.v1.catalog.GetAssetPortContractRequest
-	50, // 74: vrooli.react_component_library.v1.catalog.CatalogService.GetScoreHistory:input_type -> vrooli.react_component_library.v1.catalog.GetScoreHistoryRequest
-	54, // 75: vrooli.react_component_library.v1.catalog.CatalogService.GetHealthOverview:input_type -> vrooli.react_component_library.v1.catalog.GetHealthOverviewRequest
-	59, // 76: vrooli.react_component_library.v1.catalog.CatalogService.GetReadiness:input_type -> vrooli.react_component_library.v1.catalog.GetReadinessRequest
-	62, // 77: vrooli.react_component_library.v1.catalog.CatalogService.CaptureEvidence:input_type -> vrooli.react_component_library.v1.catalog.CaptureEvidenceRequest
-	2,  // 78: vrooli.react_component_library.v1.catalog.CatalogService.SearchAssets:input_type -> vrooli.react_component_library.v1.catalog.SearchAssetsRequest
-	5,  // 79: vrooli.react_component_library.v1.catalog.CatalogService.SearchStatus:input_type -> vrooli.react_component_library.v1.catalog.SearchStatusRequest
-	7,  // 80: vrooli.react_component_library.v1.catalog.CatalogService.ReindexSearch:input_type -> vrooli.react_component_library.v1.catalog.ReindexSearchRequest
-	37, // 81: vrooli.react_component_library.v1.catalog.CatalogService.GetCoverage:output_type -> vrooli.react_component_library.v1.catalog.GetCoverageResponse
-	39, // 82: vrooli.react_component_library.v1.catalog.CatalogService.ListNextWork:output_type -> vrooli.react_component_library.v1.catalog.ListNextWorkResponse
-	42, // 83: vrooli.react_component_library.v1.catalog.CatalogService.RunGate:output_type -> vrooli.react_component_library.v1.catalog.RunGateResponse
-	45, // 84: vrooli.react_component_library.v1.catalog.CatalogService.CheckAsset:output_type -> vrooli.react_component_library.v1.catalog.CheckAssetResponse
-	13, // 85: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetRelationships:output_type -> vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse
-	19, // 86: vrooli.react_component_library.v1.catalog.CatalogService.GetCatalogStructure:output_type -> vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse
-	23, // 87: vrooli.react_component_library.v1.catalog.CatalogService.ReconcileGraph:output_type -> vrooli.react_component_library.v1.catalog.ReconcileGraphResponse
-	27, // 88: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetPortContract:output_type -> vrooli.react_component_library.v1.catalog.GetAssetPortContractResponse
-	51, // 89: vrooli.react_component_library.v1.catalog.CatalogService.GetScoreHistory:output_type -> vrooli.react_component_library.v1.catalog.GetScoreHistoryResponse
-	55, // 90: vrooli.react_component_library.v1.catalog.CatalogService.GetHealthOverview:output_type -> vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse
-	60, // 91: vrooli.react_component_library.v1.catalog.CatalogService.GetReadiness:output_type -> vrooli.react_component_library.v1.catalog.GetReadinessResponse
-	63, // 92: vrooli.react_component_library.v1.catalog.CatalogService.CaptureEvidence:output_type -> vrooli.react_component_library.v1.catalog.CaptureEvidenceResponse
-	4,  // 93: vrooli.react_component_library.v1.catalog.CatalogService.SearchAssets:output_type -> vrooli.react_component_library.v1.catalog.SearchAssetsResponse
-	6,  // 94: vrooli.react_component_library.v1.catalog.CatalogService.SearchStatus:output_type -> vrooli.react_component_library.v1.catalog.SearchStatusResponse
-	8,  // 95: vrooli.react_component_library.v1.catalog.CatalogService.ReindexSearch:output_type -> vrooli.react_component_library.v1.catalog.ReindexSearchResponse
-	81, // [81:96] is the sub-list for method output_type
-	66, // [66:81] is the sub-list for method input_type
+	40, // 69: vrooli.react_component_library.v1.catalog.CatalogService.RecordGate:input_type -> vrooli.react_component_library.v1.catalog.RunGateRequest
+	44, // 70: vrooli.react_component_library.v1.catalog.CatalogService.CheckAsset:input_type -> vrooli.react_component_library.v1.catalog.CheckAssetRequest
+	12, // 71: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetRelationships:input_type -> vrooli.react_component_library.v1.catalog.GetAssetRelationshipsRequest
+	14, // 72: vrooli.react_component_library.v1.catalog.CatalogService.GetCatalogStructure:input_type -> vrooli.react_component_library.v1.catalog.GetCatalogStructureRequest
+	20, // 73: vrooli.react_component_library.v1.catalog.CatalogService.ReconcileGraph:input_type -> vrooli.react_component_library.v1.catalog.ReconcileGraphRequest
+	24, // 74: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetPortContract:input_type -> vrooli.react_component_library.v1.catalog.GetAssetPortContractRequest
+	50, // 75: vrooli.react_component_library.v1.catalog.CatalogService.GetScoreHistory:input_type -> vrooli.react_component_library.v1.catalog.GetScoreHistoryRequest
+	54, // 76: vrooli.react_component_library.v1.catalog.CatalogService.GetHealthOverview:input_type -> vrooli.react_component_library.v1.catalog.GetHealthOverviewRequest
+	59, // 77: vrooli.react_component_library.v1.catalog.CatalogService.GetReadiness:input_type -> vrooli.react_component_library.v1.catalog.GetReadinessRequest
+	62, // 78: vrooli.react_component_library.v1.catalog.CatalogService.CaptureEvidence:input_type -> vrooli.react_component_library.v1.catalog.CaptureEvidenceRequest
+	2,  // 79: vrooli.react_component_library.v1.catalog.CatalogService.SearchAssets:input_type -> vrooli.react_component_library.v1.catalog.SearchAssetsRequest
+	5,  // 80: vrooli.react_component_library.v1.catalog.CatalogService.SearchStatus:input_type -> vrooli.react_component_library.v1.catalog.SearchStatusRequest
+	7,  // 81: vrooli.react_component_library.v1.catalog.CatalogService.ReindexSearch:input_type -> vrooli.react_component_library.v1.catalog.ReindexSearchRequest
+	37, // 82: vrooli.react_component_library.v1.catalog.CatalogService.GetCoverage:output_type -> vrooli.react_component_library.v1.catalog.GetCoverageResponse
+	39, // 83: vrooli.react_component_library.v1.catalog.CatalogService.ListNextWork:output_type -> vrooli.react_component_library.v1.catalog.ListNextWorkResponse
+	42, // 84: vrooli.react_component_library.v1.catalog.CatalogService.RunGate:output_type -> vrooli.react_component_library.v1.catalog.RunGateResponse
+	42, // 85: vrooli.react_component_library.v1.catalog.CatalogService.RecordGate:output_type -> vrooli.react_component_library.v1.catalog.RunGateResponse
+	45, // 86: vrooli.react_component_library.v1.catalog.CatalogService.CheckAsset:output_type -> vrooli.react_component_library.v1.catalog.CheckAssetResponse
+	13, // 87: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetRelationships:output_type -> vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse
+	19, // 88: vrooli.react_component_library.v1.catalog.CatalogService.GetCatalogStructure:output_type -> vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse
+	23, // 89: vrooli.react_component_library.v1.catalog.CatalogService.ReconcileGraph:output_type -> vrooli.react_component_library.v1.catalog.ReconcileGraphResponse
+	27, // 90: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetPortContract:output_type -> vrooli.react_component_library.v1.catalog.GetAssetPortContractResponse
+	51, // 91: vrooli.react_component_library.v1.catalog.CatalogService.GetScoreHistory:output_type -> vrooli.react_component_library.v1.catalog.GetScoreHistoryResponse
+	55, // 92: vrooli.react_component_library.v1.catalog.CatalogService.GetHealthOverview:output_type -> vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse
+	60, // 93: vrooli.react_component_library.v1.catalog.CatalogService.GetReadiness:output_type -> vrooli.react_component_library.v1.catalog.GetReadinessResponse
+	63, // 94: vrooli.react_component_library.v1.catalog.CatalogService.CaptureEvidence:output_type -> vrooli.react_component_library.v1.catalog.CaptureEvidenceResponse
+	4,  // 95: vrooli.react_component_library.v1.catalog.CatalogService.SearchAssets:output_type -> vrooli.react_component_library.v1.catalog.SearchAssetsResponse
+	6,  // 96: vrooli.react_component_library.v1.catalog.CatalogService.SearchStatus:output_type -> vrooli.react_component_library.v1.catalog.SearchStatusResponse
+	8,  // 97: vrooli.react_component_library.v1.catalog.CatalogService.ReindexSearch:output_type -> vrooli.react_component_library.v1.catalog.ReindexSearchResponse
+	82, // [82:98] is the sub-list for method output_type
+	66, // [66:82] is the sub-list for method input_type
 	66, // [66:66] is the sub-list for extension type_name
 	66, // [66:66] is the sub-list for extension extendee
 	0,  // [0:66] is the sub-list for field type_name

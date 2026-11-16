@@ -1,0 +1,11 @@
+{
+  "kind": "catalog-asset",
+  "asset": {
+    "id": "calibration-usage-contract",
+    "name": "Calibration Usage Contract",
+    "kind": "component",
+    "domain": "controls",
+    "targets": ["react-vite"],
+    "target": { "maturity": "scaffolded" }
+  }
+}

@@ -74,6 +74,55 @@ func (LighthouseOutcome) EnumDescriptor() ([]byte, []int) {
 	return file_performance_health_v1_lighthouse_lighthouse_proto_rawDescGZIP(), []int{0}
 }
 
+// LighthouseAccessibilityStatus classifies Lighthouse accessibility evidence.
+type LighthouseAccessibilityStatus int32
+
+const (
+	LighthouseAccessibilityStatus_LIGHTHOUSE_ACCESSIBILITY_STATUS_UNSPECIFIED LighthouseAccessibilityStatus = 0
+	// Lighthouse reports a score as evidence; the unified experience phase owns
+	// accessibility pass/fail decisions.
+	LighthouseAccessibilityStatus_LIGHTHOUSE_ACCESSIBILITY_STATUS_OBSERVED_NON_GATING LighthouseAccessibilityStatus = 1
+)
+
+// Enum value maps for LighthouseAccessibilityStatus.
+var (
+	LighthouseAccessibilityStatus_name = map[int32]string{
+		0: "LIGHTHOUSE_ACCESSIBILITY_STATUS_UNSPECIFIED",
+		1: "LIGHTHOUSE_ACCESSIBILITY_STATUS_OBSERVED_NON_GATING",
+	}
+	LighthouseAccessibilityStatus_value = map[string]int32{
+		"LIGHTHOUSE_ACCESSIBILITY_STATUS_UNSPECIFIED":         0,
+		"LIGHTHOUSE_ACCESSIBILITY_STATUS_OBSERVED_NON_GATING": 1,
+	}
+)
+
+func (x LighthouseAccessibilityStatus) Enum() *LighthouseAccessibilityStatus {
+	p := new(LighthouseAccessibilityStatus)
+	*p = x
+	return p
+}
+
+func (x LighthouseAccessibilityStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (LighthouseAccessibilityStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_performance_health_v1_lighthouse_lighthouse_proto_enumTypes[1].Descriptor()
+}
+
+func (LighthouseAccessibilityStatus) Type() protoreflect.EnumType {
+	return &file_performance_health_v1_lighthouse_lighthouse_proto_enumTypes[1]
+}
+
+func (x LighthouseAccessibilityStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use LighthouseAccessibilityStatus.Descriptor instead.
+func (LighthouseAccessibilityStatus) EnumDescriptor() ([]byte, []int) {
+	return file_performance_health_v1_lighthouse_lighthouse_proto_rawDescGZIP(), []int{1}
+}
+
 type RunLighthouseRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
@@ -208,14 +257,17 @@ type PageScore struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Url   string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
 	// 0..1 category scores (performance, accessibility, best-practices, seo).
-	Performance   float64 `protobuf:"fixed64,2,opt,name=performance,proto3" json:"performance,omitempty"`
+	Performance float64 `protobuf:"fixed64,2,opt,name=performance,proto3" json:"performance,omitempty"`
+	// Observed Lighthouse score; consult accessibility_status for its non-gating meaning.
 	Accessibility float64 `protobuf:"fixed64,3,opt,name=accessibility,proto3" json:"accessibility,omitempty"`
 	BestPractices float64 `protobuf:"fixed64,4,opt,name=best_practices,json=bestPractices,proto3" json:"best_practices,omitempty"`
 	Seo           float64 `protobuf:"fixed64,5,opt,name=seo,proto3" json:"seo,omitempty"`
 	// Threshold violations triggered for this page.
-	Violations    []string `protobuf:"bytes,6,rep,name=violations,proto3" json:"violations,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Violations []string `protobuf:"bytes,6,rep,name=violations,proto3" json:"violations,omitempty"`
+	// Explicitly classifies the accessibility score as evidence, not a judge.
+	AccessibilityStatus LighthouseAccessibilityStatus `protobuf:"varint,7,opt,name=accessibility_status,json=accessibilityStatus,proto3,enum=vrooli.performance_health.v1.lighthouse.LighthouseAccessibilityStatus" json:"accessibility_status,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *PageScore) Reset() {
@@ -290,6 +342,13 @@ func (x *PageScore) GetViolations() []string {
 	return nil
 }
 
+func (x *PageScore) GetAccessibilityStatus() LighthouseAccessibilityStatus {
+	if x != nil {
+		return x.AccessibilityStatus
+	}
+	return LighthouseAccessibilityStatus_LIGHTHOUSE_ACCESSIBILITY_STATUS_UNSPECIFIED
+}
+
 var File_performance_health_v1_lighthouse_lighthouse_proto protoreflect.FileDescriptor
 
 const file_performance_health_v1_lighthouse_lighthouse_proto_rawDesc = "" +
@@ -303,7 +362,7 @@ const file_performance_health_v1_lighthouse_lighthouse_proto_rawDesc = "" +
 	"\aoutcome\x18\x02 \x01(\x0e2:.vrooli.performance_health.v1.lighthouse.LighthouseOutcomeR\aoutcome\x12H\n" +
 	"\x05pages\x18\x03 \x03(\v22.vrooli.performance_health.v1.lighthouse.PageScoreR\x05pages\x12\x16\n" +
 	"\x06reason\x18\x04 \x01(\tR\x06reason\x125\n" +
-	"\ametrics\x18\x05 \x01(\v2\x1b.common.v1.ExecutionMetricsR\ametrics\"\xbe\x01\n" +
+	"\ametrics\x18\x05 \x01(\v2\x1b.common.v1.ExecutionMetricsR\ametrics\"\xb9\x02\n" +
 	"\tPageScore\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12 \n" +
 	"\vperformance\x18\x02 \x01(\x01R\vperformance\x12$\n" +
@@ -312,12 +371,16 @@ const file_performance_health_v1_lighthouse_lighthouse_proto_rawDesc = "" +
 	"\x03seo\x18\x05 \x01(\x01R\x03seo\x12\x1e\n" +
 	"\n" +
 	"violations\x18\x06 \x03(\tR\n" +
-	"violations*\x95\x01\n" +
+	"violations\x12y\n" +
+	"\x14accessibility_status\x18\a \x01(\x0e2F.vrooli.performance_health.v1.lighthouse.LighthouseAccessibilityStatusR\x13accessibilityStatus*\x95\x01\n" +
 	"\x11LighthouseOutcome\x12\"\n" +
 	"\x1eLIGHTHOUSE_OUTCOME_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19LIGHTHOUSE_OUTCOME_SCORED\x10\x01\x12\x1e\n" +
 	"\x1aLIGHTHOUSE_OUTCOME_SKIPPED\x10\x02\x12\x1d\n" +
-	"\x19LIGHTHOUSE_OUTCOME_FAILED\x10\x032\xa4\x01\n" +
+	"\x19LIGHTHOUSE_OUTCOME_FAILED\x10\x03*\x89\x01\n" +
+	"\x1dLighthouseAccessibilityStatus\x12/\n" +
+	"+LIGHTHOUSE_ACCESSIBILITY_STATUS_UNSPECIFIED\x10\x00\x127\n" +
+	"3LIGHTHOUSE_ACCESSIBILITY_STATUS_OBSERVED_NON_GATING\x10\x012\xa4\x01\n" +
 	"\x11LighthouseService\x12\x8e\x01\n" +
 	"\rRunLighthouse\x12=.vrooli.performance_health.v1.lighthouse.RunLighthouseRequest\x1a>.vrooli.performance_health.v1.lighthouse.RunLighthouseResponseB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/lighthouse;lighthouse_v1b\x06proto3"
 
@@ -333,26 +396,28 @@ func file_performance_health_v1_lighthouse_lighthouse_proto_rawDescGZIP() []byte
 	return file_performance_health_v1_lighthouse_lighthouse_proto_rawDescData
 }
 
-var file_performance_health_v1_lighthouse_lighthouse_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_performance_health_v1_lighthouse_lighthouse_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_performance_health_v1_lighthouse_lighthouse_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_performance_health_v1_lighthouse_lighthouse_proto_goTypes = []any{
-	(LighthouseOutcome)(0),        // 0: vrooli.performance_health.v1.lighthouse.LighthouseOutcome
-	(*RunLighthouseRequest)(nil),  // 1: vrooli.performance_health.v1.lighthouse.RunLighthouseRequest
-	(*RunLighthouseResponse)(nil), // 2: vrooli.performance_health.v1.lighthouse.RunLighthouseResponse
-	(*PageScore)(nil),             // 3: vrooli.performance_health.v1.lighthouse.PageScore
-	(*v1.ExecutionMetrics)(nil),   // 4: common.v1.ExecutionMetrics
+	(LighthouseOutcome)(0),             // 0: vrooli.performance_health.v1.lighthouse.LighthouseOutcome
+	(LighthouseAccessibilityStatus)(0), // 1: vrooli.performance_health.v1.lighthouse.LighthouseAccessibilityStatus
+	(*RunLighthouseRequest)(nil),       // 2: vrooli.performance_health.v1.lighthouse.RunLighthouseRequest
+	(*RunLighthouseResponse)(nil),      // 3: vrooli.performance_health.v1.lighthouse.RunLighthouseResponse
+	(*PageScore)(nil),                  // 4: vrooli.performance_health.v1.lighthouse.PageScore
+	(*v1.ExecutionMetrics)(nil),        // 5: common.v1.ExecutionMetrics
 }
 var file_performance_health_v1_lighthouse_lighthouse_proto_depIdxs = []int32{
 	0, // 0: vrooli.performance_health.v1.lighthouse.RunLighthouseResponse.outcome:type_name -> vrooli.performance_health.v1.lighthouse.LighthouseOutcome
-	3, // 1: vrooli.performance_health.v1.lighthouse.RunLighthouseResponse.pages:type_name -> vrooli.performance_health.v1.lighthouse.PageScore
-	4, // 2: vrooli.performance_health.v1.lighthouse.RunLighthouseResponse.metrics:type_name -> common.v1.ExecutionMetrics
-	1, // 3: vrooli.performance_health.v1.lighthouse.LighthouseService.RunLighthouse:input_type -> vrooli.performance_health.v1.lighthouse.RunLighthouseRequest
-	2, // 4: vrooli.performance_health.v1.lighthouse.LighthouseService.RunLighthouse:output_type -> vrooli.performance_health.v1.lighthouse.RunLighthouseResponse
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 1: vrooli.performance_health.v1.lighthouse.RunLighthouseResponse.pages:type_name -> vrooli.performance_health.v1.lighthouse.PageScore
+	5, // 2: vrooli.performance_health.v1.lighthouse.RunLighthouseResponse.metrics:type_name -> common.v1.ExecutionMetrics
+	1, // 3: vrooli.performance_health.v1.lighthouse.PageScore.accessibility_status:type_name -> vrooli.performance_health.v1.lighthouse.LighthouseAccessibilityStatus
+	2, // 4: vrooli.performance_health.v1.lighthouse.LighthouseService.RunLighthouse:input_type -> vrooli.performance_health.v1.lighthouse.RunLighthouseRequest
+	3, // 5: vrooli.performance_health.v1.lighthouse.LighthouseService.RunLighthouse:output_type -> vrooli.performance_health.v1.lighthouse.RunLighthouseResponse
+	5, // [5:6] is the sub-list for method output_type
+	4, // [4:5] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_performance_health_v1_lighthouse_lighthouse_proto_init() }
@@ -365,7 +430,7 @@ func file_performance_health_v1_lighthouse_lighthouse_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_performance_health_v1_lighthouse_lighthouse_proto_rawDesc), len(file_performance_health_v1_lighthouse_lighthouse_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,

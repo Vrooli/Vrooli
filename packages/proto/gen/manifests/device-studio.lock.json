@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "device-studio",
-  "input_digest": "sha256:61445841b6908267f776eaa09150c4d320c879ba7ece9a1448a8c21d9fb9eb3b",
+  "input_digest": "sha256:733005429eccfbb90dcb55eab0e929e3b7b3b7c1086ee1cc70e1d8ee906a6fd0",
   "input_files": [
     "schemas/ai-gateway/v1/inference/inference.proto",
     "schemas/ai-gateway/v1/shared/gateway.proto",
@@ -19,7 +19,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
-    "generator_digest": "sha256:cccdbaf9a556a5be923d2c17f31d7f3f1e8de7959b27263f9ddbb964a4b52cc9",
+    "generator_digest": "sha256:47bbfc74c5d2c0e0172be6ac47ec939b6b4678e8ca51fa8202f7056c8fc16447",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -81,6 +81,6 @@
     "gen/typescript/device-studio/v1/shared/errors_pb.ts": "sha256:c8b0173fb2bf9e97129cadbe047b354901c4f0e81d3d82ddd61d989fdbbf8f58",
     "gen/typescript/device-studio/v1/shared/health_pb.ts": "sha256:f0b20c8388fd931a2dd1de84f3e2e65dbf932f04a527b9eb2dd0d71fd284097a",
     "gen/typescript/device-studio/v1/shots/shots_pb.ts": "sha256:e2d60252e61fbd3c6b2ab1b8838c303ecdc88333ea0da1e557e73d3e0c4ad904",
-    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
+    "gen/typescript/package.json": "sha256:d7210c69e0b4e8eb72d65b1503ce8ea1eeb61aa893b5442e16d0ab4a9980e5d6"
   }
 }

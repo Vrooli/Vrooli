@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "scenario-validation",
-  "input_digest": "sha256:f5f30ebbe8e21704760c8d4a8a13954baa2f6f207d2a92b4d1b2d2556a088c80",
+  "input_digest": "sha256:4b2f189f369a6c83d51459dfc7be04059e01e58a8975582b501932929e433481",
   "input_files": [
     "schemas/common/v1/evidence.proto",
     "schemas/common/v1/maturity.proto",
@@ -12,7 +12,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
-    "generator_digest": "sha256:cccdbaf9a556a5be923d2c17f31d7f3f1e8de7959b27263f9ddbb964a4b52cc9",
+    "generator_digest": "sha256:47bbfc74c5d2c0e0172be6ac47ec939b6b4678e8ca51fa8202f7056c8fc16447",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -22,12 +22,12 @@
   },
   "outputs": {
     "gen/go/scenario-validation/v1/scenariovalidationv1connect/validation.connect.go": "sha256:6e258af1c825c0c0a2b1af00839b2bcef0cc5b5cf012964a91ce2430ee2a76ba",
-    "gen/go/scenario-validation/v1/validation.pb.go": "sha256:1a16a0371391f5cd739e7ee7fbaab43e534781045cdfecba1bda261a950fc65b",
+    "gen/go/scenario-validation/v1/validation.pb.go": "sha256:1463d3d62be15dc9f8492005bca2ad5a390878ebb9a3025dfca8e1ce03e5222d",
     "gen/python/scenario_validation/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/scenario_validation/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/scenario_validation/v1/validation_pb2.py": "sha256:224066ff63d83519d91df2cec01aea7fb73c5d8ee3002e8e04f9c2a9b57be1bd",
-    "gen/python/scenario_validation/v1/validation_pb2.pyi": "sha256:73b0229793cce99d4698222f64cce4260b1c7859cd8b8ed73cfd08060a5903d3",
-    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
-    "gen/typescript/scenario-validation/v1/validation_pb.ts": "sha256:b08e2d2c47da5ce0a9e2fcd22966c84dcad1885f456c61ea526d006917ffde75"
+    "gen/python/scenario_validation/v1/validation_pb2.py": "sha256:4ed85aa0b9ef5d45e9797d733c2104c329437d117239bde085b08047c6f867db",
+    "gen/python/scenario_validation/v1/validation_pb2.pyi": "sha256:d33b0d8153b769bd4e7899f744aaa53bac8a6f4d7d7c7e189cfb3c29062c1b87",
+    "gen/typescript/package.json": "sha256:d7210c69e0b4e8eb72d65b1503ce8ea1eeb61aa893b5442e16d0ab4a9980e5d6",
+    "gen/typescript/scenario-validation/v1/validation_pb.ts": "sha256:f940323e6aec68b711099e5142b167bb730ec82bb39fe6683a40c4b089fb5cd2"
   }
 }

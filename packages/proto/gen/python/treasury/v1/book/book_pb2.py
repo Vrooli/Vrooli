@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1btreasury/v1/book/book.proto\x12\x17vrooli.treasury.v1.book\x1a\x1fgoogle/protobuf/timestamp.proto\"\x98\x01\n\x04\x42ook\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x31\n\x14\x62\x65neficiary_identity\x18\x03 \x01(\tR\x13\x62\x65neficiaryIdentity\x12\x39\n\ncreated_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAtBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/book;book_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1btreasury/v1/book/book.proto\x12\x17vrooli.treasury.v1.book\x1a\x1fgoogle/protobuf/timestamp.proto\"\x98\x01\n\x04\x42ook\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x31\n\x14\x62\x65neficiary_identity\x18\x03 \x01(\tR\x13\x62\x65neficiaryIdentity\x12\x39\n\ncreated_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\"F\n\x11\x43reateBookRequest\x12\x31\n\x04\x62ook\x18\x01 \x01(\x0b\x32\x1d.vrooli.treasury.v1.book.BookR\x04\x62ook\"G\n\x12\x43reateBookResponse\x12\x31\n\x04\x62ook\x18\x01 \x01(\x0b\x32\x1d.vrooli.treasury.v1.book.BookR\x04\x62ook\")\n\x0eGetBookRequest\x12\x17\n\x07\x62ook_id\x18\x01 \x01(\tR\x06\x62ookId\"D\n\x0fGetBookResponse\x12\x31\n\x04\x62ook\x18\x01 \x01(\x0b\x32\x1d.vrooli.treasury.v1.book.BookR\x04\x62ook2\xd7\x01\n\x10\x42ookAdminService\x12\x65\n\nCreateBook\x12*.vrooli.treasury.v1.book.CreateBookRequest\x1a+.vrooli.treasury.v1.book.CreateBookResponse\x12\\\n\x07GetBook\x12\'.vrooli.treasury.v1.book.GetBookRequest\x1a(.vrooli.treasury.v1.book.GetBookResponseBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/book;book_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,4 +35,14 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'ZGgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/book;book_v1'
   _globals['_BOOK']._serialized_start=90
   _globals['_BOOK']._serialized_end=242
+  _globals['_CREATEBOOKREQUEST']._serialized_start=244
+  _globals['_CREATEBOOKREQUEST']._serialized_end=314
+  _globals['_CREATEBOOKRESPONSE']._serialized_start=316
+  _globals['_CREATEBOOKRESPONSE']._serialized_end=387
+  _globals['_GETBOOKREQUEST']._serialized_start=389
+  _globals['_GETBOOKREQUEST']._serialized_end=430
+  _globals['_GETBOOKRESPONSE']._serialized_start=432
+  _globals['_GETBOOKRESPONSE']._serialized_end=500
+  _globals['_BOOKADMINSERVICE']._serialized_start=503
+  _globals['_BOOKADMINSERVICE']._serialized_end=718
 # @@protoc_insertion_point(module_scope)

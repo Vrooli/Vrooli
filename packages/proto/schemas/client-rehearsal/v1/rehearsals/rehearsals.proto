@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.client_rehearsal.v1.rehearsals;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/client-rehearsal/v1/rehearsals;rehearsals_v1";
 
@@ -76,6 +77,12 @@ message CreateAndRunRehearsalRequest {
   // Link a changed workflow revision to the failed run whose required outputs
   // it repairs. The simulator source and exact failed paths must match.
   string repair_of_id = 8;
+  // Run this rehearsal with a server-owned Workspace Sandbox task scope and
+  // route native service calls through its synthetic companion aliases.
+  bool task_scoped = 9;
+  // Optional synthetic JSON object delivered to the selected trigger for this
+  // run only. The server bounds and sanitizes it; it is not persisted or returned.
+  google.protobuf.Struct trigger_input = 10;
 }
 message CreateAndRunRehearsalResponse { Rehearsal rehearsal = 1; }
 

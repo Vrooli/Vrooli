@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file system-monitor/v1/reports/reports.proto.
  */
 export const file_system_monitor_v1_reports_reports: GenFile = /*@__PURE__*/
-  fileDesc("CidzeXN0ZW0tbW9uaXRvci92MS9yZXBvcnRzL3JlcG9ydHMucHJvdG8SIHZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5yZXBvcnRzIpgDCgxTeXN0ZW1SZXBvcnQSCgoCaWQYASABKAkSDAoEdHlwZRgCIAEoCRIwCgxnZW5lcmF0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDHBlcmlvZF9zdGFydBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKcGVyaW9kX2VuZBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASQAoHc3VtbWFyeRgGIAEoCzIvLnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5yZXBvcnRzLlJlcG9ydFN1bW1hcnkSQAoHbWV0cmljcxgHIAEoCzIvLnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5yZXBvcnRzLlJlcG9ydE1ldHJpY3MSPQoGYWxlcnRzGAggAygLMi0udnJvb2xpLnN5c3RlbV9tb25pdG9yLnYxLnJlcG9ydHMuUmVwb3J0QWxlcnQSFwoPcmVjb21tZW5kYXRpb25zGAkgAygJIo4BCg1SZXBvcnRTdW1tYXJ5EhQKDHRvdGFsX2FsZXJ0cxgBIAEoBRIVCg1hdmdfY3B1X3VzYWdlGAIgASgBEhgKEGF2Z19tZW1vcnlfdXNhZ2UYAyABKAESGwoTbWF4X3RjcF9jb25uZWN0aW9ucxgEIAEoBRIZChF1cHRpbWVfcGVyY2VudGFnZRgFIAEoASJjCg1SZXBvcnRNZXRyaWNzEhEKCWNwdV90cmVuZBgBIAMoARIUCgxtZW1vcnlfdHJlbmQYAiADKAESFQoNbmV0d29ya190cmVuZBgDIAMoARISCgp0aW1lc3RhbXBzGAQgAygJIoMBCgtSZXBvcnRBbGVydBItCgl0aW1lc3RhbXAYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCHNldmVyaXR5GAIgASgJEhAKCGNhdGVnb3J5GAMgASgJEg8KB21lc3NhZ2UYBCABKAkSEAoIcmVzb2x2ZWQYBSABKAgiwAQKFEVuaGFuY2VkU3lzdGVtUmVwb3J0EhEKCXJlcG9ydF9pZBgBIAEoCRITCgtyZXBvcnRfdHlwZRgCIAEoCRIwCgxnZW5lcmF0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEkUKCnRpbWVfcmFuZ2UYBCABKAsyMS52cm9vbGkuc3lzdGVtX21vbml0b3IudjEucmVwb3J0cy5SZXBvcnRUaW1lUmFuZ2USFwoPYWN0dWFsX2R1cmF0aW9uGAUgASgJEhoKEmRhdGVfcmFuZ2VfZGlzcGxheRgGIAEoCRJVChFleGVjdXRpdmVfc3VtbWFyeRgHIAEoCzI6LnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5yZXBvcnRzLkVuaGFuY2VkRXhlY3V0aXZlU3VtbWFyeRJKCgtwZXJmb3JtYW5jZRgIIAEoCzI1LnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5yZXBvcnRzLlBlcmZvcm1hbmNlQW5hbHlzaXMSNwoGdHJlbmRzGAkgAygLMicudnJvb2xpLnN5c3RlbV9tb25pdG9yLnYxLnJlcG9ydHMuVHJlbmQSFwoPcmVjb21tZW5kYXRpb25zGAogAygJEhIKCmhpZ2hsaWdodHMYCyADKAkSFQoNbWV0cmljc19jb3VudBgMIAEoBRIUCgxhbGVydHNfY291bnQYDSABKAUSHAoUaW52ZXN0aWdhdGlvbnNfY291bnQYDiABKAUibwoPUmVwb3J0VGltZVJhbmdlEi4KCnN0YXJ0X3RpbWUYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiwKCGVuZF90aW1lGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJ8ChhFbmhhbmNlZEV4ZWN1dGl2ZVN1bW1hcnkSFgoOb3ZlcmFsbF9oZWFsdGgYASABKAkSFAoMa2V5X2ZpbmRpbmdzGAIgAygJEhgKEHRpbWVfZGVzY3JpcHRpb24YAyABKAkSGAoQbWV0cmljc19hbmFseXplZBgEIAEoBSKkAQoTUGVyZm9ybWFuY2VBbmFseXNpcxI6CgNjcHUYASABKAsyLS52cm9vbGkuc3lzdGVtX21vbml0b3IudjEucmVwb3J0cy5NZXRyaWNTdGF0cxI9CgZtZW1vcnkYAiABKAsyLS52cm9vbGkuc3lzdGVtX21vbml0b3IudjEucmVwb3J0cy5NZXRyaWNTdGF0cxISCgp0aW1lX3JhbmdlGAMgASgJIroBCgtNZXRyaWNTdGF0cxIPCgdhdmVyYWdlGAEgASgBEgsKA21pbhgCIAEoARILCgNtYXgYAyABKAESDwoHc3RkX2RldhgEIAEoARISCgpwZWFrX3ZhbHVlGAUgASgBEi0KCXBlYWtfdGltZRgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIbWluX3RpbWUYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIlAKBVRyZW5kEgwKBG5hbWUYASABKAkSEQoJZGlyZWN0aW9uGAIgASgJEg4KBmNoYW5nZRgDIAEoARIWCg5jaGFuZ2VfcGVyY2VudBgEIAEoASIlChVHZW5lcmF0ZVJlcG9ydFJlcXVlc3QSDAoEdHlwZRgBIAEoCSJgChZHZW5lcmF0ZVJlcG9ydFJlc3BvbnNlEkYKBnJlcG9ydBgBIAEoCzI2LnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5yZXBvcnRzLkVuaGFuY2VkU3lzdGVtUmVwb3J0IhQKEkxpc3RSZXBvcnRzUmVxdWVzdCJtChNMaXN0UmVwb3J0c1Jlc3BvbnNlEkcKB3JlcG9ydHMYASADKAsyNi52cm9vbGkuc3lzdGVtX21vbml0b3IudjEucmVwb3J0cy5FbmhhbmNlZFN5c3RlbVJlcG9ydBINCgVjb3VudBgCIAEoBSIeChBHZXRSZXBvcnRSZXF1ZXN0EgoKAmlkGAEgASgJIlsKEUdldFJlcG9ydFJlc3BvbnNlEkYKBnJlcG9ydBgBIAEoCzI2LnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5yZXBvcnRzLkVuaGFuY2VkU3lzdGVtUmVwb3J0MuYDCg5SZXBvcnRzU2VydmljZRKoAQoOR2VuZXJhdGVSZXBvcnQSNy52cm9vbGkuc3lzdGVtX21vbml0b3IudjEucmVwb3J0cy5HZW5lcmF0ZVJlcG9ydFJlcXVlc3QaOC52cm9vbGkuc3lzdGVtX21vbml0b3IudjEucmVwb3J0cy5HZW5lcmF0ZVJlcG9ydFJlc3BvbnNlIiOC0+STAh06ASoiGC9hcGkvdjEvcmVwb3J0cy9nZW5lcmF0ZRKTAQoLTGlzdFJlcG9ydHMSNC52cm9vbGkuc3lzdGVtX21vbml0b3IudjEucmVwb3J0cy5MaXN0UmVwb3J0c1JlcXVlc3QaNS52cm9vbGkuc3lzdGVtX21vbml0b3IudjEucmVwb3J0cy5MaXN0UmVwb3J0c1Jlc3BvbnNlIheC0+STAhESDy9hcGkvdjEvcmVwb3J0cxKSAQoJR2V0UmVwb3J0EjIudnJvb2xpLnN5c3RlbV9tb25pdG9yLnYxLnJlcG9ydHMuR2V0UmVwb3J0UmVxdWVzdBozLnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5yZXBvcnRzLkdldFJlcG9ydFJlc3BvbnNlIhyC0+STAhYSFC9hcGkvdjEvcmVwb3J0cy97aWR9QlJaUGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3lzdGVtLW1vbml0b3IvdjEvcmVwb3J0cztyZXBvcnRzYgZwcm90bzM", [file_google_api_annotations, file_google_protobuf_timestamp]);
+  fileDesc("CidzeXN0ZW0tbW9uaXRvci92MS9yZXBvcnRzL3JlcG9ydHMucHJvdG8SIHZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5yZXBvcnRzIpgDCgxTeXN0ZW1SZXBvcnQSCgoCaWQYASABKAkSDAoEdHlwZRgCIAEoCRIwCgxnZW5lcmF0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDHBlcmlvZF9zdGFydBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKcGVyaW9kX2VuZBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASQAoHc3VtbWFyeRgGIAEoCzIvLnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5yZXBvcnRzLlJlcG9ydFN1bW1hcnkSQAoHbWV0cmljcxgHIAEoCzIvLnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5yZXBvcnRzLlJlcG9ydE1ldHJpY3MSPQoGYWxlcnRzGAggAygLMi0udnJvb2xpLnN5c3RlbV9tb25pdG9yLnYxLnJlcG9ydHMuUmVwb3J0QWxlcnQSFwoPcmVjb21tZW5kYXRpb25zGAkgAygJIo4BCg1SZXBvcnRTdW1tYXJ5EhQKDHRvdGFsX2FsZXJ0cxgBIAEoBRIVCg1hdmdfY3B1X3VzYWdlGAIgASgBEhgKEGF2Z19tZW1vcnlfdXNhZ2UYAyABKAESGwoTbWF4X3RjcF9jb25uZWN0aW9ucxgEIAEoBRIZChF1cHRpbWVfcGVyY2VudGFnZRgFIAEoASJjCg1SZXBvcnRNZXRyaWNzEhEKCWNwdV90cmVuZBgBIAMoARIUCgxtZW1vcnlfdHJlbmQYAiADKAESFQoNbmV0d29ya190cmVuZBgDIAMoARISCgp0aW1lc3RhbXBzGAQgAygJIoMBCgtSZXBvcnRBbGVydBItCgl0aW1lc3RhbXAYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCHNldmVyaXR5GAIgASgJEhAKCGNhdGVnb3J5GAMgASgJEg8KB21lc3NhZ2UYBCABKAkSEAoIcmVzb2x2ZWQYBSABKAgikAUKFEVuaGFuY2VkU3lzdGVtUmVwb3J0EhEKCXJlcG9ydF9pZBgBIAEoCRITCgtyZXBvcnRfdHlwZRgCIAEoCRIwCgxnZW5lcmF0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEkUKCnRpbWVfcmFuZ2UYBCABKAsyMS52cm9vbGkuc3lzdGVtX21vbml0b3IudjEucmVwb3J0cy5SZXBvcnRUaW1lUmFuZ2USFwoPYWN0dWFsX2R1cmF0aW9uGAUgASgJEhoKEmRhdGVfcmFuZ2VfZGlzcGxheRgGIAEoCRJVChFleGVjdXRpdmVfc3VtbWFyeRgHIAEoCzI6LnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5yZXBvcnRzLkVuaGFuY2VkRXhlY3V0aXZlU3VtbWFyeRJKCgtwZXJmb3JtYW5jZRgIIAEoCzI1LnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5yZXBvcnRzLlBlcmZvcm1hbmNlQW5hbHlzaXMSNwoGdHJlbmRzGAkgAygLMicudnJvb2xpLnN5c3RlbV9tb25pdG9yLnYxLnJlcG9ydHMuVHJlbmQSFwoPcmVjb21tZW5kYXRpb25zGAogAygJEhIKCmhpZ2hsaWdodHMYCyADKAkSFQoNbWV0cmljc19jb3VudBgMIAEoBRIUCgxhbGVydHNfY291bnQYDSABKAUSHAoUaW52ZXN0aWdhdGlvbnNfY291bnQYDiABKAUSTgoPb3duZXJfcmVzb3VyY2VzGA8gASgLMjUudnJvb2xpLnN5c3RlbV9tb25pdG9yLnYxLnJlcG9ydHMuT3duZXJSZXNvdXJjZVJlcG9ydCLRBAoTT3duZXJSZXNvdXJjZVJlcG9ydBIwCgx3aW5kb3dfc3RhcnQYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCndpbmRvd19lbmQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCGNvbXBsZXRlGAMgASgIEhwKFGF0dHJpYnV0aW9uX2NvbXBsZXRlGAQgASgIEh8KF3JldHVybmVkX3Byb2Nlc3NfZ3JvdXBzGAUgASgFEkYKBm93bmVycxgGIAMoCzI2LnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5yZXBvcnRzLk93bmVyUmVzb3VyY2VTdW1tYXJ5EjkKFXNhbXBsZV9jb3ZlcmFnZV9zdGFydBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNwoTc2FtcGxlX2NvdmVyYWdlX2VuZBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASHgoWc3dhcF9jb3ZlcmFnZV9jb21wbGV0ZRgJIAEoCBIdChVzd2FwX21lYXN1cmVkX3NhbXBsZXMYCiABKAMSHAoUc3dhcF91bmtub3duX3NhbXBsZXMYCyABKAMSNwoTc3dhcF9jb3ZlcmFnZV9zdGFydBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNQoRc3dhcF9jb3ZlcmFnZV9lbmQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIooCChRPd25lclJlc291cmNlU3VtbWFyeRINCgVvd25lchgBIAEoCRIWCg5wcm9jZXNzX2dyb3VwcxgCIAEoBRIPCgdzYW1wbGVzGAMgASgDEhIKCmNvcmVfaG91cnMYBCABKAESIAoYbWVhbl9yc3NfZ2liX3Byb2Nlc3Nfc3VtGAUgASgBEiEKGW1lYW5fc3dhcF9naWJfcHJvY2Vzc19zdW0YBiABKAESJAoccGVha19zaW5nbGVfcHJvY2Vzc192cmFtX2dpYhgHIAEoARIdChVzd2FwX21lYXN1cmVkX3NhbXBsZXMYCCABKAMSHAoUc3dhcF91bmtub3duX3NhbXBsZXMYCSABKAMibwoPUmVwb3J0VGltZVJhbmdlEi4KCnN0YXJ0X3RpbWUYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiwKCGVuZF90aW1lGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJ8ChhFbmhhbmNlZEV4ZWN1dGl2ZVN1bW1hcnkSFgoOb3ZlcmFsbF9oZWFsdGgYASABKAkSFAoMa2V5X2ZpbmRpbmdzGAIgAygJEhgKEHRpbWVfZGVzY3JpcHRpb24YAyABKAkSGAoQbWV0cmljc19hbmFseXplZBgEIAEoBSKkAQoTUGVyZm9ybWFuY2VBbmFseXNpcxI6CgNjcHUYASABKAsyLS52cm9vbGkuc3lzdGVtX21vbml0b3IudjEucmVwb3J0cy5NZXRyaWNTdGF0cxI9CgZtZW1vcnkYAiABKAsyLS52cm9vbGkuc3lzdGVtX21vbml0b3IudjEucmVwb3J0cy5NZXRyaWNTdGF0cxISCgp0aW1lX3JhbmdlGAMgASgJIroBCgtNZXRyaWNTdGF0cxIPCgdhdmVyYWdlGAEgASgBEgsKA21pbhgCIAEoARILCgNtYXgYAyABKAESDwoHc3RkX2RldhgEIAEoARISCgpwZWFrX3ZhbHVlGAUgASgBEi0KCXBlYWtfdGltZRgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIbWluX3RpbWUYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIlAKBVRyZW5kEgwKBG5hbWUYASABKAkSEQoJZGlyZWN0aW9uGAIgASgJEg4KBmNoYW5nZRgDIAEoARIWCg5jaGFuZ2VfcGVyY2VudBgEIAEoASIlChVHZW5lcmF0ZVJlcG9ydFJlcXVlc3QSDAoEdHlwZRgBIAEoCSJgChZHZW5lcmF0ZVJlcG9ydFJlc3BvbnNlEkYKBnJlcG9ydBgBIAEoCzI2LnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5yZXBvcnRzLkVuaGFuY2VkU3lzdGVtUmVwb3J0IhQKEkxpc3RSZXBvcnRzUmVxdWVzdCJtChNMaXN0UmVwb3J0c1Jlc3BvbnNlEkcKB3JlcG9ydHMYASADKAsyNi52cm9vbGkuc3lzdGVtX21vbml0b3IudjEucmVwb3J0cy5FbmhhbmNlZFN5c3RlbVJlcG9ydBINCgVjb3VudBgCIAEoBSIeChBHZXRSZXBvcnRSZXF1ZXN0EgoKAmlkGAEgASgJIlsKEUdldFJlcG9ydFJlc3BvbnNlEkYKBnJlcG9ydBgBIAEoCzI2LnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5yZXBvcnRzLkVuaGFuY2VkU3lzdGVtUmVwb3J0MuYDCg5SZXBvcnRzU2VydmljZRKoAQoOR2VuZXJhdGVSZXBvcnQSNy52cm9vbGkuc3lzdGVtX21vbml0b3IudjEucmVwb3J0cy5HZW5lcmF0ZVJlcG9ydFJlcXVlc3QaOC52cm9vbGkuc3lzdGVtX21vbml0b3IudjEucmVwb3J0cy5HZW5lcmF0ZVJlcG9ydFJlc3BvbnNlIiOC0+STAh06ASoiGC9hcGkvdjEvcmVwb3J0cy9nZW5lcmF0ZRKTAQoLTGlzdFJlcG9ydHMSNC52cm9vbGkuc3lzdGVtX21vbml0b3IudjEucmVwb3J0cy5MaXN0UmVwb3J0c1JlcXVlc3QaNS52cm9vbGkuc3lzdGVtX21vbml0b3IudjEucmVwb3J0cy5MaXN0UmVwb3J0c1Jlc3BvbnNlIheC0+STAhESDy9hcGkvdjEvcmVwb3J0cxKSAQoJR2V0UmVwb3J0EjIudnJvb2xpLnN5c3RlbV9tb25pdG9yLnYxLnJlcG9ydHMuR2V0UmVwb3J0UmVxdWVzdBozLnZyb29saS5zeXN0ZW1fbW9uaXRvci52MS5yZXBvcnRzLkdldFJlcG9ydFJlc3BvbnNlIhyC0+STAhYSFC9hcGkvdjEvcmVwb3J0cy97aWR9QlJaUGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3lzdGVtLW1vbml0b3IvdjEvcmVwb3J0cztyZXBvcnRzYgZwcm90bzM", [file_google_api_annotations, file_google_protobuf_timestamp]);
 
 /**
  * SystemReport represents a periodic system analysis report.
@@ -335,6 +335,13 @@ export type EnhancedSystemReport = Message<"vrooli.system_monitor.v1.reports.Enh
    * @generated from field: int32 investigations_count = 14;
    */
   investigationsCount: number;
+
+  /**
+   * Per-owner CPU, memory, swap, and GPU residency observed during the report window.
+   *
+   * @generated from field: vrooli.system_monitor.v1.reports.OwnerResourceReport owner_resources = 15;
+   */
+  ownerResources?: OwnerResourceReport | undefined;
 };
 
 /**
@@ -343,6 +350,159 @@ export type EnhancedSystemReport = Message<"vrooli.system_monitor.v1.reports.Enh
  */
 export const EnhancedSystemReportSchema: GenMessage<EnhancedSystemReport> = /*@__PURE__*/
   messageDesc(file_system_monitor_v1_reports_reports, 4);
+
+/**
+ * OwnerResourceReport is bounded process telemetry summarized by stable owner.
+ *
+ * @generated from message vrooli.system_monitor.v1.reports.OwnerResourceReport
+ */
+export type OwnerResourceReport = Message<"vrooli.system_monitor.v1.reports.OwnerResourceReport"> & {
+  /**
+   * The requested process timeline window; complete also checks sample coverage.
+   *
+   * @generated from field: google.protobuf.Timestamp window_start = 1;
+   */
+  windowStart?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp window_end = 2;
+   */
+  windowEnd?: Timestamp | undefined;
+
+  /**
+   * False when no samples, window-edge coverage gaps, or a saturated group cap were observed.
+   *
+   * @generated from field: bool complete = 3;
+   */
+  complete: boolean;
+
+  /**
+   * False when at least one process group has no known owner.
+   *
+   * @generated from field: bool attribution_complete = 4;
+   */
+  attributionComplete: boolean;
+
+  /**
+   * Number of process groups returned by the bounded source query.
+   *
+   * @generated from field: int32 returned_process_groups = 5;
+   */
+  returnedProcessGroups: number;
+
+  /**
+   * Per-owner totals and sample means.
+   *
+   * @generated from field: repeated vrooli.system_monitor.v1.reports.OwnerResourceSummary owners = 6;
+   */
+  owners: OwnerResourceSummary[];
+
+  /**
+   * Earliest and latest process samples that contributed to this report.
+   *
+   * @generated from field: google.protobuf.Timestamp sample_coverage_start = 7;
+   */
+  sampleCoverageStart?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp sample_coverage_end = 8;
+   */
+  sampleCoverageEnd?: Timestamp | undefined;
+
+  /**
+   * Swap reporting is complete only when every returned process sample had a measured swap value and both window edges are covered.
+   *
+   * @generated from field: bool swap_coverage_complete = 9;
+   */
+  swapCoverageComplete: boolean;
+
+  /**
+   * @generated from field: int64 swap_measured_samples = 10;
+   */
+  swapMeasuredSamples: bigint;
+
+  /**
+   * @generated from field: int64 swap_unknown_samples = 11;
+   */
+  swapUnknownSamples: bigint;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp swap_coverage_start = 12;
+   */
+  swapCoverageStart?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp swap_coverage_end = 13;
+   */
+  swapCoverageEnd?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.system_monitor.v1.reports.OwnerResourceReport.
+ * Use `create(OwnerResourceReportSchema)` to create a new message.
+ */
+export const OwnerResourceReportSchema: GenMessage<OwnerResourceReport> = /*@__PURE__*/
+  messageDesc(file_system_monitor_v1_reports_reports, 5);
+
+/**
+ * OwnerResourceSummary is a process-group aggregate. Memory values are sums of
+ * per-process-group sample means, not a simultaneous host allocation snapshot.
+ *
+ * @generated from message vrooli.system_monitor.v1.reports.OwnerResourceSummary
+ */
+export type OwnerResourceSummary = Message<"vrooli.system_monitor.v1.reports.OwnerResourceSummary"> & {
+  /**
+   * @generated from field: string owner = 1;
+   */
+  owner: string;
+
+  /**
+   * @generated from field: int32 process_groups = 2;
+   */
+  processGroups: number;
+
+  /**
+   * @generated from field: int64 samples = 3;
+   */
+  samples: bigint;
+
+  /**
+   * @generated from field: double core_hours = 4;
+   */
+  coreHours: number;
+
+  /**
+   * @generated from field: double mean_rss_gib_process_sum = 5;
+   */
+  meanRssGibProcessSum: number;
+
+  /**
+   * @generated from field: double mean_swap_gib_process_sum = 6;
+   */
+  meanSwapGibProcessSum: number;
+
+  /**
+   * @generated from field: double peak_single_process_vram_gib = 7;
+   */
+  peakSingleProcessVramGib: number;
+
+  /**
+   * @generated from field: int64 swap_measured_samples = 8;
+   */
+  swapMeasuredSamples: bigint;
+
+  /**
+   * @generated from field: int64 swap_unknown_samples = 9;
+   */
+  swapUnknownSamples: bigint;
+};
+
+/**
+ * Describes the message vrooli.system_monitor.v1.reports.OwnerResourceSummary.
+ * Use `create(OwnerResourceSummarySchema)` to create a new message.
+ */
+export const OwnerResourceSummarySchema: GenMessage<OwnerResourceSummary> = /*@__PURE__*/
+  messageDesc(file_system_monitor_v1_reports_reports, 6);
 
 /**
  * ReportTimeRange defines start and end for a report period.
@@ -370,7 +530,7 @@ export type ReportTimeRange = Message<"vrooli.system_monitor.v1.reports.ReportTi
  * Use `create(ReportTimeRangeSchema)` to create a new message.
  */
 export const ReportTimeRangeSchema: GenMessage<ReportTimeRange> = /*@__PURE__*/
-  messageDesc(file_system_monitor_v1_reports_reports, 5);
+  messageDesc(file_system_monitor_v1_reports_reports, 7);
 
 /**
  * EnhancedExecutiveSummary provides a high-level overview.
@@ -412,7 +572,7 @@ export type EnhancedExecutiveSummary = Message<"vrooli.system_monitor.v1.reports
  * Use `create(EnhancedExecutiveSummarySchema)` to create a new message.
  */
 export const EnhancedExecutiveSummarySchema: GenMessage<EnhancedExecutiveSummary> = /*@__PURE__*/
-  messageDesc(file_system_monitor_v1_reports_reports, 6);
+  messageDesc(file_system_monitor_v1_reports_reports, 8);
 
 /**
  * PerformanceAnalysis contains statistical analysis of performance metrics.
@@ -447,7 +607,7 @@ export type PerformanceAnalysis = Message<"vrooli.system_monitor.v1.reports.Perf
  * Use `create(PerformanceAnalysisSchema)` to create a new message.
  */
 export const PerformanceAnalysisSchema: GenMessage<PerformanceAnalysis> = /*@__PURE__*/
-  messageDesc(file_system_monitor_v1_reports_reports, 7);
+  messageDesc(file_system_monitor_v1_reports_reports, 9);
 
 /**
  * MetricStats contains statistical values for a metric.
@@ -510,7 +670,7 @@ export type MetricStats = Message<"vrooli.system_monitor.v1.reports.MetricStats"
  * Use `create(MetricStatsSchema)` to create a new message.
  */
 export const MetricStatsSchema: GenMessage<MetricStats> = /*@__PURE__*/
-  messageDesc(file_system_monitor_v1_reports_reports, 8);
+  messageDesc(file_system_monitor_v1_reports_reports, 10);
 
 /**
  * Trend represents a directional trend in a metric.
@@ -552,7 +712,7 @@ export type Trend = Message<"vrooli.system_monitor.v1.reports.Trend"> & {
  * Use `create(TrendSchema)` to create a new message.
  */
 export const TrendSchema: GenMessage<Trend> = /*@__PURE__*/
-  messageDesc(file_system_monitor_v1_reports_reports, 9);
+  messageDesc(file_system_monitor_v1_reports_reports, 11);
 
 /**
  * GenerateReportRequest specifies the type of report to generate.
@@ -573,7 +733,7 @@ export type GenerateReportRequest = Message<"vrooli.system_monitor.v1.reports.Ge
  * Use `create(GenerateReportRequestSchema)` to create a new message.
  */
 export const GenerateReportRequestSchema: GenMessage<GenerateReportRequest> = /*@__PURE__*/
-  messageDesc(file_system_monitor_v1_reports_reports, 10);
+  messageDesc(file_system_monitor_v1_reports_reports, 12);
 
 /**
  * GenerateReportResponse returns the generated report.
@@ -594,7 +754,7 @@ export type GenerateReportResponse = Message<"vrooli.system_monitor.v1.reports.G
  * Use `create(GenerateReportResponseSchema)` to create a new message.
  */
 export const GenerateReportResponseSchema: GenMessage<GenerateReportResponse> = /*@__PURE__*/
-  messageDesc(file_system_monitor_v1_reports_reports, 11);
+  messageDesc(file_system_monitor_v1_reports_reports, 13);
 
 /**
  * ListReportsRequest is empty - no parameters needed.
@@ -609,7 +769,7 @@ export type ListReportsRequest = Message<"vrooli.system_monitor.v1.reports.ListR
  * Use `create(ListReportsRequestSchema)` to create a new message.
  */
 export const ListReportsRequestSchema: GenMessage<ListReportsRequest> = /*@__PURE__*/
-  messageDesc(file_system_monitor_v1_reports_reports, 12);
+  messageDesc(file_system_monitor_v1_reports_reports, 14);
 
 /**
  * ListReportsResponse returns available reports.
@@ -637,7 +797,7 @@ export type ListReportsResponse = Message<"vrooli.system_monitor.v1.reports.List
  * Use `create(ListReportsResponseSchema)` to create a new message.
  */
 export const ListReportsResponseSchema: GenMessage<ListReportsResponse> = /*@__PURE__*/
-  messageDesc(file_system_monitor_v1_reports_reports, 13);
+  messageDesc(file_system_monitor_v1_reports_reports, 15);
 
 /**
  * GetReportRequest retrieves a specific report.
@@ -658,7 +818,7 @@ export type GetReportRequest = Message<"vrooli.system_monitor.v1.reports.GetRepo
  * Use `create(GetReportRequestSchema)` to create a new message.
  */
 export const GetReportRequestSchema: GenMessage<GetReportRequest> = /*@__PURE__*/
-  messageDesc(file_system_monitor_v1_reports_reports, 14);
+  messageDesc(file_system_monitor_v1_reports_reports, 16);
 
 /**
  * GetReportResponse returns a single report.
@@ -679,7 +839,7 @@ export type GetReportResponse = Message<"vrooli.system_monitor.v1.reports.GetRep
  * Use `create(GetReportResponseSchema)` to create a new message.
  */
 export const GetReportResponseSchema: GenMessage<GetReportResponse> = /*@__PURE__*/
-  messageDesc(file_system_monitor_v1_reports_reports, 15);
+  messageDesc(file_system_monitor_v1_reports_reports, 17);
 
 /**
  * ReportsService provides the reports RPC surface.

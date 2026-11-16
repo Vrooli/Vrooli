@@ -119,6 +119,14 @@ message RouteEvidence {
   // makes a sent value alone a misleading record of the route's conditions.
   optional double sampling_temperature = 35;
   vrooli.ai_gateway.v1.shared.SamplingSupport sampling_temperature_support = 36;
+  // privacy_provenance preserves the caller's non-sensitive source/basis
+  // statement for the recorded privacy_class; it is attribution, not policy.
+  string privacy_provenance = 37;
+  // task_role is the caller's requested task contract; role remains the
+  // request's routing role for backward compatibility.
+  string task_role = 38;
+  // selected_resource_role is the selected provider resource's resolved role.
+  string selected_resource_role = 39;
 }
 
 // AttachmentDimension is the metadata retained for evidence. It deliberately

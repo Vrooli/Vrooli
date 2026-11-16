@@ -23,13 +23,23 @@ PROTECTION_TIER_CRITICAL_PRIMARY: ProtectionTier
 PROTECTION_TIER_CRITICAL_SECONDARY: ProtectionTier
 
 class RetentionPolicy(_message.Message):
-    __slots__ = ("keep_latest",)
+    __slots__ = ("keep_latest", "keep_hourly", "keep_daily", "keep_weekly", "keep_monthly", "keep_annual")
     KEEP_LATEST_FIELD_NUMBER: _ClassVar[int]
+    KEEP_HOURLY_FIELD_NUMBER: _ClassVar[int]
+    KEEP_DAILY_FIELD_NUMBER: _ClassVar[int]
+    KEEP_WEEKLY_FIELD_NUMBER: _ClassVar[int]
+    KEEP_MONTHLY_FIELD_NUMBER: _ClassVar[int]
+    KEEP_ANNUAL_FIELD_NUMBER: _ClassVar[int]
     keep_latest: int
-    def __init__(self, keep_latest: _Optional[int] = ...) -> None: ...
+    keep_hourly: int
+    keep_daily: int
+    keep_weekly: int
+    keep_monthly: int
+    keep_annual: int
+    def __init__(self, keep_latest: _Optional[int] = ..., keep_hourly: _Optional[int] = ..., keep_daily: _Optional[int] = ..., keep_weekly: _Optional[int] = ..., keep_monthly: _Optional[int] = ..., keep_annual: _Optional[int] = ...) -> None: ...
 
 class Plan(_message.Message):
-    __slots__ = ("id", "name", "target_ids", "destination_ids", "schedule", "retention", "enabled", "created_at", "updated_at", "protection_tier", "recovery_drill_schedule", "destinations_physically_independent", "shared_risk_warnings")
+    __slots__ = ("id", "name", "target_ids", "destination_ids", "schedule", "retention", "enabled", "created_at", "updated_at", "protection_tier", "recovery_drill_schedule", "destinations_physically_independent", "shared_risk_warnings", "target_selector", "excluded_target_ids")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TARGET_IDS_FIELD_NUMBER: _ClassVar[int]
@@ -43,6 +53,8 @@ class Plan(_message.Message):
     RECOVERY_DRILL_SCHEDULE_FIELD_NUMBER: _ClassVar[int]
     DESTINATIONS_PHYSICALLY_INDEPENDENT_FIELD_NUMBER: _ClassVar[int]
     SHARED_RISK_WARNINGS_FIELD_NUMBER: _ClassVar[int]
+    TARGET_SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDED_TARGET_IDS_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     target_ids: _containers.RepeatedScalarFieldContainer[str]
@@ -56,10 +68,12 @@ class Plan(_message.Message):
     recovery_drill_schedule: str
     destinations_physically_independent: bool
     shared_risk_warnings: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., target_ids: _Optional[_Iterable[str]] = ..., destination_ids: _Optional[_Iterable[str]] = ..., schedule: _Optional[str] = ..., retention: _Optional[_Union[RetentionPolicy, _Mapping]] = ..., enabled: _Optional[bool] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., protection_tier: _Optional[_Union[ProtectionTier, str]] = ..., recovery_drill_schedule: _Optional[str] = ..., destinations_physically_independent: _Optional[bool] = ..., shared_risk_warnings: _Optional[_Iterable[str]] = ...) -> None: ...
+    target_selector: str
+    excluded_target_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., target_ids: _Optional[_Iterable[str]] = ..., destination_ids: _Optional[_Iterable[str]] = ..., schedule: _Optional[str] = ..., retention: _Optional[_Union[RetentionPolicy, _Mapping]] = ..., enabled: _Optional[bool] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., protection_tier: _Optional[_Union[ProtectionTier, str]] = ..., recovery_drill_schedule: _Optional[str] = ..., destinations_physically_independent: _Optional[bool] = ..., shared_risk_warnings: _Optional[_Iterable[str]] = ..., target_selector: _Optional[str] = ..., excluded_target_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class CreatePlanRequest(_message.Message):
-    __slots__ = ("name", "target_ids", "destination_ids", "schedule", "retention", "enabled", "allow_incomplete_coverage", "protection_tier", "recovery_drill_schedule")
+    __slots__ = ("name", "target_ids", "destination_ids", "schedule", "retention", "enabled", "allow_incomplete_coverage", "protection_tier", "recovery_drill_schedule", "target_selector", "excluded_target_ids")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TARGET_IDS_FIELD_NUMBER: _ClassVar[int]
     DESTINATION_IDS_FIELD_NUMBER: _ClassVar[int]
@@ -69,6 +83,8 @@ class CreatePlanRequest(_message.Message):
     ALLOW_INCOMPLETE_COVERAGE_FIELD_NUMBER: _ClassVar[int]
     PROTECTION_TIER_FIELD_NUMBER: _ClassVar[int]
     RECOVERY_DRILL_SCHEDULE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDED_TARGET_IDS_FIELD_NUMBER: _ClassVar[int]
     name: str
     target_ids: _containers.RepeatedScalarFieldContainer[str]
     destination_ids: _containers.RepeatedScalarFieldContainer[str]
@@ -78,7 +94,9 @@ class CreatePlanRequest(_message.Message):
     allow_incomplete_coverage: bool
     protection_tier: ProtectionTier
     recovery_drill_schedule: str
-    def __init__(self, name: _Optional[str] = ..., target_ids: _Optional[_Iterable[str]] = ..., destination_ids: _Optional[_Iterable[str]] = ..., schedule: _Optional[str] = ..., retention: _Optional[_Union[RetentionPolicy, _Mapping]] = ..., enabled: _Optional[bool] = ..., allow_incomplete_coverage: _Optional[bool] = ..., protection_tier: _Optional[_Union[ProtectionTier, str]] = ..., recovery_drill_schedule: _Optional[str] = ...) -> None: ...
+    target_selector: str
+    excluded_target_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, name: _Optional[str] = ..., target_ids: _Optional[_Iterable[str]] = ..., destination_ids: _Optional[_Iterable[str]] = ..., schedule: _Optional[str] = ..., retention: _Optional[_Union[RetentionPolicy, _Mapping]] = ..., enabled: _Optional[bool] = ..., allow_incomplete_coverage: _Optional[bool] = ..., protection_tier: _Optional[_Union[ProtectionTier, str]] = ..., recovery_drill_schedule: _Optional[str] = ..., target_selector: _Optional[str] = ..., excluded_target_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class CreatePlanResponse(_message.Message):
     __slots__ = ("plan",)
@@ -115,7 +133,7 @@ class ListPlansResponse(_message.Message):
     def __init__(self, plans: _Optional[_Iterable[_Union[Plan, _Mapping]]] = ..., next_page_token: _Optional[str] = ...) -> None: ...
 
 class UpdatePlanRequest(_message.Message):
-    __slots__ = ("id", "name", "target_ids", "destination_ids", "schedule", "retention", "enabled", "allow_incomplete_coverage", "protection_tier", "recovery_drill_schedule")
+    __slots__ = ("id", "name", "target_ids", "destination_ids", "schedule", "retention", "enabled", "allow_incomplete_coverage", "protection_tier", "recovery_drill_schedule", "target_selector", "excluded_target_ids")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TARGET_IDS_FIELD_NUMBER: _ClassVar[int]
@@ -126,6 +144,8 @@ class UpdatePlanRequest(_message.Message):
     ALLOW_INCOMPLETE_COVERAGE_FIELD_NUMBER: _ClassVar[int]
     PROTECTION_TIER_FIELD_NUMBER: _ClassVar[int]
     RECOVERY_DRILL_SCHEDULE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDED_TARGET_IDS_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     target_ids: _containers.RepeatedScalarFieldContainer[str]
@@ -136,7 +156,9 @@ class UpdatePlanRequest(_message.Message):
     allow_incomplete_coverage: bool
     protection_tier: ProtectionTier
     recovery_drill_schedule: str
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., target_ids: _Optional[_Iterable[str]] = ..., destination_ids: _Optional[_Iterable[str]] = ..., schedule: _Optional[str] = ..., retention: _Optional[_Union[RetentionPolicy, _Mapping]] = ..., enabled: _Optional[bool] = ..., allow_incomplete_coverage: _Optional[bool] = ..., protection_tier: _Optional[_Union[ProtectionTier, str]] = ..., recovery_drill_schedule: _Optional[str] = ...) -> None: ...
+    target_selector: str
+    excluded_target_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., target_ids: _Optional[_Iterable[str]] = ..., destination_ids: _Optional[_Iterable[str]] = ..., schedule: _Optional[str] = ..., retention: _Optional[_Union[RetentionPolicy, _Mapping]] = ..., enabled: _Optional[bool] = ..., allow_incomplete_coverage: _Optional[bool] = ..., protection_tier: _Optional[_Union[ProtectionTier, str]] = ..., recovery_drill_schedule: _Optional[str] = ..., target_selector: _Optional[str] = ..., excluded_target_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class UpdatePlanResponse(_message.Message):
     __slots__ = ("plan",)

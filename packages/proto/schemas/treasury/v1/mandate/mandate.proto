@@ -37,3 +37,22 @@ message Mandate {
   string agent_subject = 18;
   string agent_run_id = 19;
 }
+
+message CreateMandateRequest { Mandate mandate = 1; }
+message CreateMandateResponse { Mandate mandate = 1; }
+message RevokeMandateRequest { string mandate_id = 1; }
+message RevokeMandateResponse { Mandate mandate = 1; }
+message RevokeMandateSessionRequest { string mandate_id = 1; }
+message RevokeMandateSessionResponse { bool revoked = 1; }
+message CancelStandingMandateRequest { string mandate_id = 1; }
+message CancelStandingMandateResponse { Mandate mandate = 1; }
+message ListMandatesRequest {}
+message ListMandatesResponse { repeated Mandate mandates = 1; }
+
+service MandateAdminService {
+  rpc CreateMandate(CreateMandateRequest) returns (CreateMandateResponse);
+  rpc RevokeMandate(RevokeMandateRequest) returns (RevokeMandateResponse);
+  rpc RevokeMandateSession(RevokeMandateSessionRequest) returns (RevokeMandateSessionResponse);
+  rpc CancelStandingMandate(CancelStandingMandateRequest) returns (CancelStandingMandateResponse);
+  rpc ListMandates(ListMandatesRequest) returns (ListMandatesResponse);
+}

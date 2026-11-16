@@ -1,6 +1,7 @@
 import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from treasury.v1.shared import transfer_observation_pb2 as _transfer_observation_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -27,32 +28,6 @@ BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_PENDING: BaseUSDCReceiptRelation
 BASE_USDC_RECEIPT_RELATION_PROVIDER_CHECK_FAILED: BaseUSDCReceiptRelation
 BASE_USDC_RECEIPT_RELATION_PROVIDER_OBSERVATION_CHANGED: BaseUSDCReceiptRelation
 
-class Wallet(_message.Message):
-    __slots__ = ("id", "book_id", "operator_identity", "network", "address", "public_key", "custody_reference", "created_at", "recovery_status", "recovery_sha256", "independent_recovery_verified")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
-    OPERATOR_IDENTITY_FIELD_NUMBER: _ClassVar[int]
-    NETWORK_FIELD_NUMBER: _ClassVar[int]
-    ADDRESS_FIELD_NUMBER: _ClassVar[int]
-    PUBLIC_KEY_FIELD_NUMBER: _ClassVar[int]
-    CUSTODY_REFERENCE_FIELD_NUMBER: _ClassVar[int]
-    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
-    RECOVERY_STATUS_FIELD_NUMBER: _ClassVar[int]
-    RECOVERY_SHA256_FIELD_NUMBER: _ClassVar[int]
-    INDEPENDENT_RECOVERY_VERIFIED_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    book_id: str
-    operator_identity: str
-    network: str
-    address: str
-    public_key: str
-    custody_reference: str
-    created_at: _timestamp_pb2.Timestamp
-    recovery_status: str
-    recovery_sha256: str
-    independent_recovery_verified: bool
-    def __init__(self, id: _Optional[str] = ..., book_id: _Optional[str] = ..., operator_identity: _Optional[str] = ..., network: _Optional[str] = ..., address: _Optional[str] = ..., public_key: _Optional[str] = ..., custody_reference: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., recovery_status: _Optional[str] = ..., recovery_sha256: _Optional[str] = ..., independent_recovery_verified: _Optional[bool] = ...) -> None: ...
-
 class ControlProof(_message.Message):
     __slots__ = ("wallet", "message", "signature", "scheme", "verified")
     WALLET_FIELD_NUMBER: _ClassVar[int]
@@ -60,53 +35,12 @@ class ControlProof(_message.Message):
     SIGNATURE_FIELD_NUMBER: _ClassVar[int]
     SCHEME_FIELD_NUMBER: _ClassVar[int]
     VERIFIED_FIELD_NUMBER: _ClassVar[int]
-    wallet: Wallet
+    wallet: _transfer_observation_pb2.Wallet
     message: str
     signature: str
     scheme: str
     verified: bool
-    def __init__(self, wallet: _Optional[_Union[Wallet, _Mapping]] = ..., message: _Optional[str] = ..., signature: _Optional[str] = ..., scheme: _Optional[str] = ..., verified: _Optional[bool] = ...) -> None: ...
-
-class BaseUSDCTransferObservation(_message.Message):
-    __slots__ = ("economic_key", "inclusion_revision", "wallet_id", "network", "asset_id", "decimals", "to", "atomic_amount", "transaction_hash", "log_index", "block_number", "block_hash", "block_time", "finality", "finalized_head_number", "finalized_head_hash", "provider_id", "observed_at")
-    ECONOMIC_KEY_FIELD_NUMBER: _ClassVar[int]
-    INCLUSION_REVISION_FIELD_NUMBER: _ClassVar[int]
-    WALLET_ID_FIELD_NUMBER: _ClassVar[int]
-    NETWORK_FIELD_NUMBER: _ClassVar[int]
-    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
-    DECIMALS_FIELD_NUMBER: _ClassVar[int]
-    FROM_FIELD_NUMBER: _ClassVar[int]
-    TO_FIELD_NUMBER: _ClassVar[int]
-    ATOMIC_AMOUNT_FIELD_NUMBER: _ClassVar[int]
-    TRANSACTION_HASH_FIELD_NUMBER: _ClassVar[int]
-    LOG_INDEX_FIELD_NUMBER: _ClassVar[int]
-    BLOCK_NUMBER_FIELD_NUMBER: _ClassVar[int]
-    BLOCK_HASH_FIELD_NUMBER: _ClassVar[int]
-    BLOCK_TIME_FIELD_NUMBER: _ClassVar[int]
-    FINALITY_FIELD_NUMBER: _ClassVar[int]
-    FINALIZED_HEAD_NUMBER_FIELD_NUMBER: _ClassVar[int]
-    FINALIZED_HEAD_HASH_FIELD_NUMBER: _ClassVar[int]
-    PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
-    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
-    economic_key: str
-    inclusion_revision: str
-    wallet_id: str
-    network: str
-    asset_id: str
-    decimals: int
-    to: str
-    atomic_amount: str
-    transaction_hash: str
-    log_index: int
-    block_number: int
-    block_hash: str
-    block_time: _timestamp_pb2.Timestamp
-    finality: str
-    finalized_head_number: int
-    finalized_head_hash: str
-    provider_id: str
-    observed_at: _timestamp_pb2.Timestamp
-    def __init__(self, economic_key: _Optional[str] = ..., inclusion_revision: _Optional[str] = ..., wallet_id: _Optional[str] = ..., network: _Optional[str] = ..., asset_id: _Optional[str] = ..., decimals: _Optional[int] = ..., to: _Optional[str] = ..., atomic_amount: _Optional[str] = ..., transaction_hash: _Optional[str] = ..., log_index: _Optional[int] = ..., block_number: _Optional[int] = ..., block_hash: _Optional[str] = ..., block_time: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finality: _Optional[str] = ..., finalized_head_number: _Optional[int] = ..., finalized_head_hash: _Optional[str] = ..., provider_id: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., **kwargs) -> None: ...
+    def __init__(self, wallet: _Optional[_Union[_transfer_observation_pb2.Wallet, _Mapping]] = ..., message: _Optional[str] = ..., signature: _Optional[str] = ..., scheme: _Optional[str] = ..., verified: _Optional[bool] = ...) -> None: ...
 
 class BaseUSDCReceiptCheck(_message.Message):
     __slots__ = ("id", "wallet_id", "network", "transaction_hash", "provider_id", "outcome", "error_code", "checked_at", "transfers", "prior_check_id", "relation")
@@ -129,7 +63,219 @@ class BaseUSDCReceiptCheck(_message.Message):
     outcome: str
     error_code: str
     checked_at: _timestamp_pb2.Timestamp
-    transfers: _containers.RepeatedCompositeFieldContainer[BaseUSDCTransferObservation]
+    transfers: _containers.RepeatedCompositeFieldContainer[_transfer_observation_pb2.BaseUSDCTransferObservation]
     prior_check_id: str
     relation: BaseUSDCReceiptRelation
-    def __init__(self, id: _Optional[str] = ..., wallet_id: _Optional[str] = ..., network: _Optional[str] = ..., transaction_hash: _Optional[str] = ..., provider_id: _Optional[str] = ..., outcome: _Optional[str] = ..., error_code: _Optional[str] = ..., checked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., transfers: _Optional[_Iterable[_Union[BaseUSDCTransferObservation, _Mapping]]] = ..., prior_check_id: _Optional[str] = ..., relation: _Optional[_Union[BaseUSDCReceiptRelation, str]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., wallet_id: _Optional[str] = ..., network: _Optional[str] = ..., transaction_hash: _Optional[str] = ..., provider_id: _Optional[str] = ..., outcome: _Optional[str] = ..., error_code: _Optional[str] = ..., checked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., transfers: _Optional[_Iterable[_Union[_transfer_observation_pb2.BaseUSDCTransferObservation, _Mapping]]] = ..., prior_check_id: _Optional[str] = ..., relation: _Optional[_Union[BaseUSDCReceiptRelation, str]] = ...) -> None: ...
+
+class CreateResearchWalletRequest(_message.Message):
+    __slots__ = ("id", "book_id", "network")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
+    NETWORK_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    book_id: str
+    network: str
+    def __init__(self, id: _Optional[str] = ..., book_id: _Optional[str] = ..., network: _Optional[str] = ...) -> None: ...
+
+class RotateResearchWalletRequest(_message.Message):
+    __slots__ = ("id", "network", "successor_id")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NETWORK_FIELD_NUMBER: _ClassVar[int]
+    SUCCESSOR_ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    network: str
+    successor_id: str
+    def __init__(self, id: _Optional[str] = ..., network: _Optional[str] = ..., successor_id: _Optional[str] = ...) -> None: ...
+
+class ResearchWalletRequest(_message.Message):
+    __slots__ = ("id", "network")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NETWORK_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    network: str
+    def __init__(self, id: _Optional[str] = ..., network: _Optional[str] = ...) -> None: ...
+
+class ResearchWalletResponse(_message.Message):
+    __slots__ = ("wallet",)
+    WALLET_FIELD_NUMBER: _ClassVar[int]
+    wallet: _transfer_observation_pb2.Wallet
+    def __init__(self, wallet: _Optional[_Union[_transfer_observation_pb2.Wallet, _Mapping]] = ...) -> None: ...
+
+class ExportPortableResearchWalletRecoveryRequest(_message.Message):
+    __slots__ = ("id", "network", "operator_secret")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NETWORK_FIELD_NUMBER: _ClassVar[int]
+    OPERATOR_SECRET_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    network: str
+    operator_secret: str
+    def __init__(self, id: _Optional[str] = ..., network: _Optional[str] = ..., operator_secret: _Optional[str] = ...) -> None: ...
+
+class ExportPortableResearchWalletRecoveryResponse(_message.Message):
+    __slots__ = ("relative_path", "sha256", "size_bytes", "witness_relative_path")
+    RELATIVE_PATH_FIELD_NUMBER: _ClassVar[int]
+    SHA256_FIELD_NUMBER: _ClassVar[int]
+    SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    WITNESS_RELATIVE_PATH_FIELD_NUMBER: _ClassVar[int]
+    relative_path: str
+    sha256: str
+    size_bytes: int
+    witness_relative_path: str
+    def __init__(self, relative_path: _Optional[str] = ..., sha256: _Optional[str] = ..., size_bytes: _Optional[int] = ..., witness_relative_path: _Optional[str] = ...) -> None: ...
+
+class RestorePortableResearchWalletRecoveryRequest(_message.Message):
+    __slots__ = ("id", "network", "bundle", "operator_secret", "witness", "revocation")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NETWORK_FIELD_NUMBER: _ClassVar[int]
+    BUNDLE_FIELD_NUMBER: _ClassVar[int]
+    OPERATOR_SECRET_FIELD_NUMBER: _ClassVar[int]
+    WITNESS_FIELD_NUMBER: _ClassVar[int]
+    REVOCATION_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    network: str
+    bundle: bytes
+    operator_secret: str
+    witness: bytes
+    revocation: bytes
+    def __init__(self, id: _Optional[str] = ..., network: _Optional[str] = ..., bundle: _Optional[bytes] = ..., operator_secret: _Optional[str] = ..., witness: _Optional[bytes] = ..., revocation: _Optional[bytes] = ...) -> None: ...
+
+class PreparePortableResearchWalletRotationRequest(_message.Message):
+    __slots__ = ("id", "network", "successor_id")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NETWORK_FIELD_NUMBER: _ClassVar[int]
+    SUCCESSOR_ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    network: str
+    successor_id: str
+    def __init__(self, id: _Optional[str] = ..., network: _Optional[str] = ..., successor_id: _Optional[str] = ...) -> None: ...
+
+class PreparePortableResearchWalletRotationResponse(_message.Message):
+    __slots__ = ("wallet", "revocation_tombstone_json", "tombstone_sha256")
+    WALLET_FIELD_NUMBER: _ClassVar[int]
+    REVOCATION_TOMBSTONE_JSON_FIELD_NUMBER: _ClassVar[int]
+    TOMBSTONE_SHA256_FIELD_NUMBER: _ClassVar[int]
+    wallet: _transfer_observation_pb2.Wallet
+    revocation_tombstone_json: str
+    tombstone_sha256: str
+    def __init__(self, wallet: _Optional[_Union[_transfer_observation_pb2.Wallet, _Mapping]] = ..., revocation_tombstone_json: _Optional[str] = ..., tombstone_sha256: _Optional[str] = ...) -> None: ...
+
+class CommitPortableResearchWalletRotationRequest(_message.Message):
+    __slots__ = ("id", "network", "successor_id", "destination_id", "destination_backend", "plan_id", "run_id", "target_name", "snapshot_id", "latest_snapshot_id", "tombstone_sha256", "restored_revocation_sha256", "bundle_present", "dbm_verify_passed", "restored_tombstone_matches", "verified_at", "address", "reservation_id", "reservation_expires_at", "dbm_attestation_json")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NETWORK_FIELD_NUMBER: _ClassVar[int]
+    SUCCESSOR_ID_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_ID_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_BACKEND_FIELD_NUMBER: _ClassVar[int]
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    TARGET_NAME_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    LATEST_SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    TOMBSTONE_SHA256_FIELD_NUMBER: _ClassVar[int]
+    RESTORED_REVOCATION_SHA256_FIELD_NUMBER: _ClassVar[int]
+    BUNDLE_PRESENT_FIELD_NUMBER: _ClassVar[int]
+    DBM_VERIFY_PASSED_FIELD_NUMBER: _ClassVar[int]
+    RESTORED_TOMBSTONE_MATCHES_FIELD_NUMBER: _ClassVar[int]
+    VERIFIED_AT_FIELD_NUMBER: _ClassVar[int]
+    ADDRESS_FIELD_NUMBER: _ClassVar[int]
+    RESERVATION_ID_FIELD_NUMBER: _ClassVar[int]
+    RESERVATION_EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    DBM_ATTESTATION_JSON_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    network: str
+    successor_id: str
+    destination_id: str
+    destination_backend: str
+    plan_id: str
+    run_id: str
+    target_name: str
+    snapshot_id: str
+    latest_snapshot_id: str
+    tombstone_sha256: str
+    restored_revocation_sha256: str
+    bundle_present: bool
+    dbm_verify_passed: bool
+    restored_tombstone_matches: bool
+    verified_at: str
+    address: str
+    reservation_id: str
+    reservation_expires_at: str
+    dbm_attestation_json: str
+    def __init__(self, id: _Optional[str] = ..., network: _Optional[str] = ..., successor_id: _Optional[str] = ..., destination_id: _Optional[str] = ..., destination_backend: _Optional[str] = ..., plan_id: _Optional[str] = ..., run_id: _Optional[str] = ..., target_name: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., latest_snapshot_id: _Optional[str] = ..., tombstone_sha256: _Optional[str] = ..., restored_revocation_sha256: _Optional[str] = ..., bundle_present: _Optional[bool] = ..., dbm_verify_passed: _Optional[bool] = ..., restored_tombstone_matches: _Optional[bool] = ..., verified_at: _Optional[str] = ..., address: _Optional[str] = ..., reservation_id: _Optional[str] = ..., reservation_expires_at: _Optional[str] = ..., dbm_attestation_json: _Optional[str] = ...) -> None: ...
+
+class CommitPortableResearchWalletRotationResponse(_message.Message):
+    __slots__ = ("wallet",)
+    WALLET_FIELD_NUMBER: _ClassVar[int]
+    wallet: _transfer_observation_pb2.Wallet
+    def __init__(self, wallet: _Optional[_Union[_transfer_observation_pb2.Wallet, _Mapping]] = ...) -> None: ...
+
+class ProveResearchWalletRequest(_message.Message):
+    __slots__ = ("id", "network", "nonce")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NETWORK_FIELD_NUMBER: _ClassVar[int]
+    NONCE_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    network: str
+    nonce: str
+    def __init__(self, id: _Optional[str] = ..., network: _Optional[str] = ..., nonce: _Optional[str] = ...) -> None: ...
+
+class ProveResearchWalletResponse(_message.Message):
+    __slots__ = ("proof",)
+    PROOF_FIELD_NUMBER: _ClassVar[int]
+    proof: ControlProof
+    def __init__(self, proof: _Optional[_Union[ControlProof, _Mapping]] = ...) -> None: ...
+
+class VerifyBaseUSDCReceiptRequest(_message.Message):
+    __slots__ = ("wallet_id", "transaction_hash")
+    WALLET_ID_FIELD_NUMBER: _ClassVar[int]
+    TRANSACTION_HASH_FIELD_NUMBER: _ClassVar[int]
+    wallet_id: str
+    transaction_hash: str
+    def __init__(self, wallet_id: _Optional[str] = ..., transaction_hash: _Optional[str] = ...) -> None: ...
+
+class VerifyBaseUSDCReceiptResponse(_message.Message):
+    __slots__ = ("transfers", "check_id", "check_outcome", "provider_id", "checked_at")
+    TRANSFERS_FIELD_NUMBER: _ClassVar[int]
+    CHECK_ID_FIELD_NUMBER: _ClassVar[int]
+    CHECK_OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+    CHECKED_AT_FIELD_NUMBER: _ClassVar[int]
+    transfers: _containers.RepeatedCompositeFieldContainer[_transfer_observation_pb2.BaseUSDCTransferObservation]
+    check_id: str
+    check_outcome: str
+    provider_id: str
+    checked_at: _timestamp_pb2.Timestamp
+    def __init__(self, transfers: _Optional[_Iterable[_Union[_transfer_observation_pb2.BaseUSDCTransferObservation, _Mapping]]] = ..., check_id: _Optional[str] = ..., check_outcome: _Optional[str] = ..., provider_id: _Optional[str] = ..., checked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class RecheckBaseUSDCReceiptRequest(_message.Message):
+    __slots__ = ("wallet_id", "transaction_hash", "prior_check_id")
+    WALLET_ID_FIELD_NUMBER: _ClassVar[int]
+    TRANSACTION_HASH_FIELD_NUMBER: _ClassVar[int]
+    PRIOR_CHECK_ID_FIELD_NUMBER: _ClassVar[int]
+    wallet_id: str
+    transaction_hash: str
+    prior_check_id: str
+    def __init__(self, wallet_id: _Optional[str] = ..., transaction_hash: _Optional[str] = ..., prior_check_id: _Optional[str] = ...) -> None: ...
+
+class RecheckBaseUSDCReceiptResponse(_message.Message):
+    __slots__ = ("check",)
+    CHECK_FIELD_NUMBER: _ClassVar[int]
+    check: BaseUSDCReceiptCheck
+    def __init__(self, check: _Optional[_Union[BaseUSDCReceiptCheck, _Mapping]] = ...) -> None: ...
+
+class ListBaseUSDCReceiptChecksRequest(_message.Message):
+    __slots__ = ("wallet_id", "transaction_hash", "limit")
+    WALLET_ID_FIELD_NUMBER: _ClassVar[int]
+    TRANSACTION_HASH_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    wallet_id: str
+    transaction_hash: str
+    limit: int
+    def __init__(self, wallet_id: _Optional[str] = ..., transaction_hash: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class ListBaseUSDCReceiptChecksResponse(_message.Message):
+    __slots__ = ("checks",)
+    CHECKS_FIELD_NUMBER: _ClassVar[int]
+    checks: _containers.RepeatedCompositeFieldContainer[BaseUSDCReceiptCheck]
+    def __init__(self, checks: _Optional[_Iterable[_Union[BaseUSDCReceiptCheck, _Mapping]]] = ...) -> None: ...

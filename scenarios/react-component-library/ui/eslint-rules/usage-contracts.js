@@ -6,12 +6,6 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../.
 const overlayNames = new Set(["Dialog", "BottomSheet", "FullPageDrawer", "DrawerShell"]);
 const sharedBar = "OverlayActionBar";
 const libraryRoot = path.join(repo, "scenarios/react-component-library/library/components");
-const actionBarContract = JSON.parse(
-  fs.readFileSync(
-    path.join(libraryRoot, "OverlayActionBar/versions/1.0.0/usage-contract.json"),
-    "utf8",
-  ),
-);
 const contractsByComponent = new Map();
 for (const name of fs.readdirSync(libraryRoot)) {
   const componentDir = path.join(libraryRoot, name);
@@ -31,6 +25,7 @@ for (const name of fs.readdirSync(libraryRoot)) {
     /* The catalog checker reports malformed declarations with component context. */
   }
 }
+const actionBarContract = contractsByComponent.get(sharedBar);
 const elements = (node) => {
   const found = [];
   const visit = (child) => {
@@ -75,6 +70,7 @@ const unwrapExpression = (node) => {
     [
       "TSAsExpression",
       "TSTypeAssertion",
+      "TSSatisfiesExpression",
       "TSNonNullExpression",
       "ParenthesizedExpression",
       "ChainExpression",
@@ -93,6 +89,68 @@ const staticString = (node, declarations, seen = new Set()) => {
     return staticString(declarations.get(node.name), declarations, seen);
   }
   return undefined;
+};
+export const hasInvalidOptionalEnumValue = (value, allowedValues) =>
+  value !== undefined && !allowedValues.includes(value);
+const isFunctionValued = (
+  node,
+  declarations,
+  reactUseCallbackBindings,
+  reactNamespaceBindings,
+  seen = new Set(),
+) => {
+  node = unwrapExpression(node);
+  if (["ArrowFunctionExpression", "FunctionExpression"].includes(node?.type)) return true;
+  if (node?.type === "ConditionalExpression")
+    return (
+      isFunctionValued(
+        node.consequent,
+        declarations,
+        reactUseCallbackBindings,
+        reactNamespaceBindings,
+        new Set(seen),
+      ) &&
+      isFunctionValued(
+        node.alternate,
+        declarations,
+        reactUseCallbackBindings,
+        reactNamespaceBindings,
+        new Set(seen),
+      )
+    );
+  if (node?.type === "CallExpression") {
+    const callee = unwrapExpression(node.callee);
+    const isImportedUseCallback =
+      (callee?.type === "Identifier" && reactUseCallbackBindings.has(callee.name)) ||
+      (callee?.type === "MemberExpression" &&
+        !callee.computed &&
+        callee.property?.name === "useCallback" &&
+        callee.object?.type === "Identifier" &&
+        reactNamespaceBindings.has(callee.object.name));
+    return (
+      isImportedUseCallback &&
+      node.arguments.length > 0 &&
+      isFunctionValued(
+        node.arguments[0],
+        declarations,
+        reactUseCallbackBindings,
+        reactNamespaceBindings,
+        new Set(seen),
+      )
+    );
+  }
+  if (node?.type === "Identifier" && !seen.has(node.name)) {
+    if (!declarations.has(node.name)) return true;
+    seen.add(node.name);
+    return isFunctionValued(
+      declarations.get(node.name),
+      declarations,
+      reactUseCallbackBindings,
+      reactNamespaceBindings,
+      seen,
+    );
+  }
+  return false;
 };
 const looksLikeStableID = (node) => {
   node = unwrapExpression(node);
@@ -274,6 +332,8 @@ export default {
       tooMany: "{{component}} has {{count}} actions; contract maximum is {{maximum}}.",
       missingField: "{{component}} action {{index}} must include required field '{{field}}'.",
       invalidFieldType: "{{component}} action {{index}} field '{{field}}' must be a {{type}}.",
+      invalidFieldValue:
+        "{{component}} action {{index}} field '{{field}}' must be one of: {{allowed}}.",
       unstableID: "{{component}} action {{index}} id must be a static, stable string.",
       emptyLabel: "{{component}} action {{index}} label must be a non-empty string.",
       longLabel:
@@ -293,6 +353,8 @@ export default {
     const declarations = new Map();
     const componentDefinitions = new Map();
     const importedComponents = new Map();
+    const reactUseCallbackBindings = new Set();
+    const reactNamespaceBindings = new Set();
     const overlayFooterBindings = new Set();
     const source = context.sourceCode ?? context.getSourceCode();
     const report = (node, messageId, data = {}) => context.report({ node, messageId, data });
@@ -388,8 +450,11 @@ export default {
               ? fieldNode?.type === "Literal" && typeof fieldNode.value !== "string"
               : expectedType === "function" &&
                 fieldNode &&
-                !["ArrowFunctionExpression", "FunctionExpression", "Identifier"].includes(
-                  fieldNode.type,
+                !isFunctionValued(
+                  fieldNode,
+                  declarations,
+                  reactUseCallbackBindings,
+                  reactNamespaceBindings,
                 ),
           );
           if (wrongNode)
@@ -398,6 +463,21 @@ export default {
               index: index + 1,
               field,
               type: expectedType,
+            });
+        }
+        for (const [field, allowedValues] of Object.entries(contract.optionalFieldEnums ?? {})) {
+          const fieldNodes = alternatives.map((alternative) => propertyValue(alternative, field));
+          const invalidNode = fieldNodes.find((fieldNode) => {
+            if (!fieldNode) return false;
+            const value = staticString(fieldNode, declarations);
+            return hasInvalidOptionalEnumValue(value, allowedValues);
+          });
+          if (invalidNode)
+            report(invalidNode, "invalidFieldValue", {
+              component: `${component}.${property}`,
+              index: index + 1,
+              field,
+              allowed: allowedValues.join(", "),
             });
         }
         if (idNodes.some((idNode) => !idNode))
@@ -471,10 +551,19 @@ export default {
           if (child.type === "ImportDeclaration") {
             const source = child.source?.value;
             for (const specifier of child.specifiers ?? []) {
-              if (specifier.type !== "ImportSpecifier") continue;
               const local = specifier.local?.name;
-              const imported = specifier.imported?.name ?? specifier.imported?.value;
               if (!local) continue;
+              if (source === "react") {
+                if (
+                  specifier.type === "ImportSpecifier" &&
+                  (specifier.imported?.name ?? specifier.imported?.value) === "useCallback"
+                )
+                  reactUseCallbackBindings.add(local);
+                if (["ImportNamespaceSpecifier", "ImportDefaultSpecifier"].includes(specifier.type))
+                  reactNamespaceBindings.add(local);
+              }
+              if (specifier.type !== "ImportSpecifier") continue;
+              const imported = specifier.imported?.name ?? specifier.imported?.value;
               importedComponents.set(
                 local,
                 typeof source === "string" &&
@@ -524,7 +613,7 @@ export default {
         if (!overlayNames.has(component)) return;
         for (const attribute of node.attributes ?? []) {
           if (attribute.type !== "JSXAttribute") continue;
-          if (attribute.name?.name === "actions")
+          if (attribute.name?.name === "actions" && actionBarContract?.items)
             checkCollection(component, "actions", attribute.value, actionBarContract.items, node);
           if (
             attribute.name?.name === "footer" &&

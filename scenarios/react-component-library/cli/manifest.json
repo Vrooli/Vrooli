@@ -1066,7 +1066,9 @@
             ]
           },
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "VersionLifecycleService",
+            "method": "ReconcilePresence"
           },
           "architecture": {
             "primitive": "action"
@@ -1289,7 +1291,7 @@
       "commands": [
         {
           "name": "check",
-          "description": "Build, validate, and print one verdict for one catalog asset",
+          "description": "Inspect generated state and return one verdict for one catalog asset without writes",
           "positionals": [
             {
               "name": "asset-id",
@@ -1301,11 +1303,6 @@
             {
               "name": "version",
               "description": "Immutable version; defaults to latest"
-            },
-            {
-              "name": "run-tests",
-              "bool": true,
-              "description": "Run browser-backed tests when no fresh report can be reused"
             },
             {
               "name": "profile",
@@ -1326,6 +1323,36 @@
             "run_eligible": true,
             "permissions": [
               "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "record-check",
+          "description": "Refresh generated files, run scoped gates and record their evidence; appearance gates may start BAS capture",
+          "positionals": [
+            {
+              "name": "asset-id",
+              "required": true,
+              "description": "Catalog asset id, for example controls.button"
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "bool": true,
+              "local_only": true,
+              "description": "Render the complete check response as JSON"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
               "filesystem:read",
               "filesystem:write"
             ]
@@ -1339,7 +1366,7 @@
       "commands": [
         {
           "name": "gates",
-          "description": "Run one deterministic catalog gate against the live corpus",
+          "description": "Inspect one deterministic catalog gate without recording evidence",
           "positionals": [
             {
               "name": "gate",
@@ -1379,6 +1406,55 @@
             "permissions": [
               "network:internal",
               "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "record-gate",
+          "description": "Run a catalog gate and persist its evidence; appearance gates can invoke BAS story capture",
+          "positionals": [
+            {
+              "name": "gate",
+              "required": false,
+              "description": "Executable gate id; see `catalog gates --help`"
+            }
+          ],
+          "flags": [
+            {
+              "name": "all",
+              "bool": true,
+              "description": "Run and record every declared catalog gate"
+            },
+            {
+              "name": "asset-id",
+              "description": "Run the gate for one catalog asset only"
+            },
+            {
+              "name": "calibration-only",
+              "bool": true,
+              "description": "Run gate-owned planted-error fixtures without inspecting the corpus"
+            },
+            {
+              "name": "include-advisory",
+              "bool": true,
+              "description": "Include advisory gates such as documentation in --all"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CatalogService",
+            "method": "RecordGate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
             ]
           },
           "architecture": {
@@ -2724,7 +2800,7 @@
     {
       "service": "CatalogService",
       "method": "CaptureEvidence",
-      "reason": "Evidence capture is a browser-backed UI/Test Genie workflow composed by asset check; it is not a standalone CLI mutation."
+      "reason": "Evidence capture remains an API/UI/Test Genie workflow. The CLI's explicit asset record-check action composes it through catalog record-gate; there is no standalone raw capture verb."
     },
     {
       "service": "CatalogService",
@@ -2769,17 +2845,17 @@
     {
       "service": "ComponentTestsService",
       "method": "GetComponentTestReport",
-      "reason": "Reports are durable evidence consumed by asset check and the workbench; the CLI exposes the governed test workflow rather than raw report reads."
+      "reason": "Reports are durable evidence consumed by read-only asset check and the workbench; the CLI exposes governed test/record-check workflows rather than raw report reads."
     },
     {
       "service": "ComponentTestsService",
       "method": "ListComponentTestReports",
-      "reason": "Reports are durable evidence consumed by asset check and the workbench; the CLI exposes the governed test workflow rather than raw report listing."
+      "reason": "Reports are durable evidence consumed by read-only asset check and the workbench; the CLI exposes governed test/record-check workflows rather than raw report listing."
     },
     {
       "service": "ComponentTestsService",
       "method": "RerunComponentTest",
-      "reason": "Reruns are composed by the governed component test/asset check workflow and are not a separate public edit-loop verb."
+      "reason": "Reruns are composed by the governed component test/asset record-check workflow and are not a separate public edit-loop verb."
     },
     {
       "service": "VersionLifecycleService",
@@ -2895,6 +2971,121 @@
       "service": "PreviewService",
       "method": "RenderComposition",
       "reason": "Internal composition compiler surface. Use sketch render-candidate for exact saved design rendering with candidate-owned bindings and identity."
+    },
+    {
+      "service": "SketchService",
+      "method": "CaptureCandidate",
+      "reason": "Candidate capture is an interactive workbench flow; the CLI exposes the composed sketch import and render workflows rather than raw capture lifecycle calls."
+    },
+    {
+      "service": "SketchService",
+      "method": "GetCandidate",
+      "reason": "Candidate records are an internal workbench state surface; the CLI exposes saved sketches and the composed render-candidate workflow."
+    },
+    {
+      "service": "SketchService",
+      "method": "ListCandidates",
+      "reason": "Candidate records are an internal workbench state surface; the CLI exposes saved sketches and the composed render-candidate workflow."
+    },
+    {
+      "service": "SketchService",
+      "method": "MapCandidateRegions",
+      "reason": "Candidate region mapping is interactive workbench authoring; no standalone CLI authoring workflow exists."
+    },
+    {
+      "service": "SketchService",
+      "method": "PlaceCandidateAsset",
+      "reason": "Candidate asset placement is interactive workbench authoring; the CLI placement command targets saved sketches."
+    },
+    {
+      "service": "SketchService",
+      "method": "RefineCandidate",
+      "reason": "Candidate refinement is interactive workbench authoring; no standalone CLI authoring workflow exists."
+    },
+    {
+      "service": "SketchService",
+      "method": "SaveCandidate",
+      "reason": "Candidate persistence is an internal workbench transition; the CLI exposes the composed sketch save workflow."
+    },
+    {
+      "service": "SketchService",
+      "method": "AttachCapture",
+      "reason": "Capture attachment belongs to the interactive workbench capture flow and is not a standalone CLI mutation."
+    },
+    {
+      "service": "SketchService",
+      "method": "CancelCapture",
+      "reason": "Capture cancellation belongs to the interactive workbench capture flow and is not a standalone CLI mutation."
+    },
+    {
+      "service": "SketchService",
+      "method": "GetCapture",
+      "reason": "Capture state is an internal workbench projection; the CLI exposes the composed sketch import workflow."
+    },
+    {
+      "service": "SketchService",
+      "method": "RetryCapture",
+      "reason": "Capture retry belongs to the interactive workbench capture flow and is not a standalone CLI mutation."
+    },
+    {
+      "service": "SketchService",
+      "method": "GetCaptureScreenshot",
+      "reason": "Capture screenshots are presented by the workbench and are not a standalone CLI output."
+    },
+    {
+      "service": "SketchService",
+      "method": "GetCritique",
+      "reason": "Critique records are workbench evidence; the CLI does not expose a standalone critique inspection workflow."
+    },
+    {
+      "service": "SketchService",
+      "method": "ListCritiques",
+      "reason": "Critique records are workbench evidence; the CLI does not expose a standalone critique listing workflow."
+    },
+    {
+      "service": "SketchService",
+      "method": "RecordCritique",
+      "reason": "Critique recording is composed by the workbench/Test Genie validation flow and is not a standalone CLI mutation."
+    },
+    {
+      "service": "SketchService",
+      "method": "GetCritiqueRubric",
+      "reason": "Critique rubric retrieval is an internal workbench/critic dependency, not a standalone CLI workflow."
+    },
+    {
+      "service": "SketchService",
+      "method": "ListDesignPages",
+      "reason": "Design-page discovery is consumed by the workbench; the CLI's sketch commands operate on explicit sketches."
+    },
+    {
+      "service": "SketchService",
+      "method": "RenderSketch",
+      "reason": "The legacy raw render procedure is retained for API compatibility; the CLI exposes render-candidate, which binds rendering to a saved candidate and its identity."
+    },
+    {
+      "service": "CatalogService",
+      "method": "SearchAssets",
+      "reason": "The catalog search RPC serves the workbench's indexed picker; CLI discovery is provided by components list/get and catalog graph/readiness."
+    },
+    {
+      "service": "CatalogService",
+      "method": "SearchStatus",
+      "reason": "Search index diagnostics are an internal workbench projection; no catalog-search CLI workflow is currently promoted."
+    },
+    {
+      "service": "CatalogService",
+      "method": "ReindexSearch",
+      "reason": "Search index rebuilding is an internal catalog maintenance operation; no standalone CLI mutation is currently promoted."
+    },
+    {
+      "service": "InventoryService",
+      "method": "ScanScenario",
+      "reason": "Scenario inventory is a shared provider contract used by adoption and sketch workflows; the CLI exposes those composed workflows rather than a raw inventory scan."
+    },
+    {
+      "service": "InventoryService",
+      "method": "Scan",
+      "reason": "Subject inventory is a shared provider contract used by UI-health and workbench consumers; it is not a user-facing RCL CLI workflow."
     }
   ]
 }

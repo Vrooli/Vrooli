@@ -43,8 +43,12 @@ type ReindexRequest struct {
 	EmbeddingRole                string `protobuf:"bytes,8,opt,name=embedding_role,json=embeddingRole,proto3" json:"embedding_role,omitempty"`
 	EmbeddingDimensions          int32  `protobuf:"varint,9,opt,name=embedding_dimensions,json=embeddingDimensions,proto3" json:"embedding_dimensions,omitempty"`
 	EmbeddingPolicySchemaVersion string `protobuf:"bytes,10,opt,name=embedding_policy_schema_version,json=embeddingPolicySchemaVersion,proto3" json:"embedding_policy_schema_version,omitempty"`
-	unknownFields                protoimpl.UnknownFields
-	sizeCache                    protoimpl.SizeCache
+	// Complete immutable embedding recipe identity used to validate and retain
+	// the exact model/runtime contract for a staged generation.
+	EmbeddingRecipeId        string `protobuf:"bytes,11,opt,name=embedding_recipe_id,json=embeddingRecipeId,proto3" json:"embedding_recipe_id,omitempty"`
+	EmbeddingRecipeCanonical string `protobuf:"bytes,12,opt,name=embedding_recipe_canonical,json=embeddingRecipeCanonical,proto3" json:"embedding_recipe_canonical,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *ReindexRequest) Reset() {
@@ -143,6 +147,20 @@ func (x *ReindexRequest) GetEmbeddingDimensions() int32 {
 func (x *ReindexRequest) GetEmbeddingPolicySchemaVersion() string {
 	if x != nil {
 		return x.EmbeddingPolicySchemaVersion
+	}
+	return ""
+}
+
+func (x *ReindexRequest) GetEmbeddingRecipeId() string {
+	if x != nil {
+		return x.EmbeddingRecipeId
+	}
+	return ""
+}
+
+func (x *ReindexRequest) GetEmbeddingRecipeCanonical() string {
+	if x != nil {
+		return x.EmbeddingRecipeCanonical
 	}
 	return ""
 }
@@ -760,7 +778,7 @@ var File_search_hub_v1_control_control_proto protoreflect.FileDescriptor
 
 const file_search_hub_v1_control_control_proto_rawDesc = "" +
 	"\n" +
-	"#search-hub/v1/control/control.proto\x12\x1cvrooli.search_hub.v1.control\x1a\x1dsearch-hub/v1/eval/eval.proto\x1a%search-hub/v1/registry/registry.proto\"\xa4\x03\n" +
+	"#search-hub/v1/control/control.proto\x12\x1cvrooli.search_hub.v1.control\x1a\x1dsearch-hub/v1/eval/eval.proto\x1a%search-hub/v1/registry/registry.proto\"\x92\x04\n" +
 	"\x0eReindexRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x17\n" +
 	"\adry_run\x18\x02 \x01(\bR\x06dryRun\x12#\n" +
@@ -772,7 +790,9 @@ const file_search_hub_v1_control_control_proto_rawDesc = "" +
 	"\x0eembedding_role\x18\b \x01(\tR\rembeddingRole\x121\n" +
 	"\x14embedding_dimensions\x18\t \x01(\x05R\x13embeddingDimensions\x12E\n" +
 	"\x1fembedding_policy_schema_version\x18\n" +
-	" \x01(\tR\x1cembeddingPolicySchemaVersion\"\x91\x02\n" +
+	" \x01(\tR\x1cembeddingPolicySchemaVersion\x12.\n" +
+	"\x13embedding_recipe_id\x18\v \x01(\tR\x11embeddingRecipeId\x12<\n" +
+	"\x1aembedding_recipe_canonical\x18\f \x01(\tR\x18embeddingRecipeCanonical\"\x91\x02\n" +
 	"\x0fReindexResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12'\n" +
 	"\x0fplanned_upserts\x18\x02 \x01(\x05R\x0eplannedUpserts\x12'\n" +

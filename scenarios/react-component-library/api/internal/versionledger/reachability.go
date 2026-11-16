@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"react-component-library/internal/sqliterows"
 )
 
 // BuildReachability constructs the only graph used by retention. It unions
@@ -43,7 +45,7 @@ func (r *Repository) BuildReachability(ctx context.Context) (Reachability, error
 
 	roots := map[string]struct{}{}
 	if r.db != nil {
-		rows, queryErr := r.db.QueryContext(ctx, `
+		rootVersions, queryErr := sqliterows.Collect(ctx, r.db, `
 			SELECT library_id, latest_version
 			FROM components
 			WHERE trim(latest_version) <> ''
@@ -52,18 +54,16 @@ func (r *Repository) BuildReachability(ctx context.Context) (Reachability, error
 			FROM components c
 			JOIN component_versions v ON v.component_id = c.id
 			WHERE lower(v.status) <> 'retired'
-			  AND (v.version = c.draft_version OR lower(v.status) LIKE '%draft%')`)
-		if queryErr == nil {
-			defer rows.Close()
-			for rows.Next() {
-				var libraryID, version string
-				if err := rows.Scan(&libraryID, &version); err != nil {
-					return Reachability{}, err
-				}
-				roots[sourceReferenceKey(libraryID, version)] = struct{}{}
+			  AND (v.version = c.draft_version OR lower(v.status) LIKE '%draft%')`, nil, false, func(row sqliterows.Scanner) (string, error) {
+			var libraryID, version string
+			if err := row.Scan(&libraryID, &version); err != nil {
+				return "", err
 			}
-			if err := rows.Err(); err != nil {
-				return Reachability{}, err
+			return sourceReferenceKey(libraryID, version), nil
+		})
+		if queryErr == nil {
+			for _, key := range rootVersions {
+				roots[key] = struct{}{}
 			}
 		} else if !strings.Contains(strings.ToLower(queryErr.Error()), "no such table") {
 			return Reachability{}, queryErr
@@ -77,23 +77,21 @@ func (r *Repository) BuildReachability(ctx context.Context) (Reachability, error
 	// version lock still defines the transitive closure that must remain
 	// available to that consumer.
 	if r.db != nil {
-		rows, queryErr := r.db.QueryContext(ctx, `
+		adoptionVersions, queryErr := sqliterows.Collect(ctx, r.db, `
 			SELECT library_id, adopted_version
 			FROM adoption_records
 			WHERE trim(COALESCE(library_id, '')) <> ''
 			  AND trim(COALESCE(adopted_version, '')) <> ''
-			  AND lower(COALESCE(mode, 'copied')) <> 'ejected'`)
-		if queryErr == nil {
-			defer rows.Close()
-			for rows.Next() {
-				var libraryID, version string
-				if err := rows.Scan(&libraryID, &version); err != nil {
-					return Reachability{}, err
-				}
-				roots[sourceReferenceKey(libraryID, version)] = struct{}{}
+			  AND lower(COALESCE(mode, 'copied')) <> 'ejected'`, nil, false, func(row sqliterows.Scanner) (string, error) {
+			var libraryID, version string
+			if err := row.Scan(&libraryID, &version); err != nil {
+				return "", err
 			}
-			if err := rows.Err(); err != nil {
-				return Reachability{}, err
+			return sourceReferenceKey(libraryID, version), nil
+		})
+		if queryErr == nil {
+			for _, key := range adoptionVersions {
+				roots[key] = struct{}{}
 			}
 		} else if !strings.Contains(strings.ToLower(queryErr.Error()), "no such table") && !strings.Contains(strings.ToLower(queryErr.Error()), "no such column") {
 			return Reachability{}, queryErr
@@ -151,26 +149,27 @@ func (r *Repository) coldOwners(ctx context.Context) (map[string]bool, error) {
 	if r.db == nil {
 		return cold, nil
 	}
-	rows, err := r.db.QueryContext(ctx, `
+	versions, err := sqliterows.Collect(ctx, r.db, `
 		SELECT c.library_id, v.version
 		FROM components c
 		JOIN component_versions v ON v.component_id = c.id
 		WHERE lower(COALESCE(v.presence, 'materialized')) = 'evicted'
-		  AND lower(v.status) <> 'retired'`)
+		  AND lower(v.status) <> 'retired'`, nil, false, func(row sqliterows.Scanner) (string, error) {
+		var libraryID, version string
+		if err := row.Scan(&libraryID, &version); err != nil {
+			return "", err
+		}
+		return sourceReferenceKey(libraryID, version), nil
+	}, sqliterows.ErrorContext{Query: "read cold catalog versions"})
 	if err != nil {
 		lowered := strings.ToLower(err.Error())
 		if strings.Contains(lowered, "no such table") || strings.Contains(lowered, "no such column") {
 			return cold, nil
 		}
-		return nil, fmt.Errorf("read cold catalog versions: %w", err)
+		return nil, err
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var libraryID, version string
-		if err := rows.Scan(&libraryID, &version); err != nil {
-			return nil, err
-		}
-		cold[sourceReferenceKey(libraryID, version)] = true
+	for _, key := range versions {
+		cold[key] = true
 	}
-	return cold, rows.Err()
+	return cold, nil
 }

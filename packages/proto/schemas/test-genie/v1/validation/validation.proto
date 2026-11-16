@@ -199,6 +199,28 @@ message InputSelection {
   bool required = 2;
 }
 
+enum WorkspaceSandboxSealRole {
+  WORKSPACE_SANDBOX_SEAL_ROLE_UNSPECIFIED = 0;
+  WORKSPACE_SANDBOX_SEAL_ROLE_SOURCE = 1;
+  WORKSPACE_SANDBOX_SEAL_ROLE_CANDIDATE = 2;
+  WORKSPACE_SANDBOX_SEAL_ROLE_REFERENCE = 3;
+}
+
+// WorkspaceSandboxSealReference names a path-free immutable snapshot. Test
+// Genie resolves and verifies this tuple through Workspace Sandbox internally;
+// callers never supply or receive its filesystem path.
+message WorkspaceSandboxSealReference {
+  string case_id = 1;
+  WorkspaceSandboxSealRole role = 2;
+  string seal_digest = 3;
+}
+
+message FrozenEvaluatorBundleReference {
+  string evaluator_bundle_id = 1;
+  string evaluator_digest = 2;
+  string entry_point = 3;
+}
+
 // ContentInputRoot declares bytes that may affect validation. root is relative
 // to Test Genie's configured repository root and is attribution, not identity.
 message ContentInputRoot {
@@ -206,6 +228,19 @@ message ContentInputRoot {
   string root = 2;
   repeated InputSelection selections = 3;
   bool dependency = 4;
+  WorkspaceSandboxSealReference workspace_sandbox_seal = 5;
+  FrozenEvaluatorBundleReference frozen_evaluator_bundle = 6;
+}
+
+// FrozenReplayExecution selects an owner-registered frozen test and Sandbox
+// seal. It contains no filesystem path or shell command.
+message FrozenReplayExecution {
+  string case_id = 1;
+  WorkspaceSandboxSealRole role = 2;
+  string seal_digest = 3;
+  string evaluator_bundle_id = 4;
+  string evaluator_digest = 5;
+  string evaluator_entry_point = 6;
 }
 
 message ValidationIntent {
@@ -234,6 +269,7 @@ message ValidationIntent {
   PinnedEvidenceProducer pinned_evidence_producer = 20;
   // Exact retained producer outputs admitted for a provider validation.
   repeated vrooli.scenario_validation.v1.RetainedEvidenceSet retained_evidence_sets = 21;
+  FrozenReplayExecution frozen_replay_execution = 22;
 }
 
 message PinnedEvidenceProducer {
@@ -327,6 +363,35 @@ message ValidationReceipt {
   // Set by Test Genie only after declared producer output and its persisted
   // artifact catalog are complete and checksummed.
   vrooli.scenario_validation.v1.RetainedEvidenceSet produced_evidence_set = 20;
+  FrozenReplayExecutionResult frozen_replay_result = 21;
+  // Every Sandbox attempt, including interruption observations, is retained
+  // in order so a recovered retry does not erase its prior operation proof.
+  repeated FrozenReplayExecutionResult frozen_replay_attempts = 22;
+}
+
+enum FrozenReplayTestOutcome {
+  FROZEN_REPLAY_TEST_OUTCOME_UNSPECIFIED = 0;
+  FROZEN_REPLAY_TEST_OUTCOME_PASSED = 1;
+  FROZEN_REPLAY_TEST_OUTCOME_ASSERTION_FAILED = 2;
+  FROZEN_REPLAY_TEST_OUTCOME_INFRASTRUCTURE_FAILED = 3;
+  FROZEN_REPLAY_TEST_OUTCOME_INTERRUPTED = 4;
+}
+
+message FrozenReplayExecutionResult {
+  string run_id = 1;
+  string sandbox_operation_id = 2;
+  FrozenReplayTestOutcome outcome = 3;
+  string case_id = 4;
+  WorkspaceSandboxSealRole role = 5;
+  string seal_digest = 6;
+  string source_identity = 7;
+  string evaluator_bundle_id = 8;
+  string evaluator_digest = 9;
+  string evaluator_entry_point = 10;
+  string result_digest = 11;
+  bool seal_intact_before = 12;
+  bool seal_intact_after = 13;
+  string detail = 14;
 }
 
 message CreateValidationRequest {

@@ -93,8 +93,18 @@ type RecoveryDrill struct {
 	RequestedAt   *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=requested_at,json=requestedAt,proto3" json:"requested_at,omitempty"`
 	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	FinishedAt    *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Durable delivery state for a failed-drill Notification Hub event. Empty
+	// means not applicable, not_replayed marks a legacy failure predating the
+	// durable outbox, pending means retrying, and sent means Vrooli Events
+	// accepted the deduplicated notification.
+	NotificationState  string                 `protobuf:"bytes,14,opt,name=notification_state,json=notificationState,proto3" json:"notification_state,omitempty"`
+	NotificationSentAt *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=notification_sent_at,json=notificationSentAt,proto3" json:"notification_sent_at,omitempty"`
+	// Retirement marks a completed drill as retired while preserving its status,
+	// restore link, and all original evidence fields. It remains in history lists.
+	RetiredAt        *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=retired_at,json=retiredAt,proto3" json:"retired_at,omitempty"`
+	RetirementReason string                 `protobuf:"bytes,17,opt,name=retirement_reason,json=retirementReason,proto3" json:"retirement_reason,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *RecoveryDrill) Reset() {
@@ -216,6 +226,34 @@ func (x *RecoveryDrill) GetFinishedAt() *timestamppb.Timestamp {
 		return x.FinishedAt
 	}
 	return nil
+}
+
+func (x *RecoveryDrill) GetNotificationState() string {
+	if x != nil {
+		return x.NotificationState
+	}
+	return ""
+}
+
+func (x *RecoveryDrill) GetNotificationSentAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.NotificationSentAt
+	}
+	return nil
+}
+
+func (x *RecoveryDrill) GetRetiredAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RetiredAt
+	}
+	return nil
+}
+
+func (x *RecoveryDrill) GetRetirementReason() string {
+	if x != nil {
+		return x.RetirementReason
+	}
+	return ""
 }
 
 type PreviewDrillRequest struct {
@@ -698,11 +736,107 @@ func (x *ListDrillsResponse) GetNextPageToken() string {
 	return ""
 }
 
+type RetireDrillRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetireDrillRequest) Reset() {
+	*x = RetireDrillRequest{}
+	mi := &file_data_backup_manager_v1_drills_drills_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetireDrillRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetireDrillRequest) ProtoMessage() {}
+
+func (x *RetireDrillRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_drills_drills_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetireDrillRequest.ProtoReflect.Descriptor instead.
+func (*RetireDrillRequest) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_drills_drills_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *RetireDrillRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RetireDrillRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type RetireDrillResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Drill         *RecoveryDrill         `protobuf:"bytes,1,opt,name=drill,proto3" json:"drill,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetireDrillResponse) Reset() {
+	*x = RetireDrillResponse{}
+	mi := &file_data_backup_manager_v1_drills_drills_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetireDrillResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetireDrillResponse) ProtoMessage() {}
+
+func (x *RetireDrillResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_drills_drills_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetireDrillResponse.ProtoReflect.Descriptor instead.
+func (*RetireDrillResponse) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_drills_drills_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *RetireDrillResponse) GetDrill() *RecoveryDrill {
+	if x != nil {
+		return x.Drill
+	}
+	return nil
+}
+
 var File_data_backup_manager_v1_drills_drills_proto protoreflect.FileDescriptor
 
 const file_data_backup_manager_v1_drills_drills_proto_rawDesc = "" +
 	"\n" +
-	"*data-backup-manager/v1/drills/drills.proto\x12$vrooli.data_backup_manager.v1.drills\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x93\x04\n" +
+	"*data-backup-manager/v1/drills/drills.proto\x12$vrooli.data_backup_manager.v1.drills\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf8\x05\n" +
 	"\rRecoveryDrill\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12\x1b\n" +
@@ -722,7 +856,12 @@ const file_data_backup_manager_v1_drills_drills_proto_rawDesc = "" +
 	"\n" +
 	"started_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12;\n" +
 	"\vfinished_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"finishedAt\"{\n" +
+	"finishedAt\x12-\n" +
+	"\x12notification_state\x18\x0e \x01(\tR\x11notificationState\x12L\n" +
+	"\x14notification_sent_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\x12notificationSentAt\x129\n" +
+	"\n" +
+	"retired_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tretiredAt\x12+\n" +
+	"\x11retirement_reason\x18\x11 \x01(\tR\x10retirementReason\"{\n" +
 	"\x13PreviewDrillRequest\x12 \n" +
 	"\aplan_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06planId\x12\x1b\n" +
 	"\ttarget_id\x18\x02 \x01(\tR\btargetId\x12%\n" +
@@ -756,19 +895,25 @@ const file_data_backup_manager_v1_drills_drills_proto_rawDesc = "" +
 	"page_token\x18\x04 \x01(\tR\tpageToken\"\x89\x01\n" +
 	"\x12ListDrillsResponse\x12K\n" +
 	"\x06drills\x18\x01 \x03(\v23.vrooli.data_backup_manager.v1.drills.RecoveryDrillR\x06drills\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*\x95\x01\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"N\n" +
+	"\x12RetireDrillRequest\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x1f\n" +
+	"\x06reason\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06reason\"`\n" +
+	"\x13RetireDrillResponse\x12I\n" +
+	"\x05drill\x18\x01 \x01(\v23.vrooli.data_backup_manager.v1.drills.RecoveryDrillR\x05drill*\x95\x01\n" +
 	"\vDrillStatus\x12\x1c\n" +
 	"\x18DRILL_STATUS_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16DRILL_STATUS_REQUESTED\x10\x01\x12\x18\n" +
 	"\x14DRILL_STATUS_RUNNING\x10\x02\x12\x19\n" +
 	"\x15DRILL_STATUS_VERIFIED\x10\x03\x12\x17\n" +
-	"\x13DRILL_STATUS_FAILED\x10\x042\x96\x04\n" +
+	"\x13DRILL_STATUS_FAILED\x10\x042\x9b\x05\n" +
 	"\x15RecoveryDrillsService\x12\x85\x01\n" +
 	"\fPreviewDrill\x129.vrooli.data_backup_manager.v1.drills.PreviewDrillRequest\x1a:.vrooli.data_backup_manager.v1.drills.PreviewDrillResponse\x12y\n" +
 	"\bRunDrill\x125.vrooli.data_backup_manager.v1.drills.RunDrillRequest\x1a6.vrooli.data_backup_manager.v1.drills.RunDrillResponse\x12y\n" +
 	"\bGetDrill\x125.vrooli.data_backup_manager.v1.drills.GetDrillRequest\x1a6.vrooli.data_backup_manager.v1.drills.GetDrillResponse\x12\x7f\n" +
 	"\n" +
-	"ListDrills\x127.vrooli.data_backup_manager.v1.drills.ListDrillsRequest\x1a8.vrooli.data_backup_manager.v1.drills.ListDrillsResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/drills;drills_v1b\x06proto3"
+	"ListDrills\x127.vrooli.data_backup_manager.v1.drills.ListDrillsRequest\x1a8.vrooli.data_backup_manager.v1.drills.ListDrillsResponse\x12\x82\x01\n" +
+	"\vRetireDrill\x128.vrooli.data_backup_manager.v1.drills.RetireDrillRequest\x1a9.vrooli.data_backup_manager.v1.drills.RetireDrillResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/drills;drills_v1b\x06proto3"
 
 var (
 	file_data_backup_manager_v1_drills_drills_proto_rawDescOnce sync.Once
@@ -783,7 +928,7 @@ func file_data_backup_manager_v1_drills_drills_proto_rawDescGZIP() []byte {
 }
 
 var file_data_backup_manager_v1_drills_drills_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_data_backup_manager_v1_drills_drills_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_data_backup_manager_v1_drills_drills_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_data_backup_manager_v1_drills_drills_proto_goTypes = []any{
 	(DrillStatus)(0),              // 0: vrooli.data_backup_manager.v1.drills.DrillStatus
 	(*RecoveryDrill)(nil),         // 1: vrooli.data_backup_manager.v1.drills.RecoveryDrill
@@ -795,29 +940,36 @@ var file_data_backup_manager_v1_drills_drills_proto_goTypes = []any{
 	(*GetDrillResponse)(nil),      // 7: vrooli.data_backup_manager.v1.drills.GetDrillResponse
 	(*ListDrillsRequest)(nil),     // 8: vrooli.data_backup_manager.v1.drills.ListDrillsRequest
 	(*ListDrillsResponse)(nil),    // 9: vrooli.data_backup_manager.v1.drills.ListDrillsResponse
-	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
+	(*RetireDrillRequest)(nil),    // 10: vrooli.data_backup_manager.v1.drills.RetireDrillRequest
+	(*RetireDrillResponse)(nil),   // 11: vrooli.data_backup_manager.v1.drills.RetireDrillResponse
+	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
 }
 var file_data_backup_manager_v1_drills_drills_proto_depIdxs = []int32{
 	0,  // 0: vrooli.data_backup_manager.v1.drills.RecoveryDrill.status:type_name -> vrooli.data_backup_manager.v1.drills.DrillStatus
-	10, // 1: vrooli.data_backup_manager.v1.drills.RecoveryDrill.requested_at:type_name -> google.protobuf.Timestamp
-	10, // 2: vrooli.data_backup_manager.v1.drills.RecoveryDrill.started_at:type_name -> google.protobuf.Timestamp
-	10, // 3: vrooli.data_backup_manager.v1.drills.RecoveryDrill.finished_at:type_name -> google.protobuf.Timestamp
-	1,  // 4: vrooli.data_backup_manager.v1.drills.RunDrillResponse.drill:type_name -> vrooli.data_backup_manager.v1.drills.RecoveryDrill
-	1,  // 5: vrooli.data_backup_manager.v1.drills.GetDrillResponse.drill:type_name -> vrooli.data_backup_manager.v1.drills.RecoveryDrill
-	1,  // 6: vrooli.data_backup_manager.v1.drills.ListDrillsResponse.drills:type_name -> vrooli.data_backup_manager.v1.drills.RecoveryDrill
-	2,  // 7: vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.PreviewDrill:input_type -> vrooli.data_backup_manager.v1.drills.PreviewDrillRequest
-	4,  // 8: vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.RunDrill:input_type -> vrooli.data_backup_manager.v1.drills.RunDrillRequest
-	6,  // 9: vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.GetDrill:input_type -> vrooli.data_backup_manager.v1.drills.GetDrillRequest
-	8,  // 10: vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.ListDrills:input_type -> vrooli.data_backup_manager.v1.drills.ListDrillsRequest
-	3,  // 11: vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.PreviewDrill:output_type -> vrooli.data_backup_manager.v1.drills.PreviewDrillResponse
-	5,  // 12: vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.RunDrill:output_type -> vrooli.data_backup_manager.v1.drills.RunDrillResponse
-	7,  // 13: vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.GetDrill:output_type -> vrooli.data_backup_manager.v1.drills.GetDrillResponse
-	9,  // 14: vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.ListDrills:output_type -> vrooli.data_backup_manager.v1.drills.ListDrillsResponse
-	11, // [11:15] is the sub-list for method output_type
-	7,  // [7:11] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	12, // 1: vrooli.data_backup_manager.v1.drills.RecoveryDrill.requested_at:type_name -> google.protobuf.Timestamp
+	12, // 2: vrooli.data_backup_manager.v1.drills.RecoveryDrill.started_at:type_name -> google.protobuf.Timestamp
+	12, // 3: vrooli.data_backup_manager.v1.drills.RecoveryDrill.finished_at:type_name -> google.protobuf.Timestamp
+	12, // 4: vrooli.data_backup_manager.v1.drills.RecoveryDrill.notification_sent_at:type_name -> google.protobuf.Timestamp
+	12, // 5: vrooli.data_backup_manager.v1.drills.RecoveryDrill.retired_at:type_name -> google.protobuf.Timestamp
+	1,  // 6: vrooli.data_backup_manager.v1.drills.RunDrillResponse.drill:type_name -> vrooli.data_backup_manager.v1.drills.RecoveryDrill
+	1,  // 7: vrooli.data_backup_manager.v1.drills.GetDrillResponse.drill:type_name -> vrooli.data_backup_manager.v1.drills.RecoveryDrill
+	1,  // 8: vrooli.data_backup_manager.v1.drills.ListDrillsResponse.drills:type_name -> vrooli.data_backup_manager.v1.drills.RecoveryDrill
+	1,  // 9: vrooli.data_backup_manager.v1.drills.RetireDrillResponse.drill:type_name -> vrooli.data_backup_manager.v1.drills.RecoveryDrill
+	2,  // 10: vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.PreviewDrill:input_type -> vrooli.data_backup_manager.v1.drills.PreviewDrillRequest
+	4,  // 11: vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.RunDrill:input_type -> vrooli.data_backup_manager.v1.drills.RunDrillRequest
+	6,  // 12: vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.GetDrill:input_type -> vrooli.data_backup_manager.v1.drills.GetDrillRequest
+	8,  // 13: vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.ListDrills:input_type -> vrooli.data_backup_manager.v1.drills.ListDrillsRequest
+	10, // 14: vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.RetireDrill:input_type -> vrooli.data_backup_manager.v1.drills.RetireDrillRequest
+	3,  // 15: vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.PreviewDrill:output_type -> vrooli.data_backup_manager.v1.drills.PreviewDrillResponse
+	5,  // 16: vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.RunDrill:output_type -> vrooli.data_backup_manager.v1.drills.RunDrillResponse
+	7,  // 17: vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.GetDrill:output_type -> vrooli.data_backup_manager.v1.drills.GetDrillResponse
+	9,  // 18: vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.ListDrills:output_type -> vrooli.data_backup_manager.v1.drills.ListDrillsResponse
+	11, // 19: vrooli.data_backup_manager.v1.drills.RecoveryDrillsService.RetireDrill:output_type -> vrooli.data_backup_manager.v1.drills.RetireDrillResponse
+	15, // [15:20] is the sub-list for method output_type
+	10, // [10:15] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_data_backup_manager_v1_drills_drills_proto_init() }
@@ -831,7 +983,7 @@ func file_data_backup_manager_v1_drills_drills_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_data_backup_manager_v1_drills_drills_proto_rawDesc), len(file_data_backup_manager_v1_drills_drills_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   9,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

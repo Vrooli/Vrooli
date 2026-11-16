@@ -16,7 +16,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-
 // @stability stable
 //
 // Wire contract for DestinationsService. Each destination is one kopia
-// repository (filesystem or S3/MinIO). Invariants enforced server-side:
+// repository (filesystem, SFTP, or S3-compatible). Invariants enforced server-side:
 // encryption is always on (OT-P0-007); a destination MUST NOT point under
 // the storage root it would protect (separate-root rule); storage caps
 // default to alert+block — never silent eviction (OT-P0-008).
@@ -27,8 +27,14 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-
 
 service DestinationsService {
   rpc CreateDestination(CreateDestinationRequest) returns (CreateDestinationResponse);
+  // Imports non-secret destination metadata into an empty catalog and connects
+  // to the existing Kopia repository without creating it.
+  rpc ImportExistingDestination(ImportExistingDestinationRequest) returns (CreateDestinationResponse);
   rpc GetDestination(GetDestinationRequest) returns (GetDestinationResponse);
   rpc ListDestinations(ListDestinationsRequest) returns (ListDestinationsResponse);
+  // Lists immutable snapshots for one stable DBM target identity. Intended
+  // for consumers that must select the newest recovery state from a repository.
+  rpc ListTargetSnapshots(ListTargetSnapshotsRequest) returns (ListTargetSnapshotsResponse);
   rpc UpdateDestination(UpdateDestinationRequest) returns (UpdateDestinationResponse);
   rpc BindDestinationRecoveryIdentity(BindDestinationRecoveryIdentityRequest) returns (BindDestinationRecoveryIdentityResponse);
   rpc DeleteDestination(DeleteDestinationRequest) returns (DeleteDestinationResponse);
@@ -48,6 +54,8 @@ enum BackendKind {
   BACKEND_KIND_FILESYSTEM = 1;
   // S3-compatible object storage (S3/MinIO).
   BACKEND_KIND_S3 = 2;
+  // SSH File Transfer Protocol repository on an operator-authorized host.
+  BACKEND_KIND_SFTP = 3;
 }
 
 // CapPolicy is the over-cap behavior. Defaults to alert+block.
@@ -157,6 +165,19 @@ message CreateDestinationResponse {
   Destination destination = 1;
 }
 
+message ImportExistingDestinationRequest {
+  string destination_id = 1 [(buf.validate.field).string.min_len = 1];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+  BackendKind backend_kind = 3 [(buf.validate.field).enum = {defined_only: true not_in: [0]}];
+  string location = 4 [(buf.validate.field).string.min_len = 1];
+  int64 cap_bytes = 5 [(buf.validate.field).int64.gte = 0];
+  CapPolicy cap_policy = 6;
+  string created_at = 7 [(buf.validate.field).string.min_len = 1];
+  // Optional exact IDs to prove presence. When empty, import still requires
+  // the repository to contain at least one readable snapshot.
+  repeated string expected_snapshot_ids = 8;
+}
+
 message GetDestinationRequest {
   string id = 1 [(buf.validate.field).string.min_len = 1];
 }
@@ -174,6 +195,18 @@ message ListDestinationsResponse {
   repeated Destination destinations = 1;
   string next_page_token = 2;
 }
+
+message ListTargetSnapshotsRequest {
+  string destination_id = 1 [(buf.validate.field).string.min_len = 1];
+  string owner = 2 [(buf.validate.field).string.min_len = 1];
+  string name = 3 [(buf.validate.field).string.min_len = 1];
+}
+message TargetSnapshot {
+  string id = 1;
+  google.protobuf.Timestamp started_at = 2;
+  string source = 3;
+}
+message ListTargetSnapshotsResponse { repeated TargetSnapshot snapshots = 1; }
 
 message UpdateDestinationRequest {
   string id = 1 [(buf.validate.field).string.min_len = 1];
@@ -251,6 +284,7 @@ message DestinationReadinessReport {
   string evidence_source = 9;
   google.protobuf.Timestamp observed_at = 10;
   repeated string repair_steps = 11;
+  bool offline_check_verified = 12;
 }
 
 message AnalyzeDestinationRequest {

@@ -73,6 +73,9 @@ service ExecutionsService {
   rpc ListExecutions(ListExecutionsRequest) returns (ListExecutionsResponse);
   // Gets a single execution by ID, hydrated from the on-disk snapshot.
   rpc GetExecution(GetExecutionRequest) returns (GetExecutionResponse);
+  // Waits once for one execution ID to reach a persisted terminal receipt.
+  // The bounded wait does not cancel the execution when the request ends.
+  rpc WaitForExecution(WaitForExecutionRequest) returns (GetExecutionResponse);
   // Gets the proto timeline (preferred) or the legacy timeline of an execution.
   rpc GetExecutionTimeline(GetExecutionTimelineRequest) returns (ExecutionTimeline);
   // Gets the versioned storage-independent replay package for an execution.
@@ -374,6 +377,18 @@ message GetExecutionRequest {
 message GetExecutionResponse {
   // The execution details.
   Execution execution = 1;
+}
+
+// WaitForExecutionRequest joins the local execution owner for one bounded wait.
+message WaitForExecutionRequest {
+  // Exact execution ID returned by ExecuteWorkflow.
+  // @format uuid
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+  // Maximum time to wait. Must be between 1 and 75,000 ms.
+  int32 timeout_ms = 2 [
+    (buf.validate.field).int32.gte = 1,
+    (buf.validate.field).int32.lte = 75000
+  ];
 }
 
 // =============================================================================

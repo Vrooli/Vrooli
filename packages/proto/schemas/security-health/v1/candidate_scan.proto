@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package vrooli.security_health.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1;securityhealthv1";
+
+// CandidateScannerService scans exact caller-owned candidate blobs. It never
+// discovers files from the provider's checkout or the caller's working tree.
+service CandidateScannerService {
+  rpc ScanCandidate(ScanCandidateRequest) returns (ScanCandidateResponse);
+}
+
+message ScanCandidateRequest {
+  // Repository-relative candidate paths mapped to their exact content bytes.
+  map<string, bytes> files = 1;
+}
+
+message CandidateFinding {
+  string rule_id = 1;
+  string severity = 2;
+  string title = 3;
+  string description = 4;
+  string remediation = 5;
+  string file_path = 6;
+  string scanner = 7;
+}
+
+message ScanCandidateResponse {
+  // False means no security conclusion can be drawn from this response.
+  bool complete = 1;
+  // Safe, normalized findings only; raw scanner output is never returned.
+  repeated CandidateFinding findings = 2;
+  // Stable machine-readable code, empty on complete scans.
+  string failure_code = 3;
+}

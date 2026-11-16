@@ -102,8 +102,9 @@ func TestSourceTokenIncludesBranding(t *testing.T) {
 
 func TestSourceTokenIncludesProgramsAndSkills(t *testing.T) {
 	for source, want := range map[architecturev1.FindingSource]string{
-		architecturev1.FindingSource_FINDING_SOURCE_PROGRAMS: "programs",
-		architecturev1.FindingSource_FINDING_SOURCE_SKILLS:   "skills",
+		architecturev1.FindingSource_FINDING_SOURCE_PROGRAMS:   "programs",
+		architecturev1.FindingSource_FINDING_SOURCE_SKILLS:     "skills",
+		architecturev1.FindingSource_FINDING_SOURCE_MODEL_EVAL: "model-eval",
 	} {
 		if got := SourceToken(source); got != want {
 			t.Fatalf("source %v = %q, want %q", source, got, want)

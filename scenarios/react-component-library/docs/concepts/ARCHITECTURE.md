@@ -2,7 +2,6 @@
 
 Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](../internal/TESTING.md#behavior-claim-register).
 
-## Purpose Of This Document
 
 This is the checked boundary map. Detailed storage, composition and operational guidance lives in the linked documents. Unverified recommendations are design intent; dated results do not certify the current corpus.
 

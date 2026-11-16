@@ -110,9 +110,9 @@ for asset in "${assets[@]}"; do
         --height "${height}" \
         --theme "${theme}" \
         --wait-selector "${wait_for}" \
+        --artifact-kind pixels \
+        --artifact-output "${destination}/${viewport}-${theme}.png" \
         >"${destination}/${viewport}-${theme}.json"
-      python3 "${scenario_root}/tools/ux_capture_bundle.py" \
-        "${destination}/${viewport}-${theme}.json" pixels "${destination}/${viewport}-${theme}.png"
       ) &
       pids+=("$!")
       ((running+=1))

@@ -113,6 +113,9 @@ enum FactFamily {
   // STACK describes declared component and resource stack facts, preserving
   // unknown values with evidence instead of inferring unsupported claims.
   FACT_FAMILY_STACK = 12;
+  // FILE_METRICS reports catalog-backed lexical per-file size facts. It does
+  // not imply that a file is parseable by a language graph provider.
+  FACT_FAMILY_FILE_METRICS = 13;
   FACT_FAMILY_ALL = 99;
 }
 

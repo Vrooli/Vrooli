@@ -435,6 +435,30 @@ class RecordSkillUsageResponse(_message.Message):
     last_used: str
     def __init__(self, id: _Optional[str] = ..., status: _Optional[str] = ..., usage_count: _Optional[int] = ..., last_used: _Optional[str] = ...) -> None: ...
 
+class GetSkillReadReceiptRequest(_message.Message):
+    __slots__ = ("skill_id",)
+    SKILL_ID_FIELD_NUMBER: _ClassVar[int]
+    skill_id: str
+    def __init__(self, skill_id: _Optional[str] = ...) -> None: ...
+
+class GetSkillReadReceiptResponse(_message.Message):
+    __slots__ = ("skill_id", "status", "run_id", "first_read_at", "last_read_at", "read_count", "reason")
+    SKILL_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    FIRST_READ_AT_FIELD_NUMBER: _ClassVar[int]
+    LAST_READ_AT_FIELD_NUMBER: _ClassVar[int]
+    READ_COUNT_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    skill_id: str
+    status: str
+    run_id: str
+    first_read_at: str
+    last_read_at: str
+    read_count: int
+    reason: str
+    def __init__(self, skill_id: _Optional[str] = ..., status: _Optional[str] = ..., run_id: _Optional[str] = ..., first_read_at: _Optional[str] = ..., last_read_at: _Optional[str] = ..., read_count: _Optional[int] = ..., reason: _Optional[str] = ...) -> None: ...
+
 class SkillVersion(_message.Message):
     __slots__ = ("version", "content", "name", "updated_at", "created_by")
     VERSION_FIELD_NUMBER: _ClassVar[int]

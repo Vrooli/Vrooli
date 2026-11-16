@@ -33,8 +33,11 @@ type SendRequest struct {
 	DedupeWindowSeconds int32                  `protobuf:"varint,7,opt,name=dedupe_window_seconds,json=dedupeWindowSeconds,proto3" json:"dedupe_window_seconds,omitempty"`
 	ScheduledAt         string                 `protobuf:"bytes,8,opt,name=scheduled_at,json=scheduledAt,proto3" json:"scheduled_at,omitempty"`
 	DigestWindowSeconds int32                  `protobuf:"varint,9,opt,name=digest_window_seconds,json=digestWindowSeconds,proto3" json:"digest_window_seconds,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Where a tap on the notice goes: a Hub-relative path ("/asks/<id>") or an
+	// http(s) URL. Any other form is refused, because the operator taps it.
+	ContextUrl    string `protobuf:"bytes,10,opt,name=context_url,json=contextUrl,proto3" json:"context_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SendRequest) Reset() {
@@ -128,6 +131,13 @@ func (x *SendRequest) GetDigestWindowSeconds() int32 {
 		return x.DigestWindowSeconds
 	}
 	return 0
+}
+
+func (x *SendRequest) GetContextUrl() string {
+	if x != nil {
+		return x.ContextUrl
+	}
+	return ""
 }
 
 type SendResponse struct {
@@ -307,11 +317,15 @@ func (x *GetRequest) GetId() string {
 }
 
 type GetResponse struct {
-	state         protoimpl.MessageState    `protogen:"open.v1"`
-	Notification  *shared.Notification      `protobuf:"bytes,1,opt,name=notification,proto3" json:"notification,omitempty"`
-	Receipts      []*shared.DeliveryReceipt `protobuf:"bytes,2,rep,name=receipts,proto3" json:"receipts,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState    `protogen:"open.v1"`
+	Notification *shared.Notification      `protobuf:"bytes,1,opt,name=notification,proto3" json:"notification,omitempty"`
+	Receipts     []*shared.DeliveryReceipt `protobuf:"bytes,2,rep,name=receipts,proto3" json:"receipts,omitempty"`
+	// The Agent Manager approval page, set only when the Hub itself recognises the
+	// notification as a native permission request (same identity test as
+	// ConversationsService.ListNativeConsents). Empty for every other notification.
+	NativeConsentReviewUrl string `protobuf:"bytes,3,opt,name=native_consent_review_url,json=nativeConsentReviewUrl,proto3" json:"native_consent_review_url,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *GetResponse) Reset() {
@@ -356,6 +370,13 @@ func (x *GetResponse) GetReceipts() []*shared.DeliveryReceipt {
 		return x.Receipts
 	}
 	return nil
+}
+
+func (x *GetResponse) GetNativeConsentReviewUrl() string {
+	if x != nil {
+		return x.NativeConsentReviewUrl
+	}
+	return ""
 }
 
 type ListRequest struct {
@@ -450,7 +471,7 @@ var File_notification_hub_v1_notifications_notifications_proto protoreflect.File
 
 const file_notification_hub_v1_notifications_notifications_proto_rawDesc = "" +
 	"\n" +
-	"5notification-hub/v1/notifications/notifications.proto\x12(vrooli.notification_hub.v1.notifications\x1a&notification-hub/v1/shared/types.proto\"\xd1\x02\n" +
+	"5notification-hub/v1/notifications/notifications.proto\x12(vrooli.notification_hub.v1.notifications\x1a&notification-hub/v1/shared/types.proto\"\xf2\x02\n" +
 	"\vSendRequest\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\tR\x04body\x12\x18\n" +
@@ -461,7 +482,10 @@ const file_notification_hub_v1_notifications_notifications_proto_rawDesc = "" +
 	"dedupe_key\x18\x06 \x01(\tR\tdedupeKey\x122\n" +
 	"\x15dedupe_window_seconds\x18\a \x01(\x05R\x13dedupeWindowSeconds\x12!\n" +
 	"\fscheduled_at\x18\b \x01(\tR\vscheduledAt\x122\n" +
-	"\x15digest_window_seconds\x18\t \x01(\x05R\x13digestWindowSeconds\"c\n" +
+	"\x15digest_window_seconds\x18\t \x01(\x05R\x13digestWindowSeconds\x12\x1f\n" +
+	"\vcontext_url\x18\n" +
+	" \x01(\tR\n" +
+	"contextUrl\"c\n" +
 	"\fSendResponse\x12S\n" +
 	"\fnotification\x18\x01 \x01(\v2/.vrooli.notification_hub.v1.shared.NotificationR\fnotification\"5\n" +
 	"\fRelayRequest\x12%\n" +
@@ -470,10 +494,11 @@ const file_notification_hub_v1_notifications_notifications_proto_rawDesc = "" +
 	"\fnotification\x18\x01 \x01(\v2/.vrooli.notification_hub.v1.shared.NotificationR\fnotification\"\x1c\n" +
 	"\n" +
 	"GetRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\xb2\x01\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\xed\x01\n" +
 	"\vGetResponse\x12S\n" +
 	"\fnotification\x18\x01 \x01(\v2/.vrooli.notification_hub.v1.shared.NotificationR\fnotification\x12N\n" +
-	"\breceipts\x18\x02 \x03(\v22.vrooli.notification_hub.v1.shared.DeliveryReceiptR\breceipts\"#\n" +
+	"\breceipts\x18\x02 \x03(\v22.vrooli.notification_hub.v1.shared.DeliveryReceiptR\breceipts\x129\n" +
+	"\x19native_consent_review_url\x18\x03 \x01(\tR\x16nativeConsentReviewUrl\"#\n" +
 	"\vListRequest\x12\x14\n" +
 	"\x05limit\x18\x01 \x01(\x05R\x05limit\"e\n" +
 	"\fListResponse\x12U\n" +

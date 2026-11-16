@@ -462,8 +462,16 @@ type RouteEvidence struct {
 	// makes a sent value alone a misleading record of the route's conditions.
 	SamplingTemperature        *float64               `protobuf:"fixed64,35,opt,name=sampling_temperature,json=samplingTemperature,proto3,oneof" json:"sampling_temperature,omitempty"`
 	SamplingTemperatureSupport shared.SamplingSupport `protobuf:"varint,36,opt,name=sampling_temperature_support,json=samplingTemperatureSupport,proto3,enum=vrooli.ai_gateway.v1.shared.SamplingSupport" json:"sampling_temperature_support,omitempty"`
-	unknownFields              protoimpl.UnknownFields
-	sizeCache                  protoimpl.SizeCache
+	// privacy_provenance preserves the caller's non-sensitive source/basis
+	// statement for the recorded privacy_class; it is attribution, not policy.
+	PrivacyProvenance string `protobuf:"bytes,37,opt,name=privacy_provenance,json=privacyProvenance,proto3" json:"privacy_provenance,omitempty"`
+	// task_role is the caller's requested task contract; role remains the
+	// request's routing role for backward compatibility.
+	TaskRole string `protobuf:"bytes,38,opt,name=task_role,json=taskRole,proto3" json:"task_role,omitempty"`
+	// selected_resource_role is the selected provider resource's resolved role.
+	SelectedResourceRole string `protobuf:"bytes,39,opt,name=selected_resource_role,json=selectedResourceRole,proto3" json:"selected_resource_role,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *RouteEvidence) Reset() {
@@ -746,6 +754,27 @@ func (x *RouteEvidence) GetSamplingTemperatureSupport() shared.SamplingSupport {
 		return x.SamplingTemperatureSupport
 	}
 	return shared.SamplingSupport(0)
+}
+
+func (x *RouteEvidence) GetPrivacyProvenance() string {
+	if x != nil {
+		return x.PrivacyProvenance
+	}
+	return ""
+}
+
+func (x *RouteEvidence) GetTaskRole() string {
+	if x != nil {
+		return x.TaskRole
+	}
+	return ""
+}
+
+func (x *RouteEvidence) GetSelectedResourceRole() string {
+	if x != nil {
+		return x.SelectedResourceRole
+	}
+	return ""
 }
 
 // AttachmentDimension is the metadata retained for evidence. It deliberately
@@ -2122,7 +2151,7 @@ const file_ai_gateway_v1_routing_routing_proto_rawDesc = "" +
 	"\x13ExecuteRouteRequest\x12E\n" +
 	"\arequest\x18\x01 \x01(\v2+.vrooli.ai_gateway.v1.shared.GatewayRequestR\arequest\x12\x1d\n" +
 	"\n" +
-	"input_text\x18\x02 \x01(\tR\tinputText\"\x81\r\n" +
+	"input_text\x18\x02 \x01(\tR\tinputText\"\x83\x0e\n" +
 	"\rRouteEvidence\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1d\n" +
 	"\n" +
@@ -2164,7 +2193,10 @@ const file_ai_gateway_v1_routing_routing_proto_rawDesc = "" +
 	"\x14attachments_redacted\x18! \x01(\bR\x13attachmentsRedacted\x12f\n" +
 	"\x15attachment_dimensions\x18\" \x03(\v21.vrooli.ai_gateway.v1.routing.AttachmentDimensionR\x14attachmentDimensions\x126\n" +
 	"\x14sampling_temperature\x18# \x01(\x01H\x00R\x13samplingTemperature\x88\x01\x01\x12n\n" +
-	"\x1csampling_temperature_support\x18$ \x01(\x0e2,.vrooli.ai_gateway.v1.shared.SamplingSupportR\x1asamplingTemperatureSupportB\x17\n" +
+	"\x1csampling_temperature_support\x18$ \x01(\x0e2,.vrooli.ai_gateway.v1.shared.SamplingSupportR\x1asamplingTemperatureSupport\x12-\n" +
+	"\x12privacy_provenance\x18% \x01(\tR\x11privacyProvenance\x12\x1b\n" +
+	"\ttask_role\x18& \x01(\tR\btaskRole\x124\n" +
+	"\x16selected_resource_role\x18' \x01(\tR\x14selectedResourceRoleB\x17\n" +
 	"\x15_sampling_temperature\"\xbb\x01\n" +
 	"\x13AttachmentDimension\x12A\n" +
 	"\bmodality\x18\x01 \x01(\x0e2%.vrooli.ai_gateway.v1.shared.ModalityR\bmodality\x12\x1d\n" +

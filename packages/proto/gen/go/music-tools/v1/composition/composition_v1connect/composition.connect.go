@@ -23,6 +23,9 @@ const _ = connect.IsAtLeastVersion1_13_0
 const (
 	// CompositionServiceName is the fully-qualified name of the CompositionService service.
 	CompositionServiceName = "vrooli.music_tools.v1.composition.CompositionService"
+	// CandidateInventoryServiceName is the fully-qualified name of the CandidateInventoryService
+	// service.
+	CandidateInventoryServiceName = "vrooli.music_tools.v1.composition.CandidateInventoryService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -39,6 +42,12 @@ const (
 	// CompositionServiceListTakesProcedure is the fully-qualified name of the CompositionService's
 	// ListTakes RPC.
 	CompositionServiceListTakesProcedure = "/vrooli.music_tools.v1.composition.CompositionService/ListTakes"
+	// CandidateInventoryServiceRequestRefillProcedure is the fully-qualified name of the
+	// CandidateInventoryService's RequestRefill RPC.
+	CandidateInventoryServiceRequestRefillProcedure = "/vrooli.music_tools.v1.composition.CandidateInventoryService/RequestRefill"
+	// CandidateInventoryServiceCancelRefillProcedure is the fully-qualified name of the
+	// CandidateInventoryService's CancelRefill RPC.
+	CandidateInventoryServiceCancelRefillProcedure = "/vrooli.music_tools.v1.composition.CandidateInventoryService/CancelRefill"
 )
 
 // CompositionServiceClient is a client for the vrooli.music_tools.v1.composition.CompositionService
@@ -138,4 +147,103 @@ func (UnimplementedCompositionServiceHandler) Submit(context.Context, *connect.R
 
 func (UnimplementedCompositionServiceHandler) ListTakes(context.Context, *connect.Request[composition.ListTakesRequest]) (*connect.Response[composition.ListTakesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.music_tools.v1.composition.CompositionService.ListTakes is not implemented"))
+}
+
+// CandidateInventoryServiceClient is a client for the
+// vrooli.music_tools.v1.composition.CandidateInventoryService service.
+type CandidateInventoryServiceClient interface {
+	RequestRefill(context.Context, *connect.Request[composition.CandidateRefillRequest]) (*connect.Response[composition.CandidateRefillResponse], error)
+	CancelRefill(context.Context, *connect.Request[composition.CancelCandidateRefillRequest]) (*connect.Response[composition.CandidateRefillResponse], error)
+}
+
+// NewCandidateInventoryServiceClient constructs a client for the
+// vrooli.music_tools.v1.composition.CandidateInventoryService service. By default, it uses the
+// Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
+// uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewCandidateInventoryServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) CandidateInventoryServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	candidateInventoryServiceMethods := composition.File_music_tools_v1_composition_composition_proto.Services().ByName("CandidateInventoryService").Methods()
+	return &candidateInventoryServiceClient{
+		requestRefill: connect.NewClient[composition.CandidateRefillRequest, composition.CandidateRefillResponse](
+			httpClient,
+			baseURL+CandidateInventoryServiceRequestRefillProcedure,
+			connect.WithSchema(candidateInventoryServiceMethods.ByName("RequestRefill")),
+			connect.WithClientOptions(opts...),
+		),
+		cancelRefill: connect.NewClient[composition.CancelCandidateRefillRequest, composition.CandidateRefillResponse](
+			httpClient,
+			baseURL+CandidateInventoryServiceCancelRefillProcedure,
+			connect.WithSchema(candidateInventoryServiceMethods.ByName("CancelRefill")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// candidateInventoryServiceClient implements CandidateInventoryServiceClient.
+type candidateInventoryServiceClient struct {
+	requestRefill *connect.Client[composition.CandidateRefillRequest, composition.CandidateRefillResponse]
+	cancelRefill  *connect.Client[composition.CancelCandidateRefillRequest, composition.CandidateRefillResponse]
+}
+
+// RequestRefill calls vrooli.music_tools.v1.composition.CandidateInventoryService.RequestRefill.
+func (c *candidateInventoryServiceClient) RequestRefill(ctx context.Context, req *connect.Request[composition.CandidateRefillRequest]) (*connect.Response[composition.CandidateRefillResponse], error) {
+	return c.requestRefill.CallUnary(ctx, req)
+}
+
+// CancelRefill calls vrooli.music_tools.v1.composition.CandidateInventoryService.CancelRefill.
+func (c *candidateInventoryServiceClient) CancelRefill(ctx context.Context, req *connect.Request[composition.CancelCandidateRefillRequest]) (*connect.Response[composition.CandidateRefillResponse], error) {
+	return c.cancelRefill.CallUnary(ctx, req)
+}
+
+// CandidateInventoryServiceHandler is an implementation of the
+// vrooli.music_tools.v1.composition.CandidateInventoryService service.
+type CandidateInventoryServiceHandler interface {
+	RequestRefill(context.Context, *connect.Request[composition.CandidateRefillRequest]) (*connect.Response[composition.CandidateRefillResponse], error)
+	CancelRefill(context.Context, *connect.Request[composition.CancelCandidateRefillRequest]) (*connect.Response[composition.CandidateRefillResponse], error)
+}
+
+// NewCandidateInventoryServiceHandler builds an HTTP handler from the service implementation. It
+// returns the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewCandidateInventoryServiceHandler(svc CandidateInventoryServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	candidateInventoryServiceMethods := composition.File_music_tools_v1_composition_composition_proto.Services().ByName("CandidateInventoryService").Methods()
+	candidateInventoryServiceRequestRefillHandler := connect.NewUnaryHandler(
+		CandidateInventoryServiceRequestRefillProcedure,
+		svc.RequestRefill,
+		connect.WithSchema(candidateInventoryServiceMethods.ByName("RequestRefill")),
+		connect.WithHandlerOptions(opts...),
+	)
+	candidateInventoryServiceCancelRefillHandler := connect.NewUnaryHandler(
+		CandidateInventoryServiceCancelRefillProcedure,
+		svc.CancelRefill,
+		connect.WithSchema(candidateInventoryServiceMethods.ByName("CancelRefill")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/vrooli.music_tools.v1.composition.CandidateInventoryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case CandidateInventoryServiceRequestRefillProcedure:
+			candidateInventoryServiceRequestRefillHandler.ServeHTTP(w, r)
+		case CandidateInventoryServiceCancelRefillProcedure:
+			candidateInventoryServiceCancelRefillHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedCandidateInventoryServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedCandidateInventoryServiceHandler struct{}
+
+func (UnimplementedCandidateInventoryServiceHandler) RequestRefill(context.Context, *connect.Request[composition.CandidateRefillRequest]) (*connect.Response[composition.CandidateRefillResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.music_tools.v1.composition.CandidateInventoryService.RequestRefill is not implemented"))
+}
+
+func (UnimplementedCandidateInventoryServiceHandler) CancelRefill(context.Context, *connect.Request[composition.CancelCandidateRefillRequest]) (*connect.Response[composition.CandidateRefillResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.music_tools.v1.composition.CandidateInventoryService.CancelRefill is not implemented"))
 }

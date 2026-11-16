@@ -874,6 +874,302 @@ func (x *ReconcileOperationsResponse) GetAcquired() []string {
 	return nil
 }
 
+type GetTargetReceiptRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DeploymentId  string                 `protobuf:"bytes,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	OperationId   string                 `protobuf:"bytes,2,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	Step          string                 `protobuf:"bytes,3,opt,name=step,proto3" json:"step,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTargetReceiptRequest) Reset() {
+	*x = GetTargetReceiptRequest{}
+	mi := &file_scenario_to_cloud_v1_operations_operations_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTargetReceiptRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTargetReceiptRequest) ProtoMessage() {}
+
+func (x *GetTargetReceiptRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_cloud_v1_operations_operations_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTargetReceiptRequest.ProtoReflect.Descriptor instead.
+func (*GetTargetReceiptRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_cloud_v1_operations_operations_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetTargetReceiptRequest) GetDeploymentId() string {
+	if x != nil {
+		return x.DeploymentId
+	}
+	return ""
+}
+
+func (x *GetTargetReceiptRequest) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+func (x *GetTargetReceiptRequest) GetStep() string {
+	if x != nil {
+		return x.Step
+	}
+	return ""
+}
+
+type TargetReceiptTarget struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	MachineId            string                 `protobuf:"bytes,1,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
+	NodeId               string                 `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	EnrollmentGeneration uint64                 `protobuf:"varint,3,opt,name=enrollment_generation,json=enrollmentGeneration,proto3" json:"enrollment_generation,omitempty"`
+	Transport            string                 `protobuf:"bytes,4,opt,name=transport,proto3" json:"transport,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *TargetReceiptTarget) Reset() {
+	*x = TargetReceiptTarget{}
+	mi := &file_scenario_to_cloud_v1_operations_operations_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TargetReceiptTarget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TargetReceiptTarget) ProtoMessage() {}
+
+func (x *TargetReceiptTarget) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_cloud_v1_operations_operations_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TargetReceiptTarget.ProtoReflect.Descriptor instead.
+func (*TargetReceiptTarget) Descriptor() ([]byte, []int) {
+	return file_scenario_to_cloud_v1_operations_operations_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *TargetReceiptTarget) GetMachineId() string {
+	if x != nil {
+		return x.MachineId
+	}
+	return ""
+}
+
+func (x *TargetReceiptTarget) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *TargetReceiptTarget) GetEnrollmentGeneration() uint64 {
+	if x != nil {
+		return x.EnrollmentGeneration
+	}
+	return 0
+}
+
+func (x *TargetReceiptTarget) GetTransport() string {
+	if x != nil {
+		return x.Transport
+	}
+	return ""
+}
+
+type TargetOwnerReceipt struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Found         bool                   `protobuf:"varint,1,opt,name=found,proto3" json:"found,omitempty"`
+	Outcome       string                 `protobuf:"bytes,2,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	Fence         uint64                 `protobuf:"varint,3,opt,name=fence,proto3" json:"fence,omitempty"`
+	Detail        string                 `protobuf:"bytes,4,opt,name=detail,proto3" json:"detail,omitempty"`
+	Error         string                 `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TargetOwnerReceipt) Reset() {
+	*x = TargetOwnerReceipt{}
+	mi := &file_scenario_to_cloud_v1_operations_operations_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TargetOwnerReceipt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TargetOwnerReceipt) ProtoMessage() {}
+
+func (x *TargetOwnerReceipt) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_cloud_v1_operations_operations_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TargetOwnerReceipt.ProtoReflect.Descriptor instead.
+func (*TargetOwnerReceipt) Descriptor() ([]byte, []int) {
+	return file_scenario_to_cloud_v1_operations_operations_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *TargetOwnerReceipt) GetFound() bool {
+	if x != nil {
+		return x.Found
+	}
+	return false
+}
+
+func (x *TargetOwnerReceipt) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *TargetOwnerReceipt) GetFence() uint64 {
+	if x != nil {
+		return x.Fence
+	}
+	return 0
+}
+
+func (x *TargetOwnerReceipt) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *TargetOwnerReceipt) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+type TargetReceiptRead struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SchemaVersion string                 `protobuf:"bytes,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	DeploymentId  string                 `protobuf:"bytes,2,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	OperationId   string                 `protobuf:"bytes,3,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	PlanDigest    string                 `protobuf:"bytes,4,opt,name=plan_digest,json=planDigest,proto3" json:"plan_digest,omitempty"`
+	Step          string                 `protobuf:"bytes,5,opt,name=step,proto3" json:"step,omitempty"`
+	Target        *TargetReceiptTarget   `protobuf:"bytes,6,opt,name=target,proto3" json:"target,omitempty"`
+	Receipt       *TargetOwnerReceipt    `protobuf:"bytes,7,opt,name=receipt,proto3" json:"receipt,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TargetReceiptRead) Reset() {
+	*x = TargetReceiptRead{}
+	mi := &file_scenario_to_cloud_v1_operations_operations_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TargetReceiptRead) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TargetReceiptRead) ProtoMessage() {}
+
+func (x *TargetReceiptRead) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_cloud_v1_operations_operations_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TargetReceiptRead.ProtoReflect.Descriptor instead.
+func (*TargetReceiptRead) Descriptor() ([]byte, []int) {
+	return file_scenario_to_cloud_v1_operations_operations_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *TargetReceiptRead) GetSchemaVersion() string {
+	if x != nil {
+		return x.SchemaVersion
+	}
+	return ""
+}
+
+func (x *TargetReceiptRead) GetDeploymentId() string {
+	if x != nil {
+		return x.DeploymentId
+	}
+	return ""
+}
+
+func (x *TargetReceiptRead) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+func (x *TargetReceiptRead) GetPlanDigest() string {
+	if x != nil {
+		return x.PlanDigest
+	}
+	return ""
+}
+
+func (x *TargetReceiptRead) GetStep() string {
+	if x != nil {
+		return x.Step
+	}
+	return ""
+}
+
+func (x *TargetReceiptRead) GetTarget() *TargetReceiptTarget {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *TargetReceiptRead) GetReceipt() *TargetOwnerReceipt {
+	if x != nil {
+		return x.Receipt
+	}
+	return nil
+}
+
 var File_scenario_to_cloud_v1_operations_operations_proto protoreflect.FileDescriptor
 
 const file_scenario_to_cloud_v1_operations_operations_proto_rawDesc = "" +
@@ -959,12 +1255,38 @@ const file_scenario_to_cloud_v1_operations_operations_proto_rawDesc = "" +
 	"\x1bReconcileOperationsResponse\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12\x1b\n" +
 	"\tworker_id\x18\x02 \x01(\tR\bworkerId\x12\x1a\n" +
-	"\bacquired\x18\x03 \x03(\tR\bacquired2\x87\x06\n" +
+	"\bacquired\x18\x03 \x03(\tR\bacquired\"u\n" +
+	"\x17GetTargetReceiptRequest\x12#\n" +
+	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\x12!\n" +
+	"\foperation_id\x18\x02 \x01(\tR\voperationId\x12\x12\n" +
+	"\x04step\x18\x03 \x01(\tR\x04step\"\xa0\x01\n" +
+	"\x13TargetReceiptTarget\x12\x1d\n" +
+	"\n" +
+	"machine_id\x18\x01 \x01(\tR\tmachineId\x12\x17\n" +
+	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x123\n" +
+	"\x15enrollment_generation\x18\x03 \x01(\x04R\x14enrollmentGeneration\x12\x1c\n" +
+	"\ttransport\x18\x04 \x01(\tR\ttransport\"\x88\x01\n" +
+	"\x12TargetOwnerReceipt\x12\x14\n" +
+	"\x05found\x18\x01 \x01(\bR\x05found\x12\x18\n" +
+	"\aoutcome\x18\x02 \x01(\tR\aoutcome\x12\x14\n" +
+	"\x05fence\x18\x03 \x01(\x04R\x05fence\x12\x16\n" +
+	"\x06detail\x18\x04 \x01(\tR\x06detail\x12\x14\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\"\xe2\x02\n" +
+	"\x11TargetReceiptRead\x12%\n" +
+	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12#\n" +
+	"\rdeployment_id\x18\x02 \x01(\tR\fdeploymentId\x12!\n" +
+	"\foperation_id\x18\x03 \x01(\tR\voperationId\x12\x1f\n" +
+	"\vplan_digest\x18\x04 \x01(\tR\n" +
+	"planDigest\x12\x12\n" +
+	"\x04step\x18\x05 \x01(\tR\x04step\x12S\n" +
+	"\x06target\x18\x06 \x01(\v2;.vrooli.scenario_to_cloud.v1.operations.TargetReceiptTargetR\x06target\x12T\n" +
+	"\areceipt\x18\a \x01(\v2:.vrooli.scenario_to_cloud.v1.operations.TargetOwnerReceiptR\areceipt2\x98\a\n" +
 	"\x11OperationsService\x12\x86\x01\n" +
 	"\fGetOperation\x12;.vrooli.scenario_to_cloud.v1.operations.GetOperationRequest\x1a9.vrooli.scenario_to_cloud.v1.operations.OperationStanding\x12\x88\x01\n" +
 	"\rWaitOperation\x12<.vrooli.scenario_to_cloud.v1.operations.WaitOperationRequest\x1a9.vrooli.scenario_to_cloud.v1.operations.OperationStanding\x12\x8c\x01\n" +
 	"\x0fCancelOperation\x12>.vrooli.scenario_to_cloud.v1.operations.CancelOperationRequest\x1a9.vrooli.scenario_to_cloud.v1.operations.OperationStanding\x12\xad\x01\n" +
-	"\x18ListDeploymentOperations\x12G.vrooli.scenario_to_cloud.v1.operations.ListDeploymentOperationsRequest\x1aH.vrooli.scenario_to_cloud.v1.operations.ListDeploymentOperationsResponse\x12\x9e\x01\n" +
+	"\x18ListDeploymentOperations\x12G.vrooli.scenario_to_cloud.v1.operations.ListDeploymentOperationsRequest\x1aH.vrooli.scenario_to_cloud.v1.operations.ListDeploymentOperationsResponse\x12\x8e\x01\n" +
+	"\x10GetTargetReceipt\x12?.vrooli.scenario_to_cloud.v1.operations.GetTargetReceiptRequest\x1a9.vrooli.scenario_to_cloud.v1.operations.TargetReceiptRead\x12\x9e\x01\n" +
 	"\x13ReconcileOperations\x12B.vrooli.scenario_to_cloud.v1.operations.ReconcileOperationsRequest\x1aC.vrooli.scenario_to_cloud.v1.operations.ReconcileOperationsResponseB]Z[github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/operations;operationsv1b\x06proto3"
 
 var (
@@ -979,7 +1301,7 @@ func file_scenario_to_cloud_v1_operations_operations_proto_rawDescGZIP() []byte 
 	return file_scenario_to_cloud_v1_operations_operations_proto_rawDescData
 }
 
-var file_scenario_to_cloud_v1_operations_operations_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_scenario_to_cloud_v1_operations_operations_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_scenario_to_cloud_v1_operations_operations_proto_goTypes = []any{
 	(*StepReceipt)(nil),                      // 0: vrooli.scenario_to_cloud.v1.operations.StepReceipt
 	(*UnknownEffect)(nil),                    // 1: vrooli.scenario_to_cloud.v1.operations.UnknownEffect
@@ -992,31 +1314,39 @@ var file_scenario_to_cloud_v1_operations_operations_proto_goTypes = []any{
 	(*ListDeploymentOperationsResponse)(nil), // 8: vrooli.scenario_to_cloud.v1.operations.ListDeploymentOperationsResponse
 	(*ReconcileOperationsRequest)(nil),       // 9: vrooli.scenario_to_cloud.v1.operations.ReconcileOperationsRequest
 	(*ReconcileOperationsResponse)(nil),      // 10: vrooli.scenario_to_cloud.v1.operations.ReconcileOperationsResponse
-	(*errors.Error)(nil),                     // 11: vrooli.scenario_to_cloud.v1.errors.Error
-	(*errors.NextAction)(nil),                // 12: vrooli.scenario_to_cloud.v1.errors.NextAction
+	(*GetTargetReceiptRequest)(nil),          // 11: vrooli.scenario_to_cloud.v1.operations.GetTargetReceiptRequest
+	(*TargetReceiptTarget)(nil),              // 12: vrooli.scenario_to_cloud.v1.operations.TargetReceiptTarget
+	(*TargetOwnerReceipt)(nil),               // 13: vrooli.scenario_to_cloud.v1.operations.TargetOwnerReceipt
+	(*TargetReceiptRead)(nil),                // 14: vrooli.scenario_to_cloud.v1.operations.TargetReceiptRead
+	(*errors.Error)(nil),                     // 15: vrooli.scenario_to_cloud.v1.errors.Error
+	(*errors.NextAction)(nil),                // 16: vrooli.scenario_to_cloud.v1.errors.NextAction
 }
 var file_scenario_to_cloud_v1_operations_operations_proto_depIdxs = []int32{
 	0,  // 0: vrooli.scenario_to_cloud.v1.operations.OperationStanding.step_receipts:type_name -> vrooli.scenario_to_cloud.v1.operations.StepReceipt
 	1,  // 1: vrooli.scenario_to_cloud.v1.operations.OperationStanding.unknown_effects:type_name -> vrooli.scenario_to_cloud.v1.operations.UnknownEffect
 	2,  // 2: vrooli.scenario_to_cloud.v1.operations.OperationStanding.result:type_name -> vrooli.scenario_to_cloud.v1.operations.OperationResult
-	11, // 3: vrooli.scenario_to_cloud.v1.operations.OperationStanding.error:type_name -> vrooli.scenario_to_cloud.v1.errors.Error
-	12, // 4: vrooli.scenario_to_cloud.v1.operations.OperationStanding.next_action:type_name -> vrooli.scenario_to_cloud.v1.errors.NextAction
+	15, // 3: vrooli.scenario_to_cloud.v1.operations.OperationStanding.error:type_name -> vrooli.scenario_to_cloud.v1.errors.Error
+	16, // 4: vrooli.scenario_to_cloud.v1.operations.OperationStanding.next_action:type_name -> vrooli.scenario_to_cloud.v1.errors.NextAction
 	3,  // 5: vrooli.scenario_to_cloud.v1.operations.ListDeploymentOperationsResponse.operations:type_name -> vrooli.scenario_to_cloud.v1.operations.OperationStanding
-	4,  // 6: vrooli.scenario_to_cloud.v1.operations.OperationsService.GetOperation:input_type -> vrooli.scenario_to_cloud.v1.operations.GetOperationRequest
-	5,  // 7: vrooli.scenario_to_cloud.v1.operations.OperationsService.WaitOperation:input_type -> vrooli.scenario_to_cloud.v1.operations.WaitOperationRequest
-	6,  // 8: vrooli.scenario_to_cloud.v1.operations.OperationsService.CancelOperation:input_type -> vrooli.scenario_to_cloud.v1.operations.CancelOperationRequest
-	7,  // 9: vrooli.scenario_to_cloud.v1.operations.OperationsService.ListDeploymentOperations:input_type -> vrooli.scenario_to_cloud.v1.operations.ListDeploymentOperationsRequest
-	9,  // 10: vrooli.scenario_to_cloud.v1.operations.OperationsService.ReconcileOperations:input_type -> vrooli.scenario_to_cloud.v1.operations.ReconcileOperationsRequest
-	3,  // 11: vrooli.scenario_to_cloud.v1.operations.OperationsService.GetOperation:output_type -> vrooli.scenario_to_cloud.v1.operations.OperationStanding
-	3,  // 12: vrooli.scenario_to_cloud.v1.operations.OperationsService.WaitOperation:output_type -> vrooli.scenario_to_cloud.v1.operations.OperationStanding
-	3,  // 13: vrooli.scenario_to_cloud.v1.operations.OperationsService.CancelOperation:output_type -> vrooli.scenario_to_cloud.v1.operations.OperationStanding
-	8,  // 14: vrooli.scenario_to_cloud.v1.operations.OperationsService.ListDeploymentOperations:output_type -> vrooli.scenario_to_cloud.v1.operations.ListDeploymentOperationsResponse
-	10, // 15: vrooli.scenario_to_cloud.v1.operations.OperationsService.ReconcileOperations:output_type -> vrooli.scenario_to_cloud.v1.operations.ReconcileOperationsResponse
-	11, // [11:16] is the sub-list for method output_type
-	6,  // [6:11] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	12, // 6: vrooli.scenario_to_cloud.v1.operations.TargetReceiptRead.target:type_name -> vrooli.scenario_to_cloud.v1.operations.TargetReceiptTarget
+	13, // 7: vrooli.scenario_to_cloud.v1.operations.TargetReceiptRead.receipt:type_name -> vrooli.scenario_to_cloud.v1.operations.TargetOwnerReceipt
+	4,  // 8: vrooli.scenario_to_cloud.v1.operations.OperationsService.GetOperation:input_type -> vrooli.scenario_to_cloud.v1.operations.GetOperationRequest
+	5,  // 9: vrooli.scenario_to_cloud.v1.operations.OperationsService.WaitOperation:input_type -> vrooli.scenario_to_cloud.v1.operations.WaitOperationRequest
+	6,  // 10: vrooli.scenario_to_cloud.v1.operations.OperationsService.CancelOperation:input_type -> vrooli.scenario_to_cloud.v1.operations.CancelOperationRequest
+	7,  // 11: vrooli.scenario_to_cloud.v1.operations.OperationsService.ListDeploymentOperations:input_type -> vrooli.scenario_to_cloud.v1.operations.ListDeploymentOperationsRequest
+	11, // 12: vrooli.scenario_to_cloud.v1.operations.OperationsService.GetTargetReceipt:input_type -> vrooli.scenario_to_cloud.v1.operations.GetTargetReceiptRequest
+	9,  // 13: vrooli.scenario_to_cloud.v1.operations.OperationsService.ReconcileOperations:input_type -> vrooli.scenario_to_cloud.v1.operations.ReconcileOperationsRequest
+	3,  // 14: vrooli.scenario_to_cloud.v1.operations.OperationsService.GetOperation:output_type -> vrooli.scenario_to_cloud.v1.operations.OperationStanding
+	3,  // 15: vrooli.scenario_to_cloud.v1.operations.OperationsService.WaitOperation:output_type -> vrooli.scenario_to_cloud.v1.operations.OperationStanding
+	3,  // 16: vrooli.scenario_to_cloud.v1.operations.OperationsService.CancelOperation:output_type -> vrooli.scenario_to_cloud.v1.operations.OperationStanding
+	8,  // 17: vrooli.scenario_to_cloud.v1.operations.OperationsService.ListDeploymentOperations:output_type -> vrooli.scenario_to_cloud.v1.operations.ListDeploymentOperationsResponse
+	14, // 18: vrooli.scenario_to_cloud.v1.operations.OperationsService.GetTargetReceipt:output_type -> vrooli.scenario_to_cloud.v1.operations.TargetReceiptRead
+	10, // 19: vrooli.scenario_to_cloud.v1.operations.OperationsService.ReconcileOperations:output_type -> vrooli.scenario_to_cloud.v1.operations.ReconcileOperationsResponse
+	14, // [14:20] is the sub-list for method output_type
+	8,  // [8:14] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_scenario_to_cloud_v1_operations_operations_proto_init() }
@@ -1030,7 +1360,7 @@ func file_scenario_to_cloud_v1_operations_operations_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_to_cloud_v1_operations_operations_proto_rawDesc), len(file_scenario_to_cloud_v1_operations_operations_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -26,7 +26,7 @@ from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(data-backup-manager/v1/plans/plans.proto\x12#vrooli.data_backup_manager.v1.plans\x1a\x1b\x62uf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\";\n\x0fRetentionPolicy\x12(\n\x0bkeep_latest\x18\x01 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\nkeepLatest\"\x8a\x05\n\x04Plan\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n\ntarget_ids\x18\x03 \x03(\tR\ttargetIds\x12\'\n\x0f\x64\x65stination_ids\x18\x04 \x03(\tR\x0e\x64\x65stinationIds\x12\x1a\n\x08schedule\x18\x05 \x01(\tR\x08schedule\x12R\n\tretention\x18\x06 \x01(\x0b\x32\x34.vrooli.data_backup_manager.v1.plans.RetentionPolicyR\tretention\x12\x18\n\x07\x65nabled\x18\x07 \x01(\x08R\x07\x65nabled\x12\x39\n\ncreated_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nupdated_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\x12\\\n\x0fprotection_tier\x18\n \x01(\x0e\x32\x33.vrooli.data_backup_manager.v1.plans.ProtectionTierR\x0eprotectionTier\x12\x36\n\x17recovery_drill_schedule\x18\x0b \x01(\tR\x15recoveryDrillSchedule\x12N\n#destinations_physically_independent\x18\x0c \x01(\x08R!destinationsPhysicallyIndependent\x12\x30\n\x14shared_risk_warnings\x18\r \x03(\tR\x12sharedRiskWarnings\"\xe8\x03\n\x11\x43reatePlanRequest\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\x12\'\n\ntarget_ids\x18\x02 \x03(\tB\x08\xbaH\x05\x92\x01\x02\x08\x01R\ttargetIds\x12\x31\n\x0f\x64\x65stination_ids\x18\x03 \x03(\tB\x08\xbaH\x05\x92\x01\x02\x08\x01R\x0e\x64\x65stinationIds\x12\x1a\n\x08schedule\x18\x04 \x01(\tR\x08schedule\x12R\n\tretention\x18\x05 \x01(\x0b\x32\x34.vrooli.data_backup_manager.v1.plans.RetentionPolicyR\tretention\x12\x18\n\x07\x65nabled\x18\x06 \x01(\x08R\x07\x65nabled\x12:\n\x19\x61llow_incomplete_coverage\x18\x07 \x01(\x08R\x17\x61llowIncompleteCoverage\x12\\\n\x0fprotection_tier\x18\x08 \x01(\x0e\x32\x33.vrooli.data_backup_manager.v1.plans.ProtectionTierR\x0eprotectionTier\x12\x36\n\x17recovery_drill_schedule\x18\t \x01(\tR\x15recoveryDrillSchedule\"S\n\x12\x43reatePlanResponse\x12=\n\x04plan\x18\x01 \x01(\x0b\x32).vrooli.data_backup_manager.v1.plans.PlanR\x04plan\")\n\x0eGetPlanRequest\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\"P\n\x0fGetPlanResponse\x12=\n\x04plan\x18\x01 \x01(\x0b\x32).vrooli.data_backup_manager.v1.plans.PlanR\x04plan\"W\n\x10ListPlansRequest\x12$\n\tpage_size\x18\x01 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\x08pageSize\x12\x1d\n\npage_token\x18\x02 \x01(\tR\tpageToken\"|\n\x11ListPlansResponse\x12?\n\x05plans\x18\x01 \x03(\x0b\x32).vrooli.data_backup_manager.v1.plans.PlanR\x05plans\x12&\n\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xe4\x03\n\x11UpdatePlanRequest\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n\ntarget_ids\x18\x03 \x03(\tR\ttargetIds\x12\'\n\x0f\x64\x65stination_ids\x18\x04 \x03(\tR\x0e\x64\x65stinationIds\x12\x1a\n\x08schedule\x18\x05 \x01(\tR\x08schedule\x12R\n\tretention\x18\x06 \x01(\x0b\x32\x34.vrooli.data_backup_manager.v1.plans.RetentionPolicyR\tretention\x12\x18\n\x07\x65nabled\x18\x07 \x01(\x08R\x07\x65nabled\x12:\n\x19\x61llow_incomplete_coverage\x18\x08 \x01(\x08R\x17\x61llowIncompleteCoverage\x12\\\n\x0fprotection_tier\x18\t \x01(\x0e\x32\x33.vrooli.data_backup_manager.v1.plans.ProtectionTierR\x0eprotectionTier\x12\x36\n\x17recovery_drill_schedule\x18\n \x01(\tR\x15recoveryDrillSchedule\"S\n\x12UpdatePlanResponse\x12=\n\x04plan\x18\x01 \x01(\x0b\x32).vrooli.data_backup_manager.v1.plans.PlanR\x04plan\",\n\x11\x44\x65letePlanRequest\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\".\n\x12\x44\x65letePlanResponse\x12\x18\n\x07removed\x18\x01 \x01(\x08R\x07removed*\xa1\x01\n\x0eProtectionTier\x12\x1f\n\x1bPROTECTION_TIER_UNSPECIFIED\x10\x00\x12 \n\x1cPROTECTION_TIER_FULL_PRIMARY\x10\x01\x12$\n PROTECTION_TIER_CRITICAL_PRIMARY\x10\x02\x12&\n\"PROTECTION_TIER_CRITICAL_SECONDARY\x10\x03\x32\xfd\x04\n\x0cPlansService\x12}\n\nCreatePlan\x12\x36.vrooli.data_backup_manager.v1.plans.CreatePlanRequest\x1a\x37.vrooli.data_backup_manager.v1.plans.CreatePlanResponse\x12t\n\x07GetPlan\x12\x33.vrooli.data_backup_manager.v1.plans.GetPlanRequest\x1a\x34.vrooli.data_backup_manager.v1.plans.GetPlanResponse\x12z\n\tListPlans\x12\x35.vrooli.data_backup_manager.v1.plans.ListPlansRequest\x1a\x36.vrooli.data_backup_manager.v1.plans.ListPlansResponse\x12}\n\nUpdatePlan\x12\x36.vrooli.data_backup_manager.v1.plans.UpdatePlanRequest\x1a\x37.vrooli.data_backup_manager.v1.plans.UpdatePlanResponse\x12}\n\nDeletePlan\x12\x36.vrooli.data_backup_manager.v1.plans.DeletePlanRequest\x1a\x37.vrooli.data_backup_manager.v1.plans.DeletePlanResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/plans;plans_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(data-backup-manager/v1/plans/plans.proto\x12#vrooli.data_backup_manager.v1.plans\x1a\x1b\x62uf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8d\x02\n\x0fRetentionPolicy\x12(\n\x0bkeep_latest\x18\x01 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\nkeepLatest\x12(\n\x0bkeep_hourly\x18\x02 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\nkeepHourly\x12&\n\nkeep_daily\x18\x03 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\tkeepDaily\x12(\n\x0bkeep_weekly\x18\x04 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\nkeepWeekly\x12*\n\x0ckeep_monthly\x18\x05 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\x0bkeepMonthly\x12(\n\x0bkeep_annual\x18\x06 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\nkeepAnnual\"\xe3\x05\n\x04Plan\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n\ntarget_ids\x18\x03 \x03(\tR\ttargetIds\x12\'\n\x0f\x64\x65stination_ids\x18\x04 \x03(\tR\x0e\x64\x65stinationIds\x12\x1a\n\x08schedule\x18\x05 \x01(\tR\x08schedule\x12R\n\tretention\x18\x06 \x01(\x0b\x32\x34.vrooli.data_backup_manager.v1.plans.RetentionPolicyR\tretention\x12\x18\n\x07\x65nabled\x18\x07 \x01(\x08R\x07\x65nabled\x12\x39\n\ncreated_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nupdated_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\x12\\\n\x0fprotection_tier\x18\n \x01(\x0e\x32\x33.vrooli.data_backup_manager.v1.plans.ProtectionTierR\x0eprotectionTier\x12\x36\n\x17recovery_drill_schedule\x18\x0b \x01(\tR\x15recoveryDrillSchedule\x12N\n#destinations_physically_independent\x18\x0c \x01(\x08R!destinationsPhysicallyIndependent\x12\x30\n\x14shared_risk_warnings\x18\r \x03(\tR\x12sharedRiskWarnings\x12\'\n\x0ftarget_selector\x18\x0e \x01(\tR\x0etargetSelector\x12.\n\x13\x65xcluded_target_ids\x18\x0f \x03(\tR\x11\x65xcludedTargetIds\"\xb7\x04\n\x11\x43reatePlanRequest\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n\ntarget_ids\x18\x02 \x03(\tR\ttargetIds\x12\x31\n\x0f\x64\x65stination_ids\x18\x03 \x03(\tB\x08\xbaH\x05\x92\x01\x02\x08\x01R\x0e\x64\x65stinationIds\x12\x1a\n\x08schedule\x18\x04 \x01(\tR\x08schedule\x12R\n\tretention\x18\x05 \x01(\x0b\x32\x34.vrooli.data_backup_manager.v1.plans.RetentionPolicyR\tretention\x12\x18\n\x07\x65nabled\x18\x06 \x01(\x08R\x07\x65nabled\x12:\n\x19\x61llow_incomplete_coverage\x18\x07 \x01(\x08R\x17\x61llowIncompleteCoverage\x12\\\n\x0fprotection_tier\x18\x08 \x01(\x0e\x32\x33.vrooli.data_backup_manager.v1.plans.ProtectionTierR\x0eprotectionTier\x12\x36\n\x17recovery_drill_schedule\x18\t \x01(\tR\x15recoveryDrillSchedule\x12\'\n\x0ftarget_selector\x18\n \x01(\tR\x0etargetSelector\x12.\n\x13\x65xcluded_target_ids\x18\x0b \x03(\tR\x11\x65xcludedTargetIds\"S\n\x12\x43reatePlanResponse\x12=\n\x04plan\x18\x01 \x01(\x0b\x32).vrooli.data_backup_manager.v1.plans.PlanR\x04plan\")\n\x0eGetPlanRequest\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\"P\n\x0fGetPlanResponse\x12=\n\x04plan\x18\x01 \x01(\x0b\x32).vrooli.data_backup_manager.v1.plans.PlanR\x04plan\"W\n\x10ListPlansRequest\x12$\n\tpage_size\x18\x01 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\x08pageSize\x12\x1d\n\npage_token\x18\x02 \x01(\tR\tpageToken\"|\n\x11ListPlansResponse\x12?\n\x05plans\x18\x01 \x03(\x0b\x32).vrooli.data_backup_manager.v1.plans.PlanR\x05plans\x12&\n\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xbd\x04\n\x11UpdatePlanRequest\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n\ntarget_ids\x18\x03 \x03(\tR\ttargetIds\x12\'\n\x0f\x64\x65stination_ids\x18\x04 \x03(\tR\x0e\x64\x65stinationIds\x12\x1a\n\x08schedule\x18\x05 \x01(\tR\x08schedule\x12R\n\tretention\x18\x06 \x01(\x0b\x32\x34.vrooli.data_backup_manager.v1.plans.RetentionPolicyR\tretention\x12\x18\n\x07\x65nabled\x18\x07 \x01(\x08R\x07\x65nabled\x12:\n\x19\x61llow_incomplete_coverage\x18\x08 \x01(\x08R\x17\x61llowIncompleteCoverage\x12\\\n\x0fprotection_tier\x18\t \x01(\x0e\x32\x33.vrooli.data_backup_manager.v1.plans.ProtectionTierR\x0eprotectionTier\x12\x36\n\x17recovery_drill_schedule\x18\n \x01(\tR\x15recoveryDrillSchedule\x12\'\n\x0ftarget_selector\x18\x0b \x01(\tR\x0etargetSelector\x12.\n\x13\x65xcluded_target_ids\x18\x0c \x03(\tR\x11\x65xcludedTargetIds\"S\n\x12UpdatePlanResponse\x12=\n\x04plan\x18\x01 \x01(\x0b\x32).vrooli.data_backup_manager.v1.plans.PlanR\x04plan\",\n\x11\x44\x65letePlanRequest\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\".\n\x12\x44\x65letePlanResponse\x12\x18\n\x07removed\x18\x01 \x01(\x08R\x07removed*\xa1\x01\n\x0eProtectionTier\x12\x1f\n\x1bPROTECTION_TIER_UNSPECIFIED\x10\x00\x12 \n\x1cPROTECTION_TIER_FULL_PRIMARY\x10\x01\x12$\n PROTECTION_TIER_CRITICAL_PRIMARY\x10\x02\x12&\n\"PROTECTION_TIER_CRITICAL_SECONDARY\x10\x03\x32\xfd\x04\n\x0cPlansService\x12}\n\nCreatePlan\x12\x36.vrooli.data_backup_manager.v1.plans.CreatePlanRequest\x1a\x37.vrooli.data_backup_manager.v1.plans.CreatePlanResponse\x12t\n\x07GetPlan\x12\x33.vrooli.data_backup_manager.v1.plans.GetPlanRequest\x1a\x34.vrooli.data_backup_manager.v1.plans.GetPlanResponse\x12z\n\tListPlans\x12\x35.vrooli.data_backup_manager.v1.plans.ListPlansRequest\x1a\x36.vrooli.data_backup_manager.v1.plans.ListPlansResponse\x12}\n\nUpdatePlan\x12\x36.vrooli.data_backup_manager.v1.plans.UpdatePlanRequest\x1a\x37.vrooli.data_backup_manager.v1.plans.UpdatePlanResponse\x12}\n\nDeletePlan\x12\x36.vrooli.data_backup_manager.v1.plans.DeletePlanRequest\x1a\x37.vrooli.data_backup_manager.v1.plans.DeletePlanResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/plans;plans_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -36,10 +36,18 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'ZTgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/plans;plans_v1'
   _globals['_RETENTIONPOLICY'].fields_by_name['keep_latest']._loaded_options = None
   _globals['_RETENTIONPOLICY'].fields_by_name['keep_latest']._serialized_options = b'\272H\004\032\002(\000'
+  _globals['_RETENTIONPOLICY'].fields_by_name['keep_hourly']._loaded_options = None
+  _globals['_RETENTIONPOLICY'].fields_by_name['keep_hourly']._serialized_options = b'\272H\004\032\002(\000'
+  _globals['_RETENTIONPOLICY'].fields_by_name['keep_daily']._loaded_options = None
+  _globals['_RETENTIONPOLICY'].fields_by_name['keep_daily']._serialized_options = b'\272H\004\032\002(\000'
+  _globals['_RETENTIONPOLICY'].fields_by_name['keep_weekly']._loaded_options = None
+  _globals['_RETENTIONPOLICY'].fields_by_name['keep_weekly']._serialized_options = b'\272H\004\032\002(\000'
+  _globals['_RETENTIONPOLICY'].fields_by_name['keep_monthly']._loaded_options = None
+  _globals['_RETENTIONPOLICY'].fields_by_name['keep_monthly']._serialized_options = b'\272H\004\032\002(\000'
+  _globals['_RETENTIONPOLICY'].fields_by_name['keep_annual']._loaded_options = None
+  _globals['_RETENTIONPOLICY'].fields_by_name['keep_annual']._serialized_options = b'\272H\004\032\002(\000'
   _globals['_CREATEPLANREQUEST'].fields_by_name['name']._loaded_options = None
   _globals['_CREATEPLANREQUEST'].fields_by_name['name']._serialized_options = b'\272H\004r\002\020\001'
-  _globals['_CREATEPLANREQUEST'].fields_by_name['target_ids']._loaded_options = None
-  _globals['_CREATEPLANREQUEST'].fields_by_name['target_ids']._serialized_options = b'\272H\005\222\001\002\010\001'
   _globals['_CREATEPLANREQUEST'].fields_by_name['destination_ids']._loaded_options = None
   _globals['_CREATEPLANREQUEST'].fields_by_name['destination_ids']._serialized_options = b'\272H\005\222\001\002\010\001'
   _globals['_GETPLANREQUEST'].fields_by_name['id']._loaded_options = None
@@ -50,32 +58,32 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_UPDATEPLANREQUEST'].fields_by_name['id']._serialized_options = b'\272H\004r\002\020\001'
   _globals['_DELETEPLANREQUEST'].fields_by_name['id']._loaded_options = None
   _globals['_DELETEPLANREQUEST'].fields_by_name['id']._serialized_options = b'\272H\004r\002\020\001'
-  _globals['_PROTECTIONTIER']._serialized_start=2440
-  _globals['_PROTECTIONTIER']._serialized_end=2601
-  _globals['_RETENTIONPOLICY']._serialized_start=143
-  _globals['_RETENTIONPOLICY']._serialized_end=202
-  _globals['_PLAN']._serialized_start=205
-  _globals['_PLAN']._serialized_end=855
-  _globals['_CREATEPLANREQUEST']._serialized_start=858
-  _globals['_CREATEPLANREQUEST']._serialized_end=1346
-  _globals['_CREATEPLANRESPONSE']._serialized_start=1348
-  _globals['_CREATEPLANRESPONSE']._serialized_end=1431
-  _globals['_GETPLANREQUEST']._serialized_start=1433
-  _globals['_GETPLANREQUEST']._serialized_end=1474
-  _globals['_GETPLANRESPONSE']._serialized_start=1476
-  _globals['_GETPLANRESPONSE']._serialized_end=1556
-  _globals['_LISTPLANSREQUEST']._serialized_start=1558
-  _globals['_LISTPLANSREQUEST']._serialized_end=1645
-  _globals['_LISTPLANSRESPONSE']._serialized_start=1647
-  _globals['_LISTPLANSRESPONSE']._serialized_end=1771
-  _globals['_UPDATEPLANREQUEST']._serialized_start=1774
-  _globals['_UPDATEPLANREQUEST']._serialized_end=2258
-  _globals['_UPDATEPLANRESPONSE']._serialized_start=2260
-  _globals['_UPDATEPLANRESPONSE']._serialized_end=2343
-  _globals['_DELETEPLANREQUEST']._serialized_start=2345
-  _globals['_DELETEPLANREQUEST']._serialized_end=2389
-  _globals['_DELETEPLANRESPONSE']._serialized_start=2391
-  _globals['_DELETEPLANRESPONSE']._serialized_end=2437
-  _globals['_PLANSSERVICE']._serialized_start=2604
-  _globals['_PLANSSERVICE']._serialized_end=3241
+  _globals['_PROTECTIONTIER']._serialized_start=2908
+  _globals['_PROTECTIONTIER']._serialized_end=3069
+  _globals['_RETENTIONPOLICY']._serialized_start=144
+  _globals['_RETENTIONPOLICY']._serialized_end=413
+  _globals['_PLAN']._serialized_start=416
+  _globals['_PLAN']._serialized_end=1155
+  _globals['_CREATEPLANREQUEST']._serialized_start=1158
+  _globals['_CREATEPLANREQUEST']._serialized_end=1725
+  _globals['_CREATEPLANRESPONSE']._serialized_start=1727
+  _globals['_CREATEPLANRESPONSE']._serialized_end=1810
+  _globals['_GETPLANREQUEST']._serialized_start=1812
+  _globals['_GETPLANREQUEST']._serialized_end=1853
+  _globals['_GETPLANRESPONSE']._serialized_start=1855
+  _globals['_GETPLANRESPONSE']._serialized_end=1935
+  _globals['_LISTPLANSREQUEST']._serialized_start=1937
+  _globals['_LISTPLANSREQUEST']._serialized_end=2024
+  _globals['_LISTPLANSRESPONSE']._serialized_start=2026
+  _globals['_LISTPLANSRESPONSE']._serialized_end=2150
+  _globals['_UPDATEPLANREQUEST']._serialized_start=2153
+  _globals['_UPDATEPLANREQUEST']._serialized_end=2726
+  _globals['_UPDATEPLANRESPONSE']._serialized_start=2728
+  _globals['_UPDATEPLANRESPONSE']._serialized_end=2811
+  _globals['_DELETEPLANREQUEST']._serialized_start=2813
+  _globals['_DELETEPLANREQUEST']._serialized_end=2857
+  _globals['_DELETEPLANRESPONSE']._serialized_start=2859
+  _globals['_DELETEPLANRESPONSE']._serialized_end=2905
+  _globals['_PLANSSERVICE']._serialized_start=3072
+  _globals['_PLANSSERVICE']._serialized_end=3709
 # @@protoc_insertion_point(module_scope)

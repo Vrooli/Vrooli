@@ -16,6 +16,7 @@ import (
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
+	"react-component-library/internal/sqliterows"
 )
 
 // sqliteRepository is the production Repository impl. Unexported so
@@ -323,27 +324,18 @@ ON CONFLICT(component_id, version) DO UPDATE SET
 // independently of manifest validation so an immutable-source mismatch on a
 // different component cannot prevent recovery of durable cold-tier metadata.
 func (s *sqliteRepository) RestoreEvictedStories(ctx context.Context) (int, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, library_id FROM components ORDER BY library_id`)
-	if err != nil {
-		return 0, fmt.Errorf("list components for evicted story restoration: %w", err)
-	}
-	defer rows.Close()
 	type componentRef struct{ id, libraryID string }
-	var components []componentRef
-	for rows.Next() {
+	components, err := sqliterows.Collect(ctx, s.db, `SELECT id, library_id FROM components ORDER BY library_id`, nil, true, func(row sqliterows.Scanner) (componentRef, error) {
 		var ref componentRef
-		if err := rows.Scan(&ref.id, &ref.libraryID); err != nil {
-			_ = rows.Close()
-			return 0, fmt.Errorf("scan component for evicted story restoration: %w", err)
+		if err := row.Scan(&ref.id, &ref.libraryID); err != nil {
+			return componentRef{}, fmt.Errorf("scan component for evicted story restoration: %w", err)
 		}
-		components = append(components, ref)
-	}
-	if err := rows.Err(); err != nil {
-		_ = rows.Close()
-		return 0, fmt.Errorf("iterate components for evicted story restoration: %w", err)
-	}
-	if err := rows.Close(); err != nil {
-		return 0, fmt.Errorf("close components for evicted story restoration: %w", err)
+		return ref, nil
+	}, sqliterows.ErrorContext{
+		Query: "list components for evicted story restoration", Iterate: "iterate components for evicted story restoration", Close: "close components for evicted story restoration",
+	})
+	if err != nil {
+		return 0, err
 	}
 
 	restored := 0
@@ -371,35 +363,26 @@ ON CONFLICT(component_id, version) DO NOTHING
 // versions: materialized versions are parsed by the filesystem indexer, while
 // evicted versions have no source path for that parser to read.
 func (s *sqliteRepository) restoreEvictedStories(ctx context.Context, componentID, libraryID string) ([]ComponentStory, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	type mirror struct {
+		version, sourcePath, content string
+	}
+	mirrors, err := sqliterows.Collect(ctx, s.db, `
 SELECT v.version, v.source_path, f.content
 FROM component_versions v
 JOIN component_version_files f ON f.version_id = v.id AND f.path = 'story.json'
 LEFT JOIN component_stories story ON story.component_id = v.component_id AND story.version = v.version
 WHERE v.component_id = ? AND v.presence = 'evicted' AND story.id IS NULL
-ORDER BY v.version`, componentID)
-	if err != nil {
-		return nil, fmt.Errorf("find missing evicted story projections for %q: %w", libraryID, err)
-	}
-	defer rows.Close()
-	type mirror struct {
-		version, sourcePath, content string
-	}
-	var mirrors []mirror
-	for rows.Next() {
+ORDER BY v.version`, []any{componentID}, true, func(row sqliterows.Scanner) (mirror, error) {
 		var item mirror
-		if err := rows.Scan(&item.version, &item.sourcePath, &item.content); err != nil {
-			_ = rows.Close()
-			return nil, fmt.Errorf("scan evicted story mirror for %q: %w", libraryID, err)
+		if err := row.Scan(&item.version, &item.sourcePath, &item.content); err != nil {
+			return mirror{}, fmt.Errorf("scan evicted story mirror for %q: %w", libraryID, err)
 		}
-		mirrors = append(mirrors, item)
-	}
-	if err := rows.Err(); err != nil {
-		_ = rows.Close()
-		return nil, fmt.Errorf("iterate evicted story mirrors for %q: %w", libraryID, err)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, fmt.Errorf("close evicted story mirrors for %q: %w", libraryID, err)
+		return item, nil
+	}, sqliterows.ErrorContext{
+		Query: fmt.Sprintf("find missing evicted story projections for %q", libraryID), Iterate: fmt.Sprintf("iterate evicted story mirrors for %q", libraryID), Close: fmt.Sprintf("close evicted story mirrors for %q", libraryID),
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	stories := make([]ComponentStory, 0, len(mirrors))
@@ -491,22 +474,25 @@ type versionMetadata struct {
 }
 
 func (s *sqliteRepository) versionMetadata(ctx context.Context, componentID string) (map[string]versionMetadata, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, version, created_at, released_at, presence FROM component_versions WHERE component_id = ?`, componentID)
-	if err != nil {
-		return nil, fmt.Errorf("read existing component versions for %q: %w", componentID, err)
+	type metadataRow struct {
+		label string
+		versionMetadata
 	}
-	defer rows.Close()
-	out := map[string]versionMetadata{}
-	for rows.Next() {
-		var version versionMetadata
-		var label string
-		if err := rows.Scan(&version.id, &label, &version.createdAt, &version.releasedAt, &version.presence); err != nil {
-			return nil, fmt.Errorf("scan existing component version for %q: %w", componentID, err)
+	versions, err := sqliterows.Collect(ctx, s.db, `SELECT id, version, created_at, released_at, presence FROM component_versions WHERE component_id = ?`, []any{componentID}, false, func(scanner sqliterows.Scanner) (metadataRow, error) {
+		var item metadataRow
+		if err := scanner.Scan(&item.id, &item.label, &item.createdAt, &item.releasedAt, &item.presence); err != nil {
+			return metadataRow{}, fmt.Errorf("scan existing component version for %q: %w", componentID, err)
 		}
-		out[label] = version
+		return item, nil
+	}, sqliterows.ErrorContext{
+		Query: fmt.Sprintf("read existing component versions for %q", componentID), Iterate: fmt.Sprintf("iterate existing component versions for %q", componentID),
+	})
+	if err != nil {
+		return nil, err
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate existing component versions for %q: %w", componentID, err)
+	out := make(map[string]versionMetadata, len(versions))
+	for _, item := range versions {
+		out[item.label] = item.versionMetadata
 	}
 	return out, nil
 }
@@ -674,25 +660,15 @@ LIMIT ?
 `, where, orderBy)
 	args = append(args, limit)
 
-	rows, err := s.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("list components: %w", err)
-	}
-	defer rows.Close()
-
-	var out []Component
-	for rows.Next() {
-		c, err := scanComponent(rows)
+	out, err := sqliterows.Collect(ctx, s.db, query, args, true, func(row sqliterows.Scanner) (Component, error) {
+		component, err := scanComponent(row)
 		if err != nil {
-			return nil, fmt.Errorf("scan component: %w", err)
+			return Component{}, fmt.Errorf("scan component: %w", err)
 		}
-		out = append(out, c)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate components: %w", err)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, fmt.Errorf("close component rows: %w", err)
+		return component, nil
+	}, sqliterows.ErrorContext{Query: "list components", Iterate: "iterate components", Close: "close component rows"})
+	if err != nil {
+		return nil, err
 	}
 	for i := range out {
 		if err := s.loadDesignAffinities(ctx, &out[i]); err != nil {
@@ -1063,30 +1039,19 @@ func (s *sqliteRepository) deleteOrphanChildRows(ctx context.Context) error {
 }
 
 func (s *sqliteRepository) SweepOrphans(ctx context.Context) ([]OrphanVersion, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	orphans, err := sqliterows.Collect(ctx, s.db, `
 SELECT component_id, library_id, version, source_path
 FROM component_versions
 WHERE component_id NOT IN (SELECT id FROM components)
-ORDER BY library_id, version`)
-	if err != nil {
-		return nil, fmt.Errorf("scan registry-orphaned versions: %w", err)
-	}
-	defer rows.Close()
-	var orphans []OrphanVersion
-	for rows.Next() {
-		var o OrphanVersion
-		if err := rows.Scan(&o.ComponentID, &o.LibraryID, &o.Version, &o.SourcePath); err != nil {
-			rows.Close()
-			return nil, fmt.Errorf("scan orphan version: %w", err)
+ORDER BY library_id, version`, nil, true, func(row sqliterows.Scanner) (OrphanVersion, error) {
+		var orphan OrphanVersion
+		if err := row.Scan(&orphan.ComponentID, &orphan.LibraryID, &orphan.Version, &orphan.SourcePath); err != nil {
+			return OrphanVersion{}, fmt.Errorf("scan orphan version: %w", err)
 		}
-		orphans = append(orphans, o)
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, fmt.Errorf("iterate orphan versions: %w", err)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, fmt.Errorf("close orphan versions: %w", err)
+		return orphan, nil
+	}, sqliterows.ErrorContext{Query: "scan registry-orphaned versions", Iterate: "iterate orphan versions", Close: "close orphan versions"})
+	if err != nil {
+		return nil, err
 	}
 	if err := s.deleteOrphanChildRows(ctx); err != nil {
 		return nil, err
@@ -1098,30 +1063,17 @@ func (s *sqliteRepository) ListVersions(ctx context.Context, componentID string,
 	if limit <= 0 {
 		limit = 100
 	}
-	rows, err := s.db.QueryContext(ctx, `
+	out, err := sqliterows.Collect(ctx, s.db, `
 SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at, presence
 FROM component_versions
 WHERE component_id = ?
 ORDER BY version DESC
 LIMIT ?
-`, componentID, limit)
+	`, []any{componentID, limit}, true, func(row sqliterows.Scanner) (ComponentVersion, error) {
+		return scanComponentVersion(row)
+	}, sqliterows.ErrorContext{Query: "list component versions", Close: "close component version rows"})
 	if err != nil {
-		return nil, fmt.Errorf("list component versions: %w", err)
-	}
-	defer rows.Close()
-	var out []ComponentVersion
-	for rows.Next() {
-		v, err := scanComponentVersion(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, v)
-	}
-	if err := rows.Err(); err != nil {
 		return nil, err
-	}
-	if err := rows.Close(); err != nil {
-		return nil, fmt.Errorf("close component version rows: %w", err)
 	}
 	for i := range out {
 		files, err := s.listVersionFiles(ctx, out[i].ID)
@@ -1245,54 +1197,36 @@ func (s *sqliteRepository) getVersionParity(ctx context.Context, versionID strin
 }
 
 func (s *sqliteRepository) listVersionFiles(ctx context.Context, versionID string) ([]ComponentVersionFile, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT path, content, content_sha256, is_entry, slot FROM component_version_files WHERE version_id = ? ORDER BY is_entry DESC, path ASC`, versionID)
+	files, err := sqliterows.Collect(ctx, s.db, `SELECT path, content, content_sha256, is_entry, slot FROM component_version_files WHERE version_id = ? ORDER BY is_entry DESC, path ASC`, []any{versionID}, false, func(row sqliterows.Scanner) (ComponentVersionFile, error) {
+		var file ComponentVersionFile
+		return file, row.Scan(&file.Path, &file.Content, &file.ContentSHA256, &file.IsEntry, &file.Slot)
+	}, sqliterows.ErrorContext{Query: "list component version files"})
 	if err != nil {
-		return nil, fmt.Errorf("list component version files: %w", err)
+		return nil, err
 	}
-	defer rows.Close()
-	var files []ComponentVersionFile
-	for rows.Next() {
-		var f ComponentVersionFile
-		if err := rows.Scan(&f.Path, &f.Content, &f.ContentSHA256, &f.IsEntry, &f.Slot); err != nil {
-			return nil, err
-		}
-		files = append(files, f)
-	}
-	return files, rows.Err()
+	return files, nil
 }
 
 func (s *sqliteRepository) listVersionRequiredTokens(ctx context.Context, versionID string) ([]string, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT property FROM component_version_required_tokens WHERE version_id = ? ORDER BY property`, versionID)
-	if err != nil {
-		return nil, fmt.Errorf("list component version required tokens: %w", err)
-	}
-	defer rows.Close()
-	var properties []string
-	for rows.Next() {
+	properties, err := sqliterows.Collect(ctx, s.db, `SELECT property FROM component_version_required_tokens WHERE version_id = ? ORDER BY property`, []any{versionID}, false, func(row sqliterows.Scanner) (string, error) {
 		var property string
-		if err := rows.Scan(&property); err != nil {
-			return nil, err
-		}
-		properties = append(properties, property)
+		return property, row.Scan(&property)
+	}, sqliterows.ErrorContext{Query: "list component version required tokens"})
+	if err != nil {
+		return nil, err
 	}
-	return properties, rows.Err()
+	return properties, nil
 }
 
 func (s *sqliteRepository) listVersionRequiredTokenPatterns(ctx context.Context, versionID string) ([]string, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT pattern FROM component_version_required_token_patterns WHERE version_id = ? ORDER BY pattern`, versionID)
-	if err != nil {
-		return nil, fmt.Errorf("list component version required token patterns: %w", err)
-	}
-	defer rows.Close()
-	var patterns []string
-	for rows.Next() {
+	patterns, err := sqliterows.Collect(ctx, s.db, `SELECT pattern FROM component_version_required_token_patterns WHERE version_id = ? ORDER BY pattern`, []any{versionID}, false, func(row sqliterows.Scanner) (string, error) {
 		var pattern string
-		if err := rows.Scan(&pattern); err != nil {
-			return nil, err
-		}
-		patterns = append(patterns, pattern)
+		return pattern, row.Scan(&pattern)
+	}, sqliterows.ErrorContext{Query: "list component version required token patterns"})
+	if err != nil {
+		return nil, err
 	}
-	return patterns, rows.Err()
+	return patterns, nil
 }
 
 func (s *sqliteRepository) getVersionKitCompatibility(ctx context.Context, versionID string) (ComponentKitCompatibility, error) {
@@ -1334,20 +1268,14 @@ func (s *sqliteRepository) ListStories(ctx context.Context, q StoryQuery) ([]Com
 		where = "WHERE " + strings.Join(clauses, " AND ")
 	}
 	args = append(args, limit)
-	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`SELECT id, component_id, library_id, version, schema_version, kind, title, args_json, environment_json, stories_json, contract_json, source_path, indexed_at FROM component_stories %s ORDER BY library_id ASC, version DESC LIMIT ?`, where), args...)
+	query := fmt.Sprintf(`SELECT id, component_id, library_id, version, schema_version, kind, title, args_json, environment_json, stories_json, contract_json, source_path, indexed_at FROM component_stories %s ORDER BY library_id ASC, version DESC LIMIT ?`, where)
+	out, err := sqliterows.Collect(ctx, s.db, query, args, false, func(row sqliterows.Scanner) (ComponentStory, error) {
+		return scanComponentStory(row)
+	}, sqliterows.ErrorContext{Query: "list component stories"})
 	if err != nil {
-		return nil, fmt.Errorf("list component stories: %w", err)
+		return nil, err
 	}
-	defer rows.Close()
-	var out []ComponentStory
-	for rows.Next() {
-		story, err := scanComponentStory(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, story)
-	}
-	return out, rows.Err()
+	return out, nil
 }
 
 const (
@@ -1361,9 +1289,7 @@ FROM components WHERE library_id = ?
 `
 )
 
-type rowScanner interface {
-	Scan(dest ...any) error
-}
+type rowScanner = sqliterows.Scanner
 
 func scanComponent(s rowScanner) (Component, error) {
 	var (

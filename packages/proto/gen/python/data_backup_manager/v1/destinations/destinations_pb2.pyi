@@ -16,6 +16,7 @@ class BackendKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BACKEND_KIND_UNSPECIFIED: _ClassVar[BackendKind]
     BACKEND_KIND_FILESYSTEM: _ClassVar[BackendKind]
     BACKEND_KIND_S3: _ClassVar[BackendKind]
+    BACKEND_KIND_SFTP: _ClassVar[BackendKind]
 
 class CapPolicy(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -52,6 +53,7 @@ class PreparationAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 BACKEND_KIND_UNSPECIFIED: BackendKind
 BACKEND_KIND_FILESYSTEM: BackendKind
 BACKEND_KIND_S3: BackendKind
+BACKEND_KIND_SFTP: BackendKind
 CAP_POLICY_UNSPECIFIED: CapPolicy
 CAP_POLICY_ALERT_BLOCK: CapPolicy
 CAP_POLICY_ALERT_ONLY: CapPolicy
@@ -128,6 +130,26 @@ class CreateDestinationResponse(_message.Message):
     destination: Destination
     def __init__(self, destination: _Optional[_Union[Destination, _Mapping]] = ...) -> None: ...
 
+class ImportExistingDestinationRequest(_message.Message):
+    __slots__ = ("destination_id", "name", "backend_kind", "location", "cap_bytes", "cap_policy", "created_at", "expected_snapshot_ids")
+    DESTINATION_ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BACKEND_KIND_FIELD_NUMBER: _ClassVar[int]
+    LOCATION_FIELD_NUMBER: _ClassVar[int]
+    CAP_BYTES_FIELD_NUMBER: _ClassVar[int]
+    CAP_POLICY_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_SNAPSHOT_IDS_FIELD_NUMBER: _ClassVar[int]
+    destination_id: str
+    name: str
+    backend_kind: BackendKind
+    location: str
+    cap_bytes: int
+    cap_policy: CapPolicy
+    created_at: str
+    expected_snapshot_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, destination_id: _Optional[str] = ..., name: _Optional[str] = ..., backend_kind: _Optional[_Union[BackendKind, str]] = ..., location: _Optional[str] = ..., cap_bytes: _Optional[int] = ..., cap_policy: _Optional[_Union[CapPolicy, str]] = ..., created_at: _Optional[str] = ..., expected_snapshot_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class GetDestinationRequest(_message.Message):
     __slots__ = ("id",)
     ID_FIELD_NUMBER: _ClassVar[int]
@@ -155,6 +177,32 @@ class ListDestinationsResponse(_message.Message):
     destinations: _containers.RepeatedCompositeFieldContainer[Destination]
     next_page_token: str
     def __init__(self, destinations: _Optional[_Iterable[_Union[Destination, _Mapping]]] = ..., next_page_token: _Optional[str] = ...) -> None: ...
+
+class ListTargetSnapshotsRequest(_message.Message):
+    __slots__ = ("destination_id", "owner", "name")
+    DESTINATION_ID_FIELD_NUMBER: _ClassVar[int]
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    destination_id: str
+    owner: str
+    name: str
+    def __init__(self, destination_id: _Optional[str] = ..., owner: _Optional[str] = ..., name: _Optional[str] = ...) -> None: ...
+
+class TargetSnapshot(_message.Message):
+    __slots__ = ("id", "started_at", "source")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    started_at: _timestamp_pb2.Timestamp
+    source: str
+    def __init__(self, id: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., source: _Optional[str] = ...) -> None: ...
+
+class ListTargetSnapshotsResponse(_message.Message):
+    __slots__ = ("snapshots",)
+    SNAPSHOTS_FIELD_NUMBER: _ClassVar[int]
+    snapshots: _containers.RepeatedCompositeFieldContainer[TargetSnapshot]
+    def __init__(self, snapshots: _Optional[_Iterable[_Union[TargetSnapshot, _Mapping]]] = ...) -> None: ...
 
 class UpdateDestinationRequest(_message.Message):
     __slots__ = ("id", "cap_bytes", "cap_policy")
@@ -251,7 +299,7 @@ class DestinationReadinessCheck(_message.Message):
     def __init__(self, code: _Optional[str] = ..., severity: _Optional[_Union[ReadinessSeverity, str]] = ..., message: _Optional[str] = ..., next_action: _Optional[str] = ...) -> None: ...
 
 class DestinationReadinessReport(_message.Message):
-    __slots__ = ("location", "overall_severity", "identity", "checks", "recommended_destination_location", "recommended_action", "platform", "confidence", "evidence_source", "observed_at", "repair_steps")
+    __slots__ = ("location", "overall_severity", "identity", "checks", "recommended_destination_location", "recommended_action", "platform", "confidence", "evidence_source", "observed_at", "repair_steps", "offline_check_verified")
     LOCATION_FIELD_NUMBER: _ClassVar[int]
     OVERALL_SEVERITY_FIELD_NUMBER: _ClassVar[int]
     IDENTITY_FIELD_NUMBER: _ClassVar[int]
@@ -263,6 +311,7 @@ class DestinationReadinessReport(_message.Message):
     EVIDENCE_SOURCE_FIELD_NUMBER: _ClassVar[int]
     OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
     REPAIR_STEPS_FIELD_NUMBER: _ClassVar[int]
+    OFFLINE_CHECK_VERIFIED_FIELD_NUMBER: _ClassVar[int]
     location: str
     overall_severity: ReadinessSeverity
     identity: DestinationDeviceIdentity
@@ -274,7 +323,8 @@ class DestinationReadinessReport(_message.Message):
     evidence_source: str
     observed_at: _timestamp_pb2.Timestamp
     repair_steps: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, location: _Optional[str] = ..., overall_severity: _Optional[_Union[ReadinessSeverity, str]] = ..., identity: _Optional[_Union[DestinationDeviceIdentity, _Mapping]] = ..., checks: _Optional[_Iterable[_Union[DestinationReadinessCheck, _Mapping]]] = ..., recommended_destination_location: _Optional[str] = ..., recommended_action: _Optional[str] = ..., platform: _Optional[str] = ..., confidence: _Optional[str] = ..., evidence_source: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., repair_steps: _Optional[_Iterable[str]] = ...) -> None: ...
+    offline_check_verified: bool
+    def __init__(self, location: _Optional[str] = ..., overall_severity: _Optional[_Union[ReadinessSeverity, str]] = ..., identity: _Optional[_Union[DestinationDeviceIdentity, _Mapping]] = ..., checks: _Optional[_Iterable[_Union[DestinationReadinessCheck, _Mapping]]] = ..., recommended_destination_location: _Optional[str] = ..., recommended_action: _Optional[str] = ..., platform: _Optional[str] = ..., confidence: _Optional[str] = ..., evidence_source: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., repair_steps: _Optional[_Iterable[str]] = ..., offline_check_verified: _Optional[bool] = ...) -> None: ...
 
 class AnalyzeDestinationRequest(_message.Message):
     __slots__ = ("location", "proposed_subdir", "selected_target_bytes", "retention_copies", "cross_platform_required")

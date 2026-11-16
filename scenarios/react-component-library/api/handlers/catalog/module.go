@@ -50,6 +50,10 @@ type handler struct {
 	jobRunner       *jobs.Runner
 	checkMu         sync.RWMutex
 	checkCache      map[string]*catalogv1.CheckAssetResponse
+	checkBuild      func(string, catalogbuild.Options) (catalogbuild.Report, error)
+	checkGate       func(context.Context, string, string) (*connect.Response[catalogv1.RunGateResponse], error)
+	checkAsset      func(context.Context, string) (components.Component, error)
+	checkTest       func(context.Context, componenttests.Request) (componenttests.Report, bool, error)
 	appearanceMu    sync.Mutex
 	evidenceMu      sync.Mutex
 	search          *catalogsearch.Index
@@ -133,7 +137,8 @@ func (h *handler) module() module.Module {
 var Endpoints = []module.EndpointDescriptor{
 	{ID: "catalog_coverage", Path: catalogconnect.CatalogServiceGetCoverageProcedure, Method: "POST", Summary: "Report achieved catalog maturity", Category: "catalog"},
 	{ID: "catalog_next", Path: catalogconnect.CatalogServiceListNextWorkProcedure, Method: "POST", Summary: "Rank catalog next work", Category: "catalog"},
-	{ID: "catalog_gate", Path: catalogconnect.CatalogServiceRunGateProcedure, Method: "POST", Summary: "Run a declarative catalog gate", Category: "catalog"},
+	{ID: "catalog_gate", Path: catalogconnect.CatalogServiceRunGateProcedure, Method: "POST", Summary: "Inspect a declarative catalog gate without recording evidence", Category: "catalog"},
+	{ID: "catalog_gate_record", Path: catalogconnect.CatalogServiceRecordGateProcedure, Method: "POST", Summary: "Run a declarative catalog gate and record evidence", Category: "catalog"},
 	{ID: "catalog_asset_check", Path: catalogconnect.CatalogServiceCheckAssetProcedure, Method: "POST", Summary: "Check one asset and return one verdict", Category: "catalog"},
 	{ID: "catalog_graph", Path: catalogconnect.CatalogServiceGetAssetRelationshipsProcedure, Method: "POST", Summary: "Read catalog asset relationships", Category: "catalog"},
 	{ID: "catalog_structure", Path: catalogconnect.CatalogServiceGetCatalogStructureProcedure, Method: "POST", Summary: "Read catalog structure", Category: "catalog"},
@@ -183,8 +188,8 @@ func (h *handler) CheckAsset(ctx context.Context, req *connect.Request[catalogv1
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown asset check profile %q", profile))
 	}
 	ctx = context.WithValue(ctx, assetCheckProfileContextKey{}, profile)
-	if profile == assetCheckProfileEdit && h.assets != nil {
-		if component, resolveErr := resolveAsset(ctx, h.assets, assetID); resolveErr == nil {
+	if profile == assetCheckProfileEdit && (h.assets != nil || h.checkAsset != nil) {
+		if component, resolveErr := h.resolveCheckAsset(ctx, assetID); resolveErr == nil {
 			version := textutil.FirstNonBlank(req.Msg.GetVersion(), component.LatestVersion)
 			if version != "" {
 				ctx = context.WithValue(ctx, assetCheckVersionContextKey{}, version)
@@ -193,7 +198,7 @@ func (h *handler) CheckAsset(ctx context.Context, req *connect.Request[catalogv1
 	}
 	cacheKey := ""
 	if h.assets != nil {
-		if component, resolveErr := resolveAsset(ctx, h.assets, assetID); resolveErr == nil {
+		if component, resolveErr := h.resolveCheckAsset(ctx, assetID); resolveErr == nil {
 			version := textutil.FirstNonBlank(req.Msg.GetVersion(), component.LatestVersion)
 			if revision, revisionErr := catalogcoverage.CurrentRevisionForVersion(h.repoRoot, component.LibraryID, version); revisionErr == nil {
 				cacheKey = component.LibraryID + "@" + version + "#" + revision + "#profile=" + profile
@@ -216,24 +221,16 @@ func (h *handler) CheckAsset(ctx context.Context, req *connect.Request[catalogv1
 		}
 	}
 	buildStart := time.Now()
-	// The check form is the fast path: clean generated projections need only
-	// verification. A stale projection falls back to the write build and is
-	// verified once more, preserving the edit-loop repair contract without
-	// paying for two generator passes on every steady-state asset check.
-	if _, checkErr := catalogbuild.Build(h.repoRoot, catalogbuild.Options{Check: true}); checkErr != nil {
-		if _, buildErr := catalogbuild.Build(h.repoRoot, catalogbuild.Options{}); buildErr != nil {
-			addStage("generator", "fault", buildErr.Error(), buildStart)
-			return connect.NewResponse(&catalogv1.CheckAssetResponse{AssetId: assetID, Verdict: "FAULT", Stages: stages}), nil
-		}
-		if _, verifyErr := catalogbuild.Build(h.repoRoot, catalogbuild.Options{Check: true}); verifyErr != nil {
-			addStage("generator", "fault", verifyErr.Error(), buildStart)
-			return connect.NewResponse(&catalogv1.CheckAssetResponse{AssetId: assetID, Verdict: "FAULT", Stages: stages}), nil
-		}
+	// Read checks only verify generated output. Repair belongs to the separately
+	// governed asset record-check command.
+	if _, checkErr := h.buildCheckCatalog(catalogbuild.Options{Check: true}); checkErr != nil {
+		addStage("generator", "stale", checkErr.Error(), buildStart)
+		return connect.NewResponse(&catalogv1.CheckAssetResponse{AssetId: assetID, Verdict: "STALE_CATALOG", Stages: stages}), nil
 	}
 	addStage("generator", "passed", "catalog build and check passed", buildStart)
 
 	gateStart := time.Now()
-	gateResp, err := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{All: true, AssetId: assetID}))
+	gateResp, err := h.runCheckGate(ctx, "all", assetID)
 	if err != nil {
 		addStage("gates", "fault", err.Error(), gateStart)
 		return connect.NewResponse(&catalogv1.CheckAssetResponse{AssetId: assetID, Verdict: "FAULT", Stages: stages}), nil
@@ -253,7 +250,7 @@ func (h *handler) CheckAsset(ctx context.Context, req *connect.Request[catalogv1
 	addStage("gates", gateStatus, fmt.Sprintf("%d finding(s), %d blocking", len(findings), blocking), gateStart)
 
 	response = &catalogv1.CheckAssetResponse{AssetId: assetID, Findings: findings, Stages: stages}
-	if h.testService == nil || h.assets == nil {
+	if (h.testService == nil || h.assets == nil) && h.checkTest == nil {
 		if blocking > 0 {
 			addStage("tests", "skipped", "gate findings block the asset; component tests were not run", started)
 			packageStart := time.Now()
@@ -272,12 +269,12 @@ func (h *handler) CheckAsset(ctx context.Context, req *connect.Request[catalogv1
 		addStage("tests", "fault", "component-test service is not configured", started)
 		return connect.NewResponse(response), nil
 	}
-	component, resolveErr := resolveAsset(ctx, h.assets, assetID)
+	component, resolveErr := h.resolveCheckAsset(ctx, assetID)
 	if resolveErr != nil {
 		if blocking > 0 {
 			addStage("tests", "skipped", "gate findings block the asset; indexed component lookup was not needed", started)
 			packageStart := time.Now()
-			packageResp, packageErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: "dist-resolution", AssetId: assetID}))
+			packageResp, packageErr := h.runCheckGate(ctx, "dist-resolution", assetID)
 			if packageErr != nil {
 				addStage("package", "fault", packageErr.Error(), packageStart)
 				response.Verdict = "FAULT"
@@ -296,7 +293,7 @@ func (h *handler) CheckAsset(ctx context.Context, req *connect.Request[catalogv1
 	if component.AssetKind == components.AssetKindHook {
 		addStage("tests", "n/a", "hooks have no browser-backed component-test stage", started)
 		packageStart := time.Now()
-		packageResp, packageErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: "dist-resolution", AssetId: assetID}))
+		packageResp, packageErr := h.runCheckGate(ctx, "dist-resolution", assetID)
 		if packageErr != nil {
 			addStage("package", "fault", packageErr.Error(), packageStart)
 			response.Verdict = "FAULT"
@@ -325,17 +322,14 @@ func (h *handler) CheckAsset(ctx context.Context, req *connect.Request[catalogv1
 	var report componenttests.Report
 	var reused bool
 	var testErr error
-	// Asset check is the single publishability command: it must reuse a fresh
-	// report or create one, rather than returning an intermediate stale verdict
-	// that requires a second command. RunWithReuse preserves the fast path.
-	if req.Msg.GetRunTests() {
-		report, reused, testErr = h.testService.RunWithReuse(ctx, testRequest)
-	} else {
-		report, reused, testErr = h.testService.Reusable(ctx, testRequest)
+	// Read checks never capture or persist a report, including when legacy
+	// callers still set the RunTests request field.
+	{
+		report, reused, testErr = h.reusableCheckTest(ctx, testRequest)
 		if testErr == nil && !reused {
-			addStage("tests", "stale", "no fresh report exists; rerun with --run-tests", testStart)
+			addStage("tests", "stale", "no fresh report exists; run `react-component-library asset record-check` after the capture route is cleared", testStart)
 			packageStart := time.Now()
-			packageResp, packageErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: "dist-resolution", AssetId: assetID}))
+			packageResp, packageErr := h.runCheckGate(ctx, "dist-resolution", assetID)
 			if packageErr != nil {
 				addStage("package", "fault", packageErr.Error(), packageStart)
 				response.Verdict = "FAULT"
@@ -384,7 +378,7 @@ func (h *handler) CheckAsset(ctx context.Context, req *connect.Request[catalogv1
 	}
 	addStage("tests", componentTestStageStatus(report.Verdict), fmt.Sprintf("report %s (%s; reused=%t)", report.ID, report.Verdict, reused), testStart)
 	packageStart := time.Now()
-	packageResp, packageErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: "dist-resolution", AssetId: assetID}))
+	packageResp, packageErr := h.runCheckGate(ctx, "dist-resolution", assetID)
 	if packageErr != nil {
 		addStage("package", "fault", packageErr.Error(), packageStart)
 		response.Verdict = "FAULT"
@@ -409,6 +403,39 @@ func (h *handler) CheckAsset(ctx context.Context, req *connect.Request[catalogv1
 		h.checkMu.Unlock()
 	}
 	return connect.NewResponse(response), nil
+}
+
+func (h *handler) buildCheckCatalog(options catalogbuild.Options) (catalogbuild.Report, error) {
+	if h.checkBuild != nil {
+		return h.checkBuild(h.repoRoot, options)
+	}
+	return catalogbuild.Build(h.repoRoot, options)
+}
+
+func (h *handler) runCheckGate(ctx context.Context, gate, assetID string) (*connect.Response[catalogv1.RunGateResponse], error) {
+	ctx = context.WithValue(ctx, skipCalibrationContextKey{}, true)
+	if h.checkGate != nil {
+		return h.checkGate(ctx, gate, assetID)
+	}
+	request := &catalogv1.RunGateRequest{Gate: gate, AssetId: assetID}
+	if gate == "all" {
+		request.Gate, request.All = "", true
+	}
+	return h.RunGate(ctx, connect.NewRequest(request))
+}
+
+func (h *handler) resolveCheckAsset(ctx context.Context, assetID string) (components.Component, error) {
+	if h.checkAsset != nil {
+		return h.checkAsset(ctx, assetID)
+	}
+	return resolveAsset(ctx, h.assets, assetID)
+}
+
+func (h *handler) reusableCheckTest(ctx context.Context, req componenttests.Request) (componenttests.Report, bool, error) {
+	if h.checkTest != nil {
+		return h.checkTest(ctx, req)
+	}
+	return h.testService.Reusable(ctx, req)
 }
 
 func resolveAsset(ctx context.Context, assets components.Service, requested string) (components.Component, error) {
@@ -582,6 +609,19 @@ func minInt(left, right int) int {
 }
 
 func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.RunGateRequest]) (*connect.Response[catalogv1.RunGateResponse], error) {
+	return h.runGate(ctx, req, false)
+}
+
+func (h *handler) RecordGate(ctx context.Context, req *connect.Request[catalogv1.RunGateRequest]) (*connect.Response[catalogv1.RunGateResponse], error) {
+	return h.runGate(ctx, req, true)
+}
+
+func (h *handler) runGate(ctx context.Context, req *connect.Request[catalogv1.RunGateRequest], persistEvidence bool) (*connect.Response[catalogv1.RunGateResponse], error) {
+	if persistEvidence {
+		h.checkMu.Lock()
+		h.checkCache = map[string]*catalogv1.CheckAssetResponse{}
+		h.checkMu.Unlock()
+	}
 	gate := strings.TrimSpace(req.Msg.GetGate())
 	definitions, definitionErr := catalogcoverage.LoadGateDefinitions(filepath.Join(h.repoRoot, "scenarios", "react-component-library", "catalog", "config.json"))
 	if definitionErr != nil {
@@ -619,7 +659,8 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 			}
 			nestedCtx := context.WithValue(matrixCtx, skipCalibrationContextKey{}, true)
 			nestedCtx = context.WithValue(nestedCtx, skipJobAdmissionContextKey{}, true)
-			result, runErr := h.RunGate(nestedCtx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: definition.ID, AssetId: assetID, CalibrationOnly: req.Msg.GetCalibrationOnly()}))
+			childRequest := connect.NewRequest(&catalogv1.RunGateRequest{Gate: definition.ID, AssetId: assetID, CalibrationOnly: req.Msg.GetCalibrationOnly()})
+			result, runErr := h.runGate(nestedCtx, childRequest, persistEvidence)
 			ordered[index] = gateResult{index: index, resp: result, err: runErr}
 			return runErr
 		})
@@ -682,7 +723,8 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	gateCalibrationRunner := gates.GateRunnerFor(gate)
 	calibration := gates.CalibrationReport{}
 	var calibrationErr error
-	if _, skipCalibration := ctx.Value(skipCalibrationContextKey{}).(bool); gateCalibrationRunner != nil && !skipCalibration && !appearanceGate(gate) {
+	skipCalibration, _ := ctx.Value(skipCalibrationContextKey{}).(bool)
+	if gateCalibrationRunner != nil && !skipCalibration && !appearanceGate(gate) {
 		calibration, calibrationErr = gates.Calibrate(h.repoRoot, gate, gateCalibrationRunner)
 	}
 	if calibrationErr != nil {
@@ -693,14 +735,16 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 		calibrationResults = append(calibrationResults, &catalogv1.CalibrationResult{Gate: item.Gate, Fixture: item.Fixture, RequiredFailureCode: item.RequiredFailureCode, ObservedFailureCode: item.ObservedFailureCode, Status: item.Status, Message: item.Message})
 	}
 	nonDiscriminating := definition.Blocking && calibration.NonDiscriminating
-	h.quarantineMu.Lock()
-	if nonDiscriminating {
-		h.quarantined[gate] = true
-	} else {
-		delete(h.quarantined, gate)
+	if !skipCalibration {
+		h.quarantineMu.Lock()
+		if nonDiscriminating {
+			h.quarantined[gate] = true
+		} else {
+			delete(h.quarantined, gate)
+		}
+		h.quarantineKnown = true
+		h.quarantineMu.Unlock()
 	}
-	h.quarantineKnown = true
-	h.quarantineMu.Unlock()
 	response := &catalogv1.RunGateResponse{Gate: gate, Calibration: calibrationResults, NonDiscriminating: nonDiscriminating}
 	if req.Msg.GetCalibrationOnly() {
 		return connect.NewResponse(response), nil
@@ -721,7 +765,7 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 		}
 	}
 	if appearanceGate(gate) {
-		result, err = h.runAppearanceGate(ctx, gate, strings.TrimSpace(req.Msg.GetAssetId()), definition)
+		result, err = h.runAppearanceGate(ctx, gate, strings.TrimSpace(req.Msg.GetAssetId()), definition, persistEvidence)
 	} else if runner == nil {
 		result, err = gates.UnmeasuredGate(h.repoRoot)
 	} else {
@@ -777,7 +821,7 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 		}
 	}
 	evidenceRowsWritten := 0
-	if h.evidence != nil {
+	if persistEvidence && h.evidence != nil {
 		for _, definition := range definitions {
 			if definition.ID != gate {
 				continue
@@ -799,6 +843,11 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("persist evidence for gate %q: %w", gate, evidenceErr))
 			}
 			h.reports.invalidate()
+			if persistEvidence {
+				h.checkMu.Lock()
+				h.checkCache = map[string]*catalogv1.CheckAssetResponse{}
+				h.checkMu.Unlock()
+			}
 			evidenceRowsWritten = len(rows)
 			break
 		}

@@ -90,6 +90,182 @@ func (x *Book) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type CreateBookRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Book          *Book                  `protobuf:"bytes,1,opt,name=book,proto3" json:"book,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateBookRequest) Reset() {
+	*x = CreateBookRequest{}
+	mi := &file_treasury_v1_book_book_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateBookRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateBookRequest) ProtoMessage() {}
+
+func (x *CreateBookRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_book_book_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateBookRequest.ProtoReflect.Descriptor instead.
+func (*CreateBookRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_book_book_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *CreateBookRequest) GetBook() *Book {
+	if x != nil {
+		return x.Book
+	}
+	return nil
+}
+
+type CreateBookResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Book          *Book                  `protobuf:"bytes,1,opt,name=book,proto3" json:"book,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateBookResponse) Reset() {
+	*x = CreateBookResponse{}
+	mi := &file_treasury_v1_book_book_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateBookResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateBookResponse) ProtoMessage() {}
+
+func (x *CreateBookResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_book_book_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateBookResponse.ProtoReflect.Descriptor instead.
+func (*CreateBookResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_book_book_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CreateBookResponse) GetBook() *Book {
+	if x != nil {
+		return x.Book
+	}
+	return nil
+}
+
+type GetBookRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBookRequest) Reset() {
+	*x = GetBookRequest{}
+	mi := &file_treasury_v1_book_book_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBookRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBookRequest) ProtoMessage() {}
+
+func (x *GetBookRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_book_book_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBookRequest.ProtoReflect.Descriptor instead.
+func (*GetBookRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_book_book_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetBookRequest) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+type GetBookResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Book          *Book                  `protobuf:"bytes,1,opt,name=book,proto3" json:"book,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBookResponse) Reset() {
+	*x = GetBookResponse{}
+	mi := &file_treasury_v1_book_book_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBookResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBookResponse) ProtoMessage() {}
+
+func (x *GetBookResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_book_book_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBookResponse.ProtoReflect.Descriptor instead.
+func (*GetBookResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_book_book_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetBookResponse) GetBook() *Book {
+	if x != nil {
+		return x.Book
+	}
+	return nil
+}
+
 var File_treasury_v1_book_book_proto protoreflect.FileDescriptor
 
 const file_treasury_v1_book_book_proto_rawDesc = "" +
@@ -100,7 +276,19 @@ const file_treasury_v1_book_book_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x121\n" +
 	"\x14beneficiary_identity\x18\x03 \x01(\tR\x13beneficiaryIdentity\x129\n" +
 	"\n" +
-	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/book;book_v1b\x06proto3"
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"F\n" +
+	"\x11CreateBookRequest\x121\n" +
+	"\x04book\x18\x01 \x01(\v2\x1d.vrooli.treasury.v1.book.BookR\x04book\"G\n" +
+	"\x12CreateBookResponse\x121\n" +
+	"\x04book\x18\x01 \x01(\v2\x1d.vrooli.treasury.v1.book.BookR\x04book\")\n" +
+	"\x0eGetBookRequest\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\"D\n" +
+	"\x0fGetBookResponse\x121\n" +
+	"\x04book\x18\x01 \x01(\v2\x1d.vrooli.treasury.v1.book.BookR\x04book2\xd7\x01\n" +
+	"\x10BookAdminService\x12e\n" +
+	"\n" +
+	"CreateBook\x12*.vrooli.treasury.v1.book.CreateBookRequest\x1a+.vrooli.treasury.v1.book.CreateBookResponse\x12\\\n" +
+	"\aGetBook\x12'.vrooli.treasury.v1.book.GetBookRequest\x1a(.vrooli.treasury.v1.book.GetBookResponseBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/book;book_v1b\x06proto3"
 
 var (
 	file_treasury_v1_book_book_proto_rawDescOnce sync.Once
@@ -114,18 +302,29 @@ func file_treasury_v1_book_book_proto_rawDescGZIP() []byte {
 	return file_treasury_v1_book_book_proto_rawDescData
 }
 
-var file_treasury_v1_book_book_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_treasury_v1_book_book_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_treasury_v1_book_book_proto_goTypes = []any{
 	(*Book)(nil),                  // 0: vrooli.treasury.v1.book.Book
-	(*timestamppb.Timestamp)(nil), // 1: google.protobuf.Timestamp
+	(*CreateBookRequest)(nil),     // 1: vrooli.treasury.v1.book.CreateBookRequest
+	(*CreateBookResponse)(nil),    // 2: vrooli.treasury.v1.book.CreateBookResponse
+	(*GetBookRequest)(nil),        // 3: vrooli.treasury.v1.book.GetBookRequest
+	(*GetBookResponse)(nil),       // 4: vrooli.treasury.v1.book.GetBookResponse
+	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
 }
 var file_treasury_v1_book_book_proto_depIdxs = []int32{
-	1, // 0: vrooli.treasury.v1.book.Book.created_at:type_name -> google.protobuf.Timestamp
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	5, // 0: vrooli.treasury.v1.book.Book.created_at:type_name -> google.protobuf.Timestamp
+	0, // 1: vrooli.treasury.v1.book.CreateBookRequest.book:type_name -> vrooli.treasury.v1.book.Book
+	0, // 2: vrooli.treasury.v1.book.CreateBookResponse.book:type_name -> vrooli.treasury.v1.book.Book
+	0, // 3: vrooli.treasury.v1.book.GetBookResponse.book:type_name -> vrooli.treasury.v1.book.Book
+	1, // 4: vrooli.treasury.v1.book.BookAdminService.CreateBook:input_type -> vrooli.treasury.v1.book.CreateBookRequest
+	3, // 5: vrooli.treasury.v1.book.BookAdminService.GetBook:input_type -> vrooli.treasury.v1.book.GetBookRequest
+	2, // 6: vrooli.treasury.v1.book.BookAdminService.CreateBook:output_type -> vrooli.treasury.v1.book.CreateBookResponse
+	4, // 7: vrooli.treasury.v1.book.BookAdminService.GetBook:output_type -> vrooli.treasury.v1.book.GetBookResponse
+	6, // [6:8] is the sub-list for method output_type
+	4, // [4:6] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_treasury_v1_book_book_proto_init() }
@@ -139,9 +338,9 @@ func file_treasury_v1_book_book_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_treasury_v1_book_book_proto_rawDesc), len(file_treasury_v1_book_book_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   5,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_treasury_v1_book_book_proto_goTypes,
 		DependencyIndexes: file_treasury_v1_book_book_proto_depIdxs,

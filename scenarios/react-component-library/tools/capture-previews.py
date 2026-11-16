@@ -6,7 +6,6 @@ import json
 import subprocess
 from pathlib import Path
 from urllib.parse import quote
-from ux_capture_bundle import copy_response
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -89,6 +88,10 @@ def capture(
                 "componenttests",
                 "--region-selector",
                 "[data-preview-capture-boundary]",
+                "--artifact-kind",
+                "region-pixels",
+                "--artifact-output",
+                str(target),
             ],
             check=True,
             capture_output=True,
@@ -96,7 +99,6 @@ def capture(
             timeout=140,
         )
         response = json.loads(completed.stdout)
-        copy_response(response, "region-pixels", target)
         return {
             "asset": library_id,
             "version": version,

@@ -140,8 +140,10 @@ type ProvisionBudgetWalletRequest struct {
 	// Optional mandate creates or rotates a mandate-scoped derived session key.
 	MandateId     string `protobuf:"bytes,5,opt,name=mandate_id,json=mandateId,proto3" json:"mandate_id,omitempty"`
 	RotateSession bool   `protobuf:"varint,6,opt,name=rotate_session,json=rotateSession,proto3" json:"rotate_session,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Required for rotate_session; identical retries return the same generation.
+	RotationIdempotencyKey string `protobuf:"bytes,7,opt,name=rotation_idempotency_key,json=rotationIdempotencyKey,proto3" json:"rotation_idempotency_key,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ProvisionBudgetWalletRequest) Reset() {
@@ -214,6 +216,13 @@ func (x *ProvisionBudgetWalletRequest) GetRotateSession() bool {
 		return x.RotateSession
 	}
 	return false
+}
+
+func (x *ProvisionBudgetWalletRequest) GetRotationIdempotencyKey() string {
+	if x != nil {
+		return x.RotationIdempotencyKey
+	}
+	return ""
 }
 
 type GetBudgetWalletRequest struct {
@@ -313,94 +322,6 @@ func (x *BudgetWalletResponse) GetWallet() *BudgetWallet {
 	return nil
 }
 
-type RevokeMandateSessionRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MandateId     string                 `protobuf:"bytes,1,opt,name=mandate_id,json=mandateId,proto3" json:"mandate_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RevokeMandateSessionRequest) Reset() {
-	*x = RevokeMandateSessionRequest{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RevokeMandateSessionRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RevokeMandateSessionRequest) ProtoMessage() {}
-
-func (x *RevokeMandateSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RevokeMandateSessionRequest.ProtoReflect.Descriptor instead.
-func (*RevokeMandateSessionRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *RevokeMandateSessionRequest) GetMandateId() string {
-	if x != nil {
-		return x.MandateId
-	}
-	return ""
-}
-
-type RevokeMandateSessionResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Revoked       bool                   `protobuf:"varint,1,opt,name=revoked,proto3" json:"revoked,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RevokeMandateSessionResponse) Reset() {
-	*x = RevokeMandateSessionResponse{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RevokeMandateSessionResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RevokeMandateSessionResponse) ProtoMessage() {}
-
-func (x *RevokeMandateSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RevokeMandateSessionResponse.ProtoReflect.Descriptor instead.
-func (*RevokeMandateSessionResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *RevokeMandateSessionResponse) GetRevoked() bool {
-	if x != nil {
-		return x.Revoked
-	}
-	return false
-}
-
 type FundingIntent struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -415,13 +336,20 @@ type FundingIntent struct {
 	UpdatedAt         *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	NotificationState string                 `protobuf:"bytes,11,opt,name=notification_state,json=notificationState,proto3" json:"notification_state,omitempty"`
 	LastError         string                 `protobuf:"bytes,12,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
+	// Funding path comes from Treasury server configuration, never the browser.
+	// `base-mainnet` is emitted only after explicit operator address approval.
+	FundingMode string `protobuf:"bytes,13,opt,name=funding_mode,json=fundingMode,proto3" json:"funding_mode,omitempty"`
+	// Exact operator-declared fiat valuation used by Coinbase Base Pay, separate
+	// from token atoms. The UI offers Base Pay only when the two values match.
+	PaymentValueMinor int64  `protobuf:"varint,14,opt,name=payment_value_minor,json=paymentValueMinor,proto3" json:"payment_value_minor,omitempty"`
+	PaymentCurrency   string `protobuf:"bytes,15,opt,name=payment_currency,json=paymentCurrency,proto3" json:"payment_currency,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
 func (x *FundingIntent) Reset() {
 	*x = FundingIntent{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[6]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -433,7 +361,7 @@ func (x *FundingIntent) String() string {
 func (*FundingIntent) ProtoMessage() {}
 
 func (x *FundingIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[6]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -446,7 +374,7 @@ func (x *FundingIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FundingIntent.ProtoReflect.Descriptor instead.
 func (*FundingIntent) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{6}
+	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *FundingIntent) GetId() string {
@@ -533,6 +461,27 @@ func (x *FundingIntent) GetLastError() string {
 	return ""
 }
 
+func (x *FundingIntent) GetFundingMode() string {
+	if x != nil {
+		return x.FundingMode
+	}
+	return ""
+}
+
+func (x *FundingIntent) GetPaymentValueMinor() int64 {
+	if x != nil {
+		return x.PaymentValueMinor
+	}
+	return 0
+}
+
+func (x *FundingIntent) GetPaymentCurrency() string {
+	if x != nil {
+		return x.PaymentCurrency
+	}
+	return ""
+}
+
 type CreateFundingIntentRequest struct {
 	state           protoimpl.MessageState  `protogen:"open.v1"`
 	Id              string                  `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -550,7 +499,7 @@ type CreateFundingIntentRequest struct {
 
 func (x *CreateFundingIntentRequest) Reset() {
 	*x = CreateFundingIntentRequest{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[7]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -562,7 +511,7 @@ func (x *CreateFundingIntentRequest) String() string {
 func (*CreateFundingIntentRequest) ProtoMessage() {}
 
 func (x *CreateFundingIntentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[7]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -575,7 +524,7 @@ func (x *CreateFundingIntentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateFundingIntentRequest.ProtoReflect.Descriptor instead.
 func (*CreateFundingIntentRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{7}
+	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CreateFundingIntentRequest) GetId() string {
@@ -636,7 +585,7 @@ type FundingIntentRequest struct {
 
 func (x *FundingIntentRequest) Reset() {
 	*x = FundingIntentRequest{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[8]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -648,7 +597,7 @@ func (x *FundingIntentRequest) String() string {
 func (*FundingIntentRequest) ProtoMessage() {}
 
 func (x *FundingIntentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[8]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -661,7 +610,7 @@ func (x *FundingIntentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FundingIntentRequest.ProtoReflect.Descriptor instead.
 func (*FundingIntentRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{8}
+	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *FundingIntentRequest) GetId() string {
@@ -680,7 +629,7 @@ type FundingIntentResponse struct {
 
 func (x *FundingIntentResponse) Reset() {
 	*x = FundingIntentResponse{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[9]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -692,7 +641,7 @@ func (x *FundingIntentResponse) String() string {
 func (*FundingIntentResponse) ProtoMessage() {}
 
 func (x *FundingIntentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[9]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -705,7 +654,7 @@ func (x *FundingIntentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FundingIntentResponse.ProtoReflect.Descriptor instead.
 func (*FundingIntentResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{9}
+	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *FundingIntentResponse) GetIntent() *FundingIntent {
@@ -725,7 +674,7 @@ type ConfirmFundingTransferRequest struct {
 
 func (x *ConfirmFundingTransferRequest) Reset() {
 	*x = ConfirmFundingTransferRequest{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[10]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -737,7 +686,7 @@ func (x *ConfirmFundingTransferRequest) String() string {
 func (*ConfirmFundingTransferRequest) ProtoMessage() {}
 
 func (x *ConfirmFundingTransferRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[10]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -750,7 +699,7 @@ func (x *ConfirmFundingTransferRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfirmFundingTransferRequest.ProtoReflect.Descriptor instead.
 func (*ConfirmFundingTransferRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{10}
+	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ConfirmFundingTransferRequest) GetId() string {
@@ -776,7 +725,7 @@ type ListFundingIntentsRequest struct {
 
 func (x *ListFundingIntentsRequest) Reset() {
 	*x = ListFundingIntentsRequest{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[11]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -788,7 +737,7 @@ func (x *ListFundingIntentsRequest) String() string {
 func (*ListFundingIntentsRequest) ProtoMessage() {}
 
 func (x *ListFundingIntentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[11]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -801,7 +750,7 @@ func (x *ListFundingIntentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListFundingIntentsRequest.ProtoReflect.Descriptor instead.
 func (*ListFundingIntentsRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{11}
+	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListFundingIntentsRequest) GetBudgetId() string {
@@ -820,7 +769,7 @@ type ListFundingIntentsResponse struct {
 
 func (x *ListFundingIntentsResponse) Reset() {
 	*x = ListFundingIntentsResponse{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[12]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -832,7 +781,7 @@ func (x *ListFundingIntentsResponse) String() string {
 func (*ListFundingIntentsResponse) ProtoMessage() {}
 
 func (x *ListFundingIntentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[12]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -845,7 +794,7 @@ func (x *ListFundingIntentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListFundingIntentsResponse.ProtoReflect.Descriptor instead.
 func (*ListFundingIntentsResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{12}
+	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListFundingIntentsResponse) GetIntents() []*FundingIntent {
@@ -866,7 +815,7 @@ type WithdrawalDestination struct {
 
 func (x *WithdrawalDestination) Reset() {
 	*x = WithdrawalDestination{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[13]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -878,7 +827,7 @@ func (x *WithdrawalDestination) String() string {
 func (*WithdrawalDestination) ProtoMessage() {}
 
 func (x *WithdrawalDestination) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[13]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -891,7 +840,7 @@ func (x *WithdrawalDestination) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WithdrawalDestination.ProtoReflect.Descriptor instead.
 func (*WithdrawalDestination) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{13}
+	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *WithdrawalDestination) GetBudgetId() string {
@@ -924,7 +873,7 @@ type SetWithdrawalDestinationRequest struct {
 
 func (x *SetWithdrawalDestinationRequest) Reset() {
 	*x = SetWithdrawalDestinationRequest{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[14]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -936,7 +885,7 @@ func (x *SetWithdrawalDestinationRequest) String() string {
 func (*SetWithdrawalDestinationRequest) ProtoMessage() {}
 
 func (x *SetWithdrawalDestinationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[14]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -949,7 +898,7 @@ func (x *SetWithdrawalDestinationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetWithdrawalDestinationRequest.ProtoReflect.Descriptor instead.
 func (*SetWithdrawalDestinationRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{14}
+	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SetWithdrawalDestinationRequest) GetDestination() *WithdrawalDestination {
@@ -968,7 +917,7 @@ type WithdrawalDestinationResponse struct {
 
 func (x *WithdrawalDestinationResponse) Reset() {
 	*x = WithdrawalDestinationResponse{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[15]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -980,7 +929,7 @@ func (x *WithdrawalDestinationResponse) String() string {
 func (*WithdrawalDestinationResponse) ProtoMessage() {}
 
 func (x *WithdrawalDestinationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[15]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -993,7 +942,7 @@ func (x *WithdrawalDestinationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WithdrawalDestinationResponse.ProtoReflect.Descriptor instead.
 func (*WithdrawalDestinationResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{15}
+	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *WithdrawalDestinationResponse) GetDestination() *WithdrawalDestination {
@@ -1021,7 +970,7 @@ type PreviewWithdrawalRequest struct {
 
 func (x *PreviewWithdrawalRequest) Reset() {
 	*x = PreviewWithdrawalRequest{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[16]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1033,7 +982,7 @@ func (x *PreviewWithdrawalRequest) String() string {
 func (*PreviewWithdrawalRequest) ProtoMessage() {}
 
 func (x *PreviewWithdrawalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[16]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1046,7 +995,7 @@ func (x *PreviewWithdrawalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewWithdrawalRequest.ProtoReflect.Descriptor instead.
 func (*PreviewWithdrawalRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{16}
+	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *PreviewWithdrawalRequest) GetBudgetId() string {
@@ -1119,7 +1068,7 @@ type WithdrawalQuote struct {
 
 func (x *WithdrawalQuote) Reset() {
 	*x = WithdrawalQuote{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[17]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1131,7 +1080,7 @@ func (x *WithdrawalQuote) String() string {
 func (*WithdrawalQuote) ProtoMessage() {}
 
 func (x *WithdrawalQuote) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[17]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1144,7 +1093,7 @@ func (x *WithdrawalQuote) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WithdrawalQuote.ProtoReflect.Descriptor instead.
 func (*WithdrawalQuote) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{17}
+	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *WithdrawalQuote) GetId() string {
@@ -1247,7 +1196,7 @@ type WithdrawalQuoteResponse struct {
 
 func (x *WithdrawalQuoteResponse) Reset() {
 	*x = WithdrawalQuoteResponse{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[18]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1259,7 +1208,7 @@ func (x *WithdrawalQuoteResponse) String() string {
 func (*WithdrawalQuoteResponse) ProtoMessage() {}
 
 func (x *WithdrawalQuoteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[18]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1272,7 +1221,7 @@ func (x *WithdrawalQuoteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WithdrawalQuoteResponse.ProtoReflect.Descriptor instead.
 func (*WithdrawalQuoteResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{18}
+	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *WithdrawalQuoteResponse) GetQuote() *WithdrawalQuote {
@@ -1292,7 +1241,7 @@ type ExecuteWithdrawalRequest struct {
 
 func (x *ExecuteWithdrawalRequest) Reset() {
 	*x = ExecuteWithdrawalRequest{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[19]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1304,7 +1253,7 @@ func (x *ExecuteWithdrawalRequest) String() string {
 func (*ExecuteWithdrawalRequest) ProtoMessage() {}
 
 func (x *ExecuteWithdrawalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[19]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1317,7 +1266,7 @@ func (x *ExecuteWithdrawalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteWithdrawalRequest.ProtoReflect.Descriptor instead.
 func (*ExecuteWithdrawalRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{19}
+	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ExecuteWithdrawalRequest) GetQuoteId() string {
@@ -1343,7 +1292,7 @@ type GetWithdrawalRequest struct {
 
 func (x *GetWithdrawalRequest) Reset() {
 	*x = GetWithdrawalRequest{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[20]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1355,7 +1304,7 @@ func (x *GetWithdrawalRequest) String() string {
 func (*GetWithdrawalRequest) ProtoMessage() {}
 
 func (x *GetWithdrawalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[20]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1368,7 +1317,7 @@ func (x *GetWithdrawalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWithdrawalRequest.ProtoReflect.Descriptor instead.
 func (*GetWithdrawalRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{20}
+	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetWithdrawalRequest) GetId() string {
@@ -1393,7 +1342,7 @@ type Withdrawal struct {
 
 func (x *Withdrawal) Reset() {
 	*x = Withdrawal{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[21]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1405,7 +1354,7 @@ func (x *Withdrawal) String() string {
 func (*Withdrawal) ProtoMessage() {}
 
 func (x *Withdrawal) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[21]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1418,7 +1367,7 @@ func (x *Withdrawal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Withdrawal.ProtoReflect.Descriptor instead.
 func (*Withdrawal) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{21}
+	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *Withdrawal) GetId() string {
@@ -1479,7 +1428,7 @@ type WithdrawalResponse struct {
 
 func (x *WithdrawalResponse) Reset() {
 	*x = WithdrawalResponse{}
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[22]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1491,7 +1440,7 @@ func (x *WithdrawalResponse) String() string {
 func (*WithdrawalResponse) ProtoMessage() {}
 
 func (x *WithdrawalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[22]
+	mi := &file_treasury_v1_funding_wallet_ops_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1504,7 +1453,7 @@ func (x *WithdrawalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WithdrawalResponse.ProtoReflect.Descriptor instead.
 func (*WithdrawalResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{22}
+	return file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *WithdrawalResponse) GetWithdrawal() *Withdrawal {
@@ -1518,7 +1467,7 @@ var File_treasury_v1_funding_wallet_ops_proto protoreflect.FileDescriptor
 
 const file_treasury_v1_funding_wallet_ops_proto_rawDesc = "" +
 	"\n" +
-	"$treasury/v1/funding/wallet_ops.proto\x12\x1avrooli.treasury.v1.funding\x1a\x1fgoogle/protobuf/timestamp.proto\x1a#money-ledger/v1/ingest/ingest.proto\"\xdb\x02\n" +
+	"$treasury/v1/funding/wallet_ops.proto\x12\x1avrooli.treasury.v1.funding\x1a\x1fgoogle/protobuf/timestamp.proto\x1a!treasury/v1/funding/funding.proto\x1a#money-ledger/v1/ingest/ingest.proto\"\xdb\x02\n" +
 	"\fBudgetWallet\x12\x1b\n" +
 	"\tbudget_id\x18\x01 \x01(\tR\bbudgetId\x12\x1b\n" +
 	"\twallet_id\x18\x02 \x01(\tR\bwalletId\x12\x18\n" +
@@ -1530,7 +1479,7 @@ const file_treasury_v1_funding_wallet_ops_proto_rawDesc = "" +
 	"\n" +
 	"mandate_id\x18\a \x01(\tR\tmandateId\x12-\n" +
 	"\x12session_generation\x18\b \x01(\x03R\x11sessionGeneration\x12H\n" +
-	"\x12session_expires_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\x10sessionExpiresAt\"\xe2\x01\n" +
+	"\x12session_expires_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\x10sessionExpiresAt\"\x9c\x02\n" +
 	"\x1cProvisionBudgetWalletRequest\x12\x1b\n" +
 	"\tbudget_id\x18\x01 \x01(\tR\bbudgetId\x12\x18\n" +
 	"\anetwork\x18\x02 \x01(\tR\anetwork\x12#\n" +
@@ -1539,18 +1488,14 @@ const file_treasury_v1_funding_wallet_ops_proto_rawDesc = "" +
 	"agentRunId\x12\x1d\n" +
 	"\n" +
 	"mandate_id\x18\x05 \x01(\tR\tmandateId\x12%\n" +
-	"\x0erotate_session\x18\x06 \x01(\bR\rrotateSession\"T\n" +
+	"\x0erotate_session\x18\x06 \x01(\bR\rrotateSession\x128\n" +
+	"\x18rotation_idempotency_key\x18\a \x01(\tR\x16rotationIdempotencyKey\"T\n" +
 	"\x16GetBudgetWalletRequest\x12\x1b\n" +
 	"\tbudget_id\x18\x01 \x01(\tR\bbudgetId\x12\x1d\n" +
 	"\n" +
 	"mandate_id\x18\x02 \x01(\tR\tmandateId\"X\n" +
 	"\x14BudgetWalletResponse\x12@\n" +
-	"\x06wallet\x18\x01 \x01(\v2(.vrooli.treasury.v1.funding.BudgetWalletR\x06wallet\"<\n" +
-	"\x1bRevokeMandateSessionRequest\x12\x1d\n" +
-	"\n" +
-	"mandate_id\x18\x01 \x01(\tR\tmandateId\"8\n" +
-	"\x1cRevokeMandateSessionResponse\x12\x18\n" +
-	"\arevoked\x18\x01 \x01(\bR\arevoked\"\xf9\x03\n" +
+	"\x06wallet\x18\x01 \x01(\v2(.vrooli.treasury.v1.funding.BudgetWalletR\x06wallet\"\xf7\x04\n" +
 	"\rFundingIntent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tbudget_id\x18\x02 \x01(\tR\bbudgetId\x12@\n" +
@@ -1568,7 +1513,10 @@ const file_treasury_v1_funding_wallet_ops_proto_rawDesc = "" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12-\n" +
 	"\x12notification_state\x18\v \x01(\tR\x11notificationState\x12\x1d\n" +
 	"\n" +
-	"last_error\x18\f \x01(\tR\tlastError\"\xe7\x02\n" +
+	"last_error\x18\f \x01(\tR\tlastError\x12!\n" +
+	"\ffunding_mode\x18\r \x01(\tR\vfundingMode\x12.\n" +
+	"\x13payment_value_minor\x18\x0e \x01(\x03R\x11paymentValueMinor\x12)\n" +
+	"\x10payment_currency\x18\x0f \x01(\tR\x0fpaymentCurrency\"\xe7\x02\n" +
 	"\x1aCreateFundingIntentRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tbudget_id\x18\x02 \x01(\tR\bbudgetId\x12#\n" +
@@ -1643,7 +1591,22 @@ const file_treasury_v1_funding_wallet_ops_proto_rawDesc = "" +
 	"\x12WithdrawalResponse\x12F\n" +
 	"\n" +
 	"withdrawal\x18\x01 \x01(\v2&.vrooli.treasury.v1.funding.WithdrawalR\n" +
-	"withdrawalBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/funding;funding_v1b\x06proto3"
+	"withdrawal2\xa7\f\n" +
+	"\x13FundingAdminService\x12\x80\x01\n" +
+	"\x13CreateFundingIntent\x126.vrooli.treasury.v1.funding.CreateFundingIntentRequest\x1a1.vrooli.treasury.v1.funding.FundingIntentResponse\x12w\n" +
+	"\x10GetFundingIntent\x120.vrooli.treasury.v1.funding.FundingIntentRequest\x1a1.vrooli.treasury.v1.funding.FundingIntentResponse\x12\x86\x01\n" +
+	"\x16ConfirmFundingTransfer\x129.vrooli.treasury.v1.funding.ConfirmFundingTransferRequest\x1a1.vrooli.treasury.v1.funding.FundingIntentResponse\x12\x83\x01\n" +
+	"\x12ListFundingIntents\x125.vrooli.treasury.v1.funding.ListFundingIntentsRequest\x1a6.vrooli.treasury.v1.funding.ListFundingIntentsResponse\x12\x83\x01\n" +
+	"\x15ProvisionBudgetWallet\x128.vrooli.treasury.v1.funding.ProvisionBudgetWalletRequest\x1a0.vrooli.treasury.v1.funding.BudgetWalletResponse\x12w\n" +
+	"\x0fGetBudgetWallet\x122.vrooli.treasury.v1.funding.GetBudgetWalletRequest\x1a0.vrooli.treasury.v1.funding.BudgetWalletResponse\x12\x92\x01\n" +
+	"\x18SetWithdrawalDestination\x12;.vrooli.treasury.v1.funding.SetWithdrawalDestinationRequest\x1a9.vrooli.treasury.v1.funding.WithdrawalDestinationResponse\x12~\n" +
+	"\x11PreviewWithdrawal\x124.vrooli.treasury.v1.funding.PreviewWithdrawalRequest\x1a3.vrooli.treasury.v1.funding.WithdrawalQuoteResponse\x12y\n" +
+	"\x11ExecuteWithdrawal\x124.vrooli.treasury.v1.funding.ExecuteWithdrawalRequest\x1a..vrooli.treasury.v1.funding.WithdrawalResponse\x12q\n" +
+	"\rGetWithdrawal\x120.vrooli.treasury.v1.funding.GetWithdrawalRequest\x1a..vrooli.treasury.v1.funding.WithdrawalResponse\x12\x83\x01\n" +
+	"\x14SubmitReceiptFunding\x127.vrooli.treasury.v1.funding.SubmitReceiptFundingRequest\x1a2.vrooli.treasury.v1.funding.ReceiptFundingResponse\x12}\n" +
+	"\x11GetReceiptFunding\x124.vrooli.treasury.v1.funding.GetReceiptFundingRequest\x1a2.vrooli.treasury.v1.funding.ReceiptFundingResponse2\x8e\x01\n" +
+	"\x13FundingAgentService\x12w\n" +
+	"\x0fGetBudgetWallet\x122.vrooli.treasury.v1.funding.GetBudgetWalletRequest\x1a0.vrooli.treasury.v1.funding.BudgetWalletResponseBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/funding;funding_v1b\x06proto3"
 
 var (
 	file_treasury_v1_funding_wallet_ops_proto_rawDescOnce sync.Once
@@ -1657,53 +1620,80 @@ func file_treasury_v1_funding_wallet_ops_proto_rawDescGZIP() []byte {
 	return file_treasury_v1_funding_wallet_ops_proto_rawDescData
 }
 
-var file_treasury_v1_funding_wallet_ops_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_treasury_v1_funding_wallet_ops_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_treasury_v1_funding_wallet_ops_proto_goTypes = []any{
 	(*BudgetWallet)(nil),                    // 0: vrooli.treasury.v1.funding.BudgetWallet
 	(*ProvisionBudgetWalletRequest)(nil),    // 1: vrooli.treasury.v1.funding.ProvisionBudgetWalletRequest
 	(*GetBudgetWalletRequest)(nil),          // 2: vrooli.treasury.v1.funding.GetBudgetWalletRequest
 	(*BudgetWalletResponse)(nil),            // 3: vrooli.treasury.v1.funding.BudgetWalletResponse
-	(*RevokeMandateSessionRequest)(nil),     // 4: vrooli.treasury.v1.funding.RevokeMandateSessionRequest
-	(*RevokeMandateSessionResponse)(nil),    // 5: vrooli.treasury.v1.funding.RevokeMandateSessionResponse
-	(*FundingIntent)(nil),                   // 6: vrooli.treasury.v1.funding.FundingIntent
-	(*CreateFundingIntentRequest)(nil),      // 7: vrooli.treasury.v1.funding.CreateFundingIntentRequest
-	(*FundingIntentRequest)(nil),            // 8: vrooli.treasury.v1.funding.FundingIntentRequest
-	(*FundingIntentResponse)(nil),           // 9: vrooli.treasury.v1.funding.FundingIntentResponse
-	(*ConfirmFundingTransferRequest)(nil),   // 10: vrooli.treasury.v1.funding.ConfirmFundingTransferRequest
-	(*ListFundingIntentsRequest)(nil),       // 11: vrooli.treasury.v1.funding.ListFundingIntentsRequest
-	(*ListFundingIntentsResponse)(nil),      // 12: vrooli.treasury.v1.funding.ListFundingIntentsResponse
-	(*WithdrawalDestination)(nil),           // 13: vrooli.treasury.v1.funding.WithdrawalDestination
-	(*SetWithdrawalDestinationRequest)(nil), // 14: vrooli.treasury.v1.funding.SetWithdrawalDestinationRequest
-	(*WithdrawalDestinationResponse)(nil),   // 15: vrooli.treasury.v1.funding.WithdrawalDestinationResponse
-	(*PreviewWithdrawalRequest)(nil),        // 16: vrooli.treasury.v1.funding.PreviewWithdrawalRequest
-	(*WithdrawalQuote)(nil),                 // 17: vrooli.treasury.v1.funding.WithdrawalQuote
-	(*WithdrawalQuoteResponse)(nil),         // 18: vrooli.treasury.v1.funding.WithdrawalQuoteResponse
-	(*ExecuteWithdrawalRequest)(nil),        // 19: vrooli.treasury.v1.funding.ExecuteWithdrawalRequest
-	(*GetWithdrawalRequest)(nil),            // 20: vrooli.treasury.v1.funding.GetWithdrawalRequest
-	(*Withdrawal)(nil),                      // 21: vrooli.treasury.v1.funding.Withdrawal
-	(*WithdrawalResponse)(nil),              // 22: vrooli.treasury.v1.funding.WithdrawalResponse
-	(*timestamppb.Timestamp)(nil),           // 23: google.protobuf.Timestamp
-	(*ingest.CryptoValuation)(nil),          // 24: vrooli.money_ledger.v1.ingest.CryptoValuation
-	(*ingest.CryptoPayerAttribution)(nil),   // 25: vrooli.money_ledger.v1.ingest.CryptoPayerAttribution
+	(*FundingIntent)(nil),                   // 4: vrooli.treasury.v1.funding.FundingIntent
+	(*CreateFundingIntentRequest)(nil),      // 5: vrooli.treasury.v1.funding.CreateFundingIntentRequest
+	(*FundingIntentRequest)(nil),            // 6: vrooli.treasury.v1.funding.FundingIntentRequest
+	(*FundingIntentResponse)(nil),           // 7: vrooli.treasury.v1.funding.FundingIntentResponse
+	(*ConfirmFundingTransferRequest)(nil),   // 8: vrooli.treasury.v1.funding.ConfirmFundingTransferRequest
+	(*ListFundingIntentsRequest)(nil),       // 9: vrooli.treasury.v1.funding.ListFundingIntentsRequest
+	(*ListFundingIntentsResponse)(nil),      // 10: vrooli.treasury.v1.funding.ListFundingIntentsResponse
+	(*WithdrawalDestination)(nil),           // 11: vrooli.treasury.v1.funding.WithdrawalDestination
+	(*SetWithdrawalDestinationRequest)(nil), // 12: vrooli.treasury.v1.funding.SetWithdrawalDestinationRequest
+	(*WithdrawalDestinationResponse)(nil),   // 13: vrooli.treasury.v1.funding.WithdrawalDestinationResponse
+	(*PreviewWithdrawalRequest)(nil),        // 14: vrooli.treasury.v1.funding.PreviewWithdrawalRequest
+	(*WithdrawalQuote)(nil),                 // 15: vrooli.treasury.v1.funding.WithdrawalQuote
+	(*WithdrawalQuoteResponse)(nil),         // 16: vrooli.treasury.v1.funding.WithdrawalQuoteResponse
+	(*ExecuteWithdrawalRequest)(nil),        // 17: vrooli.treasury.v1.funding.ExecuteWithdrawalRequest
+	(*GetWithdrawalRequest)(nil),            // 18: vrooli.treasury.v1.funding.GetWithdrawalRequest
+	(*Withdrawal)(nil),                      // 19: vrooli.treasury.v1.funding.Withdrawal
+	(*WithdrawalResponse)(nil),              // 20: vrooli.treasury.v1.funding.WithdrawalResponse
+	(*timestamppb.Timestamp)(nil),           // 21: google.protobuf.Timestamp
+	(*ingest.CryptoValuation)(nil),          // 22: vrooli.money_ledger.v1.ingest.CryptoValuation
+	(*ingest.CryptoPayerAttribution)(nil),   // 23: vrooli.money_ledger.v1.ingest.CryptoPayerAttribution
+	(*SubmitReceiptFundingRequest)(nil),     // 24: vrooli.treasury.v1.funding.SubmitReceiptFundingRequest
+	(*GetReceiptFundingRequest)(nil),        // 25: vrooli.treasury.v1.funding.GetReceiptFundingRequest
+	(*ReceiptFundingResponse)(nil),          // 26: vrooli.treasury.v1.funding.ReceiptFundingResponse
 }
 var file_treasury_v1_funding_wallet_ops_proto_depIdxs = []int32{
-	23, // 0: vrooli.treasury.v1.funding.BudgetWallet.session_expires_at:type_name -> google.protobuf.Timestamp
+	21, // 0: vrooli.treasury.v1.funding.BudgetWallet.session_expires_at:type_name -> google.protobuf.Timestamp
 	0,  // 1: vrooli.treasury.v1.funding.BudgetWalletResponse.wallet:type_name -> vrooli.treasury.v1.funding.BudgetWallet
 	0,  // 2: vrooli.treasury.v1.funding.FundingIntent.wallet:type_name -> vrooli.treasury.v1.funding.BudgetWallet
-	23, // 3: vrooli.treasury.v1.funding.FundingIntent.created_at:type_name -> google.protobuf.Timestamp
-	23, // 4: vrooli.treasury.v1.funding.FundingIntent.updated_at:type_name -> google.protobuf.Timestamp
-	24, // 5: vrooli.treasury.v1.funding.CreateFundingIntentRequest.valuation:type_name -> vrooli.money_ledger.v1.ingest.CryptoValuation
-	25, // 6: vrooli.treasury.v1.funding.CreateFundingIntentRequest.attribution:type_name -> vrooli.money_ledger.v1.ingest.CryptoPayerAttribution
-	6,  // 7: vrooli.treasury.v1.funding.FundingIntentResponse.intent:type_name -> vrooli.treasury.v1.funding.FundingIntent
-	6,  // 8: vrooli.treasury.v1.funding.ListFundingIntentsResponse.intents:type_name -> vrooli.treasury.v1.funding.FundingIntent
-	13, // 9: vrooli.treasury.v1.funding.SetWithdrawalDestinationRequest.destination:type_name -> vrooli.treasury.v1.funding.WithdrawalDestination
-	13, // 10: vrooli.treasury.v1.funding.WithdrawalDestinationResponse.destination:type_name -> vrooli.treasury.v1.funding.WithdrawalDestination
-	24, // 11: vrooli.treasury.v1.funding.PreviewWithdrawalRequest.valuation:type_name -> vrooli.money_ledger.v1.ingest.CryptoValuation
-	23, // 12: vrooli.treasury.v1.funding.WithdrawalQuote.expires_at:type_name -> google.protobuf.Timestamp
-	17, // 13: vrooli.treasury.v1.funding.WithdrawalQuoteResponse.quote:type_name -> vrooli.treasury.v1.funding.WithdrawalQuote
-	21, // 14: vrooli.treasury.v1.funding.WithdrawalResponse.withdrawal:type_name -> vrooli.treasury.v1.funding.Withdrawal
-	15, // [15:15] is the sub-list for method output_type
-	15, // [15:15] is the sub-list for method input_type
+	21, // 3: vrooli.treasury.v1.funding.FundingIntent.created_at:type_name -> google.protobuf.Timestamp
+	21, // 4: vrooli.treasury.v1.funding.FundingIntent.updated_at:type_name -> google.protobuf.Timestamp
+	22, // 5: vrooli.treasury.v1.funding.CreateFundingIntentRequest.valuation:type_name -> vrooli.money_ledger.v1.ingest.CryptoValuation
+	23, // 6: vrooli.treasury.v1.funding.CreateFundingIntentRequest.attribution:type_name -> vrooli.money_ledger.v1.ingest.CryptoPayerAttribution
+	4,  // 7: vrooli.treasury.v1.funding.FundingIntentResponse.intent:type_name -> vrooli.treasury.v1.funding.FundingIntent
+	4,  // 8: vrooli.treasury.v1.funding.ListFundingIntentsResponse.intents:type_name -> vrooli.treasury.v1.funding.FundingIntent
+	11, // 9: vrooli.treasury.v1.funding.SetWithdrawalDestinationRequest.destination:type_name -> vrooli.treasury.v1.funding.WithdrawalDestination
+	11, // 10: vrooli.treasury.v1.funding.WithdrawalDestinationResponse.destination:type_name -> vrooli.treasury.v1.funding.WithdrawalDestination
+	22, // 11: vrooli.treasury.v1.funding.PreviewWithdrawalRequest.valuation:type_name -> vrooli.money_ledger.v1.ingest.CryptoValuation
+	21, // 12: vrooli.treasury.v1.funding.WithdrawalQuote.expires_at:type_name -> google.protobuf.Timestamp
+	15, // 13: vrooli.treasury.v1.funding.WithdrawalQuoteResponse.quote:type_name -> vrooli.treasury.v1.funding.WithdrawalQuote
+	19, // 14: vrooli.treasury.v1.funding.WithdrawalResponse.withdrawal:type_name -> vrooli.treasury.v1.funding.Withdrawal
+	5,  // 15: vrooli.treasury.v1.funding.FundingAdminService.CreateFundingIntent:input_type -> vrooli.treasury.v1.funding.CreateFundingIntentRequest
+	6,  // 16: vrooli.treasury.v1.funding.FundingAdminService.GetFundingIntent:input_type -> vrooli.treasury.v1.funding.FundingIntentRequest
+	8,  // 17: vrooli.treasury.v1.funding.FundingAdminService.ConfirmFundingTransfer:input_type -> vrooli.treasury.v1.funding.ConfirmFundingTransferRequest
+	9,  // 18: vrooli.treasury.v1.funding.FundingAdminService.ListFundingIntents:input_type -> vrooli.treasury.v1.funding.ListFundingIntentsRequest
+	1,  // 19: vrooli.treasury.v1.funding.FundingAdminService.ProvisionBudgetWallet:input_type -> vrooli.treasury.v1.funding.ProvisionBudgetWalletRequest
+	2,  // 20: vrooli.treasury.v1.funding.FundingAdminService.GetBudgetWallet:input_type -> vrooli.treasury.v1.funding.GetBudgetWalletRequest
+	12, // 21: vrooli.treasury.v1.funding.FundingAdminService.SetWithdrawalDestination:input_type -> vrooli.treasury.v1.funding.SetWithdrawalDestinationRequest
+	14, // 22: vrooli.treasury.v1.funding.FundingAdminService.PreviewWithdrawal:input_type -> vrooli.treasury.v1.funding.PreviewWithdrawalRequest
+	17, // 23: vrooli.treasury.v1.funding.FundingAdminService.ExecuteWithdrawal:input_type -> vrooli.treasury.v1.funding.ExecuteWithdrawalRequest
+	18, // 24: vrooli.treasury.v1.funding.FundingAdminService.GetWithdrawal:input_type -> vrooli.treasury.v1.funding.GetWithdrawalRequest
+	24, // 25: vrooli.treasury.v1.funding.FundingAdminService.SubmitReceiptFunding:input_type -> vrooli.treasury.v1.funding.SubmitReceiptFundingRequest
+	25, // 26: vrooli.treasury.v1.funding.FundingAdminService.GetReceiptFunding:input_type -> vrooli.treasury.v1.funding.GetReceiptFundingRequest
+	2,  // 27: vrooli.treasury.v1.funding.FundingAgentService.GetBudgetWallet:input_type -> vrooli.treasury.v1.funding.GetBudgetWalletRequest
+	7,  // 28: vrooli.treasury.v1.funding.FundingAdminService.CreateFundingIntent:output_type -> vrooli.treasury.v1.funding.FundingIntentResponse
+	7,  // 29: vrooli.treasury.v1.funding.FundingAdminService.GetFundingIntent:output_type -> vrooli.treasury.v1.funding.FundingIntentResponse
+	7,  // 30: vrooli.treasury.v1.funding.FundingAdminService.ConfirmFundingTransfer:output_type -> vrooli.treasury.v1.funding.FundingIntentResponse
+	10, // 31: vrooli.treasury.v1.funding.FundingAdminService.ListFundingIntents:output_type -> vrooli.treasury.v1.funding.ListFundingIntentsResponse
+	3,  // 32: vrooli.treasury.v1.funding.FundingAdminService.ProvisionBudgetWallet:output_type -> vrooli.treasury.v1.funding.BudgetWalletResponse
+	3,  // 33: vrooli.treasury.v1.funding.FundingAdminService.GetBudgetWallet:output_type -> vrooli.treasury.v1.funding.BudgetWalletResponse
+	13, // 34: vrooli.treasury.v1.funding.FundingAdminService.SetWithdrawalDestination:output_type -> vrooli.treasury.v1.funding.WithdrawalDestinationResponse
+	16, // 35: vrooli.treasury.v1.funding.FundingAdminService.PreviewWithdrawal:output_type -> vrooli.treasury.v1.funding.WithdrawalQuoteResponse
+	20, // 36: vrooli.treasury.v1.funding.FundingAdminService.ExecuteWithdrawal:output_type -> vrooli.treasury.v1.funding.WithdrawalResponse
+	20, // 37: vrooli.treasury.v1.funding.FundingAdminService.GetWithdrawal:output_type -> vrooli.treasury.v1.funding.WithdrawalResponse
+	26, // 38: vrooli.treasury.v1.funding.FundingAdminService.SubmitReceiptFunding:output_type -> vrooli.treasury.v1.funding.ReceiptFundingResponse
+	26, // 39: vrooli.treasury.v1.funding.FundingAdminService.GetReceiptFunding:output_type -> vrooli.treasury.v1.funding.ReceiptFundingResponse
+	3,  // 40: vrooli.treasury.v1.funding.FundingAgentService.GetBudgetWallet:output_type -> vrooli.treasury.v1.funding.BudgetWalletResponse
+	28, // [28:41] is the sub-list for method output_type
+	15, // [15:28] is the sub-list for method input_type
 	15, // [15:15] is the sub-list for extension type_name
 	15, // [15:15] is the sub-list for extension extendee
 	0,  // [0:15] is the sub-list for field type_name
@@ -1714,15 +1704,16 @@ func file_treasury_v1_funding_wallet_ops_proto_init() {
 	if File_treasury_v1_funding_wallet_ops_proto != nil {
 		return
 	}
+	file_treasury_v1_funding_funding_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_treasury_v1_funding_wallet_ops_proto_rawDesc), len(file_treasury_v1_funding_wallet_ops_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   21,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   2,
 		},
 		GoTypes:           file_treasury_v1_funding_wallet_ops_proto_goTypes,
 		DependencyIndexes: file_treasury_v1_funding_wallet_ops_proto_depIdxs,

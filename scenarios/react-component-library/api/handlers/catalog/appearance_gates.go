@@ -46,7 +46,7 @@ func gateIsBlocking(ctx context.Context, gate string, configured bool) bool {
 	return configured && (profileFor(ctx) == assetCheckProfilePublish || appearanceGate(gate))
 }
 
-func (h *handler) runAppearanceGate(ctx context.Context, gate, assetID string, definition catalogcoverage.GateDefinition) (gates.Result, error) {
+func (h *handler) runAppearanceGate(ctx context.Context, gate, assetID string, definition catalogcoverage.GateDefinition, allowCapture bool) (gates.Result, error) {
 	result := gates.Result{Status: "measured"}
 	if strings.TrimSpace(assetID) == "" {
 		result.Status = "unmeasured"
@@ -96,7 +96,26 @@ func (h *handler) runAppearanceGate(ctx context.Context, gate, assetID string, d
 		return result, nil
 	}
 
-	report, _, err := h.testService.RunWithReuse(ctx, componenttests.Request{ComponentID: component.ID, Version: version, IncludeClosure: false})
+	request := componenttests.Request{ComponentID: component.ID, Version: version, IncludeClosure: false}
+	var report componenttests.Report
+	if allowCapture {
+		report, _, err = h.testService.RunWithReuse(ctx, request)
+	} else {
+		var found bool
+		report, found, err = h.testService.Reusable(ctx, request)
+		if err == nil && !found {
+			result.Status = "unmeasured"
+			result.RunnerError = []gates.Finding{{
+				Code:           "catalog." + gate + ".evidence_missing",
+				AssetID:        assetID,
+				Message:        "no current persisted component-test report exists; read-only gate inspection did not start BAS capture",
+				Remediation:    "run `react-component-library catalog record-gate " + gate + "` after the BAS capture route is cleared to measure this story gate",
+				RuleSource:     gates.RuleSourceUniversal,
+				RuleDeclaredIn: "catalog/config.json",
+			}}
+			return result, nil
+		}
+	}
 	if err != nil {
 		result.Status = "unmeasured"
 		result.RunnerError = []gates.Finding{{
@@ -203,6 +222,8 @@ type axeEvidenceDocument struct {
 	Version    string         `json:"version"`
 	Violations []axeViolation `json:"violations"`
 	Axe        struct {
+		Schema     string         `json:"schema"`
+		Status     string         `json:"status"`
 		Engine     string         `json:"engine"`
 		Version    string         `json:"version"`
 		Violations []axeViolation `json:"violations"`
@@ -223,6 +244,12 @@ func parseAxeEvidence(raw string) ([]axeViolation, bool) {
 	}
 	engine, version, violations := document.Engine, document.Version, document.Violations
 	if document.Schema == "bas-accessibility-snapshot/v1" && strings.TrimSpace(document.Snapshot) != "" {
+		// The snapshot is only context. The nested, versioned axe result is the
+		// measurement; accepting an unversioned legacy object here lets an
+		// incomplete capture masquerade as a clean accessibility run.
+		if document.Axe.Schema != "rcl-axe-results/v1" || document.Axe.Status != "complete" {
+			return nil, false
+		}
 		engine, version, violations = document.Axe.Engine, document.Axe.Version, document.Axe.Violations
 	} else if document.Schema != "rcl-axe-results/v1" || document.Status != "complete" {
 		return nil, false

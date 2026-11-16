@@ -269,6 +269,438 @@ func (x *Mandate) GetAgentRunId() string {
 	return ""
 }
 
+type CreateMandateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Mandate       *Mandate               `protobuf:"bytes,1,opt,name=mandate,proto3" json:"mandate,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateMandateRequest) Reset() {
+	*x = CreateMandateRequest{}
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateMandateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateMandateRequest) ProtoMessage() {}
+
+func (x *CreateMandateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateMandateRequest.ProtoReflect.Descriptor instead.
+func (*CreateMandateRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_mandate_mandate_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *CreateMandateRequest) GetMandate() *Mandate {
+	if x != nil {
+		return x.Mandate
+	}
+	return nil
+}
+
+type CreateMandateResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Mandate       *Mandate               `protobuf:"bytes,1,opt,name=mandate,proto3" json:"mandate,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateMandateResponse) Reset() {
+	*x = CreateMandateResponse{}
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateMandateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateMandateResponse) ProtoMessage() {}
+
+func (x *CreateMandateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateMandateResponse.ProtoReflect.Descriptor instead.
+func (*CreateMandateResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_mandate_mandate_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CreateMandateResponse) GetMandate() *Mandate {
+	if x != nil {
+		return x.Mandate
+	}
+	return nil
+}
+
+type RevokeMandateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MandateId     string                 `protobuf:"bytes,1,opt,name=mandate_id,json=mandateId,proto3" json:"mandate_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeMandateRequest) Reset() {
+	*x = RevokeMandateRequest{}
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeMandateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeMandateRequest) ProtoMessage() {}
+
+func (x *RevokeMandateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeMandateRequest.ProtoReflect.Descriptor instead.
+func (*RevokeMandateRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_mandate_mandate_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *RevokeMandateRequest) GetMandateId() string {
+	if x != nil {
+		return x.MandateId
+	}
+	return ""
+}
+
+type RevokeMandateResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Mandate       *Mandate               `protobuf:"bytes,1,opt,name=mandate,proto3" json:"mandate,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeMandateResponse) Reset() {
+	*x = RevokeMandateResponse{}
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeMandateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeMandateResponse) ProtoMessage() {}
+
+func (x *RevokeMandateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeMandateResponse.ProtoReflect.Descriptor instead.
+func (*RevokeMandateResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_mandate_mandate_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *RevokeMandateResponse) GetMandate() *Mandate {
+	if x != nil {
+		return x.Mandate
+	}
+	return nil
+}
+
+type RevokeMandateSessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MandateId     string                 `protobuf:"bytes,1,opt,name=mandate_id,json=mandateId,proto3" json:"mandate_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeMandateSessionRequest) Reset() {
+	*x = RevokeMandateSessionRequest{}
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeMandateSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeMandateSessionRequest) ProtoMessage() {}
+
+func (x *RevokeMandateSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeMandateSessionRequest.ProtoReflect.Descriptor instead.
+func (*RevokeMandateSessionRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_mandate_mandate_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *RevokeMandateSessionRequest) GetMandateId() string {
+	if x != nil {
+		return x.MandateId
+	}
+	return ""
+}
+
+type RevokeMandateSessionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Revoked       bool                   `protobuf:"varint,1,opt,name=revoked,proto3" json:"revoked,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeMandateSessionResponse) Reset() {
+	*x = RevokeMandateSessionResponse{}
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeMandateSessionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeMandateSessionResponse) ProtoMessage() {}
+
+func (x *RevokeMandateSessionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeMandateSessionResponse.ProtoReflect.Descriptor instead.
+func (*RevokeMandateSessionResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_mandate_mandate_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *RevokeMandateSessionResponse) GetRevoked() bool {
+	if x != nil {
+		return x.Revoked
+	}
+	return false
+}
+
+type CancelStandingMandateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MandateId     string                 `protobuf:"bytes,1,opt,name=mandate_id,json=mandateId,proto3" json:"mandate_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelStandingMandateRequest) Reset() {
+	*x = CancelStandingMandateRequest{}
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelStandingMandateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelStandingMandateRequest) ProtoMessage() {}
+
+func (x *CancelStandingMandateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelStandingMandateRequest.ProtoReflect.Descriptor instead.
+func (*CancelStandingMandateRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_mandate_mandate_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *CancelStandingMandateRequest) GetMandateId() string {
+	if x != nil {
+		return x.MandateId
+	}
+	return ""
+}
+
+type CancelStandingMandateResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Mandate       *Mandate               `protobuf:"bytes,1,opt,name=mandate,proto3" json:"mandate,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelStandingMandateResponse) Reset() {
+	*x = CancelStandingMandateResponse{}
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelStandingMandateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelStandingMandateResponse) ProtoMessage() {}
+
+func (x *CancelStandingMandateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelStandingMandateResponse.ProtoReflect.Descriptor instead.
+func (*CancelStandingMandateResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_mandate_mandate_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *CancelStandingMandateResponse) GetMandate() *Mandate {
+	if x != nil {
+		return x.Mandate
+	}
+	return nil
+}
+
+type ListMandatesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMandatesRequest) Reset() {
+	*x = ListMandatesRequest{}
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMandatesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMandatesRequest) ProtoMessage() {}
+
+func (x *ListMandatesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMandatesRequest.ProtoReflect.Descriptor instead.
+func (*ListMandatesRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_mandate_mandate_proto_rawDescGZIP(), []int{9}
+}
+
+type ListMandatesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Mandates      []*Mandate             `protobuf:"bytes,1,rep,name=mandates,proto3" json:"mandates,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMandatesResponse) Reset() {
+	*x = ListMandatesResponse{}
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMandatesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMandatesResponse) ProtoMessage() {}
+
+func (x *ListMandatesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_mandate_mandate_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMandatesResponse.ProtoReflect.Descriptor instead.
+func (*ListMandatesResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_mandate_mandate_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ListMandatesResponse) GetMandates() []*Mandate {
+	if x != nil {
+		return x.Mandates
+	}
+	return nil
+}
+
 var File_treasury_v1_mandate_mandate_proto protoreflect.FileDescriptor
 
 const file_treasury_v1_mandate_mandate_proto_rawDesc = "" +
@@ -298,14 +730,42 @@ const file_treasury_v1_mandate_mandate_proto_rawDesc = "" +
 	"\fcancelled_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\vcancelledAt\x12#\n" +
 	"\ragent_subject\x18\x12 \x01(\tR\fagentSubject\x12 \n" +
 	"\fagent_run_id\x18\x13 \x01(\tR\n" +
-	"agentRunId*\xb8\x01\n" +
+	"agentRunId\"U\n" +
+	"\x14CreateMandateRequest\x12=\n" +
+	"\amandate\x18\x01 \x01(\v2#.vrooli.treasury.v1.mandate.MandateR\amandate\"V\n" +
+	"\x15CreateMandateResponse\x12=\n" +
+	"\amandate\x18\x01 \x01(\v2#.vrooli.treasury.v1.mandate.MandateR\amandate\"5\n" +
+	"\x14RevokeMandateRequest\x12\x1d\n" +
+	"\n" +
+	"mandate_id\x18\x01 \x01(\tR\tmandateId\"V\n" +
+	"\x15RevokeMandateResponse\x12=\n" +
+	"\amandate\x18\x01 \x01(\v2#.vrooli.treasury.v1.mandate.MandateR\amandate\"<\n" +
+	"\x1bRevokeMandateSessionRequest\x12\x1d\n" +
+	"\n" +
+	"mandate_id\x18\x01 \x01(\tR\tmandateId\"8\n" +
+	"\x1cRevokeMandateSessionResponse\x12\x18\n" +
+	"\arevoked\x18\x01 \x01(\bR\arevoked\"=\n" +
+	"\x1cCancelStandingMandateRequest\x12\x1d\n" +
+	"\n" +
+	"mandate_id\x18\x01 \x01(\tR\tmandateId\"^\n" +
+	"\x1dCancelStandingMandateResponse\x12=\n" +
+	"\amandate\x18\x01 \x01(\v2#.vrooli.treasury.v1.mandate.MandateR\amandate\"\x15\n" +
+	"\x13ListMandatesRequest\"W\n" +
+	"\x14ListMandatesResponse\x12?\n" +
+	"\bmandates\x18\x01 \x03(\v2#.vrooli.treasury.v1.mandate.MandateR\bmandates*\xb8\x01\n" +
 	"\rMandateStatus\x12\x1e\n" +
 	"\x1aMANDATE_STATUS_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14MANDATE_STATUS_DRAFT\x10\x01\x12\x17\n" +
 	"\x13MANDATE_STATUS_LIVE\x10\x02\x12\x1c\n" +
 	"\x18MANDATE_STATUS_EXHAUSTED\x10\x03\x12\x1a\n" +
 	"\x16MANDATE_STATUS_EXPIRED\x10\x04\x12\x1a\n" +
-	"\x16MANDATE_STATUS_REVOKED\x10\x05BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/mandate;mandate_v1b\x06proto3"
+	"\x16MANDATE_STATUS_REVOKED\x10\x052\x8f\x05\n" +
+	"\x13MandateAdminService\x12t\n" +
+	"\rCreateMandate\x120.vrooli.treasury.v1.mandate.CreateMandateRequest\x1a1.vrooli.treasury.v1.mandate.CreateMandateResponse\x12t\n" +
+	"\rRevokeMandate\x120.vrooli.treasury.v1.mandate.RevokeMandateRequest\x1a1.vrooli.treasury.v1.mandate.RevokeMandateResponse\x12\x89\x01\n" +
+	"\x14RevokeMandateSession\x127.vrooli.treasury.v1.mandate.RevokeMandateSessionRequest\x1a8.vrooli.treasury.v1.mandate.RevokeMandateSessionResponse\x12\x8c\x01\n" +
+	"\x15CancelStandingMandate\x128.vrooli.treasury.v1.mandate.CancelStandingMandateRequest\x1a9.vrooli.treasury.v1.mandate.CancelStandingMandateResponse\x12q\n" +
+	"\fListMandates\x12/.vrooli.treasury.v1.mandate.ListMandatesRequest\x1a0.vrooli.treasury.v1.mandate.ListMandatesResponseBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/mandate;mandate_v1b\x06proto3"
 
 var (
 	file_treasury_v1_mandate_mandate_proto_rawDescOnce sync.Once
@@ -320,23 +780,48 @@ func file_treasury_v1_mandate_mandate_proto_rawDescGZIP() []byte {
 }
 
 var file_treasury_v1_mandate_mandate_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_treasury_v1_mandate_mandate_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_treasury_v1_mandate_mandate_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_treasury_v1_mandate_mandate_proto_goTypes = []any{
-	(MandateStatus)(0),            // 0: vrooli.treasury.v1.mandate.MandateStatus
-	(*Mandate)(nil),               // 1: vrooli.treasury.v1.mandate.Mandate
-	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
+	(MandateStatus)(0),                    // 0: vrooli.treasury.v1.mandate.MandateStatus
+	(*Mandate)(nil),                       // 1: vrooli.treasury.v1.mandate.Mandate
+	(*CreateMandateRequest)(nil),          // 2: vrooli.treasury.v1.mandate.CreateMandateRequest
+	(*CreateMandateResponse)(nil),         // 3: vrooli.treasury.v1.mandate.CreateMandateResponse
+	(*RevokeMandateRequest)(nil),          // 4: vrooli.treasury.v1.mandate.RevokeMandateRequest
+	(*RevokeMandateResponse)(nil),         // 5: vrooli.treasury.v1.mandate.RevokeMandateResponse
+	(*RevokeMandateSessionRequest)(nil),   // 6: vrooli.treasury.v1.mandate.RevokeMandateSessionRequest
+	(*RevokeMandateSessionResponse)(nil),  // 7: vrooli.treasury.v1.mandate.RevokeMandateSessionResponse
+	(*CancelStandingMandateRequest)(nil),  // 8: vrooli.treasury.v1.mandate.CancelStandingMandateRequest
+	(*CancelStandingMandateResponse)(nil), // 9: vrooli.treasury.v1.mandate.CancelStandingMandateResponse
+	(*ListMandatesRequest)(nil),           // 10: vrooli.treasury.v1.mandate.ListMandatesRequest
+	(*ListMandatesResponse)(nil),          // 11: vrooli.treasury.v1.mandate.ListMandatesResponse
+	(*timestamppb.Timestamp)(nil),         // 12: google.protobuf.Timestamp
 }
 var file_treasury_v1_mandate_mandate_proto_depIdxs = []int32{
-	2, // 0: vrooli.treasury.v1.mandate.Mandate.expires_at:type_name -> google.protobuf.Timestamp
-	2, // 1: vrooli.treasury.v1.mandate.Mandate.issued_at:type_name -> google.protobuf.Timestamp
-	0, // 2: vrooli.treasury.v1.mandate.Mandate.status:type_name -> vrooli.treasury.v1.mandate.MandateStatus
-	2, // 3: vrooli.treasury.v1.mandate.Mandate.next_charge_at:type_name -> google.protobuf.Timestamp
-	2, // 4: vrooli.treasury.v1.mandate.Mandate.cancelled_at:type_name -> google.protobuf.Timestamp
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	12, // 0: vrooli.treasury.v1.mandate.Mandate.expires_at:type_name -> google.protobuf.Timestamp
+	12, // 1: vrooli.treasury.v1.mandate.Mandate.issued_at:type_name -> google.protobuf.Timestamp
+	0,  // 2: vrooli.treasury.v1.mandate.Mandate.status:type_name -> vrooli.treasury.v1.mandate.MandateStatus
+	12, // 3: vrooli.treasury.v1.mandate.Mandate.next_charge_at:type_name -> google.protobuf.Timestamp
+	12, // 4: vrooli.treasury.v1.mandate.Mandate.cancelled_at:type_name -> google.protobuf.Timestamp
+	1,  // 5: vrooli.treasury.v1.mandate.CreateMandateRequest.mandate:type_name -> vrooli.treasury.v1.mandate.Mandate
+	1,  // 6: vrooli.treasury.v1.mandate.CreateMandateResponse.mandate:type_name -> vrooli.treasury.v1.mandate.Mandate
+	1,  // 7: vrooli.treasury.v1.mandate.RevokeMandateResponse.mandate:type_name -> vrooli.treasury.v1.mandate.Mandate
+	1,  // 8: vrooli.treasury.v1.mandate.CancelStandingMandateResponse.mandate:type_name -> vrooli.treasury.v1.mandate.Mandate
+	1,  // 9: vrooli.treasury.v1.mandate.ListMandatesResponse.mandates:type_name -> vrooli.treasury.v1.mandate.Mandate
+	2,  // 10: vrooli.treasury.v1.mandate.MandateAdminService.CreateMandate:input_type -> vrooli.treasury.v1.mandate.CreateMandateRequest
+	4,  // 11: vrooli.treasury.v1.mandate.MandateAdminService.RevokeMandate:input_type -> vrooli.treasury.v1.mandate.RevokeMandateRequest
+	6,  // 12: vrooli.treasury.v1.mandate.MandateAdminService.RevokeMandateSession:input_type -> vrooli.treasury.v1.mandate.RevokeMandateSessionRequest
+	8,  // 13: vrooli.treasury.v1.mandate.MandateAdminService.CancelStandingMandate:input_type -> vrooli.treasury.v1.mandate.CancelStandingMandateRequest
+	10, // 14: vrooli.treasury.v1.mandate.MandateAdminService.ListMandates:input_type -> vrooli.treasury.v1.mandate.ListMandatesRequest
+	3,  // 15: vrooli.treasury.v1.mandate.MandateAdminService.CreateMandate:output_type -> vrooli.treasury.v1.mandate.CreateMandateResponse
+	5,  // 16: vrooli.treasury.v1.mandate.MandateAdminService.RevokeMandate:output_type -> vrooli.treasury.v1.mandate.RevokeMandateResponse
+	7,  // 17: vrooli.treasury.v1.mandate.MandateAdminService.RevokeMandateSession:output_type -> vrooli.treasury.v1.mandate.RevokeMandateSessionResponse
+	9,  // 18: vrooli.treasury.v1.mandate.MandateAdminService.CancelStandingMandate:output_type -> vrooli.treasury.v1.mandate.CancelStandingMandateResponse
+	11, // 19: vrooli.treasury.v1.mandate.MandateAdminService.ListMandates:output_type -> vrooli.treasury.v1.mandate.ListMandatesResponse
+	15, // [15:20] is the sub-list for method output_type
+	10, // [10:15] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_treasury_v1_mandate_mandate_proto_init() }
@@ -350,9 +835,9 @@ func file_treasury_v1_mandate_mandate_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_treasury_v1_mandate_mandate_proto_rawDesc), len(file_treasury_v1_mandate_mandate_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   1,
+			NumMessages:   11,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_treasury_v1_mandate_mandate_proto_goTypes,
 		DependencyIndexes: file_treasury_v1_mandate_mandate_proto_depIdxs,

@@ -91,10 +91,92 @@ func TestLiveUtilityClassAllowlistIsExactAndShrinkOnly(t *testing.T) {
 	}
 }
 
+func TestUtilityClassAllowlistFailsClosedAfterExpiry(t *testing.T) {
+	root := t.TempDir()
+	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
+	versionRoot := filepath.Join(libraryRoot, "components", "X", "versions", "1.0.0")
+	if err := os.MkdirAll(versionRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(versionRoot, "X.tsx"), []byte(`export const X = () => <button className="touch-target" />;`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	allowlistPath := filepath.Join(libraryRoot, "utility-class-allowlist.json")
+	allowlist := `{"schemaVersion":1,"expires":"2020-01-01","entries":[{"path":"library/components/X/versions/1.0.0","reason":"historical immutable release","closedBy":"EX7"}]}`
+	if err := os.WriteFile(allowlistPath, []byte(allowlist), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := ValidateNoUtilityClasses(Scope{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Findings) != 1 || result.Findings[0].Code != "catalog.utility-class.allowlist-expired" {
+		t.Fatalf("expired allowance result = %+v; want one blocking expiry finding", result)
+	}
+	if len(result.InformationalFindings) != 1 {
+		t.Fatalf("allowlisted debt = %+v; want one exact informational path", result.InformationalFindings)
+	}
+}
+
+func TestUtilityClassAllowlistRequiresAValidExpiryWhenNonEmpty(t *testing.T) {
+	root := t.TempDir()
+	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
+	versionRoot := filepath.Join(libraryRoot, "components", "X", "versions", "1.0.0")
+	if err := os.MkdirAll(versionRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(versionRoot, "X.tsx"), []byte(`export const X = () => <button className="touch-target" />;`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	allowlistPath := filepath.Join(libraryRoot, "utility-class-allowlist.json")
+	allowlist := `{"schemaVersion":1,"entries":[{"path":"library/components/X/versions/1.0.0","reason":"historical immutable release","closedBy":"EX7"}]}`
+	if err := os.WriteFile(allowlistPath, []byte(allowlist), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := ValidateNoUtilityClasses(Scope{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Findings) != 1 || result.Findings[0].Code != "catalog.utility-class.allowlist-expiry-invalid" {
+		t.Fatalf("missing expiry result = %+v; want one invalid-expiry finding", result.Findings)
+	}
+}
+
+func TestUtilityClassAllowlistRequiresExactPathsAndAccountability(t *testing.T) {
+	root := t.TempDir()
+	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
+	versionRoot := filepath.Join(libraryRoot, "components", "X", "versions", "1.0.0")
+	if err := os.MkdirAll(versionRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(versionRoot, "X.tsx"), []byte(`export const X = () => <button className="touch-target" />;`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	allowlistPath := filepath.Join(libraryRoot, "utility-class-allowlist.json")
+	allowlist := `{"schemaVersion":1,"expires":"2099-01-01","entries":[{"path":"library/components/X/versions/1.0.0","reason":"  ","closedBy":"EX7"},{"path":"library/components/X/1.0.0","reason":"non-version path","closedBy":"EX7"},{"path":"library/components/X/versions/1.0.1-draft.1","reason":"draft path","closedBy":"EX7"}]}`
+	if err := os.WriteFile(allowlistPath, []byte(allowlist), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := ValidateNoUtilityClasses(Scope{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	invalidAllowance := false
+	for _, finding := range result.Findings {
+		if finding.Code == "catalog.utility-class.allowlist-entry-invalid" {
+			invalidAllowance = true
+			break
+		}
+	}
+	if !invalidAllowance {
+		t.Fatalf("invalid allowance was not rejected: %+v", result.Findings)
+	}
+}
+
 func TestValidateUsageContractsMeasuresLiveCatalogCoverage(t *testing.T) {
 	result, err := ValidateUsageContracts(Scope{Context: context.Background(), Root: liveRoot(t)})
 	require.NoError(t, err)
-	require.Equal(t, 102, result.Inspected)
+	require.Equal(t, 103, result.Inspected)
 	require.Empty(t, result.Findings)
 }
 
@@ -1194,10 +1276,10 @@ func TestRetirementReferencesIncludeAllBrowserRootsAndOtherAssets(t *testing.T) 
 	files := []string{"scenarios/app/ui/public/widget.js", "scenarios/app/ui/app.js", "templates/scenarios/template/ui/src/App.tsx", "scenarios/react-component-library/library/components/Other/versions/1.0.0/Other.tsx"}
 	for _, name := range append(append([]string{}, files...), "scenarios/react-component-library/library/components/Panel/versions/1.0.0/Panel.tsx", "scenarios/app/ui/src/App.test.tsx", "scenarios/app/ui/dist/bundle.js") {
 		path := filepath.Join(root, name)
-		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(path, []byte(`import {Panel} from '@vrooli/react-component-library/Panel';`), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(`import {Panel} from '@vrooli/react-component-library/Panel';`), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}

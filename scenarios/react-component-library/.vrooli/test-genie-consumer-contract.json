@@ -51,7 +51,7 @@
     "unavailable": "fail"
   },
   "runnability": {"needsAPI": true},
-  "docs": {"path": "scenarios/test-genie/docs/phases/quality/README.md"},
+  "docs": {"path": "scenarios/test-genie/docs/phases/consumer-contract/README.md"},
   "maturity": {
     "version": "2.0.0",
     "capabilities": [

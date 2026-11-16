@@ -7,6 +7,7 @@
 package recall_v1
 
 import (
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -182,8 +183,10 @@ func (x *RecallRequest) GetScope() string {
 }
 
 type RecallResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Hits          []*RecallHit           `protobuf:"bytes,1,rep,name=hits,proto3" json:"hits,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Hits  []*RecallHit           `protobuf:"bytes,1,rep,name=hits,proto3" json:"hits,omitempty"`
+	// Set when semantic scoring was unavailable and hits are lexical.
+	Degradations  []*shared.Degradation `protobuf:"bytes,2,rep,name=degradations,proto3" json:"degradations,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -221,6 +224,13 @@ func (*RecallResponse) Descriptor() ([]byte, []int) {
 func (x *RecallResponse) GetHits() []*RecallHit {
 	if x != nil {
 		return x.Hits
+	}
+	return nil
+}
+
+func (x *RecallResponse) GetDegradations() []*shared.Degradation {
+	if x != nil {
+		return x.Degradations
 	}
 	return nil
 }
@@ -566,7 +576,7 @@ var File_source_ledger_v1_recall_recall_proto protoreflect.FileDescriptor
 
 const file_source_ledger_v1_recall_recall_proto_rawDesc = "" +
 	"\n" +
-	"$source-ledger/v1/recall/recall.proto\x12\x1evrooli.source_ledger.v1.recall\"\xc8\x01\n" +
+	"$source-ledger/v1/recall/recall.proto\x12\x1evrooli.source_ledger.v1.recall\x1a)source-ledger/v1/shared/degradation.proto\"\xc8\x01\n" +
 	"\tRecallHit\x12\x19\n" +
 	"\bentry_id\x18\x01 \x01(\tR\aentryId\x12\x19\n" +
 	"\bfacet_id\x18\x02 \x01(\tR\afacetId\x12\x12\n" +
@@ -579,9 +589,10 @@ const file_source_ledger_v1_recall_recall_proto_rawDesc = "" +
 	"\rRecallRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x14\n" +
-	"\x05scope\x18\x03 \x01(\tR\x05scope\"O\n" +
+	"\x05scope\x18\x03 \x01(\tR\x05scope\"\xa0\x01\n" +
 	"\x0eRecallResponse\x12=\n" +
-	"\x04hits\x18\x01 \x03(\v2).vrooli.source_ledger.v1.recall.RecallHitR\x04hits\"D\n" +
+	"\x04hits\x18\x01 \x03(\v2).vrooli.source_ledger.v1.recall.RecallHitR\x04hits\x12O\n" +
+	"\fdegradations\x18\x02 \x03(\v2+.vrooli.source_ledger.v1.shared.DegradationR\fdegradations\"D\n" +
 	"\vWakeRequest\x12\x1f\n" +
 	"\vline_budget\x18\x01 \x01(\x05R\n" +
 	"lineBudget\x12\x14\n" +
@@ -635,25 +646,27 @@ var file_source_ledger_v1_recall_recall_proto_goTypes = []any{
 	(*ZoomResponse)(nil),              // 6: vrooli.source_ledger.v1.recall.ZoomResponse
 	(*ListSiblingEventsRequest)(nil),  // 7: vrooli.source_ledger.v1.recall.ListSiblingEventsRequest
 	(*ListSiblingEventsResponse)(nil), // 8: vrooli.source_ledger.v1.recall.ListSiblingEventsResponse
+	(*shared.Degradation)(nil),        // 9: vrooli.source_ledger.v1.shared.Degradation
 }
 var file_source_ledger_v1_recall_recall_proto_depIdxs = []int32{
 	0, // 0: vrooli.source_ledger.v1.recall.RecallResponse.hits:type_name -> vrooli.source_ledger.v1.recall.RecallHit
-	0, // 1: vrooli.source_ledger.v1.recall.WakeResponse.hits:type_name -> vrooli.source_ledger.v1.recall.RecallHit
-	0, // 2: vrooli.source_ledger.v1.recall.ZoomResponse.constituents:type_name -> vrooli.source_ledger.v1.recall.RecallHit
-	0, // 3: vrooli.source_ledger.v1.recall.ListSiblingEventsResponse.entries:type_name -> vrooli.source_ledger.v1.recall.RecallHit
-	1, // 4: vrooli.source_ledger.v1.recall.RecallService.Recall:input_type -> vrooli.source_ledger.v1.recall.RecallRequest
-	3, // 5: vrooli.source_ledger.v1.recall.RecallService.Wake:input_type -> vrooli.source_ledger.v1.recall.WakeRequest
-	5, // 6: vrooli.source_ledger.v1.recall.RecallService.Zoom:input_type -> vrooli.source_ledger.v1.recall.ZoomRequest
-	7, // 7: vrooli.source_ledger.v1.recall.RecallService.ListSiblingEvents:input_type -> vrooli.source_ledger.v1.recall.ListSiblingEventsRequest
-	2, // 8: vrooli.source_ledger.v1.recall.RecallService.Recall:output_type -> vrooli.source_ledger.v1.recall.RecallResponse
-	4, // 9: vrooli.source_ledger.v1.recall.RecallService.Wake:output_type -> vrooli.source_ledger.v1.recall.WakeResponse
-	6, // 10: vrooli.source_ledger.v1.recall.RecallService.Zoom:output_type -> vrooli.source_ledger.v1.recall.ZoomResponse
-	8, // 11: vrooli.source_ledger.v1.recall.RecallService.ListSiblingEvents:output_type -> vrooli.source_ledger.v1.recall.ListSiblingEventsResponse
-	8, // [8:12] is the sub-list for method output_type
-	4, // [4:8] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	9, // 1: vrooli.source_ledger.v1.recall.RecallResponse.degradations:type_name -> vrooli.source_ledger.v1.shared.Degradation
+	0, // 2: vrooli.source_ledger.v1.recall.WakeResponse.hits:type_name -> vrooli.source_ledger.v1.recall.RecallHit
+	0, // 3: vrooli.source_ledger.v1.recall.ZoomResponse.constituents:type_name -> vrooli.source_ledger.v1.recall.RecallHit
+	0, // 4: vrooli.source_ledger.v1.recall.ListSiblingEventsResponse.entries:type_name -> vrooli.source_ledger.v1.recall.RecallHit
+	1, // 5: vrooli.source_ledger.v1.recall.RecallService.Recall:input_type -> vrooli.source_ledger.v1.recall.RecallRequest
+	3, // 6: vrooli.source_ledger.v1.recall.RecallService.Wake:input_type -> vrooli.source_ledger.v1.recall.WakeRequest
+	5, // 7: vrooli.source_ledger.v1.recall.RecallService.Zoom:input_type -> vrooli.source_ledger.v1.recall.ZoomRequest
+	7, // 8: vrooli.source_ledger.v1.recall.RecallService.ListSiblingEvents:input_type -> vrooli.source_ledger.v1.recall.ListSiblingEventsRequest
+	2, // 9: vrooli.source_ledger.v1.recall.RecallService.Recall:output_type -> vrooli.source_ledger.v1.recall.RecallResponse
+	4, // 10: vrooli.source_ledger.v1.recall.RecallService.Wake:output_type -> vrooli.source_ledger.v1.recall.WakeResponse
+	6, // 11: vrooli.source_ledger.v1.recall.RecallService.Zoom:output_type -> vrooli.source_ledger.v1.recall.ZoomResponse
+	8, // 12: vrooli.source_ledger.v1.recall.RecallService.ListSiblingEvents:output_type -> vrooli.source_ledger.v1.recall.ListSiblingEventsResponse
+	9, // [9:13] is the sub-list for method output_type
+	5, // [5:9] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_source_ledger_v1_recall_recall_proto_init() }

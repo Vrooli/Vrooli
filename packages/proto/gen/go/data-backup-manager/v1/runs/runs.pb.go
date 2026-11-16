@@ -92,6 +92,9 @@ const (
 	TriggerSource_TRIGGER_SOURCE_UNSPECIFIED TriggerSource = 0
 	TriggerSource_TRIGGER_SOURCE_SCHEDULER   TriggerSource = 1
 	TriggerSource_TRIGGER_SOURCE_MANUAL      TriggerSource = 2
+	// An automatic re-run of a plan whose last run was stopped by a destination
+	// problem that looked transient. Counted apart from real attempts.
+	TriggerSource_TRIGGER_SOURCE_RETRY TriggerSource = 3
 )
 
 // Enum value maps for TriggerSource.
@@ -100,11 +103,13 @@ var (
 		0: "TRIGGER_SOURCE_UNSPECIFIED",
 		1: "TRIGGER_SOURCE_SCHEDULER",
 		2: "TRIGGER_SOURCE_MANUAL",
+		3: "TRIGGER_SOURCE_RETRY",
 	}
 	TriggerSource_value = map[string]int32{
 		"TRIGGER_SOURCE_UNSPECIFIED": 0,
 		"TRIGGER_SOURCE_SCHEDULER":   1,
 		"TRIGGER_SOURCE_MANUAL":      2,
+		"TRIGGER_SOURCE_RETRY":       3,
 	}
 )
 
@@ -1456,9 +1461,15 @@ type RunStats struct {
 	// 0 when no run could measure it (e.g. repo stats unavailable).
 	TotalPhysicalBytes int64 `protobuf:"varint,12,opt,name=total_physical_bytes,json=totalPhysicalBytes,proto3" json:"total_physical_bytes,omitempty"`
 	// Logical ÷ physical. 0 when physical is unknown (never a divide-by-zero).
-	DedupRatio    float64 `protobuf:"fixed64,13,opt,name=dedup_ratio,json=dedupRatio,proto3" json:"dedup_ratio,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	DedupRatio float64 `protobuf:"fixed64,13,opt,name=dedup_ratio,json=dedupRatio,proto3" json:"dedup_ratio,omitempty"`
+	// Automatic retries in the window, counted apart from real attempts: the
+	// counts above (total_runs, completed, partial_failed, failed, success_rate)
+	// cover attempts only (scheduled and manual runs).
+	RetryRuns      int64 `protobuf:"varint,14,opt,name=retry_runs,json=retryRuns,proto3" json:"retry_runs,omitempty"`
+	RetryCompleted int64 `protobuf:"varint,15,opt,name=retry_completed,json=retryCompleted,proto3" json:"retry_completed,omitempty"`
+	RetryFailed    int64 `protobuf:"varint,16,opt,name=retry_failed,json=retryFailed,proto3" json:"retry_failed,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RunStats) Reset() {
@@ -1578,6 +1589,27 @@ func (x *RunStats) GetTotalPhysicalBytes() int64 {
 func (x *RunStats) GetDedupRatio() float64 {
 	if x != nil {
 		return x.DedupRatio
+	}
+	return 0
+}
+
+func (x *RunStats) GetRetryRuns() int64 {
+	if x != nil {
+		return x.RetryRuns
+	}
+	return 0
+}
+
+func (x *RunStats) GetRetryCompleted() int64 {
+	if x != nil {
+		return x.RetryCompleted
+	}
+	return 0
+}
+
+func (x *RunStats) GetRetryFailed() int64 {
+	if x != nil {
+		return x.RetryFailed
 	}
 	return 0
 }
@@ -1733,7 +1765,7 @@ const file_data_backup_manager_v1_runs_runs_proto_rawDesc = "" +
 	"\x16BrowseSnapshotResponse\x12K\n" +
 	"\aentries\x18\x01 \x03(\v21.vrooli.data_backup_manager.v1.runs.SnapshotEntryR\aentries\"-\n" +
 	"\x12GetRunStatsRequest\x12\x17\n" +
-	"\aplan_id\x18\x01 \x01(\tR\x06planId\"\xf0\x03\n" +
+	"\aplan_id\x18\x01 \x01(\tR\x06planId\"\xdb\x04\n" +
 	"\bRunStats\x12\x1d\n" +
 	"\n" +
 	"total_runs\x18\x01 \x01(\x03R\ttotalRuns\x12\x1c\n" +
@@ -1751,7 +1783,11 @@ const file_data_backup_manager_v1_runs_runs_proto_rawDesc = "" +
 	"\x06window\x18\v \x01(\x03R\x06window\x120\n" +
 	"\x14total_physical_bytes\x18\f \x01(\x03R\x12totalPhysicalBytes\x12\x1f\n" +
 	"\vdedup_ratio\x18\r \x01(\x01R\n" +
-	"dedupRatio\"Y\n" +
+	"dedupRatio\x12\x1d\n" +
+	"\n" +
+	"retry_runs\x18\x0e \x01(\x03R\tretryRuns\x12'\n" +
+	"\x0fretry_completed\x18\x0f \x01(\x03R\x0eretryCompleted\x12!\n" +
+	"\fretry_failed\x18\x10 \x01(\x03R\vretryFailed\"Y\n" +
 	"\x13GetRunStatsResponse\x12B\n" +
 	"\x05stats\x18\x01 \x01(\v2,.vrooli.data_backup_manager.v1.runs.RunStatsR\x05stats*\xc6\x01\n" +
 	"\tRunStatus\x12\x1a\n" +
@@ -1761,11 +1797,12 @@ const file_data_backup_manager_v1_runs_runs_proto_rawDesc = "" +
 	"\x17RUN_STATUS_SNAPSHOTTING\x10\x03\x12\x18\n" +
 	"\x14RUN_STATUS_COMPLETED\x10\x04\x12\x1d\n" +
 	"\x19RUN_STATUS_PARTIAL_FAILED\x10\x05\x12\x15\n" +
-	"\x11RUN_STATUS_FAILED\x10\x06*h\n" +
+	"\x11RUN_STATUS_FAILED\x10\x06*\x82\x01\n" +
 	"\rTriggerSource\x12\x1e\n" +
 	"\x1aTRIGGER_SOURCE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18TRIGGER_SOURCE_SCHEDULER\x10\x01\x12\x19\n" +
-	"\x15TRIGGER_SOURCE_MANUAL\x10\x02*\xa6\x01\n" +
+	"\x15TRIGGER_SOURCE_MANUAL\x10\x02\x12\x18\n" +
+	"\x14TRIGGER_SOURCE_RETRY\x10\x03*\xa6\x01\n" +
 	"\x13TargetOutcomeStatus\x12%\n" +
 	"!TARGET_OUTCOME_STATUS_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fTARGET_OUTCOME_STATUS_SUCCEEDED\x10\x01\x12 \n" +

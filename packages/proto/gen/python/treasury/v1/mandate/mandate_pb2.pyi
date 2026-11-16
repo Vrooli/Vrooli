@@ -66,3 +66,61 @@ class Mandate(_message.Message):
     agent_subject: str
     agent_run_id: str
     def __init__(self, id: _Optional[str] = ..., book_id: _Optional[str] = ..., budget_id: _Optional[str] = ..., authorizer: _Optional[str] = ..., cap_minor: _Optional[int] = ..., currency: _Optional[str] = ..., allowed_counterparties: _Optional[_Iterable[str]] = ..., denied_counterparties: _Optional[_Iterable[str]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., signature: _Optional[bytes] = ..., issued_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., status: _Optional[_Union[MandateStatus, str]] = ..., idempotency_key: _Optional[str] = ..., required_evidence: _Optional[_Iterable[str]] = ..., recurrence_seconds: _Optional[int] = ..., next_charge_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cancelled_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., agent_subject: _Optional[str] = ..., agent_run_id: _Optional[str] = ...) -> None: ...
+
+class CreateMandateRequest(_message.Message):
+    __slots__ = ("mandate",)
+    MANDATE_FIELD_NUMBER: _ClassVar[int]
+    mandate: Mandate
+    def __init__(self, mandate: _Optional[_Union[Mandate, _Mapping]] = ...) -> None: ...
+
+class CreateMandateResponse(_message.Message):
+    __slots__ = ("mandate",)
+    MANDATE_FIELD_NUMBER: _ClassVar[int]
+    mandate: Mandate
+    def __init__(self, mandate: _Optional[_Union[Mandate, _Mapping]] = ...) -> None: ...
+
+class RevokeMandateRequest(_message.Message):
+    __slots__ = ("mandate_id",)
+    MANDATE_ID_FIELD_NUMBER: _ClassVar[int]
+    mandate_id: str
+    def __init__(self, mandate_id: _Optional[str] = ...) -> None: ...
+
+class RevokeMandateResponse(_message.Message):
+    __slots__ = ("mandate",)
+    MANDATE_FIELD_NUMBER: _ClassVar[int]
+    mandate: Mandate
+    def __init__(self, mandate: _Optional[_Union[Mandate, _Mapping]] = ...) -> None: ...
+
+class RevokeMandateSessionRequest(_message.Message):
+    __slots__ = ("mandate_id",)
+    MANDATE_ID_FIELD_NUMBER: _ClassVar[int]
+    mandate_id: str
+    def __init__(self, mandate_id: _Optional[str] = ...) -> None: ...
+
+class RevokeMandateSessionResponse(_message.Message):
+    __slots__ = ("revoked",)
+    REVOKED_FIELD_NUMBER: _ClassVar[int]
+    revoked: bool
+    def __init__(self, revoked: _Optional[bool] = ...) -> None: ...
+
+class CancelStandingMandateRequest(_message.Message):
+    __slots__ = ("mandate_id",)
+    MANDATE_ID_FIELD_NUMBER: _ClassVar[int]
+    mandate_id: str
+    def __init__(self, mandate_id: _Optional[str] = ...) -> None: ...
+
+class CancelStandingMandateResponse(_message.Message):
+    __slots__ = ("mandate",)
+    MANDATE_FIELD_NUMBER: _ClassVar[int]
+    mandate: Mandate
+    def __init__(self, mandate: _Optional[_Union[Mandate, _Mapping]] = ...) -> None: ...
+
+class ListMandatesRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ListMandatesResponse(_message.Message):
+    __slots__ = ("mandates",)
+    MANDATES_FIELD_NUMBER: _ClassVar[int]
+    mandates: _containers.RepeatedCompositeFieldContainer[Mandate]
+    def __init__(self, mandates: _Optional[_Iterable[_Union[Mandate, _Mapping]]] = ...) -> None: ...

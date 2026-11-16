@@ -23,12 +23,22 @@ message SendRequest {
   int32 dedupe_window_seconds = 7;
   string scheduled_at = 8;
   int32 digest_window_seconds = 9;
+  // Where a tap on the notice goes: a Hub-relative path ("/asks/<id>") or an
+  // http(s) URL. Any other form is refused, because the operator taps it.
+  string context_url = 10;
 }
 
 message SendResponse { shared.Notification notification = 1; }
 message RelayRequest { string payload_base64 = 1; }
 message RelayResponse { shared.Notification notification = 1; }
 message GetRequest { string id = 1; }
-message GetResponse { shared.Notification notification = 1; repeated shared.DeliveryReceipt receipts = 2; }
+message GetResponse {
+  shared.Notification notification = 1;
+  repeated shared.DeliveryReceipt receipts = 2;
+  // The Agent Manager approval page, set only when the Hub itself recognises the
+  // notification as a native permission request (same identity test as
+  // ConversationsService.ListNativeConsents). Empty for every other notification.
+  string native_consent_review_url = 3;
+}
 message ListRequest { int32 limit = 1; }
 message ListResponse { repeated shared.Notification notifications = 1; }

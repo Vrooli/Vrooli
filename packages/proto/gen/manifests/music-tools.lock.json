@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "music-tools",
-  "input_digest": "sha256:9f7fcdf493045df6c4812270bbabf1fa29bd8a6f2d6528faa07c3f580e14423d",
+  "input_digest": "sha256:a878cd5a39a1fd816b5863d9330b699568d4707bd765714d585a3e2769850efb",
   "input_files": [
     "schemas/music-tools/v1/capacity/capacity.proto",
     "schemas/music-tools/v1/composition/composition.proto",
@@ -14,7 +14,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
-    "generator_digest": "sha256:cccdbaf9a556a5be923d2c17f31d7f3f1e8de7959b27263f9ddbb964a4b52cc9",
+    "generator_digest": "sha256:47bbfc74c5d2c0e0172be6ac47ec939b6b4678e8ca51fa8202f7056c8fc16447",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -25,8 +25,8 @@
   "outputs": {
     "gen/go/music-tools/v1/capacity/capacity.pb.go": "sha256:32ee2ed53417f548e1f20ddc4851d9b5e60ea29aa7cdc653ee2cb5b9278c5056",
     "gen/go/music-tools/v1/capacity/capacity_v1connect/capacity.connect.go": "sha256:9f7cadddcd2ad6e82c207d7f66fd4deda6c36ef641229dcfd7ec482f335c4a8b",
-    "gen/go/music-tools/v1/composition/composition.pb.go": "sha256:19c9fdba939b54dfedfff415744b495250830ef7e681ecd3eac470f126f41056",
-    "gen/go/music-tools/v1/composition/composition_v1connect/composition.connect.go": "sha256:cda9e9d6e4b84d854bd7d68c6b1a143234525f8a00f1dff3f926ebabd435a007",
+    "gen/go/music-tools/v1/composition/composition.pb.go": "sha256:a44e7258f9664684caab7c9af5cb7dbe79df518aad3722a9613767ce5a51cf16",
+    "gen/go/music-tools/v1/composition/composition_v1connect/composition.connect.go": "sha256:2f8794c7e040452ff77bfee54f0b2e3db80826600c9dbb1786fa5f3c242bb2e8",
     "gen/go/music-tools/v1/jobs/jobs.pb.go": "sha256:f960a812b79c8315e559b6f25167cbf82f42308f5324f1a1c23a946fb1e13102",
     "gen/go/music-tools/v1/jobs/jobs_v1connect/jobs.connect.go": "sha256:c89c95c762dfe93b02f179e6a02db9757100eacf91e59c10ce2c88fd72221c48",
     "gen/go/music-tools/v1/models/models.pb.go": "sha256:8073f796518425dd726c72ea18d3afdf025b4a5b25f40b7f71494e5a9a2f2fac",
@@ -39,8 +39,8 @@
     "gen/python/music_tools/v1/capacity/capacity_pb2.py": "sha256:0170fcbfb53449c3dc1278492beab6a6e24fabf4bda1ef34608a1441a22c647c",
     "gen/python/music_tools/v1/capacity/capacity_pb2.pyi": "sha256:e9a6f3b3dc8046b5abf4d5797865c61560ee39e8b17f98ee58ff1ab27f8fe36d",
     "gen/python/music_tools/v1/capacity/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/music_tools/v1/composition/composition_pb2.py": "sha256:8ed26503f77816c3bc7802d7c3c41df76b2ea6dfa061d88d608dbfafb6f56a25",
-    "gen/python/music_tools/v1/composition/composition_pb2.pyi": "sha256:7f937fd4c6060fb71e930d93dad4c4a58bdd5c8d9903d59046049661ed4de6ec",
+    "gen/python/music_tools/v1/composition/composition_pb2.py": "sha256:ac2bc356f6d457647597cea7a62cbf4f2dd16b7ca20edc3b6d882fb837b14106",
+    "gen/python/music_tools/v1/composition/composition_pb2.pyi": "sha256:e6086e4b905fb7557c6b78761a16fbbc71c1e70c2572476f0b6973db2e1eda21",
     "gen/python/music_tools/v1/composition/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/music_tools/v1/jobs/jobs_pb2.py": "sha256:ea21dc58a8f95a94e265e2ab9c56ddb380b3ff61054c90ca6bf8f36ff3a66527",
     "gen/python/music_tools/v1/jobs/jobs_pb2.pyi": "sha256:85a8a562ffbb61eec472975110977f88eec40a758de93cbd131ddebbf102ffd2",
@@ -58,12 +58,12 @@
     "gen/python/music_tools/v1/styles/styles_pb2.py": "sha256:cd109e217e15ac8e6af94f0545952893ab29915c4e4db0b0958046abfb75e1b0",
     "gen/python/music_tools/v1/styles/styles_pb2.pyi": "sha256:991b9ec61698a20f193a59862dae4b86e729303c97843f7e2be04488629ee761",
     "gen/typescript/music-tools/v1/capacity/capacity_pb.ts": "sha256:4f0204c0d9fb533e5b9f70c36a2cf15e9c9ba2162336a5d32e44f2b7db128349",
-    "gen/typescript/music-tools/v1/composition/composition_pb.ts": "sha256:7b423662ec894109390a5929781e99e219224b378394b6127acac6ecaa9b3718",
+    "gen/typescript/music-tools/v1/composition/composition_pb.ts": "sha256:77fbed4c5b965c1e8b653abb8cd7407a4de6e4afe22b1d3d86d347e498ef6b09",
     "gen/typescript/music-tools/v1/jobs/jobs_pb.ts": "sha256:15d49161525f3c89a891d4dde9edb612c1c1ae7c9d0b8d372946143421a40d15",
     "gen/typescript/music-tools/v1/models/models_pb.ts": "sha256:440f4f0d363abaf213d1f373fa2d4f80df02159c2d01e7fef9a1b3ca9d45f88e",
     "gen/typescript/music-tools/v1/shared/errors_pb.ts": "sha256:9b43a55914e1ac1a10da5fadf3fcd140a0879cba1b119c6d5710ae610861042c",
     "gen/typescript/music-tools/v1/shared/health_pb.ts": "sha256:05cef072e9ae17e819e3149f3c298c440cab59a6ad70bd9314dc1d93bc75549a",
     "gen/typescript/music-tools/v1/styles/styles_pb.ts": "sha256:62a411e5e148cf55021ae19398310ae5e13f305d1cc3866dee16ad8dc2842c78",
-    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
+    "gen/typescript/package.json": "sha256:d7210c69e0b4e8eb72d65b1503ce8ea1eeb61aa893b5442e16d0ab4a9980e5d6"
   }
 }

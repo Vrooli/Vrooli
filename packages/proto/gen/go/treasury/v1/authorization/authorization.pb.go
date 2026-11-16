@@ -7,14 +7,8 @@
 package authorization_v1
 
 import (
-	approval "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/approval"
-	book "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/book"
-	budget "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/budget"
-	funding "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/funding"
-	instrument "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/instrument"
-	mandate "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/mandate"
 	settlement "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/settlement"
-	wallet "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -554,7 +548,7 @@ func (x *GetBudgetHeadroomRequest) GetBudgetId() string {
 
 type GetBudgetHeadroomResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Headroom      *budget.Headroom       `protobuf:"bytes,1,opt,name=headroom,proto3" json:"headroom,omitempty"`
+	Headroom      *AgentBudgetHeadroom   `protobuf:"bytes,1,opt,name=headroom,proto3" json:"headroom,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -589,33 +583,51 @@ func (*GetBudgetHeadroomResponse) Descriptor() ([]byte, []int) {
 	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *GetBudgetHeadroomResponse) GetHeadroom() *budget.Headroom {
+func (x *GetBudgetHeadroomResponse) GetHeadroom() *AgentBudgetHeadroom {
 	if x != nil {
 		return x.Headroom
 	}
 	return nil
 }
 
-type ListMandatesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+type AgentBudgetHeadroom struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	BudgetId               string                 `protobuf:"bytes,1,opt,name=budget_id,json=budgetId,proto3" json:"budget_id,omitempty"`
+	BookId                 string                 `protobuf:"bytes,2,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	Currency               string                 `protobuf:"bytes,3,opt,name=currency,proto3" json:"currency,omitempty"`
+	TotalCapMinor          int64                  `protobuf:"varint,4,opt,name=total_cap_minor,json=totalCapMinor,proto3" json:"total_cap_minor,omitempty"`
+	TotalUsedMinor         int64                  `protobuf:"varint,5,opt,name=total_used_minor,json=totalUsedMinor,proto3" json:"total_used_minor,omitempty"`
+	TotalRemainingMinor    int64                  `protobuf:"varint,6,opt,name=total_remaining_minor,json=totalRemainingMinor,proto3" json:"total_remaining_minor,omitempty"`
+	PeriodicCapMinor       int64                  `protobuf:"varint,7,opt,name=periodic_cap_minor,json=periodicCapMinor,proto3" json:"periodic_cap_minor,omitempty"`
+	PeriodUsedMinor        int64                  `protobuf:"varint,8,opt,name=period_used_minor,json=periodUsedMinor,proto3" json:"period_used_minor,omitempty"`
+	PeriodRemainingMinor   int64                  `protobuf:"varint,9,opt,name=period_remaining_minor,json=periodRemainingMinor,proto3" json:"period_remaining_minor,omitempty"`
+	PerTransactionCapMinor int64                  `protobuf:"varint,10,opt,name=per_transaction_cap_minor,json=perTransactionCapMinor,proto3" json:"per_transaction_cap_minor,omitempty"`
+	AvailableMinor         int64                  `protobuf:"varint,11,opt,name=available_minor,json=availableMinor,proto3" json:"available_minor,omitempty"`
+	PeriodStartedAt        *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=period_started_at,json=periodStartedAt,proto3" json:"period_started_at,omitempty"`
+	ComputedAt             *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
+	FundingRequired        bool                   `protobuf:"varint,14,opt,name=funding_required,json=fundingRequired,proto3" json:"funding_required,omitempty"`
+	FundingCreditedMinor   int64                  `protobuf:"varint,15,opt,name=funding_credited_minor,json=fundingCreditedMinor,proto3" json:"funding_credited_minor,omitempty"`
+	FundingRemainingMinor  int64                  `protobuf:"varint,16,opt,name=funding_remaining_minor,json=fundingRemainingMinor,proto3" json:"funding_remaining_minor,omitempty"`
+	FundingAtomicAmount    string                 `protobuf:"bytes,17,opt,name=funding_atomic_amount,json=fundingAtomicAmount,proto3" json:"funding_atomic_amount,omitempty"`
+	FundingAssetId         string                 `protobuf:"bytes,18,opt,name=funding_asset_id,json=fundingAssetId,proto3" json:"funding_asset_id,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
-func (x *ListMandatesRequest) Reset() {
-	*x = ListMandatesRequest{}
+func (x *AgentBudgetHeadroom) Reset() {
+	*x = AgentBudgetHeadroom{}
 	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListMandatesRequest) String() string {
+func (x *AgentBudgetHeadroom) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListMandatesRequest) ProtoMessage() {}
+func (*AgentBudgetHeadroom) ProtoMessage() {}
 
-func (x *ListMandatesRequest) ProtoReflect() protoreflect.Message {
+func (x *AgentBudgetHeadroom) ProtoReflect() protoreflect.Message {
 	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -627,32 +639,157 @@ func (x *ListMandatesRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListMandatesRequest.ProtoReflect.Descriptor instead.
-func (*ListMandatesRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use AgentBudgetHeadroom.ProtoReflect.Descriptor instead.
+func (*AgentBudgetHeadroom) Descriptor() ([]byte, []int) {
 	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{7}
 }
 
-type ListMandatesResponse struct {
+func (x *AgentBudgetHeadroom) GetBudgetId() string {
+	if x != nil {
+		return x.BudgetId
+	}
+	return ""
+}
+
+func (x *AgentBudgetHeadroom) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+func (x *AgentBudgetHeadroom) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
+func (x *AgentBudgetHeadroom) GetTotalCapMinor() int64 {
+	if x != nil {
+		return x.TotalCapMinor
+	}
+	return 0
+}
+
+func (x *AgentBudgetHeadroom) GetTotalUsedMinor() int64 {
+	if x != nil {
+		return x.TotalUsedMinor
+	}
+	return 0
+}
+
+func (x *AgentBudgetHeadroom) GetTotalRemainingMinor() int64 {
+	if x != nil {
+		return x.TotalRemainingMinor
+	}
+	return 0
+}
+
+func (x *AgentBudgetHeadroom) GetPeriodicCapMinor() int64 {
+	if x != nil {
+		return x.PeriodicCapMinor
+	}
+	return 0
+}
+
+func (x *AgentBudgetHeadroom) GetPeriodUsedMinor() int64 {
+	if x != nil {
+		return x.PeriodUsedMinor
+	}
+	return 0
+}
+
+func (x *AgentBudgetHeadroom) GetPeriodRemainingMinor() int64 {
+	if x != nil {
+		return x.PeriodRemainingMinor
+	}
+	return 0
+}
+
+func (x *AgentBudgetHeadroom) GetPerTransactionCapMinor() int64 {
+	if x != nil {
+		return x.PerTransactionCapMinor
+	}
+	return 0
+}
+
+func (x *AgentBudgetHeadroom) GetAvailableMinor() int64 {
+	if x != nil {
+		return x.AvailableMinor
+	}
+	return 0
+}
+
+func (x *AgentBudgetHeadroom) GetPeriodStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PeriodStartedAt
+	}
+	return nil
+}
+
+func (x *AgentBudgetHeadroom) GetComputedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ComputedAt
+	}
+	return nil
+}
+
+func (x *AgentBudgetHeadroom) GetFundingRequired() bool {
+	if x != nil {
+		return x.FundingRequired
+	}
+	return false
+}
+
+func (x *AgentBudgetHeadroom) GetFundingCreditedMinor() int64 {
+	if x != nil {
+		return x.FundingCreditedMinor
+	}
+	return 0
+}
+
+func (x *AgentBudgetHeadroom) GetFundingRemainingMinor() int64 {
+	if x != nil {
+		return x.FundingRemainingMinor
+	}
+	return 0
+}
+
+func (x *AgentBudgetHeadroom) GetFundingAtomicAmount() string {
+	if x != nil {
+		return x.FundingAtomicAmount
+	}
+	return ""
+}
+
+func (x *AgentBudgetHeadroom) GetFundingAssetId() string {
+	if x != nil {
+		return x.FundingAssetId
+	}
+	return ""
+}
+
+type AgentListMandatesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Mandates      []*mandate.Mandate     `protobuf:"bytes,1,rep,name=mandates,proto3" json:"mandates,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListMandatesResponse) Reset() {
-	*x = ListMandatesResponse{}
+func (x *AgentListMandatesRequest) Reset() {
+	*x = AgentListMandatesRequest{}
 	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListMandatesResponse) String() string {
+func (x *AgentListMandatesRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListMandatesResponse) ProtoMessage() {}
+func (*AgentListMandatesRequest) ProtoMessage() {}
 
-func (x *ListMandatesResponse) ProtoReflect() protoreflect.Message {
+func (x *AgentListMandatesRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -664,12 +801,181 @@ func (x *ListMandatesResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListMandatesResponse.ProtoReflect.Descriptor instead.
-func (*ListMandatesResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use AgentListMandatesRequest.ProtoReflect.Descriptor instead.
+func (*AgentListMandatesRequest) Descriptor() ([]byte, []int) {
 	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *ListMandatesResponse) GetMandates() []*mandate.Mandate {
+type AgentMandate struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Id                    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	BookId                string                 `protobuf:"bytes,2,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	BudgetId              string                 `protobuf:"bytes,3,opt,name=budget_id,json=budgetId,proto3" json:"budget_id,omitempty"`
+	CapMinor              int64                  `protobuf:"varint,4,opt,name=cap_minor,json=capMinor,proto3" json:"cap_minor,omitempty"`
+	Currency              string                 `protobuf:"bytes,5,opt,name=currency,proto3" json:"currency,omitempty"`
+	AllowedCounterparties []string               `protobuf:"bytes,6,rep,name=allowed_counterparties,json=allowedCounterparties,proto3" json:"allowed_counterparties,omitempty"`
+	DeniedCounterparties  []string               `protobuf:"bytes,7,rep,name=denied_counterparties,json=deniedCounterparties,proto3" json:"denied_counterparties,omitempty"`
+	ExpiresAt             *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	Status                string                 `protobuf:"bytes,9,opt,name=status,proto3" json:"status,omitempty"`
+	RequiredEvidence      []string               `protobuf:"bytes,10,rep,name=required_evidence,json=requiredEvidence,proto3" json:"required_evidence,omitempty"`
+	RecurrenceSeconds     int64                  `protobuf:"varint,11,opt,name=recurrence_seconds,json=recurrenceSeconds,proto3" json:"recurrence_seconds,omitempty"`
+	NextChargeAt          *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=next_charge_at,json=nextChargeAt,proto3" json:"next_charge_at,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *AgentMandate) Reset() {
+	*x = AgentMandate{}
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentMandate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentMandate) ProtoMessage() {}
+
+func (x *AgentMandate) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentMandate.ProtoReflect.Descriptor instead.
+func (*AgentMandate) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *AgentMandate) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AgentMandate) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+func (x *AgentMandate) GetBudgetId() string {
+	if x != nil {
+		return x.BudgetId
+	}
+	return ""
+}
+
+func (x *AgentMandate) GetCapMinor() int64 {
+	if x != nil {
+		return x.CapMinor
+	}
+	return 0
+}
+
+func (x *AgentMandate) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
+func (x *AgentMandate) GetAllowedCounterparties() []string {
+	if x != nil {
+		return x.AllowedCounterparties
+	}
+	return nil
+}
+
+func (x *AgentMandate) GetDeniedCounterparties() []string {
+	if x != nil {
+		return x.DeniedCounterparties
+	}
+	return nil
+}
+
+func (x *AgentMandate) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *AgentMandate) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AgentMandate) GetRequiredEvidence() []string {
+	if x != nil {
+		return x.RequiredEvidence
+	}
+	return nil
+}
+
+func (x *AgentMandate) GetRecurrenceSeconds() int64 {
+	if x != nil {
+		return x.RecurrenceSeconds
+	}
+	return 0
+}
+
+func (x *AgentMandate) GetNextChargeAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.NextChargeAt
+	}
+	return nil
+}
+
+type AgentListMandatesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Mandates      []*AgentMandate        `protobuf:"bytes,1,rep,name=mandates,proto3" json:"mandates,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentListMandatesResponse) Reset() {
+	*x = AgentListMandatesResponse{}
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentListMandatesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentListMandatesResponse) ProtoMessage() {}
+
+func (x *AgentListMandatesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentListMandatesResponse.ProtoReflect.Descriptor instead.
+func (*AgentListMandatesResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *AgentListMandatesResponse) GetMandates() []*AgentMandate {
 	if x != nil {
 		return x.Mandates
 	}
@@ -695,7 +1001,7 @@ type ReportOutcomeRequest struct {
 
 func (x *ReportOutcomeRequest) Reset() {
 	*x = ReportOutcomeRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[9]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -707,7 +1013,7 @@ func (x *ReportOutcomeRequest) String() string {
 func (*ReportOutcomeRequest) ProtoMessage() {}
 
 func (x *ReportOutcomeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[9]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -720,7 +1026,7 @@ func (x *ReportOutcomeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportOutcomeRequest.ProtoReflect.Descriptor instead.
 func (*ReportOutcomeRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{9}
+	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ReportOutcomeRequest) GetAuthorizationId() string {
@@ -777,7 +1083,7 @@ type ReportOutcomeResponse struct {
 
 func (x *ReportOutcomeResponse) Reset() {
 	*x = ReportOutcomeResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[10]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -789,7 +1095,7 @@ func (x *ReportOutcomeResponse) String() string {
 func (*ReportOutcomeResponse) ProtoMessage() {}
 
 func (x *ReportOutcomeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[10]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -802,7 +1108,7 @@ func (x *ReportOutcomeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportOutcomeResponse.ProtoReflect.Descriptor instead.
 func (*ReportOutcomeResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{10}
+	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ReportOutcomeResponse) GetAuthorization() *AuthorizationRecord {
@@ -832,7 +1138,7 @@ type ReportManualOutcomeRequest struct {
 
 func (x *ReportManualOutcomeRequest) Reset() {
 	*x = ReportManualOutcomeRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[11]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -844,7 +1150,7 @@ func (x *ReportManualOutcomeRequest) String() string {
 func (*ReportManualOutcomeRequest) ProtoMessage() {}
 
 func (x *ReportManualOutcomeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[11]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -857,7 +1163,7 @@ func (x *ReportManualOutcomeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportManualOutcomeRequest.ProtoReflect.Descriptor instead.
 func (*ReportManualOutcomeRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{11}
+	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ReportManualOutcomeRequest) GetAuthorizationId() string {
@@ -905,7 +1211,7 @@ type ReportManualOutcomeResponse struct {
 
 func (x *ReportManualOutcomeResponse) Reset() {
 	*x = ReportManualOutcomeResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[12]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -917,7 +1223,7 @@ func (x *ReportManualOutcomeResponse) String() string {
 func (*ReportManualOutcomeResponse) ProtoMessage() {}
 
 func (x *ReportManualOutcomeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[12]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -930,7 +1236,7 @@ func (x *ReportManualOutcomeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportManualOutcomeResponse.ProtoReflect.Descriptor instead.
 func (*ReportManualOutcomeResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{12}
+	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ReportManualOutcomeResponse) GetAuthorization() *AuthorizationRecord {
@@ -957,7 +1263,7 @@ type ResolveUnknownSettlementRequest struct {
 
 func (x *ResolveUnknownSettlementRequest) Reset() {
 	*x = ResolveUnknownSettlementRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[13]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -969,7 +1275,7 @@ func (x *ResolveUnknownSettlementRequest) String() string {
 func (*ResolveUnknownSettlementRequest) ProtoMessage() {}
 
 func (x *ResolveUnknownSettlementRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[13]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -982,7 +1288,7 @@ func (x *ResolveUnknownSettlementRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveUnknownSettlementRequest.ProtoReflect.Descriptor instead.
 func (*ResolveUnknownSettlementRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{13}
+	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ResolveUnknownSettlementRequest) GetSettlementId() string {
@@ -1009,7 +1315,7 @@ type ResolveUnknownSettlementResponse struct {
 
 func (x *ResolveUnknownSettlementResponse) Reset() {
 	*x = ResolveUnknownSettlementResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[14]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1021,7 +1327,7 @@ func (x *ResolveUnknownSettlementResponse) String() string {
 func (*ResolveUnknownSettlementResponse) ProtoMessage() {}
 
 func (x *ResolveUnknownSettlementResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[14]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1034,7 +1340,7 @@ func (x *ResolveUnknownSettlementResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveUnknownSettlementResponse.ProtoReflect.Descriptor instead.
 func (*ResolveUnknownSettlementResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{14}
+	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ResolveUnknownSettlementResponse) GetAuthorization() *AuthorizationRecord {
@@ -1051,641 +1357,17 @@ func (x *ResolveUnknownSettlementResponse) GetSettlement() *settlement.Charge {
 	return nil
 }
 
-type CreateBookRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Book          *book.Book             `protobuf:"bytes,1,opt,name=book,proto3" json:"book,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CreateBookRequest) Reset() {
-	*x = CreateBookRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[15]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CreateBookRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CreateBookRequest) ProtoMessage() {}
-
-func (x *CreateBookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[15]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CreateBookRequest.ProtoReflect.Descriptor instead.
-func (*CreateBookRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{15}
-}
-
-func (x *CreateBookRequest) GetBook() *book.Book {
-	if x != nil {
-		return x.Book
-	}
-	return nil
-}
-
-type CreateBookResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Book          *book.Book             `protobuf:"bytes,1,opt,name=book,proto3" json:"book,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CreateBookResponse) Reset() {
-	*x = CreateBookResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[16]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CreateBookResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CreateBookResponse) ProtoMessage() {}
-
-func (x *CreateBookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[16]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CreateBookResponse.ProtoReflect.Descriptor instead.
-func (*CreateBookResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{16}
-}
-
-func (x *CreateBookResponse) GetBook() *book.Book {
-	if x != nil {
-		return x.Book
-	}
-	return nil
-}
-
-type GetBookRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetBookRequest) Reset() {
-	*x = GetBookRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[17]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetBookRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetBookRequest) ProtoMessage() {}
-
-func (x *GetBookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[17]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetBookRequest.ProtoReflect.Descriptor instead.
-func (*GetBookRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{17}
-}
-
-func (x *GetBookRequest) GetBookId() string {
-	if x != nil {
-		return x.BookId
-	}
-	return ""
-}
-
-type GetBookResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Book          *book.Book             `protobuf:"bytes,1,opt,name=book,proto3" json:"book,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetBookResponse) Reset() {
-	*x = GetBookResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[18]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetBookResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetBookResponse) ProtoMessage() {}
-
-func (x *GetBookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[18]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetBookResponse.ProtoReflect.Descriptor instead.
-func (*GetBookResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{18}
-}
-
-func (x *GetBookResponse) GetBook() *book.Book {
-	if x != nil {
-		return x.Book
-	}
-	return nil
-}
-
-type CreateMandateRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Mandate       *mandate.Mandate       `protobuf:"bytes,1,opt,name=mandate,proto3" json:"mandate,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CreateMandateRequest) Reset() {
-	*x = CreateMandateRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[19]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CreateMandateRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CreateMandateRequest) ProtoMessage() {}
-
-func (x *CreateMandateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[19]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CreateMandateRequest.ProtoReflect.Descriptor instead.
-func (*CreateMandateRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{19}
-}
-
-func (x *CreateMandateRequest) GetMandate() *mandate.Mandate {
-	if x != nil {
-		return x.Mandate
-	}
-	return nil
-}
-
-type CreateMandateResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Mandate       *mandate.Mandate       `protobuf:"bytes,1,opt,name=mandate,proto3" json:"mandate,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CreateMandateResponse) Reset() {
-	*x = CreateMandateResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[20]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CreateMandateResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CreateMandateResponse) ProtoMessage() {}
-
-func (x *CreateMandateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[20]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CreateMandateResponse.ProtoReflect.Descriptor instead.
-func (*CreateMandateResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{20}
-}
-
-func (x *CreateMandateResponse) GetMandate() *mandate.Mandate {
-	if x != nil {
-		return x.Mandate
-	}
-	return nil
-}
-
-type RevokeMandateRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MandateId     string                 `protobuf:"bytes,1,opt,name=mandate_id,json=mandateId,proto3" json:"mandate_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RevokeMandateRequest) Reset() {
-	*x = RevokeMandateRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[21]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RevokeMandateRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RevokeMandateRequest) ProtoMessage() {}
-
-func (x *RevokeMandateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[21]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RevokeMandateRequest.ProtoReflect.Descriptor instead.
-func (*RevokeMandateRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{21}
-}
-
-func (x *RevokeMandateRequest) GetMandateId() string {
-	if x != nil {
-		return x.MandateId
-	}
-	return ""
-}
-
-type RevokeMandateResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Mandate       *mandate.Mandate       `protobuf:"bytes,1,opt,name=mandate,proto3" json:"mandate,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RevokeMandateResponse) Reset() {
-	*x = RevokeMandateResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[22]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RevokeMandateResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RevokeMandateResponse) ProtoMessage() {}
-
-func (x *RevokeMandateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[22]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RevokeMandateResponse.ProtoReflect.Descriptor instead.
-func (*RevokeMandateResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{22}
-}
-
-func (x *RevokeMandateResponse) GetMandate() *mandate.Mandate {
-	if x != nil {
-		return x.Mandate
-	}
-	return nil
-}
-
-type CancelStandingMandateRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MandateId     string                 `protobuf:"bytes,1,opt,name=mandate_id,json=mandateId,proto3" json:"mandate_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CancelStandingMandateRequest) Reset() {
-	*x = CancelStandingMandateRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[23]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CancelStandingMandateRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CancelStandingMandateRequest) ProtoMessage() {}
-
-func (x *CancelStandingMandateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[23]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CancelStandingMandateRequest.ProtoReflect.Descriptor instead.
-func (*CancelStandingMandateRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{23}
-}
-
-func (x *CancelStandingMandateRequest) GetMandateId() string {
-	if x != nil {
-		return x.MandateId
-	}
-	return ""
-}
-
-type CancelStandingMandateResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Mandate       *mandate.Mandate       `protobuf:"bytes,1,opt,name=mandate,proto3" json:"mandate,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CancelStandingMandateResponse) Reset() {
-	*x = CancelStandingMandateResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[24]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CancelStandingMandateResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CancelStandingMandateResponse) ProtoMessage() {}
-
-func (x *CancelStandingMandateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[24]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CancelStandingMandateResponse.ProtoReflect.Descriptor instead.
-func (*CancelStandingMandateResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{24}
-}
-
-func (x *CancelStandingMandateResponse) GetMandate() *mandate.Mandate {
-	if x != nil {
-		return x.Mandate
-	}
-	return nil
-}
-
-type SetBudgetCapsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Budget        *budget.Budget         `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SetBudgetCapsRequest) Reset() {
-	*x = SetBudgetCapsRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[25]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SetBudgetCapsRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SetBudgetCapsRequest) ProtoMessage() {}
-
-func (x *SetBudgetCapsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[25]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SetBudgetCapsRequest.ProtoReflect.Descriptor instead.
-func (*SetBudgetCapsRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{25}
-}
-
-func (x *SetBudgetCapsRequest) GetBudget() *budget.Budget {
-	if x != nil {
-		return x.Budget
-	}
-	return nil
-}
-
-type SetBudgetCapsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Budget        *budget.Budget         `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SetBudgetCapsResponse) Reset() {
-	*x = SetBudgetCapsResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[26]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SetBudgetCapsResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SetBudgetCapsResponse) ProtoMessage() {}
-
-func (x *SetBudgetCapsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[26]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SetBudgetCapsResponse.ProtoReflect.Descriptor instead.
-func (*SetBudgetCapsResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{26}
-}
-
-func (x *SetBudgetCapsResponse) GetBudget() *budget.Budget {
-	if x != nil {
-		return x.Budget
-	}
-	return nil
-}
-
-type SetGatingRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	BudgetId         string                 `protobuf:"bytes,1,opt,name=budget_id,json=budgetId,proto3" json:"budget_id,omitempty"`
-	RequiresApproval bool                   `protobuf:"varint,2,opt,name=requires_approval,json=requiresApproval,proto3" json:"requires_approval,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
-}
-
-func (x *SetGatingRequest) Reset() {
-	*x = SetGatingRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[27]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SetGatingRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SetGatingRequest) ProtoMessage() {}
-
-func (x *SetGatingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[27]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SetGatingRequest.ProtoReflect.Descriptor instead.
-func (*SetGatingRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{27}
-}
-
-func (x *SetGatingRequest) GetBudgetId() string {
-	if x != nil {
-		return x.BudgetId
-	}
-	return ""
-}
-
-func (x *SetGatingRequest) GetRequiresApproval() bool {
-	if x != nil {
-		return x.RequiresApproval
-	}
-	return false
-}
-
-type SetGatingResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Budget        *budget.Budget         `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SetGatingResponse) Reset() {
-	*x = SetGatingResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[28]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SetGatingResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SetGatingResponse) ProtoMessage() {}
-
-func (x *SetGatingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[28]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SetGatingResponse.ProtoReflect.Descriptor instead.
-func (*SetGatingResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{28}
-}
-
-func (x *SetGatingResponse) GetBudget() *budget.Budget {
-	if x != nil {
-		return x.Budget
-	}
-	return nil
-}
-
 type ResolveApprovalRequest struct {
-	state         protoimpl.MessageState  `protogen:"open.v1"`
-	ApprovalId    string                  `protobuf:"bytes,1,opt,name=approval_id,json=approvalId,proto3" json:"approval_id,omitempty"`
-	Resolution    approval.ApprovalStatus `protobuf:"varint,2,opt,name=resolution,proto3,enum=vrooli.treasury.v1.approval.ApprovalStatus" json:"resolution,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ApprovalId    string                 `protobuf:"bytes,1,opt,name=approval_id,json=approvalId,proto3" json:"approval_id,omitempty"`
+	Resolution    shared.ApprovalStatus  `protobuf:"varint,2,opt,name=resolution,proto3,enum=vrooli.treasury.v1.shared.ApprovalStatus" json:"resolution,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ResolveApprovalRequest) Reset() {
 	*x = ResolveApprovalRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[29]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1697,7 +1379,7 @@ func (x *ResolveApprovalRequest) String() string {
 func (*ResolveApprovalRequest) ProtoMessage() {}
 
 func (x *ResolveApprovalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[29]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1710,7 +1392,7 @@ func (x *ResolveApprovalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveApprovalRequest.ProtoReflect.Descriptor instead.
 func (*ResolveApprovalRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{29}
+	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ResolveApprovalRequest) GetApprovalId() string {
@@ -1720,23 +1402,23 @@ func (x *ResolveApprovalRequest) GetApprovalId() string {
 	return ""
 }
 
-func (x *ResolveApprovalRequest) GetResolution() approval.ApprovalStatus {
+func (x *ResolveApprovalRequest) GetResolution() shared.ApprovalStatus {
 	if x != nil {
 		return x.Resolution
 	}
-	return approval.ApprovalStatus(0)
+	return shared.ApprovalStatus(0)
 }
 
 type ResolveApprovalResponse struct {
-	state         protoimpl.MessageState    `protogen:"open.v1"`
-	Approval      *approval.ApprovalRequest `protobuf:"bytes,1,opt,name=approval,proto3" json:"approval,omitempty"`
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Approval      *shared.ApprovalRequest `protobuf:"bytes,1,opt,name=approval,proto3" json:"approval,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ResolveApprovalResponse) Reset() {
 	*x = ResolveApprovalResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[30]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1748,7 +1430,7 @@ func (x *ResolveApprovalResponse) String() string {
 func (*ResolveApprovalResponse) ProtoMessage() {}
 
 func (x *ResolveApprovalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[30]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1761,10 +1443,10 @@ func (x *ResolveApprovalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveApprovalResponse.ProtoReflect.Descriptor instead.
 func (*ResolveApprovalResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{30}
+	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *ResolveApprovalResponse) GetApproval() *approval.ApprovalRequest {
+func (x *ResolveApprovalResponse) GetApproval() *shared.ApprovalRequest {
 	if x != nil {
 		return x.Approval
 	}
@@ -1772,16 +1454,16 @@ func (x *ResolveApprovalResponse) GetApproval() *approval.ApprovalRequest {
 }
 
 type ListApprovalsRequest struct {
-	state         protoimpl.MessageState  `protogen:"open.v1"`
-	Status        approval.ApprovalStatus `protobuf:"varint,1,opt,name=status,proto3,enum=vrooli.treasury.v1.approval.ApprovalStatus" json:"status,omitempty"`
-	BookId        string                  `protobuf:"bytes,2,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        shared.ApprovalStatus  `protobuf:"varint,1,opt,name=status,proto3,enum=vrooli.treasury.v1.shared.ApprovalStatus" json:"status,omitempty"`
+	BookId        string                 `protobuf:"bytes,2,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListApprovalsRequest) Reset() {
 	*x = ListApprovalsRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[31]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1793,7 +1475,7 @@ func (x *ListApprovalsRequest) String() string {
 func (*ListApprovalsRequest) ProtoMessage() {}
 
 func (x *ListApprovalsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[31]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1806,14 +1488,14 @@ func (x *ListApprovalsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListApprovalsRequest.ProtoReflect.Descriptor instead.
 func (*ListApprovalsRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{31}
+	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *ListApprovalsRequest) GetStatus() approval.ApprovalStatus {
+func (x *ListApprovalsRequest) GetStatus() shared.ApprovalStatus {
 	if x != nil {
 		return x.Status
 	}
-	return approval.ApprovalStatus(0)
+	return shared.ApprovalStatus(0)
 }
 
 func (x *ListApprovalsRequest) GetBookId() string {
@@ -1824,15 +1506,15 @@ func (x *ListApprovalsRequest) GetBookId() string {
 }
 
 type ListApprovalsResponse struct {
-	state         protoimpl.MessageState      `protogen:"open.v1"`
-	Approvals     []*approval.ApprovalRequest `protobuf:"bytes,1,rep,name=approvals,proto3" json:"approvals,omitempty"`
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Approvals     []*shared.ApprovalRequest `protobuf:"bytes,1,rep,name=approvals,proto3" json:"approvals,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListApprovalsResponse) Reset() {
 	*x = ListApprovalsResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[32]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1844,7 +1526,7 @@ func (x *ListApprovalsResponse) String() string {
 func (*ListApprovalsResponse) ProtoMessage() {}
 
 func (x *ListApprovalsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[32]
+	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1857,1347 +1539,12 @@ func (x *ListApprovalsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListApprovalsResponse.ProtoReflect.Descriptor instead.
 func (*ListApprovalsResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{32}
+	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{20}
 }
 
-func (x *ListApprovalsResponse) GetApprovals() []*approval.ApprovalRequest {
+func (x *ListApprovalsResponse) GetApprovals() []*shared.ApprovalRequest {
 	if x != nil {
 		return x.Approvals
-	}
-	return nil
-}
-
-type FreezeBudgetRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BudgetId      string                 `protobuf:"bytes,1,opt,name=budget_id,json=budgetId,proto3" json:"budget_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *FreezeBudgetRequest) Reset() {
-	*x = FreezeBudgetRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[33]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *FreezeBudgetRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*FreezeBudgetRequest) ProtoMessage() {}
-
-func (x *FreezeBudgetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[33]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use FreezeBudgetRequest.ProtoReflect.Descriptor instead.
-func (*FreezeBudgetRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{33}
-}
-
-func (x *FreezeBudgetRequest) GetBudgetId() string {
-	if x != nil {
-		return x.BudgetId
-	}
-	return ""
-}
-
-type FreezeBudgetResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Budget        *budget.Budget         `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *FreezeBudgetResponse) Reset() {
-	*x = FreezeBudgetResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[34]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *FreezeBudgetResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*FreezeBudgetResponse) ProtoMessage() {}
-
-func (x *FreezeBudgetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[34]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use FreezeBudgetResponse.ProtoReflect.Descriptor instead.
-func (*FreezeBudgetResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{34}
-}
-
-func (x *FreezeBudgetResponse) GetBudget() *budget.Budget {
-	if x != nil {
-		return x.Budget
-	}
-	return nil
-}
-
-type UnfreezeBudgetRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BudgetId      string                 `protobuf:"bytes,1,opt,name=budget_id,json=budgetId,proto3" json:"budget_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UnfreezeBudgetRequest) Reset() {
-	*x = UnfreezeBudgetRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[35]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UnfreezeBudgetRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UnfreezeBudgetRequest) ProtoMessage() {}
-
-func (x *UnfreezeBudgetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[35]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UnfreezeBudgetRequest.ProtoReflect.Descriptor instead.
-func (*UnfreezeBudgetRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{35}
-}
-
-func (x *UnfreezeBudgetRequest) GetBudgetId() string {
-	if x != nil {
-		return x.BudgetId
-	}
-	return ""
-}
-
-type UnfreezeBudgetResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Budget        *budget.Budget         `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UnfreezeBudgetResponse) Reset() {
-	*x = UnfreezeBudgetResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[36]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UnfreezeBudgetResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UnfreezeBudgetResponse) ProtoMessage() {}
-
-func (x *UnfreezeBudgetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[36]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UnfreezeBudgetResponse.ProtoReflect.Descriptor instead.
-func (*UnfreezeBudgetResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{36}
-}
-
-func (x *UnfreezeBudgetResponse) GetBudget() *budget.Budget {
-	if x != nil {
-		return x.Budget
-	}
-	return nil
-}
-
-type FreezeBookRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *FreezeBookRequest) Reset() {
-	*x = FreezeBookRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[37]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *FreezeBookRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*FreezeBookRequest) ProtoMessage() {}
-
-func (x *FreezeBookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[37]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use FreezeBookRequest.ProtoReflect.Descriptor instead.
-func (*FreezeBookRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{37}
-}
-
-func (x *FreezeBookRequest) GetBookId() string {
-	if x != nil {
-		return x.BookId
-	}
-	return ""
-}
-
-type FreezeBookResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
-	Frozen        bool                   `protobuf:"varint,2,opt,name=frozen,proto3" json:"frozen,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *FreezeBookResponse) Reset() {
-	*x = FreezeBookResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[38]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *FreezeBookResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*FreezeBookResponse) ProtoMessage() {}
-
-func (x *FreezeBookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[38]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use FreezeBookResponse.ProtoReflect.Descriptor instead.
-func (*FreezeBookResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{38}
-}
-
-func (x *FreezeBookResponse) GetBookId() string {
-	if x != nil {
-		return x.BookId
-	}
-	return ""
-}
-
-func (x *FreezeBookResponse) GetFrozen() bool {
-	if x != nil {
-		return x.Frozen
-	}
-	return false
-}
-
-func (x *FreezeBookResponse) GetUpdatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.UpdatedAt
-	}
-	return nil
-}
-
-type UnfreezeBookRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UnfreezeBookRequest) Reset() {
-	*x = UnfreezeBookRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[39]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UnfreezeBookRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UnfreezeBookRequest) ProtoMessage() {}
-
-func (x *UnfreezeBookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[39]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UnfreezeBookRequest.ProtoReflect.Descriptor instead.
-func (*UnfreezeBookRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{39}
-}
-
-func (x *UnfreezeBookRequest) GetBookId() string {
-	if x != nil {
-		return x.BookId
-	}
-	return ""
-}
-
-type UnfreezeBookResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
-	Frozen        bool                   `protobuf:"varint,2,opt,name=frozen,proto3" json:"frozen,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UnfreezeBookResponse) Reset() {
-	*x = UnfreezeBookResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[40]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UnfreezeBookResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UnfreezeBookResponse) ProtoMessage() {}
-
-func (x *UnfreezeBookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[40]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UnfreezeBookResponse.ProtoReflect.Descriptor instead.
-func (*UnfreezeBookResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{40}
-}
-
-func (x *UnfreezeBookResponse) GetBookId() string {
-	if x != nil {
-		return x.BookId
-	}
-	return ""
-}
-
-func (x *UnfreezeBookResponse) GetFrozen() bool {
-	if x != nil {
-		return x.Frozen
-	}
-	return false
-}
-
-func (x *UnfreezeBookResponse) GetUpdatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.UpdatedAt
-	}
-	return nil
-}
-
-type FreezeAllRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *FreezeAllRequest) Reset() {
-	*x = FreezeAllRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[41]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *FreezeAllRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*FreezeAllRequest) ProtoMessage() {}
-
-func (x *FreezeAllRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[41]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use FreezeAllRequest.ProtoReflect.Descriptor instead.
-func (*FreezeAllRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{41}
-}
-
-type GetFreezeStatusRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetFreezeStatusRequest) Reset() {
-	*x = GetFreezeStatusRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[42]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetFreezeStatusRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetFreezeStatusRequest) ProtoMessage() {}
-
-func (x *GetFreezeStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[42]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetFreezeStatusRequest.ProtoReflect.Descriptor instead.
-func (*GetFreezeStatusRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{42}
-}
-
-type GetFreezeStatusResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Frozen        bool                   `protobuf:"varint,1,opt,name=frozen,proto3" json:"frozen,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetFreezeStatusResponse) Reset() {
-	*x = GetFreezeStatusResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[43]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetFreezeStatusResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetFreezeStatusResponse) ProtoMessage() {}
-
-func (x *GetFreezeStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[43]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetFreezeStatusResponse.ProtoReflect.Descriptor instead.
-func (*GetFreezeStatusResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{43}
-}
-
-func (x *GetFreezeStatusResponse) GetFrozen() bool {
-	if x != nil {
-		return x.Frozen
-	}
-	return false
-}
-
-func (x *GetFreezeStatusResponse) GetUpdatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.UpdatedAt
-	}
-	return nil
-}
-
-type FreezeAllResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Frozen        bool                   `protobuf:"varint,1,opt,name=frozen,proto3" json:"frozen,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *FreezeAllResponse) Reset() {
-	*x = FreezeAllResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[44]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *FreezeAllResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*FreezeAllResponse) ProtoMessage() {}
-
-func (x *FreezeAllResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[44]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use FreezeAllResponse.ProtoReflect.Descriptor instead.
-func (*FreezeAllResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{44}
-}
-
-func (x *FreezeAllResponse) GetFrozen() bool {
-	if x != nil {
-		return x.Frozen
-	}
-	return false
-}
-
-func (x *FreezeAllResponse) GetUpdatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.UpdatedAt
-	}
-	return nil
-}
-
-type UnfreezeAllRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UnfreezeAllRequest) Reset() {
-	*x = UnfreezeAllRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[45]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UnfreezeAllRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UnfreezeAllRequest) ProtoMessage() {}
-
-func (x *UnfreezeAllRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[45]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UnfreezeAllRequest.ProtoReflect.Descriptor instead.
-func (*UnfreezeAllRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{45}
-}
-
-type UnfreezeAllResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Frozen        bool                   `protobuf:"varint,1,opt,name=frozen,proto3" json:"frozen,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UnfreezeAllResponse) Reset() {
-	*x = UnfreezeAllResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[46]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UnfreezeAllResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UnfreezeAllResponse) ProtoMessage() {}
-
-func (x *UnfreezeAllResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[46]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UnfreezeAllResponse.ProtoReflect.Descriptor instead.
-func (*UnfreezeAllResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{46}
-}
-
-func (x *UnfreezeAllResponse) GetFrozen() bool {
-	if x != nil {
-		return x.Frozen
-	}
-	return false
-}
-
-func (x *UnfreezeAllResponse) GetUpdatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.UpdatedAt
-	}
-	return nil
-}
-
-type RegisterInstrumentRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Instrument    *instrument.Instrument `protobuf:"bytes,1,opt,name=instrument,proto3" json:"instrument,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RegisterInstrumentRequest) Reset() {
-	*x = RegisterInstrumentRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[47]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RegisterInstrumentRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RegisterInstrumentRequest) ProtoMessage() {}
-
-func (x *RegisterInstrumentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[47]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RegisterInstrumentRequest.ProtoReflect.Descriptor instead.
-func (*RegisterInstrumentRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{47}
-}
-
-func (x *RegisterInstrumentRequest) GetInstrument() *instrument.Instrument {
-	if x != nil {
-		return x.Instrument
-	}
-	return nil
-}
-
-type RegisterInstrumentResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Instrument    *instrument.Instrument `protobuf:"bytes,1,opt,name=instrument,proto3" json:"instrument,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RegisterInstrumentResponse) Reset() {
-	*x = RegisterInstrumentResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[48]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RegisterInstrumentResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RegisterInstrumentResponse) ProtoMessage() {}
-
-func (x *RegisterInstrumentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[48]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RegisterInstrumentResponse.ProtoReflect.Descriptor instead.
-func (*RegisterInstrumentResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{48}
-}
-
-func (x *RegisterInstrumentResponse) GetInstrument() *instrument.Instrument {
-	if x != nil {
-		return x.Instrument
-	}
-	return nil
-}
-
-type CreateResearchWalletRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	BookId        string                 `protobuf:"bytes,2,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
-	Network       string                 `protobuf:"bytes,3,opt,name=network,proto3" json:"network,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CreateResearchWalletRequest) Reset() {
-	*x = CreateResearchWalletRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[49]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CreateResearchWalletRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CreateResearchWalletRequest) ProtoMessage() {}
-
-func (x *CreateResearchWalletRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[49]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CreateResearchWalletRequest.ProtoReflect.Descriptor instead.
-func (*CreateResearchWalletRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{49}
-}
-
-func (x *CreateResearchWalletRequest) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *CreateResearchWalletRequest) GetBookId() string {
-	if x != nil {
-		return x.BookId
-	}
-	return ""
-}
-
-func (x *CreateResearchWalletRequest) GetNetwork() string {
-	if x != nil {
-		return x.Network
-	}
-	return ""
-}
-
-type ResearchWalletRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Network       string                 `protobuf:"bytes,2,opt,name=network,proto3" json:"network,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ResearchWalletRequest) Reset() {
-	*x = ResearchWalletRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[50]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResearchWalletRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResearchWalletRequest) ProtoMessage() {}
-
-func (x *ResearchWalletRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[50]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResearchWalletRequest.ProtoReflect.Descriptor instead.
-func (*ResearchWalletRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{50}
-}
-
-func (x *ResearchWalletRequest) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *ResearchWalletRequest) GetNetwork() string {
-	if x != nil {
-		return x.Network
-	}
-	return ""
-}
-
-type ResearchWalletResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Wallet        *wallet.Wallet         `protobuf:"bytes,1,opt,name=wallet,proto3" json:"wallet,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ResearchWalletResponse) Reset() {
-	*x = ResearchWalletResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[51]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResearchWalletResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResearchWalletResponse) ProtoMessage() {}
-
-func (x *ResearchWalletResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[51]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResearchWalletResponse.ProtoReflect.Descriptor instead.
-func (*ResearchWalletResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{51}
-}
-
-func (x *ResearchWalletResponse) GetWallet() *wallet.Wallet {
-	if x != nil {
-		return x.Wallet
-	}
-	return nil
-}
-
-type ProveResearchWalletRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Network       string                 `protobuf:"bytes,2,opt,name=network,proto3" json:"network,omitempty"`
-	Nonce         string                 `protobuf:"bytes,3,opt,name=nonce,proto3" json:"nonce,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ProveResearchWalletRequest) Reset() {
-	*x = ProveResearchWalletRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[52]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ProveResearchWalletRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ProveResearchWalletRequest) ProtoMessage() {}
-
-func (x *ProveResearchWalletRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[52]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ProveResearchWalletRequest.ProtoReflect.Descriptor instead.
-func (*ProveResearchWalletRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{52}
-}
-
-func (x *ProveResearchWalletRequest) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *ProveResearchWalletRequest) GetNetwork() string {
-	if x != nil {
-		return x.Network
-	}
-	return ""
-}
-
-func (x *ProveResearchWalletRequest) GetNonce() string {
-	if x != nil {
-		return x.Nonce
-	}
-	return ""
-}
-
-type ProveResearchWalletResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Proof         *wallet.ControlProof   `protobuf:"bytes,1,opt,name=proof,proto3" json:"proof,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ProveResearchWalletResponse) Reset() {
-	*x = ProveResearchWalletResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[53]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ProveResearchWalletResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ProveResearchWalletResponse) ProtoMessage() {}
-
-func (x *ProveResearchWalletResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[53]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ProveResearchWalletResponse.ProtoReflect.Descriptor instead.
-func (*ProveResearchWalletResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{53}
-}
-
-func (x *ProveResearchWalletResponse) GetProof() *wallet.ControlProof {
-	if x != nil {
-		return x.Proof
-	}
-	return nil
-}
-
-type VerifyBaseUSDCReceiptRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	WalletId        string                 `protobuf:"bytes,1,opt,name=wallet_id,json=walletId,proto3" json:"wallet_id,omitempty"`
-	TransactionHash string                 `protobuf:"bytes,2,opt,name=transaction_hash,json=transactionHash,proto3" json:"transaction_hash,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *VerifyBaseUSDCReceiptRequest) Reset() {
-	*x = VerifyBaseUSDCReceiptRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[54]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *VerifyBaseUSDCReceiptRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*VerifyBaseUSDCReceiptRequest) ProtoMessage() {}
-
-func (x *VerifyBaseUSDCReceiptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[54]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use VerifyBaseUSDCReceiptRequest.ProtoReflect.Descriptor instead.
-func (*VerifyBaseUSDCReceiptRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{54}
-}
-
-func (x *VerifyBaseUSDCReceiptRequest) GetWalletId() string {
-	if x != nil {
-		return x.WalletId
-	}
-	return ""
-}
-
-func (x *VerifyBaseUSDCReceiptRequest) GetTransactionHash() string {
-	if x != nil {
-		return x.TransactionHash
-	}
-	return ""
-}
-
-type VerifyBaseUSDCReceiptResponse struct {
-	state         protoimpl.MessageState                `protogen:"open.v1"`
-	Transfers     []*wallet.BaseUSDCTransferObservation `protobuf:"bytes,1,rep,name=transfers,proto3" json:"transfers,omitempty"`
-	CheckId       string                                `protobuf:"bytes,2,opt,name=check_id,json=checkId,proto3" json:"check_id,omitempty"`
-	CheckOutcome  string                                `protobuf:"bytes,3,opt,name=check_outcome,json=checkOutcome,proto3" json:"check_outcome,omitempty"`
-	ProviderId    string                                `protobuf:"bytes,4,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
-	CheckedAt     *timestamppb.Timestamp                `protobuf:"bytes,5,opt,name=checked_at,json=checkedAt,proto3" json:"checked_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *VerifyBaseUSDCReceiptResponse) Reset() {
-	*x = VerifyBaseUSDCReceiptResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[55]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *VerifyBaseUSDCReceiptResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*VerifyBaseUSDCReceiptResponse) ProtoMessage() {}
-
-func (x *VerifyBaseUSDCReceiptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[55]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use VerifyBaseUSDCReceiptResponse.ProtoReflect.Descriptor instead.
-func (*VerifyBaseUSDCReceiptResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{55}
-}
-
-func (x *VerifyBaseUSDCReceiptResponse) GetTransfers() []*wallet.BaseUSDCTransferObservation {
-	if x != nil {
-		return x.Transfers
-	}
-	return nil
-}
-
-func (x *VerifyBaseUSDCReceiptResponse) GetCheckId() string {
-	if x != nil {
-		return x.CheckId
-	}
-	return ""
-}
-
-func (x *VerifyBaseUSDCReceiptResponse) GetCheckOutcome() string {
-	if x != nil {
-		return x.CheckOutcome
-	}
-	return ""
-}
-
-func (x *VerifyBaseUSDCReceiptResponse) GetProviderId() string {
-	if x != nil {
-		return x.ProviderId
-	}
-	return ""
-}
-
-func (x *VerifyBaseUSDCReceiptResponse) GetCheckedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.CheckedAt
-	}
-	return nil
-}
-
-// Rechecks are accepted only when the prior verified check matches all three
-// supplied scope fields under the authenticated operator and Base network.
-type RecheckBaseUSDCReceiptRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	WalletId        string                 `protobuf:"bytes,1,opt,name=wallet_id,json=walletId,proto3" json:"wallet_id,omitempty"`
-	TransactionHash string                 `protobuf:"bytes,2,opt,name=transaction_hash,json=transactionHash,proto3" json:"transaction_hash,omitempty"`
-	PriorCheckId    string                 `protobuf:"bytes,3,opt,name=prior_check_id,json=priorCheckId,proto3" json:"prior_check_id,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *RecheckBaseUSDCReceiptRequest) Reset() {
-	*x = RecheckBaseUSDCReceiptRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[56]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RecheckBaseUSDCReceiptRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RecheckBaseUSDCReceiptRequest) ProtoMessage() {}
-
-func (x *RecheckBaseUSDCReceiptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[56]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RecheckBaseUSDCReceiptRequest.ProtoReflect.Descriptor instead.
-func (*RecheckBaseUSDCReceiptRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{56}
-}
-
-func (x *RecheckBaseUSDCReceiptRequest) GetWalletId() string {
-	if x != nil {
-		return x.WalletId
-	}
-	return ""
-}
-
-func (x *RecheckBaseUSDCReceiptRequest) GetTransactionHash() string {
-	if x != nil {
-		return x.TransactionHash
-	}
-	return ""
-}
-
-func (x *RecheckBaseUSDCReceiptRequest) GetPriorCheckId() string {
-	if x != nil {
-		return x.PriorCheckId
-	}
-	return ""
-}
-
-type RecheckBaseUSDCReceiptResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Provider observation only; this RPC never posts or credits funds.
-	Check         *wallet.BaseUSDCReceiptCheck `protobuf:"bytes,1,opt,name=check,proto3" json:"check,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RecheckBaseUSDCReceiptResponse) Reset() {
-	*x = RecheckBaseUSDCReceiptResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[57]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RecheckBaseUSDCReceiptResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RecheckBaseUSDCReceiptResponse) ProtoMessage() {}
-
-func (x *RecheckBaseUSDCReceiptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[57]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RecheckBaseUSDCReceiptResponse.ProtoReflect.Descriptor instead.
-func (*RecheckBaseUSDCReceiptResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{57}
-}
-
-func (x *RecheckBaseUSDCReceiptResponse) GetCheck() *wallet.BaseUSDCReceiptCheck {
-	if x != nil {
-		return x.Check
-	}
-	return nil
-}
-
-type ListBaseUSDCReceiptChecksRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	WalletId        string                 `protobuf:"bytes,1,opt,name=wallet_id,json=walletId,proto3" json:"wallet_id,omitempty"`
-	TransactionHash string                 `protobuf:"bytes,2,opt,name=transaction_hash,json=transactionHash,proto3" json:"transaction_hash,omitempty"`
-	Limit           uint32                 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *ListBaseUSDCReceiptChecksRequest) Reset() {
-	*x = ListBaseUSDCReceiptChecksRequest{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[58]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListBaseUSDCReceiptChecksRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListBaseUSDCReceiptChecksRequest) ProtoMessage() {}
-
-func (x *ListBaseUSDCReceiptChecksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[58]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListBaseUSDCReceiptChecksRequest.ProtoReflect.Descriptor instead.
-func (*ListBaseUSDCReceiptChecksRequest) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{58}
-}
-
-func (x *ListBaseUSDCReceiptChecksRequest) GetWalletId() string {
-	if x != nil {
-		return x.WalletId
-	}
-	return ""
-}
-
-func (x *ListBaseUSDCReceiptChecksRequest) GetTransactionHash() string {
-	if x != nil {
-		return x.TransactionHash
-	}
-	return ""
-}
-
-func (x *ListBaseUSDCReceiptChecksRequest) GetLimit() uint32 {
-	if x != nil {
-		return x.Limit
-	}
-	return 0
-}
-
-type ListBaseUSDCReceiptChecksResponse struct {
-	state         protoimpl.MessageState         `protogen:"open.v1"`
-	Checks        []*wallet.BaseUSDCReceiptCheck `protobuf:"bytes,1,rep,name=checks,proto3" json:"checks,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListBaseUSDCReceiptChecksResponse) Reset() {
-	*x = ListBaseUSDCReceiptChecksResponse{}
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[59]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListBaseUSDCReceiptChecksResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListBaseUSDCReceiptChecksResponse) ProtoMessage() {}
-
-func (x *ListBaseUSDCReceiptChecksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_treasury_v1_authorization_authorization_proto_msgTypes[59]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListBaseUSDCReceiptChecksResponse.ProtoReflect.Descriptor instead.
-func (*ListBaseUSDCReceiptChecksResponse) Descriptor() ([]byte, []int) {
-	return file_treasury_v1_authorization_authorization_proto_rawDescGZIP(), []int{59}
-}
-
-func (x *ListBaseUSDCReceiptChecksResponse) GetChecks() []*wallet.BaseUSDCReceiptCheck {
-	if x != nil {
-		return x.Checks
 	}
 	return nil
 }
@@ -3206,7 +1553,7 @@ var File_treasury_v1_authorization_authorization_proto protoreflect.FileDescript
 
 const file_treasury_v1_authorization_authorization_proto_rawDesc = "" +
 	"\n" +
-	"-treasury/v1/authorization/authorization.proto\x12 vrooli.treasury.v1.authorization\x1a\x1fgoogle/protobuf/timestamp.proto\x1a#treasury/v1/approval/approval.proto\x1a\x1btreasury/v1/book/book.proto\x1a\x1ftreasury/v1/budget/budget.proto\x1a'treasury/v1/instrument/instrument.proto\x1a!treasury/v1/mandate/mandate.proto\x1a'treasury/v1/settlement/settlement.proto\x1a\x1ftreasury/v1/wallet/wallet.proto\x1a!treasury/v1/funding/funding.proto\x1a$treasury/v1/funding/wallet_ops.proto\"\xf3\x05\n" +
+	"-treasury/v1/authorization/authorization.proto\x12 vrooli.treasury.v1.authorization\x1a\x1fgoogle/protobuf/timestamp.proto\x1a'treasury/v1/settlement/settlement.proto\x1a!treasury/v1/shared/approval.proto\"\xf3\x05\n" +
 	"\x13AuthorizationRecord\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -3249,12 +1596,48 @@ const file_treasury_v1_authorization_authorization_proto_rawDesc = "" +
 	"\x18GetAuthorizationResponse\x12[\n" +
 	"\rauthorization\x18\x01 \x01(\v25.vrooli.treasury.v1.authorization.AuthorizationRecordR\rauthorization\"7\n" +
 	"\x18GetBudgetHeadroomRequest\x12\x1b\n" +
-	"\tbudget_id\x18\x01 \x01(\tR\bbudgetId\"\\\n" +
-	"\x19GetBudgetHeadroomResponse\x12?\n" +
-	"\bheadroom\x18\x01 \x01(\v2#.vrooli.treasury.v1.budget.HeadroomR\bheadroom\"\x15\n" +
-	"\x13ListMandatesRequest\"W\n" +
-	"\x14ListMandatesResponse\x12?\n" +
-	"\bmandates\x18\x01 \x03(\v2#.vrooli.treasury.v1.mandate.MandateR\bmandates\"\xfd\x01\n" +
+	"\tbudget_id\x18\x01 \x01(\tR\bbudgetId\"n\n" +
+	"\x19GetBudgetHeadroomResponse\x12Q\n" +
+	"\bheadroom\x18\x01 \x01(\v25.vrooli.treasury.v1.authorization.AgentBudgetHeadroomR\bheadroom\"\xdd\x06\n" +
+	"\x13AgentBudgetHeadroom\x12\x1b\n" +
+	"\tbudget_id\x18\x01 \x01(\tR\bbudgetId\x12\x17\n" +
+	"\abook_id\x18\x02 \x01(\tR\x06bookId\x12\x1a\n" +
+	"\bcurrency\x18\x03 \x01(\tR\bcurrency\x12&\n" +
+	"\x0ftotal_cap_minor\x18\x04 \x01(\x03R\rtotalCapMinor\x12(\n" +
+	"\x10total_used_minor\x18\x05 \x01(\x03R\x0etotalUsedMinor\x122\n" +
+	"\x15total_remaining_minor\x18\x06 \x01(\x03R\x13totalRemainingMinor\x12,\n" +
+	"\x12periodic_cap_minor\x18\a \x01(\x03R\x10periodicCapMinor\x12*\n" +
+	"\x11period_used_minor\x18\b \x01(\x03R\x0fperiodUsedMinor\x124\n" +
+	"\x16period_remaining_minor\x18\t \x01(\x03R\x14periodRemainingMinor\x129\n" +
+	"\x19per_transaction_cap_minor\x18\n" +
+	" \x01(\x03R\x16perTransactionCapMinor\x12'\n" +
+	"\x0favailable_minor\x18\v \x01(\x03R\x0eavailableMinor\x12F\n" +
+	"\x11period_started_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\x0fperiodStartedAt\x12;\n" +
+	"\vcomputed_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"computedAt\x12)\n" +
+	"\x10funding_required\x18\x0e \x01(\bR\x0ffundingRequired\x124\n" +
+	"\x16funding_credited_minor\x18\x0f \x01(\x03R\x14fundingCreditedMinor\x126\n" +
+	"\x17funding_remaining_minor\x18\x10 \x01(\x03R\x15fundingRemainingMinor\x122\n" +
+	"\x15funding_atomic_amount\x18\x11 \x01(\tR\x13fundingAtomicAmount\x12(\n" +
+	"\x10funding_asset_id\x18\x12 \x01(\tR\x0efundingAssetId\"\x1a\n" +
+	"\x18AgentListMandatesRequest\"\xea\x03\n" +
+	"\fAgentMandate\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
+	"\abook_id\x18\x02 \x01(\tR\x06bookId\x12\x1b\n" +
+	"\tbudget_id\x18\x03 \x01(\tR\bbudgetId\x12\x1b\n" +
+	"\tcap_minor\x18\x04 \x01(\x03R\bcapMinor\x12\x1a\n" +
+	"\bcurrency\x18\x05 \x01(\tR\bcurrency\x125\n" +
+	"\x16allowed_counterparties\x18\x06 \x03(\tR\x15allowedCounterparties\x123\n" +
+	"\x15denied_counterparties\x18\a \x03(\tR\x14deniedCounterparties\x129\n" +
+	"\n" +
+	"expires_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x16\n" +
+	"\x06status\x18\t \x01(\tR\x06status\x12+\n" +
+	"\x11required_evidence\x18\n" +
+	" \x03(\tR\x10requiredEvidence\x12-\n" +
+	"\x12recurrence_seconds\x18\v \x01(\x03R\x11recurrenceSeconds\x12@\n" +
+	"\x0enext_charge_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\fnextChargeAt\"g\n" +
+	"\x19AgentListMandatesResponse\x12J\n" +
+	"\bmandates\x18\x01 \x03(\v2..vrooli.treasury.v1.authorization.AgentMandateR\bmandates\"\xfd\x01\n" +
 	"\x14ReportOutcomeRequest\x12)\n" +
 	"\x10authorization_id\x18\x01 \x01(\tR\x0fauthorizationId\x12\x1c\n" +
 	"\aoutcome\x18\x02 \x01(\tB\x02\x18\x01R\aoutcome\x12)\n" +
@@ -3285,191 +1668,37 @@ const file_treasury_v1_authorization_authorization_proto_rawDesc = "" +
 	"\rauthorization\x18\x01 \x01(\v25.vrooli.treasury.v1.authorization.AuthorizationRecordR\rauthorization\x12E\n" +
 	"\n" +
 	"settlement\x18\x02 \x01(\v2%.vrooli.treasury.v1.settlement.ChargeR\n" +
-	"settlement\"F\n" +
-	"\x11CreateBookRequest\x121\n" +
-	"\x04book\x18\x01 \x01(\v2\x1d.vrooli.treasury.v1.book.BookR\x04book\"G\n" +
-	"\x12CreateBookResponse\x121\n" +
-	"\x04book\x18\x01 \x01(\v2\x1d.vrooli.treasury.v1.book.BookR\x04book\")\n" +
-	"\x0eGetBookRequest\x12\x17\n" +
-	"\abook_id\x18\x01 \x01(\tR\x06bookId\"D\n" +
-	"\x0fGetBookResponse\x121\n" +
-	"\x04book\x18\x01 \x01(\v2\x1d.vrooli.treasury.v1.book.BookR\x04book\"U\n" +
-	"\x14CreateMandateRequest\x12=\n" +
-	"\amandate\x18\x01 \x01(\v2#.vrooli.treasury.v1.mandate.MandateR\amandate\"V\n" +
-	"\x15CreateMandateResponse\x12=\n" +
-	"\amandate\x18\x01 \x01(\v2#.vrooli.treasury.v1.mandate.MandateR\amandate\"5\n" +
-	"\x14RevokeMandateRequest\x12\x1d\n" +
-	"\n" +
-	"mandate_id\x18\x01 \x01(\tR\tmandateId\"V\n" +
-	"\x15RevokeMandateResponse\x12=\n" +
-	"\amandate\x18\x01 \x01(\v2#.vrooli.treasury.v1.mandate.MandateR\amandate\"=\n" +
-	"\x1cCancelStandingMandateRequest\x12\x1d\n" +
-	"\n" +
-	"mandate_id\x18\x01 \x01(\tR\tmandateId\"^\n" +
-	"\x1dCancelStandingMandateResponse\x12=\n" +
-	"\amandate\x18\x01 \x01(\v2#.vrooli.treasury.v1.mandate.MandateR\amandate\"Q\n" +
-	"\x14SetBudgetCapsRequest\x129\n" +
-	"\x06budget\x18\x01 \x01(\v2!.vrooli.treasury.v1.budget.BudgetR\x06budget\"R\n" +
-	"\x15SetBudgetCapsResponse\x129\n" +
-	"\x06budget\x18\x01 \x01(\v2!.vrooli.treasury.v1.budget.BudgetR\x06budget\"\\\n" +
-	"\x10SetGatingRequest\x12\x1b\n" +
-	"\tbudget_id\x18\x01 \x01(\tR\bbudgetId\x12+\n" +
-	"\x11requires_approval\x18\x02 \x01(\bR\x10requiresApproval\"N\n" +
-	"\x11SetGatingResponse\x129\n" +
-	"\x06budget\x18\x01 \x01(\v2!.vrooli.treasury.v1.budget.BudgetR\x06budget\"\x86\x01\n" +
+	"settlement\"\x84\x01\n" +
 	"\x16ResolveApprovalRequest\x12\x1f\n" +
 	"\vapproval_id\x18\x01 \x01(\tR\n" +
-	"approvalId\x12K\n" +
+	"approvalId\x12I\n" +
 	"\n" +
-	"resolution\x18\x02 \x01(\x0e2+.vrooli.treasury.v1.approval.ApprovalStatusR\n" +
-	"resolution\"c\n" +
-	"\x17ResolveApprovalResponse\x12H\n" +
-	"\bapproval\x18\x01 \x01(\v2,.vrooli.treasury.v1.approval.ApprovalRequestR\bapproval\"t\n" +
-	"\x14ListApprovalsRequest\x12C\n" +
-	"\x06status\x18\x01 \x01(\x0e2+.vrooli.treasury.v1.approval.ApprovalStatusR\x06status\x12\x17\n" +
-	"\abook_id\x18\x02 \x01(\tR\x06bookId\"c\n" +
-	"\x15ListApprovalsResponse\x12J\n" +
-	"\tapprovals\x18\x01 \x03(\v2,.vrooli.treasury.v1.approval.ApprovalRequestR\tapprovals\"2\n" +
-	"\x13FreezeBudgetRequest\x12\x1b\n" +
-	"\tbudget_id\x18\x01 \x01(\tR\bbudgetId\"Q\n" +
-	"\x14FreezeBudgetResponse\x129\n" +
-	"\x06budget\x18\x01 \x01(\v2!.vrooli.treasury.v1.budget.BudgetR\x06budget\"4\n" +
-	"\x15UnfreezeBudgetRequest\x12\x1b\n" +
-	"\tbudget_id\x18\x01 \x01(\tR\bbudgetId\"S\n" +
-	"\x16UnfreezeBudgetResponse\x129\n" +
-	"\x06budget\x18\x01 \x01(\v2!.vrooli.treasury.v1.budget.BudgetR\x06budget\",\n" +
-	"\x11FreezeBookRequest\x12\x17\n" +
-	"\abook_id\x18\x01 \x01(\tR\x06bookId\"\x80\x01\n" +
-	"\x12FreezeBookResponse\x12\x17\n" +
-	"\abook_id\x18\x01 \x01(\tR\x06bookId\x12\x16\n" +
-	"\x06frozen\x18\x02 \x01(\bR\x06frozen\x129\n" +
-	"\n" +
-	"updated_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\".\n" +
-	"\x13UnfreezeBookRequest\x12\x17\n" +
-	"\abook_id\x18\x01 \x01(\tR\x06bookId\"\x82\x01\n" +
-	"\x14UnfreezeBookResponse\x12\x17\n" +
-	"\abook_id\x18\x01 \x01(\tR\x06bookId\x12\x16\n" +
-	"\x06frozen\x18\x02 \x01(\bR\x06frozen\x129\n" +
-	"\n" +
-	"updated_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x12\n" +
-	"\x10FreezeAllRequest\"\x18\n" +
-	"\x16GetFreezeStatusRequest\"l\n" +
-	"\x17GetFreezeStatusResponse\x12\x16\n" +
-	"\x06frozen\x18\x01 \x01(\bR\x06frozen\x129\n" +
-	"\n" +
-	"updated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"f\n" +
-	"\x11FreezeAllResponse\x12\x16\n" +
-	"\x06frozen\x18\x01 \x01(\bR\x06frozen\x129\n" +
-	"\n" +
-	"updated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x14\n" +
-	"\x12UnfreezeAllRequest\"h\n" +
-	"\x13UnfreezeAllResponse\x12\x16\n" +
-	"\x06frozen\x18\x01 \x01(\bR\x06frozen\x129\n" +
-	"\n" +
-	"updated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"f\n" +
-	"\x19RegisterInstrumentRequest\x12I\n" +
-	"\n" +
-	"instrument\x18\x01 \x01(\v2).vrooli.treasury.v1.instrument.InstrumentR\n" +
-	"instrument\"g\n" +
-	"\x1aRegisterInstrumentResponse\x12I\n" +
-	"\n" +
-	"instrument\x18\x01 \x01(\v2).vrooli.treasury.v1.instrument.InstrumentR\n" +
-	"instrument\"`\n" +
-	"\x1bCreateResearchWalletRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
-	"\abook_id\x18\x02 \x01(\tR\x06bookId\x12\x18\n" +
-	"\anetwork\x18\x03 \x01(\tR\anetwork\"A\n" +
-	"\x15ResearchWalletRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\anetwork\x18\x02 \x01(\tR\anetwork\"S\n" +
-	"\x16ResearchWalletResponse\x129\n" +
-	"\x06wallet\x18\x01 \x01(\v2!.vrooli.treasury.v1.wallet.WalletR\x06wallet\"\\\n" +
-	"\x1aProveResearchWalletRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\anetwork\x18\x02 \x01(\tR\anetwork\x12\x14\n" +
-	"\x05nonce\x18\x03 \x01(\tR\x05nonce\"\\\n" +
-	"\x1bProveResearchWalletResponse\x12=\n" +
-	"\x05proof\x18\x01 \x01(\v2'.vrooli.treasury.v1.wallet.ControlProofR\x05proof\"f\n" +
-	"\x1cVerifyBaseUSDCReceiptRequest\x12\x1b\n" +
-	"\twallet_id\x18\x01 \x01(\tR\bwalletId\x12)\n" +
-	"\x10transaction_hash\x18\x02 \x01(\tR\x0ftransactionHash\"\x91\x02\n" +
-	"\x1dVerifyBaseUSDCReceiptResponse\x12T\n" +
-	"\ttransfers\x18\x01 \x03(\v26.vrooli.treasury.v1.wallet.BaseUSDCTransferObservationR\ttransfers\x12\x19\n" +
-	"\bcheck_id\x18\x02 \x01(\tR\acheckId\x12#\n" +
-	"\rcheck_outcome\x18\x03 \x01(\tR\fcheckOutcome\x12\x1f\n" +
-	"\vprovider_id\x18\x04 \x01(\tR\n" +
-	"providerId\x129\n" +
-	"\n" +
-	"checked_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcheckedAt\"\x8d\x01\n" +
-	"\x1dRecheckBaseUSDCReceiptRequest\x12\x1b\n" +
-	"\twallet_id\x18\x01 \x01(\tR\bwalletId\x12)\n" +
-	"\x10transaction_hash\x18\x02 \x01(\tR\x0ftransactionHash\x12$\n" +
-	"\x0eprior_check_id\x18\x03 \x01(\tR\fpriorCheckId\"g\n" +
-	"\x1eRecheckBaseUSDCReceiptResponse\x12E\n" +
-	"\x05check\x18\x01 \x01(\v2/.vrooli.treasury.v1.wallet.BaseUSDCReceiptCheckR\x05check\"\x80\x01\n" +
-	" ListBaseUSDCReceiptChecksRequest\x12\x1b\n" +
-	"\twallet_id\x18\x01 \x01(\tR\bwalletId\x12)\n" +
-	"\x10transaction_hash\x18\x02 \x01(\tR\x0ftransactionHash\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\rR\x05limit\"l\n" +
-	"!ListBaseUSDCReceiptChecksResponse\x12G\n" +
-	"\x06checks\x18\x01 \x03(\v2/.vrooli.treasury.v1.wallet.BaseUSDCReceiptCheckR\x06checks*\xee\x01\n" +
+	"resolution\x18\x02 \x01(\x0e2).vrooli.treasury.v1.shared.ApprovalStatusR\n" +
+	"resolution\"a\n" +
+	"\x17ResolveApprovalResponse\x12F\n" +
+	"\bapproval\x18\x01 \x01(\v2*.vrooli.treasury.v1.shared.ApprovalRequestR\bapproval\"r\n" +
+	"\x14ListApprovalsRequest\x12A\n" +
+	"\x06status\x18\x01 \x01(\x0e2).vrooli.treasury.v1.shared.ApprovalStatusR\x06status\x12\x17\n" +
+	"\abook_id\x18\x02 \x01(\tR\x06bookId\"a\n" +
+	"\x15ListApprovalsResponse\x12H\n" +
+	"\tapprovals\x18\x01 \x03(\v2*.vrooli.treasury.v1.shared.ApprovalRequestR\tapprovals*\xee\x01\n" +
 	"\x14AuthorizationVerdict\x12%\n" +
 	"!AUTHORIZATION_VERDICT_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dAUTHORIZATION_VERDICT_REFUSED\x10\x01\x12!\n" +
 	"\x1dAUTHORIZATION_VERDICT_PENDING\x10\x02\x12\"\n" +
 	"\x1eAUTHORIZATION_VERDICT_APPROVED\x10\x03\x12\"\n" +
 	"\x1eAUTHORIZATION_VERDICT_RELEASED\x10\x04\x12!\n" +
-	"\x1dAUTHORIZATION_VERDICT_SETTLED\x10\x052\xa5\x06\n" +
+	"\x1dAUTHORIZATION_VERDICT_SETTLED\x10\x052\xb7\x05\n" +
 	"\n" +
-	"AgentSpend\x12w\n" +
-	"\x0fGetBudgetWallet\x122.vrooli.treasury.v1.funding.GetBudgetWalletRequest\x1a0.vrooli.treasury.v1.funding.BudgetWalletResponse\x12\x80\x01\n" +
+	"AgentSpend\x12\x80\x01\n" +
 	"\rProposeCharge\x126.vrooli.treasury.v1.authorization.ProposeChargeRequest\x1a7.vrooli.treasury.v1.authorization.ProposeChargeResponse\x12\x89\x01\n" +
 	"\x10GetAuthorization\x129.vrooli.treasury.v1.authorization.GetAuthorizationRequest\x1a:.vrooli.treasury.v1.authorization.GetAuthorizationResponse\x12\x8c\x01\n" +
-	"\x11GetBudgetHeadroom\x12:.vrooli.treasury.v1.authorization.GetBudgetHeadroomRequest\x1a;.vrooli.treasury.v1.authorization.GetBudgetHeadroomResponse\x12}\n" +
-	"\fListMandates\x125.vrooli.treasury.v1.authorization.ListMandatesRequest\x1a6.vrooli.treasury.v1.authorization.ListMandatesResponse\x12\x80\x01\n" +
-	"\rReportOutcome\x126.vrooli.treasury.v1.authorization.ReportOutcomeRequest\x1a7.vrooli.treasury.v1.authorization.ReportOutcomeResponse2\xb0+\n" +
-	"\rTreasuryAdmin\x12\x83\x01\n" +
-	"\x15ProvisionBudgetWallet\x128.vrooli.treasury.v1.funding.ProvisionBudgetWalletRequest\x1a0.vrooli.treasury.v1.funding.BudgetWalletResponse\x12w\n" +
-	"\x0fGetBudgetWallet\x122.vrooli.treasury.v1.funding.GetBudgetWalletRequest\x1a0.vrooli.treasury.v1.funding.BudgetWalletResponse\x12\x89\x01\n" +
-	"\x14RevokeMandateSession\x127.vrooli.treasury.v1.funding.RevokeMandateSessionRequest\x1a8.vrooli.treasury.v1.funding.RevokeMandateSessionResponse\x12\x80\x01\n" +
-	"\x13CreateFundingIntent\x126.vrooli.treasury.v1.funding.CreateFundingIntentRequest\x1a1.vrooli.treasury.v1.funding.FundingIntentResponse\x12w\n" +
-	"\x10GetFundingIntent\x120.vrooli.treasury.v1.funding.FundingIntentRequest\x1a1.vrooli.treasury.v1.funding.FundingIntentResponse\x12\x86\x01\n" +
-	"\x16ConfirmFundingTransfer\x129.vrooli.treasury.v1.funding.ConfirmFundingTransferRequest\x1a1.vrooli.treasury.v1.funding.FundingIntentResponse\x12\x83\x01\n" +
-	"\x12ListFundingIntents\x125.vrooli.treasury.v1.funding.ListFundingIntentsRequest\x1a6.vrooli.treasury.v1.funding.ListFundingIntentsResponse\x12\x92\x01\n" +
-	"\x18SetWithdrawalDestination\x12;.vrooli.treasury.v1.funding.SetWithdrawalDestinationRequest\x1a9.vrooli.treasury.v1.funding.WithdrawalDestinationResponse\x12~\n" +
-	"\x11PreviewWithdrawal\x124.vrooli.treasury.v1.funding.PreviewWithdrawalRequest\x1a3.vrooli.treasury.v1.funding.WithdrawalQuoteResponse\x12y\n" +
-	"\x11ExecuteWithdrawal\x124.vrooli.treasury.v1.funding.ExecuteWithdrawalRequest\x1a..vrooli.treasury.v1.funding.WithdrawalResponse\x12q\n" +
-	"\rGetWithdrawal\x120.vrooli.treasury.v1.funding.GetWithdrawalRequest\x1a..vrooli.treasury.v1.funding.WithdrawalResponse\x12\x83\x01\n" +
-	"\x14SubmitReceiptFunding\x127.vrooli.treasury.v1.funding.SubmitReceiptFundingRequest\x1a2.vrooli.treasury.v1.funding.ReceiptFundingResponse\x12}\n" +
-	"\x11GetReceiptFunding\x124.vrooli.treasury.v1.funding.GetReceiptFundingRequest\x1a2.vrooli.treasury.v1.funding.ReceiptFundingResponse\x12\x8f\x01\n" +
-	"\x14CreateResearchWallet\x12=.vrooli.treasury.v1.authorization.CreateResearchWalletRequest\x1a8.vrooli.treasury.v1.authorization.ResearchWalletResponse\x12\x86\x01\n" +
-	"\x11GetResearchWallet\x127.vrooli.treasury.v1.authorization.ResearchWalletRequest\x1a8.vrooli.treasury.v1.authorization.ResearchWalletResponse\x12\x92\x01\n" +
-	"\x13ProveResearchWallet\x12<.vrooli.treasury.v1.authorization.ProveResearchWalletRequest\x1a=.vrooli.treasury.v1.authorization.ProveResearchWalletResponse\x12\x98\x01\n" +
-	"\x15VerifyBaseUSDCReceipt\x12>.vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptRequest\x1a?.vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptResponse\x12\x9b\x01\n" +
-	"\x16RecheckBaseUSDCReceipt\x12?.vrooli.treasury.v1.authorization.RecheckBaseUSDCReceiptRequest\x1a@.vrooli.treasury.v1.authorization.RecheckBaseUSDCReceiptResponse\x12\xa4\x01\n" +
-	"\x19ListBaseUSDCReceiptChecks\x12B.vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksRequest\x1aC.vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksResponse\x12\x92\x01\n" +
-	"\x1dQualifyResearchWalletRecovery\x127.vrooli.treasury.v1.authorization.ResearchWalletRequest\x1a8.vrooli.treasury.v1.authorization.ResearchWalletResponse\x12\x8a\x01\n" +
-	"\x15RecoverResearchWallet\x127.vrooli.treasury.v1.authorization.ResearchWalletRequest\x1a8.vrooli.treasury.v1.authorization.ResearchWalletResponse\x12w\n" +
-	"\n" +
-	"CreateBook\x123.vrooli.treasury.v1.authorization.CreateBookRequest\x1a4.vrooli.treasury.v1.authorization.CreateBookResponse\x12n\n" +
-	"\aGetBook\x120.vrooli.treasury.v1.authorization.GetBookRequest\x1a1.vrooli.treasury.v1.authorization.GetBookResponse\x12\x80\x01\n" +
-	"\rCreateMandate\x126.vrooli.treasury.v1.authorization.CreateMandateRequest\x1a7.vrooli.treasury.v1.authorization.CreateMandateResponse\x12\x80\x01\n" +
-	"\rRevokeMandate\x126.vrooli.treasury.v1.authorization.RevokeMandateRequest\x1a7.vrooli.treasury.v1.authorization.RevokeMandateResponse\x12\x98\x01\n" +
-	"\x15CancelStandingMandate\x12>.vrooli.treasury.v1.authorization.CancelStandingMandateRequest\x1a?.vrooli.treasury.v1.authorization.CancelStandingMandateResponse\x12}\n" +
-	"\fListMandates\x125.vrooli.treasury.v1.authorization.ListMandatesRequest\x1a6.vrooli.treasury.v1.authorization.ListMandatesResponse\x12\x80\x01\n" +
-	"\rSetBudgetCaps\x126.vrooli.treasury.v1.authorization.SetBudgetCapsRequest\x1a7.vrooli.treasury.v1.authorization.SetBudgetCapsResponse\x12t\n" +
-	"\tSetGating\x122.vrooli.treasury.v1.authorization.SetGatingRequest\x1a3.vrooli.treasury.v1.authorization.SetGatingResponse\x12\x80\x01\n" +
+	"\x11GetBudgetHeadroom\x12:.vrooli.treasury.v1.authorization.GetBudgetHeadroomRequest\x1a;.vrooli.treasury.v1.authorization.GetBudgetHeadroomResponse\x12\x87\x01\n" +
+	"\fListMandates\x12:.vrooli.treasury.v1.authorization.AgentListMandatesRequest\x1a;.vrooli.treasury.v1.authorization.AgentListMandatesResponse\x12\x80\x01\n" +
+	"\rReportOutcome\x126.vrooli.treasury.v1.authorization.ReportOutcomeRequest\x1a7.vrooli.treasury.v1.authorization.ReportOutcomeResponse2\xd4\x04\n" +
+	"\rTreasuryAdmin\x12\x80\x01\n" +
 	"\rListApprovals\x126.vrooli.treasury.v1.authorization.ListApprovalsRequest\x1a7.vrooli.treasury.v1.authorization.ListApprovalsResponse\x12\x86\x01\n" +
-	"\x0fResolveApproval\x128.vrooli.treasury.v1.authorization.ResolveApprovalRequest\x1a9.vrooli.treasury.v1.authorization.ResolveApprovalResponse\x12}\n" +
-	"\fFreezeBudget\x125.vrooli.treasury.v1.authorization.FreezeBudgetRequest\x1a6.vrooli.treasury.v1.authorization.FreezeBudgetResponse\x12\x83\x01\n" +
-	"\x0eUnfreezeBudget\x127.vrooli.treasury.v1.authorization.UnfreezeBudgetRequest\x1a8.vrooli.treasury.v1.authorization.UnfreezeBudgetResponse\x12w\n" +
-	"\n" +
-	"FreezeBook\x123.vrooli.treasury.v1.authorization.FreezeBookRequest\x1a4.vrooli.treasury.v1.authorization.FreezeBookResponse\x12}\n" +
-	"\fUnfreezeBook\x125.vrooli.treasury.v1.authorization.UnfreezeBookRequest\x1a6.vrooli.treasury.v1.authorization.UnfreezeBookResponse\x12t\n" +
-	"\tFreezeAll\x122.vrooli.treasury.v1.authorization.FreezeAllRequest\x1a3.vrooli.treasury.v1.authorization.FreezeAllResponse\x12\x86\x01\n" +
-	"\x0fGetFreezeStatus\x128.vrooli.treasury.v1.authorization.GetFreezeStatusRequest\x1a9.vrooli.treasury.v1.authorization.GetFreezeStatusResponse\x12z\n" +
-	"\vUnfreezeAll\x124.vrooli.treasury.v1.authorization.UnfreezeAllRequest\x1a5.vrooli.treasury.v1.authorization.UnfreezeAllResponse\x12\x8f\x01\n" +
-	"\x12RegisterInstrument\x12;.vrooli.treasury.v1.authorization.RegisterInstrumentRequest\x1a<.vrooli.treasury.v1.authorization.RegisterInstrumentResponse\x12\x92\x01\n" +
+	"\x0fResolveApproval\x128.vrooli.treasury.v1.authorization.ResolveApprovalRequest\x1a9.vrooli.treasury.v1.authorization.ResolveApprovalResponse\x12\x92\x01\n" +
 	"\x13ReportManualOutcome\x12<.vrooli.treasury.v1.authorization.ReportManualOutcomeRequest\x1a=.vrooli.treasury.v1.authorization.ReportManualOutcomeResponse\x12\xa1\x01\n" +
 	"\x18ResolveUnknownSettlement\x12A.vrooli.treasury.v1.authorization.ResolveUnknownSettlementRequest\x1aB.vrooli.treasury.v1.authorization.ResolveUnknownSettlementResponseB[ZYgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization;authorization_v1b\x06proto3"
 
@@ -3486,248 +1715,82 @@ func file_treasury_v1_authorization_authorization_proto_rawDescGZIP() []byte {
 }
 
 var file_treasury_v1_authorization_authorization_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_treasury_v1_authorization_authorization_proto_msgTypes = make([]protoimpl.MessageInfo, 60)
+var file_treasury_v1_authorization_authorization_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_treasury_v1_authorization_authorization_proto_goTypes = []any{
-	(AuthorizationVerdict)(0),                       // 0: vrooli.treasury.v1.authorization.AuthorizationVerdict
-	(*AuthorizationRecord)(nil),                     // 1: vrooli.treasury.v1.authorization.AuthorizationRecord
-	(*ProposeChargeRequest)(nil),                    // 2: vrooli.treasury.v1.authorization.ProposeChargeRequest
-	(*ProposeChargeResponse)(nil),                   // 3: vrooli.treasury.v1.authorization.ProposeChargeResponse
-	(*GetAuthorizationRequest)(nil),                 // 4: vrooli.treasury.v1.authorization.GetAuthorizationRequest
-	(*GetAuthorizationResponse)(nil),                // 5: vrooli.treasury.v1.authorization.GetAuthorizationResponse
-	(*GetBudgetHeadroomRequest)(nil),                // 6: vrooli.treasury.v1.authorization.GetBudgetHeadroomRequest
-	(*GetBudgetHeadroomResponse)(nil),               // 7: vrooli.treasury.v1.authorization.GetBudgetHeadroomResponse
-	(*ListMandatesRequest)(nil),                     // 8: vrooli.treasury.v1.authorization.ListMandatesRequest
-	(*ListMandatesResponse)(nil),                    // 9: vrooli.treasury.v1.authorization.ListMandatesResponse
-	(*ReportOutcomeRequest)(nil),                    // 10: vrooli.treasury.v1.authorization.ReportOutcomeRequest
-	(*ReportOutcomeResponse)(nil),                   // 11: vrooli.treasury.v1.authorization.ReportOutcomeResponse
-	(*ReportManualOutcomeRequest)(nil),              // 12: vrooli.treasury.v1.authorization.ReportManualOutcomeRequest
-	(*ReportManualOutcomeResponse)(nil),             // 13: vrooli.treasury.v1.authorization.ReportManualOutcomeResponse
-	(*ResolveUnknownSettlementRequest)(nil),         // 14: vrooli.treasury.v1.authorization.ResolveUnknownSettlementRequest
-	(*ResolveUnknownSettlementResponse)(nil),        // 15: vrooli.treasury.v1.authorization.ResolveUnknownSettlementResponse
-	(*CreateBookRequest)(nil),                       // 16: vrooli.treasury.v1.authorization.CreateBookRequest
-	(*CreateBookResponse)(nil),                      // 17: vrooli.treasury.v1.authorization.CreateBookResponse
-	(*GetBookRequest)(nil),                          // 18: vrooli.treasury.v1.authorization.GetBookRequest
-	(*GetBookResponse)(nil),                         // 19: vrooli.treasury.v1.authorization.GetBookResponse
-	(*CreateMandateRequest)(nil),                    // 20: vrooli.treasury.v1.authorization.CreateMandateRequest
-	(*CreateMandateResponse)(nil),                   // 21: vrooli.treasury.v1.authorization.CreateMandateResponse
-	(*RevokeMandateRequest)(nil),                    // 22: vrooli.treasury.v1.authorization.RevokeMandateRequest
-	(*RevokeMandateResponse)(nil),                   // 23: vrooli.treasury.v1.authorization.RevokeMandateResponse
-	(*CancelStandingMandateRequest)(nil),            // 24: vrooli.treasury.v1.authorization.CancelStandingMandateRequest
-	(*CancelStandingMandateResponse)(nil),           // 25: vrooli.treasury.v1.authorization.CancelStandingMandateResponse
-	(*SetBudgetCapsRequest)(nil),                    // 26: vrooli.treasury.v1.authorization.SetBudgetCapsRequest
-	(*SetBudgetCapsResponse)(nil),                   // 27: vrooli.treasury.v1.authorization.SetBudgetCapsResponse
-	(*SetGatingRequest)(nil),                        // 28: vrooli.treasury.v1.authorization.SetGatingRequest
-	(*SetGatingResponse)(nil),                       // 29: vrooli.treasury.v1.authorization.SetGatingResponse
-	(*ResolveApprovalRequest)(nil),                  // 30: vrooli.treasury.v1.authorization.ResolveApprovalRequest
-	(*ResolveApprovalResponse)(nil),                 // 31: vrooli.treasury.v1.authorization.ResolveApprovalResponse
-	(*ListApprovalsRequest)(nil),                    // 32: vrooli.treasury.v1.authorization.ListApprovalsRequest
-	(*ListApprovalsResponse)(nil),                   // 33: vrooli.treasury.v1.authorization.ListApprovalsResponse
-	(*FreezeBudgetRequest)(nil),                     // 34: vrooli.treasury.v1.authorization.FreezeBudgetRequest
-	(*FreezeBudgetResponse)(nil),                    // 35: vrooli.treasury.v1.authorization.FreezeBudgetResponse
-	(*UnfreezeBudgetRequest)(nil),                   // 36: vrooli.treasury.v1.authorization.UnfreezeBudgetRequest
-	(*UnfreezeBudgetResponse)(nil),                  // 37: vrooli.treasury.v1.authorization.UnfreezeBudgetResponse
-	(*FreezeBookRequest)(nil),                       // 38: vrooli.treasury.v1.authorization.FreezeBookRequest
-	(*FreezeBookResponse)(nil),                      // 39: vrooli.treasury.v1.authorization.FreezeBookResponse
-	(*UnfreezeBookRequest)(nil),                     // 40: vrooli.treasury.v1.authorization.UnfreezeBookRequest
-	(*UnfreezeBookResponse)(nil),                    // 41: vrooli.treasury.v1.authorization.UnfreezeBookResponse
-	(*FreezeAllRequest)(nil),                        // 42: vrooli.treasury.v1.authorization.FreezeAllRequest
-	(*GetFreezeStatusRequest)(nil),                  // 43: vrooli.treasury.v1.authorization.GetFreezeStatusRequest
-	(*GetFreezeStatusResponse)(nil),                 // 44: vrooli.treasury.v1.authorization.GetFreezeStatusResponse
-	(*FreezeAllResponse)(nil),                       // 45: vrooli.treasury.v1.authorization.FreezeAllResponse
-	(*UnfreezeAllRequest)(nil),                      // 46: vrooli.treasury.v1.authorization.UnfreezeAllRequest
-	(*UnfreezeAllResponse)(nil),                     // 47: vrooli.treasury.v1.authorization.UnfreezeAllResponse
-	(*RegisterInstrumentRequest)(nil),               // 48: vrooli.treasury.v1.authorization.RegisterInstrumentRequest
-	(*RegisterInstrumentResponse)(nil),              // 49: vrooli.treasury.v1.authorization.RegisterInstrumentResponse
-	(*CreateResearchWalletRequest)(nil),             // 50: vrooli.treasury.v1.authorization.CreateResearchWalletRequest
-	(*ResearchWalletRequest)(nil),                   // 51: vrooli.treasury.v1.authorization.ResearchWalletRequest
-	(*ResearchWalletResponse)(nil),                  // 52: vrooli.treasury.v1.authorization.ResearchWalletResponse
-	(*ProveResearchWalletRequest)(nil),              // 53: vrooli.treasury.v1.authorization.ProveResearchWalletRequest
-	(*ProveResearchWalletResponse)(nil),             // 54: vrooli.treasury.v1.authorization.ProveResearchWalletResponse
-	(*VerifyBaseUSDCReceiptRequest)(nil),            // 55: vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptRequest
-	(*VerifyBaseUSDCReceiptResponse)(nil),           // 56: vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptResponse
-	(*RecheckBaseUSDCReceiptRequest)(nil),           // 57: vrooli.treasury.v1.authorization.RecheckBaseUSDCReceiptRequest
-	(*RecheckBaseUSDCReceiptResponse)(nil),          // 58: vrooli.treasury.v1.authorization.RecheckBaseUSDCReceiptResponse
-	(*ListBaseUSDCReceiptChecksRequest)(nil),        // 59: vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksRequest
-	(*ListBaseUSDCReceiptChecksResponse)(nil),       // 60: vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksResponse
-	(*timestamppb.Timestamp)(nil),                   // 61: google.protobuf.Timestamp
-	(*budget.Headroom)(nil),                         // 62: vrooli.treasury.v1.budget.Headroom
-	(*mandate.Mandate)(nil),                         // 63: vrooli.treasury.v1.mandate.Mandate
-	(*settlement.Charge)(nil),                       // 64: vrooli.treasury.v1.settlement.Charge
-	(*settlement.ManualAttestation)(nil),            // 65: vrooli.treasury.v1.settlement.ManualAttestation
-	(*book.Book)(nil),                               // 66: vrooli.treasury.v1.book.Book
-	(*budget.Budget)(nil),                           // 67: vrooli.treasury.v1.budget.Budget
-	(approval.ApprovalStatus)(0),                    // 68: vrooli.treasury.v1.approval.ApprovalStatus
-	(*approval.ApprovalRequest)(nil),                // 69: vrooli.treasury.v1.approval.ApprovalRequest
-	(*instrument.Instrument)(nil),                   // 70: vrooli.treasury.v1.instrument.Instrument
-	(*wallet.Wallet)(nil),                           // 71: vrooli.treasury.v1.wallet.Wallet
-	(*wallet.ControlProof)(nil),                     // 72: vrooli.treasury.v1.wallet.ControlProof
-	(*wallet.BaseUSDCTransferObservation)(nil),      // 73: vrooli.treasury.v1.wallet.BaseUSDCTransferObservation
-	(*wallet.BaseUSDCReceiptCheck)(nil),             // 74: vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck
-	(*funding.GetBudgetWalletRequest)(nil),          // 75: vrooli.treasury.v1.funding.GetBudgetWalletRequest
-	(*funding.ProvisionBudgetWalletRequest)(nil),    // 76: vrooli.treasury.v1.funding.ProvisionBudgetWalletRequest
-	(*funding.RevokeMandateSessionRequest)(nil),     // 77: vrooli.treasury.v1.funding.RevokeMandateSessionRequest
-	(*funding.CreateFundingIntentRequest)(nil),      // 78: vrooli.treasury.v1.funding.CreateFundingIntentRequest
-	(*funding.FundingIntentRequest)(nil),            // 79: vrooli.treasury.v1.funding.FundingIntentRequest
-	(*funding.ConfirmFundingTransferRequest)(nil),   // 80: vrooli.treasury.v1.funding.ConfirmFundingTransferRequest
-	(*funding.ListFundingIntentsRequest)(nil),       // 81: vrooli.treasury.v1.funding.ListFundingIntentsRequest
-	(*funding.SetWithdrawalDestinationRequest)(nil), // 82: vrooli.treasury.v1.funding.SetWithdrawalDestinationRequest
-	(*funding.PreviewWithdrawalRequest)(nil),        // 83: vrooli.treasury.v1.funding.PreviewWithdrawalRequest
-	(*funding.ExecuteWithdrawalRequest)(nil),        // 84: vrooli.treasury.v1.funding.ExecuteWithdrawalRequest
-	(*funding.GetWithdrawalRequest)(nil),            // 85: vrooli.treasury.v1.funding.GetWithdrawalRequest
-	(*funding.SubmitReceiptFundingRequest)(nil),     // 86: vrooli.treasury.v1.funding.SubmitReceiptFundingRequest
-	(*funding.GetReceiptFundingRequest)(nil),        // 87: vrooli.treasury.v1.funding.GetReceiptFundingRequest
-	(*funding.BudgetWalletResponse)(nil),            // 88: vrooli.treasury.v1.funding.BudgetWalletResponse
-	(*funding.RevokeMandateSessionResponse)(nil),    // 89: vrooli.treasury.v1.funding.RevokeMandateSessionResponse
-	(*funding.FundingIntentResponse)(nil),           // 90: vrooli.treasury.v1.funding.FundingIntentResponse
-	(*funding.ListFundingIntentsResponse)(nil),      // 91: vrooli.treasury.v1.funding.ListFundingIntentsResponse
-	(*funding.WithdrawalDestinationResponse)(nil),   // 92: vrooli.treasury.v1.funding.WithdrawalDestinationResponse
-	(*funding.WithdrawalQuoteResponse)(nil),         // 93: vrooli.treasury.v1.funding.WithdrawalQuoteResponse
-	(*funding.WithdrawalResponse)(nil),              // 94: vrooli.treasury.v1.funding.WithdrawalResponse
-	(*funding.ReceiptFundingResponse)(nil),          // 95: vrooli.treasury.v1.funding.ReceiptFundingResponse
+	(AuthorizationVerdict)(0),                // 0: vrooli.treasury.v1.authorization.AuthorizationVerdict
+	(*AuthorizationRecord)(nil),              // 1: vrooli.treasury.v1.authorization.AuthorizationRecord
+	(*ProposeChargeRequest)(nil),             // 2: vrooli.treasury.v1.authorization.ProposeChargeRequest
+	(*ProposeChargeResponse)(nil),            // 3: vrooli.treasury.v1.authorization.ProposeChargeResponse
+	(*GetAuthorizationRequest)(nil),          // 4: vrooli.treasury.v1.authorization.GetAuthorizationRequest
+	(*GetAuthorizationResponse)(nil),         // 5: vrooli.treasury.v1.authorization.GetAuthorizationResponse
+	(*GetBudgetHeadroomRequest)(nil),         // 6: vrooli.treasury.v1.authorization.GetBudgetHeadroomRequest
+	(*GetBudgetHeadroomResponse)(nil),        // 7: vrooli.treasury.v1.authorization.GetBudgetHeadroomResponse
+	(*AgentBudgetHeadroom)(nil),              // 8: vrooli.treasury.v1.authorization.AgentBudgetHeadroom
+	(*AgentListMandatesRequest)(nil),         // 9: vrooli.treasury.v1.authorization.AgentListMandatesRequest
+	(*AgentMandate)(nil),                     // 10: vrooli.treasury.v1.authorization.AgentMandate
+	(*AgentListMandatesResponse)(nil),        // 11: vrooli.treasury.v1.authorization.AgentListMandatesResponse
+	(*ReportOutcomeRequest)(nil),             // 12: vrooli.treasury.v1.authorization.ReportOutcomeRequest
+	(*ReportOutcomeResponse)(nil),            // 13: vrooli.treasury.v1.authorization.ReportOutcomeResponse
+	(*ReportManualOutcomeRequest)(nil),       // 14: vrooli.treasury.v1.authorization.ReportManualOutcomeRequest
+	(*ReportManualOutcomeResponse)(nil),      // 15: vrooli.treasury.v1.authorization.ReportManualOutcomeResponse
+	(*ResolveUnknownSettlementRequest)(nil),  // 16: vrooli.treasury.v1.authorization.ResolveUnknownSettlementRequest
+	(*ResolveUnknownSettlementResponse)(nil), // 17: vrooli.treasury.v1.authorization.ResolveUnknownSettlementResponse
+	(*ResolveApprovalRequest)(nil),           // 18: vrooli.treasury.v1.authorization.ResolveApprovalRequest
+	(*ResolveApprovalResponse)(nil),          // 19: vrooli.treasury.v1.authorization.ResolveApprovalResponse
+	(*ListApprovalsRequest)(nil),             // 20: vrooli.treasury.v1.authorization.ListApprovalsRequest
+	(*ListApprovalsResponse)(nil),            // 21: vrooli.treasury.v1.authorization.ListApprovalsResponse
+	(*timestamppb.Timestamp)(nil),            // 22: google.protobuf.Timestamp
+	(*settlement.Charge)(nil),                // 23: vrooli.treasury.v1.settlement.Charge
+	(*settlement.ManualAttestation)(nil),     // 24: vrooli.treasury.v1.settlement.ManualAttestation
+	(shared.ApprovalStatus)(0),               // 25: vrooli.treasury.v1.shared.ApprovalStatus
+	(*shared.ApprovalRequest)(nil),           // 26: vrooli.treasury.v1.shared.ApprovalRequest
 }
 var file_treasury_v1_authorization_authorization_proto_depIdxs = []int32{
 	0,  // 0: vrooli.treasury.v1.authorization.AuthorizationRecord.verdict:type_name -> vrooli.treasury.v1.authorization.AuthorizationVerdict
-	61, // 1: vrooli.treasury.v1.authorization.AuthorizationRecord.created_at:type_name -> google.protobuf.Timestamp
-	61, // 2: vrooli.treasury.v1.authorization.AuthorizationRecord.expires_at:type_name -> google.protobuf.Timestamp
+	22, // 1: vrooli.treasury.v1.authorization.AuthorizationRecord.created_at:type_name -> google.protobuf.Timestamp
+	22, // 2: vrooli.treasury.v1.authorization.AuthorizationRecord.expires_at:type_name -> google.protobuf.Timestamp
 	1,  // 3: vrooli.treasury.v1.authorization.ProposeChargeResponse.authorization:type_name -> vrooli.treasury.v1.authorization.AuthorizationRecord
 	1,  // 4: vrooli.treasury.v1.authorization.GetAuthorizationResponse.authorization:type_name -> vrooli.treasury.v1.authorization.AuthorizationRecord
-	62, // 5: vrooli.treasury.v1.authorization.GetBudgetHeadroomResponse.headroom:type_name -> vrooli.treasury.v1.budget.Headroom
-	63, // 6: vrooli.treasury.v1.authorization.ListMandatesResponse.mandates:type_name -> vrooli.treasury.v1.mandate.Mandate
-	1,  // 7: vrooli.treasury.v1.authorization.ReportOutcomeResponse.authorization:type_name -> vrooli.treasury.v1.authorization.AuthorizationRecord
-	64, // 8: vrooli.treasury.v1.authorization.ReportOutcomeResponse.settlement:type_name -> vrooli.treasury.v1.settlement.Charge
-	65, // 9: vrooli.treasury.v1.authorization.ReportManualOutcomeRequest.attestation:type_name -> vrooli.treasury.v1.settlement.ManualAttestation
-	1,  // 10: vrooli.treasury.v1.authorization.ReportManualOutcomeResponse.authorization:type_name -> vrooli.treasury.v1.authorization.AuthorizationRecord
-	64, // 11: vrooli.treasury.v1.authorization.ReportManualOutcomeResponse.settlement:type_name -> vrooli.treasury.v1.settlement.Charge
-	1,  // 12: vrooli.treasury.v1.authorization.ResolveUnknownSettlementResponse.authorization:type_name -> vrooli.treasury.v1.authorization.AuthorizationRecord
-	64, // 13: vrooli.treasury.v1.authorization.ResolveUnknownSettlementResponse.settlement:type_name -> vrooli.treasury.v1.settlement.Charge
-	66, // 14: vrooli.treasury.v1.authorization.CreateBookRequest.book:type_name -> vrooli.treasury.v1.book.Book
-	66, // 15: vrooli.treasury.v1.authorization.CreateBookResponse.book:type_name -> vrooli.treasury.v1.book.Book
-	66, // 16: vrooli.treasury.v1.authorization.GetBookResponse.book:type_name -> vrooli.treasury.v1.book.Book
-	63, // 17: vrooli.treasury.v1.authorization.CreateMandateRequest.mandate:type_name -> vrooli.treasury.v1.mandate.Mandate
-	63, // 18: vrooli.treasury.v1.authorization.CreateMandateResponse.mandate:type_name -> vrooli.treasury.v1.mandate.Mandate
-	63, // 19: vrooli.treasury.v1.authorization.RevokeMandateResponse.mandate:type_name -> vrooli.treasury.v1.mandate.Mandate
-	63, // 20: vrooli.treasury.v1.authorization.CancelStandingMandateResponse.mandate:type_name -> vrooli.treasury.v1.mandate.Mandate
-	67, // 21: vrooli.treasury.v1.authorization.SetBudgetCapsRequest.budget:type_name -> vrooli.treasury.v1.budget.Budget
-	67, // 22: vrooli.treasury.v1.authorization.SetBudgetCapsResponse.budget:type_name -> vrooli.treasury.v1.budget.Budget
-	67, // 23: vrooli.treasury.v1.authorization.SetGatingResponse.budget:type_name -> vrooli.treasury.v1.budget.Budget
-	68, // 24: vrooli.treasury.v1.authorization.ResolveApprovalRequest.resolution:type_name -> vrooli.treasury.v1.approval.ApprovalStatus
-	69, // 25: vrooli.treasury.v1.authorization.ResolveApprovalResponse.approval:type_name -> vrooli.treasury.v1.approval.ApprovalRequest
-	68, // 26: vrooli.treasury.v1.authorization.ListApprovalsRequest.status:type_name -> vrooli.treasury.v1.approval.ApprovalStatus
-	69, // 27: vrooli.treasury.v1.authorization.ListApprovalsResponse.approvals:type_name -> vrooli.treasury.v1.approval.ApprovalRequest
-	67, // 28: vrooli.treasury.v1.authorization.FreezeBudgetResponse.budget:type_name -> vrooli.treasury.v1.budget.Budget
-	67, // 29: vrooli.treasury.v1.authorization.UnfreezeBudgetResponse.budget:type_name -> vrooli.treasury.v1.budget.Budget
-	61, // 30: vrooli.treasury.v1.authorization.FreezeBookResponse.updated_at:type_name -> google.protobuf.Timestamp
-	61, // 31: vrooli.treasury.v1.authorization.UnfreezeBookResponse.updated_at:type_name -> google.protobuf.Timestamp
-	61, // 32: vrooli.treasury.v1.authorization.GetFreezeStatusResponse.updated_at:type_name -> google.protobuf.Timestamp
-	61, // 33: vrooli.treasury.v1.authorization.FreezeAllResponse.updated_at:type_name -> google.protobuf.Timestamp
-	61, // 34: vrooli.treasury.v1.authorization.UnfreezeAllResponse.updated_at:type_name -> google.protobuf.Timestamp
-	70, // 35: vrooli.treasury.v1.authorization.RegisterInstrumentRequest.instrument:type_name -> vrooli.treasury.v1.instrument.Instrument
-	70, // 36: vrooli.treasury.v1.authorization.RegisterInstrumentResponse.instrument:type_name -> vrooli.treasury.v1.instrument.Instrument
-	71, // 37: vrooli.treasury.v1.authorization.ResearchWalletResponse.wallet:type_name -> vrooli.treasury.v1.wallet.Wallet
-	72, // 38: vrooli.treasury.v1.authorization.ProveResearchWalletResponse.proof:type_name -> vrooli.treasury.v1.wallet.ControlProof
-	73, // 39: vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptResponse.transfers:type_name -> vrooli.treasury.v1.wallet.BaseUSDCTransferObservation
-	61, // 40: vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptResponse.checked_at:type_name -> google.protobuf.Timestamp
-	74, // 41: vrooli.treasury.v1.authorization.RecheckBaseUSDCReceiptResponse.check:type_name -> vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck
-	74, // 42: vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksResponse.checks:type_name -> vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck
-	75, // 43: vrooli.treasury.v1.authorization.AgentSpend.GetBudgetWallet:input_type -> vrooli.treasury.v1.funding.GetBudgetWalletRequest
-	2,  // 44: vrooli.treasury.v1.authorization.AgentSpend.ProposeCharge:input_type -> vrooli.treasury.v1.authorization.ProposeChargeRequest
-	4,  // 45: vrooli.treasury.v1.authorization.AgentSpend.GetAuthorization:input_type -> vrooli.treasury.v1.authorization.GetAuthorizationRequest
-	6,  // 46: vrooli.treasury.v1.authorization.AgentSpend.GetBudgetHeadroom:input_type -> vrooli.treasury.v1.authorization.GetBudgetHeadroomRequest
-	8,  // 47: vrooli.treasury.v1.authorization.AgentSpend.ListMandates:input_type -> vrooli.treasury.v1.authorization.ListMandatesRequest
-	10, // 48: vrooli.treasury.v1.authorization.AgentSpend.ReportOutcome:input_type -> vrooli.treasury.v1.authorization.ReportOutcomeRequest
-	76, // 49: vrooli.treasury.v1.authorization.TreasuryAdmin.ProvisionBudgetWallet:input_type -> vrooli.treasury.v1.funding.ProvisionBudgetWalletRequest
-	75, // 50: vrooli.treasury.v1.authorization.TreasuryAdmin.GetBudgetWallet:input_type -> vrooli.treasury.v1.funding.GetBudgetWalletRequest
-	77, // 51: vrooli.treasury.v1.authorization.TreasuryAdmin.RevokeMandateSession:input_type -> vrooli.treasury.v1.funding.RevokeMandateSessionRequest
-	78, // 52: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateFundingIntent:input_type -> vrooli.treasury.v1.funding.CreateFundingIntentRequest
-	79, // 53: vrooli.treasury.v1.authorization.TreasuryAdmin.GetFundingIntent:input_type -> vrooli.treasury.v1.funding.FundingIntentRequest
-	80, // 54: vrooli.treasury.v1.authorization.TreasuryAdmin.ConfirmFundingTransfer:input_type -> vrooli.treasury.v1.funding.ConfirmFundingTransferRequest
-	81, // 55: vrooli.treasury.v1.authorization.TreasuryAdmin.ListFundingIntents:input_type -> vrooli.treasury.v1.funding.ListFundingIntentsRequest
-	82, // 56: vrooli.treasury.v1.authorization.TreasuryAdmin.SetWithdrawalDestination:input_type -> vrooli.treasury.v1.funding.SetWithdrawalDestinationRequest
-	83, // 57: vrooli.treasury.v1.authorization.TreasuryAdmin.PreviewWithdrawal:input_type -> vrooli.treasury.v1.funding.PreviewWithdrawalRequest
-	84, // 58: vrooli.treasury.v1.authorization.TreasuryAdmin.ExecuteWithdrawal:input_type -> vrooli.treasury.v1.funding.ExecuteWithdrawalRequest
-	85, // 59: vrooli.treasury.v1.authorization.TreasuryAdmin.GetWithdrawal:input_type -> vrooli.treasury.v1.funding.GetWithdrawalRequest
-	86, // 60: vrooli.treasury.v1.authorization.TreasuryAdmin.SubmitReceiptFunding:input_type -> vrooli.treasury.v1.funding.SubmitReceiptFundingRequest
-	87, // 61: vrooli.treasury.v1.authorization.TreasuryAdmin.GetReceiptFunding:input_type -> vrooli.treasury.v1.funding.GetReceiptFundingRequest
-	50, // 62: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateResearchWallet:input_type -> vrooli.treasury.v1.authorization.CreateResearchWalletRequest
-	51, // 63: vrooli.treasury.v1.authorization.TreasuryAdmin.GetResearchWallet:input_type -> vrooli.treasury.v1.authorization.ResearchWalletRequest
-	53, // 64: vrooli.treasury.v1.authorization.TreasuryAdmin.ProveResearchWallet:input_type -> vrooli.treasury.v1.authorization.ProveResearchWalletRequest
-	55, // 65: vrooli.treasury.v1.authorization.TreasuryAdmin.VerifyBaseUSDCReceipt:input_type -> vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptRequest
-	57, // 66: vrooli.treasury.v1.authorization.TreasuryAdmin.RecheckBaseUSDCReceipt:input_type -> vrooli.treasury.v1.authorization.RecheckBaseUSDCReceiptRequest
-	59, // 67: vrooli.treasury.v1.authorization.TreasuryAdmin.ListBaseUSDCReceiptChecks:input_type -> vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksRequest
-	51, // 68: vrooli.treasury.v1.authorization.TreasuryAdmin.QualifyResearchWalletRecovery:input_type -> vrooli.treasury.v1.authorization.ResearchWalletRequest
-	51, // 69: vrooli.treasury.v1.authorization.TreasuryAdmin.RecoverResearchWallet:input_type -> vrooli.treasury.v1.authorization.ResearchWalletRequest
-	16, // 70: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateBook:input_type -> vrooli.treasury.v1.authorization.CreateBookRequest
-	18, // 71: vrooli.treasury.v1.authorization.TreasuryAdmin.GetBook:input_type -> vrooli.treasury.v1.authorization.GetBookRequest
-	20, // 72: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateMandate:input_type -> vrooli.treasury.v1.authorization.CreateMandateRequest
-	22, // 73: vrooli.treasury.v1.authorization.TreasuryAdmin.RevokeMandate:input_type -> vrooli.treasury.v1.authorization.RevokeMandateRequest
-	24, // 74: vrooli.treasury.v1.authorization.TreasuryAdmin.CancelStandingMandate:input_type -> vrooli.treasury.v1.authorization.CancelStandingMandateRequest
-	8,  // 75: vrooli.treasury.v1.authorization.TreasuryAdmin.ListMandates:input_type -> vrooli.treasury.v1.authorization.ListMandatesRequest
-	26, // 76: vrooli.treasury.v1.authorization.TreasuryAdmin.SetBudgetCaps:input_type -> vrooli.treasury.v1.authorization.SetBudgetCapsRequest
-	28, // 77: vrooli.treasury.v1.authorization.TreasuryAdmin.SetGating:input_type -> vrooli.treasury.v1.authorization.SetGatingRequest
-	32, // 78: vrooli.treasury.v1.authorization.TreasuryAdmin.ListApprovals:input_type -> vrooli.treasury.v1.authorization.ListApprovalsRequest
-	30, // 79: vrooli.treasury.v1.authorization.TreasuryAdmin.ResolveApproval:input_type -> vrooli.treasury.v1.authorization.ResolveApprovalRequest
-	34, // 80: vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeBudget:input_type -> vrooli.treasury.v1.authorization.FreezeBudgetRequest
-	36, // 81: vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeBudget:input_type -> vrooli.treasury.v1.authorization.UnfreezeBudgetRequest
-	38, // 82: vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeBook:input_type -> vrooli.treasury.v1.authorization.FreezeBookRequest
-	40, // 83: vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeBook:input_type -> vrooli.treasury.v1.authorization.UnfreezeBookRequest
-	42, // 84: vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeAll:input_type -> vrooli.treasury.v1.authorization.FreezeAllRequest
-	43, // 85: vrooli.treasury.v1.authorization.TreasuryAdmin.GetFreezeStatus:input_type -> vrooli.treasury.v1.authorization.GetFreezeStatusRequest
-	46, // 86: vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeAll:input_type -> vrooli.treasury.v1.authorization.UnfreezeAllRequest
-	48, // 87: vrooli.treasury.v1.authorization.TreasuryAdmin.RegisterInstrument:input_type -> vrooli.treasury.v1.authorization.RegisterInstrumentRequest
-	12, // 88: vrooli.treasury.v1.authorization.TreasuryAdmin.ReportManualOutcome:input_type -> vrooli.treasury.v1.authorization.ReportManualOutcomeRequest
-	14, // 89: vrooli.treasury.v1.authorization.TreasuryAdmin.ResolveUnknownSettlement:input_type -> vrooli.treasury.v1.authorization.ResolveUnknownSettlementRequest
-	88, // 90: vrooli.treasury.v1.authorization.AgentSpend.GetBudgetWallet:output_type -> vrooli.treasury.v1.funding.BudgetWalletResponse
-	3,  // 91: vrooli.treasury.v1.authorization.AgentSpend.ProposeCharge:output_type -> vrooli.treasury.v1.authorization.ProposeChargeResponse
-	5,  // 92: vrooli.treasury.v1.authorization.AgentSpend.GetAuthorization:output_type -> vrooli.treasury.v1.authorization.GetAuthorizationResponse
-	7,  // 93: vrooli.treasury.v1.authorization.AgentSpend.GetBudgetHeadroom:output_type -> vrooli.treasury.v1.authorization.GetBudgetHeadroomResponse
-	9,  // 94: vrooli.treasury.v1.authorization.AgentSpend.ListMandates:output_type -> vrooli.treasury.v1.authorization.ListMandatesResponse
-	11, // 95: vrooli.treasury.v1.authorization.AgentSpend.ReportOutcome:output_type -> vrooli.treasury.v1.authorization.ReportOutcomeResponse
-	88, // 96: vrooli.treasury.v1.authorization.TreasuryAdmin.ProvisionBudgetWallet:output_type -> vrooli.treasury.v1.funding.BudgetWalletResponse
-	88, // 97: vrooli.treasury.v1.authorization.TreasuryAdmin.GetBudgetWallet:output_type -> vrooli.treasury.v1.funding.BudgetWalletResponse
-	89, // 98: vrooli.treasury.v1.authorization.TreasuryAdmin.RevokeMandateSession:output_type -> vrooli.treasury.v1.funding.RevokeMandateSessionResponse
-	90, // 99: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateFundingIntent:output_type -> vrooli.treasury.v1.funding.FundingIntentResponse
-	90, // 100: vrooli.treasury.v1.authorization.TreasuryAdmin.GetFundingIntent:output_type -> vrooli.treasury.v1.funding.FundingIntentResponse
-	90, // 101: vrooli.treasury.v1.authorization.TreasuryAdmin.ConfirmFundingTransfer:output_type -> vrooli.treasury.v1.funding.FundingIntentResponse
-	91, // 102: vrooli.treasury.v1.authorization.TreasuryAdmin.ListFundingIntents:output_type -> vrooli.treasury.v1.funding.ListFundingIntentsResponse
-	92, // 103: vrooli.treasury.v1.authorization.TreasuryAdmin.SetWithdrawalDestination:output_type -> vrooli.treasury.v1.funding.WithdrawalDestinationResponse
-	93, // 104: vrooli.treasury.v1.authorization.TreasuryAdmin.PreviewWithdrawal:output_type -> vrooli.treasury.v1.funding.WithdrawalQuoteResponse
-	94, // 105: vrooli.treasury.v1.authorization.TreasuryAdmin.ExecuteWithdrawal:output_type -> vrooli.treasury.v1.funding.WithdrawalResponse
-	94, // 106: vrooli.treasury.v1.authorization.TreasuryAdmin.GetWithdrawal:output_type -> vrooli.treasury.v1.funding.WithdrawalResponse
-	95, // 107: vrooli.treasury.v1.authorization.TreasuryAdmin.SubmitReceiptFunding:output_type -> vrooli.treasury.v1.funding.ReceiptFundingResponse
-	95, // 108: vrooli.treasury.v1.authorization.TreasuryAdmin.GetReceiptFunding:output_type -> vrooli.treasury.v1.funding.ReceiptFundingResponse
-	52, // 109: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateResearchWallet:output_type -> vrooli.treasury.v1.authorization.ResearchWalletResponse
-	52, // 110: vrooli.treasury.v1.authorization.TreasuryAdmin.GetResearchWallet:output_type -> vrooli.treasury.v1.authorization.ResearchWalletResponse
-	54, // 111: vrooli.treasury.v1.authorization.TreasuryAdmin.ProveResearchWallet:output_type -> vrooli.treasury.v1.authorization.ProveResearchWalletResponse
-	56, // 112: vrooli.treasury.v1.authorization.TreasuryAdmin.VerifyBaseUSDCReceipt:output_type -> vrooli.treasury.v1.authorization.VerifyBaseUSDCReceiptResponse
-	58, // 113: vrooli.treasury.v1.authorization.TreasuryAdmin.RecheckBaseUSDCReceipt:output_type -> vrooli.treasury.v1.authorization.RecheckBaseUSDCReceiptResponse
-	60, // 114: vrooli.treasury.v1.authorization.TreasuryAdmin.ListBaseUSDCReceiptChecks:output_type -> vrooli.treasury.v1.authorization.ListBaseUSDCReceiptChecksResponse
-	52, // 115: vrooli.treasury.v1.authorization.TreasuryAdmin.QualifyResearchWalletRecovery:output_type -> vrooli.treasury.v1.authorization.ResearchWalletResponse
-	52, // 116: vrooli.treasury.v1.authorization.TreasuryAdmin.RecoverResearchWallet:output_type -> vrooli.treasury.v1.authorization.ResearchWalletResponse
-	17, // 117: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateBook:output_type -> vrooli.treasury.v1.authorization.CreateBookResponse
-	19, // 118: vrooli.treasury.v1.authorization.TreasuryAdmin.GetBook:output_type -> vrooli.treasury.v1.authorization.GetBookResponse
-	21, // 119: vrooli.treasury.v1.authorization.TreasuryAdmin.CreateMandate:output_type -> vrooli.treasury.v1.authorization.CreateMandateResponse
-	23, // 120: vrooli.treasury.v1.authorization.TreasuryAdmin.RevokeMandate:output_type -> vrooli.treasury.v1.authorization.RevokeMandateResponse
-	25, // 121: vrooli.treasury.v1.authorization.TreasuryAdmin.CancelStandingMandate:output_type -> vrooli.treasury.v1.authorization.CancelStandingMandateResponse
-	9,  // 122: vrooli.treasury.v1.authorization.TreasuryAdmin.ListMandates:output_type -> vrooli.treasury.v1.authorization.ListMandatesResponse
-	27, // 123: vrooli.treasury.v1.authorization.TreasuryAdmin.SetBudgetCaps:output_type -> vrooli.treasury.v1.authorization.SetBudgetCapsResponse
-	29, // 124: vrooli.treasury.v1.authorization.TreasuryAdmin.SetGating:output_type -> vrooli.treasury.v1.authorization.SetGatingResponse
-	33, // 125: vrooli.treasury.v1.authorization.TreasuryAdmin.ListApprovals:output_type -> vrooli.treasury.v1.authorization.ListApprovalsResponse
-	31, // 126: vrooli.treasury.v1.authorization.TreasuryAdmin.ResolveApproval:output_type -> vrooli.treasury.v1.authorization.ResolveApprovalResponse
-	35, // 127: vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeBudget:output_type -> vrooli.treasury.v1.authorization.FreezeBudgetResponse
-	37, // 128: vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeBudget:output_type -> vrooli.treasury.v1.authorization.UnfreezeBudgetResponse
-	39, // 129: vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeBook:output_type -> vrooli.treasury.v1.authorization.FreezeBookResponse
-	41, // 130: vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeBook:output_type -> vrooli.treasury.v1.authorization.UnfreezeBookResponse
-	45, // 131: vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeAll:output_type -> vrooli.treasury.v1.authorization.FreezeAllResponse
-	44, // 132: vrooli.treasury.v1.authorization.TreasuryAdmin.GetFreezeStatus:output_type -> vrooli.treasury.v1.authorization.GetFreezeStatusResponse
-	47, // 133: vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeAll:output_type -> vrooli.treasury.v1.authorization.UnfreezeAllResponse
-	49, // 134: vrooli.treasury.v1.authorization.TreasuryAdmin.RegisterInstrument:output_type -> vrooli.treasury.v1.authorization.RegisterInstrumentResponse
-	13, // 135: vrooli.treasury.v1.authorization.TreasuryAdmin.ReportManualOutcome:output_type -> vrooli.treasury.v1.authorization.ReportManualOutcomeResponse
-	15, // 136: vrooli.treasury.v1.authorization.TreasuryAdmin.ResolveUnknownSettlement:output_type -> vrooli.treasury.v1.authorization.ResolveUnknownSettlementResponse
-	90, // [90:137] is the sub-list for method output_type
-	43, // [43:90] is the sub-list for method input_type
-	43, // [43:43] is the sub-list for extension type_name
-	43, // [43:43] is the sub-list for extension extendee
-	0,  // [0:43] is the sub-list for field type_name
+	8,  // 5: vrooli.treasury.v1.authorization.GetBudgetHeadroomResponse.headroom:type_name -> vrooli.treasury.v1.authorization.AgentBudgetHeadroom
+	22, // 6: vrooli.treasury.v1.authorization.AgentBudgetHeadroom.period_started_at:type_name -> google.protobuf.Timestamp
+	22, // 7: vrooli.treasury.v1.authorization.AgentBudgetHeadroom.computed_at:type_name -> google.protobuf.Timestamp
+	22, // 8: vrooli.treasury.v1.authorization.AgentMandate.expires_at:type_name -> google.protobuf.Timestamp
+	22, // 9: vrooli.treasury.v1.authorization.AgentMandate.next_charge_at:type_name -> google.protobuf.Timestamp
+	10, // 10: vrooli.treasury.v1.authorization.AgentListMandatesResponse.mandates:type_name -> vrooli.treasury.v1.authorization.AgentMandate
+	1,  // 11: vrooli.treasury.v1.authorization.ReportOutcomeResponse.authorization:type_name -> vrooli.treasury.v1.authorization.AuthorizationRecord
+	23, // 12: vrooli.treasury.v1.authorization.ReportOutcomeResponse.settlement:type_name -> vrooli.treasury.v1.settlement.Charge
+	24, // 13: vrooli.treasury.v1.authorization.ReportManualOutcomeRequest.attestation:type_name -> vrooli.treasury.v1.settlement.ManualAttestation
+	1,  // 14: vrooli.treasury.v1.authorization.ReportManualOutcomeResponse.authorization:type_name -> vrooli.treasury.v1.authorization.AuthorizationRecord
+	23, // 15: vrooli.treasury.v1.authorization.ReportManualOutcomeResponse.settlement:type_name -> vrooli.treasury.v1.settlement.Charge
+	1,  // 16: vrooli.treasury.v1.authorization.ResolveUnknownSettlementResponse.authorization:type_name -> vrooli.treasury.v1.authorization.AuthorizationRecord
+	23, // 17: vrooli.treasury.v1.authorization.ResolveUnknownSettlementResponse.settlement:type_name -> vrooli.treasury.v1.settlement.Charge
+	25, // 18: vrooli.treasury.v1.authorization.ResolveApprovalRequest.resolution:type_name -> vrooli.treasury.v1.shared.ApprovalStatus
+	26, // 19: vrooli.treasury.v1.authorization.ResolveApprovalResponse.approval:type_name -> vrooli.treasury.v1.shared.ApprovalRequest
+	25, // 20: vrooli.treasury.v1.authorization.ListApprovalsRequest.status:type_name -> vrooli.treasury.v1.shared.ApprovalStatus
+	26, // 21: vrooli.treasury.v1.authorization.ListApprovalsResponse.approvals:type_name -> vrooli.treasury.v1.shared.ApprovalRequest
+	2,  // 22: vrooli.treasury.v1.authorization.AgentSpend.ProposeCharge:input_type -> vrooli.treasury.v1.authorization.ProposeChargeRequest
+	4,  // 23: vrooli.treasury.v1.authorization.AgentSpend.GetAuthorization:input_type -> vrooli.treasury.v1.authorization.GetAuthorizationRequest
+	6,  // 24: vrooli.treasury.v1.authorization.AgentSpend.GetBudgetHeadroom:input_type -> vrooli.treasury.v1.authorization.GetBudgetHeadroomRequest
+	9,  // 25: vrooli.treasury.v1.authorization.AgentSpend.ListMandates:input_type -> vrooli.treasury.v1.authorization.AgentListMandatesRequest
+	12, // 26: vrooli.treasury.v1.authorization.AgentSpend.ReportOutcome:input_type -> vrooli.treasury.v1.authorization.ReportOutcomeRequest
+	20, // 27: vrooli.treasury.v1.authorization.TreasuryAdmin.ListApprovals:input_type -> vrooli.treasury.v1.authorization.ListApprovalsRequest
+	18, // 28: vrooli.treasury.v1.authorization.TreasuryAdmin.ResolveApproval:input_type -> vrooli.treasury.v1.authorization.ResolveApprovalRequest
+	14, // 29: vrooli.treasury.v1.authorization.TreasuryAdmin.ReportManualOutcome:input_type -> vrooli.treasury.v1.authorization.ReportManualOutcomeRequest
+	16, // 30: vrooli.treasury.v1.authorization.TreasuryAdmin.ResolveUnknownSettlement:input_type -> vrooli.treasury.v1.authorization.ResolveUnknownSettlementRequest
+	3,  // 31: vrooli.treasury.v1.authorization.AgentSpend.ProposeCharge:output_type -> vrooli.treasury.v1.authorization.ProposeChargeResponse
+	5,  // 32: vrooli.treasury.v1.authorization.AgentSpend.GetAuthorization:output_type -> vrooli.treasury.v1.authorization.GetAuthorizationResponse
+	7,  // 33: vrooli.treasury.v1.authorization.AgentSpend.GetBudgetHeadroom:output_type -> vrooli.treasury.v1.authorization.GetBudgetHeadroomResponse
+	11, // 34: vrooli.treasury.v1.authorization.AgentSpend.ListMandates:output_type -> vrooli.treasury.v1.authorization.AgentListMandatesResponse
+	13, // 35: vrooli.treasury.v1.authorization.AgentSpend.ReportOutcome:output_type -> vrooli.treasury.v1.authorization.ReportOutcomeResponse
+	21, // 36: vrooli.treasury.v1.authorization.TreasuryAdmin.ListApprovals:output_type -> vrooli.treasury.v1.authorization.ListApprovalsResponse
+	19, // 37: vrooli.treasury.v1.authorization.TreasuryAdmin.ResolveApproval:output_type -> vrooli.treasury.v1.authorization.ResolveApprovalResponse
+	15, // 38: vrooli.treasury.v1.authorization.TreasuryAdmin.ReportManualOutcome:output_type -> vrooli.treasury.v1.authorization.ReportManualOutcomeResponse
+	17, // 39: vrooli.treasury.v1.authorization.TreasuryAdmin.ResolveUnknownSettlement:output_type -> vrooli.treasury.v1.authorization.ResolveUnknownSettlementResponse
+	31, // [31:40] is the sub-list for method output_type
+	22, // [22:31] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_treasury_v1_authorization_authorization_proto_init() }
@@ -3741,7 +1804,7 @@ func file_treasury_v1_authorization_authorization_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_treasury_v1_authorization_authorization_proto_rawDesc), len(file_treasury_v1_authorization_authorization_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   60,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

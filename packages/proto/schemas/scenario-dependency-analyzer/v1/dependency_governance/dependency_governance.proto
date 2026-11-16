@@ -39,6 +39,20 @@ service DependencyGovernanceService {
   // for vulnerabilities. It is the sanctioned alternative to a raw `pnpm add`/
   // `go get`/`pip install`.
   rpc InstallDependency(InstallDependencyRequest) returns (InstallDependencyResponse);
+  // RemoveDependency is the governed counterpart for taking JavaScript
+  // dependencies off a surface: it resolves the removal in a staging copy,
+  // previews the lockfile change, and on apply publishes the manifest and
+  // lockfile and relinks node_modules from the lock, restoring the previous
+  // inputs when relinking fails. Dry-run by default.
+  rpc RemoveDependency(RemoveDependencyRequest) returns (RemoveDependencyResponse);
+  // UpdateLockedDependency moves packages that are already in a surface's
+  // lockfile (direct or transitive) to the newest version their declared ranges
+  // allow, for example to take a security fix an in-range release already
+  // carries. It changes the lockfile only, never a manifest range, so it adds no
+  // dependency and needs no governance verdict. It resolves in a staging copy,
+  // previews the closure change, and on apply publishes the lockfile and relinks
+  // node_modules like RemoveDependency. Dry-run by default.
+  rpc UpdateLockedDependency(UpdateLockedDependencyRequest) returns (UpdateLockedDependencyResponse);
 }
 
 message InstallDependencyRequest {
@@ -69,6 +83,15 @@ message InstallDependencyRequest {
   // The owner canonicalizes the directory, rejects maintained repository paths,
   // and enforces the same package approval policy before any installation.
   string workspace_path = 10;
+  // lock_only publishes a staged JavaScript change's manifest and lockfile
+  // without linking node_modules: nothing is downloaded and no package store is
+  // written, so the apply is admitted as a small metadata disk write and the
+  // next governed setup links the new lock. Ignored by non-JavaScript installs.
+  bool lock_only = 11;
+  // With version override:<v>, the exact pnpm override selector to set, such as
+  // brace-expansion@1 or minimatch@3>brace-expansion; its last segment must name
+  // package_name. Empty means a package-wide override of package_name.
+  string override_selector = 12;
 }
 
 message InstallDependencyResponse {
@@ -95,6 +118,85 @@ message InstallDependencyResponse {
   // True only when an applied host-tool source refresh succeeded. This does
   // not imply a managed runtime was installed; installed remains false.
   bool source_updated = 12;
+}
+
+message RemoveDependencyRequest {
+  string scenario = 1;
+  // Target installable surface within the scenario.
+  string surface = 2;
+  // Only npm (pnpm and npm surfaces) is supported.
+  string ecosystem = 3;
+  // Direct dependencies to remove; each must be declared in the manifest. One
+  // request removes them all with a single resolution.
+  repeated string package_names = 4;
+  // apply=false (the default) previews the removal and its lockfile change.
+  bool apply = 5;
+}
+
+message RemoveDependencyResponse {
+  // removed is true only when apply was set and the manifest, lockfile and
+  // node_modules all reflect the removal.
+  bool removed = 1;
+  bool dry_run = 2;
+  // True when apply updated the manifest and lockfile but left node_modules to
+  // the scenario lifecycle (its package store differs from the lifecycle's).
+  bool source_updated = 3;
+  bool blocked = 4;
+  // verdict is removable, not_declared, unsupported_surface or
+  // removal_failed.
+  string verdict = 5;
+  string command = 6;
+  string package_manager = 7;
+  string manifest_path = 8;
+  string message = 9;
+  repeated string next_steps = 10;
+  // Reviewer-facing facts about the resolution, such as the lockfile delta.
+  repeated string notes = 11;
+}
+
+message UpdateLockedDependencyRequest {
+  string scenario = 1;
+  // Target installable surface within the scenario.
+  string surface = 2;
+  // Only npm (pnpm and npm surfaces) is supported.
+  string ecosystem = 3;
+  // Locked packages to update, by name; each must be in the lockfile. Direct and
+  // transitive packages are both accepted.
+  repeated string package_names = 4;
+  // apply=false (the default) previews the update and its lockfile change.
+  bool apply = 5;
+  // Selects the packages by security advisory (GHSA or CVE id) instead of by
+  // name: the vulnerable packages Security Health reports for this scenario's
+  // surface under that id. Several ids may be separated by commas; the packages
+  // of all of them are updated in one resolution. Mutually exclusive with
+  // package_names.
+  string advisory = 6;
+  // lock_only publishes the lockfile (and manifest) without linking
+  // node_modules: nothing is downloaded and no package store is written, so the
+  // write is kilobytes and is admitted as a metadata disk job. A running
+  // consumer keeps serving; its next governed setup links the new lock.
+  bool lock_only = 7;
+}
+
+message UpdateLockedDependencyResponse {
+  // updated is true only when apply was set and the lockfile and node_modules
+  // reflect the update.
+  bool updated = 1;
+  bool dry_run = 2;
+  // True when apply updated the lockfile but left node_modules to the scenario
+  // lifecycle (its package store differs from the lifecycle's).
+  bool source_updated = 3;
+  bool blocked = 4;
+  // verdict is updatable, current (nothing newer is allowed), update_blocked or
+  // update_failed.
+  string verdict = 5;
+  string command = 6;
+  string package_manager = 7;
+  string manifest_path = 8;
+  string message = 9;
+  repeated string next_steps = 10;
+  // Reviewer-facing facts about the resolution, such as the lockfile delta.
+  repeated string notes = 11;
 }
 
 message ListApprovedDependenciesRequest {

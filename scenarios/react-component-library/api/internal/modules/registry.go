@@ -36,6 +36,7 @@ import (
 	depsH "react-component-library/handlers/deps"
 	healthH "react-component-library/handlers/health"
 	inventoryH "react-component-library/handlers/inventory"
+	pageH "react-component-library/handlers/page"
 	previewH "react-component-library/handlers/preview"
 	sketchH "react-component-library/handlers/sketch"
 	themesH "react-component-library/handlers/themes"
@@ -47,6 +48,7 @@ import (
 	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
 	componenttestsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componenttests"
 	depsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/deps"
+	pagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/page"
 	previewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview"
 	sketchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch"
 	themesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/themes"
@@ -68,6 +70,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, depsH.Endpoints...)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, inventoryH.Endpoints...)
+	out = append(out, pageH.Endpoints...)
 	out = append(out, previewH.Endpoints...)
 	out = append(out, sketchH.Endpoints...)
 	out = append(out, themesH.Endpoints...)
@@ -96,6 +99,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "component-tests", File: componenttestsv1.File_react_component_library_v1_componenttests_component_tests_proto},
 		{Module: "deps", File: depsv1.File_react_component_library_v1_deps_deps_proto},
 		{Module: "inventory", File: inventoryv1.File_ui_health_v1_inventory_inventory_proto},
+		{Module: "page", File: pagev1.File_react_component_library_v1_page_page_proto},
 		{Module: "preview", File: previewv1.File_react_component_library_v1_preview_preview_proto},
 		{Module: "sketch", File: sketchv1.File_react_component_library_v1_sketch_sketch_proto},
 		{Module: "themes", File: themesv1.File_react_component_library_v1_themes_themes_proto},

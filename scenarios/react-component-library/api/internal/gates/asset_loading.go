@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"react-component-library/internal/librarywalk"
 
@@ -209,9 +210,45 @@ func validateNoUtilityClasses(scope Scope, gate string) (Result, error) {
 			return Result{}, fmt.Errorf("decode utility-class allowlist: %w", err)
 		}
 	}
+	result := Result{}
+	if len(allowlist.Entries) > 0 {
+		expires, parseErr := time.Parse("2006-01-02", strings.TrimSpace(allowlist.Expires))
+		finding := Finding{
+			Code:        "catalog." + gate + ".allowlist-expired",
+			AssetID:     "__corpus__.utility-class-allowlist",
+			File:        repoRel(root, allowlistPath),
+			Remediation: "Remove obsolete utility debt or renew its documented date only after reviewing the exact immutable release paths.",
+			DocsRef:     "docs/reference/style-ownership.md",
+		}
+		switch {
+		case parseErr != nil:
+			finding.Code = "catalog." + gate + ".allowlist-expiry-invalid"
+			finding.Message = fmt.Sprintf("utility-class allowlist has %d entries but its expiry %q is not a YYYY-MM-DD date", len(allowlist.Entries), allowlist.Expires)
+			result.Findings = append(result.Findings, finding)
+		case time.Now().UTC().Format("2006-01-02") > expires.Format("2006-01-02"):
+			finding.Message = fmt.Sprintf("utility-class allowlist expired on %s with %d retained path(s)", expires.Format("2006-01-02"), len(allowlist.Entries))
+			result.Findings = append(result.Findings, finding)
+		}
+	}
 	allowed := make(map[string]bool, len(allowlist.Entries))
+	seenAllowances := make(map[string]bool, len(allowlist.Entries))
 	for _, entry := range allowlist.Entries {
-		allowed[filepath.ToSlash(filepath.Clean(entry.Path))] = true
+		cleanPath := filepath.ToSlash(filepath.Clean(entry.Path))
+		parts := strings.Split(cleanPath, "/")
+		validPath := entry.Path == cleanPath && len(parts) == 5 && parts[0] == "library" && parts[1] != "" && parts[2] != "" && parts[3] == "versions" && parts[4] != "" && !strings.Contains(parts[4], "draft")
+		if !validPath || seenAllowances[cleanPath] || strings.TrimSpace(entry.Reason) == "" || strings.TrimSpace(entry.ClosedBy) == "" {
+			result.Findings = append(result.Findings, Finding{
+				Code:        "catalog." + gate + ".allowlist-entry-invalid",
+				AssetID:     "__corpus__.utility-class-allowlist",
+				File:        repoRel(root, allowlistPath),
+				Message:     fmt.Sprintf("utility-class allowlist entry %q must use an exact library version path and include a reason and closure owner", entry.Path),
+				Remediation: "Keep only canonical `library/<kind>/<asset>/versions/<version>` paths with a concrete reason and accountable closure owner.",
+				DocsRef:     "docs/reference/style-ownership.md",
+			})
+			continue
+		}
+		seenAllowances[cleanPath] = true
+		allowed[cleanPath] = true
 	}
 	sources, err := allLibrarySources(scope)
 	if err != nil {
@@ -225,7 +262,7 @@ func validateNoUtilityClasses(scope Scope, gate string) (Result, error) {
 		}
 		runtimeSources = append(runtimeSources, path)
 	}
-	result := Result{Inspected: len(runtimeSources)}
+	result.Inspected = len(runtimeSources)
 	observedAllowed := map[string]bool{}
 	for _, path := range runtimeSources {
 		source, err := os.ReadFile(path)

@@ -61,6 +61,9 @@ const (
 	// SkillsServiceRecordSkillUsageProcedure is the fully-qualified name of the SkillsService's
 	// RecordSkillUsage RPC.
 	SkillsServiceRecordSkillUsageProcedure = "/vrooli.prompt_manager.v1.skills.SkillsService/RecordSkillUsage"
+	// SkillsServiceGetSkillReadReceiptProcedure is the fully-qualified name of the SkillsService's
+	// GetSkillReadReceipt RPC.
+	SkillsServiceGetSkillReadReceiptProcedure = "/vrooli.prompt_manager.v1.skills.SkillsService/GetSkillReadReceipt"
 	// SkillsServiceListSkillVersionsProcedure is the fully-qualified name of the SkillsService's
 	// ListSkillVersions RPC.
 	SkillsServiceListSkillVersionsProcedure = "/vrooli.prompt_manager.v1.skills.SkillsService/ListSkillVersions"
@@ -105,6 +108,10 @@ type SkillsServiceClient interface {
 	SyncSkills(context.Context, *connect.Request[skills.SyncSkillsRequest]) (*connect.Response[skills.SyncSkillsResponse], error)
 	RateSkill(context.Context, *connect.Request[skills.RateSkillRequest]) (*connect.Response[skills.RateSkillResponse], error)
 	RecordSkillUsage(context.Context, *connect.Request[skills.RecordSkillUsageRequest]) (*connect.Response[skills.RecordSkillUsageResponse], error)
+	// GetSkillReadReceipt says whether the calling agent run has read one skill.
+	// The run comes only from the verified X-Agent-Identity-Token header, so a
+	// caller can ask about itself and never about another run.
+	GetSkillReadReceipt(context.Context, *connect.Request[skills.GetSkillReadReceiptRequest]) (*connect.Response[skills.GetSkillReadReceiptResponse], error)
 	ListSkillVersions(context.Context, *connect.Request[skills.ListSkillVersionsRequest]) (*connect.Response[skills.ListSkillVersionsResponse], error)
 	RevertSkill(context.Context, *connect.Request[skills.RevertSkillRequest]) (*connect.Response[skills.RevertSkillResponse], error)
 	ListSkillVariants(context.Context, *connect.Request[skills.ListSkillVariantsRequest]) (*connect.Response[skills.ListSkillVariantsResponse], error)
@@ -188,6 +195,12 @@ func NewSkillsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(skillsServiceMethods.ByName("RecordSkillUsage")),
 			connect.WithClientOptions(opts...),
 		),
+		getSkillReadReceipt: connect.NewClient[skills.GetSkillReadReceiptRequest, skills.GetSkillReadReceiptResponse](
+			httpClient,
+			baseURL+SkillsServiceGetSkillReadReceiptProcedure,
+			connect.WithSchema(skillsServiceMethods.ByName("GetSkillReadReceipt")),
+			connect.WithClientOptions(opts...),
+		),
 		listSkillVersions: connect.NewClient[skills.ListSkillVersionsRequest, skills.ListSkillVersionsResponse](
 			httpClient,
 			baseURL+SkillsServiceListSkillVersionsProcedure,
@@ -263,6 +276,7 @@ type skillsServiceClient struct {
 	syncSkills                   *connect.Client[skills.SyncSkillsRequest, skills.SyncSkillsResponse]
 	rateSkill                    *connect.Client[skills.RateSkillRequest, skills.RateSkillResponse]
 	recordSkillUsage             *connect.Client[skills.RecordSkillUsageRequest, skills.RecordSkillUsageResponse]
+	getSkillReadReceipt          *connect.Client[skills.GetSkillReadReceiptRequest, skills.GetSkillReadReceiptResponse]
 	listSkillVersions            *connect.Client[skills.ListSkillVersionsRequest, skills.ListSkillVersionsResponse]
 	revertSkill                  *connect.Client[skills.RevertSkillRequest, skills.RevertSkillResponse]
 	listSkillVariants            *connect.Client[skills.ListSkillVariantsRequest, skills.ListSkillVariantsResponse]
@@ -323,6 +337,11 @@ func (c *skillsServiceClient) RateSkill(ctx context.Context, req *connect.Reques
 // RecordSkillUsage calls vrooli.prompt_manager.v1.skills.SkillsService.RecordSkillUsage.
 func (c *skillsServiceClient) RecordSkillUsage(ctx context.Context, req *connect.Request[skills.RecordSkillUsageRequest]) (*connect.Response[skills.RecordSkillUsageResponse], error) {
 	return c.recordSkillUsage.CallUnary(ctx, req)
+}
+
+// GetSkillReadReceipt calls vrooli.prompt_manager.v1.skills.SkillsService.GetSkillReadReceipt.
+func (c *skillsServiceClient) GetSkillReadReceipt(ctx context.Context, req *connect.Request[skills.GetSkillReadReceiptRequest]) (*connect.Response[skills.GetSkillReadReceiptResponse], error) {
+	return c.getSkillReadReceipt.CallUnary(ctx, req)
 }
 
 // ListSkillVersions calls vrooli.prompt_manager.v1.skills.SkillsService.ListSkillVersions.
@@ -389,6 +408,10 @@ type SkillsServiceHandler interface {
 	SyncSkills(context.Context, *connect.Request[skills.SyncSkillsRequest]) (*connect.Response[skills.SyncSkillsResponse], error)
 	RateSkill(context.Context, *connect.Request[skills.RateSkillRequest]) (*connect.Response[skills.RateSkillResponse], error)
 	RecordSkillUsage(context.Context, *connect.Request[skills.RecordSkillUsageRequest]) (*connect.Response[skills.RecordSkillUsageResponse], error)
+	// GetSkillReadReceipt says whether the calling agent run has read one skill.
+	// The run comes only from the verified X-Agent-Identity-Token header, so a
+	// caller can ask about itself and never about another run.
+	GetSkillReadReceipt(context.Context, *connect.Request[skills.GetSkillReadReceiptRequest]) (*connect.Response[skills.GetSkillReadReceiptResponse], error)
 	ListSkillVersions(context.Context, *connect.Request[skills.ListSkillVersionsRequest]) (*connect.Response[skills.ListSkillVersionsResponse], error)
 	RevertSkill(context.Context, *connect.Request[skills.RevertSkillRequest]) (*connect.Response[skills.RevertSkillResponse], error)
 	ListSkillVariants(context.Context, *connect.Request[skills.ListSkillVariantsRequest]) (*connect.Response[skills.ListSkillVariantsResponse], error)
@@ -466,6 +489,12 @@ func NewSkillsServiceHandler(svc SkillsServiceHandler, opts ...connect.HandlerOp
 		SkillsServiceRecordSkillUsageProcedure,
 		svc.RecordSkillUsage,
 		connect.WithSchema(skillsServiceMethods.ByName("RecordSkillUsage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	skillsServiceGetSkillReadReceiptHandler := connect.NewUnaryHandler(
+		SkillsServiceGetSkillReadReceiptProcedure,
+		svc.GetSkillReadReceipt,
+		connect.WithSchema(skillsServiceMethods.ByName("GetSkillReadReceipt")),
 		connect.WithHandlerOptions(opts...),
 	)
 	skillsServiceListSkillVersionsHandler := connect.NewUnaryHandler(
@@ -550,6 +579,8 @@ func NewSkillsServiceHandler(svc SkillsServiceHandler, opts ...connect.HandlerOp
 			skillsServiceRateSkillHandler.ServeHTTP(w, r)
 		case SkillsServiceRecordSkillUsageProcedure:
 			skillsServiceRecordSkillUsageHandler.ServeHTTP(w, r)
+		case SkillsServiceGetSkillReadReceiptProcedure:
+			skillsServiceGetSkillReadReceiptHandler.ServeHTTP(w, r)
 		case SkillsServiceListSkillVersionsProcedure:
 			skillsServiceListSkillVersionsHandler.ServeHTTP(w, r)
 		case SkillsServiceRevertSkillProcedure:
@@ -617,6 +648,10 @@ func (UnimplementedSkillsServiceHandler) RateSkill(context.Context, *connect.Req
 
 func (UnimplementedSkillsServiceHandler) RecordSkillUsage(context.Context, *connect.Request[skills.RecordSkillUsageRequest]) (*connect.Response[skills.RecordSkillUsageResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.skills.SkillsService.RecordSkillUsage is not implemented"))
+}
+
+func (UnimplementedSkillsServiceHandler) GetSkillReadReceipt(context.Context, *connect.Request[skills.GetSkillReadReceiptRequest]) (*connect.Response[skills.GetSkillReadReceiptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.skills.SkillsService.GetSkillReadReceipt is not implemented"))
 }
 
 func (UnimplementedSkillsServiceHandler) ListSkillVersions(context.Context, *connect.Request[skills.ListSkillVersionsRequest]) (*connect.Response[skills.ListSkillVersionsResponse], error) {

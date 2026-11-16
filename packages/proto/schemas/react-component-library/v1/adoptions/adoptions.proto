@@ -251,11 +251,19 @@ message PreflightAdoptionResponse {
   string i18n_verdict = 15;
   // Derived selector coverage is explicitly reported once its catalog gate is enabled.
   string selector_verdict = 16;
+  // Stable catalog identifier used to run the missing version-specific gates.
+  string catalog_asset_id = 17;
+  // Current catalog implementation version measured by catalog gates.
+  string catalog_latest_version = 18;
 }
 
 message SyncScenarioTokensRequest {
   string scenario = 1;
   bool dry_run = 2;
+  // Optional first-adoption candidate. Its closure is included in the token
+  // ramp before the scenario has a recorded adoption or package import.
+  string candidate_component_id = 3;
+  string candidate_version = 4;
 }
 
 message SyncScenarioTokensResponse {

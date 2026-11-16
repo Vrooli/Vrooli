@@ -17,10 +17,9 @@ var (
 // plugin. Preview bundles are compiled directly by esbuild rather than by
 // the UI's Vite graph, so leaving this path unstamped would make the rendered
 // story disagree with the production harness oracle.
-func stampPreviewSource(source, sourcePath, asset, version string, legacySlot ...string) string {
-	sourceSlot := ""
-	if len(legacySlot) > 0 && legacySlot[0] != asset {
-		sourceSlot = legacySlot[0]
+func stampPreviewSource(source, sourcePath, asset, version, sourceSlot string) string {
+	if sourceSlot == asset {
+		sourceSlot = ""
 	}
 	asset = strings.TrimSpace(asset)
 	version = strings.TrimSpace(version)

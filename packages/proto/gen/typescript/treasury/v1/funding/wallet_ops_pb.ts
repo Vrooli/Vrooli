@@ -2,10 +2,12 @@
 // @generated from file treasury/v1/funding/wallet_ops.proto (package vrooli.treasury.v1.funding, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { GetReceiptFundingRequestSchema, ReceiptFundingResponseSchema, SubmitReceiptFundingRequestSchema } from "./funding_pb";
+import { file_treasury_v1_funding_funding } from "./funding_pb";
 import type { CryptoPayerAttribution, CryptoValuation } from "../../../money-ledger/v1/ingest/ingest_pb";
 import { file_money_ledger_v1_ingest_ingest } from "../../../money-ledger/v1/ingest/ingest_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -14,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file treasury/v1/funding/wallet_ops.proto.
  */
 export const file_treasury_v1_funding_wallet_ops: GenFile = /*@__PURE__*/
-  fileDesc("CiR0cmVhc3VyeS92MS9mdW5kaW5nL3dhbGxldF9vcHMucHJvdG8SGnZyb29saS50cmVhc3VyeS52MS5mdW5kaW5nIusBCgxCdWRnZXRXYWxsZXQSEQoJYnVkZ2V0X2lkGAEgASgJEhEKCXdhbGxldF9pZBgCIAEoCRIPCgduZXR3b3JrGAMgASgJEg8KB2FkZHJlc3MYBCABKAkSFQoNYWdlbnRfc3ViamVjdBgFIAEoCRIUCgxhZ2VudF9ydW5faWQYBiABKAkSEgoKbWFuZGF0ZV9pZBgHIAEoCRIaChJzZXNzaW9uX2dlbmVyYXRpb24YCCABKAMSNgoSc2Vzc2lvbl9leHBpcmVzX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKbAQocUHJvdmlzaW9uQnVkZ2V0V2FsbGV0UmVxdWVzdBIRCglidWRnZXRfaWQYASABKAkSDwoHbmV0d29yaxgCIAEoCRIVCg1hZ2VudF9zdWJqZWN0GAMgASgJEhQKDGFnZW50X3J1bl9pZBgEIAEoCRISCgptYW5kYXRlX2lkGAUgASgJEhYKDnJvdGF0ZV9zZXNzaW9uGAYgASgIIj8KFkdldEJ1ZGdldFdhbGxldFJlcXVlc3QSEQoJYnVkZ2V0X2lkGAEgASgJEhIKCm1hbmRhdGVfaWQYAiABKAkiUAoUQnVkZ2V0V2FsbGV0UmVzcG9uc2USOAoGd2FsbGV0GAEgASgLMigudnJvb2xpLnRyZWFzdXJ5LnYxLmZ1bmRpbmcuQnVkZ2V0V2FsbGV0IjEKG1Jldm9rZU1hbmRhdGVTZXNzaW9uUmVxdWVzdBISCgptYW5kYXRlX2lkGAEgASgJIi8KHFJldm9rZU1hbmRhdGVTZXNzaW9uUmVzcG9uc2USDwoHcmV2b2tlZBgBIAEoCCLqAgoNRnVuZGluZ0ludGVudBIKCgJpZBgBIAEoCRIRCglidWRnZXRfaWQYAiABKAkSOAoGd2FsbGV0GAMgASgLMigudnJvb2xpLnRyZWFzdXJ5LnYxLmZ1bmRpbmcuQnVkZ2V0V2FsbGV0EhUKDWF0b21pY19hbW91bnQYBCABKAkSEwoLcGF5bWVudF91cmkYBSABKAkSDQoFc3RhdGUYBiABKAkSGAoQdHJhbnNhY3Rpb25faGFzaBgHIAEoCRIbChNyZWNlaXB0X2RlbGl2ZXJ5X2lkGAggASgJEi4KCmNyZWF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhoKEm5vdGlmaWNhdGlvbl9zdGF0ZRgLIAEoCRISCgpsYXN0X2Vycm9yGAwgASgJIpQCChpDcmVhdGVGdW5kaW5nSW50ZW50UmVxdWVzdBIKCgJpZBgBIAEoCRIRCglidWRnZXRfaWQYAiABKAkSFQoNYXRvbWljX2Ftb3VudBgDIAEoCRJBCgl2YWx1YXRpb24YBCABKAsyLi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5DcnlwdG9WYWx1YXRpb24SFgoObGVkZ2VyX2Jvb2tfaWQYBSABKAkSGQoRbGVkZ2VyX2FjY291bnRfaWQYBiABKAkSSgoLYXR0cmlidXRpb24YByABKAsyNS52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5DcnlwdG9QYXllckF0dHJpYnV0aW9uIiIKFEZ1bmRpbmdJbnRlbnRSZXF1ZXN0EgoKAmlkGAEgASgJIlIKFUZ1bmRpbmdJbnRlbnRSZXNwb25zZRI5CgZpbnRlbnQYASABKAsyKS52cm9vbGkudHJlYXN1cnkudjEuZnVuZGluZy5GdW5kaW5nSW50ZW50IkUKHUNvbmZpcm1GdW5kaW5nVHJhbnNmZXJSZXF1ZXN0EgoKAmlkGAEgASgJEhgKEHRyYW5zYWN0aW9uX2hhc2gYAiABKAkiLgoZTGlzdEZ1bmRpbmdJbnRlbnRzUmVxdWVzdBIRCglidWRnZXRfaWQYASABKAkiWAoaTGlzdEZ1bmRpbmdJbnRlbnRzUmVzcG9uc2USOgoHaW50ZW50cxgBIAMoCzIpLnZyb29saS50cmVhc3VyeS52MS5mdW5kaW5nLkZ1bmRpbmdJbnRlbnQiSgoVV2l0aGRyYXdhbERlc3RpbmF0aW9uEhEKCWJ1ZGdldF9pZBgBIAEoCRIPCgdhZGRyZXNzGAIgASgJEg0KBWxhYmVsGAMgASgJImkKH1NldFdpdGhkcmF3YWxEZXN0aW5hdGlvblJlcXVlc3QSRgoLZGVzdGluYXRpb24YASABKAsyMS52cm9vbGkudHJlYXN1cnkudjEuZnVuZGluZy5XaXRoZHJhd2FsRGVzdGluYXRpb24iZwodV2l0aGRyYXdhbERlc3RpbmF0aW9uUmVzcG9uc2USRgoLZGVzdGluYXRpb24YASABKAsyMS52cm9vbGkudHJlYXN1cnkudjEuZnVuZGluZy5XaXRoZHJhd2FsRGVzdGluYXRpb24i4gEKGFByZXZpZXdXaXRoZHJhd2FsUmVxdWVzdBIRCglidWRnZXRfaWQYASABKAkSEwoLZGVzdGluYXRpb24YAiABKAkSFQoNYXRvbWljX2Ftb3VudBgDIAEoCRJBCgl2YWx1YXRpb24YBCABKAsyLi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5DcnlwdG9WYWx1YXRpb24SGwoTZmVlX3ZhbHVhdGlvbl9taW5vchgFIAEoAxITCgttYXhfZmVlX3dlaRgGIAEoCRISCgptYW5kYXRlX2lkGAcgASgJIr0CCg9XaXRoZHJhd2FsUXVvdGUSCgoCaWQYASABKAkSEQoJYnVkZ2V0X2lkGAIgASgJEhMKC2Rlc3RpbmF0aW9uGAMgASgJEhUKDWF0b21pY19hbW91bnQYBCABKAkSDwoHbmV0d29yaxgFIAEoCRITCgttYXhfZmVlX3dlaRgGIAEoCRITCgt2YWx1ZV9taW5vchgHIAEoAxIbChNmZWVfdmFsdWF0aW9uX21pbm9yGAggASgDEhAKCGN1cnJlbmN5GAkgASgJEhkKEWVzdGltYXRlZF9zZWNvbmRzGAogASgNEi4KCmV4cGlyZXNfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhYKDmV4ZWN1dGlvbl9tb2RlGAwgASgJEhIKCm1hbmRhdGVfaWQYDSABKAkiVQoXV2l0aGRyYXdhbFF1b3RlUmVzcG9uc2USOgoFcXVvdGUYASABKAsyKy52cm9vbGkudHJlYXN1cnkudjEuZnVuZGluZy5XaXRoZHJhd2FsUXVvdGUiRQoYRXhlY3V0ZVdpdGhkcmF3YWxSZXF1ZXN0EhAKCHF1b3RlX2lkGAEgASgJEhcKD2lkZW1wb3RlbmN5X2tleRgCIAEoCSIiChRHZXRXaXRoZHJhd2FsUmVxdWVzdBIKCgJpZBgBIAEoCSKYAQoKV2l0aGRyYXdhbBIKCgJpZBgBIAEoCRIQCghxdW90ZV9pZBgCIAEoCRIYChBhdXRob3JpemF0aW9uX2lkGAMgASgJEhUKDXNldHRsZW1lbnRfaWQYBCABKAkSDQoFc3RhdGUYBSABKAkSGAoQdHJhbnNhY3Rpb25faGFzaBgGIAEoCRISCgpsYXN0X2Vycm9yGAcgASgJIlAKEldpdGhkcmF3YWxSZXNwb25zZRI6Cgp3aXRoZHJhd2FsGAEgASgLMiYudnJvb2xpLnRyZWFzdXJ5LnYxLmZ1bmRpbmcuV2l0aGRyYXdhbEJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3RyZWFzdXJ5L3YxL2Z1bmRpbmc7ZnVuZGluZ192MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_money_ledger_v1_ingest_ingest]);
+  fileDesc("CiR0cmVhc3VyeS92MS9mdW5kaW5nL3dhbGxldF9vcHMucHJvdG8SGnZyb29saS50cmVhc3VyeS52MS5mdW5kaW5nIusBCgxCdWRnZXRXYWxsZXQSEQoJYnVkZ2V0X2lkGAEgASgJEhEKCXdhbGxldF9pZBgCIAEoCRIPCgduZXR3b3JrGAMgASgJEg8KB2FkZHJlc3MYBCABKAkSFQoNYWdlbnRfc3ViamVjdBgFIAEoCRIUCgxhZ2VudF9ydW5faWQYBiABKAkSEgoKbWFuZGF0ZV9pZBgHIAEoCRIaChJzZXNzaW9uX2dlbmVyYXRpb24YCCABKAMSNgoSc2Vzc2lvbl9leHBpcmVzX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCK9AQocUHJvdmlzaW9uQnVkZ2V0V2FsbGV0UmVxdWVzdBIRCglidWRnZXRfaWQYASABKAkSDwoHbmV0d29yaxgCIAEoCRIVCg1hZ2VudF9zdWJqZWN0GAMgASgJEhQKDGFnZW50X3J1bl9pZBgEIAEoCRISCgptYW5kYXRlX2lkGAUgASgJEhYKDnJvdGF0ZV9zZXNzaW9uGAYgASgIEiAKGHJvdGF0aW9uX2lkZW1wb3RlbmN5X2tleRgHIAEoCSI/ChZHZXRCdWRnZXRXYWxsZXRSZXF1ZXN0EhEKCWJ1ZGdldF9pZBgBIAEoCRISCgptYW5kYXRlX2lkGAIgASgJIlAKFEJ1ZGdldFdhbGxldFJlc3BvbnNlEjgKBndhbGxldBgBIAEoCzIoLnZyb29saS50cmVhc3VyeS52MS5mdW5kaW5nLkJ1ZGdldFdhbGxldCK3AwoNRnVuZGluZ0ludGVudBIKCgJpZBgBIAEoCRIRCglidWRnZXRfaWQYAiABKAkSOAoGd2FsbGV0GAMgASgLMigudnJvb2xpLnRyZWFzdXJ5LnYxLmZ1bmRpbmcuQnVkZ2V0V2FsbGV0EhUKDWF0b21pY19hbW91bnQYBCABKAkSEwoLcGF5bWVudF91cmkYBSABKAkSDQoFc3RhdGUYBiABKAkSGAoQdHJhbnNhY3Rpb25faGFzaBgHIAEoCRIbChNyZWNlaXB0X2RlbGl2ZXJ5X2lkGAggASgJEi4KCmNyZWF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhoKEm5vdGlmaWNhdGlvbl9zdGF0ZRgLIAEoCRISCgpsYXN0X2Vycm9yGAwgASgJEhQKDGZ1bmRpbmdfbW9kZRgNIAEoCRIbChNwYXltZW50X3ZhbHVlX21pbm9yGA4gASgDEhgKEHBheW1lbnRfY3VycmVuY3kYDyABKAkilAIKGkNyZWF0ZUZ1bmRpbmdJbnRlbnRSZXF1ZXN0EgoKAmlkGAEgASgJEhEKCWJ1ZGdldF9pZBgCIAEoCRIVCg1hdG9taWNfYW1vdW50GAMgASgJEkEKCXZhbHVhdGlvbhgEIAEoCzIuLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LkNyeXB0b1ZhbHVhdGlvbhIWCg5sZWRnZXJfYm9va19pZBgFIAEoCRIZChFsZWRnZXJfYWNjb3VudF9pZBgGIAEoCRJKCgthdHRyaWJ1dGlvbhgHIAEoCzI1LnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LkNyeXB0b1BheWVyQXR0cmlidXRpb24iIgoURnVuZGluZ0ludGVudFJlcXVlc3QSCgoCaWQYASABKAkiUgoVRnVuZGluZ0ludGVudFJlc3BvbnNlEjkKBmludGVudBgBIAEoCzIpLnZyb29saS50cmVhc3VyeS52MS5mdW5kaW5nLkZ1bmRpbmdJbnRlbnQiRQodQ29uZmlybUZ1bmRpbmdUcmFuc2ZlclJlcXVlc3QSCgoCaWQYASABKAkSGAoQdHJhbnNhY3Rpb25faGFzaBgCIAEoCSIuChlMaXN0RnVuZGluZ0ludGVudHNSZXF1ZXN0EhEKCWJ1ZGdldF9pZBgBIAEoCSJYChpMaXN0RnVuZGluZ0ludGVudHNSZXNwb25zZRI6CgdpbnRlbnRzGAEgAygLMikudnJvb2xpLnRyZWFzdXJ5LnYxLmZ1bmRpbmcuRnVuZGluZ0ludGVudCJKChVXaXRoZHJhd2FsRGVzdGluYXRpb24SEQoJYnVkZ2V0X2lkGAEgASgJEg8KB2FkZHJlc3MYAiABKAkSDQoFbGFiZWwYAyABKAkiaQofU2V0V2l0aGRyYXdhbERlc3RpbmF0aW9uUmVxdWVzdBJGCgtkZXN0aW5hdGlvbhgBIAEoCzIxLnZyb29saS50cmVhc3VyeS52MS5mdW5kaW5nLldpdGhkcmF3YWxEZXN0aW5hdGlvbiJnCh1XaXRoZHJhd2FsRGVzdGluYXRpb25SZXNwb25zZRJGCgtkZXN0aW5hdGlvbhgBIAEoCzIxLnZyb29saS50cmVhc3VyeS52MS5mdW5kaW5nLldpdGhkcmF3YWxEZXN0aW5hdGlvbiLiAQoYUHJldmlld1dpdGhkcmF3YWxSZXF1ZXN0EhEKCWJ1ZGdldF9pZBgBIAEoCRITCgtkZXN0aW5hdGlvbhgCIAEoCRIVCg1hdG9taWNfYW1vdW50GAMgASgJEkEKCXZhbHVhdGlvbhgEIAEoCzIuLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LkNyeXB0b1ZhbHVhdGlvbhIbChNmZWVfdmFsdWF0aW9uX21pbm9yGAUgASgDEhMKC21heF9mZWVfd2VpGAYgASgJEhIKCm1hbmRhdGVfaWQYByABKAkivQIKD1dpdGhkcmF3YWxRdW90ZRIKCgJpZBgBIAEoCRIRCglidWRnZXRfaWQYAiABKAkSEwoLZGVzdGluYXRpb24YAyABKAkSFQoNYXRvbWljX2Ftb3VudBgEIAEoCRIPCgduZXR3b3JrGAUgASgJEhMKC21heF9mZWVfd2VpGAYgASgJEhMKC3ZhbHVlX21pbm9yGAcgASgDEhsKE2ZlZV92YWx1YXRpb25fbWlub3IYCCABKAMSEAoIY3VycmVuY3kYCSABKAkSGQoRZXN0aW1hdGVkX3NlY29uZHMYCiABKA0SLgoKZXhwaXJlc19hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFgoOZXhlY3V0aW9uX21vZGUYDCABKAkSEgoKbWFuZGF0ZV9pZBgNIAEoCSJVChdXaXRoZHJhd2FsUXVvdGVSZXNwb25zZRI6CgVxdW90ZRgBIAEoCzIrLnZyb29saS50cmVhc3VyeS52MS5mdW5kaW5nLldpdGhkcmF3YWxRdW90ZSJFChhFeGVjdXRlV2l0aGRyYXdhbFJlcXVlc3QSEAoIcXVvdGVfaWQYASABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GAIgASgJIiIKFEdldFdpdGhkcmF3YWxSZXF1ZXN0EgoKAmlkGAEgASgJIpgBCgpXaXRoZHJhd2FsEgoKAmlkGAEgASgJEhAKCHF1b3RlX2lkGAIgASgJEhgKEGF1dGhvcml6YXRpb25faWQYAyABKAkSFQoNc2V0dGxlbWVudF9pZBgEIAEoCRINCgVzdGF0ZRgFIAEoCRIYChB0cmFuc2FjdGlvbl9oYXNoGAYgASgJEhIKCmxhc3RfZXJyb3IYByABKAkiUAoSV2l0aGRyYXdhbFJlc3BvbnNlEjoKCndpdGhkcmF3YWwYASABKAsyJi52cm9vbGkudHJlYXN1cnkudjEuZnVuZGluZy5XaXRoZHJhd2FsMqcMChNGdW5kaW5nQWRtaW5TZXJ2aWNlEoABChNDcmVhdGVGdW5kaW5nSW50ZW50EjYudnJvb2xpLnRyZWFzdXJ5LnYxLmZ1bmRpbmcuQ3JlYXRlRnVuZGluZ0ludGVudFJlcXVlc3QaMS52cm9vbGkudHJlYXN1cnkudjEuZnVuZGluZy5GdW5kaW5nSW50ZW50UmVzcG9uc2USdwoQR2V0RnVuZGluZ0ludGVudBIwLnZyb29saS50cmVhc3VyeS52MS5mdW5kaW5nLkZ1bmRpbmdJbnRlbnRSZXF1ZXN0GjEudnJvb2xpLnRyZWFzdXJ5LnYxLmZ1bmRpbmcuRnVuZGluZ0ludGVudFJlc3BvbnNlEoYBChZDb25maXJtRnVuZGluZ1RyYW5zZmVyEjkudnJvb2xpLnRyZWFzdXJ5LnYxLmZ1bmRpbmcuQ29uZmlybUZ1bmRpbmdUcmFuc2ZlclJlcXVlc3QaMS52cm9vbGkudHJlYXN1cnkudjEuZnVuZGluZy5GdW5kaW5nSW50ZW50UmVzcG9uc2USgwEKEkxpc3RGdW5kaW5nSW50ZW50cxI1LnZyb29saS50cmVhc3VyeS52MS5mdW5kaW5nLkxpc3RGdW5kaW5nSW50ZW50c1JlcXVlc3QaNi52cm9vbGkudHJlYXN1cnkudjEuZnVuZGluZy5MaXN0RnVuZGluZ0ludGVudHNSZXNwb25zZRKDAQoVUHJvdmlzaW9uQnVkZ2V0V2FsbGV0EjgudnJvb2xpLnRyZWFzdXJ5LnYxLmZ1bmRpbmcuUHJvdmlzaW9uQnVkZ2V0V2FsbGV0UmVxdWVzdBowLnZyb29saS50cmVhc3VyeS52MS5mdW5kaW5nLkJ1ZGdldFdhbGxldFJlc3BvbnNlEncKD0dldEJ1ZGdldFdhbGxldBIyLnZyb29saS50cmVhc3VyeS52MS5mdW5kaW5nLkdldEJ1ZGdldFdhbGxldFJlcXVlc3QaMC52cm9vbGkudHJlYXN1cnkudjEuZnVuZGluZy5CdWRnZXRXYWxsZXRSZXNwb25zZRKSAQoYU2V0V2l0aGRyYXdhbERlc3RpbmF0aW9uEjsudnJvb2xpLnRyZWFzdXJ5LnYxLmZ1bmRpbmcuU2V0V2l0aGRyYXdhbERlc3RpbmF0aW9uUmVxdWVzdBo5LnZyb29saS50cmVhc3VyeS52MS5mdW5kaW5nLldpdGhkcmF3YWxEZXN0aW5hdGlvblJlc3BvbnNlEn4KEVByZXZpZXdXaXRoZHJhd2FsEjQudnJvb2xpLnRyZWFzdXJ5LnYxLmZ1bmRpbmcuUHJldmlld1dpdGhkcmF3YWxSZXF1ZXN0GjMudnJvb2xpLnRyZWFzdXJ5LnYxLmZ1bmRpbmcuV2l0aGRyYXdhbFF1b3RlUmVzcG9uc2USeQoRRXhlY3V0ZVdpdGhkcmF3YWwSNC52cm9vbGkudHJlYXN1cnkudjEuZnVuZGluZy5FeGVjdXRlV2l0aGRyYXdhbFJlcXVlc3QaLi52cm9vbGkudHJlYXN1cnkudjEuZnVuZGluZy5XaXRoZHJhd2FsUmVzcG9uc2UScQoNR2V0V2l0aGRyYXdhbBIwLnZyb29saS50cmVhc3VyeS52MS5mdW5kaW5nLkdldFdpdGhkcmF3YWxSZXF1ZXN0Gi4udnJvb2xpLnRyZWFzdXJ5LnYxLmZ1bmRpbmcuV2l0aGRyYXdhbFJlc3BvbnNlEoMBChRTdWJtaXRSZWNlaXB0RnVuZGluZxI3LnZyb29saS50cmVhc3VyeS52MS5mdW5kaW5nLlN1Ym1pdFJlY2VpcHRGdW5kaW5nUmVxdWVzdBoyLnZyb29saS50cmVhc3VyeS52MS5mdW5kaW5nLlJlY2VpcHRGdW5kaW5nUmVzcG9uc2USfQoRR2V0UmVjZWlwdEZ1bmRpbmcSNC52cm9vbGkudHJlYXN1cnkudjEuZnVuZGluZy5HZXRSZWNlaXB0RnVuZGluZ1JlcXVlc3QaMi52cm9vbGkudHJlYXN1cnkudjEuZnVuZGluZy5SZWNlaXB0RnVuZGluZ1Jlc3BvbnNlMo4BChNGdW5kaW5nQWdlbnRTZXJ2aWNlEncKD0dldEJ1ZGdldFdhbGxldBIyLnZyb29saS50cmVhc3VyeS52MS5mdW5kaW5nLkdldEJ1ZGdldFdhbGxldFJlcXVlc3QaMC52cm9vbGkudHJlYXN1cnkudjEuZnVuZGluZy5CdWRnZXRXYWxsZXRSZXNwb25zZUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3RyZWFzdXJ5L3YxL2Z1bmRpbmc7ZnVuZGluZ192MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_treasury_v1_funding_funding, file_money_ledger_v1_ingest_ingest]);
 
 /**
  * @generated from message vrooli.treasury.v1.funding.BudgetWallet
@@ -108,6 +110,13 @@ export type ProvisionBudgetWalletRequest = Message<"vrooli.treasury.v1.funding.P
    * @generated from field: bool rotate_session = 6;
    */
   rotateSession: boolean;
+
+  /**
+   * Required for rotate_session; identical retries return the same generation.
+   *
+   * @generated from field: string rotation_idempotency_key = 7;
+   */
+  rotationIdempotencyKey: string;
 };
 
 /**
@@ -157,40 +166,6 @@ export type BudgetWalletResponse = Message<"vrooli.treasury.v1.funding.BudgetWal
  */
 export const BudgetWalletResponseSchema: GenMessage<BudgetWalletResponse> = /*@__PURE__*/
   messageDesc(file_treasury_v1_funding_wallet_ops, 3);
-
-/**
- * @generated from message vrooli.treasury.v1.funding.RevokeMandateSessionRequest
- */
-export type RevokeMandateSessionRequest = Message<"vrooli.treasury.v1.funding.RevokeMandateSessionRequest"> & {
-  /**
-   * @generated from field: string mandate_id = 1;
-   */
-  mandateId: string;
-};
-
-/**
- * Describes the message vrooli.treasury.v1.funding.RevokeMandateSessionRequest.
- * Use `create(RevokeMandateSessionRequestSchema)` to create a new message.
- */
-export const RevokeMandateSessionRequestSchema: GenMessage<RevokeMandateSessionRequest> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 4);
-
-/**
- * @generated from message vrooli.treasury.v1.funding.RevokeMandateSessionResponse
- */
-export type RevokeMandateSessionResponse = Message<"vrooli.treasury.v1.funding.RevokeMandateSessionResponse"> & {
-  /**
-   * @generated from field: bool revoked = 1;
-   */
-  revoked: boolean;
-};
-
-/**
- * Describes the message vrooli.treasury.v1.funding.RevokeMandateSessionResponse.
- * Use `create(RevokeMandateSessionResponseSchema)` to create a new message.
- */
-export const RevokeMandateSessionResponseSchema: GenMessage<RevokeMandateSessionResponse> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 5);
 
 /**
  * @generated from message vrooli.treasury.v1.funding.FundingIntent
@@ -255,6 +230,27 @@ export type FundingIntent = Message<"vrooli.treasury.v1.funding.FundingIntent"> 
    * @generated from field: string last_error = 12;
    */
   lastError: string;
+
+  /**
+   * Funding path comes from Treasury server configuration, never the browser.
+   * `base-mainnet` is emitted only after explicit operator address approval.
+   *
+   * @generated from field: string funding_mode = 13;
+   */
+  fundingMode: string;
+
+  /**
+   * Exact operator-declared fiat valuation used by Coinbase Base Pay, separate
+   * from token atoms. The UI offers Base Pay only when the two values match.
+   *
+   * @generated from field: int64 payment_value_minor = 14;
+   */
+  paymentValueMinor: bigint;
+
+  /**
+   * @generated from field: string payment_currency = 15;
+   */
+  paymentCurrency: string;
 };
 
 /**
@@ -262,7 +258,7 @@ export type FundingIntent = Message<"vrooli.treasury.v1.funding.FundingIntent"> 
  * Use `create(FundingIntentSchema)` to create a new message.
  */
 export const FundingIntentSchema: GenMessage<FundingIntent> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 6);
+  messageDesc(file_treasury_v1_funding_wallet_ops, 4);
 
 /**
  * @generated from message vrooli.treasury.v1.funding.CreateFundingIntentRequest
@@ -312,7 +308,7 @@ export type CreateFundingIntentRequest = Message<"vrooli.treasury.v1.funding.Cre
  * Use `create(CreateFundingIntentRequestSchema)` to create a new message.
  */
 export const CreateFundingIntentRequestSchema: GenMessage<CreateFundingIntentRequest> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 7);
+  messageDesc(file_treasury_v1_funding_wallet_ops, 5);
 
 /**
  * @generated from message vrooli.treasury.v1.funding.FundingIntentRequest
@@ -329,7 +325,7 @@ export type FundingIntentRequest = Message<"vrooli.treasury.v1.funding.FundingIn
  * Use `create(FundingIntentRequestSchema)` to create a new message.
  */
 export const FundingIntentRequestSchema: GenMessage<FundingIntentRequest> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 8);
+  messageDesc(file_treasury_v1_funding_wallet_ops, 6);
 
 /**
  * @generated from message vrooli.treasury.v1.funding.FundingIntentResponse
@@ -346,7 +342,7 @@ export type FundingIntentResponse = Message<"vrooli.treasury.v1.funding.FundingI
  * Use `create(FundingIntentResponseSchema)` to create a new message.
  */
 export const FundingIntentResponseSchema: GenMessage<FundingIntentResponse> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 9);
+  messageDesc(file_treasury_v1_funding_wallet_ops, 7);
 
 /**
  * @generated from message vrooli.treasury.v1.funding.ConfirmFundingTransferRequest
@@ -368,7 +364,7 @@ export type ConfirmFundingTransferRequest = Message<"vrooli.treasury.v1.funding.
  * Use `create(ConfirmFundingTransferRequestSchema)` to create a new message.
  */
 export const ConfirmFundingTransferRequestSchema: GenMessage<ConfirmFundingTransferRequest> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 10);
+  messageDesc(file_treasury_v1_funding_wallet_ops, 8);
 
 /**
  * @generated from message vrooli.treasury.v1.funding.ListFundingIntentsRequest
@@ -385,7 +381,7 @@ export type ListFundingIntentsRequest = Message<"vrooli.treasury.v1.funding.List
  * Use `create(ListFundingIntentsRequestSchema)` to create a new message.
  */
 export const ListFundingIntentsRequestSchema: GenMessage<ListFundingIntentsRequest> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 11);
+  messageDesc(file_treasury_v1_funding_wallet_ops, 9);
 
 /**
  * @generated from message vrooli.treasury.v1.funding.ListFundingIntentsResponse
@@ -402,7 +398,7 @@ export type ListFundingIntentsResponse = Message<"vrooli.treasury.v1.funding.Lis
  * Use `create(ListFundingIntentsResponseSchema)` to create a new message.
  */
 export const ListFundingIntentsResponseSchema: GenMessage<ListFundingIntentsResponse> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 12);
+  messageDesc(file_treasury_v1_funding_wallet_ops, 10);
 
 /**
  * @generated from message vrooli.treasury.v1.funding.WithdrawalDestination
@@ -429,7 +425,7 @@ export type WithdrawalDestination = Message<"vrooli.treasury.v1.funding.Withdraw
  * Use `create(WithdrawalDestinationSchema)` to create a new message.
  */
 export const WithdrawalDestinationSchema: GenMessage<WithdrawalDestination> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 13);
+  messageDesc(file_treasury_v1_funding_wallet_ops, 11);
 
 /**
  * @generated from message vrooli.treasury.v1.funding.SetWithdrawalDestinationRequest
@@ -446,7 +442,7 @@ export type SetWithdrawalDestinationRequest = Message<"vrooli.treasury.v1.fundin
  * Use `create(SetWithdrawalDestinationRequestSchema)` to create a new message.
  */
 export const SetWithdrawalDestinationRequestSchema: GenMessage<SetWithdrawalDestinationRequest> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 14);
+  messageDesc(file_treasury_v1_funding_wallet_ops, 12);
 
 /**
  * @generated from message vrooli.treasury.v1.funding.WithdrawalDestinationResponse
@@ -463,7 +459,7 @@ export type WithdrawalDestinationResponse = Message<"vrooli.treasury.v1.funding.
  * Use `create(WithdrawalDestinationResponseSchema)` to create a new message.
  */
 export const WithdrawalDestinationResponseSchema: GenMessage<WithdrawalDestinationResponse> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 15);
+  messageDesc(file_treasury_v1_funding_wallet_ops, 13);
 
 /**
  * @generated from message vrooli.treasury.v1.funding.PreviewWithdrawalRequest
@@ -515,7 +511,7 @@ export type PreviewWithdrawalRequest = Message<"vrooli.treasury.v1.funding.Previ
  * Use `create(PreviewWithdrawalRequestSchema)` to create a new message.
  */
 export const PreviewWithdrawalRequestSchema: GenMessage<PreviewWithdrawalRequest> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 16);
+  messageDesc(file_treasury_v1_funding_wallet_ops, 14);
 
 /**
  * @generated from message vrooli.treasury.v1.funding.WithdrawalQuote
@@ -592,7 +588,7 @@ export type WithdrawalQuote = Message<"vrooli.treasury.v1.funding.WithdrawalQuot
  * Use `create(WithdrawalQuoteSchema)` to create a new message.
  */
 export const WithdrawalQuoteSchema: GenMessage<WithdrawalQuote> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 17);
+  messageDesc(file_treasury_v1_funding_wallet_ops, 15);
 
 /**
  * @generated from message vrooli.treasury.v1.funding.WithdrawalQuoteResponse
@@ -609,7 +605,7 @@ export type WithdrawalQuoteResponse = Message<"vrooli.treasury.v1.funding.Withdr
  * Use `create(WithdrawalQuoteResponseSchema)` to create a new message.
  */
 export const WithdrawalQuoteResponseSchema: GenMessage<WithdrawalQuoteResponse> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 18);
+  messageDesc(file_treasury_v1_funding_wallet_ops, 16);
 
 /**
  * @generated from message vrooli.treasury.v1.funding.ExecuteWithdrawalRequest
@@ -631,7 +627,7 @@ export type ExecuteWithdrawalRequest = Message<"vrooli.treasury.v1.funding.Execu
  * Use `create(ExecuteWithdrawalRequestSchema)` to create a new message.
  */
 export const ExecuteWithdrawalRequestSchema: GenMessage<ExecuteWithdrawalRequest> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 19);
+  messageDesc(file_treasury_v1_funding_wallet_ops, 17);
 
 /**
  * @generated from message vrooli.treasury.v1.funding.GetWithdrawalRequest
@@ -648,7 +644,7 @@ export type GetWithdrawalRequest = Message<"vrooli.treasury.v1.funding.GetWithdr
  * Use `create(GetWithdrawalRequestSchema)` to create a new message.
  */
 export const GetWithdrawalRequestSchema: GenMessage<GetWithdrawalRequest> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 20);
+  messageDesc(file_treasury_v1_funding_wallet_ops, 18);
 
 /**
  * @generated from message vrooli.treasury.v1.funding.Withdrawal
@@ -695,7 +691,7 @@ export type Withdrawal = Message<"vrooli.treasury.v1.funding.Withdrawal"> & {
  * Use `create(WithdrawalSchema)` to create a new message.
  */
 export const WithdrawalSchema: GenMessage<Withdrawal> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 21);
+  messageDesc(file_treasury_v1_funding_wallet_ops, 19);
 
 /**
  * @generated from message vrooli.treasury.v1.funding.WithdrawalResponse
@@ -712,5 +708,126 @@ export type WithdrawalResponse = Message<"vrooli.treasury.v1.funding.WithdrawalR
  * Use `create(WithdrawalResponseSchema)` to create a new message.
  */
 export const WithdrawalResponseSchema: GenMessage<WithdrawalResponse> = /*@__PURE__*/
-  messageDesc(file_treasury_v1_funding_wallet_ops, 22);
+  messageDesc(file_treasury_v1_funding_wallet_ops, 20);
+
+/**
+ * @generated from service vrooli.treasury.v1.funding.FundingAdminService
+ */
+export const FundingAdminService: GenService<{
+  /**
+   * @generated from rpc vrooli.treasury.v1.funding.FundingAdminService.CreateFundingIntent
+   */
+  createFundingIntent: {
+    methodKind: "unary";
+    input: typeof CreateFundingIntentRequestSchema;
+    output: typeof FundingIntentResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.funding.FundingAdminService.GetFundingIntent
+   */
+  getFundingIntent: {
+    methodKind: "unary";
+    input: typeof FundingIntentRequestSchema;
+    output: typeof FundingIntentResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.funding.FundingAdminService.ConfirmFundingTransfer
+   */
+  confirmFundingTransfer: {
+    methodKind: "unary";
+    input: typeof ConfirmFundingTransferRequestSchema;
+    output: typeof FundingIntentResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.funding.FundingAdminService.ListFundingIntents
+   */
+  listFundingIntents: {
+    methodKind: "unary";
+    input: typeof ListFundingIntentsRequestSchema;
+    output: typeof ListFundingIntentsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.funding.FundingAdminService.ProvisionBudgetWallet
+   */
+  provisionBudgetWallet: {
+    methodKind: "unary";
+    input: typeof ProvisionBudgetWalletRequestSchema;
+    output: typeof BudgetWalletResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.funding.FundingAdminService.GetBudgetWallet
+   */
+  getBudgetWallet: {
+    methodKind: "unary";
+    input: typeof GetBudgetWalletRequestSchema;
+    output: typeof BudgetWalletResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.funding.FundingAdminService.SetWithdrawalDestination
+   */
+  setWithdrawalDestination: {
+    methodKind: "unary";
+    input: typeof SetWithdrawalDestinationRequestSchema;
+    output: typeof WithdrawalDestinationResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.funding.FundingAdminService.PreviewWithdrawal
+   */
+  previewWithdrawal: {
+    methodKind: "unary";
+    input: typeof PreviewWithdrawalRequestSchema;
+    output: typeof WithdrawalQuoteResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.funding.FundingAdminService.ExecuteWithdrawal
+   */
+  executeWithdrawal: {
+    methodKind: "unary";
+    input: typeof ExecuteWithdrawalRequestSchema;
+    output: typeof WithdrawalResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.funding.FundingAdminService.GetWithdrawal
+   */
+  getWithdrawal: {
+    methodKind: "unary";
+    input: typeof GetWithdrawalRequestSchema;
+    output: typeof WithdrawalResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.funding.FundingAdminService.SubmitReceiptFunding
+   */
+  submitReceiptFunding: {
+    methodKind: "unary";
+    input: typeof SubmitReceiptFundingRequestSchema;
+    output: typeof ReceiptFundingResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.treasury.v1.funding.FundingAdminService.GetReceiptFunding
+   */
+  getReceiptFunding: {
+    methodKind: "unary";
+    input: typeof GetReceiptFundingRequestSchema;
+    output: typeof ReceiptFundingResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_treasury_v1_funding_wallet_ops, 0);
+
+/**
+ * The agent-facing wallet read is kept separate from policy-mutating funding
+ * operations and verifies the caller's run before exposing a mandate session.
+ *
+ * @generated from service vrooli.treasury.v1.funding.FundingAgentService
+ */
+export const FundingAgentService: GenService<{
+  /**
+   * @generated from rpc vrooli.treasury.v1.funding.FundingAgentService.GetBudgetWallet
+   */
+  getBudgetWallet: {
+    methodKind: "unary";
+    input: typeof GetBudgetWalletRequestSchema;
+    output: typeof BudgetWalletResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_treasury_v1_funding_wallet_ops, 1);
 

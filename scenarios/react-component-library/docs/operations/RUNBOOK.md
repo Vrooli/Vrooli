@@ -5,7 +5,6 @@ Behavioral claims are current only within the specific checks in the register. O
 This document records operator procedures for running, diagnosing,
 recovering, and maintaining the scenario.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

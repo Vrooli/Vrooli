@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package vrooli.research_desk.v1.shared;
+
+import "research-desk/v1/shared/evidence.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/shared;shared_v1";
+
+// Commission facts used by more than one service.
+
+// NeverStarted is whether a commission the desk classes unknown may be
+// launched on the operator's word that it was never started: only when no
+// session and no goal for it is found in any Codex home the desk can read.
+message NeverStarted {
+  bool assertable = 1;
+  string reason = 2;
+}
+
+// ReadWhen is when the supervisor will read a new OPERATOR.md entry.
+enum ReadWhen {
+  READ_WHEN_UNSPECIFIED = 0;
+  // Live: at the start of its next unit.
+  READ_WHEN_NEXT_UNIT = 1;
+  // Paused or limited: at the next unit after it resumes.
+  READ_WHEN_AFTER_RESUME = 2;
+  // The charter does not tell the scheduler to read OPERATOR.md.
+  READ_WHEN_NOT_UNTIL_STEERING = 3;
+  // Ended: no supervisor will read it.
+  READ_WHEN_NEVER = 4;
+  // Prepared or stopped: when a supervisor is started on it.
+  READ_WHEN_AT_START = 5;
+  // The state is unknown, so when it will be read is unknown.
+  READ_WHEN_UNKNOWN = 6;
+}
+
+message EntryReading {
+  ReadWhen when = 1;
+  // The same in a plain sentence.
+  string message = 2;
+  // Entries written before this were read: the newest STATE.md rewrite,
+  // which a unit makes after reading OPERATOR.md. Unknown with the reason
+  // when there is no STATE.md.
+  DerivedTime read_since = 3;
+}
+
+// ReadSet is what one role reads to start or to run a unit.
+message ReadSet {
+  // "scheduler-start", "scheduler-unit" or "owner-start:<topic>".
+  string role = 1;
+  repeated FileFact files = 2;
+  // All the role reads. An owner's includes its topic's MISSION.md, which is
+  // never held to the owner_start ceiling (only the skill text is).
+  int64 bytes = 3;
+  // bytes / 4.
+  int64 estimated_tokens = 4;
+  // Plain-word flags, e.g. "charter 36,112 bytes, over the 25,000-byte gate".
+  repeated string flags = 5;
+}
+
+// Workstream is one row of a mission's workstream table, as mission_check.py
+// reports it.
+message Workstream {
+  string id = 1;
+  string status = 2;
+  string showcase = 3;
+  // The row's destination: what the workstream lands.
+  string title = 4;
+  // The row's magnitude, e.g. "60–120 agent-hours".
+  string magnitude = 5;
+}

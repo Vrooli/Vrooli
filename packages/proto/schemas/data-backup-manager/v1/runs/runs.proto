@@ -57,6 +57,9 @@ enum TriggerSource {
   TRIGGER_SOURCE_UNSPECIFIED = 0;
   TRIGGER_SOURCE_SCHEDULER = 1;
   TRIGGER_SOURCE_MANUAL = 2;
+  // An automatic re-run of a plan whose last run was stopped by a destination
+  // problem that looked transient. Counted apart from real attempts.
+  TRIGGER_SOURCE_RETRY = 3;
 }
 
 // TargetOutcome is the per (target × destination) result within a run.
@@ -258,6 +261,12 @@ message RunStats {
   int64 total_physical_bytes = 12;
   // Logical ÷ physical. 0 when physical is unknown (never a divide-by-zero).
   double dedup_ratio = 13;
+  // Automatic retries in the window, counted apart from real attempts: the
+  // counts above (total_runs, completed, partial_failed, failed, success_rate)
+  // cover attempts only (scheduled and manual runs).
+  int64 retry_runs = 14;
+  int64 retry_completed = 15;
+  int64 retry_failed = 16;
 }
 
 message GetRunStatsResponse {

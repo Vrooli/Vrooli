@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1ftreasury/v1/budget/budget.proto\x12\x19vrooli.treasury.v1.budget\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb6\x03\n\x06\x42udget\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n\x07\x62ook_id\x18\x02 \x01(\tR\x06\x62ookId\x12&\n\x0ftotal_cap_minor\x18\x03 \x01(\x03R\rtotalCapMinor\x12,\n\x12periodic_cap_minor\x18\x04 \x01(\x03R\x10periodicCapMinor\x12\x39\n\x19per_transaction_cap_minor\x18\x05 \x01(\x03R\x16perTransactionCapMinor\x12\x1a\n\x08\x63urrency\x18\x06 \x01(\tR\x08\x63urrency\x12\x35\n\x16\x61llowed_counterparties\x18\x07 \x03(\tR\x15\x61llowedCounterparties\x12\x33\n\x15\x64\x65nied_counterparties\x18\x08 \x03(\tR\x14\x64\x65niedCounterparties\x12+\n\x11requires_approval\x18\t \x01(\x08R\x10requiresApproval\x12\x16\n\x06\x66rozen\x18\n \x01(\x08R\x06\x66rozen\x12%\n\x0eperiod_seconds\x18\x0b \x01(\x03R\rperiodSeconds\"\xd2\x06\n\x08Headroom\x12\x1b\n\tbudget_id\x18\x01 \x01(\tR\x08\x62udgetId\x12\x17\n\x07\x62ook_id\x18\x02 \x01(\tR\x06\x62ookId\x12\x1a\n\x08\x63urrency\x18\x03 \x01(\tR\x08\x63urrency\x12&\n\x0ftotal_cap_minor\x18\x04 \x01(\x03R\rtotalCapMinor\x12(\n\x10total_used_minor\x18\x05 \x01(\x03R\x0etotalUsedMinor\x12\x32\n\x15total_remaining_minor\x18\x06 \x01(\x03R\x13totalRemainingMinor\x12,\n\x12periodic_cap_minor\x18\x07 \x01(\x03R\x10periodicCapMinor\x12*\n\x11period_used_minor\x18\x08 \x01(\x03R\x0fperiodUsedMinor\x12\x34\n\x16period_remaining_minor\x18\t \x01(\x03R\x14periodRemainingMinor\x12\x39\n\x19per_transaction_cap_minor\x18\n \x01(\x03R\x16perTransactionCapMinor\x12\'\n\x0f\x61vailable_minor\x18\x0b \x01(\x03R\x0e\x61vailableMinor\x12\x46\n\x11period_started_at\x18\x0c \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0fperiodStartedAt\x12;\n\x0b\x63omputed_at\x18\r \x01(\x0b\x32\x1a.google.protobuf.TimestampR\ncomputedAt\x12)\n\x10\x66unding_required\x18\x0e \x01(\x08R\x0f\x66undingRequired\x12\x34\n\x16\x66unding_credited_minor\x18\x0f \x01(\x03R\x14\x66undingCreditedMinor\x12\x36\n\x17\x66unding_remaining_minor\x18\x10 \x01(\x03R\x15\x66undingRemainingMinor\x12\x32\n\x15\x66unding_atomic_amount\x18\x11 \x01(\tR\x13\x66undingAtomicAmount\x12(\n\x10\x66unding_asset_id\x18\x12 \x01(\tR\x0e\x66undingAssetIdBMZKgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/budget;budget_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1ftreasury/v1/budget/budget.proto\x12\x19vrooli.treasury.v1.budget\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb6\x03\n\x06\x42udget\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n\x07\x62ook_id\x18\x02 \x01(\tR\x06\x62ookId\x12&\n\x0ftotal_cap_minor\x18\x03 \x01(\x03R\rtotalCapMinor\x12,\n\x12periodic_cap_minor\x18\x04 \x01(\x03R\x10periodicCapMinor\x12\x39\n\x19per_transaction_cap_minor\x18\x05 \x01(\x03R\x16perTransactionCapMinor\x12\x1a\n\x08\x63urrency\x18\x06 \x01(\tR\x08\x63urrency\x12\x35\n\x16\x61llowed_counterparties\x18\x07 \x03(\tR\x15\x61llowedCounterparties\x12\x33\n\x15\x64\x65nied_counterparties\x18\x08 \x03(\tR\x14\x64\x65niedCounterparties\x12+\n\x11requires_approval\x18\t \x01(\x08R\x10requiresApproval\x12\x16\n\x06\x66rozen\x18\n \x01(\x08R\x06\x66rozen\x12%\n\x0eperiod_seconds\x18\x0b \x01(\x03R\rperiodSeconds\"Q\n\x14SetBudgetCapsRequest\x12\x39\n\x06\x62udget\x18\x01 \x01(\x0b\x32!.vrooli.treasury.v1.budget.BudgetR\x06\x62udget\"R\n\x15SetBudgetCapsResponse\x12\x39\n\x06\x62udget\x18\x01 \x01(\x0b\x32!.vrooli.treasury.v1.budget.BudgetR\x06\x62udget\"\\\n\x10SetGatingRequest\x12\x1b\n\tbudget_id\x18\x01 \x01(\tR\x08\x62udgetId\x12+\n\x11requires_approval\x18\x02 \x01(\x08R\x10requiresApproval\"N\n\x11SetGatingResponse\x12\x39\n\x06\x62udget\x18\x01 \x01(\x0b\x32!.vrooli.treasury.v1.budget.BudgetR\x06\x62udget\"2\n\x13\x46reezeBudgetRequest\x12\x1b\n\tbudget_id\x18\x01 \x01(\tR\x08\x62udgetId\"Q\n\x14\x46reezeBudgetResponse\x12\x39\n\x06\x62udget\x18\x01 \x01(\x0b\x32!.vrooli.treasury.v1.budget.BudgetR\x06\x62udget\"4\n\x15UnfreezeBudgetRequest\x12\x1b\n\tbudget_id\x18\x01 \x01(\tR\x08\x62udgetId\"S\n\x16UnfreezeBudgetResponse\x12\x39\n\x06\x62udget\x18\x01 \x01(\x0b\x32!.vrooli.treasury.v1.budget.BudgetR\x06\x62udget\",\n\x11\x46reezeBookRequest\x12\x17\n\x07\x62ook_id\x18\x01 \x01(\tR\x06\x62ookId\"\x80\x01\n\x12\x46reezeBookResponse\x12\x17\n\x07\x62ook_id\x18\x01 \x01(\tR\x06\x62ookId\x12\x16\n\x06\x66rozen\x18\x02 \x01(\x08R\x06\x66rozen\x12\x39\n\nupdated_at\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\".\n\x13UnfreezeBookRequest\x12\x17\n\x07\x62ook_id\x18\x01 \x01(\tR\x06\x62ookId\"\x82\x01\n\x14UnfreezeBookResponse\x12\x17\n\x07\x62ook_id\x18\x01 \x01(\tR\x06\x62ookId\x12\x16\n\x06\x66rozen\x18\x02 \x01(\x08R\x06\x66rozen\x12\x39\n\nupdated_at\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\"\x12\n\x10\x46reezeAllRequest\"f\n\x11\x46reezeAllResponse\x12\x16\n\x06\x66rozen\x18\x01 \x01(\x08R\x06\x66rozen\x12\x39\n\nupdated_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\"\x18\n\x16GetFreezeStatusRequest\"l\n\x17GetFreezeStatusResponse\x12\x16\n\x06\x66rozen\x18\x01 \x01(\x08R\x06\x66rozen\x12\x39\n\nupdated_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\"\x14\n\x12UnfreezeAllRequest\"h\n\x13UnfreezeAllResponse\x12\x16\n\x06\x66rozen\x18\x01 \x01(\x08R\x06\x66rozen\x12\x39\n\nupdated_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt2\x84\x08\n\x12\x42udgetAdminService\x12r\n\rSetBudgetCaps\x12/.vrooli.treasury.v1.budget.SetBudgetCapsRequest\x1a\x30.vrooli.treasury.v1.budget.SetBudgetCapsResponse\x12\x66\n\tSetGating\x12+.vrooli.treasury.v1.budget.SetGatingRequest\x1a,.vrooli.treasury.v1.budget.SetGatingResponse\x12o\n\x0c\x46reezeBudget\x12..vrooli.treasury.v1.budget.FreezeBudgetRequest\x1a/.vrooli.treasury.v1.budget.FreezeBudgetResponse\x12u\n\x0eUnfreezeBudget\x12\x30.vrooli.treasury.v1.budget.UnfreezeBudgetRequest\x1a\x31.vrooli.treasury.v1.budget.UnfreezeBudgetResponse\x12i\n\nFreezeBook\x12,.vrooli.treasury.v1.budget.FreezeBookRequest\x1a-.vrooli.treasury.v1.budget.FreezeBookResponse\x12o\n\x0cUnfreezeBook\x12..vrooli.treasury.v1.budget.UnfreezeBookRequest\x1a/.vrooli.treasury.v1.budget.UnfreezeBookResponse\x12\x66\n\tFreezeAll\x12+.vrooli.treasury.v1.budget.FreezeAllRequest\x1a,.vrooli.treasury.v1.budget.FreezeAllResponse\x12x\n\x0fGetFreezeStatus\x12\x31.vrooli.treasury.v1.budget.GetFreezeStatusRequest\x1a\x32.vrooli.treasury.v1.budget.GetFreezeStatusResponse\x12l\n\x0bUnfreezeAll\x12-.vrooli.treasury.v1.budget.UnfreezeAllRequest\x1a..vrooli.treasury.v1.budget.UnfreezeAllResponseBMZKgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/budget;budget_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,6 +35,42 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'ZKgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/budget;budget_v1'
   _globals['_BUDGET']._serialized_start=96
   _globals['_BUDGET']._serialized_end=534
-  _globals['_HEADROOM']._serialized_start=537
-  _globals['_HEADROOM']._serialized_end=1387
+  _globals['_SETBUDGETCAPSREQUEST']._serialized_start=536
+  _globals['_SETBUDGETCAPSREQUEST']._serialized_end=617
+  _globals['_SETBUDGETCAPSRESPONSE']._serialized_start=619
+  _globals['_SETBUDGETCAPSRESPONSE']._serialized_end=701
+  _globals['_SETGATINGREQUEST']._serialized_start=703
+  _globals['_SETGATINGREQUEST']._serialized_end=795
+  _globals['_SETGATINGRESPONSE']._serialized_start=797
+  _globals['_SETGATINGRESPONSE']._serialized_end=875
+  _globals['_FREEZEBUDGETREQUEST']._serialized_start=877
+  _globals['_FREEZEBUDGETREQUEST']._serialized_end=927
+  _globals['_FREEZEBUDGETRESPONSE']._serialized_start=929
+  _globals['_FREEZEBUDGETRESPONSE']._serialized_end=1010
+  _globals['_UNFREEZEBUDGETREQUEST']._serialized_start=1012
+  _globals['_UNFREEZEBUDGETREQUEST']._serialized_end=1064
+  _globals['_UNFREEZEBUDGETRESPONSE']._serialized_start=1066
+  _globals['_UNFREEZEBUDGETRESPONSE']._serialized_end=1149
+  _globals['_FREEZEBOOKREQUEST']._serialized_start=1151
+  _globals['_FREEZEBOOKREQUEST']._serialized_end=1195
+  _globals['_FREEZEBOOKRESPONSE']._serialized_start=1198
+  _globals['_FREEZEBOOKRESPONSE']._serialized_end=1326
+  _globals['_UNFREEZEBOOKREQUEST']._serialized_start=1328
+  _globals['_UNFREEZEBOOKREQUEST']._serialized_end=1374
+  _globals['_UNFREEZEBOOKRESPONSE']._serialized_start=1377
+  _globals['_UNFREEZEBOOKRESPONSE']._serialized_end=1507
+  _globals['_FREEZEALLREQUEST']._serialized_start=1509
+  _globals['_FREEZEALLREQUEST']._serialized_end=1527
+  _globals['_FREEZEALLRESPONSE']._serialized_start=1529
+  _globals['_FREEZEALLRESPONSE']._serialized_end=1631
+  _globals['_GETFREEZESTATUSREQUEST']._serialized_start=1633
+  _globals['_GETFREEZESTATUSREQUEST']._serialized_end=1657
+  _globals['_GETFREEZESTATUSRESPONSE']._serialized_start=1659
+  _globals['_GETFREEZESTATUSRESPONSE']._serialized_end=1767
+  _globals['_UNFREEZEALLREQUEST']._serialized_start=1769
+  _globals['_UNFREEZEALLREQUEST']._serialized_end=1789
+  _globals['_UNFREEZEALLRESPONSE']._serialized_start=1791
+  _globals['_UNFREEZEALLRESPONSE']._serialized_end=1895
+  _globals['_BUDGETADMINSERVICE']._serialized_start=1898
+  _globals['_BUDGETADMINSERVICE']._serialized_end=2926
 # @@protoc_insertion_point(module_scope)

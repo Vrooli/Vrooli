@@ -157,6 +157,10 @@ message LifecycleCandidate {
   int32 persistence_files_scanned = 25;
   bool persistence_scan_complete = 26;
   string preselection_status = 27;
+  // True only when source evidence proves a transition table rejects invalid edges.
+  optional bool transition_graph_verified = 28;
+  // True only when an owner test asserts rejection of an invalid transition.
+  optional bool invalid_transition_tested = 29;
 }
 
 message GenerateScenarioArtifactsRequest {

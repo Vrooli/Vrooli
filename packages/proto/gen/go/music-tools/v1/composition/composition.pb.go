@@ -230,7 +230,9 @@ type SubmitRequest struct {
 	// Omitted chooses a fresh base once at admission; explicit zero is repeatable.
 	Seed *int64 `protobuf:"varint,4,opt,name=seed,proto3,oneof" json:"seed,omitempty"`
 	// Optional ACE sampling shift; omission preserves the loaded profile default.
-	Shift         *float64 `protobuf:"fixed64,5,opt,name=shift,proto3,oneof" json:"shift,omitempty"`
+	Shift *float64 `protobuf:"fixed64,5,opt,name=shift,proto3,oneof" json:"shift,omitempty"`
+	// Optional model-declared sung vocal language. Omission preserves the model default.
+	VocalLanguage *string `protobuf:"bytes,6,opt,name=vocal_language,json=vocalLanguage,proto3,oneof" json:"vocal_language,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -298,6 +300,13 @@ func (x *SubmitRequest) GetShift() float64 {
 		return *x.Shift
 	}
 	return 0
+}
+
+func (x *SubmitRequest) GetVocalLanguage() string {
+	if x != nil && x.VocalLanguage != nil {
+		return *x.VocalLanguage
+	}
+	return ""
 }
 
 type SubmitResponse struct {
@@ -440,6 +449,210 @@ func (x *ListTakesResponse) GetTakes() []*Take {
 	return nil
 }
 
+type CandidateRefillRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	ReservationId string                 `protobuf:"bytes,2,opt,name=reservation_id,json=reservationId,proto3" json:"reservation_id,omitempty"`
+	Sha256        string                 `protobuf:"bytes,3,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	Purpose       string                 `protobuf:"bytes,4,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	Project       string                 `protobuf:"bytes,5,opt,name=project,proto3" json:"project,omitempty"`
+	Revision      string                 `protobuf:"bytes,6,opt,name=revision,proto3" json:"revision,omitempty"`
+	StyleId       string                 `protobuf:"bytes,7,opt,name=style_id,json=styleId,proto3" json:"style_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CandidateRefillRequest) Reset() {
+	*x = CandidateRefillRequest{}
+	mi := &file_music_tools_v1_composition_composition_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CandidateRefillRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CandidateRefillRequest) ProtoMessage() {}
+
+func (x *CandidateRefillRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_music_tools_v1_composition_composition_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CandidateRefillRequest.ProtoReflect.Descriptor instead.
+func (*CandidateRefillRequest) Descriptor() ([]byte, []int) {
+	return file_music_tools_v1_composition_composition_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *CandidateRefillRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *CandidateRefillRequest) GetReservationId() string {
+	if x != nil {
+		return x.ReservationId
+	}
+	return ""
+}
+
+func (x *CandidateRefillRequest) GetSha256() string {
+	if x != nil {
+		return x.Sha256
+	}
+	return ""
+}
+
+func (x *CandidateRefillRequest) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
+func (x *CandidateRefillRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *CandidateRefillRequest) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+func (x *CandidateRefillRequest) GetStyleId() string {
+	if x != nil {
+		return x.StyleId
+	}
+	return ""
+}
+
+type CandidateRefillResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	State         string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	StyleId       string                 `protobuf:"bytes,3,opt,name=style_id,json=styleId,proto3" json:"style_id,omitempty"`
+	JobId         string                 `protobuf:"bytes,4,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CandidateRefillResponse) Reset() {
+	*x = CandidateRefillResponse{}
+	mi := &file_music_tools_v1_composition_composition_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CandidateRefillResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CandidateRefillResponse) ProtoMessage() {}
+
+func (x *CandidateRefillResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_music_tools_v1_composition_composition_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CandidateRefillResponse.ProtoReflect.Descriptor instead.
+func (*CandidateRefillResponse) Descriptor() ([]byte, []int) {
+	return file_music_tools_v1_composition_composition_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *CandidateRefillResponse) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *CandidateRefillResponse) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *CandidateRefillResponse) GetStyleId() string {
+	if x != nil {
+		return x.StyleId
+	}
+	return ""
+}
+
+func (x *CandidateRefillResponse) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+type CancelCandidateRefillRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelCandidateRefillRequest) Reset() {
+	*x = CancelCandidateRefillRequest{}
+	mi := &file_music_tools_v1_composition_composition_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelCandidateRefillRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelCandidateRefillRequest) ProtoMessage() {}
+
+func (x *CancelCandidateRefillRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_music_tools_v1_composition_composition_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelCandidateRefillRequest.ProtoReflect.Descriptor instead.
+func (*CancelCandidateRefillRequest) Descriptor() ([]byte, []int) {
+	return file_music_tools_v1_composition_composition_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *CancelCandidateRefillRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
 var File_music_tools_v1_composition_composition_proto protoreflect.FileDescriptor
 
 const file_music_tools_v1_composition_composition_proto_rawDesc = "" +
@@ -470,25 +683,48 @@ const file_music_tools_v1_composition_composition_proto_rawDesc = "" +
 	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
 	"\vreserved_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"reservedAt\"\xa3\x01\n" +
+	"reservedAt\"\xe2\x01\n" +
 	"\rSubmitRequest\x12\x19\n" +
 	"\bstyle_id\x18\x01 \x01(\tR\astyleId\x12\x14\n" +
 	"\x05takes\x18\x02 \x01(\x05R\x05takes\x12\x1a\n" +
 	"\bduration\x18\x03 \x01(\x05R\bduration\x12\x17\n" +
 	"\x04seed\x18\x04 \x01(\x03H\x00R\x04seed\x88\x01\x01\x12\x19\n" +
-	"\x05shift\x18\x05 \x01(\x01H\x01R\x05shift\x88\x01\x01B\a\n" +
+	"\x05shift\x18\x05 \x01(\x01H\x01R\x05shift\x88\x01\x01\x12*\n" +
+	"\x0evocal_language\x18\x06 \x01(\tH\x02R\rvocalLanguage\x88\x01\x01B\a\n" +
 	"\x05_seedB\b\n" +
-	"\x06_shift\"'\n" +
+	"\x06_shiftB\x11\n" +
+	"\x0f_vocal_language\"'\n" +
 	"\x0eSubmitResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"D\n" +
 	"\x10ListTakesRequest\x12\x19\n" +
 	"\bstyle_id\x18\x01 \x01(\tR\astyleId\x12\x15\n" +
 	"\x06job_id\x18\x02 \x01(\tR\x05jobId\"R\n" +
 	"\x11ListTakesResponse\x12=\n" +
-	"\x05takes\x18\x01 \x03(\v2'.vrooli.music_tools.v1.composition.TakeR\x05takes2\xfb\x01\n" +
+	"\x05takes\x18\x01 \x03(\v2'.vrooli.music_tools.v1.composition.TakeR\x05takes\"\xe1\x01\n" +
+	"\x16CandidateRefillRequest\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12%\n" +
+	"\x0ereservation_id\x18\x02 \x01(\tR\rreservationId\x12\x16\n" +
+	"\x06sha256\x18\x03 \x01(\tR\x06sha256\x12\x18\n" +
+	"\apurpose\x18\x04 \x01(\tR\apurpose\x12\x18\n" +
+	"\aproject\x18\x05 \x01(\tR\aproject\x12\x1a\n" +
+	"\brevision\x18\x06 \x01(\tR\brevision\x12\x19\n" +
+	"\bstyle_id\x18\a \x01(\tR\astyleId\"\x80\x01\n" +
+	"\x17CandidateRefillResponse\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12\x14\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\x12\x19\n" +
+	"\bstyle_id\x18\x03 \x01(\tR\astyleId\x12\x15\n" +
+	"\x06job_id\x18\x04 \x01(\tR\x05jobId\"=\n" +
+	"\x1cCancelCandidateRefillRequest\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId2\xfb\x01\n" +
 	"\x12CompositionService\x12m\n" +
 	"\x06Submit\x120.vrooli.music_tools.v1.composition.SubmitRequest\x1a1.vrooli.music_tools.v1.composition.SubmitResponse\x12v\n" +
-	"\tListTakes\x123.vrooli.music_tools.v1.composition.ListTakesRequest\x1a4.vrooli.music_tools.v1.composition.ListTakesResponseBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/composition;composition_v1b\x06proto3"
+	"\tListTakes\x123.vrooli.music_tools.v1.composition.ListTakesRequest\x1a4.vrooli.music_tools.v1.composition.ListTakesResponse2\xb2\x02\n" +
+	"\x19CandidateInventoryService\x12\x86\x01\n" +
+	"\rRequestRefill\x129.vrooli.music_tools.v1.composition.CandidateRefillRequest\x1a:.vrooli.music_tools.v1.composition.CandidateRefillResponse\x12\x8b\x01\n" +
+	"\fCancelRefill\x12?.vrooli.music_tools.v1.composition.CancelCandidateRefillRequest\x1a:.vrooli.music_tools.v1.composition.CandidateRefillResponseBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/composition;composition_v1b\x06proto3"
 
 var (
 	file_music_tools_v1_composition_composition_proto_rawDescOnce sync.Once
@@ -502,27 +738,34 @@ func file_music_tools_v1_composition_composition_proto_rawDescGZIP() []byte {
 	return file_music_tools_v1_composition_composition_proto_rawDescData
 }
 
-var file_music_tools_v1_composition_composition_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_music_tools_v1_composition_composition_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_music_tools_v1_composition_composition_proto_goTypes = []any{
-	(*Provenance)(nil),            // 0: vrooli.music_tools.v1.composition.Provenance
-	(*Take)(nil),                  // 1: vrooli.music_tools.v1.composition.Take
-	(*SubmitRequest)(nil),         // 2: vrooli.music_tools.v1.composition.SubmitRequest
-	(*SubmitResponse)(nil),        // 3: vrooli.music_tools.v1.composition.SubmitResponse
-	(*ListTakesRequest)(nil),      // 4: vrooli.music_tools.v1.composition.ListTakesRequest
-	(*ListTakesResponse)(nil),     // 5: vrooli.music_tools.v1.composition.ListTakesResponse
-	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
+	(*Provenance)(nil),                   // 0: vrooli.music_tools.v1.composition.Provenance
+	(*Take)(nil),                         // 1: vrooli.music_tools.v1.composition.Take
+	(*SubmitRequest)(nil),                // 2: vrooli.music_tools.v1.composition.SubmitRequest
+	(*SubmitResponse)(nil),               // 3: vrooli.music_tools.v1.composition.SubmitResponse
+	(*ListTakesRequest)(nil),             // 4: vrooli.music_tools.v1.composition.ListTakesRequest
+	(*ListTakesResponse)(nil),            // 5: vrooli.music_tools.v1.composition.ListTakesResponse
+	(*CandidateRefillRequest)(nil),       // 6: vrooli.music_tools.v1.composition.CandidateRefillRequest
+	(*CandidateRefillResponse)(nil),      // 7: vrooli.music_tools.v1.composition.CandidateRefillResponse
+	(*CancelCandidateRefillRequest)(nil), // 8: vrooli.music_tools.v1.composition.CancelCandidateRefillRequest
+	(*timestamppb.Timestamp)(nil),        // 9: google.protobuf.Timestamp
 }
 var file_music_tools_v1_composition_composition_proto_depIdxs = []int32{
 	0, // 0: vrooli.music_tools.v1.composition.Take.provenance:type_name -> vrooli.music_tools.v1.composition.Provenance
-	6, // 1: vrooli.music_tools.v1.composition.Take.created_at:type_name -> google.protobuf.Timestamp
-	6, // 2: vrooli.music_tools.v1.composition.Take.reserved_at:type_name -> google.protobuf.Timestamp
+	9, // 1: vrooli.music_tools.v1.composition.Take.created_at:type_name -> google.protobuf.Timestamp
+	9, // 2: vrooli.music_tools.v1.composition.Take.reserved_at:type_name -> google.protobuf.Timestamp
 	1, // 3: vrooli.music_tools.v1.composition.ListTakesResponse.takes:type_name -> vrooli.music_tools.v1.composition.Take
 	2, // 4: vrooli.music_tools.v1.composition.CompositionService.Submit:input_type -> vrooli.music_tools.v1.composition.SubmitRequest
 	4, // 5: vrooli.music_tools.v1.composition.CompositionService.ListTakes:input_type -> vrooli.music_tools.v1.composition.ListTakesRequest
-	3, // 6: vrooli.music_tools.v1.composition.CompositionService.Submit:output_type -> vrooli.music_tools.v1.composition.SubmitResponse
-	5, // 7: vrooli.music_tools.v1.composition.CompositionService.ListTakes:output_type -> vrooli.music_tools.v1.composition.ListTakesResponse
-	6, // [6:8] is the sub-list for method output_type
-	4, // [4:6] is the sub-list for method input_type
+	6, // 6: vrooli.music_tools.v1.composition.CandidateInventoryService.RequestRefill:input_type -> vrooli.music_tools.v1.composition.CandidateRefillRequest
+	8, // 7: vrooli.music_tools.v1.composition.CandidateInventoryService.CancelRefill:input_type -> vrooli.music_tools.v1.composition.CancelCandidateRefillRequest
+	3, // 8: vrooli.music_tools.v1.composition.CompositionService.Submit:output_type -> vrooli.music_tools.v1.composition.SubmitResponse
+	5, // 9: vrooli.music_tools.v1.composition.CompositionService.ListTakes:output_type -> vrooli.music_tools.v1.composition.ListTakesResponse
+	7, // 10: vrooli.music_tools.v1.composition.CandidateInventoryService.RequestRefill:output_type -> vrooli.music_tools.v1.composition.CandidateRefillResponse
+	7, // 11: vrooli.music_tools.v1.composition.CandidateInventoryService.CancelRefill:output_type -> vrooli.music_tools.v1.composition.CandidateRefillResponse
+	8, // [8:12] is the sub-list for method output_type
+	4, // [4:8] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name
 	4, // [4:4] is the sub-list for extension extendee
 	0, // [0:4] is the sub-list for field type_name
@@ -540,9 +783,9 @@ func file_music_tools_v1_composition_composition_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_music_tools_v1_composition_composition_proto_rawDesc), len(file_music_tools_v1_composition_composition_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   9,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   2,
 		},
 		GoTypes:           file_music_tools_v1_composition_composition_proto_goTypes,
 		DependencyIndexes: file_music_tools_v1_composition_composition_proto_depIdxs,

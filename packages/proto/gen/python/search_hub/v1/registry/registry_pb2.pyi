@@ -315,7 +315,7 @@ class ListProvidersResponse(_message.Message):
     def __init__(self, providers: _Optional[_Iterable[_Union[ProviderDescriptor, _Mapping]]] = ..., incubating: _Optional[_Iterable[_Union[IncubatingProvider, _Mapping]]] = ...) -> None: ...
 
 class ExecuteEmbeddingMigrationRequest(_message.Message):
-    __slots__ = ("provider_id", "action", "shadow_collection", "rollback_collection", "embedding_model", "embedding_role", "embedding_dimensions", "embedding_policy_schema_version", "scope", "dry_run", "job_id")
+    __slots__ = ("provider_id", "action", "shadow_collection", "rollback_collection", "embedding_model", "embedding_role", "embedding_dimensions", "embedding_policy_schema_version", "scope", "dry_run", "job_id", "embedding_recipe_id", "embedding_recipe_canonical")
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     ACTION_FIELD_NUMBER: _ClassVar[int]
     SHADOW_COLLECTION_FIELD_NUMBER: _ClassVar[int]
@@ -327,6 +327,8 @@ class ExecuteEmbeddingMigrationRequest(_message.Message):
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
     JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    EMBEDDING_RECIPE_ID_FIELD_NUMBER: _ClassVar[int]
+    EMBEDDING_RECIPE_CANONICAL_FIELD_NUMBER: _ClassVar[int]
     provider_id: str
     action: str
     shadow_collection: str
@@ -338,7 +340,9 @@ class ExecuteEmbeddingMigrationRequest(_message.Message):
     scope: str
     dry_run: bool
     job_id: str
-    def __init__(self, provider_id: _Optional[str] = ..., action: _Optional[str] = ..., shadow_collection: _Optional[str] = ..., rollback_collection: _Optional[str] = ..., embedding_model: _Optional[str] = ..., embedding_role: _Optional[str] = ..., embedding_dimensions: _Optional[int] = ..., embedding_policy_schema_version: _Optional[str] = ..., scope: _Optional[str] = ..., dry_run: _Optional[bool] = ..., job_id: _Optional[str] = ...) -> None: ...
+    embedding_recipe_id: str
+    embedding_recipe_canonical: str
+    def __init__(self, provider_id: _Optional[str] = ..., action: _Optional[str] = ..., shadow_collection: _Optional[str] = ..., rollback_collection: _Optional[str] = ..., embedding_model: _Optional[str] = ..., embedding_role: _Optional[str] = ..., embedding_dimensions: _Optional[int] = ..., embedding_policy_schema_version: _Optional[str] = ..., scope: _Optional[str] = ..., dry_run: _Optional[bool] = ..., job_id: _Optional[str] = ..., embedding_recipe_id: _Optional[str] = ..., embedding_recipe_canonical: _Optional[str] = ...) -> None: ...
 
 class ExecuteEmbeddingMigrationResponse(_message.Message):
     __slots__ = ("job_id", "state", "planned_upserts", "planned_deletes", "processed", "total", "error", "migration_protocol_version", "supported_actions")

@@ -1,3 +1,4 @@
+from source_ledger.v1.shared import degradation_pb2 as _degradation_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -37,10 +38,12 @@ class RecallRequest(_message.Message):
     def __init__(self, query: _Optional[str] = ..., limit: _Optional[int] = ..., scope: _Optional[str] = ...) -> None: ...
 
 class RecallResponse(_message.Message):
-    __slots__ = ("hits",)
+    __slots__ = ("hits", "degradations")
     HITS_FIELD_NUMBER: _ClassVar[int]
+    DEGRADATIONS_FIELD_NUMBER: _ClassVar[int]
     hits: _containers.RepeatedCompositeFieldContainer[RecallHit]
-    def __init__(self, hits: _Optional[_Iterable[_Union[RecallHit, _Mapping]]] = ...) -> None: ...
+    degradations: _containers.RepeatedCompositeFieldContainer[_degradation_pb2.Degradation]
+    def __init__(self, hits: _Optional[_Iterable[_Union[RecallHit, _Mapping]]] = ..., degradations: _Optional[_Iterable[_Union[_degradation_pb2.Degradation, _Mapping]]] = ...) -> None: ...
 
 class WakeRequest(_message.Message):
     __slots__ = ("line_budget", "scope")

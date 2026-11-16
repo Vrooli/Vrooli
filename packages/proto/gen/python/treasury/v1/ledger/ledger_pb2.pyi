@@ -58,7 +58,59 @@ class ListEmissionsRequest(_message.Message):
     def __init__(self, external_id: _Optional[str] = ..., status: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
 
 class ListEmissionsResponse(_message.Message):
-    __slots__ = ("emissions",)
+    __slots__ = ("emissions", "destination", "queued_total")
     EMISSIONS_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_FIELD_NUMBER: _ClassVar[int]
+    QUEUED_TOTAL_FIELD_NUMBER: _ClassVar[int]
     emissions: _containers.RepeatedCompositeFieldContainer[LedgerEmission]
-    def __init__(self, emissions: _Optional[_Iterable[_Union[LedgerEmission, _Mapping]]] = ...) -> None: ...
+    destination: LedgerDestination
+    queued_total: int
+    def __init__(self, emissions: _Optional[_Iterable[_Union[LedgerEmission, _Mapping]]] = ..., destination: _Optional[_Union[LedgerDestination, _Mapping]] = ..., queued_total: _Optional[int] = ...) -> None: ...
+
+class LedgerDestination(_message.Message):
+    __slots__ = ("configured", "book_id", "account_id", "book_name", "account_name", "currency", "source", "set_at", "unconfigured_reason")
+    CONFIGURED_FIELD_NUMBER: _ClassVar[int]
+    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
+    ACCOUNT_ID_FIELD_NUMBER: _ClassVar[int]
+    BOOK_NAME_FIELD_NUMBER: _ClassVar[int]
+    ACCOUNT_NAME_FIELD_NUMBER: _ClassVar[int]
+    CURRENCY_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    SET_AT_FIELD_NUMBER: _ClassVar[int]
+    UNCONFIGURED_REASON_FIELD_NUMBER: _ClassVar[int]
+    configured: bool
+    book_id: str
+    account_id: str
+    book_name: str
+    account_name: str
+    currency: str
+    source: str
+    set_at: _timestamp_pb2.Timestamp
+    unconfigured_reason: str
+    def __init__(self, configured: _Optional[bool] = ..., book_id: _Optional[str] = ..., account_id: _Optional[str] = ..., book_name: _Optional[str] = ..., account_name: _Optional[str] = ..., currency: _Optional[str] = ..., source: _Optional[str] = ..., set_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., unconfigured_reason: _Optional[str] = ...) -> None: ...
+
+class SetLedgerDestinationRequest(_message.Message):
+    __slots__ = ("book_id", "account_id")
+    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
+    ACCOUNT_ID_FIELD_NUMBER: _ClassVar[int]
+    book_id: str
+    account_id: str
+    def __init__(self, book_id: _Optional[str] = ..., account_id: _Optional[str] = ...) -> None: ...
+
+class SetLedgerDestinationResponse(_message.Message):
+    __slots__ = ("destination",)
+    DESTINATION_FIELD_NUMBER: _ClassVar[int]
+    destination: LedgerDestination
+    def __init__(self, destination: _Optional[_Union[LedgerDestination, _Mapping]] = ...) -> None: ...
+
+class GetLedgerDestinationRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetLedgerDestinationResponse(_message.Message):
+    __slots__ = ("destination", "queued_total")
+    DESTINATION_FIELD_NUMBER: _ClassVar[int]
+    QUEUED_TOTAL_FIELD_NUMBER: _ClassVar[int]
+    destination: LedgerDestination
+    queued_total: int
+    def __init__(self, destination: _Optional[_Union[LedgerDestination, _Mapping]] = ..., queued_total: _Optional[int] = ...) -> None: ...

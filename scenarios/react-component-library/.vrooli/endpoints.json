@@ -625,7 +625,23 @@
       "id": "catalog_gate",
       "path": "/vrooli.react_component_library.v1.catalog.CatalogService/RunGate",
       "method": "POST",
-      "summary": "Run a declarative catalog gate",
+      "summary": "Inspect a declarative catalog gate without recording evidence",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_gate_record",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/RecordGate",
+      "method": "POST",
+      "summary": "Run a declarative catalog gate and record evidence",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_asset_check",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/CheckAsset",
+      "method": "POST",
+      "summary": "Check one asset and return one verdict",
       "description": "",
       "category": "catalog"
     },
@@ -690,6 +706,30 @@
       "path": "/vrooli.react_component_library.v1.catalog.CatalogService/CaptureEvidence",
       "method": "POST",
       "summary": "Capture declared visual evidence",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_search",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/SearchAssets",
+      "method": "POST",
+      "summary": "Search authored catalog assets",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_search_status",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/SearchStatus",
+      "method": "POST",
+      "summary": "Read catalog search index status",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_search_reindex",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/ReindexSearch",
+      "method": "POST",
+      "summary": "Rebuild the catalog search index",
       "description": "",
       "category": "catalog"
     },
@@ -1163,6 +1203,32 @@
           "description": "Filesystem or repository failure"
         }
       ]
+    },
+    {
+      "id": "components_retire",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/RetireComponent",
+      "method": "POST",
+      "summary": "Preflight or retire a deprecated component",
+      "description": "Checks catalog and authored source consumers. Apply preserves history, withdraws source and catalog, and removes the registry entry with interrupted-operation recovery.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "boolean",
+          "library_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "catalog_archive_path": "string",
+          "error": "string",
+          "ready": "boolean",
+          "retired": "boolean",
+          "snapshot_path": "string",
+          "source_archive_path": "string"
+        }
+      }
     },
     {
       "id": "components_content_get",
@@ -1658,6 +1724,30 @@
       ]
     },
     {
+      "id": "page_inspect",
+      "path": "/vrooli.react_component_library.v1.page.PageService/Inspect",
+      "method": "POST",
+      "summary": "Inspect a running page and resolve its stamped nodes to library source",
+      "description": "",
+      "category": "page"
+    },
+    {
+      "id": "preview_composition_render",
+      "path": "/vrooli.react_component_library.v1.preview.PreviewService/RenderComposition",
+      "method": "POST",
+      "summary": "Render a composition with deterministic fixture bindings",
+      "description": "",
+      "category": "preview"
+    },
+    {
+      "id": "preview_composition_bundle",
+      "path": "/vrooli.react_component_library.v1.preview.PreviewService/GetCompositionBundle",
+      "method": "POST",
+      "summary": "Bundle a pinned typed page composition",
+      "description": "",
+      "category": "preview"
+    },
+    {
       "id": "preview_get_bundle",
       "path": "/vrooli.react_component_library.v1.preview.PreviewService/GetPreviewBundle",
       "method": "POST",
@@ -1696,6 +1786,302 @@
           "description": "Filesystem read or bundler internal failure"
         }
       ]
+    },
+    {
+      "id": "sketch_infer",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/InferSketch",
+      "method": "POST",
+      "summary": "Dispatch governed typed design alternatives with durable idempotency",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_inference_get",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetSketchInference",
+      "method": "POST",
+      "summary": "Read an existing design inference without redispatch",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_refine",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/RefineCandidate",
+      "method": "POST",
+      "summary": "Refine an exact candidate within a recorded region scope and round budget",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "capture_screenshot",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetCaptureScreenshot",
+      "method": "POST",
+      "summary": "Resolve a verified capture screenshot through its browser owner",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "capture_retry",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/RetryCapture",
+      "method": "POST",
+      "summary": "Start a new linked attempt of a terminal capture",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "critique_list",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListCritiques",
+      "method": "POST",
+      "summary": "List verified critiques of an exact candidate render",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "critique_rubric",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetCritiqueRubric",
+      "method": "POST",
+      "summary": "Read the versioned visual rubric and calibration status",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "critique_record",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/RecordCritique",
+      "method": "POST",
+      "summary": "Verify image evidence and record an attributed visual critique",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "critique_get",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetCritique",
+      "method": "POST",
+      "summary": "Read an immutable visual review fact",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "capture_cancel",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/CancelCapture",
+      "method": "POST",
+      "summary": "Request cancellation of the existing capture producer",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "capture_attach",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/AttachCapture",
+      "method": "POST",
+      "summary": "Verify and attach producer-owned capture evidence",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_capture",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/CaptureCandidate",
+      "method": "POST",
+      "summary": "Capture an exact candidate render through BAS",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "capture_get",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetCapture",
+      "method": "POST",
+      "summary": "Read durable capture operation identity and state",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_list",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListCandidates",
+      "method": "POST",
+      "summary": "List verified saved candidate revisions for a page",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_place_asset",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/PlaceCandidateAsset",
+      "method": "POST",
+      "summary": "Derive a candidate with an exact published region asset and story fixture",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_map_regions",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/MapCandidateRegions",
+      "method": "POST",
+      "summary": "Derive an immutable candidate with explicit semantic port mappings",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_save",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/SaveCandidate",
+      "method": "POST",
+      "summary": "Persist an immutable candidate without changing the page",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_accept_check",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/CheckCandidateAcceptance",
+      "method": "POST",
+      "summary": "Check whether an exact candidate meets current acceptance requirements",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_accept",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/AcceptCandidate",
+      "method": "POST",
+      "summary": "Record a terminal acceptance decision for an exact candidate",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "acceptance_get",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetAcceptance",
+      "method": "POST",
+      "summary": "Read a recorded acceptance decision for a candidate",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_get",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetCandidate",
+      "method": "POST",
+      "summary": "Read an exact immutable candidate",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_render",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/RenderCandidate",
+      "method": "POST",
+      "summary": "Render an immutable candidate independently of current page edits",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_propose",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/ProposeSketch",
+      "method": "POST",
+      "summary": "Propose bounded catalog-backed page alternatives",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_render",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/RenderSketch",
+      "method": "POST",
+      "summary": "Render an exact authored design revision",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "design_pages",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListDesignPages",
+      "method": "POST",
+      "summary": "Discover scenario design pages and contract gaps",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_history",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetHistory",
+      "method": "POST",
+      "summary": "Read immutable design revisions",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_recover",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/RecoverSketch",
+      "method": "POST",
+      "summary": "Recover an interrupted page apply",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_get",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetSketch",
+      "method": "POST",
+      "summary": "Read a scenario page sketch",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_put",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/PutSketch",
+      "method": "POST",
+      "summary": "Write a scenario page sketch",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_verify",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/VerifySketch",
+      "method": "POST",
+      "summary": "Verify page regions against observed source",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_import",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/ImportPage",
+      "method": "POST",
+      "summary": "Decompose a page through the catalog",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_place",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/Place",
+      "method": "POST",
+      "summary": "Place a catalog asset into a region",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_placeholder",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/Placeholder",
+      "method": "POST",
+      "summary": "Record a genuinely new region need",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_note",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/AddNote",
+      "method": "POST",
+      "summary": "Add a scoped sketch note",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_unplace",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/Unplace",
+      "method": "POST",
+      "summary": "Move a placement to the unplaced set",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_template",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/SetTemplate",
+      "method": "POST",
+      "summary": "Swap a page template with an explicit remap",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_brief",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/BuildBrief",
+      "method": "POST",
+      "summary": "Build an ordered implementation brief",
+      "description": "",
+      "category": "sketch"
     },
     {
       "id": "themes_list_builtin",
@@ -1989,6 +2375,14 @@
       "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ImportArchive",
       "method": "POST",
       "summary": "Import the version ledger archive",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_recover_button_224",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/RecoverButton224",
+      "method": "POST",
+      "summary": "Recover the attested Button 2.2.4 release bundle",
       "description": "",
       "category": "versions"
     },

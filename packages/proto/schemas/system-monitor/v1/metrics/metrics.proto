@@ -49,6 +49,8 @@ message MetricsResponse {
   MetricValue memory = 7;
   MetricValue connections = 8;
   MetricValue gpu = 9;
+  // Complete, fresh per-process GPU inventory required to prove GPU absence.
+  MetricValue gpu_processes = 15;
   MetricValue disk = 10;
 	MetricValue swap_traffic = 12;
 	MetricValue major_faults = 13;
@@ -125,6 +127,14 @@ message MetricTimelineSample {
 	MetricValue network_time_wait_rate = 27;
 	MetricValue network_close_wait_rate = 28;
   KernelMemoryMetrics kernel_memory = 29;
+  // Disk usage percentage from the disk collector. Its MetricValue state keeps
+  // failed or unavailable observations distinct from a measured zero.
+  MetricValue disk_usage = 30;
+  // Persisted physical-disk throughput samples. Observation time and state are
+  // carried in MetricValue so unsupported, missed, and measured-zero samples
+  // stay distinguishable after a reload.
+  MetricValue disk_read_rate = 31;
+  MetricValue disk_write_rate = 32;
 
 }
 
@@ -793,6 +803,14 @@ message ProcessTimelineEntry {
 
 	// Maximum instantaneous CPU percentage observed in the requested window.
 	double max_cpu_pct = 11;
+
+	// Mean swap use in KiB over measured samples only.
+	int64 swap_kb = 12;
+	// Explicit distinction between measured zero and unavailable swap samples.
+	int64 swap_measured_samples = 13;
+	int64 swap_unknown_samples = 14;
+	google.protobuf.Timestamp swap_coverage_start = 15;
+	google.protobuf.Timestamp swap_coverage_end = 16;
 }
 
 // ProcessTimelineResponse ranks process consumers over a time window.
@@ -815,6 +833,8 @@ message ProcessTimelineResponse {
 	// Actual covered range; empty when no samples were available.
 	google.protobuf.Timestamp covered_start = 6;
 	google.protobuf.Timestamp covered_end = 7;
+	// Rank applied to entries (cpu, cpu_seconds, rss, swap, or gpu).
+	string rank = 8;
 }
 
 // ProcessHealthInfo summarizes process health.
@@ -830,6 +850,9 @@ message ProcessHealthInfo {
 
   // Processes suspected of leaking resources.
   repeated ProcessInfo leak_candidates = 4;
+
+  // Typed total so a missing process observation cannot appear as zero.
+  MetricValue zombie_count = 5;
 }
 
 // InfrastructureMonitorData contains infrastructure metrics.
@@ -881,6 +904,9 @@ message StorageIOInfo {
   // Native measured rates; legacy scalars are compatibility projections.
   MetricValue read_rate = 5;
   MetricValue write_rate = 6;
+  // Capability states for storage values that are not currently collected.
+  MetricValue disk_queue_depth_state = 7;
+  MetricValue io_wait_state = 8;
 }
 
 // =============================================================================
@@ -954,7 +980,7 @@ message GetProcessTimelineRequest {
   // Maximum ranked rows to return.
   optional int32 top = 3;
 
-  // Ranking: cpu (default), cpu_seconds, rss, or gpu.
+  // Ranking: cpu (default), cpu_seconds, rss, swap, or gpu.
   string rank = 4;
 }
 
@@ -988,8 +1014,14 @@ message GetMetricsTimelineResponse {
   MetricsTimelineResponse timeline = 1;
 }
 
-// GetDiskDetailRequest is empty - no parameters needed.
-message GetDiskDetailRequest {}
+// GetDiskDetailRequest scopes a bounded, read-only disk inspection to a
+// currently mounted path.
+message GetDiskDetailRequest {
+  string mount = 1;
+  int32 depth = 2;
+  int32 limit = 3;
+  bool include_files = 4;
+}
 
 // GetDiskDetailResponse returns disk usage details.
 message GetDiskDetailResponse {

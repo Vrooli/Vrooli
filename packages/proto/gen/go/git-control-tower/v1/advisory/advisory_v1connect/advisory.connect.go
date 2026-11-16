@@ -44,6 +44,24 @@ const (
 	// AdvisoryServiceStartStagedMessageProcedure is the fully-qualified name of the AdvisoryService's
 	// StartStagedMessage RPC.
 	AdvisoryServiceStartStagedMessageProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/StartStagedMessage"
+	// AdvisoryServiceRetryStagedMessageProcedure is the fully-qualified name of the AdvisoryService's
+	// RetryStagedMessage RPC.
+	AdvisoryServiceRetryStagedMessageProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/RetryStagedMessage"
+	// AdvisoryServiceGetStagedMessageProviderReadinessProcedure is the fully-qualified name of the
+	// AdvisoryService's GetStagedMessageProviderReadiness RPC.
+	AdvisoryServiceGetStagedMessageProviderReadinessProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/GetStagedMessageProviderReadiness"
+	// AdvisoryServiceStartWorktreeStagedMessageProcedure is the fully-qualified name of the
+	// AdvisoryService's StartWorktreeStagedMessage RPC.
+	AdvisoryServiceStartWorktreeStagedMessageProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/StartWorktreeStagedMessage"
+	// AdvisoryServiceQueueWorktreeSelectionProcedure is the fully-qualified name of the
+	// AdvisoryService's QueueWorktreeSelection RPC.
+	AdvisoryServiceQueueWorktreeSelectionProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/QueueWorktreeSelection"
+	// AdvisoryServiceFinalizeQueuedSelectionProcedure is the fully-qualified name of the
+	// AdvisoryService's FinalizeQueuedSelection RPC.
+	AdvisoryServiceFinalizeQueuedSelectionProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/FinalizeQueuedSelection"
+	// AdvisoryServiceStartQueuedSelectionProcedure is the fully-qualified name of the AdvisoryService's
+	// StartQueuedSelection RPC.
+	AdvisoryServiceStartQueuedSelectionProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/StartQueuedSelection"
 	// AdvisoryServiceGetStagedMessageJobProcedure is the fully-qualified name of the AdvisoryService's
 	// GetStagedMessageJob RPC.
 	AdvisoryServiceGetStagedMessageJobProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/GetStagedMessageJob"
@@ -56,6 +74,21 @@ const (
 	// AdvisoryServiceReadStagedMessageEvidenceProcedure is the fully-qualified name of the
 	// AdvisoryService's ReadStagedMessageEvidence RPC.
 	AdvisoryServiceReadStagedMessageEvidenceProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/ReadStagedMessageEvidence"
+	// AdvisoryServiceListWorktreeSuggestionQueueProcedure is the fully-qualified name of the
+	// AdvisoryService's ListWorktreeSuggestionQueue RPC.
+	AdvisoryServiceListWorktreeSuggestionQueueProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/ListWorktreeSuggestionQueue"
+	// AdvisoryServiceEnqueueWorktreeSuggestionProcedure is the fully-qualified name of the
+	// AdvisoryService's EnqueueWorktreeSuggestion RPC.
+	AdvisoryServiceEnqueueWorktreeSuggestionProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/EnqueueWorktreeSuggestion"
+	// AdvisoryServiceUpdateWorktreeSuggestionQueueEntryProcedure is the fully-qualified name of the
+	// AdvisoryService's UpdateWorktreeSuggestionQueueEntry RPC.
+	AdvisoryServiceUpdateWorktreeSuggestionQueueEntryProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/UpdateWorktreeSuggestionQueueEntry"
+	// AdvisoryServiceRetireWorktreeSuggestionQueueHeadProcedure is the fully-qualified name of the
+	// AdvisoryService's RetireWorktreeSuggestionQueueHead RPC.
+	AdvisoryServiceRetireWorktreeSuggestionQueueHeadProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/RetireWorktreeSuggestionQueueHead"
+	// AdvisoryServiceRemoveWorktreeSuggestionQueueEntryProcedure is the fully-qualified name of the
+	// AdvisoryService's RemoveWorktreeSuggestionQueueEntry RPC.
+	AdvisoryServiceRemoveWorktreeSuggestionQueueEntryProcedure = "/vrooli.git_control_tower.v1.advisory.AdvisoryService/RemoveWorktreeSuggestionQueueEntry"
 )
 
 // AdvisoryServiceClient is a client for the vrooli.git_control_tower.v1.advisory.AdvisoryService
@@ -65,10 +98,21 @@ type AdvisoryServiceClient interface {
 	CheckStagedMessage(context.Context, *connect.Request[advisory.CheckStagedMessageRequest]) (*connect.Response[advisory.CheckStagedMessageResponse], error)
 	CollectStagedMessage(context.Context, *connect.Request[advisory.CollectStagedMessageRequest]) (*connect.Response[advisory.StagedMessageCollection], error)
 	StartStagedMessage(context.Context, *connect.Request[advisory.StartStagedMessageRequest]) (*connect.Response[advisory.StagedMessageJob], error)
+	RetryStagedMessage(context.Context, *connect.Request[advisory.RetryStagedMessageRequest]) (*connect.Response[advisory.StagedMessageJob], error)
+	GetStagedMessageProviderReadiness(context.Context, *connect.Request[advisory.StagedMessageProviderReadinessRequest]) (*connect.Response[advisory.StagedMessageProviderReadiness], error)
+	StartWorktreeStagedMessage(context.Context, *connect.Request[advisory.StartWorktreeStagedMessageRequest]) (*connect.Response[advisory.StagedMessageJob], error)
+	QueueWorktreeSelection(context.Context, *connect.Request[advisory.QueueWorktreeSelectionRequest]) (*connect.Response[advisory.QueuedWorktreeSelection], error)
+	FinalizeQueuedSelection(context.Context, *connect.Request[advisory.FinalizeQueuedSelectionRequest]) (*connect.Response[advisory.QueuedWorktreeSelection], error)
+	StartQueuedSelection(context.Context, *connect.Request[advisory.StartQueuedSelectionRequest]) (*connect.Response[advisory.StagedMessageJob], error)
 	GetStagedMessageJob(context.Context, *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error)
 	WaitStagedMessageJob(context.Context, *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error)
 	CancelStagedMessageJob(context.Context, *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error)
 	ReadStagedMessageEvidence(context.Context, *connect.Request[advisory.ReadStagedMessageEvidenceRequest]) (*connect.Response[advisory.ReadStagedMessageEvidenceResponse], error)
+	ListWorktreeSuggestionQueue(context.Context, *connect.Request[advisory.ListWorktreeSuggestionQueueRequest]) (*connect.Response[advisory.WorktreeSuggestionQueue], error)
+	EnqueueWorktreeSuggestion(context.Context, *connect.Request[advisory.EnqueueWorktreeSuggestionRequest]) (*connect.Response[advisory.WorktreeSuggestionQueueEntry], error)
+	UpdateWorktreeSuggestionQueueEntry(context.Context, *connect.Request[advisory.UpdateWorktreeSuggestionQueueEntryRequest]) (*connect.Response[advisory.WorktreeSuggestionQueueMutationResponse], error)
+	RetireWorktreeSuggestionQueueHead(context.Context, *connect.Request[advisory.RetireWorktreeSuggestionQueueHeadRequest]) (*connect.Response[advisory.WorktreeSuggestionQueueMutationResponse], error)
+	RemoveWorktreeSuggestionQueueEntry(context.Context, *connect.Request[advisory.RemoveWorktreeSuggestionQueueEntryRequest]) (*connect.Response[advisory.WorktreeSuggestionQueueMutationResponse], error)
 }
 
 // NewAdvisoryServiceClient constructs a client for the
@@ -107,6 +151,42 @@ func NewAdvisoryServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(advisoryServiceMethods.ByName("StartStagedMessage")),
 			connect.WithClientOptions(opts...),
 		),
+		retryStagedMessage: connect.NewClient[advisory.RetryStagedMessageRequest, advisory.StagedMessageJob](
+			httpClient,
+			baseURL+AdvisoryServiceRetryStagedMessageProcedure,
+			connect.WithSchema(advisoryServiceMethods.ByName("RetryStagedMessage")),
+			connect.WithClientOptions(opts...),
+		),
+		getStagedMessageProviderReadiness: connect.NewClient[advisory.StagedMessageProviderReadinessRequest, advisory.StagedMessageProviderReadiness](
+			httpClient,
+			baseURL+AdvisoryServiceGetStagedMessageProviderReadinessProcedure,
+			connect.WithSchema(advisoryServiceMethods.ByName("GetStagedMessageProviderReadiness")),
+			connect.WithClientOptions(opts...),
+		),
+		startWorktreeStagedMessage: connect.NewClient[advisory.StartWorktreeStagedMessageRequest, advisory.StagedMessageJob](
+			httpClient,
+			baseURL+AdvisoryServiceStartWorktreeStagedMessageProcedure,
+			connect.WithSchema(advisoryServiceMethods.ByName("StartWorktreeStagedMessage")),
+			connect.WithClientOptions(opts...),
+		),
+		queueWorktreeSelection: connect.NewClient[advisory.QueueWorktreeSelectionRequest, advisory.QueuedWorktreeSelection](
+			httpClient,
+			baseURL+AdvisoryServiceQueueWorktreeSelectionProcedure,
+			connect.WithSchema(advisoryServiceMethods.ByName("QueueWorktreeSelection")),
+			connect.WithClientOptions(opts...),
+		),
+		finalizeQueuedSelection: connect.NewClient[advisory.FinalizeQueuedSelectionRequest, advisory.QueuedWorktreeSelection](
+			httpClient,
+			baseURL+AdvisoryServiceFinalizeQueuedSelectionProcedure,
+			connect.WithSchema(advisoryServiceMethods.ByName("FinalizeQueuedSelection")),
+			connect.WithClientOptions(opts...),
+		),
+		startQueuedSelection: connect.NewClient[advisory.StartQueuedSelectionRequest, advisory.StagedMessageJob](
+			httpClient,
+			baseURL+AdvisoryServiceStartQueuedSelectionProcedure,
+			connect.WithSchema(advisoryServiceMethods.ByName("StartQueuedSelection")),
+			connect.WithClientOptions(opts...),
+		),
 		getStagedMessageJob: connect.NewClient[advisory.StagedMessageJobRequest, advisory.StagedMessageJob](
 			httpClient,
 			baseURL+AdvisoryServiceGetStagedMessageJobProcedure,
@@ -131,19 +211,60 @@ func NewAdvisoryServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(advisoryServiceMethods.ByName("ReadStagedMessageEvidence")),
 			connect.WithClientOptions(opts...),
 		),
+		listWorktreeSuggestionQueue: connect.NewClient[advisory.ListWorktreeSuggestionQueueRequest, advisory.WorktreeSuggestionQueue](
+			httpClient,
+			baseURL+AdvisoryServiceListWorktreeSuggestionQueueProcedure,
+			connect.WithSchema(advisoryServiceMethods.ByName("ListWorktreeSuggestionQueue")),
+			connect.WithClientOptions(opts...),
+		),
+		enqueueWorktreeSuggestion: connect.NewClient[advisory.EnqueueWorktreeSuggestionRequest, advisory.WorktreeSuggestionQueueEntry](
+			httpClient,
+			baseURL+AdvisoryServiceEnqueueWorktreeSuggestionProcedure,
+			connect.WithSchema(advisoryServiceMethods.ByName("EnqueueWorktreeSuggestion")),
+			connect.WithClientOptions(opts...),
+		),
+		updateWorktreeSuggestionQueueEntry: connect.NewClient[advisory.UpdateWorktreeSuggestionQueueEntryRequest, advisory.WorktreeSuggestionQueueMutationResponse](
+			httpClient,
+			baseURL+AdvisoryServiceUpdateWorktreeSuggestionQueueEntryProcedure,
+			connect.WithSchema(advisoryServiceMethods.ByName("UpdateWorktreeSuggestionQueueEntry")),
+			connect.WithClientOptions(opts...),
+		),
+		retireWorktreeSuggestionQueueHead: connect.NewClient[advisory.RetireWorktreeSuggestionQueueHeadRequest, advisory.WorktreeSuggestionQueueMutationResponse](
+			httpClient,
+			baseURL+AdvisoryServiceRetireWorktreeSuggestionQueueHeadProcedure,
+			connect.WithSchema(advisoryServiceMethods.ByName("RetireWorktreeSuggestionQueueHead")),
+			connect.WithClientOptions(opts...),
+		),
+		removeWorktreeSuggestionQueueEntry: connect.NewClient[advisory.RemoveWorktreeSuggestionQueueEntryRequest, advisory.WorktreeSuggestionQueueMutationResponse](
+			httpClient,
+			baseURL+AdvisoryServiceRemoveWorktreeSuggestionQueueEntryProcedure,
+			connect.WithSchema(advisoryServiceMethods.ByName("RemoveWorktreeSuggestionQueueEntry")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // advisoryServiceClient implements AdvisoryServiceClient.
 type advisoryServiceClient struct {
-	draft                     *connect.Client[advisory.DraftRequest, advisory.DraftResponse]
-	checkStagedMessage        *connect.Client[advisory.CheckStagedMessageRequest, advisory.CheckStagedMessageResponse]
-	collectStagedMessage      *connect.Client[advisory.CollectStagedMessageRequest, advisory.StagedMessageCollection]
-	startStagedMessage        *connect.Client[advisory.StartStagedMessageRequest, advisory.StagedMessageJob]
-	getStagedMessageJob       *connect.Client[advisory.StagedMessageJobRequest, advisory.StagedMessageJob]
-	waitStagedMessageJob      *connect.Client[advisory.StagedMessageJobRequest, advisory.StagedMessageJob]
-	cancelStagedMessageJob    *connect.Client[advisory.StagedMessageJobRequest, advisory.StagedMessageJob]
-	readStagedMessageEvidence *connect.Client[advisory.ReadStagedMessageEvidenceRequest, advisory.ReadStagedMessageEvidenceResponse]
+	draft                              *connect.Client[advisory.DraftRequest, advisory.DraftResponse]
+	checkStagedMessage                 *connect.Client[advisory.CheckStagedMessageRequest, advisory.CheckStagedMessageResponse]
+	collectStagedMessage               *connect.Client[advisory.CollectStagedMessageRequest, advisory.StagedMessageCollection]
+	startStagedMessage                 *connect.Client[advisory.StartStagedMessageRequest, advisory.StagedMessageJob]
+	retryStagedMessage                 *connect.Client[advisory.RetryStagedMessageRequest, advisory.StagedMessageJob]
+	getStagedMessageProviderReadiness  *connect.Client[advisory.StagedMessageProviderReadinessRequest, advisory.StagedMessageProviderReadiness]
+	startWorktreeStagedMessage         *connect.Client[advisory.StartWorktreeStagedMessageRequest, advisory.StagedMessageJob]
+	queueWorktreeSelection             *connect.Client[advisory.QueueWorktreeSelectionRequest, advisory.QueuedWorktreeSelection]
+	finalizeQueuedSelection            *connect.Client[advisory.FinalizeQueuedSelectionRequest, advisory.QueuedWorktreeSelection]
+	startQueuedSelection               *connect.Client[advisory.StartQueuedSelectionRequest, advisory.StagedMessageJob]
+	getStagedMessageJob                *connect.Client[advisory.StagedMessageJobRequest, advisory.StagedMessageJob]
+	waitStagedMessageJob               *connect.Client[advisory.StagedMessageJobRequest, advisory.StagedMessageJob]
+	cancelStagedMessageJob             *connect.Client[advisory.StagedMessageJobRequest, advisory.StagedMessageJob]
+	readStagedMessageEvidence          *connect.Client[advisory.ReadStagedMessageEvidenceRequest, advisory.ReadStagedMessageEvidenceResponse]
+	listWorktreeSuggestionQueue        *connect.Client[advisory.ListWorktreeSuggestionQueueRequest, advisory.WorktreeSuggestionQueue]
+	enqueueWorktreeSuggestion          *connect.Client[advisory.EnqueueWorktreeSuggestionRequest, advisory.WorktreeSuggestionQueueEntry]
+	updateWorktreeSuggestionQueueEntry *connect.Client[advisory.UpdateWorktreeSuggestionQueueEntryRequest, advisory.WorktreeSuggestionQueueMutationResponse]
+	retireWorktreeSuggestionQueueHead  *connect.Client[advisory.RetireWorktreeSuggestionQueueHeadRequest, advisory.WorktreeSuggestionQueueMutationResponse]
+	removeWorktreeSuggestionQueueEntry *connect.Client[advisory.RemoveWorktreeSuggestionQueueEntryRequest, advisory.WorktreeSuggestionQueueMutationResponse]
 }
 
 // Draft calls vrooli.git_control_tower.v1.advisory.AdvisoryService.Draft.
@@ -165,6 +286,41 @@ func (c *advisoryServiceClient) CollectStagedMessage(ctx context.Context, req *c
 // StartStagedMessage calls vrooli.git_control_tower.v1.advisory.AdvisoryService.StartStagedMessage.
 func (c *advisoryServiceClient) StartStagedMessage(ctx context.Context, req *connect.Request[advisory.StartStagedMessageRequest]) (*connect.Response[advisory.StagedMessageJob], error) {
 	return c.startStagedMessage.CallUnary(ctx, req)
+}
+
+// RetryStagedMessage calls vrooli.git_control_tower.v1.advisory.AdvisoryService.RetryStagedMessage.
+func (c *advisoryServiceClient) RetryStagedMessage(ctx context.Context, req *connect.Request[advisory.RetryStagedMessageRequest]) (*connect.Response[advisory.StagedMessageJob], error) {
+	return c.retryStagedMessage.CallUnary(ctx, req)
+}
+
+// GetStagedMessageProviderReadiness calls
+// vrooli.git_control_tower.v1.advisory.AdvisoryService.GetStagedMessageProviderReadiness.
+func (c *advisoryServiceClient) GetStagedMessageProviderReadiness(ctx context.Context, req *connect.Request[advisory.StagedMessageProviderReadinessRequest]) (*connect.Response[advisory.StagedMessageProviderReadiness], error) {
+	return c.getStagedMessageProviderReadiness.CallUnary(ctx, req)
+}
+
+// StartWorktreeStagedMessage calls
+// vrooli.git_control_tower.v1.advisory.AdvisoryService.StartWorktreeStagedMessage.
+func (c *advisoryServiceClient) StartWorktreeStagedMessage(ctx context.Context, req *connect.Request[advisory.StartWorktreeStagedMessageRequest]) (*connect.Response[advisory.StagedMessageJob], error) {
+	return c.startWorktreeStagedMessage.CallUnary(ctx, req)
+}
+
+// QueueWorktreeSelection calls
+// vrooli.git_control_tower.v1.advisory.AdvisoryService.QueueWorktreeSelection.
+func (c *advisoryServiceClient) QueueWorktreeSelection(ctx context.Context, req *connect.Request[advisory.QueueWorktreeSelectionRequest]) (*connect.Response[advisory.QueuedWorktreeSelection], error) {
+	return c.queueWorktreeSelection.CallUnary(ctx, req)
+}
+
+// FinalizeQueuedSelection calls
+// vrooli.git_control_tower.v1.advisory.AdvisoryService.FinalizeQueuedSelection.
+func (c *advisoryServiceClient) FinalizeQueuedSelection(ctx context.Context, req *connect.Request[advisory.FinalizeQueuedSelectionRequest]) (*connect.Response[advisory.QueuedWorktreeSelection], error) {
+	return c.finalizeQueuedSelection.CallUnary(ctx, req)
+}
+
+// StartQueuedSelection calls
+// vrooli.git_control_tower.v1.advisory.AdvisoryService.StartQueuedSelection.
+func (c *advisoryServiceClient) StartQueuedSelection(ctx context.Context, req *connect.Request[advisory.StartQueuedSelectionRequest]) (*connect.Response[advisory.StagedMessageJob], error) {
+	return c.startQueuedSelection.CallUnary(ctx, req)
 }
 
 // GetStagedMessageJob calls
@@ -191,6 +347,36 @@ func (c *advisoryServiceClient) ReadStagedMessageEvidence(ctx context.Context, r
 	return c.readStagedMessageEvidence.CallUnary(ctx, req)
 }
 
+// ListWorktreeSuggestionQueue calls
+// vrooli.git_control_tower.v1.advisory.AdvisoryService.ListWorktreeSuggestionQueue.
+func (c *advisoryServiceClient) ListWorktreeSuggestionQueue(ctx context.Context, req *connect.Request[advisory.ListWorktreeSuggestionQueueRequest]) (*connect.Response[advisory.WorktreeSuggestionQueue], error) {
+	return c.listWorktreeSuggestionQueue.CallUnary(ctx, req)
+}
+
+// EnqueueWorktreeSuggestion calls
+// vrooli.git_control_tower.v1.advisory.AdvisoryService.EnqueueWorktreeSuggestion.
+func (c *advisoryServiceClient) EnqueueWorktreeSuggestion(ctx context.Context, req *connect.Request[advisory.EnqueueWorktreeSuggestionRequest]) (*connect.Response[advisory.WorktreeSuggestionQueueEntry], error) {
+	return c.enqueueWorktreeSuggestion.CallUnary(ctx, req)
+}
+
+// UpdateWorktreeSuggestionQueueEntry calls
+// vrooli.git_control_tower.v1.advisory.AdvisoryService.UpdateWorktreeSuggestionQueueEntry.
+func (c *advisoryServiceClient) UpdateWorktreeSuggestionQueueEntry(ctx context.Context, req *connect.Request[advisory.UpdateWorktreeSuggestionQueueEntryRequest]) (*connect.Response[advisory.WorktreeSuggestionQueueMutationResponse], error) {
+	return c.updateWorktreeSuggestionQueueEntry.CallUnary(ctx, req)
+}
+
+// RetireWorktreeSuggestionQueueHead calls
+// vrooli.git_control_tower.v1.advisory.AdvisoryService.RetireWorktreeSuggestionQueueHead.
+func (c *advisoryServiceClient) RetireWorktreeSuggestionQueueHead(ctx context.Context, req *connect.Request[advisory.RetireWorktreeSuggestionQueueHeadRequest]) (*connect.Response[advisory.WorktreeSuggestionQueueMutationResponse], error) {
+	return c.retireWorktreeSuggestionQueueHead.CallUnary(ctx, req)
+}
+
+// RemoveWorktreeSuggestionQueueEntry calls
+// vrooli.git_control_tower.v1.advisory.AdvisoryService.RemoveWorktreeSuggestionQueueEntry.
+func (c *advisoryServiceClient) RemoveWorktreeSuggestionQueueEntry(ctx context.Context, req *connect.Request[advisory.RemoveWorktreeSuggestionQueueEntryRequest]) (*connect.Response[advisory.WorktreeSuggestionQueueMutationResponse], error) {
+	return c.removeWorktreeSuggestionQueueEntry.CallUnary(ctx, req)
+}
+
 // AdvisoryServiceHandler is an implementation of the
 // vrooli.git_control_tower.v1.advisory.AdvisoryService service.
 type AdvisoryServiceHandler interface {
@@ -198,10 +384,21 @@ type AdvisoryServiceHandler interface {
 	CheckStagedMessage(context.Context, *connect.Request[advisory.CheckStagedMessageRequest]) (*connect.Response[advisory.CheckStagedMessageResponse], error)
 	CollectStagedMessage(context.Context, *connect.Request[advisory.CollectStagedMessageRequest]) (*connect.Response[advisory.StagedMessageCollection], error)
 	StartStagedMessage(context.Context, *connect.Request[advisory.StartStagedMessageRequest]) (*connect.Response[advisory.StagedMessageJob], error)
+	RetryStagedMessage(context.Context, *connect.Request[advisory.RetryStagedMessageRequest]) (*connect.Response[advisory.StagedMessageJob], error)
+	GetStagedMessageProviderReadiness(context.Context, *connect.Request[advisory.StagedMessageProviderReadinessRequest]) (*connect.Response[advisory.StagedMessageProviderReadiness], error)
+	StartWorktreeStagedMessage(context.Context, *connect.Request[advisory.StartWorktreeStagedMessageRequest]) (*connect.Response[advisory.StagedMessageJob], error)
+	QueueWorktreeSelection(context.Context, *connect.Request[advisory.QueueWorktreeSelectionRequest]) (*connect.Response[advisory.QueuedWorktreeSelection], error)
+	FinalizeQueuedSelection(context.Context, *connect.Request[advisory.FinalizeQueuedSelectionRequest]) (*connect.Response[advisory.QueuedWorktreeSelection], error)
+	StartQueuedSelection(context.Context, *connect.Request[advisory.StartQueuedSelectionRequest]) (*connect.Response[advisory.StagedMessageJob], error)
 	GetStagedMessageJob(context.Context, *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error)
 	WaitStagedMessageJob(context.Context, *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error)
 	CancelStagedMessageJob(context.Context, *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error)
 	ReadStagedMessageEvidence(context.Context, *connect.Request[advisory.ReadStagedMessageEvidenceRequest]) (*connect.Response[advisory.ReadStagedMessageEvidenceResponse], error)
+	ListWorktreeSuggestionQueue(context.Context, *connect.Request[advisory.ListWorktreeSuggestionQueueRequest]) (*connect.Response[advisory.WorktreeSuggestionQueue], error)
+	EnqueueWorktreeSuggestion(context.Context, *connect.Request[advisory.EnqueueWorktreeSuggestionRequest]) (*connect.Response[advisory.WorktreeSuggestionQueueEntry], error)
+	UpdateWorktreeSuggestionQueueEntry(context.Context, *connect.Request[advisory.UpdateWorktreeSuggestionQueueEntryRequest]) (*connect.Response[advisory.WorktreeSuggestionQueueMutationResponse], error)
+	RetireWorktreeSuggestionQueueHead(context.Context, *connect.Request[advisory.RetireWorktreeSuggestionQueueHeadRequest]) (*connect.Response[advisory.WorktreeSuggestionQueueMutationResponse], error)
+	RemoveWorktreeSuggestionQueueEntry(context.Context, *connect.Request[advisory.RemoveWorktreeSuggestionQueueEntryRequest]) (*connect.Response[advisory.WorktreeSuggestionQueueMutationResponse], error)
 }
 
 // NewAdvisoryServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -235,6 +432,42 @@ func NewAdvisoryServiceHandler(svc AdvisoryServiceHandler, opts ...connect.Handl
 		connect.WithSchema(advisoryServiceMethods.ByName("StartStagedMessage")),
 		connect.WithHandlerOptions(opts...),
 	)
+	advisoryServiceRetryStagedMessageHandler := connect.NewUnaryHandler(
+		AdvisoryServiceRetryStagedMessageProcedure,
+		svc.RetryStagedMessage,
+		connect.WithSchema(advisoryServiceMethods.ByName("RetryStagedMessage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	advisoryServiceGetStagedMessageProviderReadinessHandler := connect.NewUnaryHandler(
+		AdvisoryServiceGetStagedMessageProviderReadinessProcedure,
+		svc.GetStagedMessageProviderReadiness,
+		connect.WithSchema(advisoryServiceMethods.ByName("GetStagedMessageProviderReadiness")),
+		connect.WithHandlerOptions(opts...),
+	)
+	advisoryServiceStartWorktreeStagedMessageHandler := connect.NewUnaryHandler(
+		AdvisoryServiceStartWorktreeStagedMessageProcedure,
+		svc.StartWorktreeStagedMessage,
+		connect.WithSchema(advisoryServiceMethods.ByName("StartWorktreeStagedMessage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	advisoryServiceQueueWorktreeSelectionHandler := connect.NewUnaryHandler(
+		AdvisoryServiceQueueWorktreeSelectionProcedure,
+		svc.QueueWorktreeSelection,
+		connect.WithSchema(advisoryServiceMethods.ByName("QueueWorktreeSelection")),
+		connect.WithHandlerOptions(opts...),
+	)
+	advisoryServiceFinalizeQueuedSelectionHandler := connect.NewUnaryHandler(
+		AdvisoryServiceFinalizeQueuedSelectionProcedure,
+		svc.FinalizeQueuedSelection,
+		connect.WithSchema(advisoryServiceMethods.ByName("FinalizeQueuedSelection")),
+		connect.WithHandlerOptions(opts...),
+	)
+	advisoryServiceStartQueuedSelectionHandler := connect.NewUnaryHandler(
+		AdvisoryServiceStartQueuedSelectionProcedure,
+		svc.StartQueuedSelection,
+		connect.WithSchema(advisoryServiceMethods.ByName("StartQueuedSelection")),
+		connect.WithHandlerOptions(opts...),
+	)
 	advisoryServiceGetStagedMessageJobHandler := connect.NewUnaryHandler(
 		AdvisoryServiceGetStagedMessageJobProcedure,
 		svc.GetStagedMessageJob,
@@ -259,6 +492,36 @@ func NewAdvisoryServiceHandler(svc AdvisoryServiceHandler, opts ...connect.Handl
 		connect.WithSchema(advisoryServiceMethods.ByName("ReadStagedMessageEvidence")),
 		connect.WithHandlerOptions(opts...),
 	)
+	advisoryServiceListWorktreeSuggestionQueueHandler := connect.NewUnaryHandler(
+		AdvisoryServiceListWorktreeSuggestionQueueProcedure,
+		svc.ListWorktreeSuggestionQueue,
+		connect.WithSchema(advisoryServiceMethods.ByName("ListWorktreeSuggestionQueue")),
+		connect.WithHandlerOptions(opts...),
+	)
+	advisoryServiceEnqueueWorktreeSuggestionHandler := connect.NewUnaryHandler(
+		AdvisoryServiceEnqueueWorktreeSuggestionProcedure,
+		svc.EnqueueWorktreeSuggestion,
+		connect.WithSchema(advisoryServiceMethods.ByName("EnqueueWorktreeSuggestion")),
+		connect.WithHandlerOptions(opts...),
+	)
+	advisoryServiceUpdateWorktreeSuggestionQueueEntryHandler := connect.NewUnaryHandler(
+		AdvisoryServiceUpdateWorktreeSuggestionQueueEntryProcedure,
+		svc.UpdateWorktreeSuggestionQueueEntry,
+		connect.WithSchema(advisoryServiceMethods.ByName("UpdateWorktreeSuggestionQueueEntry")),
+		connect.WithHandlerOptions(opts...),
+	)
+	advisoryServiceRetireWorktreeSuggestionQueueHeadHandler := connect.NewUnaryHandler(
+		AdvisoryServiceRetireWorktreeSuggestionQueueHeadProcedure,
+		svc.RetireWorktreeSuggestionQueueHead,
+		connect.WithSchema(advisoryServiceMethods.ByName("RetireWorktreeSuggestionQueueHead")),
+		connect.WithHandlerOptions(opts...),
+	)
+	advisoryServiceRemoveWorktreeSuggestionQueueEntryHandler := connect.NewUnaryHandler(
+		AdvisoryServiceRemoveWorktreeSuggestionQueueEntryProcedure,
+		svc.RemoveWorktreeSuggestionQueueEntry,
+		connect.WithSchema(advisoryServiceMethods.ByName("RemoveWorktreeSuggestionQueueEntry")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.git_control_tower.v1.advisory.AdvisoryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdvisoryServiceDraftProcedure:
@@ -269,6 +532,18 @@ func NewAdvisoryServiceHandler(svc AdvisoryServiceHandler, opts ...connect.Handl
 			advisoryServiceCollectStagedMessageHandler.ServeHTTP(w, r)
 		case AdvisoryServiceStartStagedMessageProcedure:
 			advisoryServiceStartStagedMessageHandler.ServeHTTP(w, r)
+		case AdvisoryServiceRetryStagedMessageProcedure:
+			advisoryServiceRetryStagedMessageHandler.ServeHTTP(w, r)
+		case AdvisoryServiceGetStagedMessageProviderReadinessProcedure:
+			advisoryServiceGetStagedMessageProviderReadinessHandler.ServeHTTP(w, r)
+		case AdvisoryServiceStartWorktreeStagedMessageProcedure:
+			advisoryServiceStartWorktreeStagedMessageHandler.ServeHTTP(w, r)
+		case AdvisoryServiceQueueWorktreeSelectionProcedure:
+			advisoryServiceQueueWorktreeSelectionHandler.ServeHTTP(w, r)
+		case AdvisoryServiceFinalizeQueuedSelectionProcedure:
+			advisoryServiceFinalizeQueuedSelectionHandler.ServeHTTP(w, r)
+		case AdvisoryServiceStartQueuedSelectionProcedure:
+			advisoryServiceStartQueuedSelectionHandler.ServeHTTP(w, r)
 		case AdvisoryServiceGetStagedMessageJobProcedure:
 			advisoryServiceGetStagedMessageJobHandler.ServeHTTP(w, r)
 		case AdvisoryServiceWaitStagedMessageJobProcedure:
@@ -277,6 +552,16 @@ func NewAdvisoryServiceHandler(svc AdvisoryServiceHandler, opts ...connect.Handl
 			advisoryServiceCancelStagedMessageJobHandler.ServeHTTP(w, r)
 		case AdvisoryServiceReadStagedMessageEvidenceProcedure:
 			advisoryServiceReadStagedMessageEvidenceHandler.ServeHTTP(w, r)
+		case AdvisoryServiceListWorktreeSuggestionQueueProcedure:
+			advisoryServiceListWorktreeSuggestionQueueHandler.ServeHTTP(w, r)
+		case AdvisoryServiceEnqueueWorktreeSuggestionProcedure:
+			advisoryServiceEnqueueWorktreeSuggestionHandler.ServeHTTP(w, r)
+		case AdvisoryServiceUpdateWorktreeSuggestionQueueEntryProcedure:
+			advisoryServiceUpdateWorktreeSuggestionQueueEntryHandler.ServeHTTP(w, r)
+		case AdvisoryServiceRetireWorktreeSuggestionQueueHeadProcedure:
+			advisoryServiceRetireWorktreeSuggestionQueueHeadHandler.ServeHTTP(w, r)
+		case AdvisoryServiceRemoveWorktreeSuggestionQueueEntryProcedure:
+			advisoryServiceRemoveWorktreeSuggestionQueueEntryHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -302,6 +587,30 @@ func (UnimplementedAdvisoryServiceHandler) StartStagedMessage(context.Context, *
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.StartStagedMessage is not implemented"))
 }
 
+func (UnimplementedAdvisoryServiceHandler) RetryStagedMessage(context.Context, *connect.Request[advisory.RetryStagedMessageRequest]) (*connect.Response[advisory.StagedMessageJob], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.RetryStagedMessage is not implemented"))
+}
+
+func (UnimplementedAdvisoryServiceHandler) GetStagedMessageProviderReadiness(context.Context, *connect.Request[advisory.StagedMessageProviderReadinessRequest]) (*connect.Response[advisory.StagedMessageProviderReadiness], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.GetStagedMessageProviderReadiness is not implemented"))
+}
+
+func (UnimplementedAdvisoryServiceHandler) StartWorktreeStagedMessage(context.Context, *connect.Request[advisory.StartWorktreeStagedMessageRequest]) (*connect.Response[advisory.StagedMessageJob], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.StartWorktreeStagedMessage is not implemented"))
+}
+
+func (UnimplementedAdvisoryServiceHandler) QueueWorktreeSelection(context.Context, *connect.Request[advisory.QueueWorktreeSelectionRequest]) (*connect.Response[advisory.QueuedWorktreeSelection], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.QueueWorktreeSelection is not implemented"))
+}
+
+func (UnimplementedAdvisoryServiceHandler) FinalizeQueuedSelection(context.Context, *connect.Request[advisory.FinalizeQueuedSelectionRequest]) (*connect.Response[advisory.QueuedWorktreeSelection], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.FinalizeQueuedSelection is not implemented"))
+}
+
+func (UnimplementedAdvisoryServiceHandler) StartQueuedSelection(context.Context, *connect.Request[advisory.StartQueuedSelectionRequest]) (*connect.Response[advisory.StagedMessageJob], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.StartQueuedSelection is not implemented"))
+}
+
 func (UnimplementedAdvisoryServiceHandler) GetStagedMessageJob(context.Context, *connect.Request[advisory.StagedMessageJobRequest]) (*connect.Response[advisory.StagedMessageJob], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.GetStagedMessageJob is not implemented"))
 }
@@ -316,4 +625,24 @@ func (UnimplementedAdvisoryServiceHandler) CancelStagedMessageJob(context.Contex
 
 func (UnimplementedAdvisoryServiceHandler) ReadStagedMessageEvidence(context.Context, *connect.Request[advisory.ReadStagedMessageEvidenceRequest]) (*connect.Response[advisory.ReadStagedMessageEvidenceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.ReadStagedMessageEvidence is not implemented"))
+}
+
+func (UnimplementedAdvisoryServiceHandler) ListWorktreeSuggestionQueue(context.Context, *connect.Request[advisory.ListWorktreeSuggestionQueueRequest]) (*connect.Response[advisory.WorktreeSuggestionQueue], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.ListWorktreeSuggestionQueue is not implemented"))
+}
+
+func (UnimplementedAdvisoryServiceHandler) EnqueueWorktreeSuggestion(context.Context, *connect.Request[advisory.EnqueueWorktreeSuggestionRequest]) (*connect.Response[advisory.WorktreeSuggestionQueueEntry], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.EnqueueWorktreeSuggestion is not implemented"))
+}
+
+func (UnimplementedAdvisoryServiceHandler) UpdateWorktreeSuggestionQueueEntry(context.Context, *connect.Request[advisory.UpdateWorktreeSuggestionQueueEntryRequest]) (*connect.Response[advisory.WorktreeSuggestionQueueMutationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.UpdateWorktreeSuggestionQueueEntry is not implemented"))
+}
+
+func (UnimplementedAdvisoryServiceHandler) RetireWorktreeSuggestionQueueHead(context.Context, *connect.Request[advisory.RetireWorktreeSuggestionQueueHeadRequest]) (*connect.Response[advisory.WorktreeSuggestionQueueMutationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.RetireWorktreeSuggestionQueueHead is not implemented"))
+}
+
+func (UnimplementedAdvisoryServiceHandler) RemoveWorktreeSuggestionQueueEntry(context.Context, *connect.Request[advisory.RemoveWorktreeSuggestionQueueEntryRequest]) (*connect.Response[advisory.WorktreeSuggestionQueueMutationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.advisory.AdvisoryService.RemoveWorktreeSuggestionQueueEntry is not implemented"))
 }

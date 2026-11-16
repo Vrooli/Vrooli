@@ -13,6 +13,11 @@ import (
 	"time"
 )
 
+const (
+	designPrivacyClass  = sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL
+	designPrivacySource = "react_component_library.design_source_and_context"
+)
+
 type Gateway interface {
 	Run(context.Context, *connect.Request[inferencev1.RunRequest]) (*connect.Response[inferencev1.RunResponse], error)
 }
@@ -54,7 +59,11 @@ func (s *Service) Run(ctx context.Context, key string, request Request) (Operati
 	if !claimed {
 		return s.Repository.Get(ctx, op.ID)
 	}
-	response, callErr := client.Run(ctx, connect.NewRequest(&inferencev1.RunRequest{Source: request.Source, SchemaJson: request.Schema, Instruction: request.Instruction, Role: request.Role, Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, MaxOutputTokens: request.MaxOutputTokens}))
+	response, callErr := client.Run(ctx, connect.NewRequest(&inferencev1.RunRequest{
+		Source: request.Source, SchemaJson: request.Schema, Instruction: request.Instruction, Role: request.Role,
+		Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, PrivacyClass: designPrivacyClass,
+		PrivacyProvenance: designPrivacySource, MaxOutputTokens: request.MaxOutputTokens,
+	}))
 	// Preserve a received response even when the caller stops observing it.
 	saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 	defer cancel()

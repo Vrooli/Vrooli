@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class SendRequest(_message.Message):
-    __slots__ = ("title", "body", "urgency", "sensitivity_label", "idempotency_key", "dedupe_key", "dedupe_window_seconds", "scheduled_at", "digest_window_seconds")
+    __slots__ = ("title", "body", "urgency", "sensitivity_label", "idempotency_key", "dedupe_key", "dedupe_window_seconds", "scheduled_at", "digest_window_seconds", "context_url")
     TITLE_FIELD_NUMBER: _ClassVar[int]
     BODY_FIELD_NUMBER: _ClassVar[int]
     URGENCY_FIELD_NUMBER: _ClassVar[int]
@@ -18,6 +18,7 @@ class SendRequest(_message.Message):
     DEDUPE_WINDOW_SECONDS_FIELD_NUMBER: _ClassVar[int]
     SCHEDULED_AT_FIELD_NUMBER: _ClassVar[int]
     DIGEST_WINDOW_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_URL_FIELD_NUMBER: _ClassVar[int]
     title: str
     body: str
     urgency: str
@@ -27,7 +28,8 @@ class SendRequest(_message.Message):
     dedupe_window_seconds: int
     scheduled_at: str
     digest_window_seconds: int
-    def __init__(self, title: _Optional[str] = ..., body: _Optional[str] = ..., urgency: _Optional[str] = ..., sensitivity_label: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., dedupe_key: _Optional[str] = ..., dedupe_window_seconds: _Optional[int] = ..., scheduled_at: _Optional[str] = ..., digest_window_seconds: _Optional[int] = ...) -> None: ...
+    context_url: str
+    def __init__(self, title: _Optional[str] = ..., body: _Optional[str] = ..., urgency: _Optional[str] = ..., sensitivity_label: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., dedupe_key: _Optional[str] = ..., dedupe_window_seconds: _Optional[int] = ..., scheduled_at: _Optional[str] = ..., digest_window_seconds: _Optional[int] = ..., context_url: _Optional[str] = ...) -> None: ...
 
 class SendResponse(_message.Message):
     __slots__ = ("notification",)
@@ -54,12 +56,14 @@ class GetRequest(_message.Message):
     def __init__(self, id: _Optional[str] = ...) -> None: ...
 
 class GetResponse(_message.Message):
-    __slots__ = ("notification", "receipts")
+    __slots__ = ("notification", "receipts", "native_consent_review_url")
     NOTIFICATION_FIELD_NUMBER: _ClassVar[int]
     RECEIPTS_FIELD_NUMBER: _ClassVar[int]
+    NATIVE_CONSENT_REVIEW_URL_FIELD_NUMBER: _ClassVar[int]
     notification: _types_pb2.Notification
     receipts: _containers.RepeatedCompositeFieldContainer[_types_pb2.DeliveryReceipt]
-    def __init__(self, notification: _Optional[_Union[_types_pb2.Notification, _Mapping]] = ..., receipts: _Optional[_Iterable[_Union[_types_pb2.DeliveryReceipt, _Mapping]]] = ...) -> None: ...
+    native_consent_review_url: str
+    def __init__(self, notification: _Optional[_Union[_types_pb2.Notification, _Mapping]] = ..., receipts: _Optional[_Iterable[_Union[_types_pb2.DeliveryReceipt, _Mapping]]] = ..., native_consent_review_url: _Optional[str] = ...) -> None: ...
 
 class ListRequest(_message.Message):
     __slots__ = ("limit",)

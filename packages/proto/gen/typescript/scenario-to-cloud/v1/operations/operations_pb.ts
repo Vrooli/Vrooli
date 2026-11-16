@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file scenario-to-cloud/v1/operations/operations.proto.
  */
 export const file_scenario_to_cloud_v1_operations_operations: GenFile = /*@__PURE__*/
-  fileDesc("CjBzY2VuYXJpby10by1jbG91ZC92MS9vcGVyYXRpb25zL29wZXJhdGlvbnMucHJvdG8SJnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5vcGVyYXRpb25zIr8BCgtTdGVwUmVjZWlwdBIMCgRzdGVwGAEgASgJEhcKD293bmVyX29wZXJhdGlvbhgCIAEoCRIPCgdvdXRjb21lGAMgASgJEg0KBWZlbmNlGAQgASgEEhAKCHJlcGxheWVkGAUgASgIEg4KBnNvdXJjZRgGIAEoCRIOCgZkZXRhaWwYByABKAkSDQoFZXJyb3IYCCABKAkSEgoKc3RhcnRlZF9hdBgJIAEoCRIUCgxjb21wbGV0ZWRfYXQYCiABKAkidQoNVW5rbm93bkVmZmVjdBIMCgRzdGVwGAEgASgJEg0KBWZlbmNlGAIgASgEEg4KBnJlYXNvbhgDIAEoCRINCgVyZXRyeRgEIAEoCRITCgtuZXh0X2FjdGlvbhgFIAEoCRITCgtyZWNvcmRlZF9hdBgGIAEoCSJmCg9PcGVyYXRpb25SZXN1bHQSDwoHb3V0Y29tZRgBIAEoCRIYChByZWNvdmVyeV9vdXRjb21lGAIgASgJEhcKD2NvbXBsZXRlZF9zdGVwcxgDIAEoBRIPCgdtZXNzYWdlGAQgASgJIrcGChFPcGVyYXRpb25TdGFuZGluZxIWCg5zY2hlbWFfdmVyc2lvbhgBIAEoCRIUCgxvcGVyYXRpb25faWQYAiABKAkSFQoNZGVwbG95bWVudF9pZBgDIAEoCRITCgtyZXF1ZXN0X2tleRgEIAEoCRITCgtwbGFuX2RpZ2VzdBgFIAEoCRINCgVzdGF0ZRgGIAEoCRIQCgh0ZXJtaW5hbBgHIAEoCBINCgVmZW5jZRgIIAEoBBIRCgl3b3JrZXJfaWQYCSABKAkSGAoQbGVhc2VfZXhwaXJlc19hdBgKIAEoCRIUCgxoZWFydGJlYXRfYXQYCyABKAkSGAoQY2FuY2VsX3JlcXVlc3RlZBgMIAEoCBITCgthY3RpdmVfc3RlcBgNIAEoCRIXCg9jb21wbGV0ZWRfc3RlcHMYDiADKAkSSgoNc3RlcF9yZWNlaXB0cxgPIAMoCzIzLnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5vcGVyYXRpb25zLlN0ZXBSZWNlaXB0Ek4KD3Vua25vd25fZWZmZWN0cxgQIAMoCzI1LnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5vcGVyYXRpb25zLlVua25vd25FZmZlY3QSRwoGcmVzdWx0GBEgASgLMjcudnJvb2xpLnNjZW5hcmlvX3RvX2Nsb3VkLnYxLm9wZXJhdGlvbnMuT3BlcmF0aW9uUmVzdWx0EjgKBWVycm9yGBIgASgLMikudnJvb2xpLnNjZW5hcmlvX3RvX2Nsb3VkLnYxLmVycm9ycy5FcnJvchJDCgtuZXh0X2FjdGlvbhgTIAEoCzIuLnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5lcnJvcnMuTmV4dEFjdGlvbhIYChByZWF0dGFjaF9jb21tYW5kGBQgASgJEhUKDXN0aWxsX3BlbmRpbmcYFSABKAgSJgoecmVjb21tZW5kZWRfbmV4dF9jaGVja19zZWNvbmRzGBYgASgFEhIKCmNyZWF0ZWRfYXQYFyABKAkSEgoKdXBkYXRlZF9hdBgYIAEoCRITCgt0ZXJtaW5hbF9hdBgZIAEoCSIrChNHZXRPcGVyYXRpb25SZXF1ZXN0EhQKDG9wZXJhdGlvbl9pZBgBIAEoCSJFChRXYWl0T3BlcmF0aW9uUmVxdWVzdBIUCgxvcGVyYXRpb25faWQYASABKAkSFwoPdGltZW91dF9zZWNvbmRzGAIgASgFIi4KFkNhbmNlbE9wZXJhdGlvblJlcXVlc3QSFAoMb3BlcmF0aW9uX2lkGAEgASgJIjgKH0xpc3REZXBsb3ltZW50T3BlcmF0aW9uc1JlcXVlc3QSFQoNZGVwbG95bWVudF9pZBgBIAEoCSKgAQogTGlzdERlcGxveW1lbnRPcGVyYXRpb25zUmVzcG9uc2USFgoOc2NoZW1hX3ZlcnNpb24YASABKAkSFQoNZGVwbG95bWVudF9pZBgCIAEoCRJNCgpvcGVyYXRpb25zGAMgAygLMjkudnJvb2xpLnNjZW5hcmlvX3RvX2Nsb3VkLnYxLm9wZXJhdGlvbnMuT3BlcmF0aW9uU3RhbmRpbmciHAoaUmVjb25jaWxlT3BlcmF0aW9uc1JlcXVlc3QiWgobUmVjb25jaWxlT3BlcmF0aW9uc1Jlc3BvbnNlEhYKDnNjaGVtYV92ZXJzaW9uGAEgASgJEhEKCXdvcmtlcl9pZBgCIAEoCRIQCghhY3F1aXJlZBgDIAMoCTKHBgoRT3BlcmF0aW9uc1NlcnZpY2UShgEKDEdldE9wZXJhdGlvbhI7LnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5vcGVyYXRpb25zLkdldE9wZXJhdGlvblJlcXVlc3QaOS52cm9vbGkuc2NlbmFyaW9fdG9fY2xvdWQudjEub3BlcmF0aW9ucy5PcGVyYXRpb25TdGFuZGluZxKIAQoNV2FpdE9wZXJhdGlvbhI8LnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5vcGVyYXRpb25zLldhaXRPcGVyYXRpb25SZXF1ZXN0GjkudnJvb2xpLnNjZW5hcmlvX3RvX2Nsb3VkLnYxLm9wZXJhdGlvbnMuT3BlcmF0aW9uU3RhbmRpbmcSjAEKD0NhbmNlbE9wZXJhdGlvbhI+LnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5vcGVyYXRpb25zLkNhbmNlbE9wZXJhdGlvblJlcXVlc3QaOS52cm9vbGkuc2NlbmFyaW9fdG9fY2xvdWQudjEub3BlcmF0aW9ucy5PcGVyYXRpb25TdGFuZGluZxKtAQoYTGlzdERlcGxveW1lbnRPcGVyYXRpb25zEkcudnJvb2xpLnNjZW5hcmlvX3RvX2Nsb3VkLnYxLm9wZXJhdGlvbnMuTGlzdERlcGxveW1lbnRPcGVyYXRpb25zUmVxdWVzdBpILnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5vcGVyYXRpb25zLkxpc3REZXBsb3ltZW50T3BlcmF0aW9uc1Jlc3BvbnNlEp4BChNSZWNvbmNpbGVPcGVyYXRpb25zEkIudnJvb2xpLnNjZW5hcmlvX3RvX2Nsb3VkLnYxLm9wZXJhdGlvbnMuUmVjb25jaWxlT3BlcmF0aW9uc1JlcXVlc3QaQy52cm9vbGkuc2NlbmFyaW9fdG9fY2xvdWQudjEub3BlcmF0aW9ucy5SZWNvbmNpbGVPcGVyYXRpb25zUmVzcG9uc2VCXVpbZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zY2VuYXJpby10by1jbG91ZC92MS9vcGVyYXRpb25zO29wZXJhdGlvbnN2MWIGcHJvdG8z", [file_scenario_to_cloud_v1_errors_errors]);
+  fileDesc("CjBzY2VuYXJpby10by1jbG91ZC92MS9vcGVyYXRpb25zL29wZXJhdGlvbnMucHJvdG8SJnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5vcGVyYXRpb25zIr8BCgtTdGVwUmVjZWlwdBIMCgRzdGVwGAEgASgJEhcKD293bmVyX29wZXJhdGlvbhgCIAEoCRIPCgdvdXRjb21lGAMgASgJEg0KBWZlbmNlGAQgASgEEhAKCHJlcGxheWVkGAUgASgIEg4KBnNvdXJjZRgGIAEoCRIOCgZkZXRhaWwYByABKAkSDQoFZXJyb3IYCCABKAkSEgoKc3RhcnRlZF9hdBgJIAEoCRIUCgxjb21wbGV0ZWRfYXQYCiABKAkidQoNVW5rbm93bkVmZmVjdBIMCgRzdGVwGAEgASgJEg0KBWZlbmNlGAIgASgEEg4KBnJlYXNvbhgDIAEoCRINCgVyZXRyeRgEIAEoCRITCgtuZXh0X2FjdGlvbhgFIAEoCRITCgtyZWNvcmRlZF9hdBgGIAEoCSJmCg9PcGVyYXRpb25SZXN1bHQSDwoHb3V0Y29tZRgBIAEoCRIYChByZWNvdmVyeV9vdXRjb21lGAIgASgJEhcKD2NvbXBsZXRlZF9zdGVwcxgDIAEoBRIPCgdtZXNzYWdlGAQgASgJIrcGChFPcGVyYXRpb25TdGFuZGluZxIWCg5zY2hlbWFfdmVyc2lvbhgBIAEoCRIUCgxvcGVyYXRpb25faWQYAiABKAkSFQoNZGVwbG95bWVudF9pZBgDIAEoCRITCgtyZXF1ZXN0X2tleRgEIAEoCRITCgtwbGFuX2RpZ2VzdBgFIAEoCRINCgVzdGF0ZRgGIAEoCRIQCgh0ZXJtaW5hbBgHIAEoCBINCgVmZW5jZRgIIAEoBBIRCgl3b3JrZXJfaWQYCSABKAkSGAoQbGVhc2VfZXhwaXJlc19hdBgKIAEoCRIUCgxoZWFydGJlYXRfYXQYCyABKAkSGAoQY2FuY2VsX3JlcXVlc3RlZBgMIAEoCBITCgthY3RpdmVfc3RlcBgNIAEoCRIXCg9jb21wbGV0ZWRfc3RlcHMYDiADKAkSSgoNc3RlcF9yZWNlaXB0cxgPIAMoCzIzLnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5vcGVyYXRpb25zLlN0ZXBSZWNlaXB0Ek4KD3Vua25vd25fZWZmZWN0cxgQIAMoCzI1LnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5vcGVyYXRpb25zLlVua25vd25FZmZlY3QSRwoGcmVzdWx0GBEgASgLMjcudnJvb2xpLnNjZW5hcmlvX3RvX2Nsb3VkLnYxLm9wZXJhdGlvbnMuT3BlcmF0aW9uUmVzdWx0EjgKBWVycm9yGBIgASgLMikudnJvb2xpLnNjZW5hcmlvX3RvX2Nsb3VkLnYxLmVycm9ycy5FcnJvchJDCgtuZXh0X2FjdGlvbhgTIAEoCzIuLnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5lcnJvcnMuTmV4dEFjdGlvbhIYChByZWF0dGFjaF9jb21tYW5kGBQgASgJEhUKDXN0aWxsX3BlbmRpbmcYFSABKAgSJgoecmVjb21tZW5kZWRfbmV4dF9jaGVja19zZWNvbmRzGBYgASgFEhIKCmNyZWF0ZWRfYXQYFyABKAkSEgoKdXBkYXRlZF9hdBgYIAEoCRITCgt0ZXJtaW5hbF9hdBgZIAEoCSIrChNHZXRPcGVyYXRpb25SZXF1ZXN0EhQKDG9wZXJhdGlvbl9pZBgBIAEoCSJFChRXYWl0T3BlcmF0aW9uUmVxdWVzdBIUCgxvcGVyYXRpb25faWQYASABKAkSFwoPdGltZW91dF9zZWNvbmRzGAIgASgFIi4KFkNhbmNlbE9wZXJhdGlvblJlcXVlc3QSFAoMb3BlcmF0aW9uX2lkGAEgASgJIjgKH0xpc3REZXBsb3ltZW50T3BlcmF0aW9uc1JlcXVlc3QSFQoNZGVwbG95bWVudF9pZBgBIAEoCSKgAQogTGlzdERlcGxveW1lbnRPcGVyYXRpb25zUmVzcG9uc2USFgoOc2NoZW1hX3ZlcnNpb24YASABKAkSFQoNZGVwbG95bWVudF9pZBgCIAEoCRJNCgpvcGVyYXRpb25zGAMgAygLMjkudnJvb2xpLnNjZW5hcmlvX3RvX2Nsb3VkLnYxLm9wZXJhdGlvbnMuT3BlcmF0aW9uU3RhbmRpbmciHAoaUmVjb25jaWxlT3BlcmF0aW9uc1JlcXVlc3QiWgobUmVjb25jaWxlT3BlcmF0aW9uc1Jlc3BvbnNlEhYKDnNjaGVtYV92ZXJzaW9uGAEgASgJEhEKCXdvcmtlcl9pZBgCIAEoCRIQCghhY3F1aXJlZBgDIAMoCSJUChdHZXRUYXJnZXRSZWNlaXB0UmVxdWVzdBIVCg1kZXBsb3ltZW50X2lkGAEgASgJEhQKDG9wZXJhdGlvbl9pZBgCIAEoCRIMCgRzdGVwGAMgASgJImwKE1RhcmdldFJlY2VpcHRUYXJnZXQSEgoKbWFjaGluZV9pZBgBIAEoCRIPCgdub2RlX2lkGAIgASgJEh0KFWVucm9sbG1lbnRfZ2VuZXJhdGlvbhgDIAEoBBIRCgl0cmFuc3BvcnQYBCABKAkiYgoSVGFyZ2V0T3duZXJSZWNlaXB0Eg0KBWZvdW5kGAEgASgIEg8KB291dGNvbWUYAiABKAkSDQoFZmVuY2UYAyABKAQSDgoGZGV0YWlsGAQgASgJEg0KBWVycm9yGAUgASgJIpUCChFUYXJnZXRSZWNlaXB0UmVhZBIWCg5zY2hlbWFfdmVyc2lvbhgBIAEoCRIVCg1kZXBsb3ltZW50X2lkGAIgASgJEhQKDG9wZXJhdGlvbl9pZBgDIAEoCRITCgtwbGFuX2RpZ2VzdBgEIAEoCRIMCgRzdGVwGAUgASgJEksKBnRhcmdldBgGIAEoCzI7LnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5vcGVyYXRpb25zLlRhcmdldFJlY2VpcHRUYXJnZXQSSwoHcmVjZWlwdBgHIAEoCzI6LnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5vcGVyYXRpb25zLlRhcmdldE93bmVyUmVjZWlwdDKYBwoRT3BlcmF0aW9uc1NlcnZpY2UShgEKDEdldE9wZXJhdGlvbhI7LnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5vcGVyYXRpb25zLkdldE9wZXJhdGlvblJlcXVlc3QaOS52cm9vbGkuc2NlbmFyaW9fdG9fY2xvdWQudjEub3BlcmF0aW9ucy5PcGVyYXRpb25TdGFuZGluZxKIAQoNV2FpdE9wZXJhdGlvbhI8LnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5vcGVyYXRpb25zLldhaXRPcGVyYXRpb25SZXF1ZXN0GjkudnJvb2xpLnNjZW5hcmlvX3RvX2Nsb3VkLnYxLm9wZXJhdGlvbnMuT3BlcmF0aW9uU3RhbmRpbmcSjAEKD0NhbmNlbE9wZXJhdGlvbhI+LnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5vcGVyYXRpb25zLkNhbmNlbE9wZXJhdGlvblJlcXVlc3QaOS52cm9vbGkuc2NlbmFyaW9fdG9fY2xvdWQudjEub3BlcmF0aW9ucy5PcGVyYXRpb25TdGFuZGluZxKtAQoYTGlzdERlcGxveW1lbnRPcGVyYXRpb25zEkcudnJvb2xpLnNjZW5hcmlvX3RvX2Nsb3VkLnYxLm9wZXJhdGlvbnMuTGlzdERlcGxveW1lbnRPcGVyYXRpb25zUmVxdWVzdBpILnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5vcGVyYXRpb25zLkxpc3REZXBsb3ltZW50T3BlcmF0aW9uc1Jlc3BvbnNlEo4BChBHZXRUYXJnZXRSZWNlaXB0Ej8udnJvb2xpLnNjZW5hcmlvX3RvX2Nsb3VkLnYxLm9wZXJhdGlvbnMuR2V0VGFyZ2V0UmVjZWlwdFJlcXVlc3QaOS52cm9vbGkuc2NlbmFyaW9fdG9fY2xvdWQudjEub3BlcmF0aW9ucy5UYXJnZXRSZWNlaXB0UmVhZBKeAQoTUmVjb25jaWxlT3BlcmF0aW9ucxJCLnZyb29saS5zY2VuYXJpb190b19jbG91ZC52MS5vcGVyYXRpb25zLlJlY29uY2lsZU9wZXJhdGlvbnNSZXF1ZXN0GkMudnJvb2xpLnNjZW5hcmlvX3RvX2Nsb3VkLnYxLm9wZXJhdGlvbnMuUmVjb25jaWxlT3BlcmF0aW9uc1Jlc3BvbnNlQl1aW2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc2NlbmFyaW8tdG8tY2xvdWQvdjEvb3BlcmF0aW9ucztvcGVyYXRpb25zdjFiBnByb3RvMw", [file_scenario_to_cloud_v1_errors_errors]);
 
 /**
  * StepReceipt is one committed step outcome.
@@ -444,6 +444,149 @@ export const ReconcileOperationsResponseSchema: GenMessage<ReconcileOperationsRe
   messageDesc(file_scenario_to_cloud_v1_operations_operations, 10);
 
 /**
+ * @generated from message vrooli.scenario_to_cloud.v1.operations.GetTargetReceiptRequest
+ */
+export type GetTargetReceiptRequest = Message<"vrooli.scenario_to_cloud.v1.operations.GetTargetReceiptRequest"> & {
+  /**
+   * @generated from field: string deployment_id = 1;
+   */
+  deploymentId: string;
+
+  /**
+   * @generated from field: string operation_id = 2;
+   */
+  operationId: string;
+
+  /**
+   * @generated from field: string step = 3;
+   */
+  step: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_to_cloud.v1.operations.GetTargetReceiptRequest.
+ * Use `create(GetTargetReceiptRequestSchema)` to create a new message.
+ */
+export const GetTargetReceiptRequestSchema: GenMessage<GetTargetReceiptRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_to_cloud_v1_operations_operations, 11);
+
+/**
+ * @generated from message vrooli.scenario_to_cloud.v1.operations.TargetReceiptTarget
+ */
+export type TargetReceiptTarget = Message<"vrooli.scenario_to_cloud.v1.operations.TargetReceiptTarget"> & {
+  /**
+   * @generated from field: string machine_id = 1;
+   */
+  machineId: string;
+
+  /**
+   * @generated from field: string node_id = 2;
+   */
+  nodeId: string;
+
+  /**
+   * @generated from field: uint64 enrollment_generation = 3;
+   */
+  enrollmentGeneration: bigint;
+
+  /**
+   * @generated from field: string transport = 4;
+   */
+  transport: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_to_cloud.v1.operations.TargetReceiptTarget.
+ * Use `create(TargetReceiptTargetSchema)` to create a new message.
+ */
+export const TargetReceiptTargetSchema: GenMessage<TargetReceiptTarget> = /*@__PURE__*/
+  messageDesc(file_scenario_to_cloud_v1_operations_operations, 12);
+
+/**
+ * @generated from message vrooli.scenario_to_cloud.v1.operations.TargetOwnerReceipt
+ */
+export type TargetOwnerReceipt = Message<"vrooli.scenario_to_cloud.v1.operations.TargetOwnerReceipt"> & {
+  /**
+   * @generated from field: bool found = 1;
+   */
+  found: boolean;
+
+  /**
+   * @generated from field: string outcome = 2;
+   */
+  outcome: string;
+
+  /**
+   * @generated from field: uint64 fence = 3;
+   */
+  fence: bigint;
+
+  /**
+   * @generated from field: string detail = 4;
+   */
+  detail: string;
+
+  /**
+   * @generated from field: string error = 5;
+   */
+  error: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_to_cloud.v1.operations.TargetOwnerReceipt.
+ * Use `create(TargetOwnerReceiptSchema)` to create a new message.
+ */
+export const TargetOwnerReceiptSchema: GenMessage<TargetOwnerReceipt> = /*@__PURE__*/
+  messageDesc(file_scenario_to_cloud_v1_operations_operations, 13);
+
+/**
+ * @generated from message vrooli.scenario_to_cloud.v1.operations.TargetReceiptRead
+ */
+export type TargetReceiptRead = Message<"vrooli.scenario_to_cloud.v1.operations.TargetReceiptRead"> & {
+  /**
+   * @generated from field: string schema_version = 1;
+   */
+  schemaVersion: string;
+
+  /**
+   * @generated from field: string deployment_id = 2;
+   */
+  deploymentId: string;
+
+  /**
+   * @generated from field: string operation_id = 3;
+   */
+  operationId: string;
+
+  /**
+   * @generated from field: string plan_digest = 4;
+   */
+  planDigest: string;
+
+  /**
+   * @generated from field: string step = 5;
+   */
+  step: string;
+
+  /**
+   * @generated from field: vrooli.scenario_to_cloud.v1.operations.TargetReceiptTarget target = 6;
+   */
+  target?: TargetReceiptTarget | undefined;
+
+  /**
+   * @generated from field: vrooli.scenario_to_cloud.v1.operations.TargetOwnerReceipt receipt = 7;
+   */
+  receipt?: TargetOwnerReceipt | undefined;
+};
+
+/**
+ * Describes the message vrooli.scenario_to_cloud.v1.operations.TargetReceiptRead.
+ * Use `create(TargetReceiptReadSchema)` to create a new message.
+ */
+export const TargetReceiptReadSchema: GenMessage<TargetReceiptRead> = /*@__PURE__*/
+  messageDesc(file_scenario_to_cloud_v1_operations_operations, 14);
+
+/**
  * @generated from service vrooli.scenario_to_cloud.v1.operations.OperationsService
  */
 export const OperationsService: GenService<{
@@ -488,6 +631,17 @@ export const OperationsService: GenService<{
     methodKind: "unary";
     input: typeof ListDeploymentOperationsRequestSchema;
     output: typeof ListDeploymentOperationsResponseSchema;
+  },
+  /**
+   * GetTargetReceipt reads one fresh target-owned receipt from a step in an
+   * operation's immutable admitted plan. This is observation only.
+   *
+   * @generated from rpc vrooli.scenario_to_cloud.v1.operations.OperationsService.GetTargetReceipt
+   */
+  getTargetReceipt: {
+    methodKind: "unary";
+    input: typeof GetTargetReceiptRequestSchema;
+    output: typeof TargetReceiptReadSchema;
   },
   /**
    * ReconcileOperations runs one owner pass now (reacquire expired leases,

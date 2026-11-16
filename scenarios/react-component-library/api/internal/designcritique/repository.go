@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"react-component-library/internal/sqliterows"
 	"reflect"
 	"time"
 )
@@ -156,33 +158,30 @@ func (r *SQLiteRepository) List(ctx context.Context, target Target, before strin
 		}
 		beforeTime = cursor.RecordedAt
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT id,review_hash,review_json,assessment_json,recorded_at FROM design_critiques
+	records, err := sqliterows.Collect(ctx, r.db, `SELECT id,review_hash,review_json,assessment_json,recorded_at FROM design_critiques
  WHERE json_extract(review_json,'$.target.scenario')=? AND json_extract(review_json,'$.target.designId')=?
  AND json_extract(review_json,'$.target.revision')=? AND json_extract(review_json,'$.target.renderHash')=?
  AND (?='' OR recorded_at<? OR (recorded_at=? AND id<?))
- ORDER BY recorded_at DESC,id DESC LIMIT 21`, target.Scenario, target.DesignID, target.Revision, target.RenderHash, before, beforeTime, beforeTime, before)
-	if err != nil {
-		return nil, "", err
-	}
-	defer rows.Close()
-	records := []Record{}
-	for rows.Next() {
+ ORDER BY recorded_at DESC,id DESC LIMIT 21`, []any{target.Scenario, target.DesignID, target.Revision, target.RenderHash, before, beforeTime, beforeTime, before}, false, func(row sqliterows.Scanner) (Record, error) {
 		var record Record
 		var raw, result string
-		if err := rows.Scan(&record.ID, &record.Hash, &raw, &result, &record.RecordedAt); err != nil {
-			return nil, "", err
+		if err := row.Scan(&record.ID, &record.Hash, &raw, &result, &record.RecordedAt); err != nil {
+			return Record{}, err
 		}
 		verified, err := decodeRecord(record, raw, result)
 		if err != nil {
-			return nil, "", err
+			return Record{}, err
 		}
 		if verified.Review.Target != target {
-			return nil, "", fmt.Errorf("listed critique target differs from requested target")
+			return Record{}, fmt.Errorf("listed critique target differs from requested target")
 		}
-		records = append(records, verified)
-	}
-	if err := rows.Err(); err != nil {
+		return verified, nil
+	})
+	if err != nil {
 		return nil, "", err
+	}
+	if records == nil {
+		records = []Record{}
 	}
 	next := ""
 	if len(records) > 20 {

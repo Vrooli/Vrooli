@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"context"
 	"testing"
 
 	"react-component-library/internal/catalogcoverage"
@@ -22,13 +23,48 @@ func TestAppearanceGatesUseVersionPinnedBrowserStories(t *testing.T) {
 	}
 }
 
+type appearanceAssetsStub struct {
+	components.Service
+	component components.Component
+}
+
+func (s appearanceAssetsStub) Get(context.Context, string) (components.Component, error) {
+	return s.component, nil
+}
+
+type appearanceExecutorSpy struct{ calls int }
+
+func (s *appearanceExecutorSpy) ExecuteStory(context.Context, string, string, string) (componenttests.StoryExecution, error) {
+	s.calls++
+	return componenttests.StoryExecution{Passed: true}, nil
+}
+
+func TestAppearanceGateReadOnlyInspectionNeverStartsCapture(t *testing.T) {
+	assets := appearanceAssetsStub{component: components.Component{
+		ID: "component-id", CatalogID: "controls.button", LibraryID: "react-component-library:Button", LatestVersion: "1.0.0",
+	}}
+	executor := &appearanceExecutorSpy{}
+	testService := componenttests.NewService(componenttests.Runner{Assets: assets, Executor: executor}, nil)
+	h := &handler{assets: assets, testService: testService}
+	result, err := h.runAppearanceGate(context.Background(), "responsive", "controls.button", catalogcoverage.GateDefinition{}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != "unmeasured" || len(result.RunnerError) != 1 || result.RunnerError[0].Code != "catalog.responsive.evidence_missing" {
+		t.Fatalf("missing current evidence = %+v, want explicit unmeasured result", result)
+	}
+	if executor.calls != 0 {
+		t.Fatalf("read-only gate inspection invoked story executor %d times", executor.calls)
+	}
+}
+
 func TestParseAxeEvidenceRequiresNamedEngineVersionAndResults(t *testing.T) {
-	valid := `{"schema":"bas-accessibility-snapshot/v1","snapshot":"main\n button \"Save\"","axe":{"engine":"axe-core","version":"4.10.2","violations":[]}}`
+	valid := `{"schema":"bas-accessibility-snapshot/v1","snapshot":"main\n button \"Save\"","axe":{"schema":"rcl-axe-results/v1","status":"complete","engine":"axe-core","version":"4.11.4","violations":[]}}`
 	violations, measured := parseAxeEvidence(valid)
 	if !measured || violations == nil || len(violations) != 0 {
 		t.Fatalf("empty axe result should be measured and clean: measured=%t violations=%+v", measured, violations)
 	}
-	defect := `{"schema":"bas-accessibility-snapshot/v1","snapshot":"main","axe":{"engine":"axe-core","version":"4.10.2","violations":[{"id":"button-name","impact":"serious","description":"Buttons must have discernible text."}]}}`
+	defect := `{"schema":"bas-accessibility-snapshot/v1","snapshot":"main","axe":{"schema":"rcl-axe-results/v1","status":"complete","engine":"axe-core","version":"4.11.4","violations":[{"id":"button-name","impact":"serious","description":"Buttons must have discernible text."}]}}`
 	violations, measured = parseAxeEvidence(defect)
 	if !measured || len(violations) != 1 || violations[0].ID != "button-name" {
 		t.Fatalf("axe violation was not preserved: measured=%t violations=%+v", measured, violations)
@@ -36,6 +72,8 @@ func TestParseAxeEvidenceRequiresNamedEngineVersionAndResults(t *testing.T) {
 	for _, missing := range []string{
 		`{"schema":"bas-accessibility-snapshot/v1","snapshot":"main"}`,
 		`{"schema":"bas-accessibility-snapshot/v1","snapshot":"main","axe":{"engine":"other","version":"4.10.2","violations":[]}}`,
+		`{"schema":"bas-accessibility-snapshot/v1","snapshot":"main","axe":{"status":"complete","engine":"axe-core","version":"4.11.4","violations":[]}}`,
+		`{"schema":"bas-accessibility-snapshot/v1","snapshot":"main","axe":{"schema":"rcl-axe-results/v1","status":"unavailable","engine":"axe-core","version":"4.11.4","violations":[]}}`,
 		`{"schema":"bas-accessibility-snapshot/v1","snapshot":"main","axe":{"engine":"axe-core","violations":[]}}`,
 		`{"schema":"bas-accessibility-snapshot/v1","snapshot":"main","axe":{"engine":"axe-core","version":"4.10.2","violations":null}}`,
 	} {
@@ -106,7 +144,7 @@ func TestAccessibilityGateRequiresAxeAndReportsViolations(t *testing.T) {
 		RequireAxeResults        bool  `json:"requireAxeResults"`
 		RequiresCapture          bool  `json:"requiresCapture"`
 	}{RequireAxeResults: true}}
-	clean := `{"schema":"bas-accessibility-snapshot/v1","snapshot":"main","axe":{"engine":"axe-core","version":"4.10.2","violations":[]}}`
+	clean := `{"schema":"bas-accessibility-snapshot/v1","snapshot":"main","axe":{"schema":"rcl-axe-results/v1","status":"complete","engine":"axe-core","version":"4.11.4","violations":[]}}`
 	report := componenttests.Report{Results: []componenttests.Result{{
 		Stage: componenttests.StageDeclared, Version: "1.0.0", Subject: "default", Verdict: componenttests.VerdictPassed,
 		Evidence: []componenttests.Evidence{{Kind: "accessibility", AccessibilityJSON: clean}},
@@ -117,7 +155,7 @@ func TestAccessibilityGateRequiresAxeAndReportsViolations(t *testing.T) {
 		t.Fatalf("versioned clean axe evidence should pass: %+v", result)
 	}
 
-	report.Results[0].Evidence[0].AccessibilityJSON = `{"schema":"bas-accessibility-snapshot/v1","snapshot":"main","axe":{"engine":"axe-core","version":"4.10.2","violations":[{"id":"button-name","impact":"serious","description":"Button has no name."}]}}`
+	report.Results[0].Evidence[0].AccessibilityJSON = `{"schema":"bas-accessibility-snapshot/v1","snapshot":"main","axe":{"schema":"rcl-axe-results/v1","status":"complete","engine":"axe-core","version":"4.11.4","violations":[{"id":"button-name","impact":"serious","description":"Button has no name."}]}}`
 	result = gates.Result{Status: "measured"}
 	applyAppearanceStoryEvidence(&result, "accessibility", "controls.button", "rcl:Button", report, definition)
 	if len(result.Findings) != 1 || result.Findings[0].Code != "catalog.accessibility.axe.button-name" {

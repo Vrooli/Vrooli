@@ -15,6 +15,10 @@ service SkillsService {
   rpc SyncSkills(SyncSkillsRequest) returns (SyncSkillsResponse);
   rpc RateSkill(RateSkillRequest) returns (RateSkillResponse);
   rpc RecordSkillUsage(RecordSkillUsageRequest) returns (RecordSkillUsageResponse);
+  // GetSkillReadReceipt says whether the calling agent run has read one skill.
+  // The run comes only from the verified X-Agent-Identity-Token header, so a
+  // caller can ask about itself and never about another run.
+  rpc GetSkillReadReceipt(GetSkillReadReceiptRequest) returns (GetSkillReadReceiptResponse);
   rpc ListSkillVersions(ListSkillVersionsRequest) returns (ListSkillVersionsResponse);
   rpc RevertSkill(RevertSkillRequest) returns (RevertSkillResponse);
   rpc ListSkillVariants(ListSkillVariantsRequest) returns (ListSkillVariantsResponse);
@@ -215,6 +219,24 @@ message RateSkillRequest { string id = 1; int32 rating = 2; optional string note
 message RateSkillResponse { string id = 1; int32 rating = 2; string status = 3; }
 message RecordSkillUsageRequest { string id = 1; }
 message RecordSkillUsageResponse { string id = 1; string status = 2; int32 usage_count = 3; string last_used = 4; }
+
+message GetSkillReadReceiptRequest { string skill_id = 1; }
+message GetSkillReadReceiptResponse {
+  string skill_id = 1;
+  // read: the verified run read the skill through Prompt Manager.
+  // not_read: the verified run has no recorded read of the skill.
+  // unverified: no agent identity was presented or it could not be verified.
+  // unavailable: the receipt store could not be read.
+  string status = 2;
+  // The verified run; empty when status is unverified.
+  string run_id = 3;
+  // RFC 3339; empty unless status is read.
+  string first_read_at = 4;
+  string last_read_at = 5;
+  int32 read_count = 6;
+  // Plain-language cause for unverified or unavailable.
+  string reason = 7;
+}
 
 message SkillVersion { int32 version = 1; string content = 2; string name = 3; string updated_at = 4; string created_by = 5; }
 message ListSkillVersionsRequest { string id = 1; }

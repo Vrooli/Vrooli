@@ -19,3 +19,27 @@ class Book(_message.Message):
     beneficiary_identity: str
     created_at: _timestamp_pb2.Timestamp
     def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., beneficiary_identity: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class CreateBookRequest(_message.Message):
+    __slots__ = ("book",)
+    BOOK_FIELD_NUMBER: _ClassVar[int]
+    book: Book
+    def __init__(self, book: _Optional[_Union[Book, _Mapping]] = ...) -> None: ...
+
+class CreateBookResponse(_message.Message):
+    __slots__ = ("book",)
+    BOOK_FIELD_NUMBER: _ClassVar[int]
+    book: Book
+    def __init__(self, book: _Optional[_Union[Book, _Mapping]] = ...) -> None: ...
+
+class GetBookRequest(_message.Message):
+    __slots__ = ("book_id",)
+    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
+    book_id: str
+    def __init__(self, book_id: _Optional[str] = ...) -> None: ...
+
+class GetBookResponse(_message.Message):
+    __slots__ = ("book",)
+    BOOK_FIELD_NUMBER: _ClassVar[int]
+    book: Book
+    def __init__(self, book: _Optional[_Union[Book, _Mapping]] = ...) -> None: ...

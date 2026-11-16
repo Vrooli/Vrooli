@@ -76,13 +76,16 @@ func (ProtectionTier) EnumDescriptor() ([]byte, []int) {
 }
 
 // RetentionPolicy is the per-plan snapshot retention, applied by kopia policy.
-// v1 supports a simple keep-last count; GFS fields (OT-P1-002) extend this
-// additively later.
+// Recent snapshots retained by count. Zero disables this tier.
 type RetentionPolicy struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Keep at most this many latest snapshots per target in the destination.
-	// Zero means "keep all" (no retention pruning by count).
+	// Keep this many latest snapshots, in addition to time-bucketed copies.
 	KeepLatest    int32 `protobuf:"varint,1,opt,name=keep_latest,json=keepLatest,proto3" json:"keep_latest,omitempty"`
+	KeepHourly    int32 `protobuf:"varint,2,opt,name=keep_hourly,json=keepHourly,proto3" json:"keep_hourly,omitempty"`
+	KeepDaily     int32 `protobuf:"varint,3,opt,name=keep_daily,json=keepDaily,proto3" json:"keep_daily,omitempty"`
+	KeepWeekly    int32 `protobuf:"varint,4,opt,name=keep_weekly,json=keepWeekly,proto3" json:"keep_weekly,omitempty"`
+	KeepMonthly   int32 `protobuf:"varint,5,opt,name=keep_monthly,json=keepMonthly,proto3" json:"keep_monthly,omitempty"`
+	KeepAnnual    int32 `protobuf:"varint,6,opt,name=keep_annual,json=keepAnnual,proto3" json:"keep_annual,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -124,6 +127,41 @@ func (x *RetentionPolicy) GetKeepLatest() int32 {
 	return 0
 }
 
+func (x *RetentionPolicy) GetKeepHourly() int32 {
+	if x != nil {
+		return x.KeepHourly
+	}
+	return 0
+}
+
+func (x *RetentionPolicy) GetKeepDaily() int32 {
+	if x != nil {
+		return x.KeepDaily
+	}
+	return 0
+}
+
+func (x *RetentionPolicy) GetKeepWeekly() int32 {
+	if x != nil {
+		return x.KeepWeekly
+	}
+	return 0
+}
+
+func (x *RetentionPolicy) GetKeepMonthly() int32 {
+	if x != nil {
+		return x.KeepMonthly
+	}
+	return 0
+}
+
+func (x *RetentionPolicy) GetKeepAnnual() int32 {
+	if x != nil {
+		return x.KeepAnnual
+	}
+	return 0
+}
+
 // Plan is the canonical wire shape for a backup plan.
 type Plan struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -146,8 +184,14 @@ type Plan struct {
 	// Derived read-only assessment of the selected destination topology.
 	DestinationsPhysicallyIndependent bool     `protobuf:"varint,12,opt,name=destinations_physically_independent,json=destinationsPhysicallyIndependent,proto3" json:"destinations_physically_independent,omitempty"`
 	SharedRiskWarnings                []string `protobuf:"bytes,13,rep,name=shared_risk_warnings,json=sharedRiskWarnings,proto3" json:"shared_risk_warnings,omitempty"`
-	unknownFields                     protoimpl.UnknownFields
-	sizeCache                         protoimpl.SizeCache
+	// When set, membership is a rule evaluated on every read instead of a list:
+	// "registered" means every registered target except excluded_target_ids, so a
+	// target registered later is in the plan without anyone editing it. target_ids
+	// then carries the targets the rule names right now.
+	TargetSelector    string   `protobuf:"bytes,14,opt,name=target_selector,json=targetSelector,proto3" json:"target_selector,omitempty"`
+	ExcludedTargetIds []string `protobuf:"bytes,15,rep,name=excluded_target_ids,json=excludedTargetIds,proto3" json:"excluded_target_ids,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *Plan) Reset() {
@@ -271,13 +315,28 @@ func (x *Plan) GetSharedRiskWarnings() []string {
 	return nil
 }
 
+func (x *Plan) GetTargetSelector() string {
+	if x != nil {
+		return x.TargetSelector
+	}
+	return ""
+}
+
+func (x *Plan) GetExcludedTargetIds() []string {
+	if x != nil {
+		return x.ExcludedTargetIds
+	}
+	return nil
+}
+
 type CreatePlanRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Name           string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	TargetIds      []string               `protobuf:"bytes,2,rep,name=target_ids,json=targetIds,proto3" json:"target_ids,omitempty"`
-	DestinationIds []string               `protobuf:"bytes,3,rep,name=destination_ids,json=destinationIds,proto3" json:"destination_ids,omitempty"`
-	Schedule       string                 `protobuf:"bytes,4,opt,name=schedule,proto3" json:"schedule,omitempty"`
-	Retention      *RetentionPolicy       `protobuf:"bytes,5,opt,name=retention,proto3" json:"retention,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// At least one target, or a target_selector; with a selector this is ignored.
+	TargetIds      []string         `protobuf:"bytes,2,rep,name=target_ids,json=targetIds,proto3" json:"target_ids,omitempty"`
+	DestinationIds []string         `protobuf:"bytes,3,rep,name=destination_ids,json=destinationIds,proto3" json:"destination_ids,omitempty"`
+	Schedule       string           `protobuf:"bytes,4,opt,name=schedule,proto3" json:"schedule,omitempty"`
+	Retention      *RetentionPolicy `protobuf:"bytes,5,opt,name=retention,proto3" json:"retention,omitempty"`
 	// Optional; defaults to true when unset on create.
 	Enabled bool `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	// When false (default), the server rejects the plan with FAILED_PRECONDITION
@@ -287,8 +346,11 @@ type CreatePlanRequest struct {
 	AllowIncompleteCoverage bool           `protobuf:"varint,7,opt,name=allow_incomplete_coverage,json=allowIncompleteCoverage,proto3" json:"allow_incomplete_coverage,omitempty"`
 	ProtectionTier          ProtectionTier `protobuf:"varint,8,opt,name=protection_tier,json=protectionTier,proto3,enum=vrooli.data_backup_manager.v1.plans.ProtectionTier" json:"protection_tier,omitempty"`
 	RecoveryDrillSchedule   string         `protobuf:"bytes,9,opt,name=recovery_drill_schedule,json=recoveryDrillSchedule,proto3" json:"recovery_drill_schedule,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// See Plan.target_selector. Only valid for the full_primary tier.
+	TargetSelector    string   `protobuf:"bytes,10,opt,name=target_selector,json=targetSelector,proto3" json:"target_selector,omitempty"`
+	ExcludedTargetIds []string `protobuf:"bytes,11,rep,name=excluded_target_ids,json=excludedTargetIds,proto3" json:"excluded_target_ids,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *CreatePlanRequest) Reset() {
@@ -382,6 +444,20 @@ func (x *CreatePlanRequest) GetRecoveryDrillSchedule() string {
 		return x.RecoveryDrillSchedule
 	}
 	return ""
+}
+
+func (x *CreatePlanRequest) GetTargetSelector() string {
+	if x != nil {
+		return x.TargetSelector
+	}
+	return ""
+}
+
+func (x *CreatePlanRequest) GetExcludedTargetIds() []string {
+	if x != nil {
+		return x.ExcludedTargetIds
+	}
+	return nil
 }
 
 type CreatePlanResponse struct {
@@ -633,8 +709,11 @@ type UpdatePlanRequest struct {
 	AllowIncompleteCoverage bool           `protobuf:"varint,8,opt,name=allow_incomplete_coverage,json=allowIncompleteCoverage,proto3" json:"allow_incomplete_coverage,omitempty"`
 	ProtectionTier          ProtectionTier `protobuf:"varint,9,opt,name=protection_tier,json=protectionTier,proto3,enum=vrooli.data_backup_manager.v1.plans.ProtectionTier" json:"protection_tier,omitempty"`
 	RecoveryDrillSchedule   string         `protobuf:"bytes,10,opt,name=recovery_drill_schedule,json=recoveryDrillSchedule,proto3" json:"recovery_drill_schedule,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// See Plan.target_selector.
+	TargetSelector    string   `protobuf:"bytes,11,opt,name=target_selector,json=targetSelector,proto3" json:"target_selector,omitempty"`
+	ExcludedTargetIds []string `protobuf:"bytes,12,rep,name=excluded_target_ids,json=excludedTargetIds,proto3" json:"excluded_target_ids,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *UpdatePlanRequest) Reset() {
@@ -735,6 +814,20 @@ func (x *UpdatePlanRequest) GetRecoveryDrillSchedule() string {
 		return x.RecoveryDrillSchedule
 	}
 	return ""
+}
+
+func (x *UpdatePlanRequest) GetTargetSelector() string {
+	if x != nil {
+		return x.TargetSelector
+	}
+	return ""
+}
+
+func (x *UpdatePlanRequest) GetExcludedTargetIds() []string {
+	if x != nil {
+		return x.ExcludedTargetIds
+	}
+	return nil
 }
 
 type UpdatePlanResponse struct {
@@ -873,10 +966,19 @@ var File_data_backup_manager_v1_plans_plans_proto protoreflect.FileDescriptor
 
 const file_data_backup_manager_v1_plans_plans_proto_rawDesc = "" +
 	"\n" +
-	"(data-backup-manager/v1/plans/plans.proto\x12#vrooli.data_backup_manager.v1.plans\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\";\n" +
+	"(data-backup-manager/v1/plans/plans.proto\x12#vrooli.data_backup_manager.v1.plans\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8d\x02\n" +
 	"\x0fRetentionPolicy\x12(\n" +
 	"\vkeep_latest\x18\x01 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\n" +
-	"keepLatest\"\x8a\x05\n" +
+	"keepLatest\x12(\n" +
+	"\vkeep_hourly\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\n" +
+	"keepHourly\x12&\n" +
+	"\n" +
+	"keep_daily\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\tkeepDaily\x12(\n" +
+	"\vkeep_weekly\x18\x04 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\n" +
+	"keepWeekly\x12*\n" +
+	"\fkeep_monthly\x18\x05 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\vkeepMonthly\x12(\n" +
+	"\vkeep_annual\x18\x06 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\n" +
+	"keepAnnual\"\xe3\x05\n" +
 	"\x04Plan\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
@@ -894,18 +996,23 @@ const file_data_backup_manager_v1_plans_plans_proto_rawDesc = "" +
 	" \x01(\x0e23.vrooli.data_backup_manager.v1.plans.ProtectionTierR\x0eprotectionTier\x126\n" +
 	"\x17recovery_drill_schedule\x18\v \x01(\tR\x15recoveryDrillSchedule\x12N\n" +
 	"#destinations_physically_independent\x18\f \x01(\bR!destinationsPhysicallyIndependent\x120\n" +
-	"\x14shared_risk_warnings\x18\r \x03(\tR\x12sharedRiskWarnings\"\xe8\x03\n" +
+	"\x14shared_risk_warnings\x18\r \x03(\tR\x12sharedRiskWarnings\x12'\n" +
+	"\x0ftarget_selector\x18\x0e \x01(\tR\x0etargetSelector\x12.\n" +
+	"\x13excluded_target_ids\x18\x0f \x03(\tR\x11excludedTargetIds\"\xb7\x04\n" +
 	"\x11CreatePlanRequest\x12\x1b\n" +
-	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12'\n" +
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\n" +
-	"target_ids\x18\x02 \x03(\tB\b\xbaH\x05\x92\x01\x02\b\x01R\ttargetIds\x121\n" +
+	"target_ids\x18\x02 \x03(\tR\ttargetIds\x121\n" +
 	"\x0fdestination_ids\x18\x03 \x03(\tB\b\xbaH\x05\x92\x01\x02\b\x01R\x0edestinationIds\x12\x1a\n" +
 	"\bschedule\x18\x04 \x01(\tR\bschedule\x12R\n" +
 	"\tretention\x18\x05 \x01(\v24.vrooli.data_backup_manager.v1.plans.RetentionPolicyR\tretention\x12\x18\n" +
 	"\aenabled\x18\x06 \x01(\bR\aenabled\x12:\n" +
 	"\x19allow_incomplete_coverage\x18\a \x01(\bR\x17allowIncompleteCoverage\x12\\\n" +
 	"\x0fprotection_tier\x18\b \x01(\x0e23.vrooli.data_backup_manager.v1.plans.ProtectionTierR\x0eprotectionTier\x126\n" +
-	"\x17recovery_drill_schedule\x18\t \x01(\tR\x15recoveryDrillSchedule\"S\n" +
+	"\x17recovery_drill_schedule\x18\t \x01(\tR\x15recoveryDrillSchedule\x12'\n" +
+	"\x0ftarget_selector\x18\n" +
+	" \x01(\tR\x0etargetSelector\x12.\n" +
+	"\x13excluded_target_ids\x18\v \x03(\tR\x11excludedTargetIds\"S\n" +
 	"\x12CreatePlanResponse\x12=\n" +
 	"\x04plan\x18\x01 \x01(\v2).vrooli.data_backup_manager.v1.plans.PlanR\x04plan\")\n" +
 	"\x0eGetPlanRequest\x12\x17\n" +
@@ -918,7 +1025,7 @@ const file_data_backup_manager_v1_plans_plans_proto_rawDesc = "" +
 	"page_token\x18\x02 \x01(\tR\tpageToken\"|\n" +
 	"\x11ListPlansResponse\x12?\n" +
 	"\x05plans\x18\x01 \x03(\v2).vrooli.data_backup_manager.v1.plans.PlanR\x05plans\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xe4\x03\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xbd\x04\n" +
 	"\x11UpdatePlanRequest\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
@@ -931,7 +1038,9 @@ const file_data_backup_manager_v1_plans_plans_proto_rawDesc = "" +
 	"\x19allow_incomplete_coverage\x18\b \x01(\bR\x17allowIncompleteCoverage\x12\\\n" +
 	"\x0fprotection_tier\x18\t \x01(\x0e23.vrooli.data_backup_manager.v1.plans.ProtectionTierR\x0eprotectionTier\x126\n" +
 	"\x17recovery_drill_schedule\x18\n" +
-	" \x01(\tR\x15recoveryDrillSchedule\"S\n" +
+	" \x01(\tR\x15recoveryDrillSchedule\x12'\n" +
+	"\x0ftarget_selector\x18\v \x01(\tR\x0etargetSelector\x12.\n" +
+	"\x13excluded_target_ids\x18\f \x03(\tR\x11excludedTargetIds\"S\n" +
 	"\x12UpdatePlanResponse\x12=\n" +
 	"\x04plan\x18\x01 \x01(\v2).vrooli.data_backup_manager.v1.plans.PlanR\x04plan\",\n" +
 	"\x11DeletePlanRequest\x12\x17\n" +

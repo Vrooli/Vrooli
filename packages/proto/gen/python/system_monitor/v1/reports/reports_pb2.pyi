@@ -73,7 +73,7 @@ class ReportAlert(_message.Message):
     def __init__(self, timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., severity: _Optional[str] = ..., category: _Optional[str] = ..., message: _Optional[str] = ..., resolved: _Optional[bool] = ...) -> None: ...
 
 class EnhancedSystemReport(_message.Message):
-    __slots__ = ("report_id", "report_type", "generated_at", "time_range", "actual_duration", "date_range_display", "executive_summary", "performance", "trends", "recommendations", "highlights", "metrics_count", "alerts_count", "investigations_count")
+    __slots__ = ("report_id", "report_type", "generated_at", "time_range", "actual_duration", "date_range_display", "executive_summary", "performance", "trends", "recommendations", "highlights", "metrics_count", "alerts_count", "investigations_count", "owner_resources")
     REPORT_ID_FIELD_NUMBER: _ClassVar[int]
     REPORT_TYPE_FIELD_NUMBER: _ClassVar[int]
     GENERATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -88,6 +88,7 @@ class EnhancedSystemReport(_message.Message):
     METRICS_COUNT_FIELD_NUMBER: _ClassVar[int]
     ALERTS_COUNT_FIELD_NUMBER: _ClassVar[int]
     INVESTIGATIONS_COUNT_FIELD_NUMBER: _ClassVar[int]
+    OWNER_RESOURCES_FIELD_NUMBER: _ClassVar[int]
     report_id: str
     report_type: str
     generated_at: _timestamp_pb2.Timestamp
@@ -102,7 +103,60 @@ class EnhancedSystemReport(_message.Message):
     metrics_count: int
     alerts_count: int
     investigations_count: int
-    def __init__(self, report_id: _Optional[str] = ..., report_type: _Optional[str] = ..., generated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., time_range: _Optional[_Union[ReportTimeRange, _Mapping]] = ..., actual_duration: _Optional[str] = ..., date_range_display: _Optional[str] = ..., executive_summary: _Optional[_Union[EnhancedExecutiveSummary, _Mapping]] = ..., performance: _Optional[_Union[PerformanceAnalysis, _Mapping]] = ..., trends: _Optional[_Iterable[_Union[Trend, _Mapping]]] = ..., recommendations: _Optional[_Iterable[str]] = ..., highlights: _Optional[_Iterable[str]] = ..., metrics_count: _Optional[int] = ..., alerts_count: _Optional[int] = ..., investigations_count: _Optional[int] = ...) -> None: ...
+    owner_resources: OwnerResourceReport
+    def __init__(self, report_id: _Optional[str] = ..., report_type: _Optional[str] = ..., generated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., time_range: _Optional[_Union[ReportTimeRange, _Mapping]] = ..., actual_duration: _Optional[str] = ..., date_range_display: _Optional[str] = ..., executive_summary: _Optional[_Union[EnhancedExecutiveSummary, _Mapping]] = ..., performance: _Optional[_Union[PerformanceAnalysis, _Mapping]] = ..., trends: _Optional[_Iterable[_Union[Trend, _Mapping]]] = ..., recommendations: _Optional[_Iterable[str]] = ..., highlights: _Optional[_Iterable[str]] = ..., metrics_count: _Optional[int] = ..., alerts_count: _Optional[int] = ..., investigations_count: _Optional[int] = ..., owner_resources: _Optional[_Union[OwnerResourceReport, _Mapping]] = ...) -> None: ...
+
+class OwnerResourceReport(_message.Message):
+    __slots__ = ("window_start", "window_end", "complete", "attribution_complete", "returned_process_groups", "owners", "sample_coverage_start", "sample_coverage_end", "swap_coverage_complete", "swap_measured_samples", "swap_unknown_samples", "swap_coverage_start", "swap_coverage_end")
+    WINDOW_START_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_END_FIELD_NUMBER: _ClassVar[int]
+    COMPLETE_FIELD_NUMBER: _ClassVar[int]
+    ATTRIBUTION_COMPLETE_FIELD_NUMBER: _ClassVar[int]
+    RETURNED_PROCESS_GROUPS_FIELD_NUMBER: _ClassVar[int]
+    OWNERS_FIELD_NUMBER: _ClassVar[int]
+    SAMPLE_COVERAGE_START_FIELD_NUMBER: _ClassVar[int]
+    SAMPLE_COVERAGE_END_FIELD_NUMBER: _ClassVar[int]
+    SWAP_COVERAGE_COMPLETE_FIELD_NUMBER: _ClassVar[int]
+    SWAP_MEASURED_SAMPLES_FIELD_NUMBER: _ClassVar[int]
+    SWAP_UNKNOWN_SAMPLES_FIELD_NUMBER: _ClassVar[int]
+    SWAP_COVERAGE_START_FIELD_NUMBER: _ClassVar[int]
+    SWAP_COVERAGE_END_FIELD_NUMBER: _ClassVar[int]
+    window_start: _timestamp_pb2.Timestamp
+    window_end: _timestamp_pb2.Timestamp
+    complete: bool
+    attribution_complete: bool
+    returned_process_groups: int
+    owners: _containers.RepeatedCompositeFieldContainer[OwnerResourceSummary]
+    sample_coverage_start: _timestamp_pb2.Timestamp
+    sample_coverage_end: _timestamp_pb2.Timestamp
+    swap_coverage_complete: bool
+    swap_measured_samples: int
+    swap_unknown_samples: int
+    swap_coverage_start: _timestamp_pb2.Timestamp
+    swap_coverage_end: _timestamp_pb2.Timestamp
+    def __init__(self, window_start: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., window_end: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., complete: _Optional[bool] = ..., attribution_complete: _Optional[bool] = ..., returned_process_groups: _Optional[int] = ..., owners: _Optional[_Iterable[_Union[OwnerResourceSummary, _Mapping]]] = ..., sample_coverage_start: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., sample_coverage_end: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., swap_coverage_complete: _Optional[bool] = ..., swap_measured_samples: _Optional[int] = ..., swap_unknown_samples: _Optional[int] = ..., swap_coverage_start: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., swap_coverage_end: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class OwnerResourceSummary(_message.Message):
+    __slots__ = ("owner", "process_groups", "samples", "core_hours", "mean_rss_gib_process_sum", "mean_swap_gib_process_sum", "peak_single_process_vram_gib", "swap_measured_samples", "swap_unknown_samples")
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    PROCESS_GROUPS_FIELD_NUMBER: _ClassVar[int]
+    SAMPLES_FIELD_NUMBER: _ClassVar[int]
+    CORE_HOURS_FIELD_NUMBER: _ClassVar[int]
+    MEAN_RSS_GIB_PROCESS_SUM_FIELD_NUMBER: _ClassVar[int]
+    MEAN_SWAP_GIB_PROCESS_SUM_FIELD_NUMBER: _ClassVar[int]
+    PEAK_SINGLE_PROCESS_VRAM_GIB_FIELD_NUMBER: _ClassVar[int]
+    SWAP_MEASURED_SAMPLES_FIELD_NUMBER: _ClassVar[int]
+    SWAP_UNKNOWN_SAMPLES_FIELD_NUMBER: _ClassVar[int]
+    owner: str
+    process_groups: int
+    samples: int
+    core_hours: float
+    mean_rss_gib_process_sum: float
+    mean_swap_gib_process_sum: float
+    peak_single_process_vram_gib: float
+    swap_measured_samples: int
+    swap_unknown_samples: int
+    def __init__(self, owner: _Optional[str] = ..., process_groups: _Optional[int] = ..., samples: _Optional[int] = ..., core_hours: _Optional[float] = ..., mean_rss_gib_process_sum: _Optional[float] = ..., mean_swap_gib_process_sum: _Optional[float] = ..., peak_single_process_vram_gib: _Optional[float] = ..., swap_measured_samples: _Optional[int] = ..., swap_unknown_samples: _Optional[int] = ...) -> None: ...
 
 class ReportTimeRange(_message.Message):
     __slots__ = ("start_time", "end_time")

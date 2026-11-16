@@ -19,8 +19,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // workflows via the workflows domain; this is purely additive.
 //
 // One CaptureService.Capture call may request several artifact types
-// (screenshot, console-logs, network, video, dom, performance) in a single
-// browser session so they share one navigation and one viewport.
+// (screenshot, console-logs, network, video, performance, accessibility) in a
+// single browser session so they share one navigation and one viewport.
 // =============================================================================
 
 service CaptureService {
@@ -40,7 +40,8 @@ enum CaptureType {
   CAPTURE_TYPE_CONSOLE_LOGS = 2;
   CAPTURE_TYPE_NETWORK = 3;
   CAPTURE_TYPE_VIDEO = 4;
-  CAPTURE_TYPE_DOM = 5;
+  reserved 5, 8;
+  reserved "CAPTURE_TYPE_DOM", "CAPTURE_TYPE_DOM_TREE";
   CAPTURE_TYPE_PERFORMANCE = 6;
   // Accessibility-tree JSON snapshot. The driver walks the Chromium
   // accessibility tree (CDP Accessibility.getFullAXTree) after the page
@@ -49,8 +50,6 @@ enum CaptureType {
   // `bas-accessibility-snapshot/v1`. Failure to capture degrades
   // gracefully (the artifact is absent, the capture still succeeds).
   CAPTURE_TYPE_ACCESSIBILITY = 7;
-  // Normalized computed DOM-tree JSON snapshot captured in the same session.
-  CAPTURE_TYPE_DOM_TREE = 8;
 }
 
 // DimensionsPreset names common viewport sizes so callers do not have to
@@ -119,13 +118,8 @@ message CaptureRequest {
   // Echoed into the artifact bundle metadata for cross-referencing.
   string label = 6;
 
-  // When true, the rendered page's outerHTML (post-wait_for) is returned
-  // inline in CaptureResponse.dom_html. This is the remote-friendly way to
-  // consume rendered HTML: artifact paths in CaptureArtifact are
-  // server-filesystem paths, useless to callers on another host. Independent
-  // of the `captures` list. The server caps the inline payload (currently
-  // 2 MiB) and truncates beyond it.
-  bool inline_dom = 7;
+  reserved 7;
+  reserved "inline_dom";
 
   // Optional raw `bas/flows`-shape JSON (a WorkflowDefinitionV2 protojson
   // body) describing a specific interaction to drive *after* the navigate,
@@ -142,8 +136,8 @@ message CaptureRequest {
   // (bas-accessibility-snapshot/v1) is returned inline in
   // CaptureResponse.accessibility_json. This is the remote-friendly way to
   // consume the snapshot: artifact paths in CaptureArtifact are
-  // server-filesystem paths, useless to callers on another host. Mirrors
-  // inline_dom: it independently drives the AX capture (a caller need not
+  // server-filesystem paths, useless to callers on another host. It
+  // independently drives the AX capture (a caller need not
   // also list CAPTURE_TYPE_ACCESSIBILITY), and the server caps the inline
   // payload (currently 2 MiB) and truncates beyond it.
   bool inline_accessibility = 9;
@@ -165,10 +159,8 @@ message CaptureRequest {
   // the rest of the evidence in the same browser session.
   string screenshot_selector = 13;
 
-  // When true, the DOM artifact is a normalized computed-style tree rather
-  // than raw outerHTML. It is captured after the same readiness condition and
-  // navigation as the screenshot.
-  bool inline_dom_tree = 14;
+  reserved 14;
+  reserved "inline_dom_tree";
 
   // Document direction applied after navigation and before artifacts.
   string direction = 15;
@@ -205,12 +197,8 @@ message CaptureResponse {
   // their request without producing artifacts.
   bool dry_run = 5;
 
-  // Rendered page outerHTML, populated only when CaptureRequest.inline_dom
-  // was set. Empty on dry-run or when the in-page DOM read failed (the
-  // capture itself still succeeds — callers needing the DOM must treat
-  // empty as a failed fetch). Size-capped server-side (2 MiB); truncation
-  // is silent, which readable-text extractors tolerate by design.
-  string dom_html = 6;
+  reserved 6;
+  reserved "dom_html";
 
   // Normalized accessibility-tree snapshot JSON
   // (bas-accessibility-snapshot/v1), populated only when
@@ -220,9 +208,8 @@ message CaptureResponse {
   // Size-capped server-side (2 MiB); truncation is silent.
   string accessibility_json = 7;
 
-  // Normalized computed DOM-tree JSON, populated when inline_dom_tree is set.
-  // The same tree is also written as the durable DOM_TREE artifact.
-  string dom_tree_json = 9;
+  reserved 9;
+  reserved "dom_tree_json";
 
   // Readiness decision and outcome for this capture. This makes it explicit
   // whether capture used a caller wait, a declared profile surface, or normal

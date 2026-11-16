@@ -18,7 +18,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
-    "generator_digest": "sha256:cccdbaf9a556a5be923d2c17f31d7f3f1e8de7959b27263f9ddbb964a4b52cc9",
+    "generator_digest": "sha256:47bbfc74c5d2c0e0172be6ac47ec939b6b4678e8ca51fa8202f7056c8fc16447",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -74,7 +74,7 @@
     "gen/python/plan_manager/v1/validation/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/plan_manager/v1/validation/validation_pb2.py": "sha256:d5828eb3c43cb4cd00f33e8b65a029ef43cb02c465d7dd4410b15901a6239854",
     "gen/python/plan_manager/v1/validation/validation_pb2.pyi": "sha256:9a11e6ce62bd630ea206ff372dd5aa512d1f631f1b03fb9207eaaa7323690f44",
-    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
+    "gen/typescript/package.json": "sha256:d7210c69e0b4e8eb72d65b1503ce8ea1eeb61aa893b5442e16d0ab4a9980e5d6",
     "gen/typescript/plan-manager/v1/authoring/authoring_pb.ts": "sha256:efd4639778117fd76a72be3d44fbf29c3f96b586c63bb37d0c7186ad80aade9b",
     "gen/typescript/plan-manager/v1/execution/execution_pb.ts": "sha256:20405b3ec95cc88b649a1a537368faf4b8d36171c0435a01a07f6db02f70ac0a",
     "gen/typescript/plan-manager/v1/families/families_pb.ts": "sha256:f3676f0299eb38989d4585bd752fdd6f32896eed5ae63f2a6532465c68e7f693",

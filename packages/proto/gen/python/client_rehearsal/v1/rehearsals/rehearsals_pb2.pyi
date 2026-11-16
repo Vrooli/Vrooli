@@ -1,6 +1,7 @@
 import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -85,7 +86,7 @@ class TraceEvent(_message.Message):
     def __init__(self, sequence: _Optional[int] = ..., operation: _Optional[str] = ..., request_summary: _Optional[str] = ..., response_summary: _Optional[str] = ..., status: _Optional[str] = ..., occurred_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class CreateAndRunRehearsalRequest(_message.Message):
-    __slots__ = ("title", "workflow_json", "simulator_profile", "inject_seeded_fault", "simulator_source_json", "trigger_node_id", "required_output_paths", "repair_of_id")
+    __slots__ = ("title", "workflow_json", "simulator_profile", "inject_seeded_fault", "simulator_source_json", "trigger_node_id", "required_output_paths", "repair_of_id", "task_scoped", "trigger_input")
     TITLE_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_JSON_FIELD_NUMBER: _ClassVar[int]
     SIMULATOR_PROFILE_FIELD_NUMBER: _ClassVar[int]
@@ -94,6 +95,8 @@ class CreateAndRunRehearsalRequest(_message.Message):
     TRIGGER_NODE_ID_FIELD_NUMBER: _ClassVar[int]
     REQUIRED_OUTPUT_PATHS_FIELD_NUMBER: _ClassVar[int]
     REPAIR_OF_ID_FIELD_NUMBER: _ClassVar[int]
+    TASK_SCOPED_FIELD_NUMBER: _ClassVar[int]
+    TRIGGER_INPUT_FIELD_NUMBER: _ClassVar[int]
     title: str
     workflow_json: str
     simulator_profile: str
@@ -102,7 +105,9 @@ class CreateAndRunRehearsalRequest(_message.Message):
     trigger_node_id: str
     required_output_paths: _containers.RepeatedScalarFieldContainer[str]
     repair_of_id: str
-    def __init__(self, title: _Optional[str] = ..., workflow_json: _Optional[str] = ..., simulator_profile: _Optional[str] = ..., inject_seeded_fault: _Optional[bool] = ..., simulator_source_json: _Optional[str] = ..., trigger_node_id: _Optional[str] = ..., required_output_paths: _Optional[_Iterable[str]] = ..., repair_of_id: _Optional[str] = ...) -> None: ...
+    task_scoped: bool
+    trigger_input: _struct_pb2.Struct
+    def __init__(self, title: _Optional[str] = ..., workflow_json: _Optional[str] = ..., simulator_profile: _Optional[str] = ..., inject_seeded_fault: _Optional[bool] = ..., simulator_source_json: _Optional[str] = ..., trigger_node_id: _Optional[str] = ..., required_output_paths: _Optional[_Iterable[str]] = ..., repair_of_id: _Optional[str] = ..., task_scoped: _Optional[bool] = ..., trigger_input: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class CreateAndRunRehearsalResponse(_message.Message):
     __slots__ = ("rehearsal",)

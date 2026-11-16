@@ -2,11 +2,11 @@ package preview
 
 import (
 	"context"
-	"errors"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -21,8 +21,6 @@ type evictedPreviewCatalog struct {
 	libraryIDs map[string]string
 	root       string
 	calls      []string
-	failOn     string
-	failErr    error
 }
 
 func (f *evictedPreviewCatalog) Get(ctx context.Context, id string) (components.Component, error) {
@@ -64,9 +62,6 @@ func (f *evictedPreviewCatalog) EnsureMaterialized(_ context.Context, componentI
 	}
 	key := componentID + "@" + version
 	f.calls = append(f.calls, key)
-	if key == f.failOn {
-		return components.MaterializeResult{}, f.failErr
-	}
 	if into != "" {
 		return components.MaterializeResult{}, fmt.Errorf("fixture expected materialization into authored library root")
 	}
@@ -80,10 +75,12 @@ func (f *evictedPreviewCatalog) EnsureMaterialized(_ context.Context, componentI
 			return components.MaterializeResult{}, err
 		}
 	}
+	v.Presence = "materialized"
+	f.versions[key] = v
 	return components.MaterializeResult{Directory: filepath.ToSlash(destination), FilesWritten: len(v.Files)}, nil
 }
 
-func TestLatestPreviewMaterializesExactEvictedDependencyClosureBeforeBundling(t *testing.T) {
+func TestPreviewRejectsColdClosureWithoutWritingAndExplicitMaterializationRestoresPreview(t *testing.T) {
 	root := t.TempDir()
 	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
 	rootEntry := "components/PromptComposer/versions/1.0.4-draft.1/PromptComposer.tsx"
@@ -124,48 +121,54 @@ func TestLatestPreviewMaterializesExactEvictedDependencyClosureBeforeBundling(t 
 		root:       root,
 	}
 
-	bundle, err := NewServiceWithDepsAtRoot(catalog, NewEsbuilderWithRoot(libraryRoot), nil, root).GetBundle(context.Background(), "root")
+	service := NewServiceWithDepsAtRoot(catalog, NewEsbuilderWithRoot(libraryRoot), nil, root)
+	before := previewSourceDigests(t, libraryRoot)
+	for attempt := 0; attempt < 2; attempt++ { // cold call followed by a warm repeat
+		_, err := service.GetBundle(context.Background(), "root")
+		var evicted ErrEvictedDependency
+		require.ErrorAs(t, err, &evicted)
+		require.Equal(t, "react-component-library:Transitive", evicted.LibraryID)
+		require.Equal(t, "2.0.0", evicted.Version)
+		require.Contains(t, err.Error(), `react-component-library versions materialize "react-component-library:Transitive" 2.0.0`)
+		require.Empty(t, catalog.calls, "preview must not invoke the materializer")
+		require.Equal(t, before, previewSourceDigests(t, libraryRoot), "cold/warm read %d changed source files", attempt+1)
+	}
+
+	// The existing explicit write capability remains available to restore the
+	// exact dependency-first closure. Once materialized, preview works normally.
+	_, err := catalog.EnsureMaterialized(context.Background(), "transitive", "2.0.0", "")
+	require.NoError(t, err)
+	_, err = catalog.EnsureMaterialized(context.Background(), "direct", "1.2.0", "")
+	require.NoError(t, err)
+	require.Equal(t, []string{"transitive@2.0.0", "direct@1.2.0"}, catalog.calls)
+	bundle, err := service.GetBundle(context.Background(), "root")
 	require.NoError(t, err)
 	require.Contains(t, bundle.JS, "cold exact pin")
-	require.Equal(t, []string{"transitive@2.0.0", "direct@1.2.0"}, catalog.calls)
+	require.Equal(t, []string{"transitive@2.0.0", "direct@1.2.0"}, catalog.calls, "a materialized preview must not trigger another write")
 }
 
-func TestPreviewPropagatesMissingOrCorruptMirrorErrorsForExactPinnedDependency(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		err  error
-	}{
-		{name: "missing mirror", err: errors.New("cannot materialize react-component-library:Direct@1.2.0: file mirror is empty")},
-		{name: "corrupt mirror", err: components.ErrMaterializationHashMismatch{LibraryID: "react-component-library:Direct", Version: "1.2.0", Path: "Direct.tsx", Expected: "expected", Actual: "actual"}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			root := t.TempDir()
-			rootEntry := "components/Root/versions/1.0.0/Root.tsx"
-			rootDir := filepath.Join(root, "scenarios", "react-component-library", "library", filepath.Dir(filepath.FromSlash(rootEntry)))
-			require.NoError(t, os.MkdirAll(rootDir, 0o755))
-			require.NoError(t, os.WriteFile(filepath.Join(rootDir, "dependencies.json"), []byte(`{"dependencies":[{"libraryId":"react-component-library:Direct","major":1,"observed":"1.2.0"}]}`), 0o600))
-			deps := []components.AssetDependency{{LibraryID: "react-component-library:Direct", Version: "1.2.0"}}
-			assets := map[string]components.Component{
-				"root":   {ID: "root", LibraryID: "react-component-library:Root", SourcePath: rootEntry, LatestVersion: "1.0.0", Dependencies: deps},
-				"direct": {ID: "direct", LibraryID: "react-component-library:Direct", SourcePath: "components/Direct/versions/1.2.0/Direct.tsx", LatestVersion: "1.2.0"},
-			}
-			versions := map[string]components.ComponentVersion{
-				"root@1.0.0":   {ComponentID: "root", LibraryID: assets["root"].LibraryID, Version: "1.0.0", Presence: "materialized", SourcePath: rootEntry, Content: "export const Root = () => <div />", Dependencies: deps},
-				"direct@1.2.0": {ComponentID: "direct", LibraryID: assets["direct"].LibraryID, Version: "1.2.0", Presence: "evicted", SourcePath: assets["direct"].SourcePath, DependencyLockPresent: true},
-			}
-			catalog := &evictedPreviewCatalog{
-				fakeComponentsService: &fakeComponentsService{getVersionContentFn: func(_ context.Context, id, version string) (components.Content, error) {
-					v := versions[id+"@"+version]
-					return components.Content{Body: v.Content, SourcePath: v.SourcePath}, nil
-				}},
-				assets: assets, versions: versions, libraryIDs: map[string]string{assets["direct"].LibraryID: "direct"}, root: root,
-				failOn: "direct@1.2.0", failErr: tc.err,
-			}
-			_, err := NewServiceWithDepsAtRoot(catalog, NewEsbuilder(), nil, root).GetBundleVersion(context.Background(), "root", "1.0.0")
-			require.Error(t, err)
-			require.ErrorIs(t, err, tc.err)
-			require.Contains(t, strings.ToLower(err.Error()), "materialize pinned preview asset")
-			require.Equal(t, []string{"direct@1.2.0"}, catalog.calls)
-		})
-	}
+func previewSourceDigests(t *testing.T, root string) map[string]string {
+	t.Helper()
+	result := map[string]string{}
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		body, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		digest := sha256.Sum256(body)
+		result[filepath.ToSlash(rel)] = hex.EncodeToString(digest[:])
+		return nil
+	})
+	require.NoError(t, err)
+	return result
 }

@@ -144,16 +144,32 @@ func (idx *Indexer) indexManifest(ctx context.Context, path, targetVersion strin
 			return Component{}, err
 		}
 	}
-	component, err := idx.repo.UpsertManifest(ctx, in)
-	if err != nil {
-		return Component{}, fmt.Errorf("upsert %s: %w", path, err)
+	component, upsertErr, observeErr := idx.upsertManifest(ctx, path, in)
+	if upsertErr != nil {
+		return Component{}, upsertErr
 	}
-	if idx.observer != nil {
-		if err := idx.observer.Observe(ctx, component, in); err != nil {
-			return Component{}, fmt.Errorf("observe %s: %w", path, err)
-		}
+	if observeErr != nil {
+		return Component{}, observeErr
 	}
 	return component, nil
+}
+
+// upsertManifest is the one persistence boundary for both targeted authoring
+// refreshes and whole-library indexing. It keeps repository and observer
+// failures distinct because Run records observer failures while preserving a
+// successful manifest upsert; the authoring path fails the operation closed.
+func (idx *Indexer) upsertManifest(ctx context.Context, path string, in IndexManifestInput) (Component, error, error) {
+	component, err := idx.repo.UpsertManifest(ctx, in)
+	if err != nil {
+		return Component{}, fmt.Errorf("upsert %s: %w", path, err), nil
+	}
+	if idx.observer == nil {
+		return component, nil, nil
+	}
+	if err := idx.observer.Observe(ctx, component, in); err != nil {
+		return component, nil, fmt.Errorf("observe %s: %w", path, err)
+	}
+	return component, nil, nil
 }
 
 func (idx *Indexer) preserveHistoricalReleases(ctx context.Context, in *IndexManifestInput, target string) error {
@@ -268,16 +284,14 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 		result.Warnings = append(result.Warnings, in.Warnings...)
 		in.ReleaseAttestations = releaseAttestations
 		keepLibraryIDs[in.Manifest.LibraryID] = struct{}{}
-		comp, err := idx.repo.UpsertManifest(ctx, in)
-		if err != nil {
-			result.Errors = append(result.Errors, fmt.Errorf("upsert %s: %w", path, err))
+		comp, upsertErr, observeErr := idx.upsertManifest(ctx, path, in)
+		if upsertErr != nil {
+			result.Errors = append(result.Errors, upsertErr)
 			return nil
 		}
-		if idx.observer != nil {
-			if oerr := idx.observer.Observe(ctx, comp, in); oerr != nil {
-				result.Errors = append(result.Errors, fmt.Errorf("observe %s: %w", path, oerr))
-				// continue — observer failure must not hide the upsert.
-			}
+		if observeErr != nil {
+			result.Errors = append(result.Errors, observeErr)
+			// continue — observer failure must not hide the upsert.
 		}
 		result.Indexed++
 		result.LibraryIDs = append(result.LibraryIDs, in.Manifest.LibraryID)

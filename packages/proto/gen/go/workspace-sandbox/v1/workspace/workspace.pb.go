@@ -21,6 +21,1056 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ReplayTestOutcome int32
+
+const (
+	ReplayTestOutcome_REPLAY_TEST_OUTCOME_UNSPECIFIED           ReplayTestOutcome = 0
+	ReplayTestOutcome_REPLAY_TEST_OUTCOME_RUNNING               ReplayTestOutcome = 1
+	ReplayTestOutcome_REPLAY_TEST_OUTCOME_PASSED                ReplayTestOutcome = 2
+	ReplayTestOutcome_REPLAY_TEST_OUTCOME_ASSERTION_FAILED      ReplayTestOutcome = 3
+	ReplayTestOutcome_REPLAY_TEST_OUTCOME_INFRASTRUCTURE_FAILED ReplayTestOutcome = 4
+	ReplayTestOutcome_REPLAY_TEST_OUTCOME_INTERRUPTED           ReplayTestOutcome = 5
+)
+
+// Enum value maps for ReplayTestOutcome.
+var (
+	ReplayTestOutcome_name = map[int32]string{
+		0: "REPLAY_TEST_OUTCOME_UNSPECIFIED",
+		1: "REPLAY_TEST_OUTCOME_RUNNING",
+		2: "REPLAY_TEST_OUTCOME_PASSED",
+		3: "REPLAY_TEST_OUTCOME_ASSERTION_FAILED",
+		4: "REPLAY_TEST_OUTCOME_INFRASTRUCTURE_FAILED",
+		5: "REPLAY_TEST_OUTCOME_INTERRUPTED",
+	}
+	ReplayTestOutcome_value = map[string]int32{
+		"REPLAY_TEST_OUTCOME_UNSPECIFIED":           0,
+		"REPLAY_TEST_OUTCOME_RUNNING":               1,
+		"REPLAY_TEST_OUTCOME_PASSED":                2,
+		"REPLAY_TEST_OUTCOME_ASSERTION_FAILED":      3,
+		"REPLAY_TEST_OUTCOME_INFRASTRUCTURE_FAILED": 4,
+		"REPLAY_TEST_OUTCOME_INTERRUPTED":           5,
+	}
+)
+
+func (x ReplayTestOutcome) Enum() *ReplayTestOutcome {
+	p := new(ReplayTestOutcome)
+	*p = x
+	return p
+}
+
+func (x ReplayTestOutcome) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ReplayTestOutcome) Descriptor() protoreflect.EnumDescriptor {
+	return file_workspace_sandbox_v1_workspace_workspace_proto_enumTypes[0].Descriptor()
+}
+
+func (ReplayTestOutcome) Type() protoreflect.EnumType {
+	return &file_workspace_sandbox_v1_workspace_workspace_proto_enumTypes[0]
+}
+
+func (x ReplayTestOutcome) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ReplayTestOutcome.Descriptor instead.
+func (ReplayTestOutcome) EnumDescriptor() ([]byte, []int) {
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{0}
+}
+
+type ReplaySealRole int32
+
+const (
+	ReplaySealRole_REPLAY_SEAL_ROLE_UNSPECIFIED ReplaySealRole = 0
+	ReplaySealRole_REPLAY_SEAL_ROLE_SOURCE      ReplaySealRole = 1
+	ReplaySealRole_REPLAY_SEAL_ROLE_CANDIDATE   ReplaySealRole = 2
+	ReplaySealRole_REPLAY_SEAL_ROLE_REFERENCE   ReplaySealRole = 3
+)
+
+// Enum value maps for ReplaySealRole.
+var (
+	ReplaySealRole_name = map[int32]string{
+		0: "REPLAY_SEAL_ROLE_UNSPECIFIED",
+		1: "REPLAY_SEAL_ROLE_SOURCE",
+		2: "REPLAY_SEAL_ROLE_CANDIDATE",
+		3: "REPLAY_SEAL_ROLE_REFERENCE",
+	}
+	ReplaySealRole_value = map[string]int32{
+		"REPLAY_SEAL_ROLE_UNSPECIFIED": 0,
+		"REPLAY_SEAL_ROLE_SOURCE":      1,
+		"REPLAY_SEAL_ROLE_CANDIDATE":   2,
+		"REPLAY_SEAL_ROLE_REFERENCE":   3,
+	}
+)
+
+func (x ReplaySealRole) Enum() *ReplaySealRole {
+	p := new(ReplaySealRole)
+	*p = x
+	return p
+}
+
+func (x ReplaySealRole) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ReplaySealRole) Descriptor() protoreflect.EnumDescriptor {
+	return file_workspace_sandbox_v1_workspace_workspace_proto_enumTypes[1].Descriptor()
+}
+
+func (ReplaySealRole) Type() protoreflect.EnumType {
+	return &file_workspace_sandbox_v1_workspace_workspace_proto_enumTypes[1]
+}
+
+func (x ReplaySealRole) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ReplaySealRole.Descriptor instead.
+func (ReplaySealRole) EnumDescriptor() ([]byte, []int) {
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{1}
+}
+
+type ReplayTestFile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RelativePath  string                 `protobuf:"bytes,1,opt,name=relative_path,json=relativePath,proto3" json:"relative_path,omitempty"`
+	Content       []byte                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	Sha256        string                 `protobuf:"bytes,3,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReplayTestFile) Reset() {
+	*x = ReplayTestFile{}
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReplayTestFile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReplayTestFile) ProtoMessage() {}
+
+func (x *ReplayTestFile) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReplayTestFile.ProtoReflect.Descriptor instead.
+func (*ReplayTestFile) Descriptor() ([]byte, []int) {
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ReplayTestFile) GetRelativePath() string {
+	if x != nil {
+		return x.RelativePath
+	}
+	return ""
+}
+
+func (x *ReplayTestFile) GetContent() []byte {
+	if x != nil {
+		return x.Content
+	}
+	return nil
+}
+
+func (x *ReplayTestFile) GetSha256() string {
+	if x != nil {
+		return x.Sha256
+	}
+	return ""
+}
+
+type StartReplayTestRequest struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	OperationIdempotencyKey string                 `protobuf:"bytes,1,opt,name=operation_idempotency_key,json=operationIdempotencyKey,proto3" json:"operation_idempotency_key,omitempty"`
+	CaseId                  string                 `protobuf:"bytes,2,opt,name=case_id,json=caseId,proto3" json:"case_id,omitempty"`
+	Role                    ReplaySealRole         `protobuf:"varint,3,opt,name=role,proto3,enum=workspace_sandbox.v1.workspace.ReplaySealRole" json:"role,omitempty"`
+	SealDigest              string                 `protobuf:"bytes,4,opt,name=seal_digest,json=sealDigest,proto3" json:"seal_digest,omitempty"`
+	EvaluatorBundleId       string                 `protobuf:"bytes,5,opt,name=evaluator_bundle_id,json=evaluatorBundleId,proto3" json:"evaluator_bundle_id,omitempty"`
+	EvaluatorBundleDigest   string                 `protobuf:"bytes,6,opt,name=evaluator_bundle_digest,json=evaluatorBundleDigest,proto3" json:"evaluator_bundle_digest,omitempty"`
+	Files                   []*ReplayTestFile      `protobuf:"bytes,7,rep,name=files,proto3" json:"files,omitempty"`
+	EntryPoint              string                 `protobuf:"bytes,8,opt,name=entry_point,json=entryPoint,proto3" json:"entry_point,omitempty"`
+	TimeoutSeconds          uint32                 `protobuf:"varint,9,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *StartReplayTestRequest) Reset() {
+	*x = StartReplayTestRequest{}
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartReplayTestRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartReplayTestRequest) ProtoMessage() {}
+
+func (x *StartReplayTestRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartReplayTestRequest.ProtoReflect.Descriptor instead.
+func (*StartReplayTestRequest) Descriptor() ([]byte, []int) {
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *StartReplayTestRequest) GetOperationIdempotencyKey() string {
+	if x != nil {
+		return x.OperationIdempotencyKey
+	}
+	return ""
+}
+
+func (x *StartReplayTestRequest) GetCaseId() string {
+	if x != nil {
+		return x.CaseId
+	}
+	return ""
+}
+
+func (x *StartReplayTestRequest) GetRole() ReplaySealRole {
+	if x != nil {
+		return x.Role
+	}
+	return ReplaySealRole_REPLAY_SEAL_ROLE_UNSPECIFIED
+}
+
+func (x *StartReplayTestRequest) GetSealDigest() string {
+	if x != nil {
+		return x.SealDigest
+	}
+	return ""
+}
+
+func (x *StartReplayTestRequest) GetEvaluatorBundleId() string {
+	if x != nil {
+		return x.EvaluatorBundleId
+	}
+	return ""
+}
+
+func (x *StartReplayTestRequest) GetEvaluatorBundleDigest() string {
+	if x != nil {
+		return x.EvaluatorBundleDigest
+	}
+	return ""
+}
+
+func (x *StartReplayTestRequest) GetFiles() []*ReplayTestFile {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+func (x *StartReplayTestRequest) GetEntryPoint() string {
+	if x != nil {
+		return x.EntryPoint
+	}
+	return ""
+}
+
+func (x *StartReplayTestRequest) GetTimeoutSeconds() uint32 {
+	if x != nil {
+		return x.TimeoutSeconds
+	}
+	return 0
+}
+
+type StartReplayTestResponse struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Success               bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	OperationId           string                 `protobuf:"bytes,2,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	CaseId                string                 `protobuf:"bytes,3,opt,name=case_id,json=caseId,proto3" json:"case_id,omitempty"`
+	Role                  ReplaySealRole         `protobuf:"varint,4,opt,name=role,proto3,enum=workspace_sandbox.v1.workspace.ReplaySealRole" json:"role,omitempty"`
+	SealDigest            string                 `protobuf:"bytes,5,opt,name=seal_digest,json=sealDigest,proto3" json:"seal_digest,omitempty"`
+	EvaluatorBundleId     string                 `protobuf:"bytes,6,opt,name=evaluator_bundle_id,json=evaluatorBundleId,proto3" json:"evaluator_bundle_id,omitempty"`
+	EvaluatorBundleDigest string                 `protobuf:"bytes,7,opt,name=evaluator_bundle_digest,json=evaluatorBundleDigest,proto3" json:"evaluator_bundle_digest,omitempty"`
+	EntryPoint            string                 `protobuf:"bytes,8,opt,name=entry_point,json=entryPoint,proto3" json:"entry_point,omitempty"`
+	Outcome               ReplayTestOutcome      `protobuf:"varint,9,opt,name=outcome,proto3,enum=workspace_sandbox.v1.workspace.ReplayTestOutcome" json:"outcome,omitempty"`
+	ResultDigest          string                 `protobuf:"bytes,10,opt,name=result_digest,json=resultDigest,proto3" json:"result_digest,omitempty"`
+	SealIntactBefore      bool                   `protobuf:"varint,11,opt,name=seal_intact_before,json=sealIntactBefore,proto3" json:"seal_intact_before,omitempty"`
+	SealIntactAfter       bool                   `protobuf:"varint,12,opt,name=seal_intact_after,json=sealIntactAfter,proto3" json:"seal_intact_after,omitempty"`
+	Detail                string                 `protobuf:"bytes,13,opt,name=detail,proto3" json:"detail,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *StartReplayTestResponse) Reset() {
+	*x = StartReplayTestResponse{}
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartReplayTestResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartReplayTestResponse) ProtoMessage() {}
+
+func (x *StartReplayTestResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartReplayTestResponse.ProtoReflect.Descriptor instead.
+func (*StartReplayTestResponse) Descriptor() ([]byte, []int) {
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *StartReplayTestResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *StartReplayTestResponse) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+func (x *StartReplayTestResponse) GetCaseId() string {
+	if x != nil {
+		return x.CaseId
+	}
+	return ""
+}
+
+func (x *StartReplayTestResponse) GetRole() ReplaySealRole {
+	if x != nil {
+		return x.Role
+	}
+	return ReplaySealRole_REPLAY_SEAL_ROLE_UNSPECIFIED
+}
+
+func (x *StartReplayTestResponse) GetSealDigest() string {
+	if x != nil {
+		return x.SealDigest
+	}
+	return ""
+}
+
+func (x *StartReplayTestResponse) GetEvaluatorBundleId() string {
+	if x != nil {
+		return x.EvaluatorBundleId
+	}
+	return ""
+}
+
+func (x *StartReplayTestResponse) GetEvaluatorBundleDigest() string {
+	if x != nil {
+		return x.EvaluatorBundleDigest
+	}
+	return ""
+}
+
+func (x *StartReplayTestResponse) GetEntryPoint() string {
+	if x != nil {
+		return x.EntryPoint
+	}
+	return ""
+}
+
+func (x *StartReplayTestResponse) GetOutcome() ReplayTestOutcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return ReplayTestOutcome_REPLAY_TEST_OUTCOME_UNSPECIFIED
+}
+
+func (x *StartReplayTestResponse) GetResultDigest() string {
+	if x != nil {
+		return x.ResultDigest
+	}
+	return ""
+}
+
+func (x *StartReplayTestResponse) GetSealIntactBefore() bool {
+	if x != nil {
+		return x.SealIntactBefore
+	}
+	return false
+}
+
+func (x *StartReplayTestResponse) GetSealIntactAfter() bool {
+	if x != nil {
+		return x.SealIntactAfter
+	}
+	return false
+}
+
+func (x *StartReplayTestResponse) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+type WaitReplayTestRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OperationId   string                 `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	CaseId        string                 `protobuf:"bytes,2,opt,name=case_id,json=caseId,proto3" json:"case_id,omitempty"`
+	SealDigest    string                 `protobuf:"bytes,3,opt,name=seal_digest,json=sealDigest,proto3" json:"seal_digest,omitempty"`
+	WaitSeconds   uint32                 `protobuf:"varint,4,opt,name=wait_seconds,json=waitSeconds,proto3" json:"wait_seconds,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WaitReplayTestRequest) Reset() {
+	*x = WaitReplayTestRequest{}
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WaitReplayTestRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WaitReplayTestRequest) ProtoMessage() {}
+
+func (x *WaitReplayTestRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WaitReplayTestRequest.ProtoReflect.Descriptor instead.
+func (*WaitReplayTestRequest) Descriptor() ([]byte, []int) {
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *WaitReplayTestRequest) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+func (x *WaitReplayTestRequest) GetCaseId() string {
+	if x != nil {
+		return x.CaseId
+	}
+	return ""
+}
+
+func (x *WaitReplayTestRequest) GetSealDigest() string {
+	if x != nil {
+		return x.SealDigest
+	}
+	return ""
+}
+
+func (x *WaitReplayTestRequest) GetWaitSeconds() uint32 {
+	if x != nil {
+		return x.WaitSeconds
+	}
+	return 0
+}
+
+type WaitReplayTestResponse struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Success               bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	OperationId           string                 `protobuf:"bytes,2,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	CaseId                string                 `protobuf:"bytes,3,opt,name=case_id,json=caseId,proto3" json:"case_id,omitempty"`
+	Role                  ReplaySealRole         `protobuf:"varint,4,opt,name=role,proto3,enum=workspace_sandbox.v1.workspace.ReplaySealRole" json:"role,omitempty"`
+	SealDigest            string                 `protobuf:"bytes,5,opt,name=seal_digest,json=sealDigest,proto3" json:"seal_digest,omitempty"`
+	EvaluatorBundleId     string                 `protobuf:"bytes,6,opt,name=evaluator_bundle_id,json=evaluatorBundleId,proto3" json:"evaluator_bundle_id,omitempty"`
+	EvaluatorBundleDigest string                 `protobuf:"bytes,7,opt,name=evaluator_bundle_digest,json=evaluatorBundleDigest,proto3" json:"evaluator_bundle_digest,omitempty"`
+	EntryPoint            string                 `protobuf:"bytes,8,opt,name=entry_point,json=entryPoint,proto3" json:"entry_point,omitempty"`
+	Outcome               ReplayTestOutcome      `protobuf:"varint,9,opt,name=outcome,proto3,enum=workspace_sandbox.v1.workspace.ReplayTestOutcome" json:"outcome,omitempty"`
+	ResultDigest          string                 `protobuf:"bytes,10,opt,name=result_digest,json=resultDigest,proto3" json:"result_digest,omitempty"`
+	SealIntactBefore      bool                   `protobuf:"varint,11,opt,name=seal_intact_before,json=sealIntactBefore,proto3" json:"seal_intact_before,omitempty"`
+	SealIntactAfter       bool                   `protobuf:"varint,12,opt,name=seal_intact_after,json=sealIntactAfter,proto3" json:"seal_intact_after,omitempty"`
+	Detail                string                 `protobuf:"bytes,13,opt,name=detail,proto3" json:"detail,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *WaitReplayTestResponse) Reset() {
+	*x = WaitReplayTestResponse{}
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WaitReplayTestResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WaitReplayTestResponse) ProtoMessage() {}
+
+func (x *WaitReplayTestResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WaitReplayTestResponse.ProtoReflect.Descriptor instead.
+func (*WaitReplayTestResponse) Descriptor() ([]byte, []int) {
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *WaitReplayTestResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *WaitReplayTestResponse) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+func (x *WaitReplayTestResponse) GetCaseId() string {
+	if x != nil {
+		return x.CaseId
+	}
+	return ""
+}
+
+func (x *WaitReplayTestResponse) GetRole() ReplaySealRole {
+	if x != nil {
+		return x.Role
+	}
+	return ReplaySealRole_REPLAY_SEAL_ROLE_UNSPECIFIED
+}
+
+func (x *WaitReplayTestResponse) GetSealDigest() string {
+	if x != nil {
+		return x.SealDigest
+	}
+	return ""
+}
+
+func (x *WaitReplayTestResponse) GetEvaluatorBundleId() string {
+	if x != nil {
+		return x.EvaluatorBundleId
+	}
+	return ""
+}
+
+func (x *WaitReplayTestResponse) GetEvaluatorBundleDigest() string {
+	if x != nil {
+		return x.EvaluatorBundleDigest
+	}
+	return ""
+}
+
+func (x *WaitReplayTestResponse) GetEntryPoint() string {
+	if x != nil {
+		return x.EntryPoint
+	}
+	return ""
+}
+
+func (x *WaitReplayTestResponse) GetOutcome() ReplayTestOutcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return ReplayTestOutcome_REPLAY_TEST_OUTCOME_UNSPECIFIED
+}
+
+func (x *WaitReplayTestResponse) GetResultDigest() string {
+	if x != nil {
+		return x.ResultDigest
+	}
+	return ""
+}
+
+func (x *WaitReplayTestResponse) GetSealIntactBefore() bool {
+	if x != nil {
+		return x.SealIntactBefore
+	}
+	return false
+}
+
+func (x *WaitReplayTestResponse) GetSealIntactAfter() bool {
+	if x != nil {
+		return x.SealIntactAfter
+	}
+	return false
+}
+
+func (x *WaitReplayTestResponse) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+type CreateReplaySealRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SandboxId     string                 `protobuf:"bytes,1,opt,name=sandbox_id,json=sandboxId,proto3" json:"sandbox_id,omitempty"`
+	CaseId        string                 `protobuf:"bytes,2,opt,name=case_id,json=caseId,proto3" json:"case_id,omitempty"`
+	Role          ReplaySealRole         `protobuf:"varint,3,opt,name=role,proto3,enum=workspace_sandbox.v1.workspace.ReplaySealRole" json:"role,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateReplaySealRequest) Reset() {
+	*x = CreateReplaySealRequest{}
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateReplaySealRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateReplaySealRequest) ProtoMessage() {}
+
+func (x *CreateReplaySealRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateReplaySealRequest.ProtoReflect.Descriptor instead.
+func (*CreateReplaySealRequest) Descriptor() ([]byte, []int) {
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *CreateReplaySealRequest) GetSandboxId() string {
+	if x != nil {
+		return x.SandboxId
+	}
+	return ""
+}
+
+func (x *CreateReplaySealRequest) GetCaseId() string {
+	if x != nil {
+		return x.CaseId
+	}
+	return ""
+}
+
+func (x *CreateReplaySealRequest) GetRole() ReplaySealRole {
+	if x != nil {
+		return x.Role
+	}
+	return ReplaySealRole_REPLAY_SEAL_ROLE_UNSPECIFIED
+}
+
+type CreateReplaySealResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	CaseId        string                 `protobuf:"bytes,2,opt,name=case_id,json=caseId,proto3" json:"case_id,omitempty"`
+	Role          ReplaySealRole         `protobuf:"varint,3,opt,name=role,proto3,enum=workspace_sandbox.v1.workspace.ReplaySealRole" json:"role,omitempty"`
+	SealDigest    string                 `protobuf:"bytes,4,opt,name=seal_digest,json=sealDigest,proto3" json:"seal_digest,omitempty"`
+	FileCount     uint64                 `protobuf:"varint,5,opt,name=file_count,json=fileCount,proto3" json:"file_count,omitempty"`
+	TotalBytes    uint64                 `protobuf:"varint,6,opt,name=total_bytes,json=totalBytes,proto3" json:"total_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateReplaySealResponse) Reset() {
+	*x = CreateReplaySealResponse{}
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateReplaySealResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateReplaySealResponse) ProtoMessage() {}
+
+func (x *CreateReplaySealResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateReplaySealResponse.ProtoReflect.Descriptor instead.
+func (*CreateReplaySealResponse) Descriptor() ([]byte, []int) {
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *CreateReplaySealResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *CreateReplaySealResponse) GetCaseId() string {
+	if x != nil {
+		return x.CaseId
+	}
+	return ""
+}
+
+func (x *CreateReplaySealResponse) GetRole() ReplaySealRole {
+	if x != nil {
+		return x.Role
+	}
+	return ReplaySealRole_REPLAY_SEAL_ROLE_UNSPECIFIED
+}
+
+func (x *CreateReplaySealResponse) GetSealDigest() string {
+	if x != nil {
+		return x.SealDigest
+	}
+	return ""
+}
+
+func (x *CreateReplaySealResponse) GetFileCount() uint64 {
+	if x != nil {
+		return x.FileCount
+	}
+	return 0
+}
+
+func (x *CreateReplaySealResponse) GetTotalBytes() uint64 {
+	if x != nil {
+		return x.TotalBytes
+	}
+	return 0
+}
+
+type ResolveReplaySealRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CaseId        string                 `protobuf:"bytes,1,opt,name=case_id,json=caseId,proto3" json:"case_id,omitempty"`
+	Role          ReplaySealRole         `protobuf:"varint,2,opt,name=role,proto3,enum=workspace_sandbox.v1.workspace.ReplaySealRole" json:"role,omitempty"`
+	SealDigest    string                 `protobuf:"bytes,3,opt,name=seal_digest,json=sealDigest,proto3" json:"seal_digest,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveReplaySealRequest) Reset() {
+	*x = ResolveReplaySealRequest{}
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveReplaySealRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveReplaySealRequest) ProtoMessage() {}
+
+func (x *ResolveReplaySealRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveReplaySealRequest.ProtoReflect.Descriptor instead.
+func (*ResolveReplaySealRequest) Descriptor() ([]byte, []int) {
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ResolveReplaySealRequest) GetCaseId() string {
+	if x != nil {
+		return x.CaseId
+	}
+	return ""
+}
+
+func (x *ResolveReplaySealRequest) GetRole() ReplaySealRole {
+	if x != nil {
+		return x.Role
+	}
+	return ReplaySealRole_REPLAY_SEAL_ROLE_UNSPECIFIED
+}
+
+func (x *ResolveReplaySealRequest) GetSealDigest() string {
+	if x != nil {
+		return x.SealDigest
+	}
+	return ""
+}
+
+type ResolveReplaySealResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	CaseId        string                 `protobuf:"bytes,2,opt,name=case_id,json=caseId,proto3" json:"case_id,omitempty"`
+	Role          ReplaySealRole         `protobuf:"varint,3,opt,name=role,proto3,enum=workspace_sandbox.v1.workspace.ReplaySealRole" json:"role,omitempty"`
+	SealDigest    string                 `protobuf:"bytes,4,opt,name=seal_digest,json=sealDigest,proto3" json:"seal_digest,omitempty"`
+	WorkspaceRoot string                 `protobuf:"bytes,5,opt,name=workspace_root,json=workspaceRoot,proto3" json:"workspace_root,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveReplaySealResponse) Reset() {
+	*x = ResolveReplaySealResponse{}
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveReplaySealResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveReplaySealResponse) ProtoMessage() {}
+
+func (x *ResolveReplaySealResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveReplaySealResponse.ProtoReflect.Descriptor instead.
+func (*ResolveReplaySealResponse) Descriptor() ([]byte, []int) {
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ResolveReplaySealResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *ResolveReplaySealResponse) GetCaseId() string {
+	if x != nil {
+		return x.CaseId
+	}
+	return ""
+}
+
+func (x *ResolveReplaySealResponse) GetRole() ReplaySealRole {
+	if x != nil {
+		return x.Role
+	}
+	return ReplaySealRole_REPLAY_SEAL_ROLE_UNSPECIFIED
+}
+
+func (x *ResolveReplaySealResponse) GetSealDigest() string {
+	if x != nil {
+		return x.SealDigest
+	}
+	return ""
+}
+
+func (x *ResolveReplaySealResponse) GetWorkspaceRoot() string {
+	if x != nil {
+		return x.WorkspaceRoot
+	}
+	return ""
+}
+
+type VerifyReplaySealRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CaseId        string                 `protobuf:"bytes,1,opt,name=case_id,json=caseId,proto3" json:"case_id,omitempty"`
+	Role          ReplaySealRole         `protobuf:"varint,2,opt,name=role,proto3,enum=workspace_sandbox.v1.workspace.ReplaySealRole" json:"role,omitempty"`
+	SealDigest    string                 `protobuf:"bytes,3,opt,name=seal_digest,json=sealDigest,proto3" json:"seal_digest,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifyReplaySealRequest) Reset() {
+	*x = VerifyReplaySealRequest{}
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyReplaySealRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyReplaySealRequest) ProtoMessage() {}
+
+func (x *VerifyReplaySealRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyReplaySealRequest.ProtoReflect.Descriptor instead.
+func (*VerifyReplaySealRequest) Descriptor() ([]byte, []int) {
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *VerifyReplaySealRequest) GetCaseId() string {
+	if x != nil {
+		return x.CaseId
+	}
+	return ""
+}
+
+func (x *VerifyReplaySealRequest) GetRole() ReplaySealRole {
+	if x != nil {
+		return x.Role
+	}
+	return ReplaySealRole_REPLAY_SEAL_ROLE_UNSPECIFIED
+}
+
+func (x *VerifyReplaySealRequest) GetSealDigest() string {
+	if x != nil {
+		return x.SealDigest
+	}
+	return ""
+}
+
+type VerifyReplaySealResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Success        bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Intact         bool                   `protobuf:"varint,2,opt,name=intact,proto3" json:"intact,omitempty"`
+	TamperDetected bool                   `protobuf:"varint,3,opt,name=tamper_detected,json=tamperDetected,proto3" json:"tamper_detected,omitempty"`
+	CaseId         string                 `protobuf:"bytes,4,opt,name=case_id,json=caseId,proto3" json:"case_id,omitempty"`
+	Role           ReplaySealRole         `protobuf:"varint,5,opt,name=role,proto3,enum=workspace_sandbox.v1.workspace.ReplaySealRole" json:"role,omitempty"`
+	SealDigest     string                 `protobuf:"bytes,6,opt,name=seal_digest,json=sealDigest,proto3" json:"seal_digest,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *VerifyReplaySealResponse) Reset() {
+	*x = VerifyReplaySealResponse{}
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyReplaySealResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyReplaySealResponse) ProtoMessage() {}
+
+func (x *VerifyReplaySealResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyReplaySealResponse.ProtoReflect.Descriptor instead.
+func (*VerifyReplaySealResponse) Descriptor() ([]byte, []int) {
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *VerifyReplaySealResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *VerifyReplaySealResponse) GetIntact() bool {
+	if x != nil {
+		return x.Intact
+	}
+	return false
+}
+
+func (x *VerifyReplaySealResponse) GetTamperDetected() bool {
+	if x != nil {
+		return x.TamperDetected
+	}
+	return false
+}
+
+func (x *VerifyReplaySealResponse) GetCaseId() string {
+	if x != nil {
+		return x.CaseId
+	}
+	return ""
+}
+
+func (x *VerifyReplaySealResponse) GetRole() ReplaySealRole {
+	if x != nil {
+		return x.Role
+	}
+	return ReplaySealRole_REPLAY_SEAL_ROLE_UNSPECIFIED
+}
+
+func (x *VerifyReplaySealResponse) GetSealDigest() string {
+	if x != nil {
+		return x.SealDigest
+	}
+	return ""
+}
+
 type ResolveWorkspaceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SandboxId     string                 `protobuf:"bytes,1,opt,name=sandbox_id,json=sandboxId,proto3" json:"sandbox_id,omitempty"`
@@ -30,7 +1080,7 @@ type ResolveWorkspaceRequest struct {
 
 func (x *ResolveWorkspaceRequest) Reset() {
 	*x = ResolveWorkspaceRequest{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[0]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42,7 +1092,7 @@ func (x *ResolveWorkspaceRequest) String() string {
 func (*ResolveWorkspaceRequest) ProtoMessage() {}
 
 func (x *ResolveWorkspaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[0]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,7 +1105,7 @@ func (x *ResolveWorkspaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveWorkspaceRequest.ProtoReflect.Descriptor instead.
 func (*ResolveWorkspaceRequest) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{0}
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ResolveWorkspaceRequest) GetSandboxId() string {
@@ -77,7 +1127,7 @@ type ResolveWorkspaceResponse struct {
 
 func (x *ResolveWorkspaceResponse) Reset() {
 	*x = ResolveWorkspaceResponse{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[1]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -89,7 +1139,7 @@ func (x *ResolveWorkspaceResponse) String() string {
 func (*ResolveWorkspaceResponse) ProtoMessage() {}
 
 func (x *ResolveWorkspaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[1]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -102,7 +1152,7 @@ func (x *ResolveWorkspaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveWorkspaceResponse.ProtoReflect.Descriptor instead.
 func (*ResolveWorkspaceResponse) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{1}
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ResolveWorkspaceResponse) GetSuccess() bool {
@@ -147,7 +1197,7 @@ type CreateSandboxRequest struct {
 
 func (x *CreateSandboxRequest) Reset() {
 	*x = CreateSandboxRequest{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[2]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -159,7 +1209,7 @@ func (x *CreateSandboxRequest) String() string {
 func (*CreateSandboxRequest) ProtoMessage() {}
 
 func (x *CreateSandboxRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[2]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -172,7 +1222,7 @@ func (x *CreateSandboxRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSandboxRequest.ProtoReflect.Descriptor instead.
 func (*CreateSandboxRequest) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{2}
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CreateSandboxRequest) GetName() string {
@@ -231,7 +1281,7 @@ type SandboxSummary struct {
 
 func (x *SandboxSummary) Reset() {
 	*x = SandboxSummary{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[3]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -243,7 +1293,7 @@ func (x *SandboxSummary) String() string {
 func (*SandboxSummary) ProtoMessage() {}
 
 func (x *SandboxSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[3]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -256,7 +1306,7 @@ func (x *SandboxSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SandboxSummary.ProtoReflect.Descriptor instead.
 func (*SandboxSummary) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{3}
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SandboxSummary) GetSandboxId() string {
@@ -311,7 +1361,7 @@ type CreateSandboxResponse struct {
 
 func (x *CreateSandboxResponse) Reset() {
 	*x = CreateSandboxResponse{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[4]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -323,7 +1373,7 @@ func (x *CreateSandboxResponse) String() string {
 func (*CreateSandboxResponse) ProtoMessage() {}
 
 func (x *CreateSandboxResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[4]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -336,7 +1386,7 @@ func (x *CreateSandboxResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSandboxResponse.ProtoReflect.Descriptor instead.
 func (*CreateSandboxResponse) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{4}
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CreateSandboxResponse) GetSuccess() bool {
@@ -362,7 +1412,7 @@ type GetSandboxDiffRequest struct {
 
 func (x *GetSandboxDiffRequest) Reset() {
 	*x = GetSandboxDiffRequest{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[5]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -374,7 +1424,7 @@ func (x *GetSandboxDiffRequest) String() string {
 func (*GetSandboxDiffRequest) ProtoMessage() {}
 
 func (x *GetSandboxDiffRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[5]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -387,7 +1437,7 @@ func (x *GetSandboxDiffRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSandboxDiffRequest.ProtoReflect.Descriptor instead.
 func (*GetSandboxDiffRequest) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{5}
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetSandboxDiffRequest) GetSandboxId() string {
@@ -409,7 +1459,7 @@ type DiffFile struct {
 
 func (x *DiffFile) Reset() {
 	*x = DiffFile{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[6]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -421,7 +1471,7 @@ func (x *DiffFile) String() string {
 func (*DiffFile) ProtoMessage() {}
 
 func (x *DiffFile) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[6]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -434,7 +1484,7 @@ func (x *DiffFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiffFile.ProtoReflect.Descriptor instead.
 func (*DiffFile) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{6}
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *DiffFile) GetPath() string {
@@ -480,7 +1530,7 @@ type DiffStats struct {
 
 func (x *DiffStats) Reset() {
 	*x = DiffStats{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[7]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -492,7 +1542,7 @@ func (x *DiffStats) String() string {
 func (*DiffStats) ProtoMessage() {}
 
 func (x *DiffStats) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[7]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -505,7 +1555,7 @@ func (x *DiffStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiffStats.ProtoReflect.Descriptor instead.
 func (*DiffStats) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{7}
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *DiffStats) GetFilesChanged() int32 {
@@ -573,7 +1623,7 @@ type GetSandboxDiffResponse struct {
 
 func (x *GetSandboxDiffResponse) Reset() {
 	*x = GetSandboxDiffResponse{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[8]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -585,7 +1635,7 @@ func (x *GetSandboxDiffResponse) String() string {
 func (*GetSandboxDiffResponse) ProtoMessage() {}
 
 func (x *GetSandboxDiffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[8]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -598,7 +1648,7 @@ func (x *GetSandboxDiffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSandboxDiffResponse.ProtoReflect.Descriptor instead.
 func (*GetSandboxDiffResponse) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{8}
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetSandboxDiffResponse) GetSuccess() bool {
@@ -668,7 +1718,7 @@ type PromoteSandboxRequest struct {
 
 func (x *PromoteSandboxRequest) Reset() {
 	*x = PromoteSandboxRequest{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[9]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -680,7 +1730,7 @@ func (x *PromoteSandboxRequest) String() string {
 func (*PromoteSandboxRequest) ProtoMessage() {}
 
 func (x *PromoteSandboxRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[9]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -693,7 +1743,7 @@ func (x *PromoteSandboxRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromoteSandboxRequest.ProtoReflect.Descriptor instead.
 func (*PromoteSandboxRequest) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{9}
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *PromoteSandboxRequest) GetSandboxId() string {
@@ -777,7 +1827,7 @@ type PromoteSandboxResponse struct {
 
 func (x *PromoteSandboxResponse) Reset() {
 	*x = PromoteSandboxResponse{}
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[10]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -789,7 +1839,7 @@ func (x *PromoteSandboxResponse) String() string {
 func (*PromoteSandboxResponse) ProtoMessage() {}
 
 func (x *PromoteSandboxResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[10]
+	mi := &file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -802,7 +1852,7 @@ func (x *PromoteSandboxResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromoteSandboxResponse.ProtoReflect.Descriptor instead.
 func (*PromoteSandboxResponse) Descriptor() ([]byte, []int) {
-	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{10}
+	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *PromoteSandboxResponse) GetSuccess() bool {
@@ -879,7 +1929,103 @@ var File_workspace_sandbox_v1_workspace_workspace_proto protoreflect.FileDescrip
 
 const file_workspace_sandbox_v1_workspace_workspace_proto_rawDesc = "" +
 	"\n" +
-	".workspace-sandbox/v1/workspace/workspace.proto\x12\x1eworkspace_sandbox.v1.workspace\"8\n" +
+	".workspace-sandbox/v1/workspace/workspace.proto\x12\x1eworkspace_sandbox.v1.workspace\"g\n" +
+	"\x0eReplayTestFile\x12#\n" +
+	"\rrelative_path\x18\x01 \x01(\tR\frelativePath\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\fR\acontent\x12\x16\n" +
+	"\x06sha256\x18\x03 \x01(\tR\x06sha256\"\xca\x03\n" +
+	"\x16StartReplayTestRequest\x12:\n" +
+	"\x19operation_idempotency_key\x18\x01 \x01(\tR\x17operationIdempotencyKey\x12\x17\n" +
+	"\acase_id\x18\x02 \x01(\tR\x06caseId\x12B\n" +
+	"\x04role\x18\x03 \x01(\x0e2..workspace_sandbox.v1.workspace.ReplaySealRoleR\x04role\x12\x1f\n" +
+	"\vseal_digest\x18\x04 \x01(\tR\n" +
+	"sealDigest\x12.\n" +
+	"\x13evaluator_bundle_id\x18\x05 \x01(\tR\x11evaluatorBundleId\x126\n" +
+	"\x17evaluator_bundle_digest\x18\x06 \x01(\tR\x15evaluatorBundleDigest\x12D\n" +
+	"\x05files\x18\a \x03(\v2..workspace_sandbox.v1.workspace.ReplayTestFileR\x05files\x12\x1f\n" +
+	"\ventry_point\x18\b \x01(\tR\n" +
+	"entryPoint\x12'\n" +
+	"\x0ftimeout_seconds\x18\t \x01(\rR\x0etimeoutSeconds\"\xc1\x04\n" +
+	"\x17StartReplayTestResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12!\n" +
+	"\foperation_id\x18\x02 \x01(\tR\voperationId\x12\x17\n" +
+	"\acase_id\x18\x03 \x01(\tR\x06caseId\x12B\n" +
+	"\x04role\x18\x04 \x01(\x0e2..workspace_sandbox.v1.workspace.ReplaySealRoleR\x04role\x12\x1f\n" +
+	"\vseal_digest\x18\x05 \x01(\tR\n" +
+	"sealDigest\x12.\n" +
+	"\x13evaluator_bundle_id\x18\x06 \x01(\tR\x11evaluatorBundleId\x126\n" +
+	"\x17evaluator_bundle_digest\x18\a \x01(\tR\x15evaluatorBundleDigest\x12\x1f\n" +
+	"\ventry_point\x18\b \x01(\tR\n" +
+	"entryPoint\x12K\n" +
+	"\aoutcome\x18\t \x01(\x0e21.workspace_sandbox.v1.workspace.ReplayTestOutcomeR\aoutcome\x12#\n" +
+	"\rresult_digest\x18\n" +
+	" \x01(\tR\fresultDigest\x12,\n" +
+	"\x12seal_intact_before\x18\v \x01(\bR\x10sealIntactBefore\x12*\n" +
+	"\x11seal_intact_after\x18\f \x01(\bR\x0fsealIntactAfter\x12\x16\n" +
+	"\x06detail\x18\r \x01(\tR\x06detail\"\x97\x01\n" +
+	"\x15WaitReplayTestRequest\x12!\n" +
+	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12\x17\n" +
+	"\acase_id\x18\x02 \x01(\tR\x06caseId\x12\x1f\n" +
+	"\vseal_digest\x18\x03 \x01(\tR\n" +
+	"sealDigest\x12!\n" +
+	"\fwait_seconds\x18\x04 \x01(\rR\vwaitSeconds\"\xc0\x04\n" +
+	"\x16WaitReplayTestResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12!\n" +
+	"\foperation_id\x18\x02 \x01(\tR\voperationId\x12\x17\n" +
+	"\acase_id\x18\x03 \x01(\tR\x06caseId\x12B\n" +
+	"\x04role\x18\x04 \x01(\x0e2..workspace_sandbox.v1.workspace.ReplaySealRoleR\x04role\x12\x1f\n" +
+	"\vseal_digest\x18\x05 \x01(\tR\n" +
+	"sealDigest\x12.\n" +
+	"\x13evaluator_bundle_id\x18\x06 \x01(\tR\x11evaluatorBundleId\x126\n" +
+	"\x17evaluator_bundle_digest\x18\a \x01(\tR\x15evaluatorBundleDigest\x12\x1f\n" +
+	"\ventry_point\x18\b \x01(\tR\n" +
+	"entryPoint\x12K\n" +
+	"\aoutcome\x18\t \x01(\x0e21.workspace_sandbox.v1.workspace.ReplayTestOutcomeR\aoutcome\x12#\n" +
+	"\rresult_digest\x18\n" +
+	" \x01(\tR\fresultDigest\x12,\n" +
+	"\x12seal_intact_before\x18\v \x01(\bR\x10sealIntactBefore\x12*\n" +
+	"\x11seal_intact_after\x18\f \x01(\bR\x0fsealIntactAfter\x12\x16\n" +
+	"\x06detail\x18\r \x01(\tR\x06detail\"\x95\x01\n" +
+	"\x17CreateReplaySealRequest\x12\x1d\n" +
+	"\n" +
+	"sandbox_id\x18\x01 \x01(\tR\tsandboxId\x12\x17\n" +
+	"\acase_id\x18\x02 \x01(\tR\x06caseId\x12B\n" +
+	"\x04role\x18\x03 \x01(\x0e2..workspace_sandbox.v1.workspace.ReplaySealRoleR\x04role\"\xf2\x01\n" +
+	"\x18CreateReplaySealResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x17\n" +
+	"\acase_id\x18\x02 \x01(\tR\x06caseId\x12B\n" +
+	"\x04role\x18\x03 \x01(\x0e2..workspace_sandbox.v1.workspace.ReplaySealRoleR\x04role\x12\x1f\n" +
+	"\vseal_digest\x18\x04 \x01(\tR\n" +
+	"sealDigest\x12\x1d\n" +
+	"\n" +
+	"file_count\x18\x05 \x01(\x04R\tfileCount\x12\x1f\n" +
+	"\vtotal_bytes\x18\x06 \x01(\x04R\n" +
+	"totalBytes\"\x98\x01\n" +
+	"\x18ResolveReplaySealRequest\x12\x17\n" +
+	"\acase_id\x18\x01 \x01(\tR\x06caseId\x12B\n" +
+	"\x04role\x18\x02 \x01(\x0e2..workspace_sandbox.v1.workspace.ReplaySealRoleR\x04role\x12\x1f\n" +
+	"\vseal_digest\x18\x03 \x01(\tR\n" +
+	"sealDigest\"\xda\x01\n" +
+	"\x19ResolveReplaySealResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x17\n" +
+	"\acase_id\x18\x02 \x01(\tR\x06caseId\x12B\n" +
+	"\x04role\x18\x03 \x01(\x0e2..workspace_sandbox.v1.workspace.ReplaySealRoleR\x04role\x12\x1f\n" +
+	"\vseal_digest\x18\x04 \x01(\tR\n" +
+	"sealDigest\x12%\n" +
+	"\x0eworkspace_root\x18\x05 \x01(\tR\rworkspaceRoot\"\x97\x01\n" +
+	"\x17VerifyReplaySealRequest\x12\x17\n" +
+	"\acase_id\x18\x01 \x01(\tR\x06caseId\x12B\n" +
+	"\x04role\x18\x02 \x01(\x0e2..workspace_sandbox.v1.workspace.ReplaySealRoleR\x04role\x12\x1f\n" +
+	"\vseal_digest\x18\x03 \x01(\tR\n" +
+	"sealDigest\"\xf3\x01\n" +
+	"\x18VerifyReplaySealResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x16\n" +
+	"\x06intact\x18\x02 \x01(\bR\x06intact\x12'\n" +
+	"\x0ftamper_detected\x18\x03 \x01(\bR\x0etamperDetected\x12\x17\n" +
+	"\acase_id\x18\x04 \x01(\tR\x06caseId\x12B\n" +
+	"\x04role\x18\x05 \x01(\x0e2..workspace_sandbox.v1.workspace.ReplaySealRoleR\x04role\x12\x1f\n" +
+	"\vseal_digest\x18\x06 \x01(\tR\n" +
+	"sealDigest\"8\n" +
 	"\x17ResolveWorkspaceRequest\x12\x1d\n" +
 	"\n" +
 	"sandbox_id\x18\x01 \x01(\tR\tsandboxId\"\xa1\x01\n" +
@@ -964,12 +2110,29 @@ const file_workspace_sandbox_v1_workspace_workspace_proto_rawDesc = "" +
 	"\x05error\x18\b \x01(\tR\x05error\x12\x1b\n" +
 	"\tdiff_path\x18\t \x01(\tR\bdiffPath\x120\n" +
 	"\x14applied_patch_sha256\x18\n" +
-	" \x01(\tR\x12appliedPatchSha2562\xa1\x04\n" +
+	" \x01(\tR\x12appliedPatchSha256*\xf7\x01\n" +
+	"\x11ReplayTestOutcome\x12#\n" +
+	"\x1fREPLAY_TEST_OUTCOME_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bREPLAY_TEST_OUTCOME_RUNNING\x10\x01\x12\x1e\n" +
+	"\x1aREPLAY_TEST_OUTCOME_PASSED\x10\x02\x12(\n" +
+	"$REPLAY_TEST_OUTCOME_ASSERTION_FAILED\x10\x03\x12-\n" +
+	")REPLAY_TEST_OUTCOME_INFRASTRUCTURE_FAILED\x10\x04\x12#\n" +
+	"\x1fREPLAY_TEST_OUTCOME_INTERRUPTED\x10\x05*\x8f\x01\n" +
+	"\x0eReplaySealRole\x12 \n" +
+	"\x1cREPLAY_SEAL_ROLE_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17REPLAY_SEAL_ROLE_SOURCE\x10\x01\x12\x1e\n" +
+	"\x1aREPLAY_SEAL_ROLE_CANDIDATE\x10\x02\x12\x1e\n" +
+	"\x1aREPLAY_SEAL_ROLE_REFERENCE\x10\x032\xc2\t\n" +
 	"\x17WorkspaceSandboxService\x12\x85\x01\n" +
 	"\x10ResolveWorkspace\x127.workspace_sandbox.v1.workspace.ResolveWorkspaceRequest\x1a8.workspace_sandbox.v1.workspace.ResolveWorkspaceResponse\x12|\n" +
 	"\rCreateSandbox\x124.workspace_sandbox.v1.workspace.CreateSandboxRequest\x1a5.workspace_sandbox.v1.workspace.CreateSandboxResponse\x12\x7f\n" +
 	"\x0eGetSandboxDiff\x125.workspace_sandbox.v1.workspace.GetSandboxDiffRequest\x1a6.workspace_sandbox.v1.workspace.GetSandboxDiffResponse\x12\x7f\n" +
-	"\x0ePromoteSandbox\x125.workspace_sandbox.v1.workspace.PromoteSandboxRequest\x1a6.workspace_sandbox.v1.workspace.PromoteSandboxResponseBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/workspace-sandbox/v1/workspace;workspaceb\x06proto3"
+	"\x0ePromoteSandbox\x125.workspace_sandbox.v1.workspace.PromoteSandboxRequest\x1a6.workspace_sandbox.v1.workspace.PromoteSandboxResponse\x12\x85\x01\n" +
+	"\x10CreateReplaySeal\x127.workspace_sandbox.v1.workspace.CreateReplaySealRequest\x1a8.workspace_sandbox.v1.workspace.CreateReplaySealResponse\x12\x88\x01\n" +
+	"\x11ResolveReplaySeal\x128.workspace_sandbox.v1.workspace.ResolveReplaySealRequest\x1a9.workspace_sandbox.v1.workspace.ResolveReplaySealResponse\x12\x85\x01\n" +
+	"\x10VerifyReplaySeal\x127.workspace_sandbox.v1.workspace.VerifyReplaySealRequest\x1a8.workspace_sandbox.v1.workspace.VerifyReplaySealResponse\x12\x82\x01\n" +
+	"\x0fStartReplayTest\x126.workspace_sandbox.v1.workspace.StartReplayTestRequest\x1a7.workspace_sandbox.v1.workspace.StartReplayTestResponse\x12\x7f\n" +
+	"\x0eWaitReplayTest\x125.workspace_sandbox.v1.workspace.WaitReplayTestRequest\x1a6.workspace_sandbox.v1.workspace.WaitReplayTestResponseBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/workspace-sandbox/v1/workspace;workspaceb\x06proto3"
 
 var (
 	file_workspace_sandbox_v1_workspace_workspace_proto_rawDescOnce sync.Once
@@ -983,37 +2146,73 @@ func file_workspace_sandbox_v1_workspace_workspace_proto_rawDescGZIP() []byte {
 	return file_workspace_sandbox_v1_workspace_workspace_proto_rawDescData
 }
 
-var file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_workspace_sandbox_v1_workspace_workspace_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_workspace_sandbox_v1_workspace_workspace_proto_goTypes = []any{
-	(*ResolveWorkspaceRequest)(nil),  // 0: workspace_sandbox.v1.workspace.ResolveWorkspaceRequest
-	(*ResolveWorkspaceResponse)(nil), // 1: workspace_sandbox.v1.workspace.ResolveWorkspaceResponse
-	(*CreateSandboxRequest)(nil),     // 2: workspace_sandbox.v1.workspace.CreateSandboxRequest
-	(*SandboxSummary)(nil),           // 3: workspace_sandbox.v1.workspace.SandboxSummary
-	(*CreateSandboxResponse)(nil),    // 4: workspace_sandbox.v1.workspace.CreateSandboxResponse
-	(*GetSandboxDiffRequest)(nil),    // 5: workspace_sandbox.v1.workspace.GetSandboxDiffRequest
-	(*DiffFile)(nil),                 // 6: workspace_sandbox.v1.workspace.DiffFile
-	(*DiffStats)(nil),                // 7: workspace_sandbox.v1.workspace.DiffStats
-	(*GetSandboxDiffResponse)(nil),   // 8: workspace_sandbox.v1.workspace.GetSandboxDiffResponse
-	(*PromoteSandboxRequest)(nil),    // 9: workspace_sandbox.v1.workspace.PromoteSandboxRequest
-	(*PromoteSandboxResponse)(nil),   // 10: workspace_sandbox.v1.workspace.PromoteSandboxResponse
+	(ReplayTestOutcome)(0),            // 0: workspace_sandbox.v1.workspace.ReplayTestOutcome
+	(ReplaySealRole)(0),               // 1: workspace_sandbox.v1.workspace.ReplaySealRole
+	(*ReplayTestFile)(nil),            // 2: workspace_sandbox.v1.workspace.ReplayTestFile
+	(*StartReplayTestRequest)(nil),    // 3: workspace_sandbox.v1.workspace.StartReplayTestRequest
+	(*StartReplayTestResponse)(nil),   // 4: workspace_sandbox.v1.workspace.StartReplayTestResponse
+	(*WaitReplayTestRequest)(nil),     // 5: workspace_sandbox.v1.workspace.WaitReplayTestRequest
+	(*WaitReplayTestResponse)(nil),    // 6: workspace_sandbox.v1.workspace.WaitReplayTestResponse
+	(*CreateReplaySealRequest)(nil),   // 7: workspace_sandbox.v1.workspace.CreateReplaySealRequest
+	(*CreateReplaySealResponse)(nil),  // 8: workspace_sandbox.v1.workspace.CreateReplaySealResponse
+	(*ResolveReplaySealRequest)(nil),  // 9: workspace_sandbox.v1.workspace.ResolveReplaySealRequest
+	(*ResolveReplaySealResponse)(nil), // 10: workspace_sandbox.v1.workspace.ResolveReplaySealResponse
+	(*VerifyReplaySealRequest)(nil),   // 11: workspace_sandbox.v1.workspace.VerifyReplaySealRequest
+	(*VerifyReplaySealResponse)(nil),  // 12: workspace_sandbox.v1.workspace.VerifyReplaySealResponse
+	(*ResolveWorkspaceRequest)(nil),   // 13: workspace_sandbox.v1.workspace.ResolveWorkspaceRequest
+	(*ResolveWorkspaceResponse)(nil),  // 14: workspace_sandbox.v1.workspace.ResolveWorkspaceResponse
+	(*CreateSandboxRequest)(nil),      // 15: workspace_sandbox.v1.workspace.CreateSandboxRequest
+	(*SandboxSummary)(nil),            // 16: workspace_sandbox.v1.workspace.SandboxSummary
+	(*CreateSandboxResponse)(nil),     // 17: workspace_sandbox.v1.workspace.CreateSandboxResponse
+	(*GetSandboxDiffRequest)(nil),     // 18: workspace_sandbox.v1.workspace.GetSandboxDiffRequest
+	(*DiffFile)(nil),                  // 19: workspace_sandbox.v1.workspace.DiffFile
+	(*DiffStats)(nil),                 // 20: workspace_sandbox.v1.workspace.DiffStats
+	(*GetSandboxDiffResponse)(nil),    // 21: workspace_sandbox.v1.workspace.GetSandboxDiffResponse
+	(*PromoteSandboxRequest)(nil),     // 22: workspace_sandbox.v1.workspace.PromoteSandboxRequest
+	(*PromoteSandboxResponse)(nil),    // 23: workspace_sandbox.v1.workspace.PromoteSandboxResponse
 }
 var file_workspace_sandbox_v1_workspace_workspace_proto_depIdxs = []int32{
-	3,  // 0: workspace_sandbox.v1.workspace.CreateSandboxResponse.sandbox:type_name -> workspace_sandbox.v1.workspace.SandboxSummary
-	6,  // 1: workspace_sandbox.v1.workspace.GetSandboxDiffResponse.files:type_name -> workspace_sandbox.v1.workspace.DiffFile
-	7,  // 2: workspace_sandbox.v1.workspace.GetSandboxDiffResponse.stats:type_name -> workspace_sandbox.v1.workspace.DiffStats
-	0,  // 3: workspace_sandbox.v1.workspace.WorkspaceSandboxService.ResolveWorkspace:input_type -> workspace_sandbox.v1.workspace.ResolveWorkspaceRequest
-	2,  // 4: workspace_sandbox.v1.workspace.WorkspaceSandboxService.CreateSandbox:input_type -> workspace_sandbox.v1.workspace.CreateSandboxRequest
-	5,  // 5: workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetSandboxDiff:input_type -> workspace_sandbox.v1.workspace.GetSandboxDiffRequest
-	9,  // 6: workspace_sandbox.v1.workspace.WorkspaceSandboxService.PromoteSandbox:input_type -> workspace_sandbox.v1.workspace.PromoteSandboxRequest
-	1,  // 7: workspace_sandbox.v1.workspace.WorkspaceSandboxService.ResolveWorkspace:output_type -> workspace_sandbox.v1.workspace.ResolveWorkspaceResponse
-	4,  // 8: workspace_sandbox.v1.workspace.WorkspaceSandboxService.CreateSandbox:output_type -> workspace_sandbox.v1.workspace.CreateSandboxResponse
-	8,  // 9: workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetSandboxDiff:output_type -> workspace_sandbox.v1.workspace.GetSandboxDiffResponse
-	10, // 10: workspace_sandbox.v1.workspace.WorkspaceSandboxService.PromoteSandbox:output_type -> workspace_sandbox.v1.workspace.PromoteSandboxResponse
-	7,  // [7:11] is the sub-list for method output_type
-	3,  // [3:7] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	1,  // 0: workspace_sandbox.v1.workspace.StartReplayTestRequest.role:type_name -> workspace_sandbox.v1.workspace.ReplaySealRole
+	2,  // 1: workspace_sandbox.v1.workspace.StartReplayTestRequest.files:type_name -> workspace_sandbox.v1.workspace.ReplayTestFile
+	1,  // 2: workspace_sandbox.v1.workspace.StartReplayTestResponse.role:type_name -> workspace_sandbox.v1.workspace.ReplaySealRole
+	0,  // 3: workspace_sandbox.v1.workspace.StartReplayTestResponse.outcome:type_name -> workspace_sandbox.v1.workspace.ReplayTestOutcome
+	1,  // 4: workspace_sandbox.v1.workspace.WaitReplayTestResponse.role:type_name -> workspace_sandbox.v1.workspace.ReplaySealRole
+	0,  // 5: workspace_sandbox.v1.workspace.WaitReplayTestResponse.outcome:type_name -> workspace_sandbox.v1.workspace.ReplayTestOutcome
+	1,  // 6: workspace_sandbox.v1.workspace.CreateReplaySealRequest.role:type_name -> workspace_sandbox.v1.workspace.ReplaySealRole
+	1,  // 7: workspace_sandbox.v1.workspace.CreateReplaySealResponse.role:type_name -> workspace_sandbox.v1.workspace.ReplaySealRole
+	1,  // 8: workspace_sandbox.v1.workspace.ResolveReplaySealRequest.role:type_name -> workspace_sandbox.v1.workspace.ReplaySealRole
+	1,  // 9: workspace_sandbox.v1.workspace.ResolveReplaySealResponse.role:type_name -> workspace_sandbox.v1.workspace.ReplaySealRole
+	1,  // 10: workspace_sandbox.v1.workspace.VerifyReplaySealRequest.role:type_name -> workspace_sandbox.v1.workspace.ReplaySealRole
+	1,  // 11: workspace_sandbox.v1.workspace.VerifyReplaySealResponse.role:type_name -> workspace_sandbox.v1.workspace.ReplaySealRole
+	16, // 12: workspace_sandbox.v1.workspace.CreateSandboxResponse.sandbox:type_name -> workspace_sandbox.v1.workspace.SandboxSummary
+	19, // 13: workspace_sandbox.v1.workspace.GetSandboxDiffResponse.files:type_name -> workspace_sandbox.v1.workspace.DiffFile
+	20, // 14: workspace_sandbox.v1.workspace.GetSandboxDiffResponse.stats:type_name -> workspace_sandbox.v1.workspace.DiffStats
+	13, // 15: workspace_sandbox.v1.workspace.WorkspaceSandboxService.ResolveWorkspace:input_type -> workspace_sandbox.v1.workspace.ResolveWorkspaceRequest
+	15, // 16: workspace_sandbox.v1.workspace.WorkspaceSandboxService.CreateSandbox:input_type -> workspace_sandbox.v1.workspace.CreateSandboxRequest
+	18, // 17: workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetSandboxDiff:input_type -> workspace_sandbox.v1.workspace.GetSandboxDiffRequest
+	22, // 18: workspace_sandbox.v1.workspace.WorkspaceSandboxService.PromoteSandbox:input_type -> workspace_sandbox.v1.workspace.PromoteSandboxRequest
+	7,  // 19: workspace_sandbox.v1.workspace.WorkspaceSandboxService.CreateReplaySeal:input_type -> workspace_sandbox.v1.workspace.CreateReplaySealRequest
+	9,  // 20: workspace_sandbox.v1.workspace.WorkspaceSandboxService.ResolveReplaySeal:input_type -> workspace_sandbox.v1.workspace.ResolveReplaySealRequest
+	11, // 21: workspace_sandbox.v1.workspace.WorkspaceSandboxService.VerifyReplaySeal:input_type -> workspace_sandbox.v1.workspace.VerifyReplaySealRequest
+	3,  // 22: workspace_sandbox.v1.workspace.WorkspaceSandboxService.StartReplayTest:input_type -> workspace_sandbox.v1.workspace.StartReplayTestRequest
+	5,  // 23: workspace_sandbox.v1.workspace.WorkspaceSandboxService.WaitReplayTest:input_type -> workspace_sandbox.v1.workspace.WaitReplayTestRequest
+	14, // 24: workspace_sandbox.v1.workspace.WorkspaceSandboxService.ResolveWorkspace:output_type -> workspace_sandbox.v1.workspace.ResolveWorkspaceResponse
+	17, // 25: workspace_sandbox.v1.workspace.WorkspaceSandboxService.CreateSandbox:output_type -> workspace_sandbox.v1.workspace.CreateSandboxResponse
+	21, // 26: workspace_sandbox.v1.workspace.WorkspaceSandboxService.GetSandboxDiff:output_type -> workspace_sandbox.v1.workspace.GetSandboxDiffResponse
+	23, // 27: workspace_sandbox.v1.workspace.WorkspaceSandboxService.PromoteSandbox:output_type -> workspace_sandbox.v1.workspace.PromoteSandboxResponse
+	8,  // 28: workspace_sandbox.v1.workspace.WorkspaceSandboxService.CreateReplaySeal:output_type -> workspace_sandbox.v1.workspace.CreateReplaySealResponse
+	10, // 29: workspace_sandbox.v1.workspace.WorkspaceSandboxService.ResolveReplaySeal:output_type -> workspace_sandbox.v1.workspace.ResolveReplaySealResponse
+	12, // 30: workspace_sandbox.v1.workspace.WorkspaceSandboxService.VerifyReplaySeal:output_type -> workspace_sandbox.v1.workspace.VerifyReplaySealResponse
+	4,  // 31: workspace_sandbox.v1.workspace.WorkspaceSandboxService.StartReplayTest:output_type -> workspace_sandbox.v1.workspace.StartReplayTestResponse
+	6,  // 32: workspace_sandbox.v1.workspace.WorkspaceSandboxService.WaitReplayTest:output_type -> workspace_sandbox.v1.workspace.WaitReplayTestResponse
+	24, // [24:33] is the sub-list for method output_type
+	15, // [15:24] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_workspace_sandbox_v1_workspace_workspace_proto_init() }
@@ -1026,13 +2225,14 @@ func file_workspace_sandbox_v1_workspace_workspace_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_workspace_sandbox_v1_workspace_workspace_proto_rawDesc), len(file_workspace_sandbox_v1_workspace_workspace_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   11,
+			NumEnums:      2,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_workspace_sandbox_v1_workspace_workspace_proto_goTypes,
 		DependencyIndexes: file_workspace_sandbox_v1_workspace_workspace_proto_depIdxs,
+		EnumInfos:         file_workspace_sandbox_v1_workspace_workspace_proto_enumTypes,
 		MessageInfos:      file_workspace_sandbox_v1_workspace_workspace_proto_msgTypes,
 	}.Build()
 	File_workspace_sandbox_v1_workspace_workspace_proto = out.File

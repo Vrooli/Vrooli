@@ -127,7 +127,7 @@ func Calibrate(root, gate string, runner GateRunner) (CalibrationReport, error) 
 			observedCodes := make([]string, 0, len(observed.Findings)+len(observed.RunnerError))
 			for _, finding := range append(observed.Findings, observed.RunnerError...) {
 				if finding.Code != "" {
-					observedCodes = append(observedCodes, finding.Code)
+					observedCodes = append(observedCodes, finding.Code+": "+finding.Message)
 				}
 			}
 			result.Message = fmt.Sprintf("fixture completed without its required failure code; observed %v", observedCodes)

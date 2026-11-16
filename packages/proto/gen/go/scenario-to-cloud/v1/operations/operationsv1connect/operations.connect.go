@@ -45,6 +45,9 @@ const (
 	// OperationsServiceListDeploymentOperationsProcedure is the fully-qualified name of the
 	// OperationsService's ListDeploymentOperations RPC.
 	OperationsServiceListDeploymentOperationsProcedure = "/vrooli.scenario_to_cloud.v1.operations.OperationsService/ListDeploymentOperations"
+	// OperationsServiceGetTargetReceiptProcedure is the fully-qualified name of the OperationsService's
+	// GetTargetReceipt RPC.
+	OperationsServiceGetTargetReceiptProcedure = "/vrooli.scenario_to_cloud.v1.operations.OperationsService/GetTargetReceipt"
 	// OperationsServiceReconcileOperationsProcedure is the fully-qualified name of the
 	// OperationsService's ReconcileOperations RPC.
 	OperationsServiceReconcileOperationsProcedure = "/vrooli.scenario_to_cloud.v1.operations.OperationsService/ReconcileOperations"
@@ -63,6 +66,9 @@ type OperationsServiceClient interface {
 	CancelOperation(context.Context, *connect.Request[operations.CancelOperationRequest]) (*connect.Response[operations.OperationStanding], error)
 	// ListDeploymentOperations lists the operations of one deployment.
 	ListDeploymentOperations(context.Context, *connect.Request[operations.ListDeploymentOperationsRequest]) (*connect.Response[operations.ListDeploymentOperationsResponse], error)
+	// GetTargetReceipt reads one fresh target-owned receipt from a step in an
+	// operation's immutable admitted plan. This is observation only.
+	GetTargetReceipt(context.Context, *connect.Request[operations.GetTargetReceiptRequest]) (*connect.Response[operations.TargetReceiptRead], error)
 	// ReconcileOperations runs one owner pass now (reacquire expired leases,
 	// resume from receipts). Destructive scope.
 	ReconcileOperations(context.Context, *connect.Request[operations.ReconcileOperationsRequest]) (*connect.Response[operations.ReconcileOperationsResponse], error)
@@ -104,6 +110,12 @@ func NewOperationsServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(operationsServiceMethods.ByName("ListDeploymentOperations")),
 			connect.WithClientOptions(opts...),
 		),
+		getTargetReceipt: connect.NewClient[operations.GetTargetReceiptRequest, operations.TargetReceiptRead](
+			httpClient,
+			baseURL+OperationsServiceGetTargetReceiptProcedure,
+			connect.WithSchema(operationsServiceMethods.ByName("GetTargetReceipt")),
+			connect.WithClientOptions(opts...),
+		),
 		reconcileOperations: connect.NewClient[operations.ReconcileOperationsRequest, operations.ReconcileOperationsResponse](
 			httpClient,
 			baseURL+OperationsServiceReconcileOperationsProcedure,
@@ -119,6 +131,7 @@ type operationsServiceClient struct {
 	waitOperation            *connect.Client[operations.WaitOperationRequest, operations.OperationStanding]
 	cancelOperation          *connect.Client[operations.CancelOperationRequest, operations.OperationStanding]
 	listDeploymentOperations *connect.Client[operations.ListDeploymentOperationsRequest, operations.ListDeploymentOperationsResponse]
+	getTargetReceipt         *connect.Client[operations.GetTargetReceiptRequest, operations.TargetReceiptRead]
 	reconcileOperations      *connect.Client[operations.ReconcileOperationsRequest, operations.ReconcileOperationsResponse]
 }
 
@@ -143,6 +156,11 @@ func (c *operationsServiceClient) ListDeploymentOperations(ctx context.Context, 
 	return c.listDeploymentOperations.CallUnary(ctx, req)
 }
 
+// GetTargetReceipt calls vrooli.scenario_to_cloud.v1.operations.OperationsService.GetTargetReceipt.
+func (c *operationsServiceClient) GetTargetReceipt(ctx context.Context, req *connect.Request[operations.GetTargetReceiptRequest]) (*connect.Response[operations.TargetReceiptRead], error) {
+	return c.getTargetReceipt.CallUnary(ctx, req)
+}
+
 // ReconcileOperations calls
 // vrooli.scenario_to_cloud.v1.operations.OperationsService.ReconcileOperations.
 func (c *operationsServiceClient) ReconcileOperations(ctx context.Context, req *connect.Request[operations.ReconcileOperationsRequest]) (*connect.Response[operations.ReconcileOperationsResponse], error) {
@@ -162,6 +180,9 @@ type OperationsServiceHandler interface {
 	CancelOperation(context.Context, *connect.Request[operations.CancelOperationRequest]) (*connect.Response[operations.OperationStanding], error)
 	// ListDeploymentOperations lists the operations of one deployment.
 	ListDeploymentOperations(context.Context, *connect.Request[operations.ListDeploymentOperationsRequest]) (*connect.Response[operations.ListDeploymentOperationsResponse], error)
+	// GetTargetReceipt reads one fresh target-owned receipt from a step in an
+	// operation's immutable admitted plan. This is observation only.
+	GetTargetReceipt(context.Context, *connect.Request[operations.GetTargetReceiptRequest]) (*connect.Response[operations.TargetReceiptRead], error)
 	// ReconcileOperations runs one owner pass now (reacquire expired leases,
 	// resume from receipts). Destructive scope.
 	ReconcileOperations(context.Context, *connect.Request[operations.ReconcileOperationsRequest]) (*connect.Response[operations.ReconcileOperationsResponse], error)
@@ -198,6 +219,12 @@ func NewOperationsServiceHandler(svc OperationsServiceHandler, opts ...connect.H
 		connect.WithSchema(operationsServiceMethods.ByName("ListDeploymentOperations")),
 		connect.WithHandlerOptions(opts...),
 	)
+	operationsServiceGetTargetReceiptHandler := connect.NewUnaryHandler(
+		OperationsServiceGetTargetReceiptProcedure,
+		svc.GetTargetReceipt,
+		connect.WithSchema(operationsServiceMethods.ByName("GetTargetReceipt")),
+		connect.WithHandlerOptions(opts...),
+	)
 	operationsServiceReconcileOperationsHandler := connect.NewUnaryHandler(
 		OperationsServiceReconcileOperationsProcedure,
 		svc.ReconcileOperations,
@@ -214,6 +241,8 @@ func NewOperationsServiceHandler(svc OperationsServiceHandler, opts ...connect.H
 			operationsServiceCancelOperationHandler.ServeHTTP(w, r)
 		case OperationsServiceListDeploymentOperationsProcedure:
 			operationsServiceListDeploymentOperationsHandler.ServeHTTP(w, r)
+		case OperationsServiceGetTargetReceiptProcedure:
+			operationsServiceGetTargetReceiptHandler.ServeHTTP(w, r)
 		case OperationsServiceReconcileOperationsProcedure:
 			operationsServiceReconcileOperationsHandler.ServeHTTP(w, r)
 		default:
@@ -239,6 +268,10 @@ func (UnimplementedOperationsServiceHandler) CancelOperation(context.Context, *c
 
 func (UnimplementedOperationsServiceHandler) ListDeploymentOperations(context.Context, *connect.Request[operations.ListDeploymentOperationsRequest]) (*connect.Response[operations.ListDeploymentOperationsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_to_cloud.v1.operations.OperationsService.ListDeploymentOperations is not implemented"))
+}
+
+func (UnimplementedOperationsServiceHandler) GetTargetReceipt(context.Context, *connect.Request[operations.GetTargetReceiptRequest]) (*connect.Response[operations.TargetReceiptRead], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_to_cloud.v1.operations.OperationsService.GetTargetReceipt is not implemented"))
 }
 
 func (UnimplementedOperationsServiceHandler) ReconcileOperations(context.Context, *connect.Request[operations.ReconcileOperationsRequest]) (*connect.Response[operations.ReconcileOperationsResponse], error) {

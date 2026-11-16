@@ -83,6 +83,9 @@ const (
 	// ExecutionsServiceGetExecutionProcedure is the fully-qualified name of the ExecutionsService's
 	// GetExecution RPC.
 	ExecutionsServiceGetExecutionProcedure = "/browser_automation_studio.v1.ExecutionsService/GetExecution"
+	// ExecutionsServiceWaitForExecutionProcedure is the fully-qualified name of the ExecutionsService's
+	// WaitForExecution RPC.
+	ExecutionsServiceWaitForExecutionProcedure = "/browser_automation_studio.v1.ExecutionsService/WaitForExecution"
 	// ExecutionsServiceGetExecutionTimelineProcedure is the fully-qualified name of the
 	// ExecutionsService's GetExecutionTimeline RPC.
 	ExecutionsServiceGetExecutionTimelineProcedure = "/browser_automation_studio.v1.ExecutionsService/GetExecutionTimeline"
@@ -537,6 +540,9 @@ type ExecutionsServiceClient interface {
 	ListExecutions(context.Context, *connect.Request[api.ListExecutionsRequest]) (*connect.Response[api.ListExecutionsResponse], error)
 	// Gets a single execution by ID, hydrated from the on-disk snapshot.
 	GetExecution(context.Context, *connect.Request[api.GetExecutionRequest]) (*connect.Response[api.GetExecutionResponse], error)
+	// Waits once for one execution ID to reach a persisted terminal receipt.
+	// The bounded wait does not cancel the execution when the request ends.
+	WaitForExecution(context.Context, *connect.Request[api.WaitForExecutionRequest]) (*connect.Response[api.GetExecutionResponse], error)
 	// Gets the proto timeline (preferred) or the legacy timeline of an execution.
 	GetExecutionTimeline(context.Context, *connect.Request[api.GetExecutionTimelineRequest]) (*connect.Response[timeline.ExecutionTimeline], error)
 	// Gets the versioned storage-independent replay package for an execution.
@@ -585,6 +591,12 @@ func NewExecutionsServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			httpClient,
 			baseURL+ExecutionsServiceGetExecutionProcedure,
 			connect.WithSchema(executionsServiceMethods.ByName("GetExecution")),
+			connect.WithClientOptions(opts...),
+		),
+		waitForExecution: connect.NewClient[api.WaitForExecutionRequest, api.GetExecutionResponse](
+			httpClient,
+			baseURL+ExecutionsServiceWaitForExecutionProcedure,
+			connect.WithSchema(executionsServiceMethods.ByName("WaitForExecution")),
 			connect.WithClientOptions(opts...),
 		),
 		getExecutionTimeline: connect.NewClient[api.GetExecutionTimelineRequest, timeline.ExecutionTimeline](
@@ -660,6 +672,7 @@ func NewExecutionsServiceClient(httpClient connect.HTTPClient, baseURL string, o
 type executionsServiceClient struct {
 	listExecutions                    *connect.Client[api.ListExecutionsRequest, api.ListExecutionsResponse]
 	getExecution                      *connect.Client[api.GetExecutionRequest, api.GetExecutionResponse]
+	waitForExecution                  *connect.Client[api.WaitForExecutionRequest, api.GetExecutionResponse]
 	getExecutionTimeline              *connect.Client[api.GetExecutionTimelineRequest, timeline.ExecutionTimeline]
 	getExecutionReplayPackage         *connect.Client[api.GetExecutionArtifactsRequest, evidence.ReplayPackage]
 	stopExecution                     *connect.Client[api.StopExecutionRequest, api.StopExecutionResponse]
@@ -681,6 +694,11 @@ func (c *executionsServiceClient) ListExecutions(ctx context.Context, req *conne
 // GetExecution calls browser_automation_studio.v1.ExecutionsService.GetExecution.
 func (c *executionsServiceClient) GetExecution(ctx context.Context, req *connect.Request[api.GetExecutionRequest]) (*connect.Response[api.GetExecutionResponse], error) {
 	return c.getExecution.CallUnary(ctx, req)
+}
+
+// WaitForExecution calls browser_automation_studio.v1.ExecutionsService.WaitForExecution.
+func (c *executionsServiceClient) WaitForExecution(ctx context.Context, req *connect.Request[api.WaitForExecutionRequest]) (*connect.Response[api.GetExecutionResponse], error) {
+	return c.waitForExecution.CallUnary(ctx, req)
 }
 
 // GetExecutionTimeline calls browser_automation_studio.v1.ExecutionsService.GetExecutionTimeline.
@@ -753,6 +771,9 @@ type ExecutionsServiceHandler interface {
 	ListExecutions(context.Context, *connect.Request[api.ListExecutionsRequest]) (*connect.Response[api.ListExecutionsResponse], error)
 	// Gets a single execution by ID, hydrated from the on-disk snapshot.
 	GetExecution(context.Context, *connect.Request[api.GetExecutionRequest]) (*connect.Response[api.GetExecutionResponse], error)
+	// Waits once for one execution ID to reach a persisted terminal receipt.
+	// The bounded wait does not cancel the execution when the request ends.
+	WaitForExecution(context.Context, *connect.Request[api.WaitForExecutionRequest]) (*connect.Response[api.GetExecutionResponse], error)
 	// Gets the proto timeline (preferred) or the legacy timeline of an execution.
 	GetExecutionTimeline(context.Context, *connect.Request[api.GetExecutionTimelineRequest]) (*connect.Response[timeline.ExecutionTimeline], error)
 	// Gets the versioned storage-independent replay package for an execution.
@@ -796,6 +817,12 @@ func NewExecutionsServiceHandler(svc ExecutionsServiceHandler, opts ...connect.H
 		ExecutionsServiceGetExecutionProcedure,
 		svc.GetExecution,
 		connect.WithSchema(executionsServiceMethods.ByName("GetExecution")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionsServiceWaitForExecutionHandler := connect.NewUnaryHandler(
+		ExecutionsServiceWaitForExecutionProcedure,
+		svc.WaitForExecution,
+		connect.WithSchema(executionsServiceMethods.ByName("WaitForExecution")),
 		connect.WithHandlerOptions(opts...),
 	)
 	executionsServiceGetExecutionTimelineHandler := connect.NewUnaryHandler(
@@ -870,6 +897,8 @@ func NewExecutionsServiceHandler(svc ExecutionsServiceHandler, opts ...connect.H
 			executionsServiceListExecutionsHandler.ServeHTTP(w, r)
 		case ExecutionsServiceGetExecutionProcedure:
 			executionsServiceGetExecutionHandler.ServeHTTP(w, r)
+		case ExecutionsServiceWaitForExecutionProcedure:
+			executionsServiceWaitForExecutionHandler.ServeHTTP(w, r)
 		case ExecutionsServiceGetExecutionTimelineProcedure:
 			executionsServiceGetExecutionTimelineHandler.ServeHTTP(w, r)
 		case ExecutionsServiceGetExecutionReplayPackageProcedure:
@@ -907,6 +936,10 @@ func (UnimplementedExecutionsServiceHandler) ListExecutions(context.Context, *co
 
 func (UnimplementedExecutionsServiceHandler) GetExecution(context.Context, *connect.Request[api.GetExecutionRequest]) (*connect.Response[api.GetExecutionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ExecutionsService.GetExecution is not implemented"))
+}
+
+func (UnimplementedExecutionsServiceHandler) WaitForExecution(context.Context, *connect.Request[api.WaitForExecutionRequest]) (*connect.Response[api.GetExecutionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ExecutionsService.WaitForExecution is not implemented"))
 }
 
 func (UnimplementedExecutionsServiceHandler) GetExecutionTimeline(context.Context, *connect.Request[api.GetExecutionTimelineRequest]) (*connect.Response[timeline.ExecutionTimeline], error) {

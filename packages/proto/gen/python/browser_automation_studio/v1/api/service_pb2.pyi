@@ -264,6 +264,14 @@ class GetExecutionResponse(_message.Message):
     execution: _execution_pb2.Execution
     def __init__(self, execution: _Optional[_Union[_execution_pb2.Execution, _Mapping]] = ...) -> None: ...
 
+class WaitForExecutionRequest(_message.Message):
+    __slots__ = ("execution_id", "timeout_ms")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    timeout_ms: int
+    def __init__(self, execution_id: _Optional[str] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
+
 class ValidateWorkflowRequest(_message.Message):
     __slots__ = ("workflow", "baseline_workflow_id", "expected_version", "require_assertion")
     WORKFLOW_FIELD_NUMBER: _ClassVar[int]

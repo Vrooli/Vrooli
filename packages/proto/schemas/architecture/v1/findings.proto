@@ -121,6 +121,9 @@ enum FindingSource {
   FINDING_SOURCE_PROGRAMS = 17;
   // SKILLS: prompt-manager scenario skill-set validation phase.
   FINDING_SOURCE_SKILLS = 18;
+  // MODEL_EVAL: model-eval validation reports that measure provider readiness,
+  // real-caller coverage, and retrieval evaluation evidence.
+  FINDING_SOURCE_MODEL_EVAL = 19;
 }
 
 // FindingSeverity is the normalized severity ladder. Every producer maps

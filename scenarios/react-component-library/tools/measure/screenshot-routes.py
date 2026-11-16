@@ -10,7 +10,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools"))
-from ux_capture_bundle import copy_response
 
 
 def main() -> int:
@@ -36,11 +35,11 @@ def main() -> int:
         ]
         if ready:
             args.extend(["--wait-selector", ready])
+        args.extend(["--artifact-kind", "pixels", "--artifact-output", str(screenshot_path)])
         try:
             completed = subprocess.run(args, check=True, capture_output=True, text=True, timeout=120)
             response = json.loads(completed.stdout)
             response_path.write_text(json.dumps(response, indent=2))
-            copy_response(response, "pixels", screenshot_path)
             results.append({"route": route, "status": "captured", "path": str(screenshot_path), "bundle_id": response["manifest"]["id"]})
         except Exception as error:
             results.append({"route": route, "status": "failed", "reason": str(error)[:500]})

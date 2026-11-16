@@ -50,8 +50,11 @@ consumer; the component must not concatenate its own utility strings onto that v
 while consumer classes win through the public prop.
 
 The `catalog.utility-class` gate enforces this boundary across shipped runtime source. Its dated,
-shrink-only allowlist records migration debt and cannot grow. Ingest applies the same detector and
-refuses scenario-local source that would recreate the portability defect.
+shrink-only allowlist records migration debt and cannot grow. Every non-empty allowlist must have a
+valid future `YYYY-MM-DD` expiry; expired or malformed dates fail the gate. Each exception names one
+exact published `library/<kind>/<asset>/versions/<version>` path (draft paths are rejected), a reason,
+and an accountable closure owner. Duplicate and noncanonical paths fail. Ingest applies the same
+detector and refuses scenario-local source that would recreate the portability defect.
 
 ## Multiple style fragments and migration safety
 

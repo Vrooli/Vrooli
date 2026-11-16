@@ -687,7 +687,7 @@ func (g *Generator) seedGeneratedMetadata(stageGen string) error {
 
 const defaultTypeScriptPackage = `{
   "name": "@vrooli/proto-types",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Protocol Buffer generated TypeScript types for Vrooli",
   "type": "module",
   "dependencies": {

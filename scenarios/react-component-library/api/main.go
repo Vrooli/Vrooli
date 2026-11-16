@@ -8,11 +8,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
+
 	captureInternal "react-component-library/internal/designcapture"
 	critiqueInternal "react-component-library/internal/designcritique"
 	inferenceInternal "react-component-library/internal/designinference"
-	"strings"
-	"time"
 
 	"react-component-library/internal/modules"
 	"react-component-library/internal/server"
@@ -345,7 +346,7 @@ func main() {
 				return nil, err
 			}
 			return captureInternal.NewSQLiteRepository(pool), nil
-		}, Dispatcher: captureInternal.BASDispatcher{BASBaseURL: componenttestsInternal.NewBASCaptureExecutor().BASBaseURL, RCLTargetBaseURL: componenttestsInternal.NewBASCaptureExecutor().RCLBaseURL}}),
+		}, Dispatcher: captureInternal.BASDispatcher{BASBaseURL: componenttestsInternal.NewBASCaptureExecutor().BASBaseURL, RCLTargetBaseURL: selfBaseURL()}}),
 		themesH.ModuleFromService(themesSvc, log.Default()),
 		versionsH.ModuleWithLedger(primaryDB, schedule.System(), versionsResolver, log.Default(), versionLedger, componentsSvc),
 		workflowsH.ModuleWithReadiness(primaryDB, schedule.System(), workflowsInternal.NewAgentManagerDispatcher(), workflowsInternal.NewPromotionReadinessReader(componentsSvc, adoptionsSvc), log.Default()),
@@ -371,4 +372,15 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+// selfBaseURL is this API's own address. The browser loads a design capture's
+// target from /design-captures/<id>/target.html, which only the API serves
+// (the UI server does not proxy it). api-core's server listens on API_PORT.
+func selfBaseURL() string {
+	port := strings.TrimSpace(os.Getenv("API_PORT"))
+	if port == "" {
+		port = "8080"
+	}
+	return "http://127.0.0.1:" + port
 }

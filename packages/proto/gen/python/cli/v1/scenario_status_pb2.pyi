@@ -32,7 +32,7 @@ class ScenarioStatusSummary(_message.Message):
     def __init__(self, total_scenarios: _Optional[int] = ..., running: _Optional[int] = ..., stopped: _Optional[int] = ...) -> None: ...
 
 class ScenarioStatusItem(_message.Message):
-    __slots__ = ("name", "display_name", "description", "tags", "status", "processes", "runtime", "started_at", "ports", "port_bindings", "health_status", "health_error", "start_operation", "build_identity")
+    __slots__ = ("name", "display_name", "description", "tags", "status", "processes", "runtime", "started_at", "ports", "port_bindings", "health_status", "health_error", "start_operation", "build_identity", "runtime_release_id", "runtime_release_operation_id", "start_operation_id")
     class PortsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -54,6 +54,9 @@ class ScenarioStatusItem(_message.Message):
     HEALTH_ERROR_FIELD_NUMBER: _ClassVar[int]
     START_OPERATION_FIELD_NUMBER: _ClassVar[int]
     BUILD_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_RELEASE_ID_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_RELEASE_OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    START_OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
     name: str
     display_name: str
     description: str
@@ -68,10 +71,13 @@ class ScenarioStatusItem(_message.Message):
     health_error: str
     start_operation: ScenarioStartOperation
     build_identity: str
-    def __init__(self, name: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., status: _Optional[str] = ..., processes: _Optional[int] = ..., runtime: _Optional[str] = ..., started_at: _Optional[str] = ..., ports: _Optional[_Mapping[str, int]] = ..., port_bindings: _Optional[_Iterable[_Union[_scenario_list_pb2.ScenarioPort, _Mapping]]] = ..., health_status: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., health_error: _Optional[str] = ..., start_operation: _Optional[_Union[ScenarioStartOperation, _Mapping]] = ..., build_identity: _Optional[str] = ...) -> None: ...
+    runtime_release_id: str
+    runtime_release_operation_id: str
+    start_operation_id: str
+    def __init__(self, name: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., status: _Optional[str] = ..., processes: _Optional[int] = ..., runtime: _Optional[str] = ..., started_at: _Optional[str] = ..., ports: _Optional[_Mapping[str, int]] = ..., port_bindings: _Optional[_Iterable[_Union[_scenario_list_pb2.ScenarioPort, _Mapping]]] = ..., health_status: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., health_error: _Optional[str] = ..., start_operation: _Optional[_Union[ScenarioStartOperation, _Mapping]] = ..., build_identity: _Optional[str] = ..., runtime_release_id: _Optional[str] = ..., runtime_release_operation_id: _Optional[str] = ..., start_operation_id: _Optional[str] = ...) -> None: ...
 
 class ScenarioStartOperation(_message.Message):
-    __slots__ = ("operation_id", "scenario", "variant", "operation", "status", "verdict", "error", "current_step", "dependency_current", "dependency_index", "dependency_total", "started_at", "finished_at", "elapsed_seconds", "steps", "eta_known", "eta_seconds", "recommended_next_check_seconds", "initiator_pid")
+    __slots__ = ("operation_id", "scenario", "variant", "operation", "status", "verdict", "error", "current_step", "dependency_current", "dependency_index", "dependency_total", "started_at", "finished_at", "elapsed_seconds", "steps", "eta_known", "eta_seconds", "recommended_next_check_seconds", "initiator_pid", "fence_operation_id")
     OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     VARIANT_FIELD_NUMBER: _ClassVar[int]
@@ -91,6 +97,7 @@ class ScenarioStartOperation(_message.Message):
     ETA_SECONDS_FIELD_NUMBER: _ClassVar[int]
     RECOMMENDED_NEXT_CHECK_SECONDS_FIELD_NUMBER: _ClassVar[int]
     INITIATOR_PID_FIELD_NUMBER: _ClassVar[int]
+    FENCE_OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
     operation_id: str
     scenario: str
     variant: str
@@ -110,31 +117,79 @@ class ScenarioStartOperation(_message.Message):
     eta_seconds: int
     recommended_next_check_seconds: int
     initiator_pid: int
-    def __init__(self, operation_id: _Optional[str] = ..., scenario: _Optional[str] = ..., variant: _Optional[str] = ..., operation: _Optional[str] = ..., status: _Optional[str] = ..., verdict: _Optional[str] = ..., error: _Optional[str] = ..., current_step: _Optional[str] = ..., dependency_current: _Optional[str] = ..., dependency_index: _Optional[int] = ..., dependency_total: _Optional[int] = ..., started_at: _Optional[str] = ..., finished_at: _Optional[str] = ..., elapsed_seconds: _Optional[int] = ..., steps: _Optional[_Iterable[_Union[ScenarioStartOperationStep, _Mapping]]] = ..., eta_known: _Optional[bool] = ..., eta_seconds: _Optional[int] = ..., recommended_next_check_seconds: _Optional[int] = ..., initiator_pid: _Optional[int] = ...) -> None: ...
+    fence_operation_id: str
+    def __init__(self, operation_id: _Optional[str] = ..., scenario: _Optional[str] = ..., variant: _Optional[str] = ..., operation: _Optional[str] = ..., status: _Optional[str] = ..., verdict: _Optional[str] = ..., error: _Optional[str] = ..., current_step: _Optional[str] = ..., dependency_current: _Optional[str] = ..., dependency_index: _Optional[int] = ..., dependency_total: _Optional[int] = ..., started_at: _Optional[str] = ..., finished_at: _Optional[str] = ..., elapsed_seconds: _Optional[int] = ..., steps: _Optional[_Iterable[_Union[ScenarioStartOperationStep, _Mapping]]] = ..., eta_known: _Optional[bool] = ..., eta_seconds: _Optional[int] = ..., recommended_next_check_seconds: _Optional[int] = ..., initiator_pid: _Optional[int] = ..., fence_operation_id: _Optional[str] = ...) -> None: ...
 
 class ScenarioStartOperationStep(_message.Message):
-    __slots__ = ("name", "status", "started_at", "ended_at")
+    __slots__ = ("name", "status", "started_at", "ended_at", "evidence")
+    class EvidenceEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     NAME_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
     ENDED_AT_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     name: str
     status: str
     started_at: str
     ended_at: str
-    def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., started_at: _Optional[str] = ..., ended_at: _Optional[str] = ...) -> None: ...
+    evidence: _containers.ScalarMap[str, str]
+    def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., started_at: _Optional[str] = ..., ended_at: _Optional[str] = ..., evidence: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class ScenarioStatusSingle(_message.Message):
-    __slots__ = ("success", "scenario", "info", "runtime")
+    __slots__ = ("success", "scenario", "info", "runtime", "authentication")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     INFO_FIELD_NUMBER: _ClassVar[int]
     RUNTIME_FIELD_NUMBER: _ClassVar[int]
+    AUTHENTICATION_FIELD_NUMBER: _ClassVar[int]
     success: bool
     scenario: ScenarioStatusItem
     info: ScenarioInfoData
     runtime: ScenarioRuntimeData
-    def __init__(self, success: _Optional[bool] = ..., scenario: _Optional[_Union[ScenarioStatusItem, _Mapping]] = ..., info: _Optional[_Union[ScenarioInfoData, _Mapping]] = ..., runtime: _Optional[_Union[ScenarioRuntimeData, _Mapping]] = ...) -> None: ...
+    authentication: ScenarioAuthenticationStatus
+    def __init__(self, success: _Optional[bool] = ..., scenario: _Optional[_Union[ScenarioStatusItem, _Mapping]] = ..., info: _Optional[_Union[ScenarioInfoData, _Mapping]] = ..., runtime: _Optional[_Union[ScenarioRuntimeData, _Mapping]] = ..., authentication: _Optional[_Union[ScenarioAuthenticationStatus, _Mapping]] = ...) -> None: ...
+
+class ScenarioAuthenticationStatus(_message.Message):
+    __slots__ = ("profile", "supported_modes", "configured_mode", "configured_source", "processes", "mismatch", "risk", "refused")
+    PROFILE_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTED_MODES_FIELD_NUMBER: _ClassVar[int]
+    CONFIGURED_MODE_FIELD_NUMBER: _ClassVar[int]
+    CONFIGURED_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    PROCESSES_FIELD_NUMBER: _ClassVar[int]
+    MISMATCH_FIELD_NUMBER: _ClassVar[int]
+    RISK_FIELD_NUMBER: _ClassVar[int]
+    REFUSED_FIELD_NUMBER: _ClassVar[int]
+    profile: str
+    supported_modes: _containers.RepeatedScalarFieldContainer[str]
+    configured_mode: str
+    configured_source: str
+    processes: _containers.RepeatedCompositeFieldContainer[ScenarioProcessAuthentication]
+    mismatch: bool
+    risk: str
+    refused: str
+    def __init__(self, profile: _Optional[str] = ..., supported_modes: _Optional[_Iterable[str]] = ..., configured_mode: _Optional[str] = ..., configured_source: _Optional[str] = ..., processes: _Optional[_Iterable[_Union[ScenarioProcessAuthentication, _Mapping]]] = ..., mismatch: _Optional[bool] = ..., risk: _Optional[str] = ..., refused: _Optional[str] = ...) -> None: ...
+
+class ScenarioProcessAuthentication(_message.Message):
+    __slots__ = ("step", "pid", "mode", "source", "providers", "error")
+    STEP_FIELD_NUMBER: _ClassVar[int]
+    PID_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    PROVIDERS_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    step: str
+    pid: int
+    mode: str
+    source: str
+    providers: str
+    error: str
+    def __init__(self, step: _Optional[str] = ..., pid: _Optional[int] = ..., mode: _Optional[str] = ..., source: _Optional[str] = ..., providers: _Optional[str] = ..., error: _Optional[str] = ...) -> None: ...
 
 class ScenarioInfoResponse(_message.Message):
     __slots__ = ("success", "scenario", "runtime")
@@ -251,7 +306,7 @@ class ScenarioGenerationDesign(_message.Message):
     def __init__(self, id: _Optional[str] = ..., version: _Optional[str] = ..., adapter: _Optional[str] = ...) -> None: ...
 
 class ScenarioRuntimeData(_message.Message):
-    __slots__ = ("status", "processes", "runtime", "started_at", "ports", "process_records", "list_ports", "health_error", "build_identity")
+    __slots__ = ("status", "processes", "runtime", "started_at", "ports", "process_records", "list_ports", "health_error", "build_identity", "runtime_release_id", "runtime_release_operation_id", "start_operation_id")
     class PortsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -268,6 +323,9 @@ class ScenarioRuntimeData(_message.Message):
     LIST_PORTS_FIELD_NUMBER: _ClassVar[int]
     HEALTH_ERROR_FIELD_NUMBER: _ClassVar[int]
     BUILD_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_RELEASE_ID_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_RELEASE_OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    START_OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
     status: str
     processes: int
     runtime: str
@@ -277,7 +335,10 @@ class ScenarioRuntimeData(_message.Message):
     list_ports: _containers.RepeatedCompositeFieldContainer[_scenario_list_pb2.ScenarioPort]
     health_error: str
     build_identity: str
-    def __init__(self, status: _Optional[str] = ..., processes: _Optional[int] = ..., runtime: _Optional[str] = ..., started_at: _Optional[str] = ..., ports: _Optional[_Mapping[str, int]] = ..., process_records: _Optional[_Iterable[_Union[ScenarioProcessRecord, _Mapping]]] = ..., list_ports: _Optional[_Iterable[_Union[_scenario_list_pb2.ScenarioPort, _Mapping]]] = ..., health_error: _Optional[str] = ..., build_identity: _Optional[str] = ...) -> None: ...
+    runtime_release_id: str
+    runtime_release_operation_id: str
+    start_operation_id: str
+    def __init__(self, status: _Optional[str] = ..., processes: _Optional[int] = ..., runtime: _Optional[str] = ..., started_at: _Optional[str] = ..., ports: _Optional[_Mapping[str, int]] = ..., process_records: _Optional[_Iterable[_Union[ScenarioProcessRecord, _Mapping]]] = ..., list_ports: _Optional[_Iterable[_Union[_scenario_list_pb2.ScenarioPort, _Mapping]]] = ..., health_error: _Optional[str] = ..., build_identity: _Optional[str] = ..., runtime_release_id: _Optional[str] = ..., runtime_release_operation_id: _Optional[str] = ..., start_operation_id: _Optional[str] = ...) -> None: ...
 
 class ScenarioProcessRecord(_message.Message):
     __slots__ = ("pid", "pgid", "process_id", "phase", "scenario", "step", "command", "working_dir", "log_file", "port", "started_at", "status")

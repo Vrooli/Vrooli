@@ -12,3 +12,13 @@ message Book {
   string beneficiary_identity = 3;
   google.protobuf.Timestamp created_at = 4;
 }
+
+message CreateBookRequest { Book book = 1; }
+message CreateBookResponse { Book book = 1; }
+message GetBookRequest { string book_id = 1; }
+message GetBookResponse { Book book = 1; }
+
+service BookAdminService {
+  rpc CreateBook(CreateBookRequest) returns (CreateBookResponse);
+  rpc GetBook(GetBookRequest) returns (GetBookResponse);
+}

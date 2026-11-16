@@ -2,6 +2,7 @@ syntax = "proto3";
 package vrooli.treasury.v1.funding;
 
 import "google/protobuf/timestamp.proto";
+import "treasury/v1/funding/funding.proto";
 import "money-ledger/v1/ingest/ingest.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/funding;funding_v1";
@@ -25,6 +26,8 @@ message ProvisionBudgetWalletRequest {
   // Optional mandate creates or rotates a mandate-scoped derived session key.
   string mandate_id = 5;
   bool rotate_session = 6;
+  // Required for rotate_session; identical retries return the same generation.
+  string rotation_idempotency_key = 7;
 }
 message GetBudgetWalletRequest {
   string budget_id = 1;
@@ -32,8 +35,6 @@ message GetBudgetWalletRequest {
   string mandate_id = 2;
 }
 message BudgetWalletResponse { BudgetWallet wallet = 1; }
-message RevokeMandateSessionRequest { string mandate_id = 1; }
-message RevokeMandateSessionResponse { bool revoked = 1; }
 
 message FundingIntent {
   string id = 1;
@@ -48,6 +49,13 @@ message FundingIntent {
   google.protobuf.Timestamp updated_at = 10;
   string notification_state = 11;
   string last_error = 12;
+  // Funding path comes from Treasury server configuration, never the browser.
+  // `base-mainnet` is emitted only after explicit operator address approval.
+  string funding_mode = 13;
+  // Exact operator-declared fiat valuation used by Coinbase Base Pay, separate
+  // from token atoms. The UI offers Base Pay only when the two values match.
+  int64 payment_value_minor = 14;
+  string payment_currency = 15;
 }
 message CreateFundingIntentRequest {
   string id = 1;
@@ -109,3 +117,24 @@ message Withdrawal {
   string last_error = 7;
 }
 message WithdrawalResponse { Withdrawal withdrawal = 1; }
+
+service FundingAdminService {
+  rpc CreateFundingIntent(CreateFundingIntentRequest) returns (FundingIntentResponse);
+  rpc GetFundingIntent(FundingIntentRequest) returns (FundingIntentResponse);
+  rpc ConfirmFundingTransfer(ConfirmFundingTransferRequest) returns (FundingIntentResponse);
+  rpc ListFundingIntents(ListFundingIntentsRequest) returns (ListFundingIntentsResponse);
+  rpc ProvisionBudgetWallet(ProvisionBudgetWalletRequest) returns (BudgetWalletResponse);
+  rpc GetBudgetWallet(GetBudgetWalletRequest) returns (BudgetWalletResponse);
+  rpc SetWithdrawalDestination(SetWithdrawalDestinationRequest) returns (WithdrawalDestinationResponse);
+  rpc PreviewWithdrawal(PreviewWithdrawalRequest) returns (WithdrawalQuoteResponse);
+  rpc ExecuteWithdrawal(ExecuteWithdrawalRequest) returns (WithdrawalResponse);
+  rpc GetWithdrawal(GetWithdrawalRequest) returns (WithdrawalResponse);
+  rpc SubmitReceiptFunding(SubmitReceiptFundingRequest) returns (ReceiptFundingResponse);
+  rpc GetReceiptFunding(GetReceiptFundingRequest) returns (ReceiptFundingResponse);
+}
+
+// The agent-facing wallet read is kept separate from policy-mutating funding
+// operations and verifies the caller's run before exposing a mandate session.
+service FundingAgentService {
+  rpc GetBudgetWallet(GetBudgetWalletRequest) returns (BudgetWalletResponse);
+}

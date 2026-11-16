@@ -5,7 +5,6 @@ Behavioral claims are current only within the specific checks in the register. O
 This document records supported delivery tiers, packaging assumptions,
 runtime dependencies, and deployment readiness.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+
+	"react-component-library/internal/sqliterows"
 )
 
 // sqliteRepository is the production Repository impl. Unexported so
@@ -66,20 +68,7 @@ func (s *sqliteRepository) ListForComponent(ctx context.Context, componentID str
 	if cid == "" {
 		return nil, fmt.Errorf("list deps: component_id required")
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT component_id, library_id, version, dep_name, version_range, kind FROM component_dep_declarations WHERE component_id = ? ORDER BY version DESC, dep_name`, cid)
-	if err != nil {
-		return nil, fmt.Errorf("query deps: %w", err)
-	}
-	defer rows.Close()
-	var out []Declaration
-	for rows.Next() {
-		var d Declaration
-		if err := rows.Scan(&d.ComponentID, &d.LibraryID, &d.Version, &d.DepName, &d.VersionRange, &d.Kind); err != nil {
-			return nil, fmt.Errorf("scan dep: %w", err)
-		}
-		out = append(out, d)
-	}
-	return out, rows.Err()
+	return s.list(ctx, `SELECT component_id, library_id, version, dep_name, version_range, kind FROM component_dep_declarations WHERE component_id = ? ORDER BY version DESC, dep_name`, cid)
 }
 
 func (s *sqliteRepository) ListForComponentVersion(ctx context.Context, componentID, version string) ([]Declaration, error) {
@@ -91,20 +80,21 @@ func (s *sqliteRepository) ListForComponentVersion(ctx context.Context, componen
 	if v == "" {
 		return s.ListForComponent(ctx, cid)
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT component_id, library_id, version, dep_name, version_range, kind FROM component_dep_declarations WHERE component_id = ? AND version = ? ORDER BY dep_name`, cid, v)
-	if err != nil {
-		return nil, fmt.Errorf("query deps: %w", err)
-	}
-	defer rows.Close()
-	var out []Declaration
-	for rows.Next() {
-		var d Declaration
-		if err := rows.Scan(&d.ComponentID, &d.LibraryID, &d.Version, &d.DepName, &d.VersionRange, &d.Kind); err != nil {
-			return nil, fmt.Errorf("scan dep: %w", err)
+	return s.list(ctx, `SELECT component_id, library_id, version, dep_name, version_range, kind FROM component_dep_declarations WHERE component_id = ? AND version = ? ORDER BY dep_name`, cid, v)
+}
+
+func (s *sqliteRepository) list(ctx context.Context, query string, args ...any) ([]Declaration, error) {
+	declarations, err := sqliterows.Collect(ctx, s.db, query, args, false, func(row sqliterows.Scanner) (Declaration, error) {
+		var declaration Declaration
+		if err := row.Scan(&declaration.ComponentID, &declaration.LibraryID, &declaration.Version, &declaration.DepName, &declaration.VersionRange, &declaration.Kind); err != nil {
+			return Declaration{}, fmt.Errorf("scan dep: %w", err)
 		}
-		out = append(out, d)
+		return declaration, nil
+	}, sqliterows.ErrorContext{Query: "query deps"})
+	if err != nil {
+		return nil, err
 	}
-	return out, rows.Err()
+	return declarations, nil
 }
 
 func (s *sqliteRepository) DeleteForComponent(ctx context.Context, componentID string) error {

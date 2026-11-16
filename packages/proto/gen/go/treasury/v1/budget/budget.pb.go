@@ -146,44 +146,27 @@ func (x *Budget) GetPeriodSeconds() int64 {
 	return 0
 }
 
-type Headroom struct {
-	state                  protoimpl.MessageState `protogen:"open.v1"`
-	BudgetId               string                 `protobuf:"bytes,1,opt,name=budget_id,json=budgetId,proto3" json:"budget_id,omitempty"`
-	BookId                 string                 `protobuf:"bytes,2,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
-	Currency               string                 `protobuf:"bytes,3,opt,name=currency,proto3" json:"currency,omitempty"`
-	TotalCapMinor          int64                  `protobuf:"varint,4,opt,name=total_cap_minor,json=totalCapMinor,proto3" json:"total_cap_minor,omitempty"`
-	TotalUsedMinor         int64                  `protobuf:"varint,5,opt,name=total_used_minor,json=totalUsedMinor,proto3" json:"total_used_minor,omitempty"`
-	TotalRemainingMinor    int64                  `protobuf:"varint,6,opt,name=total_remaining_minor,json=totalRemainingMinor,proto3" json:"total_remaining_minor,omitempty"`
-	PeriodicCapMinor       int64                  `protobuf:"varint,7,opt,name=periodic_cap_minor,json=periodicCapMinor,proto3" json:"periodic_cap_minor,omitempty"`
-	PeriodUsedMinor        int64                  `protobuf:"varint,8,opt,name=period_used_minor,json=periodUsedMinor,proto3" json:"period_used_minor,omitempty"`
-	PeriodRemainingMinor   int64                  `protobuf:"varint,9,opt,name=period_remaining_minor,json=periodRemainingMinor,proto3" json:"period_remaining_minor,omitempty"`
-	PerTransactionCapMinor int64                  `protobuf:"varint,10,opt,name=per_transaction_cap_minor,json=perTransactionCapMinor,proto3" json:"per_transaction_cap_minor,omitempty"`
-	AvailableMinor         int64                  `protobuf:"varint,11,opt,name=available_minor,json=availableMinor,proto3" json:"available_minor,omitempty"`
-	PeriodStartedAt        *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=period_started_at,json=periodStartedAt,proto3" json:"period_started_at,omitempty"`
-	ComputedAt             *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
-	FundingRequired        bool                   `protobuf:"varint,14,opt,name=funding_required,json=fundingRequired,proto3" json:"funding_required,omitempty"`
-	FundingCreditedMinor   int64                  `protobuf:"varint,15,opt,name=funding_credited_minor,json=fundingCreditedMinor,proto3" json:"funding_credited_minor,omitempty"`
-	FundingRemainingMinor  int64                  `protobuf:"varint,16,opt,name=funding_remaining_minor,json=fundingRemainingMinor,proto3" json:"funding_remaining_minor,omitempty"`
-	FundingAtomicAmount    string                 `protobuf:"bytes,17,opt,name=funding_atomic_amount,json=fundingAtomicAmount,proto3" json:"funding_atomic_amount,omitempty"`
-	FundingAssetId         string                 `protobuf:"bytes,18,opt,name=funding_asset_id,json=fundingAssetId,proto3" json:"funding_asset_id,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+type SetBudgetCapsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Budget        *Budget                `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Headroom) Reset() {
-	*x = Headroom{}
+func (x *SetBudgetCapsRequest) Reset() {
+	*x = SetBudgetCapsRequest{}
 	mi := &file_treasury_v1_budget_budget_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Headroom) String() string {
+func (x *SetBudgetCapsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Headroom) ProtoMessage() {}
+func (*SetBudgetCapsRequest) ProtoMessage() {}
 
-func (x *Headroom) ProtoReflect() protoreflect.Message {
+func (x *SetBudgetCapsRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_treasury_v1_budget_budget_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -195,135 +178,804 @@ func (x *Headroom) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Headroom.ProtoReflect.Descriptor instead.
-func (*Headroom) Descriptor() ([]byte, []int) {
+// Deprecated: Use SetBudgetCapsRequest.ProtoReflect.Descriptor instead.
+func (*SetBudgetCapsRequest) Descriptor() ([]byte, []int) {
 	return file_treasury_v1_budget_budget_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *Headroom) GetBudgetId() string {
+func (x *SetBudgetCapsRequest) GetBudget() *Budget {
+	if x != nil {
+		return x.Budget
+	}
+	return nil
+}
+
+type SetBudgetCapsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Budget        *Budget                `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetBudgetCapsResponse) Reset() {
+	*x = SetBudgetCapsResponse{}
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetBudgetCapsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetBudgetCapsResponse) ProtoMessage() {}
+
+func (x *SetBudgetCapsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetBudgetCapsResponse.ProtoReflect.Descriptor instead.
+func (*SetBudgetCapsResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_budget_budget_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SetBudgetCapsResponse) GetBudget() *Budget {
+	if x != nil {
+		return x.Budget
+	}
+	return nil
+}
+
+type SetGatingRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	BudgetId         string                 `protobuf:"bytes,1,opt,name=budget_id,json=budgetId,proto3" json:"budget_id,omitempty"`
+	RequiresApproval bool                   `protobuf:"varint,2,opt,name=requires_approval,json=requiresApproval,proto3" json:"requires_approval,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *SetGatingRequest) Reset() {
+	*x = SetGatingRequest{}
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetGatingRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetGatingRequest) ProtoMessage() {}
+
+func (x *SetGatingRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetGatingRequest.ProtoReflect.Descriptor instead.
+func (*SetGatingRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_budget_budget_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SetGatingRequest) GetBudgetId() string {
 	if x != nil {
 		return x.BudgetId
 	}
 	return ""
 }
 
-func (x *Headroom) GetBookId() string {
+func (x *SetGatingRequest) GetRequiresApproval() bool {
+	if x != nil {
+		return x.RequiresApproval
+	}
+	return false
+}
+
+type SetGatingResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Budget        *Budget                `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetGatingResponse) Reset() {
+	*x = SetGatingResponse{}
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetGatingResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetGatingResponse) ProtoMessage() {}
+
+func (x *SetGatingResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetGatingResponse.ProtoReflect.Descriptor instead.
+func (*SetGatingResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_budget_budget_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SetGatingResponse) GetBudget() *Budget {
+	if x != nil {
+		return x.Budget
+	}
+	return nil
+}
+
+type FreezeBudgetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BudgetId      string                 `protobuf:"bytes,1,opt,name=budget_id,json=budgetId,proto3" json:"budget_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FreezeBudgetRequest) Reset() {
+	*x = FreezeBudgetRequest{}
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FreezeBudgetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FreezeBudgetRequest) ProtoMessage() {}
+
+func (x *FreezeBudgetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FreezeBudgetRequest.ProtoReflect.Descriptor instead.
+func (*FreezeBudgetRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_budget_budget_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *FreezeBudgetRequest) GetBudgetId() string {
+	if x != nil {
+		return x.BudgetId
+	}
+	return ""
+}
+
+type FreezeBudgetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Budget        *Budget                `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FreezeBudgetResponse) Reset() {
+	*x = FreezeBudgetResponse{}
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FreezeBudgetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FreezeBudgetResponse) ProtoMessage() {}
+
+func (x *FreezeBudgetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FreezeBudgetResponse.ProtoReflect.Descriptor instead.
+func (*FreezeBudgetResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_budget_budget_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *FreezeBudgetResponse) GetBudget() *Budget {
+	if x != nil {
+		return x.Budget
+	}
+	return nil
+}
+
+type UnfreezeBudgetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BudgetId      string                 `protobuf:"bytes,1,opt,name=budget_id,json=budgetId,proto3" json:"budget_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnfreezeBudgetRequest) Reset() {
+	*x = UnfreezeBudgetRequest{}
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnfreezeBudgetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnfreezeBudgetRequest) ProtoMessage() {}
+
+func (x *UnfreezeBudgetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnfreezeBudgetRequest.ProtoReflect.Descriptor instead.
+func (*UnfreezeBudgetRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_budget_budget_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *UnfreezeBudgetRequest) GetBudgetId() string {
+	if x != nil {
+		return x.BudgetId
+	}
+	return ""
+}
+
+type UnfreezeBudgetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Budget        *Budget                `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnfreezeBudgetResponse) Reset() {
+	*x = UnfreezeBudgetResponse{}
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnfreezeBudgetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnfreezeBudgetResponse) ProtoMessage() {}
+
+func (x *UnfreezeBudgetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnfreezeBudgetResponse.ProtoReflect.Descriptor instead.
+func (*UnfreezeBudgetResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_budget_budget_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *UnfreezeBudgetResponse) GetBudget() *Budget {
+	if x != nil {
+		return x.Budget
+	}
+	return nil
+}
+
+type FreezeBookRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FreezeBookRequest) Reset() {
+	*x = FreezeBookRequest{}
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FreezeBookRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FreezeBookRequest) ProtoMessage() {}
+
+func (x *FreezeBookRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FreezeBookRequest.ProtoReflect.Descriptor instead.
+func (*FreezeBookRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_budget_budget_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *FreezeBookRequest) GetBookId() string {
 	if x != nil {
 		return x.BookId
 	}
 	return ""
 }
 
-func (x *Headroom) GetCurrency() string {
+type FreezeBookResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	Frozen        bool                   `protobuf:"varint,2,opt,name=frozen,proto3" json:"frozen,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FreezeBookResponse) Reset() {
+	*x = FreezeBookResponse{}
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FreezeBookResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FreezeBookResponse) ProtoMessage() {}
+
+func (x *FreezeBookResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[10]
 	if x != nil {
-		return x.Currency
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FreezeBookResponse.ProtoReflect.Descriptor instead.
+func (*FreezeBookResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_budget_budget_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *FreezeBookResponse) GetBookId() string {
+	if x != nil {
+		return x.BookId
 	}
 	return ""
 }
 
-func (x *Headroom) GetTotalCapMinor() int64 {
+func (x *FreezeBookResponse) GetFrozen() bool {
 	if x != nil {
-		return x.TotalCapMinor
-	}
-	return 0
-}
-
-func (x *Headroom) GetTotalUsedMinor() int64 {
-	if x != nil {
-		return x.TotalUsedMinor
-	}
-	return 0
-}
-
-func (x *Headroom) GetTotalRemainingMinor() int64 {
-	if x != nil {
-		return x.TotalRemainingMinor
-	}
-	return 0
-}
-
-func (x *Headroom) GetPeriodicCapMinor() int64 {
-	if x != nil {
-		return x.PeriodicCapMinor
-	}
-	return 0
-}
-
-func (x *Headroom) GetPeriodUsedMinor() int64 {
-	if x != nil {
-		return x.PeriodUsedMinor
-	}
-	return 0
-}
-
-func (x *Headroom) GetPeriodRemainingMinor() int64 {
-	if x != nil {
-		return x.PeriodRemainingMinor
-	}
-	return 0
-}
-
-func (x *Headroom) GetPerTransactionCapMinor() int64 {
-	if x != nil {
-		return x.PerTransactionCapMinor
-	}
-	return 0
-}
-
-func (x *Headroom) GetAvailableMinor() int64 {
-	if x != nil {
-		return x.AvailableMinor
-	}
-	return 0
-}
-
-func (x *Headroom) GetPeriodStartedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.PeriodStartedAt
-	}
-	return nil
-}
-
-func (x *Headroom) GetComputedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ComputedAt
-	}
-	return nil
-}
-
-func (x *Headroom) GetFundingRequired() bool {
-	if x != nil {
-		return x.FundingRequired
+		return x.Frozen
 	}
 	return false
 }
 
-func (x *Headroom) GetFundingCreditedMinor() int64 {
+func (x *FreezeBookResponse) GetUpdatedAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.FundingCreditedMinor
+		return x.UpdatedAt
 	}
-	return 0
+	return nil
 }
 
-func (x *Headroom) GetFundingRemainingMinor() int64 {
-	if x != nil {
-		return x.FundingRemainingMinor
-	}
-	return 0
+type UnfreezeBookRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Headroom) GetFundingAtomicAmount() string {
+func (x *UnfreezeBookRequest) Reset() {
+	*x = UnfreezeBookRequest{}
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnfreezeBookRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnfreezeBookRequest) ProtoMessage() {}
+
+func (x *UnfreezeBookRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[11]
 	if x != nil {
-		return x.FundingAtomicAmount
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnfreezeBookRequest.ProtoReflect.Descriptor instead.
+func (*UnfreezeBookRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_budget_budget_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *UnfreezeBookRequest) GetBookId() string {
+	if x != nil {
+		return x.BookId
 	}
 	return ""
 }
 
-func (x *Headroom) GetFundingAssetId() string {
+type UnfreezeBookResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	Frozen        bool                   `protobuf:"varint,2,opt,name=frozen,proto3" json:"frozen,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnfreezeBookResponse) Reset() {
+	*x = UnfreezeBookResponse{}
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnfreezeBookResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnfreezeBookResponse) ProtoMessage() {}
+
+func (x *UnfreezeBookResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[12]
 	if x != nil {
-		return x.FundingAssetId
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnfreezeBookResponse.ProtoReflect.Descriptor instead.
+func (*UnfreezeBookResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_budget_budget_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *UnfreezeBookResponse) GetBookId() string {
+	if x != nil {
+		return x.BookId
 	}
 	return ""
+}
+
+func (x *UnfreezeBookResponse) GetFrozen() bool {
+	if x != nil {
+		return x.Frozen
+	}
+	return false
+}
+
+func (x *UnfreezeBookResponse) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+type FreezeAllRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FreezeAllRequest) Reset() {
+	*x = FreezeAllRequest{}
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FreezeAllRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FreezeAllRequest) ProtoMessage() {}
+
+func (x *FreezeAllRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FreezeAllRequest.ProtoReflect.Descriptor instead.
+func (*FreezeAllRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_budget_budget_proto_rawDescGZIP(), []int{13}
+}
+
+type FreezeAllResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Frozen        bool                   `protobuf:"varint,1,opt,name=frozen,proto3" json:"frozen,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FreezeAllResponse) Reset() {
+	*x = FreezeAllResponse{}
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FreezeAllResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FreezeAllResponse) ProtoMessage() {}
+
+func (x *FreezeAllResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FreezeAllResponse.ProtoReflect.Descriptor instead.
+func (*FreezeAllResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_budget_budget_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *FreezeAllResponse) GetFrozen() bool {
+	if x != nil {
+		return x.Frozen
+	}
+	return false
+}
+
+func (x *FreezeAllResponse) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+type GetFreezeStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetFreezeStatusRequest) Reset() {
+	*x = GetFreezeStatusRequest{}
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetFreezeStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFreezeStatusRequest) ProtoMessage() {}
+
+func (x *GetFreezeStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFreezeStatusRequest.ProtoReflect.Descriptor instead.
+func (*GetFreezeStatusRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_budget_budget_proto_rawDescGZIP(), []int{15}
+}
+
+type GetFreezeStatusResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Frozen        bool                   `protobuf:"varint,1,opt,name=frozen,proto3" json:"frozen,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetFreezeStatusResponse) Reset() {
+	*x = GetFreezeStatusResponse{}
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetFreezeStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFreezeStatusResponse) ProtoMessage() {}
+
+func (x *GetFreezeStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFreezeStatusResponse.ProtoReflect.Descriptor instead.
+func (*GetFreezeStatusResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_budget_budget_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetFreezeStatusResponse) GetFrozen() bool {
+	if x != nil {
+		return x.Frozen
+	}
+	return false
+}
+
+func (x *GetFreezeStatusResponse) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+type UnfreezeAllRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnfreezeAllRequest) Reset() {
+	*x = UnfreezeAllRequest{}
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnfreezeAllRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnfreezeAllRequest) ProtoMessage() {}
+
+func (x *UnfreezeAllRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnfreezeAllRequest.ProtoReflect.Descriptor instead.
+func (*UnfreezeAllRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_budget_budget_proto_rawDescGZIP(), []int{17}
+}
+
+type UnfreezeAllResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Frozen        bool                   `protobuf:"varint,1,opt,name=frozen,proto3" json:"frozen,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnfreezeAllResponse) Reset() {
+	*x = UnfreezeAllResponse{}
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnfreezeAllResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnfreezeAllResponse) ProtoMessage() {}
+
+func (x *UnfreezeAllResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_budget_budget_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnfreezeAllResponse.ProtoReflect.Descriptor instead.
+func (*UnfreezeAllResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_budget_budget_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *UnfreezeAllResponse) GetFrozen() bool {
+	if x != nil {
+		return x.Frozen
+	}
+	return false
+}
+
+func (x *UnfreezeAllResponse) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
 }
 
 var File_treasury_v1_budget_budget_proto protoreflect.FileDescriptor
@@ -343,28 +995,64 @@ const file_treasury_v1_budget_budget_proto_rawDesc = "" +
 	"\x11requires_approval\x18\t \x01(\bR\x10requiresApproval\x12\x16\n" +
 	"\x06frozen\x18\n" +
 	" \x01(\bR\x06frozen\x12%\n" +
-	"\x0eperiod_seconds\x18\v \x01(\x03R\rperiodSeconds\"\xd2\x06\n" +
-	"\bHeadroom\x12\x1b\n" +
-	"\tbudget_id\x18\x01 \x01(\tR\bbudgetId\x12\x17\n" +
-	"\abook_id\x18\x02 \x01(\tR\x06bookId\x12\x1a\n" +
-	"\bcurrency\x18\x03 \x01(\tR\bcurrency\x12&\n" +
-	"\x0ftotal_cap_minor\x18\x04 \x01(\x03R\rtotalCapMinor\x12(\n" +
-	"\x10total_used_minor\x18\x05 \x01(\x03R\x0etotalUsedMinor\x122\n" +
-	"\x15total_remaining_minor\x18\x06 \x01(\x03R\x13totalRemainingMinor\x12,\n" +
-	"\x12periodic_cap_minor\x18\a \x01(\x03R\x10periodicCapMinor\x12*\n" +
-	"\x11period_used_minor\x18\b \x01(\x03R\x0fperiodUsedMinor\x124\n" +
-	"\x16period_remaining_minor\x18\t \x01(\x03R\x14periodRemainingMinor\x129\n" +
-	"\x19per_transaction_cap_minor\x18\n" +
-	" \x01(\x03R\x16perTransactionCapMinor\x12'\n" +
-	"\x0favailable_minor\x18\v \x01(\x03R\x0eavailableMinor\x12F\n" +
-	"\x11period_started_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\x0fperiodStartedAt\x12;\n" +
-	"\vcomputed_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"computedAt\x12)\n" +
-	"\x10funding_required\x18\x0e \x01(\bR\x0ffundingRequired\x124\n" +
-	"\x16funding_credited_minor\x18\x0f \x01(\x03R\x14fundingCreditedMinor\x126\n" +
-	"\x17funding_remaining_minor\x18\x10 \x01(\x03R\x15fundingRemainingMinor\x122\n" +
-	"\x15funding_atomic_amount\x18\x11 \x01(\tR\x13fundingAtomicAmount\x12(\n" +
-	"\x10funding_asset_id\x18\x12 \x01(\tR\x0efundingAssetIdBMZKgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/budget;budget_v1b\x06proto3"
+	"\x0eperiod_seconds\x18\v \x01(\x03R\rperiodSeconds\"Q\n" +
+	"\x14SetBudgetCapsRequest\x129\n" +
+	"\x06budget\x18\x01 \x01(\v2!.vrooli.treasury.v1.budget.BudgetR\x06budget\"R\n" +
+	"\x15SetBudgetCapsResponse\x129\n" +
+	"\x06budget\x18\x01 \x01(\v2!.vrooli.treasury.v1.budget.BudgetR\x06budget\"\\\n" +
+	"\x10SetGatingRequest\x12\x1b\n" +
+	"\tbudget_id\x18\x01 \x01(\tR\bbudgetId\x12+\n" +
+	"\x11requires_approval\x18\x02 \x01(\bR\x10requiresApproval\"N\n" +
+	"\x11SetGatingResponse\x129\n" +
+	"\x06budget\x18\x01 \x01(\v2!.vrooli.treasury.v1.budget.BudgetR\x06budget\"2\n" +
+	"\x13FreezeBudgetRequest\x12\x1b\n" +
+	"\tbudget_id\x18\x01 \x01(\tR\bbudgetId\"Q\n" +
+	"\x14FreezeBudgetResponse\x129\n" +
+	"\x06budget\x18\x01 \x01(\v2!.vrooli.treasury.v1.budget.BudgetR\x06budget\"4\n" +
+	"\x15UnfreezeBudgetRequest\x12\x1b\n" +
+	"\tbudget_id\x18\x01 \x01(\tR\bbudgetId\"S\n" +
+	"\x16UnfreezeBudgetResponse\x129\n" +
+	"\x06budget\x18\x01 \x01(\v2!.vrooli.treasury.v1.budget.BudgetR\x06budget\",\n" +
+	"\x11FreezeBookRequest\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\"\x80\x01\n" +
+	"\x12FreezeBookResponse\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\x12\x16\n" +
+	"\x06frozen\x18\x02 \x01(\bR\x06frozen\x129\n" +
+	"\n" +
+	"updated_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\".\n" +
+	"\x13UnfreezeBookRequest\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\"\x82\x01\n" +
+	"\x14UnfreezeBookResponse\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\x12\x16\n" +
+	"\x06frozen\x18\x02 \x01(\bR\x06frozen\x129\n" +
+	"\n" +
+	"updated_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x12\n" +
+	"\x10FreezeAllRequest\"f\n" +
+	"\x11FreezeAllResponse\x12\x16\n" +
+	"\x06frozen\x18\x01 \x01(\bR\x06frozen\x129\n" +
+	"\n" +
+	"updated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x18\n" +
+	"\x16GetFreezeStatusRequest\"l\n" +
+	"\x17GetFreezeStatusResponse\x12\x16\n" +
+	"\x06frozen\x18\x01 \x01(\bR\x06frozen\x129\n" +
+	"\n" +
+	"updated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x14\n" +
+	"\x12UnfreezeAllRequest\"h\n" +
+	"\x13UnfreezeAllResponse\x12\x16\n" +
+	"\x06frozen\x18\x01 \x01(\bR\x06frozen\x129\n" +
+	"\n" +
+	"updated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt2\x84\b\n" +
+	"\x12BudgetAdminService\x12r\n" +
+	"\rSetBudgetCaps\x12/.vrooli.treasury.v1.budget.SetBudgetCapsRequest\x1a0.vrooli.treasury.v1.budget.SetBudgetCapsResponse\x12f\n" +
+	"\tSetGating\x12+.vrooli.treasury.v1.budget.SetGatingRequest\x1a,.vrooli.treasury.v1.budget.SetGatingResponse\x12o\n" +
+	"\fFreezeBudget\x12..vrooli.treasury.v1.budget.FreezeBudgetRequest\x1a/.vrooli.treasury.v1.budget.FreezeBudgetResponse\x12u\n" +
+	"\x0eUnfreezeBudget\x120.vrooli.treasury.v1.budget.UnfreezeBudgetRequest\x1a1.vrooli.treasury.v1.budget.UnfreezeBudgetResponse\x12i\n" +
+	"\n" +
+	"FreezeBook\x12,.vrooli.treasury.v1.budget.FreezeBookRequest\x1a-.vrooli.treasury.v1.budget.FreezeBookResponse\x12o\n" +
+	"\fUnfreezeBook\x12..vrooli.treasury.v1.budget.UnfreezeBookRequest\x1a/.vrooli.treasury.v1.budget.UnfreezeBookResponse\x12f\n" +
+	"\tFreezeAll\x12+.vrooli.treasury.v1.budget.FreezeAllRequest\x1a,.vrooli.treasury.v1.budget.FreezeAllResponse\x12x\n" +
+	"\x0fGetFreezeStatus\x121.vrooli.treasury.v1.budget.GetFreezeStatusRequest\x1a2.vrooli.treasury.v1.budget.GetFreezeStatusResponse\x12l\n" +
+	"\vUnfreezeAll\x12-.vrooli.treasury.v1.budget.UnfreezeAllRequest\x1a..vrooli.treasury.v1.budget.UnfreezeAllResponseBMZKgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/budget;budget_v1b\x06proto3"
 
 var (
 	file_treasury_v1_budget_budget_proto_rawDescOnce sync.Once
@@ -378,20 +1066,63 @@ func file_treasury_v1_budget_budget_proto_rawDescGZIP() []byte {
 	return file_treasury_v1_budget_budget_proto_rawDescData
 }
 
-var file_treasury_v1_budget_budget_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_treasury_v1_budget_budget_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_treasury_v1_budget_budget_proto_goTypes = []any{
-	(*Budget)(nil),                // 0: vrooli.treasury.v1.budget.Budget
-	(*Headroom)(nil),              // 1: vrooli.treasury.v1.budget.Headroom
-	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
+	(*Budget)(nil),                  // 0: vrooli.treasury.v1.budget.Budget
+	(*SetBudgetCapsRequest)(nil),    // 1: vrooli.treasury.v1.budget.SetBudgetCapsRequest
+	(*SetBudgetCapsResponse)(nil),   // 2: vrooli.treasury.v1.budget.SetBudgetCapsResponse
+	(*SetGatingRequest)(nil),        // 3: vrooli.treasury.v1.budget.SetGatingRequest
+	(*SetGatingResponse)(nil),       // 4: vrooli.treasury.v1.budget.SetGatingResponse
+	(*FreezeBudgetRequest)(nil),     // 5: vrooli.treasury.v1.budget.FreezeBudgetRequest
+	(*FreezeBudgetResponse)(nil),    // 6: vrooli.treasury.v1.budget.FreezeBudgetResponse
+	(*UnfreezeBudgetRequest)(nil),   // 7: vrooli.treasury.v1.budget.UnfreezeBudgetRequest
+	(*UnfreezeBudgetResponse)(nil),  // 8: vrooli.treasury.v1.budget.UnfreezeBudgetResponse
+	(*FreezeBookRequest)(nil),       // 9: vrooli.treasury.v1.budget.FreezeBookRequest
+	(*FreezeBookResponse)(nil),      // 10: vrooli.treasury.v1.budget.FreezeBookResponse
+	(*UnfreezeBookRequest)(nil),     // 11: vrooli.treasury.v1.budget.UnfreezeBookRequest
+	(*UnfreezeBookResponse)(nil),    // 12: vrooli.treasury.v1.budget.UnfreezeBookResponse
+	(*FreezeAllRequest)(nil),        // 13: vrooli.treasury.v1.budget.FreezeAllRequest
+	(*FreezeAllResponse)(nil),       // 14: vrooli.treasury.v1.budget.FreezeAllResponse
+	(*GetFreezeStatusRequest)(nil),  // 15: vrooli.treasury.v1.budget.GetFreezeStatusRequest
+	(*GetFreezeStatusResponse)(nil), // 16: vrooli.treasury.v1.budget.GetFreezeStatusResponse
+	(*UnfreezeAllRequest)(nil),      // 17: vrooli.treasury.v1.budget.UnfreezeAllRequest
+	(*UnfreezeAllResponse)(nil),     // 18: vrooli.treasury.v1.budget.UnfreezeAllResponse
+	(*timestamppb.Timestamp)(nil),   // 19: google.protobuf.Timestamp
 }
 var file_treasury_v1_budget_budget_proto_depIdxs = []int32{
-	2, // 0: vrooli.treasury.v1.budget.Headroom.period_started_at:type_name -> google.protobuf.Timestamp
-	2, // 1: vrooli.treasury.v1.budget.Headroom.computed_at:type_name -> google.protobuf.Timestamp
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	0,  // 0: vrooli.treasury.v1.budget.SetBudgetCapsRequest.budget:type_name -> vrooli.treasury.v1.budget.Budget
+	0,  // 1: vrooli.treasury.v1.budget.SetBudgetCapsResponse.budget:type_name -> vrooli.treasury.v1.budget.Budget
+	0,  // 2: vrooli.treasury.v1.budget.SetGatingResponse.budget:type_name -> vrooli.treasury.v1.budget.Budget
+	0,  // 3: vrooli.treasury.v1.budget.FreezeBudgetResponse.budget:type_name -> vrooli.treasury.v1.budget.Budget
+	0,  // 4: vrooli.treasury.v1.budget.UnfreezeBudgetResponse.budget:type_name -> vrooli.treasury.v1.budget.Budget
+	19, // 5: vrooli.treasury.v1.budget.FreezeBookResponse.updated_at:type_name -> google.protobuf.Timestamp
+	19, // 6: vrooli.treasury.v1.budget.UnfreezeBookResponse.updated_at:type_name -> google.protobuf.Timestamp
+	19, // 7: vrooli.treasury.v1.budget.FreezeAllResponse.updated_at:type_name -> google.protobuf.Timestamp
+	19, // 8: vrooli.treasury.v1.budget.GetFreezeStatusResponse.updated_at:type_name -> google.protobuf.Timestamp
+	19, // 9: vrooli.treasury.v1.budget.UnfreezeAllResponse.updated_at:type_name -> google.protobuf.Timestamp
+	1,  // 10: vrooli.treasury.v1.budget.BudgetAdminService.SetBudgetCaps:input_type -> vrooli.treasury.v1.budget.SetBudgetCapsRequest
+	3,  // 11: vrooli.treasury.v1.budget.BudgetAdminService.SetGating:input_type -> vrooli.treasury.v1.budget.SetGatingRequest
+	5,  // 12: vrooli.treasury.v1.budget.BudgetAdminService.FreezeBudget:input_type -> vrooli.treasury.v1.budget.FreezeBudgetRequest
+	7,  // 13: vrooli.treasury.v1.budget.BudgetAdminService.UnfreezeBudget:input_type -> vrooli.treasury.v1.budget.UnfreezeBudgetRequest
+	9,  // 14: vrooli.treasury.v1.budget.BudgetAdminService.FreezeBook:input_type -> vrooli.treasury.v1.budget.FreezeBookRequest
+	11, // 15: vrooli.treasury.v1.budget.BudgetAdminService.UnfreezeBook:input_type -> vrooli.treasury.v1.budget.UnfreezeBookRequest
+	13, // 16: vrooli.treasury.v1.budget.BudgetAdminService.FreezeAll:input_type -> vrooli.treasury.v1.budget.FreezeAllRequest
+	15, // 17: vrooli.treasury.v1.budget.BudgetAdminService.GetFreezeStatus:input_type -> vrooli.treasury.v1.budget.GetFreezeStatusRequest
+	17, // 18: vrooli.treasury.v1.budget.BudgetAdminService.UnfreezeAll:input_type -> vrooli.treasury.v1.budget.UnfreezeAllRequest
+	2,  // 19: vrooli.treasury.v1.budget.BudgetAdminService.SetBudgetCaps:output_type -> vrooli.treasury.v1.budget.SetBudgetCapsResponse
+	4,  // 20: vrooli.treasury.v1.budget.BudgetAdminService.SetGating:output_type -> vrooli.treasury.v1.budget.SetGatingResponse
+	6,  // 21: vrooli.treasury.v1.budget.BudgetAdminService.FreezeBudget:output_type -> vrooli.treasury.v1.budget.FreezeBudgetResponse
+	8,  // 22: vrooli.treasury.v1.budget.BudgetAdminService.UnfreezeBudget:output_type -> vrooli.treasury.v1.budget.UnfreezeBudgetResponse
+	10, // 23: vrooli.treasury.v1.budget.BudgetAdminService.FreezeBook:output_type -> vrooli.treasury.v1.budget.FreezeBookResponse
+	12, // 24: vrooli.treasury.v1.budget.BudgetAdminService.UnfreezeBook:output_type -> vrooli.treasury.v1.budget.UnfreezeBookResponse
+	14, // 25: vrooli.treasury.v1.budget.BudgetAdminService.FreezeAll:output_type -> vrooli.treasury.v1.budget.FreezeAllResponse
+	16, // 26: vrooli.treasury.v1.budget.BudgetAdminService.GetFreezeStatus:output_type -> vrooli.treasury.v1.budget.GetFreezeStatusResponse
+	18, // 27: vrooli.treasury.v1.budget.BudgetAdminService.UnfreezeAll:output_type -> vrooli.treasury.v1.budget.UnfreezeAllResponse
+	19, // [19:28] is the sub-list for method output_type
+	10, // [10:19] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_treasury_v1_budget_budget_proto_init() }
@@ -405,9 +1136,9 @@ func file_treasury_v1_budget_budget_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_treasury_v1_budget_budget_proto_rawDesc), len(file_treasury_v1_budget_budget_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   19,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_treasury_v1_budget_budget_proto_goTypes,
 		DependencyIndexes: file_treasury_v1_budget_budget_proto_depIdxs,

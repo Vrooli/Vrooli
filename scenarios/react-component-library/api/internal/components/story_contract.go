@@ -238,6 +238,7 @@ type StoryExpectation struct {
 	MinHeight  *int   `json:"minHeight,omitempty"`
 	MaxWidth   *int   `json:"maxWidth,omitempty"`
 	MaxHeight  *int   `json:"maxHeight,omitempty"`
+	SameRow    bool   `json:"sameRow,omitempty"`
 	NoOverflow bool   `json:"noOverflow,omitempty"`
 }
 

@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 
+	"react-component-library/internal/sqliterows"
+
 	"react-component-library/internal/components"
 	"react-component-library/internal/librarywalk"
 )
@@ -208,7 +210,8 @@ func (r *Repository) mirroredLockReferences(ctx context.Context, byVersion map[s
 	if r.db == nil {
 		return nil
 	}
-	rows, err := r.db.QueryContext(ctx, `
+	type mirroredLock struct{ libraryID, version, content string }
+	locks, err := sqliterows.Collect(ctx, r.db, `
 		SELECT c.library_id, v.version, f.content
 		FROM component_version_files f
 		JOIN component_versions v ON v.id = f.version_id
@@ -216,21 +219,23 @@ func (r *Repository) mirroredLockReferences(ctx context.Context, byVersion map[s
 		WHERE f.path = 'dependencies.json'
 		  AND lower(v.presence) = 'evicted'
 		  AND lower(v.status) <> 'retired'
-		ORDER BY c.library_id, v.version`)
+		ORDER BY c.library_id, v.version`, nil, false, func(row sqliterows.Scanner) (mirroredLock, error) {
+		var lock mirroredLock
+		if err := row.Scan(&lock.libraryID, &lock.version, &lock.content); err != nil {
+			return mirroredLock{}, err
+		}
+		return lock, nil
+	}, sqliterows.ErrorContext{Query: "read mirrored version locks"})
 	if err != nil {
 		// A store without the mirror tables simply contributes no cold edges.
 		lowered := strings.ToLower(err.Error())
 		if strings.Contains(lowered, "no such table") || strings.Contains(lowered, "no such column") {
 			return nil
 		}
-		return fmt.Errorf("read mirrored version locks: %w", err)
+		return err
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var owner, ownerVersion, content string
-		if err := rows.Scan(&owner, &ownerVersion, &content); err != nil {
-			return err
-		}
+	for _, mirror := range locks {
+		owner, ownerVersion, content := mirror.libraryID, mirror.version, mirror.content
 		var lock components.VersionLock
 		if err := json.Unmarshal([]byte(content), &lock); err != nil {
 			return fmt.Errorf("decode mirrored version lock for %s@%s: %w", owner, ownerVersion, err)
@@ -248,7 +253,7 @@ func (r *Repository) mirroredLockReferences(ctx context.Context, byVersion map[s
 			return err
 		}
 	}
-	return rows.Err()
+	return nil
 }
 
 // IndexDrift reports assets and versions that exist on disk but carry no row in
@@ -306,7 +311,13 @@ func (r *Repository) IndexDrift(ctx context.Context) (IndexDrift, error) {
 	// reference scans already resolve against. Deriving a directory name from
 	// `library_id` would bake in a naming convention that the store does not
 	// actually guarantee.
-	rows, err := r.db.QueryContext(ctx, `SELECT source_path FROM component_versions`)
+	sourcePaths, err := sqliterows.Collect(ctx, r.db, `SELECT source_path FROM component_versions`, nil, false, func(row sqliterows.Scanner) (string, error) {
+		var sourcePath string
+		if err := row.Scan(&sourcePath); err != nil {
+			return "", err
+		}
+		return sourcePath, nil
+	})
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "no such table") || strings.Contains(strings.ToLower(err.Error()), "no such column") {
 			// A store with no component tables cannot authorise deletion in the
@@ -315,14 +326,9 @@ func (r *Repository) IndexDrift(ctx context.Context) (IndexDrift, error) {
 		}
 		return drift, err
 	}
-	defer rows.Close()
 	indexedAssetDirs := map[string]bool{}
 	indexedVersionDirs := map[string]bool{}
-	for rows.Next() {
-		var sourcePath string
-		if err := rows.Scan(&sourcePath); err != nil {
-			return drift, err
-		}
+	for _, sourcePath := range sourcePaths {
 		if strings.TrimSpace(sourcePath) == "" {
 			continue
 		}
@@ -331,9 +337,6 @@ func (r *Repository) IndexDrift(ctx context.Context) (IndexDrift, error) {
 		if assetDir, ok := assetDirOfVersionDir(versionDir); ok {
 			indexedAssetDirs[assetDir] = true
 		}
-	}
-	if err := rows.Err(); err != nil {
-		return drift, err
 	}
 	for assetDir, versionDirs := range disk {
 		if !indexedAssetDirs[assetDir] {

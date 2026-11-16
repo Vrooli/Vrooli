@@ -36,12 +36,18 @@ const (
 	// DestinationsServiceCreateDestinationProcedure is the fully-qualified name of the
 	// DestinationsService's CreateDestination RPC.
 	DestinationsServiceCreateDestinationProcedure = "/vrooli.data_backup_manager.v1.destinations.DestinationsService/CreateDestination"
+	// DestinationsServiceImportExistingDestinationProcedure is the fully-qualified name of the
+	// DestinationsService's ImportExistingDestination RPC.
+	DestinationsServiceImportExistingDestinationProcedure = "/vrooli.data_backup_manager.v1.destinations.DestinationsService/ImportExistingDestination"
 	// DestinationsServiceGetDestinationProcedure is the fully-qualified name of the
 	// DestinationsService's GetDestination RPC.
 	DestinationsServiceGetDestinationProcedure = "/vrooli.data_backup_manager.v1.destinations.DestinationsService/GetDestination"
 	// DestinationsServiceListDestinationsProcedure is the fully-qualified name of the
 	// DestinationsService's ListDestinations RPC.
 	DestinationsServiceListDestinationsProcedure = "/vrooli.data_backup_manager.v1.destinations.DestinationsService/ListDestinations"
+	// DestinationsServiceListTargetSnapshotsProcedure is the fully-qualified name of the
+	// DestinationsService's ListTargetSnapshots RPC.
+	DestinationsServiceListTargetSnapshotsProcedure = "/vrooli.data_backup_manager.v1.destinations.DestinationsService/ListTargetSnapshots"
 	// DestinationsServiceUpdateDestinationProcedure is the fully-qualified name of the
 	// DestinationsService's UpdateDestination RPC.
 	DestinationsServiceUpdateDestinationProcedure = "/vrooli.data_backup_manager.v1.destinations.DestinationsService/UpdateDestination"
@@ -78,8 +84,14 @@ const (
 // vrooli.data_backup_manager.v1.destinations.DestinationsService service.
 type DestinationsServiceClient interface {
 	CreateDestination(context.Context, *connect.Request[destinations.CreateDestinationRequest]) (*connect.Response[destinations.CreateDestinationResponse], error)
+	// Imports non-secret destination metadata into an empty catalog and connects
+	// to the existing Kopia repository without creating it.
+	ImportExistingDestination(context.Context, *connect.Request[destinations.ImportExistingDestinationRequest]) (*connect.Response[destinations.CreateDestinationResponse], error)
 	GetDestination(context.Context, *connect.Request[destinations.GetDestinationRequest]) (*connect.Response[destinations.GetDestinationResponse], error)
 	ListDestinations(context.Context, *connect.Request[destinations.ListDestinationsRequest]) (*connect.Response[destinations.ListDestinationsResponse], error)
+	// Lists immutable snapshots for one stable DBM target identity. Intended
+	// for consumers that must select the newest recovery state from a repository.
+	ListTargetSnapshots(context.Context, *connect.Request[destinations.ListTargetSnapshotsRequest]) (*connect.Response[destinations.ListTargetSnapshotsResponse], error)
 	UpdateDestination(context.Context, *connect.Request[destinations.UpdateDestinationRequest]) (*connect.Response[destinations.UpdateDestinationResponse], error)
 	BindDestinationRecoveryIdentity(context.Context, *connect.Request[destinations.BindDestinationRecoveryIdentityRequest]) (*connect.Response[destinations.BindDestinationRecoveryIdentityResponse], error)
 	DeleteDestination(context.Context, *connect.Request[destinations.DeleteDestinationRequest]) (*connect.Response[destinations.DeleteDestinationResponse], error)
@@ -110,6 +122,12 @@ func NewDestinationsServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(destinationsServiceMethods.ByName("CreateDestination")),
 			connect.WithClientOptions(opts...),
 		),
+		importExistingDestination: connect.NewClient[destinations.ImportExistingDestinationRequest, destinations.CreateDestinationResponse](
+			httpClient,
+			baseURL+DestinationsServiceImportExistingDestinationProcedure,
+			connect.WithSchema(destinationsServiceMethods.ByName("ImportExistingDestination")),
+			connect.WithClientOptions(opts...),
+		),
 		getDestination: connect.NewClient[destinations.GetDestinationRequest, destinations.GetDestinationResponse](
 			httpClient,
 			baseURL+DestinationsServiceGetDestinationProcedure,
@@ -120,6 +138,12 @@ func NewDestinationsServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+DestinationsServiceListDestinationsProcedure,
 			connect.WithSchema(destinationsServiceMethods.ByName("ListDestinations")),
+			connect.WithClientOptions(opts...),
+		),
+		listTargetSnapshots: connect.NewClient[destinations.ListTargetSnapshotsRequest, destinations.ListTargetSnapshotsResponse](
+			httpClient,
+			baseURL+DestinationsServiceListTargetSnapshotsProcedure,
+			connect.WithSchema(destinationsServiceMethods.ByName("ListTargetSnapshots")),
 			connect.WithClientOptions(opts...),
 		),
 		updateDestination: connect.NewClient[destinations.UpdateDestinationRequest, destinations.UpdateDestinationResponse](
@@ -188,8 +212,10 @@ func NewDestinationsServiceClient(httpClient connect.HTTPClient, baseURL string,
 // destinationsServiceClient implements DestinationsServiceClient.
 type destinationsServiceClient struct {
 	createDestination               *connect.Client[destinations.CreateDestinationRequest, destinations.CreateDestinationResponse]
+	importExistingDestination       *connect.Client[destinations.ImportExistingDestinationRequest, destinations.CreateDestinationResponse]
 	getDestination                  *connect.Client[destinations.GetDestinationRequest, destinations.GetDestinationResponse]
 	listDestinations                *connect.Client[destinations.ListDestinationsRequest, destinations.ListDestinationsResponse]
+	listTargetSnapshots             *connect.Client[destinations.ListTargetSnapshotsRequest, destinations.ListTargetSnapshotsResponse]
 	updateDestination               *connect.Client[destinations.UpdateDestinationRequest, destinations.UpdateDestinationResponse]
 	bindDestinationRecoveryIdentity *connect.Client[destinations.BindDestinationRecoveryIdentityRequest, destinations.BindDestinationRecoveryIdentityResponse]
 	deleteDestination               *connect.Client[destinations.DeleteDestinationRequest, destinations.DeleteDestinationResponse]
@@ -208,6 +234,12 @@ func (c *destinationsServiceClient) CreateDestination(ctx context.Context, req *
 	return c.createDestination.CallUnary(ctx, req)
 }
 
+// ImportExistingDestination calls
+// vrooli.data_backup_manager.v1.destinations.DestinationsService.ImportExistingDestination.
+func (c *destinationsServiceClient) ImportExistingDestination(ctx context.Context, req *connect.Request[destinations.ImportExistingDestinationRequest]) (*connect.Response[destinations.CreateDestinationResponse], error) {
+	return c.importExistingDestination.CallUnary(ctx, req)
+}
+
 // GetDestination calls
 // vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestination.
 func (c *destinationsServiceClient) GetDestination(ctx context.Context, req *connect.Request[destinations.GetDestinationRequest]) (*connect.Response[destinations.GetDestinationResponse], error) {
@@ -218,6 +250,12 @@ func (c *destinationsServiceClient) GetDestination(ctx context.Context, req *con
 // vrooli.data_backup_manager.v1.destinations.DestinationsService.ListDestinations.
 func (c *destinationsServiceClient) ListDestinations(ctx context.Context, req *connect.Request[destinations.ListDestinationsRequest]) (*connect.Response[destinations.ListDestinationsResponse], error) {
 	return c.listDestinations.CallUnary(ctx, req)
+}
+
+// ListTargetSnapshots calls
+// vrooli.data_backup_manager.v1.destinations.DestinationsService.ListTargetSnapshots.
+func (c *destinationsServiceClient) ListTargetSnapshots(ctx context.Context, req *connect.Request[destinations.ListTargetSnapshotsRequest]) (*connect.Response[destinations.ListTargetSnapshotsResponse], error) {
+	return c.listTargetSnapshots.CallUnary(ctx, req)
 }
 
 // UpdateDestination calls
@@ -284,8 +322,14 @@ func (c *destinationsServiceClient) ResumeVolumeRecovery(ctx context.Context, re
 // vrooli.data_backup_manager.v1.destinations.DestinationsService service.
 type DestinationsServiceHandler interface {
 	CreateDestination(context.Context, *connect.Request[destinations.CreateDestinationRequest]) (*connect.Response[destinations.CreateDestinationResponse], error)
+	// Imports non-secret destination metadata into an empty catalog and connects
+	// to the existing Kopia repository without creating it.
+	ImportExistingDestination(context.Context, *connect.Request[destinations.ImportExistingDestinationRequest]) (*connect.Response[destinations.CreateDestinationResponse], error)
 	GetDestination(context.Context, *connect.Request[destinations.GetDestinationRequest]) (*connect.Response[destinations.GetDestinationResponse], error)
 	ListDestinations(context.Context, *connect.Request[destinations.ListDestinationsRequest]) (*connect.Response[destinations.ListDestinationsResponse], error)
+	// Lists immutable snapshots for one stable DBM target identity. Intended
+	// for consumers that must select the newest recovery state from a repository.
+	ListTargetSnapshots(context.Context, *connect.Request[destinations.ListTargetSnapshotsRequest]) (*connect.Response[destinations.ListTargetSnapshotsResponse], error)
 	UpdateDestination(context.Context, *connect.Request[destinations.UpdateDestinationRequest]) (*connect.Response[destinations.UpdateDestinationResponse], error)
 	BindDestinationRecoveryIdentity(context.Context, *connect.Request[destinations.BindDestinationRecoveryIdentityRequest]) (*connect.Response[destinations.BindDestinationRecoveryIdentityResponse], error)
 	DeleteDestination(context.Context, *connect.Request[destinations.DeleteDestinationRequest]) (*connect.Response[destinations.DeleteDestinationResponse], error)
@@ -311,6 +355,12 @@ func NewDestinationsServiceHandler(svc DestinationsServiceHandler, opts ...conne
 		connect.WithSchema(destinationsServiceMethods.ByName("CreateDestination")),
 		connect.WithHandlerOptions(opts...),
 	)
+	destinationsServiceImportExistingDestinationHandler := connect.NewUnaryHandler(
+		DestinationsServiceImportExistingDestinationProcedure,
+		svc.ImportExistingDestination,
+		connect.WithSchema(destinationsServiceMethods.ByName("ImportExistingDestination")),
+		connect.WithHandlerOptions(opts...),
+	)
 	destinationsServiceGetDestinationHandler := connect.NewUnaryHandler(
 		DestinationsServiceGetDestinationProcedure,
 		svc.GetDestination,
@@ -321,6 +371,12 @@ func NewDestinationsServiceHandler(svc DestinationsServiceHandler, opts ...conne
 		DestinationsServiceListDestinationsProcedure,
 		svc.ListDestinations,
 		connect.WithSchema(destinationsServiceMethods.ByName("ListDestinations")),
+		connect.WithHandlerOptions(opts...),
+	)
+	destinationsServiceListTargetSnapshotsHandler := connect.NewUnaryHandler(
+		DestinationsServiceListTargetSnapshotsProcedure,
+		svc.ListTargetSnapshots,
+		connect.WithSchema(destinationsServiceMethods.ByName("ListTargetSnapshots")),
 		connect.WithHandlerOptions(opts...),
 	)
 	destinationsServiceUpdateDestinationHandler := connect.NewUnaryHandler(
@@ -387,10 +443,14 @@ func NewDestinationsServiceHandler(svc DestinationsServiceHandler, opts ...conne
 		switch r.URL.Path {
 		case DestinationsServiceCreateDestinationProcedure:
 			destinationsServiceCreateDestinationHandler.ServeHTTP(w, r)
+		case DestinationsServiceImportExistingDestinationProcedure:
+			destinationsServiceImportExistingDestinationHandler.ServeHTTP(w, r)
 		case DestinationsServiceGetDestinationProcedure:
 			destinationsServiceGetDestinationHandler.ServeHTTP(w, r)
 		case DestinationsServiceListDestinationsProcedure:
 			destinationsServiceListDestinationsHandler.ServeHTTP(w, r)
+		case DestinationsServiceListTargetSnapshotsProcedure:
+			destinationsServiceListTargetSnapshotsHandler.ServeHTTP(w, r)
 		case DestinationsServiceUpdateDestinationProcedure:
 			destinationsServiceUpdateDestinationHandler.ServeHTTP(w, r)
 		case DestinationsServiceBindDestinationRecoveryIdentityProcedure:
@@ -424,12 +484,20 @@ func (UnimplementedDestinationsServiceHandler) CreateDestination(context.Context
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.destinations.DestinationsService.CreateDestination is not implemented"))
 }
 
+func (UnimplementedDestinationsServiceHandler) ImportExistingDestination(context.Context, *connect.Request[destinations.ImportExistingDestinationRequest]) (*connect.Response[destinations.CreateDestinationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.destinations.DestinationsService.ImportExistingDestination is not implemented"))
+}
+
 func (UnimplementedDestinationsServiceHandler) GetDestination(context.Context, *connect.Request[destinations.GetDestinationRequest]) (*connect.Response[destinations.GetDestinationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestination is not implemented"))
 }
 
 func (UnimplementedDestinationsServiceHandler) ListDestinations(context.Context, *connect.Request[destinations.ListDestinationsRequest]) (*connect.Response[destinations.ListDestinationsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.destinations.DestinationsService.ListDestinations is not implemented"))
+}
+
+func (UnimplementedDestinationsServiceHandler) ListTargetSnapshots(context.Context, *connect.Request[destinations.ListTargetSnapshotsRequest]) (*connect.Response[destinations.ListTargetSnapshotsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.destinations.DestinationsService.ListTargetSnapshots is not implemented"))
 }
 
 func (UnimplementedDestinationsServiceHandler) UpdateDestination(context.Context, *connect.Request[destinations.UpdateDestinationRequest]) (*connect.Response[destinations.UpdateDestinationResponse], error) {

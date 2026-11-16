@@ -95,6 +95,20 @@ func TestParseStoryContractAcceptsV4Composition(t *testing.T) {
 	}
 }
 
+func TestParseStoryContractAcceptsSameRowLayoutExpectation(t *testing.T) {
+	contract, diagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 5,
+  "kind": "component",
+  "stories": [{"id":"phone-actions","name":"Phone actions","role":"boundary","expect":[{"kind":"layout","selector":"[data-actions]","sameRow":true}]}]
+}`))
+	if len(diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", diagnostics)
+	}
+	if !contract.Stories[0].Expect[0].SameRow {
+		t.Fatalf("sameRow expectation was not retained: %#v", contract.Stories[0].Expect[0])
+	}
+}
+
 func TestParseStoryContractDefaultsOmittedStoryArgs(t *testing.T) {
 	contract, diagnostics := ParseStoryContract([]byte(`{
   "schemaVersion": 5,
